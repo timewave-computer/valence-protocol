@@ -15,6 +15,7 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     OwnerAction(OwnerMsg),
     SubOwnerAction(SubOwnerMsg),
+    UserAction(UserMsg),
 }
 
 #[cw_serde]
@@ -26,10 +27,13 @@ pub enum OwnerMsg {
 #[cw_serde]
 pub enum SubOwnerMsg {}
 
+#[cw_serde]
+pub enum UserMsg {}
+
 #[cw_ownable_query]
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
-    #[returns(crate::state::Config)]
-    Config {},
+    #[returns(Vec<Addr>)]
+    SubOwners {},
 }

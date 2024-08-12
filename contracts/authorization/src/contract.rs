@@ -1,15 +1,13 @@
-use std::collections::HashSet;
-
 use cosmwasm_std::{
-    entry_point, to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response,
-    StdResult, Storage,
+    entry_point, to_json_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Order,
+    Response, StdResult, Storage,
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner, is_owner};
 
 use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, OwnerMsg, QueryMsg},
-    state::{Config, CONFIG},
+    state::SUB_OWNERS,
 };
 
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -34,18 +32,11 @@ pub fn instantiate(
         ),
     )?;
 
-    let mut config = Config {
-        sub_owners: HashSet::new(),
-    };
     if let Some(sub_owners) = msg.sub_owners {
         for sub_owner in sub_owners {
-            config
-                .sub_owners
-                .insert(deps.api.addr_validate(sub_owner.as_str())?);
+            SUB_OWNERS.save(deps.storage, sub_owner, &Empty {})?;
         }
     }
-
-    CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new().add_attribute("method", "instantiate_authorization"))
 }
@@ -67,11 +58,10 @@ pub fn execute(
             }
         }
         ExecuteMsg::SubOwnerAction(sub_owner_msg) => {
-            assert_owner_or_subowner(deps.storage, &info.sender)?;
-            match sub_owner_msg {
-                // SubOwnerMsg::Execute { contract_addr, msg } => todo!(),
-            }
+            assert_owner_or_subowner(deps.storage, info.sender)?;
+            match sub_owner_msg {}
         }
+        ExecuteMsg::UserAction(_) => todo!(),
     }
 }
 
@@ -86,9 +76,7 @@ fn update_ownership(
 }
 
 fn add_sub_owner(deps: DepsMut, sub_owner: Addr) -> Result<Response, ContractError> {
-    let mut config = CONFIG.load(deps.storage)?;
-    config.sub_owners.insert(sub_owner.clone());
-    CONFIG.save(deps.storage, &config)?;
+    SUB_OWNERS.save(deps.storage, sub_owner.clone(), &Empty {})?;
 
     Ok(Response::new()
         .add_attribute("action", "add_sub_owner")
@@ -96,9 +84,7 @@ fn add_sub_owner(deps: DepsMut, sub_owner: Addr) -> Result<Response, ContractErr
 }
 
 fn remove_sub_owner(deps: DepsMut, sub_owner: Addr) -> Result<Response, ContractError> {
-    let mut config = CONFIG.load(deps.storage)?;
-    config.sub_owners.remove(&sub_owner);
-    CONFIG.save(deps.storage, &config)?;
+    SUB_OWNERS.remove(deps.storage, sub_owner.clone());
 
     Ok(Response::new()
         .add_attribute("action", "remove_sub_owner")
@@ -109,19 +95,25 @@ fn remove_sub_owner(deps: DepsMut, sub_owner: Addr) -> Result<Response, Contract
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Ownership {} => to_json_binary(&get_ownership(deps.storage)?),
-        QueryMsg::Config {} => to_json_binary(&get_config(deps)?),
+        QueryMsg::SubOwners {} => to_json_binary(&get_sub_owners(deps)?),
     }
 }
 
-fn get_config(deps: Deps) -> StdResult<Config> {
-    CONFIG.load(deps.storage)
+fn get_sub_owners(deps: Deps) -> StdResult<Vec<Addr>> {
+    let sub_owners = SUB_OWNERS
+        .range(deps.storage, None, None, Order::Ascending)
+        .map(|item| {
+            let (k, _) = item?;
+            Ok(k)
+        })
+        .collect::<StdResult<Vec<Addr>>>()?;
+    Ok(sub_owners)
 }
 
 // Helpers
 /// Asserts that the caller is the owner or a subowner
-fn assert_owner_or_subowner(store: &dyn Storage, address: &Addr) -> Result<(), ContractError> {
-    let config = CONFIG.load(store)?;
-    if !is_owner(store, address)? && !config.sub_owners.contains(address) {
+fn assert_owner_or_subowner(store: &dyn Storage, address: Addr) -> Result<(), ContractError> {
+    if !is_owner(store, &address)? && !SUB_OWNERS.has(store, address) {
         return Err(ContractError::Unauthorized {});
     }
     Ok(())

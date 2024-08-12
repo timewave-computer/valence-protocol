@@ -1,14 +1,11 @@
-use std::collections::HashSet;
-
-use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Addr;
-use cw_storage_plus::Item;
+use cosmwasm_std::{Addr, Empty};
+use cw_storage_plus::Map;
 
 /// Top level storage key. Values must not conflict.
 /// Each key is only one byte long to ensure we use the smallest possible storage keys.
 #[repr(u8)]
 pub enum TopKey {
-    Config = b'0',
+    SubOwners = b'0',
 }
 
 impl TopKey {
@@ -21,9 +18,4 @@ impl TopKey {
     }
 }
 
-pub const CONFIG: Item<Config> = Item::new(TopKey::Config.as_str());
-
-#[cw_serde]
-pub struct Config {
-    pub sub_owners: HashSet<Addr>,
-}
+pub const SUB_OWNERS: Map<Addr, Empty> = Map::new(TopKey::SubOwners.as_str());
