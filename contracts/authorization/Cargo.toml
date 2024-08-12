@@ -1,0 +1,12 @@
+[package]
+name = "authorization"
+version = { workspace = true }
+edition = { workspace = true }
+authors = { workspace = true }
+description = "CosmWasm Smart Contract that will contain the authorization table that defines execution permissions in the workflow"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+cosmwasm-std.workspace = true

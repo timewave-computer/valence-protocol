@@ -1,0 +1,21 @@
+[workspace]
+members = ["contracts/*"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Timewave Labs"]
+repository = "https://github.com/timewave-computer/valence-protocol"
+
+[profile.release]
+rpath = false
+lto = true
+overflow-checks = true
+incremental = false
+opt-level = 3
+debug = false
+debug-assertions = false
+
+[workspace.dependencies]
+cosmwasm-std = "2.1.3"
