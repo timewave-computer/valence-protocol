@@ -3,7 +3,7 @@ name = "processor"
 version = { workspace = true }
 edition = { workspace = true }
 authors = { workspace = true }
-description = "CosmWasm Smart Contract that executes the messages on each service/account of the workflow by iterating over a queue"
+description = "CosmWasm Smart Contract that executes the messages on each service/account of the workflow by iterating over queues"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
