@@ -1,3 +1,6 @@
+# macOS
+.DS_Store
+
 # Build results
 /artifacts
 /target
@@ -9,9 +12,11 @@
 # Text file backups
 **/*.rs.bk
 
-# macOS
-.DS_Store
-
 # IDEs
+.vscode/
+.idea/
 *.iml
-.idea
+**/.editorconfig
+
+# raw schemas
+contracts/*/schema/raw

@@ -1,0 +1,12 @@
+[package]
+name = "processor"
+version.workspace = true
+edition.workspace = true
+authors = ["Keyne"]
+description = "CosmWasm Smart Contract that executes the messages on each service/account of the workflow by iterating over queues"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+cosmwasm-std.workspace = true

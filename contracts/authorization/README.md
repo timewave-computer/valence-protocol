@@ -1,0 +1,3 @@
+# Authorization Contract
+
+The authorization contract will be a single contract deployed on the main domain and that will define the authorizations of the top-level application, which can include services in different domains (chains). For each domain there will be one Processor (with its corresponding execution queues). The `Authorization` contract will connect to all of the `Processors` using a connector (e.g. Polytone, Hyperlane…) and will route the actions to be executed to the right domain. At the same time, for each other domain, we will also have a proxy contract in the main domain which will be forwarding the callbacks received from the processor on the other domain.
