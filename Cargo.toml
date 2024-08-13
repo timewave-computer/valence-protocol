@@ -1,5 +1,5 @@
 [workspace]
-members = ["contracts/*"]
+members = ["contracts/authorization", "contracts/processor", "packages/*"]
 resolver = "2"
 
 [workspace.package]
@@ -24,3 +24,5 @@ cosmwasm-schema = "2.1.3"
 thiserror = "1.0.63"
 cw2 = "2.0.0"
 cw-ownable = "2.0.0"
+cw-utils = "2.0.0"
+authorization-utils = { path = "packages/authorization-utils" }

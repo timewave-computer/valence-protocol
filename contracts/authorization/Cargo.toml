@@ -1,8 +1,8 @@
 [package]
 name = "authorization"
-version = { workspace = true }
-edition = { workspace = true }
-authors = { workspace = true }
+version.workspace = true
+edition.workspace = true
+authors = ["Keyne"]
 description = "CosmWasm Smart Contract that will contain the authorization table that defines execution permissions in the workflow"
 
 [lib]
@@ -15,3 +15,4 @@ cosmwasm-schema.workspace = true
 thiserror.workspace = true
 cw2.workspace = true
 cw-ownable.workspace = true
+authorization-utils.workspace = true
