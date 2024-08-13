@@ -111,6 +111,7 @@ fn get_sub_owners(deps: Deps) -> StdResult<Vec<Addr>> {
 }
 
 // Helpers
+
 /// Asserts that the caller is the owner or a subowner
 fn assert_owner_or_subowner(store: &dyn Storage, address: Addr) -> Result<(), ContractError> {
     if !is_owner(store, &address)? && !SUB_OWNERS.has(store, address) {

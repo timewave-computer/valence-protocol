@@ -19,8 +19,5 @@ target/
 # Build artifacts
 artifacts/
 
-contracts/**/Cargo.lock
-Cargo.lock
-
 # raw schemas
 contracts/*/schema/raw
