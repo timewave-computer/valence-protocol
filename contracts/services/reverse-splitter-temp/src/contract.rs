@@ -1,6 +1,6 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
@@ -74,7 +74,9 @@ mod execute {
 }
 
 mod actions {
-    use cosmwasm_std::{to_json_binary, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, WasmMsg};
+    use cosmwasm_std::{
+        to_json_binary, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, WasmMsg,
+    };
 
     use crate::{helpers::is_processor, msg::ActionsMsgs, state::CONFIG, ContractError};
 
@@ -92,33 +94,32 @@ mod actions {
                 let mut messages: Vec<CosmosMsg> = vec![];
 
                 config.splits.iter().try_for_each(|(denom, split)| {
-                        // TODO: change split to be percentage and not amounts
-                        messages.extend(
-                            split
-                                .iter()
-                                .map(|(addr, amount)| {
-                                    let bank_msg = BankMsg::Send {
-                                        to_address: config.output_addr.to_string(),
-                                        amount: vec![Coin {
-                                            denom: denom.clone(),
-                                            amount: *amount,
-                                        }],
-                                    };
+                    // TODO: change split to be percentage and not amounts
+                    messages.extend(
+                        split
+                            .iter()
+                            .map(|(addr, amount)| {
+                                let bank_msg = BankMsg::Send {
+                                    to_address: config.output_addr.to_string(),
+                                    amount: vec![Coin {
+                                        denom: denom.clone(),
+                                        amount: *amount,
+                                    }],
+                                };
 
-                                    Ok(WasmMsg::Execute {
-                                        contract_addr: addr.to_string(),
-                                        msg: to_json_binary(
-                                            &base_account::msg::ExecuteMsg::ExecuteMsg {
-                                                msgs: vec![bank_msg.into()],
-                                            },
-                                        )?,
-                                        funds: vec![],
-                                    }
-                                    .into())
-                                })
-                                .collect::<Result<Vec<_>, ContractError>>()?,
-                        );
-                    
+                                Ok(WasmMsg::Execute {
+                                    contract_addr: addr.to_string(),
+                                    msg: to_json_binary(
+                                        &base_account::msg::ExecuteMsg::ExecuteMsg {
+                                            msgs: vec![bank_msg.into()],
+                                        },
+                                    )?,
+                                    funds: vec![],
+                                }
+                                .into())
+                            })
+                            .collect::<Result<Vec<_>, ContractError>>()?,
+                    );
 
                     Ok::<(), ContractError>(())
                 })?;
@@ -130,8 +131,11 @@ mod actions {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(_deps: Deps, _env: Env, _msg: QueryMsg) -> StdResult<Binary> {
-    unimplemented!()
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    match msg {
+        QueryMsg::GetAdmin {} => to_json_binary(&cw_ownable::get_ownership(deps.storage)?),
+        QueryMsg::GetServiceConfig {} => to_json_binary(&CONFIG.load(deps.storage)?),
+    }
 }
 
 #[cfg(test)]
