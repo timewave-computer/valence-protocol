@@ -1,0 +1,38 @@
+[workspace]
+members = [
+  "contracts/accounts/*",
+  "contracts/services/*",
+  "packages/*",
+]
+resolver = "2"
+
+[workspace.package]
+edition    = "2021"
+license    = "BSL"
+version    = "0.1.0"
+repository = "https://github.com/timewave-computer/valence-protocol"
+
+[profile.release]
+opt-level        = 3
+debug            = false
+rpath            = false
+lto              = true
+debug-assertions = false
+codegen-units    = 1
+panic            = 'abort'
+incremental      = false
+overflow-checks  = true
+
+[workspace.dependencies]
+cosmwasm-schema = "2.1.0"
+cosmwasm-std    = { version = "2.1.0", features = ["cosmwasm_1_4"] }
+cw-storage-plus = "2.0.0"
+cw2             = "2.0.0"
+schemars        = "0.8.16"
+serde           = { version = "1.0.197", default-features = false, features = ["derive"] }
+thiserror       = { version = "1.0.58" }
+valence-macros  = { path = "packages/valence-macros" }
+cw-ownable      = "2.0.0"
+
+# dev-dependencies
+cw-multi-test = "2.0.0"
