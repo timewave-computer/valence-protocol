@@ -1182,6 +1182,7 @@ dependencies = [
 name = "valence-reverse-splitter"
 version = "0.1.0"
 dependencies = [
+ "base-account",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-multi-test",

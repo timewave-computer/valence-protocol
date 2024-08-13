@@ -74,7 +74,7 @@ mod execute {
 }
 
 mod actions {
-    use cosmwasm_std::{BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response};
+    use cosmwasm_std::{to_json_binary, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, WasmMsg};
 
     use crate::{helpers::is_processor, msg::ActionsMsgs, state::CONFIG, ContractError};
 
@@ -92,23 +92,33 @@ mod actions {
                 let mut messages: Vec<CosmosMsg> = vec![];
 
                 config.splits.iter().try_for_each(|(denom, split)| {
-                    // Query bank balance
-                    let balance = deps.querier.query_balance(&config.output_addr, denom)?;
-
-                    // TODO: Check that balance is not zero
-                    if !balance.amount.is_zero() {
                         // TODO: change split to be percentage and not amounts
-                        messages.extend(split.iter().map(|(addr, amount)| {
-                            BankMsg::Send {
-                                to_address: addr.into(),
-                                amount: vec![Coin {
-                                    denom: denom.clone(),
-                                    amount: *amount,
-                                }],
-                            }
-                            .into()
-                        }));
-                    }
+                        messages.extend(
+                            split
+                                .iter()
+                                .map(|(addr, amount)| {
+                                    let bank_msg = BankMsg::Send {
+                                        to_address: config.output_addr.to_string(),
+                                        amount: vec![Coin {
+                                            denom: denom.clone(),
+                                            amount: *amount,
+                                        }],
+                                    };
+
+                                    Ok(WasmMsg::Execute {
+                                        contract_addr: addr.to_string(),
+                                        msg: to_json_binary(
+                                            &base_account::msg::ExecuteMsg::ExecuteMsg {
+                                                msgs: vec![bank_msg.into()],
+                                            },
+                                        )?,
+                                        funds: vec![],
+                                    }
+                                    .into())
+                                })
+                                .collect::<Result<Vec<_>, ContractError>>()?,
+                        );
+                    
 
                     Ok::<(), ContractError>(())
                 })?;
