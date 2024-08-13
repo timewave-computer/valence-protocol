@@ -10,7 +10,7 @@ resolver = "2"
 edition    = "2021"
 license    = "BSL"
 version    = "0.1.0"
-repository = "https://github.com/timewave-computer/valence-workflwo"
+repository = "https://github.com/timewave-computer/valence-protocol"
 
 [workspace.dependencies]
 cosmwasm-schema = "2.1.0"

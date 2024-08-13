@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, DepsMut};
+use cosmwasm_std::{Addr, Deps, DepsMut};
 use cw_ownable::cw_ownable_execute;
 use valence_macros::OptionalStruct;
 
@@ -47,6 +47,15 @@ pub enum QueryMsg {
 pub struct ServiceConfig {
     // Service-specific configuration fields
     some_addr: String,
+}
+
+impl ServiceConfig {
+    /// This function must be implemented in order for us to make sure the configuration is valid
+    pub fn validate(&self, deps: Deps) -> Result<(), ContractError> {
+        deps.api.addr_validate(&self.some_addr)?;
+
+        Ok(())
+    }
 }
 
 impl OptionalServiceConfig {

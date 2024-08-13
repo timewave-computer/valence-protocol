@@ -1,5 +1,5 @@
 [package]
-name    = "base-account"
+name    = "valence-splitter"
 version = "0.1.0"
 authors = ["Art3mix <r3mix.il@gmail.com>"]
 edition = "2021"
@@ -39,6 +39,8 @@ cw2             = { workspace = true }
 schemars        = { workspace = true }
 serde           = { workspace = true }
 thiserror       = { workspace = true }
+valence-macros  = { workspace = true }
+cw-ownable  = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }
