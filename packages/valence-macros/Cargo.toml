@@ -1,0 +1,17 @@
+[package]
+name        = "valence-macros"
+version     = { workspace = true }
+edition     = { workspace = true }
+authors     = ["Art3miX <r3mix.il@gmail.com>"]
+description = "Macros for Valence services and accounts"
+license     = { workspace = true }
+
+[lib]
+proc-macro = true
+
+[dependencies]
+cosmwasm-schema = { workspace = true }
+cosmwasm-std    = { workspace = true }
+proc-macro2     = "1.0"
+quote           = "1.0"
+syn             = "2.0"
