@@ -8,7 +8,7 @@ pub struct AuthorizationInfo {
     // Unique ID for the authorization, will be used as denom of the TokenFactory token if needed
     pub label: String,
     pub mode: AuthorizationMode,
-    pub end: Expiration,
+    pub expiration: Expiration,
     // Default will be 1, defines how many times a specific authorization can be executed concurrently
     pub max_concurrent_executions: Option<u64>,
     pub action_batch: ActionBatch,
@@ -19,8 +19,9 @@ pub struct AuthorizationInfo {
 #[cw_serde]
 // What we will save in the state of the Authorization contract for each label
 pub struct Authorization {
+    pub label: String,
     pub mode: AuthorizationMode,
-    pub end: Expiration,
+    pub expiration: Expiration,
     pub max_concurrent_executions: u64,
     pub action_batch: ActionBatch,
     pub priority: Priority,
@@ -36,7 +37,7 @@ pub enum AuthorizationMode {
 #[cw_serde]
 pub enum PermissionType {
     // With call limit, we will mint certain amount of tokens per address. Each time they execute successfully we'll burn the token they send
-    WithCallLimit(Vec<(Addr, u64)>),
+    WithCallLimit(Vec<(Addr, Uint128)>),
     // Without call limit we will mint 1 token per address and we will query the sender if he has the token to verify if he can execute the actions
     WithoutCallLimit(Vec<Addr>),
 }
@@ -131,7 +132,9 @@ pub struct ActionCallback {
 }
 
 #[cw_serde]
+#[derive(Default)]
 pub enum Priority {
+    #[default]
     Medium,
     High,
 }

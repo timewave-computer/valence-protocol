@@ -16,3 +16,5 @@ thiserror.workspace = true
 cw2.workspace = true
 cw-ownable.workspace = true
 authorization-utils.workspace = true
+neutron-sdk.workspace = true
+cw-utils.workspace = true

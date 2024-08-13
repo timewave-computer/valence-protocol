@@ -9,3 +9,4 @@ description = "Helpers for authorization contract"
 cosmwasm-std.workspace = true
 cw-utils.workspace = true
 cosmwasm-schema.workspace = true
+neutron-sdk.workspace = true
