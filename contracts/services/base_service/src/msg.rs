@@ -63,7 +63,7 @@ impl OptionalServiceConfig {
     /// Field list matches the fields in the ServiceConfig struct, but all of them are optional
     /// if a field is Some, it means we want to update it.
     /// You can return here anything the service needs
-    pub fn update_config(self, deps: DepsMut, ) -> Result<(), ContractError> {
+    pub fn update_config(self, deps: DepsMut) -> Result<(), ContractError> {
         if let Some(some_addr) = self.some_addr {
             CONFIG.save(deps.storage, &ServiceConfig { some_addr })?;
         }

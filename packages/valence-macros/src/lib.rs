@@ -21,7 +21,7 @@ pub fn optional_struct_derive(input: TokenStream) -> TokenStream {
         let name = &f.ident;
         let ty = &f.ty;
         let vis = &f.vis;
-        
+
         quote! {
             #vis #name: std::option::Option<#ty>
         }

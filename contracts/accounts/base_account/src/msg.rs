@@ -11,7 +11,7 @@ pub enum ExecuteMsg {
     TransferAdmin { new_admin: String }, // Transfer ownership to new address (only admin)
     ApproveService { service: String },  // Add service to approved list (only admin)
     RemoveService { service: String },   // Remove service from approved list (only admin)
-    ExecuteMsg { msgs: Vec<CosmosMsg> },       // Execute any CosmosMsg (approved services or admin)
+    ExecuteMsg { msgs: Vec<CosmosMsg> }, // Execute any CosmosMsg (approved services or admin)
 }
 
 #[cw_serde]
