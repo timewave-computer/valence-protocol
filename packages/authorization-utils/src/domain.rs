@@ -2,6 +2,12 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 
 #[cw_serde]
+pub enum Domain {
+    Main,
+    External(String),
+}
+
+#[cw_serde]
 pub struct ExternalDomain {
     pub name: String,
     pub connector: Connector,

@@ -1,6 +1,8 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Binary, Uint128};
+use cosmwasm_std::{Addr, Uint128};
 use cw_utils::Expiration;
+
+use crate::action::Action;
 
 #[cw_serde]
 // What an owner or subowner can pass to the contract to create an authorization
@@ -52,83 +54,6 @@ pub struct ActionBatch {
 pub enum ExecutionType {
     Atomic,
     NonAtomic,
-}
-
-#[cw_serde]
-pub struct Action {
-    // Note: for V1, all actions will be executed in the same domain
-    pub domain: Domain,
-    pub message_info: MessageInfo,
-    // We use String instead of Addr because it can be a contract address in other execution environments
-    pub contract_address: String,
-    // If no retry logic is provided, we will assume that the action can't be retried
-    pub retry_logic: Option<RetryLogic>,
-    // Only applicable for NonAtomic execution type batches. An action might need to receive a callback to be confirmed, in that case we will include the callback confirmation.
-    // If not provided, we assume that correct execution of the message implies confirmation.
-    pub callback_confirmation: Option<ActionCallback>,
-}
-
-#[cw_serde]
-pub enum Domain {
-    Main,
-    External(String),
-}
-
-#[cw_serde]
-pub struct MessageInfo {
-    pub message_type: MessageType,
-    pub message: Message,
-}
-
-#[cw_serde]
-// Abstracting this because maybe we might have different message types in the future (e.g. Migration)
-pub enum MessageType {
-    ExecuteMsg,
-}
-
-#[cw_serde]
-pub struct Message {
-    // Name of the message that is passed to the contract, e.g. in CosmWasm: the snake_case name of the ExecuteMsg, how it's passed in the JSON
-    pub name: String,
-    pub params_restrictions: Option<ParamsRestrictions>,
-}
-
-#[cw_serde]
-// ParamRestrictinos will be passed separating it by a "." character. Example: If we want to specify that the json must have a param "address" under "owner" included, we will use
-// MustBeIncluded("owner.address")
-pub enum ParamsRestrictions {
-    MustBeIncluded(String),
-    CannotBeIncluded(String),
-    // Will check that the param defined in String is included, and if it is, we will compare it with Binary (after converting it to Binary)
-    MustBeValue(String, Binary),
-}
-
-#[cw_serde]
-pub struct RetryLogic {
-    pub times: RetryTimes,
-    pub interval: RetryInterval,
-}
-
-#[cw_serde]
-pub enum RetryTimes {
-    Indefinitely,
-    Amount(u64),
-}
-
-#[cw_serde]
-pub enum RetryInterval {
-    Seconds(u64),
-    Blocks(u64),
-}
-
-#[cw_serde]
-pub struct ActionCallback {
-    // ID of the action we are receiving a callback for
-    pub action_id: Uint128,
-    // Address of contract we should receive the Callback from
-    pub contract_address: String,
-    // What we should receive from the callback to consider the action completed
-    pub callback_message: Binary,
 }
 
 #[cw_serde]

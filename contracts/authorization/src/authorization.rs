@@ -1,6 +1,6 @@
-use authorization_utils::authorization::{
-    AuthorizationInfo, AuthorizationMode, Domain, ExecutionType, Priority,
-};
+use authorization_utils::{authorization::{
+    AuthorizationInfo, AuthorizationMode, ExecutionType, Priority,
+}, domain::Domain};
 use cosmwasm_std::Storage;
 
 use crate::{
