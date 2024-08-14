@@ -8,5 +8,8 @@ description = "CosmWasm Smart Contract that executes the messages on each servic
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+library = []
+
 [dependencies]
 cosmwasm-std.workspace = true

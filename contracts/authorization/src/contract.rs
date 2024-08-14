@@ -16,6 +16,7 @@ use neutron_sdk::bindings::msg::NeutronMsg;
 
 use crate::{
     authorization::validate_authorization,
+    domain::add_domains,
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, QueryMsg, SubOwnerMsg},
     state::{AUTHORIZATIONS, EXTERNAL_DOMAINS, PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS},
@@ -49,7 +50,11 @@ pub fn instantiate(
 
     if let Some(sub_owners) = msg.sub_owners {
         for sub_owner in sub_owners {
-            SUB_OWNERS.save(deps.storage, sub_owner, &Empty {})?;
+            SUB_OWNERS.save(
+                deps.storage,
+                deps.api.addr_validate(sub_owner.as_str())?,
+                &Empty {},
+            )?;
         }
     }
 
@@ -61,7 +66,7 @@ pub fn instantiate(
 
     // Save all external domains
     if let Some(external_domains) = msg.external_domains {
-        add_domains(deps.storage, external_domains)?;
+        add_domains(deps, external_domains)?;
     }
 
     Ok(Response::new().add_attribute("method", "instantiate_authorization"))
@@ -126,7 +131,11 @@ fn update_ownership(
 }
 
 fn add_sub_owner(deps: DepsMut, sub_owner: Addr) -> Result<Response<NeutronMsg>, ContractError> {
-    SUB_OWNERS.save(deps.storage, sub_owner.clone(), &Empty {})?;
+    SUB_OWNERS.save(
+        deps.storage,
+        deps.api.addr_validate(sub_owner.as_str())?,
+        &Empty {},
+    )?;
 
     Ok(Response::new()
         .add_attribute("action", "add_sub_owner")
@@ -145,7 +154,7 @@ fn add_external_domains(
     deps: DepsMut,
     external_domains: Vec<ExternalDomain>,
 ) -> Result<Response<NeutronMsg>, ContractError> {
-    add_domains(deps.storage, external_domains)?;
+    add_domains(deps, external_domains)?;
 
     Ok(Response::new().add_attribute("action", "add_external_domains"))
 }
@@ -158,20 +167,36 @@ fn create_authorizations(
     let mut tokenfactory_msgs = vec![];
 
     for each_authorization in authorizations {
+        let authorization = Authorization {
+            label: each_authorization.label.clone(),
+            mode: each_authorization.mode,
+            expiration: each_authorization.expiration,
+            max_concurrent_executions: each_authorization.max_concurrent_executions.unwrap_or(1),
+            action_batch: each_authorization.action_batch,
+            priority: each_authorization.priority.unwrap_or_default(),
+            state: AuthorizationState::Enabled,
+        };
+
+        // Check that it doesn't exist yet
+        if AUTHORIZATIONS.has(deps.storage, authorization.label.clone()) {
+            return Err(ContractError::LabelAlreadyExists(
+                authorization.label.clone(),
+            ));
+        }
+
         // Perform all validations on the authorization
-        validate_authorization(deps.storage, &each_authorization)?;
+        validate_authorization(deps.storage, &authorization)?;
 
         // If Authorization is permissioned we need to create the tokenfactory denom and mint the corresponding amounts to the addresses that can
         // execute the authorization
-        if let AuthorizationMode::Permissioned(permission_type) = each_authorization.mode.clone() {
+        if let AuthorizationMode::Permissioned(permission_type) = authorization.mode.clone() {
             // We will always create the denom if it's permissioned
-            let create_denom_msg =
-                NeutronMsg::submit_create_denom(each_authorization.label.clone());
+            let create_denom_msg = NeutronMsg::submit_create_denom(authorization.label.clone());
             tokenfactory_msgs.push(create_denom_msg);
 
             // Full denom of the token that will be created
             let denom =
-                build_tokenfactory_denom(&each_authorization.label, env.contract.address.as_str());
+                build_tokenfactory_denom(&authorization.label, env.contract.address.as_str());
 
             match permission_type {
                 // If there is a call limit we will mint the amount of tokens specified in the call limit for each address and these will be burned after each correct execution
@@ -194,16 +219,7 @@ fn create_authorizations(
         }
 
         // Save the authorization in the state
-        let authorization = Authorization {
-            label: each_authorization.label.clone(),
-            mode: each_authorization.mode,
-            expiration: each_authorization.expiration,
-            max_concurrent_executions: each_authorization.max_concurrent_executions.unwrap_or(1),
-            action_batch: each_authorization.action_batch,
-            priority: each_authorization.priority.unwrap_or_default(),
-            state: AuthorizationState::Enabled,
-        };
-        AUTHORIZATIONS.save(deps.storage, each_authorization.label, &authorization)?;
+        AUTHORIZATIONS.save(deps.storage, authorization.label.clone(), &authorization)?;
     }
 
     Ok(Response::new()
@@ -231,6 +247,8 @@ fn modify_authorization(
     if let Some(priority) = priority {
         authorization.priority = priority;
     }
+
+    validate_authorization(deps.storage, &authorization)?;
 
     AUTHORIZATIONS.save(deps.storage, label, &authorization)?;
 
@@ -373,15 +391,4 @@ fn assert_owner_or_subowner(store: &dyn Storage, address: Addr) -> Result<(), Co
 /// Returns the full denom of a tokenfactory token: factory/<contract_address>/<label>
 fn build_tokenfactory_denom(label: &str, contract_address: &str) -> String {
     format!("factory/{}/{}", contract_address, label)
-}
-
-/// Checks if external domain exists before adding it
-fn add_domains(store: &mut dyn Storage, domains: Vec<ExternalDomain>) -> Result<(), ContractError> {
-    for domain in domains {
-        if EXTERNAL_DOMAINS.has(store, domain.name.clone()) {
-            return Err(ContractError::ExternalDomainAlreadyExists(domain.name));
-        }
-        EXTERNAL_DOMAINS.save(store, domain.name.clone(), &domain)?;
-    }
-    Ok(())
 }

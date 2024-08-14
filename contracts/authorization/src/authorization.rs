@@ -1,26 +1,19 @@
-use authorization_utils::{authorization::{
-    AuthorizationInfo, AuthorizationMode, ExecutionType, Priority,
-}, domain::Domain};
+use authorization_utils::{
+    authorization::{Authorization, AuthorizationMode, ExecutionType, Priority},
+    domain::Domain,
+};
 use cosmwasm_std::Storage;
 
-use crate::{
-    error::ContractError,
-    state::{AUTHORIZATIONS, EXTERNAL_DOMAINS},
-};
+use crate::{error::ContractError, state::EXTERNAL_DOMAINS};
 
 /// Will perform all the necessary checks to validate an authorization
 pub fn validate_authorization(
     store: &dyn Storage,
-    authorization: &AuthorizationInfo,
+    authorization: &Authorization,
 ) -> Result<(), ContractError> {
     // Label can't be empty or already exist
     if authorization.label.is_empty() {
         return Err(ContractError::EmptyLabel {});
-    }
-    if AUTHORIZATIONS.has(store, authorization.label.clone()) {
-        return Err(ContractError::LabelAlreadyExists(
-            authorization.label.clone(),
-        ));
     }
 
     // An authorization must have actions
@@ -48,11 +41,7 @@ pub fn validate_authorization(
 
     // If an authorization is permissionless, it can't have high priority
     if authorization.mode.eq(&AuthorizationMode::Permissionless)
-        && authorization
-            .priority
-            .clone()
-            .unwrap_or_default()
-            .eq(&Priority::High)
+        && authorization.priority.clone().eq(&Priority::High)
     {
         return Err(ContractError::PermissionlessAuthorizationWithHighPriority {});
     }

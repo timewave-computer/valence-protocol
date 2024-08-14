@@ -33,7 +33,7 @@ cw-storage-plus     = "2.0.0"
 cw2                 = "2.0.0"
 schemars            = "0.8.16"
 serde               = { version = "1.0.207", default-features = false, features = ["derive"] }
-thiserror           = { version = "1.0.63" }
+thiserror           = "1.0.63"
 cw-ownable          = "2.0.0"
 neutron-sdk         = "0.11.0"
 valence-macros      = { path = "packages/valence-macros" }
@@ -44,3 +44,4 @@ base-account = { path = "contracts/accounts/base_account", features = ["library"
 
 # dev-dependencies
 cw-multi-test = "2.0.0"
+neutron-test-tube = "4.2.0"

@@ -17,7 +17,7 @@ pub enum MessageType {
 pub struct Message {
     // Name of the message that is passed to the contract, e.g. in CosmWasm: the snake_case name of the ExecuteMsg, how it's passed in the JSON
     pub name: String,
-    pub params_restrictions: Option<ParamsRestrictions>,
+    pub params_restrictions: Option<Vec<ParamsRestrictions>>,
 }
 
 #[cw_serde]

@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Binary, Uint128};
+use cosmwasm_std::Binary;
 
 use crate::{domain::Domain, message::MessageInfo};
 
@@ -37,8 +37,6 @@ pub enum RetryInterval {
 
 #[cw_serde]
 pub struct ActionCallback {
-    // ID of the action we are receiving a callback for
-    pub action_id: Uint128,
     // Address of contract we should receive the Callback from
     pub contract_address: String,
     // What we should receive from the callback to consider the action completed
