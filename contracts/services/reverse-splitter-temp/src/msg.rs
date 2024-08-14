@@ -39,7 +39,7 @@ pub enum QueryMsg {
 #[cw_serde]
 #[derive(OptionalStruct)]
 pub struct ServiceConfig {
-    /// Address we pull funds from
+    /// Address we send funds to
     output_addr: String,
     splits: Splits,
 }
