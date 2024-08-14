@@ -22,10 +22,6 @@ jobs:
           docker run --user $(id -u):$(id -g) --rm \
           -v .:/code -v ./target:/target \
           -v ./target:/usr/local/cargo/registry cosmwasm/optimizer:0.16.0
-  tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
       - name: Run tests
         run: cargo test --verbose
         env:
