@@ -1,5 +1,5 @@
 [package]
-name    = "base-service"
+name    = "valence-reverse-splitter"
 version = "0.1.0"
 authors = ["Art3mix <r3mix.il@gmail.com>"]
 edition = "2021"
@@ -30,6 +30,7 @@ serde           = { workspace = true }
 thiserror       = { workspace = true }
 valence-macros  = { workspace = true }
 cw-ownable      = { workspace = true }
+base-account    = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }
