@@ -1179,9 +1179,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-reverse-splitter"
+version = "0.1.0"
+dependencies = [
+ "base-account",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-multi-test",
+ "cw-ownable",
+ "cw-storage-plus",
+ "cw2",
+ "schemars",
+ "serde",
+ "thiserror",
+ "valence-macros",
+]
+
+[[package]]
 name = "valence-splitter"
 version = "0.1.0"
 dependencies = [
+ "base-account",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-multi-test",
