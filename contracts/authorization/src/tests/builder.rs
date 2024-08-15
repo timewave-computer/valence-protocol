@@ -47,12 +47,12 @@ impl NeutronTestAppBuilder {
         let connector = &accounts[4];
         let callback_proxy = &accounts[5];
 
-        let owner_addr = Addr::unchecked(&owner.address());
-        let subowner_addr = Addr::unchecked(&subowner.address());
-        let processor_addr = Addr::unchecked(&processor.address());
-        let connector_addr = Addr::unchecked(&connector.address());
-        let callback_proxy_addr = Addr::unchecked(&callback_proxy.address());
-        let user_addr = Addr::unchecked(&user.address());
+        let owner_addr = Addr::unchecked(owner.address());
+        let subowner_addr = Addr::unchecked(subowner.address());
+        let processor_addr = Addr::unchecked(processor.address());
+        let connector_addr = Addr::unchecked(connector.address());
+        let callback_proxy_addr = Addr::unchecked(callback_proxy.address());
+        let user_addr = Addr::unchecked(user.address());
 
         let external_domain = ExternalDomain {
             name: self.external_domain,

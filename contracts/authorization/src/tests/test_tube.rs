@@ -32,7 +32,7 @@ fn store_and_instantiate_authorization_contract(
 ) -> String {
     let wasm_byte_code = std::fs::read("../../artifacts/authorization.wasm").unwrap();
     let code_id = wasm
-        .store_code(&wasm_byte_code, None, &signer)
+        .store_code(&wasm_byte_code, None, signer)
         .unwrap()
         .data
         .code_id;
@@ -47,7 +47,7 @@ fn store_and_instantiate_authorization_contract(
         None,
         "authorization".into(),
         &[],
-        &signer,
+        signer,
     )
     .unwrap()
     .data
@@ -63,7 +63,7 @@ fn contract_instantiation() {
 
     let wasm = Wasm::new(&setup.app);
 
-    let subowner2 = Addr::unchecked(&setup.accounts[6].address());
+    let subowner2 = Addr::unchecked(setup.accounts[6].address());
 
     // Let's instantiate with all parameters and query them to see if they are stored correctly
     let contract_addr = store_and_instantiate_authorization_contract(
@@ -176,7 +176,7 @@ fn transfer_ownership() {
             new_owner: new_owner.address(),
             expiry: None,
         }),
-        &vec![],
+        &[],
         &setup.accounts[0],
     )
     .unwrap();
@@ -185,8 +185,8 @@ fn transfer_ownership() {
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
         &ExecuteMsg::UpdateOwnership(cw_ownable::Action::AcceptOwnership {}),
-        &vec![],
-        &new_owner,
+        &[],
+        new_owner,
     )
     .unwrap();
 
@@ -206,7 +206,7 @@ fn transfer_ownership() {
                 new_owner: new_owner.address(),
                 expiry: None,
             }),
-            &vec![],
+            &[],
             &setup.accounts[0],
         )
         .unwrap_err();
@@ -238,7 +238,7 @@ fn add_and_remove_sub_owners() {
         &ExecuteMsg::OwnerAction(OwnerMsg::AddSubOwner {
             sub_owner: setup.subowner_addr.clone(),
         }),
-        &vec![],
+        &[],
         &setup.accounts[0],
     )
     .unwrap();
@@ -257,7 +257,7 @@ fn add_and_remove_sub_owners() {
             &ExecuteMsg::OwnerAction(OwnerMsg::AddSubOwner {
                 sub_owner: setup.subowner_addr.clone(),
             }),
-            &vec![],
+            &[],
             &setup.accounts[1],
         )
         .unwrap_err();
@@ -274,7 +274,7 @@ fn add_and_remove_sub_owners() {
             &ExecuteMsg::OwnerAction(OwnerMsg::RemoveSubOwner {
                 sub_owner: setup.subowner_addr.clone(),
             }),
-            &vec![],
+            &[],
             &setup.accounts[1],
         )
         .unwrap_err();
@@ -291,7 +291,7 @@ fn add_and_remove_sub_owners() {
         &ExecuteMsg::OwnerAction(OwnerMsg::RemoveSubOwner {
             sub_owner: setup.subowner_addr.clone(),
         }),
-        &vec![],
+        &[],
         &setup.accounts[0],
     )
     .unwrap();
@@ -327,7 +327,7 @@ fn add_external_domains() {
         &ExecuteMsg::SubOwnerAction(SubOwnerMsg::AddExternalDomains {
             external_domains: vec![setup.external_domain.clone()],
         }),
-        &vec![],
+        &[],
         &setup.accounts[0],
     )
     .unwrap();
@@ -534,7 +534,7 @@ fn create_valid_authorizations() {
             &ExecuteMsg::SubOwnerAction(SubOwnerMsg::CreateAuthorizations {
                 authorizations: valid_authorizations.clone(),
             }),
-            &vec![],
+            &[],
             &setup.accounts[2],
         )
         .unwrap_err();
@@ -549,7 +549,7 @@ fn create_valid_authorizations() {
         &ExecuteMsg::SubOwnerAction(SubOwnerMsg::CreateAuthorizations {
             authorizations: vec![valid_authorizations[0].clone()],
         }),
-        &vec![],
+        &[],
         &setup.accounts[0],
     )
     .unwrap();
@@ -562,7 +562,7 @@ fn create_valid_authorizations() {
                 valid_authorizations[2].clone(),
             ],
         }),
-        &vec![],
+        &[],
         &setup.accounts[1],
     )
     .unwrap();
@@ -641,7 +641,7 @@ fn create_valid_authorizations() {
             &ExecuteMsg::SubOwnerAction(SubOwnerMsg::CreateAuthorizations {
                 authorizations: valid_authorizations,
             }),
-            &vec![],
+            &[],
             &setup.accounts[0],
         )
         .unwrap_err();
@@ -845,7 +845,7 @@ fn create_invalid_authorizations() {
                 &ExecuteMsg::SubOwnerAction(SubOwnerMsg::CreateAuthorizations {
                     authorizations: vec![authorization],
                 }),
-                &vec![],
+                &[],
                 &setup.accounts[0],
             )
             .unwrap_err();
@@ -906,7 +906,7 @@ fn modify_authorization() {
         &ExecuteMsg::SubOwnerAction(SubOwnerMsg::CreateAuthorizations {
             authorizations: vec![authorization.clone()],
         }),
-        &vec![],
+        &[],
         &setup.accounts[0],
     )
     .unwrap();
@@ -920,7 +920,7 @@ fn modify_authorization() {
             max_concurrent_executions: None,
             priority: None,
         }),
-        &vec![],
+        &[],
         &setup.accounts[0],
     )
     .unwrap();
@@ -947,7 +947,7 @@ fn modify_authorization() {
             max_concurrent_executions: Some(5),
             priority: Some(Priority::High),
         }),
-        &vec![],
+        &[],
         &setup.accounts[1],
     )
     .unwrap();
@@ -976,7 +976,7 @@ fn modify_authorization() {
                 max_concurrent_executions: None,
                 priority: Some(Priority::Medium),
             }),
-            &vec![],
+            &[],
             &setup.accounts[2],
         )
         .unwrap_err();
@@ -995,7 +995,7 @@ fn modify_authorization() {
                 max_concurrent_executions: None,
                 priority: Some(Priority::Medium),
             }),
-            &vec![],
+            &[],
             &setup.accounts[0],
         )
         .unwrap_err();
@@ -1012,7 +1012,7 @@ fn modify_authorization() {
         &ExecuteMsg::SubOwnerAction(SubOwnerMsg::DisableAuthorization {
             label: "label".to_string(),
         }),
-        &vec![],
+        &[],
         &setup.accounts[0],
     )
     .unwrap();
@@ -1036,7 +1036,7 @@ fn modify_authorization() {
         &ExecuteMsg::SubOwnerAction(SubOwnerMsg::EnableAuthorization {
             label: "label".to_string(),
         }),
-        &vec![],
+        &[],
         &setup.accounts[1],
     )
     .unwrap();
@@ -1061,7 +1061,7 @@ fn modify_authorization() {
             &ExecuteMsg::SubOwnerAction(SubOwnerMsg::DisableAuthorization {
                 label: "label".to_string(),
             }),
-            &vec![],
+            &[],
             &setup.accounts[2],
         )
         .unwrap_err();
@@ -1149,7 +1149,7 @@ fn mint_authorizations() {
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
         &ExecuteMsg::SubOwnerAction(SubOwnerMsg::CreateAuthorizations { authorizations }),
-        &vec![],
+        &[],
         &setup.accounts[0],
     )
     .unwrap();
@@ -1165,7 +1165,7 @@ fn mint_authorizations() {
                     amount: Uint128::new(1),
                 }],
             }),
-            &vec![],
+            &[],
             &setup.accounts[1],
         )
         .unwrap_err();
@@ -1214,7 +1214,7 @@ fn mint_authorizations() {
                 },
             ],
         }),
-        &vec![],
+        &[],
         &setup.accounts[1],
     )
     .unwrap();
@@ -1250,7 +1250,7 @@ fn mint_authorizations() {
                     amount: Uint128::new(1),
                 }],
             }),
-            &vec![],
+            &[],
             &setup.accounts[2],
         )
         .unwrap_err();
