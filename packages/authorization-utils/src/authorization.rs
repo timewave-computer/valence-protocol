@@ -30,6 +30,20 @@ pub struct Authorization {
     pub state: AuthorizationState,
 }
 
+impl From<AuthorizationInfo> for Authorization {
+    fn from(info: AuthorizationInfo) -> Self {
+        Authorization {
+            label: info.label,
+            mode: info.mode,
+            expiration: info.expiration,
+            max_concurrent_executions: info.max_concurrent_executions.unwrap_or(1),
+            action_batch: info.action_batch,
+            priority: info.priority.unwrap_or_default(),
+            state: AuthorizationState::Enabled,
+        }
+    }
+}
+
 #[cw_serde]
 pub enum AuthorizationMode {
     Permissioned(PermissionType),

@@ -1,7 +1,7 @@
 [package]
 name = "authorization"
-version.workspace = true
-edition.workspace = true
+version = { workspace = true }
+edition = { workspace = true }
 authors = ["Keyne"]
 description = "CosmWasm Smart Contract that will contain the authorization table that defines execution permissions in the workflow"
 
@@ -12,15 +12,15 @@ crate-type = ["cdylib", "rlib"]
 library = []
 
 [dependencies]
-cosmwasm-std.workspace = true
-cw-storage-plus.workspace = true
-cosmwasm-schema.workspace = true
-thiserror.workspace = true
-cw2.workspace = true
-cw-ownable.workspace = true
-authorization-utils.workspace = true
-neutron-sdk.workspace = true
-cw-utils.workspace = true
+cosmwasm-std = { workspace = true }
+cw-storage-plus = { workspace = true }
+cosmwasm-schema = { workspace = true }
+thiserror = { workspace = true }
+cw2 = { workspace = true }
+cw-ownable = { workspace = true }
+authorization-utils = { workspace = true }
+neutron-sdk = { workspace = true }
+cw-utils = { workspace = true }
 
 [dev-dependencies]
-neutron-test-tube.workspace = true
+neutron-test-tube = { workspace = true }

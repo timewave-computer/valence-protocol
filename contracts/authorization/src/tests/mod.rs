@@ -1,2 +1,2 @@
-#[cfg(test)]
+pub mod builder;
 pub mod test_tube;
