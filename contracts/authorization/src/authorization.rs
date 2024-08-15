@@ -17,8 +17,9 @@ impl Validate for Authorization {
             return Err(ContractError::EmptyLabel {});
         }
 
+        let mut actions_iter = self.action_batch.actions.iter();
         // An authorization must have actions
-        let first_action = match self.action_batch.actions.first() {
+        let first_action = match actions_iter.next() {
             None => return Err(ContractError::NoActions {}),
             Some(action) => action,
         };
@@ -34,7 +35,7 @@ impl Validate for Authorization {
         }
 
         // All actions in an authorization must be executed in the same domain (for v1)
-        for each_action in self.action_batch.actions.iter() {
+        for each_action in actions_iter {
             if !each_action.domain.eq(&first_action.domain) {
                 return Err(ContractError::DifferentActionDomains {});
             }

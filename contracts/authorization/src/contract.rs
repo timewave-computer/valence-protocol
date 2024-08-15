@@ -16,7 +16,7 @@ use neutron_sdk::bindings::msg::NeutronMsg;
 
 use crate::{
     authorization::Validate,
-    domain::add_domains,
+    domain::add_domain,
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, QueryMsg, SubOwnerMsg},
     state::{AUTHORIZATIONS, EXTERNAL_DOMAINS, PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS},
@@ -30,7 +30,7 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    deps: DepsMut,
+    mut deps: DepsMut,
     _env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
@@ -48,14 +48,12 @@ pub fn instantiate(
         ),
     )?;
 
-    if let Some(sub_owners) = msg.sub_owners {
-        for sub_owner in sub_owners {
-            SUB_OWNERS.save(
-                deps.storage,
-                deps.api.addr_validate(sub_owner.as_str())?,
-                &Empty {},
-            )?;
-        }
+    for sub_owner in msg.sub_owners {
+        SUB_OWNERS.save(
+            deps.storage,
+            deps.api.addr_validate(sub_owner.as_str())?,
+            &Empty {},
+        )?;
     }
 
     // Save processor on main domain
@@ -65,8 +63,9 @@ pub fn instantiate(
     )?;
 
     // Save all external domains
-    if let Some(external_domains) = msg.external_domains {
-        add_domains(deps, external_domains)?;
+
+    for domain in msg.external_domains {
+        add_domain(deps.branch(), domain)?;
     }
 
     Ok(Response::new().add_attribute("method", "instantiate_authorization"))
@@ -151,10 +150,12 @@ fn remove_sub_owner(deps: DepsMut, sub_owner: Addr) -> Result<Response<NeutronMs
 }
 
 fn add_external_domains(
-    deps: DepsMut,
+    mut deps: DepsMut,
     external_domains: Vec<ExternalDomain>,
 ) -> Result<Response<NeutronMsg>, ContractError> {
-    add_domains(deps, external_domains)?;
+    for domain in external_domains {
+        add_domain(deps.branch(), domain)?;
+    }
 
     Ok(Response::new().add_attribute("action", "add_external_domains"))
 }
@@ -167,7 +168,7 @@ fn create_authorizations(
     let mut tokenfactory_msgs = vec![];
 
     for each_authorization in authorizations {
-        let authorization = Authorization::from(each_authorization);
+        let authorization = each_authorization.into_authorization(&env.block);
 
         // Check that it doesn't exist yet
         if AUTHORIZATIONS.has(deps.storage, authorization.label.clone()) {

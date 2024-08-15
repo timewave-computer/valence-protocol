@@ -1,14 +1,14 @@
 use authorization_utils::{
-    action::{Action, ActionCallback, RetryInterval, RetryLogic, RetryTimes},
+    action::{ActionCallback, RetryInterval, RetryLogic, RetryTimes},
     authorization::{
-        ActionBatch, Authorization, AuthorizationInfo, AuthorizationMode, AuthorizationState,
-        ExecutionType, PermissionType, Priority,
+        Authorization, AuthorizationDuration, AuthorizationMode, AuthorizationState, ExecutionType,
+        PermissionType, Priority,
     },
     domain::{Domain, ExternalDomain},
-    message::{Message, MessageInfo, MessageType, ParamsRestrictions},
+    message::{Message, MessageDetails, MessageType, ParamsRestrictions},
 };
-use cosmwasm_std::{Addr, Binary, Timestamp, Uint128};
-use cw_utils::Expiration;
+use cosmwasm_std::{Addr, Binary, Uint128};
+use cw_utils::{Duration, Expiration};
 use neutron_test_tube::{
     neutron_std::types::cosmos::bank::v1beta1::{QueryAllBalancesRequest, QueryBalanceRequest},
     Account, Bank, Module, NeutronTestApp, SigningAccount, Wasm,
@@ -27,9 +27,9 @@ fn store_and_instantiate_authorization_contract(
     wasm: &Wasm<'_, NeutronTestApp>,
     signer: &SigningAccount,
     owner: Option<Addr>,
-    sub_owners: Option<Vec<Addr>>,
+    sub_owners: Vec<Addr>,
     processor: Addr,
-    external_domains: Option<Vec<ExternalDomain>>,
+    external_domains: Vec<ExternalDomain>,
 ) -> String {
     let wasm_byte_code = std::fs::read("../../artifacts/authorization.wasm").unwrap();
     let code_id = wasm
@@ -71,9 +71,9 @@ fn contract_instantiation() {
         &wasm,
         &setup.accounts[0],
         Some(setup.user_addr.clone()),
-        Some(vec![setup.subowner_addr.clone(), subowner2.clone()]),
+        vec![setup.subowner_addr.clone(), subowner2.clone()],
         setup.processor_addr.clone(),
-        Some(vec![setup.external_domain.clone()]),
+        vec![setup.external_domain.clone()],
     );
 
     // Query current owner
@@ -118,9 +118,9 @@ fn contract_instantiation() {
         &wasm,
         &setup.accounts[0],
         None,
-        None,
+        vec![],
         setup.processor_addr,
-        None,
+        vec![],
     );
 
     // Query current owner
@@ -165,9 +165,9 @@ fn transfer_ownership() {
         &wasm,
         &setup.accounts[0],
         None,
-        None,
+        vec![],
         setup.processor_addr,
-        None,
+        vec![],
     );
 
     // Current owner is going to transfer ownership to new_owner
@@ -228,9 +228,9 @@ fn add_and_remove_sub_owners() {
         &wasm,
         &setup.accounts[0],
         None,
-        None,
+        vec![],
         setup.processor_addr,
-        None,
+        vec![],
     );
 
     // Owner will add a subowner
@@ -317,9 +317,9 @@ fn add_external_domains() {
         &wasm,
         &setup.accounts[0],
         None,
-        None,
+        vec![],
         setup.processor_addr,
-        None,
+        vec![],
     );
 
     // Owner can add external domains
@@ -363,9 +363,9 @@ fn create_valid_authorizations() {
         &wasm,
         &setup.accounts[0],
         None,
-        Some(vec![setup.subowner_addr.clone()]),
+        vec![setup.subowner_addr.clone()],
         setup.processor_addr.clone(),
-        Some(vec![setup.external_domain.clone()]),
+        vec![setup.external_domain.clone()],
     );
 
     let valid_authorizations = vec![
@@ -376,7 +376,7 @@ fn create_valid_authorizations() {
                     .with_action(ActionBuilder::new().build())
                     .with_action(
                         ActionBuilder::new()
-                            .with_message_info(MessageInfo {
+                            .with_message_details(MessageDetails {
                                 message_type: MessageType::ExecuteMsg,
                                 message: Message {
                                     name: "method2".to_string(),
@@ -402,7 +402,7 @@ fn create_valid_authorizations() {
             .with_mode(AuthorizationMode::Permissioned(
                 PermissionType::WithCallLimit(vec![(setup.subowner_addr.clone(), Uint128::new(5))]),
             ))
-            .with_expiration(Expiration::AtHeight(50000))
+            .with_duration(AuthorizationDuration::Duration(Duration::Height(100)))
             .with_max_concurrent_executions(4)
             .with_action_batch(
                 ActionBatchBuilder::new()
@@ -410,7 +410,7 @@ fn create_valid_authorizations() {
                     .with_action(
                         ActionBuilder::new()
                             .with_domain(Domain::External("osmosis".to_string()))
-                            .with_message_info(MessageInfo {
+                            .with_message_details(MessageDetails {
                                 message_type: MessageType::ExecuteMsg,
                                 message: Message {
                                     name: "method".to_string(),
@@ -430,7 +430,7 @@ fn create_valid_authorizations() {
                     .with_action(
                         ActionBuilder::new()
                             .with_domain(Domain::External("osmosis".to_string()))
-                            .with_message_info(MessageInfo {
+                            .with_message_details(MessageDetails {
                                 message_type: MessageType::ExecuteMsg,
                                 message: Message {
                                     name: "method".to_string(),
@@ -465,12 +465,12 @@ fn create_valid_authorizations() {
                     setup.user_addr.clone(),
                 ]),
             ))
-            .with_expiration(Expiration::AtTime(Timestamp::from_seconds(50000000)))
+            .with_duration(AuthorizationDuration::Duration(Duration::Time(50000000)))
             .with_action_batch(
                 ActionBatchBuilder::new()
                     .with_action(
                         ActionBuilder::new()
-                            .with_message_info(MessageInfo {
+                            .with_message_details(MessageDetails {
                                 message_type: MessageType::ExecuteMsg,
                                 message: Message {
                                     name: "method".to_string(),
@@ -489,7 +489,7 @@ fn create_valid_authorizations() {
                     )
                     .with_action(
                         ActionBuilder::new()
-                            .with_message_info(MessageInfo {
+                            .with_message_details(MessageDetails {
                                 message_type: MessageType::ExecuteMsg,
                                 message: Message {
                                     name: "method".to_string(),
@@ -652,9 +652,9 @@ fn create_invalid_authorizations() {
         &wasm,
         &setup.accounts[0],
         None,
-        None,
+        vec![],
         setup.processor_addr.clone(),
-        Some(vec![setup.external_domain.clone()]),
+        vec![setup.external_domain.clone()],
     );
 
     // Invalid authorizations and the errors we are supposed to get for each one
@@ -765,36 +765,21 @@ fn modify_authorization() {
         &wasm,
         &setup.accounts[0],
         None,
-        Some(vec![setup.subowner_addr]),
+        vec![setup.subowner_addr],
         setup.processor_addr.clone(),
-        None,
+        vec![],
     );
 
-    let authorization = AuthorizationInfo {
-        label: "label".to_string(),
-        mode: AuthorizationMode::Permissioned(PermissionType::WithoutCallLimit(vec![
-            setup.user_addr,
-        ])),
-        expiration: Expiration::Never {},
-        max_concurrent_executions: None,
-        action_batch: ActionBatch {
-            execution_type: ExecutionType::Atomic,
-            actions: vec![Action {
-                domain: Domain::Main,
-                message_info: MessageInfo {
-                    message_type: MessageType::ExecuteMsg,
-                    message: Message {
-                        name: "method1".to_string(),
-                        params_restrictions: None,
-                    },
-                },
-                contract_address: "address".to_string(),
-                retry_logic: None,
-                callback_confirmation: None,
-            }],
-        },
-        priority: None,
-    };
+    let authorization = AuthorizationBuilder::new()
+        .with_mode(AuthorizationMode::Permissioned(
+            PermissionType::WithoutCallLimit(vec![setup.user_addr]),
+        ))
+        .with_action_batch(
+            ActionBatchBuilder::new()
+                .with_action(ActionBuilder::new().build())
+                .build(),
+        )
+        .build();
 
     // Let's create the authorization
     wasm.execute::<ExecuteMsg>(
@@ -811,7 +796,7 @@ fn modify_authorization() {
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
         &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
-            label: "label".to_string(),
+            label: "authorization".to_string(),
             expiration: Some(Expiration::AtHeight(50)),
             max_concurrent_executions: None,
             priority: None,
@@ -838,7 +823,7 @@ fn modify_authorization() {
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
         &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
-            label: "label".to_string(),
+            label: "authorization".to_string(),
             expiration: None,
             max_concurrent_executions: Some(5),
             priority: Some(Priority::High),
@@ -867,7 +852,7 @@ fn modify_authorization() {
         .execute::<ExecuteMsg>(
             &contract_addr,
             &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
-                label: "label".to_string(),
+                label: "authorization".to_string(),
                 expiration: None,
                 max_concurrent_executions: None,
                 priority: Some(Priority::Medium),
@@ -906,7 +891,7 @@ fn modify_authorization() {
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
         &ExecuteMsg::SubOwnerAction(SubOwnerMsg::DisableAuthorization {
-            label: "label".to_string(),
+            label: "authorization".to_string(),
         }),
         &[],
         &setup.accounts[0],
@@ -930,7 +915,7 @@ fn modify_authorization() {
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
         &ExecuteMsg::SubOwnerAction(SubOwnerMsg::EnableAuthorization {
-            label: "label".to_string(),
+            label: "authorization".to_string(),
         }),
         &[],
         &setup.accounts[1],
@@ -955,7 +940,7 @@ fn modify_authorization() {
         .execute::<ExecuteMsg>(
             &contract_addr,
             &ExecuteMsg::SubOwnerAction(SubOwnerMsg::DisableAuthorization {
-                label: "label".to_string(),
+                label: "authorization".to_string(),
             }),
             &[],
             &setup.accounts[2],
@@ -984,61 +969,33 @@ fn mint_authorizations() {
         &wasm,
         &setup.accounts[0],
         None,
-        Some(vec![setup.subowner_addr.clone()]),
+        vec![setup.subowner_addr.clone()],
         setup.processor_addr.clone(),
-        None,
+        vec![],
     );
 
     let authorizations = vec![
-        AuthorizationInfo {
-            label: "permissionless".to_string(),
-            mode: AuthorizationMode::Permissionless,
-            expiration: Expiration::Never {},
-            max_concurrent_executions: None,
-            action_batch: ActionBatch {
-                execution_type: ExecutionType::Atomic,
-                actions: vec![Action {
-                    domain: Domain::Main,
-                    message_info: MessageInfo {
-                        message_type: MessageType::ExecuteMsg,
-                        message: Message {
-                            name: "method1".to_string(),
-                            params_restrictions: None,
-                        },
-                    },
-                    contract_address: "address".to_string(),
-                    retry_logic: None,
-                    callback_confirmation: None,
-                }],
-            },
-            priority: None,
-        },
-        AuthorizationInfo {
-            label: "permissioned-limit".to_string(),
-            mode: AuthorizationMode::Permissioned(PermissionType::WithCallLimit(vec![(
-                setup.user_addr.clone(),
-                Uint128::new(10),
-            )])),
-            expiration: Expiration::AtHeight(50000),
-            max_concurrent_executions: Some(4),
-            action_batch: ActionBatch {
-                execution_type: ExecutionType::NonAtomic,
-                actions: vec![Action {
-                    domain: Domain::Main,
-                    message_info: MessageInfo {
-                        message_type: MessageType::ExecuteMsg,
-                        message: Message {
-                            name: "method1".to_string(),
-                            params_restrictions: None,
-                        },
-                    },
-                    contract_address: "address".to_string(),
-                    retry_logic: None,
-                    callback_confirmation: None,
-                }],
-            },
-            priority: None,
-        },
+        AuthorizationBuilder::new()
+            .with_label("permissionless")
+            .with_action_batch(
+                ActionBatchBuilder::new()
+                    .with_action(ActionBuilder::new().build())
+                    .build(),
+            )
+            .build(),
+        AuthorizationBuilder::new()
+            .with_label("permissioned-limit")
+            .with_mode(AuthorizationMode::Permissioned(
+                PermissionType::WithCallLimit(vec![(setup.user_addr.clone(), Uint128::new(10))]),
+            ))
+            .with_duration(AuthorizationDuration::Duration(Duration::Height(50000)))
+            .with_max_concurrent_executions(4)
+            .with_action_batch(
+                ActionBatchBuilder::new()
+                    .with_action(ActionBuilder::new().build())
+                    .build(),
+            )
+            .build(),
     ];
 
     // Let's create the authorization

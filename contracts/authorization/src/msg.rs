@@ -11,11 +11,11 @@ pub struct InstantiateMsg {
     // If not provided, the owner will be the sender
     pub owner: Option<Addr>,
     // Sub-owners can be added later if needed
-    pub sub_owners: Option<Vec<Addr>>,
+    pub sub_owners: Vec<Addr>,
     // Processor on Main domain
     pub processor: Addr,
     // External domains
-    pub external_domains: Option<Vec<ExternalDomain>>,
+    pub external_domains: Vec<ExternalDomain>,
 }
 
 #[cw_ownable_execute]

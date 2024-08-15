@@ -1,11 +1,13 @@
 use authorization_utils::{
     action::{Action, ActionCallback, RetryLogic},
-    authorization::{ActionBatch, AuthorizationInfo, AuthorizationMode, ExecutionType, Priority},
+    authorization::{
+        ActionBatch, AuthorizationDuration, AuthorizationInfo, AuthorizationMode, ExecutionType,
+        Priority,
+    },
     domain::{CallbackProxy, Connector, Domain, ExternalDomain},
-    message::{Message, MessageInfo, MessageType},
+    message::{Message, MessageDetails, MessageType},
 };
 use cosmwasm_std::{coins, Addr};
-use cw_utils::Expiration;
 use neutron_test_tube::{Account, NeutronTestApp, SigningAccount};
 
 const FEE_DENOM: &str = "untrn";
@@ -92,7 +94,7 @@ pub struct NeutronTestAppSetup {
 pub struct AuthorizationBuilder {
     label: String,
     mode: AuthorizationMode,
-    expiration: Expiration,
+    duration: AuthorizationDuration,
     max_concurrent_executions: Option<u64>,
     action_batch: ActionBatch,
     priority: Option<Priority>,
@@ -103,7 +105,7 @@ impl AuthorizationBuilder {
         AuthorizationBuilder {
             label: "authorization".to_string(),
             mode: AuthorizationMode::Permissionless,
-            expiration: Expiration::Never {},
+            duration: AuthorizationDuration::Forever,
             max_concurrent_executions: None,
             action_batch: ActionBatchBuilder::new().build(),
             priority: None,
@@ -120,8 +122,8 @@ impl AuthorizationBuilder {
         self
     }
 
-    pub fn with_expiration(mut self, expiration: Expiration) -> Self {
-        self.expiration = expiration;
+    pub fn with_duration(mut self, duration: AuthorizationDuration) -> Self {
+        self.duration = duration;
         self
     }
 
@@ -144,7 +146,7 @@ impl AuthorizationBuilder {
         AuthorizationInfo {
             label: self.label,
             mode: self.mode,
-            expiration: self.expiration,
+            duration: self.duration,
             max_concurrent_executions: self.max_concurrent_executions,
             action_batch: self.action_batch,
             priority: self.priority,
@@ -185,7 +187,7 @@ impl ActionBatchBuilder {
 
 pub struct ActionBuilder {
     domain: Domain,
-    message_info: MessageInfo,
+    message_details: MessageDetails,
     contract_address: String,
     retry_logic: Option<RetryLogic>,
     callback_confirmation: Option<ActionCallback>,
@@ -195,7 +197,7 @@ impl ActionBuilder {
     pub fn new() -> Self {
         ActionBuilder {
             domain: Domain::Main,
-            message_info: MessageInfo {
+            message_details: MessageDetails {
                 message_type: MessageType::ExecuteMsg,
                 message: Message {
                     name: "method".to_string(),
@@ -213,8 +215,8 @@ impl ActionBuilder {
         self
     }
 
-    pub fn with_message_info(mut self, message_info: MessageInfo) -> Self {
-        self.message_info = message_info;
+    pub fn with_message_details(mut self, message_details: MessageDetails) -> Self {
+        self.message_details = message_details;
         self
     }
 
@@ -231,7 +233,7 @@ impl ActionBuilder {
     pub fn build(self) -> Action {
         Action {
             domain: self.domain,
-            message_info: self.message_info,
+            message_details: self.message_details,
             contract_address: self.contract_address,
             retry_logic: self.retry_logic,
             callback_confirmation: self.callback_confirmation,

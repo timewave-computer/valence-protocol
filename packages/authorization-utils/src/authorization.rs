@@ -1,6 +1,6 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Uint128};
-use cw_utils::Expiration;
+use cosmwasm_std::{Addr, BlockInfo, Uint128};
+use cw_utils::{Duration, Expiration};
 
 use crate::action::Action;
 
@@ -10,12 +10,20 @@ pub struct AuthorizationInfo {
     // Unique ID for the authorization, will be used as denom of the TokenFactory token if needed
     pub label: String,
     pub mode: AuthorizationMode,
-    pub expiration: Expiration,
+    pub duration: AuthorizationDuration,
     // Default will be 1, defines how many times a specific authorization can be executed concurrently
     pub max_concurrent_executions: Option<u64>,
     pub action_batch: ActionBatch,
     // If not passed, we will assume that the authorization has medium priority
     pub priority: Option<Priority>,
+}
+
+#[cw_serde]
+pub enum AuthorizationDuration {
+    // Authorization will never expire
+    Forever,
+    // Certain Duration
+    Duration(Duration),
 }
 
 #[cw_serde]
@@ -30,15 +38,24 @@ pub struct Authorization {
     pub state: AuthorizationState,
 }
 
-impl From<AuthorizationInfo> for Authorization {
-    fn from(info: AuthorizationInfo) -> Self {
+impl AuthorizationInfo {
+    pub fn into_authorization(self, block_info: &BlockInfo) -> Authorization {
+        let expiration = match self.duration {
+            AuthorizationDuration::Forever => Expiration::Never {},
+            AuthorizationDuration::Duration(duration) => match duration {
+                Duration::Height(blocks) => Expiration::AtHeight(block_info.height + blocks),
+                Duration::Time(seconds) => {
+                    Expiration::AtTime(block_info.time.plus_seconds(seconds))
+                }
+            },
+        };
         Authorization {
-            label: info.label,
-            mode: info.mode,
-            expiration: info.expiration,
-            max_concurrent_executions: info.max_concurrent_executions.unwrap_or(1),
-            action_batch: info.action_batch,
-            priority: info.priority.unwrap_or_default(),
+            label: self.label,
+            mode: self.mode,
+            expiration,
+            max_concurrent_executions: self.max_concurrent_executions.unwrap_or(1),
+            action_batch: self.action_batch,
+            priority: self.priority.unwrap_or_default(),
             state: AuthorizationState::Enabled,
         }
     }

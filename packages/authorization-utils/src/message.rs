@@ -2,7 +2,7 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Binary;
 
 #[cw_serde]
-pub struct MessageInfo {
+pub struct MessageDetails {
     pub message_type: MessageType,
     pub message: Message,
 }
