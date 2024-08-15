@@ -15,7 +15,7 @@ use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::NeutronMsg;
 
 use crate::{
-    authorization::validate_authorization,
+    authorization::Validate,
     domain::add_domains,
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, QueryMsg, SubOwnerMsg},
@@ -177,7 +177,7 @@ fn create_authorizations(
         }
 
         // Perform all validations on the authorization
-        validate_authorization(deps.storage, &authorization)?;
+        authorization.validate(deps.storage)?;
 
         // If Authorization is permissioned we need to create the tokenfactory denom and mint the corresponding amounts to the addresses that can
         // execute the authorization
@@ -240,7 +240,7 @@ fn modify_authorization(
         authorization.priority = priority;
     }
 
-    validate_authorization(deps.storage, &authorization)?;
+    authorization.validate(deps.storage)?;
 
     AUTHORIZATIONS.save(deps.storage, label, &authorization)?;
 
