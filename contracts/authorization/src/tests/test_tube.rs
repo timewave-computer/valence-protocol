@@ -1,4 +1,3 @@
-
 use authorization_utils::{
     action::{Action, ActionCallback, RetryInterval, RetryLogic, RetryTimes},
     authorization::{
@@ -19,7 +18,9 @@ use crate::{
     contract::build_tokenfactory_denom,
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, QueryMsg, SubOwnerMsg},
-    tests::builder::NeutronTestAppBuilder,
+    tests::builders::{
+        ActionBatchBuilder, ActionBuilder, AuthorizationBuilder, NeutronTestAppBuilder,
+    },
 };
 
 fn store_and_instantiate_authorization_contract(
@@ -367,164 +368,148 @@ fn create_valid_authorizations() {
         Some(vec![setup.external_domain.clone()]),
     );
 
-    // Both owner and subowner can create authorizations, lets create multiple authorizations with all scenarios
     let valid_authorizations = vec![
-        AuthorizationInfo {
-            label: "permissionless-authorization".to_string(),
-            mode: AuthorizationMode::Permissionless,
-            expiration: Expiration::Never {},
-            max_concurrent_executions: None,
-            action_batch: ActionBatch {
-                execution_type: ExecutionType::Atomic,
-                actions: vec![
-                    Action {
-                        domain: Domain::Main,
-                        message_info: MessageInfo {
-                            message_type: MessageType::ExecuteMsg,
-                            message: Message {
-                                name: "method1".to_string(),
-                                params_restrictions: None,
-                            },
-                        },
-                        contract_address: "address".to_string(),
-                        retry_logic: None,
-                        callback_confirmation: None,
-                    },
-                    Action {
-                        domain: Domain::Main,
-                        message_info: MessageInfo {
-                            message_type: MessageType::ExecuteMsg,
-                            message: Message {
-                                name: "method2".to_string(),
-                                params_restrictions: Some(vec![
-                                    ParamsRestrictions::MustBeIncluded("param1.param2".to_string()),
-                                ]),
-                            },
-                        },
-                        contract_address: "address".to_string(),
-                        retry_logic: Some(RetryLogic {
-                            times: RetryTimes::Indefinitely,
-                            interval: RetryInterval::Seconds(5),
-                        }),
-                        callback_confirmation: None,
-                    },
-                ],
-            },
-            priority: None,
-        },
+        AuthorizationBuilder::new()
+            .with_label("permissionless-authorization")
+            .with_action_batch(
+                ActionBatchBuilder::new()
+                    .with_action(ActionBuilder::new().build())
+                    .with_action(
+                        ActionBuilder::new()
+                            .with_message_info(MessageInfo {
+                                message_type: MessageType::ExecuteMsg,
+                                message: Message {
+                                    name: "method2".to_string(),
+                                    params_restrictions: Some(vec![
+                                        ParamsRestrictions::MustBeIncluded(
+                                            "param1.param2".to_string(),
+                                        ),
+                                    ]),
+                                },
+                            })
+                            .with_retry_logic(RetryLogic {
+                                times: RetryTimes::Indefinitely,
+                                interval: RetryInterval::Seconds(5),
+                            })
+                            .build(),
+                    )
+                    .build(),
+            )
+            .build(),
         // This one will mint 5 tokens to subowner_addr
-        AuthorizationInfo {
-            label: "permissioned-limit-authorization".to_string(),
-            mode: AuthorizationMode::Permissioned(PermissionType::WithCallLimit(vec![(
-                setup.subowner_addr.clone(),
-                Uint128::new(5),
-            )])),
-            expiration: Expiration::AtHeight(50000),
-            max_concurrent_executions: Some(4),
-            action_batch: ActionBatch {
-                execution_type: ExecutionType::NonAtomic,
-                actions: vec![
-                    Action {
-                        domain: Domain::External("osmosis".to_string()),
-                        message_info: MessageInfo {
-                            message_type: MessageType::ExecuteMsg,
-                            message: Message {
-                                name: "method".to_string(),
-                                params_restrictions: Some(vec![
-                                    ParamsRestrictions::CannotBeIncluded(
-                                        "param1.param2".to_string(),
-                                    ),
-                                ]),
-                            },
-                        },
-                        contract_address: "address".to_string(),
-                        retry_logic: Some(RetryLogic {
-                            times: RetryTimes::Amount(5),
-                            interval: RetryInterval::Seconds(10),
-                        }),
-                        callback_confirmation: None,
-                    },
-                    Action {
-                        domain: Domain::External("osmosis".to_string()),
-                        message_info: MessageInfo {
-                            message_type: MessageType::ExecuteMsg,
-                            message: Message {
-                                name: "method".to_string(),
-                                params_restrictions: Some(vec![ParamsRestrictions::MustBeValue(
-                                    "param1.param2".to_string(),
-                                    Binary::from_base64("aGVsbG8=").unwrap(),
-                                )]),
-                            },
-                        },
-                        contract_address: "address".to_string(),
-                        retry_logic: Some(RetryLogic {
-                            times: RetryTimes::Amount(10),
-                            interval: RetryInterval::Blocks(5),
-                        }),
-                        callback_confirmation: Some(ActionCallback {
-                            contract_address: "address".to_string(),
-                            callback_message: Binary::from_base64("aGVsbG8=").unwrap(),
-                        }),
-                    },
-                ],
-            },
-            priority: Some(Priority::High),
-        },
+        AuthorizationBuilder::new()
+            .with_label("permissioned-limit-authorization")
+            .with_mode(AuthorizationMode::Permissioned(
+                PermissionType::WithCallLimit(vec![(setup.subowner_addr.clone(), Uint128::new(5))]),
+            ))
+            .with_expiration(Expiration::AtHeight(50000))
+            .with_max_concurrent_executions(4)
+            .with_action_batch(
+                ActionBatchBuilder::new()
+                    .with_execution_type(ExecutionType::NonAtomic)
+                    .with_action(
+                        ActionBuilder::new()
+                            .with_domain(Domain::External("osmosis".to_string()))
+                            .with_message_info(MessageInfo {
+                                message_type: MessageType::ExecuteMsg,
+                                message: Message {
+                                    name: "method".to_string(),
+                                    params_restrictions: Some(vec![
+                                        ParamsRestrictions::CannotBeIncluded(
+                                            "param1.param2".to_string(),
+                                        ),
+                                    ]),
+                                },
+                            })
+                            .with_retry_logic(RetryLogic {
+                                times: RetryTimes::Amount(5),
+                                interval: RetryInterval::Seconds(10),
+                            })
+                            .build(),
+                    )
+                    .with_action(
+                        ActionBuilder::new()
+                            .with_domain(Domain::External("osmosis".to_string()))
+                            .with_message_info(MessageInfo {
+                                message_type: MessageType::ExecuteMsg,
+                                message: Message {
+                                    name: "method".to_string(),
+                                    params_restrictions: Some(vec![
+                                        ParamsRestrictions::MustBeValue(
+                                            "param1.param2".to_string(),
+                                            Binary::from_base64("aGVsbG8=").unwrap(),
+                                        ),
+                                    ]),
+                                },
+                            })
+                            .with_retry_logic(RetryLogic {
+                                times: RetryTimes::Amount(10),
+                                interval: RetryInterval::Blocks(5),
+                            })
+                            .with_callback_confirmation(ActionCallback {
+                                contract_address: "address".to_string(),
+                                callback_message: Binary::from_base64("aGVsbG8=").unwrap(),
+                            })
+                            .build(),
+                    )
+                    .build(),
+            )
+            .with_priority(Priority::High)
+            .build(),
         // This one will mint 1 token to subowner_addr and 1 token to user_addr
-        AuthorizationInfo {
-            label: "permissioned-without-limit-authorization".to_string(),
-            mode: AuthorizationMode::Permissioned(PermissionType::WithoutCallLimit(vec![
-                setup.subowner_addr.clone(),
-                setup.user_addr.clone(),
-            ])),
-            expiration: Expiration::AtTime(Timestamp::from_seconds(50000000)),
-            max_concurrent_executions: None,
-            action_batch: ActionBatch {
-                execution_type: ExecutionType::Atomic,
-                actions: vec![
-                    Action {
-                        domain: Domain::Main,
-                        message_info: MessageInfo {
-                            message_type: MessageType::ExecuteMsg,
-                            message: Message {
-                                name: "method".to_string(),
-                                params_restrictions: Some(vec![
-                                    ParamsRestrictions::CannotBeIncluded(
-                                        "param1.param2".to_string(),
-                                    ),
-                                ]),
-                            },
-                        },
-                        contract_address: "address".to_string(),
-                        retry_logic: Some(RetryLogic {
-                            times: RetryTimes::Amount(5),
-                            interval: RetryInterval::Seconds(10),
-                        }),
-                        callback_confirmation: None,
-                    },
-                    Action {
-                        domain: Domain::Main,
-                        message_info: MessageInfo {
-                            message_type: MessageType::ExecuteMsg,
-                            message: Message {
-                                name: "method".to_string(),
-                                params_restrictions: Some(vec![ParamsRestrictions::MustBeValue(
-                                    "param1.param2".to_string(),
-                                    Binary::from_base64("aGVsbG8=").unwrap(),
-                                )]),
-                            },
-                        },
-                        contract_address: "address".to_string(),
-                        retry_logic: Some(RetryLogic {
-                            times: RetryTimes::Amount(10),
-                            interval: RetryInterval::Blocks(5),
-                        }),
-                        callback_confirmation: None,
-                    },
-                ],
-            },
-            priority: Some(Priority::High),
-        },
+        AuthorizationBuilder::new()
+            .with_label("permissioned-without-limit-authorization")
+            .with_mode(AuthorizationMode::Permissioned(
+                PermissionType::WithoutCallLimit(vec![
+                    setup.subowner_addr.clone(),
+                    setup.user_addr.clone(),
+                ]),
+            ))
+            .with_expiration(Expiration::AtTime(Timestamp::from_seconds(50000000)))
+            .with_action_batch(
+                ActionBatchBuilder::new()
+                    .with_action(
+                        ActionBuilder::new()
+                            .with_message_info(MessageInfo {
+                                message_type: MessageType::ExecuteMsg,
+                                message: Message {
+                                    name: "method".to_string(),
+                                    params_restrictions: Some(vec![
+                                        ParamsRestrictions::CannotBeIncluded(
+                                            "param1.param2".to_string(),
+                                        ),
+                                    ]),
+                                },
+                            })
+                            .with_retry_logic(RetryLogic {
+                                times: RetryTimes::Amount(5),
+                                interval: RetryInterval::Seconds(10),
+                            })
+                            .build(),
+                    )
+                    .with_action(
+                        ActionBuilder::new()
+                            .with_message_info(MessageInfo {
+                                message_type: MessageType::ExecuteMsg,
+                                message: Message {
+                                    name: "method".to_string(),
+                                    params_restrictions: Some(vec![
+                                        ParamsRestrictions::MustBeValue(
+                                            "param1.param2".to_string(),
+                                            Binary::from_base64("aGVsbG8=").unwrap(),
+                                        ),
+                                    ]),
+                                },
+                            })
+                            .with_retry_logic(RetryLogic {
+                                times: RetryTimes::Amount(10),
+                                interval: RetryInterval::Blocks(5),
+                            })
+                            .build(),
+                    )
+                    .build(),
+            )
+            .build(),
     ];
 
     // If someone who is not the Owner or Subowner tries to create an authorization, it should fail
@@ -675,165 +660,76 @@ fn create_invalid_authorizations() {
     // Invalid authorizations and the errors we are supposed to get for each one
     let invalid_authorizations = vec![
         (
-            AuthorizationInfo {
-                label: "label".to_string(),
-                mode: AuthorizationMode::Permissionless,
-                expiration: Expiration::Never {},
-                max_concurrent_executions: None,
-                action_batch: ActionBatch {
-                    execution_type: ExecutionType::Atomic,
-                    actions: vec![],
-                },
-                priority: None,
-            },
+            AuthorizationBuilder::new().build(),
             ContractError::NoActions {},
         ),
         (
-            AuthorizationInfo {
-                label: "".to_string(),
-                mode: AuthorizationMode::Permissionless,
-                expiration: Expiration::Never {},
-                max_concurrent_executions: None,
-                action_batch: ActionBatch {
-                    execution_type: ExecutionType::Atomic,
-                    actions: vec![Action {
-                        domain: Domain::Main,
-                        message_info: MessageInfo {
-                            message_type: MessageType::ExecuteMsg,
-                            message: Message {
-                                name: "method1".to_string(),
-                                params_restrictions: None,
-                            },
-                        },
-                        contract_address: "address".to_string(),
-                        retry_logic: None,
-                        callback_confirmation: None,
-                    }],
-                },
-                priority: None,
-            },
+            AuthorizationBuilder::new()
+                .with_label("")
+                .with_action_batch(
+                    ActionBatchBuilder::new()
+                        .with_action(ActionBuilder::new().build())
+                        .build(),
+                )
+                .build(),
             ContractError::EmptyLabel {},
         ),
         (
-            AuthorizationInfo {
-                label: "label".to_string(),
-                mode: AuthorizationMode::Permissionless,
-                expiration: Expiration::Never {},
-                max_concurrent_executions: None,
-                action_batch: ActionBatch {
-                    execution_type: ExecutionType::Atomic,
-                    actions: vec![Action {
-                        domain: Domain::External("ethereum".to_string()),
-                        message_info: MessageInfo {
-                            message_type: MessageType::ExecuteMsg,
-                            message: Message {
-                                name: "method1".to_string(),
-                                params_restrictions: None,
-                            },
-                        },
-                        contract_address: "address".to_string(),
-                        retry_logic: None,
-                        callback_confirmation: None,
-                    }],
-                },
-                priority: None,
-            },
+            AuthorizationBuilder::new()
+                .with_label("label")
+                .with_action_batch(
+                    ActionBatchBuilder::new()
+                        .with_action(
+                            ActionBuilder::new()
+                                .with_domain(Domain::External("ethereum".to_string()))
+                                .build(),
+                        )
+                        .build(),
+                )
+                .build(),
             ContractError::DomainIsNotRegistered("ethereum".to_string()),
         ),
         (
-            AuthorizationInfo {
-                label: "label".to_string(),
-                mode: AuthorizationMode::Permissionless,
-                expiration: Expiration::Never {},
-                max_concurrent_executions: None,
-                action_batch: ActionBatch {
-                    execution_type: ExecutionType::Atomic,
-                    actions: vec![
-                        Action {
-                            domain: Domain::Main,
-                            message_info: MessageInfo {
-                                message_type: MessageType::ExecuteMsg,
-                                message: Message {
-                                    name: "method1".to_string(),
-                                    params_restrictions: None,
-                                },
-                            },
-                            contract_address: "address".to_string(),
-                            retry_logic: None,
-                            callback_confirmation: None,
-                        },
-                        Action {
-                            domain: Domain::External("osmosis".to_string()),
-                            message_info: MessageInfo {
-                                message_type: MessageType::ExecuteMsg,
-                                message: Message {
-                                    name: "method1".to_string(),
-                                    params_restrictions: None,
-                                },
-                            },
-                            contract_address: "address".to_string(),
-                            retry_logic: None,
-                            callback_confirmation: None,
-                        },
-                    ],
-                },
-                priority: None,
-            },
+            AuthorizationBuilder::new()
+                .with_action_batch(
+                    ActionBatchBuilder::new()
+                        .with_action(ActionBuilder::new().with_domain(Domain::Main).build())
+                        .with_action(
+                            ActionBuilder::new()
+                                .with_domain(Domain::External("osmosis".to_string()))
+                                .build(),
+                        )
+                        .build(),
+                )
+                .build(),
             ContractError::DifferentActionDomains {},
         ),
         (
-            AuthorizationInfo {
-                label: "label".to_string(),
-                mode: AuthorizationMode::Permissionless,
-                expiration: Expiration::Never {},
-                max_concurrent_executions: None,
-                action_batch: ActionBatch {
-                    execution_type: ExecutionType::Atomic,
-                    actions: vec![Action {
-                        domain: Domain::Main,
-                        message_info: MessageInfo {
-                            message_type: MessageType::ExecuteMsg,
-                            message: Message {
-                                name: "method1".to_string(),
-                                params_restrictions: None,
-                            },
-                        },
-                        contract_address: "address".to_string(),
-                        retry_logic: None,
-                        callback_confirmation: None,
-                    }],
-                },
-                priority: Some(Priority::High),
-            },
+            AuthorizationBuilder::new()
+                .with_action_batch(
+                    ActionBatchBuilder::new()
+                        .with_action(ActionBuilder::new().build())
+                        .build(),
+                )
+                .with_priority(Priority::High)
+                .build(),
             ContractError::PermissionlessAuthorizationWithHighPriority {},
         ),
         (
-            AuthorizationInfo {
-                label: "label".to_string(),
-                mode: AuthorizationMode::Permissionless,
-                expiration: Expiration::Never {},
-                max_concurrent_executions: None,
-                action_batch: ActionBatch {
-                    execution_type: ExecutionType::Atomic,
-                    actions: vec![Action {
-                        domain: Domain::Main,
-                        message_info: MessageInfo {
-                            message_type: MessageType::ExecuteMsg,
-                            message: Message {
-                                name: "method1".to_string(),
-                                params_restrictions: None,
-                            },
-                        },
-                        contract_address: "address".to_string(),
-                        retry_logic: None,
-                        callback_confirmation: Some(ActionCallback {
-                            contract_address: "address".to_string(),
-                            callback_message: Binary::from_base64("aGVsbG8=").unwrap(),
-                        }),
-                    }],
-                },
-                priority: None,
-            },
+            AuthorizationBuilder::new()
+                .with_action_batch(
+                    ActionBatchBuilder::new()
+                        .with_action(
+                            ActionBuilder::new()
+                                .with_callback_confirmation(ActionCallback {
+                                    contract_address: "address".to_string(),
+                                    callback_message: Binary::from_base64("aGVsbG8=").unwrap(),
+                                })
+                                .build(),
+                        )
+                        .build(),
+                )
+                .build(),
             ContractError::AtomicAuthorizationWithCallbackConfirmation {},
         ),
     ];

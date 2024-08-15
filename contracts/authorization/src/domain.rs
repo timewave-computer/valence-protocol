@@ -1,4 +1,4 @@
-use authorization_utils::domain::{CallBackProxy, Connector, ExternalDomain};
+use authorization_utils::domain::{CallbackProxy, Connector, ExternalDomain};
 use cosmwasm_std::DepsMut;
 
 use crate::{error::ContractError, state::EXTERNAL_DOMAINS};
@@ -15,7 +15,7 @@ pub fn add_domains(deps: DepsMut, domains: Vec<ExternalDomain>) -> Result<(), Co
         };
 
         match &domain.callback_proxy {
-            CallBackProxy::PolytoneProxy(addr) => deps.api.addr_validate(addr.as_str())?,
+            CallbackProxy::PolytoneProxy(addr) => deps.api.addr_validate(addr.as_str())?,
         };
 
         EXTERNAL_DOMAINS.save(deps.storage, domain.name.clone(), &domain)?;

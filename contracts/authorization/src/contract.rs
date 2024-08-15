@@ -287,21 +287,18 @@ fn mint_authorizations(
         .load(deps.storage, label.clone())
         .map_err(|_| ContractError::AuthorizationDoesNotExist(label.clone()))?;
 
-    let mut token_factory_msgs = vec![];
-
-    match authorization.mode {
-        AuthorizationMode::Permissioned(_) => {
-            let denom = build_tokenfactory_denom(env.contract.address.as_str(), &label);
-
-            for mint in mints {
-                let mint_msg = NeutronMsg::submit_mint_tokens(&denom, mint.amount, mint.address);
-                token_factory_msgs.push(mint_msg);
-            }
-        }
+    let token_factory_msgs = match authorization.mode {
+        AuthorizationMode::Permissioned(_) => Ok(mints.iter().map(|mint| {
+            NeutronMsg::submit_mint_tokens(
+                build_tokenfactory_denom(env.contract.address.as_str(), &label),
+                mint.amount,
+                mint.address.clone(),
+            )
+        })),
         AuthorizationMode::Permissionless => {
-            return Err(ContractError::CantMintForPermissionlessAuthorization {})
+            Err(ContractError::CantMintForPermissionlessAuthorization {})
         }
-    }
+    }?;
 
     Ok(Response::new()
         .add_attribute("action", "mint_authorizations")

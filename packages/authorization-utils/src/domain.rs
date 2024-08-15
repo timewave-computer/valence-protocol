@@ -12,7 +12,7 @@ pub struct ExternalDomain {
     pub name: String,
     pub connector: Connector,
     pub processor: String,
-    pub callback_proxy: CallBackProxy,
+    pub callback_proxy: CallbackProxy,
 }
 
 #[cw_serde]
@@ -21,6 +21,6 @@ pub enum Connector {
 }
 
 #[cw_serde]
-pub enum CallBackProxy {
+pub enum CallbackProxy {
     PolytoneProxy(Addr),
 }
