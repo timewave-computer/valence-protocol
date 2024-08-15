@@ -167,15 +167,7 @@ fn create_authorizations(
     let mut tokenfactory_msgs = vec![];
 
     for each_authorization in authorizations {
-        let authorization = Authorization {
-            label: each_authorization.label.clone(),
-            mode: each_authorization.mode,
-            expiration: each_authorization.expiration,
-            max_concurrent_executions: each_authorization.max_concurrent_executions.unwrap_or(1),
-            action_batch: each_authorization.action_batch,
-            priority: each_authorization.priority.unwrap_or_default(),
-            state: AuthorizationState::Enabled,
-        };
+        let authorization = Authorization::from(each_authorization);
 
         // Check that it doesn't exist yet
         if AUTHORIZATIONS.has(deps.storage, authorization.label.clone()) {
@@ -189,21 +181,21 @@ fn create_authorizations(
 
         // If Authorization is permissioned we need to create the tokenfactory denom and mint the corresponding amounts to the addresses that can
         // execute the authorization
-        if let AuthorizationMode::Permissioned(permission_type) = authorization.mode.clone() {
+        if let AuthorizationMode::Permissioned(permission_type) = &authorization.mode {
             // We will always create the denom if it's permissioned
             let create_denom_msg = NeutronMsg::submit_create_denom(authorization.label.clone());
             tokenfactory_msgs.push(create_denom_msg);
 
             // Full denom of the token that will be created
             let denom =
-                build_tokenfactory_denom(&authorization.label, env.contract.address.as_str());
+                build_tokenfactory_denom(env.contract.address.as_str(), &authorization.label);
 
             match permission_type {
                 // If there is a call limit we will mint the amount of tokens specified in the call limit for each address and these will be burned after each correct execution
                 PermissionType::WithCallLimit(call_limits) => {
                     for (addr, limit) in call_limits {
                         deps.api.addr_validate(addr.as_str())?;
-                        let mint_msg = NeutronMsg::submit_mint_tokens(&denom, limit, addr);
+                        let mint_msg = NeutronMsg::submit_mint_tokens(&denom, *limit, addr);
                         tokenfactory_msgs.push(mint_msg);
                     }
                 }
@@ -299,7 +291,7 @@ fn mint_authorizations(
 
     match authorization.mode {
         AuthorizationMode::Permissioned(_) => {
-            let denom = build_tokenfactory_denom(&label, env.contract.address.as_str());
+            let denom = build_tokenfactory_denom(env.contract.address.as_str(), &label);
 
             for mint in mints {
                 let mint_msg = NeutronMsg::submit_mint_tokens(&denom, mint.amount, mint.address);
@@ -389,6 +381,6 @@ fn assert_owner_or_subowner(store: &dyn Storage, address: Addr) -> Result<(), Co
 }
 
 /// Returns the full denom of a tokenfactory token: factory/<contract_address>/<label>
-fn build_tokenfactory_denom(label: &str, contract_address: &str) -> String {
+pub fn build_tokenfactory_denom(contract_address: &str, label: &str) -> String {
     format!("factory/{}/{}", contract_address, label)
 }
