@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut, Uint128};
 use cw_ownable::cw_ownable_execute;
+use services_utils::{ServiceAccountType, ServiceConfigInterface};
 use valence_macros::OptionalStruct;
 
 use crate::{state::CONFIG, ContractError};
@@ -40,17 +41,23 @@ pub enum QueryMsg {
 #[derive(OptionalStruct)]
 pub struct ServiceConfig {
     /// Address we send funds to
-    output_addr: String,
-    splits: Splits,
+    output_addr: ServiceAccountType,
+    splits: SplitsConfig,
 }
 
 impl ServiceConfig {
     pub fn validate(&self, deps: Deps) -> Result<Config, ContractError> {
         // TODO: Verify splits are valid
         Ok(Config {
-            output_addr: deps.api.addr_validate(&self.output_addr)?,
+            output_addr: self.output_addr.to_addr(deps)?,
             splits: self.splits.clone(),
         })
+    }
+}
+
+impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
+    fn is_diff(&self, other: &ServiceConfig) -> bool {
+        !self.eq(other)
     }
 }
 
@@ -63,7 +70,7 @@ impl OptionalServiceConfig {
         let mut config = CONFIG.load(deps.storage)?;
 
         if let Some(output_addr) = self.output_addr {
-            config.output_addr = deps.api.addr_validate(&output_addr)?;
+            config.output_addr = output_addr.to_addr(deps.as_ref())?;
         }
 
         if let Some(splits) = self.splits {
@@ -79,7 +86,14 @@ impl OptionalServiceConfig {
 #[cw_serde]
 pub struct Config {
     pub output_addr: Addr,
-    pub splits: Splits,
+    pub splits: SplitsConfig,
 }
 
-type Splits = BTreeMap<String, BTreeMap<String, Uint128>>;
+/// Splits is a list of denoms,
+/// where each of the denom has a list of addresses and amount how much to send to that addres
+
+pub type SplitsConfig = BTreeMap<String, Splits>;
+
+#[cw_serde]
+#[derive(PartialOrd, Eq)]
+pub struct Splits(pub BTreeMap<ServiceAccountType, Uint128>);

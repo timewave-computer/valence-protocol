@@ -102,10 +102,11 @@ mod actions {
                         // TODO: change split to be percentage and not amounts
                         messages.extend(
                             split
+                                .0
                                 .iter()
                                 .map(|(addr, amount)| {
                                     let bank_msg = BankMsg::Send {
-                                        to_address: addr.into(),
+                                        to_address: addr.to_string()?,
                                         amount: vec![Coin {
                                             denom: denom.clone(),
                                             amount: *amount,
