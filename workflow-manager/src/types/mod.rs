@@ -1,30 +1,100 @@
 pub mod account;
-pub mod domain;
 pub mod service;
 
 use std::collections::BTreeMap;
 
-use account::AccountInfo;
+use account::{AccountInfo, AccountType};
+use authorization_utils::authorization::AuthorizationInfo;
 use service::ServiceInfo;
 use services_utils::Id;
 
+#[derive(Clone, Debug)]
 pub struct WorkflowConfig {
     /// A list of links between an accounts and services
     pub links: BTreeMap<Id, Link>,
     /// A list of authorizations
-    // pub authorizations: BTreeMap<Id, Authorization>,
+    pub authorizations: BTreeMap<Id, AuthorizationInfo>,
     /// The list account data by id
     pub accounts: BTreeMap<Id, AccountInfo>,
     // /// The list service data by id
     pub services: BTreeMap<Id, ServiceInfo>,
 }
 
+impl WorkflowConfig {
+    pub fn default() -> Self {
+        Self {
+            links: BTreeMap::new(),
+            authorizations: BTreeMap::new(),
+            accounts: BTreeMap::new(),
+            services: BTreeMap::new(),
+        }
+    }
+}
+
+impl WorkflowConfig {
+    /// Instantiate a workflow on all domains.
+    pub fn init(&mut self) {
+        // init accounts
+        self.accounts
+            .iter_mut()
+            .for_each(|(id, account)| {
+                match account.ty {
+                    AccountType::Base { admin: _ } => {
+                        // TODO: init the account
+                        let addr = format!("base_addr:{id}");
+                        account.ty = AccountType::Addr { addr };
+                    }
+                    _ => (),
+                };
+            });
+
+        self.links.iter().for_each(|(_, link)| {
+            let mut patterns =
+                Vec::with_capacity(link.input_accounts_id.len() + link.output_accounts_id.len());
+            let mut replace_with =
+                Vec::with_capacity(link.input_accounts_id.len() + link.output_accounts_id.len());
+
+            // At this stage we should already have all addresses for all account ids, including bridges
+            link.input_accounts_id.iter().for_each(|id| {
+                let account = self.accounts.get(id).unwrap();
+                let addr = match &account.ty {
+                    AccountType::Addr { addr } => addr.to_string(),
+                    _ => panic!("Account must be of type Addr"),
+                };
+
+                patterns.push(format!("|account_id|\":{id}"));
+                replace_with.push(format!("account_addr\":\"{addr}\""))
+            });
+
+            link.output_accounts_id.iter().for_each(|id| {
+                let account = self.accounts.get(id).unwrap();
+                let addr = match &account.ty {
+                    AccountType::Addr { addr } => addr.to_string(),
+                    _ => panic!("Account must be of type Addr"),
+                };
+                patterns.push(format!("|account_id|\":{id}"));
+                replace_with.push(format!("account_addr\":\"{addr}\""))
+            });
+
+            let service = self.services.get_mut(&link.service_id).unwrap();
+            service.config.replace_config(patterns, replace_with);
+        });
+
+        // init services
+        self.services.iter().for_each(|(_id, _service)| {
+            // TODO: init the service
+        })
+
+        // TODO: init authorizations
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Link {
-    /// List of input accounts
+    /// List of input accounts by id
     pub input_accounts_id: Vec<Id>,
-    /// List of output accounts
+    /// List of output accounts by id
     pub output_accounts_id: Vec<Id>,
-    /// A service config
+    /// The service id
     pub service_id: Id,
 }

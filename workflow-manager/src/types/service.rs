@@ -4,16 +4,17 @@ use services_utils::ServiceConfigInterface;
 use valence_reverse_splitter::msg::ServiceConfig as ReverseSplitterServiceConfig;
 use valence_splitter::msg::ServiceConfig as SplitterServiceConfig;
 
-use super::domain::Domains;
+use crate::domain::Domain;
 
+#[derive(Debug, Clone)]
 pub struct ServiceInfo {
-    pub domain: Domains,
-    pub config: ServiceConfigs,
+    pub domain: Domain,
+    pub config: ServiceConfig,
 }
 
 /// This is a list of all our services we support and their configs.
 #[derive(Debug, Clone)]
-pub enum ServiceConfigs {
+pub enum ServiceConfig {
     // General {
     //     config: GeneralServiceConfig,
     // },
@@ -40,15 +41,15 @@ pub enum ServiceConfigs {
     // },
 }
 
-impl ServiceConfigs {
-    pub fn is_diff(&self, other: &ServiceConfigs) -> bool {
+impl ServiceConfig {
+    pub fn is_diff(&self, other: &ServiceConfig) -> bool {
         match (self, other) {
-            (ServiceConfigs::Splitter(config), ServiceConfigs::Splitter(other_config)) => {
+            (ServiceConfig::Splitter(config), ServiceConfig::Splitter(other_config)) => {
                 config.is_diff(other_config)
             }
             (
-                ServiceConfigs::ReverseSplitter(config),
-                ServiceConfigs::ReverseSplitter(other_config),
+                ServiceConfig::ReverseSplitter(config),
+                ServiceConfig::ReverseSplitter(other_config),
             ) => config.is_diff(other_config),
             _ => false,
         }
@@ -58,36 +59,36 @@ impl ServiceConfigs {
         let ac = AhoCorasick::new(patterns).unwrap();
 
         match self {
-            ServiceConfigs::Splitter(ref mut config) => {
+            ServiceConfig::Splitter(ref mut config) => {
                 let json = serde_json::to_string(&config).unwrap();
                 let res = ac.replace_all(&json, &replace_with);
 
                 *config = serde_json::from_str(&res).unwrap();
             }
-            ServiceConfigs::ReverseSplitter(config) => {
+            ServiceConfig::ReverseSplitter(config) => {
                 let json = serde_json::to_string(&config).unwrap();
                 let res = ac.replace_all(&json, &replace_with);
 
                 *config = serde_json::from_str(&res).unwrap();
-            } // ServiceConfigs::GlobalSplitter { config, .. } => {
+            } // ServiceConfig::GlobalSplitter { config, .. } => {
               //     let json = serde_json::to_string(&config).unwrap();
               //     let res = ac.replace_all(&json, &replace_with);
 
               //     *config = serde_json::from_str(&res).unwrap();
               // }
-              // ServiceConfigs::Lper { config, .. } => {
+              // ServiceConfig::Lper { config, .. } => {
               //     let json = serde_json::to_string(&config).unwrap();
               //     let res = ac.replace_all(&json, &replace_with);
 
               //     *config = serde_json::from_str(&res).unwrap();
               // }
-              // ServiceConfigs::Lwer { config, .. } => {
+              // ServiceConfig::Lwer { config, .. } => {
               //     let json = serde_json::to_string(&config).unwrap();
               //     let res = ac.replace_all(&json, &replace_with);
 
               //     *config = serde_json::from_str(&res).unwrap();
               // }
-              // ServiceConfigs::Forwarder { config, .. } => {
+              // ServiceConfig::Forwarder { config, .. } => {
               //     let json = serde_json::to_string(&config).unwrap();
               //     let res = ac.replace_all(&json, &replace_with);
 

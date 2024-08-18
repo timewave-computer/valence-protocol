@@ -97,7 +97,6 @@ mod actions {
                     // TODO: change split to be percentage and not amounts
                     messages.extend(
                         split
-                            .0
                             .iter()
                             .map(|(addr, amount)| {
                                 let bank_msg = BankMsg::Send {

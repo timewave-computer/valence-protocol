@@ -1,3 +1,7 @@
+use crate::domain::Domain;
+
+
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum AccountType {
     Addr { addr: String },
@@ -7,5 +11,5 @@ pub enum AccountType {
 #[derive(Debug, PartialEq, Clone)]
 pub struct AccountInfo {
     pub ty: AccountType,
-    pub domain: String,
+    pub domain: Domain,
 }

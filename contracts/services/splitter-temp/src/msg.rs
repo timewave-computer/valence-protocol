@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut, Uint128};
@@ -41,8 +41,8 @@ pub enum QueryMsg {
 #[derive(OptionalStruct)]
 pub struct ServiceConfig {
     /// Address we pull funds from
-    input_addr: ServiceAccountType,
-    splits: SplitsConfig,
+    pub input_addr: ServiceAccountType,
+    pub splits: SplitsConfig,
 }
 
 impl ServiceConfig {
@@ -85,13 +85,10 @@ impl OptionalServiceConfig {
 }
 
 #[cw_serde]
+
 pub struct Config {
     pub input_addr: Addr,
     pub splits: SplitsConfig,
 }
 
-pub type SplitsConfig = BTreeMap<String, Splits>;
-
-#[cw_serde]
-#[derive(PartialOrd, Eq)]
-pub struct Splits(pub BTreeMap<ServiceAccountType, Uint128>);
+pub type SplitsConfig = BTreeMap<String, BTreeSet<(ServiceAccountType, Uint128)>>;

@@ -8,11 +8,19 @@ repository = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cosmwasm-std   = { workspace = true }
-serde          = { workspace = true }
-serde_json     = { workspace = true }
-aho-corasick   = "1.1"
-services-utils = { workspace = true }
+cosmwasm-std       = { workspace = true }
+serde              = { workspace = true }
+serde_json         = { workspace = true }
+aho-corasick       = "1.1"
+serde_json_any_key = "2"
+
+services-utils      = { workspace = true }
+valence-macros      = { workspace = true }
+authorization-utils = { workspace = true }
 
 valence-splitter         = { workspace = true }
 valence-reverse-splitter = { workspace = true }
+
+lazy_static        = "1.5"
+cosmos-grpc-client = "3.0.1"
+tokio              = "1.39"
