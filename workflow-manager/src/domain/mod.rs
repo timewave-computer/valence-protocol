@@ -27,7 +27,7 @@ pub struct DomainInfo {
 }
 
 impl DomainInfo {
-    pub async fn from_domain(domain: Domain) -> DomainInfo {
+    pub async fn from_domain(domain: Domain) -> Self {
         match domain {
             Domain::Cosmos(_chain_name) => {
                 // TODO: Get rpc / info for a specific domain somehow

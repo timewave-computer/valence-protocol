@@ -1,12 +1,22 @@
-pub mod account;
-pub mod service;
-
 use std::collections::BTreeMap;
 
-use account::{AccountInfo, AccountType};
 use authorization_utils::authorization::AuthorizationInfo;
-use service::ServiceInfo;
 use services_utils::Id;
+
+use crate::{
+    account::{AccountInfo, AccountType},
+    service::ServiceInfo,
+};
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Link {
+    /// List of input accounts by id
+    pub input_accounts_id: Vec<Id>,
+    /// List of output accounts by id
+    pub output_accounts_id: Vec<Id>,
+    /// The service id
+    pub service_id: Id,
+}
 
 #[derive(Clone, Debug)]
 pub struct WorkflowConfig {
@@ -35,18 +45,16 @@ impl WorkflowConfig {
     /// Instantiate a workflow on all domains.
     pub fn init(&mut self) {
         // init accounts
-        self.accounts
-            .iter_mut()
-            .for_each(|(id, account)| {
-                match account.ty {
-                    AccountType::Base { admin: _ } => {
-                        // TODO: init the account
-                        let addr = format!("base_addr:{id}");
-                        account.ty = AccountType::Addr { addr };
-                    }
-                    _ => (),
-                };
-            });
+        self.accounts.iter_mut().for_each(|(id, account)| {
+            match account.ty {
+                AccountType::Base { admin: _ } => {
+                    // TODO: init the account
+                    let addr = format!("base_addr:{id}");
+                    account.ty = AccountType::Addr { addr };
+                }
+                _ => (),
+            };
+        });
 
         self.links.iter().for_each(|(_, link)| {
             let mut patterns =
@@ -87,14 +95,4 @@ impl WorkflowConfig {
 
         // TODO: init authorizations
     }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Link {
-    /// List of input accounts by id
-    pub input_accounts_id: Vec<Id>,
-    /// List of output accounts by id
-    pub output_accounts_id: Vec<Id>,
-    /// The service id
-    pub service_id: Id,
 }

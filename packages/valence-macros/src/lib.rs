@@ -51,10 +51,10 @@ pub fn connector_trait(_attr: TokenStream, item: TokenStream) -> TokenStream {
             None
         }
     });
-    
-    let inner_methods = methods.clone().filter(|m| m.sig.ident != "new");
 
-    let method_impls = methods.clone().filter(|m| m.sig.ident != "new").map(|method| {
+    let methods_without_new = methods.clone().filter(|m| m.sig.ident != "new");
+
+    let method_impls = methods_without_new.clone().map(|method| {
         let method_name = &method.sig.ident;
         let inputs = &method.sig.inputs;
         let output = &method.sig.output;
@@ -79,7 +79,7 @@ pub fn connector_trait(_attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     });
 
-    let wrapper_methods = methods.clone().filter(|m| m.sig.ident != "new").map(|method| {
+    let wrapper_methods = methods_without_new.clone().map(|method| {
         let method_name = &method.sig.ident;
         let inputs = &method.sig.inputs;
         let output = &method.sig.output;
@@ -124,7 +124,7 @@ pub fn connector_trait(_attr: TokenStream, item: TokenStream) -> TokenStream {
         #input
         
         pub trait #inner_trait_name: Send + Sync + std::fmt::Debug {
-            #(#inner_methods)*
+            #(#methods_without_new)*
         }
         
         #[derive(Debug)]
@@ -146,7 +146,6 @@ pub fn connector_trait(_attr: TokenStream, item: TokenStream) -> TokenStream {
             #(#wrapper_methods)*
         }
         
-        #[doc(hidden)]
         #[macro_export]
         macro_rules! impl_connector {
             ($t:ty) => {
@@ -155,9 +154,149 @@ pub fn connector_trait(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 }
             }
         }
-
-        pub use impl_connector as __impl_connector;
     };
     
     TokenStream::from(expanded)
 }
+
+// #[proc_macro_attribute]
+// pub fn connector_trait(_attr: TokenStream, item: TokenStream) -> TokenStream {
+//     let input = parse_macro_input!(item as ItemTrait);
+//     let trait_name = &input.ident;
+//     let trait_methods = &input.items;
+
+//     let inner_trait_methods = trait_methods.iter().filter_map(|item| match item {
+//         TraitItem::Method(method) => {
+//             if method.sig.ident != "new" {
+//                 Some(quote! { #method })
+//             } else {
+//                 None
+//             }
+//         }
+//         _ => None,
+//     });
+
+//     let inner_trait = quote! {
+//         pub trait ConnectorInner: Send + Sync + std::fmt::Debug {
+//             #(#inner_trait_methods)*
+//         }
+//     };
+
+//     let wrapper_methods = trait_methods.iter().filter_map(|item| match item {
+//         TraitItem::Method(method) => {
+//             if method.sig.ident != "new" {
+//                 let sig = &method.sig;
+//                 let method_name = &sig.ident;
+//                 let args = &sig.inputs;
+
+//                 let arg_names = args.iter().filter_map(|arg| match arg {
+//                     syn::FnArg::Typed(pat_type) => {
+//                         if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
+//                             Some(pat_ident.ident.clone())
+//                         } else {
+//                             None
+//                         }
+//                     }
+//                     _ => None,
+//                 });
+
+//                 Some(quote! {
+//                     #[allow(unused_variables)]
+//                     #sig {
+//                         self.0.#method_name(#(#arg_names),*)
+//                     }
+//                 })
+//             } else {
+//                 None
+//             }
+//         }
+//         _ => None,
+//     });
+
+//     let wrapper_struct = quote! {
+//         #[derive(Debug)]
+//         pub struct ConnectorWrapper(Box<dyn ConnectorInner>);
+
+//         impl ConnectorWrapper {
+//             pub async fn new<T>(endpoint: String, wallet_mnemonic: String) -> Self
+//             where
+//                 T: #trait_name + ConnectorInner + 'static,
+//             {
+//                 let connector = T::new(endpoint, wallet_mnemonic).await;
+//                 ConnectorWrapper(Box::new(connector))
+//             }
+//         }
+
+//         impl ConnectorInner for ConnectorWrapper {
+//             #(#wrapper_methods)*
+//         }
+//     };
+
+//     let expanded = quote! {
+//         #input
+
+//         #inner_trait
+
+//         #wrapper_struct
+//     };
+
+//     expanded.into()
+// }
+
+// #[proc_macro_attribute]
+// pub fn impl_connector_inner(attr: TokenStream, item: TokenStream) -> TokenStream {
+//     let input = parse_macro_input!(item as DeriveInput);
+//     let attr_input = parse_macro_input!(attr as Path);
+//     let struct_name = &input.ident;
+
+//     let (methods, trait_ident) = get_connector_trait_methods(attr_input);
+
+//     let method_impls = methods.iter().map(|method| {
+//         let method_name = &method.sig.ident;
+//         let args = &method.sig.inputs;
+//         let output = &method.sig.output;
+
+//         let arg_names = args.iter().filter_map(|arg| {
+//             if let syn::FnArg::Typed(pat_type) = arg {
+//                 if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
+//                     Some(pat_ident.ident.clone())
+//                 } else {
+//                     None
+//                 }
+//             } else {
+//                 None
+//             }
+//         });
+
+//         quote! {
+//             #[allow(unused_variables)]
+//             fn #method_name(#args) #output {
+//                 <Self as #trait_ident>::#method_name(self, #(#arg_names),*)
+//             }
+//         }
+//     }).collect::<Vec<_>>();
+
+//     let expanded = quote! {
+//         impl ConnectorInner for #struct_name {
+//             #(#method_impls)*
+//         }
+//     };
+
+//     expanded.into()
+// }
+
+// fn get_connector_trait_methods(trait_path: &Path) -> (Vec<TraitItemMethod>, Ident) {
+//     let trait_ident = trait_path.segments.last().unwrap().ident.clone();
+
+//     if let Item::Trait(trait_item) = trait_ident {
+//         (trait_item.items.into_iter().filter_map(|item| {
+//             if let TraitItem::Method(method) = item {
+//                 Some(method)
+//             } else {
+//                 None
+//             }
+//         }).collect(), trait_item.ident)
+//     } else {
+//         panic!("Expected a trait")
+//     }
+// }

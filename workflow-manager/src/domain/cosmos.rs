@@ -36,8 +36,8 @@ impl Connector for CosmosConnector {
                 address: addr,
                 denom: "untrn".to_string(),
             };
-            let response = self.client.clients.bank.balance(request).await.unwrap();
-            response.get_ref().balance.clone()
+            let response = self.client.clients.bank.balance(request).await.unwrap().into_inner();
+            response.balance.clone()
         })
     }
 
@@ -66,16 +66,3 @@ impl Connector for CosmosConnector {
     }
     // Other method implementations...
 }
-
-// impl ConnectorInner for CosmosConnector {
-//     fn connect(&self) -> Result<(), StdError> {
-//         // This can just call the implementation from the Connector trait
-//         <Self as Connector>::connect(self)
-//     }
-
-//     fn get_balance(&mut self, addr: String) -> PinnedFuture<Option<Coin>> {
-//         <Self as Connector>::get_balance(self, addr)
-//     }
-
-//     // Implement other methods similarly...
-// }

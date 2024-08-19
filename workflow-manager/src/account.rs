@@ -1,7 +1,5 @@
 use crate::domain::Domain;
 
-
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum AccountType {
     Addr { addr: String },

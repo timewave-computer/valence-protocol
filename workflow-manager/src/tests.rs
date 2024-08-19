@@ -8,21 +8,19 @@ mod test {
     use valence_splitter::msg::ServiceConfig as SplitterServiceConfig;
 
     use crate::{
+        account::{AccountInfo, AccountType},
         domain::{ConnectorInner, Domain, DomainInfo},
         init_workflow,
-        types::{
-            account::{AccountInfo, AccountType},
-            service::{ServiceConfig, ServiceInfo},
-            Link, WorkflowConfig,
-        },
+        service::{ServiceConfig, ServiceInfo}, workflow_config::{Link, WorkflowConfig},
     };
 
     #[tokio::test]
     async fn test_domains() {
         let domain = Domain::Cosmos("cosmos".to_string());
-        let domain_info = DomainInfo::from_domain(domain.clone()).await;
-        println!("{domain_info:?}");
+        let domain2 = Domain::Cosmos("neutron".to_string());
         let mut domain_info = DomainInfo::from_domain(domain).await;
+        println!("{domain_info:?}");
+        let mut domain_info2 = DomainInfo::from_domain(domain2).await;
         println!("{domain_info:?}");
 
         domain_info.connector.connect().unwrap();
