@@ -1,4 +1,5 @@
 use cw_ownable::OwnershipError;
+use cw_utils::PaymentError;
 use thiserror::Error;
 
 use cosmwasm_std::StdError;
@@ -10,6 +11,9 @@ pub enum ContractError {
 
     #[error(transparent)]
     Ownership(#[from] OwnershipError),
+
+    #[error("{0}")]
+    Payment(#[from] PaymentError),
 
     #[error("This address is not allowed to execute this action")]
     Unauthorized {},
@@ -43,4 +47,16 @@ pub enum ContractError {
 
     #[error("Permissionless authorizations don't have a token that can be minted")]
     CantMintForPermissionlessAuthorization {},
+
+    #[error("To proceed with this action, you must send exactly one token of this authorization")]
+    AuthorizationRequiresOneToken {},
+
+    #[error("The amount of messages you send must match the amount of actions in the list")]
+    MessagesDoNotMatchActions {},
+
+    #[error("The message doesn't match the action")]
+    InvalidMessage {},
+
+    #[error("The message doesn't pass all the parameter restrictions")]
+    InvalidMessageParams {},
 }

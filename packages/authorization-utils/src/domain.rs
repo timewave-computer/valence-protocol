@@ -10,9 +10,15 @@ pub enum Domain {
 #[cw_serde]
 pub struct ExternalDomain {
     pub name: String,
+    pub execution_environment: ExecutionEnvironment,
     pub connector: Connector,
     pub processor: String,
     pub callback_proxy: CallbackProxy,
+}
+
+#[cw_serde]
+pub enum ExecutionEnvironment {
+    CosmWasm,
 }
 
 #[cw_serde]

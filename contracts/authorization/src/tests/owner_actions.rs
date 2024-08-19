@@ -1,59 +1,30 @@
-use authorization_utils::{
+use cosmwasm_std::{Addr, Binary, Uint128};
+use cw_utils::{Duration, Expiration};
+use neutron_test_tube::{
+    neutron_std::types::cosmos::bank::v1beta1::{QueryAllBalancesRequest, QueryBalanceRequest},
+    Account, Bank, Module, Wasm,
+};
+use valence_authorization_utils::{
     action::{ActionCallback, RetryInterval, RetryLogic, RetryTimes},
     authorization::{
         Authorization, AuthorizationDuration, AuthorizationMode, AuthorizationState, ExecutionType,
         PermissionType, Priority,
     },
     domain::{Domain, ExternalDomain},
-    message::{Message, MessageDetails, MessageType, ParamsRestrictions},
-};
-use cosmwasm_std::{Addr, Binary, Uint128};
-use cw_utils::{Duration, Expiration};
-use neutron_test_tube::{
-    neutron_std::types::cosmos::bank::v1beta1::{QueryAllBalancesRequest, QueryBalanceRequest},
-    Account, Bank, Module, NeutronTestApp, SigningAccount, Wasm,
+    message::{Message, MessageDetails, MessageType, ParamRestriction},
 };
 
 use crate::{
     contract::build_tokenfactory_denom,
     error::ContractError,
-    msg::{ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, QueryMsg, SubOwnerMsg},
-    tests::builders::{
-        ActionBatchBuilder, ActionBuilder, AuthorizationBuilder, NeutronTestAppBuilder,
+    msg::{ExecuteMsg, Mint, OwnerMsg, QueryMsg, SubOwnerMsg},
+    tests::{
+        builders::{
+            ActionBatchBuilder, ActionBuilder, AuthorizationBuilder, NeutronTestAppBuilder,
+        },
+        helpers::store_and_instantiate_authorization_contract,
     },
 };
-
-fn store_and_instantiate_authorization_contract(
-    wasm: &Wasm<'_, NeutronTestApp>,
-    signer: &SigningAccount,
-    owner: Option<Addr>,
-    sub_owners: Vec<Addr>,
-    processor: Addr,
-    external_domains: Vec<ExternalDomain>,
-) -> String {
-    let wasm_byte_code = std::fs::read("../../artifacts/authorization.wasm").unwrap();
-    let code_id = wasm
-        .store_code(&wasm_byte_code, None, signer)
-        .unwrap()
-        .data
-        .code_id;
-    wasm.instantiate(
-        code_id,
-        &InstantiateMsg {
-            owner,
-            sub_owners,
-            processor,
-            external_domains,
-        },
-        None,
-        "authorization".into(),
-        &[],
-        signer,
-    )
-    .unwrap()
-    .data
-    .address
-}
 
 #[test]
 fn contract_instantiation() {
@@ -381,9 +352,10 @@ fn create_valid_authorizations() {
                                 message: Message {
                                     name: "method2".to_string(),
                                     params_restrictions: Some(vec![
-                                        ParamsRestrictions::MustBeIncluded(
-                                            "param1.param2".to_string(),
-                                        ),
+                                        ParamRestriction::MustBeIncluded(vec![
+                                            "param1".to_string(),
+                                            "param2".to_string(),
+                                        ]),
                                     ]),
                                 },
                             })
@@ -415,9 +387,10 @@ fn create_valid_authorizations() {
                                 message: Message {
                                     name: "method".to_string(),
                                     params_restrictions: Some(vec![
-                                        ParamsRestrictions::CannotBeIncluded(
-                                            "param1.param2".to_string(),
-                                        ),
+                                        ParamRestriction::CannotBeIncluded(vec![
+                                            "param1".to_string(),
+                                            "param2".to_string(),
+                                        ]),
                                     ]),
                                 },
                             })
@@ -434,12 +407,10 @@ fn create_valid_authorizations() {
                                 message_type: MessageType::ExecuteMsg,
                                 message: Message {
                                     name: "method".to_string(),
-                                    params_restrictions: Some(vec![
-                                        ParamsRestrictions::MustBeValue(
-                                            "param1.param2".to_string(),
-                                            Binary::from_base64("aGVsbG8=").unwrap(),
-                                        ),
-                                    ]),
+                                    params_restrictions: Some(vec![ParamRestriction::MustBeValue(
+                                        vec!["param1".to_string(), "param2".to_string()],
+                                        Binary::from_base64("aGVsbG8=").unwrap(),
+                                    )]),
                                 },
                             })
                             .with_retry_logic(RetryLogic {
@@ -475,9 +446,10 @@ fn create_valid_authorizations() {
                                 message: Message {
                                     name: "method".to_string(),
                                     params_restrictions: Some(vec![
-                                        ParamsRestrictions::CannotBeIncluded(
-                                            "param1.param2".to_string(),
-                                        ),
+                                        ParamRestriction::CannotBeIncluded(vec![
+                                            "param1".to_string(),
+                                            "param2".to_string(),
+                                        ]),
                                     ]),
                                 },
                             })
@@ -493,12 +465,10 @@ fn create_valid_authorizations() {
                                 message_type: MessageType::ExecuteMsg,
                                 message: Message {
                                     name: "method".to_string(),
-                                    params_restrictions: Some(vec![
-                                        ParamsRestrictions::MustBeValue(
-                                            "param1.param2".to_string(),
-                                            Binary::from_base64("aGVsbG8=").unwrap(),
-                                        ),
-                                    ]),
+                                    params_restrictions: Some(vec![ParamRestriction::MustBeValue(
+                                        vec!["param1".to_string(), "param2".to_string()],
+                                        Binary::from_base64("aGVsbG8=").unwrap(),
+                                    )]),
                                 },
                             })
                             .with_retry_logic(RetryLogic {

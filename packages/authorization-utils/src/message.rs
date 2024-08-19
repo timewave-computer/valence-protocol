@@ -17,15 +17,15 @@ pub enum MessageType {
 pub struct Message {
     // Name of the message that is passed to the contract, e.g. in CosmWasm: the snake_case name of the ExecuteMsg, how it's passed in the JSON
     pub name: String,
-    pub params_restrictions: Option<Vec<ParamsRestrictions>>,
+    pub params_restrictions: Option<Vec<ParamRestriction>>,
 }
 
 #[cw_serde]
-// ParamRestrictinos will be passed separating it by a "." character. Example: If we want to specify that the json must have a param "address" under "owner" included, we will use
-// MustBeIncluded("owner.address")
-pub enum ParamsRestrictions {
-    MustBeIncluded(String),
-    CannotBeIncluded(String),
-    // Will check that the param defined in String is included, and if it is, we will compare it with Binary (after converting it to Binary)
-    MustBeValue(String, Binary),
+pub enum ParamRestriction {
+    MustBeIncluded(Vec<String>),
+    CannotBeIncluded(Vec<String>),
+    // First parameter is an array of indexes in the json to know what we have to look for
+    // Example: ["msg", "amount"] means that we have to look for the value amount in a json
+    // example_json = { "msg": { "amount": 100 } } and then we compare it with the Binary value
+    MustBeValue(Vec<String>, Binary),
 }

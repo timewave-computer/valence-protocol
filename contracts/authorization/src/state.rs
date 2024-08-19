@@ -1,6 +1,6 @@
-use authorization_utils::{authorization::Authorization, domain::ExternalDomain};
 use cosmwasm_std::{Addr, Empty};
 use cw_storage_plus::{Item, Map};
+use valence_authorization_utils::{authorization::Authorization, domain::ExternalDomain};
 
 pub const SUB_OWNERS: Map<Addr, Empty> = Map::new("sub_owners");
 pub const AUTHORIZATIONS: Map<String, Authorization> = Map::new("authorizations");

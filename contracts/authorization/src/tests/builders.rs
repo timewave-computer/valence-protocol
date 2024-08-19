@@ -1,14 +1,14 @@
-use authorization_utils::{
+use cosmwasm_std::{coins, Addr};
+use neutron_test_tube::{Account, NeutronTestApp, SigningAccount};
+use valence_authorization_utils::{
     action::{Action, ActionCallback, RetryLogic},
     authorization::{
         ActionBatch, AuthorizationDuration, AuthorizationInfo, AuthorizationMode, ExecutionType,
         Priority,
     },
-    domain::{CallbackProxy, Connector, Domain, ExternalDomain},
+    domain::{CallbackProxy, Connector, Domain, ExecutionEnvironment, ExternalDomain},
     message::{Message, MessageDetails, MessageType},
 };
-use cosmwasm_std::{coins, Addr};
-use neutron_test_tube::{Account, NeutronTestApp, SigningAccount};
 
 const FEE_DENOM: &str = "untrn";
 
@@ -64,6 +64,7 @@ impl NeutronTestAppBuilder {
 
         let external_domain = ExternalDomain {
             name: self.external_domain,
+            execution_environment: ExecutionEnvironment::CosmWasm,
             connector: Connector::PolytoneNote(connector_addr),
             processor: "processor".to_string(),
             callback_proxy: CallbackProxy::PolytoneProxy(callback_proxy_addr),

@@ -1,10 +1,3 @@
-use authorization_utils::{
-    authorization::{
-        Authorization, AuthorizationInfo, AuthorizationMode, AuthorizationState, PermissionType,
-        Priority,
-    },
-    domain::ExternalDomain,
-};
 use cosmwasm_std::{
     entry_point, to_json_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Order,
     Response, StdResult, Storage, Uint128,
@@ -13,12 +6,19 @@ use cw_ownable::{assert_owner, get_ownership, initialize_owner, is_owner};
 use cw_storage_plus::Bound;
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::NeutronMsg;
+use valence_authorization_utils::{
+    authorization::{
+        Authorization, AuthorizationInfo, AuthorizationMode, AuthorizationState, PermissionType,
+        Priority,
+    },
+    domain::ExternalDomain,
+};
 
 use crate::{
     authorization::Validate,
     domain::add_domain,
     error::ContractError,
-    msg::{ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, QueryMsg, SubOwnerMsg},
+    msg::{ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, QueryMsg, SubOwnerMsg, UserMsg},
     state::{AUTHORIZATIONS, EXTERNAL_DOMAINS, PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS},
 };
 
@@ -115,7 +115,9 @@ pub fn execute(
                 }
             }
         }
-        ExecuteMsg::UserAction(_) => Ok(Response::default()),
+        ExecuteMsg::UserAction(user_msg) => match user_msg {
+            UserMsg::SendMsgs { label, messages } => send_msgs(deps, env, info, label, messages),
+        },
     }
 }
 
@@ -304,6 +306,27 @@ fn mint_authorizations(
     Ok(Response::new()
         .add_attribute("action", "mint_authorizations")
         .add_messages(token_factory_msgs))
+}
+
+fn send_msgs(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    label: String,
+    messages: Vec<Binary>,
+) -> Result<Response<NeutronMsg>, ContractError> {
+    let authorization = AUTHORIZATIONS
+        .load(deps.storage, label.clone())
+        .map_err(|_| ContractError::AuthorizationDoesNotExist(label.clone()))?;
+
+    authorization.validate_permission(deps.as_ref(), env.contract.address.as_str(), &info)?;
+    // TODO, this will return the correct message for the corresponding processor
+    authorization.validate_messages(deps.as_ref(), &messages)?;
+
+    // TODO: Add messages to response
+    Ok(Response::new()
+        .add_attribute("action", "send_msgs")
+        .add_attribute("authorization_label", authorization.label))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
