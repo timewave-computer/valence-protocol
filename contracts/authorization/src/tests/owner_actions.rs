@@ -1085,6 +1085,4 @@ fn mint_authorizations() {
     assert!(error
         .to_string()
         .contains(ContractError::Unauthorized {}.to_string().as_str()));
-
-    // Let's test it with blocks now
 }
