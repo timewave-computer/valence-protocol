@@ -327,8 +327,8 @@ fn send_msgs(
         .load(deps.storage, label.clone())
         .map_err(|_| ContractError::AuthorizationDoesNotExist(label.clone()))?;
 
-    // Check if the authorization is enabled
-    authorization.validate_enabled()?;
+    // Check if the authorization is not disabled
+    authorization.validate_not_disabled()?;
     // Check if the authorization is expired or hasn't started yet
     authorization.validate_time(&env.block)?;
     // Check if the authorization is permissioned and validate the permission

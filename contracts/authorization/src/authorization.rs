@@ -14,7 +14,7 @@ use crate::{contract::build_tokenfactory_denom, error::ContractError, state::EXT
 
 pub trait Validate {
     fn validate(&self, store: &dyn Storage) -> Result<(), ContractError>;
-    fn validate_enabled(&self) -> Result<(), ContractError>;
+    fn validate_not_disabled(&self) -> Result<(), ContractError>;
     fn validate_time(&self, block: &BlockInfo) -> Result<(), ContractError>;
     fn validate_permission(
         &self,
@@ -75,7 +75,7 @@ impl Validate for Authorization {
         Ok(())
     }
 
-    fn validate_enabled(&self) -> Result<(), ContractError> {
+    fn validate_not_disabled(&self) -> Result<(), ContractError> {
         if self.state.eq(&AuthorizationState::Disabled) {
             return Err(ContractError::AuthorizationDisabled {});
         }
