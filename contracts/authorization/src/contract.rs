@@ -9,7 +9,7 @@ use neutron_sdk::bindings::msg::NeutronMsg;
 use valence_authorization_utils::{
     authorization::{
         Authorization, AuthorizationInfo, AuthorizationMode, AuthorizationState, PermissionType,
-        Priority,
+        Priority, StartTime,
     },
     domain::ExternalDomain,
 };
@@ -98,12 +98,14 @@ pub fn execute(
                 }
                 SubOwnerMsg::ModifyAuthorization {
                     label,
+                    start_time,
                     expiration,
                     max_concurrent_executions,
                     priority,
                 } => modify_authorization(
                     deps,
                     label,
+                    start_time,
                     expiration,
                     max_concurrent_executions,
                     priority,
@@ -182,12 +184,12 @@ fn create_authorizations(
         // Perform all validations on the authorization
         authorization.validate(deps.storage)?;
 
-        // If Authorization is permissioned we need to create the tokenfactory denom and mint the corresponding amounts to the addresses that can
+        // If Authorization is permissioned we need to create the tokenfactory token and mint the corresponding amounts to the addresses that can
         // execute the authorization
         if let AuthorizationMode::Permissioned(permission_type) = &authorization.mode {
-            // We will always create the denom if it's permissioned
-            let create_denom_msg = NeutronMsg::submit_create_denom(authorization.label.clone());
-            tokenfactory_msgs.push(create_denom_msg);
+            // We will always create the token if it's permissioned
+            let create_token_msg = NeutronMsg::submit_create_denom(authorization.label.clone());
+            tokenfactory_msgs.push(create_token_msg);
 
             // Full denom of the token that will be created
             let denom =
@@ -225,6 +227,7 @@ fn create_authorizations(
 fn modify_authorization(
     deps: DepsMut,
     label: String,
+    start_time: Option<StartTime>,
     expiration: Option<Expiration>,
     max_concurrent_executions: Option<u64>,
     priority: Option<Priority>,
@@ -233,9 +236,14 @@ fn modify_authorization(
         .load(deps.storage, label.clone())
         .map_err(|_| ContractError::AuthorizationDoesNotExist(label.clone()))?;
 
+    if let Some(start_time) = start_time {
+        authorization.start_time = start_time;
+    }
+
     if let Some(expiration) = expiration {
         authorization.expiration = expiration;
     }
+
     if let Some(max_concurrent_executions) = max_concurrent_executions {
         authorization.max_concurrent_executions = max_concurrent_executions;
     }
@@ -319,7 +327,13 @@ fn send_msgs(
         .load(deps.storage, label.clone())
         .map_err(|_| ContractError::AuthorizationDoesNotExist(label.clone()))?;
 
+    // Check if the authorization is enabled
+    authorization.validate_enabled()?;
+    // Check if the authorization is expired or hasn't started yet
+    authorization.validate_time(&env.block)?;
+    // Check if the authorization is permissioned and validate the permission
     authorization.validate_permission(deps.as_ref(), env.contract.address.as_str(), &info)?;
+    // Check if the messages match the actions and all their parameter requirements
     // TODO, this will return the correct message for the corresponding processor
     authorization.validate_messages(deps.as_ref(), &messages)?;
 

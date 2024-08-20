@@ -1,10 +1,11 @@
 use cosmwasm_std::{coins, Addr};
 use neutron_test_tube::{Account, NeutronTestApp, SigningAccount};
+use serde_json::{json, Map, Value};
 use valence_authorization_utils::{
     action::{Action, ActionCallback, RetryLogic},
     authorization::{
         ActionBatch, AuthorizationDuration, AuthorizationInfo, AuthorizationMode, ExecutionType,
-        Priority,
+        Priority, StartTime,
     },
     domain::{CallbackProxy, Connector, Domain, ExecutionEnvironment, ExternalDomain},
     message::{Message, MessageDetails, MessageType},
@@ -95,6 +96,7 @@ pub struct NeutronTestAppSetup {
 pub struct AuthorizationBuilder {
     label: String,
     mode: AuthorizationMode,
+    start_time: StartTime,
     duration: AuthorizationDuration,
     max_concurrent_executions: Option<u64>,
     action_batch: ActionBatch,
@@ -106,6 +108,7 @@ impl AuthorizationBuilder {
         AuthorizationBuilder {
             label: "authorization".to_string(),
             mode: AuthorizationMode::Permissionless,
+            start_time: StartTime::Anytime,
             duration: AuthorizationDuration::Forever,
             max_concurrent_executions: None,
             action_batch: ActionBatchBuilder::new().build(),
@@ -120,6 +123,11 @@ impl AuthorizationBuilder {
 
     pub fn with_mode(mut self, mode: AuthorizationMode) -> Self {
         self.mode = mode;
+        self
+    }
+
+    pub fn with_start_time(mut self, start_time: StartTime) -> Self {
+        self.start_time = start_time;
         self
     }
 
@@ -147,6 +155,7 @@ impl AuthorizationBuilder {
         AuthorizationInfo {
             label: self.label,
             mode: self.mode,
+            start_time: self.start_time,
             duration: self.duration,
             max_concurrent_executions: self.max_concurrent_executions,
             action_batch: self.action_batch,
@@ -238,6 +247,52 @@ impl ActionBuilder {
             contract_address: self.contract_address,
             retry_logic: self.retry_logic,
             callback_confirmation: self.callback_confirmation,
+        }
+    }
+}
+
+pub struct JsonBuilder {
+    main: String,
+    data: Value,
+}
+
+impl JsonBuilder {
+    pub fn new() -> Self {
+        JsonBuilder {
+            main: String::new(),
+            data: Value::Object(Map::new()),
+        }
+    }
+
+    pub fn main(mut self, main: &str) -> Self {
+        self.main = main.to_string();
+        self
+    }
+
+    pub fn add(mut self, path: &str, value: Value) -> Self {
+        let parts: Vec<&str> = path.split('.').collect();
+        let mut current = &mut self.data;
+
+        for (i, &part) in parts.iter().enumerate() {
+            if i == parts.len() - 1 {
+                if let Value::Object(map) = current {
+                    map.insert(part.to_string(), value.clone());
+                }
+            } else {
+                current = current
+                    .as_object_mut()
+                    .and_then(|map| Some(map.entry(part.to_string()).or_insert(json!({}))))
+                    .expect("Failed to insert or access object");
+            }
+        }
+        self
+    }
+
+    pub fn build(self) -> Value {
+        if self.main.is_empty() {
+            self.data
+        } else {
+            json!({ self.main: self.data })
         }
     }
 }

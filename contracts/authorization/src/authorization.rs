@@ -1,8 +1,11 @@
-use cosmwasm_std::{Binary, Deps, MessageInfo, StdError, Storage, Uint128};
-use cw_utils::must_pay;
+use cosmwasm_std::{Binary, BlockInfo, Deps, MessageInfo, Storage, Uint128};
+use cw_utils::{must_pay, Expiration};
 use serde_json::Value;
 use valence_authorization_utils::{
-    authorization::{Authorization, AuthorizationMode, ExecutionType, PermissionType, Priority},
+    authorization::{
+        Authorization, AuthorizationMode, AuthorizationState, ExecutionType, PermissionType,
+        Priority, StartTime,
+    },
     domain::{Domain, ExecutionEnvironment},
     message::ParamRestriction,
 };
@@ -11,6 +14,8 @@ use crate::{contract::build_tokenfactory_denom, error::ContractError, state::EXT
 
 pub trait Validate {
     fn validate(&self, store: &dyn Storage) -> Result<(), ContractError>;
+    fn validate_enabled(&self) -> Result<(), ContractError>;
+    fn validate_time(&self, block: &BlockInfo) -> Result<(), ContractError>;
     fn validate_permission(
         &self,
         deps: Deps,
@@ -70,6 +75,45 @@ impl Validate for Authorization {
         Ok(())
     }
 
+    fn validate_enabled(&self) -> Result<(), ContractError> {
+        if self.state.eq(&AuthorizationState::Disabled) {
+            return Err(ContractError::AuthorizationDisabled {});
+        }
+        Ok(())
+    }
+
+    fn validate_time(&self, block: &BlockInfo) -> Result<(), ContractError> {
+        match &self.start_time {
+            StartTime::Anytime => (),
+            StartTime::AtHeight(height) => {
+                if block.height < *height {
+                    return Err(ContractError::AuthorizationNotStarted {});
+                }
+            }
+            StartTime::AtTime(time) => {
+                if block.time.seconds() < *time {
+                    return Err(ContractError::AuthorizationNotStarted {});
+                }
+            }
+        }
+
+        match &self.expiration {
+            Expiration::Never {} => (),
+            Expiration::AtHeight(height) => {
+                if block.height > *height {
+                    return Err(ContractError::AuthorizationExpired {});
+                }
+            }
+            Expiration::AtTime(time) => {
+                if block.time > *time {
+                    return Err(ContractError::AuthorizationExpired {});
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     fn validate_permission(
         &self,
         deps: Deps,
@@ -89,9 +133,11 @@ impl Validate for Authorization {
                     return Err(ContractError::Unauthorized {});
                 }
             }
+            // If the authorization is permissioned with call limit, the sender must pay one token to execute the authorization, which will be burned
+            // if it executes (or partially executes) and will be refunded if it doesn't.
             AuthorizationMode::Permissioned(PermissionType::WithCallLimit(_)) => {
                 let funds = must_pay(info, &token_factory_denom)
-                    .map_err(|_| ContractError::AuthorizationRequiresOneToken {})?;
+                    .map_err(|_| ContractError::Unauthorized {})?;
 
                 if funds.ne(&Uint128::one()) {
                     return Err(ContractError::AuthorizationRequiresOneToken {});
@@ -103,7 +149,7 @@ impl Validate for Authorization {
 
     fn validate_messages(&self, deps: Deps, messages: &[Binary]) -> Result<(), ContractError> {
         if messages.len() != self.action_batch.actions.len() {
-            return Err(ContractError::MessagesDoNotMatchActions {});
+            return Err(ContractError::InvalidAmountOfMessages {});
         }
 
         for (each_message, each_action) in messages.iter().zip(self.action_batch.actions.iter()) {
@@ -119,7 +165,7 @@ impl Validate for Authorization {
                 ExecutionEnvironment::CosmWasm => {
                     // Extract the json from each message
                     let json: Value = serde_json::from_slice(each_message.as_slice())
-                        .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?;
+                        .map_err(|_| ContractError::InvalidJson {})?;
 
                     // Check if the message matches the action
                     if json
@@ -156,7 +202,6 @@ fn check_restriction(
     match param_restriction {
         ParamRestriction::MustBeIncluded(keys) => {
             let mut current_value = json;
-
             for key in keys {
                 current_value = current_value
                     .get(key)
@@ -165,14 +210,12 @@ fn check_restriction(
         }
         ParamRestriction::CannotBeIncluded(keys) => {
             let mut current_value = json;
-
             for key in keys.iter().take(keys.len() - 1) {
                 current_value = match current_value.get(key) {
                     Some(value) => value,
                     None => return Ok(()), // If part of the path doesn't exist, it's valid
                 };
             }
-
             // Check the final key in the path
             if let Some(final_key) = keys.last() {
                 if current_value.get(final_key).is_some() {
@@ -182,19 +225,21 @@ fn check_restriction(
         }
         ParamRestriction::MustBeValue(keys, value) => {
             let mut current_value = json;
-
-            for key in keys {
+            for key in keys.iter().take(keys.len() - 1) {
                 current_value = current_value
                     .get(key)
                     .ok_or(ContractError::InvalidMessageParams {})?;
             }
-
-            // Deserialize the expected value for a more robust comparison
-            let expected: Value = serde_json::from_slice(value)
-                .map_err(|_| ContractError::InvalidMessageParams {})?;
-
-            if *current_value != expected {
-                return Err(ContractError::InvalidMessageParams {});
+            if let Some(final_key) = keys.last() {
+                let final_value = current_value
+                    .get(final_key)
+                    .ok_or(ContractError::InvalidMessageParams {})?;
+                // Deserialize the expected value for a more robust comparison
+                let expected: Value = serde_json::from_slice(value)
+                    .map_err(|_| ContractError::InvalidMessageParams {})?;
+                if *final_value != expected {
+                    return Err(ContractError::InvalidMessageParams {});
+                }
             }
         }
     }

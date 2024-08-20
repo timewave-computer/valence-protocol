@@ -22,10 +22,10 @@ pub struct Message {
 
 #[cw_serde]
 pub enum ParamRestriction {
+    // First parameter is an array of indexes in the json to know what we have to look for
+    // Example: ["msg", "amount"] means that we have to look for the amount index inside the msg index
+    // example_json = { "msg": { "amount": 100 } }
     MustBeIncluded(Vec<String>),
     CannotBeIncluded(Vec<String>),
-    // First parameter is an array of indexes in the json to know what we have to look for
-    // Example: ["msg", "amount"] means that we have to look for the value amount in a json
-    // example_json = { "msg": { "amount": 100 } } and then we compare it with the Binary value
     MustBeValue(Vec<String>, Binary),
 }

@@ -52,11 +52,23 @@ pub enum ContractError {
     AuthorizationRequiresOneToken {},
 
     #[error("The amount of messages you send must match the amount of actions in the list")]
-    MessagesDoNotMatchActions {},
+    InvalidAmountOfMessages {},
 
     #[error("The message doesn't match the action")]
     InvalidMessage {},
 
     #[error("The message doesn't pass all the parameter restrictions")]
     InvalidMessageParams {},
+
+    #[error("The authorization is disabled")]
+    AuthorizationDisabled {},
+
+    #[error("The authorization is expired")]
+    AuthorizationExpired {},
+
+    #[error("The authorization has not started yet")]
+    AuthorizationNotStarted {},
+
+    #[error("Invalid JSON passed")]
+    InvalidJson {},
 }

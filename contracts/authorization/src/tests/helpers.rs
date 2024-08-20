@@ -12,7 +12,7 @@ pub fn store_and_instantiate_authorization_contract(
     processor: Addr,
     external_domains: Vec<ExternalDomain>,
 ) -> String {
-    let wasm_byte_code = std::fs::read("../../artifacts/authorization.wasm").unwrap();
+    let wasm_byte_code = std::fs::read("../../artifacts/valence_authorization.wasm").unwrap();
     let code_id = wasm
         .store_code(&wasm_byte_code, None, signer)
         .unwrap()

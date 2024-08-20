@@ -1,5 +1,5 @@
 use cosmwasm_std::{Addr, Binary, Uint128};
-use cw_utils::{Duration, Expiration};
+use cw_utils::Expiration;
 use neutron_test_tube::{
     neutron_std::types::cosmos::bank::v1beta1::{QueryAllBalancesRequest, QueryBalanceRequest},
     Account, Bank, Module, Wasm,
@@ -8,7 +8,7 @@ use valence_authorization_utils::{
     action::{ActionCallback, RetryInterval, RetryLogic, RetryTimes},
     authorization::{
         Authorization, AuthorizationDuration, AuthorizationMode, AuthorizationState, ExecutionType,
-        PermissionType, Priority,
+        PermissionType, Priority, StartTime,
     },
     domain::{Domain, ExternalDomain},
     message::{Message, MessageDetails, MessageType, ParamRestriction},
@@ -374,7 +374,7 @@ fn create_valid_authorizations() {
             .with_mode(AuthorizationMode::Permissioned(
                 PermissionType::WithCallLimit(vec![(setup.subowner_addr.clone(), Uint128::new(5))]),
             ))
-            .with_duration(AuthorizationDuration::Duration(Duration::Height(100)))
+            .with_duration(AuthorizationDuration::Blocks(100))
             .with_max_concurrent_executions(4)
             .with_action_batch(
                 ActionBatchBuilder::new()
@@ -436,7 +436,7 @@ fn create_valid_authorizations() {
                     setup.user_addr.clone(),
                 ]),
             ))
-            .with_duration(AuthorizationDuration::Duration(Duration::Time(50000000)))
+            .with_duration(AuthorizationDuration::Seconds(50000000))
             .with_action_batch(
                 ActionBatchBuilder::new()
                     .with_action(
@@ -767,6 +767,7 @@ fn modify_authorization() {
         &contract_addr,
         &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
             label: "authorization".to_string(),
+            start_time: Some(StartTime::AtTime(100)),
             expiration: Some(Expiration::AtHeight(50)),
             max_concurrent_executions: None,
             priority: None,
@@ -794,6 +795,7 @@ fn modify_authorization() {
         &contract_addr,
         &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
             label: "authorization".to_string(),
+            start_time: None,
             expiration: None,
             max_concurrent_executions: Some(5),
             priority: Some(Priority::High),
@@ -823,6 +825,7 @@ fn modify_authorization() {
             &contract_addr,
             &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
                 label: "authorization".to_string(),
+                start_time: None,
                 expiration: None,
                 max_concurrent_executions: None,
                 priority: Some(Priority::Medium),
@@ -842,6 +845,7 @@ fn modify_authorization() {
             &contract_addr,
             &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
                 label: "non-existing-label".to_string(),
+                start_time: None,
                 expiration: None,
                 max_concurrent_executions: None,
                 priority: Some(Priority::Medium),
@@ -958,7 +962,7 @@ fn mint_authorizations() {
             .with_mode(AuthorizationMode::Permissioned(
                 PermissionType::WithCallLimit(vec![(setup.user_addr.clone(), Uint128::new(10))]),
             ))
-            .with_duration(AuthorizationDuration::Duration(Duration::Height(50000)))
+            .with_duration(AuthorizationDuration::Blocks(50000))
             .with_max_concurrent_executions(4)
             .with_action_batch(
                 ActionBatchBuilder::new()
@@ -1081,4 +1085,6 @@ fn mint_authorizations() {
     assert!(error
         .to_string()
         .contains(ContractError::Unauthorized {}.to_string().as_str()));
+
+    // Let's test it with blocks now
 }
