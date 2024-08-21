@@ -16,7 +16,7 @@ use valence_authorization_utils::{
 
 use crate::{
     contract::build_tokenfactory_denom,
-    error::ContractError,
+    error::{ContractError, UnauthorizedReason},
     msg::{ExecuteMsg, Mint, OwnerMsg, QueryMsg, SubOwnerMsg},
     tests::{
         builders::{
@@ -494,9 +494,11 @@ fn create_valid_authorizations() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ContractError::Unauthorized {}.to_string().as_str()));
+    assert!(error.to_string().contains(
+        ContractError::Unauthorized(UnauthorizedReason::NotAllowed {})
+            .to_string()
+            .as_str()
+    ));
 
     // Owner will create 1 and Subowner will create 2 and both will succeed
     wasm.execute::<ExecuteMsg>(
@@ -835,9 +837,11 @@ fn modify_authorization() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ContractError::Unauthorized {}.to_string().as_str()));
+    assert!(error.to_string().contains(
+        ContractError::Unauthorized(UnauthorizedReason::NotAllowed {})
+            .to_string()
+            .as_str()
+    ));
 
     // Try to modify an authorization that doesn't exist should also fail
     let error = wasm
@@ -921,9 +925,11 @@ fn modify_authorization() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ContractError::Unauthorized {}.to_string().as_str()));
+    assert!(error.to_string().contains(
+        ContractError::Unauthorized(UnauthorizedReason::NotAllowed {})
+            .to_string()
+            .as_str()
+    ));
 }
 
 #[test]
@@ -1082,7 +1088,9 @@ fn mint_authorizations() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ContractError::Unauthorized {}.to_string().as_str()));
+    assert!(error.to_string().contains(
+        ContractError::Unauthorized(UnauthorizedReason::NotAllowed {})
+            .to_string()
+            .as_str()
+    ));
 }

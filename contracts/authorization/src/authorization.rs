@@ -1,4 +1,4 @@
-use cosmwasm_std::{Binary, BlockInfo, Deps, MessageInfo, Storage, Uint128};
+use cosmwasm_std::{Binary, BlockInfo, MessageInfo, QuerierWrapper, Storage, Uint128};
 use cw_utils::{must_pay, Expiration};
 use serde_json::Value;
 use valence_authorization_utils::{
@@ -10,19 +10,28 @@ use valence_authorization_utils::{
     message::ParamRestriction,
 };
 
-use crate::{contract::build_tokenfactory_denom, error::ContractError, state::EXTERNAL_DOMAINS};
+use crate::{
+    contract::build_tokenfactory_denom,
+    error::{ContractError, UnauthorizedReason},
+    state::EXTERNAL_DOMAINS,
+};
 
 pub trait Validate {
     fn validate(&self, store: &dyn Storage) -> Result<(), ContractError>;
-    fn validate_not_disabled(&self) -> Result<(), ContractError>;
-    fn validate_time(&self, block: &BlockInfo) -> Result<(), ContractError>;
+    fn ensure_enabled(&self) -> Result<(), ContractError>;
+    fn ensure_started(&self, block: &BlockInfo) -> Result<(), ContractError>;
+    fn ensure_not_expired(&self, block: &BlockInfo) -> Result<(), ContractError>;
     fn validate_permission(
         &self,
-        deps: Deps,
+        querier: QuerierWrapper,
         contract_address: &str,
         info: &MessageInfo,
     ) -> Result<(), ContractError>;
-    fn validate_messages(&self, deps: Deps, messages: &[Binary]) -> Result<(), ContractError>;
+    fn validate_messages(
+        &self,
+        store: &dyn Storage,
+        messages: &[Binary],
+    ) -> Result<(), ContractError>;
 }
 
 impl Validate for Authorization {
@@ -75,38 +84,48 @@ impl Validate for Authorization {
         Ok(())
     }
 
-    fn validate_not_disabled(&self) -> Result<(), ContractError> {
-        if self.state.eq(&AuthorizationState::Disabled) {
-            return Err(ContractError::AuthorizationDisabled {});
+    fn ensure_enabled(&self) -> Result<(), ContractError> {
+        if self.state.ne(&AuthorizationState::Enabled) {
+            return Err(ContractError::Unauthorized(
+                UnauthorizedReason::NotEnabled {},
+            ));
         }
         Ok(())
     }
 
-    fn validate_time(&self, block: &BlockInfo) -> Result<(), ContractError> {
+    fn ensure_started(&self, block: &BlockInfo) -> Result<(), ContractError> {
         match &self.start_time {
             StartTime::Anytime => (),
             StartTime::AtHeight(height) => {
                 if block.height < *height {
-                    return Err(ContractError::AuthorizationNotStarted {});
+                    return Err(ContractError::Unauthorized(
+                        UnauthorizedReason::NotActiveYet {},
+                    ));
                 }
             }
             StartTime::AtTime(time) => {
                 if block.time.seconds() < *time {
-                    return Err(ContractError::AuthorizationNotStarted {});
+                    return Err(ContractError::Unauthorized(
+                        UnauthorizedReason::NotActiveYet {},
+                    ));
                 }
             }
         }
 
+        Ok(())
+    }
+
+    fn ensure_not_expired(&self, block: &BlockInfo) -> Result<(), ContractError> {
         match &self.expiration {
             Expiration::Never {} => (),
             Expiration::AtHeight(height) => {
                 if block.height > *height {
-                    return Err(ContractError::AuthorizationExpired {});
+                    return Err(ContractError::Unauthorized(UnauthorizedReason::Expired {}));
                 }
             }
             Expiration::AtTime(time) => {
                 if block.time > *time {
-                    return Err(ContractError::AuthorizationExpired {});
+                    return Err(ContractError::Unauthorized(UnauthorizedReason::Expired {}));
                 }
             }
         }
@@ -116,7 +135,7 @@ impl Validate for Authorization {
 
     fn validate_permission(
         &self,
-        deps: Deps,
+        querier: QuerierWrapper,
         contract_address: &str,
         info: &MessageInfo,
     ) -> Result<(), ContractError> {
@@ -126,28 +145,34 @@ impl Validate for Authorization {
             AuthorizationMode::Permissionless => (),
             // If the authorization is permissioned without call limit, we check that the sender has the token corresponding to that authorization in his wallet
             AuthorizationMode::Permissioned(PermissionType::WithoutCallLimit(_)) => {
-                let balance = deps
-                    .querier
-                    .query_balance(info.sender.clone(), token_factory_denom)?;
+                let balance = querier.query_balance(info.sender.clone(), token_factory_denom)?;
                 if balance.amount.is_zero() {
-                    return Err(ContractError::Unauthorized {});
+                    return Err(ContractError::Unauthorized(
+                        UnauthorizedReason::NotAllowed {},
+                    ));
                 }
             }
             // If the authorization is permissioned with call limit, the sender must pay one token to execute the authorization, which will be burned
             // if it executes (or partially executes) and will be refunded if it doesn't.
             AuthorizationMode::Permissioned(PermissionType::WithCallLimit(_)) => {
                 let funds = must_pay(info, &token_factory_denom)
-                    .map_err(|_| ContractError::Unauthorized {})?;
+                    .map_err(|_| ContractError::Unauthorized(UnauthorizedReason::NotAllowed {}))?;
 
                 if funds.ne(&Uint128::one()) {
-                    return Err(ContractError::AuthorizationRequiresOneToken {});
+                    return Err(ContractError::Unauthorized(
+                        UnauthorizedReason::RequiresOneToken {},
+                    ));
                 }
             }
         }
         Ok(())
     }
 
-    fn validate_messages(&self, deps: Deps, messages: &[Binary]) -> Result<(), ContractError> {
+    fn validate_messages(
+        &self,
+        store: &dyn Storage,
+        messages: &[Binary],
+    ) -> Result<(), ContractError> {
         if messages.len() != self.action_batch.actions.len() {
             return Err(ContractError::InvalidAmountOfMessages {});
         }
@@ -156,7 +181,7 @@ impl Validate for Authorization {
             let execution_environment = match &each_action.domain {
                 Domain::Main => ExecutionEnvironment::CosmWasm,
                 Domain::External(name) => {
-                    let domain = EXTERNAL_DOMAINS.load(deps.storage, name.clone())?;
+                    let domain = EXTERNAL_DOMAINS.load(store, name.clone())?;
                     domain.execution_environment
                 }
             };
@@ -164,8 +189,12 @@ impl Validate for Authorization {
             match &execution_environment {
                 ExecutionEnvironment::CosmWasm => {
                     // Extract the json from each message
-                    let json: Value = serde_json::from_slice(each_message.as_slice())
-                        .map_err(|_| ContractError::InvalidJson {})?;
+                    let json: Value =
+                        serde_json::from_slice(each_message.as_slice()).map_err(|e| {
+                            ContractError::InvalidJson {
+                                error: e.to_string(),
+                            }
+                        })?;
 
                     // Check if the message matches the action
                     if json

@@ -8,7 +8,7 @@ use valence_authorization_utils::{
 
 use crate::{
     contract::build_tokenfactory_denom,
-    error::ContractError,
+    error::{ContractError, UnauthorizedReason},
     msg::{ExecuteMsg, SubOwnerMsg, UserMsg},
     tests::builders::JsonBuilder,
 };
@@ -78,9 +78,11 @@ fn disabled() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ContractError::AuthorizationDisabled {}.to_string().as_str()));
+    assert!(error.to_string().contains(
+        ContractError::Unauthorized(UnauthorizedReason::NotEnabled {})
+            .to_string()
+            .as_str()
+    ));
 
     // Trying to execute an authorization that doesn't exist should also fail
     let error = wasm
@@ -160,7 +162,7 @@ fn invalid_time() {
         .unwrap_err();
 
     assert!(error.to_string().contains(
-        ContractError::AuthorizationNotStarted {}
+        ContractError::Unauthorized(UnauthorizedReason::NotActiveYet {})
             .to_string()
             .as_str()
     ));
@@ -181,9 +183,11 @@ fn invalid_time() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ContractError::Unauthorized {}.to_string().as_str()));
+    assert!(error.to_string().contains(
+        ContractError::Unauthorized(UnauthorizedReason::NotAllowed {})
+            .to_string()
+            .as_str()
+    ));
 
     // Let's increase the time to expire it
     setup.app.increase_time(501);
@@ -201,9 +205,11 @@ fn invalid_time() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ContractError::AuthorizationExpired {}.to_string().as_str()));
+    assert!(error.to_string().contains(
+        ContractError::Unauthorized(UnauthorizedReason::Expired {})
+            .to_string()
+            .as_str()
+    ));
 
     // Let's do it with blocks now
     let current_height = setup.app.get_block_height() as u64;
@@ -244,7 +250,7 @@ fn invalid_time() {
         .unwrap_err();
 
     assert!(error.to_string().contains(
-        ContractError::AuthorizationNotStarted {}
+        ContractError::Unauthorized(UnauthorizedReason::NotActiveYet {})
             .to_string()
             .as_str()
     ));
@@ -267,9 +273,11 @@ fn invalid_time() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ContractError::Unauthorized {}.to_string().as_str()));
+    assert!(error.to_string().contains(
+        ContractError::Unauthorized(UnauthorizedReason::NotAllowed {})
+            .to_string()
+            .as_str()
+    ));
 
     // Let's increase the blocks to expire it
     while (setup.app.get_block_height() as u64) < current_height + 20 {
@@ -290,9 +298,11 @@ fn invalid_time() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ContractError::AuthorizationExpired {}.to_string().as_str()));
+    assert!(error.to_string().contains(
+        ContractError::Unauthorized(UnauthorizedReason::Expired {})
+            .to_string()
+            .as_str()
+    ));
 }
 
 #[test]
@@ -361,9 +371,11 @@ fn invalid_permission() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ContractError::Unauthorized {}.to_string().as_str()));
+    assert!(error.to_string().contains(
+        ContractError::Unauthorized(UnauthorizedReason::NotAllowed {})
+            .to_string()
+            .as_str()
+    ));
 
     // Even though the user has the token, it's not enough to execute the action, he needs to send it
     let error = wasm
@@ -378,9 +390,11 @@ fn invalid_permission() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ContractError::Unauthorized {}.to_string().as_str()));
+    assert!(error.to_string().contains(
+        ContractError::Unauthorized(UnauthorizedReason::NotAllowed {})
+            .to_string()
+            .as_str()
+    ));
 
     let permission_token = build_tokenfactory_denom(&contract_addr, "permissioned-with-limit");
 
@@ -401,7 +415,7 @@ fn invalid_permission() {
         .unwrap_err();
 
     assert!(error.to_string().contains(
-        ContractError::AuthorizationRequiresOneToken {}
+        ContractError::Unauthorized(UnauthorizedReason::RequiresOneToken {})
             .to_string()
             .as_str()
     ));
@@ -534,9 +548,7 @@ fn invalid_messages() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ContractError::InvalidJson {}.to_string().as_str()));
+    assert!(error.to_string().contains("Invalid JSON passed"));
 
     // If we try to execute the authorization with a json that has the wrong key, it should fail
     let message = JsonBuilder::new().main("wrong_key").build();

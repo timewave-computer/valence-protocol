@@ -15,8 +15,8 @@ pub enum ContractError {
     #[error("{0}")]
     Payment(#[from] PaymentError),
 
-    #[error("This address is not allowed to execute this action")]
-    Unauthorized {},
+    #[error("Unauthorized: {0}")]
+    Unauthorized(#[from] UnauthorizedReason),
 
     #[error("Authorization must have a label")]
     EmptyLabel {},
@@ -48,9 +48,6 @@ pub enum ContractError {
     #[error("Permissionless authorizations don't have a token that can be minted")]
     CantMintForPermissionlessAuthorization {},
 
-    #[error("To proceed with this action, you must send exactly one token of this authorization")]
-    AuthorizationRequiresOneToken {},
-
     #[error("The amount of messages you send must match the amount of actions in the list")]
     InvalidAmountOfMessages {},
 
@@ -60,15 +57,24 @@ pub enum ContractError {
     #[error("The message doesn't pass all the parameter restrictions")]
     InvalidMessageParams {},
 
-    #[error("The authorization is disabled")]
-    AuthorizationDisabled {},
+    #[error("Invalid JSON passed: {error}")]
+    InvalidJson { error: String },
+}
+
+#[derive(Error, Debug, PartialEq)]
+pub enum UnauthorizedReason {
+    #[error("This address is not allowed to execute this action")]
+    NotAllowed {},
+
+    #[error("The authorization is not enabled")]
+    NotEnabled {},
 
     #[error("The authorization is expired")]
-    AuthorizationExpired {},
+    Expired {},
 
-    #[error("The authorization has not started yet")]
-    AuthorizationNotStarted {},
+    #[error("The authorization actions cant be executed yet")]
+    NotActiveYet {},
 
-    #[error("Invalid JSON passed")]
-    InvalidJson {},
+    #[error("To proceed with this action, you must send exactly one token of this authorization")]
+    RequiresOneToken {},
 }

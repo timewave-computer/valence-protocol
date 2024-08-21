@@ -17,7 +17,7 @@ use valence_authorization_utils::{
 use crate::{
     authorization::Validate,
     domain::add_domain,
-    error::ContractError,
+    error::{ContractError, UnauthorizedReason},
     msg::{ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, QueryMsg, SubOwnerMsg, UserMsg},
     state::{AUTHORIZATIONS, EXTERNAL_DOMAINS, PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS},
 };
@@ -327,15 +327,14 @@ fn send_msgs(
         .load(deps.storage, label.clone())
         .map_err(|_| ContractError::AuthorizationDoesNotExist(label.clone()))?;
 
-    // Check if the authorization is not disabled
-    authorization.validate_not_disabled()?;
-    // Check if the authorization is expired or hasn't started yet
-    authorization.validate_time(&env.block)?;
+    authorization.ensure_enabled()?;
+    authorization.ensure_not_expired(&env.block)?;
+    authorization.ensure_started(&env.block)?;
     // Check if the authorization is permissioned and validate the permission
-    authorization.validate_permission(deps.as_ref(), env.contract.address.as_str(), &info)?;
+    authorization.validate_permission(deps.querier, env.contract.address.as_str(), &info)?;
     // Check if the messages match the actions and all their parameter requirements
     // TODO, this will return the correct message for the corresponding processor
-    authorization.validate_messages(deps.as_ref(), &messages)?;
+    authorization.validate_messages(deps.storage, &messages)?;
 
     // TODO: Add messages to response
     Ok(Response::new()
@@ -410,7 +409,9 @@ fn get_authorizations(
 /// Asserts that the caller is the owner or a subowner
 fn assert_owner_or_subowner(store: &dyn Storage, address: Addr) -> Result<(), ContractError> {
     if !is_owner(store, &address)? && !SUB_OWNERS.has(store, address) {
-        return Err(ContractError::Unauthorized {});
+        return Err(ContractError::Unauthorized(
+            UnauthorizedReason::NotAllowed {},
+        ));
     }
     Ok(())
 }
