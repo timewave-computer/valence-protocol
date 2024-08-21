@@ -12,7 +12,7 @@ use valence_authorization_utils::{
 
 use crate::{
     contract::build_tokenfactory_denom,
-    error::{ContractError, UnauthorizedReason},
+    error::{AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason},
     state::EXTERNAL_DOMAINS,
 };
 
@@ -38,13 +38,19 @@ impl Validate for Authorization {
     fn validate(&self, store: &dyn Storage) -> Result<(), ContractError> {
         // Label can't be empty or already exist
         if self.label.is_empty() {
-            return Err(ContractError::EmptyLabel {});
+            return Err(ContractError::Authorization(
+                AuthorizationErrorReason::EmptyLabel {},
+            ));
         }
 
         let mut actions_iter = self.action_batch.actions.iter();
         // An authorization must have actions
         let first_action = match actions_iter.next() {
-            None => return Err(ContractError::NoActions {}),
+            None => {
+                return Err(ContractError::Authorization(
+                    AuthorizationErrorReason::NoActions {},
+                ))
+            }
             Some(action) => action,
         };
 
@@ -61,7 +67,9 @@ impl Validate for Authorization {
         // All actions in an authorization must be executed in the same domain (for v1)
         for each_action in actions_iter {
             if !each_action.domain.eq(&first_action.domain) {
-                return Err(ContractError::DifferentActionDomains {});
+                return Err(ContractError::Authorization(
+                    AuthorizationErrorReason::DifferentActionDomains {},
+                ));
             }
         }
 
@@ -69,14 +77,18 @@ impl Validate for Authorization {
         if self.mode.eq(&AuthorizationMode::Permissionless)
             && self.priority.clone().eq(&Priority::High)
         {
-            return Err(ContractError::PermissionlessAuthorizationWithHighPriority {});
+            return Err(ContractError::Authorization(
+                AuthorizationErrorReason::PermissionlessWithHighPriority {},
+            ));
         }
 
         // An authorization can't have actions with callback confirmations if needs to be executed atomically
         if self.action_batch.execution_type.eq(&ExecutionType::Atomic) {
             for each_action in self.action_batch.actions.iter() {
                 if each_action.callback_confirmation.is_some() {
-                    return Err(ContractError::AtomicAuthorizationWithCallbackConfirmation {});
+                    return Err(ContractError::Authorization(
+                        AuthorizationErrorReason::AtomicWithCallbackConfirmation {},
+                    ));
                 }
             }
         }
@@ -174,7 +186,7 @@ impl Validate for Authorization {
         messages: &[Binary],
     ) -> Result<(), ContractError> {
         if messages.len() != self.action_batch.actions.len() {
-            return Err(ContractError::InvalidAmountOfMessages {});
+            return Err(ContractError::Message(MessageErrorReason::InvalidAmount {}));
         }
 
         for (each_message, each_action) in messages.iter().zip(self.action_batch.actions.iter()) {
@@ -201,7 +213,7 @@ impl Validate for Authorization {
                         .get(each_action.message_details.message.name.as_str())
                         .is_none()
                     {
-                        return Err(ContractError::InvalidMessage {});
+                        return Err(ContractError::Message(MessageErrorReason::DoesNotMatch {}));
                     }
 
                     // Check that all the Parameter restrictions are met
@@ -232,9 +244,9 @@ fn check_restriction(
         ParamRestriction::MustBeIncluded(keys) => {
             let mut current_value = json;
             for key in keys {
-                current_value = current_value
-                    .get(key)
-                    .ok_or(ContractError::InvalidMessageParams {})?;
+                current_value = current_value.get(key).ok_or(ContractError::Message(
+                    MessageErrorReason::InvalidMessageParams {},
+                ))?;
             }
         }
         ParamRestriction::CannotBeIncluded(keys) => {
@@ -248,26 +260,31 @@ fn check_restriction(
             // Check the final key in the path
             if let Some(final_key) = keys.last() {
                 if current_value.get(final_key).is_some() {
-                    return Err(ContractError::InvalidMessageParams {});
+                    return Err(ContractError::Message(
+                        MessageErrorReason::InvalidMessageParams {},
+                    ));
                 }
             }
         }
         ParamRestriction::MustBeValue(keys, value) => {
             let mut current_value = json;
             for key in keys.iter().take(keys.len() - 1) {
-                current_value = current_value
-                    .get(key)
-                    .ok_or(ContractError::InvalidMessageParams {})?;
+                current_value = current_value.get(key).ok_or(ContractError::Message(
+                    MessageErrorReason::InvalidMessageParams {},
+                ))?;
             }
             if let Some(final_key) = keys.last() {
-                let final_value = current_value
-                    .get(final_key)
-                    .ok_or(ContractError::InvalidMessageParams {})?;
+                let final_value = current_value.get(final_key).ok_or(ContractError::Message(
+                    MessageErrorReason::InvalidMessageParams {},
+                ))?;
                 // Deserialize the expected value for a more robust comparison
-                let expected: Value = serde_json::from_slice(value)
-                    .map_err(|_| ContractError::InvalidMessageParams {})?;
+                let expected: Value = serde_json::from_slice(value).map_err(|_| {
+                    ContractError::Message(MessageErrorReason::InvalidMessageParams {})
+                })?;
                 if *final_value != expected {
-                    return Err(ContractError::InvalidMessageParams {});
+                    return Err(ContractError::Message(
+                        MessageErrorReason::InvalidMessageParams {},
+                    ));
                 }
             }
         }

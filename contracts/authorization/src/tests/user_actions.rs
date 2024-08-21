@@ -8,7 +8,7 @@ use valence_authorization_utils::{
 
 use crate::{
     contract::build_tokenfactory_denom,
-    error::{ContractError, UnauthorizedReason},
+    error::{AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason},
     msg::{ExecuteMsg, SubOwnerMsg, UserMsg},
     tests::builders::JsonBuilder,
 };
@@ -98,9 +98,11 @@ fn disabled() {
         .unwrap_err();
 
     assert!(error.to_string().contains(
-        ContractError::AuthorizationDoesNotExist("non_existent".to_string())
-            .to_string()
-            .as_str()
+        ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(
+            "non_existent".to_string()
+        ))
+        .to_string()
+        .as_str()
     ));
 }
 
@@ -528,7 +530,7 @@ fn invalid_messages() {
         .unwrap_err();
 
     assert!(error.to_string().contains(
-        ContractError::InvalidAmountOfMessages {}
+        ContractError::Message(MessageErrorReason::InvalidAmount {})
             .to_string()
             .as_str()
     ));
@@ -565,9 +567,11 @@ fn invalid_messages() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ContractError::InvalidMessage {}.to_string().as_str()));
+    assert!(error.to_string().contains(
+        ContractError::Message(MessageErrorReason::DoesNotMatch {})
+            .to_string()
+            .as_str()
+    ));
 
     // If we try to execute the authorization with jsons that don't match the restriction they should fail
 
@@ -589,9 +593,11 @@ fn invalid_messages() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ContractError::InvalidMessageParams {}.to_string().as_str()));
+    assert!(error.to_string().contains(
+        ContractError::Message(MessageErrorReason::InvalidMessageParams {})
+            .to_string()
+            .as_str()
+    ));
 
     // Has key1.key2 but also has key3.key4 which is not allowed
     let message = JsonBuilder::new()
@@ -612,9 +618,11 @@ fn invalid_messages() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ContractError::InvalidMessageParams {}.to_string().as_str()));
+    assert!(error.to_string().contains(
+        ContractError::Message(MessageErrorReason::InvalidMessageParams {})
+            .to_string()
+            .as_str()
+    ));
 
     // Has key1.key and doesn't have key3.key4 but key5.key6 and key7 doesn't have the values specified
     let message = JsonBuilder::new()
@@ -636,9 +644,11 @@ fn invalid_messages() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ContractError::InvalidMessageParams {}.to_string().as_str()));
+    assert!(error.to_string().contains(
+        ContractError::Message(MessageErrorReason::InvalidMessageParams {})
+            .to_string()
+            .as_str()
+    ));
 
     // The message is valid, we should get no errors
     let message = JsonBuilder::new()

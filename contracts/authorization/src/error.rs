@@ -18,6 +18,24 @@ pub enum ContractError {
     #[error("Unauthorized: {0}")]
     Unauthorized(#[from] UnauthorizedReason),
 
+    #[error("Authorization error: {0}")]
+    Authorization(#[from] AuthorizationErrorReason),
+
+    #[error("Message error: {0}")]
+    Message(#[from] MessageErrorReason),
+
+    #[error("External domain already exists")]
+    ExternalDomainAlreadyExists(String),
+
+    #[error("Domain {0} is not registered")]
+    DomainIsNotRegistered(String),
+
+    #[error("Invalid JSON passed: {error}")]
+    InvalidJson { error: String },
+}
+
+#[derive(Error, Debug, PartialEq)]
+pub enum AuthorizationErrorReason {
     #[error("Authorization must have a label")]
     EmptyLabel {},
 
@@ -31,34 +49,16 @@ pub enum ContractError {
     DifferentActionDomains {},
 
     #[error("Permissionless authorizations can't have high priority")]
-    PermissionlessAuthorizationWithHighPriority {},
+    PermissionlessWithHighPriority {},
 
     #[error("Atomic authorizations can't have callback confirmations")]
-    AtomicAuthorizationWithCallbackConfirmation {},
-
-    #[error("External domain already exists")]
-    ExternalDomainAlreadyExists(String),
-
-    #[error("Domain {0} is not registered")]
-    DomainIsNotRegistered(String),
+    AtomicWithCallbackConfirmation {},
 
     #[error("Authorization with label {0} does not exist")]
-    AuthorizationDoesNotExist(String),
+    DoesNotExist(String),
 
     #[error("Permissionless authorizations don't have a token that can be minted")]
-    CantMintForPermissionlessAuthorization {},
-
-    #[error("The amount of messages you send must match the amount of actions in the list")]
-    InvalidAmountOfMessages {},
-
-    #[error("The message doesn't match the action")]
-    InvalidMessage {},
-
-    #[error("The message doesn't pass all the parameter restrictions")]
-    InvalidMessageParams {},
-
-    #[error("Invalid JSON passed: {error}")]
-    InvalidJson { error: String },
+    CantMintForPermissionless {},
 }
 
 #[derive(Error, Debug, PartialEq)]
@@ -77,4 +77,16 @@ pub enum UnauthorizedReason {
 
     #[error("To proceed with this action, you must send exactly one token of this authorization")]
     RequiresOneToken {},
+}
+
+#[derive(Error, Debug, PartialEq)]
+pub enum MessageErrorReason {
+    #[error("The amount of messages you send must match the amount of actions in the list")]
+    InvalidAmount {},
+
+    #[error("The message doesn't match the action")]
+    DoesNotMatch {},
+
+    #[error("The message doesn't pass all the parameter restrictions")]
+    InvalidMessageParams {},
 }

@@ -17,7 +17,7 @@ use valence_authorization_utils::{
 use crate::{
     authorization::Validate,
     domain::add_domain,
-    error::{ContractError, UnauthorizedReason},
+    error::{AuthorizationErrorReason, ContractError, UnauthorizedReason},
     msg::{ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, QueryMsg, SubOwnerMsg, UserMsg},
     state::{AUTHORIZATIONS, EXTERNAL_DOMAINS, PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS},
 };
@@ -176,8 +176,8 @@ fn create_authorizations(
 
         // Check that it doesn't exist yet
         if AUTHORIZATIONS.has(deps.storage, authorization.label.clone()) {
-            return Err(ContractError::LabelAlreadyExists(
-                authorization.label.clone(),
+            return Err(ContractError::Authorization(
+                AuthorizationErrorReason::LabelAlreadyExists(authorization.label.clone()),
             ));
         }
 
@@ -234,7 +234,9 @@ fn modify_authorization(
 ) -> Result<Response<NeutronMsg>, ContractError> {
     let mut authorization = AUTHORIZATIONS
         .load(deps.storage, label.clone())
-        .map_err(|_| ContractError::AuthorizationDoesNotExist(label.clone()))?;
+        .map_err(|_| {
+            ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
+        })?;
 
     if let Some(start_time) = start_time {
         authorization.start_time = start_time;
@@ -264,7 +266,9 @@ fn disable_authorization(
 ) -> Result<Response<NeutronMsg>, ContractError> {
     let mut authorization = AUTHORIZATIONS
         .load(deps.storage, label.clone())
-        .map_err(|_| ContractError::AuthorizationDoesNotExist(label.clone()))?;
+        .map_err(|_| {
+            ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
+        })?;
 
     authorization.state = AuthorizationState::Disabled;
 
@@ -279,7 +283,9 @@ fn enable_authorization(
 ) -> Result<Response<NeutronMsg>, ContractError> {
     let mut authorization = AUTHORIZATIONS
         .load(deps.storage, label.clone())
-        .map_err(|_| ContractError::AuthorizationDoesNotExist(label.clone()))?;
+        .map_err(|_| {
+            ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
+        })?;
 
     authorization.state = AuthorizationState::Enabled;
 
@@ -296,7 +302,9 @@ fn mint_authorizations(
 ) -> Result<Response<NeutronMsg>, ContractError> {
     let authorization = AUTHORIZATIONS
         .load(deps.storage, label.clone())
-        .map_err(|_| ContractError::AuthorizationDoesNotExist(label.clone()))?;
+        .map_err(|_| {
+            ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
+        })?;
 
     let token_factory_msgs = match authorization.mode {
         AuthorizationMode::Permissioned(_) => Ok(mints.iter().map(|mint| {
@@ -306,9 +314,9 @@ fn mint_authorizations(
                 mint.address.clone(),
             )
         })),
-        AuthorizationMode::Permissionless => {
-            Err(ContractError::CantMintForPermissionlessAuthorization {})
-        }
+        AuthorizationMode::Permissionless => Err(ContractError::Authorization(
+            AuthorizationErrorReason::CantMintForPermissionless {},
+        )),
     }?;
 
     Ok(Response::new()
@@ -325,7 +333,9 @@ fn send_msgs(
 ) -> Result<Response<NeutronMsg>, ContractError> {
     let authorization = AUTHORIZATIONS
         .load(deps.storage, label.clone())
-        .map_err(|_| ContractError::AuthorizationDoesNotExist(label.clone()))?;
+        .map_err(|_| {
+            ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
+        })?;
 
     authorization.ensure_enabled()?;
     authorization.ensure_not_expired(&env.block)?;

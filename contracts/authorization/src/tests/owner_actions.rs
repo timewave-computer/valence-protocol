@@ -16,7 +16,7 @@ use valence_authorization_utils::{
 
 use crate::{
     contract::build_tokenfactory_denom,
-    error::{ContractError, UnauthorizedReason},
+    error::{AuthorizationErrorReason, ContractError, UnauthorizedReason},
     msg::{ExecuteMsg, Mint, OwnerMsg, QueryMsg, SubOwnerMsg},
     tests::{
         builders::{
@@ -604,9 +604,11 @@ fn create_valid_authorizations() {
         .unwrap_err();
 
     assert!(error.to_string().contains(
-        ContractError::LabelAlreadyExists("permissionless-authorization".to_string())
-            .to_string()
-            .as_str()
+        ContractError::Authorization(AuthorizationErrorReason::LabelAlreadyExists(
+            "permissionless-authorization".to_string()
+        ))
+        .to_string()
+        .as_str()
     ));
 }
 
@@ -633,7 +635,7 @@ fn create_invalid_authorizations() {
     let invalid_authorizations = vec![
         (
             AuthorizationBuilder::new().build(),
-            ContractError::NoActions {},
+            ContractError::Authorization(AuthorizationErrorReason::NoActions {}),
         ),
         (
             AuthorizationBuilder::new()
@@ -644,7 +646,7 @@ fn create_invalid_authorizations() {
                         .build(),
                 )
                 .build(),
-            ContractError::EmptyLabel {},
+            ContractError::Authorization(AuthorizationErrorReason::EmptyLabel {}),
         ),
         (
             AuthorizationBuilder::new()
@@ -674,7 +676,7 @@ fn create_invalid_authorizations() {
                         .build(),
                 )
                 .build(),
-            ContractError::DifferentActionDomains {},
+            ContractError::Authorization(AuthorizationErrorReason::DifferentActionDomains {}),
         ),
         (
             AuthorizationBuilder::new()
@@ -685,7 +687,9 @@ fn create_invalid_authorizations() {
                 )
                 .with_priority(Priority::High)
                 .build(),
-            ContractError::PermissionlessAuthorizationWithHighPriority {},
+            ContractError::Authorization(
+                AuthorizationErrorReason::PermissionlessWithHighPriority {},
+            ),
         ),
         (
             AuthorizationBuilder::new()
@@ -702,7 +706,9 @@ fn create_invalid_authorizations() {
                         .build(),
                 )
                 .build(),
-            ContractError::AtomicAuthorizationWithCallbackConfirmation {},
+            ContractError::Authorization(
+                AuthorizationErrorReason::AtomicWithCallbackConfirmation {},
+            ),
         ),
     ];
 
@@ -860,9 +866,11 @@ fn modify_authorization() {
         .unwrap_err();
 
     assert!(error.to_string().contains(
-        ContractError::AuthorizationDoesNotExist("non-existing-label".to_string())
-            .to_string()
-            .as_str()
+        ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(
+            "non-existing-label".to_string()
+        ))
+        .to_string()
+        .as_str()
     ));
 
     // Disabling an authorization should also work
@@ -1004,7 +1012,7 @@ fn mint_authorizations() {
         .unwrap_err();
 
     assert!(error.to_string().contains(
-        ContractError::CantMintForPermissionlessAuthorization {}
+        ContractError::Authorization(AuthorizationErrorReason::CantMintForPermissionless {})
             .to_string()
             .as_str()
     ));
