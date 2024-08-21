@@ -5,6 +5,8 @@ use services_utils::Id;
 
 use crate::{
     account::{AccountInfo, AccountType},
+    context::Ctx,
+    domain::ConnectorInner,
     service::ServiceInfo,
 };
 
@@ -43,18 +45,17 @@ impl WorkflowConfig {
 
 impl WorkflowConfig {
     /// Instantiate a workflow on all domains.
-    pub fn init(&mut self) {
+    pub async fn init(&mut self, ctx: Ctx) {
+        let mut context = ctx.lock().await;
+
         // init accounts
-        self.accounts.iter_mut().for_each(|(id, account)| {
-            match account.ty {
-                AccountType::Base { admin: _ } => {
-                    // TODO: init the account
-                    let addr = format!("base_addr:{id}");
-                    account.ty = AccountType::Addr { addr };
-                }
-                _ => (),
-            };
-        });
+        for (_, account) in self.accounts.iter_mut() {
+            let domain_info = context.get_or_create_domain_info(&account.domain).await;
+            let addr = domain_info.connector.init_account(&account.ty).await;
+            account.ty = AccountType::Addr { addr }
+        }
+
+        return;
 
         self.links.iter().for_each(|(_, link)| {
             let mut patterns =

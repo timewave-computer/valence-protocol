@@ -115,7 +115,7 @@ mod actions {
                                     Ok(WasmMsg::Execute {
                                         contract_addr: config.input_addr.to_string(),
                                         msg: to_json_binary(
-                                            &base_account::msg::ExecuteMsg::ExecuteMsg {
+                                            &valence_base_account::msg::ExecuteMsg::ExecuteMsg {
                                                 msgs: vec![bank_msg.into()],
                                             },
                                         )?,
@@ -130,7 +130,7 @@ mod actions {
                     Ok::<(), ContractError>(())
                 })?;
 
-                Ok(Response::new().add_attribute("method", "split"))
+                Ok(Response::new().add_messages(messages).add_attribute("method", "split"))
             }
         }
     }

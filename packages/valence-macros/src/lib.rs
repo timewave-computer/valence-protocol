@@ -126,8 +126,14 @@ pub fn connector_trait(_attr: TokenStream, item: TokenStream) -> TokenStream {
         pub trait #inner_trait_name: Send + Sync + std::fmt::Debug {
             #(#methods_without_new)*
         }
+
+        impl Clone for Box<dyn #inner_trait_name> {
+            fn clone(&self) -> Self {
+                self.to_owned()
+            }
+        }
         
-        #[derive(Debug)]
+        #[derive(Debug, Clone)]
         pub struct ConnectorWrapper(Box<dyn #inner_trait_name>);
 
         impl ConnectorWrapper {

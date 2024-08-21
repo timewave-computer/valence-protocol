@@ -20,7 +20,13 @@ authorization-utils = { workspace = true }
 
 valence-splitter         = { workspace = true }
 valence-reverse-splitter = { workspace = true }
+valence-base-account     = { workspace = true }
 
-lazy_static        = "1.5"
 cosmos-grpc-client = "3.0.1"
 tokio              = "1.39"
+dhat               = "0.3.3"
+futures            = "0.3.3"
+config             = { version = "0.14.0", features = ["toml"] }
+tracing            = "0.1"
+tracing-subscriber = "0.3"
+glob               = "0.3"

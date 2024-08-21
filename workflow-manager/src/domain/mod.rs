@@ -1,40 +1,40 @@
-pub mod cosmos;
-use std::{collections::BTreeMap, future::Future, pin::Pin, sync::Mutex};
+pub mod cosmos_cw;
+use std::{future::Future, pin::Pin};
 
-use cosmos::CosmosConnector;
-use cosmos_grpc_client::{cosmos_sdk_proto::cosmos::base::v1beta1::Coin, StdError};
+use cosmos_cw::CosmosCwConnector;
+use cosmos_grpc_client::cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 
-use lazy_static::lazy_static;
 use valence_macros::connector_trait;
 
-// Init cache for domains info which includes the connector and rpc endpoint
-lazy_static! {
-    static ref DOMAINS: Mutex<BTreeMap<Domain, DomainInfo>> = Mutex::new(BTreeMap::new());
-}
+use crate::{
+    account::AccountType,
+    config::{Cfg, ChainInfo},
+};
 
 pub type PinnedFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 /// We need some way of knowing which domain we are talking with
-#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq)]
+/// TODO: chain connection, execution, bridges for authorization.
+#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub enum Domain {
-    Cosmos(String),
+    CosmosCw(String),
     // Solana
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DomainInfo {
     pub connector: ConnectorWrapper,
 }
 
 impl DomainInfo {
-    pub async fn from_domain(domain: Domain) -> Self {
+    pub async fn from_domain(cfg: &Cfg, domain: &Domain) -> Self {
         match domain {
-            Domain::Cosmos(_chain_name) => {
+            Domain::CosmosCw(chain_name) => {
                 // TODO: Get rpc / info for a specific domain somehow
-                let connector = ConnectorWrapper::new::<CosmosConnector>(
-                    "http://grpc-falcron.pion-1.ntrn.tech:80".to_string(),
-                    "crazy into this wheel interest enroll basket feed fashion leave feed depth wish throw rack language comic hand family shield toss leisure repair kite".to_string(),
-                ).await;
+                let connector = ConnectorWrapper::new::<CosmosCwConnector>(
+                    cfg.get_chain_info(chain_name.clone()),
+                )
+                .await;
 
                 DomainInfo { connector }
             }
@@ -44,9 +44,9 @@ impl DomainInfo {
 
 #[connector_trait]
 pub trait Connector {
-    fn new(endpoint: String, wallet_mnemonic: String) -> PinnedFuture<'static, Self>;
-    fn connect(&self) -> Result<(), StdError>;
+    fn new(chain_info: ChainInfo) -> PinnedFuture<'static, Self>;
+    fn init_account(&mut self, account_type: &AccountType) -> PinnedFuture<String>;
     fn get_balance(&mut self, addr: String) -> PinnedFuture<Option<Coin>>;
 }
 
-impl_connector!(CosmosConnector);
+impl_connector!(CosmosCwConnector);

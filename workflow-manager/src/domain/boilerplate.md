@@ -1,5 +1,5 @@
 for specific domain 
-```
+```rust
 impl ConnectorInner for CosmosConnector {
     fn connect(&self) -> Result<(), StdError> {
         // This can just call the implementation from the Connector trait
@@ -19,7 +19,7 @@ impl ConnectorInner for CosmosConnector {
 ```
 
 For the whole domain thing
-```
+```rust
 pub trait Connector: ConnectorInner {
     fn new(
         endpoint: String,
