@@ -2,26 +2,9 @@ use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut, Uint128};
-use cw_ownable::cw_ownable_execute;
+use service_base::{msg::ServiceConfigValidation, ServiceError};
 use services_utils::{ServiceAccountType, ServiceConfigInterface};
 use valence_macros::OptionalStruct;
-
-use crate::{state::CONFIG, ContractError};
-
-#[cw_serde]
-pub struct InstantiateMsg {
-    pub owner: String,
-    pub processor: String,
-    pub config: ServiceConfig,
-}
-
-#[cw_ownable_execute]
-#[cw_serde]
-pub enum ExecuteMsg {
-    UpdateProcessor { processor: String },
-    UpdateConfig { new_config: OptionalServiceConfig },
-    Processor(ActionsMsgs),
-}
 
 #[cw_serde]
 pub enum ActionsMsgs {
@@ -32,8 +15,8 @@ pub enum ActionsMsgs {
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     #[returns(Addr)]
-    GetAdmin {},
-    #[returns(ServiceConfig)]
+    GetOwner {},
+    #[returns(Config)]
     GetServiceConfig {},
 }
 
@@ -45,8 +28,8 @@ pub struct ServiceConfig {
     splits: SplitsConfig,
 }
 
-impl ServiceConfig {
-    pub fn validate(&self, deps: Deps) -> Result<Config, ContractError> {
+impl ServiceConfigValidation<Config> for ServiceConfig {
+    fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
         // TODO: Verify splits are valid
         Ok(Config {
             input_addr: self.input_addr.to_addr(deps)?,
@@ -67,9 +50,7 @@ impl OptionalServiceConfig {
     /// Field list matches the fields in the ServiceConfig struct, but all of them are optional
     /// if a field is Some, it means we want to update it.
     /// You can return here anything the service needs
-    pub fn update_config(self, deps: DepsMut) -> Result<(), ContractError> {
-        let mut config = CONFIG.load(deps.storage)?;
-
+    pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
         if let Some(input_addr) = self.input_addr {
             config.input_addr = input_addr.to_addr(deps.as_ref())?;
         }
@@ -78,8 +59,6 @@ impl OptionalServiceConfig {
             // TODO: Verify splits are valid
             config.splits = splits;
         }
-
-        CONFIG.save(deps.storage, &config)?;
         Ok(())
     }
 }

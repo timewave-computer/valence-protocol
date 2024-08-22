@@ -229,22 +229,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "base-service"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-multi-test",
- "cw-ownable",
- "cw-storage-plus",
- "cw2",
- "schemars",
- "serde",
- "thiserror",
- "valence-macros",
-]
-
-[[package]]
 name = "base16ct"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2911,6 +2895,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-service-base"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-multi-test",
+ "cw-ownable",
+ "cw-storage-plus",
+ "cw2",
+ "schemars",
+ "serde",
+ "thiserror",
+ "valence-macros",
+]
+
+[[package]]
 name = "valence-splitter"
 version = "0.1.0"
 dependencies = [
@@ -2926,6 +2926,7 @@ dependencies = [
  "services-utils",
  "thiserror",
  "valence-macros",
+ "valence-service-base",
 ]
 
 [[package]]
