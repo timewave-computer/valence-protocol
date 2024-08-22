@@ -30,7 +30,6 @@ impl DomainInfo {
     pub async fn from_domain(cfg: &Cfg, domain: &Domain) -> Self {
         match domain {
             Domain::CosmosCw(chain_name) => {
-                // TODO: Get rpc / info for a specific domain somehow
                 let connector = ConnectorWrapper::new::<CosmosCwConnector>(
                     cfg.get_chain_info(chain_name.clone()),
                 )
@@ -45,6 +44,7 @@ impl DomainInfo {
 #[connector_trait]
 pub trait Connector {
     fn new(chain_info: ChainInfo) -> PinnedFuture<'static, Self>;
+    fn get_account_addr(&mut self, account_type: &AccountType) -> PinnedFuture<String>;
     fn init_account(&mut self, account_type: &AccountType) -> PinnedFuture<String>;
     fn get_balance(&mut self, addr: String) -> PinnedFuture<Option<Coin>>;
 }

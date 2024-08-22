@@ -24,6 +24,8 @@ impl Default for Cfg {
 
         println!("{:#?}", cfg);
         cfg
+
+        // TODO: Verify the config is not missing any info
     }
 }
 

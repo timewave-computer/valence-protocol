@@ -1,26 +1,24 @@
-use authorization_utils::{
-    authorization::{
-        Authorization, AuthorizationInfo, AuthorizationMode, AuthorizationState, PermissionType,
-        Priority,
-    },
-    domain::ExternalDomain,
-};
-#[cfg(not(feature = "library"))]
-use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Order, Response,
+    entry_point, to_json_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Order, Response,
     StdResult, Storage, Uint128,
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner, is_owner};
 use cw_storage_plus::Bound;
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::NeutronMsg;
+use valence_authorization_utils::{
+    authorization::{
+        Authorization, AuthorizationInfo, AuthorizationMode, AuthorizationState, PermissionType,
+        Priority, StartTime,
+    },
+    domain::ExternalDomain,
+};
 
 use crate::{
     authorization::Validate,
     domain::add_domain,
-    error::ContractError,
-    msg::{ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, QueryMsg, SubOwnerMsg},
+    error::{AuthorizationErrorReason, ContractError, UnauthorizedReason},
+    msg::{ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, QueryMsg, SubOwnerMsg, UserMsg},
     state::{AUTHORIZATIONS, EXTERNAL_DOMAINS, PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS},
 };
 
@@ -100,12 +98,14 @@ pub fn execute(
                 }
                 SubOwnerMsg::ModifyAuthorization {
                     label,
+                    start_time,
                     expiration,
                     max_concurrent_executions,
                     priority,
                 } => modify_authorization(
                     deps,
                     label,
+                    start_time,
                     expiration,
                     max_concurrent_executions,
                     priority,
@@ -117,7 +117,9 @@ pub fn execute(
                 }
             }
         }
-        ExecuteMsg::UserAction(_) => Ok(Response::default()),
+        ExecuteMsg::UserAction(user_msg) => match user_msg {
+            UserMsg::SendMsgs { label, messages } => send_msgs(deps, env, info, label, messages),
+        },
     }
 }
 
@@ -174,20 +176,20 @@ fn create_authorizations(
 
         // Check that it doesn't exist yet
         if AUTHORIZATIONS.has(deps.storage, authorization.label.clone()) {
-            return Err(ContractError::LabelAlreadyExists(
-                authorization.label.clone(),
+            return Err(ContractError::Authorization(
+                AuthorizationErrorReason::LabelAlreadyExists(authorization.label.clone()),
             ));
         }
 
         // Perform all validations on the authorization
         authorization.validate(deps.storage)?;
 
-        // If Authorization is permissioned we need to create the tokenfactory denom and mint the corresponding amounts to the addresses that can
+        // If Authorization is permissioned we need to create the tokenfactory token and mint the corresponding amounts to the addresses that can
         // execute the authorization
         if let AuthorizationMode::Permissioned(permission_type) = &authorization.mode {
-            // We will always create the denom if it's permissioned
-            let create_denom_msg = NeutronMsg::submit_create_denom(authorization.label.clone());
-            tokenfactory_msgs.push(create_denom_msg);
+            // We will always create the token if it's permissioned
+            let create_token_msg = NeutronMsg::submit_create_denom(authorization.label.clone());
+            tokenfactory_msgs.push(create_token_msg);
 
             // Full denom of the token that will be created
             let denom =
@@ -225,17 +227,25 @@ fn create_authorizations(
 fn modify_authorization(
     deps: DepsMut,
     label: String,
+    start_time: Option<StartTime>,
     expiration: Option<Expiration>,
     max_concurrent_executions: Option<u64>,
     priority: Option<Priority>,
 ) -> Result<Response<NeutronMsg>, ContractError> {
     let mut authorization = AUTHORIZATIONS
         .load(deps.storage, label.clone())
-        .map_err(|_| ContractError::AuthorizationDoesNotExist(label.clone()))?;
+        .map_err(|_| {
+            ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
+        })?;
+
+    if let Some(start_time) = start_time {
+        authorization.start_time = start_time;
+    }
 
     if let Some(expiration) = expiration {
         authorization.expiration = expiration;
     }
+
     if let Some(max_concurrent_executions) = max_concurrent_executions {
         authorization.max_concurrent_executions = max_concurrent_executions;
     }
@@ -256,7 +266,9 @@ fn disable_authorization(
 ) -> Result<Response<NeutronMsg>, ContractError> {
     let mut authorization = AUTHORIZATIONS
         .load(deps.storage, label.clone())
-        .map_err(|_| ContractError::AuthorizationDoesNotExist(label.clone()))?;
+        .map_err(|_| {
+            ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
+        })?;
 
     authorization.state = AuthorizationState::Disabled;
 
@@ -271,7 +283,9 @@ fn enable_authorization(
 ) -> Result<Response<NeutronMsg>, ContractError> {
     let mut authorization = AUTHORIZATIONS
         .load(deps.storage, label.clone())
-        .map_err(|_| ContractError::AuthorizationDoesNotExist(label.clone()))?;
+        .map_err(|_| {
+            ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
+        })?;
 
     authorization.state = AuthorizationState::Enabled;
 
@@ -288,7 +302,9 @@ fn mint_authorizations(
 ) -> Result<Response<NeutronMsg>, ContractError> {
     let authorization = AUTHORIZATIONS
         .load(deps.storage, label.clone())
-        .map_err(|_| ContractError::AuthorizationDoesNotExist(label.clone()))?;
+        .map_err(|_| {
+            ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
+        })?;
 
     let token_factory_msgs = match authorization.mode {
         AuthorizationMode::Permissioned(_) => Ok(mints.iter().map(|mint| {
@@ -298,14 +314,42 @@ fn mint_authorizations(
                 mint.address.clone(),
             )
         })),
-        AuthorizationMode::Permissionless => {
-            Err(ContractError::CantMintForPermissionlessAuthorization {})
-        }
+        AuthorizationMode::Permissionless => Err(ContractError::Authorization(
+            AuthorizationErrorReason::CantMintForPermissionless {},
+        )),
     }?;
 
     Ok(Response::new()
         .add_attribute("action", "mint_authorizations")
         .add_messages(token_factory_msgs))
+}
+
+fn send_msgs(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    label: String,
+    messages: Vec<Binary>,
+) -> Result<Response<NeutronMsg>, ContractError> {
+    let authorization = AUTHORIZATIONS
+        .load(deps.storage, label.clone())
+        .map_err(|_| {
+            ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
+        })?;
+
+    authorization.validate_executable(
+        deps.storage,
+        &env.block,
+        deps.querier,
+        env.contract.address.as_str(),
+        &info,
+        &messages,
+    )?;
+
+    // TODO: Add messages to response
+    Ok(Response::new()
+        .add_attribute("action", "send_msgs")
+        .add_attribute("authorization_label", authorization.label))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -375,7 +419,9 @@ fn get_authorizations(
 /// Asserts that the caller is the owner or a subowner
 fn assert_owner_or_subowner(store: &dyn Storage, address: Addr) -> Result<(), ContractError> {
     if !is_owner(store, &address)? && !SUB_OWNERS.has(store, address) {
-        return Err(ContractError::Unauthorized {});
+        return Err(ContractError::Unauthorized(
+            UnauthorizedReason::NotAllowed {},
+        ));
     }
     Ok(())
 }

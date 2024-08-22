@@ -1,5 +1,5 @@
-use authorization_utils::domain::{CallbackProxy, Connector, ExternalDomain};
 use cosmwasm_std::DepsMut;
+use valence_authorization_utils::domain::{CallbackProxy, Connector, ExternalDomain};
 
 use crate::{error::ContractError, state::EXTERNAL_DOMAINS};
 

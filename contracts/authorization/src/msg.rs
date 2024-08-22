@@ -1,10 +1,10 @@
-use authorization_utils::{
-    authorization::{Authorization, AuthorizationInfo, Priority},
+use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_std::{Addr, Binary, Uint128};
+use cw_ownable::{cw_ownable_execute, cw_ownable_query, Expiration};
+use valence_authorization_utils::{
+    authorization::{Authorization, AuthorizationInfo, Priority, StartTime},
     domain::ExternalDomain,
 };
-use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128};
-use cw_ownable::{cw_ownable_execute, cw_ownable_query, Expiration};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -42,6 +42,7 @@ pub enum SubOwnerMsg {
     },
     ModifyAuthorization {
         label: String,
+        start_time: Option<StartTime>,
         expiration: Option<Expiration>,
         max_concurrent_executions: Option<u64>,
         priority: Option<Priority>,
@@ -66,7 +67,12 @@ pub struct Mint {
 }
 
 #[cw_serde]
-pub enum UserMsg {}
+pub enum UserMsg {
+    SendMsgs {
+        label: String,
+        messages: Vec<Binary>,
+    },
+}
 
 #[cw_ownable_query]
 #[cw_serde]

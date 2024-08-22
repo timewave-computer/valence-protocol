@@ -43,12 +43,12 @@ neutron-sdk     = "0.11.0"
 valence-base-account     = { path = "contracts/accounts/base_account", features = ["library"] }
 valence-splitter         = { path = "contracts/services/splitter-temp", features = ["library"] }
 valence-reverse-splitter = { path = "contracts/services/reverse-splitter-temp", features = ["library"] }
-authorization            = { path = "contracts/authorization", features = ["library"] }
+valence-authorization    = { path = "contracts/authorization", features = ["library"] }
 
 # our packages
-valence-macros      = { path = "packages/valence-macros" }
-authorization-utils = { path = "packages/authorization-utils" }
-services-utils      = { path = "packages/services-utils" }
+valence-macros              = { path = "packages/valence-macros" }
+valence-authorization-utils = { path = "packages/authorization-utils" }
+services-utils              = { path = "packages/services-utils" }
 
 # dev-dependencies
 cw-multi-test     = "2.0.0"

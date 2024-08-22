@@ -1,9 +1,13 @@
 use std::{fmt, str::FromStr};
 
 use cosmos_grpc_client::{
-    cosmos_sdk_proto::cosmos::{bank::v1beta1::QueryBalanceRequest, base::v1beta1::Coin},
+    cosmos_sdk_proto::{
+        cosmos::{bank::v1beta1::QueryBalanceRequest, base::v1beta1::Coin},
+        cosmwasm::wasm::v1::MsgInstantiateContract2,
+    },
     Decimal, GrpcClient, Wallet,
 };
+use cosmwasm_std::CanonicalAddr;
 
 use crate::{account::AccountType, config::ChainInfo};
 
@@ -48,10 +52,25 @@ impl Connector for CosmosCwConnector {
     fn init_account(&mut self, _account_type: &AccountType) -> PinnedFuture<String> {
         Box::pin(async move {
             // TODO: get code id from config
+            // TODO: Get init message
             // let init_msg = valence_base_account::msg::InstantiateMsg {
             //     admin: self.wallet.account_address.to_string(),
             // };
 
+            // Should be enough because we know the address is correct.
+            let addr: CanonicalAddr = self.wallet.account_address.as_bytes().into();
+
+            // instantiate2_address(checksum, creator, salt);
+            MsgInstantiateContract2 {
+                sender: todo!(),
+                admin: todo!(),
+                code_id: todo!(),
+                label: todo!(),
+                msg: todo!(),
+                funds: todo!(),
+                salt: todo!(),
+                fix_msg: todo!(),
+            };
             // let msg = MsgInstantiateContract {
             //     sender: self.wallet.account_address.to_string(),
             //     code_id: 5987,
@@ -89,6 +108,10 @@ impl Connector for CosmosCwConnector {
                 .into_inner();
             response.balance.clone()
         })
+    }
+
+    fn get_account_addr(&mut self, account_type: &AccountType) -> PinnedFuture<String> {
+        todo!()
     }
     // Other method implementations...
 }
