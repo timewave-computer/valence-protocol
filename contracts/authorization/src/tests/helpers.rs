@@ -35,3 +35,10 @@ pub fn store_and_instantiate_authorization_contract(
     .data
     .address
 }
+
+pub fn wait_for_height(app: &NeutronTestApp, height: u64) {
+    while (app.get_block_height() as u64) < height {
+        // We can't increase blocks directly so we do it this way
+        app.increase_time(1);
+    }
+}

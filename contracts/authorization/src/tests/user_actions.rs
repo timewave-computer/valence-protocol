@@ -10,7 +10,7 @@ use crate::{
     contract::build_tokenfactory_denom,
     error::{AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason},
     msg::{ExecuteMsg, SubOwnerMsg, UserMsg},
-    tests::builders::JsonBuilder,
+    tests::{builders::JsonBuilder, helpers::wait_for_height},
 };
 
 use super::{
@@ -257,10 +257,7 @@ fn invalid_time() {
             .as_str()
     ));
 
-    while (setup.app.get_block_height() as u64) < current_height + 10 {
-        // We can't increase blocks directly so we do it this way
-        setup.app.increase_time(1);
-    }
+    wait_for_height(&setup.app, current_height + 10);
 
     // Now the time validation should pass but the authorization should fail because user doesn't have permission
     let error = wasm
@@ -281,11 +278,7 @@ fn invalid_time() {
             .as_str()
     ));
 
-    // Let's increase the blocks to expire it
-    while (setup.app.get_block_height() as u64) < current_height + 20 {
-        // We can't increase blocks directly so we do it this way
-        setup.app.increase_time(1);
-    }
+    wait_for_height(&setup.app, current_height + 20);
 
     // Now the time validation should fail again because authorization is expired
     let error = wasm

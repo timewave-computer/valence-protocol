@@ -337,14 +337,14 @@ fn send_msgs(
             ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
         })?;
 
-    authorization.ensure_enabled()?;
-    authorization.ensure_not_expired(&env.block)?;
-    authorization.ensure_started(&env.block)?;
-    // Check if the authorization is permissioned and validate the permission
-    authorization.validate_permission(deps.querier, env.contract.address.as_str(), &info)?;
-    // Check if the messages match the actions and all their parameter requirements
-    // TODO, this will return the correct message for the corresponding processor
-    authorization.validate_messages(deps.storage, &messages)?;
+    authorization.validate_executable(
+        deps.storage,
+        &env.block,
+        deps.querier,
+        env.contract.address.as_str(),
+        &info,
+        &messages,
+    )?;
 
     // TODO: Add messages to response
     Ok(Response::new()

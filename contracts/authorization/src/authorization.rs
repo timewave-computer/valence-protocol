@@ -1,10 +1,10 @@
 use cosmwasm_std::{Binary, BlockInfo, MessageInfo, QuerierWrapper, Storage, Uint128};
-use cw_utils::{must_pay, Expiration};
+use cw_utils::must_pay;
 use serde_json::Value;
 use valence_authorization_utils::{
     authorization::{
         Authorization, AuthorizationMode, AuthorizationState, ExecutionType, PermissionType,
-        Priority, StartTime,
+        Priority,
     },
     domain::{Domain, ExecutionEnvironment},
     message::ParamRestriction,
@@ -30,6 +30,15 @@ pub trait Validate {
     fn validate_messages(
         &self,
         store: &dyn Storage,
+        messages: &[Binary],
+    ) -> Result<(), ContractError>;
+    fn validate_executable(
+        &self,
+        store: &dyn Storage,
+        block: &BlockInfo,
+        querier: QuerierWrapper,
+        contract_address: &str,
+        info: &MessageInfo,
         messages: &[Binary],
     ) -> Result<(), ContractError>;
 }
@@ -106,40 +115,18 @@ impl Validate for Authorization {
     }
 
     fn ensure_started(&self, block: &BlockInfo) -> Result<(), ContractError> {
-        match &self.start_time {
-            StartTime::Anytime => (),
-            StartTime::AtHeight(height) => {
-                if block.height < *height {
-                    return Err(ContractError::Unauthorized(
-                        UnauthorizedReason::NotActiveYet {},
-                    ));
-                }
-            }
-            StartTime::AtTime(time) => {
-                if block.time.seconds() < *time {
-                    return Err(ContractError::Unauthorized(
-                        UnauthorizedReason::NotActiveYet {},
-                    ));
-                }
-            }
+        if !self.start_time.is_started(block) {
+            return Err(ContractError::Unauthorized(
+                UnauthorizedReason::NotActiveYet {},
+            ));
         }
 
         Ok(())
     }
 
     fn ensure_not_expired(&self, block: &BlockInfo) -> Result<(), ContractError> {
-        match &self.expiration {
-            Expiration::Never {} => (),
-            Expiration::AtHeight(height) => {
-                if block.height > *height {
-                    return Err(ContractError::Unauthorized(UnauthorizedReason::Expired {}));
-                }
-            }
-            Expiration::AtTime(time) => {
-                if block.time > *time {
-                    return Err(ContractError::Unauthorized(UnauthorizedReason::Expired {}));
-                }
-            }
+        if self.expiration.is_expired(block) {
+            return Err(ContractError::Unauthorized(UnauthorizedReason::Expired {}));
         }
 
         Ok(())
@@ -231,6 +218,24 @@ impl Validate for Authorization {
         }
 
         // TODO: Return the list of messages to be sent to the processor/connector
+
+        Ok(())
+    }
+
+    fn validate_executable(
+        &self,
+        store: &dyn Storage,
+        block: &BlockInfo,
+        querier: QuerierWrapper,
+        contract_address: &str,
+        info: &MessageInfo,
+        messages: &[Binary],
+    ) -> Result<(), ContractError> {
+        self.ensure_enabled()?;
+        self.ensure_started(block)?;
+        self.ensure_not_expired(block)?;
+        self.validate_permission(querier, contract_address, info)?;
+        self.validate_messages(store, messages)?;
 
         Ok(())
     }

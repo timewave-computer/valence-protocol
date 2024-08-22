@@ -76,6 +76,16 @@ pub enum StartTime {
     AtTime(u64),
 }
 
+impl StartTime {
+    pub fn is_started(&self, block: &BlockInfo) -> bool {
+        match self {
+            StartTime::Anytime => true,
+            StartTime::AtHeight(height) => block.height >= *height,
+            StartTime::AtTime(time) => block.time.seconds() >= *time,
+        }
+    }
+}
+
 #[cw_serde]
 pub enum PermissionType {
     // With call limit, we will mint certain amount of tokens per address. Each time they execute successfully we'll burn the token they send
