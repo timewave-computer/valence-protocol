@@ -9,7 +9,7 @@ use service_base::{
 use crate::msg::{ActionsMsgs, OptionalServiceConfig, QueryMsg, ServiceConfig};
 
 // version info for migration info
-const CONTRACT_NAME: &str = "crates.io:valence-splitter";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -19,14 +19,7 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg<ServiceConfig>,
 ) -> Result<Response, ServiceError> {
-    service_base::instantiate(
-        deps,
-        CONTRACT_NAME,
-        CONTRACT_VERSION,
-        &msg.owner,
-        &msg.processor,
-        msg.config,
-    )
+    service_base::instantiate(deps, CONTRACT_NAME, CONTRACT_VERSION, msg)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

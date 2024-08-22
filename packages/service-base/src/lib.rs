@@ -3,7 +3,7 @@ use helpers::assert_processor;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use msg::{ExecuteMsg, ServiceConfigValidation};
+use msg::{ExecuteMsg, InstantiateMsg, ServiceConfigValidation};
 use state::PROCESSOR;
 
 pub mod error;
@@ -18,26 +18,24 @@ pub fn instantiate<T, U>(
     deps: DepsMut,
     contract_name: &str,
     contract_version: &str,
-    owner: &str,
-    processor: &str,
-    config: T,
+    msg: InstantiateMsg<T>,
 ) -> Result<Response, ServiceError>
 where
     T: ServiceConfigValidation<U>,
     U: Serialize + DeserializeOwned,
 {
     cw2::set_contract_version(deps.storage, contract_name, contract_version)?;
-    cw_ownable::initialize_owner(deps.storage, deps.api, Some(owner))?;
+    cw_ownable::initialize_owner(deps.storage, deps.api, Some(&msg.owner))?;
 
-    PROCESSOR.save(deps.storage, &deps.api.addr_validate(processor)?)?;
+    PROCESSOR.save(deps.storage, &deps.api.addr_validate(&msg.processor)?)?;
 
-    let config = config.validate(deps.as_ref())?;
+    let config = msg.config.validate(deps.as_ref())?;
     save_config(deps.storage, &config)?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
-        .add_attribute("processor", processor)
-        .add_attribute("owner", format!("{:?}", owner)))
+        .add_attribute("processor", msg.processor)
+        .add_attribute("owner", format!("{:?}", msg.owner)))
 }
 
 pub fn execute<T, U, V>(
