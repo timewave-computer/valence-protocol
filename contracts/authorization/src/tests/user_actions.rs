@@ -545,6 +545,28 @@ fn invalid_messages() {
 
     assert!(error.to_string().contains("Invalid JSON passed"));
 
+    // If we try to execute the authorization with a json that has multiple top keys, it should fail
+    let message =
+        Binary::from(serde_json::to_vec(&json!({"key1": "value", "key2": "value"})).unwrap());
+
+    let error = wasm
+        .execute::<ExecuteMsg>(
+            &contract_addr,
+            &ExecuteMsg::UserAction(UserMsg::SendMsgs {
+                label: "no-restrictions".to_string(),
+                messages: vec![message],
+            }),
+            &[],
+            &setup.accounts[2],
+        )
+        .unwrap_err();
+
+    assert!(error.to_string().contains(
+        ContractError::Message(MessageErrorReason::InvalidStructure {})
+            .to_string()
+            .as_str()
+    ));
+
     // If we try to execute the authorization with a json that has the wrong key, it should fail
     let message = JsonBuilder::new().main("wrong_key").build();
 

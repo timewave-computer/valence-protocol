@@ -1,0 +1,11 @@
+[package]
+name        = "valence-processor-utils"
+version     = { workspace = true }
+edition     = { workspace = true }
+authors     = ["Timewave Labs"]
+description = "Helpers for processor contract"
+
+[dependencies]
+cosmwasm-std                = { workspace = true }
+cosmwasm-schema             = { workspace = true }
+valence-authorization-utils = { workspace = true }

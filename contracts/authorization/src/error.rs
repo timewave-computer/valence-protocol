@@ -89,4 +89,7 @@ pub enum MessageErrorReason {
 
     #[error("The message doesn't pass all the parameter restrictions")]
     InvalidMessageParams {},
+
+    #[error("The message can only have one top level key")]
+    InvalidStructure {},
 }

@@ -195,7 +195,14 @@ impl Validate for Authorization {
                             }
                         })?;
 
-                    // Check if the message matches the action
+                    // Check that json only has one top level key
+                    if json.as_object().map(|obj| obj.len()).unwrap_or(0) != 1 {
+                        return Err(ContractError::Message(
+                            MessageErrorReason::InvalidStructure {},
+                        ));
+                    }
+
+                    // Check that top level key matches the message name
                     if json
                         .get(each_action.message_details.message.name.as_str())
                         .is_none()

@@ -1,9 +1,9 @@
 [package]
-name = "valence-processor"
-version = { workspace = true }
-edition = { workspace = true }
-authors = ["Timewave Labs"]
-description = "CosmWasm Smart Contract that executes the messages on each service/account of the workflow by iterating over queues"
+name        = "valence-processor"
+version     = { workspace = true }
+edition     = { workspace = true }
+authors     = ["Timewave Labs"]
+description = "CosmWasm Smart Contract that executes the messages on each service/account of the workflow by iterating over queues when ticked"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -12,4 +12,11 @@ crate-type = ["cdylib", "rlib"]
 library = []
 
 [dependencies]
-cosmwasm-std = { workspace = true }
+cosmwasm-std                = { workspace = true }
+cw-storage-plus             = { workspace = true }
+cosmwasm-schema             = { workspace = true }
+thiserror                   = { workspace = true }
+cw2                         = { workspace = true }
+cw-ownable                  = { workspace = true }
+valence-processor-utils     = { workspace = true }
+valence-authorization-utils = { workspace = true }
