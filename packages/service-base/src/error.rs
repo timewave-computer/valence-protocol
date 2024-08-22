@@ -3,7 +3,7 @@ use cw_ownable::OwnershipError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum ContractError {
+pub enum ServiceError {
     #[error("{0}")]
     Std(#[from] StdError),
 
@@ -15,6 +15,4 @@ pub enum ContractError {
 
     #[error("Unauthorized, Not the processor")]
     NotProcessor,
-    // Add any other custom errors you like here.
-    // Look at https://docs.rs/thiserror/1.0.21/thiserror/ for details.
 }

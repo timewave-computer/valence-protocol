@@ -32,6 +32,7 @@ valence-macros  = { workspace = true }
 cw-ownable      = { workspace = true }
 base-account    = { workspace = true }
 services-utils  = { workspace = true }
+service-base    = { package = "valence-service-base", path = "../../../packages/service-base" }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }
