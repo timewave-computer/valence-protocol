@@ -1,59 +1,30 @@
-use authorization_utils::{
+use cosmwasm_std::{Addr, Binary, Uint128};
+use cw_utils::Expiration;
+use neutron_test_tube::{
+    neutron_std::types::cosmos::bank::v1beta1::{QueryAllBalancesRequest, QueryBalanceRequest},
+    Account, Bank, Module, Wasm,
+};
+use valence_authorization_utils::{
     action::{ActionCallback, RetryInterval, RetryLogic, RetryTimes},
     authorization::{
         Authorization, AuthorizationDuration, AuthorizationMode, AuthorizationState, ExecutionType,
-        PermissionType, Priority,
+        PermissionType, Priority, StartTime,
     },
     domain::{Domain, ExternalDomain},
-    message::{Message, MessageDetails, MessageType, ParamsRestrictions},
-};
-use cosmwasm_std::{Addr, Binary, Uint128};
-use cw_utils::{Duration, Expiration};
-use neutron_test_tube::{
-    neutron_std::types::cosmos::bank::v1beta1::{QueryAllBalancesRequest, QueryBalanceRequest},
-    Account, Bank, Module, NeutronTestApp, SigningAccount, Wasm,
+    message::{Message, MessageDetails, MessageType, ParamRestriction},
 };
 
 use crate::{
     contract::build_tokenfactory_denom,
-    error::ContractError,
-    msg::{ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, QueryMsg, SubOwnerMsg},
-    tests::builders::{
-        ActionBatchBuilder, ActionBuilder, AuthorizationBuilder, NeutronTestAppBuilder,
+    error::{AuthorizationErrorReason, ContractError, UnauthorizedReason},
+    msg::{ExecuteMsg, Mint, OwnerMsg, QueryMsg, SubOwnerMsg},
+    tests::{
+        builders::{
+            ActionBatchBuilder, ActionBuilder, AuthorizationBuilder, NeutronTestAppBuilder,
+        },
+        helpers::store_and_instantiate_authorization_contract,
     },
 };
-
-fn store_and_instantiate_authorization_contract(
-    wasm: &Wasm<'_, NeutronTestApp>,
-    signer: &SigningAccount,
-    owner: Option<Addr>,
-    sub_owners: Vec<Addr>,
-    processor: Addr,
-    external_domains: Vec<ExternalDomain>,
-) -> String {
-    let wasm_byte_code = std::fs::read("../../artifacts/authorization.wasm").unwrap();
-    let code_id = wasm
-        .store_code(&wasm_byte_code, None, signer)
-        .unwrap()
-        .data
-        .code_id;
-    wasm.instantiate(
-        code_id,
-        &InstantiateMsg {
-            owner,
-            sub_owners,
-            processor,
-            external_domains,
-        },
-        None,
-        "authorization".into(),
-        &[],
-        signer,
-    )
-    .unwrap()
-    .data
-    .address
-}
 
 #[test]
 fn contract_instantiation() {
@@ -381,9 +352,10 @@ fn create_valid_authorizations() {
                                 message: Message {
                                     name: "method2".to_string(),
                                     params_restrictions: Some(vec![
-                                        ParamsRestrictions::MustBeIncluded(
-                                            "param1.param2".to_string(),
-                                        ),
+                                        ParamRestriction::MustBeIncluded(vec![
+                                            "param1".to_string(),
+                                            "param2".to_string(),
+                                        ]),
                                     ]),
                                 },
                             })
@@ -402,7 +374,7 @@ fn create_valid_authorizations() {
             .with_mode(AuthorizationMode::Permissioned(
                 PermissionType::WithCallLimit(vec![(setup.subowner_addr.clone(), Uint128::new(5))]),
             ))
-            .with_duration(AuthorizationDuration::Duration(Duration::Height(100)))
+            .with_duration(AuthorizationDuration::Blocks(100))
             .with_max_concurrent_executions(4)
             .with_action_batch(
                 ActionBatchBuilder::new()
@@ -415,9 +387,10 @@ fn create_valid_authorizations() {
                                 message: Message {
                                     name: "method".to_string(),
                                     params_restrictions: Some(vec![
-                                        ParamsRestrictions::CannotBeIncluded(
-                                            "param1.param2".to_string(),
-                                        ),
+                                        ParamRestriction::CannotBeIncluded(vec![
+                                            "param1".to_string(),
+                                            "param2".to_string(),
+                                        ]),
                                     ]),
                                 },
                             })
@@ -434,12 +407,10 @@ fn create_valid_authorizations() {
                                 message_type: MessageType::ExecuteMsg,
                                 message: Message {
                                     name: "method".to_string(),
-                                    params_restrictions: Some(vec![
-                                        ParamsRestrictions::MustBeValue(
-                                            "param1.param2".to_string(),
-                                            Binary::from_base64("aGVsbG8=").unwrap(),
-                                        ),
-                                    ]),
+                                    params_restrictions: Some(vec![ParamRestriction::MustBeValue(
+                                        vec!["param1".to_string(), "param2".to_string()],
+                                        Binary::from_base64("aGVsbG8=").unwrap(),
+                                    )]),
                                 },
                             })
                             .with_retry_logic(RetryLogic {
@@ -465,7 +436,7 @@ fn create_valid_authorizations() {
                     setup.user_addr.clone(),
                 ]),
             ))
-            .with_duration(AuthorizationDuration::Duration(Duration::Time(50000000)))
+            .with_duration(AuthorizationDuration::Seconds(50000000))
             .with_action_batch(
                 ActionBatchBuilder::new()
                     .with_action(
@@ -475,9 +446,10 @@ fn create_valid_authorizations() {
                                 message: Message {
                                     name: "method".to_string(),
                                     params_restrictions: Some(vec![
-                                        ParamsRestrictions::CannotBeIncluded(
-                                            "param1.param2".to_string(),
-                                        ),
+                                        ParamRestriction::CannotBeIncluded(vec![
+                                            "param1".to_string(),
+                                            "param2".to_string(),
+                                        ]),
                                     ]),
                                 },
                             })
@@ -493,12 +465,10 @@ fn create_valid_authorizations() {
                                 message_type: MessageType::ExecuteMsg,
                                 message: Message {
                                     name: "method".to_string(),
-                                    params_restrictions: Some(vec![
-                                        ParamsRestrictions::MustBeValue(
-                                            "param1.param2".to_string(),
-                                            Binary::from_base64("aGVsbG8=").unwrap(),
-                                        ),
-                                    ]),
+                                    params_restrictions: Some(vec![ParamRestriction::MustBeValue(
+                                        vec!["param1".to_string(), "param2".to_string()],
+                                        Binary::from_base64("aGVsbG8=").unwrap(),
+                                    )]),
                                 },
                             })
                             .with_retry_logic(RetryLogic {
@@ -524,9 +494,11 @@ fn create_valid_authorizations() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ContractError::Unauthorized {}.to_string().as_str()));
+    assert!(error.to_string().contains(
+        ContractError::Unauthorized(UnauthorizedReason::NotAllowed {})
+            .to_string()
+            .as_str()
+    ));
 
     // Owner will create 1 and Subowner will create 2 and both will succeed
     wasm.execute::<ExecuteMsg>(
@@ -632,9 +604,11 @@ fn create_valid_authorizations() {
         .unwrap_err();
 
     assert!(error.to_string().contains(
-        ContractError::LabelAlreadyExists("permissionless-authorization".to_string())
-            .to_string()
-            .as_str()
+        ContractError::Authorization(AuthorizationErrorReason::LabelAlreadyExists(
+            "permissionless-authorization".to_string()
+        ))
+        .to_string()
+        .as_str()
     ));
 }
 
@@ -661,7 +635,7 @@ fn create_invalid_authorizations() {
     let invalid_authorizations = vec![
         (
             AuthorizationBuilder::new().build(),
-            ContractError::NoActions {},
+            ContractError::Authorization(AuthorizationErrorReason::NoActions {}),
         ),
         (
             AuthorizationBuilder::new()
@@ -672,7 +646,7 @@ fn create_invalid_authorizations() {
                         .build(),
                 )
                 .build(),
-            ContractError::EmptyLabel {},
+            ContractError::Authorization(AuthorizationErrorReason::EmptyLabel {}),
         ),
         (
             AuthorizationBuilder::new()
@@ -702,7 +676,7 @@ fn create_invalid_authorizations() {
                         .build(),
                 )
                 .build(),
-            ContractError::DifferentActionDomains {},
+            ContractError::Authorization(AuthorizationErrorReason::DifferentActionDomains {}),
         ),
         (
             AuthorizationBuilder::new()
@@ -713,7 +687,9 @@ fn create_invalid_authorizations() {
                 )
                 .with_priority(Priority::High)
                 .build(),
-            ContractError::PermissionlessAuthorizationWithHighPriority {},
+            ContractError::Authorization(
+                AuthorizationErrorReason::PermissionlessWithHighPriority {},
+            ),
         ),
         (
             AuthorizationBuilder::new()
@@ -730,7 +706,9 @@ fn create_invalid_authorizations() {
                         .build(),
                 )
                 .build(),
-            ContractError::AtomicAuthorizationWithCallbackConfirmation {},
+            ContractError::Authorization(
+                AuthorizationErrorReason::AtomicWithCallbackConfirmation {},
+            ),
         ),
     ];
 
@@ -797,6 +775,7 @@ fn modify_authorization() {
         &contract_addr,
         &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
             label: "authorization".to_string(),
+            start_time: Some(StartTime::AtTime(100)),
             expiration: Some(Expiration::AtHeight(50)),
             max_concurrent_executions: None,
             priority: None,
@@ -824,6 +803,7 @@ fn modify_authorization() {
         &contract_addr,
         &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
             label: "authorization".to_string(),
+            start_time: None,
             expiration: None,
             max_concurrent_executions: Some(5),
             priority: Some(Priority::High),
@@ -853,6 +833,7 @@ fn modify_authorization() {
             &contract_addr,
             &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
                 label: "authorization".to_string(),
+                start_time: None,
                 expiration: None,
                 max_concurrent_executions: None,
                 priority: Some(Priority::Medium),
@@ -862,9 +843,11 @@ fn modify_authorization() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ContractError::Unauthorized {}.to_string().as_str()));
+    assert!(error.to_string().contains(
+        ContractError::Unauthorized(UnauthorizedReason::NotAllowed {})
+            .to_string()
+            .as_str()
+    ));
 
     // Try to modify an authorization that doesn't exist should also fail
     let error = wasm
@@ -872,6 +855,7 @@ fn modify_authorization() {
             &contract_addr,
             &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
                 label: "non-existing-label".to_string(),
+                start_time: None,
                 expiration: None,
                 max_concurrent_executions: None,
                 priority: Some(Priority::Medium),
@@ -882,9 +866,11 @@ fn modify_authorization() {
         .unwrap_err();
 
     assert!(error.to_string().contains(
-        ContractError::AuthorizationDoesNotExist("non-existing-label".to_string())
-            .to_string()
-            .as_str()
+        ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(
+            "non-existing-label".to_string()
+        ))
+        .to_string()
+        .as_str()
     ));
 
     // Disabling an authorization should also work
@@ -947,9 +933,11 @@ fn modify_authorization() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ContractError::Unauthorized {}.to_string().as_str()));
+    assert!(error.to_string().contains(
+        ContractError::Unauthorized(UnauthorizedReason::NotAllowed {})
+            .to_string()
+            .as_str()
+    ));
 }
 
 #[test]
@@ -988,7 +976,7 @@ fn mint_authorizations() {
             .with_mode(AuthorizationMode::Permissioned(
                 PermissionType::WithCallLimit(vec![(setup.user_addr.clone(), Uint128::new(10))]),
             ))
-            .with_duration(AuthorizationDuration::Duration(Duration::Height(50000)))
+            .with_duration(AuthorizationDuration::Blocks(50000))
             .with_max_concurrent_executions(4)
             .with_action_batch(
                 ActionBatchBuilder::new()
@@ -1024,7 +1012,7 @@ fn mint_authorizations() {
         .unwrap_err();
 
     assert!(error.to_string().contains(
-        ContractError::CantMintForPermissionlessAuthorization {}
+        ContractError::Authorization(AuthorizationErrorReason::CantMintForPermissionless {})
             .to_string()
             .as_str()
     ));
@@ -1108,7 +1096,9 @@ fn mint_authorizations() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ContractError::Unauthorized {}.to_string().as_str()));
+    assert!(error.to_string().contains(
+        ContractError::Unauthorized(UnauthorizedReason::NotAllowed {})
+            .to_string()
+            .as_str()
+    ));
 }

@@ -1,8 +1,8 @@
 [package]
-name = "processor"
+name = "valence-processor"
 version = { workspace = true }
 edition = { workspace = true }
-authors = ["Keyne"]
+authors = ["Timewave Labs"]
 description = "CosmWasm Smart Contract that executes the messages on each service/account of the workflow by iterating over queues"
 
 [lib]
