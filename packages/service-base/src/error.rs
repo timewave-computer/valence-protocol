@@ -11,8 +11,11 @@ pub enum ServiceError {
     OwnershipError(#[from] OwnershipError),
 
     #[error("Unauthorized")]
-    Unauthorized {},
+    Unauthorized(#[from] UnauthorizedReason),
+}
 
-    #[error("Unauthorized, Not the processor")]
-    NotProcessor,
+#[derive(Error, Debug, PartialEq)]
+pub enum UnauthorizedReason {
+    #[error("This address is not allowed to execute this action")]
+    NotAllowed {},
 }
