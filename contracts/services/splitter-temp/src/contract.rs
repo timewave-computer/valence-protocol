@@ -130,7 +130,9 @@ mod actions {
                     Ok::<(), ContractError>(())
                 })?;
 
-                Ok(Response::new().add_messages(messages).add_attribute("method", "split"))
+                Ok(Response::new()
+                    .add_messages(messages)
+                    .add_attribute("method", "split"))
             }
         }
     }

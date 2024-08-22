@@ -20,7 +20,7 @@ pub struct Link {
     pub service_id: Id,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct WorkflowConfig {
     /// A list of links between an accounts and services
     pub links: BTreeMap<Id, Link>,
@@ -33,29 +33,16 @@ pub struct WorkflowConfig {
 }
 
 impl WorkflowConfig {
-    pub fn default() -> Self {
-        Self {
-            links: BTreeMap::new(),
-            authorizations: BTreeMap::new(),
-            accounts: BTreeMap::new(),
-            services: BTreeMap::new(),
-        }
-    }
-}
-
-impl WorkflowConfig {
     /// Instantiate a workflow on all domains.
     pub async fn init(&mut self, ctx: Ctx) {
-        let mut context = ctx.lock().await;
+        let mut ctx = ctx.lock().await;
 
         // init accounts
         for (_, account) in self.accounts.iter_mut() {
-            let domain_info = context.get_or_create_domain_info(&account.domain).await;
+            let domain_info = ctx.get_or_create_domain_info(&account.domain).await;
             let addr = domain_info.connector.init_account(&account.ty).await;
             account.ty = AccountType::Addr { addr }
         }
-
-        return;
 
         self.links.iter().for_each(|(_, link)| {
             let mut patterns =

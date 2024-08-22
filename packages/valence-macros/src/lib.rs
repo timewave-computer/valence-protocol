@@ -41,9 +41,9 @@ pub fn optional_struct_derive(input: TokenStream) -> TokenStream {
 pub fn connector_trait(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemTrait);
     let trait_name = &input.ident;
-    
+
     let inner_trait_name = format_ident!("{}Inner", trait_name);
-    
+
     let methods = input.items.iter().filter_map(|item| {
         if let syn::TraitItem::Method(method) = item {
             Some(method)
@@ -58,9 +58,10 @@ pub fn connector_trait(_attr: TokenStream, item: TokenStream) -> TokenStream {
         let method_name = &method.sig.ident;
         let inputs = &method.sig.inputs;
         let output = &method.sig.output;
-        
-        let args = inputs.iter().filter_map(|arg| {
-            match arg {
+
+        let args = inputs
+            .iter()
+            .filter_map(|arg| match arg {
                 FnArg::Receiver(_) => None,
                 FnArg::Typed(pat_type) => {
                     if let Pat::Ident(pat_ident) = &*pat_type.pat {
@@ -69,9 +70,9 @@ pub fn connector_trait(_attr: TokenStream, item: TokenStream) -> TokenStream {
                         None
                     }
                 }
-            }
-        }).collect::<Vec<_>>();
-        
+            })
+            .collect::<Vec<_>>();
+
         quote! {
             fn #method_name(#inputs) #output {
                 #trait_name::#method_name(self, #(#args),*)
@@ -83,9 +84,10 @@ pub fn connector_trait(_attr: TokenStream, item: TokenStream) -> TokenStream {
         let method_name = &method.sig.ident;
         let inputs = &method.sig.inputs;
         let output = &method.sig.output;
-        
-        let args = inputs.iter().filter_map(|arg| {
-            match arg {
+
+        let args = inputs
+            .iter()
+            .filter_map(|arg| match arg {
                 FnArg::Receiver(_) => None,
                 FnArg::Typed(pat_type) => {
                     if let Pat::Ident(pat_ident) = &*pat_type.pat {
@@ -94,9 +96,9 @@ pub fn connector_trait(_attr: TokenStream, item: TokenStream) -> TokenStream {
                         None
                     }
                 }
-            }
-        }).collect::<Vec<_>>();
-        
+            })
+            .collect::<Vec<_>>();
+
         quote! {
             fn #method_name(#inputs) #output {
                 self.0.#method_name(#(#args),*)
@@ -104,25 +106,31 @@ pub fn connector_trait(_attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     });
 
-    let new_method = methods.clone().find(|method| method.sig.ident == "new").expect("new method not found");
+    let new_method = methods
+        .clone()
+        .find(|method| method.sig.ident == "new")
+        .expect("new method not found");
     let new_inputs = &new_method.sig.inputs;
     let new_output = &new_method.sig.output;
 
-    let new_args = new_inputs.iter().filter_map(|arg| {
-        if let FnArg::Typed(pat_type) = arg {
-            if let Pat::Ident(pat_ident) = &*pat_type.pat {
-                Some(pat_ident.ident.clone())
+    let new_args = new_inputs
+        .iter()
+        .filter_map(|arg| {
+            if let FnArg::Typed(pat_type) = arg {
+                if let Pat::Ident(pat_ident) = &*pat_type.pat {
+                    Some(pat_ident.ident.clone())
+                } else {
+                    None
+                }
             } else {
                 None
             }
-        } else {
-            None
-        }
-    }).collect::<Vec<_>>();
+        })
+        .collect::<Vec<_>>();
 
     let expanded = quote! {
         #input
-        
+
         pub trait #inner_trait_name: Send + Sync + std::fmt::Debug {
             #(#methods_without_new)*
         }
@@ -132,7 +140,7 @@ pub fn connector_trait(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 self.to_owned()
             }
         }
-        
+
         #[derive(Debug, Clone)]
         pub struct ConnectorWrapper(Box<dyn #inner_trait_name>);
 
@@ -151,7 +159,7 @@ pub fn connector_trait(_attr: TokenStream, item: TokenStream) -> TokenStream {
         impl #inner_trait_name for ConnectorWrapper {
             #(#wrapper_methods)*
         }
-        
+
         #[macro_export]
         macro_rules! impl_connector {
             ($t:ty) => {
@@ -161,7 +169,7 @@ pub fn connector_trait(_attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
     };
-    
+
     TokenStream::from(expanded)
 }
 

@@ -45,12 +45,13 @@ impl Connector for CosmosCwConnector {
         })
     }
 
-    fn init_account(&mut self, account_type: &AccountType) -> PinnedFuture<String> {
+    fn init_account(&mut self, _account_type: &AccountType) -> PinnedFuture<String> {
         Box::pin(async move {
             // TODO: get code id from config
             // let init_msg = valence_base_account::msg::InstantiateMsg {
             //     admin: self.wallet.account_address.to_string(),
             // };
+
             // let msg = MsgInstantiateContract {
             //     sender: self.wallet.account_address.to_string(),
             //     code_id: 5987,

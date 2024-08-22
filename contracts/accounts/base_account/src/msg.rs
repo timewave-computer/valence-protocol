@@ -4,6 +4,7 @@ use cosmwasm_std::{Addr, CosmosMsg};
 #[cw_serde]
 pub struct InstantiateMsg {
     pub admin: String, // Initial owner of the contract
+    pub approved_services: Vec<String>,
 }
 
 #[cw_serde]
