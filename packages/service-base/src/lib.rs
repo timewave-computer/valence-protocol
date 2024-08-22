@@ -3,7 +3,7 @@ use helpers::assert_processor;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use msg::ExecuteMsg;
+use msg::{ExecuteMsg, ServiceConfigValidation};
 use state::PROCESSOR;
 
 pub mod error;
@@ -14,7 +14,7 @@ pub mod state;
 pub use crate::error::ServiceError;
 pub use crate::state::{load_config, save_config};
 
-pub fn instantiate<T>(
+pub fn instantiate<T, U>(
     deps: DepsMut,
     contract_name: &str,
     contract_version: &str,
@@ -23,12 +23,15 @@ pub fn instantiate<T>(
     config: T,
 ) -> Result<Response, ServiceError>
 where
-    T: Serialize + DeserializeOwned,
+    T: ServiceConfigValidation<U>,
+    U: Serialize + DeserializeOwned,
 {
     cw2::set_contract_version(deps.storage, contract_name, contract_version)?;
     cw_ownable::initialize_owner(deps.storage, deps.api, Some(owner))?;
 
     PROCESSOR.save(deps.storage, &deps.api.addr_validate(processor)?)?;
+
+    let config = config.validate(deps.as_ref())?;
     save_config(deps.storage, &config)?;
 
     Ok(Response::new()

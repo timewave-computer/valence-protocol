@@ -2,16 +2,9 @@ use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut, Uint128};
-use service_base::ServiceError;
+use service_base::{msg::ServiceConfigValidation, ServiceError};
 use services_utils::{ServiceAccountType, ServiceConfigInterface};
 use valence_macros::OptionalStruct;
-
-#[cw_serde]
-pub struct InstantiateMsg {
-    pub owner: String,
-    pub processor: String,
-    pub config: ServiceConfig,
-}
 
 #[cw_serde]
 pub enum ActionsMsgs {
@@ -35,8 +28,8 @@ pub struct ServiceConfig {
     splits: SplitsConfig,
 }
 
-impl ServiceConfig {
-    pub fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
+impl ServiceConfigValidation<Config> for ServiceConfig {
+    fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
         // TODO: Verify splits are valid
         Ok(Config {
             input_addr: self.input_addr.to_addr(deps)?,

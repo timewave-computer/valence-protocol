@@ -1,9 +1,12 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
-use service_base::{msg::ExecuteMsg, ServiceError};
+use service_base::{
+    msg::{ExecuteMsg, InstantiateMsg},
+    ServiceError,
+};
 
-use crate::msg::{ActionsMsgs, InstantiateMsg, OptionalServiceConfig, QueryMsg};
+use crate::msg::{ActionsMsgs, OptionalServiceConfig, QueryMsg, ServiceConfig};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:valence-splitter";
@@ -14,16 +17,15 @@ pub fn instantiate(
     deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    msg: InstantiateMsg,
+    msg: InstantiateMsg<ServiceConfig>,
 ) -> Result<Response, ServiceError> {
-    let config = msg.config.validate(deps.as_ref())?;
     service_base::instantiate(
         deps,
         CONTRACT_NAME,
         CONTRACT_VERSION,
         &msg.owner,
         &msg.processor,
-        config,
+        msg.config,
     )
 }
 
