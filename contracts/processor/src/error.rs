@@ -13,4 +13,9 @@ pub enum ContractError {
 
     #[error("Unauthorized, only authorization module can execute this action")]
     Unauthorized {},
+
+    #[error(
+        "Invalid queue position, queue position must be between 0 and the length of the queue"
+    )]
+    InvalidQueuePosition {},
 }

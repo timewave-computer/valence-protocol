@@ -1,15 +1,19 @@
-use cosmwasm_std::{entry_point, DepsMut, Env, MessageInfo, Response};
-use cw_ownable::{assert_owner, initialize_owner};
-use valence_processor_utils::processor::{Config, State};
+use cosmwasm_std::{
+    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+};
+use cw_ownable::{assert_owner, get_ownership, initialize_owner};
+use valence_authorization_utils::authorization::{ActionBatch, Priority};
+use valence_processor_utils::{
+    processor::{Config, State},
+    queue::MessageBatch,
+};
 
 use crate::{
     error::ContractError,
-    msg::{AuthoriationMsg, ExecuteMsg, InstantiateMsg, OwnerMsg, PermissionlessMsg},
+    msg::{AuthoriationMsg, ExecuteMsg, InstantiateMsg, OwnerMsg, PermissionlessMsg, QueryMsg},
+    queue::{load_queue, save_queue},
     state::CONFIG,
 };
-
-// pagination info for queries
-const MAX_PAGE_LIMIT: u32 = 250;
 
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -64,26 +68,32 @@ pub fn execute(
         ExecuteMsg::AuthorizationModuleAction(authorization_module_msg) => {
             let config = CONFIG.load(deps.storage)?;
 
-            if info.sender != config.authorization_contract {
+            let authorized_sender = match config.polytone_contracts {
+                Some(polytone_contracts) => polytone_contracts.polytone_proxy_contract,
+                None => config.authorization_contract,
+            };
+
+            if info.sender != authorized_sender {
                 return Err(ContractError::Unauthorized {});
             }
+
             match authorization_module_msg {
                 AuthoriationMsg::EnqueueMsgs {
                     id,
                     msgs,
                     action_batch,
                     priority,
-                } => todo!(),
-                AuthoriationMsg::RemoveMsgs { id } => todo!(),
+                } => enqueue_messages(deps, id, msgs, action_batch, priority),
+                AuthoriationMsg::RemoveMsgs { id, priority } => remove_messages(deps, id, priority),
                 AuthoriationMsg::AddMsgs {
                     id,
                     queue_position,
                     msgs,
                     action_batch,
                     priority,
-                } => todo!(),
-                AuthoriationMsg::Pause {} => todo!(),
-                AuthoriationMsg::Resume {} => todo!(),
+                } => add_messages(deps, id, queue_position, msgs, action_batch, priority),
+                AuthoriationMsg::Pause {} => pause_processor(deps),
+                AuthoriationMsg::Resume {} => resume_processor(deps),
             }
         }
         ExecuteMsg::PermissionlessAction(permissionless_msg) => match permissionless_msg {
@@ -108,4 +118,90 @@ fn update_config(deps: DepsMut, config: Config) -> Result<Response, ContractErro
     CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new().add_attribute("method", "update_config"))
+}
+
+fn pause_processor(deps: DepsMut) -> Result<Response, ContractError> {
+    let mut config = CONFIG.load(deps.storage)?;
+    config.state = State::Paused;
+    CONFIG.save(deps.storage, &config)?;
+
+    Ok(Response::new().add_attribute("method", "pause_processor"))
+}
+
+fn resume_processor(deps: DepsMut) -> Result<Response, ContractError> {
+    let mut config = CONFIG.load(deps.storage)?;
+    config.state = State::Active;
+    CONFIG.save(deps.storage, &config)?;
+
+    Ok(Response::new().add_attribute("method", "resume_processor"))
+}
+
+fn enqueue_messages(
+    deps: DepsMut,
+    id: u64,
+    msgs: Vec<Binary>,
+    action_batch: ActionBatch,
+    priority: Priority,
+) -> Result<Response, ContractError> {
+    let mut queue = load_queue(deps.storage, &priority)?;
+
+    let message_batch = MessageBatch {
+        id,
+        msgs,
+        action_batch,
+    };
+    queue.push_back(message_batch);
+
+    save_queue(deps.storage, &priority, &queue)?;
+
+    Ok(Response::new().add_attribute("method", "enqueue_messages"))
+}
+
+fn remove_messages(deps: DepsMut, id: u64, priority: Priority) -> Result<Response, ContractError> {
+    let mut queue = load_queue(deps.storage, &priority)?;
+
+    queue.retain(|message_batch| message_batch.id != id);
+
+    save_queue(deps.storage, &priority, &queue)?;
+
+    Ok(Response::new().add_attribute("method", "remove_messages"))
+}
+
+fn add_messages(
+    deps: DepsMut,
+    id: u64,
+    queue_position: usize,
+    msgs: Vec<Binary>,
+    action_batch: ActionBatch,
+    priority: Priority,
+) -> Result<Response, ContractError> {
+    let mut queue = load_queue(deps.storage, &priority)?;
+
+    let message_batch = MessageBatch {
+        id,
+        msgs,
+        action_batch,
+    };
+
+    if queue_position > queue.len() {
+        return Err(ContractError::InvalidQueuePosition {});
+    }
+    queue.insert(queue_position, message_batch);
+
+    save_queue(deps.storage, &priority, &queue)?;
+
+    Ok(Response::new().add_attribute("method", "add_messages"))
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    match msg {
+        QueryMsg::Ownership {} => to_json_binary(&get_ownership(deps.storage)?),
+        QueryMsg::Config {} => to_json_binary(&get_config(deps)?),
+        QueryMsg::GetQueue { priority } => to_json_binary(&load_queue(deps.storage, &priority)?),
+    }
+}
+
+fn get_config(deps: Deps) -> StdResult<Config> {
+    CONFIG.load(deps.storage)
 }

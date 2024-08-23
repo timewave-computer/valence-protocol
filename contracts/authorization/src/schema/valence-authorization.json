@@ -1,0 +1,1930 @@
+{
+  "contract_name": "valence-authorization",
+  "contract_version": "0.1.0",
+  "idl_version": "1.0.0",
+  "instantiate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "InstantiateMsg",
+    "type": "object",
+    "required": [
+      "external_domains",
+      "processor",
+      "sub_owners"
+    ],
+    "properties": {
+      "external_domains": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/ExternalDomain"
+        }
+      },
+      "owner": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/Addr"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "processor": {
+        "$ref": "#/definitions/Addr"
+      },
+      "sub_owners": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/Addr"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "definitions": {
+      "Addr": {
+        "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+        "type": "string"
+      },
+      "CallbackProxy": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "polytone_proxy"
+            ],
+            "properties": {
+              "polytone_proxy": {
+                "$ref": "#/definitions/Addr"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Connector": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "polytone_note"
+            ],
+            "properties": {
+              "polytone_note": {
+                "$ref": "#/definitions/Addr"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "ExecutionEnvironment": {
+        "type": "string",
+        "enum": [
+          "cosm_wasm"
+        ]
+      },
+      "ExternalDomain": {
+        "type": "object",
+        "required": [
+          "callback_proxy",
+          "connector",
+          "execution_environment",
+          "name",
+          "processor"
+        ],
+        "properties": {
+          "callback_proxy": {
+            "$ref": "#/definitions/CallbackProxy"
+          },
+          "connector": {
+            "$ref": "#/definitions/Connector"
+          },
+          "execution_environment": {
+            "$ref": "#/definitions/ExecutionEnvironment"
+          },
+          "name": {
+            "type": "string"
+          },
+          "processor": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "execute": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ExecuteMsg",
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "owner_action"
+        ],
+        "properties": {
+          "owner_action": {
+            "$ref": "#/definitions/OwnerMsg"
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "sub_owner_action"
+        ],
+        "properties": {
+          "sub_owner_action": {
+            "$ref": "#/definitions/SubOwnerMsg"
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "user_action"
+        ],
+        "properties": {
+          "user_action": {
+            "$ref": "#/definitions/UserMsg"
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Update the contract's ownership. The `action` to be provided can be either to propose transferring ownership to an account, accept a pending ownership transfer, or renounce the ownership permanently.",
+        "type": "object",
+        "required": [
+          "update_ownership"
+        ],
+        "properties": {
+          "update_ownership": {
+            "$ref": "#/definitions/Action2"
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "definitions": {
+      "Action": {
+        "type": "object",
+        "required": [
+          "contract_address",
+          "domain",
+          "message_details"
+        ],
+        "properties": {
+          "callback_confirmation": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/ActionCallback"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contract_address": {
+            "type": "string"
+          },
+          "domain": {
+            "$ref": "#/definitions/Domain"
+          },
+          "message_details": {
+            "$ref": "#/definitions/MessageDetails"
+          },
+          "retry_logic": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/RetryLogic"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Action2": {
+        "description": "Actions that can be taken to alter the contract's ownership",
+        "oneOf": [
+          {
+            "description": "Propose to transfer the contract's ownership to another account, optionally with an expiry time.\n\nCan only be called by the contract's current owner.\n\nAny existing pending ownership transfer is overwritten.",
+            "type": "object",
+            "required": [
+              "transfer_ownership"
+            ],
+            "properties": {
+              "transfer_ownership": {
+                "type": "object",
+                "required": [
+                  "new_owner"
+                ],
+                "properties": {
+                  "expiry": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/Expiration"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "new_owner": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Accept the pending ownership transfer.\n\nCan only be called by the pending owner.",
+            "type": "string",
+            "enum": [
+              "accept_ownership"
+            ]
+          },
+          {
+            "description": "Give up the contract's ownership and the possibility of appointing a new owner.\n\nCan only be invoked by the contract's current owner.\n\nAny existing pending ownership transfer is canceled.",
+            "type": "string",
+            "enum": [
+              "renounce_ownership"
+            ]
+          }
+        ]
+      },
+      "ActionBatch": {
+        "type": "object",
+        "required": [
+          "actions",
+          "execution_type"
+        ],
+        "properties": {
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/Action"
+            }
+          },
+          "execution_type": {
+            "$ref": "#/definitions/ExecutionType"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ActionCallback": {
+        "type": "object",
+        "required": [
+          "callback_message",
+          "contract_address"
+        ],
+        "properties": {
+          "callback_message": {
+            "$ref": "#/definitions/Binary"
+          },
+          "contract_address": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Addr": {
+        "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+        "type": "string"
+      },
+      "AuthorizationDuration": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "forever"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "seconds"
+            ],
+            "properties": {
+              "seconds": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "blocks"
+            ],
+            "properties": {
+              "blocks": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "AuthorizationInfo": {
+        "type": "object",
+        "required": [
+          "action_batch",
+          "duration",
+          "label",
+          "mode",
+          "start_time"
+        ],
+        "properties": {
+          "action_batch": {
+            "$ref": "#/definitions/ActionBatch"
+          },
+          "duration": {
+            "$ref": "#/definitions/AuthorizationDuration"
+          },
+          "label": {
+            "type": "string"
+          },
+          "max_concurrent_executions": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "mode": {
+            "$ref": "#/definitions/AuthorizationMode"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Priority"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "start_time": {
+            "$ref": "#/definitions/StartTime"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AuthorizationMode": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "permissionless"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "permissioned"
+            ],
+            "properties": {
+              "permissioned": {
+                "$ref": "#/definitions/PermissionType"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Binary": {
+        "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+        "type": "string"
+      },
+      "CallbackProxy": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "polytone_proxy"
+            ],
+            "properties": {
+              "polytone_proxy": {
+                "$ref": "#/definitions/Addr"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Connector": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "polytone_note"
+            ],
+            "properties": {
+              "polytone_note": {
+                "$ref": "#/definitions/Addr"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Domain": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "main"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "external"
+            ],
+            "properties": {
+              "external": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "ExecutionEnvironment": {
+        "type": "string",
+        "enum": [
+          "cosm_wasm"
+        ]
+      },
+      "ExecutionType": {
+        "type": "string",
+        "enum": [
+          "atomic",
+          "non_atomic"
+        ]
+      },
+      "Expiration": {
+        "description": "Expiration represents a point in time when some event happens. It can compare with a BlockInfo and will return is_expired() == true once the condition is hit (and for every block in the future)",
+        "oneOf": [
+          {
+            "description": "AtHeight will expire when `env.block.height` >= height",
+            "type": "object",
+            "required": [
+              "at_height"
+            ],
+            "properties": {
+              "at_height": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "AtTime will expire when `env.block.time` >= time",
+            "type": "object",
+            "required": [
+              "at_time"
+            ],
+            "properties": {
+              "at_time": {
+                "$ref": "#/definitions/Timestamp"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Never will never expire. Used to express the empty variant",
+            "type": "object",
+            "required": [
+              "never"
+            ],
+            "properties": {
+              "never": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "ExternalDomain": {
+        "type": "object",
+        "required": [
+          "callback_proxy",
+          "connector",
+          "execution_environment",
+          "name",
+          "processor"
+        ],
+        "properties": {
+          "callback_proxy": {
+            "$ref": "#/definitions/CallbackProxy"
+          },
+          "connector": {
+            "$ref": "#/definitions/Connector"
+          },
+          "execution_environment": {
+            "$ref": "#/definitions/ExecutionEnvironment"
+          },
+          "name": {
+            "type": "string"
+          },
+          "processor": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Message": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "params_restrictions": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/definitions/ParamRestriction"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "MessageDetails": {
+        "type": "object",
+        "required": [
+          "message",
+          "message_type"
+        ],
+        "properties": {
+          "message": {
+            "$ref": "#/definitions/Message"
+          },
+          "message_type": {
+            "$ref": "#/definitions/MessageType"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MessageType": {
+        "type": "string",
+        "enum": [
+          "execute_msg"
+        ]
+      },
+      "Mint": {
+        "type": "object",
+        "required": [
+          "address",
+          "amount"
+        ],
+        "properties": {
+          "address": {
+            "$ref": "#/definitions/Addr"
+          },
+          "amount": {
+            "$ref": "#/definitions/Uint128"
+          }
+        },
+        "additionalProperties": false
+      },
+      "OwnerMsg": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "add_sub_owner"
+            ],
+            "properties": {
+              "add_sub_owner": {
+                "type": "object",
+                "required": [
+                  "sub_owner"
+                ],
+                "properties": {
+                  "sub_owner": {
+                    "$ref": "#/definitions/Addr"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "remove_sub_owner"
+            ],
+            "properties": {
+              "remove_sub_owner": {
+                "type": "object",
+                "required": [
+                  "sub_owner"
+                ],
+                "properties": {
+                  "sub_owner": {
+                    "$ref": "#/definitions/Addr"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "ParamRestriction": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "must_be_included"
+            ],
+            "properties": {
+              "must_be_included": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "cannot_be_included"
+            ],
+            "properties": {
+              "cannot_be_included": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "must_be_value"
+            ],
+            "properties": {
+              "must_be_value": {
+                "type": "array",
+                "items": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "$ref": "#/definitions/Binary"
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "PermissionType": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "with_call_limit"
+            ],
+            "properties": {
+              "with_call_limit": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": [
+                    {
+                      "$ref": "#/definitions/Addr"
+                    },
+                    {
+                      "$ref": "#/definitions/Uint128"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "without_call_limit"
+            ],
+            "properties": {
+              "without_call_limit": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/Addr"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Priority": {
+        "type": "string",
+        "enum": [
+          "medium",
+          "high"
+        ]
+      },
+      "RetryInterval": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "seconds"
+            ],
+            "properties": {
+              "seconds": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "blocks"
+            ],
+            "properties": {
+              "blocks": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "RetryLogic": {
+        "type": "object",
+        "required": [
+          "interval",
+          "times"
+        ],
+        "properties": {
+          "interval": {
+            "$ref": "#/definitions/RetryInterval"
+          },
+          "times": {
+            "$ref": "#/definitions/RetryTimes"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RetryTimes": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "indefinitely"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "amount"
+            ],
+            "properties": {
+              "amount": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "StartTime": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "anytime"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "at_height"
+            ],
+            "properties": {
+              "at_height": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "at_time"
+            ],
+            "properties": {
+              "at_time": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "SubOwnerMsg": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "add_external_domains"
+            ],
+            "properties": {
+              "add_external_domains": {
+                "type": "object",
+                "required": [
+                  "external_domains"
+                ],
+                "properties": {
+                  "external_domains": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/definitions/ExternalDomain"
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "create_authorizations"
+            ],
+            "properties": {
+              "create_authorizations": {
+                "type": "object",
+                "required": [
+                  "authorizations"
+                ],
+                "properties": {
+                  "authorizations": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/definitions/AuthorizationInfo"
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "modify_authorization"
+            ],
+            "properties": {
+              "modify_authorization": {
+                "type": "object",
+                "required": [
+                  "label"
+                ],
+                "properties": {
+                  "expiration": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/Expiration"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "max_concurrent_executions": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
+                  "priority": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/Priority"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "start_time": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/StartTime"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "disable_authorization"
+            ],
+            "properties": {
+              "disable_authorization": {
+                "type": "object",
+                "required": [
+                  "label"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "enable_authorization"
+            ],
+            "properties": {
+              "enable_authorization": {
+                "type": "object",
+                "required": [
+                  "label"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "mint_authorizations"
+            ],
+            "properties": {
+              "mint_authorizations": {
+                "type": "object",
+                "required": [
+                  "label",
+                  "mints"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "mints": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/definitions/Mint"
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Timestamp": {
+        "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+        "allOf": [
+          {
+            "$ref": "#/definitions/Uint64"
+          }
+        ]
+      },
+      "Uint128": {
+        "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+        "type": "string"
+      },
+      "Uint64": {
+        "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+        "type": "string"
+      },
+      "UserMsg": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "send_msgs"
+            ],
+            "properties": {
+              "send_msgs": {
+                "type": "object",
+                "required": [
+                  "label",
+                  "messages"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "messages": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/definitions/Binary"
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "query": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "QueryMsg",
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "sub_owners"
+        ],
+        "properties": {
+          "sub_owners": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "processor"
+        ],
+        "properties": {
+          "processor": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "external_domains"
+        ],
+        "properties": {
+          "external_domains": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "authorizations"
+        ],
+        "properties": {
+          "authorizations": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Query the contract's ownership information",
+        "type": "object",
+        "required": [
+          "ownership"
+        ],
+        "properties": {
+          "ownership": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ]
+  },
+  "migrate": null,
+  "sudo": null,
+  "responses": {
+    "authorizations": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Array_of_Authorization",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Authorization"
+      },
+      "definitions": {
+        "Action": {
+          "type": "object",
+          "required": [
+            "contract_address",
+            "domain",
+            "message_details"
+          ],
+          "properties": {
+            "callback_confirmation": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/ActionCallback"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "contract_address": {
+              "type": "string"
+            },
+            "domain": {
+              "$ref": "#/definitions/Domain"
+            },
+            "message_details": {
+              "$ref": "#/definitions/MessageDetails"
+            },
+            "retry_logic": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/RetryLogic"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "ActionBatch": {
+          "type": "object",
+          "required": [
+            "actions",
+            "execution_type"
+          ],
+          "properties": {
+            "actions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Action"
+              }
+            },
+            "execution_type": {
+              "$ref": "#/definitions/ExecutionType"
+            }
+          },
+          "additionalProperties": false
+        },
+        "ActionCallback": {
+          "type": "object",
+          "required": [
+            "callback_message",
+            "contract_address"
+          ],
+          "properties": {
+            "callback_message": {
+              "$ref": "#/definitions/Binary"
+            },
+            "contract_address": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "Authorization": {
+          "type": "object",
+          "required": [
+            "action_batch",
+            "expiration",
+            "label",
+            "max_concurrent_executions",
+            "mode",
+            "priority",
+            "start_time",
+            "state"
+          ],
+          "properties": {
+            "action_batch": {
+              "$ref": "#/definitions/ActionBatch"
+            },
+            "expiration": {
+              "$ref": "#/definitions/Expiration"
+            },
+            "label": {
+              "type": "string"
+            },
+            "max_concurrent_executions": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "mode": {
+              "$ref": "#/definitions/AuthorizationMode"
+            },
+            "priority": {
+              "$ref": "#/definitions/Priority"
+            },
+            "start_time": {
+              "$ref": "#/definitions/StartTime"
+            },
+            "state": {
+              "$ref": "#/definitions/AuthorizationState"
+            }
+          },
+          "additionalProperties": false
+        },
+        "AuthorizationMode": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "permissionless"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "permissioned"
+              ],
+              "properties": {
+                "permissioned": {
+                  "$ref": "#/definitions/PermissionType"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "AuthorizationState": {
+          "type": "string",
+          "enum": [
+            "enabled",
+            "disabled"
+          ]
+        },
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+          "type": "string"
+        },
+        "Domain": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "main"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "external"
+              ],
+              "properties": {
+                "external": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "ExecutionType": {
+          "type": "string",
+          "enum": [
+            "atomic",
+            "non_atomic"
+          ]
+        },
+        "Expiration": {
+          "description": "Expiration represents a point in time when some event happens. It can compare with a BlockInfo and will return is_expired() == true once the condition is hit (and for every block in the future)",
+          "oneOf": [
+            {
+              "description": "AtHeight will expire when `env.block.height` >= height",
+              "type": "object",
+              "required": [
+                "at_height"
+              ],
+              "properties": {
+                "at_height": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "AtTime will expire when `env.block.time` >= time",
+              "type": "object",
+              "required": [
+                "at_time"
+              ],
+              "properties": {
+                "at_time": {
+                  "$ref": "#/definitions/Timestamp"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Never will never expire. Used to express the empty variant",
+              "type": "object",
+              "required": [
+                "never"
+              ],
+              "properties": {
+                "never": {
+                  "type": "object",
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "Message": {
+          "type": "object",
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "params_restrictions": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/definitions/ParamRestriction"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "MessageDetails": {
+          "type": "object",
+          "required": [
+            "message",
+            "message_type"
+          ],
+          "properties": {
+            "message": {
+              "$ref": "#/definitions/Message"
+            },
+            "message_type": {
+              "$ref": "#/definitions/MessageType"
+            }
+          },
+          "additionalProperties": false
+        },
+        "MessageType": {
+          "type": "string",
+          "enum": [
+            "execute_msg"
+          ]
+        },
+        "ParamRestriction": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "must_be_included"
+              ],
+              "properties": {
+                "must_be_included": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "cannot_be_included"
+              ],
+              "properties": {
+                "cannot_be_included": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "must_be_value"
+              ],
+              "properties": {
+                "must_be_value": {
+                  "type": "array",
+                  "items": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "$ref": "#/definitions/Binary"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "PermissionType": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "with_call_limit"
+              ],
+              "properties": {
+                "with_call_limit": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": [
+                      {
+                        "$ref": "#/definitions/Addr"
+                      },
+                      {
+                        "$ref": "#/definitions/Uint128"
+                      }
+                    ],
+                    "maxItems": 2,
+                    "minItems": 2
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "without_call_limit"
+              ],
+              "properties": {
+                "without_call_limit": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Addr"
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "Priority": {
+          "type": "string",
+          "enum": [
+            "medium",
+            "high"
+          ]
+        },
+        "RetryInterval": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "seconds"
+              ],
+              "properties": {
+                "seconds": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "blocks"
+              ],
+              "properties": {
+                "blocks": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "RetryLogic": {
+          "type": "object",
+          "required": [
+            "interval",
+            "times"
+          ],
+          "properties": {
+            "interval": {
+              "$ref": "#/definitions/RetryInterval"
+            },
+            "times": {
+              "$ref": "#/definitions/RetryTimes"
+            }
+          },
+          "additionalProperties": false
+        },
+        "RetryTimes": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "indefinitely"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "amount"
+              ],
+              "properties": {
+                "amount": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "StartTime": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "anytime"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "at_height"
+              ],
+              "properties": {
+                "at_height": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "at_time"
+              ],
+              "properties": {
+                "at_time": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "Timestamp": {
+          "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint64"
+            }
+          ]
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "external_domains": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Array_of_ExternalDomain",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ExternalDomain"
+      },
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "CallbackProxy": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "polytone_proxy"
+              ],
+              "properties": {
+                "polytone_proxy": {
+                  "$ref": "#/definitions/Addr"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "Connector": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "polytone_note"
+              ],
+              "properties": {
+                "polytone_note": {
+                  "$ref": "#/definitions/Addr"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "ExecutionEnvironment": {
+          "type": "string",
+          "enum": [
+            "cosm_wasm"
+          ]
+        },
+        "ExternalDomain": {
+          "type": "object",
+          "required": [
+            "callback_proxy",
+            "connector",
+            "execution_environment",
+            "name",
+            "processor"
+          ],
+          "properties": {
+            "callback_proxy": {
+              "$ref": "#/definitions/CallbackProxy"
+            },
+            "connector": {
+              "$ref": "#/definitions/Connector"
+            },
+            "execution_environment": {
+              "$ref": "#/definitions/ExecutionEnvironment"
+            },
+            "name": {
+              "type": "string"
+            },
+            "processor": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "ownership": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Ownership_for_String",
+      "description": "The contract's ownership info",
+      "type": "object",
+      "properties": {
+        "owner": {
+          "description": "The contract's current owner. `None` if the ownership has been renounced.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pending_expiry": {
+          "description": "The deadline for the pending owner to accept the ownership. `None` if there isn't a pending ownership transfer, or if a transfer exists and it doesn't have a deadline.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Expiration"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pending_owner": {
+          "description": "The account who has been proposed to take over the ownership. `None` if there isn't a pending ownership transfer.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Expiration": {
+          "description": "Expiration represents a point in time when some event happens. It can compare with a BlockInfo and will return is_expired() == true once the condition is hit (and for every block in the future)",
+          "oneOf": [
+            {
+              "description": "AtHeight will expire when `env.block.height` >= height",
+              "type": "object",
+              "required": [
+                "at_height"
+              ],
+              "properties": {
+                "at_height": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "AtTime will expire when `env.block.time` >= time",
+              "type": "object",
+              "required": [
+                "at_time"
+              ],
+              "properties": {
+                "at_time": {
+                  "$ref": "#/definitions/Timestamp"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Never will never expire. Used to express the empty variant",
+              "type": "object",
+              "required": [
+                "never"
+              ],
+              "properties": {
+                "never": {
+                  "type": "object",
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "Timestamp": {
+          "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint64"
+            }
+          ]
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "processor": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Addr",
+      "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+      "type": "string"
+    },
+    "sub_owners": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Array_of_Addr",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Addr"
+      },
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        }
+      }
+    }
+  }
+}
