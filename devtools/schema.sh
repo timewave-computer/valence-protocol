@@ -5,6 +5,7 @@ process_directory() {
     if [ -d "$1" ] && [ -f "$1/Cargo.toml" ]; then
         echo "Processing: $1"
         cd "$1"
+        rm -rf schema
         cargo schema
         rm -rf schema/raw
         cd - > /dev/null
@@ -18,7 +19,7 @@ done
 
 # Process contracts in contracts/*
 for d in contracts/*; do
-    if [ -d "$d" ] && [ "$(basename "$d")" != "target" ]; then
+    if [ -d "$d" ]; then
         process_directory "$d"
     fi
 done
