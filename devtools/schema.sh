@@ -5,10 +5,11 @@ process_directory() {
     if [ -d "$1" ] && [ -f "$1/Cargo.toml" ]; then
         echo "Processing: $1"
         cd "$1"
+        # Delete old one if it exists
         rm -rf schema
         cargo schema
         rm -rf schema/raw
-        cd - > /dev/null
+        cd - >/dev/null
     fi
 }
 
