@@ -44,8 +44,8 @@ pub enum AuthoriationMsg {
         priority: Priority,
     },
     AddMsgs {
-        id: u64,
         queue_position: usize,
+        id: u64,
         msgs: Vec<Binary>,
         action_batch: ActionBatch,
         priority: Priority,

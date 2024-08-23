@@ -91,7 +91,7 @@ pub fn execute(
                     msgs,
                     action_batch,
                     priority,
-                } => add_messages(deps, id, queue_position, msgs, action_batch, priority),
+                } => add_messages(deps, queue_position, id, msgs, action_batch, priority),
                 AuthoriationMsg::Pause {} => pause_processor(deps),
                 AuthoriationMsg::Resume {} => resume_processor(deps),
             }
@@ -169,8 +169,8 @@ fn remove_messages(deps: DepsMut, id: u64, priority: Priority) -> Result<Respons
 
 fn add_messages(
     deps: DepsMut,
-    id: u64,
     queue_position: usize,
+    id: u64,
     msgs: Vec<Binary>,
     action_batch: ActionBatch,
     priority: Priority,
