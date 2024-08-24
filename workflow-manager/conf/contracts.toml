@@ -1,6 +1,6 @@
 [contracts]
 
-[contracts.code-ids.neutron]
-base_account     = 1
+[contracts.code_ids.neutron]
+base_account     = 5987
 splitter         = 2
 reverse_splitter = 3

@@ -6,6 +6,7 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 pub struct Cfg {
     pub chains: HashMap<String, ChainInfo>,
+    pub contracts: Contracts,
 }
 
 impl Default for Cfg {
@@ -40,8 +41,17 @@ pub struct ChainInfo {
     pub coin_type: u64,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct Contracts {
+    pub code_ids: HashMap<String, HashMap<String, u64>>,
+}
+
 impl Cfg {
     pub fn get_chain_info(&self, chain_name: String) -> ChainInfo {
         self.chains.get(&chain_name).unwrap().clone()
+    }
+
+    pub fn get_code_ids(&self, chain_name: &str) -> HashMap<String, u64> {
+        self.contracts.code_ids.get(chain_name).unwrap().clone()
     }
 }

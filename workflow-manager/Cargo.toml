@@ -14,8 +14,8 @@ serde_json         = { workspace = true }
 aho-corasick       = "1.1"
 serde_json_any_key = "2"
 
-services-utils      = { workspace = true }
-valence-macros      = { workspace = true }
+services-utils              = { workspace = true }
+valence-macros              = { workspace = true }
 valence-authorization-utils = { workspace = true }
 
 valence-splitter         = { workspace = true }
@@ -30,3 +30,5 @@ config             = { version = "0.14.0", features = ["toml"] }
 tracing            = "0.1"
 tracing-subscriber = "0.3"
 glob               = "0.3"
+strum              = { version = "0.26", features = ["derive"] }
+async-trait        = "0.1.81"

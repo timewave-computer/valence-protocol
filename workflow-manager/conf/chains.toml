@@ -8,7 +8,6 @@ prefix    = "cosmos"
 gas_price = "0.025"
 gas_denom = "uatom"
 coin_type = "118"
-coin_type2 = "118"
 
 [chains.neutron]
 name      = "neutron"

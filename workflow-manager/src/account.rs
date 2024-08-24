@@ -1,11 +1,12 @@
 use crate::domain::Domain;
 
 /// What account type we talking about
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, strum::Display)]
 pub enum AccountType {
     /// This means the account is already instantiated
     Addr { addr: String },
     /// This our base account implementation
+    #[strum(to_string = "base_account")]
     Base { admin: Option<String> },
 }
 

@@ -1,15 +1,17 @@
-use std::{fmt, str::FromStr};
+use std::{collections::HashMap, fmt, str::FromStr};
 
+use async_trait::async_trait;
 use cosmos_grpc_client::{
     cosmos_sdk_proto::{
         cosmos::{bank::v1beta1::QueryBalanceRequest, base::v1beta1::Coin},
-        cosmwasm::wasm::v1::MsgInstantiateContract2,
+        cosmwasm::wasm::v1::{MsgInstantiateContract2, QueryCodeRequest},
     },
+    cosmrs::bip32::secp256k1::sha2::{digest::Update, Digest, Sha256},
     Decimal, GrpcClient, Wallet,
 };
-use cosmwasm_std::CanonicalAddr;
+use cosmwasm_std::{instantiate2_address, CanonicalAddr};
 
-use crate::{account::AccountType, config::ChainInfo};
+use crate::{account::AccountType, config::{Cfg, ChainInfo}};
 
 use super::{Connector, PinnedFuture};
 
@@ -17,6 +19,8 @@ const MNEMONIC: &str = "crazy into this wheel interest enroll basket feed fashio
 
 pub struct CosmosCwConnector {
     wallet: Wallet,
+    code_ids: HashMap<String, u64>,
+    chain_name: String,
 }
 
 impl fmt::Debug for CosmosCwConnector {
@@ -27,8 +31,9 @@ impl fmt::Debug for CosmosCwConnector {
     }
 }
 
+#[async_trait]
 impl Connector for CosmosCwConnector {
-    fn new(chain_info: ChainInfo) -> PinnedFuture<'static, Self> {
+    fn new(chain_info: ChainInfo, code_ids: HashMap<String, u64>) -> PinnedFuture<'static, Self> {
         Box::pin(async move {
             let grpc = GrpcClient::new(&chain_info.grpc).await.unwrap();
 
@@ -45,7 +50,56 @@ impl Connector for CosmosCwConnector {
             .await
             .unwrap();
 
-            CosmosCwConnector { wallet }
+            CosmosCwConnector {
+                wallet,
+                chain_name: chain_info.name,
+                code_ids,
+            }
+        })
+    }
+
+    fn get_account_addr(
+        &self,
+        cfg: &Cfg,
+        account_id: u64,
+        account_type: AccountType,
+    ) -> PinnedFuture<String> {
+        Box::pin(async move {
+            // Get the creator address as canonical
+            let creator: CanonicalAddr = self.wallet.account_address.as_bytes().into();
+
+            // Get the checksum of the code id
+            let req = QueryCodeRequest {
+                code_id: self
+                    .code_ids
+                    .get(&account_type.to_string())
+                    .unwrap()
+                    .clone(),
+            };
+            let checksum = self
+                .wallet
+                .client
+                .clients
+                .wasm
+                .code(req)
+                .await
+                .unwrap()
+                .get_ref()
+                .code_info
+                .clone()
+                .unwrap()
+                .data_hash
+                .clone();
+
+            println!("{:?}", checksum);
+            let code_id = cfg.contracts.code_ids.get(&self.chain_name.to_string());
+
+            // TODO: generate a unique salt per workflow and per contract
+            let salt = Sha256::new().chain(account_id.to_string()).finalize();
+
+            instantiate2_address(&checksum, &creator, &salt)
+                .unwrap()
+                .to_string()
         })
     }
 
@@ -58,9 +112,7 @@ impl Connector for CosmosCwConnector {
             // };
 
             // Should be enough because we know the address is correct.
-            let addr: CanonicalAddr = self.wallet.account_address.as_bytes().into();
 
-            // instantiate2_address(checksum, creator, salt);
             MsgInstantiateContract2 {
                 sender: todo!(),
                 admin: todo!(),
@@ -110,9 +162,6 @@ impl Connector for CosmosCwConnector {
         })
     }
 
-    fn get_account_addr(&mut self, account_type: &AccountType) -> PinnedFuture<String> {
-        todo!()
-    }
     // Other method implementations...
 }
 

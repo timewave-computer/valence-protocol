@@ -15,7 +15,7 @@ pub async fn init_workflow(mut workflow_config: WorkflowConfig) {
     workflow_config.init(ctx.get_clone()).await;
 
     println!("{:#?}", workflow_config);
-    println!("{:#?}", ctx.get_domain_infos_len().await);
+    // println!("{:#?}", ctx.get_domain_infos_len().await);
 }
 
 // pub fn update_workflow(mut workflow_config: WorkflowConfig, mut old_workflow_config: WorkflowConfig) {

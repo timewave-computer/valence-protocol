@@ -1,6 +1,7 @@
 pub mod cosmos_cw;
-use std::{future::Future, pin::Pin};
+use std::{collections::HashMap, future::Future, pin::Pin};
 
+use async_trait::async_trait;
 use cosmos_cw::CosmosCwConnector;
 use cosmos_grpc_client::cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 
@@ -11,7 +12,7 @@ use crate::{
     config::{Cfg, ChainInfo},
 };
 
-pub type PinnedFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+pub type PinnedFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'static>>;
 
 /// We need some way of knowing which domain we are talking with
 /// TODO: chain connection, execution, bridges for authorization.
@@ -23,15 +24,16 @@ pub enum Domain {
 
 #[derive(Debug, Clone)]
 pub struct DomainInfo {
-    pub connector: ConnectorWrapper,
+    pub connector: Box<dyn Connector>,
 }
 
 impl DomainInfo {
     pub async fn from_domain(cfg: &Cfg, domain: &Domain) -> Self {
         match domain {
             Domain::CosmosCw(chain_name) => {
-                let connector = ConnectorWrapper::new::<CosmosCwConnector>(
+                let connector = CosmosCwConnector::new(
                     cfg.get_chain_info(chain_name.clone()),
+                    cfg.get_code_ids(chain_name),
                 )
                 .await;
 
@@ -41,12 +43,20 @@ impl DomainInfo {
     }
 }
 
-#[connector_trait]
+#[async_trait]
 pub trait Connector {
-    fn new(chain_info: ChainInfo) -> PinnedFuture<'static, Self>;
-    fn get_account_addr(&mut self, account_type: &AccountType) -> PinnedFuture<String>;
+    /// Create a new connectors that is connected to be used on a specific domain
+    fn new(chain_info: ChainInfo, code_ids: HashMap<String, u64>) -> PinnedFuture<'static, Self>;
+    /// Get the account address for a specific account type
+    /// This must be the predicted (init2 in cosmos) address, we instantiate the contract later in the flow.
+    fn get_account_addr(
+        &self,
+        cfg: &Cfg,
+        account_id: u64,
+        account_type: AccountType,
+    ) -> PinnedFuture<String>;
     fn init_account(&mut self, account_type: &AccountType) -> PinnedFuture<String>;
     fn get_balance(&mut self, addr: String) -> PinnedFuture<Option<Coin>>;
 }
 
-impl_connector!(CosmosCwConnector);
+// impl_connector!(CosmosCwConnector);
