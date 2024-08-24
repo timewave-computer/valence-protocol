@@ -5,7 +5,7 @@ use valence_authorization_utils::authorization::AuthorizationInfo;
 
 use crate::{
     account::{AccountInfo, AccountType},
-    context::Ctx,
+    context::Context,
     service::ServiceInfo,
 };
 
@@ -33,9 +33,7 @@ pub struct WorkflowConfig {
 
 impl WorkflowConfig {
     /// Instantiate a workflow on all domains.
-    pub async fn init(&mut self, ctx: Ctx) {
-        let mut ctx = ctx.lock().await;
-
+    pub async fn init(&mut self, ctx: &mut Context) {
         // init accounts
         for (account_id, account) in self.accounts.iter_mut() {
             let domain_info = ctx.get_or_create_domain_info(&account.domain).await;
@@ -47,6 +45,7 @@ impl WorkflowConfig {
         }
 
         return;
+
         self.links.iter().for_each(|(_, link)| {
             let mut patterns =
                 Vec::with_capacity(link.input_accounts_id.len() + link.output_accounts_id.len());

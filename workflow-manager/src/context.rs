@@ -1,43 +1,17 @@
-use std::{collections::HashMap, sync::Arc};
-
-use tokio::sync::Mutex;
+use std::collections::HashMap;
 
 use crate::{
     config::Cfg,
     domain::{Domain, DomainInfo},
 };
 
-pub type Ctx = Arc<Mutex<ContextInner>>;
-
-#[derive(Debug)]
-pub struct Context(Arc<Mutex<ContextInner>>);
-
-impl Default for Context {
-    fn default() -> Self {
-        Self(Arc::new(Mutex::new(ContextInner {
-            domain_infos: HashMap::new(),
-            config: Cfg::default(),
-        })))
-    }
-}
-
-impl Context {
-    pub fn get_clone(&self) -> Ctx {
-        Arc::clone(&self.0)
-    }
-
-    pub async fn get_domain_infos_len(&self) -> usize {
-        self.0.lock().await.domain_infos.len()
-    }
-}
-
 #[derive(Debug, Default)]
-pub struct ContextInner {
+pub struct Context {
     pub domain_infos: HashMap<Domain, DomainInfo>,
     pub config: Cfg,
 }
 
-impl ContextInner {
+impl Context {
     /// Get the domain from ctx if exists
     /// otherwise it gets a new domain info and save it ctx
     pub async fn get_or_create_domain_info(&mut self, domain: &Domain) -> &mut DomainInfo {

@@ -1,14 +1,11 @@
 pub mod cosmos_cw;
-use std::{collections::HashMap, fmt};
+use std::fmt;
 
 use async_trait::async_trait;
 use cosmos_cw::CosmosCwConnector;
 use cosmos_grpc_client::cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 
-use crate::{
-    account::AccountType,
-    config::{Cfg, ChainInfo},
-};
+use crate::{account::AccountType, config::Cfg};
 
 /// We need some way of knowing which domain we are talking with
 /// TODO: chain connection, execution, bridges for authorization.
@@ -43,11 +40,7 @@ impl DomainInfo {
 
 #[async_trait]
 pub trait Connector: fmt::Debug {
-    async fn get_account_addr(
-        &mut self,
-        account_id: u64,
-        account_type: &AccountType,
-    ) -> String;
+    async fn get_account_addr(&mut self, account_id: u64, account_type: &AccountType) -> String;
     async fn init_account(&mut self, account_type: &AccountType) -> String;
     async fn get_balance(&mut self, addr: String) -> Option<Coin>;
 }

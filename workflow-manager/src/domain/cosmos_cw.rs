@@ -4,12 +4,12 @@ use async_trait::async_trait;
 use cosmos_grpc_client::{
     cosmos_sdk_proto::{
         cosmos::{bank::v1beta1::QueryBalanceRequest, base::v1beta1::Coin},
-        cosmwasm::wasm::v1::{MsgInstantiateContract2, QueryCodeRequest},
+        cosmwasm::wasm::v1::QueryCodeRequest,
     },
     cosmrs::bip32::secp256k1::sha2::{digest::Update, Digest, Sha256},
     Decimal, GrpcClient, Wallet,
 };
-use cosmwasm_std::{instantiate2_address, Api, CanonicalAddr};
+use cosmwasm_std::{instantiate2_address, CanonicalAddr};
 
 use crate::{account::AccountType, config::ChainInfo, helpers::addr_humanize};
 
@@ -20,7 +20,7 @@ const MNEMONIC: &str = "crazy into this wheel interest enroll basket feed fashio
 pub struct CosmosCwConnector {
     wallet: Wallet,
     code_ids: HashMap<String, u64>,
-    chain_name: String,
+    _chain_name: String,
 }
 
 impl fmt::Debug for CosmosCwConnector {
@@ -50,7 +50,7 @@ impl CosmosCwConnector {
 
         CosmosCwConnector {
             wallet,
-            chain_name: chain_info.name,
+            _chain_name: chain_info.name,
             code_ids,
         }
     }
@@ -64,11 +64,7 @@ impl Connector for CosmosCwConnector {
 
         // Get the checksum of the code id
         let req = QueryCodeRequest {
-            code_id: self
-                .code_ids
-                .get(&account_type.to_string())
-                .unwrap()
-                .clone(),
+            code_id: *self.code_ids.get(&account_type.to_string()).unwrap(),
         };
         let checksum = self
             .wallet
@@ -91,7 +87,7 @@ impl Connector for CosmosCwConnector {
         let salt = Sha256::new().chain(account_id.to_string()).finalize();
 
         let addr_cano = instantiate2_address(&checksum, &creator, &salt).unwrap();
-        
+
         addr_humanize(&self.wallet.prefix, &addr_cano).to_string()
     }
 

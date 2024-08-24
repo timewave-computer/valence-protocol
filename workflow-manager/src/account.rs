@@ -11,8 +11,8 @@ pub enum AccountType {
 }
 
 /// The struct given to us by the user.
-/// 
-/// We need to know what domain we are talking with 
+///
+/// We need to know what domain we are talking with
 /// and what type of account we should work with.
 #[derive(Debug, PartialEq, Clone)]
 pub struct AccountInfo {
