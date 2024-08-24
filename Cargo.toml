@@ -49,6 +49,7 @@ valence-authorization    = { path = "contracts/authorization", features = ["libr
 valence-macros              = { path = "packages/valence-macros" }
 valence-authorization-utils = { path = "packages/authorization-utils" }
 services-utils              = { path = "packages/services-utils" }
+service-base                = { package = "valence-service-base", path = "packages/service-base" }
 
 # dev-dependencies
 cw-multi-test     = "2.0.0"

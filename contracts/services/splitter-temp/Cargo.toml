@@ -21,6 +21,7 @@ optimize = """docker run --rm -v "$(pwd)":/code \
 """
 
 [dependencies]
+
 cosmwasm-schema      = { workspace = true }
 cosmwasm-std         = { workspace = true }
 cw-storage-plus      = { workspace = true }
@@ -32,6 +33,7 @@ valence-macros       = { workspace = true }
 cw-ownable           = { workspace = true }
 valence-base-account = { workspace = true }
 services-utils       = { workspace = true }
+service-base         = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }
