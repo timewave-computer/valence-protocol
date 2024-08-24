@@ -1,17 +1,12 @@
 pub mod cosmos_cw;
-use std::{future::Future, pin::Pin};
+use std::fmt;
 
 use cosmos_cw::CosmosCwConnector;
 use cosmos_grpc_client::cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 
-use valence_macros::connector_trait;
+use async_trait::async_trait;
 
-use crate::{
-    account::AccountType,
-    config::{Cfg, ChainInfo},
-};
-
-pub type PinnedFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+use crate::{account::AccountType, config::Cfg};
 
 /// We need some way of knowing which domain we are talking with
 /// TODO: chain connection, execution, bridges for authorization.
@@ -21,19 +16,17 @@ pub enum Domain {
     // Solana
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct DomainInfo {
-    pub connector: ConnectorWrapper,
+    pub connector: Box<dyn Connector>,
 }
 
 impl DomainInfo {
     pub async fn from_domain(cfg: &Cfg, domain: &Domain) -> Self {
         match domain {
             Domain::CosmosCw(chain_name) => {
-                let connector = ConnectorWrapper::new::<CosmosCwConnector>(
-                    cfg.get_chain_info(chain_name.clone()),
-                )
-                .await;
+                let connector =
+                    Box::new(CosmosCwConnector::new(cfg.get_chain_info(chain_name.clone())).await);
 
                 DomainInfo { connector }
             }
@@ -41,12 +34,9 @@ impl DomainInfo {
     }
 }
 
-#[connector_trait]
-pub trait Connector {
-    fn new(chain_info: ChainInfo) -> PinnedFuture<'static, Self>;
-    fn get_account_addr(&mut self, account_type: &AccountType) -> PinnedFuture<String>;
-    fn init_account(&mut self, account_type: &AccountType) -> PinnedFuture<String>;
-    fn get_balance(&mut self, addr: String) -> PinnedFuture<Option<Coin>>;
+#[async_trait]
+pub trait Connector: fmt::Debug {
+    async fn get_account_addr(&self, account_type: &AccountType) -> String;
+    async fn init_account(&mut self, account_type: &AccountType) -> String;
+    async fn get_balance(&mut self, addr: String) -> Option<Coin>;
 }
-
-impl_connector!(CosmosCwConnector);
