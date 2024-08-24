@@ -93,7 +93,7 @@ mod test {
             1,
             AccountInfo {
                 ty: AccountType::Base { admin: None },
-                domain: Domain::CosmosCw("cosmos-hub".to_string()),
+                domain: Domain::CosmosCw("neutron".to_string()),
             },
         );
         config.accounts.insert(

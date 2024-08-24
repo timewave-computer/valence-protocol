@@ -5,6 +5,7 @@ pub mod domain;
 pub mod service;
 pub mod tests;
 pub mod workflow_config;
+pub mod helpers;
 
 use context::Context;
 use workflow_config::WorkflowConfig;

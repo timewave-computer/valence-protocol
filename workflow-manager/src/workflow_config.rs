@@ -37,12 +37,16 @@ impl WorkflowConfig {
         let mut ctx = ctx.lock().await;
 
         // init accounts
-        for (_, account) in self.accounts.iter_mut() {
+        for (account_id, account) in self.accounts.iter_mut() {
             let domain_info = ctx.get_or_create_domain_info(&account.domain).await;
-            let addr = domain_info.connector.init_account(&account.ty).await;
+            let addr = domain_info
+                .connector
+                .get_account_addr(*account_id, &account.ty)
+                .await;
             account.ty = AccountType::Addr { addr }
         }
 
+        return;
         self.links.iter().for_each(|(_, link)| {
             let mut patterns =
                 Vec::with_capacity(link.input_accounts_id.len() + link.output_accounts_id.len());
