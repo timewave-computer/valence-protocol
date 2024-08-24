@@ -13,6 +13,7 @@ serde              = { workspace = true }
 serde_json         = { workspace = true }
 aho-corasick       = "1.1"
 serde_json_any_key = "2"
+async-trait = "0.1.81"
 
 services-utils      = { workspace = true }
 valence-macros      = { workspace = true }
