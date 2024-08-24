@@ -4440,7 +4440,6 @@ name = "workflow-manager"
 version = "0.1.0"
 dependencies = [
  "aho-corasick",
- "async-trait",
  "config",
  "cosmos-grpc-client",
  "cosmwasm-std 2.1.3",

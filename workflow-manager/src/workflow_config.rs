@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 
-use services_utils::Id;
 use valence_authorization_utils::authorization::AuthorizationInfo;
+use services_utils::Id;
 
 use crate::{
     account::{AccountInfo, AccountType},
     context::Ctx,
-    domain::Connector,
+    domain::ConnectorInner,
     service::ServiceInfo,
 };
 
