@@ -36,9 +36,8 @@ impl WorkflowConfig {
     pub async fn init(&mut self, ctx: &mut Context) {
         // init accounts
         for (account_id, account) in self.accounts.iter_mut() {
-            let domain_info = ctx.get_or_create_domain_info(&account.domain).await;
-            let addr = domain_info
-                .connector
+            let domain_connector = ctx.get_or_create_connector(&account.domain).await;
+            let addr = domain_connector
                 .get_account_addr(*account_id, &account.ty)
                 .await;
             account.ty = AccountType::Addr { addr }

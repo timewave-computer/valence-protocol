@@ -1,25 +1,25 @@
 use std::collections::HashMap;
 
 use crate::{
-    config::Cfg,
-    domain::{Domain, DomainInfo},
+    config::Config,
+    domain::{Connector, Domain},
 };
 
 #[derive(Debug, Default)]
 pub struct Context {
-    pub domain_infos: HashMap<Domain, DomainInfo>,
-    pub config: Cfg,
+    connectors: HashMap<Domain, Box<dyn Connector>>,
+    pub config: Config,
 }
 
 impl Context {
     /// Get the domain from ctx if exists
     /// otherwise it gets a new domain info and save it ctx
-    pub async fn get_or_create_domain_info(&mut self, domain: &Domain) -> &mut DomainInfo {
-        if !self.domain_infos.contains_key(domain) {
-            let domain_info = DomainInfo::from_domain(&self.config, domain).await;
-            self.domain_infos.insert(domain.clone(), domain_info);
+    pub async fn get_or_create_connector(&mut self, domain: &Domain) -> &mut Box<dyn Connector> {
+        if !self.connectors.contains_key(domain) {
+            let connector = domain.generate_connector(&self.config).await;
+            self.connectors.insert(domain.clone(), connector);
         }
 
-        self.domain_infos.get_mut(domain).unwrap()
+        self.connectors.get_mut(domain).unwrap()
     }
 }

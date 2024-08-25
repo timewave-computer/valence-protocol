@@ -17,21 +17,21 @@ use super::Connector;
 
 const MNEMONIC: &str = "crazy into this wheel interest enroll basket feed fashion leave feed depth wish throw rack language comic hand family shield toss leisure repair kite";
 
-pub struct CosmosCwConnector {
+pub struct CosmosCosmwasmConnector {
     wallet: Wallet,
     code_ids: HashMap<String, u64>,
     _chain_name: String,
 }
 
-impl fmt::Debug for CosmosCwConnector {
+impl fmt::Debug for CosmosCosmwasmConnector {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("CosmosCwConnector")
+        f.debug_struct("CosmosCosmwasmConnector")
             .field("wallet", &self.wallet)
             .finish_non_exhaustive()
     }
 }
 
-impl CosmosCwConnector {
+impl CosmosCosmwasmConnector {
     pub async fn new(chain_info: ChainInfo, code_ids: HashMap<String, u64>) -> Self {
         let grpc = GrpcClient::new(&chain_info.grpc).await.unwrap();
 
@@ -48,7 +48,7 @@ impl CosmosCwConnector {
         .await
         .unwrap();
 
-        CosmosCwConnector {
+        CosmosCosmwasmConnector {
             wallet,
             _chain_name: chain_info.name,
             code_ids,
@@ -57,7 +57,7 @@ impl CosmosCwConnector {
 }
 
 #[async_trait]
-impl Connector for CosmosCwConnector {
+impl Connector for CosmosCosmwasmConnector {
     async fn get_account_addr(&mut self, account_id: u64, account_type: &AccountType) -> String {
         // Get the creator address as canonical
         let creator: CanonicalAddr = self.wallet.account_address.as_bytes().into();

@@ -93,14 +93,14 @@ mod test {
             1,
             AccountInfo {
                 ty: AccountType::Base { admin: None },
-                domain: Domain::CosmosCw("neutron".to_string()),
+                domain: Domain::CosmosCosmwasm("neutron".to_string()),
             },
         );
         config.accounts.insert(
             2,
             AccountInfo {
                 ty: AccountType::Base { admin: None },
-                domain: Domain::CosmosCw("neutron".to_string()),
+                domain: Domain::CosmosCosmwasm("neutron".to_string()),
             },
         );
         // config.accounts.insert(
@@ -118,7 +118,7 @@ mod test {
         config.services.insert(
             1,
             ServiceInfo {
-                domain: Domain::CosmosCw("comsos".to_string()),
+                domain: Domain::CosmosCosmwasm("comsos".to_string()),
                 config: ServiceConfig::Splitter(SplitterServiceConfig {
                     input_addr: ServiceAccountType::AccountId(1),
                     splits: (BTreeMap::from_iter(vec![("NTRN".to_string(), splits)].into_iter())),

@@ -1,17 +1,17 @@
 use std::collections::HashMap;
 
-use config::{Config, File};
+use config::{Config as ConfigHelper, File};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
-pub struct Cfg {
+pub struct Config {
     pub chains: HashMap<String, ChainInfo>,
     pub contracts: Contracts,
 }
 
-impl Default for Cfg {
+impl Default for Config {
     fn default() -> Self {
-        let cfg = Config::builder()
+        let cfg = ConfigHelper::builder()
             .add_source(
                 glob::glob("conf/*")
                     .unwrap()
@@ -46,7 +46,7 @@ pub struct Contracts {
     pub code_ids: HashMap<String, HashMap<String, u64>>,
 }
 
-impl Cfg {
+impl Config {
     pub fn get_chain_info(&self, chain_name: String) -> ChainInfo {
         self.chains.get(&chain_name).unwrap().clone()
     }

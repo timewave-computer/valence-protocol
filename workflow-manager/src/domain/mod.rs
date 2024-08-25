@@ -2,38 +2,29 @@ pub mod cosmos_cw;
 use std::fmt;
 
 use async_trait::async_trait;
-use cosmos_cw::CosmosCwConnector;
+use cosmos_cw::CosmosCosmwasmConnector;
 use cosmos_grpc_client::cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 
-use crate::{account::AccountType, config::Cfg};
+use crate::{account::AccountType, config::Config};
 
 /// We need some way of knowing which domain we are talking with
 /// TODO: chain connection, execution, bridges for authorization.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub enum Domain {
-    CosmosCw(String),
+    CosmosCosmwasm(String),
     // Solana
 }
 
-#[derive(Debug)]
-pub struct DomainInfo {
-    pub connector: Box<dyn Connector>,
-}
-
-impl DomainInfo {
-    pub async fn from_domain(cfg: &Cfg, domain: &Domain) -> Self {
-        match domain {
-            Domain::CosmosCw(chain_name) => {
-                let connector = Box::new(
-                    CosmosCwConnector::new(
-                        cfg.get_chain_info(chain_name.clone()),
-                        cfg.get_code_ids(chain_name),
-                    )
-                    .await,
-                );
-
-                DomainInfo { connector }
-            }
+impl Domain {
+    pub async fn generate_connector(&self, cfg: &Config) -> Box<dyn Connector> {
+        match self {
+            Domain::CosmosCosmwasm(chain_name) => Box::new(
+                CosmosCosmwasmConnector::new(
+                    cfg.get_chain_info(chain_name.clone()),
+                    cfg.get_code_ids(chain_name),
+                )
+                .await,
+            ),
         }
     }
 }
