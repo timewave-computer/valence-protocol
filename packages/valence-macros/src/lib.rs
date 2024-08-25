@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
-use quote::{format_ident, quote};
-use syn::{parse_macro_input, Data, DeriveInput, Fields, FnArg, ItemTrait, Pat};
+use quote::quote;
+use syn::{parse_macro_input, Data, DeriveInput, Fields};
 
 #[proc_macro_derive(OptionalStruct)]
 pub fn optional_struct_derive(input: TokenStream) -> TokenStream {

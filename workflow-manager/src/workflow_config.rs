@@ -43,8 +43,6 @@ impl WorkflowConfig {
             account.ty = AccountType::Addr { addr }
         }
 
-        return;
-
         self.links.iter().for_each(|(_, link)| {
             let mut patterns =
                 Vec::with_capacity(link.input_accounts_id.len() + link.output_accounts_id.len());
