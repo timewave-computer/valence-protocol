@@ -281,7 +281,7 @@ impl JsonBuilder {
             } else {
                 current = current
                     .as_object_mut()
-                    .and_then(|map| Some(map.entry(part.to_string()).or_insert(json!({}))))
+                    .map(|map| map.entry(part.to_string()).or_insert(json!({})))
                     .expect("Failed to insert or access object");
             }
         }
