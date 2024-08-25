@@ -13,7 +13,8 @@ pub struct ServiceInfo {
 }
 
 /// This is a list of all our services we support and their configs.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, strum::Display)]
+#[strum(serialize_all = "snake_case")]
 pub enum ServiceConfig {
     // General {
     //     config: GeneralServiceConfig,

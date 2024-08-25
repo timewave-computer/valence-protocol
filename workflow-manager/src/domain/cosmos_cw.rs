@@ -1,17 +1,25 @@
-use std::{collections::HashMap, fmt, str::FromStr};
+use std::{
+    collections::HashMap,
+    fmt,
+    str::FromStr,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use async_trait::async_trait;
 use cosmos_grpc_client::{
     cosmos_sdk_proto::{
         cosmos::{bank::v1beta1::QueryBalanceRequest, base::v1beta1::Coin},
-        cosmwasm::wasm::v1::QueryCodeRequest,
-    },
-    cosmrs::bip32::secp256k1::sha2::{digest::Update, Digest, Sha256},
-    Decimal, GrpcClient, Wallet,
+        cosmwasm::wasm::v1::{MsgInstantiateContract2, QueryCodeRequest},
+    }, cosmrs::{bip32::secp256k1::sha2::{digest::Update, Digest, Sha256}, tx::MessageExt}, Decimal, GrpcClient, ProstMsgNameToAny, ProstMsgToAny, Wallet
 };
 use cosmwasm_std::{instantiate2_address, CanonicalAddr};
+use serde_json::to_vec;
 
-use crate::{account::AccountType, config::ChainInfo, helpers::addr_humanize};
+use crate::{
+    account::{AccountType, InstantiateAccountData},
+    config::ChainInfo,
+    helpers::addr_humanize,
+};
 
 use super::Connector;
 
@@ -50,21 +58,26 @@ impl CosmosCosmwasmConnector {
 
         CosmosCosmwasmConnector {
             wallet,
-            _chain_name: chain_info.name,
             code_ids,
+            _chain_name: chain_info.name,
         }
     }
 }
 
 #[async_trait]
 impl Connector for CosmosCosmwasmConnector {
-    async fn get_account_addr(&mut self, account_id: u64, account_type: &AccountType) -> String {
+    async fn predict_address(
+        &mut self,
+        id: &u64,
+        contract_name: &str,
+        extra_salt: &str,
+    ) -> (String, Vec<u8>) {
         // Get the creator address as canonical
         let creator: CanonicalAddr = self.wallet.account_address.as_bytes().into();
-
+        
         // Get the checksum of the code id
         let req = QueryCodeRequest {
-            code_id: *self.code_ids.get(&account_type.to_string()).unwrap(),
+            code_id: *self.code_ids.get(contract_name).unwrap(),
         };
         let checksum = self
             .wallet
@@ -81,52 +94,62 @@ impl Connector for CosmosCosmwasmConnector {
             .data_hash
             .clone();
 
-        println!("{:?}", checksum);
+        // TODO: generate a unique salt per workflow and per contract by adding timestamp
+        let start = SystemTime::now();
+        let since_the_epoch = start
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_millis();
 
-        // TODO: generate a unique salt per workflow and per contract
-        let salt = Sha256::new().chain(account_id.to_string()).finalize();
+        let salt = Sha256::new()
+            .chain(contract_name.to_string())
+            .chain(id.to_string())
+            .chain(extra_salt)
+            .chain(since_the_epoch.to_string())
+            .finalize();
 
-        let addr_cano = instantiate2_address(&checksum, &creator, &salt).unwrap();
+        let addr_canon = instantiate2_address(&checksum, &creator, &salt).unwrap();
+        let addr = addr_humanize(&self.wallet.prefix, &addr_canon);
 
-        addr_humanize(&self.wallet.prefix, &addr_cano).to_string()
+        (addr, salt.to_vec())
     }
 
-    async fn init_account(&mut self, _account_type: &AccountType) -> String {
-        // TODO: get code id from config
-        // TODO: Get init message
-        // let init_msg = valence_base_account::msg::InstantiateMsg {
-        //     admin: self.wallet.account_address.to_string(),
-        // };
+    async fn init_account(&mut self, data: &InstantiateAccountData) -> () {
+        let code_id = *self
+            .code_ids
+            .get(&data.info.ty.to_string())
+            .unwrap();
 
-        // Should be enough because we know the address is correct.
+        // TODO: change the
+        let msg: Vec<u8> = match &data.info.ty {
+            AccountType::Base { admin } => {
+                to_vec(&valence_base_account::msg::InstantiateMsg {
+                    admin: admin.clone().unwrap_or_else(|| self.wallet.account_address.to_string()),
+                    approved_services: data.approved_services.clone(),
+                }).unwrap() 
+            }
+            AccountType::Addr { addr } => vec![]
+        };
 
-        // MsgInstantiateContract2 {
-        //     sender: todo!(),
-        //     admin: todo!(),
-        //     code_id: todo!(),
-        //     label: todo!(),
-        //     msg: todo!(),
-        //     funds: todo!(),
-        //     salt: todo!(),
-        //     fix_msg: todo!(),
-        // };
-        // let msg = MsgInstantiateContract {
-        //     sender: self.wallet.account_address.to_string(),
-        //     code_id: 5987,
-        //     msg: to_vec(&init_msg).unwrap(),
-        //     funds: vec![],
-        //     label: "base_account".to_string(),
-        //     admin: self.wallet.account_address.clone(),
-        // }
-        // .build_any();
-        // let response = self
-        //     .wallet
-        //     .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync)
-        //     .await
-        //     .unwrap()
-        //     .tx_response;
-        // println!("{:?}", response);
-        self.wallet.chain_id.clone()
+        let m = MsgInstantiateContract2 {
+            sender: self.wallet.account_address.clone(),
+            admin: self.wallet.account_address.clone(),
+            code_id,
+            label: format!("account-{}", data.id),
+            msg,
+            funds: vec![],
+            salt: data.salt.clone(),
+            fix_msg: false,
+        }.build_any();
+
+        let response = self
+            .wallet
+            .simulate_tx(vec![m])
+            // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync)
+            .await
+            .unwrap();
+        println!("{:#?}", response);
+        panic!("stop");
     }
 
     async fn get_balance(&mut self, addr: String) -> Option<Coin> {

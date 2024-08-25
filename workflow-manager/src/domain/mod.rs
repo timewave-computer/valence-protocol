@@ -4,12 +4,13 @@ use std::fmt;
 use async_trait::async_trait;
 use cosmos_cw::CosmosCosmwasmConnector;
 use cosmos_grpc_client::cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
+use strum::Display;
 
-use crate::{account::AccountType, config::Config};
+use crate::{account::{AccountType, InstantiateAccountData}, config::Config};
 
 /// We need some way of knowing which domain we are talking with
 /// TODO: chain connection, execution, bridges for authorization.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Hash)]
+#[derive(Debug, Display, Clone, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub enum Domain {
     CosmosCosmwasm(String),
     // Solana
@@ -31,7 +32,14 @@ impl Domain {
 
 #[async_trait]
 pub trait Connector: fmt::Debug {
-    async fn get_account_addr(&mut self, account_id: u64, account_type: &AccountType) -> String;
-    async fn init_account(&mut self, account_type: &AccountType) -> String;
+    /// Predict the address of a contract
+    /// returns the address and the salt that should be used.
+    async fn predict_address(
+        &mut self,
+        account_id: &u64,
+        contract_name: &str,
+        extra_salt: &str,
+    ) -> (String, Vec<u8>);
+    async fn init_account(&mut self, data: &InstantiateAccountData) -> ();
     async fn get_balance(&mut self, addr: String) -> Option<Coin>;
 }

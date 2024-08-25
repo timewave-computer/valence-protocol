@@ -76,7 +76,7 @@ mod test {
         // let json = serde_json::to_string(&splits).unwrap();
         println!("{json:?}");
     }
-
+    
     #[tokio::test]
     async fn test() {
         // let subscriber = tracing_subscriber::fmt()
@@ -103,13 +103,13 @@ mod test {
                 domain: Domain::CosmosCosmwasm("neutron".to_string()),
             },
         );
-        // config.accounts.insert(
-        //     3,
-        //     AccountInfo {
-        //         ty: AccountType::Base { admin: None },
-        //         domain: Domain::CosmosCw("comsos2".to_string()),
-        //     },
-        // );
+        config.accounts.insert(
+            3,
+            AccountInfo {
+                ty: AccountType::Base { admin: None },
+                domain: Domain::CosmosCosmwasm("neutron".to_string()),
+            },
+        );
 
         let mut splits: BTreeSet<(ServiceAccountType, Uint128)> = BTreeSet::new();
         splits.insert((ServiceAccountType::AccountId(2), 100_u128.into()));
@@ -118,7 +118,7 @@ mod test {
         config.services.insert(
             1,
             ServiceInfo {
-                domain: Domain::CosmosCosmwasm("comsos".to_string()),
+                domain: Domain::CosmosCosmwasm("neutron".to_string()),
                 config: ServiceConfig::Splitter(SplitterServiceConfig {
                     input_addr: ServiceAccountType::AccountId(1),
                     splits: (BTreeMap::from_iter(vec![("NTRN".to_string(), splits)].into_iter())),
