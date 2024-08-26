@@ -253,52 +253,32 @@ fn check_restriction(
     json: &Value,
     param_restriction: &ParamRestriction,
 ) -> Result<(), ContractError> {
+    let pointer = |keys: &[String]| -> String { keys.join("/") };
+
     match param_restriction {
         ParamRestriction::MustBeIncluded(keys) => {
-            let mut current_value = json;
-            for key in keys {
-                current_value = current_value.get(key).ok_or(ContractError::Message(
-                    MessageErrorReason::InvalidMessageParams {},
-                ))?;
-            }
+            json.pointer(&pointer(keys)).ok_or(ContractError::Message(
+                MessageErrorReason::InvalidMessageParams {},
+            ))?;
         }
         ParamRestriction::CannotBeIncluded(keys) => {
-            let mut current_value = json;
-            for key in keys.iter().take(keys.len() - 1) {
-                current_value = match current_value.get(key) {
-                    Some(value) => value,
-                    None => return Ok(()), // If part of the path doesn't exist, it's valid
-                };
-            }
-            // Check the final key in the path
-            if let Some(final_key) = keys.last() {
-                if current_value.get(final_key).is_some() {
-                    return Err(ContractError::Message(
-                        MessageErrorReason::InvalidMessageParams {},
-                    ));
-                }
+            if json.pointer(&pointer(keys)).is_some() {
+                return Err(ContractError::Message(
+                    MessageErrorReason::InvalidMessageParams {},
+                ));
             }
         }
         ParamRestriction::MustBeValue(keys, value) => {
-            let mut current_value = json;
-            for key in keys.iter().take(keys.len() - 1) {
-                current_value = current_value.get(key).ok_or(ContractError::Message(
+            let final_value = json.pointer(&pointer(keys)).ok_or(ContractError::Message(
+                MessageErrorReason::InvalidMessageParams {},
+            ))?;
+            // Deserialize the expected value for a more robust comparison
+            let expected: Value = serde_json::from_slice(value)
+                .map_err(|_| ContractError::Message(MessageErrorReason::InvalidMessageParams {}))?;
+            if *final_value != expected {
+                return Err(ContractError::Message(
                     MessageErrorReason::InvalidMessageParams {},
-                ))?;
-            }
-            if let Some(final_key) = keys.last() {
-                let final_value = current_value.get(final_key).ok_or(ContractError::Message(
-                    MessageErrorReason::InvalidMessageParams {},
-                ))?;
-                // Deserialize the expected value for a more robust comparison
-                let expected: Value = serde_json::from_slice(value).map_err(|_| {
-                    ContractError::Message(MessageErrorReason::InvalidMessageParams {})
-                })?;
-                if *final_value != expected {
-                    return Err(ContractError::Message(
-                        MessageErrorReason::InvalidMessageParams {},
-                    ));
-                }
+                ));
             }
         }
     }
