@@ -1,11 +1,12 @@
 use cosmwasm_std::{coins, Addr};
+use cw_utils::Expiration;
 use neutron_test_tube::{Account, NeutronTestApp, SigningAccount};
 use serde_json::{json, Map, Value};
 use valence_authorization_utils::{
     action::{Action, ActionCallback, RetryLogic},
     authorization::{
         ActionBatch, AuthorizationDuration, AuthorizationInfo, AuthorizationMode, ExecutionType,
-        Priority, StartTime,
+        Priority,
     },
     domain::{CallbackProxy, Connector, Domain, ExecutionEnvironment, ExternalDomain},
     message::{Message, MessageDetails, MessageType},
@@ -96,7 +97,7 @@ pub struct NeutronTestAppSetup {
 pub struct AuthorizationBuilder {
     label: String,
     mode: AuthorizationMode,
-    start_time: StartTime,
+    disabled_until: Expiration,
     duration: AuthorizationDuration,
     max_concurrent_executions: Option<u64>,
     action_batch: ActionBatch,
@@ -108,7 +109,7 @@ impl AuthorizationBuilder {
         AuthorizationBuilder {
             label: "authorization".to_string(),
             mode: AuthorizationMode::Permissionless,
-            start_time: StartTime::Anytime,
+            disabled_until: Expiration::Never {},
             duration: AuthorizationDuration::Forever,
             max_concurrent_executions: None,
             action_batch: ActionBatchBuilder::new().build(),
@@ -126,8 +127,8 @@ impl AuthorizationBuilder {
         self
     }
 
-    pub fn with_start_time(mut self, start_time: StartTime) -> Self {
-        self.start_time = start_time;
+    pub fn with_disabled_until(mut self, disabled_until: Expiration) -> Self {
+        self.disabled_until = disabled_until;
         self
     }
 
@@ -155,7 +156,7 @@ impl AuthorizationBuilder {
         AuthorizationInfo {
             label: self.label,
             mode: self.mode,
-            start_time: self.start_time,
+            disabled_until: self.disabled_until,
             duration: self.duration,
             max_concurrent_executions: self.max_concurrent_executions,
             action_batch: self.action_batch,

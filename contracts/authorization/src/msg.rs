@@ -2,7 +2,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary, Uint128};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query, Expiration};
 use valence_authorization_utils::{
-    authorization::{Authorization, AuthorizationInfo, Priority, StartTime},
+    authorization::{Authorization, AuthorizationInfo, Priority},
     domain::{Domain, ExternalDomain},
 };
 
@@ -42,7 +42,7 @@ pub enum SubOwnerMsg {
     },
     ModifyAuthorization {
         label: String,
-        start_time: Option<StartTime>,
+        disabled_until: Option<Expiration>,
         expiration: Option<Expiration>,
         max_concurrent_executions: Option<u64>,
         priority: Option<Priority>,

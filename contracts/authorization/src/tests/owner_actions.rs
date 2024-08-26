@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Binary, Uint128};
+use cosmwasm_std::{Addr, Binary, Timestamp, Uint128};
 use cw_utils::Expiration;
 use neutron_test_tube::{
     neutron_std::types::cosmos::bank::v1beta1::{QueryAllBalancesRequest, QueryBalanceRequest},
@@ -8,7 +8,7 @@ use valence_authorization_utils::{
     action::{ActionCallback, RetryInterval, RetryLogic, RetryTimes},
     authorization::{
         Authorization, AuthorizationDuration, AuthorizationMode, AuthorizationState, ExecutionType,
-        PermissionType, Priority, StartTime,
+        PermissionType, Priority,
     },
     domain::{Domain, ExternalDomain},
     message::{Message, MessageDetails, MessageType, ParamRestriction},
@@ -775,7 +775,7 @@ fn modify_authorization() {
         &contract_addr,
         &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
             label: "authorization".to_string(),
-            start_time: Some(StartTime::AtTime(100)),
+            disabled_until: Some(Expiration::AtTime(Timestamp::from_seconds(100))),
             expiration: Some(Expiration::AtHeight(50)),
             max_concurrent_executions: None,
             priority: None,
@@ -803,7 +803,7 @@ fn modify_authorization() {
         &contract_addr,
         &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
             label: "authorization".to_string(),
-            start_time: None,
+            disabled_until: None,
             expiration: None,
             max_concurrent_executions: Some(5),
             priority: Some(Priority::High),
@@ -833,7 +833,7 @@ fn modify_authorization() {
             &contract_addr,
             &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
                 label: "authorization".to_string(),
-                start_time: None,
+                disabled_until: None,
                 expiration: None,
                 max_concurrent_executions: None,
                 priority: Some(Priority::Medium),
@@ -855,7 +855,7 @@ fn modify_authorization() {
             &contract_addr,
             &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
                 label: "non-existing-label".to_string(),
-                start_time: None,
+                disabled_until: None,
                 expiration: None,
                 max_concurrent_executions: None,
                 priority: Some(Priority::Medium),

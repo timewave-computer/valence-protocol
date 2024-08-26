@@ -9,7 +9,7 @@ use neutron_sdk::bindings::msg::NeutronMsg;
 use valence_authorization_utils::{
     authorization::{
         Authorization, AuthorizationInfo, AuthorizationMode, AuthorizationState, PermissionType,
-        Priority, StartTime,
+        Priority,
     },
     domain::{Domain, ExternalDomain},
 };
@@ -100,14 +100,14 @@ pub fn execute(
                 }
                 SubOwnerMsg::ModifyAuthorization {
                     label,
-                    start_time,
+                    disabled_until,
                     expiration,
                     max_concurrent_executions,
                     priority,
                 } => modify_authorization(
                     deps,
                     label,
-                    start_time,
+                    disabled_until,
                     expiration,
                     max_concurrent_executions,
                     priority,
@@ -242,7 +242,7 @@ fn create_authorizations(
 fn modify_authorization(
     deps: DepsMut,
     label: String,
-    start_time: Option<StartTime>,
+    disabled_until: Option<Expiration>,
     expiration: Option<Expiration>,
     max_concurrent_executions: Option<u64>,
     priority: Option<Priority>,
@@ -253,8 +253,8 @@ fn modify_authorization(
             ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
         })?;
 
-    if let Some(start_time) = start_time {
-        authorization.start_time = start_time;
+    if let Some(disabled_until) = disabled_until {
+        authorization.disabled_until = disabled_until;
     }
 
     if let Some(expiration) = expiration {

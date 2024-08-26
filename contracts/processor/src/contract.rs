@@ -1,5 +1,6 @@
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response, StdResult,
+    entry_point, to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response,
+    StdResult,
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner};
 use valence_authorization_utils::authorization::{ActionBatch, Priority};
@@ -156,7 +157,7 @@ fn enqueue_messages(
     action_batch: ActionBatch,
     priority: Priority,
 ) -> Result<Response, ContractError> {
-    let queue = get_queue_map(&priority);
+    let mut queue = get_queue_map(&priority);
 
     let message_batch = MessageBatch {
         id,
@@ -173,7 +174,7 @@ fn remove_messages(
     queue_position: u64,
     priority: Priority,
 ) -> Result<Response, ContractError> {
-    let queue = get_queue_map(&priority);
+    let mut queue = get_queue_map(&priority);
 
     queue.remove_at(deps.storage, queue_position)?;
 
@@ -188,7 +189,7 @@ fn add_messages(
     action_batch: ActionBatch,
     priority: Priority,
 ) -> Result<Response, ContractError> {
-    let queue = get_queue_map(&priority);
+    let mut queue = get_queue_map(&priority);
 
     let message_batch = MessageBatch {
         id,

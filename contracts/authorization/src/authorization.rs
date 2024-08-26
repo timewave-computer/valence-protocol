@@ -1,5 +1,5 @@
 use cosmwasm_std::{Binary, BlockInfo, MessageInfo, QuerierWrapper, Storage, Uint128};
-use cw_utils::must_pay;
+use cw_utils::{must_pay, Expiration};
 use serde_json::Value;
 use valence_authorization_utils::{
     authorization::{
@@ -19,7 +19,7 @@ use crate::{
 pub trait Validate {
     fn validate(&self, store: &dyn Storage) -> Result<(), ContractError>;
     fn ensure_enabled(&self) -> Result<(), ContractError>;
-    fn ensure_started(&self, block: &BlockInfo) -> Result<(), ContractError>;
+    fn ensure_not_temporary_disabled(&self, block: &BlockInfo) -> Result<(), ContractError>;
     fn ensure_not_expired(&self, block: &BlockInfo) -> Result<(), ContractError>;
     fn validate_permission(
         &self,
@@ -114,14 +114,19 @@ impl Validate for Authorization {
         Ok(())
     }
 
-    fn ensure_started(&self, block: &BlockInfo) -> Result<(), ContractError> {
-        if !self.start_time.is_started(block) {
-            return Err(ContractError::Unauthorized(
-                UnauthorizedReason::NotActiveYet {},
-            ));
+    fn ensure_not_temporary_disabled(&self, block: &BlockInfo) -> Result<(), ContractError> {
+        match self.disabled_until {
+            Expiration::Never {} => Ok(()),
+            expiration => {
+                if !expiration.is_expired(block) {
+                    Err(ContractError::Unauthorized(
+                        UnauthorizedReason::NotActiveYet {},
+                    ))
+                } else {
+                    Ok(())
+                }
+            }
         }
-
-        Ok(())
     }
 
     fn ensure_not_expired(&self, block: &BlockInfo) -> Result<(), ContractError> {
@@ -235,7 +240,7 @@ impl Validate for Authorization {
         messages: &[Binary],
     ) -> Result<(), ContractError> {
         self.ensure_enabled()?;
-        self.ensure_started(block)?;
+        self.ensure_not_temporary_disabled(block)?;
         self.ensure_not_expired(block)?;
         self.validate_permission(querier, contract_address, info)?;
         self.validate_messages(store, messages)?;
