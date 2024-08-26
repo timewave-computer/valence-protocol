@@ -115,7 +115,7 @@ impl Connector for CosmosCosmwasmConnector {
             .as_millis();
 
         let salt = Sha256::new()
-            .chain(contract_name.to_string())
+            .chain(contract_name)
             .chain(id.to_string())
             .chain(extra_salt)
             .chain(since_the_epoch.to_string())
@@ -152,7 +152,7 @@ impl Connector for CosmosCosmwasmConnector {
                 approved_services: data.approved_services.clone(),
             })
             .unwrap(),
-            AccountType::Addr { .. } => return (),
+            AccountType::Addr { .. } => return,
         };
 
         let m = MsgInstantiateContract2 {
@@ -192,7 +192,7 @@ impl Connector for CosmosCosmwasmConnector {
             sender: self.wallet.account_address.clone(),
             admin: self.wallet.account_address.clone(),
             code_id,
-            label: format!("service-{}-{}", service_config.to_string(), service_id),
+            label: format!("service-{}-{}", service_config, service_id),
             msg,
             funds: vec![],
             salt: salt.clone(),

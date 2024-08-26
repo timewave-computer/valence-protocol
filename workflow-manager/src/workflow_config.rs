@@ -91,7 +91,7 @@ impl WorkflowConfig {
             });
 
             service.config.replace_config(patterns, replace_with);
-            
+
             // init the service
             domain_connector
                 .instantiate_service(link.service_id, &service.config, salt)
