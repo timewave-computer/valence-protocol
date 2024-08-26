@@ -83,26 +83,34 @@ where
             return Err(StdError::generic_err("Index out of bounds"));
         }
 
-        let start_index = self.get_start_index(storage)?;
-        let mut end_index = self.get_end_index(storage)?;
-        let actual_index = start_index + index + 1;
+        // Special optimization for removing from the front, which is the most common scenario
+        // and the most critical (queue can have many elements and the first one can block the queue)
+        // This way we make it O(1) instead of O(n) and avoid the possibility to run out of gas to
+        // remove the first element
+        if index == 0 {
+            self.pop_front(storage).map(|v| v.unwrap())
+        } else {
+            let start_index = self.get_start_index(storage)?;
+            let mut end_index = self.get_end_index(storage)?;
+            let actual_index = start_index + index + 1;
 
-        // Remove the element
-        let value = self.elements.load(storage, actual_index)?;
-        self.elements.remove(storage, actual_index);
+            // Remove the element
+            let value = self.elements.load(storage, actual_index)?;
+            self.elements.remove(storage, actual_index);
 
-        // Shift elements to fill the gap
-        for i in actual_index + 1..end_index + 1 {
-            if let Ok(elem) = self.elements.load(storage, i) {
-                self.elements.save(storage, i - 1, &elem)?;
-                self.elements.remove(storage, i);
+            // Shift elements to fill the gap
+            for i in actual_index + 1..end_index + 1 {
+                if let Ok(elem) = self.elements.load(storage, i) {
+                    self.elements.save(storage, i - 1, &elem)?;
+                    self.elements.remove(storage, i);
+                }
             }
+
+            end_index -= 1;
+            self.end_index.save(storage, "index", &end_index)?;
+
+            Ok(value)
         }
-
-        end_index -= 1;
-        self.end_index.save(storage, "index", &end_index)?;
-
-        Ok(value)
     }
 
     pub fn query(
@@ -198,6 +206,11 @@ mod tests {
         assert_eq!(items.len(), 2);
         assert_eq!(items[0], "first".to_string());
         assert_eq!(items[1], "third".to_string());
+
+        assert_eq!(queue.remove_at(storage, 0).unwrap(), "first".to_string());
+        let items = queue.query(storage, None, None, Order::Ascending).unwrap();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0], "third".to_string());
     }
 
     #[test]
