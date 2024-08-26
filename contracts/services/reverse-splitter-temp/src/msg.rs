@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut, Uint128};
@@ -92,8 +92,4 @@ pub struct Config {
 /// Splits is a list of denoms,
 /// where each of the denom has a list of addresses and amount how much to send to that addres
 
-pub type SplitsConfig = BTreeMap<String, Splits>;
-
-#[cw_serde]
-#[derive(PartialOrd, Eq)]
-pub struct Splits(pub BTreeMap<ServiceAccountType, Uint128>);
+pub type SplitsConfig = BTreeMap<String, BTreeSet<(ServiceAccountType, Uint128)>>;

@@ -44,12 +44,15 @@ base-account             = { path = "contracts/accounts/base_account", features 
 valence-splitter         = { path = "contracts/services/splitter-temp", features = ["library"] }
 valence-reverse-splitter = { path = "contracts/services/reverse-splitter-temp", features = ["library"] }
 valence-processor        = { path = "contracts/processor", features = ["library"] }
+valence-base-account     = { path = "contracts/accounts/base_account", features = ["library"] }
+valence-authorization    = { path = "contracts/authorization", features = ["library"] }
 
 # our packages
 valence-macros              = { path = "packages/valence-macros" }
 valence-authorization-utils = { path = "packages/authorization-utils" }
 valence-processor-utils     = { path = "packages/processor-utils" }
 services-utils              = { path = "packages/services-utils" }
+service-base                = { package = "valence-service-base", path = "packages/service-base" }
 
 # dev-dependencies
 cw-multi-test     = "2.1.1"
