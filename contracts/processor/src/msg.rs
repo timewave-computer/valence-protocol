@@ -4,10 +4,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query};
 use valence_authorization_utils::authorization::{ActionBatch, Priority};
-use valence_processor_utils::{
-    processor::{Config, PolytoneContracts},
-    queue::MessageBatch,
-};
+use valence_processor_utils::processor::{Config, MessageBatch, PolytoneContracts};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -27,7 +24,10 @@ pub enum ExecuteMsg {
 
 #[cw_serde]
 pub enum OwnerMsg {
-    UpdateConfig { config: Config },
+    UpdateConfig {
+        authorization_contract: Option<Addr>,
+        polytone_contracts: Option<PolytoneContracts>,
+    },
 }
 
 #[cw_serde]
@@ -40,11 +40,11 @@ pub enum AuthoriationMsg {
         priority: Priority,
     },
     RemoveMsgs {
-        id: u64,
+        queue_position: u64,
         priority: Priority,
     },
     AddMsgs {
-        queue_position: usize,
+        queue_position: u64,
         id: u64,
         msgs: Vec<Binary>,
         action_batch: ActionBatch,
@@ -66,5 +66,9 @@ pub enum QueryMsg {
     #[returns(Config)]
     Config {},
     #[returns(VecDeque<MessageBatch>)]
-    GetQueue { priority: Priority },
+    GetQueue {
+        from: Option<u64>,
+        to: Option<u64>,
+        priority: Priority,
+    },
 }

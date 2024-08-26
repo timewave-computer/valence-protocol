@@ -3,7 +3,7 @@ use cosmwasm_std::{Addr, Binary, Uint128};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query, Expiration};
 use valence_authorization_utils::{
     authorization::{Authorization, AuthorizationInfo, Priority, StartTime},
-    domain::ExternalDomain,
+    domain::{Domain, ExternalDomain},
 };
 
 #[cw_serde]
@@ -57,6 +57,33 @@ pub enum SubOwnerMsg {
     MintAuthorizations {
         label: String,
         mints: Vec<Mint>,
+    },
+    // Method to remove any set of messages from any queue in any domain
+    RemoveMsgs {
+        // Which domain we are targetting
+        domain: Domain,
+        // position in the queue
+        queue_position: u64,
+        // what queue we are targetting
+        priority: Priority,
+    },
+    // Method to add messages from an authorization to any queue
+    AddMsgs {
+        // The authorization label
+        label: String,
+        // Where and in which queue we are putting them
+        queue_position: u64,
+        priority: Priority,
+        // Messages to add
+        messages: Vec<Binary>,
+    },
+    // Pause a processor in any domain
+    PauseProcessor {
+        domain: Domain,
+    },
+    // Resume a processor in any domain
+    ResumeProcessor {
+        domain: Domain,
     },
 }
 

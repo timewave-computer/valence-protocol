@@ -1,17 +1,14 @@
 use cosmwasm_std::{
-    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response, StdResult,
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner};
 use valence_authorization_utils::authorization::{ActionBatch, Priority};
-use valence_processor_utils::{
-    processor::{Config, State},
-    queue::MessageBatch,
-};
+use valence_processor_utils::processor::{Config, MessageBatch, PolytoneContracts, State};
 
 use crate::{
     error::ContractError,
     msg::{AuthoriationMsg, ExecuteMsg, InstantiateMsg, OwnerMsg, PermissionlessMsg, QueryMsg},
-    queue::{load_queue, save_queue},
+    queue::get_queue_map,
     state::CONFIG,
 };
 
@@ -62,7 +59,10 @@ pub fn execute(
         ExecuteMsg::OwnerAction(owner_msg) => {
             assert_owner(deps.storage, &info.sender)?;
             match owner_msg {
-                OwnerMsg::UpdateConfig { config } => update_config(deps, config),
+                OwnerMsg::UpdateConfig {
+                    authorization_contract,
+                    polytone_contracts,
+                } => update_config(deps, authorization_contract, polytone_contracts),
             }
         }
         ExecuteMsg::AuthorizationModuleAction(authorization_module_msg) => {
@@ -84,7 +84,10 @@ pub fn execute(
                     action_batch,
                     priority,
                 } => enqueue_messages(deps, id, msgs, action_batch, priority),
-                AuthoriationMsg::RemoveMsgs { id, priority } => remove_messages(deps, id, priority),
+                AuthoriationMsg::RemoveMsgs {
+                    queue_position,
+                    priority,
+                } => remove_messages(deps, queue_position, priority),
                 AuthoriationMsg::AddMsgs {
                     id,
                     queue_position,
@@ -112,7 +115,17 @@ fn update_ownership(
     Ok(Response::new().add_attributes(ownership.into_attributes()))
 }
 
-fn update_config(deps: DepsMut, config: Config) -> Result<Response, ContractError> {
+fn update_config(
+    deps: DepsMut,
+    authorization_contract: Option<Addr>,
+    polytone_contracts: Option<PolytoneContracts>,
+) -> Result<Response, ContractError> {
+    let mut config = CONFIG.load(deps.storage)?;
+
+    if let Some(authorization_contract) = authorization_contract {
+        config.authorization_contract = authorization_contract;
+    }
+    config.polytone_contracts = polytone_contracts;
     config.is_valid(deps.api)?;
 
     CONFIG.save(deps.storage, &config)?;
@@ -143,39 +156,39 @@ fn enqueue_messages(
     action_batch: ActionBatch,
     priority: Priority,
 ) -> Result<Response, ContractError> {
-    let mut queue = load_queue(deps.storage, &priority)?;
+    let queue = get_queue_map(&priority);
 
     let message_batch = MessageBatch {
         id,
         msgs,
         action_batch,
     };
-    queue.push_back(message_batch);
-
-    save_queue(deps.storage, &priority, &queue)?;
+    queue.push_back(deps.storage, &message_batch)?;
 
     Ok(Response::new().add_attribute("method", "enqueue_messages"))
 }
 
-fn remove_messages(deps: DepsMut, id: u64, priority: Priority) -> Result<Response, ContractError> {
-    let mut queue = load_queue(deps.storage, &priority)?;
+fn remove_messages(
+    deps: DepsMut,
+    queue_position: u64,
+    priority: Priority,
+) -> Result<Response, ContractError> {
+    let queue = get_queue_map(&priority);
 
-    queue.retain(|message_batch| message_batch.id != id);
-
-    save_queue(deps.storage, &priority, &queue)?;
+    queue.remove_at(deps.storage, queue_position)?;
 
     Ok(Response::new().add_attribute("method", "remove_messages"))
 }
 
 fn add_messages(
     deps: DepsMut,
-    queue_position: usize,
+    queue_position: u64,
     id: u64,
     msgs: Vec<Binary>,
     action_batch: ActionBatch,
     priority: Priority,
 ) -> Result<Response, ContractError> {
-    let mut queue = load_queue(deps.storage, &priority)?;
+    let queue = get_queue_map(&priority);
 
     let message_batch = MessageBatch {
         id,
@@ -183,12 +196,7 @@ fn add_messages(
         action_batch,
     };
 
-    if queue_position > queue.len() {
-        return Err(ContractError::InvalidQueuePosition {});
-    }
-    queue.insert(queue_position, message_batch);
-
-    save_queue(deps.storage, &priority, &queue)?;
+    queue.insert_at(deps.storage, queue_position, &message_batch)?;
 
     Ok(Response::new().add_attribute("method", "add_messages"))
 }
@@ -198,10 +206,22 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Ownership {} => to_json_binary(&get_ownership(deps.storage)?),
         QueryMsg::Config {} => to_json_binary(&get_config(deps)?),
-        QueryMsg::GetQueue { priority } => to_json_binary(&load_queue(deps.storage, &priority)?),
+        QueryMsg::GetQueue { from, to, priority } => {
+            to_json_binary(&get_queue(deps, from, to, &priority)?)
+        }
     }
 }
 
 fn get_config(deps: Deps) -> StdResult<Config> {
     CONFIG.load(deps.storage)
+}
+
+fn get_queue(
+    deps: Deps,
+    from: Option<u64>,
+    to: Option<u64>,
+    priority: &Priority,
+) -> StdResult<Vec<MessageBatch>> {
+    let queue = get_queue_map(priority);
+    queue.query(deps.storage, from, to, Order::Ascending)
 }

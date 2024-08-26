@@ -218,13 +218,9 @@ impl Validate for Authorization {
                             check_restriction(&json, each_restriction)?;
                         }
                     }
-
-                    // TODO: Create the Processor/Polytone Message
                 }
             }
         }
-
-        // TODO: Return the list of messages to be sent to the processor/connector
 
         Ok(())
     }
