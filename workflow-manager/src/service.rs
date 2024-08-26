@@ -1,5 +1,7 @@
 use aho_corasick::AhoCorasick;
 
+use serde_json::to_vec;
+use service_base::msg::InstantiateMsg;
 use services_utils::ServiceConfigInterface;
 use valence_reverse_splitter::msg::ServiceConfig as ReverseSplitterServiceConfig;
 use valence_splitter::msg::ServiceConfig as SplitterServiceConfig;
@@ -98,5 +100,21 @@ impl ServiceConfig {
         }
 
         self.clone()
+    }
+
+    pub fn get_instantiate_msg(&self, owner: String, processor: String) -> Vec<u8> {
+        match self {
+            ServiceConfig::Splitter(config) => to_vec(&InstantiateMsg {
+                owner,
+                processor,
+                config: config.clone(),
+            }),
+            ServiceConfig::ReverseSplitter(config) => to_vec(&InstantiateMsg {
+                owner,
+                processor,
+                config: config.clone(),
+            }),
+        }
+        .unwrap()
     }
 }

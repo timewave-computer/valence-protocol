@@ -17,6 +17,7 @@ serde_json_any_key = "2"
 services-utils              = { workspace = true }
 valence-macros              = { workspace = true }
 valence-authorization-utils = { workspace = true }
+service-base                = { workspace = true }
 
 valence-splitter         = { workspace = true }
 valence-reverse-splitter = { workspace = true }
@@ -34,3 +35,6 @@ strum              = { version = "0.26", features = ["derive"] }
 async-trait        = "0.1.81"
 hrp                = "0.1.1"
 bech32             = "0.11.0"
+prost              = "0.12"
+prost-types        = "0.12"
+hex                = "0.4"

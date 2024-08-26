@@ -4561,7 +4561,10 @@ dependencies = [
  "dhat",
  "futures",
  "glob",
+ "hex",
  "hrp",
+ "prost 0.12.6",
+ "prost-types 0.12.6",
  "serde",
  "serde_json",
  "serde_json_any_key",
@@ -4574,6 +4577,7 @@ dependencies = [
  "valence-base-account",
  "valence-macros",
  "valence-reverse-splitter",
+ "valence-service-base",
  "valence-splitter",
 ]
 

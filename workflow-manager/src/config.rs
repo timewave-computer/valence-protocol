@@ -11,7 +11,7 @@ pub struct Config {
 
 impl Default for Config {
     fn default() -> Self {
-        let cfg = ConfigHelper::builder()
+        ConfigHelper::builder()
             .add_source(
                 glob::glob("conf/*")
                     .unwrap()
@@ -21,10 +21,7 @@ impl Default for Config {
             .build()
             .unwrap()
             .try_deserialize()
-            .unwrap();
-
-        println!("{:#?}", cfg);
-        cfg
+            .unwrap()
 
         // TODO: Verify the config is not missing any info
     }
