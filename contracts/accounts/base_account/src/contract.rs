@@ -5,7 +5,7 @@ use cw2::set_contract_version;
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::state::ADMIN;
+use crate::state::{ADMIN, APPROVED_SERVICES};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:base_account";
@@ -22,6 +22,10 @@ pub fn instantiate(
 
     let admin = deps.api.addr_validate(&msg.admin)?;
     ADMIN.save(deps.storage, &admin)?;
+
+    msg.approved_services.iter().try_for_each(|service| {
+        APPROVED_SERVICES.save(deps.storage, deps.api.addr_validate(service)?, &true)
+    })?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")

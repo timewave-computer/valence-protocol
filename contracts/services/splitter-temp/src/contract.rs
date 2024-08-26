@@ -67,7 +67,6 @@ mod actions {
                         // TODO: change split to be percentage and not amounts
                         messages.extend(
                             split
-                                .0
                                 .iter()
                                 .map(|(addr, amount)| {
                                     let bank_msg = BankMsg::Send {
@@ -81,7 +80,7 @@ mod actions {
                                     Ok(WasmMsg::Execute {
                                         contract_addr: cfg.input_addr.to_string(),
                                         msg: to_json_binary(
-                                            &base_account::msg::ExecuteMsg::ExecuteMsg {
+                                            &valence_base_account::msg::ExecuteMsg::ExecuteMsg {
                                                 msgs: vec![bank_msg.into()],
                                             },
                                         )?,
@@ -96,7 +95,9 @@ mod actions {
                     Ok::<(), ServiceError>(())
                 })?;
 
-                Ok(Response::new().add_attribute("method", "split"))
+                Ok(Response::new()
+                    .add_messages(messages)
+                    .add_attribute("method", "split"))
             }
         }
     }

@@ -40,15 +40,10 @@ cw-ownable      = "2.0.0"
 neutron-sdk     = "0.11.0"
 
 # our contracts
-base-account = { path = "contracts/accounts/base_account", features = [
-    "library",
-] }
-valence-splitter = { path = "contracts/services/splitter-temp", features = [
-    "library",
-] }
-valence-reverse-splitter = { path = "contracts/services/reverse-splitter-temp", features = [
-    "library",
-] }
+valence-base-account     = { path = "contracts/accounts/base_account", features = ["library"] }
+valence-splitter         = { path = "contracts/services/splitter-temp", features = ["library"] }
+valence-reverse-splitter = { path = "contracts/services/reverse-splitter-temp", features = ["library"] }
+valence-authorization    = { path = "contracts/authorization", features = ["library"] }
 
 # our packages
 valence-macros              = { path = "packages/valence-macros" }
