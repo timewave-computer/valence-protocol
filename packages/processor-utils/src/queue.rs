@@ -28,6 +28,7 @@ where
     fn end_index(&self, storage: &dyn Storage) -> StdResult<u64> {
         self.end_index.load(storage).or(Ok(0))
     }
+    
     pub fn push_back(&self, storage: &mut dyn Storage, value: &T) -> StdResult<()> {
         let mut end_index = self.end_index(storage)?;
         end_index = end_index.checked_add(1).expect("Overflow");

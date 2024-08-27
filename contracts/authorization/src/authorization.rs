@@ -268,7 +268,7 @@ fn check_restriction(
     //         "y": ["z", "zz"]
     //     }
     // });
-    // 
+    //
     // assert_eq!(data.pointer("/x/y/1").unwrap(), &json!("zz"));
     // assert_eq!(data.pointer("/a/b/c"), None);
     let pointer = |keys: &[String]| -> String { keys.join("/") };
