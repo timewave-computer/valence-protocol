@@ -10,7 +10,7 @@ pub struct AuthorizationInfo {
     // Unique ID for the authorization, will be used as denom of the TokenFactory token if needed
     pub label: String,
     pub mode: AuthorizationMode,
-    pub disabled_until: Expiration,
+    pub not_before: Expiration,
     pub duration: AuthorizationDuration,
     // Default will be 1, defines how many times a specific authorization can be executed concurrently
     pub max_concurrent_executions: Option<u64>,
@@ -31,7 +31,7 @@ pub enum AuthorizationDuration {
 pub struct Authorization {
     pub label: String,
     pub mode: AuthorizationMode,
-    pub disabled_until: Expiration,
+    pub not_before: Expiration,
     pub expiration: Expiration,
     pub max_concurrent_executions: u64,
     pub action_batch: ActionBatch,
@@ -53,7 +53,7 @@ impl AuthorizationInfo {
         Authorization {
             label: self.label,
             mode: self.mode,
-            disabled_until: self.disabled_until,
+            not_before: self.not_before,
             expiration,
             max_concurrent_executions: self.max_concurrent_executions.unwrap_or(1),
             action_batch: self.action_batch,

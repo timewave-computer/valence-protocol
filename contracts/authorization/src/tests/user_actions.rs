@@ -31,9 +31,9 @@ fn disabled() {
     let contract_addr = store_and_instantiate_authorization_contract(
         &wasm,
         &setup.accounts[0],
-        None,
-        vec![setup.subowner_addr.clone()],
-        setup.processor_addr.clone(),
+        setup.owner_addr.to_string(),
+        vec![setup.subowner_addr.to_string()],
+        setup.processor_addr.to_string(),
         vec![setup.external_domain.clone()],
     );
 
@@ -119,9 +119,9 @@ fn invalid_time() {
     let contract_addr = store_and_instantiate_authorization_contract(
         &wasm,
         &setup.accounts[0],
-        None,
-        vec![setup.subowner_addr.clone()],
-        setup.processor_addr.clone(),
+        setup.owner_addr.to_string(),
+        vec![setup.subowner_addr.to_string()],
+        setup.processor_addr.to_string(),
         vec![setup.external_domain.clone()],
     );
 
@@ -130,7 +130,7 @@ fn invalid_time() {
     // We'll create a permissioned authorization that will be valid in the future
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissioned")
-        .with_disabled_until(Expiration::AtTime(Timestamp::from_seconds(
+        .with_not_before(Expiration::AtTime(Timestamp::from_seconds(
             current_time + 1000,
         )))
         .with_duration(AuthorizationDuration::Seconds(1500))
@@ -220,7 +220,7 @@ fn invalid_time() {
     let current_height = setup.app.get_block_height() as u64;
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissioned2")
-        .with_disabled_until(Expiration::AtHeight(current_height + 10))
+        .with_not_before(Expiration::AtHeight(current_height + 10))
         .with_duration(AuthorizationDuration::Blocks(15))
         .with_mode(AuthorizationMode::Permissioned(
             PermissionType::WithoutCallLimit(vec![setup.owner_addr.clone()]),
@@ -315,9 +315,9 @@ fn invalid_permission() {
     let contract_addr = store_and_instantiate_authorization_contract(
         &wasm,
         &setup.accounts[0],
-        None,
-        vec![setup.subowner_addr.clone()],
-        setup.processor_addr.clone(),
+        setup.owner_addr.to_string(),
+        vec![setup.subowner_addr.to_string()],
+        setup.processor_addr.to_string(),
         vec![setup.external_domain.clone()],
     );
 
@@ -431,9 +431,9 @@ fn invalid_messages() {
     let contract_addr = store_and_instantiate_authorization_contract(
         &wasm,
         &setup.accounts[0],
-        None,
-        vec![setup.subowner_addr.clone()],
-        setup.processor_addr.clone(),
+        setup.owner_addr.to_string(),
+        vec![setup.subowner_addr.to_string()],
+        setup.processor_addr.to_string(),
         vec![setup.external_domain.clone()],
     );
 

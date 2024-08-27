@@ -8,12 +8,11 @@ use valence_authorization_utils::{
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    // If not provided, the owner will be the sender
-    pub owner: Option<Addr>,
+    pub owner: String,
     // Sub-owners can be added later if needed
-    pub sub_owners: Vec<Addr>,
+    pub sub_owners: Vec<String>,
     // Processor on Main domain
-    pub processor: Addr,
+    pub processor: String,
     // External domains
     pub external_domains: Vec<ExternalDomain>,
 }
@@ -28,8 +27,8 @@ pub enum ExecuteMsg {
 
 #[cw_serde]
 pub enum OwnerMsg {
-    AddSubOwner { sub_owner: Addr },
-    RemoveSubOwner { sub_owner: Addr },
+    AddSubOwner { sub_owner: String },
+    RemoveSubOwner { sub_owner: String },
 }
 
 #[cw_serde]
@@ -42,7 +41,7 @@ pub enum SubOwnerMsg {
     },
     ModifyAuthorization {
         label: String,
-        disabled_until: Option<Expiration>,
+        not_before: Option<Expiration>,
         expiration: Option<Expiration>,
         max_concurrent_executions: Option<u64>,
         priority: Option<Priority>,

@@ -38,7 +38,7 @@ pub fn get_domain(authorization: &Authorization) -> Result<Domain, ContractError
     }
 }
 
-pub fn create_wasm_msg(
+pub fn create_wasm_msg_for_processor_or_proxy(
     storage: &dyn Storage,
     execute_msg: Binary,
     domain: &Domain,

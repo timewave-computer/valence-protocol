@@ -19,7 +19,7 @@ use crate::{
 pub trait Validate {
     fn validate(&self, store: &dyn Storage) -> Result<(), ContractError>;
     fn ensure_enabled(&self) -> Result<(), ContractError>;
-    fn ensure_not_temporary_disabled(&self, block: &BlockInfo) -> Result<(), ContractError>;
+    fn ensure_active(&self, block: &BlockInfo) -> Result<(), ContractError>;
     fn ensure_not_expired(&self, block: &BlockInfo) -> Result<(), ContractError>;
     fn validate_permission(
         &self,
@@ -114,8 +114,8 @@ impl Validate for Authorization {
         Ok(())
     }
 
-    fn ensure_not_temporary_disabled(&self, block: &BlockInfo) -> Result<(), ContractError> {
-        match self.disabled_until {
+    fn ensure_active(&self, block: &BlockInfo) -> Result<(), ContractError> {
+        match self.not_before {
             Expiration::Never {} => Ok(()),
             expiration => {
                 if !expiration.is_expired(block) {
@@ -240,7 +240,7 @@ impl Validate for Authorization {
         messages: &[Binary],
     ) -> Result<(), ContractError> {
         self.ensure_enabled()?;
-        self.ensure_not_temporary_disabled(block)?;
+        self.ensure_active(block)?;
         self.ensure_not_expired(block)?;
         self.validate_permission(querier, contract_address, info)?;
         self.validate_messages(store, messages)?;
@@ -253,6 +253,15 @@ fn check_restriction(
     json: &Value,
     param_restriction: &ParamRestriction,
 ) -> Result<(), ContractError> {
+    // Looks up a value by a JSON Pointer and returns a mutable reference to
+    // that value.
+    //
+    // JSON Pointer defines a string syntax for identifying a specific value
+    // within a JSON.
+    //
+    // A Pointer is a Unicode string with the reference tokens separated by `/`.
+    // The addressed value is returned and if there is no such value `None` is
+    // returned.
     let pointer = |keys: &[String]| -> String { keys.join("/") };
 
     match param_restriction {

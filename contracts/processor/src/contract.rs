@@ -2,15 +2,18 @@
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response, StdResult,
+    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response, StdResult,
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner};
 use valence_authorization_utils::authorization::{ActionBatch, Priority};
-use valence_processor_utils::processor::{Config, MessageBatch, PolytoneContracts, State};
+use valence_processor_utils::processor::{Config, MessageBatch, Polytone, State};
 
 use crate::{
     error::ContractError,
-    msg::{AuthoriationMsg, ExecuteMsg, InstantiateMsg, OwnerMsg, PermissionlessMsg, QueryMsg},
+    msg::{
+        AuthorizationMsg, ExecuteMsg, InstantiateMsg, OwnerMsg, PermissionlessMsg,
+        PolytoneContracts, QueryMsg,
+    },
     queue::get_queue_map,
     state::CONFIG,
 };
@@ -22,7 +25,7 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
@@ -31,19 +34,20 @@ pub fn instantiate(
     initialize_owner(
         deps.storage,
         deps.api,
-        Some(
-            deps.api
-                .addr_validate(msg.owner.unwrap_or(info.sender).as_str())?
-                .as_str(),
-        ),
+        Some(deps.api.addr_validate(&msg.owner)?.as_str()),
     )?;
 
     let config = Config {
-        authorization_contract: msg.authorization_contract,
-        polytone_contracts: msg.polytone_contracts,
+        authorization_contract: deps.api.addr_validate(&msg.authorization_contract)?,
+        polytone_contracts: match msg.polytone_contracts {
+            Some(pc) => Some(Polytone {
+                polytone_proxy_address: deps.api.addr_validate(&pc.polytone_proxy_address)?,
+                polytone_note_address: deps.api.addr_validate(&pc.polytone_note_address)?,
+            }),
+            None => None,
+        },
         state: State::Active,
     };
-    config.is_valid(deps.api)?;
 
     CONFIG.save(deps.storage, &config)?;
 
@@ -72,7 +76,7 @@ pub fn execute(
             let config = CONFIG.load(deps.storage)?;
 
             let authorized_sender = match config.polytone_contracts {
-                Some(polytone_contracts) => polytone_contracts.polytone_proxy_contract,
+                Some(polytone_contracts) => polytone_contracts.polytone_proxy_address,
                 None => config.authorization_contract,
             };
 
@@ -81,25 +85,25 @@ pub fn execute(
             }
 
             match authorization_module_msg {
-                AuthoriationMsg::EnqueueMsgs {
+                AuthorizationMsg::EnqueueMsgs {
                     id,
                     msgs,
                     action_batch,
                     priority,
                 } => enqueue_messages(deps, id, msgs, action_batch, priority),
-                AuthoriationMsg::RemoveMsgs {
+                AuthorizationMsg::RemoveMsgs {
                     queue_position,
                     priority,
                 } => remove_messages(deps, queue_position, priority),
-                AuthoriationMsg::AddMsgs {
+                AuthorizationMsg::AddMsgs {
                     id,
                     queue_position,
                     msgs,
                     action_batch,
                     priority,
                 } => add_messages(deps, queue_position, id, msgs, action_batch, priority),
-                AuthoriationMsg::Pause {} => pause_processor(deps),
-                AuthoriationMsg::Resume {} => resume_processor(deps),
+                AuthorizationMsg::Pause {} => pause_processor(deps),
+                AuthorizationMsg::Resume {} => resume_processor(deps),
             }
         }
         ExecuteMsg::PermissionlessAction(permissionless_msg) => match permissionless_msg {
@@ -120,38 +124,49 @@ fn update_ownership(
 
 fn update_config(
     deps: DepsMut,
-    authorization_contract: Option<Addr>,
+    authorization_contract: Option<String>,
     polytone_contracts: Option<PolytoneContracts>,
 ) -> Result<Response, ContractError> {
     let mut config = CONFIG.load(deps.storage)?;
 
     if let Some(authorization_contract) = authorization_contract {
-        config.authorization_contract = authorization_contract;
+        config.authorization_contract = deps.api.addr_validate(&authorization_contract)?;
     }
-    config.polytone_contracts = polytone_contracts;
-    config.is_valid(deps.api)?;
+
+    config.polytone_contracts = match polytone_contracts {
+        Some(pc) => Some(Polytone {
+            polytone_proxy_address: deps.api.addr_validate(&pc.polytone_proxy_address)?,
+            polytone_note_address: deps.api.addr_validate(&pc.polytone_note_address)?,
+        }),
+        None => None,
+    };
 
     CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new().add_attribute("method", "update_config"))
 }
 
+/// Sets the processor to Paused state, no more messages will be processed until resumed
 fn pause_processor(deps: DepsMut) -> Result<Response, ContractError> {
-    let mut config = CONFIG.load(deps.storage)?;
-    config.state = State::Paused;
-    CONFIG.save(deps.storage, &config)?;
+    CONFIG.update(deps.storage, |mut c| -> Result<_, ContractError> {
+        c.state = State::Paused;
+        Ok(c)
+    })?;
 
     Ok(Response::new().add_attribute("method", "pause_processor"))
 }
 
+/// Activates the processor, if it was paused it will process messages again
 fn resume_processor(deps: DepsMut) -> Result<Response, ContractError> {
-    let mut config = CONFIG.load(deps.storage)?;
-    config.state = State::Active;
-    CONFIG.save(deps.storage, &config)?;
+    CONFIG.update(deps.storage, |mut c| -> Result<_, ContractError> {
+        c.state = State::Active;
+        Ok(c)
+    })?;
 
     Ok(Response::new().add_attribute("method", "resume_processor"))
 }
 
+/// Adds the messages to the back of the corresponding queue
 fn enqueue_messages(
     deps: DepsMut,
     id: u64,
@@ -159,7 +174,7 @@ fn enqueue_messages(
     action_batch: ActionBatch,
     priority: Priority,
 ) -> Result<Response, ContractError> {
-    let mut queue = get_queue_map(&priority);
+    let queue = get_queue_map(&priority);
 
     let message_batch = MessageBatch {
         id,
@@ -183,6 +198,7 @@ fn remove_messages(
     Ok(Response::new().add_attribute("method", "remove_messages"))
 }
 
+/// Adds a set of messages in a specific position of the queue
 fn add_messages(
     deps: DepsMut,
     queue_position: u64,

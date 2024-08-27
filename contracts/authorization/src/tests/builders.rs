@@ -97,7 +97,7 @@ pub struct NeutronTestAppSetup {
 pub struct AuthorizationBuilder {
     label: String,
     mode: AuthorizationMode,
-    disabled_until: Expiration,
+    not_before: Expiration,
     duration: AuthorizationDuration,
     max_concurrent_executions: Option<u64>,
     action_batch: ActionBatch,
@@ -109,7 +109,7 @@ impl AuthorizationBuilder {
         AuthorizationBuilder {
             label: "authorization".to_string(),
             mode: AuthorizationMode::Permissionless,
-            disabled_until: Expiration::Never {},
+            not_before: Expiration::Never {},
             duration: AuthorizationDuration::Forever,
             max_concurrent_executions: None,
             action_batch: ActionBatchBuilder::new().build(),
@@ -127,8 +127,8 @@ impl AuthorizationBuilder {
         self
     }
 
-    pub fn with_disabled_until(mut self, disabled_until: Expiration) -> Self {
-        self.disabled_until = disabled_until;
+    pub fn with_not_before(mut self, not_before: Expiration) -> Self {
+        self.not_before = not_before;
         self
     }
 
@@ -156,7 +156,7 @@ impl AuthorizationBuilder {
         AuthorizationInfo {
             label: self.label,
             mode: self.mode,
-            disabled_until: self.disabled_until,
+            not_before: self.not_before,
             duration: self.duration,
             max_concurrent_executions: self.max_concurrent_executions,
             action_batch: self.action_batch,

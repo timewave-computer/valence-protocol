@@ -41,9 +41,9 @@ fn contract_instantiation() {
     let contract_addr = store_and_instantiate_authorization_contract(
         &wasm,
         &setup.accounts[0],
-        Some(setup.user_addr.clone()),
-        vec![setup.subowner_addr.clone(), subowner2.clone()],
-        setup.processor_addr.clone(),
+        setup.user_addr.to_string(),
+        vec![setup.subowner_addr.to_string(), subowner2.to_string()],
+        setup.processor_addr.to_string(),
         vec![setup.external_domain.clone()],
     );
 
@@ -88,9 +88,9 @@ fn contract_instantiation() {
     let contract_addr = store_and_instantiate_authorization_contract(
         &wasm,
         &setup.accounts[0],
-        None,
+        setup.owner_addr.to_string(),
         vec![],
-        setup.processor_addr,
+        setup.processor_addr.to_string(),
         vec![],
     );
 
@@ -135,9 +135,9 @@ fn transfer_ownership() {
     let contract_addr = store_and_instantiate_authorization_contract(
         &wasm,
         &setup.accounts[0],
-        None,
+        setup.owner_addr.to_string(),
         vec![],
-        setup.processor_addr,
+        setup.processor_addr.to_string(),
         vec![],
     );
 
@@ -198,9 +198,9 @@ fn add_and_remove_sub_owners() {
     let contract_addr = store_and_instantiate_authorization_contract(
         &wasm,
         &setup.accounts[0],
-        None,
+        setup.owner_addr.to_string(),
         vec![],
-        setup.processor_addr,
+        setup.processor_addr.to_string(),
         vec![],
     );
 
@@ -208,7 +208,7 @@ fn add_and_remove_sub_owners() {
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
         &ExecuteMsg::OwnerAction(OwnerMsg::AddSubOwner {
-            sub_owner: setup.subowner_addr.clone(),
+            sub_owner: setup.subowner_addr.to_string(),
         }),
         &[],
         &setup.accounts[0],
@@ -227,7 +227,7 @@ fn add_and_remove_sub_owners() {
         .execute::<ExecuteMsg>(
             &contract_addr,
             &ExecuteMsg::OwnerAction(OwnerMsg::AddSubOwner {
-                sub_owner: setup.subowner_addr.clone(),
+                sub_owner: setup.subowner_addr.to_string(),
             }),
             &[],
             &setup.accounts[1],
@@ -244,7 +244,7 @@ fn add_and_remove_sub_owners() {
         .execute::<ExecuteMsg>(
             &contract_addr,
             &ExecuteMsg::OwnerAction(OwnerMsg::RemoveSubOwner {
-                sub_owner: setup.subowner_addr.clone(),
+                sub_owner: setup.subowner_addr.to_string(),
             }),
             &[],
             &setup.accounts[1],
@@ -261,7 +261,7 @@ fn add_and_remove_sub_owners() {
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
         &ExecuteMsg::OwnerAction(OwnerMsg::RemoveSubOwner {
-            sub_owner: setup.subowner_addr.clone(),
+            sub_owner: setup.subowner_addr.to_string(),
         }),
         &[],
         &setup.accounts[0],
@@ -287,9 +287,9 @@ fn add_external_domains() {
     let contract_addr = store_and_instantiate_authorization_contract(
         &wasm,
         &setup.accounts[0],
-        None,
+        setup.owner_addr.to_string(),
         vec![],
-        setup.processor_addr,
+        setup.processor_addr.to_string(),
         vec![],
     );
 
@@ -333,9 +333,9 @@ fn create_valid_authorizations() {
     let contract_addr = store_and_instantiate_authorization_contract(
         &wasm,
         &setup.accounts[0],
-        None,
-        vec![setup.subowner_addr.clone()],
-        setup.processor_addr.clone(),
+        setup.owner_addr.to_string(),
+        vec![setup.subowner_addr.to_string()],
+        setup.processor_addr.to_string(),
         vec![setup.external_domain.clone()],
     );
 
@@ -625,9 +625,9 @@ fn create_invalid_authorizations() {
     let contract_addr = store_and_instantiate_authorization_contract(
         &wasm,
         &setup.accounts[0],
-        None,
+        setup.owner_addr.to_string(),
         vec![],
-        setup.processor_addr.clone(),
+        setup.processor_addr.to_string(),
         vec![setup.external_domain.clone()],
     );
 
@@ -742,9 +742,9 @@ fn modify_authorization() {
     let contract_addr = store_and_instantiate_authorization_contract(
         &wasm,
         &setup.accounts[0],
-        None,
-        vec![setup.subowner_addr],
-        setup.processor_addr.clone(),
+        setup.owner_addr.to_string(),
+        vec![setup.subowner_addr.to_string()],
+        setup.processor_addr.to_string(),
         vec![],
     );
 
@@ -775,7 +775,7 @@ fn modify_authorization() {
         &contract_addr,
         &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
             label: "authorization".to_string(),
-            disabled_until: Some(Expiration::AtTime(Timestamp::from_seconds(100))),
+            not_before: Some(Expiration::AtTime(Timestamp::from_seconds(100))),
             expiration: Some(Expiration::AtHeight(50)),
             max_concurrent_executions: None,
             priority: None,
@@ -803,7 +803,7 @@ fn modify_authorization() {
         &contract_addr,
         &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
             label: "authorization".to_string(),
-            disabled_until: None,
+            not_before: None,
             expiration: None,
             max_concurrent_executions: Some(5),
             priority: Some(Priority::High),
@@ -833,7 +833,7 @@ fn modify_authorization() {
             &contract_addr,
             &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
                 label: "authorization".to_string(),
-                disabled_until: None,
+                not_before: None,
                 expiration: None,
                 max_concurrent_executions: None,
                 priority: Some(Priority::Medium),
@@ -855,7 +855,7 @@ fn modify_authorization() {
             &contract_addr,
             &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
                 label: "non-existing-label".to_string(),
-                disabled_until: None,
+                not_before: None,
                 expiration: None,
                 max_concurrent_executions: None,
                 priority: Some(Priority::Medium),
@@ -956,9 +956,9 @@ fn mint_authorizations() {
     let contract_addr = store_and_instantiate_authorization_contract(
         &wasm,
         &setup.accounts[0],
-        None,
-        vec![setup.subowner_addr.clone()],
-        setup.processor_addr.clone(),
+        setup.owner_addr.to_string(),
+        vec![setup.subowner_addr.to_string()],
+        setup.processor_addr.to_string(),
         vec![],
     );
 

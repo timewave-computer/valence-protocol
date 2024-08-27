@@ -1,37 +1,42 @@
 use std::collections::VecDeque;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary};
+use cosmwasm_std::Binary;
 use cw_ownable::{cw_ownable_execute, cw_ownable_query};
 use valence_authorization_utils::authorization::{ActionBatch, Priority};
-use valence_processor_utils::processor::{Config, MessageBatch, PolytoneContracts};
+use valence_processor_utils::processor::{Config, MessageBatch};
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    // If not provided, the owner will be the sender
-    pub owner: Option<Addr>,
-    pub authorization_contract: Addr,
+    pub owner: String,
+    pub authorization_contract: String,
     pub polytone_contracts: Option<PolytoneContracts>,
+}
+
+#[cw_serde]
+pub struct PolytoneContracts {
+    pub polytone_proxy_address: String,
+    pub polytone_note_address: String,
 }
 
 #[cw_ownable_execute]
 #[cw_serde]
 pub enum ExecuteMsg {
     OwnerAction(OwnerMsg),
-    AuthorizationModuleAction(AuthoriationMsg),
+    AuthorizationModuleAction(AuthorizationMsg),
     PermissionlessAction(PermissionlessMsg),
 }
 
 #[cw_serde]
 pub enum OwnerMsg {
     UpdateConfig {
-        authorization_contract: Option<Addr>,
+        authorization_contract: Option<String>,
         polytone_contracts: Option<PolytoneContracts>,
     },
 }
 
 #[cw_serde]
-pub enum AuthoriationMsg {
+pub enum AuthorizationMsg {
     EnqueueMsgs {
         // Used for the callback or to remove the messages
         id: u64,
