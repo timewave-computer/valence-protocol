@@ -262,6 +262,15 @@ fn check_restriction(
     // A Pointer is a Unicode string with the reference tokens separated by `/`.
     // The addressed value is returned and if there is no such value `None` is
     // returned.
+    // Example:
+    // let data = json!({
+    //     "x": {
+    //         "y": ["z", "zz"]
+    //     }
+    // });
+    // 
+    // assert_eq!(data.pointer("/x/y/1").unwrap(), &json!("zz"));
+    // assert_eq!(data.pointer("/a/b/c"), None);
     let pointer = |keys: &[String]| -> String { keys.join("/") };
 
     match param_restriction {
