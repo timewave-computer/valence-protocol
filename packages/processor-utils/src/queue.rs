@@ -117,7 +117,6 @@ where
             {
                 if let Ok(elem) = self.elements.load(storage, i) {
                     self.elements.save(storage, i - 1, &elem)?;
-                    self.elements.remove(storage, i);
                 }
             }
 
