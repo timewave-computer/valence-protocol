@@ -180,8 +180,8 @@ fn user_enqueing_messages() {
         .query::<ProcessorQueryMsg, Vec<MessageBatch>>(
             &processor_contract,
             &ProcessorQueryMsg::GetQueue {
-                from: Some(0),
-                to: Some(2),
+                from: Some(2),
+                to: Some(4),
                 priority: Priority::Medium,
             },
         )
@@ -189,7 +189,7 @@ fn user_enqueing_messages() {
 
     assert_eq!(query_med_prio_queue.len(), 2);
     for (i, batch) in query_med_prio_queue.iter().enumerate() {
-        assert_eq!(batch.id, i as u64);
+        assert_eq!(batch.id, i as u64 + 2);
         assert_eq!(batch.msgs, vec![message.clone()]);
     }
 
