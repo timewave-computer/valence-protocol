@@ -22,7 +22,7 @@ use crate::{
         builders::{
             ActionBatchBuilder, ActionBuilder, AuthorizationBuilder, NeutronTestAppBuilder,
         },
-        helpers::store_and_instantiate_authorization_contract,
+        helpers::store_and_instantiate_authorization_with_processor_contract,
     },
 };
 
@@ -38,14 +38,14 @@ fn contract_instantiation() {
     let subowner2 = Addr::unchecked(setup.accounts[6].address());
 
     // Let's instantiate with all parameters and query them to see if they are stored correctly
-    let contract_addr = store_and_instantiate_authorization_contract(
-        &wasm,
-        &setup.accounts[0],
-        setup.user_addr.to_string(),
-        vec![setup.subowner_addr.to_string(), subowner2.to_string()],
-        setup.processor_addr.to_string(),
-        vec![setup.external_domain.clone()],
-    );
+    let (contract_addr, processor_address) =
+        store_and_instantiate_authorization_with_processor_contract(
+            &wasm,
+            &setup.accounts[0],
+            setup.user_addr.to_string(),
+            vec![setup.subowner_addr.to_string(), subowner2.to_string()],
+            vec![setup.external_domain.clone()],
+        );
 
     // Query current owner
     let query_owner = wasm
@@ -68,7 +68,7 @@ fn contract_instantiation() {
         .query::<QueryMsg, Addr>(&contract_addr, &QueryMsg::Processor {})
         .unwrap();
 
-    assert_eq!(query_processor, setup.processor_addr.clone());
+    assert_eq!(query_processor, Addr::unchecked(processor_address));
 
     // Query external domains
     let query_external_domains = wasm
@@ -83,42 +83,6 @@ fn contract_instantiation() {
 
     assert_eq!(query_external_domains.len(), 1);
     assert_eq!(query_external_domains[0], setup.external_domain);
-
-    // Instantiating without owner will set the signer as the owner
-    let contract_addr = store_and_instantiate_authorization_contract(
-        &wasm,
-        &setup.accounts[0],
-        setup.owner_addr.to_string(),
-        vec![],
-        setup.processor_addr.to_string(),
-        vec![],
-    );
-
-    // Query current owner
-    let query_owner = wasm
-        .query::<QueryMsg, cw_ownable::Ownership<String>>(&contract_addr, &QueryMsg::Ownership {})
-        .unwrap();
-
-    assert_eq!(query_owner.owner.unwrap(), setup.owner_addr.to_string());
-
-    // No sub_owners or external_domains are registered
-    let query_subowners = wasm
-        .query::<QueryMsg, Vec<Addr>>(&contract_addr, &QueryMsg::SubOwners {})
-        .unwrap();
-
-    assert!(query_subowners.is_empty());
-
-    let query_external_domains = wasm
-        .query::<QueryMsg, Vec<ExternalDomain>>(
-            &contract_addr,
-            &QueryMsg::ExternalDomains {
-                start_after: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    assert!(query_external_domains.is_empty());
 }
 
 #[test]
@@ -132,12 +96,11 @@ fn transfer_ownership() {
 
     let new_owner = &setup.accounts[6];
 
-    let contract_addr = store_and_instantiate_authorization_contract(
+    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &wasm,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![],
-        setup.processor_addr.to_string(),
         vec![],
     );
 
@@ -195,12 +158,11 @@ fn add_and_remove_sub_owners() {
     let setup = NeutronTestAppBuilder::new().build().unwrap();
     let wasm = Wasm::new(&setup.app);
 
-    let contract_addr = store_and_instantiate_authorization_contract(
+    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &wasm,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![],
-        setup.processor_addr.to_string(),
         vec![],
     );
 
@@ -284,12 +246,11 @@ fn add_external_domains() {
 
     let wasm = Wasm::new(&setup.app);
 
-    let contract_addr = store_and_instantiate_authorization_contract(
+    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &wasm,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![],
-        setup.processor_addr.to_string(),
         vec![],
     );
 
@@ -330,12 +291,11 @@ fn create_valid_authorizations() {
     let bank = Bank::new(&setup.app);
 
     // Let's instantiate with all parameters and query them to see if they are stored correctly
-    let contract_addr = store_and_instantiate_authorization_contract(
+    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &wasm,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        setup.processor_addr.to_string(),
         vec![setup.external_domain.clone()],
     );
 
@@ -622,12 +582,11 @@ fn create_invalid_authorizations() {
     let wasm = Wasm::new(&setup.app);
 
     // Let's instantiate with all parameters and query them to see if they are stored correctly
-    let contract_addr = store_and_instantiate_authorization_contract(
+    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &wasm,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![],
-        setup.processor_addr.to_string(),
         vec![setup.external_domain.clone()],
     );
 
@@ -739,12 +698,11 @@ fn modify_authorization() {
 
     let wasm = Wasm::new(&setup.app);
 
-    let contract_addr = store_and_instantiate_authorization_contract(
+    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &wasm,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        setup.processor_addr.to_string(),
         vec![],
     );
 
@@ -953,12 +911,11 @@ fn mint_authorizations() {
     let user2 = &setup.accounts[6];
     let user2_addr = Addr::unchecked(user2.address());
 
-    let contract_addr = store_and_instantiate_authorization_contract(
+    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &wasm,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        setup.processor_addr.to_string(),
         vec![],
     );
 

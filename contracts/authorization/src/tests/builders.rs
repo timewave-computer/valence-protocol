@@ -27,7 +27,7 @@ impl NeutronTestAppBuilder {
             external_domain: "osmosis".to_string(),
             fee_denom: FEE_DENOM.to_string(),
             initial_balance: 100_000_000_000,
-            num_accounts: 6,
+            num_accounts: 5,
         }
     }
 
@@ -39,8 +39,8 @@ impl NeutronTestAppBuilder {
     pub fn build(self) -> Result<NeutronTestAppSetup, &'static str> {
         let app = NeutronTestApp::new();
 
-        if self.num_accounts < 6 {
-            return Err("Number of accounts must be at least 6");
+        if self.num_accounts < 5 {
+            return Err("Number of accounts must be at least 5");
         }
 
         let accounts = app
@@ -53,13 +53,11 @@ impl NeutronTestAppBuilder {
         let owner = &accounts[0];
         let subowner = &accounts[1];
         let user = &accounts[2];
-        let processor = &accounts[3];
-        let connector = &accounts[4];
-        let callback_proxy = &accounts[5];
+        let connector = &accounts[3];
+        let callback_proxy = &accounts[4];
 
         let owner_addr = Addr::unchecked(owner.address());
         let subowner_addr = Addr::unchecked(subowner.address());
-        let processor_addr = Addr::unchecked(processor.address());
         let connector_addr = Addr::unchecked(connector.address());
         let callback_proxy_addr = Addr::unchecked(callback_proxy.address());
         let user_addr = Addr::unchecked(user.address());
@@ -79,7 +77,6 @@ impl NeutronTestAppBuilder {
             owner_addr,
             subowner_addr,
             user_addr,
-            processor_addr,
         })
     }
 }
@@ -91,7 +88,6 @@ pub struct NeutronTestAppSetup {
     pub owner_addr: Addr,
     pub subowner_addr: Addr,
     pub user_addr: Addr,
-    pub processor_addr: Addr,
 }
 
 pub struct AuthorizationBuilder {

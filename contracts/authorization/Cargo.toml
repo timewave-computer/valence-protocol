@@ -26,3 +26,4 @@ serde_json                  = { workspace = true }
 
 [dev-dependencies]
 neutron-test-tube = { workspace = true }
+valence-processor = { workspace = true }

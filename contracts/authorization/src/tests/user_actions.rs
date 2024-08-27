@@ -16,7 +16,7 @@ use crate::{
 
 use super::{
     builders::{ActionBatchBuilder, ActionBuilder, AuthorizationBuilder, NeutronTestAppBuilder},
-    helpers::store_and_instantiate_authorization_contract,
+    helpers::store_and_instantiate_authorization_with_processor_contract,
 };
 
 #[test]
@@ -28,12 +28,11 @@ fn disabled() {
 
     let wasm = Wasm::new(&setup.app);
 
-    let contract_addr = store_and_instantiate_authorization_contract(
+    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &wasm,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        setup.processor_addr.to_string(),
         vec![setup.external_domain.clone()],
     );
 
@@ -116,12 +115,11 @@ fn invalid_time() {
 
     let wasm = Wasm::new(&setup.app);
 
-    let contract_addr = store_and_instantiate_authorization_contract(
+    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &wasm,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        setup.processor_addr.to_string(),
         vec![setup.external_domain.clone()],
     );
 
@@ -312,12 +310,11 @@ fn invalid_permission() {
 
     let wasm = Wasm::new(&setup.app);
 
-    let contract_addr = store_and_instantiate_authorization_contract(
+    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &wasm,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        setup.processor_addr.to_string(),
         vec![setup.external_domain.clone()],
     );
 
@@ -428,12 +425,11 @@ fn invalid_messages() {
 
     let wasm = Wasm::new(&setup.app);
 
-    let contract_addr = store_and_instantiate_authorization_contract(
+    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &wasm,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        setup.processor_addr.to_string(),
         vec![setup.external_domain.clone()],
     );
 
