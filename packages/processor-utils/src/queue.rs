@@ -13,11 +13,15 @@ impl<T> QueueMap<T>
 where
     T: Serialize + DeserializeOwned,
 {
-    pub const fn new(elements_namespace: &'static str) -> Self {
+    pub const fn new(
+        elements_namespace: &'static str,
+        start_index_namespace: &'static str,
+        end_index_namespace: &'static str,
+    ) -> Self {
         Self {
             elements: Map::new(elements_namespace),
-            start_index: Item::new("start_index"),
-            end_index: Item::new("end_index"),
+            start_index: Item::new(start_index_namespace),
+            end_index: Item::new(end_index_namespace),
         }
     }
 
@@ -179,7 +183,7 @@ mod tests {
     fn test_push_and_pop() {
         let mut deps = mock_dependencies();
         let storage = &mut deps.storage;
-        let queue = QueueMap::new("elements");
+        let queue = QueueMap::new("elements", "elements_start_index", "elements_end_index");
 
         queue.push_back(storage, &"first".to_string()).unwrap();
         queue.push_back(storage, &"second".to_string()).unwrap();
@@ -202,22 +206,27 @@ mod tests {
     fn test_insert_and_remove_at() {
         let mut deps = mock_dependencies();
         let storage = &mut deps.storage;
-        let mut queue = QueueMap::new("elements");
+        let mut queue = QueueMap::new("elements", "elements_start_index", "elements_end_index");
 
         queue.push_back(storage, &"first".to_string()).unwrap();
         queue.push_back(storage, &"third".to_string()).unwrap();
+        queue.push_back(storage, &"fourth".to_string()).unwrap();
+        queue.push_back(storage, &"fifth".to_string()).unwrap();
         queue.insert_at(storage, 1, &"second".to_string()).unwrap();
 
-        assert_eq!(queue.len(storage).unwrap(), 3);
+        let items = queue.query(storage, None, None, Order::Ascending).unwrap();
+        assert_eq!(items[0], "first".to_string());
+        assert_eq!(items[1], "second".to_string());
+        assert_eq!(items[2], "third".to_string());
 
         assert_eq!(
             queue.remove_at(storage, 1).unwrap(),
             Some("second".to_string())
         );
-        assert_eq!(queue.len(storage).unwrap(), 2);
+        assert_eq!(queue.len(storage).unwrap(), 4);
 
         let items = queue.query(storage, None, None, Order::Ascending).unwrap();
-        assert_eq!(items.len(), 2);
+        assert_eq!(items.len(), 4);
         assert_eq!(items[0], "first".to_string());
         assert_eq!(items[1], "third".to_string());
 
@@ -226,15 +235,27 @@ mod tests {
             Some("first".to_string())
         );
         let items = queue.query(storage, None, None, Order::Ascending).unwrap();
-        assert_eq!(items.len(), 1);
+        assert_eq!(items.len(), 3);
         assert_eq!(items[0], "third".to_string());
+
+        let mut queue = QueueMap::new("elements2", "elements2_start_index", "elements2_end_index");
+
+        queue.push_back(storage, &1).unwrap();
+        queue.push_back(storage, &2).unwrap();
+        queue.push_back(storage, &3).unwrap();
+        queue.push_back(storage, &4).unwrap();
+        queue.push_back(storage, &5).unwrap();
+        queue.insert_at(storage, 1, &10).unwrap();
+
+        let items = queue.query(storage, None, None, Order::Ascending).unwrap();
+        assert_eq!(items, vec![1, 10, 2, 3, 4, 5]);
     }
 
     #[test]
     fn test_query() {
         let mut deps = mock_dependencies();
         let storage = &mut deps.storage;
-        let queue = QueueMap::new("elements");
+        let queue = QueueMap::new("elements", "elements_start_index", "elements_end_index");
 
         for i in 0..5 {
             queue.push_back(storage, &i.to_string()).unwrap();
@@ -264,7 +285,7 @@ mod tests {
     fn test_out_of_bounds() {
         let mut deps = mock_dependencies();
         let storage = &mut deps.storage;
-        let mut queue = QueueMap::new("elements");
+        let mut queue = QueueMap::new("elements", "elements_start_index", "elements_end_index");
 
         queue.push_back(storage, &"first".to_string()).unwrap();
 
@@ -276,7 +297,7 @@ mod tests {
     fn test_complex_operations() {
         let mut deps = mock_dependencies();
         let storage = &mut deps.storage;
-        let mut queue = QueueMap::new("elements");
+        let mut queue = QueueMap::new("elements", "elements_start_index", "elements_end_index");
 
         queue.push_back(storage, &"1".to_string()).unwrap();
         queue.push_back(storage, &"2".to_string()).unwrap();

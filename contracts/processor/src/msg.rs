@@ -1,5 +1,3 @@
-use std::collections::VecDeque;
-
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Binary;
 use cw_ownable::{cw_ownable_execute, cw_ownable_query};
@@ -70,7 +68,7 @@ pub enum PermissionlessMsg {
 pub enum QueryMsg {
     #[returns(Config)]
     Config {},
-    #[returns(VecDeque<MessageBatch>)]
+    #[returns(Vec<MessageBatch>)]
     GetQueue {
         from: Option<u64>,
         to: Option<u64>,

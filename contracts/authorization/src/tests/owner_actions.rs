@@ -29,13 +29,13 @@ use crate::{
 #[test]
 fn contract_instantiation() {
     let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(7)
+        .with_num_accounts(6)
         .build()
         .unwrap();
 
     let wasm = Wasm::new(&setup.app);
 
-    let subowner2 = Addr::unchecked(setup.accounts[6].address());
+    let subowner2 = Addr::unchecked(setup.accounts[5].address());
 
     // Let's instantiate with all parameters and query them to see if they are stored correctly
     let (contract_addr, processor_address) =

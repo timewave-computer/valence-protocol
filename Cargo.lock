@@ -4128,6 +4128,7 @@ dependencies = [
  "thiserror",
  "valence-authorization-utils",
  "valence-processor",
+ "valence-processor-utils",
 ]
 
 [[package]]

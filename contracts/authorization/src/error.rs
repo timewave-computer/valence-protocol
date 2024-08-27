@@ -59,6 +59,9 @@ pub enum AuthorizationErrorReason {
 
     #[error("Permissionless authorizations don't have a token that can be minted")]
     CantMintForPermissionless {},
+
+    #[error("The authorization has reached its max concurrent executions")]
+    MaxConcurrentExecutionsReached {},
 }
 
 #[derive(Error, Debug, PartialEq)]

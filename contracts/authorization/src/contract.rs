@@ -20,7 +20,10 @@ use crate::{
     domain::{add_domain, create_wasm_msg_for_processor_or_proxy, get_domain},
     error::{AuthorizationErrorReason, ContractError, UnauthorizedReason},
     msg::{ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, QueryMsg, SubOwnerMsg, UserMsg},
-    state::{AUTHORIZATIONS, EXECUTION_ID, EXTERNAL_DOMAINS, PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS},
+    state::{
+        AUTHORIZATIONS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS,
+        PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS,
+    },
 };
 
 // pagination info for queries
@@ -372,6 +375,14 @@ fn add_messages(
         })?;
 
     // We dont need to perform any validation because this is sent by the owner
+    let current_executions = CURRENT_EXECUTIONS
+        .load(deps.storage, label.clone())
+        .unwrap_or_default();
+    CURRENT_EXECUTIONS.save(
+        deps.storage,
+        label,
+        &current_executions.checked_add(1).expect("Overflow"),
+    )?;
 
     let domain = get_domain(&authorization)?;
     let id = get_and_increase_execution_id(deps.storage)?;
@@ -433,6 +444,21 @@ fn send_msgs(
         env.contract.address.as_str(),
         &info,
         &messages,
+    )?;
+
+    // We need to check that we haven't reached the max concurrent executions and if not, increase it by 1
+    let current_executions = CURRENT_EXECUTIONS
+        .load(deps.storage, label.clone())
+        .unwrap_or_default();
+    if current_executions >= authorization.max_concurrent_executions {
+        return Err(ContractError::Authorization(
+            AuthorizationErrorReason::MaxConcurrentExecutionsReached {},
+        ));
+    }
+    CURRENT_EXECUTIONS.save(
+        deps.storage,
+        label,
+        &current_executions.checked_add(1).expect("Overflow"),
     )?;
 
     // Get the domain to know which processor to use
