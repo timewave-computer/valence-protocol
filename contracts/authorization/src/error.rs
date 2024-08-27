@@ -59,6 +59,9 @@ pub enum AuthorizationErrorReason {
 
     #[error("Permissionless authorizations don't have a token that can be minted")]
     CantMintForPermissionless {},
+
+    #[error("The authorization has reached its max concurrent executions")]
+    MaxConcurrentExecutionsReached {},
 }
 
 #[derive(Error, Debug, PartialEq)]
@@ -89,4 +92,7 @@ pub enum MessageErrorReason {
 
     #[error("The message doesn't pass all the parameter restrictions")]
     InvalidMessageParams {},
+
+    #[error("The message can only have one top level key")]
+    InvalidStructure {},
 }

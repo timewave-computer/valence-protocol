@@ -10,7 +10,7 @@ pub struct AuthorizationInfo {
     // Unique ID for the authorization, will be used as denom of the TokenFactory token if needed
     pub label: String,
     pub mode: AuthorizationMode,
-    pub start_time: StartTime,
+    pub not_before: Expiration,
     pub duration: AuthorizationDuration,
     // Default will be 1, defines how many times a specific authorization can be executed concurrently
     pub max_concurrent_executions: Option<u64>,
@@ -31,7 +31,7 @@ pub enum AuthorizationDuration {
 pub struct Authorization {
     pub label: String,
     pub mode: AuthorizationMode,
-    pub start_time: StartTime,
+    pub not_before: Expiration,
     pub expiration: Expiration,
     pub max_concurrent_executions: u64,
     pub action_batch: ActionBatch,
@@ -53,7 +53,7 @@ impl AuthorizationInfo {
         Authorization {
             label: self.label,
             mode: self.mode,
-            start_time: self.start_time,
+            not_before: self.not_before,
             expiration,
             max_concurrent_executions: self.max_concurrent_executions.unwrap_or(1),
             action_batch: self.action_batch,
@@ -67,23 +67,6 @@ impl AuthorizationInfo {
 pub enum AuthorizationMode {
     Permissioned(PermissionType),
     Permissionless,
-}
-
-#[cw_serde]
-pub enum StartTime {
-    Anytime,
-    AtHeight(u64),
-    AtTime(u64),
-}
-
-impl StartTime {
-    pub fn is_started(&self, block: &BlockInfo) -> bool {
-        match self {
-            StartTime::Anytime => true,
-            StartTime::AtHeight(height) => block.height >= *height,
-            StartTime::AtTime(time) => block.time.seconds() >= *time,
-        }
-    }
 }
 
 #[cw_serde]

@@ -1,5 +1,5 @@
 use cosmwasm_std::{Binary, BlockInfo, MessageInfo, QuerierWrapper, Storage, Uint128};
-use cw_utils::must_pay;
+use cw_utils::{must_pay, Expiration};
 use serde_json::Value;
 use valence_authorization_utils::{
     authorization::{
@@ -19,7 +19,7 @@ use crate::{
 pub trait Validate {
     fn validate(&self, store: &dyn Storage) -> Result<(), ContractError>;
     fn ensure_enabled(&self) -> Result<(), ContractError>;
-    fn ensure_started(&self, block: &BlockInfo) -> Result<(), ContractError>;
+    fn ensure_active(&self, block: &BlockInfo) -> Result<(), ContractError>;
     fn ensure_not_expired(&self, block: &BlockInfo) -> Result<(), ContractError>;
     fn validate_permission(
         &self,
@@ -114,14 +114,19 @@ impl Validate for Authorization {
         Ok(())
     }
 
-    fn ensure_started(&self, block: &BlockInfo) -> Result<(), ContractError> {
-        if !self.start_time.is_started(block) {
-            return Err(ContractError::Unauthorized(
-                UnauthorizedReason::NotActiveYet {},
-            ));
+    fn ensure_active(&self, block: &BlockInfo) -> Result<(), ContractError> {
+        match self.not_before {
+            Expiration::Never {} => Ok(()),
+            expiration => {
+                if !expiration.is_expired(block) {
+                    Err(ContractError::Unauthorized(
+                        UnauthorizedReason::NotActiveYet {},
+                    ))
+                } else {
+                    Ok(())
+                }
+            }
         }
-
-        Ok(())
     }
 
     fn ensure_not_expired(&self, block: &BlockInfo) -> Result<(), ContractError> {
@@ -195,7 +200,14 @@ impl Validate for Authorization {
                             }
                         })?;
 
-                    // Check if the message matches the action
+                    // Check that json only has one top level key
+                    if json.as_object().map(|obj| obj.len()).unwrap_or(0) != 1 {
+                        return Err(ContractError::Message(
+                            MessageErrorReason::InvalidStructure {},
+                        ));
+                    }
+
+                    // Check that top level key matches the message name
                     if json
                         .get(each_action.message_details.message.name.as_str())
                         .is_none()
@@ -211,13 +223,9 @@ impl Validate for Authorization {
                             check_restriction(&json, each_restriction)?;
                         }
                     }
-
-                    // TODO: Create the Processor/Polytone Message
                 }
             }
         }
-
-        // TODO: Return the list of messages to be sent to the processor/connector
 
         Ok(())
     }
@@ -232,7 +240,7 @@ impl Validate for Authorization {
         messages: &[Binary],
     ) -> Result<(), ContractError> {
         self.ensure_enabled()?;
-        self.ensure_started(block)?;
+        self.ensure_active(block)?;
         self.ensure_not_expired(block)?;
         self.validate_permission(querier, contract_address, info)?;
         self.validate_messages(store, messages)?;
@@ -245,52 +253,50 @@ fn check_restriction(
     json: &Value,
     param_restriction: &ParamRestriction,
 ) -> Result<(), ContractError> {
+    // Looks up a value by a JSON Pointer and returns a mutable reference to
+    // that value.
+    //
+    // JSON Pointer defines a string syntax for identifying a specific value
+    // within a JSON.
+    //
+    // A Pointer is a Unicode string with the reference tokens separated by `/`.
+    // The addressed value is returned and if there is no such value `None` is
+    // returned.
+    // Example:
+    // let data = json!({
+    //     "x": {
+    //         "y": ["z", "zz"]
+    //     }
+    // });
+    //
+    // assert_eq!(data.pointer("/x/y/1").unwrap(), &json!("zz"));
+    // assert_eq!(data.pointer("/a/b/c"), None);
+    let pointer = |keys: &[String]| -> String { keys.join("/") };
+
     match param_restriction {
         ParamRestriction::MustBeIncluded(keys) => {
-            let mut current_value = json;
-            for key in keys {
-                current_value = current_value.get(key).ok_or(ContractError::Message(
-                    MessageErrorReason::InvalidMessageParams {},
-                ))?;
-            }
+            json.pointer(&pointer(keys)).ok_or(ContractError::Message(
+                MessageErrorReason::InvalidMessageParams {},
+            ))?;
         }
         ParamRestriction::CannotBeIncluded(keys) => {
-            let mut current_value = json;
-            for key in keys.iter().take(keys.len() - 1) {
-                current_value = match current_value.get(key) {
-                    Some(value) => value,
-                    None => return Ok(()), // If part of the path doesn't exist, it's valid
-                };
-            }
-            // Check the final key in the path
-            if let Some(final_key) = keys.last() {
-                if current_value.get(final_key).is_some() {
-                    return Err(ContractError::Message(
-                        MessageErrorReason::InvalidMessageParams {},
-                    ));
-                }
+            if json.pointer(&pointer(keys)).is_some() {
+                return Err(ContractError::Message(
+                    MessageErrorReason::InvalidMessageParams {},
+                ));
             }
         }
         ParamRestriction::MustBeValue(keys, value) => {
-            let mut current_value = json;
-            for key in keys.iter().take(keys.len() - 1) {
-                current_value = current_value.get(key).ok_or(ContractError::Message(
+            let final_value = json.pointer(&pointer(keys)).ok_or(ContractError::Message(
+                MessageErrorReason::InvalidMessageParams {},
+            ))?;
+            // Deserialize the expected value for a more robust comparison
+            let expected: Value = serde_json::from_slice(value)
+                .map_err(|_| ContractError::Message(MessageErrorReason::InvalidMessageParams {}))?;
+            if *final_value != expected {
+                return Err(ContractError::Message(
                     MessageErrorReason::InvalidMessageParams {},
-                ))?;
-            }
-            if let Some(final_key) = keys.last() {
-                let final_value = current_value.get(final_key).ok_or(ContractError::Message(
-                    MessageErrorReason::InvalidMessageParams {},
-                ))?;
-                // Deserialize the expected value for a more robust comparison
-                let expected: Value = serde_json::from_slice(value).map_err(|_| {
-                    ContractError::Message(MessageErrorReason::InvalidMessageParams {})
-                })?;
-                if *final_value != expected {
-                    return Err(ContractError::Message(
-                        MessageErrorReason::InvalidMessageParams {},
-                    ));
-                }
+                ));
             }
         }
     }

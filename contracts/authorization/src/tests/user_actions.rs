@@ -1,8 +1,9 @@
-use cosmwasm_std::{Binary, Uint128};
+use cosmwasm_std::{Binary, Timestamp, Uint128};
+use cw_utils::Expiration;
 use neutron_test_tube::{neutron_std::types::cosmos::base::v1beta1::Coin, Module, Wasm};
 use serde_json::json;
 use valence_authorization_utils::{
-    authorization::{AuthorizationDuration, AuthorizationMode, PermissionType, StartTime},
+    authorization::{AuthorizationDuration, AuthorizationMode, PermissionType},
     message::{Message, MessageDetails, MessageType, ParamRestriction},
 };
 
@@ -15,7 +16,7 @@ use crate::{
 
 use super::{
     builders::{ActionBatchBuilder, ActionBuilder, AuthorizationBuilder, NeutronTestAppBuilder},
-    helpers::store_and_instantiate_authorization_contract,
+    helpers::store_and_instantiate_authorization_with_processor_contract,
 };
 
 #[test]
@@ -27,12 +28,11 @@ fn disabled() {
 
     let wasm = Wasm::new(&setup.app);
 
-    let contract_addr = store_and_instantiate_authorization_contract(
+    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &wasm,
         &setup.accounts[0],
-        None,
-        vec![setup.subowner_addr.clone()],
-        setup.processor_addr.clone(),
+        setup.owner_addr.to_string(),
+        vec![setup.subowner_addr.to_string()],
         vec![setup.external_domain.clone()],
     );
 
@@ -115,12 +115,11 @@ fn invalid_time() {
 
     let wasm = Wasm::new(&setup.app);
 
-    let contract_addr = store_and_instantiate_authorization_contract(
+    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &wasm,
         &setup.accounts[0],
-        None,
-        vec![setup.subowner_addr.clone()],
-        setup.processor_addr.clone(),
+        setup.owner_addr.to_string(),
+        vec![setup.subowner_addr.to_string()],
         vec![setup.external_domain.clone()],
     );
 
@@ -129,7 +128,9 @@ fn invalid_time() {
     // We'll create a permissioned authorization that will be valid in the future
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissioned")
-        .with_start_time(StartTime::AtTime(current_time + 1000))
+        .with_not_before(Expiration::AtTime(Timestamp::from_seconds(
+            current_time + 1000,
+        )))
         .with_duration(AuthorizationDuration::Seconds(1500))
         .with_mode(AuthorizationMode::Permissioned(
             PermissionType::WithoutCallLimit(vec![setup.owner_addr.clone()]),
@@ -217,7 +218,7 @@ fn invalid_time() {
     let current_height = setup.app.get_block_height() as u64;
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissioned2")
-        .with_start_time(StartTime::AtHeight(current_height + 10))
+        .with_not_before(Expiration::AtHeight(current_height + 10))
         .with_duration(AuthorizationDuration::Blocks(15))
         .with_mode(AuthorizationMode::Permissioned(
             PermissionType::WithoutCallLimit(vec![setup.owner_addr.clone()]),
@@ -309,12 +310,11 @@ fn invalid_permission() {
 
     let wasm = Wasm::new(&setup.app);
 
-    let contract_addr = store_and_instantiate_authorization_contract(
+    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &wasm,
         &setup.accounts[0],
-        None,
-        vec![setup.subowner_addr.clone()],
-        setup.processor_addr.clone(),
+        setup.owner_addr.to_string(),
+        vec![setup.subowner_addr.to_string()],
         vec![setup.external_domain.clone()],
     );
 
@@ -425,12 +425,11 @@ fn invalid_messages() {
 
     let wasm = Wasm::new(&setup.app);
 
-    let contract_addr = store_and_instantiate_authorization_contract(
+    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &wasm,
         &setup.accounts[0],
-        None,
-        vec![setup.subowner_addr.clone()],
-        setup.processor_addr.clone(),
+        setup.owner_addr.to_string(),
+        vec![setup.subowner_addr.to_string()],
         vec![setup.external_domain.clone()],
     );
 
@@ -545,6 +544,28 @@ fn invalid_messages() {
 
     assert!(error.to_string().contains("Invalid JSON passed"));
 
+    // If we try to execute the authorization with a json that has multiple top keys, it should fail
+    let message =
+        Binary::from(serde_json::to_vec(&json!({"key1": "value", "key2": "value"})).unwrap());
+
+    let error = wasm
+        .execute::<ExecuteMsg>(
+            &contract_addr,
+            &ExecuteMsg::UserAction(UserMsg::SendMsgs {
+                label: "no-restrictions".to_string(),
+                messages: vec![message],
+            }),
+            &[],
+            &setup.accounts[2],
+        )
+        .unwrap_err();
+
+    assert!(error.to_string().contains(
+        ContractError::Message(MessageErrorReason::InvalidStructure {})
+            .to_string()
+            .as_str()
+    ));
+
     // If we try to execute the authorization with a json that has the wrong key, it should fail
     let message = JsonBuilder::new().main("wrong_key").build();
 
@@ -642,25 +663,4 @@ fn invalid_messages() {
             .to_string()
             .as_str()
     ));
-
-    // The message is valid, we should get no errors
-    let message = JsonBuilder::new()
-        .main("execute_method")
-        .add("key1.key2", json!("value"))
-        .add("key5.key6", json!([1, 2, 3]))
-        .add("key7", json!(100))
-        .build();
-
-    println!("{:?}", message);
-
-    wasm.execute::<ExecuteMsg>(
-        &contract_addr,
-        &ExecuteMsg::UserAction(UserMsg::SendMsgs {
-            label: "with-restrictions".to_string(),
-            messages: vec![Binary::from(serde_json::to_vec(&message).unwrap())],
-        }),
-        &[],
-        &setup.accounts[2],
-    )
-    .unwrap();
 }

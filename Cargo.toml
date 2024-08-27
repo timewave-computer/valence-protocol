@@ -40,17 +40,20 @@ cw-ownable      = "2.0.0"
 neutron-sdk     = "0.11.0"
 
 # our contracts
-valence-base-account     = { path = "contracts/accounts/base_account", features = ["library"] }
+base-account             = { path = "contracts/accounts/base_account", features = ["library"] }
 valence-splitter         = { path = "contracts/services/splitter-temp", features = ["library"] }
 valence-reverse-splitter = { path = "contracts/services/reverse-splitter-temp", features = ["library"] }
+valence-processor        = { path = "contracts/processor", features = ["library"] }
+valence-base-account     = { path = "contracts/accounts/base_account", features = ["library"] }
 valence-authorization    = { path = "contracts/authorization", features = ["library"] }
 
 # our packages
 valence-macros              = { path = "packages/valence-macros" }
 valence-authorization-utils = { path = "packages/authorization-utils" }
+valence-processor-utils     = { path = "packages/processor-utils" }
 services-utils              = { path = "packages/services-utils" }
 service-base                = { package = "valence-service-base", path = "packages/service-base" }
 
 # dev-dependencies
-cw-multi-test     = "2.0.0"
+cw-multi-test     = "2.1.1"
 neutron-test-tube = "4.2.0"
