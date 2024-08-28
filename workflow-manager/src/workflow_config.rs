@@ -36,6 +36,14 @@ pub struct WorkflowConfig {
 impl WorkflowConfig {
     /// Instantiate a workflow on all domains.
     pub async fn init(&mut self, ctx: &mut Context) -> AnyResult<()> {
+
+        // TODO: Get workflow next id from on chain workflow registry
+        // TODO: Predict the processor address
+        // TODO: Predict the authorization address.
+        // TODO: each domain if not main domain, must have a bridge connection open from main to it,
+        //       so we need to create the bridge accounts and get those addresses
+        // TODO: Predict or instantiate the bridge accounts first before doing anything else because we need those addresses
+
         // TODO: We probably want to verify the whole workflow config first, before doing any operations
         let mut account_instantiate_datas: HashMap<u64, InstantiateAccountData> = HashMap::new();
         // init accounts
@@ -114,8 +122,6 @@ impl WorkflowConfig {
                 .instantiate_account(account_instantiate_data)
                 .await?;
         }
-
-        // TODO: init authorizations
 
         Ok(())
     }
