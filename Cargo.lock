@@ -4573,6 +4573,7 @@ name = "workflow-manager"
 version = "0.1.0"
 dependencies = [
  "aho-corasick",
+ "anyhow",
  "async-trait",
  "bech32 0.11.0",
  "config",
@@ -4590,6 +4591,7 @@ dependencies = [
  "serde_json_any_key",
  "services-utils",
  "strum 0.26.3",
+ "thiserror",
  "tokio",
  "tracing",
  "tracing-subscriber",
