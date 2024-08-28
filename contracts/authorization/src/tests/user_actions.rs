@@ -10,7 +10,7 @@ use valence_authorization_utils::{
 use crate::{
     contract::build_tokenfactory_denom,
     error::{AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason},
-    msg::{ExecuteMsg, SubOwnerMsg, UserMsg},
+    msg::{ExecuteMsg, PermissionedMsg, PermissionlessMsg},
     tests::{builders::JsonBuilder, helpers::wait_for_height},
 };
 
@@ -49,7 +49,7 @@ fn disabled() {
     // Create and disable it
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
-        &ExecuteMsg::SubOwnerAction(SubOwnerMsg::CreateAuthorizations { authorizations }),
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
         &setup.accounts[0],
     )
@@ -57,7 +57,7 @@ fn disabled() {
 
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
-        &ExecuteMsg::SubOwnerAction(SubOwnerMsg::DisableAuthorization {
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::DisableAuthorization {
             label: "permissionless".to_string(),
         }),
         &[],
@@ -69,7 +69,7 @@ fn disabled() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(UserMsg::SendMsgs {
+            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
                 label: "permissionless".to_string(),
                 messages: vec![Binary::default()],
             }),
@@ -88,7 +88,7 @@ fn disabled() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(UserMsg::SendMsgs {
+            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
                 label: "non_existent".to_string(),
                 messages: vec![Binary::default()],
             }),
@@ -145,7 +145,7 @@ fn invalid_time() {
     // Create it
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
-        &ExecuteMsg::SubOwnerAction(SubOwnerMsg::CreateAuthorizations { authorizations }),
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
         &setup.accounts[0],
     )
@@ -155,7 +155,7 @@ fn invalid_time() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(UserMsg::SendMsgs {
+            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned".to_string(),
                 messages: vec![Binary::default()],
             }),
@@ -177,7 +177,7 @@ fn invalid_time() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(UserMsg::SendMsgs {
+            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned".to_string(),
                 messages: vec![Binary::default()],
             }),
@@ -199,7 +199,7 @@ fn invalid_time() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(UserMsg::SendMsgs {
+            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned".to_string(),
                 messages: vec![Binary::default()],
             }),
@@ -233,7 +233,7 @@ fn invalid_time() {
     // Create it
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
-        &ExecuteMsg::SubOwnerAction(SubOwnerMsg::CreateAuthorizations { authorizations }),
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
         &setup.accounts[0],
     )
@@ -243,7 +243,7 @@ fn invalid_time() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(UserMsg::SendMsgs {
+            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned2".to_string(),
                 messages: vec![Binary::default()],
             }),
@@ -264,7 +264,7 @@ fn invalid_time() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(UserMsg::SendMsgs {
+            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned2".to_string(),
                 messages: vec![Binary::default()],
             }),
@@ -285,7 +285,7 @@ fn invalid_time() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(UserMsg::SendMsgs {
+            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned2".to_string(),
                 messages: vec![Binary::default()],
             }),
@@ -347,7 +347,7 @@ fn invalid_permission() {
     // Create them
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
-        &ExecuteMsg::SubOwnerAction(SubOwnerMsg::CreateAuthorizations { authorizations }),
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
         &setup.accounts[0],
     )
@@ -357,7 +357,7 @@ fn invalid_permission() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(UserMsg::SendMsgs {
+            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned-without-limit".to_string(),
                 messages: vec![Binary::default()],
             }),
@@ -376,7 +376,7 @@ fn invalid_permission() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(UserMsg::SendMsgs {
+            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned-with-limit".to_string(),
                 messages: vec![Binary::default()],
             }),
@@ -397,7 +397,7 @@ fn invalid_permission() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(UserMsg::SendMsgs {
+            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned-with-limit".to_string(),
                 messages: vec![Binary::default()],
             }),
@@ -502,7 +502,7 @@ fn invalid_messages() {
     // Create all of them
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
-        &ExecuteMsg::SubOwnerAction(SubOwnerMsg::CreateAuthorizations { authorizations }),
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
         &setup.accounts[0],
     )
@@ -512,7 +512,7 @@ fn invalid_messages() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(UserMsg::SendMsgs {
+            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
                 label: "no-restrictions".to_string(),
                 messages: vec![Binary::default(), Binary::default()],
             }),
@@ -533,7 +533,7 @@ fn invalid_messages() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(UserMsg::SendMsgs {
+            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
                 label: "no-restrictions".to_string(),
                 messages: vec![message],
             }),
@@ -551,7 +551,7 @@ fn invalid_messages() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(UserMsg::SendMsgs {
+            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
                 label: "no-restrictions".to_string(),
                 messages: vec![message],
             }),
@@ -572,7 +572,7 @@ fn invalid_messages() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(UserMsg::SendMsgs {
+            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
                 label: "no-restrictions".to_string(),
                 messages: vec![Binary::from(serde_json::to_vec(&message).unwrap())],
             }),
@@ -598,7 +598,7 @@ fn invalid_messages() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(UserMsg::SendMsgs {
+            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
                 label: "with-restrictions".to_string(),
                 messages: vec![Binary::from(serde_json::to_vec(&message).unwrap())],
             }),
@@ -623,7 +623,7 @@ fn invalid_messages() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(UserMsg::SendMsgs {
+            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
                 label: "with-restrictions".to_string(),
                 messages: vec![Binary::from(serde_json::to_vec(&message).unwrap())],
             }),
@@ -649,7 +649,7 @@ fn invalid_messages() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(UserMsg::SendMsgs {
+            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
                 label: "with-restrictions".to_string(),
                 messages: vec![Binary::from(serde_json::to_vec(&message).unwrap())],
             }),

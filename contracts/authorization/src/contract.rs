@@ -19,7 +19,9 @@ use crate::{
     authorization::Validate,
     domain::{add_domain, create_wasm_msg_for_processor_or_proxy, get_domain},
     error::{AuthorizationErrorReason, ContractError, UnauthorizedReason},
-    msg::{ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, QueryMsg, SubOwnerMsg, UserMsg},
+    msg::{
+        ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, PermissionedMsg, PermissionlessMsg, QueryMsg,
+    },
     state::{
         AUTHORIZATIONS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS,
         PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS,
@@ -88,16 +90,16 @@ pub fn execute(
                 OwnerMsg::RemoveSubOwner { sub_owner } => remove_sub_owner(deps, sub_owner),
             }
         }
-        ExecuteMsg::SubOwnerAction(sub_owner_msg) => {
+        ExecuteMsg::PermissionedAction(sub_owner_msg) => {
             assert_owner_or_subowner(deps.storage, info.sender)?;
             match sub_owner_msg {
-                SubOwnerMsg::AddExternalDomains { external_domains } => {
+                PermissionedMsg::AddExternalDomains { external_domains } => {
                     add_external_domains(deps, external_domains)
                 }
-                SubOwnerMsg::CreateAuthorizations { authorizations } => {
+                PermissionedMsg::CreateAuthorizations { authorizations } => {
                     create_authorizations(deps, env, authorizations)
                 }
-                SubOwnerMsg::ModifyAuthorization {
+                PermissionedMsg::ModifyAuthorization {
                     label,
                     not_before,
                     expiration,
@@ -111,28 +113,32 @@ pub fn execute(
                     max_concurrent_executions,
                     priority,
                 ),
-                SubOwnerMsg::DisableAuthorization { label } => disable_authorization(deps, label),
-                SubOwnerMsg::EnableAuthorization { label } => enable_authorization(deps, label),
-                SubOwnerMsg::MintAuthorizations { label, mints } => {
+                PermissionedMsg::DisableAuthorization { label } => {
+                    disable_authorization(deps, label)
+                }
+                PermissionedMsg::EnableAuthorization { label } => enable_authorization(deps, label),
+                PermissionedMsg::MintAuthorizations { label, mints } => {
                     mint_authorizations(deps, env, label, mints)
                 }
-                SubOwnerMsg::RemoveMsgs {
+                PermissionedMsg::RemoveMsgs {
                     domain,
                     queue_position,
                     priority,
                 } => remove_messages(deps, domain, queue_position, priority),
-                SubOwnerMsg::AddMsgs {
+                PermissionedMsg::AddMsgs {
                     label,
                     queue_position,
                     priority,
                     messages,
                 } => add_messages(deps, label, queue_position, priority, messages),
-                SubOwnerMsg::PauseProcessor { domain } => pause_processor(deps, domain),
-                SubOwnerMsg::ResumeProcessor { domain } => resume_processor(deps, domain),
+                PermissionedMsg::PauseProcessor { domain } => pause_processor(deps, domain),
+                PermissionedMsg::ResumeProcessor { domain } => resume_processor(deps, domain),
             }
         }
         ExecuteMsg::UserAction(user_msg) => match user_msg {
-            UserMsg::SendMsgs { label, messages } => send_msgs(deps, env, info, label, messages),
+            PermissionlessMsg::SendMsgs { label, messages } => {
+                send_msgs(deps, env, info, label, messages)
+            }
         },
     }
 }

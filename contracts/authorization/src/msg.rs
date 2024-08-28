@@ -21,8 +21,8 @@ pub struct InstantiateMsg {
 #[cw_serde]
 pub enum ExecuteMsg {
     OwnerAction(OwnerMsg),
-    SubOwnerAction(SubOwnerMsg),
-    UserAction(UserMsg),
+    PermissionedAction(PermissionedMsg),
+    UserAction(PermissionlessMsg),
 }
 
 #[cw_serde]
@@ -32,7 +32,7 @@ pub enum OwnerMsg {
 }
 
 #[cw_serde]
-pub enum SubOwnerMsg {
+pub enum PermissionedMsg {
     AddExternalDomains {
         external_domains: Vec<ExternalDomain>,
     },
@@ -93,7 +93,7 @@ pub struct Mint {
 }
 
 #[cw_serde]
-pub enum UserMsg {
+pub enum PermissionlessMsg {
     SendMsgs {
         label: String,
         messages: Vec<Binary>,
