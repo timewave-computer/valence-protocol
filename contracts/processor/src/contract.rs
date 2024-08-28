@@ -6,7 +6,7 @@ use cosmwasm_std::{
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner};
 use valence_authorization_utils::authorization::{ActionBatch, Priority};
-use valence_processor_utils::processor::{Config, MessageBatch, Polytone, State};
+use valence_processor_utils::processor::{Config, MessageBatch, Polytone, ProcessorDomain, State};
 
 use crate::{
     error::ContractError,
@@ -39,12 +39,12 @@ pub fn instantiate(
 
     let config = Config {
         authorization_contract: deps.api.addr_validate(&msg.authorization_contract)?,
-        polytone_contracts: match msg.polytone_contracts {
-            Some(pc) => Some(Polytone {
+        processor_domain: match msg.polytone_contracts {
+            Some(pc) => ProcessorDomain::External(Polytone {
                 polytone_proxy_address: deps.api.addr_validate(&pc.polytone_proxy_address)?,
                 polytone_note_address: deps.api.addr_validate(&pc.polytone_note_address)?,
             }),
-            None => None,
+            None => ProcessorDomain::Main,
         },
         state: State::Active,
     };
@@ -75,9 +75,9 @@ pub fn execute(
         ExecuteMsg::AuthorizationModuleAction(authorization_module_msg) => {
             let config = CONFIG.load(deps.storage)?;
 
-            let authorized_sender = match config.polytone_contracts {
-                Some(polytone_contracts) => polytone_contracts.polytone_proxy_address,
-                None => config.authorization_contract,
+            let authorized_sender = match config.processor_domain {
+                ProcessorDomain::Main => config.authorization_contract,
+                ProcessorDomain::External(polytone) => polytone.polytone_proxy_address,
             };
 
             if info.sender != authorized_sender {
@@ -133,12 +133,12 @@ fn update_config(
         config.authorization_contract = deps.api.addr_validate(&authorization_contract)?;
     }
 
-    config.polytone_contracts = match polytone_contracts {
-        Some(pc) => Some(Polytone {
+    config.processor_domain = match polytone_contracts {
+        Some(pc) => ProcessorDomain::External(Polytone {
             polytone_proxy_address: deps.api.addr_validate(&pc.polytone_proxy_address)?,
             polytone_note_address: deps.api.addr_validate(&pc.polytone_note_address)?,
         }),
-        None => None,
+        None => ProcessorDomain::Main,
     };
 
     CONFIG.save(deps.storage, &config)?;

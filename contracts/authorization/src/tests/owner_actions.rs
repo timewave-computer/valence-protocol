@@ -17,7 +17,7 @@ use valence_authorization_utils::{
 use crate::{
     contract::build_tokenfactory_denom,
     error::{AuthorizationErrorReason, ContractError, UnauthorizedReason},
-    msg::{ExecuteMsg, Mint, OwnerMsg, QueryMsg, SubOwnerMsg},
+    msg::{ExecuteMsg, Mint, OwnerMsg, PermissionedMsg, QueryMsg},
     tests::{
         builders::{
             ActionBatchBuilder, ActionBuilder, AuthorizationBuilder, NeutronTestAppBuilder,
@@ -257,7 +257,7 @@ fn add_external_domains() {
     // Owner can add external domains
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
-        &ExecuteMsg::SubOwnerAction(SubOwnerMsg::AddExternalDomains {
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::AddExternalDomains {
             external_domains: vec![setup.external_domain.clone()],
         }),
         &[],
@@ -446,7 +446,7 @@ fn create_valid_authorizations() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::SubOwnerAction(SubOwnerMsg::CreateAuthorizations {
+            &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations {
                 authorizations: valid_authorizations.clone(),
             }),
             &[],
@@ -463,7 +463,7 @@ fn create_valid_authorizations() {
     // Owner will create 1 and Subowner will create 2 and both will succeed
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
-        &ExecuteMsg::SubOwnerAction(SubOwnerMsg::CreateAuthorizations {
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations {
             authorizations: vec![valid_authorizations[0].clone()],
         }),
         &[],
@@ -473,7 +473,7 @@ fn create_valid_authorizations() {
 
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
-        &ExecuteMsg::SubOwnerAction(SubOwnerMsg::CreateAuthorizations {
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations {
             authorizations: vec![
                 valid_authorizations[1].clone(),
                 valid_authorizations[2].clone(),
@@ -555,7 +555,7 @@ fn create_valid_authorizations() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::SubOwnerAction(SubOwnerMsg::CreateAuthorizations {
+            &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations {
                 authorizations: valid_authorizations,
             }),
             &[],
@@ -675,7 +675,7 @@ fn create_invalid_authorizations() {
         let execute_error = wasm
             .execute::<ExecuteMsg>(
                 &contract_addr,
-                &ExecuteMsg::SubOwnerAction(SubOwnerMsg::CreateAuthorizations {
+                &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations {
                     authorizations: vec![authorization],
                 }),
                 &[],
@@ -720,7 +720,7 @@ fn modify_authorization() {
     // Let's create the authorization
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
-        &ExecuteMsg::SubOwnerAction(SubOwnerMsg::CreateAuthorizations {
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations {
             authorizations: vec![authorization.clone()],
         }),
         &[],
@@ -731,7 +731,7 @@ fn modify_authorization() {
     // Let's modify the authorization, both the owner and the subowner can modify it
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
-        &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::ModifyAuthorization {
             label: "authorization".to_string(),
             not_before: Some(Expiration::AtTime(Timestamp::from_seconds(100))),
             expiration: Some(Expiration::AtHeight(50)),
@@ -759,7 +759,7 @@ fn modify_authorization() {
     // Let's change the other fields
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
-        &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::ModifyAuthorization {
             label: "authorization".to_string(),
             not_before: None,
             expiration: None,
@@ -789,7 +789,7 @@ fn modify_authorization() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
+            &ExecuteMsg::PermissionedAction(PermissionedMsg::ModifyAuthorization {
                 label: "authorization".to_string(),
                 not_before: None,
                 expiration: None,
@@ -811,7 +811,7 @@ fn modify_authorization() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::SubOwnerAction(SubOwnerMsg::ModifyAuthorization {
+            &ExecuteMsg::PermissionedAction(PermissionedMsg::ModifyAuthorization {
                 label: "non-existing-label".to_string(),
                 not_before: None,
                 expiration: None,
@@ -834,7 +834,7 @@ fn modify_authorization() {
     // Disabling an authorization should also work
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
-        &ExecuteMsg::SubOwnerAction(SubOwnerMsg::DisableAuthorization {
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::DisableAuthorization {
             label: "authorization".to_string(),
         }),
         &[],
@@ -858,7 +858,7 @@ fn modify_authorization() {
     // Let's enable it again
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
-        &ExecuteMsg::SubOwnerAction(SubOwnerMsg::EnableAuthorization {
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::EnableAuthorization {
             label: "authorization".to_string(),
         }),
         &[],
@@ -883,7 +883,7 @@ fn modify_authorization() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::SubOwnerAction(SubOwnerMsg::DisableAuthorization {
+            &ExecuteMsg::PermissionedAction(PermissionedMsg::DisableAuthorization {
                 label: "authorization".to_string(),
             }),
             &[],
@@ -946,7 +946,7 @@ fn mint_authorizations() {
     // Let's create the authorization
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
-        &ExecuteMsg::SubOwnerAction(SubOwnerMsg::CreateAuthorizations { authorizations }),
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
         &setup.accounts[0],
     )
@@ -956,7 +956,7 @@ fn mint_authorizations() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::SubOwnerAction(SubOwnerMsg::MintAuthorizations {
+            &ExecuteMsg::PermissionedAction(PermissionedMsg::MintAuthorizations {
                 label: "permissionless".to_string(),
                 mints: vec![Mint {
                     address: setup.user_addr.clone(),
@@ -999,7 +999,7 @@ fn mint_authorizations() {
     // Let's mint an extra permissioned token to user1 and some additional ones for user2
     wasm.execute::<ExecuteMsg>(
         &contract_addr,
-        &ExecuteMsg::SubOwnerAction(SubOwnerMsg::MintAuthorizations {
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::MintAuthorizations {
             label: "permissioned-limit".to_string(),
             mints: vec![
                 Mint {
@@ -1041,7 +1041,7 @@ fn mint_authorizations() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::SubOwnerAction(SubOwnerMsg::MintAuthorizations {
+            &ExecuteMsg::PermissionedAction(PermissionedMsg::MintAuthorizations {
                 label: "permissioned-limit".to_string(),
                 mints: vec![Mint {
                     address: setup.user_addr.clone(),

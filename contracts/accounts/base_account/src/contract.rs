@@ -107,12 +107,11 @@ mod execute {
         msgs: Vec<CosmosMsg>,
     ) -> Result<Response, ContractError> {
         // If not admin, check if it's an approved service
-        if check_admin(&deps, &info).is_err() {
-            if !APPROVED_SERVICES
-                .has(deps.storage, info.sender.clone()){
-                return Err(ContractError::NotAdminOrApprovedService);
-                };
-        };
+        if check_admin(&deps, &info).is_err()
+            && !APPROVED_SERVICES.has(deps.storage, info.sender.clone())
+        {
+            return Err(ContractError::NotAdminOrApprovedService);
+        }
 
         // Execute the message
         Ok(Response::new()
