@@ -7,6 +7,7 @@ use valence_authorization_utils::authorization::AuthorizationInfo;
 use crate::{
     account::{AccountInfo, AccountType, InstantiateAccountData},
     context::Context,
+    error::{ManagerError, ManagerResult},
     service::ServiceInfo,
 };
 
@@ -61,8 +62,8 @@ impl WorkflowConfig {
             account.ty = AccountType::Addr { addr };
         }
 
-        for (_, link) in self.links.iter() {
-            let service = self.services.get_mut(&link.service_id).unwrap();
+        for (link_id, link) in self.links.clone().iter() {
+            let service = self.get_service_mut(link.service_id)?;
 
             let domain_connector = ctx.get_or_create_connector(&service.domain).await?;
             let (service_addr, salt) = domain_connector
@@ -75,23 +76,27 @@ impl WorkflowConfig {
                 Vec::with_capacity(link.input_accounts_id.len() + link.output_accounts_id.len());
 
             // At this stage we should already have all addresses for all account ids
-            link.input_accounts_id.iter().for_each(|id| {
-                let account_data = account_instantiate_datas.get_mut(id).unwrap();
+            for account_id in link.input_accounts_id.iter() {
+                let account_data = account_instantiate_datas.get_mut(account_id).ok_or(
+                    ManagerError::FailedToRetrieveAccountInitData(*account_id, *link_id),
+                )?;
                 // We add the service address to the approved services list of the input account
                 account_data.add_service(service_addr.to_string());
 
-                patterns.push(format!("|account_id|\":{id}"));
+                patterns.push(format!("|account_id|\":{account_id}"));
                 replace_with.push(format!("account_addr\":\"{}\"", account_data.addr.clone()))
-            });
+            }
 
-            link.output_accounts_id.iter().for_each(|id| {
-                let account_data = account_instantiate_datas.get(id).unwrap();
+            for account_id in link.output_accounts_id.iter() {
+                let account_data = account_instantiate_datas.get(account_id).ok_or(
+                    ManagerError::FailedToRetrieveAccountInitData(*account_id, *link_id),
+                )?;
 
-                patterns.push(format!("|account_id|\":{id}"));
+                patterns.push(format!("|account_id|\":{account_id}"));
                 replace_with.push(format!("account_addr\":\"{}\"", account_data.addr.clone()))
-            });
+            }
 
-            service.config.replace_config(patterns, replace_with);
+            service.config.replace_config(patterns, replace_with)?;
 
             // init the service
             domain_connector
@@ -103,7 +108,7 @@ impl WorkflowConfig {
 
         // init accounts
         for (account_id, account_instantiate_data) in account_instantiate_datas.iter() {
-            let account = self.accounts.get(account_id).unwrap();
+            let account = self.get_account(account_id)?;
             let domain_connector = ctx.get_or_create_connector(&account.domain).await?;
             domain_connector
                 .instantiate_account(account_instantiate_data)
@@ -113,5 +118,25 @@ impl WorkflowConfig {
         // TODO: init authorizations
 
         Ok(())
+    }
+}
+
+impl WorkflowConfig {
+    fn get_account(&self, account_id: &u64) -> ManagerResult<&AccountInfo> {
+        self.accounts
+            .get(account_id)
+            .ok_or(ManagerError::generic_err(format!(
+                "Account with id {} not found",
+                account_id
+            )))
+    }
+
+    fn get_service_mut(&mut self, service_id: u64) -> ManagerResult<&mut ServiceInfo> {
+        self.services
+            .get_mut(&service_id)
+            .ok_or(ManagerError::generic_err(format!(
+                "Service with id {} not found",
+                service_id
+            )))
     }
 }

@@ -20,15 +20,12 @@ pub enum ManagerError {
     #[error("Code ids not found for: {0}")]
     CodeIdsNotFound(String),
 
-    #[error("Failed to create new client for: {0}")]
-    FailedNewClient(String),
-
-    #[error("Failed to create new wallet for: {0}")]
-    FailedNewWalletInstance(String),
+    #[error("No instantiate data for account id: {0} | link id: {1}")]
+    FailedToRetrieveAccountInitData(u64, u64),
 }
 
 impl ManagerError {
-    pub fn generic_err(msg: &str) -> Self {
-        ManagerError::Generic(msg.to_string())
+    pub fn generic_err(msg: impl Into<String>) -> Self {
+        ManagerError::Generic(msg.into())
     }
 }

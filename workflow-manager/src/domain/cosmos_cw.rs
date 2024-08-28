@@ -18,7 +18,7 @@ use crate::{
     account::{AccountType, InstantiateAccountData},
     config::ChainInfo,
     error::ManagerResult,
-    service::ServiceConfig,
+    service::{ServiceConfig, ServiceError},
 };
 
 use super::Connector;
@@ -52,6 +52,9 @@ pub enum CosmosCosmwasmError {
 
     #[error("serde_json Error: {0}")]
     SerdeJsonError(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    ServiceError(#[from] ServiceError),
 
     #[error("Chain not found for: {0}")]
     ChainInfoNotFound(String),
@@ -242,10 +245,12 @@ impl Connector for CosmosCosmwasmConnector {
         )?;
 
         // TODO: change the admin to authorization
-        let msg = service_config.get_instantiate_msg(
-            self.wallet.account_address.clone(),
-            self.wallet.account_address.clone(),
-        );
+        let msg = service_config
+            .get_instantiate_msg(
+                self.wallet.account_address.clone(),
+                self.wallet.account_address.clone(),
+            )
+            .map_err(CosmosCosmwasmError::ServiceError)?;
 
         let m = MsgInstantiateContract2 {
             sender: self.wallet.account_address.clone(),
