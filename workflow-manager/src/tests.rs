@@ -19,12 +19,13 @@ mod test {
     #[global_allocator]
     static ALLOC: dhat::Alloc = dhat::Alloc;
 
+    #[ignore = "internal test"]
     #[tokio::test]
     async fn test_domains() {
         // let _profiler = dhat::Profiler::builder().testing().build();
         let ctx = Context::default();
 
-        let domain = Domain::CosmosCosmwasm("neutron2".to_string());
+        let domain = Domain::CosmosCosmwasm("neutron".to_string());
         let _connector = domain.generate_connector(&ctx.config).await.unwrap();
         // // let domain2 = Domain::Cosmos("neutron".to_string());
         // let mut domain_info = DomainInfo::from_domain(&domain).await;
@@ -80,6 +81,7 @@ mod test {
         println!("{json:?}");
     }
 
+    #[ignore = "internal test"]
     #[tokio::test]
     async fn test() {
         // let subscriber = tracing_subscriber::fmt()
