@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
+use anyhow::Result as AnyResult;
 use services_utils::Id;
 use valence_authorization_utils::authorization::AuthorizationInfo;
 
@@ -33,7 +34,7 @@ pub struct WorkflowConfig {
 
 impl WorkflowConfig {
     /// Instantiate a workflow on all domains.
-    pub async fn init(&mut self, ctx: &mut Context) {
+    pub async fn init(&mut self, ctx: &mut Context) -> AnyResult<()> {
         // TODO: We probably want to verify the whole workflow config first, before doing any operations
         let mut account_instantiate_datas: HashMap<u64, InstantiateAccountData> = HashMap::new();
         // init accounts
@@ -47,10 +48,10 @@ impl WorkflowConfig {
                 // similar to what we what we will do on workflow update
                 continue;
             }
-            let domain_connector = ctx.get_or_create_connector(&account.domain).await;
+            let domain_connector = ctx.get_or_create_connector(&account.domain).await?;
             let (addr, salt) = domain_connector
                 .predict_address(account_id, &account.ty.to_string(), "account")
-                .await;
+                .await?;
 
             account_instantiate_datas.insert(
                 *account_id,
@@ -63,10 +64,10 @@ impl WorkflowConfig {
         for (_, link) in self.links.iter() {
             let service = self.services.get_mut(&link.service_id).unwrap();
 
-            let domain_connector = ctx.get_or_create_connector(&service.domain).await;
+            let domain_connector = ctx.get_or_create_connector(&service.domain).await?;
             let (service_addr, salt) = domain_connector
                 .predict_address(&link.service_id, &service.config.to_string(), "service")
-                .await;
+                .await?;
 
             let mut patterns =
                 Vec::with_capacity(link.input_accounts_id.len() + link.output_accounts_id.len());
@@ -95,7 +96,7 @@ impl WorkflowConfig {
             // init the service
             domain_connector
                 .instantiate_service(link.service_id, &service.config, salt)
-                .await
+                .await?
         }
 
         // println!("{:#?}", account_instantiate_datas);
@@ -103,12 +104,14 @@ impl WorkflowConfig {
         // init accounts
         for (account_id, account_instantiate_data) in account_instantiate_datas.iter() {
             let account = self.accounts.get(account_id).unwrap();
-            let domain_connector = ctx.get_or_create_connector(&account.domain).await;
+            let domain_connector = ctx.get_or_create_connector(&account.domain).await?;
             domain_connector
                 .instantiate_account(account_instantiate_data)
-                .await;
+                .await?;
         }
 
         // TODO: init authorizations
+
+        Ok(())
     }
 }

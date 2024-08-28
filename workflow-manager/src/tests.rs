@@ -9,6 +9,7 @@ mod test {
 
     use crate::{
         account::{AccountInfo, AccountType},
+        context::Context,
         domain::Domain,
         init_workflow,
         service::{ServiceConfig, ServiceInfo},
@@ -21,8 +22,10 @@ mod test {
     #[tokio::test]
     async fn test_domains() {
         // let _profiler = dhat::Profiler::builder().testing().build();
+        let ctx = Context::default();
 
-        // let domain = Domain::Cosmos("cosmos".to_string());
+        let domain = Domain::CosmosCosmwasm("neutron2".to_string());
+        let _connector = domain.generate_connector(&ctx.config).await.unwrap();
         // // let domain2 = Domain::Cosmos("neutron".to_string());
         // let mut domain_info = DomainInfo::from_domain(&domain).await;
         // println!("{domain_info:?}");

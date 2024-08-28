@@ -2,6 +2,7 @@ pub mod account;
 pub mod config;
 pub mod context;
 pub mod domain;
+pub mod error;
 pub mod helpers;
 pub mod service;
 pub mod tests;
@@ -13,7 +14,7 @@ use workflow_config::WorkflowConfig;
 pub async fn init_workflow(mut workflow_config: WorkflowConfig) {
     let mut ctx = Context::default();
 
-    workflow_config.init(&mut ctx).await;
+    workflow_config.init(&mut ctx).await.unwrap();
 
     println!("{:#?}", workflow_config);
     // println!("{:#?}", ctx.get_domain_infos_len().await);

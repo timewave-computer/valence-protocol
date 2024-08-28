@@ -12,10 +12,12 @@ use cosmos_grpc_client::{
     Decimal, GrpcClient, ProstMsgNameToAny, Wallet,
 };
 use serde_json::to_vec;
+use thiserror::Error;
 
 use crate::{
     account::{AccountType, InstantiateAccountData},
     config::ChainInfo,
+    error::ManagerResult,
     service::ServiceConfig,
 };
 
@@ -41,6 +43,41 @@ pub struct QueryBuildAddressResponse {
     pub address: String,
 }
 
+pub type CosmosCosmwasmResult<T> = Result<T, CosmosCosmwasmError>;
+
+#[derive(Error, Debug)]
+pub enum CosmosCosmwasmError {
+    #[error("cosmos_grpc_client Error: {0}")]
+    GrpcError(#[from] cosmos_grpc_client::StdError),
+
+    #[error("serde_json Error: {0}")]
+    SerdeJsonError(#[from] serde_json::Error),
+
+    #[error("Chain not found for: {0}")]
+    ChainInfoNotFound(String),
+
+    #[error("Code ids not found for: {0}")]
+    CodeIdsNotFound(String),
+
+    #[error("Failed to query the code id: {0}")]
+    FailedQueryCodeId(u64),
+
+    #[error("Failed to parse the response of code id: {0}")]
+    FailedParseResCodeId(u64),
+
+    #[error("Failed to create new client for: {0} | {1}")]
+    FailedNewClient(String, String),
+
+    #[error("Failed to create new wallet for: {0} | {1}")]
+    FailedNewWalletInstance(String, String),
+
+    #[error("Failed to query the instantiate2 address: {0}")]
+    FailedQueryAddress2(anyhow::Error),
+
+    #[error("Failed to broadcast the TX: {0}")]
+    FailedBroadcastTx(anyhow::Error),
+}
+
 pub struct CosmosCosmwasmConnector {
     wallet: Wallet,
     code_ids: HashMap<String, u64>,
@@ -56,27 +93,38 @@ impl fmt::Debug for CosmosCosmwasmConnector {
 }
 
 impl CosmosCosmwasmConnector {
-    pub async fn new(chain_info: ChainInfo, code_ids: HashMap<String, u64>) -> Self {
-        let grpc = GrpcClient::new(&chain_info.grpc).await.unwrap();
+    pub async fn new(
+        chain_info: &ChainInfo,
+        code_ids: &HashMap<String, u64>,
+    ) -> ManagerResult<Self> {
+        let grpc = GrpcClient::new(&chain_info.grpc).await.map_err(|e| {
+            CosmosCosmwasmError::FailedNewClient(chain_info.name.to_string(), e.to_string())
+        })?;
+
+        let gas_price =
+            Decimal::from_str(&chain_info.gas_price).map_err(CosmosCosmwasmError::GrpcError)?;
+        let gas_adj = Decimal::from_str("1.5").map_err(CosmosCosmwasmError::GrpcError)?;
 
         let wallet = Wallet::from_seed_phrase(
             grpc,
             MNEMONIC,
-            chain_info.prefix,
+            chain_info.prefix.clone(),
             chain_info.coin_type,
             0,
-            Decimal::from_str(&chain_info.gas_price).unwrap(),
-            Decimal::from_str("1.5").unwrap(),
+            gas_price,
+            gas_adj,
             &chain_info.gas_denom,
         )
         .await
-        .unwrap();
+        .map_err(|e| {
+            CosmosCosmwasmError::FailedNewWalletInstance(chain_info.name.to_string(), e.to_string())
+        })?;
 
-        CosmosCosmwasmConnector {
+        Ok(CosmosCosmwasmConnector {
             wallet,
-            code_ids,
-            _chain_name: chain_info.name,
-        }
+            code_ids: code_ids.clone(),
+            _chain_name: chain_info.name.clone(),
+        })
     }
 }
 
@@ -87,25 +135,31 @@ impl Connector for CosmosCosmwasmConnector {
         id: &u64,
         contract_name: &str,
         extra_salt: &str,
-    ) -> (String, Vec<u8>) {
+    ) -> ManagerResult<(String, Vec<u8>)> {
         // Get the checksum of the code id
-        let req = QueryCodeRequest {
-            code_id: *self.code_ids.get(contract_name).unwrap(),
-        };
-        let checksum = self
+        let code_id =
+            *self
+                .code_ids
+                .get(contract_name)
+                .ok_or(CosmosCosmwasmError::CodeIdsNotFound(
+                    contract_name.to_string(),
+                ))?;
+
+        let req = QueryCodeRequest { code_id };
+        let code_res = self
             .wallet
             .client
             .clients
             .wasm
             .code(req)
             .await
-            .unwrap()
-            .get_ref()
+            .map_err(|_| CosmosCosmwasmError::FailedQueryCodeId(code_id))?;
+
+        let checksum = code_res
+            .into_inner()
             .code_info
-            .clone()
-            .unwrap()
-            .data_hash
-            .clone();
+            .ok_or(CosmosCosmwasmError::FailedParseResCodeId(code_id))?
+            .data_hash;
 
         // TODO: generate a unique salt per workflow and per contract by adding timestamp
         let start = SystemTime::now();
@@ -134,14 +188,16 @@ impl Connector for CosmosCosmwasmConnector {
                 "/cosmwasm.wasm.v1.Query/BuildAddress",
             )
             .await
-            .unwrap()
+            .map_err(CosmosCosmwasmError::FailedQueryAddress2)?
             .address;
 
-        (addr, salt.to_vec())
+        Ok((addr, salt.to_vec()))
     }
 
-    async fn instantiate_account(&mut self, data: &InstantiateAccountData) -> () {
-        let code_id = *self.code_ids.get(&data.info.ty.to_string()).unwrap();
+    async fn instantiate_account(&mut self, data: &InstantiateAccountData) -> ManagerResult<()> {
+        let code_id = *self.code_ids.get(&data.info.ty.to_string()).ok_or(
+            CosmosCosmwasmError::CodeIdsNotFound(data.info.ty.to_string()),
+        )?;
 
         // TODO: change the admin to authorization
         let msg: Vec<u8> = match &data.info.ty {
@@ -151,8 +207,8 @@ impl Connector for CosmosCosmwasmConnector {
                     .unwrap_or_else(|| self.wallet.account_address.to_string()),
                 approved_services: data.approved_services.clone(),
             })
-            .unwrap(),
-            AccountType::Addr { .. } => return,
+            .map_err(CosmosCosmwasmError::SerdeJsonError)?,
+            AccountType::Addr { .. } => return Ok(()),
         };
 
         let m = MsgInstantiateContract2 {
@@ -171,7 +227,8 @@ impl Connector for CosmosCosmwasmConnector {
             .simulate_tx(vec![m])
             // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
             .await
-            .unwrap();
+            .map(|_| ())
+            .map_err(|e| CosmosCosmwasmError::FailedBroadcastTx(e).into())
     }
 
     async fn instantiate_service(
@@ -179,8 +236,10 @@ impl Connector for CosmosCosmwasmConnector {
         service_id: u64,
         service_config: &ServiceConfig,
         salt: Vec<u8>,
-    ) -> () {
-        let code_id = *self.code_ids.get(&service_config.to_string()).unwrap();
+    ) -> ManagerResult<()> {
+        let code_id = *self.code_ids.get(&service_config.to_string()).ok_or(
+            CosmosCosmwasmError::CodeIdsNotFound(service_config.to_string()),
+        )?;
 
         // TODO: change the admin to authorization
         let msg = service_config.get_instantiate_msg(
@@ -200,13 +259,11 @@ impl Connector for CosmosCosmwasmConnector {
         }
         .build_any();
 
-        let response = self
-            .wallet
+        self.wallet
             .simulate_tx(vec![m])
             // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
             .await
-            .unwrap();
-
-        println!("{:#?}", response);
+            .map(|_| ())
+            .map_err(|e| CosmosCosmwasmError::FailedBroadcastTx(e).into())
     }
 }

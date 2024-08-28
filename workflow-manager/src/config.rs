@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use config::{Config as ConfigHelper, File};
 use serde::Deserialize;
 
+use crate::error::{ManagerError, ManagerResult};
+
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub chains: HashMap<String, ChainInfo>,
@@ -44,11 +46,16 @@ pub struct Contracts {
 }
 
 impl Config {
-    pub fn get_chain_info(&self, chain_name: String) -> ChainInfo {
-        self.chains.get(&chain_name).unwrap().clone()
+    pub fn get_chain_info(&self, chain_name: &str) -> ManagerResult<&ChainInfo> {
+        self.chains
+            .get(chain_name)
+            .ok_or(ManagerError::ChainInfoNotFound(chain_name.to_string()))
     }
 
-    pub fn get_code_ids(&self, chain_name: &str) -> HashMap<String, u64> {
-        self.contracts.code_ids.get(chain_name).unwrap().clone()
+    pub fn get_code_ids(&self, chain_name: &str) -> ManagerResult<&HashMap<String, u64>> {
+        self.contracts
+            .code_ids
+            .get(chain_name)
+            .ok_or(ManagerError::CodeIdsNotFound(chain_name.to_string()))
     }
 }
