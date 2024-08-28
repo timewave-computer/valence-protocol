@@ -1,6 +1,6 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
@@ -24,7 +24,7 @@ pub fn instantiate(
     ADMIN.save(deps.storage, &admin)?;
 
     msg.approved_services.iter().try_for_each(|service| {
-        APPROVED_SERVICES.save(deps.storage, deps.api.addr_validate(service)?, &true)
+        APPROVED_SERVICES.save(deps.storage, deps.api.addr_validate(service)?, &Empty {})
     })?;
 
     Ok(Response::new()
@@ -48,7 +48,7 @@ pub fn execute(
 }
 
 mod execute {
-    use cosmwasm_std::{CosmosMsg, DepsMut, MessageInfo, Response};
+    use cosmwasm_std::{CosmosMsg, DepsMut, Empty, MessageInfo, Response};
 
     use crate::{
         helpers::check_admin,
@@ -79,7 +79,7 @@ mod execute {
         check_admin(&deps, &info)?;
 
         let service_addr = deps.api.addr_validate(&service)?;
-        APPROVED_SERVICES.save(deps.storage, service_addr.clone(), &true)?;
+        APPROVED_SERVICES.save(deps.storage, service_addr.clone(), &Empty {})?;
 
         Ok(Response::new()
             .add_attribute("method", "approve_service")
@@ -108,9 +108,10 @@ mod execute {
     ) -> Result<Response, ContractError> {
         // If not admin, check if it's an approved service
         if check_admin(&deps, &info).is_err() {
-            APPROVED_SERVICES
-                .load(deps.storage, info.sender.clone())
-                .map_err(|_| ContractError::NotAdminOrApprovedService)?;
+            if !APPROVED_SERVICES
+                .has(deps.storage, info.sender.clone()){
+                return Err(ContractError::NotAdminOrApprovedService);
+                };
         };
 
         // Execute the message
