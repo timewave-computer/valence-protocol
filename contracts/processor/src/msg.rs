@@ -8,6 +8,7 @@ use valence_processor_utils::processor::{Config, MessageBatch};
 pub struct InstantiateMsg {
     pub owner: String,
     pub authorization_contract: String,
+    // In case the processor is sitting on a different domain
     pub polytone_contracts: Option<PolytoneContracts>,
 }
 

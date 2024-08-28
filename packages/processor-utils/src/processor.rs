@@ -6,9 +6,14 @@ use valence_authorization_utils::authorization::ActionBatch;
 pub struct Config {
     // Address of the authorization contract
     pub authorization_contract: Addr,
-    // If processor is sitting on a different chain we need to know the polytone contracts
-    pub polytone_contracts: Option<Polytone>,
+    pub processor_domain: ProcessorDomain,
     pub state: State,
+}
+
+#[cw_serde]
+pub enum ProcessorDomain {
+    Main,
+    External(Polytone),
 }
 
 #[cw_serde]
