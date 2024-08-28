@@ -2,18 +2,17 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary, Uint128};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query, Expiration};
 use valence_authorization_utils::{
-    authorization::{Authorization, AuthorizationInfo, Priority, StartTime},
-    domain::ExternalDomain,
+    authorization::{Authorization, AuthorizationInfo, Priority},
+    domain::{Domain, ExternalDomain},
 };
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    // If not provided, the owner will be the sender
-    pub owner: Option<Addr>,
+    pub owner: String,
     // Sub-owners can be added later if needed
-    pub sub_owners: Vec<Addr>,
+    pub sub_owners: Vec<String>,
     // Processor on Main domain
-    pub processor: Addr,
+    pub processor: String,
     // External domains
     pub external_domains: Vec<ExternalDomain>,
 }
@@ -28,8 +27,8 @@ pub enum ExecuteMsg {
 
 #[cw_serde]
 pub enum OwnerMsg {
-    AddSubOwner { sub_owner: Addr },
-    RemoveSubOwner { sub_owner: Addr },
+    AddSubOwner { sub_owner: String },
+    RemoveSubOwner { sub_owner: String },
 }
 
 #[cw_serde]
@@ -42,7 +41,7 @@ pub enum SubOwnerMsg {
     },
     ModifyAuthorization {
         label: String,
-        start_time: Option<StartTime>,
+        not_before: Option<Expiration>,
         expiration: Option<Expiration>,
         max_concurrent_executions: Option<u64>,
         priority: Option<Priority>,
@@ -57,6 +56,33 @@ pub enum SubOwnerMsg {
     MintAuthorizations {
         label: String,
         mints: Vec<Mint>,
+    },
+    // Method to remove any set of messages from any queue in any domain
+    RemoveMsgs {
+        // Which domain we are targetting
+        domain: Domain,
+        // position in the queue
+        queue_position: u64,
+        // what queue we are targetting
+        priority: Priority,
+    },
+    // Method to add messages from an authorization to any queue
+    AddMsgs {
+        // The authorization label
+        label: String,
+        // Where and in which queue we are putting them
+        queue_position: u64,
+        priority: Priority,
+        // Messages to add
+        messages: Vec<Binary>,
+    },
+    // Pause a processor in any domain
+    PauseProcessor {
+        domain: Domain,
+    },
+    // Resume a processor in any domain
+    ResumeProcessor {
+        domain: Domain,
     },
 }
 

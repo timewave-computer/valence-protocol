@@ -9,17 +9,21 @@ use neutron_sdk::bindings::msg::NeutronMsg;
 use valence_authorization_utils::{
     authorization::{
         Authorization, AuthorizationInfo, AuthorizationMode, AuthorizationState, PermissionType,
-        Priority, StartTime,
+        Priority,
     },
-    domain::ExternalDomain,
+    domain::{Domain, ExternalDomain},
 };
+use valence_processor::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExecuteMsg};
 
 use crate::{
     authorization::Validate,
-    domain::add_domain,
+    domain::{add_domain, create_wasm_msg_for_processor_or_proxy, get_domain},
     error::{AuthorizationErrorReason, ContractError, UnauthorizedReason},
     msg::{ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, QueryMsg, SubOwnerMsg, UserMsg},
-    state::{AUTHORIZATIONS, EXTERNAL_DOMAINS, PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS},
+    state::{
+        AUTHORIZATIONS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS,
+        PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS,
+    },
 };
 
 // pagination info for queries
@@ -32,7 +36,7 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub fn instantiate(
     mut deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
@@ -41,11 +45,7 @@ pub fn instantiate(
     initialize_owner(
         deps.storage,
         deps.api,
-        Some(
-            deps.api
-                .addr_validate(msg.owner.unwrap_or(info.sender).as_str())?
-                .as_str(),
-        ),
+        Some(deps.api.addr_validate(&msg.owner)?.as_str()),
     )?;
 
     for sub_owner in msg.sub_owners {
@@ -63,10 +63,11 @@ pub fn instantiate(
     )?;
 
     // Save all external domains
-
     for domain in msg.external_domains {
         add_domain(deps.branch(), domain)?;
     }
+
+    EXECUTION_ID.save(deps.storage, &0)?;
 
     Ok(Response::new().add_attribute("method", "instantiate_authorization"))
 }
@@ -98,14 +99,14 @@ pub fn execute(
                 }
                 SubOwnerMsg::ModifyAuthorization {
                     label,
-                    start_time,
+                    not_before,
                     expiration,
                     max_concurrent_executions,
                     priority,
                 } => modify_authorization(
                     deps,
                     label,
-                    start_time,
+                    not_before,
                     expiration,
                     max_concurrent_executions,
                     priority,
@@ -115,6 +116,19 @@ pub fn execute(
                 SubOwnerMsg::MintAuthorizations { label, mints } => {
                     mint_authorizations(deps, env, label, mints)
                 }
+                SubOwnerMsg::RemoveMsgs {
+                    domain,
+                    queue_position,
+                    priority,
+                } => remove_messages(deps, domain, queue_position, priority),
+                SubOwnerMsg::AddMsgs {
+                    label,
+                    queue_position,
+                    priority,
+                    messages,
+                } => add_messages(deps, label, queue_position, priority, messages),
+                SubOwnerMsg::PauseProcessor { domain } => pause_processor(deps, domain),
+                SubOwnerMsg::ResumeProcessor { domain } => resume_processor(deps, domain),
             }
         }
         ExecuteMsg::UserAction(user_msg) => match user_msg {
@@ -133,20 +147,19 @@ fn update_ownership(
     Ok(Response::new().add_attributes(ownership.into_attributes()))
 }
 
-fn add_sub_owner(deps: DepsMut, sub_owner: Addr) -> Result<Response<NeutronMsg>, ContractError> {
-    SUB_OWNERS.save(
-        deps.storage,
-        deps.api.addr_validate(sub_owner.as_str())?,
-        &Empty {},
-    )?;
+fn add_sub_owner(deps: DepsMut, sub_owner: String) -> Result<Response<NeutronMsg>, ContractError> {
+    SUB_OWNERS.save(deps.storage, deps.api.addr_validate(&sub_owner)?, &Empty {})?;
 
     Ok(Response::new()
         .add_attribute("action", "add_sub_owner")
         .add_attribute("sub_owner", sub_owner))
 }
 
-fn remove_sub_owner(deps: DepsMut, sub_owner: Addr) -> Result<Response<NeutronMsg>, ContractError> {
-    SUB_OWNERS.remove(deps.storage, sub_owner.clone());
+fn remove_sub_owner(
+    deps: DepsMut,
+    sub_owner: String,
+) -> Result<Response<NeutronMsg>, ContractError> {
+    SUB_OWNERS.remove(deps.storage, deps.api.addr_validate(&sub_owner)?);
 
     Ok(Response::new()
         .add_attribute("action", "remove_sub_owner")
@@ -227,7 +240,7 @@ fn create_authorizations(
 fn modify_authorization(
     deps: DepsMut,
     label: String,
-    start_time: Option<StartTime>,
+    not_before: Option<Expiration>,
     expiration: Option<Expiration>,
     max_concurrent_executions: Option<u64>,
     priority: Option<Priority>,
@@ -238,8 +251,8 @@ fn modify_authorization(
             ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
         })?;
 
-    if let Some(start_time) = start_time {
-        authorization.start_time = start_time;
+    if let Some(not_before) = not_before {
+        authorization.not_before = not_before;
     }
 
     if let Some(expiration) = expiration {
@@ -324,6 +337,93 @@ fn mint_authorizations(
         .add_messages(token_factory_msgs))
 }
 
+fn pause_processor(deps: DepsMut, domain: Domain) -> Result<Response<NeutronMsg>, ContractError> {
+    let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
+        AuthorizationMsg::Pause {},
+    ))?;
+    let wasm_msg =
+        create_wasm_msg_for_processor_or_proxy(deps.storage, execute_msg_binary, &domain)?;
+
+    Ok(Response::new()
+        .add_message(wasm_msg)
+        .add_attribute("action", "pause_processor"))
+}
+
+fn resume_processor(deps: DepsMut, domain: Domain) -> Result<Response<NeutronMsg>, ContractError> {
+    let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
+        AuthorizationMsg::Resume {},
+    ))?;
+    let wasm_msg =
+        create_wasm_msg_for_processor_or_proxy(deps.storage, execute_msg_binary, &domain)?;
+
+    Ok(Response::new()
+        .add_message(wasm_msg)
+        .add_attribute("action", "resume_processor"))
+}
+
+fn add_messages(
+    deps: DepsMut,
+    label: String,
+    queue_position: u64,
+    priority: Priority,
+    messages: Vec<Binary>,
+) -> Result<Response<NeutronMsg>, ContractError> {
+    let authorization = AUTHORIZATIONS
+        .load(deps.storage, label.clone())
+        .map_err(|_| {
+            ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
+        })?;
+
+    // We dont need to perform any validation because this is sent by the owner
+    let current_executions = CURRENT_EXECUTIONS
+        .load(deps.storage, label.clone())
+        .unwrap_or_default();
+    CURRENT_EXECUTIONS.save(
+        deps.storage,
+        label,
+        &current_executions.checked_add(1).expect("Overflow"),
+    )?;
+
+    let domain = get_domain(&authorization)?;
+    let id = get_and_increase_execution_id(deps.storage)?;
+    let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
+        AuthorizationMsg::AddMsgs {
+            id,
+            queue_position,
+            msgs: messages,
+            action_batch: authorization.action_batch,
+            priority,
+        },
+    ))?;
+    let wasm_msg =
+        create_wasm_msg_for_processor_or_proxy(deps.storage, execute_msg_binary, &domain)?;
+
+    Ok(Response::new()
+        .add_message(wasm_msg)
+        .add_attribute("action", "add_messages")
+        .add_attribute("authorization_label", authorization.label))
+}
+
+fn remove_messages(
+    deps: DepsMut,
+    domain: Domain,
+    queue_position: u64,
+    priority: Priority,
+) -> Result<Response<NeutronMsg>, ContractError> {
+    let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
+        AuthorizationMsg::RemoveMsgs {
+            queue_position,
+            priority,
+        },
+    ))?;
+    let wasm_msg =
+        create_wasm_msg_for_processor_or_proxy(deps.storage, execute_msg_binary, &domain)?;
+
+    Ok(Response::new()
+        .add_message(wasm_msg)
+        .add_attribute("action", "remove_messages"))
+}
+
 fn send_msgs(
     deps: DepsMut,
     env: Env,
@@ -346,8 +446,40 @@ fn send_msgs(
         &messages,
     )?;
 
-    // TODO: Add messages to response
+    // We need to check that we haven't reached the max concurrent executions and if not, increase it by 1
+    let current_executions = CURRENT_EXECUTIONS
+        .load(deps.storage, label.clone())
+        .unwrap_or_default();
+    if current_executions >= authorization.max_concurrent_executions {
+        return Err(ContractError::Authorization(
+            AuthorizationErrorReason::MaxConcurrentExecutionsReached {},
+        ));
+    }
+    CURRENT_EXECUTIONS.save(
+        deps.storage,
+        label,
+        &current_executions.checked_add(1).expect("Overflow"),
+    )?;
+
+    // Get the domain to know which processor to use
+    let domain = get_domain(&authorization)?;
+    // Get the ID we are going to use for the execution (used to process callbacks)
+    let id = get_and_increase_execution_id(deps.storage)?;
+    // Message for the processor
+    let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
+        AuthorizationMsg::EnqueueMsgs {
+            id,
+            msgs: messages,
+            action_batch: authorization.action_batch,
+            priority: authorization.priority,
+        },
+    ))?;
+    // We need to know if this will be sent to the processor on the main domain or to an external domain
+    let wasm_msg =
+        create_wasm_msg_for_processor_or_proxy(deps.storage, execute_msg_binary, &domain)?;
+
     Ok(Response::new()
+        .add_message(wasm_msg)
         .add_attribute("action", "send_msgs")
         .add_attribute("authorization_label", authorization.label))
 }
@@ -429,4 +561,11 @@ fn assert_owner_or_subowner(store: &dyn Storage, address: Addr) -> Result<(), Co
 /// Returns the full denom of a tokenfactory token: factory/<contract_address>/<label>
 pub fn build_tokenfactory_denom(contract_address: &str, label: &str) -> String {
     format!("factory/{}/{}", contract_address, label)
+}
+
+// Unique ID for an execution on any processor
+pub fn get_and_increase_execution_id(storage: &mut dyn Storage) -> StdResult<u64> {
+    let id = EXECUTION_ID.load(storage)?;
+    EXECUTION_ID.save(storage, &id.checked_add(1).expect("Overflow"))?;
+    Ok(id)
 }

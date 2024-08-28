@@ -1,11 +1,12 @@
 use cosmwasm_std::{coins, Addr};
+use cw_utils::Expiration;
 use neutron_test_tube::{Account, NeutronTestApp, SigningAccount};
 use serde_json::{json, Map, Value};
 use valence_authorization_utils::{
     action::{Action, ActionCallback, RetryLogic},
     authorization::{
         ActionBatch, AuthorizationDuration, AuthorizationInfo, AuthorizationMode, ExecutionType,
-        Priority, StartTime,
+        Priority,
     },
     domain::{CallbackProxy, Connector, Domain, ExecutionEnvironment, ExternalDomain},
     message::{Message, MessageDetails, MessageType},
@@ -26,7 +27,7 @@ impl NeutronTestAppBuilder {
             external_domain: "osmosis".to_string(),
             fee_denom: FEE_DENOM.to_string(),
             initial_balance: 100_000_000_000,
-            num_accounts: 6,
+            num_accounts: 5,
         }
     }
 
@@ -38,8 +39,8 @@ impl NeutronTestAppBuilder {
     pub fn build(self) -> Result<NeutronTestAppSetup, &'static str> {
         let app = NeutronTestApp::new();
 
-        if self.num_accounts < 6 {
-            return Err("Number of accounts must be at least 6");
+        if self.num_accounts < 5 {
+            return Err("Number of accounts must be at least 5");
         }
 
         let accounts = app
@@ -52,13 +53,11 @@ impl NeutronTestAppBuilder {
         let owner = &accounts[0];
         let subowner = &accounts[1];
         let user = &accounts[2];
-        let processor = &accounts[3];
-        let connector = &accounts[4];
-        let callback_proxy = &accounts[5];
+        let connector = &accounts[3];
+        let callback_proxy = &accounts[4];
 
         let owner_addr = Addr::unchecked(owner.address());
         let subowner_addr = Addr::unchecked(subowner.address());
-        let processor_addr = Addr::unchecked(processor.address());
         let connector_addr = Addr::unchecked(connector.address());
         let callback_proxy_addr = Addr::unchecked(callback_proxy.address());
         let user_addr = Addr::unchecked(user.address());
@@ -78,7 +77,6 @@ impl NeutronTestAppBuilder {
             owner_addr,
             subowner_addr,
             user_addr,
-            processor_addr,
         })
     }
 }
@@ -90,13 +88,12 @@ pub struct NeutronTestAppSetup {
     pub owner_addr: Addr,
     pub subowner_addr: Addr,
     pub user_addr: Addr,
-    pub processor_addr: Addr,
 }
 
 pub struct AuthorizationBuilder {
     label: String,
     mode: AuthorizationMode,
-    start_time: StartTime,
+    not_before: Expiration,
     duration: AuthorizationDuration,
     max_concurrent_executions: Option<u64>,
     action_batch: ActionBatch,
@@ -108,7 +105,7 @@ impl AuthorizationBuilder {
         AuthorizationBuilder {
             label: "authorization".to_string(),
             mode: AuthorizationMode::Permissionless,
-            start_time: StartTime::Anytime,
+            not_before: Expiration::Never {},
             duration: AuthorizationDuration::Forever,
             max_concurrent_executions: None,
             action_batch: ActionBatchBuilder::new().build(),
@@ -126,8 +123,8 @@ impl AuthorizationBuilder {
         self
     }
 
-    pub fn with_start_time(mut self, start_time: StartTime) -> Self {
-        self.start_time = start_time;
+    pub fn with_not_before(mut self, not_before: Expiration) -> Self {
+        self.not_before = not_before;
         self
     }
 
@@ -155,7 +152,7 @@ impl AuthorizationBuilder {
         AuthorizationInfo {
             label: self.label,
             mode: self.mode,
-            start_time: self.start_time,
+            not_before: self.not_before,
             duration: self.duration,
             max_concurrent_executions: self.max_concurrent_executions,
             action_batch: self.action_batch,
@@ -281,7 +278,7 @@ impl JsonBuilder {
             } else {
                 current = current
                     .as_object_mut()
-                    .and_then(|map| Some(map.entry(part.to_string()).or_insert(json!({}))))
+                    .map(|map| map.entry(part.to_string()).or_insert(json!({})))
                     .expect("Failed to insert or access object");
             }
         }
