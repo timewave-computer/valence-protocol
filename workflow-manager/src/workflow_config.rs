@@ -8,7 +8,7 @@ use crate::{
     context::Context,
     domain::Domain,
     error::{ManagerError, ManagerResult},
-    service::ServiceInfo,
+    service::ServiceInfo, 
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -44,21 +44,12 @@ impl WorkflowConfig {
 
         // TODO: We probably want to verify the whole workflow config first, before doing any operations
 
+
         // Init processors on each domain and the bridges accounts
         for (id, domain) in self.get_all_domains().iter().enumerate() {
-            let connecotr = ctx.get_or_create_connector(&domain).await?;
-            let (addr, salt) = connecotr
-                .predict_address(&(id as u64), "processor", "processor")
-                .await?;
+                let connecotr = ctx.get_or_create_connector(&domain).await?;
+                let (addr, salt) = connecotr.predict_address(&(id as u64), "processor", "processor").await?;
         }
-
-        // TODO: Get workflow next id from on chain workflow registry
-
-        // TODO: Predict the processor address
-        // TODO: Predict the authorization address.
-        // TODO: each domain if not main domain, must have a bridge connection open from main to it,
-        //       so we need to create the bridge accounts and get those addresses
-        // TODO: Predict or instantiate the bridge accounts first before doing anything else because we need those addresses
 
         let mut account_instantiate_datas: HashMap<u64, InstantiateAccountData> = HashMap::new();
         // init accounts
@@ -108,9 +99,9 @@ impl WorkflowConfig {
                 account_data.add_service(service_addr.to_string());
 
                 patterns.push(format!("|account_id|\":{account_id}"));
-                patterns.push(format!("|account_id|\":{account_id}"));
                 replace_with.push(format!("account_addr\":\"{}\"", account_data.addr.clone()))
             }
+            
 
             for account_id in link.output_accounts_id.iter() {
                 let account_data = account_instantiate_datas.get(account_id).ok_or(
