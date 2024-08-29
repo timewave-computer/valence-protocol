@@ -13,4 +13,13 @@ pub enum ContractError {
 
     #[error("Unauthorized, only authorization module can execute this action")]
     Unauthorized {},
+
+    #[error("Processor is currently paused")]
+    ProcessorPaused {},
+
+    #[error("There is currently nothing to process")]
+    NoMessagesToProcess {},
+
+    #[error("Processing ID not found")]
+    ProcessingIDNotFound {},
 }

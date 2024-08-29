@@ -2,7 +2,7 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, BlockInfo, Uint128};
 use cw_utils::Expiration;
 
-use crate::action::Action;
+use crate::action::{Action, RetryLogic};
 
 #[cw_serde]
 // What an owner or subowner can pass to the contract to create an authorization
@@ -81,6 +81,8 @@ pub enum PermissionType {
 pub struct ActionBatch {
     pub execution_type: ExecutionType,
     pub actions: Vec<Action>,
+    // Used for Atomic batches, if we don't specify retry logic then the actions won't be retried.
+    pub retry_logic: Option<RetryLogic>,
 }
 
 #[cw_serde]

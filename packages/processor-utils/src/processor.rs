@@ -1,5 +1,6 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Binary};
+use cw_utils::Expiration;
 use valence_authorization_utils::{authorization::ActionBatch, message::MessageType};
 
 #[cw_serde]
@@ -51,4 +52,10 @@ impl ProcessorMessage {
             ProcessorMessage::CosmwasmMigrateMsg { .. } => MessageType::CosmwasmMigrateMsg,
         }
     }
+}
+
+#[cw_serde]
+pub struct CurrentRetry {
+    pub retry_amounts: u64,
+    pub retry_cooldown: Expiration,
 }

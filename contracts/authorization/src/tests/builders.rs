@@ -164,6 +164,7 @@ impl AuthorizationBuilder {
 pub struct ActionBatchBuilder {
     execution_type: ExecutionType,
     actions: Vec<Action>,
+    retry_logic: Option<RetryLogic>,
 }
 
 impl ActionBatchBuilder {
@@ -171,6 +172,7 @@ impl ActionBatchBuilder {
         ActionBatchBuilder {
             execution_type: ExecutionType::Atomic,
             actions: vec![],
+            retry_logic: None,
         }
     }
 
@@ -184,10 +186,16 @@ impl ActionBatchBuilder {
         self
     }
 
+    pub fn _with_retry_logic(mut self, retry_logic: RetryLogic) -> Self {
+        self.retry_logic = Some(retry_logic);
+        self
+    }
+
     pub fn build(self) -> ActionBatch {
         ActionBatch {
             execution_type: self.execution_type,
             actions: self.actions,
+            retry_logic: self.retry_logic,
         }
     }
 }

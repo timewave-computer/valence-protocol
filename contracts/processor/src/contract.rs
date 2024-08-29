@@ -5,7 +5,7 @@ use cosmwasm_std::{
     to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response, StdResult,
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner};
-use valence_authorization_utils::authorization::{ActionBatch, Priority};
+use valence_authorization_utils::authorization::{ActionBatch, ExecutionType, Priority};
 use valence_processor_utils::processor::{
     Config, MessageBatch, Polytone, ProcessorDomain, ProcessorMessage, State,
 };
@@ -17,7 +17,7 @@ use crate::{
         PolytoneContracts, QueryMsg,
     },
     queue::get_queue_map,
-    state::CONFIG,
+    state::{CONFIG, RETRIES},
 };
 
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -50,7 +50,6 @@ pub fn instantiate(
         },
         state: State::Active,
     };
-
     CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new().add_attribute("method", "instantiate_processor"))
@@ -109,7 +108,7 @@ pub fn execute(
             }
         }
         ExecuteMsg::PermissionlessAction(permissionless_msg) => match permissionless_msg {
-            PermissionlessMsg::Tick {} => todo!(),
+            PermissionlessMsg::Tick {} => process_tick(deps, env),
         },
     }
 }
@@ -220,6 +219,51 @@ fn add_messages(
     queue.insert_at(deps.storage, queue_position, &message_batch)?;
 
     Ok(Response::new().add_attribute("method", "add_messages"))
+}
+
+fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+
+    // If the processor is paused we won't process any messages
+    if config.state.eq(&State::Paused) {
+        return Err(ContractError::ProcessorPaused {});
+    }
+
+    // If there is something in the high priority queue we'll process it first
+    let mut queue = get_queue_map(&Priority::High);
+    if queue.len(deps.storage)? == 0 {
+        queue = get_queue_map(&Priority::Medium);
+    }
+
+    let message_batch = queue.pop_front(deps.storage)?;
+
+    match message_batch {
+        Some(batch) => {
+            // First we check if the current batch or action to be executed is retriable, if it isn't we'll just push it back to the end of the queue
+            let current_retry = RETRIES.may_load(deps.storage, batch.id)?;
+            // If the retry_cooldown has not passed yet, we'll push the batch back to the queue and wait for the next tick
+            if let Some(current_retry) = current_retry {
+                if !current_retry.retry_cooldown.is_expired(&env.block) {
+                    queue.push_back(deps.storage, &batch)?;
+                    return Ok(Response::new()
+                        .add_attribute("method", "tick")
+                        .add_attribute("action", "pushed_action_back_to_queue"));
+                }
+            }
+            // First we check if the action batch is atomic or not, as the way of processing them is different
+            match batch.action_batch.execution_type {
+                ExecutionType::Atomic => {
+                    // If the batch is atomic, we'll just try to execute all messages in the batch
+                    //create_atomic_messages(deps, env, batch)?;
+                }
+                ExecutionType::NonAtomic => todo!(),
+            }
+
+            Ok(Response::new().add_attribute("method", "tick"))
+        }
+        // Both queues are empty, there is nothing to do
+        None => return Err(ContractError::NoMessagesToProcess {}),
+    }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

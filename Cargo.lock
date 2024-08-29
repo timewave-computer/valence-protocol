@@ -4106,6 +4106,7 @@ dependencies = [
  "cosmwasm-schema 2.1.3",
  "cosmwasm-std 2.1.3",
  "cw-storage-plus",
+ "cw-utils",
  "serde",
  "valence-authorization-utils",
 ]

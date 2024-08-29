@@ -31,9 +31,9 @@ pub struct CallbackInfo {
 pub enum ExecutionResult {
     // Everthing executed
     Executed,
-    // Execution was rejected
-    Rejected,
+    // Execution was rejected, and the reason
+    Rejected(String),
     // Partially executed, for non-atomic action batches
-    // Indicates how many actions were executed
-    PartiallyExecuted(u64),
+    // Indicates how many actions were executed and the reason the next action was not executed
+    PartiallyExecuted(u64, String),
 }

@@ -10,7 +10,7 @@ pub struct Action {
     pub message_details: MessageDetails,
     // We use String instead of Addr because it can be a contract address in other execution environments
     pub contract_address: String,
-    // If no retry logic is provided, we will assume that the action can't be retried
+    // Only applicable for NonAtomic execution type batches. An action might need to be retried, in that case we will include the retry logic.
     pub retry_logic: Option<RetryLogic>,
     // Only applicable for NonAtomic execution type batches. An action might need to receive a callback to be confirmed, in that case we will include the callback confirmation.
     // If not provided, we assume that correct execution of the message implies confirmation.

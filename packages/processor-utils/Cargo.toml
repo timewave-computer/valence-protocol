@@ -11,3 +11,4 @@ cosmwasm-schema             = { workspace = true }
 valence-authorization-utils = { workspace = true }
 cw-storage-plus             = { workspace = true }
 serde                       = { workspace = true }
+cw-utils                    = { workspace = true }
