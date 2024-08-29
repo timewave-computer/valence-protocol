@@ -3,6 +3,7 @@ use cosmwasm_std::{Addr, Uint128};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query, Expiration};
 use valence_authorization_utils::{
     authorization::{Authorization, AuthorizationInfo, Priority},
+    callback::ExecutionResult,
     domain::{Domain, ExternalDomain},
 };
 use valence_processor_utils::processor::ProcessorMessage;
@@ -23,7 +24,7 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     OwnerAction(OwnerMsg),
     PermissionedAction(PermissionedMsg),
-    UserAction(PermissionlessMsg),
+    PermissionlessAction(PermissionlessMsg),
 }
 
 #[cw_serde]
@@ -98,6 +99,10 @@ pub enum PermissionlessMsg {
     SendMsgs {
         label: String,
         messages: Vec<ProcessorMessage>,
+    },
+    Callback {
+        execution_id: u64,
+        execution_result: ExecutionResult,
     },
 }
 

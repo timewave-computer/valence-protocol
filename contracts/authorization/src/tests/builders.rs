@@ -8,7 +8,7 @@ use valence_authorization_utils::{
         ActionBatch, AuthorizationDuration, AuthorizationInfo, AuthorizationMode, ExecutionType,
         Priority,
     },
-    domain::{CallbackProxy, Connector, Domain, ExecutionEnvironment, ExternalDomain},
+    domain::{Connector, Domain, ExecutionEnvironment, ExternalDomain},
     message::{Message, MessageDetails, MessageType},
 };
 
@@ -67,7 +67,7 @@ impl NeutronTestAppBuilder {
             execution_environment: ExecutionEnvironment::CosmWasm,
             connector: Connector::PolytoneNote(connector_addr),
             processor: "processor".to_string(),
-            callback_proxy: CallbackProxy::PolytoneProxy(callback_proxy_addr),
+            callback_proxy: callback_proxy_addr,
         };
 
         Ok(NeutronTestAppSetup {

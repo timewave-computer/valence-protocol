@@ -6,7 +6,7 @@ authors     = ["Timewave Labs"]
 description = "Helpers for authorization contract"
 
 [dependencies]
-cosmwasm-std    = { workspace = true }
-cw-utils        = { workspace = true }
-cosmwasm-schema = { workspace = true }
-neutron-sdk     = { workspace = true }
+cosmwasm-std            = { workspace = true }
+cw-utils                = { workspace = true }
+cosmwasm-schema         = { workspace = true }
+neutron-sdk             = { workspace = true }

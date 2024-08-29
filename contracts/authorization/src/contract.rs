@@ -11,6 +11,7 @@ use valence_authorization_utils::{
         Authorization, AuthorizationInfo, AuthorizationMode, AuthorizationState, PermissionType,
         Priority,
     },
+    callback::{CallbackInfo, ExecutionResult, PendingCallback},
     domain::{Domain, ExternalDomain},
 };
 use valence_processor::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExecuteMsg};
@@ -24,8 +25,8 @@ use crate::{
         ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, PermissionedMsg, PermissionlessMsg, QueryMsg,
     },
     state::{
-        AUTHORIZATIONS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS,
-        PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS,
+        AUTHORIZATIONS, CONFIRMED_CALLBACKS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS,
+        PENDING_CALLBACK, PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS,
     },
 };
 
@@ -91,9 +92,9 @@ pub fn execute(
                 OwnerMsg::RemoveSubOwner { sub_owner } => remove_sub_owner(deps, sub_owner),
             }
         }
-        ExecuteMsg::PermissionedAction(sub_owner_msg) => {
+        ExecuteMsg::PermissionedAction(permissioned_msg) => {
             assert_owner_or_subowner(deps.storage, info.sender)?;
-            match sub_owner_msg {
+            match permissioned_msg {
                 PermissionedMsg::AddExternalDomains { external_domains } => {
                     add_external_domains(deps, external_domains)
                 }
@@ -136,10 +137,14 @@ pub fn execute(
                 PermissionedMsg::ResumeProcessor { domain } => resume_processor(deps, domain),
             }
         }
-        ExecuteMsg::UserAction(user_msg) => match user_msg {
+        ExecuteMsg::PermissionlessAction(permissionless_msg) => match permissionless_msg {
             PermissionlessMsg::SendMsgs { label, messages } => {
                 send_msgs(deps, env, info, label, messages)
             }
+            PermissionlessMsg::Callback {
+                execution_id,
+                execution_result,
+            } => process_callback(deps, info, execution_id, execution_result),
         },
     }
 }
@@ -387,7 +392,7 @@ fn add_messages(
         .unwrap_or_default();
     CURRENT_EXECUTIONS.save(
         deps.storage,
-        label,
+        label.clone(),
         &current_executions.checked_add(1).expect("Overflow"),
     )?;
 
@@ -404,6 +409,8 @@ fn add_messages(
     ))?;
     let wasm_msg =
         create_wasm_msg_for_processor_or_proxy(deps.storage, execute_msg_binary, &domain)?;
+
+    store_pending_callback(deps.storage, id, domain, label)?;
 
     Ok(Response::new()
         .add_message(wasm_msg)
@@ -464,7 +471,7 @@ fn send_msgs(
     }
     CURRENT_EXECUTIONS.save(
         deps.storage,
-        label,
+        label.clone(),
         &current_executions.checked_add(1).expect("Overflow"),
     )?;
 
@@ -485,10 +492,44 @@ fn send_msgs(
     let wasm_msg =
         create_wasm_msg_for_processor_or_proxy(deps.storage, execute_msg_binary, &domain)?;
 
+    store_pending_callback(deps.storage, id, domain, label)?;
+
     Ok(Response::new()
         .add_message(wasm_msg)
         .add_attribute("action", "send_msgs")
         .add_attribute("authorization_label", authorization.label))
+}
+
+fn process_callback(
+    deps: DepsMut,
+    info: MessageInfo,
+    execution_id: u64,
+    execution_result: ExecutionResult,
+) -> Result<Response<NeutronMsg>, ContractError> {
+    let pending_callback = PENDING_CALLBACK.load(deps.storage, execution_id)?;
+
+    // Check that the sender is the one that should send the callback
+    if info.sender != pending_callback.address {
+        return Err(ContractError::Unauthorized(
+            UnauthorizedReason::UnauthorizedCallbackSender {},
+        ));
+    }
+    // We'll remove the pending callback
+    PENDING_CALLBACK.remove(deps.storage, execution_id);
+
+    // Store the confirmed callback in our confirmed callback history
+    let confirmed_callback = CallbackInfo {
+        execution_id,
+        address: pending_callback.address,
+        domain: pending_callback.domain,
+        label: pending_callback.label,
+        execution_result,
+    };
+    CONFIRMED_CALLBACKS.save(deps.storage, execution_id, &confirmed_callback)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "process_callback")
+        .add_attribute("execution_id", execution_id.to_string()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -570,9 +611,32 @@ pub fn build_tokenfactory_denom(contract_address: &str, label: &str) -> String {
     format!("factory/{}/{}", contract_address, label)
 }
 
-// Unique ID for an execution on any processor
+/// Unique ID for an execution on any processor
 pub fn get_and_increase_execution_id(storage: &mut dyn Storage) -> StdResult<u64> {
     let id = EXECUTION_ID.load(storage)?;
     EXECUTION_ID.save(storage, &id.checked_add(1).expect("Overflow"))?;
     Ok(id)
+}
+
+/// Store the pending callback
+pub fn store_pending_callback(
+    storage: &mut dyn Storage,
+    id: u64,
+    domain: Domain,
+    label: String,
+) -> StdResult<()> {
+    let address = match &domain {
+        Domain::Main => PROCESSOR_ON_MAIN_DOMAIN.load(storage)?,
+        Domain::External(domain_name) => {
+            let external_domain = EXTERNAL_DOMAINS.load(storage, domain_name.clone())?;
+            external_domain.callback_proxy
+        }
+    };
+
+    let pending_callback = PendingCallback {
+        address,
+        domain,
+        label,
+    };
+    PENDING_CALLBACK.save(storage, id, &pending_callback)
 }

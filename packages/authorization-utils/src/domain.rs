@@ -13,7 +13,7 @@ pub struct ExternalDomain {
     pub execution_environment: ExecutionEnvironment,
     pub connector: Connector,
     pub processor: String,
-    pub callback_proxy: CallbackProxy,
+    pub callback_proxy: Addr,
 }
 
 #[cw_serde]
@@ -24,9 +24,4 @@ pub enum ExecutionEnvironment {
 #[cw_serde]
 pub enum Connector {
     PolytoneNote(Addr),
-}
-
-#[cw_serde]
-pub enum CallbackProxy {
-    PolytoneProxy(Addr),
 }

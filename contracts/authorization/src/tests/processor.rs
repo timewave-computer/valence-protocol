@@ -108,7 +108,7 @@ fn user_enqueing_messages() {
     // Let's enqueue a message for the medium priority queue
     wasm.execute::<ExecuteMsg>(
         &authorization_contract,
-        &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+        &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
             label: "permissionless".to_string(),
             messages: vec![message.clone()],
         }),
@@ -149,7 +149,7 @@ fn user_enqueing_messages() {
     for _ in 0..5 {
         wasm.execute::<ExecuteMsg>(
             &authorization_contract,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissionless".to_string(),
                 messages: vec![message.clone()],
             }),
@@ -197,7 +197,7 @@ fn user_enqueing_messages() {
     // Let's add now to the high priority queue and see that it's correctly enqueued with the right id and the medium priority queue is untouched
     wasm.execute::<ExecuteMsg>(
         &authorization_contract,
-        &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+        &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
             label: "permissioned-without-limit".to_string(),
             messages: vec![message.clone()],
         }),
@@ -237,7 +237,7 @@ fn user_enqueing_messages() {
     for _ in 0..5 {
         wasm.execute::<ExecuteMsg>(
             &authorization_contract,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned-without-limit".to_string(),
                 messages: vec![message.clone()],
             }),
@@ -313,7 +313,7 @@ fn max_concurrent_execution_limit() {
     for _ in 0..3 {
         wasm.execute::<ExecuteMsg>(
             &authorization_contract,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissionless".to_string(),
                 messages: vec![message.clone()],
             }),
@@ -327,7 +327,7 @@ fn max_concurrent_execution_limit() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &authorization_contract,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissionless".to_string(),
                 messages: vec![message.clone()],
             }),
@@ -441,7 +441,7 @@ fn owner_adding_and_removing_messages() {
     for _ in 0..5 {
         wasm.execute::<ExecuteMsg>(
             &authorization_contract,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissionless".to_string(),
                 messages: vec![message.clone()],
             }),
@@ -452,7 +452,7 @@ fn owner_adding_and_removing_messages() {
 
         wasm.execute::<ExecuteMsg>(
             &authorization_contract,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned-without-limit".to_string(),
                 messages: vec![message.clone()],
             }),

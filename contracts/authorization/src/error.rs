@@ -80,6 +80,9 @@ pub enum UnauthorizedReason {
 
     #[error("To proceed with this action, you must send exactly one token of this authorization")]
     RequiresOneToken {},
+
+    #[error("The sender is not the authorized callback address")]
+    UnauthorizedCallbackSender {},
 }
 
 #[derive(Error, Debug, PartialEq)]
