@@ -56,26 +56,6 @@ pub enum CosmosCosmwasmError {
 
     #[error(transparent)]
     ServiceError(#[from] ServiceError),
-    // #[error("Code ids not found for: {0}")]
-    // CodeIdNotFound(String),
-
-    // #[error("Failed to query the code id: {0}")]
-    // FailedQueryCodeId(u64),
-
-    // #[error("Failed to parse the response of code id: {0}")]
-    // FailedParseResCodeId(u64),
-
-    // #[error("Failed to create new client for: {0} | {1}")]
-    // FailedNewClient(String, String),
-
-    // #[error("Failed to create new wallet for: {0} | {1}")]
-    // FailedNewWalletInstance(String, String),
-
-    // #[error("Failed to query the instantiate2 address: {0}")]
-    // FailedQueryAddress2(anyhow::Error),
-
-    // #[error("Failed to broadcast the TX: {0}")]
-    // FailedBroadcastTx(anyhow::Error),
 }
 
 pub struct CosmosCosmwasmConnector {
@@ -140,7 +120,7 @@ impl Connector for CosmosCosmwasmConnector {
         let code_id = *self
             .code_ids
             .get(contract_name)
-            .context(format!("Code ids not found for: {}", contract_name))
+            .context(format!("Code id not found for: {}", contract_name))
             .map_err(CosmosCosmwasmError::Error)?;
 
         let req = QueryCodeRequest { code_id };
@@ -151,7 +131,7 @@ impl Connector for CosmosCosmwasmConnector {
             .wasm
             .code(req)
             .await
-            .context(format!("Code id was not found for: {}", code_id))
+            .context(format!("Code request failed for: {}", code_id))
             .map_err(CosmosCosmwasmError::Error)?;
 
         let checksum = code_res
@@ -237,7 +217,7 @@ impl Connector for CosmosCosmwasmConnector {
             // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
             .await
             .map(|_| ())
-            .context(format!("Failed to broadcast the TX"))
+            .context("Failed to broadcast the TX")
             .map_err(|e| CosmosCosmwasmError::Error(e).into())
     }
 

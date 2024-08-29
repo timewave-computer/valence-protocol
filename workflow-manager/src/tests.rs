@@ -27,6 +27,7 @@ mod test {
 
         let domain = Domain::CosmosCosmwasm("neutron".to_string());
         let _connector = domain.generate_connector(&ctx.config).await.unwrap();
+
         // // let domain2 = Domain::Cosmos("neutron".to_string());
         // let mut domain_info = DomainInfo::from_domain(&domain).await;
         // println!("{domain_info:?}");
