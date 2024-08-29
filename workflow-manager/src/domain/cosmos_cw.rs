@@ -77,9 +77,10 @@ impl CosmosCosmwasmConnector {
         chain_info: &ChainInfo,
         code_ids: &HashMap<String, u64>,
     ) -> Result<Self, CosmosCosmwasmError> {
-        let grpc = GrpcClient::new(&chain_info.grpc)
-            .await
-            .context(format!("Failed to create new client for: {}", chain_info.name))?;
+        let grpc = GrpcClient::new(&chain_info.grpc).await.context(format!(
+            "Failed to create new client for: {}",
+            chain_info.name
+        ))?;
 
         let gas_price = Decimal::from_str(&chain_info.gas_price)?;
         let gas_adj = Decimal::from_str("1.5")?;

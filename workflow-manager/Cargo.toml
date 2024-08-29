@@ -35,7 +35,6 @@ tracing-subscriber = "0.3"
 glob               = "0.3"
 strum              = { version = "0.26", features = ["derive"] }
 async-trait        = "0.1.81"
-hrp                = "0.1.1"
 bech32             = "0.11.0"
 prost              = "0.12"
 prost-types        = "0.12"
