@@ -14,6 +14,7 @@ use valence_authorization_utils::{
     domain::{Domain, ExternalDomain},
 };
 use valence_processor::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExecuteMsg};
+use valence_processor_utils::processor::ProcessorMessage;
 
 use crate::{
     authorization::Validate,
@@ -372,7 +373,7 @@ fn add_messages(
     label: String,
     queue_position: u64,
     priority: Priority,
-    messages: Vec<Binary>,
+    messages: Vec<ProcessorMessage>,
 ) -> Result<Response<NeutronMsg>, ContractError> {
     let authorization = AUTHORIZATIONS
         .load(deps.storage, label.clone())
@@ -435,7 +436,7 @@ fn send_msgs(
     env: Env,
     info: MessageInfo,
     label: String,
-    messages: Vec<Binary>,
+    messages: Vec<ProcessorMessage>,
 ) -> Result<Response<NeutronMsg>, ContractError> {
     let authorization = AUTHORIZATIONS
         .load(deps.storage, label.clone())

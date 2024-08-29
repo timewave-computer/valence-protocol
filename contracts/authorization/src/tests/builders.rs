@@ -205,7 +205,7 @@ impl ActionBuilder {
         ActionBuilder {
             domain: Domain::Main,
             message_details: MessageDetails {
-                message_type: MessageType::ExecuteMsg,
+                message_type: MessageType::CosmwasmExecuteMsg,
                 message: Message {
                     name: "method".to_string(),
                     params_restrictions: None,

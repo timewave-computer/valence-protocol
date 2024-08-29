@@ -1,4 +1,4 @@
-use cosmwasm_std::{Binary, BlockInfo, MessageInfo, QuerierWrapper, Storage, Uint128};
+use cosmwasm_std::{BlockInfo, MessageInfo, QuerierWrapper, Storage, Uint128};
 use cw_utils::{must_pay, Expiration};
 use serde_json::Value;
 use valence_authorization_utils::{
@@ -9,6 +9,7 @@ use valence_authorization_utils::{
     domain::{Domain, ExecutionEnvironment},
     message::ParamRestriction,
 };
+use valence_processor_utils::processor::ProcessorMessage;
 
 use crate::{
     contract::build_tokenfactory_denom,
@@ -30,7 +31,7 @@ pub trait Validate {
     fn validate_messages(
         &self,
         store: &dyn Storage,
-        messages: &[Binary],
+        messages: &[ProcessorMessage],
     ) -> Result<(), ContractError>;
     fn validate_executable(
         &self,
@@ -39,7 +40,7 @@ pub trait Validate {
         querier: QuerierWrapper,
         contract_address: &str,
         info: &MessageInfo,
-        messages: &[Binary],
+        messages: &[ProcessorMessage],
     ) -> Result<(), ContractError>;
 }
 
@@ -175,7 +176,7 @@ impl Validate for Authorization {
     fn validate_messages(
         &self,
         store: &dyn Storage,
-        messages: &[Binary],
+        messages: &[ProcessorMessage],
     ) -> Result<(), ContractError> {
         if messages.len() != self.action_batch.actions.len() {
             return Err(ContractError::Message(MessageErrorReason::InvalidAmount {}));
@@ -192,13 +193,23 @@ impl Validate for Authorization {
 
             match &execution_environment {
                 ExecutionEnvironment::CosmWasm => {
+                    // Check that the message type matches the action type
+                    if each_message.get_message_type() != each_action.message_details.message_type {
+                        return Err(ContractError::Message(MessageErrorReason::InvalidType {}));
+                    }
+
+                    // Extract the message from the ProcessorMessage
+                    let msg = match each_message {
+                        ProcessorMessage::CosmwasmExecuteMsg { msg } => msg,
+                        ProcessorMessage::CosmwasmMigrateMsg { msg, .. } => msg,
+                    };
+
                     // Extract the json from each message
-                    let json: Value =
-                        serde_json::from_slice(each_message.as_slice()).map_err(|e| {
-                            ContractError::InvalidJson {
-                                error: e.to_string(),
-                            }
-                        })?;
+                    let json: Value = serde_json::from_slice(msg.as_slice()).map_err(|e| {
+                        ContractError::InvalidJson {
+                            error: e.to_string(),
+                        }
+                    })?;
 
                     // Check that json only has one top level key
                     if json.as_object().map(|obj| obj.len()).unwrap_or(0) != 1 {
@@ -237,7 +248,7 @@ impl Validate for Authorization {
         querier: QuerierWrapper,
         contract_address: &str,
         info: &MessageInfo,
-        messages: &[Binary],
+        messages: &[ProcessorMessage],
     ) -> Result<(), ContractError> {
         self.ensure_enabled()?;
         self.ensure_active(block)?;

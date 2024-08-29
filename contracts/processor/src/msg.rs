@@ -1,8 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Binary;
 use cw_ownable::{cw_ownable_execute, cw_ownable_query};
 use valence_authorization_utils::authorization::{ActionBatch, Priority};
-use valence_processor_utils::processor::{Config, MessageBatch};
+use valence_processor_utils::processor::{Config, MessageBatch, ProcessorMessage};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -39,7 +38,7 @@ pub enum AuthorizationMsg {
     EnqueueMsgs {
         // Used for the callback or to remove the messages
         id: u64,
-        msgs: Vec<Binary>,
+        msgs: Vec<ProcessorMessage>,
         action_batch: ActionBatch,
         priority: Priority,
     },
@@ -50,7 +49,7 @@ pub enum AuthorizationMsg {
     AddMsgs {
         queue_position: u64,
         id: u64,
-        msgs: Vec<Binary>,
+        msgs: Vec<ProcessorMessage>,
         action_batch: ActionBatch,
         priority: Priority,
     },

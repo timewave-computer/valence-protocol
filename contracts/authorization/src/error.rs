@@ -87,6 +87,9 @@ pub enum MessageErrorReason {
     #[error("The amount of messages you send must match the amount of actions in the list")]
     InvalidAmount {},
 
+    #[error("The message sent has a different type than expected")]
+    InvalidType {},
+
     #[error("The message doesn't match the action")]
     DoesNotMatch {},
 

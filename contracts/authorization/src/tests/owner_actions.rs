@@ -308,7 +308,7 @@ fn create_valid_authorizations() {
                     .with_action(
                         ActionBuilder::new()
                             .with_message_details(MessageDetails {
-                                message_type: MessageType::ExecuteMsg,
+                                message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
                                     name: "method2".to_string(),
                                     params_restrictions: Some(vec![
@@ -343,7 +343,7 @@ fn create_valid_authorizations() {
                         ActionBuilder::new()
                             .with_domain(Domain::External("osmosis".to_string()))
                             .with_message_details(MessageDetails {
-                                message_type: MessageType::ExecuteMsg,
+                                message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
                                     name: "method".to_string(),
                                     params_restrictions: Some(vec![
@@ -364,7 +364,7 @@ fn create_valid_authorizations() {
                         ActionBuilder::new()
                             .with_domain(Domain::External("osmosis".to_string()))
                             .with_message_details(MessageDetails {
-                                message_type: MessageType::ExecuteMsg,
+                                message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
                                     name: "method".to_string(),
                                     params_restrictions: Some(vec![ParamRestriction::MustBeValue(
@@ -402,7 +402,7 @@ fn create_valid_authorizations() {
                     .with_action(
                         ActionBuilder::new()
                             .with_message_details(MessageDetails {
-                                message_type: MessageType::ExecuteMsg,
+                                message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
                                     name: "method".to_string(),
                                     params_restrictions: Some(vec![
@@ -422,7 +422,7 @@ fn create_valid_authorizations() {
                     .with_action(
                         ActionBuilder::new()
                             .with_message_details(MessageDetails {
-                                message_type: MessageType::ExecuteMsg,
+                                message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
                                     name: "method".to_string(),
                                     params_restrictions: Some(vec![ParamRestriction::MustBeValue(

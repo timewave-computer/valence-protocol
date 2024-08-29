@@ -6,7 +6,9 @@ use cosmwasm_std::{
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner};
 use valence_authorization_utils::authorization::{ActionBatch, Priority};
-use valence_processor_utils::processor::{Config, MessageBatch, Polytone, ProcessorDomain, State};
+use valence_processor_utils::processor::{
+    Config, MessageBatch, Polytone, ProcessorDomain, ProcessorMessage, State,
+};
 
 use crate::{
     error::ContractError,
@@ -170,7 +172,7 @@ fn resume_processor(deps: DepsMut) -> Result<Response, ContractError> {
 fn enqueue_messages(
     deps: DepsMut,
     id: u64,
-    msgs: Vec<Binary>,
+    msgs: Vec<ProcessorMessage>,
     action_batch: ActionBatch,
     priority: Priority,
 ) -> Result<Response, ContractError> {
@@ -203,7 +205,7 @@ fn add_messages(
     deps: DepsMut,
     queue_position: u64,
     id: u64,
-    msgs: Vec<Binary>,
+    msgs: Vec<ProcessorMessage>,
     action_batch: ActionBatch,
     priority: Priority,
 ) -> Result<Response, ContractError> {

@@ -23,8 +23,8 @@ valence-processor           = { workspace = true }
 neutron-sdk                 = { workspace = true }
 cw-utils                    = { workspace = true }
 serde_json                  = { workspace = true }
+valence-processor-utils     = { workspace = true }
 
 [dev-dependencies]
-neutron-test-tube       = { workspace = true }
-valence-processor       = { workspace = true }
-valence-processor-utils = { workspace = true }
+neutron-test-tube = { workspace = true }
+valence-processor = { workspace = true }

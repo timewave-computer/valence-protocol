@@ -4,7 +4,7 @@ use valence_authorization_utils::{
     authorization::{AuthorizationMode, PermissionType, Priority},
     domain::Domain,
 };
-use valence_processor_utils::processor::MessageBatch;
+use valence_processor_utils::processor::{MessageBatch, ProcessorMessage};
 
 use crate::{
     error::{AuthorizationErrorReason, ContractError},
@@ -101,8 +101,9 @@ fn user_enqueing_messages() {
     assert_eq!(query_med_prio_queue.len(), 0);
     assert_eq!(query_high_prio_queue.len(), 0);
 
-    let message =
+    let binary =
         Binary::from(serde_json::to_vec(&JsonBuilder::new().main("method").build()).unwrap());
+    let message = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
 
     // Let's enqueue a message for the medium priority queue
     wasm.execute::<ExecuteMsg>(
@@ -305,8 +306,9 @@ fn max_concurrent_execution_limit() {
     .unwrap();
 
     // We should be able to enqueue this 3 times
-    let message =
+    let binary =
         Binary::from(serde_json::to_vec(&JsonBuilder::new().main("method").build()).unwrap());
+    let message = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
 
     for _ in 0..3 {
         wasm.execute::<ExecuteMsg>(
@@ -432,8 +434,9 @@ fn owner_adding_and_removing_messages() {
     .unwrap();
 
     // Let's enqueue a few messages on both queues
-    let message =
+    let binary =
         Binary::from(serde_json::to_vec(&JsonBuilder::new().main("method").build()).unwrap());
+    let message = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
 
     for _ in 0..5 {
         wasm.execute::<ExecuteMsg>(

@@ -1,10 +1,11 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Uint128};
+use cosmwasm_std::{Addr, Uint128};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query, Expiration};
 use valence_authorization_utils::{
     authorization::{Authorization, AuthorizationInfo, Priority},
     domain::{Domain, ExternalDomain},
 };
+use valence_processor_utils::processor::ProcessorMessage;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -74,7 +75,7 @@ pub enum PermissionedMsg {
         queue_position: u64,
         priority: Priority,
         // Messages to add
-        messages: Vec<Binary>,
+        messages: Vec<ProcessorMessage>,
     },
     // Pause a processor in any domain
     PauseProcessor {
@@ -96,7 +97,7 @@ pub struct Mint {
 pub enum PermissionlessMsg {
     SendMsgs {
         label: String,
-        messages: Vec<Binary>,
+        messages: Vec<ProcessorMessage>,
     },
 }
 
