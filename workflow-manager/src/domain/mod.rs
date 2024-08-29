@@ -3,13 +3,30 @@ pub mod cosmos_evm;
 use std::fmt;
 
 use async_trait::async_trait;
-use cosmos_cw::CosmosCosmwasmConnector;
-use cosmos_evm::CosmosEvmConnector;
+use cosmos_cw::{CosmosCosmwasmConnector, CosmosCosmwasmError};
+use cosmos_evm::{CosmosEvmConnector, CosmosEvmError};
 use strum::Display;
+use thiserror::Error;
 
 use crate::{
-    account::InstantiateAccountData, config::Config, error::ManagerResult, service::ServiceConfig,
+    account::InstantiateAccountData,
+    config::{Config, ConfigError},
+    service::ServiceConfig,
 };
+
+pub type ConnectorResult<T> = Result<T, ConnectorError>;
+
+#[derive(Error, Debug)]
+pub enum ConnectorError {
+    #[error(transparent)]
+    ConfigError(#[from] ConfigError),
+
+    #[error("Cosmos Cosmwasm")]
+    CosmosCosmwasm(#[from] CosmosCosmwasmError),
+
+    #[error("Cosmos Evm")]
+    CosmosEvm(#[from] CosmosEvmError),
+}
 
 /// We need some way of knowing which domain we are talking with
 /// TODO: chain connection, execution, bridges for authorization.
@@ -21,7 +38,7 @@ pub enum Domain {
 }
 
 impl Domain {
-    pub async fn generate_connector(&self, cfg: &Config) -> ManagerResult<Box<dyn Connector>> {
+    pub async fn generate_connector(&self, cfg: &Config) -> ConnectorResult<Box<dyn Connector>> {
         Ok(match self {
             Domain::CosmosCosmwasm(chain_name) => Box::new(
                 CosmosCosmwasmConnector::new(
@@ -44,13 +61,13 @@ pub trait Connector: fmt::Debug {
         account_id: &u64,
         contract_name: &str,
         extra_salt: &str,
-    ) -> ManagerResult<(String, Vec<u8>)>;
+    ) -> ConnectorResult<(String, Vec<u8>)>;
     /// Instantiate an account based onthe provided data
-    async fn instantiate_account(&mut self, data: &InstantiateAccountData) -> ManagerResult<()>;
+    async fn instantiate_account(&mut self, data: &InstantiateAccountData) -> ConnectorResult<()>;
     async fn instantiate_service(
         &mut self,
         service_id: u64,
         service_config: &ServiceConfig,
         salt: Vec<u8>,
-    ) -> ManagerResult<()>;
+    ) -> ConnectorResult<()>;
 }

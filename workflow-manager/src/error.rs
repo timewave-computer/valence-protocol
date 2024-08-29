@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::domain::cosmos_cw::CosmosCosmwasmError;
+use crate::{domain::ConnectorError, service::ServiceError};
 
 pub type ManagerResult<T> = Result<T, ManagerError>;
 
@@ -9,8 +9,11 @@ pub enum ManagerError {
     #[error("Generic Error: {0}")]
     Generic(String),
 
+    #[error("Connector Error")]
+    ConnectorError(#[from] ConnectorError),
+
     #[error(transparent)]
-    CosmosCosmWasm(#[from] CosmosCosmwasmError),
+    ServiceError(#[from] ServiceError),
 
     #[error("Chain not found for: {0}")]
     ChainInfoNotFound(String),

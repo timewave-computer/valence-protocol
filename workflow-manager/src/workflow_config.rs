@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
 
-use anyhow::Result as AnyResult;
 use services_utils::Id;
 use valence_authorization_utils::authorization::AuthorizationInfo;
 
@@ -35,7 +34,7 @@ pub struct WorkflowConfig {
 
 impl WorkflowConfig {
     /// Instantiate a workflow on all domains.
-    pub async fn init(&mut self, ctx: &mut Context) -> AnyResult<()> {
+    pub async fn init(&mut self, ctx: &mut Context) -> ManagerResult<()> {
         // TODO: Get workflow next id from on chain workflow registry
         // TODO: Predict the processor address
         // TODO: Predict the authorization address.

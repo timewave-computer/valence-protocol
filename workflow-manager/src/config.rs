@@ -2,8 +2,18 @@ use std::collections::HashMap;
 
 use config::{Config as ConfigHelper, File};
 use serde::Deserialize;
+use thiserror::Error;
 
-use crate::error::{ManagerError, ManagerResult};
+pub type ConfigResult<T> = Result<T, ConfigError>;
+
+#[derive(Error, Debug)]
+pub enum ConfigError {
+    #[error("Chain not found for: {0}")]
+    ChainInfoNotFound(String),
+
+    #[error("Code ids not found for: {0}")]
+    CodeIdsNotFound(String),
+}
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -46,16 +56,16 @@ pub struct Contracts {
 }
 
 impl Config {
-    pub fn get_chain_info(&self, chain_name: &str) -> ManagerResult<&ChainInfo> {
+    pub fn get_chain_info(&self, chain_name: &str) -> ConfigResult<&ChainInfo> {
         self.chains
             .get(chain_name)
-            .ok_or(ManagerError::ChainInfoNotFound(chain_name.to_string()))
+            .ok_or(ConfigError::ChainInfoNotFound(chain_name.to_string()))
     }
 
-    pub fn get_code_ids(&self, chain_name: &str) -> ManagerResult<&HashMap<String, u64>> {
+    pub fn get_code_ids(&self, chain_name: &str) -> ConfigResult<&HashMap<String, u64>> {
         self.contracts
             .code_ids
             .get(chain_name)
-            .ok_or(ManagerError::CodeIdsNotFound(chain_name.to_string()))
+            .ok_or(ConfigError::CodeIdsNotFound(chain_name.to_string()))
     }
 }
