@@ -3,10 +3,22 @@ use aho_corasick::AhoCorasick;
 use serde_json::to_vec;
 use service_base::msg::InstantiateMsg;
 use services_utils::ServiceConfigInterface;
+use thiserror::Error;
 use valence_reverse_splitter::msg::ServiceConfig as ReverseSplitterServiceConfig;
 use valence_splitter::msg::ServiceConfig as SplitterServiceConfig;
 
 use crate::domain::Domain;
+
+pub type ServiceResult<T> = Result<T, ServiceError>;
+
+#[derive(Error, Debug)]
+pub enum ServiceError {
+    #[error("AhoCorasick Error: {0}")]
+    AhoCorasick(#[from] aho_corasick::BuildError),
+
+    #[error("serde_json Error: {0}")]
+    SerdeJsonError(#[from] serde_json::Error),
+}
 
 #[derive(Debug, Clone)]
 pub struct ServiceInfo {
@@ -58,21 +70,25 @@ impl ServiceConfig {
         }
     }
 
-    pub fn replace_config(&mut self, patterns: Vec<String>, replace_with: Vec<String>) -> Self {
-        let ac = AhoCorasick::new(patterns).unwrap();
+    pub fn replace_config(
+        &mut self,
+        patterns: Vec<String>,
+        replace_with: Vec<String>,
+    ) -> ServiceResult<&mut Self> {
+        let ac = AhoCorasick::new(patterns)?;
 
         match self {
             ServiceConfig::Splitter(ref mut config) => {
-                let json = serde_json::to_string(&config).unwrap();
+                let json = serde_json::to_string(&config)?;
                 let res = ac.replace_all(&json, &replace_with);
 
-                *config = serde_json::from_str(&res).unwrap();
+                *config = serde_json::from_str(&res)?;
             }
             ServiceConfig::ReverseSplitter(config) => {
-                let json = serde_json::to_string(&config).unwrap();
+                let json = serde_json::to_string(&config)?;
                 let res = ac.replace_all(&json, &replace_with);
 
-                *config = serde_json::from_str(&res).unwrap();
+                *config = serde_json::from_str(&res)?;
             } // ServiceConfig::GlobalSplitter { config, .. } => {
               //     let json = serde_json::to_string(&config).unwrap();
               //     let res = ac.replace_all(&json, &replace_with);
@@ -99,10 +115,10 @@ impl ServiceConfig {
               // }
         }
 
-        self.clone()
+        Ok(self)
     }
 
-    pub fn get_instantiate_msg(&self, owner: String, processor: String) -> Vec<u8> {
+    pub fn get_instantiate_msg(&self, owner: String, processor: String) -> ServiceResult<Vec<u8>> {
         match self {
             ServiceConfig::Splitter(config) => to_vec(&InstantiateMsg {
                 owner,
@@ -115,6 +131,6 @@ impl ServiceConfig {
                 config: config.clone(),
             }),
         }
-        .unwrap()
+        .map_err(ServiceError::SerdeJsonError)
     }
 }
