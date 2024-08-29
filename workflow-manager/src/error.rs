@@ -6,8 +6,6 @@ pub type ManagerResult<T> = Result<T, ManagerError>;
 
 #[derive(Error, Debug)]
 pub enum ManagerError {
-    // #[error("Connector Error: {0}")]
-    // Std(#[from] ConnectorError),
     #[error("Generic Error: {0}")]
     Generic(String),
 

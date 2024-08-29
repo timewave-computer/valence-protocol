@@ -36,7 +36,6 @@ pub struct WorkflowConfig {
 impl WorkflowConfig {
     /// Instantiate a workflow on all domains.
     pub async fn init(&mut self, ctx: &mut Context) -> AnyResult<()> {
-
         // TODO: Get workflow next id from on chain workflow registry
         // TODO: Predict the processor address
         // TODO: Predict the authorization address.

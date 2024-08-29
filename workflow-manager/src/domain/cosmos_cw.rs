@@ -43,8 +43,6 @@ pub struct QueryBuildAddressResponse {
     pub address: String,
 }
 
-pub type CosmosCosmwasmResult<T> = Result<T, CosmosCosmwasmError>;
-
 #[derive(Error, Debug)]
 pub enum CosmosCosmwasmError {
     #[error("cosmos_grpc_client Error: {0}")]
@@ -56,11 +54,8 @@ pub enum CosmosCosmwasmError {
     #[error(transparent)]
     ServiceError(#[from] ServiceError),
 
-    #[error("Chain not found for: {0}")]
-    ChainInfoNotFound(String),
-
     #[error("Code ids not found for: {0}")]
-    CodeIdsNotFound(String),
+    CodeIdNotFound(String),
 
     #[error("Failed to query the code id: {0}")]
     FailedQueryCodeId(u64),
@@ -144,7 +139,7 @@ impl Connector for CosmosCosmwasmConnector {
             *self
                 .code_ids
                 .get(contract_name)
-                .ok_or(CosmosCosmwasmError::CodeIdsNotFound(
+                .ok_or(CosmosCosmwasmError::CodeIdNotFound(
                     contract_name.to_string(),
                 ))?;
 
@@ -199,7 +194,7 @@ impl Connector for CosmosCosmwasmConnector {
 
     async fn instantiate_account(&mut self, data: &InstantiateAccountData) -> ManagerResult<()> {
         let code_id = *self.code_ids.get(&data.info.ty.to_string()).ok_or(
-            CosmosCosmwasmError::CodeIdsNotFound(data.info.ty.to_string()),
+            CosmosCosmwasmError::CodeIdNotFound(data.info.ty.to_string()),
         )?;
 
         // TODO: change the admin to authorization
@@ -241,7 +236,7 @@ impl Connector for CosmosCosmwasmConnector {
         salt: Vec<u8>,
     ) -> ManagerResult<()> {
         let code_id = *self.code_ids.get(&service_config.to_string()).ok_or(
-            CosmosCosmwasmError::CodeIdsNotFound(service_config.to_string()),
+            CosmosCosmwasmError::CodeIdNotFound(service_config.to_string()),
         )?;
 
         // TODO: change the admin to authorization
