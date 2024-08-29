@@ -15,12 +15,6 @@ pub enum ManagerError {
     #[error(transparent)]
     ServiceError(#[from] ServiceError),
 
-    #[error("Chain not found for: {0}")]
-    ChainInfoNotFound(String),
-
-    #[error("Code ids not found for: {0}")]
-    CodeIdsNotFound(String),
-
     #[error("No instantiate data for account id: {0} | link id: {1}")]
     FailedToRetrieveAccountInitData(u64, u64),
 }

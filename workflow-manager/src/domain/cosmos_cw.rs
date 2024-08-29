@@ -79,7 +79,7 @@ impl CosmosCosmwasmConnector {
     ) -> Result<Self, CosmosCosmwasmError> {
         let grpc = GrpcClient::new(&chain_info.grpc)
             .await
-            .context("Failed to create new client for")?;
+            .context(format!("Failed to create new client for: {}", chain_info.name))?;
 
         let gas_price = Decimal::from_str(&chain_info.gas_price)?;
         let gas_adj = Decimal::from_str("1.5")?;
@@ -185,7 +185,7 @@ impl Connector for CosmosCosmwasmConnector {
         let code_id = *self
             .code_ids
             .get(&data.info.ty.to_string())
-            .context("test")
+            .context(format!("Code id not found for: {}", data.info.ty))
             .map_err(CosmosCosmwasmError::Error)?;
 
         // TODO: change the admin to authorization
@@ -230,7 +230,7 @@ impl Connector for CosmosCosmwasmConnector {
         let code_id = *self
             .code_ids
             .get(&service_config.to_string())
-            .context("test")
+            .context(format!("Code id not found for: {}", service_config))
             .map_err(CosmosCosmwasmError::Error)?;
 
         // TODO: change the admin to authorization
