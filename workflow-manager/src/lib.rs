@@ -8,7 +8,10 @@ pub mod tests;
 pub mod workflow_config;
 
 use context::Context;
+use domain::Domain;
 use workflow_config::WorkflowConfig;
+
+const MAIN_DOMAIN: Domain = Domain::CosmosCosmwasm("neutron");
 
 pub async fn init_workflow(mut workflow_config: WorkflowConfig) {
     let mut ctx = Context::default();

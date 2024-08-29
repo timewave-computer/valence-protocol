@@ -2,5 +2,6 @@
 
 [contracts.code_ids.neutron]
 base_account     = 5987
+processor        = 4
 splitter         = 6049
 reverse_splitter = 3

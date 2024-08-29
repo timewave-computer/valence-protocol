@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use anyhow::Result as AnyResult;
 use services_utils::Id;
@@ -7,8 +7,9 @@ use valence_authorization_utils::authorization::AuthorizationInfo;
 use crate::{
     account::{AccountInfo, AccountType, InstantiateAccountData},
     context::Context,
+    domain::Domain,
     error::{ManagerError, ManagerResult},
-    service::ServiceInfo,
+    service::ServiceInfo, MAIN_DOMAIN,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -36,14 +37,23 @@ pub struct WorkflowConfig {
 impl WorkflowConfig {
     /// Instantiate a workflow on all domains.
     pub async fn init(&mut self, ctx: &mut Context) -> AnyResult<()> {
+        // TODO: We probably want to verify the whole workflow config first, before doing any operations
+
+
+        // Init processors on each domain and the bridges accounts
+        for (id, domain) in self.get_all_domains().iter().enumerate() {
+                let connecotr = ctx.get_or_create_connector(&domain).await?;
+                let (addr, salt) = connecotr.predict_address(&(id as u64), "processor", "processor").await?;
+        }
+
         // TODO: Get workflow next id from on chain workflow registry
+        
         // TODO: Predict the processor address
         // TODO: Predict the authorization address.
         // TODO: each domain if not main domain, must have a bridge connection open from main to it,
         //       so we need to create the bridge accounts and get those addresses
         // TODO: Predict or instantiate the bridge accounts first before doing anything else because we need those addresses
 
-        // TODO: We probably want to verify the whole workflow config first, before doing any operations
         let mut account_instantiate_datas: HashMap<u64, InstantiateAccountData> = HashMap::new();
         // init accounts
         for (account_id, account) in self.accounts.iter_mut() {
@@ -127,6 +137,21 @@ impl WorkflowConfig {
 }
 
 impl WorkflowConfig {
+    /// Get a unique list of all domains, so it will be easiter to create proccessors
+    fn get_all_domains(&self) -> HashSet<Domain> {
+        let mut domains = self
+            .accounts
+            .iter()
+            .map(|(_, account)| account.domain.clone())
+            .collect::<Vec<_>>();
+        domains.extend(
+            self.services
+                .iter()
+                .map(|(_, service)| service.domain.clone()),
+        );
+        HashSet::from_iter(domains)
+    }
+
     fn get_account(&self, account_id: &u64) -> ManagerResult<&AccountInfo> {
         self.accounts
             .get(account_id)

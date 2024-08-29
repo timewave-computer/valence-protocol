@@ -25,7 +25,7 @@ mod test {
         // let _profiler = dhat::Profiler::builder().testing().build();
         let ctx = Context::default();
 
-        let domain = Domain::CosmosCosmwasm("neutron".to_string());
+        let domain = Domain::CosmosCosmwasm("neutron");
         let _connector = domain.generate_connector(&ctx.config).await.unwrap();
         // // let domain2 = Domain::Cosmos("neutron".to_string());
         // let mut domain_info = DomainInfo::from_domain(&domain).await;
@@ -98,21 +98,21 @@ mod test {
             1,
             AccountInfo {
                 ty: AccountType::Base { admin: None },
-                domain: Domain::CosmosCosmwasm("neutron".to_string()),
+                domain: Domain::CosmosCosmwasm("neutron"),
             },
         );
         config.accounts.insert(
             2,
             AccountInfo {
                 ty: AccountType::Base { admin: None },
-                domain: Domain::CosmosCosmwasm("neutron".to_string()),
+                domain: Domain::CosmosCosmwasm("neutron"),
             },
         );
         config.accounts.insert(
             3,
             AccountInfo {
                 ty: AccountType::Base { admin: None },
-                domain: Domain::CosmosCosmwasm("neutron".to_string()),
+                domain: Domain::CosmosCosmwasm("neutron"),
             },
         );
 
@@ -123,7 +123,7 @@ mod test {
         config.services.insert(
             1,
             ServiceInfo {
-                domain: Domain::CosmosCosmwasm("neutron".to_string()),
+                domain: Domain::CosmosCosmwasm("neutron"),
                 config: ServiceConfig::Splitter(SplitterServiceConfig {
                     input_addr: ServiceAccountType::AccountId(1),
                     splits: (BTreeMap::from_iter(vec![("NTRN".to_string(), splits)].into_iter())),

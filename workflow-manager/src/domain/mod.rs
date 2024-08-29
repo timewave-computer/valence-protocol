@@ -15,8 +15,8 @@ use crate::{
 /// TODO: chain connection, execution, bridges for authorization.
 #[derive(Debug, Display, Clone, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub enum Domain {
-    CosmosCosmwasm(String),
-    CosmosEvm(String),
+    CosmosCosmwasm(&'static str),
+    CosmosEvm(&'static str),
     // Solana
 }
 
@@ -41,7 +41,7 @@ pub trait Connector: fmt::Debug {
     /// returns the address and the salt that should be used.
     async fn predict_address(
         &mut self,
-        account_id: &u64,
+        id: &u64,
         contract_name: &str,
         extra_salt: &str,
     ) -> ManagerResult<(String, Vec<u8>)>;
