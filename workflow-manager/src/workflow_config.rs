@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use anyhow::Result as AnyResult;
 use services_utils::Id;
 use valence_authorization_utils::authorization::AuthorizationInfo;
 
@@ -9,7 +8,7 @@ use crate::{
     context::Context,
     domain::Domain,
     error::{ManagerError, ManagerResult},
-    service::ServiceInfo, MAIN_DOMAIN,
+    service::ServiceInfo,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -36,18 +35,25 @@ pub struct WorkflowConfig {
 
 impl WorkflowConfig {
     /// Instantiate a workflow on all domains.
-    pub async fn init(&mut self, ctx: &mut Context) -> AnyResult<()> {
-        // TODO: We probably want to verify the whole workflow config first, before doing any operations
+    pub async fn init(&mut self, ctx: &mut Context) -> ManagerResult<()> {
+        // TODO: Get workflow next id from on chain workflow registry
+        // TODO: Predict the processor address
+        // TODO: Predict the authorization address.
+        // TODO: each domain if not main domain, must have a bridge connection open from main to it,
+        //       so we need to create the bridge accounts and get those addresses
 
+        // TODO: We probably want to verify the whole workflow config first, before doing any operations
 
         // Init processors on each domain and the bridges accounts
         for (id, domain) in self.get_all_domains().iter().enumerate() {
-                let connecotr = ctx.get_or_create_connector(&domain).await?;
-                let (addr, salt) = connecotr.predict_address(&(id as u64), "processor", "processor").await?;
+            let connecotr = ctx.get_or_create_connector(&domain).await?;
+            let (addr, salt) = connecotr
+                .predict_address(&(id as u64), "processor", "processor")
+                .await?;
         }
 
         // TODO: Get workflow next id from on chain workflow registry
-        
+
         // TODO: Predict the processor address
         // TODO: Predict the authorization address.
         // TODO: each domain if not main domain, must have a bridge connection open from main to it,
@@ -66,6 +72,7 @@ impl WorkflowConfig {
                 // similar to what we what we will do on workflow update
                 continue;
             }
+
             let domain_connector = ctx.get_or_create_connector(&account.domain).await?;
             let (addr, salt) = domain_connector
                 .predict_address(account_id, &account.ty.to_string(), "account")
@@ -100,6 +107,7 @@ impl WorkflowConfig {
                 // We add the service address to the approved services list of the input account
                 account_data.add_service(service_addr.to_string());
 
+                patterns.push(format!("|account_id|\":{account_id}"));
                 patterns.push(format!("|account_id|\":{account_id}"));
                 replace_with.push(format!("account_addr\":\"{}\"", account_data.addr.clone()))
             }
