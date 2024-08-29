@@ -30,7 +30,7 @@ fn disabled() {
     let wasm = Wasm::new(&setup.app);
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
-        &wasm,
+        &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
@@ -121,7 +121,7 @@ fn invalid_time() {
     let wasm = Wasm::new(&setup.app);
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
-        &wasm,
+        &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
@@ -328,7 +328,7 @@ fn invalid_permission() {
     let wasm = Wasm::new(&setup.app);
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
-        &wasm,
+        &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
@@ -449,7 +449,7 @@ fn invalid_messages() {
     let wasm = Wasm::new(&setup.app);
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
-        &wasm,
+        &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],

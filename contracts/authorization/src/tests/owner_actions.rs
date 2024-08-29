@@ -40,7 +40,7 @@ fn contract_instantiation() {
     // Let's instantiate with all parameters and query them to see if they are stored correctly
     let (contract_addr, processor_address) =
         store_and_instantiate_authorization_with_processor_contract(
-            &wasm,
+            &setup.app,
             &setup.accounts[0],
             setup.user_addr.to_string(),
             vec![setup.subowner_addr.to_string(), subowner2.to_string()],
@@ -97,7 +97,7 @@ fn transfer_ownership() {
     let new_owner = &setup.accounts[6];
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
-        &wasm,
+        &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![],
@@ -159,7 +159,7 @@ fn add_and_remove_sub_owners() {
     let wasm = Wasm::new(&setup.app);
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
-        &wasm,
+        &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![],
@@ -247,7 +247,7 @@ fn add_external_domains() {
     let wasm = Wasm::new(&setup.app);
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
-        &wasm,
+        &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![],
@@ -292,7 +292,7 @@ fn create_valid_authorizations() {
 
     // Let's instantiate with all parameters and query them to see if they are stored correctly
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
-        &wasm,
+        &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
@@ -583,7 +583,7 @@ fn create_invalid_authorizations() {
 
     // Let's instantiate with all parameters and query them to see if they are stored correctly
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
-        &wasm,
+        &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![],
@@ -699,7 +699,7 @@ fn modify_authorization() {
     let wasm = Wasm::new(&setup.app);
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
-        &wasm,
+        &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
@@ -912,7 +912,7 @@ fn mint_authorizations() {
     let user2_addr = Addr::unchecked(user2.address());
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
-        &wasm,
+        &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],

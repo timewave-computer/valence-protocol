@@ -30,7 +30,7 @@ fn user_enqueing_messages() {
 
     let (authorization_contract, processor_contract) =
         store_and_instantiate_authorization_with_processor_contract(
-            &wasm,
+            &setup.app,
             &setup.accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
@@ -278,7 +278,7 @@ fn max_concurrent_execution_limit() {
 
     let (authorization_contract, processor_contract) =
         store_and_instantiate_authorization_with_processor_contract(
-            &wasm,
+            &setup.app,
             &setup.accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
@@ -388,7 +388,7 @@ fn owner_adding_and_removing_messages() {
 
     let (authorization_contract, processor_contract) =
         store_and_instantiate_authorization_with_processor_contract(
-            &wasm,
+            &setup.app,
             &setup.accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
