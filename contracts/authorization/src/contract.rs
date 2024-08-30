@@ -13,17 +13,17 @@ use valence_authorization_utils::{
     },
     callback::{CallbackInfo, ExecutionResult, PendingCallback},
     domain::{Domain, ExternalDomain},
+    msg::{
+        ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, PermissionedMsg, PermissionlessMsg,
+        ProcessorMessage, QueryMsg,
+    },
 };
-use valence_processor::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExecuteMsg};
-use valence_processor_utils::processor::ProcessorMessage;
+use valence_processor_utils::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExecuteMsg};
 
 use crate::{
     authorization::Validate,
     domain::{add_domain, create_wasm_msg_for_processor_or_proxy, get_domain},
     error::{AuthorizationErrorReason, ContractError, UnauthorizedReason},
-    msg::{
-        ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, PermissionedMsg, PermissionlessMsg, QueryMsg,
-    },
     state::{
         AUTHORIZATIONS, CONFIRMED_CALLBACKS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS,
         PENDING_CALLBACK, PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS,
@@ -402,7 +402,7 @@ fn add_messages(
         AuthorizationMsg::AddMsgs {
             id,
             queue_position,
-            msgs: messages,
+            msgs: messages.clone(),
             action_batch: authorization.action_batch,
             priority,
         },
@@ -410,7 +410,7 @@ fn add_messages(
     let wasm_msg =
         create_wasm_msg_for_processor_or_proxy(deps.storage, execute_msg_binary, &domain)?;
 
-    store_pending_callback(deps.storage, id, domain, label)?;
+    store_pending_callback(deps.storage, id, domain, label, messages)?;
 
     Ok(Response::new()
         .add_message(wasm_msg)
@@ -483,7 +483,7 @@ fn send_msgs(
     let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
         AuthorizationMsg::EnqueueMsgs {
             id,
-            msgs: messages,
+            msgs: messages.clone(),
             action_batch: authorization.action_batch,
             priority: authorization.priority,
         },
@@ -492,7 +492,7 @@ fn send_msgs(
     let wasm_msg =
         create_wasm_msg_for_processor_or_proxy(deps.storage, execute_msg_binary, &domain)?;
 
-    store_pending_callback(deps.storage, id, domain, label)?;
+    store_pending_callback(deps.storage, id, domain, label, messages)?;
 
     Ok(Response::new()
         .add_message(wasm_msg)
@@ -518,11 +518,13 @@ fn process_callback(
     PENDING_CALLBACK.remove(deps.storage, execution_id);
 
     // Store the confirmed callback in our confirmed callback history
+    // with all the information we want
     let confirmed_callback = CallbackInfo {
         execution_id,
         address: pending_callback.address,
         domain: pending_callback.domain,
         label: pending_callback.label,
+        messages: pending_callback.messages,
         execution_result,
     };
     CONFIRMED_CALLBACKS.save(deps.storage, execution_id, &confirmed_callback)?;
@@ -624,6 +626,7 @@ pub fn store_pending_callback(
     id: u64,
     domain: Domain,
     label: String,
+    messages: Vec<ProcessorMessage>,
 ) -> StdResult<()> {
     let address = match &domain {
         Domain::Main => PROCESSOR_ON_MAIN_DOMAIN.load(storage)?,
@@ -637,6 +640,8 @@ pub fn store_pending_callback(
         address,
         domain,
         label,
+        messages,
     };
+
     PENDING_CALLBACK.save(storage, id, &pending_callback)
 }

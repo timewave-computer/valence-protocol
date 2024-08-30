@@ -20,6 +20,15 @@ pub enum ContractError {
     #[error("There is currently nothing to process")]
     NoMessagesToProcess {},
 
-    #[error("Processing ID not found")]
-    ProcessingIDNotFound {},
+    #[error(transparent)]
+    CallbackError(#[from] CallbackErrorReason),
+}
+
+#[derive(Error, Debug, PartialEq)]
+pub enum CallbackErrorReason {
+    #[error("Pending callback not found")]
+    PendingCallbackNotFound {},
+
+    #[error("Invalid callback sender")]
+    InvalidCallbackSender {},
 }

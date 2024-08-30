@@ -1,7 +1,8 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Binary;
+use cosmwasm_std::{Addr, Binary};
+use cw_utils::Duration;
 
-use crate::{domain::Domain, message::MessageDetails};
+use crate::{authorization_message::MessageDetails, domain::Domain};
 
 #[cw_serde]
 pub struct Action {
@@ -20,7 +21,7 @@ pub struct Action {
 #[cw_serde]
 pub struct RetryLogic {
     pub times: RetryTimes,
-    pub interval: RetryInterval,
+    pub interval: Duration,
 }
 
 #[cw_serde]
@@ -30,15 +31,9 @@ pub enum RetryTimes {
 }
 
 #[cw_serde]
-pub enum RetryInterval {
-    Seconds(u64),
-    Blocks(u64),
-}
-
-#[cw_serde]
 pub struct ActionCallback {
     // Address of contract we should receive the Callback from
-    pub contract_address: String,
+    pub contract_address: Addr,
     // What we should receive from the callback to consider the action completed
     pub callback_message: Binary,
 }

@@ -8,8 +8,8 @@ use valence_authorization_utils::{
         ActionBatch, AuthorizationDuration, AuthorizationInfo, AuthorizationMode, ExecutionType,
         Priority,
     },
+    authorization_message::{Message, MessageDetails, MessageType},
     domain::{Connector, Domain, ExecutionEnvironment, ExternalDomain},
-    message::{Message, MessageDetails, MessageType},
 };
 
 const FEE_DENOM: &str = "untrn";

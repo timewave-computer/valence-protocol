@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Binary};
 
 use crate::processor::MessageBatch;
 
@@ -7,5 +7,8 @@ use crate::processor::MessageBatch;
 pub struct PendingCallback {
     // Address that needed to send the callback
     pub address: Addr,
+    // Message that we are expecting
+    pub callback_msg: Binary,
+    // Batch that the callback is for (so that we can requeue if wrong callback is received)
     pub message_batch: MessageBatch,
 }

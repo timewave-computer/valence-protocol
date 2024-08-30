@@ -6,10 +6,10 @@ use valence_authorization_utils::{
         Authorization, AuthorizationMode, AuthorizationState, ExecutionType, PermissionType,
         Priority,
     },
+    authorization_message::ParamRestriction,
     domain::{Domain, ExecutionEnvironment},
-    message::ParamRestriction,
+    msg::ProcessorMessage,
 };
-use valence_processor_utils::processor::ProcessorMessage;
 
 use crate::{
     contract::build_tokenfactory_denom,

@@ -1,23 +1,23 @@
 use cosmwasm_std::{Addr, Binary, Timestamp, Uint128};
-use cw_utils::Expiration;
+use cw_utils::{Duration, Expiration};
 use neutron_test_tube::{
     neutron_std::types::cosmos::bank::v1beta1::{QueryAllBalancesRequest, QueryBalanceRequest},
     Account, Bank, Module, Wasm,
 };
 use valence_authorization_utils::{
-    action::{ActionCallback, RetryInterval, RetryLogic, RetryTimes},
+    action::{ActionCallback, RetryLogic, RetryTimes},
     authorization::{
         Authorization, AuthorizationDuration, AuthorizationMode, AuthorizationState, ExecutionType,
         PermissionType, Priority,
     },
+    authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
     domain::{Domain, ExternalDomain},
-    message::{Message, MessageDetails, MessageType, ParamRestriction},
+    msg::{ExecuteMsg, Mint, OwnerMsg, PermissionedMsg, QueryMsg},
 };
 
 use crate::{
     contract::build_tokenfactory_denom,
     error::{AuthorizationErrorReason, ContractError, UnauthorizedReason},
-    msg::{ExecuteMsg, Mint, OwnerMsg, PermissionedMsg, QueryMsg},
     tests::{
         builders::{
             ActionBatchBuilder, ActionBuilder, AuthorizationBuilder, NeutronTestAppBuilder,
@@ -321,7 +321,7 @@ fn create_valid_authorizations() {
                             })
                             .with_retry_logic(RetryLogic {
                                 times: RetryTimes::Indefinitely,
-                                interval: RetryInterval::Seconds(5),
+                                interval: Duration::Time(5),
                             })
                             .build(),
                     )
@@ -356,7 +356,7 @@ fn create_valid_authorizations() {
                             })
                             .with_retry_logic(RetryLogic {
                                 times: RetryTimes::Amount(5),
-                                interval: RetryInterval::Seconds(10),
+                                interval: Duration::Time(10),
                             })
                             .build(),
                     )
@@ -375,10 +375,10 @@ fn create_valid_authorizations() {
                             })
                             .with_retry_logic(RetryLogic {
                                 times: RetryTimes::Amount(10),
-                                interval: RetryInterval::Blocks(5),
+                                interval: Duration::Height(5),
                             })
                             .with_callback_confirmation(ActionCallback {
-                                contract_address: "address".to_string(),
+                                contract_address: Addr::unchecked("address"),
                                 callback_message: Binary::from_base64("aGVsbG8=").unwrap(),
                             })
                             .build(),
@@ -415,7 +415,7 @@ fn create_valid_authorizations() {
                             })
                             .with_retry_logic(RetryLogic {
                                 times: RetryTimes::Amount(5),
-                                interval: RetryInterval::Seconds(10),
+                                interval: Duration::Time(10),
                             })
                             .build(),
                     )
@@ -433,7 +433,7 @@ fn create_valid_authorizations() {
                             })
                             .with_retry_logic(RetryLogic {
                                 times: RetryTimes::Amount(10),
-                                interval: RetryInterval::Blocks(5),
+                                interval: Duration::Height(5),
                             })
                             .build(),
                     )
@@ -657,7 +657,7 @@ fn create_invalid_authorizations() {
                         .with_action(
                             ActionBuilder::new()
                                 .with_callback_confirmation(ActionCallback {
-                                    contract_address: "address".to_string(),
+                                    contract_address: Addr::unchecked("address"),
                                     callback_message: Binary::from_base64("aGVsbG8=").unwrap(),
                                 })
                                 .build(),

@@ -4,14 +4,13 @@ use neutron_test_tube::{neutron_std::types::cosmos::base::v1beta1::Coin, Module,
 use serde_json::json;
 use valence_authorization_utils::{
     authorization::{AuthorizationDuration, AuthorizationMode, PermissionType},
-    message::{Message, MessageDetails, MessageType, ParamRestriction},
+    authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
+    msg::{ExecuteMsg, PermissionedMsg, PermissionlessMsg, ProcessorMessage},
 };
-use valence_processor_utils::processor::ProcessorMessage;
 
 use crate::{
     contract::build_tokenfactory_denom,
     error::{AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason},
-    msg::{ExecuteMsg, PermissionedMsg, PermissionlessMsg},
     tests::{builders::JsonBuilder, helpers::wait_for_height},
 };
 

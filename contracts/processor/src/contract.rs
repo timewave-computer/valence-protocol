@@ -2,22 +2,34 @@
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response, StdResult,
+    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response, StdResult,
+    SubMsgResult,
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner};
-use valence_authorization_utils::authorization::{ActionBatch, ExecutionType, Priority};
-use valence_processor_utils::processor::{
-    Config, MessageBatch, Polytone, ProcessorDomain, ProcessorMessage, State,
+use valence_authorization_utils::{
+    authorization::{ActionBatch, ExecutionType, Priority},
+    msg::ProcessorMessage,
 };
-
-use crate::{
-    error::ContractError,
+use valence_processor_utils::{
+    callback::PendingCallback,
     msg::{
         AuthorizationMsg, ExecuteMsg, InstantiateMsg, OwnerMsg, PermissionlessMsg,
         PolytoneContracts, QueryMsg,
     },
+    processor::{Config, MessageBatch, Polytone, ProcessorDomain, State},
+};
+
+use crate::{
+    callback::{
+        handle_successful_atomic_callback, handle_successful_non_atomic_callback,
+        handle_unsuccessful_atomic_callback, handle_unsuccessful_non_atomic_callback,
+    },
+    error::{CallbackErrorReason, ContractError},
     queue::get_queue_map,
-    state::{CONFIG, RETRIES},
+    state::{
+        CONFIG, EXECUTION_ID_TO_BATCH, NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX, PENDING_CALLBACK,
+        RETRIES,
+    },
 };
 
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -109,6 +121,9 @@ pub fn execute(
         }
         ExecuteMsg::PermissionlessAction(permissionless_msg) => match permissionless_msg {
             PermissionlessMsg::Tick {} => process_tick(deps, env),
+            PermissionlessMsg::Callback { execution_id, msg } => {
+                process_callback(deps, env, info, execution_id, msg)
+            }
         },
     }
 }
@@ -181,8 +196,10 @@ fn enqueue_messages(
         id,
         msgs,
         action_batch,
+        priority,
     };
     queue.push_back(deps.storage, &message_batch)?;
+    EXECUTION_ID_TO_BATCH.save(deps.storage, id, &message_batch)?;
 
     Ok(Response::new().add_attribute("method", "enqueue_messages"))
 }
@@ -214,9 +231,11 @@ fn add_messages(
         id,
         msgs,
         action_batch,
+        priority,
     };
 
     queue.insert_at(deps.storage, queue_position, &message_batch)?;
+    EXECUTION_ID_TO_BATCH.save(deps.storage, id, &message_batch)?;
 
     Ok(Response::new().add_attribute("method", "add_messages"))
 }
@@ -237,6 +256,7 @@ fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
     let message_batch = queue.pop_front(deps.storage)?;
 
+    let messages;
     match message_batch {
         Some(batch) => {
             // First we check if the current batch or action to be executed is retriable, if it isn't we'll just push it back to the end of the queue
@@ -254,16 +274,178 @@ fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
             match batch.action_batch.execution_type {
                 ExecutionType::Atomic => {
                     // If the batch is atomic, we'll just try to execute all messages in the batch
-                    //create_atomic_messages(deps, env, batch)?;
+                    messages = batch.create_atomic_messages();
                 }
-                ExecutionType::NonAtomic => todo!(),
+                ExecutionType::NonAtomic => {
+                    // If the batch is non-atomic, we have to execute the message we are currently on
+                    // If we never executed this batch before, we'll start from the first action (default - 0)
+                    let index_stored =
+                        NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.may_load(deps.storage, batch.id)?;
+
+                    // If it's the first execution we'll start from the first action
+                    let current_index = match index_stored {
+                        Some(index) => index,
+                        None => {
+                            NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.save(
+                                deps.storage,
+                                batch.id,
+                                &0,
+                            )?;
+                            0
+                        }
+                    };
+
+                    // If the action is confirmed by a callback, let's create it and append the execution_id to the message
+                    // If not, we don't need to append anything and just send it like it is
+                    if let Some(callback) = batch.action_batch.actions[current_index]
+                        .callback_confirmation
+                        .clone()
+                    {
+                        messages = batch
+                            .create_message_by_index_with_execution_id(current_index, batch.id)?;
+                        PENDING_CALLBACK.save(
+                            deps.storage,
+                            batch.id,
+                            &PendingCallback {
+                                address: callback.contract_address,
+                                callback_msg: callback.callback_message,
+                                message_batch: batch,
+                            },
+                        )?;
+                    } else {
+                        messages = batch.create_message_by_index(current_index)
+                    };
+                }
             }
 
-            Ok(Response::new().add_attribute("method", "tick"))
+            Ok(Response::new()
+                .add_submessages(messages)
+                .add_attribute("method", "tick"))
         }
         // Both queues are empty, there is nothing to do
-        None => return Err(ContractError::NoMessagesToProcess {}),
+        None => Err(ContractError::NoMessagesToProcess {}),
     }
+}
+
+fn process_callback(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    execution_id: u64,
+    msg: Binary,
+) -> Result<Response, ContractError> {
+    let pending_callback = PENDING_CALLBACK
+        .load(deps.storage, execution_id)
+        .map_err(|_| {
+            ContractError::CallbackError(CallbackErrorReason::PendingCallbackNotFound {})
+        })?;
+
+    // Only the specified address for this ID can send a callback
+    if info.sender != pending_callback.address {
+        return Err(ContractError::CallbackError(
+            CallbackErrorReason::InvalidCallbackSender {},
+        ));
+    }
+
+    // Get the current index we are at for this non atomic action
+    let index = NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.load(deps.storage, execution_id)?;
+    let config = CONFIG.load(deps.storage)?;
+    let mut messages = vec![];
+    // Check if the message sent is the one we are expecting
+    // If it is, we'll proceed to next action or provide the callback to the authorization module (if we finished with all actions)
+    // If it isn't, we need to see if we can retry the action or provide the error to the authorization module
+    if msg != pending_callback.callback_msg {
+        handle_unsuccessful_non_atomic_callback(
+            deps.storage,
+            index,
+            execution_id,
+            &pending_callback.message_batch,
+            &mut messages,
+            "Invalid callback message received".to_string(),
+            &config,
+            &env.block,
+        )?;
+    } else {
+        handle_successful_non_atomic_callback(
+            deps.storage,
+            index,
+            execution_id,
+            &pending_callback.message_batch,
+            &mut messages,
+        )?;
+    }
+
+    // Remove the pending callback because we have processed it
+    PENDING_CALLBACK.remove(deps.storage, execution_id);
+
+    Ok(Response::new().add_attribute("method", "callback"))
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+    // The reply logic will be different depending on the execution type of the batch
+    // First we check if the reply comes from an atomic or non-atomic batch
+    let config = CONFIG.load(deps.storage)?;
+    let batch = EXECUTION_ID_TO_BATCH.load(deps.storage, msg.id)?;
+    let mut messages = vec![];
+
+    match NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.may_load(deps.storage, msg.id)? {
+        Some(index) => {
+            // Non Atomic
+            // Check if it replied because of error or success
+            match msg.result {
+                SubMsgResult::Ok(_) => {
+                    // If the action is only successful on a callback, we won't do anything because we'll wait for the callback instead
+                    if !PENDING_CALLBACK.has(deps.storage, msg.id) {
+                        handle_successful_non_atomic_callback(
+                            deps.storage,
+                            index,
+                            msg.id,
+                            &batch,
+                            &mut messages,
+                        )?;
+                    }
+                }
+                SubMsgResult::Err(error) => {
+                    handle_unsuccessful_non_atomic_callback(
+                        deps.storage,
+                        index,
+                        msg.id,
+                        &batch,
+                        &mut messages,
+                        error,
+                        &config,
+                        &env.block,
+                    )?;
+                }
+            }
+        }
+        None => {
+            // Atomic
+            match msg.result {
+                SubMsgResult::Ok(_) => {
+                    // For atomic actions we only reply on success when we are on the last action, so we are sure that the batch was successful
+                    // and can provide the successful callback
+                    handle_successful_atomic_callback(&config, msg.id, &mut messages)?;
+                }
+                SubMsgResult::Err(error) => {
+                    handle_unsuccessful_atomic_callback(
+                        deps.storage,
+                        msg.id,
+                        &batch,
+                        &mut messages,
+                        error,
+                        &config,
+                        &env.block,
+                    )?;
+                }
+            }
+        }
+    }
+
+    Ok(Response::new()
+        .add_messages(messages)
+        .add_attribute("method", "reply"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

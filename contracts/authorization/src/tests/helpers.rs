@@ -10,10 +10,8 @@ use neutron_test_tube::{
     SigningAccount, Wasm,
 };
 use serde::Serialize;
-use valence_authorization_utils::domain::ExternalDomain;
-
-use crate::msg::InstantiateMsg;
-use valence_processor::msg::InstantiateMsg as ProcessorInstantiateMsg;
+use valence_authorization_utils::{domain::ExternalDomain, msg::InstantiateMsg};
+use valence_processor_utils::msg::InstantiateMsg as ProcessorInstantiateMsg;
 
 pub struct ExtendedWasm<'a, R: Runner<'a>> {
     runner: &'a R,

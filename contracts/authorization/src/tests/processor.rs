@@ -3,14 +3,12 @@ use neutron_test_tube::{Module, Wasm};
 use valence_authorization_utils::{
     authorization::{AuthorizationMode, PermissionType, Priority},
     domain::Domain,
+    msg::{ExecuteMsg, PermissionedMsg, PermissionlessMsg, ProcessorMessage},
 };
-use valence_processor_utils::processor::{MessageBatch, ProcessorMessage};
+use valence_processor_utils::processor::MessageBatch;
 
-use crate::{
-    error::{AuthorizationErrorReason, ContractError},
-    msg::{ExecuteMsg, PermissionedMsg, PermissionlessMsg},
-};
-use valence_processor::msg::QueryMsg as ProcessorQueryMsg;
+use crate::error::{AuthorizationErrorReason, ContractError};
+use valence_processor_utils::msg::QueryMsg as ProcessorQueryMsg;
 
 use super::{
     builders::{

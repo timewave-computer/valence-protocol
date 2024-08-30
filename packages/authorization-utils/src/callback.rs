@@ -1,7 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 
-use crate::domain::Domain;
+use crate::{domain::Domain, msg::ProcessorMessage};
 
 #[cw_serde]
 pub struct PendingCallback {
@@ -11,6 +11,8 @@ pub struct PendingCallback {
     pub domain: Domain,
     // Label of the authorization
     pub label: String,
+    // Messages that were sent to the processor
+    pub messages: Vec<ProcessorMessage>,
 }
 
 #[cw_serde]
@@ -23,17 +25,19 @@ pub struct CallbackInfo {
     pub domain: Domain,
     // Label of the authorization
     pub label: String,
+    // Messages that were sent to the processor
+    pub messages: Vec<ProcessorMessage>,
     // Result of the execution
     pub execution_result: ExecutionResult,
 }
 
 #[cw_serde]
 pub enum ExecutionResult {
-    // Everthing executed
-    Executed,
+    // Everthing executed successfully
+    Success,
     // Execution was rejected, and the reason
     Rejected(String),
     // Partially executed, for non-atomic action batches
     // Indicates how many actions were executed and the reason the next action was not executed
-    PartiallyExecuted(u64, String),
+    PartiallyExecuted(usize, String),
 }

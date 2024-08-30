@@ -1,12 +1,13 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128};
+use cosmwasm_std::{Addr, Binary, Uint128, WasmMsg};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query, Expiration};
-use valence_authorization_utils::{
+
+use crate::{
     authorization::{Authorization, AuthorizationInfo, Priority},
+    authorization_message::MessageType,
     callback::ExecutionResult,
     domain::{Domain, ExternalDomain},
 };
-use valence_processor_utils::processor::ProcessorMessage;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -104,6 +105,43 @@ pub enum PermissionlessMsg {
         execution_id: u64,
         execution_result: ExecutionResult,
     },
+}
+
+#[cw_serde]
+pub enum ProcessorMessage {
+    CosmwasmExecuteMsg { msg: Binary },
+    CosmwasmMigrateMsg { code_id: u64, msg: Binary },
+}
+
+impl ProcessorMessage {
+    pub fn get_message_type(&self) -> MessageType {
+        match self {
+            ProcessorMessage::CosmwasmExecuteMsg { .. } => MessageType::CosmwasmExecuteMsg,
+            ProcessorMessage::CosmwasmMigrateMsg { .. } => MessageType::CosmwasmMigrateMsg,
+        }
+    }
+
+    pub fn get_msg(&self) -> &Binary {
+        match self {
+            ProcessorMessage::CosmwasmExecuteMsg { msg } => msg,
+            ProcessorMessage::CosmwasmMigrateMsg { msg, .. } => msg,
+        }
+    }
+
+    pub fn to_wasm_message(&self, contract_addr: &str) -> WasmMsg {
+        match self {
+            ProcessorMessage::CosmwasmExecuteMsg { msg } => WasmMsg::Execute {
+                contract_addr: contract_addr.to_string(),
+                msg: msg.clone(),
+                funds: vec![],
+            },
+            ProcessorMessage::CosmwasmMigrateMsg { code_id, msg } => WasmMsg::Migrate {
+                contract_addr: contract_addr.to_string(),
+                new_code_id: *code_id,
+                msg: msg.clone(),
+            },
+        }
+    }
 }
 
 #[cw_ownable_query]
