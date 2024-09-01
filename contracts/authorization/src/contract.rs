@@ -12,7 +12,7 @@ use valence_authorization_utils::{
         Priority,
     },
     callback::{CallbackInfo, ExecutionResult, PendingCallback},
-    domain::{Domain, ExternalDomain},
+    domain::{Connector, Domain, ExternalDomain},
     msg::{
         ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, PermissionedMsg, PermissionlessMsg,
         ProcessorMessage, QueryMsg,
@@ -632,7 +632,9 @@ pub fn store_pending_callback(
         Domain::Main => PROCESSOR_ON_MAIN_DOMAIN.load(storage)?,
         Domain::External(domain_name) => {
             let external_domain = EXTERNAL_DOMAINS.load(storage, domain_name.clone())?;
-            external_domain.callback_proxy
+            match external_domain.connector {
+                Connector::PolytoneNote(address) => address,
+            }
         }
     };
 

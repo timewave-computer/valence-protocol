@@ -1,7 +1,7 @@
 use cosmwasm_std::{Binary, DepsMut, Storage, WasmMsg};
 use valence_authorization_utils::{
     authorization::Authorization,
-    domain::{Connector, Domain, ExternalDomain},
+    domain::{CallbackProxy, Connector, Domain, ExternalDomain},
 };
 
 use crate::{
@@ -19,7 +19,9 @@ pub fn add_domain(deps: DepsMut, domain: ExternalDomain) -> Result<(), ContractE
         Connector::PolytoneNote(addr) => deps.api.addr_validate(addr.as_str())?,
     };
 
-    deps.api.addr_validate(domain.callback_proxy.as_str())?;
+    match &domain.callback_proxy {
+        CallbackProxy::PolytoneProxy(addr) => deps.api.addr_validate(addr.as_str())?,
+    };
 
     EXTERNAL_DOMAINS.save(deps.storage, domain.name.clone(), &domain)?;
 

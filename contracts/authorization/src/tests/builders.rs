@@ -9,7 +9,7 @@ use valence_authorization_utils::{
         Priority,
     },
     authorization_message::{Message, MessageDetails, MessageType},
-    domain::{Connector, Domain, ExecutionEnvironment, ExternalDomain},
+    domain::{CallbackProxy, Connector, Domain, ExecutionEnvironment, ExternalDomain},
 };
 
 const FEE_DENOM: &str = "untrn";
@@ -67,7 +67,7 @@ impl NeutronTestAppBuilder {
             execution_environment: ExecutionEnvironment::CosmWasm,
             connector: Connector::PolytoneNote(connector_addr),
             processor: "processor".to_string(),
-            callback_proxy: callback_proxy_addr,
+            callback_proxy: CallbackProxy::PolytoneProxy(callback_proxy_addr),
         };
 
         Ok(NeutronTestAppSetup {
