@@ -8,6 +8,7 @@ use cosmwasm_std::{
 use cw_ownable::{assert_owner, get_ownership, initialize_owner};
 use valence_authorization_utils::{
     authorization::{ActionBatch, ExecutionType, Priority},
+    callback::ExecutionResult,
     msg::ProcessorMessage,
 };
 use valence_processor_utils::{
@@ -21,8 +22,9 @@ use valence_processor_utils::{
 
 use crate::{
     callback::{
-        handle_successful_atomic_callback, handle_successful_non_atomic_callback,
-        handle_unsuccessful_atomic_callback, handle_unsuccessful_non_atomic_callback,
+        create_callback_message, handle_successful_atomic_callback,
+        handle_successful_non_atomic_callback, handle_unsuccessful_atomic_callback,
+        handle_unsuccessful_non_atomic_callback,
     },
     error::{CallbackErrorReason, ContractError},
     queue::get_queue_map,
@@ -211,9 +213,28 @@ fn remove_messages(
 ) -> Result<Response, ContractError> {
     let mut queue = get_queue_map(&priority);
 
-    queue.remove_at(deps.storage, queue_position)?;
+    let batch = queue.remove_at(deps.storage, queue_position)?;
+    let config = CONFIG.load(deps.storage)?;
 
-    Ok(Response::new().add_attribute("method", "remove_messages"))
+    match batch {
+        Some(batch) => {
+            // Do the clean up and send the callback
+            EXECUTION_ID_TO_BATCH.remove(deps.storage, batch.id);
+            RETRIES.remove(deps.storage, batch.id);
+            NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.remove(deps.storage, batch.id);
+            PENDING_CALLBACK.remove(deps.storage, batch.id);
+            let callback_msg =
+                create_callback_message(&config, batch.id, ExecutionResult::RemovedByOwner)?;
+            Ok(Response::new()
+                .add_message(callback_msg)
+                .add_attribute("method", "remove_messages")
+                .add_attribute("messages_removed", batch.msgs.len().to_string()))
+        }
+        // It doesn't even exist, we do nothing
+        None => Ok(Response::new()
+            .add_attribute("method", "remove_messages")
+            .add_attribute("messages_removed", "0")),
+    }
 }
 
 /// Adds a set of messages in a specific position of the queue

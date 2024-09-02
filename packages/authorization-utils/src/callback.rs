@@ -40,4 +40,6 @@ pub enum ExecutionResult {
     // Partially executed, for non-atomic action batches
     // Indicates how many actions were executed and the reason the next action was not executed
     PartiallyExecuted(usize, String),
+    // Removed by Owner - happens when, from the authorization contract, a remove item from queue is sent
+    RemovedByOwner,
 }
