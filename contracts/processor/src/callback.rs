@@ -79,7 +79,7 @@ pub fn handle_unsuccessful_non_atomic_callback(
     // we reached the max amount of retries
     match &batch.action_batch.actions[index].retry_logic {
         Some(retry_logic) => {
-            // Check how many retry amounts we have to keep track of them
+            // Check how many times we have retried this action already
             let retry_amounts = RETRIES
                 .may_load(storage, execution_id)?
                 .map_or(0, |r| r.retry_amounts);
