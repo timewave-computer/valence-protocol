@@ -1644,3 +1644,498 @@ fn retry_multi_action_atomic_batch_until_success() {
         ExecutionResult::Success
     );
 }
+
+#[test]
+fn retry_multi_action_non_atomic_batch_until_success() {
+    let setup = NeutronTestAppBuilder::new().build().unwrap();
+
+    let wasm = Wasm::new(&setup.app);
+
+    let (authorization_contract, processor_contract) =
+        store_and_instantiate_authorization_with_processor_contract(
+            &setup.app,
+            &setup.accounts[0],
+            setup.owner_addr.to_string(),
+            vec![setup.subowner_addr.to_string()],
+            vec![setup.external_domain.clone()],
+        );
+    let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0]);
+
+    // We'll create an authorization with 3 actions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
+    let authorizations = vec![AuthorizationBuilder::new()
+        .with_label("permissionless")
+        .with_action_batch(
+            ActionBatchBuilder::new()
+                .with_execution_type(ExecutionType::NonAtomic)
+                .with_action(
+                    ActionBuilder::new()
+                        .with_contract_address(&test_service_contract)
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "will_succeed".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .with_action(
+                    ActionBuilder::new()
+                        .with_contract_address(&test_service_contract)
+                        .with_retry_logic(RetryLogic {
+                            times: RetryTimes::Indefinitely,
+                            interval: Duration::Time(2),
+                        })
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "will_succeed_if_true".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .with_action(
+                    ActionBuilder::new()
+                        .with_contract_address(&test_service_contract)
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "will_succeed".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .build(),
+        )
+        .build()];
+
+    wasm.execute::<ExecuteMsg>(
+        &authorization_contract,
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
+        &[],
+        &setup.accounts[0],
+    )
+    .unwrap();
+
+    let binary = Binary::from(
+        serde_json::to_vec(&valence_test_service::msg::ExecuteMsg::WillSucceed {}).unwrap(),
+    );
+    let message1 = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
+    let binary = Binary::from(
+        serde_json::to_vec(&valence_test_service::msg::ExecuteMsg::WillSucceedIfTrue {}).unwrap(),
+    );
+    let message2 = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
+
+    // Send the messages
+    wasm.execute::<ExecuteMsg>(
+        &authorization_contract,
+        &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
+            label: "permissionless".to_string(),
+            messages: vec![message1.clone(), message2, message1],
+        }),
+        &[],
+        &setup.accounts[2],
+    )
+    .unwrap();
+
+    // Confirm that we have one batch with three messages in the queue
+    let query_med_prio_queue = wasm
+        .query::<ProcessorQueryMsg, Vec<MessageBatch>>(
+            &processor_contract,
+            &ProcessorQueryMsg::GetQueue {
+                from: None,
+                to: None,
+                priority: Priority::Medium,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(query_med_prio_queue.len(), 1);
+    assert_eq!(query_med_prio_queue[0].msgs.len(), 3);
+
+    // Ticking the first time will make the first message succeed and re-add to the queue to move to the second message
+    wasm.execute::<ProcessorExecuteMsg>(
+        &processor_contract,
+        &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
+        &[],
+        &setup.accounts[0],
+    )
+    .unwrap();
+
+    // Check that it's back in the queue
+    let query_med_prio_queue = wasm
+        .query::<ProcessorQueryMsg, Vec<MessageBatch>>(
+            &processor_contract,
+            &ProcessorQueryMsg::GetQueue {
+                from: None,
+                to: None,
+                priority: Priority::Medium,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(query_med_prio_queue.len(), 1);
+
+    // No matter how many times we tick, the second message will always fail and it will be re-added to the queue
+    for _ in 0..5 {
+        wasm.execute::<ProcessorExecuteMsg>(
+            &processor_contract,
+            &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
+            &[],
+            &setup.accounts[0],
+        )
+        .unwrap();
+
+        // Check that it's still in the queue
+        let query_med_prio_queue = wasm
+            .query::<ProcessorQueryMsg, Vec<MessageBatch>>(
+                &processor_contract,
+                &ProcessorQueryMsg::GetQueue {
+                    from: None,
+                    to: None,
+                    priority: Priority::Medium,
+                },
+            )
+            .unwrap();
+
+        assert_eq!(query_med_prio_queue.len(), 1);
+        setup.app.increase_time(5);
+    }
+
+    // Change the condition to true to make it succeed
+    wasm.execute::<TestServiceExecuteMsg>(
+        &test_service_contract,
+        &TestServiceExecuteMsg::SetCondition { condition: true },
+        &[],
+        &setup.accounts[0],
+    )
+    .unwrap();
+
+    // Tick again will move now to the 3rd action but not process it, just re-add it to the queue
+    wasm.execute::<ProcessorExecuteMsg>(
+        &processor_contract,
+        &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
+        &[],
+        &setup.accounts[0],
+    )
+    .unwrap();
+
+    // Check that it's back in the queue
+    let query_med_prio_queue = wasm
+        .query::<ProcessorQueryMsg, Vec<MessageBatch>>(
+            &processor_contract,
+            &ProcessorQueryMsg::GetQueue {
+                from: None,
+                to: None,
+                priority: Priority::Medium,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(query_med_prio_queue.len(), 1);
+
+    // Last tick will process the last message and send the callback
+    wasm.execute::<ProcessorExecuteMsg>(
+        &processor_contract,
+        &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
+        &[],
+        &setup.accounts[0],
+    )
+    .unwrap();
+
+    // Confirm that we have no messages in the queue
+    let query_med_prio_queue = wasm
+        .query::<ProcessorQueryMsg, Vec<MessageBatch>>(
+            &processor_contract,
+            &ProcessorQueryMsg::GetQueue {
+                from: None,
+                to: None,
+                priority: Priority::Medium,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(query_med_prio_queue.len(), 0);
+
+    // Confirm we got the callback
+    let query_confirmed_callbacks = wasm
+        .query::<QueryMsg, Vec<CallbackInfo>>(
+            &authorization_contract,
+            &QueryMsg::ConfirmedCallbacks {
+                start_after: None,
+                limit: None,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(query_confirmed_callbacks.len(), 1);
+    assert_eq!(query_confirmed_callbacks[0].messages.len(), 3);
+}
+
+#[test]
+fn failed_atomic_batch_after_retries() {
+    let setup = NeutronTestAppBuilder::new().build().unwrap();
+
+    let wasm = Wasm::new(&setup.app);
+
+    let (authorization_contract, processor_contract) =
+        store_and_instantiate_authorization_with_processor_contract(
+            &setup.app,
+            &setup.accounts[0],
+            setup.owner_addr.to_string(),
+            vec![setup.subowner_addr.to_string()],
+            vec![setup.external_domain.clone()],
+        );
+    let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0]);
+
+    // We'll create an authorization with 3 actions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
+    let authorizations = vec![AuthorizationBuilder::new()
+        .with_label("permissionless")
+        .with_action_batch(
+            ActionBatchBuilder::new()
+                .with_retry_logic(RetryLogic {
+                    times: RetryTimes::Amount(5),
+                    interval: Duration::Time(2),
+                })
+                .with_action(
+                    ActionBuilder::new()
+                        .with_contract_address(&test_service_contract)
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "will_succeed".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .with_action(
+                    ActionBuilder::new()
+                        .with_contract_address(&test_service_contract)
+                        .with_retry_logic(RetryLogic {
+                            times: RetryTimes::Indefinitely,
+                            interval: Duration::Time(2),
+                        })
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "will_error".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .build(),
+        )
+        .build()];
+
+    wasm.execute::<ExecuteMsg>(
+        &authorization_contract,
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
+        &[],
+        &setup.accounts[0],
+    )
+    .unwrap();
+
+    let binary = Binary::from(
+        serde_json::to_vec(&valence_test_service::msg::ExecuteMsg::WillSucceed {}).unwrap(),
+    );
+    let message1 = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
+    let binary = Binary::from(
+        serde_json::to_vec(&valence_test_service::msg::ExecuteMsg::WillError {
+            error: "failed".to_string(),
+        })
+        .unwrap(),
+    );
+    let message2 = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
+
+    // Send the messages
+    wasm.execute::<ExecuteMsg>(
+        &authorization_contract,
+        &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
+            label: "permissionless".to_string(),
+            messages: vec![message1, message2],
+        }),
+        &[],
+        &setup.accounts[2],
+    )
+    .unwrap();
+
+    // Ticking 6 times (first time + retry amount) will send the callback with the error to the authorization contract
+    for _ in 0..6 {
+        wasm.execute::<ProcessorExecuteMsg>(
+            &processor_contract,
+            &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
+            &[],
+            &setup.accounts[0],
+        )
+        .unwrap();
+
+        setup.app.increase_time(5);
+    }
+
+    // Check it has been removed from the queue
+    let query_med_prio_queue = wasm
+        .query::<ProcessorQueryMsg, Vec<MessageBatch>>(
+            &processor_contract,
+            &ProcessorQueryMsg::GetQueue {
+                from: None,
+                to: None,
+                priority: Priority::Medium,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(query_med_prio_queue.len(), 0);
+
+    // Confirm we got the callback
+    let query_confirmed_callbacks = wasm
+        .query::<QueryMsg, Vec<CallbackInfo>>(
+            &authorization_contract,
+            &QueryMsg::ConfirmedCallbacks {
+                start_after: None,
+                limit: None,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(query_confirmed_callbacks.len(), 1);
+    assert!(matches!(
+        query_confirmed_callbacks[0].execution_result,
+        ExecutionResult::Rejected(_)
+    ));
+}
+
+#[test]
+fn failed_non_atomic_batch_after_retries() {
+    let setup = NeutronTestAppBuilder::new().build().unwrap();
+
+    let wasm = Wasm::new(&setup.app);
+
+    let (authorization_contract, processor_contract) =
+        store_and_instantiate_authorization_with_processor_contract(
+            &setup.app,
+            &setup.accounts[0],
+            setup.owner_addr.to_string(),
+            vec![setup.subowner_addr.to_string()],
+            vec![setup.external_domain.clone()],
+        );
+    let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0]);
+
+    // We'll create an authorization with 3 actions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
+    let authorizations = vec![AuthorizationBuilder::new()
+        .with_label("permissionless")
+        .with_action_batch(
+            ActionBatchBuilder::new()
+                .with_execution_type(ExecutionType::NonAtomic)
+                .with_action(
+                    ActionBuilder::new()
+                        .with_contract_address(&test_service_contract)
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "will_succeed".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .with_action(
+                    ActionBuilder::new()
+                        .with_contract_address(&test_service_contract)
+                        .with_retry_logic(RetryLogic {
+                            times: RetryTimes::Amount(5),
+                            interval: Duration::Time(2),
+                        })
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "will_error".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .build(),
+        )
+        .build()];
+
+    wasm.execute::<ExecuteMsg>(
+        &authorization_contract,
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
+        &[],
+        &setup.accounts[0],
+    )
+    .unwrap();
+
+    let binary = Binary::from(
+        serde_json::to_vec(&valence_test_service::msg::ExecuteMsg::WillSucceed {}).unwrap(),
+    );
+    let message1 = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
+    let binary = Binary::from(
+        serde_json::to_vec(&valence_test_service::msg::ExecuteMsg::WillError {
+            error: "failed".to_string(),
+        })
+        .unwrap(),
+    );
+    let message2 = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
+
+    // Send the messages
+    wasm.execute::<ExecuteMsg>(
+        &authorization_contract,
+        &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
+            label: "permissionless".to_string(),
+            messages: vec![message1, message2],
+        }),
+        &[],
+        &setup.accounts[2],
+    )
+    .unwrap();
+
+    // Ticking 7 times (first acction successfull + first time second action + retry amount for second action) will send the callback with the error to the authorization contract
+    for _ in 0..7 {
+        wasm.execute::<ProcessorExecuteMsg>(
+            &processor_contract,
+            &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
+            &[],
+            &setup.accounts[0],
+        )
+        .unwrap();
+
+        setup.app.increase_time(5);
+    }
+
+    // Check it has been removed from the queue
+    let query_med_prio_queue = wasm
+        .query::<ProcessorQueryMsg, Vec<MessageBatch>>(
+            &processor_contract,
+            &ProcessorQueryMsg::GetQueue {
+                from: None,
+                to: None,
+                priority: Priority::Medium,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(query_med_prio_queue.len(), 0);
+
+    // Confirm we got the callback
+    let query_confirmed_callbacks = wasm
+        .query::<QueryMsg, Vec<CallbackInfo>>(
+            &authorization_contract,
+            &QueryMsg::ConfirmedCallbacks {
+                start_after: None,
+                limit: None,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(query_confirmed_callbacks.len(), 1);
+    // In this case the the first action was successful so we will receive a partially executed result with the amount actions that were successfully executed
+    assert!(matches!(
+        query_confirmed_callbacks[0].execution_result,
+        ExecutionResult::PartiallyExecuted(1, _)
+    ));
+}
