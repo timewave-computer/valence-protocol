@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, StdError, StdResult, SubMsg};
+use cosmwasm_std::{Addr, Binary, StdError, StdResult, SubMsg};
 use cw_utils::Expiration;
 use serde_json::{json, Value};
 use valence_authorization_utils::{
@@ -93,8 +93,14 @@ impl MessageBatch {
             }
         }
 
+        // Use this json to create a new message
+        let mut new_msg = self.msgs[index].clone();
+        new_msg.set_msg(Binary::from(
+            serde_json::to_vec(&json).map_err(|e| StdError::generic_err(e.to_string()))?,
+        ));
+
         let submessage = SubMsg::reply_always(
-            self.msgs[index].to_wasm_message(&self.action_batch.actions[index].contract_address),
+            new_msg.to_wasm_message(&self.action_batch.actions[index].contract_address),
             execution_id,
         );
 

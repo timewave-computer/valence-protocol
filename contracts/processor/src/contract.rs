@@ -401,7 +401,9 @@ fn process_callback(
     // Remove the pending callback because we have processed it
     PENDING_CALLBACK.remove(deps.storage, execution_id);
 
-    Ok(Response::new().add_attribute("method", "callback"))
+    Ok(Response::new()
+        .add_messages(messages)
+        .add_attribute("method", "callback"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

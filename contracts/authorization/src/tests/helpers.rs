@@ -166,6 +166,7 @@ pub fn store_and_instantiate_authorization_with_processor_contract(
 pub fn store_and_instantiate_test_service(
     wasm: &Wasm<'_, NeutronTestApp>,
     signer: &SigningAccount,
+    admin: Option<&str>,
 ) -> String {
     let wasm_byte_code = std::fs::read("../../artifacts/valence_test_service.wasm").unwrap();
 
@@ -178,7 +179,7 @@ pub fn store_and_instantiate_test_service(
     wasm.instantiate(
         code_id,
         &TestServiceInstantiateMsg {},
-        None,
+        admin,
         "test_service".into(),
         &[],
         signer,

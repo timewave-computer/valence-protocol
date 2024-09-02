@@ -7,7 +7,7 @@ pub struct InstantiateMsg {}
 #[cw_serde]
 pub enum ExecuteMsg {
     WillError { error: String },
-    WillSucceed {},
+    WillSucceed { execution_id: Option<u64> },
     WillSucceedIfTrue {},
     SetCondition { condition: bool },
     SendCallback { to: String, callback: Binary },
@@ -21,6 +21,6 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
-pub struct MigrateMsg {
-    pub new_condition: bool,
+pub enum MigrateMsg {
+    Migrate { new_condition: bool },
 }

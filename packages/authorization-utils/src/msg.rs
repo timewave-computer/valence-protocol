@@ -128,6 +128,13 @@ impl ProcessorMessage {
         }
     }
 
+    pub fn set_msg(&mut self, msg: Binary) {
+        match self {
+            ProcessorMessage::CosmwasmExecuteMsg { msg: msg_ref } => *msg_ref = msg,
+            ProcessorMessage::CosmwasmMigrateMsg { msg: msg_ref, .. } => *msg_ref = msg,
+        }
+    }
+
     pub fn to_wasm_message(&self, contract_addr: &str) -> WasmMsg {
         match self {
             ProcessorMessage::CosmwasmExecuteMsg { msg } => WasmMsg::Execute {

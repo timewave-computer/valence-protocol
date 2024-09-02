@@ -4,11 +4,12 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, WasmMsg,
 };
+use valence_processor_utils::msg::{ExecuteMsg as ProcessorExecuteMsg, PermissionlessMsg};
 
 use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
-    state::CONDITION,
+    state::{CONDITION, EXECUTION_ID},
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -31,7 +32,12 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::WillError { error } => Err(ContractError::Std(StdError::generic_err(error))),
-        ExecuteMsg::WillSucceed {} => Ok(Response::new()),
+        ExecuteMsg::WillSucceed { execution_id } => {
+            if let Some(execution_id) = execution_id {
+                EXECUTION_ID.save(deps.storage, &execution_id)?;
+            }
+            Ok(Response::new())
+        }
         ExecuteMsg::WillSucceedIfTrue {} => {
             if CONDITION.load(deps.storage)? {
                 Ok(Response::new())
@@ -42,9 +48,15 @@ pub fn execute(
             }
         }
         ExecuteMsg::SendCallback { to, callback } => {
+            let callback_msg =
+                ProcessorExecuteMsg::PermissionlessAction(PermissionlessMsg::Callback {
+                    execution_id: EXECUTION_ID.load(deps.storage)?,
+                    msg: callback,
+                });
+
             let wasm_msg = WasmMsg::Execute {
                 contract_addr: to,
-                msg: callback,
+                msg: to_json_binary(&callback_msg)?,
                 funds: vec![],
             };
             Ok(Response::new().add_message(wasm_msg))
@@ -65,6 +77,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
-    CONDITION.save(deps.storage, &msg.new_condition)?;
-    Ok(Response::new())
+    match msg {
+        MigrateMsg::Migrate { new_condition } => {
+            CONDITION.save(deps.storage, &new_condition)?;
+            Ok(Response::new())
+        }
+    }
 }
