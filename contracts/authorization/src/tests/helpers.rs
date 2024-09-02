@@ -12,6 +12,7 @@ use neutron_test_tube::{
 use serde::Serialize;
 use valence_authorization_utils::{domain::ExternalDomain, msg::InstantiateMsg};
 use valence_processor_utils::msg::InstantiateMsg as ProcessorInstantiateMsg;
+use valence_test_service::msg::InstantiateMsg as TestServiceInstantiateMsg;
 
 pub struct ExtendedWasm<'a, R: Runner<'a>> {
     runner: &'a R,
@@ -160,6 +161,31 @@ pub fn store_and_instantiate_authorization_with_processor_contract(
     assert_eq!(predicted_address, authorization_address);
 
     (authorization_address, processor_address)
+}
+
+pub fn store_and_instantiate_test_service(
+    wasm: &Wasm<'_, NeutronTestApp>,
+    signer: &SigningAccount,
+) -> String {
+    let wasm_byte_code = std::fs::read("../../artifacts/valence_test_service.wasm").unwrap();
+
+    let code_id = wasm
+        .store_code(&wasm_byte_code, None, signer)
+        .unwrap()
+        .data
+        .code_id;
+
+    wasm.instantiate(
+        code_id,
+        &TestServiceInstantiateMsg {},
+        None,
+        "test_service".into(),
+        &[],
+        signer,
+    )
+    .unwrap()
+    .data
+    .address
 }
 
 pub fn wait_for_height(app: &NeutronTestApp, height: u64) {

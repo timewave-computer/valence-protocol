@@ -21,10 +21,7 @@ use super::{
 
 #[test]
 fn disabled() {
-    let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(6)
-        .build()
-        .unwrap();
+    let setup = NeutronTestAppBuilder::new().build().unwrap();
 
     let wasm = Wasm::new(&setup.app);
 
@@ -112,10 +109,7 @@ fn disabled() {
 
 #[test]
 fn invalid_time() {
-    let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(6)
-        .build()
-        .unwrap();
+    let setup = NeutronTestAppBuilder::new().build().unwrap();
 
     let wasm = Wasm::new(&setup.app);
 
@@ -319,10 +313,7 @@ fn invalid_time() {
 
 #[test]
 fn invalid_permission() {
-    let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(6)
-        .build()
-        .unwrap();
+    let setup = NeutronTestAppBuilder::new().build().unwrap();
 
     let wasm = Wasm::new(&setup.app);
 
@@ -440,10 +431,7 @@ fn invalid_permission() {
 
 #[test]
 fn invalid_messages() {
-    let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(6)
-        .build()
-        .unwrap();
+    let setup = NeutronTestAppBuilder::new().build().unwrap();
 
     let wasm = Wasm::new(&setup.app);
 

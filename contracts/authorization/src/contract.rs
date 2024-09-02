@@ -386,7 +386,9 @@ fn add_messages(
             ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
         })?;
 
-    // We dont need to perform any validation because this is sent by the owner
+    // Validate that the messages match with the label
+    authorization.validate_messages(deps.storage, &messages)?;
+
     let current_executions = CURRENT_EXECUTIONS
         .load(deps.storage, label.clone())
         .unwrap_or_default();
@@ -546,6 +548,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Authorizations { start_after, limit } => {
             to_json_binary(&get_authorizations(deps, start_after, limit))
         }
+        QueryMsg::ConfirmedCallbacks { start_after, limit } => {
+            to_json_binary(&get_confirmed_callbacks(deps, start_after, limit))
+        }
     }
 }
 
@@ -593,6 +598,22 @@ fn get_authorizations(
         .take(limit as usize)
         .filter_map(Result::ok)
         .map(|(_, auth)| auth)
+        .collect()
+}
+
+fn get_confirmed_callbacks(
+    deps: Deps,
+    start_after: Option<u64>,
+    limit: Option<u32>,
+) -> Vec<CallbackInfo> {
+    let limit = limit.unwrap_or(MAX_PAGE_LIMIT).min(MAX_PAGE_LIMIT);
+    let start = start_after.map(Bound::exclusive);
+
+    CONFIRMED_CALLBACKS
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit as usize)
+        .filter_map(Result::ok)
+        .map(|(_, cb)| cb)
         .collect()
 }
 

@@ -4046,7 +4046,9 @@ dependencies = [
  "serde_json",
  "thiserror",
  "valence-authorization-utils",
+ "valence-processor",
  "valence-processor-utils",
+ "valence-test-service",
 ]
 
 [[package]]

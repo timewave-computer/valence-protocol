@@ -186,7 +186,7 @@ impl ActionBatchBuilder {
         self
     }
 
-    pub fn _with_retry_logic(mut self, retry_logic: RetryLogic) -> Self {
+    pub fn with_retry_logic(mut self, retry_logic: RetryLogic) -> Self {
         self.retry_logic = Some(retry_logic);
         self
     }
@@ -232,6 +232,11 @@ impl ActionBuilder {
 
     pub fn with_message_details(mut self, message_details: MessageDetails) -> Self {
         self.message_details = message_details;
+        self
+    }
+
+    pub fn with_contract_address(mut self, contract_address: &str) -> Self {
+        self.contract_address = contract_address.to_string();
         self
     }
 

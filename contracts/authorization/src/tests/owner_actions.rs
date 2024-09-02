@@ -14,6 +14,10 @@ use valence_authorization_utils::{
     domain::{Domain, ExternalDomain},
     msg::{ExecuteMsg, Mint, OwnerMsg, PermissionedMsg, QueryMsg},
 };
+use valence_processor::error::ContractError as ProcessorContractError;
+use valence_processor_utils::msg::{
+    ExecuteMsg as ProcessorExecuteMsg, PermissionlessMsg as ProcessorPermissionlessMsg,
+};
 
 use crate::{
     contract::build_tokenfactory_denom,
@@ -88,13 +92,13 @@ fn contract_instantiation() {
 #[test]
 fn transfer_ownership() {
     let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(7)
+        .with_num_accounts(6)
         .build()
         .unwrap();
 
     let wasm = Wasm::new(&setup.app);
 
-    let new_owner = &setup.accounts[6];
+    let new_owner = &setup.accounts[5];
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
@@ -282,10 +286,7 @@ fn add_external_domains() {
 
 #[test]
 fn create_valid_authorizations() {
-    let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(6)
-        .build()
-        .unwrap();
+    let setup = NeutronTestAppBuilder::new().build().unwrap();
 
     let wasm = Wasm::new(&setup.app);
     let bank = Bank::new(&setup.app);
@@ -574,10 +575,7 @@ fn create_valid_authorizations() {
 
 #[test]
 fn create_invalid_authorizations() {
-    let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(6)
-        .build()
-        .unwrap();
+    let setup = NeutronTestAppBuilder::new().build().unwrap();
 
     let wasm = Wasm::new(&setup.app);
 
@@ -691,10 +689,7 @@ fn create_invalid_authorizations() {
 
 #[test]
 fn modify_authorization() {
-    let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(6)
-        .build()
-        .unwrap();
+    let setup = NeutronTestAppBuilder::new().build().unwrap();
 
     let wasm = Wasm::new(&setup.app);
 
@@ -901,14 +896,14 @@ fn modify_authorization() {
 #[test]
 fn mint_authorizations() {
     let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(7)
+        .with_num_accounts(6)
         .build()
         .unwrap();
 
     let wasm = Wasm::new(&setup.app);
     let bank = Bank::new(&setup.app);
 
-    let user2 = &setup.accounts[6];
+    let user2 = &setup.accounts[5];
     let user2_addr = Addr::unchecked(user2.address());
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
@@ -1055,6 +1050,76 @@ fn mint_authorizations() {
 
     assert!(error.to_string().contains(
         ContractError::Unauthorized(UnauthorizedReason::NotAllowed {})
+            .to_string()
+            .as_str()
+    ));
+}
+
+#[test]
+fn pausing_and_resuming_processor() {
+    let setup = NeutronTestAppBuilder::new().build().unwrap();
+
+    let wasm = Wasm::new(&setup.app);
+
+    let (contract_addr, processor_contract) =
+        store_and_instantiate_authorization_with_processor_contract(
+            &setup.app,
+            &setup.accounts[0],
+            setup.owner_addr.to_string(),
+            vec![],
+            vec![],
+        );
+
+    // Let's pause the processor
+    wasm.execute::<ExecuteMsg>(
+        &contract_addr,
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::PauseProcessor {
+            domain: Domain::Main,
+        }),
+        &[],
+        &setup.accounts[0],
+    )
+    .unwrap();
+
+    // Ticking the processor will fail because processor is paused
+    let error = wasm
+        .execute::<ProcessorExecuteMsg>(
+            &processor_contract,
+            &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
+            &[],
+            &setup.accounts[0],
+        )
+        .unwrap_err();
+
+    assert!(error.to_string().contains(
+        ProcessorContractError::ProcessorPaused {}
+            .to_string()
+            .as_str()
+    ));
+
+    // Let's resume the processor
+    wasm.execute::<ExecuteMsg>(
+        &contract_addr,
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::ResumeProcessor {
+            domain: Domain::Main,
+        }),
+        &[],
+        &setup.accounts[0],
+    )
+    .unwrap();
+
+    // Ticking the processor now will fail because there are no messages to process
+    let error = wasm
+        .execute::<ProcessorExecuteMsg>(
+            &processor_contract,
+            &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
+            &[],
+            &setup.accounts[0],
+        )
+        .unwrap_err();
+
+    assert!(error.to_string().contains(
+        ProcessorContractError::NoMessagesToProcess {}
             .to_string()
             .as_str()
     ));

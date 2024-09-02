@@ -5,7 +5,7 @@ use cw_ownable::{cw_ownable_execute, cw_ownable_query, Expiration};
 use crate::{
     authorization::{Authorization, AuthorizationInfo, Priority},
     authorization_message::MessageType,
-    callback::ExecutionResult,
+    callback::{CallbackInfo, ExecutionResult},
     domain::{Domain, ExternalDomain},
 };
 
@@ -160,6 +160,11 @@ pub enum QueryMsg {
     #[returns(Vec<Authorization>)]
     Authorizations {
         start_after: Option<String>,
+        limit: Option<u32>,
+    },
+    #[returns(Vec<CallbackInfo>)]
+    ConfirmedCallbacks {
+        start_after: Option<u64>,
         limit: Option<u32>,
     },
 }

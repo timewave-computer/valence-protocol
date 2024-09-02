@@ -29,3 +29,5 @@ neutron-test-tube    = { workspace = true }
 margined-neutron-std = { workspace = true }
 serde                = { workspace = true }
 hex                  = { workspace = true }
+valence-test-service = { workspace = true }
+valence-processor    = { workspace = true }

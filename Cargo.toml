@@ -47,6 +47,7 @@ valence-reverse-splitter = { path = "contracts/services/reverse-splitter-temp", 
 valence-processor        = { path = "contracts/processor", features = ["library"] }
 valence-base-account     = { path = "contracts/accounts/base_account", features = ["library"] }
 valence-authorization    = { path = "contracts/authorization", features = ["library"] }
+valence-test-service     = { path = "contracts/services/test-service", features = ["library"] }
 
 # our packages
 valence-macros              = { path = "packages/valence-macros" }
