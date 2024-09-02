@@ -4168,6 +4168,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-test-service"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.3",
+ "cosmwasm-std 2.1.3",
+ "cw-storage-plus",
+ "thiserror",
+]
+
+[[package]]
 name = "valuable"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
