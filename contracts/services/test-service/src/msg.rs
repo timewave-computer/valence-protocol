@@ -8,18 +8,19 @@ pub struct InstantiateMsg {}
 pub enum ExecuteMsg {
     WillError { error: String },
     WillSucceed {},
-    WillSucceedEveryFiveTimes {},
+    WillSucceedIfTrue {},
+    SetCondition { condition: bool },
     SendCallback { to: String, callback: Binary },
 }
 
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
-    #[returns(u64)]
-    Counter {},
+    #[returns(bool)]
+    Condition {},
 }
 
 #[cw_serde]
 pub struct MigrateMsg {
-    pub new_counter: u64,
+    pub new_condition: bool,
 }

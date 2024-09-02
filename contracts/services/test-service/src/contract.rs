@@ -8,7 +8,7 @@ use cosmwasm_std::{
 use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
-    state::COUNTER,
+    state::CONDITION,
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -18,7 +18,7 @@ pub fn instantiate(
     _info: MessageInfo,
     _msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    COUNTER.save(deps.storage, &1)?;
+    CONDITION.save(deps.storage, &false)?;
     Ok(Response::new().add_attribute("method", "instantiate"))
 }
 
@@ -32,15 +32,12 @@ pub fn execute(
     match msg {
         ExecuteMsg::WillError { error } => Err(ContractError::Std(StdError::generic_err(error))),
         ExecuteMsg::WillSucceed {} => Ok(Response::new()),
-        ExecuteMsg::WillSucceedEveryFiveTimes {} => {
-            let mut counter = COUNTER.load(deps.storage)?;
-            counter += 1;
-            COUNTER.save(deps.storage, &counter)?;
-            if counter % 5 == 0 {
+        ExecuteMsg::WillSucceedIfTrue {} => {
+            if CONDITION.load(deps.storage)? {
                 Ok(Response::new())
             } else {
                 Err(ContractError::Std(StdError::generic_err(
-                    "this is not a 5th call",
+                    "Condition not met",
                 )))
             }
         }
@@ -52,18 +49,22 @@ pub fn execute(
             };
             Ok(Response::new().add_message(wasm_msg))
         }
+        ExecuteMsg::SetCondition { condition } => {
+            CONDITION.save(deps.storage, &condition)?;
+            Ok(Response::new())
+        }
     }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Counter {} => to_json_binary(&COUNTER.load(deps.storage)?),
+        QueryMsg::Condition {} => to_json_binary(&CONDITION.load(deps.storage)?),
     }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
-    COUNTER.save(deps.storage, &msg.new_counter)?;
+    CONDITION.save(deps.storage, &msg.new_condition)?;
     Ok(Response::new())
 }
