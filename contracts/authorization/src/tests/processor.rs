@@ -9,7 +9,7 @@ use valence_authorization_utils::{
     domain::Domain,
     msg::{ExecuteMsg, PermissionedMsg, PermissionlessMsg, ProcessorMessage, QueryMsg},
 };
-use valence_processor_utils::processor::MessageBatch;
+use valence_processor_utils::{msg::InternalProcessorMsg, processor::MessageBatch};
 
 use crate::{
     error::{AuthorizationErrorReason, ContractError},
@@ -356,7 +356,7 @@ fn max_concurrent_execution_limit() {
     // Owner should be able to enqueue without this limitation
     wasm.execute::<ExecuteMsg>(
         &authorization_contract,
-        &ExecuteMsg::PermissionedAction(PermissionedMsg::AddMsgs {
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::InsertMsgs {
             label: "permissionless".to_string(),
             queue_position: 0, // At the front
             priority: Priority::Medium,
@@ -511,7 +511,7 @@ fn owner_adding_and_removing_messages() {
     // Let's add a message to the front of the medium priority queue
     wasm.execute::<ExecuteMsg>(
         &authorization_contract,
-        &ExecuteMsg::PermissionedAction(PermissionedMsg::AddMsgs {
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::InsertMsgs {
             label: "permissionless".to_string(),
             queue_position: 0,
             priority: Priority::Medium,
@@ -545,7 +545,7 @@ fn owner_adding_and_removing_messages() {
     // Let's insert a message in the middle and one at the end
     wasm.execute::<ExecuteMsg>(
         &authorization_contract,
-        &ExecuteMsg::PermissionedAction(PermissionedMsg::AddMsgs {
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::InsertMsgs {
             label: "permissionless".to_string(),
             queue_position: 3,
             priority: Priority::Medium,
@@ -558,7 +558,7 @@ fn owner_adding_and_removing_messages() {
 
     wasm.execute::<ExecuteMsg>(
         &authorization_contract,
-        &ExecuteMsg::PermissionedAction(PermissionedMsg::AddMsgs {
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::InsertMsgs {
             label: "permissionless".to_string(),
             queue_position: 7,
             priority: Priority::Medium,
@@ -593,7 +593,7 @@ fn owner_adding_and_removing_messages() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &authorization_contract,
-            &ExecuteMsg::PermissionedAction(PermissionedMsg::AddMsgs {
+            &ExecuteMsg::PermissionedAction(PermissionedMsg::InsertMsgs {
                 label: "permissionless".to_string(),
                 queue_position: 9,
                 priority: Priority::Medium,
@@ -610,7 +610,7 @@ fn owner_adding_and_removing_messages() {
     for _ in 0..5 {
         wasm.execute::<ExecuteMsg>(
             &authorization_contract,
-            &ExecuteMsg::PermissionedAction(PermissionedMsg::RemoveMsgs {
+            &ExecuteMsg::PermissionedAction(PermissionedMsg::EvictMsgs {
                 domain: Domain::Main,
                 queue_position: 0,
                 priority: Priority::High,
@@ -661,7 +661,7 @@ fn owner_adding_and_removing_messages() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &authorization_contract,
-            &ExecuteMsg::PermissionedAction(PermissionedMsg::RemoveMsgs {
+            &ExecuteMsg::PermissionedAction(PermissionedMsg::EvictMsgs {
                 domain: Domain::Main,
                 queue_position: 0,
                 priority: Priority::High,
@@ -678,7 +678,7 @@ fn owner_adding_and_removing_messages() {
     for _ in 0..5 {
         wasm.execute::<ExecuteMsg>(
             &authorization_contract,
-            &ExecuteMsg::PermissionedAction(PermissionedMsg::AddMsgs {
+            &ExecuteMsg::PermissionedAction(PermissionedMsg::InsertMsgs {
                 label: "permissioned-without-limit".to_string(),
                 queue_position: 0,
                 priority: Priority::High,
@@ -713,7 +713,7 @@ fn owner_adding_and_removing_messages() {
     // Let's try to remove from the back instead from than from the front now
     wasm.execute::<ExecuteMsg>(
         &authorization_contract,
-        &ExecuteMsg::PermissionedAction(PermissionedMsg::RemoveMsgs {
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::EvictMsgs {
             domain: Domain::Main,
             queue_position: 4,
             priority: Priority::High,
@@ -746,7 +746,7 @@ fn owner_adding_and_removing_messages() {
     // Add a new one to the back
     wasm.execute::<ExecuteMsg>(
         &authorization_contract,
-        &ExecuteMsg::PermissionedAction(PermissionedMsg::AddMsgs {
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::InsertMsgs {
             label: "permissioned-without-limit".to_string(),
             queue_position: 4,
             priority: Priority::High,
@@ -781,7 +781,7 @@ fn owner_adding_and_removing_messages() {
     for i in (0..5).rev() {
         wasm.execute::<ExecuteMsg>(
             &authorization_contract,
-            &ExecuteMsg::PermissionedAction(PermissionedMsg::RemoveMsgs {
+            &ExecuteMsg::PermissionedAction(PermissionedMsg::EvictMsgs {
                 domain: Domain::Main,
                 queue_position: i,
                 priority: Priority::High,
@@ -1964,9 +1964,7 @@ fn failed_atomic_batch_after_retries() {
     let error = wasm
         .execute::<ProcessorExecuteMsg>(
             &processor_contract,
-            &ProcessorExecuteMsg::PermissionlessAction(
-                ProcessorPermissionlessMsg::ExecuteAtomic {},
-            ),
+            &ProcessorExecuteMsg::InternalProcessorAction(InternalProcessorMsg::ExecuteAtomic {}),
             &[],
             &setup.accounts[0],
         )

@@ -26,7 +26,7 @@ use crate::{
     error::{AuthorizationErrorReason, ContractError, UnauthorizedReason},
     state::{
         AUTHORIZATIONS, CONFIRMED_CALLBACKS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS,
-        PENDING_CALLBACK, PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS,
+        PENDING_CALLBACKS, PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS,
     },
 };
 
@@ -122,17 +122,17 @@ pub fn execute(
                 PermissionedMsg::MintAuthorizations { label, mints } => {
                     mint_authorizations(deps, env, label, mints)
                 }
-                PermissionedMsg::RemoveMsgs {
+                PermissionedMsg::EvictMsgs {
                     domain,
                     queue_position,
                     priority,
-                } => remove_messages(deps, domain, queue_position, priority),
-                PermissionedMsg::AddMsgs {
+                } => evict_messages(deps, domain, queue_position, priority),
+                PermissionedMsg::InsertMsgs {
                     label,
                     queue_position,
                     priority,
                     messages,
-                } => add_messages(deps, label, queue_position, priority, messages),
+                } => insert_messages(deps, label, queue_position, priority, messages),
                 PermissionedMsg::PauseProcessor { domain } => pause_processor(deps, domain),
                 PermissionedMsg::ResumeProcessor { domain } => resume_processor(deps, domain),
             }
@@ -373,7 +373,7 @@ fn resume_processor(deps: DepsMut, domain: Domain) -> Result<Response<NeutronMsg
         .add_attribute("action", "resume_processor"))
 }
 
-fn add_messages(
+fn insert_messages(
     deps: DepsMut,
     label: String,
     queue_position: u64,
@@ -401,7 +401,7 @@ fn add_messages(
     let domain = get_domain(&authorization)?;
     let id = get_and_increase_execution_id(deps.storage)?;
     let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
-        AuthorizationMsg::AddMsgs {
+        AuthorizationMsg::InsertMsgs {
             id,
             queue_position,
             msgs: messages.clone(),
@@ -420,14 +420,14 @@ fn add_messages(
         .add_attribute("authorization_label", authorization.label))
 }
 
-fn remove_messages(
+fn evict_messages(
     deps: DepsMut,
     domain: Domain,
     queue_position: u64,
     priority: Priority,
 ) -> Result<Response<NeutronMsg>, ContractError> {
     let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
-        AuthorizationMsg::RemoveMsgs {
+        AuthorizationMsg::EvictMsgs {
             queue_position,
             priority,
         },
@@ -508,7 +508,7 @@ fn process_callback(
     execution_id: u64,
     execution_result: ExecutionResult,
 ) -> Result<Response<NeutronMsg>, ContractError> {
-    let pending_callback = PENDING_CALLBACK.load(deps.storage, execution_id)?;
+    let pending_callback = PENDING_CALLBACKS.load(deps.storage, execution_id)?;
 
     // Check that the sender is the one that should send the callback
     if info.sender != pending_callback.address {
@@ -517,7 +517,7 @@ fn process_callback(
         ));
     }
     // We'll remove the pending callback
-    PENDING_CALLBACK.remove(deps.storage, execution_id);
+    PENDING_CALLBACKS.remove(deps.storage, execution_id);
 
     // Store the confirmed callback in our confirmed callback history
     // with all the information we want
@@ -664,5 +664,5 @@ pub fn store_pending_callback(
         messages,
     };
 
-    PENDING_CALLBACK.save(storage, id, &pending_callback)
+    PENDING_CALLBACKS.save(storage, id, &pending_callback)
 }

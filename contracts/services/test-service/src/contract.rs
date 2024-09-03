@@ -4,7 +4,7 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, WasmMsg,
 };
-use valence_processor_utils::msg::{ExecuteMsg as ProcessorExecuteMsg, PermissionlessMsg};
+use valence_processor_utils::msg::{ExecuteMsg as ProcessorExecuteMsg, InternalProcessorMsg};
 
 use crate::{
     error::ContractError,
@@ -49,7 +49,7 @@ pub fn execute(
         }
         ExecuteMsg::SendCallback { to, callback } => {
             let callback_msg =
-                ProcessorExecuteMsg::PermissionlessAction(PermissionlessMsg::Callback {
+                ProcessorExecuteMsg::InternalProcessorAction(InternalProcessorMsg::Callback {
                     execution_id: EXECUTION_ID.load(deps.storage)?,
                     msg: callback,
                 });

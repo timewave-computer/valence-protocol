@@ -61,7 +61,7 @@ pub enum PermissionedMsg {
         mints: Vec<Mint>,
     },
     // Method to remove any set of messages from any queue in any domain
-    RemoveMsgs {
+    EvictMsgs {
         // Which domain we are targetting
         domain: Domain,
         // position in the queue
@@ -69,14 +69,14 @@ pub enum PermissionedMsg {
         // what queue we are targetting
         priority: Priority,
     },
-    // Method to add messages from an authorization to any queue
-    AddMsgs {
+    // Method to insert messages from an authorization to any queue
+    InsertMsgs {
         // The authorization label
         label: String,
         // Where and in which queue we are putting them
         queue_position: u64,
         priority: Priority,
-        // Messages to add
+        // Messages to insert
         messages: Vec<ProcessorMessage>,
     },
     // Pause a processor in any domain

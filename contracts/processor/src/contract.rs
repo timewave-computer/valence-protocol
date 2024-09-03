@@ -2,8 +2,8 @@
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response, StdResult,
-    SubMsg, SubMsgResult, WasmMsg,
+    to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response,
+    StdResult, SubMsg, SubMsgResult, WasmMsg,
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner};
 use valence_authorization_utils::{
@@ -14,8 +14,8 @@ use valence_authorization_utils::{
 use valence_processor_utils::{
     callback::PendingCallback,
     msg::{
-        AuthorizationMsg, ExecuteMsg, InstantiateMsg, OwnerMsg, PermissionlessMsg,
-        PolytoneContracts, QueryMsg,
+        AuthorizationMsg, ExecuteMsg, InstantiateMsg, InternalProcessorMsg, OwnerMsg,
+        PermissionlessMsg, PolytoneContracts, QueryMsg,
     },
     processor::{Config, MessageBatch, Polytone, ProcessorDomain, State},
 };
@@ -105,27 +105,30 @@ pub fn execute(
                     action_batch,
                     priority,
                 } => enqueue_messages(deps, id, msgs, action_batch, priority),
-                AuthorizationMsg::RemoveMsgs {
+                AuthorizationMsg::EvictMsgs {
                     queue_position,
                     priority,
-                } => remove_messages(deps, queue_position, priority),
-                AuthorizationMsg::AddMsgs {
+                } => evict_messages(deps, queue_position, priority),
+                AuthorizationMsg::InsertMsgs {
                     id,
                     queue_position,
                     msgs,
                     action_batch,
                     priority,
-                } => add_messages(deps, queue_position, id, msgs, action_batch, priority),
+                } => insert_messages(deps, queue_position, id, msgs, action_batch, priority),
                 AuthorizationMsg::Pause {} => pause_processor(deps),
                 AuthorizationMsg::Resume {} => resume_processor(deps),
             }
         }
         ExecuteMsg::PermissionlessAction(permissionless_msg) => match permissionless_msg {
             PermissionlessMsg::Tick {} => process_tick(deps, env),
-            PermissionlessMsg::Callback { execution_id, msg } => {
+        },
+        ExecuteMsg::InternalProcessorAction(internal_processor_msg) => match internal_processor_msg
+        {
+            InternalProcessorMsg::Callback { execution_id, msg } => {
                 process_callback(deps, env, info, execution_id, msg)
             }
-            PermissionlessMsg::ExecuteAtomic {} => execute_atomic(deps, info, env),
+            InternalProcessorMsg::ExecuteAtomic {} => execute_atomic(deps, info, env),
         },
     }
 }
@@ -206,7 +209,7 @@ fn enqueue_messages(
     Ok(Response::new().add_attribute("method", "enqueue_messages"))
 }
 
-fn remove_messages(
+fn evict_messages(
     deps: DepsMut,
     queue_position: u64,
     priority: Priority,
@@ -237,8 +240,8 @@ fn remove_messages(
     }
 }
 
-/// Adds a set of messages in a specific position of the queue
-fn add_messages(
+/// Insert a set of messages in a specific position of the queue
+fn insert_messages(
     deps: DepsMut,
     queue_position: u64,
     id: u64,
@@ -301,8 +304,8 @@ fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
                     messages = vec![SubMsg::reply_always(
                         WasmMsg::Execute {
                             contract_addr: env.contract.address.to_string(),
-                            msg: to_json_binary(&ExecuteMsg::PermissionlessAction(
-                                PermissionlessMsg::ExecuteAtomic {},
+                            msg: to_json_binary(&ExecuteMsg::InternalProcessorAction(
+                                InternalProcessorMsg::ExecuteAtomic {},
                             ))?,
                             funds: vec![],
                         },
@@ -422,7 +425,7 @@ fn execute_atomic(deps: DepsMut, info: MessageInfo, env: Env) -> Result<Response
         return Err(ContractError::NotProcessor {});
     }
     let batch = ATOMIC_BATCH_EXECUTION.load(deps.storage)?;
-    let messages = batch.create_fire_and_forget_messages();
+    let messages: Vec<CosmosMsg> = batch.into();
 
     Ok(Response::new()
         .add_messages(messages)

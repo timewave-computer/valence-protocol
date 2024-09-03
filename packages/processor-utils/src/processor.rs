@@ -44,30 +44,30 @@ pub struct MessageBatch {
     pub priority: Priority,
 }
 
-impl MessageBatch {
-    /// This will take the batch and create a vector of fire and forget messages
-    /// This is used for atomic batches to make sure they are executed atomically
-    pub fn create_fire_and_forget_messages(&self) -> Vec<CosmosMsg> {
-        self.msgs
-            .iter()
+impl From<MessageBatch> for Vec<CosmosMsg> {
+    fn from(val: MessageBatch) -> Self {
+        val.msgs
+            .into_iter()
             .enumerate()
             .map(|(index, msg)| match msg {
                 ProcessorMessage::CosmwasmExecuteMsg { msg } => CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: self.action_batch.actions[index].contract_address.clone(),
-                    msg: msg.clone(),
+                    contract_addr: val.action_batch.actions[index].contract_address.clone(),
+                    msg,
                     funds: vec![],
                 }),
                 ProcessorMessage::CosmwasmMigrateMsg { code_id, msg } => {
                     CosmosMsg::Wasm(WasmMsg::Migrate {
-                        contract_addr: self.action_batch.actions[index].contract_address.clone(),
-                        new_code_id: *code_id,
-                        msg: msg.clone(),
+                        contract_addr: val.action_batch.actions[index].contract_address.clone(),
+                        new_code_id: code_id,
+                        msg,
                     })
                 }
             })
             .collect()
     }
+}
 
+impl MessageBatch {
     /// This is used for non-atomic batches. We need to catch the reply always because we need to know if the message was successful to continue
     /// with the next message in the batch or apply the retry logic
     pub fn create_message_by_index(&self, index: usize) -> Vec<SubMsg> {

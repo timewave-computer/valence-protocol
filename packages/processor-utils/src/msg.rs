@@ -28,6 +28,7 @@ pub enum ExecuteMsg {
     OwnerAction(OwnerMsg),
     AuthorizationModuleAction(AuthorizationMsg),
     PermissionlessAction(PermissionlessMsg),
+    InternalProcessorAction(InternalProcessorMsg),
 }
 
 #[cw_serde]
@@ -47,11 +48,11 @@ pub enum AuthorizationMsg {
         action_batch: ActionBatch,
         priority: Priority,
     },
-    RemoveMsgs {
+    EvictMsgs {
         queue_position: u64,
         priority: Priority,
     },
-    AddMsgs {
+    InsertMsgs {
         queue_position: u64,
         id: u64,
         msgs: Vec<ProcessorMessage>,
@@ -65,6 +66,10 @@ pub enum AuthorizationMsg {
 #[cw_serde]
 pub enum PermissionlessMsg {
     Tick {},
+}
+
+#[cw_serde]
+pub enum InternalProcessorMsg {
     Callback { execution_id: u64, msg: Binary },
     // Entry point for the processor to execute batches atomically, this will only be able to be called by the processor itself
     ExecuteAtomic {},
