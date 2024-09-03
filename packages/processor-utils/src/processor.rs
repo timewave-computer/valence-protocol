@@ -48,16 +48,16 @@ impl From<MessageBatch> for Vec<CosmosMsg> {
     fn from(val: MessageBatch) -> Self {
         val.msgs
             .into_iter()
-            .enumerate()
-            .map(|(index, msg)| match msg {
+            .zip(val.action_batch.actions)
+            .map(|(msg, action)| match msg {
                 ProcessorMessage::CosmwasmExecuteMsg { msg } => CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: val.action_batch.actions[index].contract_address.clone(),
+                    contract_addr: action.contract_address,
                     msg,
                     funds: vec![],
                 }),
                 ProcessorMessage::CosmwasmMigrateMsg { code_id, msg } => {
                     CosmosMsg::Wasm(WasmMsg::Migrate {
-                        contract_addr: val.action_batch.actions[index].contract_address.clone(),
+                        contract_addr: action.contract_address,
                         new_code_id: code_id,
                         msg,
                     })
