@@ -13,7 +13,7 @@ use valence_processor_utils::processor::MessageBatch;
 
 use crate::{
     error::{AuthorizationErrorReason, ContractError},
-    tests::helpers::wait_for_height,
+    tests::helpers::{wait_for_height, ARTIFACTS_DIR},
 };
 use valence_processor_utils::msg::{
     ExecuteMsg as ProcessorExecuteMsg, PermissionlessMsg as ProcessorPermissionlessMsg,
@@ -2607,7 +2607,8 @@ fn migration() {
         store_and_instantiate_test_service(&wasm, &setup.accounts[0], Some(&processor_contract));
 
     // Store it again to get a new code id
-    let wasm_byte_code = std::fs::read("../../artifacts/valence_test_service.wasm").unwrap();
+    let wasm_byte_code =
+        std::fs::read(format!("{}/valence_test_service.wasm", ARTIFACTS_DIR)).unwrap();
 
     let code_id = wasm
         .store_code(&wasm_byte_code, None, &setup.accounts[0])

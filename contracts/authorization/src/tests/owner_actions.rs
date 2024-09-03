@@ -42,7 +42,7 @@ fn contract_instantiation() {
     let subowner2 = Addr::unchecked(setup.accounts[5].address());
 
     // Let's instantiate with all parameters and query them to see if they are stored correctly
-    let (contract_addr, processor_address) =
+    let (authorization_contract, processor_address) =
         store_and_instantiate_authorization_with_processor_contract(
             &setup.app,
             &setup.accounts[0],
@@ -53,14 +53,17 @@ fn contract_instantiation() {
 
     // Query current owner
     let query_owner = wasm
-        .query::<QueryMsg, cw_ownable::Ownership<String>>(&contract_addr, &QueryMsg::Ownership {})
+        .query::<QueryMsg, cw_ownable::Ownership<String>>(
+            &authorization_contract,
+            &QueryMsg::Ownership {},
+        )
         .unwrap();
 
     assert_eq!(query_owner.owner.unwrap(), setup.user_addr.to_string());
 
     // Query subowners
     let query_subowners = wasm
-        .query::<QueryMsg, Vec<Addr>>(&contract_addr, &QueryMsg::SubOwners {})
+        .query::<QueryMsg, Vec<Addr>>(&authorization_contract, &QueryMsg::SubOwners {})
         .unwrap();
 
     assert_eq!(query_subowners.len(), 2);
@@ -69,7 +72,7 @@ fn contract_instantiation() {
 
     // Query processor
     let query_processor = wasm
-        .query::<QueryMsg, Addr>(&contract_addr, &QueryMsg::Processor {})
+        .query::<QueryMsg, Addr>(&authorization_contract, &QueryMsg::Processor {})
         .unwrap();
 
     assert_eq!(query_processor, Addr::unchecked(processor_address));
@@ -77,7 +80,7 @@ fn contract_instantiation() {
     // Query external domains
     let query_external_domains = wasm
         .query::<QueryMsg, Vec<ExternalDomain>>(
-            &contract_addr,
+            &authorization_contract,
             &QueryMsg::ExternalDomains {
                 start_after: None,
                 limit: None,
@@ -100,7 +103,7 @@ fn transfer_ownership() {
 
     let new_owner = &setup.accounts[5];
 
-    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
+    let (authorization_contract, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
@@ -110,7 +113,7 @@ fn transfer_ownership() {
 
     // Current owner is going to transfer ownership to new_owner
     wasm.execute::<ExecuteMsg>(
-        &contract_addr,
+        &authorization_contract,
         &ExecuteMsg::UpdateOwnership(cw_ownable::Action::TransferOwnership {
             new_owner: new_owner.address(),
             expiry: None,
@@ -122,7 +125,7 @@ fn transfer_ownership() {
 
     // New owner is going to accept the ownership
     wasm.execute::<ExecuteMsg>(
-        &contract_addr,
+        &authorization_contract,
         &ExecuteMsg::UpdateOwnership(cw_ownable::Action::AcceptOwnership {}),
         &[],
         new_owner,
@@ -131,7 +134,10 @@ fn transfer_ownership() {
 
     // Check owner has been transfered
     let query_owner = wasm
-        .query::<QueryMsg, cw_ownable::Ownership<String>>(&contract_addr, &QueryMsg::Ownership {})
+        .query::<QueryMsg, cw_ownable::Ownership<String>>(
+            &authorization_contract,
+            &QueryMsg::Ownership {},
+        )
         .unwrap();
 
     assert_eq!(query_owner.owner.unwrap(), new_owner.address().to_string());
@@ -140,7 +146,7 @@ fn transfer_ownership() {
     // Try transfering from old owner again, should fail
     let transfer_error = wasm
         .execute::<ExecuteMsg>(
-            &contract_addr,
+            &authorization_contract,
             &ExecuteMsg::UpdateOwnership(cw_ownable::Action::TransferOwnership {
                 new_owner: new_owner.address(),
                 expiry: None,
@@ -162,7 +168,7 @@ fn add_and_remove_sub_owners() {
     let setup = NeutronTestAppBuilder::new().build().unwrap();
     let wasm = Wasm::new(&setup.app);
 
-    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
+    let (authorization_contract, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
@@ -172,7 +178,7 @@ fn add_and_remove_sub_owners() {
 
     // Owner will add a subowner
     wasm.execute::<ExecuteMsg>(
-        &contract_addr,
+        &authorization_contract,
         &ExecuteMsg::OwnerAction(OwnerMsg::AddSubOwner {
             sub_owner: setup.subowner_addr.to_string(),
         }),
@@ -182,7 +188,7 @@ fn add_and_remove_sub_owners() {
     .unwrap();
 
     let query_subowners = wasm
-        .query::<QueryMsg, Vec<Addr>>(&contract_addr, &QueryMsg::SubOwners {})
+        .query::<QueryMsg, Vec<Addr>>(&authorization_contract, &QueryMsg::SubOwners {})
         .unwrap();
 
     assert_eq!(query_subowners.len(), 1);
@@ -191,7 +197,7 @@ fn add_and_remove_sub_owners() {
     // Anyone who is not the owner trying to add or remove a subowner should fail
     let error = wasm
         .execute::<ExecuteMsg>(
-            &contract_addr,
+            &authorization_contract,
             &ExecuteMsg::OwnerAction(OwnerMsg::AddSubOwner {
                 sub_owner: setup.subowner_addr.to_string(),
             }),
@@ -208,7 +214,7 @@ fn add_and_remove_sub_owners() {
 
     let error = wasm
         .execute::<ExecuteMsg>(
-            &contract_addr,
+            &authorization_contract,
             &ExecuteMsg::OwnerAction(OwnerMsg::RemoveSubOwner {
                 sub_owner: setup.subowner_addr.to_string(),
             }),
@@ -225,7 +231,7 @@ fn add_and_remove_sub_owners() {
 
     // Owner will remove a subowner
     wasm.execute::<ExecuteMsg>(
-        &contract_addr,
+        &authorization_contract,
         &ExecuteMsg::OwnerAction(OwnerMsg::RemoveSubOwner {
             sub_owner: setup.subowner_addr.to_string(),
         }),
@@ -235,7 +241,7 @@ fn add_and_remove_sub_owners() {
     .unwrap();
 
     let query_subowners = wasm
-        .query::<QueryMsg, Vec<Addr>>(&contract_addr, &QueryMsg::SubOwners {})
+        .query::<QueryMsg, Vec<Addr>>(&authorization_contract, &QueryMsg::SubOwners {})
         .unwrap();
 
     assert!(query_subowners.is_empty());
@@ -250,7 +256,7 @@ fn add_external_domains() {
 
     let wasm = Wasm::new(&setup.app);
 
-    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
+    let (authorization_contract, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
@@ -260,7 +266,7 @@ fn add_external_domains() {
 
     // Owner can add external domains
     wasm.execute::<ExecuteMsg>(
-        &contract_addr,
+        &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::AddExternalDomains {
             external_domains: vec![setup.external_domain.clone()],
         }),
@@ -272,7 +278,7 @@ fn add_external_domains() {
     // Check that it's added
     let query_external_domains = wasm
         .query::<QueryMsg, Vec<ExternalDomain>>(
-            &contract_addr,
+            &authorization_contract,
             &QueryMsg::ExternalDomains {
                 start_after: None,
                 limit: None,
@@ -292,7 +298,7 @@ fn create_valid_authorizations() {
     let bank = Bank::new(&setup.app);
 
     // Let's instantiate with all parameters and query them to see if they are stored correctly
-    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
+    let (authorization_contract, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
@@ -446,7 +452,7 @@ fn create_valid_authorizations() {
     // If someone who is not the Owner or Subowner tries to create an authorization, it should fail
     let error = wasm
         .execute::<ExecuteMsg>(
-            &contract_addr,
+            &authorization_contract,
             &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations {
                 authorizations: valid_authorizations.clone(),
             }),
@@ -463,7 +469,7 @@ fn create_valid_authorizations() {
 
     // Owner will create 1 and Subowner will create 2 and both will succeed
     wasm.execute::<ExecuteMsg>(
-        &contract_addr,
+        &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations {
             authorizations: vec![valid_authorizations[0].clone()],
         }),
@@ -473,7 +479,7 @@ fn create_valid_authorizations() {
     .unwrap();
 
     wasm.execute::<ExecuteMsg>(
-        &contract_addr,
+        &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations {
             authorizations: vec![
                 valid_authorizations[1].clone(),
@@ -488,7 +494,7 @@ fn create_valid_authorizations() {
     // Let's query the authorizations and check if they are stored correctly
     let query_authorizations = wasm
         .query::<QueryMsg, Vec<Authorization>>(
-            &contract_addr,
+            &authorization_contract,
             &QueryMsg::Authorizations {
                 start_after: None,
                 limit: None,
@@ -512,9 +518,11 @@ fn create_valid_authorizations() {
 
     // Let's check that amount of tokens minted to subowner_addr and user_addr are correct
     let tokenfactory_denom_permissioned_with_limit =
-        build_tokenfactory_denom(&contract_addr, "permissioned-limit-authorization");
-    let tokenfactory_denom_permissioned_without_limit =
-        build_tokenfactory_denom(&contract_addr, "permissioned-without-limit-authorization");
+        build_tokenfactory_denom(&authorization_contract, "permissioned-limit-authorization");
+    let tokenfactory_denom_permissioned_without_limit = build_tokenfactory_denom(
+        &authorization_contract,
+        "permissioned-without-limit-authorization",
+    );
 
     let subowner_balance = bank
         .query_all_balances(&QueryAllBalancesRequest {
@@ -555,7 +563,7 @@ fn create_valid_authorizations() {
     // If we try to create an authorization with the same label again, it should fail
     let error = wasm
         .execute::<ExecuteMsg>(
-            &contract_addr,
+            &authorization_contract,
             &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations {
                 authorizations: valid_authorizations,
             }),
@@ -580,7 +588,7 @@ fn create_invalid_authorizations() {
     let wasm = Wasm::new(&setup.app);
 
     // Let's instantiate with all parameters and query them to see if they are stored correctly
-    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
+    let (authorization_contract, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
@@ -672,7 +680,7 @@ fn create_invalid_authorizations() {
     for (authorization, error) in invalid_authorizations {
         let execute_error = wasm
             .execute::<ExecuteMsg>(
-                &contract_addr,
+                &authorization_contract,
                 &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations {
                     authorizations: vec![authorization],
                 }),
@@ -693,7 +701,7 @@ fn modify_authorization() {
 
     let wasm = Wasm::new(&setup.app);
 
-    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
+    let (authorization_contract, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
@@ -714,7 +722,7 @@ fn modify_authorization() {
 
     // Let's create the authorization
     wasm.execute::<ExecuteMsg>(
-        &contract_addr,
+        &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations {
             authorizations: vec![authorization.clone()],
         }),
@@ -725,7 +733,7 @@ fn modify_authorization() {
 
     // Let's modify the authorization, both the owner and the subowner can modify it
     wasm.execute::<ExecuteMsg>(
-        &contract_addr,
+        &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::ModifyAuthorization {
             label: "authorization".to_string(),
             not_before: Some(Expiration::AtTime(Timestamp::from_seconds(100))),
@@ -741,7 +749,7 @@ fn modify_authorization() {
     // Query to verify it changed
     let query_authorizations = wasm
         .query::<QueryMsg, Vec<Authorization>>(
-            &contract_addr,
+            &authorization_contract,
             &QueryMsg::Authorizations {
                 start_after: None,
                 limit: None,
@@ -753,7 +761,7 @@ fn modify_authorization() {
 
     // Let's change the other fields
     wasm.execute::<ExecuteMsg>(
-        &contract_addr,
+        &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::ModifyAuthorization {
             label: "authorization".to_string(),
             not_before: None,
@@ -769,7 +777,7 @@ fn modify_authorization() {
     // Query to verify it changed
     let query_authorizations = wasm
         .query::<QueryMsg, Vec<Authorization>>(
-            &contract_addr,
+            &authorization_contract,
             &QueryMsg::Authorizations {
                 start_after: None,
                 limit: None,
@@ -783,7 +791,7 @@ fn modify_authorization() {
     // If we try to execute as a user instead of owner it should fail
     let error = wasm
         .execute::<ExecuteMsg>(
-            &contract_addr,
+            &authorization_contract,
             &ExecuteMsg::PermissionedAction(PermissionedMsg::ModifyAuthorization {
                 label: "authorization".to_string(),
                 not_before: None,
@@ -805,7 +813,7 @@ fn modify_authorization() {
     // Try to modify an authorization that doesn't exist should also fail
     let error = wasm
         .execute::<ExecuteMsg>(
-            &contract_addr,
+            &authorization_contract,
             &ExecuteMsg::PermissionedAction(PermissionedMsg::ModifyAuthorization {
                 label: "non-existing-label".to_string(),
                 not_before: None,
@@ -828,7 +836,7 @@ fn modify_authorization() {
 
     // Disabling an authorization should also work
     wasm.execute::<ExecuteMsg>(
-        &contract_addr,
+        &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::DisableAuthorization {
             label: "authorization".to_string(),
         }),
@@ -840,7 +848,7 @@ fn modify_authorization() {
     // Query to verify it was disabled
     let query_authorizations = wasm
         .query::<QueryMsg, Vec<Authorization>>(
-            &contract_addr,
+            &authorization_contract,
             &QueryMsg::Authorizations {
                 start_after: None,
                 limit: None,
@@ -852,7 +860,7 @@ fn modify_authorization() {
 
     // Let's enable it again
     wasm.execute::<ExecuteMsg>(
-        &contract_addr,
+        &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::EnableAuthorization {
             label: "authorization".to_string(),
         }),
@@ -864,7 +872,7 @@ fn modify_authorization() {
     // Query to verify it was enabled again
     let query_authorizations = wasm
         .query::<QueryMsg, Vec<Authorization>>(
-            &contract_addr,
+            &authorization_contract,
             &QueryMsg::Authorizations {
                 start_after: None,
                 limit: None,
@@ -877,7 +885,7 @@ fn modify_authorization() {
     // Trying to disable or enable as user should fail
     let error = wasm
         .execute::<ExecuteMsg>(
-            &contract_addr,
+            &authorization_contract,
             &ExecuteMsg::PermissionedAction(PermissionedMsg::DisableAuthorization {
                 label: "authorization".to_string(),
             }),
@@ -906,7 +914,7 @@ fn mint_authorizations() {
     let user2 = &setup.accounts[5];
     let user2_addr = Addr::unchecked(user2.address());
 
-    let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
+    let (authorization_contract, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
@@ -940,7 +948,7 @@ fn mint_authorizations() {
 
     // Let's create the authorization
     wasm.execute::<ExecuteMsg>(
-        &contract_addr,
+        &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
         &setup.accounts[0],
@@ -950,7 +958,7 @@ fn mint_authorizations() {
     // If we try to mint authorizations for the permissionless one, it should fail
     let error = wasm
         .execute::<ExecuteMsg>(
-            &contract_addr,
+            &authorization_contract,
             &ExecuteMsg::PermissionedAction(PermissionedMsg::MintAuthorizations {
                 label: "permissionless".to_string(),
                 mints: vec![Mint {
@@ -971,7 +979,7 @@ fn mint_authorizations() {
 
     // Check balances before minting
     let tokenfactory_denom_permissioned_limit =
-        build_tokenfactory_denom(&contract_addr, "permissioned-limit");
+        build_tokenfactory_denom(&authorization_contract, "permissioned-limit");
 
     let user1_balance_before = bank
         .query_balance(&QueryBalanceRequest {
@@ -993,7 +1001,7 @@ fn mint_authorizations() {
 
     // Let's mint an extra permissioned token to user1 and some additional ones for user2
     wasm.execute::<ExecuteMsg>(
-        &contract_addr,
+        &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::MintAuthorizations {
             label: "permissioned-limit".to_string(),
             mints: vec![
@@ -1035,7 +1043,7 @@ fn mint_authorizations() {
     // Trying to mint as not owner or subowner should fail
     let error = wasm
         .execute::<ExecuteMsg>(
-            &contract_addr,
+            &authorization_contract,
             &ExecuteMsg::PermissionedAction(PermissionedMsg::MintAuthorizations {
                 label: "permissioned-limit".to_string(),
                 mints: vec![Mint {
@@ -1061,7 +1069,7 @@ fn pausing_and_resuming_processor() {
 
     let wasm = Wasm::new(&setup.app);
 
-    let (contract_addr, processor_contract) =
+    let (authorization_contract, processor_contract) =
         store_and_instantiate_authorization_with_processor_contract(
             &setup.app,
             &setup.accounts[0],
@@ -1072,7 +1080,7 @@ fn pausing_and_resuming_processor() {
 
     // Let's pause the processor
     wasm.execute::<ExecuteMsg>(
-        &contract_addr,
+        &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::PauseProcessor {
             domain: Domain::Main,
         }),
@@ -1099,7 +1107,7 @@ fn pausing_and_resuming_processor() {
 
     // Let's resume the processor
     wasm.execute::<ExecuteMsg>(
-        &contract_addr,
+        &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::ResumeProcessor {
             domain: Domain::Main,
         }),

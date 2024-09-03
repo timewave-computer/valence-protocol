@@ -14,6 +14,8 @@ use valence_authorization_utils::{domain::ExternalDomain, msg::InstantiateMsg};
 use valence_processor_utils::msg::InstantiateMsg as ProcessorInstantiateMsg;
 use valence_test_service::msg::InstantiateMsg as TestServiceInstantiateMsg;
 
+pub const ARTIFACTS_DIR: &str = "../../artifacts";
+
 pub struct ExtendedWasm<'a, R: Runner<'a>> {
     runner: &'a R,
 }
@@ -97,8 +99,9 @@ pub fn store_and_instantiate_authorization_with_processor_contract(
     let extended_wasm = ExtendedWasm::new(app);
 
     let wasm_byte_code_authorization =
-        std::fs::read("../../artifacts/valence_authorization.wasm").unwrap();
-    let wasm_byte_code_processor = std::fs::read("../../artifacts/valence_processor.wasm").unwrap();
+        std::fs::read(format!("{}/valence_authorization.wasm", ARTIFACTS_DIR)).unwrap();
+    let wasm_byte_code_processor =
+        std::fs::read(format!("{}/valence_processor.wasm", ARTIFACTS_DIR)).unwrap();
 
     let code_response = wasm
         .store_code(&wasm_byte_code_authorization, None, signer)
@@ -168,7 +171,8 @@ pub fn store_and_instantiate_test_service(
     signer: &SigningAccount,
     admin: Option<&str>,
 ) -> String {
-    let wasm_byte_code = std::fs::read("../../artifacts/valence_test_service.wasm").unwrap();
+    let wasm_byte_code =
+        std::fs::read(format!("{}/valence_test_service.wasm", ARTIFACTS_DIR)).unwrap();
 
     let code_id = wasm
         .store_code(&wasm_byte_code, None, signer)

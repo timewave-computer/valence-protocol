@@ -16,6 +16,14 @@ pub struct ExternalDomain {
     pub callback_proxy: CallbackProxy,
 }
 
+impl ExternalDomain {
+    pub fn get_connector_address(&self) -> Addr {
+        match &self.connector {
+            Connector::PolytoneNote(addr) => addr.clone(),
+        }
+    }
+}
+
 #[cw_serde]
 pub enum ExecutionEnvironment {
     CosmWasm,

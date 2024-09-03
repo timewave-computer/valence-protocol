@@ -23,8 +23,7 @@ use valence_processor_utils::{
 use crate::{
     callback::{
         create_callback_message, handle_successful_atomic_callback,
-        handle_successful_non_atomic_callback, handle_unsuccessful_atomic_callback,
-        handle_unsuccessful_non_atomic_callback,
+        handle_successful_non_atomic_callback, handle_unsuccessful_callback,
     },
     error::{CallbackErrorReason, ContractError},
     queue::get_queue_map,
@@ -389,15 +388,15 @@ fn process_callback(
     // If it is, we'll proceed to next action or provide the callback to the authorization module (if we finished with all actions)
     // If it isn't, we need to see if we can retry the action or provide the error to the authorization module
     if msg != pending_callback.callback_msg {
-        handle_unsuccessful_non_atomic_callback(
+        handle_unsuccessful_callback(
             deps.storage,
-            index,
             execution_id,
             &pending_callback.message_batch,
             &mut messages,
             "Invalid callback message received".to_string(),
             &config,
             &env.block,
+            Some(index),
         )?;
     } else {
         handle_successful_non_atomic_callback(
@@ -456,15 +455,15 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
                     }
                 }
                 SubMsgResult::Err(error) => {
-                    handle_unsuccessful_non_atomic_callback(
+                    handle_unsuccessful_callback(
                         deps.storage,
-                        index,
                         msg.id,
                         &batch,
                         &mut messages,
                         error,
                         &config,
                         &env.block,
+                        Some(index),
                     )?;
                 }
             }
@@ -476,7 +475,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
                     handle_successful_atomic_callback(&config, msg.id, &mut messages)?;
                 }
                 SubMsgResult::Err(error) => {
-                    handle_unsuccessful_atomic_callback(
+                    handle_unsuccessful_callback(
                         deps.storage,
                         msg.id,
                         &batch,
@@ -484,6 +483,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
                         error,
                         &config,
                         &env.block,
+                        None,
                     )?;
                 }
             }

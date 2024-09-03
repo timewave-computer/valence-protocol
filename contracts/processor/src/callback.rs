@@ -1,6 +1,7 @@
 use cosmwasm_std::{to_json_binary, BlockInfo, Storage, WasmMsg};
 use valence_authorization_utils::{
     action::RetryTimes,
+    authorization::ExecutionType,
     callback::ExecutionResult,
     msg::{ExecuteMsg, PermissionlessMsg},
 };
@@ -64,26 +65,51 @@ pub fn handle_successful_non_atomic_callback(
     Ok(())
 }
 
+pub fn handle_successful_atomic_callback(
+    config: &Config,
+    execution_id: u64,
+    messages: &mut Vec<WasmMsg>,
+) -> Result<(), ContractError> {
+    messages.push(create_callback_message(
+        config,
+        execution_id,
+        ExecutionResult::Success,
+    )?);
+
+    Ok(())
+}
+
 #[allow(clippy::too_many_arguments)]
-pub fn handle_unsuccessful_non_atomic_callback(
+pub fn handle_unsuccessful_callback(
     storage: &mut dyn Storage,
-    index: usize,
     execution_id: u64,
     batch: &MessageBatch,
     messages: &mut Vec<WasmMsg>,
     error: String,
     config: &Config,
     block: &BlockInfo,
+    index: Option<usize>,
 ) -> Result<(), ContractError> {
-    // If the action failed, we'll retry it according to the retry policy or provide the error to the authorization module if
-    // we reached the max amount of retries
-    match &batch.action_batch.actions[index].retry_logic {
+    let is_atomic = match batch.action_batch.execution_type {
+        ExecutionType::Atomic => true,
+        ExecutionType::NonAtomic => false,
+    };
+
+    // Will only be used for non-atomic batches
+    let index = index.unwrap_or_default();
+
+    let retry_logic = if is_atomic {
+        batch.action_batch.retry_logic.as_ref()
+    } else {
+        batch.action_batch.actions[index].retry_logic.as_ref()
+    };
+
+    let retry_amounts = RETRIES
+        .may_load(storage, execution_id)?
+        .map_or(0, |r| r.retry_amounts);
+
+    match retry_logic {
         Some(retry_logic) => {
-            // Check how many times we have retried this action already
-            let retry_amounts = RETRIES
-                .may_load(storage, execution_id)?
-                .map_or(0, |r| r.retry_amounts);
-            // Check if we reached the max amount of retries
             match &retry_logic.times {
                 RetryTimes::Amount(max_retries) => {
                     if retry_amounts >= *max_retries {
@@ -100,11 +126,11 @@ pub fn handle_unsuccessful_non_atomic_callback(
                             execution_result,
                         )?);
                         // Clean up
-                        NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.remove(storage, execution_id);
+                        if !is_atomic {
+                            NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.remove(storage, execution_id);
+                        }
                         RETRIES.remove(storage, execution_id);
-                    }
-                    // Otherwise, update values and re-add to queue
-                    else {
+                    } else {
                         put_back_into_queue(
                             storage,
                             execution_id,
@@ -135,86 +161,10 @@ pub fn handle_unsuccessful_non_atomic_callback(
                 execution_id,
                 ExecutionResult::Rejected(error),
             )?);
-            // Clean up
-            NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.remove(storage, execution_id);
-        }
-    }
-
-    Ok(())
-}
-
-pub fn handle_successful_atomic_callback(
-    config: &Config,
-    execution_id: u64,
-    messages: &mut Vec<WasmMsg>,
-) -> Result<(), ContractError> {
-    messages.push(create_callback_message(
-        config,
-        execution_id,
-        ExecutionResult::Success,
-    )?);
-
-    Ok(())
-}
-
-pub fn handle_unsuccessful_atomic_callback(
-    storage: &mut dyn Storage,
-    execution_id: u64,
-    batch: &MessageBatch,
-    messages: &mut Vec<WasmMsg>,
-    error: String,
-    config: &Config,
-    block: &BlockInfo,
-) -> Result<(), ContractError> {
-    // If the action failed, we'll retry it according to the retry policy or provide the error to the authorization module
-    let retry_amounts = RETRIES
-        .may_load(storage, execution_id)?
-        .map_or(0, |r| r.retry_amounts);
-
-    match &batch.action_batch.retry_logic {
-        Some(retry_logic) => {
-            match &retry_logic.times {
-                RetryTimes::Amount(max_retries) => {
-                    if retry_amounts >= *max_retries {
-                        // We've retried the action the maximum amount of times, we'll provide the error callback to the authorization module
-                        messages.push(create_callback_message(
-                            config,
-                            execution_id,
-                            ExecutionResult::Rejected(error),
-                        )?);
-                        // Clean up
-                        RETRIES.remove(storage, execution_id);
-                    } else {
-                        put_back_into_queue(
-                            storage,
-                            execution_id,
-                            batch,
-                            retry_amounts,
-                            retry_logic,
-                            block,
-                        )?;
-                    }
-                }
-                RetryTimes::Indefinitely => {
-                    // We'll retry the action indefinitely
-                    put_back_into_queue(
-                        storage,
-                        execution_id,
-                        batch,
-                        retry_amounts,
-                        retry_logic,
-                        block,
-                    )?;
-                }
+            // Clean up for non-atomic case
+            if !is_atomic {
+                NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.remove(storage, execution_id);
             }
-        }
-        None => {
-            // No retries, return callback to authorization module
-            messages.push(create_callback_message(
-                config,
-                execution_id,
-                ExecutionResult::Rejected(error),
-            )?);
         }
     }
 
