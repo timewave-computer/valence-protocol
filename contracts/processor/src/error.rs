@@ -20,6 +20,9 @@ pub enum ContractError {
     #[error("There is currently nothing to process")]
     NoMessagesToProcess {},
 
+    #[error("Atomic execution can only be triggered by the processor itself")]
+    NotProcessor {},
+
     #[error(transparent)]
     CallbackError(#[from] CallbackErrorReason),
 }

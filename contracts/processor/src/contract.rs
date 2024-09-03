@@ -2,8 +2,8 @@
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Order, Reply, Response,
-    StdResult, SubMsgResult,
+    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response, StdResult,
+    SubMsg, SubMsgResult, WasmMsg,
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner};
 use valence_authorization_utils::{
@@ -126,6 +126,7 @@ pub fn execute(
             PermissionlessMsg::Callback { execution_id, msg } => {
                 process_callback(deps, env, info, execution_id, msg)
             }
+            PermissionlessMsg::ExecuteAtomic {} => execute_atomic(deps, info, env),
         },
     }
 }
@@ -294,10 +295,20 @@ fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
             // First we check if the action batch is atomic or not, as the way of processing them is different
             match batch.action_batch.execution_type {
                 ExecutionType::Atomic => {
-                    // If the batch is atomic, we'll just try to execute all messages in the batch
-                    messages = batch.create_atomic_messages();
-                    // Add to atomic batch execution map so we know that it's being executed
-                    ATOMIC_BATCH_EXECUTION.save(deps.storage, batch.id, &Empty {})?;
+                    // If the batch is atomic, we'll save it and make the processor execute it atomically
+                    ATOMIC_BATCH_EXECUTION.save(deps.storage, &batch)?;
+                    // We'll trigger the processor to execute the batch atomically by calling himself
+                    // Otherwise we can't execute it atomically
+                    messages = vec![SubMsg::reply_always(
+                        WasmMsg::Execute {
+                            contract_addr: env.contract.address.to_string(),
+                            msg: to_json_binary(&ExecuteMsg::PermissionlessAction(
+                                PermissionlessMsg::ExecuteAtomic {},
+                            ))?,
+                            funds: vec![],
+                        },
+                        batch.id,
+                    )]
                 }
                 ExecutionType::NonAtomic => {
                     // If the batch is non-atomic, we have to execute the message we are currently on
@@ -406,6 +417,19 @@ fn process_callback(
         .add_attribute("method", "callback"))
 }
 
+fn execute_atomic(deps: DepsMut, info: MessageInfo, env: Env) -> Result<Response, ContractError> {
+    // Only the processor can execute this
+    if info.sender != env.contract.address {
+        return Err(ContractError::NotProcessor {});
+    }
+    let batch = ATOMIC_BATCH_EXECUTION.load(deps.storage)?;
+    let messages = batch.create_fire_and_forget_messages();
+
+    Ok(Response::new()
+        .add_messages(messages)
+        .add_attribute("method", "execute_atomic"))
+}
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
     // The reply logic will be different depending on the execution type of the batch
@@ -449,28 +473,18 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
             // Atomic
             match msg.result {
                 SubMsgResult::Ok(_) => {
-                    // For atomic batches, we need to know that all the rest of the actions succeeded
-                    // If it's not in the map, we've already requeued the batch and we don't need to do anything
-                    if ATOMIC_BATCH_EXECUTION.has(deps.storage, msg.id) {
-                        handle_successful_atomic_callback(&config, msg.id, &mut messages)?;
-                    }
+                    handle_successful_atomic_callback(&config, msg.id, &mut messages)?;
                 }
                 SubMsgResult::Err(error) => {
-                    // If the action failed, we'll remove the batch from the atomic execution map and handle it
-                    // If it's not here, we've already handled the unsuccessful callback and we don't need to do anything
-                    if ATOMIC_BATCH_EXECUTION.has(deps.storage, msg.id) {
-                        handle_unsuccessful_atomic_callback(
-                            deps.storage,
-                            msg.id,
-                            &batch,
-                            &mut messages,
-                            error,
-                            &config,
-                            &env.block,
-                        )?;
-                        // Remove from the map as we've handled the unsuccessful callback
-                        ATOMIC_BATCH_EXECUTION.remove(deps.storage, msg.id);
-                    }
+                    handle_unsuccessful_atomic_callback(
+                        deps.storage,
+                        msg.id,
+                        &batch,
+                        &mut messages,
+                        error,
+                        &config,
+                        &env.block,
+                    )?;
                 }
             }
         }

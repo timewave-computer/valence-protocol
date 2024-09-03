@@ -66,6 +66,8 @@ pub enum AuthorizationMsg {
 pub enum PermissionlessMsg {
     Tick {},
     Callback { execution_id: u64, msg: Binary },
+    // Entry point for the processor to execute batches atomically, this will only be able to be called by the processor itself
+    ExecuteAtomic {},
 }
 
 #[cw_ownable_query]

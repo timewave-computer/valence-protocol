@@ -20,6 +20,8 @@ use valence_processor_utils::msg::{
     QueryMsg as ProcessorQueryMsg,
 };
 
+use valence_processor::error::ContractError as ProcessorContractError;
+
 use valence_test_service::msg::{
     ExecuteMsg as TestServiceExecuteMsg, QueryMsg as TestServiceQueryMsg,
 };
@@ -957,11 +959,6 @@ fn invalid_msg_rejected() {
     assert!(matches!(
         query_confirmed_callbacks[0].execution_result,
         ExecutionResult::Rejected(_)
-    ));
-
-    assert!(matches!(
-        query_confirmed_callbacks[0].execution_result,
-        ExecutionResult::Rejected(ref s) if s.contains("Error parsing into type")
     ));
 }
 
@@ -1962,6 +1959,22 @@ fn failed_atomic_batch_after_retries() {
         &setup.accounts[2],
     )
     .unwrap();
+
+    // Trying to trigger the ExecuteAtomic entry point will fail because only the processor can call it
+    let error = wasm
+        .execute::<ProcessorExecuteMsg>(
+            &processor_contract,
+            &ProcessorExecuteMsg::PermissionlessAction(
+                ProcessorPermissionlessMsg::ExecuteAtomic {},
+            ),
+            &[],
+            &setup.accounts[0],
+        )
+        .unwrap_err();
+
+    assert!(error
+        .to_string()
+        .contains(ProcessorContractError::NotProcessor {}.to_string().as_str()));
 
     // Ticking 6 times (first time + retry amount) will send the callback with the error to the authorization contract
     for _ in 0..6 {

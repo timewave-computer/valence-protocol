@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Binary, StdError, StdResult, SubMsg};
+use cosmwasm_std::{Addr, Binary, CosmosMsg, StdError, StdResult, SubMsg, WasmMsg};
 use cw_utils::Expiration;
 use serde_json::{json, Value};
 use valence_authorization_utils::{
@@ -45,20 +45,24 @@ pub struct MessageBatch {
 }
 
 impl MessageBatch {
-    /// This is for atomic batches
-    /// For the last action in the batch, we will always reply so that we can send the successful callback when completed
-    /// For the rest of the actions, we will reply on error so that we can retry the batch if needed
-    pub fn create_atomic_messages(&self) -> Vec<SubMsg> {
+    /// This will take the batch and create a vector of fire and forget messages
+    /// This is used for atomic batches to make sure they are executed atomically
+    pub fn create_fire_and_forget_messages(&self) -> Vec<CosmosMsg> {
         self.msgs
             .iter()
-            .zip(&self.action_batch.actions)
             .enumerate()
-            .map(|(index, (msg, action))| {
-                let wasm_message = msg.to_wasm_message(&action.contract_address);
-                if index == self.msgs.len() - 1 {
-                    SubMsg::reply_always(wasm_message, self.id)
-                } else {
-                    SubMsg::reply_on_error(wasm_message, self.id)
+            .map(|(index, msg)| match msg {
+                ProcessorMessage::CosmwasmExecuteMsg { msg } => CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: self.action_batch.actions[index].contract_address.clone(),
+                    msg: msg.clone(),
+                    funds: vec![],
+                }),
+                ProcessorMessage::CosmwasmMigrateMsg { code_id, msg } => {
+                    CosmosMsg::Wasm(WasmMsg::Migrate {
+                        contract_addr: self.action_batch.actions[index].contract_address.clone(),
+                        new_code_id: *code_id,
+                        msg: msg.clone(),
+                    })
                 }
             })
             .collect()
