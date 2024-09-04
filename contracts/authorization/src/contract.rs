@@ -1,5 +1,8 @@
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
+
 use cosmwasm_std::{
-    entry_point, to_json_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Order,
+    to_json_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Order,
     Response, StdResult, Storage, Uint128,
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner, is_owner};
