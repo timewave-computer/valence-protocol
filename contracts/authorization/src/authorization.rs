@@ -199,10 +199,7 @@ impl Validate for Authorization {
                     }
 
                     // Extract the message from the ProcessorMessage
-                    let msg = match each_message {
-                        ProcessorMessage::CosmwasmExecuteMsg { msg } => msg,
-                        ProcessorMessage::CosmwasmMigrateMsg { msg, .. } => msg,
-                    };
+                    let msg = each_message.get_msg();
 
                     // Extract the json from each message
                     let json: Value = serde_json::from_slice(msg.as_slice()).map_err(|e| {

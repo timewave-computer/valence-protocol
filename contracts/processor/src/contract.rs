@@ -215,12 +215,11 @@ fn evict_messages(
     priority: Priority,
 ) -> Result<Response, ContractError> {
     let mut queue = get_queue_map(&priority);
-
     let batch = queue.remove_at(deps.storage, queue_position)?;
-    let config = CONFIG.load(deps.storage)?;
 
     match batch {
         Some(batch) => {
+            let config = CONFIG.load(deps.storage)?;
             // Do the clean up and send the callback
             EXECUTION_ID_TO_BATCH.remove(deps.storage, batch.id);
             RETRIES.remove(deps.storage, batch.id);
@@ -384,12 +383,12 @@ fn process_callback(
 
     // Get the current index we are at for this non atomic action
     let index = NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.load(deps.storage, execution_id)?;
-    let config = CONFIG.load(deps.storage)?;
     let mut messages = vec![];
     // Check if the message sent is the one we are expecting
     // If it is, we'll proceed to next action or provide the callback to the authorization module (if we finished with all actions)
     // If it isn't, we need to see if we can retry the action or provide the error to the authorization module
     if msg != pending_callback.callback_msg {
+        let config = CONFIG.load(deps.storage)?;
         handle_unsuccessful_callback(
             deps.storage,
             execution_id,
