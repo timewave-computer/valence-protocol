@@ -2,7 +2,7 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, BlockInfo, Uint128};
 use cw_utils::Expiration;
 
-use crate::action::{Action, RetryLogic};
+use crate::action::{AtomicAction, NonAtomicAction, RetryLogic};
 
 #[cw_serde]
 // What an owner or subowner can pass to the contract to create an authorization
@@ -14,7 +14,7 @@ pub struct AuthorizationInfo {
     pub duration: AuthorizationDuration,
     // Default will be 1, defines how many times a specific authorization can be executed concurrently
     pub max_concurrent_executions: Option<u64>,
-    pub action_batch: ActionBatch,
+    pub actions_config: ActionsConfig,
     // If not passed, we will set the priority to Medium
     pub priority: Option<Priority>,
 }
@@ -34,7 +34,7 @@ pub struct Authorization {
     pub not_before: Expiration,
     pub expiration: Expiration,
     pub max_concurrent_executions: u64,
-    pub action_batch: ActionBatch,
+    pub actions_config: ActionsConfig,
     pub priority: Priority,
     pub state: AuthorizationState,
 }
@@ -56,7 +56,7 @@ impl AuthorizationInfo {
             not_before: self.not_before,
             expiration,
             max_concurrent_executions: self.max_concurrent_executions.unwrap_or(1),
-            action_batch: self.action_batch,
+            actions_config: self.actions_config,
             priority: self.priority.unwrap_or_default(),
             state: AuthorizationState::Enabled,
         }
@@ -78,17 +78,21 @@ pub enum PermissionType {
 }
 
 #[cw_serde]
-pub struct ActionBatch {
-    pub execution_type: ExecutionType,
-    pub actions: Vec<Action>,
+pub enum ActionsConfig {
+    Atomic(AtomicActionsConfig),
+    NonAtomic(NonAtomicActionsConfig),
+}
+
+#[cw_serde]
+pub struct AtomicActionsConfig {
+    pub actions: Vec<AtomicAction>,
     // Used for Atomic batches, if we don't specify retry logic then the actions won't be retried.
     pub retry_logic: Option<RetryLogic>,
 }
 
 #[cw_serde]
-pub enum ExecutionType {
-    Atomic,
-    NonAtomic,
+pub struct NonAtomicActionsConfig {
+    pub actions: Vec<NonAtomicAction>,
 }
 
 #[cw_serde]

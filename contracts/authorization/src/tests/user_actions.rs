@@ -11,11 +11,14 @@ use valence_authorization_utils::{
 use crate::{
     contract::build_tokenfactory_denom,
     error::{AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason},
-    tests::{builders::JsonBuilder, helpers::wait_for_height},
+    tests::{
+        builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, JsonBuilder},
+        helpers::wait_for_height,
+    },
 };
 
 use super::{
-    builders::{ActionBatchBuilder, ActionBuilder, AuthorizationBuilder, NeutronTestAppBuilder},
+    builders::{AuthorizationBuilder, NeutronTestAppBuilder},
     helpers::store_and_instantiate_authorization_with_processor_contract,
 };
 
@@ -36,9 +39,9 @@ fn disabled() {
     // We'll create a generic permissionless authorization
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
-        .with_action_batch(
-            ActionBatchBuilder::new()
-                .with_action(ActionBuilder::new().build())
+        .with_actions_config(
+            AtomicActionsConfigBuilder::new()
+                .with_action(AtomicActionBuilder::new().build())
                 .build(),
         )
         .build()];
@@ -133,9 +136,9 @@ fn invalid_time() {
         .with_mode(AuthorizationMode::Permissioned(
             PermissionType::WithoutCallLimit(vec![setup.owner_addr.clone()]),
         ))
-        .with_action_batch(
-            ActionBatchBuilder::new()
-                .with_action(ActionBuilder::new().build())
+        .with_actions_config(
+            AtomicActionsConfigBuilder::new()
+                .with_action(AtomicActionBuilder::new().build())
                 .build(),
         )
         .build()];
@@ -227,9 +230,9 @@ fn invalid_time() {
         .with_mode(AuthorizationMode::Permissioned(
             PermissionType::WithoutCallLimit(vec![setup.owner_addr.clone()]),
         ))
-        .with_action_batch(
-            ActionBatchBuilder::new()
-                .with_action(ActionBuilder::new().build())
+        .with_actions_config(
+            AtomicActionsConfigBuilder::new()
+                .with_action(AtomicActionBuilder::new().build())
                 .build(),
         )
         .build()];
@@ -332,9 +335,9 @@ fn invalid_permission() {
             .with_mode(AuthorizationMode::Permissioned(
                 PermissionType::WithoutCallLimit(vec![setup.owner_addr.clone()]),
             ))
-            .with_action_batch(
-                ActionBatchBuilder::new()
-                    .with_action(ActionBuilder::new().build())
+            .with_actions_config(
+                AtomicActionsConfigBuilder::new()
+                    .with_action(AtomicActionBuilder::new().build())
                     .build(),
             )
             .build(),
@@ -343,9 +346,9 @@ fn invalid_permission() {
             .with_mode(AuthorizationMode::Permissioned(
                 PermissionType::WithCallLimit(vec![(setup.user_addr.clone(), Uint128::new(10))]),
             ))
-            .with_action_batch(
-                ActionBatchBuilder::new()
-                    .with_action(ActionBuilder::new().build())
+            .with_actions_config(
+                AtomicActionsConfigBuilder::new()
+                    .with_action(AtomicActionBuilder::new().build())
                     .build(),
             )
             .build(),
@@ -448,10 +451,10 @@ fn invalid_messages() {
         // No param restrictions
         AuthorizationBuilder::new()
             .with_label("no-restrictions")
-            .with_action_batch(
-                ActionBatchBuilder::new()
+            .with_actions_config(
+                AtomicActionsConfigBuilder::new()
                     .with_action(
-                        ActionBuilder::new()
+                        AtomicActionBuilder::new()
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -466,10 +469,10 @@ fn invalid_messages() {
             .build(),
         AuthorizationBuilder::new()
             .with_label("with-restrictions")
-            .with_action_batch(
-                ActionBatchBuilder::new()
+            .with_actions_config(
+                AtomicActionsConfigBuilder::new()
                     .with_action(
-                        ActionBuilder::new()
+                        AtomicActionBuilder::new()
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {

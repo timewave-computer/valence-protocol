@@ -1,7 +1,7 @@
 use cosmwasm_std::{to_json_binary, BlockInfo, Storage, WasmMsg};
 use valence_authorization_utils::{
     action::RetryTimes,
-    authorization::ExecutionType,
+    authorization::ActionsConfig,
     callback::ExecutionResult,
     msg::{ExecuteMsg, PermissionlessMsg},
 };
@@ -10,7 +10,7 @@ use valence_processor_utils::processor::{Config, MessageBatch, ProcessorDomain};
 use crate::{
     error::ContractError,
     queue::{get_queue_map, put_back_into_queue},
-    state::{CONFIG, NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX, RETRIES},
+    state::{CONFIG, EXECUTION_ID_TO_BATCH, NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX},
 };
 
 pub fn create_callback_message(
@@ -54,6 +54,7 @@ pub fn handle_successful_non_atomic_callback(
 
         // Clean up
         NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.remove(storage, execution_id);
+        EXECUTION_ID_TO_BATCH.remove(storage, execution_id);
     } else {
         // We have more actions to process
         // Increase the index and re-add batch to the queue
@@ -83,30 +84,27 @@ pub fn handle_successful_atomic_callback(
 pub fn handle_unsuccessful_callback(
     storage: &mut dyn Storage,
     execution_id: u64,
-    batch: &MessageBatch,
+    batch: &mut MessageBatch,
     messages: &mut Vec<WasmMsg>,
     error: String,
     config: &Config,
     block: &BlockInfo,
     index: Option<usize>,
 ) -> Result<(), ContractError> {
-    let is_atomic = match batch.action_batch.execution_type {
-        ExecutionType::Atomic => true,
-        ExecutionType::NonAtomic => false,
+    let retry_logic = match &batch.actions_config {
+        ActionsConfig::Atomic(config) => config.retry_logic.clone(),
+        ActionsConfig::NonAtomic(config) => {
+            let index = index.unwrap_or_default();
+            config
+                .actions
+                .get(index)
+                .and_then(|action| action.retry_logic.clone())
+        }
     };
 
+    let retry_amounts = batch.retry.as_ref().map_or(0, |retry| retry.retry_amounts);
     // Will only be used for non-atomic batches
     let index = index.unwrap_or_default();
-
-    let retry_logic = if is_atomic {
-        batch.action_batch.retry_logic.as_ref()
-    } else {
-        batch.action_batch.actions[index].retry_logic.as_ref()
-    };
-
-    let retry_amounts = RETRIES
-        .may_load(storage, execution_id)?
-        .map_or(0, |r| r.retry_amounts);
 
     match retry_logic {
         Some(retry_logic) => {
@@ -126,31 +124,15 @@ pub fn handle_unsuccessful_callback(
                             execution_result,
                         )?);
                         // Clean up
-                        if !is_atomic {
-                            NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.remove(storage, execution_id);
-                        }
-                        RETRIES.remove(storage, execution_id);
+                        NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.remove(storage, execution_id);
+                        EXECUTION_ID_TO_BATCH.remove(storage, execution_id);
                     } else {
-                        put_back_into_queue(
-                            storage,
-                            execution_id,
-                            batch,
-                            retry_amounts,
-                            retry_logic,
-                            block,
-                        )?;
+                        put_back_into_queue(storage, batch, retry_amounts, &retry_logic, block)?;
                     }
                 }
                 RetryTimes::Indefinitely => {
                     // We'll retry the action indefinitely
-                    put_back_into_queue(
-                        storage,
-                        execution_id,
-                        batch,
-                        retry_amounts,
-                        retry_logic,
-                        block,
-                    )?;
+                    put_back_into_queue(storage, batch, retry_amounts, &retry_logic, block)?;
                 }
             }
         }
@@ -162,9 +144,8 @@ pub fn handle_unsuccessful_callback(
                 ExecutionResult::Rejected(error),
             )?);
             // Clean up for non-atomic case
-            if !is_atomic {
-                NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.remove(storage, execution_id);
-            }
+            NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.remove(storage, execution_id);
+            EXECUTION_ID_TO_BATCH.remove(storage, execution_id);
         }
     }
 

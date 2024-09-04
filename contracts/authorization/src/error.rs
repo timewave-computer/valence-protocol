@@ -51,9 +51,6 @@ pub enum AuthorizationErrorReason {
     #[error("Permissionless authorizations can't have high priority")]
     PermissionlessWithHighPriority {},
 
-    #[error("Atomic authorizations can't have callback confirmations")]
-    AtomicWithCallbackConfirmation {},
-
     #[error("Authorization with label {0} does not exist")]
     DoesNotExist(String),
 

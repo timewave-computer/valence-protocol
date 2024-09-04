@@ -1,7 +1,7 @@
 use cw_storage_plus::{Item, Map};
 use valence_processor_utils::{
     callback::PendingCallback,
-    processor::{Config, CurrentRetry, MessageBatch},
+    processor::{Config, MessageBatch},
     queue::QueueMap,
 };
 
@@ -18,9 +18,6 @@ pub const HIGH_PRIORITY_QUEUE: QueueMap<MessageBatch> = QueueMap::new(
 );
 // We'll use this map to store the execution ID and the batch itself. This way we can retrieve the batch by ID to process retries
 pub const EXECUTION_ID_TO_BATCH: Map<u64, MessageBatch> = Map::new("id_to_batch");
-
-// We need to track the current retry we are on for a specific batch. The Map key is the Batch Execution ID and the value is the CurrentRetry struct
-pub const RETRIES: Map<u64, CurrentRetry> = Map::new("batch_retries");
 
 // For Non atomic batches, we need to know what action we are currently on. The Map key is the Batch Execution ID and the value is the current action index
 // This way we can know what RetryLogic to use since each action has a different one

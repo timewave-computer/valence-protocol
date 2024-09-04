@@ -3,7 +3,7 @@ use cosmwasm_std::{Addr, Binary, CosmosMsg, StdError, StdResult, SubMsg, WasmMsg
 use cw_utils::Expiration;
 use serde_json::{json, Value};
 use valence_authorization_utils::{
-    authorization::{ActionBatch, Priority},
+    authorization::{ActionsConfig, Priority},
     msg::ProcessorMessage,
 };
 
@@ -40,30 +40,44 @@ pub struct MessageBatch {
     // Used for the callback
     pub id: u64,
     pub msgs: Vec<ProcessorMessage>,
-    pub action_batch: ActionBatch,
+    pub actions_config: ActionsConfig,
     pub priority: Priority,
+    pub retry: Option<CurrentRetry>,
 }
 
 impl From<MessageBatch> for Vec<CosmosMsg> {
     fn from(val: MessageBatch) -> Self {
-        val.msgs
-            .into_iter()
-            .zip(val.action_batch.actions)
-            .map(|(msg, action)| match msg {
-                ProcessorMessage::CosmwasmExecuteMsg { msg } => CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: action.contract_address,
-                    msg,
-                    funds: vec![],
-                }),
-                ProcessorMessage::CosmwasmMigrateMsg { code_id, msg } => {
-                    CosmosMsg::Wasm(WasmMsg::Migrate {
-                        contract_addr: action.contract_address,
-                        new_code_id: code_id,
-                        msg,
-                    })
-                }
+        match val.actions_config {
+            ActionsConfig::Atomic(atomic_config) => val
+                .msgs
+                .into_iter()
+                .zip(atomic_config.actions)
+                .map(|(msg, action)| create_cosmos_msg(msg, action.contract_address))
+                .collect(),
+            ActionsConfig::NonAtomic(non_atomic_config) => val
+                .msgs
+                .into_iter()
+                .zip(non_atomic_config.actions)
+                .map(|(msg, action)| create_cosmos_msg(msg, action.contract_address))
+                .collect(),
+        }
+    }
+}
+
+fn create_cosmos_msg(msg: ProcessorMessage, contract_address: String) -> CosmosMsg {
+    match msg {
+        ProcessorMessage::CosmwasmExecuteMsg { msg } => CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: contract_address,
+            msg,
+            funds: vec![],
+        }),
+        ProcessorMessage::CosmwasmMigrateMsg { code_id, msg } => {
+            CosmosMsg::Wasm(WasmMsg::Migrate {
+                contract_addr: contract_address,
+                new_code_id: code_id,
+                msg,
             })
-            .collect()
+        }
     }
 }
 
@@ -71,10 +85,13 @@ impl MessageBatch {
     /// This is used for non-atomic batches. We need to catch the reply always because we need to know if the message was successful to continue
     /// with the next message in the batch or apply the retry logic
     pub fn create_message_by_index(&self, index: usize) -> Vec<SubMsg> {
-        let submessage = SubMsg::reply_always(
-            self.msgs[index].to_wasm_message(&self.action_batch.actions[index].contract_address),
-            self.id,
-        );
+        let contract_address = match &self.actions_config {
+            ActionsConfig::Atomic(config) => &config.actions[index].contract_address,
+            ActionsConfig::NonAtomic(config) => &config.actions[index].contract_address,
+        };
+
+        let submessage =
+            SubMsg::reply_always(self.msgs[index].to_wasm_message(contract_address), self.id);
         vec![submessage]
     }
 
@@ -103,11 +120,13 @@ impl MessageBatch {
             serde_json::to_vec(&json).map_err(|e| StdError::generic_err(e.to_string()))?,
         ));
 
-        let submessage = SubMsg::reply_always(
-            new_msg.to_wasm_message(&self.action_batch.actions[index].contract_address),
-            execution_id,
-        );
+        let contract_address = match &self.actions_config {
+            ActionsConfig::Atomic(config) => &config.actions[index].contract_address,
+            ActionsConfig::NonAtomic(config) => &config.actions[index].contract_address,
+        };
 
+        let submessage =
+            SubMsg::reply_always(new_msg.to_wasm_message(contract_address), execution_id);
         Ok(vec![submessage])
     }
 }

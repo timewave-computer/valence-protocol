@@ -170,8 +170,10 @@ pub enum QueryMsg {
         limit: Option<u32>,
     },
     #[returns(Vec<CallbackInfo>)]
-    ConfirmedCallbacks {
+    Callbacks {
         start_after: Option<u64>,
         limit: Option<u32>,
     },
+    #[returns(CallbackInfo)]
+    Callback { execution_id: u64 },
 }

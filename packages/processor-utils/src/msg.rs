@@ -2,7 +2,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Binary;
 use cw_ownable::{cw_ownable_execute, cw_ownable_query};
 use valence_authorization_utils::{
-    authorization::{ActionBatch, Priority},
+    authorization::{ActionsConfig, Priority},
     msg::ProcessorMessage,
 };
 
@@ -45,7 +45,7 @@ pub enum AuthorizationMsg {
         // Used for the callback or to remove the messages
         id: u64,
         msgs: Vec<ProcessorMessage>,
-        action_batch: ActionBatch,
+        actions_config: ActionsConfig,
         priority: Priority,
     },
     EvictMsgs {
@@ -56,7 +56,7 @@ pub enum AuthorizationMsg {
         queue_position: u64,
         id: u64,
         msgs: Vec<ProcessorMessage>,
-        action_batch: ActionBatch,
+        actions_config: ActionsConfig,
         priority: Priority,
     },
     Pause {},

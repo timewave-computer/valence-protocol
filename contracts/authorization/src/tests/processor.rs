@@ -3,7 +3,9 @@ use cw_utils::Duration;
 use neutron_test_tube::{Module, Wasm};
 use valence_authorization_utils::{
     action::{ActionCallback, RetryLogic, RetryTimes},
-    authorization::{ActionBatch, AuthorizationMode, ExecutionType, PermissionType, Priority},
+    authorization::{
+        ActionsConfig, AtomicActionsConfig, AuthorizationMode, PermissionType, Priority,
+    },
     authorization_message::{Message, MessageDetails, MessageType},
     callback::{CallbackInfo, ExecutionResult},
     domain::Domain,
@@ -13,23 +15,27 @@ use valence_processor_utils::{msg::InternalProcessorMsg, processor::MessageBatch
 
 use crate::{
     error::{AuthorizationErrorReason, ContractError},
-    tests::helpers::{wait_for_height, ARTIFACTS_DIR},
+    tests::{
+        builders::{
+            AtomicActionBuilder, AtomicActionsConfigBuilder, NonAtomicActionBuilder,
+            NonAtomicActionsConfigBuilder,
+        },
+        helpers::{wait_for_height, ARTIFACTS_DIR},
+    },
 };
 use valence_processor_utils::msg::{
     ExecuteMsg as ProcessorExecuteMsg, PermissionlessMsg as ProcessorPermissionlessMsg,
     QueryMsg as ProcessorQueryMsg,
 };
 
-use valence_processor::error::ContractError as ProcessorContractError;
+use valence_processor::error::{ContractError as ProcessorContractError, UnauthorizedReason};
 
 use valence_test_service::msg::{
     ExecuteMsg as TestServiceExecuteMsg, QueryMsg as TestServiceQueryMsg,
 };
 
 use super::{
-    builders::{
-        ActionBatchBuilder, ActionBuilder, AuthorizationBuilder, JsonBuilder, NeutronTestAppBuilder,
-    },
+    builders::{AuthorizationBuilder, JsonBuilder, NeutronTestAppBuilder},
     helpers::{
         store_and_instantiate_authorization_with_processor_contract,
         store_and_instantiate_test_service,
@@ -56,9 +62,9 @@ fn user_enqueing_messages() {
         AuthorizationBuilder::new()
             .with_label("permissionless")
             .with_max_concurrent_executions(10)
-            .with_action_batch(
-                ActionBatchBuilder::new()
-                    .with_action(ActionBuilder::new().build())
+            .with_actions_config(
+                AtomicActionsConfigBuilder::new()
+                    .with_action(AtomicActionBuilder::new().build())
                     .build(),
             )
             .build(),
@@ -71,9 +77,9 @@ fn user_enqueing_messages() {
                     setup.user_addr.clone(),
                 ]),
             ))
-            .with_action_batch(
-                ActionBatchBuilder::new()
-                    .with_action(ActionBuilder::new().build())
+            .with_actions_config(
+                AtomicActionsConfigBuilder::new()
+                    .with_action(AtomicActionBuilder::new().build())
                     .build(),
             )
             .with_priority(Priority::High)
@@ -300,9 +306,9 @@ fn max_concurrent_execution_limit() {
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
         .with_max_concurrent_executions(3)
-        .with_action_batch(
-            ActionBatchBuilder::new()
-                .with_action(ActionBuilder::new().build())
+        .with_actions_config(
+            AtomicActionsConfigBuilder::new()
+                .with_action(AtomicActionBuilder::new().build())
                 .build(),
         )
         .build()];
@@ -408,9 +414,9 @@ fn owner_adding_and_removing_messages() {
         AuthorizationBuilder::new()
             .with_label("permissionless")
             .with_max_concurrent_executions(10)
-            .with_action_batch(
-                ActionBatchBuilder::new()
-                    .with_action(ActionBuilder::new().build())
+            .with_actions_config(
+                AtomicActionsConfigBuilder::new()
+                    .with_action(AtomicActionBuilder::new().build())
                     .build(),
             )
             .build(),
@@ -423,9 +429,9 @@ fn owner_adding_and_removing_messages() {
                     setup.user_addr.clone(),
                 ]),
             ))
-            .with_action_batch(
-                ActionBatchBuilder::new()
-                    .with_action(ActionBuilder::new().build())
+            .with_actions_config(
+                AtomicActionsConfigBuilder::new()
+                    .with_action(AtomicActionBuilder::new().build())
                     .build(),
             )
             .with_priority(Priority::High)
@@ -636,25 +642,32 @@ fn owner_adding_and_removing_messages() {
     assert_eq!(query_high_prio_queue.len(), 0);
 
     // We should have 5 confirmed callbacks all with RemovedByOwner result
-    let query_confirmed_callbacks = wasm
+    let query_callbacks = wasm
         .query::<QueryMsg, Vec<CallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::ConfirmedCallbacks {
+            &QueryMsg::Callbacks {
                 start_after: None,
                 limit: None,
             },
         )
         .unwrap();
 
-    assert_eq!(query_confirmed_callbacks.len(), 5);
+    // All of them, confirmed and not confirmed
+    assert_eq!(query_callbacks.len(), 13);
 
     let expected_callbacks = [1, 3, 5, 7, 9];
-    for (index, confirmed_callback) in query_confirmed_callbacks.iter().enumerate() {
-        assert_eq!(
-            confirmed_callback.execution_result,
-            ExecutionResult::RemovedByOwner
-        );
-        assert_eq!(confirmed_callback.execution_id, expected_callbacks[index]);
+    for (index, confirmed_callback) in query_callbacks.iter().enumerate() {
+        if expected_callbacks.contains(&index) {
+            assert_eq!(
+                confirmed_callback.execution_result,
+                ExecutionResult::RemovedByOwner
+            );
+        } else {
+            assert_eq!(
+                confirmed_callback.execution_result,
+                ExecutionResult::InProcess
+            );
+        }
     }
 
     // Trying to remove again will return an error because the queue is empty
@@ -807,10 +820,10 @@ fn owner_adding_and_removing_messages() {
     assert_eq!(query_high_prio_queue.len(), 0);
 
     // Let's check the confirmed callbacks again
-    let query_confirmed_callbacks = wasm
+    let query_callbacks = wasm
         .query::<QueryMsg, Vec<CallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::ConfirmedCallbacks {
+            &QueryMsg::Callbacks {
                 start_after: None,
                 limit: None,
             },
@@ -818,15 +831,21 @@ fn owner_adding_and_removing_messages() {
         .unwrap();
 
     // We removed 6 more
-    assert_eq!(query_confirmed_callbacks.len(), 11);
+    assert_eq!(query_callbacks.len(), 19);
     // We removed starting from the back
     let expected_callbacks = [1, 3, 5, 7, 9, 13, 14, 15, 16, 17, 18];
-    for (index, confirmed_callback) in query_confirmed_callbacks.iter().enumerate() {
-        assert_eq!(
-            confirmed_callback.execution_result,
-            ExecutionResult::RemovedByOwner
-        );
-        assert_eq!(confirmed_callback.execution_id, expected_callbacks[index]);
+    for (index, confirmed_callback) in query_callbacks.iter().enumerate() {
+        if expected_callbacks.contains(&index) {
+            assert_eq!(
+                confirmed_callback.execution_result,
+                ExecutionResult::RemovedByOwner
+            );
+        } else {
+            assert_eq!(
+                confirmed_callback.execution_result,
+                ExecutionResult::InProcess
+            );
+        }
     }
 
     // The medium queue should not have been touched during the entire process
@@ -870,10 +889,10 @@ fn invalid_msg_rejected() {
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
         .with_max_concurrent_executions(10)
-        .with_action_batch(
-            ActionBatchBuilder::new()
+        .with_actions_config(
+            AtomicActionsConfigBuilder::new()
                 .with_action(
-                    ActionBuilder::new()
+                    AtomicActionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .build(),
                 )
@@ -945,19 +964,19 @@ fn invalid_msg_rejected() {
     assert_eq!(query_med_prio_queue.len(), 0);
 
     // And the callback was sent to the authorization contract
-    let query_confirmed_callbacks = wasm
+    let query_callbacks = wasm
         .query::<QueryMsg, Vec<CallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::ConfirmedCallbacks {
+            &QueryMsg::Callbacks {
                 start_after: None,
                 limit: None,
             },
         )
         .unwrap();
 
-    assert_eq!(query_confirmed_callbacks.len(), 1);
+    assert_eq!(query_callbacks.len(), 1);
     assert!(matches!(
-        query_confirmed_callbacks[0].execution_result,
+        query_callbacks[0].execution_result,
         ExecutionResult::Rejected(_)
     ));
 }
@@ -984,10 +1003,10 @@ fn queue_shifting_when_not_retriable() {
         AuthorizationBuilder::new()
             .with_label("permissionless-atomic")
             .with_max_concurrent_executions(2)
-            .with_action_batch(
-                ActionBatchBuilder::new()
+            .with_actions_config(
+                AtomicActionsConfigBuilder::new()
                     .with_action(
-                        ActionBuilder::new()
+                        AtomicActionBuilder::new()
                             .with_contract_address(&test_service_contract)
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
@@ -1008,11 +1027,10 @@ fn queue_shifting_when_not_retriable() {
         AuthorizationBuilder::new()
             .with_label("permissionless-non-atomic")
             .with_max_concurrent_executions(2)
-            .with_action_batch(
-                ActionBatchBuilder::new()
-                    .with_execution_type(ExecutionType::NonAtomic)
+            .with_actions_config(
+                NonAtomicActionsConfigBuilder::new()
                     .with_action(
-                        ActionBuilder::new()
+                        NonAtomicActionBuilder::new()
                             .with_contract_address(&test_service_contract)
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
@@ -1102,17 +1120,19 @@ fn queue_shifting_when_not_retriable() {
     .unwrap();
 
     // Check there are no confirmed callbacks
-    let query_confirmed_callbacks = wasm
+    let query_callbacks = wasm
         .query::<QueryMsg, Vec<CallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::ConfirmedCallbacks {
+            &QueryMsg::Callbacks {
                 start_after: None,
                 limit: None,
             },
         )
         .unwrap();
 
-    assert_eq!(query_confirmed_callbacks.len(), 0);
+    assert!(query_callbacks
+        .iter()
+        .all(|callback| callback.execution_result == ExecutionResult::InProcess));
 
     // Confirm that we have two messages in the queue, but the first one is now at the end
     let query_med_prio_queue = wasm
@@ -1231,10 +1251,10 @@ fn higher_priority_queue_is_processed_first() {
         AuthorizationBuilder::new()
             .with_label("permissionless")
             .with_max_concurrent_executions(10)
-            .with_action_batch(
-                ActionBatchBuilder::new()
+            .with_actions_config(
+                AtomicActionsConfigBuilder::new()
                     .with_action(
-                        ActionBuilder::new()
+                        AtomicActionBuilder::new()
                             .with_contract_address(&test_service_contract)
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
@@ -1254,10 +1274,10 @@ fn higher_priority_queue_is_processed_first() {
             .with_mode(AuthorizationMode::Permissioned(
                 PermissionType::WithoutCallLimit(vec![setup.user_addr.clone()]),
             ))
-            .with_action_batch(
-                ActionBatchBuilder::new()
+            .with_actions_config(
+                AtomicActionsConfigBuilder::new()
                     .with_action(
-                        ActionBuilder::new()
+                        AtomicActionBuilder::new()
                             .with_contract_address(&test_service_contract)
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
@@ -1336,24 +1356,19 @@ fn higher_priority_queue_is_processed_first() {
     assert_eq!(query_high_prio_queue.len(), 1);
 
     // Let's confirm the callback in the authorization contract as successful
-    let query_confirmed_callbacks = wasm
+    let query_callbacks = wasm
         .query::<QueryMsg, Vec<CallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::ConfirmedCallbacks {
+            &QueryMsg::Callbacks {
                 start_after: None,
                 limit: None,
             },
         )
         .unwrap();
 
-    let expected_callbacks = [1];
-    for (index, confirmed_callback) in query_confirmed_callbacks.iter().enumerate() {
-        assert_eq!(
-            confirmed_callback.execution_result,
-            ExecutionResult::Success
-        );
-        assert_eq!(confirmed_callback.execution_id, expected_callbacks[index]);
-    }
+    assert!(query_callbacks.iter().any(|callback| {
+        callback.execution_id == 1 && callback.execution_result == ExecutionResult::Success
+    }));
 
     // Now let's tick again to process the other message in the high priority queue
     wasm.execute::<ProcessorExecuteMsg>(
@@ -1379,24 +1394,19 @@ fn higher_priority_queue_is_processed_first() {
     assert_eq!(query_high_prio_queue.len(), 0);
 
     // We should have two callbacks now
-    let query_confirmed_callbacks = wasm
+    let query_callbacks = wasm
         .query::<QueryMsg, Vec<CallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::ConfirmedCallbacks {
+            &QueryMsg::Callbacks {
                 start_after: None,
                 limit: None,
             },
         )
         .unwrap();
 
-    let expected_callbacks = [1, 3];
-    for (index, confirmed_callback) in query_confirmed_callbacks.iter().enumerate() {
-        assert_eq!(
-            confirmed_callback.execution_result,
-            ExecutionResult::Success
-        );
-        assert_eq!(confirmed_callback.execution_id, expected_callbacks[index]);
-    }
+    assert!(query_callbacks.iter().any(|callback| {
+        callback.execution_id == 3 && callback.execution_result == ExecutionResult::Success
+    }));
 
     // There should be two messages left in the medium priority queue
     let query_med_prio_queue = wasm
@@ -1438,10 +1448,10 @@ fn higher_priority_queue_is_processed_first() {
     assert_eq!(query_med_prio_queue.len(), 0);
 
     // We should have four confirmed callbacks now
-    let query_confirmed_callbacks = wasm
+    let query_callbacks = wasm
         .query::<QueryMsg, Vec<CallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::ConfirmedCallbacks {
+            &QueryMsg::Callbacks {
                 start_after: None,
                 limit: None,
             },
@@ -1449,7 +1459,7 @@ fn higher_priority_queue_is_processed_first() {
         .unwrap();
 
     let expected_callbacks = [0, 1, 2, 3];
-    for (index, confirmed_callback) in query_confirmed_callbacks.iter().enumerate() {
+    for (index, confirmed_callback) in query_callbacks.iter().enumerate() {
         assert_eq!(
             confirmed_callback.execution_result,
             ExecutionResult::Success
@@ -1477,14 +1487,14 @@ fn retry_multi_action_atomic_batch_until_success() {
     // We'll create an authorization with 3 actions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
-        .with_action_batch(
-            ActionBatchBuilder::new()
+        .with_actions_config(
+            AtomicActionsConfigBuilder::new()
                 .with_retry_logic(RetryLogic {
                     times: RetryTimes::Indefinitely,
                     interval: Duration::Time(2),
                 })
                 .with_action(
-                    ActionBuilder::new()
+                    AtomicActionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
@@ -1496,7 +1506,7 @@ fn retry_multi_action_atomic_batch_until_success() {
                         .build(),
                 )
                 .with_action(
-                    ActionBuilder::new()
+                    AtomicActionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
@@ -1508,7 +1518,7 @@ fn retry_multi_action_atomic_batch_until_success() {
                         .build(),
                 )
                 .with_action(
-                    ActionBuilder::new()
+                    AtomicActionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
@@ -1625,20 +1635,20 @@ fn retry_multi_action_atomic_batch_until_success() {
     assert_eq!(query_med_prio_queue.len(), 0);
 
     // Confirm we got the callback
-    let query_confirmed_callbacks = wasm
+    let query_callbacks = wasm
         .query::<QueryMsg, Vec<CallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::ConfirmedCallbacks {
+            &QueryMsg::Callbacks {
                 start_after: None,
                 limit: None,
             },
         )
         .unwrap();
 
-    assert_eq!(query_confirmed_callbacks.len(), 1);
-    assert_eq!(query_confirmed_callbacks[0].messages.len(), 3);
+    assert_eq!(query_callbacks.len(), 1);
+    assert_eq!(query_callbacks[0].messages.len(), 3);
     assert_eq!(
-        query_confirmed_callbacks[0].execution_result,
+        query_callbacks[0].execution_result,
         ExecutionResult::Success
     );
 }
@@ -1662,11 +1672,10 @@ fn retry_multi_action_non_atomic_batch_until_success() {
     // We'll create an authorization with 3 actions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
-        .with_action_batch(
-            ActionBatchBuilder::new()
-                .with_execution_type(ExecutionType::NonAtomic)
+        .with_actions_config(
+            NonAtomicActionsConfigBuilder::new()
                 .with_action(
-                    ActionBuilder::new()
+                    NonAtomicActionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
@@ -1678,7 +1687,7 @@ fn retry_multi_action_non_atomic_batch_until_success() {
                         .build(),
                 )
                 .with_action(
-                    ActionBuilder::new()
+                    NonAtomicActionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .with_retry_logic(RetryLogic {
                             times: RetryTimes::Indefinitely,
@@ -1694,7 +1703,7 @@ fn retry_multi_action_non_atomic_batch_until_success() {
                         .build(),
                 )
                 .with_action(
-                    ActionBuilder::new()
+                    NonAtomicActionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
@@ -1857,18 +1866,18 @@ fn retry_multi_action_non_atomic_batch_until_success() {
     assert_eq!(query_med_prio_queue.len(), 0);
 
     // Confirm we got the callback
-    let query_confirmed_callbacks = wasm
+    let query_callbacks = wasm
         .query::<QueryMsg, Vec<CallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::ConfirmedCallbacks {
+            &QueryMsg::Callbacks {
                 start_after: None,
                 limit: None,
             },
         )
         .unwrap();
 
-    assert_eq!(query_confirmed_callbacks.len(), 1);
-    assert_eq!(query_confirmed_callbacks[0].messages.len(), 3);
+    assert_eq!(query_callbacks.len(), 1);
+    assert_eq!(query_callbacks[0].messages.len(), 3);
 }
 
 #[test]
@@ -1890,14 +1899,14 @@ fn failed_atomic_batch_after_retries() {
     // We'll create an authorization with 3 actions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
-        .with_action_batch(
-            ActionBatchBuilder::new()
+        .with_actions_config(
+            AtomicActionsConfigBuilder::new()
                 .with_retry_logic(RetryLogic {
                     times: RetryTimes::Amount(5),
                     interval: Duration::Time(2),
                 })
                 .with_action(
-                    ActionBuilder::new()
+                    AtomicActionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
@@ -1909,12 +1918,8 @@ fn failed_atomic_batch_after_retries() {
                         .build(),
                 )
                 .with_action(
-                    ActionBuilder::new()
+                    AtomicActionBuilder::new()
                         .with_contract_address(&test_service_contract)
-                        .with_retry_logic(RetryLogic {
-                            times: RetryTimes::Indefinitely,
-                            interval: Duration::Time(2),
-                        })
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -1968,12 +1973,12 @@ fn failed_atomic_batch_after_retries() {
                 batch: MessageBatch {
                     id: 0,
                     msgs: vec![],
-                    action_batch: ActionBatch {
-                        execution_type: ExecutionType::Atomic,
+                    actions_config: ActionsConfig::Atomic(AtomicActionsConfig {
                         actions: vec![],
                         retry_logic: None,
-                    },
+                    }),
                     priority: Priority::Medium,
+                    retry: None,
                 },
             }),
             &[],
@@ -1981,9 +1986,11 @@ fn failed_atomic_batch_after_retries() {
         )
         .unwrap_err();
 
-    assert!(error
-        .to_string()
-        .contains(ProcessorContractError::NotProcessor {}.to_string().as_str()));
+    assert!(error.to_string().contains(
+        ProcessorContractError::Unauthorized(UnauthorizedReason::NotProcessor {})
+            .to_string()
+            .as_str()
+    ));
 
     // Ticking 6 times (first time + retry amount) will send the callback with the error to the authorization contract
     for _ in 0..6 {
@@ -2013,19 +2020,19 @@ fn failed_atomic_batch_after_retries() {
     assert_eq!(query_med_prio_queue.len(), 0);
 
     // Confirm we got the callback
-    let query_confirmed_callbacks = wasm
+    let query_callbacks = wasm
         .query::<QueryMsg, Vec<CallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::ConfirmedCallbacks {
+            &QueryMsg::Callbacks {
                 start_after: None,
                 limit: None,
             },
         )
         .unwrap();
 
-    assert_eq!(query_confirmed_callbacks.len(), 1);
+    assert_eq!(query_callbacks.len(), 1);
     assert!(matches!(
-        query_confirmed_callbacks[0].execution_result,
+        query_callbacks[0].execution_result,
         ExecutionResult::Rejected(_)
     ));
 }
@@ -2049,11 +2056,10 @@ fn failed_non_atomic_batch_after_retries() {
     // We'll create an authorization with 3 actions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
-        .with_action_batch(
-            ActionBatchBuilder::new()
-                .with_execution_type(ExecutionType::NonAtomic)
+        .with_actions_config(
+            NonAtomicActionsConfigBuilder::new()
                 .with_action(
-                    ActionBuilder::new()
+                    NonAtomicActionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
@@ -2065,7 +2071,7 @@ fn failed_non_atomic_batch_after_retries() {
                         .build(),
                 )
                 .with_action(
-                    ActionBuilder::new()
+                    NonAtomicActionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .with_retry_logic(RetryLogic {
                             times: RetryTimes::Amount(5),
@@ -2144,20 +2150,20 @@ fn failed_non_atomic_batch_after_retries() {
     assert_eq!(query_med_prio_queue.len(), 0);
 
     // Confirm we got the callback
-    let query_confirmed_callbacks = wasm
+    let query_callbacks = wasm
         .query::<QueryMsg, Vec<CallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::ConfirmedCallbacks {
+            &QueryMsg::Callbacks {
                 start_after: None,
                 limit: None,
             },
         )
         .unwrap();
 
-    assert_eq!(query_confirmed_callbacks.len(), 1);
+    assert_eq!(query_callbacks.len(), 1);
     // In this case the the first action was successful so we will receive a partially executed result with the amount actions that were successfully executed
     assert!(matches!(
-        query_confirmed_callbacks[0].execution_result,
+        query_callbacks[0].execution_result,
         ExecutionResult::PartiallyExecuted(1, _)
     ));
 }
@@ -2182,10 +2188,10 @@ fn successful_non_atomic_and_atomic_batches_together() {
     let authorizations = vec![
         AuthorizationBuilder::new()
             .with_label("permissionless-atomic")
-            .with_action_batch(
-                ActionBatchBuilder::new()
+            .with_actions_config(
+                AtomicActionsConfigBuilder::new()
                     .with_action(
-                        ActionBuilder::new()
+                        AtomicActionBuilder::new()
                             .with_contract_address(&test_service_contract)
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
@@ -2197,7 +2203,7 @@ fn successful_non_atomic_and_atomic_batches_together() {
                             .build(),
                     )
                     .with_action(
-                        ActionBuilder::new()
+                        AtomicActionBuilder::new()
                             .with_contract_address(&test_service_contract)
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
@@ -2213,11 +2219,10 @@ fn successful_non_atomic_and_atomic_batches_together() {
             .build(),
         AuthorizationBuilder::new()
             .with_label("permissionless-non-atomic")
-            .with_action_batch(
-                ActionBatchBuilder::new()
-                    .with_execution_type(ExecutionType::NonAtomic)
+            .with_actions_config(
+                NonAtomicActionsConfigBuilder::new()
                     .with_action(
-                        ActionBuilder::new()
+                        NonAtomicActionBuilder::new()
                             .with_contract_address(&test_service_contract)
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
@@ -2229,7 +2234,7 @@ fn successful_non_atomic_and_atomic_batches_together() {
                             .build(),
                     )
                     .with_action(
-                        ActionBuilder::new()
+                        NonAtomicActionBuilder::new()
                             .with_contract_address(&test_service_contract)
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
@@ -2305,20 +2310,20 @@ fn successful_non_atomic_and_atomic_batches_together() {
     assert_eq!(query_med_prio_queue.len(), 1);
 
     // Confirm we got callback for the atomic batch
-    let query_confirmed_callbacks = wasm
+    let query_callbacks = wasm
         .query::<QueryMsg, Vec<CallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::ConfirmedCallbacks {
+            &QueryMsg::Callbacks {
                 start_after: None,
                 limit: None,
             },
         )
         .unwrap();
 
-    assert_eq!(query_confirmed_callbacks.len(), 1);
-    assert_eq!(query_confirmed_callbacks[0].messages.len(), 2);
+    assert_eq!(query_callbacks.len(), 2);
+    assert_eq!(query_callbacks[0].messages.len(), 2);
     assert_eq!(
-        query_confirmed_callbacks[0].execution_result,
+        query_callbacks[0].execution_result,
         ExecutionResult::Success
     );
 
@@ -2350,18 +2355,18 @@ fn successful_non_atomic_and_atomic_batches_together() {
     assert_eq!(query_med_prio_queue.len(), 0);
 
     // Confirm we got callback for the non-atomic batch
-    let query_confirmed_callbacks = wasm
+    let query_callbacks = wasm
         .query::<QueryMsg, Vec<CallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::ConfirmedCallbacks {
+            &QueryMsg::Callbacks {
                 start_after: None,
                 limit: None,
             },
         )
         .unwrap();
 
-    assert_eq!(query_confirmed_callbacks.len(), 2);
-    for confirmed_callback in query_confirmed_callbacks.iter() {
+    assert_eq!(query_callbacks.len(), 2);
+    for confirmed_callback in query_callbacks.iter() {
         assert_eq!(confirmed_callback.messages.len(), 2);
         assert_eq!(
             confirmed_callback.execution_result,
@@ -2389,11 +2394,10 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
     // We'll create an authorization with 2 actions, where both will succeed but second one needs to confirmed with a callback
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
-        .with_action_batch(
-            ActionBatchBuilder::new()
-                .with_execution_type(ExecutionType::NonAtomic)
+        .with_actions_config(
+            NonAtomicActionsConfigBuilder::new()
                 .with_action(
-                    ActionBuilder::new()
+                    NonAtomicActionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
@@ -2405,7 +2409,7 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
                         .build(),
                 )
                 .with_action(
-                    ActionBuilder::new()
+                    NonAtomicActionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .with_retry_logic(RetryLogic {
                             times: RetryTimes::Indefinitely,
@@ -2580,20 +2584,20 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
 
     assert_eq!(query_med_prio_queue.len(), 0);
 
-    let query_confirmed_callbacks = wasm
+    let query_callbacks = wasm
         .query::<QueryMsg, Vec<CallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::ConfirmedCallbacks {
+            &QueryMsg::Callbacks {
                 start_after: None,
                 limit: None,
             },
         )
         .unwrap();
 
-    assert_eq!(query_confirmed_callbacks.len(), 1);
-    assert_eq!(query_confirmed_callbacks[0].messages.len(), 2);
+    assert_eq!(query_callbacks.len(), 1);
+    assert_eq!(query_callbacks[0].messages.len(), 2);
     assert_eq!(
-        query_confirmed_callbacks[0].execution_result,
+        query_callbacks[0].execution_result,
         ExecutionResult::Success
     );
 }
@@ -2628,10 +2632,10 @@ fn migration() {
     // Create an authorization with 1 action to migrate
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
-        .with_action_batch(
-            ActionBatchBuilder::new()
+        .with_actions_config(
+            AtomicActionsConfigBuilder::new()
                 .with_action(
-                    ActionBuilder::new()
+                    AtomicActionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmMigrateMsg,
@@ -2701,20 +2705,20 @@ fn migration() {
 
     assert_eq!(query_med_prio_queue.len(), 0);
 
-    let query_confirmed_callbacks = wasm
+    let query_callbacks = wasm
         .query::<QueryMsg, Vec<CallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::ConfirmedCallbacks {
+            &QueryMsg::Callbacks {
                 start_after: None,
                 limit: None,
             },
         )
         .unwrap();
 
-    assert_eq!(query_confirmed_callbacks.len(), 1);
-    assert_eq!(query_confirmed_callbacks[0].messages.len(), 1);
+    assert_eq!(query_callbacks.len(), 1);
+    assert_eq!(query_callbacks[0].messages.len(), 1);
     assert_eq!(
-        query_confirmed_callbacks[0].execution_result,
+        query_callbacks[0].execution_result,
         ExecutionResult::Success
     );
 

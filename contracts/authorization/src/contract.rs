@@ -14,7 +14,7 @@ use valence_authorization_utils::{
         Authorization, AuthorizationInfo, AuthorizationMode, AuthorizationState, PermissionType,
         Priority,
     },
-    callback::{CallbackInfo, ExecutionResult, PendingCallback},
+    callback::{CallbackInfo, ExecutionResult},
     domain::{Domain, ExternalDomain},
     msg::{
         ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, PermissionedMsg, PermissionlessMsg,
@@ -28,8 +28,8 @@ use crate::{
     domain::{add_domain, create_wasm_msg_for_processor_or_proxy, get_domain},
     error::{AuthorizationErrorReason, ContractError, UnauthorizedReason},
     state::{
-        AUTHORIZATIONS, CONFIRMED_CALLBACKS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS,
-        PENDING_CALLBACKS, PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS,
+        AUTHORIZATIONS, CALLBACKS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS,
+        PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS,
     },
 };
 
@@ -408,14 +408,14 @@ fn insert_messages(
             id,
             queue_position,
             msgs: messages.clone(),
-            action_batch: authorization.action_batch,
+            actions_config: authorization.actions_config,
             priority,
         },
     ))?;
     let wasm_msg =
         create_wasm_msg_for_processor_or_proxy(deps.storage, execute_msg_binary, &domain)?;
 
-    store_pending_callback(deps.storage, id, domain, label, messages)?;
+    store_in_process_callback(deps.storage, id, domain, label, messages)?;
 
     Ok(Response::new()
         .add_message(wasm_msg)
@@ -489,7 +489,7 @@ fn send_msgs(
         AuthorizationMsg::EnqueueMsgs {
             id,
             msgs: messages.clone(),
-            action_batch: authorization.action_batch,
+            actions_config: authorization.actions_config,
             priority: authorization.priority,
         },
     ))?;
@@ -497,7 +497,7 @@ fn send_msgs(
     let wasm_msg =
         create_wasm_msg_for_processor_or_proxy(deps.storage, execute_msg_binary, &domain)?;
 
-    store_pending_callback(deps.storage, id, domain, label, messages)?;
+    store_in_process_callback(deps.storage, id, domain, label, messages)?;
 
     Ok(Response::new()
         .add_message(wasm_msg)
@@ -511,28 +511,19 @@ fn process_callback(
     execution_id: u64,
     execution_result: ExecutionResult,
 ) -> Result<Response<NeutronMsg>, ContractError> {
-    let pending_callback = PENDING_CALLBACKS.load(deps.storage, execution_id)?;
+    let mut callback = CALLBACKS.load(deps.storage, execution_id)?;
 
     // Check that the sender is the one that should send the callback
-    if info.sender != pending_callback.address {
+    if info.sender != callback.address {
         return Err(ContractError::Unauthorized(
             UnauthorizedReason::UnauthorizedCallbackSender {},
         ));
     }
-    // We'll remove the pending callback
-    PENDING_CALLBACKS.remove(deps.storage, execution_id);
 
-    // Store the confirmed callback in our confirmed callback history
-    // with all the information we want
-    let confirmed_callback = CallbackInfo {
-        execution_id,
-        address: pending_callback.address,
-        domain: pending_callback.domain,
-        label: pending_callback.label,
-        messages: pending_callback.messages,
-        execution_result,
-    };
-    CONFIRMED_CALLBACKS.save(deps.storage, execution_id, &confirmed_callback)?;
+    // Updated the result
+    callback.execution_result = execution_result;
+
+    CALLBACKS.save(deps.storage, execution_id, &callback)?;
 
     Ok(Response::new()
         .add_attribute("action", "process_callback")
@@ -551,9 +542,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Authorizations { start_after, limit } => {
             to_json_binary(&get_authorizations(deps, start_after, limit))
         }
-        QueryMsg::ConfirmedCallbacks { start_after, limit } => {
-            to_json_binary(&get_confirmed_callbacks(deps, start_after, limit))
+        QueryMsg::Callbacks { start_after, limit } => {
+            to_json_binary(&get_callbacks(deps, start_after, limit))
         }
+        QueryMsg::Callback { execution_id } => to_json_binary(&get_callback(deps, execution_id)?),
     }
 }
 
@@ -604,20 +596,20 @@ fn get_authorizations(
         .collect()
 }
 
-fn get_confirmed_callbacks(
-    deps: Deps,
-    start_after: Option<u64>,
-    limit: Option<u32>,
-) -> Vec<CallbackInfo> {
+fn get_callbacks(deps: Deps, start_after: Option<u64>, limit: Option<u32>) -> Vec<CallbackInfo> {
     let limit = limit.unwrap_or(MAX_PAGE_LIMIT).min(MAX_PAGE_LIMIT);
     let start = start_after.map(Bound::exclusive);
 
-    CONFIRMED_CALLBACKS
+    CALLBACKS
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit as usize)
         .filter_map(Result::ok)
         .map(|(_, cb)| cb)
         .collect()
+}
+
+fn get_callback(deps: Deps, execution_id: u64) -> StdResult<CallbackInfo> {
+    CALLBACKS.load(deps.storage, execution_id)
 }
 
 // Helpers
@@ -640,12 +632,12 @@ pub fn build_tokenfactory_denom(contract_address: &str, label: &str) -> String {
 /// Unique ID for an execution on any processor
 pub fn get_and_increase_execution_id(storage: &mut dyn Storage) -> StdResult<u64> {
     let id = EXECUTION_ID.load(storage)?;
-    EXECUTION_ID.save(storage, &id.checked_add(1).expect("Overflow"))?;
+    EXECUTION_ID.save(storage, &id.wrapping_add(1))?;
     Ok(id)
 }
 
 /// Store the pending callback
-pub fn store_pending_callback(
+pub fn store_in_process_callback(
     storage: &mut dyn Storage,
     id: u64,
     domain: Domain,
@@ -660,12 +652,16 @@ pub fn store_pending_callback(
         }
     };
 
-    let pending_callback = PendingCallback {
+    let callback = CallbackInfo {
+        execution_id: id,
         address,
         domain,
         label,
         messages,
+        execution_result: ExecutionResult::InProcess,
     };
 
-    PENDING_CALLBACKS.save(storage, id, &pending_callback)
+    CALLBACKS.save(storage, id, &callback)?;
+
+    Ok(())
 }

@@ -4,18 +4,6 @@ use cosmwasm_std::Addr;
 use crate::{domain::Domain, msg::ProcessorMessage};
 
 #[cw_serde]
-pub struct PendingCallback {
-    // Address that needs to send the callback
-    pub address: Addr,
-    // Domain that the callback comes from
-    pub domain: Domain,
-    // Label of the authorization
-    pub label: String,
-    // Messages that were sent to the processor
-    pub messages: Vec<ProcessorMessage>,
-}
-
-#[cw_serde]
 pub struct CallbackInfo {
     // Execution ID that the callback was for
     pub execution_id: u64,
@@ -33,6 +21,7 @@ pub struct CallbackInfo {
 
 #[cw_serde]
 pub enum ExecutionResult {
+    InProcess,
     // Everthing executed successfully
     Success,
     // Execution was rejected, and the reason

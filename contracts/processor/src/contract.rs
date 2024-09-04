@@ -7,7 +7,7 @@ use cosmwasm_std::{
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner};
 use valence_authorization_utils::{
-    authorization::{ActionBatch, ExecutionType, Priority},
+    authorization::{ActionsConfig, Priority},
     callback::ExecutionResult,
     msg::ProcessorMessage,
 };
@@ -25,11 +25,10 @@ use crate::{
         create_callback_message, handle_successful_atomic_callback,
         handle_successful_non_atomic_callback, handle_unsuccessful_callback,
     },
-    error::{CallbackErrorReason, ContractError},
+    error::{CallbackErrorReason, ContractError, UnauthorizedReason},
     queue::get_queue_map,
     state::{
         CONFIG, EXECUTION_ID_TO_BATCH, NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX, PENDING_CALLBACK,
-        RETRIES,
     },
 };
 
@@ -95,16 +94,18 @@ pub fn execute(
             };
 
             if info.sender != authorized_sender {
-                return Err(ContractError::Unauthorized {});
+                return Err(ContractError::Unauthorized(
+                    UnauthorizedReason::NotAuthorizationModule {},
+                ));
             }
 
             match authorization_module_msg {
                 AuthorizationMsg::EnqueueMsgs {
                     id,
                     msgs,
-                    action_batch,
+                    actions_config,
                     priority,
-                } => enqueue_messages(deps, id, msgs, action_batch, priority),
+                } => enqueue_messages(deps, id, msgs, actions_config, priority),
                 AuthorizationMsg::EvictMsgs {
                     queue_position,
                     priority,
@@ -113,9 +114,9 @@ pub fn execute(
                     id,
                     queue_position,
                     msgs,
-                    action_batch,
+                    actions_config,
                     priority,
-                } => insert_messages(deps, queue_position, id, msgs, action_batch, priority),
+                } => insert_messages(deps, queue_position, id, msgs, actions_config, priority),
                 AuthorizationMsg::Pause {} => pause_processor(deps),
                 AuthorizationMsg::Resume {} => resume_processor(deps),
             }
@@ -192,7 +193,7 @@ fn enqueue_messages(
     deps: DepsMut,
     id: u64,
     msgs: Vec<ProcessorMessage>,
-    action_batch: ActionBatch,
+    actions_config: ActionsConfig,
     priority: Priority,
 ) -> Result<Response, ContractError> {
     let queue = get_queue_map(&priority);
@@ -200,8 +201,9 @@ fn enqueue_messages(
     let message_batch = MessageBatch {
         id,
         msgs,
-        action_batch,
+        actions_config,
         priority,
+        retry: None,
     };
     queue.push_back(deps.storage, &message_batch)?;
     EXECUTION_ID_TO_BATCH.save(deps.storage, id, &message_batch)?;
@@ -222,7 +224,6 @@ fn evict_messages(
             let config = CONFIG.load(deps.storage)?;
             // Do the clean up and send the callback
             EXECUTION_ID_TO_BATCH.remove(deps.storage, batch.id);
-            RETRIES.remove(deps.storage, batch.id);
             NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.remove(deps.storage, batch.id);
             PENDING_CALLBACK.remove(deps.storage, batch.id);
             let callback_msg =
@@ -245,7 +246,7 @@ fn insert_messages(
     queue_position: u64,
     id: u64,
     msgs: Vec<ProcessorMessage>,
-    action_batch: ActionBatch,
+    actions_config: ActionsConfig,
     priority: Priority,
 ) -> Result<Response, ContractError> {
     let mut queue = get_queue_map(&priority);
@@ -253,8 +254,9 @@ fn insert_messages(
     let message_batch = MessageBatch {
         id,
         msgs,
-        action_batch,
+        actions_config,
         priority,
+        retry: None,
     };
 
     queue.insert_at(deps.storage, queue_position, &message_batch)?;
@@ -283,9 +285,8 @@ fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     match message_batch {
         Some(batch) => {
             // First we check if the current batch or action to be executed is retriable, if it isn't we'll just push it back to the end of the queue
-            let current_retry = RETRIES.may_load(deps.storage, batch.id)?;
             // If the retry_cooldown has not passed yet, we'll push the batch back to the queue and wait for the next tick
-            if let Some(current_retry) = current_retry {
+            if let Some(current_retry) = batch.retry.clone() {
                 if !current_retry.retry_cooldown.is_expired(&env.block) {
                     queue.push_back(deps.storage, &batch)?;
                     return Ok(Response::new()
@@ -294,8 +295,8 @@ fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
                 }
             }
             // First we check if the action batch is atomic or not, as the way of processing them is different
-            match batch.action_batch.execution_type {
-                ExecutionType::Atomic => {
+            match batch.actions_config {
+                ActionsConfig::Atomic(_) => {
                     let id = batch.id;
                     // We'll trigger the processor to execute the batch atomically by calling himself
                     // Otherwise we can't execute it atomically
@@ -310,7 +311,7 @@ fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
                         id,
                     )]
                 }
-                ExecutionType::NonAtomic => {
+                ActionsConfig::NonAtomic(ref actions_config) => {
                     // If the batch is non-atomic, we have to execute the message we are currently on
                     // If we never executed this batch before, we'll start from the first action (default - 0)
                     let index_stored =
@@ -331,7 +332,7 @@ fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
                     // If the action is confirmed by a callback, let's create it and append the execution_id to the message
                     // If not, we don't need to append anything and just send it like it is
-                    if let Some(callback) = batch.action_batch.actions[current_index]
+                    if let Some(callback) = actions_config.actions[current_index]
                         .callback_confirmation
                         .clone()
                     {
@@ -368,7 +369,7 @@ fn process_callback(
     execution_id: u64,
     msg: Binary,
 ) -> Result<Response, ContractError> {
-    let pending_callback = PENDING_CALLBACK
+    let mut pending_callback = PENDING_CALLBACK
         .load(deps.storage, execution_id)
         .map_err(|_| {
             ContractError::CallbackError(CallbackErrorReason::PendingCallbackNotFound {})
@@ -392,7 +393,7 @@ fn process_callback(
         handle_unsuccessful_callback(
             deps.storage,
             execution_id,
-            &pending_callback.message_batch,
+            &mut pending_callback.message_batch,
             &mut messages,
             "Invalid callback message received".to_string(),
             &config,
@@ -424,7 +425,9 @@ fn execute_atomic(
 ) -> Result<Response, ContractError> {
     // Only the processor can execute this
     if info.sender != env.contract.address {
-        return Err(ContractError::NotProcessor {});
+        return Err(ContractError::Unauthorized(
+            UnauthorizedReason::NotProcessor {},
+        ));
     }
     let messages: Vec<CosmosMsg> = batch.into();
 
@@ -438,7 +441,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
     // The reply logic will be different depending on the execution type of the batch
     // First we check if the reply comes from an atomic or non-atomic batch
     let config = CONFIG.load(deps.storage)?;
-    let batch = EXECUTION_ID_TO_BATCH.load(deps.storage, msg.id)?;
+    let mut batch = EXECUTION_ID_TO_BATCH.load(deps.storage, msg.id)?;
     let mut messages = vec![];
 
     match NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.may_load(deps.storage, msg.id)? {
@@ -462,7 +465,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
                     handle_unsuccessful_callback(
                         deps.storage,
                         msg.id,
-                        &batch,
+                        &mut batch,
                         &mut messages,
                         error,
                         &config,
@@ -482,7 +485,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
                     handle_unsuccessful_callback(
                         deps.storage,
                         msg.id,
-                        &batch,
+                        &mut batch,
                         &mut messages,
                         error,
                         &config,
