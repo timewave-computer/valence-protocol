@@ -30,6 +30,7 @@ pub struct NonAtomicAction {
 pub trait Action {
     fn domain(&self) -> &Domain;
     fn message_details(&self) -> &MessageDetails;
+    fn get_contract_address(&self) -> &str;
 }
 
 // Implement this trait for both AtomicAction and NonAtomicAction
@@ -41,6 +42,10 @@ impl Action for AtomicAction {
     fn message_details(&self) -> &MessageDetails {
         &self.message_details
     }
+
+    fn get_contract_address(&self) -> &str {
+        &self.contract_address
+    }
 }
 
 impl Action for NonAtomicAction {
@@ -50,6 +55,10 @@ impl Action for NonAtomicAction {
 
     fn message_details(&self) -> &MessageDetails {
         &self.message_details
+    }
+
+    fn get_contract_address(&self) -> &str {
+        &self.contract_address
     }
 }
 

@@ -2,7 +2,7 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, BlockInfo, Uint128};
 use cw_utils::Expiration;
 
-use crate::action::{AtomicAction, NonAtomicAction, RetryLogic};
+use crate::action::{Action, AtomicAction, NonAtomicAction, RetryLogic};
 
 #[cw_serde]
 // What an owner or subowner can pass to the contract to create an authorization
@@ -81,6 +81,21 @@ pub enum PermissionType {
 pub enum ActionsConfig {
     Atomic(AtomicActionsConfig),
     NonAtomic(NonAtomicActionsConfig),
+}
+
+impl ActionsConfig {
+    pub fn get_contract_address_by_action_index(&self, index: usize) -> &str {
+        self.get_action_by_index(index)
+            .map(|action| action.get_contract_address())
+            .unwrap_or_default()
+    }
+
+    fn get_action_by_index(&self, index: usize) -> Option<&dyn Action> {
+        match self {
+            ActionsConfig::Atomic(config) => config.actions.get(index).map(|a| a as &dyn Action),
+            ActionsConfig::NonAtomic(config) => config.actions.get(index).map(|a| a as &dyn Action),
+        }
+    }
 }
 
 #[cw_serde]

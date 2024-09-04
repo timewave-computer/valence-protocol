@@ -3,6 +3,7 @@ use cosmwasm_std::{Addr, Binary, CosmosMsg, StdError, StdResult, SubMsg, WasmMsg
 use cw_utils::Expiration;
 use serde_json::{json, Value};
 use valence_authorization_utils::{
+    action::Action,
     authorization::{ActionsConfig, Priority},
     msg::ProcessorMessage,
 };
@@ -48,20 +49,17 @@ pub struct MessageBatch {
 impl From<MessageBatch> for Vec<CosmosMsg> {
     fn from(val: MessageBatch) -> Self {
         match val.actions_config {
-            ActionsConfig::Atomic(atomic_config) => val
-                .msgs
-                .into_iter()
-                .zip(atomic_config.actions)
-                .map(|(msg, action)| create_cosmos_msg(msg, action.contract_address))
-                .collect(),
-            ActionsConfig::NonAtomic(non_atomic_config) => val
-                .msgs
-                .into_iter()
-                .zip(non_atomic_config.actions)
-                .map(|(msg, action)| create_cosmos_msg(msg, action.contract_address))
-                .collect(),
+            ActionsConfig::Atomic(config) => process_actions(val.msgs, &config.actions),
+            ActionsConfig::NonAtomic(config) => process_actions(val.msgs, &config.actions),
         }
     }
+}
+
+fn process_actions<A: Action>(msgs: Vec<ProcessorMessage>, actions: &[A]) -> Vec<CosmosMsg> {
+    msgs.into_iter()
+        .zip(actions)
+        .map(|(msg, action)| create_cosmos_msg(msg, action.get_contract_address().to_owned()))
+        .collect()
 }
 
 fn create_cosmos_msg(msg: ProcessorMessage, contract_address: String) -> CosmosMsg {
@@ -85,10 +83,9 @@ impl MessageBatch {
     /// This is used for non-atomic batches. We need to catch the reply always because we need to know if the message was successful to continue
     /// with the next message in the batch or apply the retry logic
     pub fn create_message_by_index(&self, index: usize) -> Vec<SubMsg> {
-        let contract_address = match &self.actions_config {
-            ActionsConfig::Atomic(config) => &config.actions[index].contract_address,
-            ActionsConfig::NonAtomic(config) => &config.actions[index].contract_address,
-        };
+        let contract_address = self
+            .actions_config
+            .get_contract_address_by_action_index(index);
 
         let submessage =
             SubMsg::reply_always(self.msgs[index].to_wasm_message(contract_address), self.id);
@@ -120,10 +117,9 @@ impl MessageBatch {
             serde_json::to_vec(&json).map_err(|e| StdError::generic_err(e.to_string()))?,
         ));
 
-        let contract_address = match &self.actions_config {
-            ActionsConfig::Atomic(config) => &config.actions[index].contract_address,
-            ActionsConfig::NonAtomic(config) => &config.actions[index].contract_address,
-        };
+        let contract_address = self
+            .actions_config
+            .get_contract_address_by_action_index(index);
 
         let submessage =
             SubMsg::reply_always(new_msg.to_wasm_message(contract_address), execution_id);
