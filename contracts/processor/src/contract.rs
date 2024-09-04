@@ -297,19 +297,18 @@ fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
             // First we check if the action batch is atomic or not, as the way of processing them is different
             match batch.action_batch.execution_type {
                 ExecutionType::Atomic => {
+                    let id = batch.id;
                     // We'll trigger the processor to execute the batch atomically by calling himself
                     // Otherwise we can't execute it atomically
                     messages = vec![SubMsg::reply_always(
                         WasmMsg::Execute {
                             contract_addr: env.contract.address.to_string(),
                             msg: to_json_binary(&ExecuteMsg::InternalProcessorAction(
-                                InternalProcessorMsg::ExecuteAtomic {
-                                    batch: batch.clone(),
-                                },
+                                InternalProcessorMsg::ExecuteAtomic { batch },
                             ))?,
                             funds: vec![],
                         },
-                        batch.id,
+                        id,
                     )]
                 }
                 ExecutionType::NonAtomic => {
