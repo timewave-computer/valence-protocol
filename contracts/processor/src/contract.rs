@@ -28,8 +28,8 @@ use crate::{
     error::{CallbackErrorReason, ContractError},
     queue::get_queue_map,
     state::{
-        ATOMIC_BATCH_EXECUTION, CONFIG, EXECUTION_ID_TO_BATCH,
-        NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX, PENDING_CALLBACK, RETRIES,
+        CONFIG, EXECUTION_ID_TO_BATCH, NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX, PENDING_CALLBACK,
+        RETRIES,
     },
 };
 
@@ -128,7 +128,7 @@ pub fn execute(
             InternalProcessorMsg::Callback { execution_id, msg } => {
                 process_callback(deps, env, info, execution_id, msg)
             }
-            InternalProcessorMsg::ExecuteAtomic {} => execute_atomic(deps, info, env),
+            InternalProcessorMsg::ExecuteAtomic { batch } => execute_atomic(info, env, batch),
         },
     }
 }
@@ -297,15 +297,15 @@ fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
             // First we check if the action batch is atomic or not, as the way of processing them is different
             match batch.action_batch.execution_type {
                 ExecutionType::Atomic => {
-                    // If the batch is atomic, we'll save it and make the processor execute it atomically
-                    ATOMIC_BATCH_EXECUTION.save(deps.storage, &batch)?;
                     // We'll trigger the processor to execute the batch atomically by calling himself
                     // Otherwise we can't execute it atomically
                     messages = vec![SubMsg::reply_always(
                         WasmMsg::Execute {
                             contract_addr: env.contract.address.to_string(),
                             msg: to_json_binary(&ExecuteMsg::InternalProcessorAction(
-                                InternalProcessorMsg::ExecuteAtomic {},
+                                InternalProcessorMsg::ExecuteAtomic {
+                                    batch: batch.clone(),
+                                },
                             ))?,
                             funds: vec![],
                         },
@@ -419,12 +419,15 @@ fn process_callback(
         .add_attribute("method", "callback"))
 }
 
-fn execute_atomic(deps: DepsMut, info: MessageInfo, env: Env) -> Result<Response, ContractError> {
+fn execute_atomic(
+    info: MessageInfo,
+    env: Env,
+    batch: MessageBatch,
+) -> Result<Response, ContractError> {
     // Only the processor can execute this
     if info.sender != env.contract.address {
         return Err(ContractError::NotProcessor {});
     }
-    let batch = ATOMIC_BATCH_EXECUTION.load(deps.storage)?;
     let messages: Vec<CosmosMsg> = batch.into();
 
     Ok(Response::new()

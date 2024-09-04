@@ -3,7 +3,7 @@ use cw_utils::Duration;
 use neutron_test_tube::{Module, Wasm};
 use valence_authorization_utils::{
     action::{ActionCallback, RetryLogic, RetryTimes},
-    authorization::{AuthorizationMode, ExecutionType, PermissionType, Priority},
+    authorization::{ActionBatch, AuthorizationMode, ExecutionType, PermissionType, Priority},
     authorization_message::{Message, MessageDetails, MessageType},
     callback::{CallbackInfo, ExecutionResult},
     domain::Domain,
@@ -1964,7 +1964,18 @@ fn failed_atomic_batch_after_retries() {
     let error = wasm
         .execute::<ProcessorExecuteMsg>(
             &processor_contract,
-            &ProcessorExecuteMsg::InternalProcessorAction(InternalProcessorMsg::ExecuteAtomic {}),
+            &ProcessorExecuteMsg::InternalProcessorAction(InternalProcessorMsg::ExecuteAtomic {
+                batch: MessageBatch {
+                    id: 0,
+                    msgs: vec![],
+                    action_batch: ActionBatch {
+                        execution_type: ExecutionType::Atomic,
+                        actions: vec![],
+                        retry_logic: None,
+                    },
+                    priority: Priority::Medium,
+                },
+            }),
             &[],
             &setup.accounts[0],
         )

@@ -22,10 +22,6 @@ pub const EXECUTION_ID_TO_BATCH: Map<u64, MessageBatch> = Map::new("id_to_batch"
 // We need to track the current retry we are on for a specific batch. The Map key is the Batch Execution ID and the value is the CurrentRetry struct
 pub const RETRIES: Map<u64, CurrentRetry> = Map::new("batch_retries");
 
-// For atomic batches, we are going to store the current batch that needs to be executed here. This way we can retrieve it and execute it in a separate message to make
-// sure that the batch is executed atomically
-pub const ATOMIC_BATCH_EXECUTION: Item<MessageBatch> = Item::new("atomic_batch_execution");
-
 // For Non atomic batches, we need to know what action we are currently on. The Map key is the Batch Execution ID and the value is the current action index
 // This way we can know what RetryLogic to use since each action has a different one
 pub const NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX: Map<u64, usize> =

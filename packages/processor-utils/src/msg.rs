@@ -72,7 +72,7 @@ pub enum PermissionlessMsg {
 pub enum InternalProcessorMsg {
     Callback { execution_id: u64, msg: Binary },
     // Entry point for the processor to execute batches atomically, this will only be able to be called by the processor itself
-    ExecuteAtomic {},
+    ExecuteAtomic { batch: MessageBatch },
 }
 
 #[cw_ownable_query]
