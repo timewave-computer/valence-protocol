@@ -129,7 +129,6 @@ pub fn store_and_instantiate_authorization_with_processor_contract(
         .instantiate(
             code_id_processor,
             &ProcessorInstantiateMsg {
-                owner: signer.address().to_string(),
                 authorization_contract: predicted_address.clone(),
                 polytone_contracts: None,
             },

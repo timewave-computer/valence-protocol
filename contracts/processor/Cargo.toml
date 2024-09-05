@@ -17,7 +17,6 @@ cw-storage-plus             = { workspace = true }
 cosmwasm-schema             = { workspace = true }
 thiserror                   = { workspace = true }
 cw2                         = { workspace = true }
-cw-ownable                  = { workspace = true }
 valence-processor-utils     = { workspace = true }
 valence-authorization-utils = { workspace = true }
 cw-utils                    = { workspace = true }
