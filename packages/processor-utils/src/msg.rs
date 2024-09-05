@@ -1,6 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Binary;
-use cw_ownable::{cw_ownable_execute, cw_ownable_query};
 use valence_authorization_utils::{
     authorization::{ActionsConfig, Priority},
     msg::ProcessorMessage,
@@ -10,7 +9,6 @@ use crate::processor::{Config, MessageBatch};
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    pub owner: String,
     pub authorization_contract: String,
     // In case the processor is sitting on a different domain
     pub polytone_contracts: Option<PolytoneContracts>,
@@ -22,21 +20,11 @@ pub struct PolytoneContracts {
     pub polytone_note_address: String,
 }
 
-#[cw_ownable_execute]
 #[cw_serde]
 pub enum ExecuteMsg {
-    OwnerAction(OwnerMsg),
     AuthorizationModuleAction(AuthorizationMsg),
     PermissionlessAction(PermissionlessMsg),
     InternalProcessorAction(InternalProcessorMsg),
-}
-
-#[cw_serde]
-pub enum OwnerMsg {
-    UpdateConfig {
-        authorization_contract: Option<String>,
-        polytone_contracts: Option<PolytoneContracts>,
-    },
 }
 
 #[cw_serde]
@@ -75,7 +63,6 @@ pub enum InternalProcessorMsg {
     ExecuteAtomic { batch: MessageBatch },
 }
 
-#[cw_ownable_query]
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {

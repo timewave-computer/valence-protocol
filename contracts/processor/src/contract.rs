@@ -5,7 +5,6 @@ use cosmwasm_std::{
     to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response,
     StdResult, SubMsg, SubMsgResult, WasmMsg,
 };
-use cw_ownable::{assert_owner, get_ownership, initialize_owner};
 use valence_authorization_utils::{
     authorization::{ActionsConfig, Priority},
     callback::ExecutionResult,
@@ -14,8 +13,8 @@ use valence_authorization_utils::{
 use valence_processor_utils::{
     callback::PendingCallback,
     msg::{
-        AuthorizationMsg, ExecuteMsg, InstantiateMsg, InternalProcessorMsg, OwnerMsg,
-        PermissionlessMsg, PolytoneContracts, QueryMsg,
+        AuthorizationMsg, ExecuteMsg, InstantiateMsg, InternalProcessorMsg, PermissionlessMsg,
+        QueryMsg,
     },
     processor::{Config, MessageBatch, Polytone, ProcessorDomain, State},
 };
@@ -44,13 +43,6 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    // Set up owners and initial subowners
-    initialize_owner(
-        deps.storage,
-        deps.api,
-        Some(deps.api.addr_validate(&msg.owner)?.as_str()),
-    )?;
-
     let config = Config {
         authorization_contract: deps.api.addr_validate(&msg.authorization_contract)?,
         processor_domain: match msg.polytone_contracts {
@@ -75,16 +67,6 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::UpdateOwnership(action) => update_ownership(deps, env, info, action),
-        ExecuteMsg::OwnerAction(owner_msg) => {
-            assert_owner(deps.storage, &info.sender)?;
-            match owner_msg {
-                OwnerMsg::UpdateConfig {
-                    authorization_contract,
-                    polytone_contracts,
-                } => update_config(deps, authorization_contract, polytone_contracts),
-            }
-        }
         ExecuteMsg::AuthorizationModuleAction(authorization_module_msg) => {
             let config = CONFIG.load(deps.storage)?;
 
@@ -132,40 +114,6 @@ pub fn execute(
             InternalProcessorMsg::ExecuteAtomic { batch } => execute_atomic(info, env, batch),
         },
     }
-}
-
-fn update_ownership(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    action: cw_ownable::Action,
-) -> Result<Response, ContractError> {
-    let ownership = cw_ownable::update_ownership(deps, &env.block, &info.sender, action)?;
-    Ok(Response::new().add_attributes(ownership.into_attributes()))
-}
-
-fn update_config(
-    deps: DepsMut,
-    authorization_contract: Option<String>,
-    polytone_contracts: Option<PolytoneContracts>,
-) -> Result<Response, ContractError> {
-    let mut config = CONFIG.load(deps.storage)?;
-
-    if let Some(authorization_contract) = authorization_contract {
-        config.authorization_contract = deps.api.addr_validate(&authorization_contract)?;
-    }
-
-    config.processor_domain = match polytone_contracts {
-        Some(pc) => ProcessorDomain::External(Polytone {
-            polytone_proxy_address: deps.api.addr_validate(&pc.polytone_proxy_address)?,
-            polytone_note_address: deps.api.addr_validate(&pc.polytone_note_address)?,
-        }),
-        None => ProcessorDomain::Main,
-    };
-
-    CONFIG.save(deps.storage, &config)?;
-
-    Ok(Response::new().add_attribute("method", "update_config"))
 }
 
 /// Sets the processor to Paused state, no more messages will be processed until resumed
@@ -505,7 +453,6 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Ownership {} => to_json_binary(&get_ownership(deps.storage)?),
         QueryMsg::Config {} => to_json_binary(&get_config(deps)?),
         QueryMsg::GetQueue { from, to, priority } => {
             to_json_binary(&get_queue(deps, from, to, &priority)?)
