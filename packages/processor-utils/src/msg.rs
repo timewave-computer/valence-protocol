@@ -1,8 +1,12 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Binary;
 use cw_ownable::{cw_ownable_execute, cw_ownable_query};
-use valence_authorization_utils::authorization::{ActionBatch, Priority};
-use valence_processor_utils::processor::{Config, MessageBatch};
+use valence_authorization_utils::{
+    authorization::{ActionsConfig, Priority},
+    msg::ProcessorMessage,
+};
+
+use crate::processor::{Config, MessageBatch};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -24,6 +28,7 @@ pub enum ExecuteMsg {
     OwnerAction(OwnerMsg),
     AuthorizationModuleAction(AuthorizationMsg),
     PermissionlessAction(PermissionlessMsg),
+    InternalProcessorAction(InternalProcessorMsg),
 }
 
 #[cw_serde]
@@ -39,19 +44,19 @@ pub enum AuthorizationMsg {
     EnqueueMsgs {
         // Used for the callback or to remove the messages
         id: u64,
-        msgs: Vec<Binary>,
-        action_batch: ActionBatch,
+        msgs: Vec<ProcessorMessage>,
+        actions_config: ActionsConfig,
         priority: Priority,
     },
-    RemoveMsgs {
+    EvictMsgs {
         queue_position: u64,
         priority: Priority,
     },
-    AddMsgs {
+    InsertMsgs {
         queue_position: u64,
         id: u64,
-        msgs: Vec<Binary>,
-        action_batch: ActionBatch,
+        msgs: Vec<ProcessorMessage>,
+        actions_config: ActionsConfig,
         priority: Priority,
     },
     Pause {},
@@ -61,6 +66,13 @@ pub enum AuthorizationMsg {
 #[cw_serde]
 pub enum PermissionlessMsg {
     Tick {},
+}
+
+#[cw_serde]
+pub enum InternalProcessorMsg {
+    Callback { execution_id: u64, msg: Binary },
+    // Entry point for the processor to execute batches atomically, this will only be able to be called by the processor itself
+    ExecuteAtomic { batch: MessageBatch },
 }
 
 #[cw_ownable_query]

@@ -10,3 +10,4 @@ cosmwasm-std    = { workspace = true }
 cw-utils        = { workspace = true }
 cosmwasm-schema = { workspace = true }
 neutron-sdk     = { workspace = true }
+cw-ownable      = { workspace = true }

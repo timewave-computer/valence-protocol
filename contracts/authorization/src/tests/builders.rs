@@ -3,13 +3,13 @@ use cw_utils::Expiration;
 use neutron_test_tube::{Account, NeutronTestApp, SigningAccount};
 use serde_json::{json, Map, Value};
 use valence_authorization_utils::{
-    action::{Action, ActionCallback, RetryLogic},
+    action::{ActionCallback, AtomicAction, NonAtomicAction, RetryLogic},
     authorization::{
-        ActionBatch, AuthorizationDuration, AuthorizationInfo, AuthorizationMode, ExecutionType,
-        Priority,
+        ActionsConfig, AtomicActionsConfig, AuthorizationDuration, AuthorizationInfo,
+        AuthorizationMode, NonAtomicActionsConfig, Priority,
     },
+    authorization_message::{Message, MessageDetails, MessageType},
     domain::{CallbackProxy, Connector, Domain, ExecutionEnvironment, ExternalDomain},
-    message::{Message, MessageDetails, MessageType},
 };
 
 const FEE_DENOM: &str = "untrn";
@@ -96,7 +96,7 @@ pub struct AuthorizationBuilder {
     not_before: Expiration,
     duration: AuthorizationDuration,
     max_concurrent_executions: Option<u64>,
-    action_batch: ActionBatch,
+    actions_config: ActionsConfig,
     priority: Option<Priority>,
 }
 
@@ -108,7 +108,10 @@ impl AuthorizationBuilder {
             not_before: Expiration::Never {},
             duration: AuthorizationDuration::Forever,
             max_concurrent_executions: None,
-            action_batch: ActionBatchBuilder::new().build(),
+            actions_config: ActionsConfig::Atomic(AtomicActionsConfig {
+                actions: vec![],
+                retry_logic: None,
+            }),
             priority: None,
         }
     }
@@ -138,8 +141,8 @@ impl AuthorizationBuilder {
         self
     }
 
-    pub fn with_action_batch(mut self, action_batch: ActionBatch) -> Self {
-        self.action_batch = action_batch;
+    pub fn with_actions_config(mut self, actions_config: ActionsConfig) -> Self {
+        self.actions_config = actions_config;
         self
     }
 
@@ -155,44 +158,109 @@ impl AuthorizationBuilder {
             not_before: self.not_before,
             duration: self.duration,
             max_concurrent_executions: self.max_concurrent_executions,
-            action_batch: self.action_batch,
+            actions_config: self.actions_config,
             priority: self.priority,
         }
     }
 }
 
-pub struct ActionBatchBuilder {
-    execution_type: ExecutionType,
-    actions: Vec<Action>,
+pub struct AtomicActionsConfigBuilder {
+    actions: Vec<AtomicAction>,
+    retry_logic: Option<RetryLogic>,
 }
 
-impl ActionBatchBuilder {
+impl AtomicActionsConfigBuilder {
     pub fn new() -> Self {
-        ActionBatchBuilder {
-            execution_type: ExecutionType::Atomic,
+        AtomicActionsConfigBuilder {
             actions: vec![],
+            retry_logic: None,
         }
     }
 
-    pub fn with_execution_type(mut self, execution_type: ExecutionType) -> Self {
-        self.execution_type = execution_type;
-        self
-    }
-
-    pub fn with_action(mut self, action: Action) -> Self {
+    pub fn with_action(mut self, action: AtomicAction) -> Self {
         self.actions.push(action);
         self
     }
 
-    pub fn build(self) -> ActionBatch {
-        ActionBatch {
-            execution_type: self.execution_type,
+    pub fn with_retry_logic(mut self, retry_logic: RetryLogic) -> Self {
+        self.retry_logic = Some(retry_logic);
+        self
+    }
+
+    pub fn build(self) -> ActionsConfig {
+        ActionsConfig::Atomic(AtomicActionsConfig {
             actions: self.actions,
+            retry_logic: self.retry_logic,
+        })
+    }
+}
+
+pub struct NonAtomicActionsConfigBuilder {
+    actions: Vec<NonAtomicAction>,
+}
+
+impl NonAtomicActionsConfigBuilder {
+    pub fn new() -> Self {
+        NonAtomicActionsConfigBuilder { actions: vec![] }
+    }
+
+    pub fn with_action(mut self, action: NonAtomicAction) -> Self {
+        self.actions.push(action);
+        self
+    }
+
+    pub fn build(self) -> ActionsConfig {
+        ActionsConfig::NonAtomic(NonAtomicActionsConfig {
+            actions: self.actions,
+        })
+    }
+}
+
+pub struct AtomicActionBuilder {
+    domain: Domain,
+    message_details: MessageDetails,
+    contract_address: String,
+}
+
+impl AtomicActionBuilder {
+    pub fn new() -> Self {
+        AtomicActionBuilder {
+            domain: Domain::Main,
+            message_details: MessageDetails {
+                message_type: MessageType::CosmwasmExecuteMsg,
+                message: Message {
+                    name: "method".to_string(),
+                    params_restrictions: None,
+                },
+            },
+            contract_address: "address".to_string(),
+        }
+    }
+    pub fn with_domain(mut self, domain: Domain) -> Self {
+        self.domain = domain;
+        self
+    }
+
+    pub fn with_message_details(mut self, message_details: MessageDetails) -> Self {
+        self.message_details = message_details;
+        self
+    }
+
+    pub fn with_contract_address(mut self, contract_address: &str) -> Self {
+        self.contract_address = contract_address.to_string();
+        self
+    }
+
+    pub fn build(self) -> AtomicAction {
+        AtomicAction {
+            domain: self.domain,
+            message_details: self.message_details,
+            contract_address: self.contract_address,
         }
     }
 }
 
-pub struct ActionBuilder {
+pub struct NonAtomicActionBuilder {
     domain: Domain,
     message_details: MessageDetails,
     contract_address: String,
@@ -200,12 +268,12 @@ pub struct ActionBuilder {
     callback_confirmation: Option<ActionCallback>,
 }
 
-impl ActionBuilder {
+impl NonAtomicActionBuilder {
     pub fn new() -> Self {
-        ActionBuilder {
+        NonAtomicActionBuilder {
             domain: Domain::Main,
             message_details: MessageDetails {
-                message_type: MessageType::ExecuteMsg,
+                message_type: MessageType::CosmwasmExecuteMsg,
                 message: Message {
                     name: "method".to_string(),
                     params_restrictions: None,
@@ -227,6 +295,11 @@ impl ActionBuilder {
         self
     }
 
+    pub fn with_contract_address(mut self, contract_address: &str) -> Self {
+        self.contract_address = contract_address.to_string();
+        self
+    }
+
     pub fn with_retry_logic(mut self, retry_logic: RetryLogic) -> Self {
         self.retry_logic = Some(retry_logic);
         self
@@ -237,8 +310,8 @@ impl ActionBuilder {
         self
     }
 
-    pub fn build(self) -> Action {
-        Action {
+    pub fn build(self) -> NonAtomicAction {
+        NonAtomicAction {
             domain: self.domain,
             message_details: self.message_details,
             contract_address: self.contract_address,

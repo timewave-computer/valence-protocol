@@ -1,6 +1,6 @@
 use cosmwasm_std::{Binary, DepsMut, Storage, WasmMsg};
 use valence_authorization_utils::{
-    authorization::Authorization,
+    authorization::{ActionsConfig, Authorization},
     domain::{CallbackProxy, Connector, Domain, ExternalDomain},
 };
 
@@ -29,12 +29,21 @@ pub fn add_domain(deps: DepsMut, domain: ExternalDomain) -> Result<(), ContractE
 }
 
 pub fn get_domain(authorization: &Authorization) -> Result<Domain, ContractError> {
-    match authorization.action_batch.actions.first() {
-        Some(action) => Ok(action.domain.clone()),
-        // We should never get here because we already validated the authorization when creating it and it should have actions
-        None => Err(ContractError::Authorization(
-            AuthorizationErrorReason::NoActions {},
-        )),
+    match &authorization.actions_config {
+        ActionsConfig::Atomic(config) => config
+            .actions
+            .first()
+            .map(|action| action.domain.clone())
+            .ok_or(ContractError::Authorization(
+                AuthorizationErrorReason::NoActions {},
+            )),
+        ActionsConfig::NonAtomic(config) => config
+            .actions
+            .first()
+            .map(|action| action.domain.clone())
+            .ok_or(ContractError::Authorization(
+                AuthorizationErrorReason::NoActions {},
+            )),
     }
 }
 
