@@ -1,7 +1,7 @@
-use cosmwasm_std::{Binary, DepsMut, Storage, WasmMsg};
+use cosmwasm_std::{Binary, Storage, WasmMsg};
 use valence_authorization_utils::{
     authorization::{ActionsConfig, Authorization},
-    domain::{CallbackProxy, Connector, Domain, ExternalDomain},
+    domain::{Domain, ExternalDomain},
 };
 
 use crate::{
@@ -10,20 +10,12 @@ use crate::{
 };
 
 /// Checks if external domain exists before adding it
-pub fn add_domain(deps: DepsMut, domain: ExternalDomain) -> Result<(), ContractError> {
-    if EXTERNAL_DOMAINS.has(deps.storage, domain.name.clone()) {
+pub fn add_domain(storage: &mut dyn Storage, domain: ExternalDomain) -> Result<(), ContractError> {
+    if EXTERNAL_DOMAINS.has(storage, domain.name.clone()) {
         return Err(ContractError::ExternalDomainAlreadyExists(domain.name));
     }
 
-    match &domain.connector {
-        Connector::PolytoneNote(addr) => deps.api.addr_validate(addr.as_str())?,
-    };
-
-    match &domain.callback_proxy {
-        CallbackProxy::PolytoneProxy(addr) => deps.api.addr_validate(addr.as_str())?,
-    };
-
-    EXTERNAL_DOMAINS.save(deps.storage, domain.name.clone(), &domain)?;
+    EXTERNAL_DOMAINS.save(storage, domain.name.clone(), &domain)?;
 
     Ok(())
 }

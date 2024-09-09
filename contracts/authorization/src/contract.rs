@@ -17,8 +17,8 @@ use valence_authorization_utils::{
     callback::{CallbackInfo, ExecutionResult},
     domain::{Domain, ExternalDomain},
     msg::{
-        ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, PermissionedMsg, PermissionlessMsg,
-        ProcessorMessage, QueryMsg,
+        ExecuteMsg, ExternalDomainApi, InstantiateMsg, Mint, OwnerMsg, PermissionedMsg,
+        PermissionlessMsg, ProcessorMessage, QueryMsg,
     },
 };
 use valence_processor_utils::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExecuteMsg};
@@ -41,7 +41,7 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    mut deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
@@ -71,7 +71,7 @@ pub fn instantiate(
 
     // Save all external domains
     for domain in msg.external_domains {
-        add_domain(deps.branch(), domain)?;
+        add_domain(deps.storage, domain.to_external_domain_validated(deps.api)?)?;
     }
 
     EXECUTION_ID.save(deps.storage, &0)?;
@@ -182,11 +182,11 @@ fn remove_sub_owner(
 }
 
 fn add_external_domains(
-    mut deps: DepsMut,
-    external_domains: Vec<ExternalDomain>,
+    deps: DepsMut,
+    external_domains: Vec<ExternalDomainApi>,
 ) -> Result<Response<NeutronMsg>, ContractError> {
     for domain in external_domains {
-        add_domain(deps.branch(), domain)?;
+        add_domain(deps.storage, domain.to_external_domain_validated(deps.api)?)?;
     }
 
     Ok(Response::new().add_attribute("action", "add_external_domains"))

@@ -1,12 +1,12 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Uint128, WasmMsg};
+use cosmwasm_std::{Addr, Api, Binary, StdResult, Uint128, WasmMsg};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query, Expiration};
 
 use crate::{
     authorization::{Authorization, AuthorizationInfo, Priority},
     authorization_message::MessageType,
     callback::{CallbackInfo, ExecutionResult},
-    domain::{Domain, ExternalDomain},
+    domain::{Domain, ExecutionEnvironment, ExternalDomain},
 };
 
 #[cw_serde]
@@ -17,7 +17,56 @@ pub struct InstantiateMsg {
     // Processor on Main domain
     pub processor: String,
     // External domains
-    pub external_domains: Vec<ExternalDomain>,
+    pub external_domains: Vec<ExternalDomainApi>,
+}
+
+#[cw_serde]
+pub struct ExternalDomainApi {
+    pub name: String,
+    pub execution_environment: ExecutionEnvironment,
+    pub connector: Connector,
+    pub processor: String,
+    pub callback_proxy: CallbackProxy,
+}
+
+impl ExternalDomainApi {
+    pub fn to_external_domain_validated(&self, api: &dyn Api) -> StdResult<ExternalDomain> {
+        Ok(ExternalDomain {
+            name: self.name.clone(),
+            execution_environment: self.execution_environment.clone(),
+            connector: crate::domain::Connector::PolytoneNote(self.connector.to_addr(api)?),
+            processor: self.processor.clone(),
+            callback_proxy: crate::domain::CallbackProxy::PolytoneProxy(
+                self.callback_proxy.to_addr(api)?,
+            ),
+        })
+    }
+}
+
+#[cw_serde]
+pub enum Connector {
+    PolytoneNote(String),
+}
+
+impl Connector {
+    pub fn to_addr(&self, api: &dyn Api) -> StdResult<Addr> {
+        match self {
+            Connector::PolytoneNote(addr) => api.addr_validate(addr),
+        }
+    }
+}
+
+#[cw_serde]
+pub enum CallbackProxy {
+    PolytoneProxy(String),
+}
+
+impl CallbackProxy {
+    pub fn to_addr(&self, api: &dyn Api) -> StdResult<Addr> {
+        match self {
+            CallbackProxy::PolytoneProxy(addr) => api.addr_validate(addr),
+        }
+    }
 }
 
 #[cw_ownable_execute]
@@ -37,7 +86,7 @@ pub enum OwnerMsg {
 #[cw_serde]
 pub enum PermissionedMsg {
     AddExternalDomains {
-        external_domains: Vec<ExternalDomain>,
+        external_domains: Vec<ExternalDomainApi>,
     },
     CreateAuthorizations {
         authorizations: Vec<AuthorizationInfo>,
