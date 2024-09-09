@@ -12,7 +12,7 @@ use valence_processor::msg::PolytoneContracts;
 
 use crate::{
     account::InstantiateAccountData,
-    config::{ConfigError, CONFIG},
+    config::{Config, ConfigError, CONFIG},
     service::ServiceConfig,
 };
 
@@ -105,5 +105,13 @@ pub trait Connector: fmt::Debug {
         salt: Vec<u8>,
         admin: String,
         polytone_addr: Option<PolytoneContracts>,
+    ) -> ConnectorResult<()>;
+    async fn add_external_domain(
+        &mut self,
+        cfg: &Config,
+        main_domain: &str,
+        domain: &str,
+        processor_addr: String,
+        processor_bridge_account_addr: String,
     ) -> ConnectorResult<()>;
 }

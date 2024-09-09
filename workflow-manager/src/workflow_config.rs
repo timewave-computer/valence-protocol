@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use services_utils::Id;
-use valence_authorization_utils::authorization::AuthorizationInfo;
+use valence_authorization_utils::{authorization::AuthorizationInfo, domain::ExternalDomain};
 
 use crate::{
     account::{AccountInfo, AccountType, InstantiateAccountData},
@@ -38,13 +38,10 @@ pub struct WorkflowConfig {
 
 impl WorkflowConfig {
     /// Instantiate a workflow on all domains.
-    pub async fn init(&mut self, _cfg: &Config) -> ManagerResult<()> {
+    pub async fn init(&mut self, cfg: &Config) -> ManagerResult<()> {
         let connectors = Connectors::default();
 
         // TODO: Get workflow next id from on chain workflow registry
-
-        // TODO: each domain if not main domain, must have a bridge connection open from main to it,
-        //       so we need to create the bridge accounts and get those addresses
 
         // TODO: We probably want to verify the whole workflow config first, before doing any operations
 
@@ -118,9 +115,8 @@ impl WorkflowConfig {
                 // TODO: Instantiate the bridge account on the main domain for this processor
 
                 // TODO: construct and add the `ExternalDomain` info to the authorization contract
+                main_connector.add_external_domain(cfg, MAIN_CHAIN, domain.get_chain_name()).await?;
             };
-
-            if domain != &MAIN_DOMAIN {}
         }
 
         // Predict account addresses and get the instantiate datas for each account

@@ -12,6 +12,7 @@ use cosmos_grpc_client::{
     cosmrs::bip32::secp256k1::sha2::{digest::Update, Digest, Sha256},
     Decimal, GrpcClient, ProstMsgNameToAny, Wallet,
 };
+use cosmwasm_std::Addr;
 use serde_json::to_vec;
 use thiserror::Error;
 use valence_authorization_utils::domain::ExternalDomain;
@@ -20,7 +21,7 @@ use valence_processor::msg::PolytoneContracts;
 use crate::{
     account::{AccountType, InstantiateAccountData},
     bridges::PolytoneSingleChainInfo,
-    config::{ChainInfo, ConfigError, CONFIG},
+    config::{ChainInfo, Config, ConfigError, CONFIG},
     service::{ServiceConfig, ServiceError},
     MAIN_CHAIN,
 };
@@ -387,6 +388,39 @@ impl Connector for CosmosCosmwasmConnector {
             .await
             .map(|_| ())
             .map_err(|e| CosmosCosmwasmError::Error(e).into())
+    }
+
+    async fn add_external_domain(
+        &mut self,
+        cfg: &Config,
+        main_domain: &str,
+        domain: &str,
+        processor_addr: String,
+        processor_bridge_account_addr: String,
+    ) -> ConnectorResult<()> {
+        if !self.is_main_chain {
+            return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                "Adding external domain is only possible on main domain in authorization contract"
+            ))
+            .into());
+        }
+
+        let bridge = self.get_bridge_info(main_domain, main_domain, domain)?;
+
+        let external_domain = ExternalDomain {
+            name: domain.to_string(),
+            execution_environment:
+                valence_authorization_utils::domain::ExecutionEnvironment::CosmWasm,
+            connector: valence_authorization_utils::domain::Connector::PolytoneNote(
+                Addr::unchecked(bridge.note_addr),
+            ),
+            processor: processor_addr,
+            callback_proxy: valence_authorization_utils::domain::CallbackProxy::PolytoneProxy(
+                Addr::unchecked(processor_bridge_account_addr),
+            ),
+        };
+
+        Ok(())
     }
 }
 
