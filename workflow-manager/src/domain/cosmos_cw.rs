@@ -2,8 +2,7 @@ use std::{
     collections::HashMap,
     fmt,
     str::FromStr,
-    thread,
-    time::{self, SystemTime, UNIX_EPOCH},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{anyhow, Context};
@@ -484,8 +483,8 @@ impl Connector for CosmosCosmwasmConnector {
     // But this function will just check if the bridge account was created, and if not, it will try to create it with a retry logic.
     async fn instantiate_processor_bridge_account(
         &mut self,
-        processor_addr: String,
-        mut retry: u8,
+        _processor_addr: String,
+        mut _retry: u8,
     ) -> ConnectorResult<()> {
         // TODO: First check if the queue is empty or not
         // if its not, we tick the processor.
