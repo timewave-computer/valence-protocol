@@ -66,7 +66,10 @@ impl NeutronTestAppBuilder {
         let external_domain = ExternalDomainApi {
             name: self.external_domain,
             execution_environment: ExecutionEnvironment::CosmWasm,
-            connector: Connector::PolytoneNote(connector_addr.to_string()),
+            connector: Connector::PolytoneNote {
+                address: connector_addr.to_string(),
+                timeout_seconds: 100,
+            },
             processor: "processor".to_string(),
             callback_proxy: CallbackProxy::PolytoneProxy(callback_proxy_addr.to_string()),
         };

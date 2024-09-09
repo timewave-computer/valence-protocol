@@ -3,7 +3,7 @@ use valence_authorization_utils::{
     action::RetryTimes,
     authorization::ActionsConfig,
     callback::ExecutionResult,
-    msg::{ExecuteMsg, PermissionlessMsg},
+    msg::{ExecuteMsg, InternalAuthorizationMsg},
 };
 use valence_processor_utils::processor::{Config, MessageBatch, ProcessorDomain};
 
@@ -21,8 +21,8 @@ pub fn create_callback_message(
     let wasm_msg = match &config.processor_domain {
         ProcessorDomain::Main => WasmMsg::Execute {
             contract_addr: config.authorization_contract.to_string(),
-            msg: to_json_binary(&ExecuteMsg::PermissionlessAction(
-                PermissionlessMsg::Callback {
+            msg: to_json_binary(&ExecuteMsg::InternalAuthorizationAction(
+                InternalAuthorizationMsg::ProcessorCallback {
                     execution_id,
                     execution_result,
                 },

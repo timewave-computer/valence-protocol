@@ -2,33 +2,36 @@
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Order, Response,
-    StdResult, Storage, Uint128,
+    from_json, to_json_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Order,
+    Response, StdResult, Storage, Uint128,
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner, is_owner};
 use cw_storage_plus::Bound;
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::NeutronMsg;
+use polytone::callbacks::CallbackMessage;
+use serde_json::Value;
 use valence_authorization_utils::{
     authorization::{
         Authorization, AuthorizationInfo, AuthorizationMode, AuthorizationState, PermissionType,
         Priority,
     },
-    callback::{CallbackInfo, ExecutionResult},
-    domain::{Domain, ExternalDomain},
+    callback::{ExecutionResult, ProcessorCallbackInfo},
+    domain::{Domain, ExternalDomain, PolytoneProxyState},
     msg::{
-        ExecuteMsg, ExternalDomainApi, InstantiateMsg, Mint, OwnerMsg, PermissionedMsg,
-        PermissionlessMsg, ProcessorMessage, QueryMsg,
+        ExecuteMsg, ExternalDomainApi, InstantiateMsg, InternalAuthorizationMsg, Mint, OwnerMsg,
+        PermissionedMsg, PermissionlessMsg, ProcessorMessage, QueryMsg,
     },
+    polytone::CallbackRequest,
 };
 use valence_processor_utils::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExecuteMsg};
 
 use crate::{
     authorization::Validate,
-    domain::{add_domain, create_wasm_msg_for_processor_or_proxy, get_domain},
-    error::{AuthorizationErrorReason, ContractError, UnauthorizedReason},
+    domain::{add_domain, create_wasm_msg_for_main_processor_or_bridge, get_domain},
+    error::{AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason},
     state::{
-        AUTHORIZATIONS, CALLBACKS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS,
+        AUTHORIZATIONS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS, PROCESSOR_CALLBACKS,
         PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS,
     },
 };
@@ -41,8 +44,8 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    deps: DepsMut,
-    _env: Env,
+    mut deps: DepsMut,
+    env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
@@ -71,7 +74,7 @@ pub fn instantiate(
 
     // Save all external domains
     for domain in msg.external_domains {
-        add_domain(deps.storage, domain.to_external_domain_validated(deps.api)?)?;
+        add_domain(deps.branch(), env.contract.address.to_string(), &domain)?;
     }
 
     EXECUTION_ID.save(deps.storage, &0)?;
@@ -99,7 +102,7 @@ pub fn execute(
             assert_owner_or_subowner(deps.storage, info.sender)?;
             match permissioned_msg {
                 PermissionedMsg::AddExternalDomains { external_domains } => {
-                    add_external_domains(deps, external_domains)
+                    add_external_domains(deps, env, external_domains)
                 }
                 PermissionedMsg::CreateAuthorizations { authorizations } => {
                     create_authorizations(deps, env, authorizations)
@@ -135,20 +138,30 @@ pub fn execute(
                     queue_position,
                     priority,
                     messages,
-                } => insert_messages(deps, label, queue_position, priority, messages),
+                } => insert_messages(deps, env, label, queue_position, priority, messages),
                 PermissionedMsg::PauseProcessor { domain } => pause_processor(deps, domain),
                 PermissionedMsg::ResumeProcessor { domain } => resume_processor(deps, domain),
             }
         }
         ExecuteMsg::PermissionlessAction(permissionless_msg) => match permissionless_msg {
-            PermissionlessMsg::SendMsgs { label, messages } => {
-                send_msgs(deps, env, info, label, messages)
-            }
-            PermissionlessMsg::Callback {
-                execution_id,
-                execution_result,
-            } => process_callback(deps, info, execution_id, execution_result),
+            PermissionlessMsg::SendMsgs {
+                label,
+                messages,
+                ttl,
+            } => send_msgs(deps, env, info, label, ttl, messages),
+            PermissionlessMsg::RetryMsgs { execution_id } => retry_msgs(deps, env, execution_id),
         },
+        ExecuteMsg::InternalAuthorizationAction(internal_authorization_msg) => {
+            match internal_authorization_msg {
+                InternalAuthorizationMsg::ProcessorCallback {
+                    execution_id,
+                    execution_result,
+                } => process_processor_callback(deps, info, execution_id, execution_result),
+            }
+        }
+        ExecuteMsg::PolytoneCallback(callback_msg) => {
+            process_polytone_callback(deps, env, info, callback_msg)
+        }
     }
 }
 
@@ -182,11 +195,12 @@ fn remove_sub_owner(
 }
 
 fn add_external_domains(
-    deps: DepsMut,
+    mut deps: DepsMut,
+    env: Env,
     external_domains: Vec<ExternalDomainApi>,
 ) -> Result<Response<NeutronMsg>, ContractError> {
     for domain in external_domains {
-        add_domain(deps.storage, domain.to_external_domain_validated(deps.api)?)?;
+        add_domain(deps.branch(), env.contract.address.to_string(), &domain)?;
     }
 
     Ok(Response::new().add_attribute("action", "add_external_domains"))
@@ -356,8 +370,12 @@ fn pause_processor(deps: DepsMut, domain: Domain) -> Result<Response<NeutronMsg>
     let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
         AuthorizationMsg::Pause {},
     ))?;
-    let wasm_msg =
-        create_wasm_msg_for_processor_or_proxy(deps.storage, execute_msg_binary, &domain)?;
+    let wasm_msg = create_wasm_msg_for_main_processor_or_bridge(
+        deps.storage,
+        execute_msg_binary,
+        &domain,
+        None,
+    )?;
 
     Ok(Response::new()
         .add_message(wasm_msg)
@@ -368,8 +386,12 @@ fn resume_processor(deps: DepsMut, domain: Domain) -> Result<Response<NeutronMsg
     let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
         AuthorizationMsg::Resume {},
     ))?;
-    let wasm_msg =
-        create_wasm_msg_for_processor_or_proxy(deps.storage, execute_msg_binary, &domain)?;
+    let wasm_msg = create_wasm_msg_for_main_processor_or_bridge(
+        deps.storage,
+        execute_msg_binary,
+        &domain,
+        None,
+    )?;
 
     Ok(Response::new()
         .add_message(wasm_msg)
@@ -378,6 +400,7 @@ fn resume_processor(deps: DepsMut, domain: Domain) -> Result<Response<NeutronMsg
 
 fn insert_messages(
     deps: DepsMut,
+    env: Env,
     label: String,
     queue_position: u64,
     priority: Priority,
@@ -412,10 +435,21 @@ fn insert_messages(
             priority,
         },
     ))?;
-    let wasm_msg =
-        create_wasm_msg_for_processor_or_proxy(deps.storage, execute_msg_binary, &domain)?;
 
-    store_in_process_callback(deps.storage, id, domain, label, messages)?;
+    let callback_request = CallbackRequest {
+        receiver: env.contract.address.to_string(),
+        // We will use the ID to know which callback we are getting
+        msg: to_json_binary(&id)?,
+    };
+
+    let wasm_msg = create_wasm_msg_for_main_processor_or_bridge(
+        deps.storage,
+        execute_msg_binary,
+        &domain,
+        Some(callback_request),
+    )?;
+
+    store_inprocess_callback(deps.storage, id, domain, label, None, messages)?;
 
     Ok(Response::new()
         .add_message(wasm_msg)
@@ -435,8 +469,12 @@ fn evict_messages(
             priority,
         },
     ))?;
-    let wasm_msg =
-        create_wasm_msg_for_processor_or_proxy(deps.storage, execute_msg_binary, &domain)?;
+    let wasm_msg = create_wasm_msg_for_main_processor_or_bridge(
+        deps.storage,
+        execute_msg_binary,
+        &domain,
+        None,
+    )?;
 
     Ok(Response::new()
         .add_message(wasm_msg)
@@ -448,6 +486,7 @@ fn send_msgs(
     env: Env,
     info: MessageInfo,
     label: String,
+    ttl: Option<Expiration>,
     messages: Vec<ProcessorMessage>,
 ) -> Result<Response<NeutronMsg>, ContractError> {
     let authorization = AUTHORIZATIONS
@@ -493,11 +532,22 @@ fn send_msgs(
             priority: authorization.priority,
         },
     ))?;
-    // We need to know if this will be sent to the processor on the main domain or to an external domain
-    let wasm_msg =
-        create_wasm_msg_for_processor_or_proxy(deps.storage, execute_msg_binary, &domain)?;
 
-    store_in_process_callback(deps.storage, id, domain, label, messages)?;
+    let callback_request = CallbackRequest {
+        receiver: env.contract.address.to_string(),
+        // We will use the ID to know which callback we are getting
+        msg: to_json_binary(&id)?,
+    };
+
+    // We need to know if this will be sent to the processor on the main domain or to an external domain
+    let wasm_msg = create_wasm_msg_for_main_processor_or_bridge(
+        deps.storage,
+        execute_msg_binary,
+        &domain,
+        Some(callback_request),
+    )?;
+
+    store_inprocess_callback(deps.storage, id, domain, label, ttl, messages)?;
 
     Ok(Response::new()
         .add_message(wasm_msg)
@@ -505,29 +555,213 @@ fn send_msgs(
         .add_attribute("authorization_label", authorization.label))
 }
 
-fn process_callback(
+fn retry_msgs(
+    deps: DepsMut,
+    env: Env,
+    execution_id: u64,
+) -> Result<Response<NeutronMsg>, ContractError> {
+    let callback_info = PROCESSOR_CALLBACKS
+        .load(deps.storage, execution_id)
+        .map_err(|_| ContractError::ExecutionIDNotFound { execution_id })?;
+
+    // Only messages that are in Timeout state can be retried
+    if callback_info.execution_result != ExecutionResult::Timeout {
+        return Err(ContractError::Unauthorized(
+            UnauthorizedReason::NotTimedOut {},
+        ));
+    }
+
+    let retry_msg = match callback_info.ttl {
+        Some(ttl) if !ttl.is_expired(&env.block) => {
+            // They can be retried
+
+            // Check if we already passed the maximum amount of concurrent executions and update it if we didn't
+            let current_executions =
+                CURRENT_EXECUTIONS.load(deps.storage, callback_info.label.clone())?;
+
+            let authorization = AUTHORIZATIONS.load(deps.storage, callback_info.label.clone())?;
+
+            if current_executions >= authorization.max_concurrent_executions {
+                return Err(ContractError::Authorization(
+                    AuthorizationErrorReason::MaxConcurrentExecutionsReached {},
+                ));
+            }
+            CURRENT_EXECUTIONS.save(
+                deps.storage,
+                callback_info.label.clone(),
+                &current_executions.checked_add(1).expect("Overflow"),
+            )?;
+
+            let execute_msg_binary = to_json_binary(
+                &ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::EnqueueMsgs {
+                    id: execution_id,
+                    msgs: callback_info.messages.clone(),
+                    actions_config: authorization.actions_config,
+                    priority: authorization.priority,
+                }),
+            )?;
+
+            // Create the callback again
+            let callback_request = CallbackRequest {
+                receiver: env.contract.address.to_string(),
+                // We will use the ID to know which callback we are getting
+                msg: to_json_binary(&execution_id)?,
+            };
+
+            create_wasm_msg_for_main_processor_or_bridge(
+                deps.storage,
+                execute_msg_binary,
+                &callback_info.domain,
+                Some(callback_request),
+            )?
+        }
+        _ => {
+            return Err(ContractError::Unauthorized(
+                UnauthorizedReason::TtlExpired {},
+            ));
+        }
+    };
+
+    Ok(Response::new()
+        .add_message(retry_msg)
+        .add_attribute("action", "retry_msgs"))
+}
+
+fn process_processor_callback(
     deps: DepsMut,
     info: MessageInfo,
     execution_id: u64,
     execution_result: ExecutionResult,
 ) -> Result<Response<NeutronMsg>, ContractError> {
-    let mut callback = CALLBACKS.load(deps.storage, execution_id)?;
+    let mut callback = PROCESSOR_CALLBACKS.load(deps.storage, execution_id)?;
 
     // Check that the sender is the one that should send the callback
-    if info.sender != callback.address {
+    if info.sender != callback.processor_callback_address {
         return Err(ContractError::Unauthorized(
-            UnauthorizedReason::UnauthorizedCallbackSender {},
+            UnauthorizedReason::UnauthorizedProcessorCallbackSender {},
         ));
     }
 
     // Updated the result
     callback.execution_result = execution_result;
 
-    CALLBACKS.save(deps.storage, execution_id, &callback)?;
+    PROCESSOR_CALLBACKS.save(deps.storage, execution_id, &callback)?;
 
     Ok(Response::new()
-        .add_attribute("action", "process_callback")
+        .add_attribute("action", "process_processor_callback")
         .add_attribute("execution_id", execution_id.to_string()))
+}
+
+fn process_polytone_callback(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    callback_msg: CallbackMessage,
+) -> Result<Response<NeutronMsg>, ContractError> {
+    // We will only process callbacks from message initiated by the authorization contract
+    if callback_msg.initiator != env.contract.address.to_string() {
+        return Err(ContractError::Unauthorized(
+            UnauthorizedReason::InvalidPolytoneCallbackInitiator {},
+        ));
+    }
+
+    // Let's see what we are getting a callback for: creating a proxy or for message execution
+    match from_json(callback_msg.initiator_msg) {
+        Ok(Value::Number(n)) if n.is_u64() => match n.as_u64() {
+            Some(execution_id) => {
+                // Make sure that the right address sent the polytone callback
+                let mut callback_info = PROCESSOR_CALLBACKS.load(deps.storage, execution_id)?;
+                match callback_info.bridge_callback_address {
+                    Some(polytone_address) => {
+                        // Only the correct polytone address for this execution id is allowed to send this callback
+                        if info.sender != polytone_address {
+                            return Err(ContractError::Unauthorized(
+                                UnauthorizedReason::UnauthorizedPolytoneCallbackSender {},
+                            ));
+                        }
+                        match callback_msg.result {
+                            // We should only receive callbacks for Execute messages because that's the only thing we are sending
+                            polytone::ack::Callback::Execute(result) => {
+                                // If the result is a timeout, we will update the state of the connector to timeout so it can be permissionlessly retry if ttl is not expired
+                                if result == Err("timeout".to_string())
+                                    && callback_info.execution_result == ExecutionResult::InProcess
+                                {
+                                    callback_info.execution_result = ExecutionResult::Timeout;
+                                    // Update the current executions for the label
+                                    CURRENT_EXECUTIONS.update(
+                                        deps.storage,
+                                        callback_info.label,
+                                        |current| -> StdResult<_> {
+                                            Ok(current.unwrap_or_default().saturating_sub(1))
+                                        },
+                                    )?;
+                                }
+                            }
+                            // We should never enter here
+                            _ => {
+                                return Err(ContractError::Message(
+                                    MessageErrorReason::InvalidPolytoneCallback {},
+                                ))
+                            }
+                        }
+                    }
+                    None => {
+                        // Someone is trying to send a callback for a message that is not cross-domain
+                        return Err(ContractError::Unauthorized(
+                            UnauthorizedReason::UnauthorizedPolytoneCallbackSender {},
+                        ));
+                    }
+                }
+            }
+            // We should never enter here
+            None => {
+                return Err(ContractError::Message(
+                    MessageErrorReason::InvalidPolytoneCallback {},
+                ))
+            }
+        },
+        // If the callback we are getting is for creating a proxy we will check if the correct Polytone Note contract sent it
+        Ok(Value::String(domain_name)) => {
+            // Get the domain name we are getting the polytone callback for
+            let mut external_domain = EXTERNAL_DOMAINS.load(deps.storage, domain_name.clone())?;
+            // Only Polytone Note is allowed to send this callback
+            if info.sender != external_domain.get_connector_address() {
+                return Err(ContractError::Unauthorized(
+                    UnauthorizedReason::UnauthorizedPolytoneCallbackSender {},
+                ));
+            }
+
+            match callback_msg.result {
+                // We should only receive callbacks for Execute messages because that's the only thing we are sending
+                polytone::ack::Callback::Execute(result) => {
+                    // If the result is a timeout, we will update the state of the connector to timeout otherwise we will update to Created
+                    if result == Err("timeout".to_string())
+                        && external_domain.get_connector_state()
+                            == PolytoneProxyState::PendingResponse
+                    {
+                        external_domain.set_connector_state(PolytoneProxyState::TimedOut)
+                    } else {
+                        external_domain.set_connector_state(PolytoneProxyState::Created)
+                    }
+                }
+                // We should never enter here
+                _ => {
+                    return Err(ContractError::Message(
+                        MessageErrorReason::InvalidPolytoneCallback {},
+                    ))
+                }
+            }
+            EXTERNAL_DOMAINS.save(deps.storage, domain_name, &external_domain)?;
+        }
+        // If we are receiving something unexpected (shouldn't happen unless someone is pretending to be polytone and sending a callback) we will return an error
+        _ => {
+            return Err(ContractError::Message(
+                MessageErrorReason::InvalidPolytoneCallback {},
+            ))
+        }
+    }
+
+    Ok(Response::new().add_attribute("action", "process_polytone_callback"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -542,10 +776,12 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Authorizations { start_after, limit } => {
             to_json_binary(&get_authorizations(deps, start_after, limit))
         }
-        QueryMsg::Callbacks { start_after, limit } => {
-            to_json_binary(&get_callbacks(deps, start_after, limit))
+        QueryMsg::ProcessorCallbacks { start_after, limit } => {
+            to_json_binary(&get_processor_callbacks(deps, start_after, limit))
         }
-        QueryMsg::Callback { execution_id } => to_json_binary(&get_callback(deps, execution_id)?),
+        QueryMsg::ProcessorCallback { execution_id } => {
+            to_json_binary(&get_processor_callback(deps, execution_id)?)
+        }
     }
 }
 
@@ -596,11 +832,15 @@ fn get_authorizations(
         .collect()
 }
 
-fn get_callbacks(deps: Deps, start_after: Option<u64>, limit: Option<u32>) -> Vec<CallbackInfo> {
+fn get_processor_callbacks(
+    deps: Deps,
+    start_after: Option<u64>,
+    limit: Option<u32>,
+) -> Vec<ProcessorCallbackInfo> {
     let limit = limit.unwrap_or(MAX_PAGE_LIMIT).min(MAX_PAGE_LIMIT);
     let start = start_after.map(Bound::exclusive);
 
-    CALLBACKS
+    PROCESSOR_CALLBACKS
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit as usize)
         .filter_map(Result::ok)
@@ -608,8 +848,8 @@ fn get_callbacks(deps: Deps, start_after: Option<u64>, limit: Option<u32>) -> Ve
         .collect()
 }
 
-fn get_callback(deps: Deps, execution_id: u64) -> StdResult<CallbackInfo> {
-    CALLBACKS.load(deps.storage, execution_id)
+fn get_processor_callback(deps: Deps, execution_id: u64) -> StdResult<ProcessorCallbackInfo> {
+    PROCESSOR_CALLBACKS.load(deps.storage, execution_id)
 }
 
 // Helpers
@@ -637,31 +877,38 @@ pub fn get_and_increase_execution_id(storage: &mut dyn Storage) -> StdResult<u64
 }
 
 /// Store the pending callback
-pub fn store_in_process_callback(
+pub fn store_inprocess_callback(
     storage: &mut dyn Storage,
     id: u64,
     domain: Domain,
     label: String,
+    ttl: Option<Expiration>,
     messages: Vec<ProcessorMessage>,
 ) -> StdResult<()> {
-    let address = match &domain {
-        Domain::Main => PROCESSOR_ON_MAIN_DOMAIN.load(storage)?,
+    let (processor_callback_address, bridge_callback_address) = match &domain {
+        Domain::Main => (PROCESSOR_ON_MAIN_DOMAIN.load(storage)?, None),
         Domain::External(domain_name) => {
             let external_domain = EXTERNAL_DOMAINS.load(storage, domain_name.clone())?;
-            external_domain.get_connector_address()
+            // The address that will send the callback for that specific processor and the address that can send a timeout
+            (
+                external_domain.get_callback_proxy_address(),
+                Some(external_domain.get_connector_address()),
+            )
         }
     };
 
-    let callback = CallbackInfo {
+    let callback = ProcessorCallbackInfo {
         execution_id: id,
-        address,
+        bridge_callback_address,
+        processor_callback_address,
         domain,
         label,
         messages,
+        ttl,
         execution_result: ExecutionResult::InProcess,
     };
 
-    CALLBACKS.save(storage, id, &callback)?;
+    PROCESSOR_CALLBACKS.save(storage, id, &callback)?;
 
     Ok(())
 }

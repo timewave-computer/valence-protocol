@@ -7,7 +7,7 @@ use valence_authorization_utils::{
         ActionsConfig, AtomicActionsConfig, AuthorizationMode, PermissionType, Priority,
     },
     authorization_message::{Message, MessageDetails, MessageType},
-    callback::{CallbackInfo, ExecutionResult},
+    callback::{ExecutionResult, ProcessorCallbackInfo},
     domain::Domain,
     msg::{ExecuteMsg, PermissionedMsg, PermissionlessMsg, ProcessorMessage, QueryMsg},
 };
@@ -131,6 +131,7 @@ fn user_enqueing_messages() {
         &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
             label: "permissionless".to_string(),
             messages: vec![message.clone()],
+            ttl: None,
         }),
         &[],
         &setup.accounts[2],
@@ -172,6 +173,7 @@ fn user_enqueing_messages() {
             &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissionless".to_string(),
                 messages: vec![message.clone()],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -220,6 +222,7 @@ fn user_enqueing_messages() {
         &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
             label: "permissioned-without-limit".to_string(),
             messages: vec![message.clone()],
+            ttl: None,
         }),
         &[],
         &setup.accounts[2],
@@ -260,6 +263,7 @@ fn user_enqueing_messages() {
             &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned-without-limit".to_string(),
                 messages: vec![message.clone()],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -333,6 +337,7 @@ fn max_concurrent_execution_limit() {
             &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissionless".to_string(),
                 messages: vec![message.clone()],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -347,6 +352,7 @@ fn max_concurrent_execution_limit() {
             &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissionless".to_string(),
                 messages: vec![message.clone()],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -458,6 +464,7 @@ fn owner_adding_and_removing_messages() {
             &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissionless".to_string(),
                 messages: vec![message.clone()],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -469,6 +476,7 @@ fn owner_adding_and_removing_messages() {
             &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned-without-limit".to_string(),
                 messages: vec![message.clone()],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -643,9 +651,9 @@ fn owner_adding_and_removing_messages() {
 
     // We should have 5 confirmed callbacks all with RemovedByOwner result
     let query_callbacks = wasm
-        .query::<QueryMsg, Vec<CallbackInfo>>(
+        .query::<QueryMsg, Vec<ProcessorCallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::Callbacks {
+            &QueryMsg::ProcessorCallbacks {
                 start_after: None,
                 limit: None,
             },
@@ -821,9 +829,9 @@ fn owner_adding_and_removing_messages() {
 
     // Let's check the confirmed callbacks again
     let query_callbacks = wasm
-        .query::<QueryMsg, Vec<CallbackInfo>>(
+        .query::<QueryMsg, Vec<ProcessorCallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::Callbacks {
+            &QueryMsg::ProcessorCallbacks {
                 start_after: None,
                 limit: None,
             },
@@ -920,6 +928,7 @@ fn invalid_msg_rejected() {
         &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
             label: "permissionless".to_string(),
             messages: vec![message.clone()],
+            ttl: None,
         }),
         &[],
         &setup.accounts[2],
@@ -965,9 +974,9 @@ fn invalid_msg_rejected() {
 
     // And the callback was sent to the authorization contract
     let query_callbacks = wasm
-        .query::<QueryMsg, Vec<CallbackInfo>>(
+        .query::<QueryMsg, Vec<ProcessorCallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::Callbacks {
+            &QueryMsg::ProcessorCallbacks {
                 start_after: None,
                 limit: None,
             },
@@ -1072,6 +1081,7 @@ fn queue_shifting_when_not_retriable() {
         &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
             label: "permissionless-atomic".to_string(),
             messages: vec![message.clone()],
+            ttl: None,
         }),
         &[],
         &setup.accounts[2],
@@ -1083,6 +1093,7 @@ fn queue_shifting_when_not_retriable() {
         &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
             label: "permissionless-non-atomic".to_string(),
             messages: vec![message.clone()],
+            ttl: None,
         }),
         &[],
         &setup.accounts[2],
@@ -1121,9 +1132,9 @@ fn queue_shifting_when_not_retriable() {
 
     // Check there are no confirmed callbacks
     let query_callbacks = wasm
-        .query::<QueryMsg, Vec<CallbackInfo>>(
+        .query::<QueryMsg, Vec<ProcessorCallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::Callbacks {
+            &QueryMsg::ProcessorCallbacks {
                 start_after: None,
                 limit: None,
             },
@@ -1314,6 +1325,7 @@ fn higher_priority_queue_is_processed_first() {
             &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissionless".to_string(),
                 messages: vec![message.clone()],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -1325,6 +1337,7 @@ fn higher_priority_queue_is_processed_first() {
             &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned-without-limit".to_string(),
                 messages: vec![message.clone()],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -1357,9 +1370,9 @@ fn higher_priority_queue_is_processed_first() {
 
     // Let's confirm the callback in the authorization contract as successful
     let query_callbacks = wasm
-        .query::<QueryMsg, Vec<CallbackInfo>>(
+        .query::<QueryMsg, Vec<ProcessorCallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::Callbacks {
+            &QueryMsg::ProcessorCallbacks {
                 start_after: None,
                 limit: None,
             },
@@ -1395,9 +1408,9 @@ fn higher_priority_queue_is_processed_first() {
 
     // We should have two callbacks now
     let query_callbacks = wasm
-        .query::<QueryMsg, Vec<CallbackInfo>>(
+        .query::<QueryMsg, Vec<ProcessorCallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::Callbacks {
+            &QueryMsg::ProcessorCallbacks {
                 start_after: None,
                 limit: None,
             },
@@ -1449,9 +1462,9 @@ fn higher_priority_queue_is_processed_first() {
 
     // We should have four confirmed callbacks now
     let query_callbacks = wasm
-        .query::<QueryMsg, Vec<CallbackInfo>>(
+        .query::<QueryMsg, Vec<ProcessorCallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::Callbacks {
+            &QueryMsg::ProcessorCallbacks {
                 start_after: None,
                 limit: None,
             },
@@ -1555,6 +1568,7 @@ fn retry_multi_action_atomic_batch_until_success() {
         &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
             label: "permissionless".to_string(),
             messages: vec![message1.clone(), message2, message1],
+            ttl: None,
         }),
         &[],
         &setup.accounts[2],
@@ -1636,9 +1650,9 @@ fn retry_multi_action_atomic_batch_until_success() {
 
     // Confirm we got the callback
     let query_callbacks = wasm
-        .query::<QueryMsg, Vec<CallbackInfo>>(
+        .query::<QueryMsg, Vec<ProcessorCallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::Callbacks {
+            &QueryMsg::ProcessorCallbacks {
                 start_after: None,
                 limit: None,
             },
@@ -1740,6 +1754,7 @@ fn retry_multi_action_non_atomic_batch_until_success() {
         &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
             label: "permissionless".to_string(),
             messages: vec![message1.clone(), message2, message1],
+            ttl: None,
         }),
         &[],
         &setup.accounts[2],
@@ -1867,9 +1882,9 @@ fn retry_multi_action_non_atomic_batch_until_success() {
 
     // Confirm we got the callback
     let query_callbacks = wasm
-        .query::<QueryMsg, Vec<CallbackInfo>>(
+        .query::<QueryMsg, Vec<ProcessorCallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::Callbacks {
+            &QueryMsg::ProcessorCallbacks {
                 start_after: None,
                 limit: None,
             },
@@ -1959,6 +1974,7 @@ fn failed_atomic_batch_after_retries() {
         &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
             label: "permissionless".to_string(),
             messages: vec![message1, message2],
+            ttl: None,
         }),
         &[],
         &setup.accounts[2],
@@ -2021,9 +2037,9 @@ fn failed_atomic_batch_after_retries() {
 
     // Confirm we got the callback
     let query_callbacks = wasm
-        .query::<QueryMsg, Vec<CallbackInfo>>(
+        .query::<QueryMsg, Vec<ProcessorCallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::Callbacks {
+            &QueryMsg::ProcessorCallbacks {
                 start_after: None,
                 limit: None,
             },
@@ -2116,6 +2132,7 @@ fn failed_non_atomic_batch_after_retries() {
         &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
             label: "permissionless".to_string(),
             messages: vec![message1, message2],
+            ttl: None,
         }),
         &[],
         &setup.accounts[2],
@@ -2151,9 +2168,9 @@ fn failed_non_atomic_batch_after_retries() {
 
     // Confirm we got the callback
     let query_callbacks = wasm
-        .query::<QueryMsg, Vec<CallbackInfo>>(
+        .query::<QueryMsg, Vec<ProcessorCallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::Callbacks {
+            &QueryMsg::ProcessorCallbacks {
                 start_after: None,
                 limit: None,
             },
@@ -2269,6 +2286,7 @@ fn successful_non_atomic_and_atomic_batches_together() {
         &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
             label: "permissionless-atomic".to_string(),
             messages: vec![message1.clone(), message1.clone()],
+            ttl: None,
         }),
         &[],
         &setup.accounts[2],
@@ -2280,6 +2298,7 @@ fn successful_non_atomic_and_atomic_batches_together() {
         &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
             label: "permissionless-non-atomic".to_string(),
             messages: vec![message1.clone(), message1.clone()],
+            ttl: None,
         }),
         &[],
         &setup.accounts[2],
@@ -2311,9 +2330,9 @@ fn successful_non_atomic_and_atomic_batches_together() {
 
     // Confirm we got callback for the atomic batch
     let query_callbacks = wasm
-        .query::<QueryMsg, Vec<CallbackInfo>>(
+        .query::<QueryMsg, Vec<ProcessorCallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::Callbacks {
+            &QueryMsg::ProcessorCallbacks {
                 start_after: None,
                 limit: None,
             },
@@ -2356,9 +2375,9 @@ fn successful_non_atomic_and_atomic_batches_together() {
 
     // Confirm we got callback for the non-atomic batch
     let query_callbacks = wasm
-        .query::<QueryMsg, Vec<CallbackInfo>>(
+        .query::<QueryMsg, Vec<ProcessorCallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::Callbacks {
+            &QueryMsg::ProcessorCallbacks {
                 start_after: None,
                 limit: None,
             },
@@ -2451,6 +2470,7 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
         &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
             label: "permissionless".to_string(),
             messages: vec![message1.clone(), message1],
+            ttl: None,
         }),
         &[],
         &setup.accounts[2],
@@ -2585,9 +2605,9 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
     assert_eq!(query_med_prio_queue.len(), 0);
 
     let query_callbacks = wasm
-        .query::<QueryMsg, Vec<CallbackInfo>>(
+        .query::<QueryMsg, Vec<ProcessorCallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::Callbacks {
+            &QueryMsg::ProcessorCallbacks {
                 start_after: None,
                 limit: None,
             },
@@ -2676,6 +2696,7 @@ fn migration() {
         &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
             label: "permissionless".to_string(),
             messages: vec![message],
+            ttl: None,
         }),
         &[],
         &setup.accounts[2],
@@ -2706,9 +2727,9 @@ fn migration() {
     assert_eq!(query_med_prio_queue.len(), 0);
 
     let query_callbacks = wasm
-        .query::<QueryMsg, Vec<CallbackInfo>>(
+        .query::<QueryMsg, Vec<ProcessorCallbackInfo>>(
             &authorization_contract,
-            &QueryMsg::Callbacks {
+            &QueryMsg::ProcessorCallbacks {
                 start_after: None,
                 limit: None,
             },

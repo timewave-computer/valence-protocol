@@ -56,6 +56,9 @@ valence-processor-utils     = { path = "packages/processor-utils" }
 services-utils              = { path = "packages/services-utils" }
 service-base                = { package = "valence-service-base", path = "packages/service-base" }
 
+# external packages
+polytone = { git = "https://github.com/DA0-DA0/polytone/", rev = "f70440a" }
+
 # dev-dependencies
 cw-multi-test        = "2.1.1"
 neutron-test-tube    = "4.2.0"

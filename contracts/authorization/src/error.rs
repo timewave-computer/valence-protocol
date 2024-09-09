@@ -32,6 +32,9 @@ pub enum ContractError {
 
     #[error("Invalid JSON passed: {error}")]
     InvalidJson { error: String },
+
+    #[error("Execution ID {execution_id} does not exist")]
+    ExecutionIDNotFound { execution_id: u64 },
 }
 
 #[derive(Error, Debug, PartialEq)]
@@ -79,7 +82,19 @@ pub enum UnauthorizedReason {
     RequiresOneToken {},
 
     #[error("The sender is not the authorized callback address")]
-    UnauthorizedCallbackSender {},
+    UnauthorizedProcessorCallbackSender {},
+
+    #[error("The polytone callback is not for a message initiated by the authorization contract")]
+    InvalidPolytoneCallbackInitiator {},
+
+    #[error("The polytone callback was sent by an unauthorized address")]
+    UnauthorizedPolytoneCallbackSender {},
+
+    #[error("Messages are not retriable because they are not timed out")]
+    NotTimedOut {},
+
+    #[error("These messages are not retriable because their ttl has expired")]
+    TtlExpired {},
 }
 
 #[derive(Error, Debug, PartialEq)]
@@ -98,4 +113,7 @@ pub enum MessageErrorReason {
 
     #[error("The message can only have one top level key")]
     InvalidStructure {},
+
+    #[error("Invalid polytone callback")]
+    InvalidPolytoneCallback {},
 }
