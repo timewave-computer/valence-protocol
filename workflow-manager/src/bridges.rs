@@ -14,7 +14,7 @@ pub enum Bridges {
 /// This type represents the bridge info between 2 chains.
 /// should always and only hold 2 elements, where the key is the chain name and the value is the bridge info
 /// between those 2 chains.
-pub type PolytoneBridgeInfo = HashMap<std::string::String, PolytoneSingleChainInfo>;
+pub type PolytoneBridgeInfo = HashMap<String, PolytoneSingleChainInfo>;
 
 /// This struct represent the data that we need for polytone in a single chain
 #[derive(Debug, Clone, Serialize, Deserialize)]

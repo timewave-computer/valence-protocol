@@ -39,13 +39,27 @@ impl Default for Config {
             .add_source(
                 glob::glob("conf/*")
                     .unwrap()
-                    .map(|path| File::from(path.unwrap()))
+                    .filter_map(|path| {
+                        let p = path.unwrap();
+                        if p.is_dir() {
+                            None
+                        } else {
+                            Some(File::from(p))
+                        }
+                    })
                     .collect::<Vec<_>>(),
             )
             .add_source(
                 glob::glob("conf/**/*")
                     .unwrap()
-                    .map(|path| File::from(path.unwrap()))
+                    .filter_map(|path| {
+                        let p = path.unwrap();
+                        if p.is_dir() {
+                            None
+                        } else {
+                            Some(File::from(p))
+                        }
+                    })
                     .collect::<Vec<_>>(),
             )
             .build()

@@ -16,9 +16,6 @@ mod test {
         workflow_config::{Link, WorkflowConfig},
     };
 
-    #[global_allocator]
-    static ALLOC: dhat::Alloc = dhat::Alloc;
-
     /// test to make sure on config is parsed correctlly.
     /// MUST fix this test before handling other tests, config is part of the context we use, if we can't generate it successfully
     /// probably means other tests are also failing because of it.
