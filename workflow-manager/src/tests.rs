@@ -107,6 +107,7 @@ mod test {
         config.accounts.insert(
             1,
             AccountInfo {
+                name: "test_1".to_string(),
                 ty: AccountType::Base { admin: None },
                 domain: Domain::CosmosCosmwasm("neutron"),
             },
@@ -114,6 +115,7 @@ mod test {
         config.accounts.insert(
             2,
             AccountInfo {
+                name: "test_2".to_string(),
                 ty: AccountType::Base { admin: None },
                 domain: Domain::CosmosCosmwasm("neutron"),
             },
@@ -121,13 +123,7 @@ mod test {
         config.accounts.insert(
             3,
             AccountInfo {
-                ty: AccountType::Base { admin: None },
-                domain: Domain::CosmosCosmwasm("neutron"),
-            },
-        );
-        config.accounts.insert(
-            4,
-            AccountInfo {
+                name: "test_3".to_string(),
                 ty: AccountType::Base { admin: None },
                 domain: Domain::CosmosCosmwasm("neutron"),
             },
@@ -141,6 +137,7 @@ mod test {
         config.services.insert(
             1,
             ServiceInfo {
+                name: "test_services".to_string(),
                 domain: Domain::CosmosCosmwasm("neutron"),
                 config: ServiceConfig::Splitter(SplitterServiceConfig {
                     input_addr: ServiceAccountType::AccountId(1),

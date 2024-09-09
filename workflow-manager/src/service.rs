@@ -22,6 +22,7 @@ pub enum ServiceError {
 
 #[derive(Debug, Clone)]
 pub struct ServiceInfo {
+    pub name: String,
     pub domain: Domain,
     pub config: ServiceConfig,
 }
