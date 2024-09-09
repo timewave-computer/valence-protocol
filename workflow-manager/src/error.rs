@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::{domain::ConnectorError, service::ServiceError};
+use crate::{config::ConfigError, domain::ConnectorError, service::ServiceError};
 
 pub type ManagerResult<T> = Result<T, ManagerError>;
 
@@ -11,6 +11,9 @@ pub enum ManagerError {
 
     #[error("Connector Error")]
     ConnectorError(#[from] ConnectorError),
+
+    #[error("Config Error")]
+    ConfigError(#[from] ConfigError),
 
     #[error(transparent)]
     ServiceError(#[from] ServiceError),

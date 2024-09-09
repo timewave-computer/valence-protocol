@@ -2,6 +2,8 @@ use std::fmt;
 
 use async_trait::async_trait;
 use thiserror::Error;
+use valence_authorization_utils::domain::ExternalDomain;
+use valence_processor::msg::PolytoneContracts;
 
 use crate::{account::InstantiateAccountData, service::ServiceConfig};
 
@@ -51,5 +53,25 @@ impl Connector for CosmosEvmConnector {
         _salt: Vec<u8>,
     ) -> ConnectorResult<()> {
         unimplemented!("instantiate_service")
+    }
+
+    async fn instantiate_authorization(
+        &mut self,
+        _workflow_id: u64,
+        _salt: Vec<u8>,
+        _processor_addr: String,
+        _external_domains: Vec<ExternalDomain>,
+    ) -> ConnectorResult<()> {
+        unimplemented!("instantiate_authorization for cosmos_evm")
+    }
+
+    async fn instantiate_processor(
+        &mut self,
+        _workflow_id: u64,
+        _salt: Vec<u8>,
+        _admin: String,
+        _polytone_addr: Option<PolytoneContracts>,
+    ) -> ConnectorResult<()> {
+        unimplemented!("instantiate_processor")
     }
 }

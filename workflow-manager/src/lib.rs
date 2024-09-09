@@ -1,22 +1,26 @@
 pub mod account;
+pub mod bridges;
 pub mod config;
-pub mod context;
+pub mod connectors;
 pub mod domain;
 pub mod error;
 pub mod service;
 pub mod tests;
 pub mod workflow_config;
 
-use context::Context;
+use config::Config;
 use domain::Domain;
 use workflow_config::WorkflowConfig;
 
-const MAIN_DOMAIN: Domain = Domain::CosmosCosmwasm("neutron");
+// Main chain name
+const MAIN_CHAIN: &str = "neutron";
+// Main domain
+const MAIN_DOMAIN: Domain = Domain::CosmosCosmwasm(MAIN_CHAIN);
 
 pub async fn init_workflow(mut workflow_config: WorkflowConfig) {
-    let mut ctx = Context::default();
+    let config = Config::default();
 
-    workflow_config.init(&mut ctx).await.unwrap();
+    workflow_config.init(&config).await.unwrap();
 
     println!("{:#?}", workflow_config);
     // println!("{:#?}", ctx.get_domain_infos_len().await);

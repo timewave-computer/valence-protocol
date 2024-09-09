@@ -9,7 +9,7 @@ mod test {
 
     use crate::{
         account::{AccountInfo, AccountType},
-        context::Context,
+        config::Config,
         domain::Domain,
         init_workflow,
         service::{ServiceConfig, ServiceInfo},
@@ -19,14 +19,24 @@ mod test {
     #[global_allocator]
     static ALLOC: dhat::Alloc = dhat::Alloc;
 
+    /// test to make sure on config is parsed correctlly.
+    /// MUST fix this test before handling other tests, config is part of the context we use, if we can't generate it successfully
+    /// probably means other tests are also failing because of it.
+    #[tokio::test]
+    async fn test_config() {
+        let config = Config::default();
+        println!("{:#?}", config.bridges);
+    }
+
     #[ignore = "internal test"]
     #[tokio::test]
     async fn test_domains() {
         // let _profiler = dhat::Profiler::builder().testing().build();
-        let ctx = Context::default();
+        let _config = Config::default();
+        // let ctx = Connectors::new(&config);
 
         let domain = Domain::CosmosCosmwasm("neutron");
-        let _connector = domain.generate_connector(&ctx.config).await.unwrap();
+        let _connector = domain.generate_connector().await.unwrap();
         // // let domain2 = Domain::Cosmos("neutron".to_string());
         // let mut domain_info = DomainInfo::from_domain(&domain).await;
         // println!("{domain_info:?}");
@@ -115,10 +125,18 @@ mod test {
                 domain: Domain::CosmosCosmwasm("neutron"),
             },
         );
+        config.accounts.insert(
+            4,
+            AccountInfo {
+                ty: AccountType::Base { admin: None },
+                domain: Domain::CosmosCosmwasm("neutron"),
+            },
+        );
 
         let mut splits: BTreeSet<(ServiceAccountType, Uint128)> = BTreeSet::new();
         splits.insert((ServiceAccountType::AccountId(2), 100_u128.into()));
         splits.insert((ServiceAccountType::AccountId(3), 200_u128.into()));
+        splits.insert((ServiceAccountType::AccountId(4), 200_u128.into()));
 
         config.services.insert(
             1,

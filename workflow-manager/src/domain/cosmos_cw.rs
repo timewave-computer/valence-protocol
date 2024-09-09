@@ -5,7 +5,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 use cosmos_grpc_client::{
     cosmos_sdk_proto::cosmwasm::wasm::v1::{MsgInstantiateContract2, QueryCodeRequest},
@@ -14,11 +14,15 @@ use cosmos_grpc_client::{
 };
 use serde_json::to_vec;
 use thiserror::Error;
+use valence_authorization_utils::domain::ExternalDomain;
+use valence_processor::msg::PolytoneContracts;
 
 use crate::{
     account::{AccountType, InstantiateAccountData},
-    config::ChainInfo,
+    bridges::PolytoneSingleChainInfo,
+    config::{ChainInfo, ConfigError, CONFIG},
     service::{ServiceConfig, ServiceError},
+    MAIN_CHAIN,
 };
 
 use super::{Connector, ConnectorResult};
@@ -55,10 +59,14 @@ pub enum CosmosCosmwasmError {
     SerdeJsonError(#[from] serde_json::Error),
 
     #[error(transparent)]
+    ConfigError(#[from] ConfigError),
+
+    #[error(transparent)]
     ServiceError(#[from] ServiceError),
 }
 
 pub struct CosmosCosmwasmConnector {
+    is_main_chain: bool,
     wallet: Wallet,
     code_ids: HashMap<String, u64>,
     _chain_name: String,
@@ -102,6 +110,7 @@ impl CosmosCosmwasmConnector {
         ))?;
 
         Ok(CosmosCosmwasmConnector {
+            is_main_chain: chain_info.name == MAIN_CHAIN,
             wallet,
             code_ids: code_ids.clone(),
             _chain_name: chain_info.name.clone(),
@@ -111,7 +120,7 @@ impl CosmosCosmwasmConnector {
 
 #[async_trait]
 impl Connector for CosmosCosmwasmConnector {
-    async fn predict_address(
+    async fn get_address(
         &mut self,
         id: &u64,
         contract_name: &str,
@@ -124,30 +133,10 @@ impl Connector for CosmosCosmwasmConnector {
             .context(format!("Code id not found for: {}", contract_name))
             .map_err(CosmosCosmwasmError::Error)?;
 
-        let req = QueryCodeRequest { code_id };
-        let code_res = self
-            .wallet
-            .client
-            .clients
-            .wasm
-            .code(req)
-            .await
-            .context(format!("Code request failed for: {}", code_id))
-            .map_err(CosmosCosmwasmError::Error)?;
-
-        let checksum = code_res
-            .into_inner()
-            .code_info
-            .context(format!(
-                "Failed to parse the response of code id: {}",
-                code_id
-            ))
-            .map_err(CosmosCosmwasmError::Error)?
-            .data_hash;
+        let checksum = self.get_checksum(code_id).await?;
 
         // TODO: generate a unique salt per workflow and per contract by adding timestamp
-        let start = SystemTime::now();
-        let since_the_epoch = start
+        let since_the_epoch = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")
             .as_millis();
@@ -182,6 +171,53 @@ impl Connector for CosmosCosmwasmConnector {
         Ok((addr, salt.to_vec()))
     }
 
+    async fn get_address_bridge(
+        &mut self,
+        sender_addr: &str,
+        main_chain: &str,
+        sender_chain: &str,
+        receiving_chain: &str,
+    ) -> ConnectorResult<String> {
+        // Get the checksum of the code id
+        let code_id = *self
+            .code_ids
+            .get("polytone_proxy")
+            .context(format!("Code id not found for: {}", "polytone_proxy"))
+            .map_err(CosmosCosmwasmError::Error)?;
+        let receiving_chain_bridge_info =
+            self.get_bridge_info(main_chain, sender_chain, receiving_chain)?;
+
+        let checksum = self.get_checksum(code_id).await?;
+
+        let salt = Sha256::new()
+            .chain(receiving_chain_bridge_info.connection_id)
+            .chain(receiving_chain_bridge_info.other_note_port)
+            .chain(sender_addr)
+            .finalize()
+            .to_vec();
+
+        let addr = self
+            .wallet
+            .client
+            .proto_query::<QueryBuildAddressRequest, QueryBuildAddressResponse>(
+                QueryBuildAddressRequest {
+                    code_hash: hex::encode(checksum.clone()),
+                    creator_address: receiving_chain_bridge_info.voice_addr,
+                    salt: hex::encode(salt.clone()),
+                },
+                "/cosmwasm.wasm.v1.Query/BuildAddress",
+            )
+            .await
+            .context(format!(
+                "Failed to query the instantiate2 address: {:?}",
+                checksum
+            ))
+            .map_err(CosmosCosmwasmError::Error)?
+            .address;
+
+        Ok(addr)
+    }
+
     async fn instantiate_account(&mut self, data: &InstantiateAccountData) -> ConnectorResult<()> {
         let code_id = *self
             .code_ids
@@ -201,6 +237,7 @@ impl Connector for CosmosCosmwasmConnector {
             AccountType::Addr { .. } => return Ok(()),
         };
 
+        // TODO: Add workflow id to the label
         let m = MsgInstantiateContract2 {
             sender: self.wallet.account_address.clone(),
             admin: self.wallet.account_address.clone(),
@@ -242,6 +279,7 @@ impl Connector for CosmosCosmwasmConnector {
             )
             .map_err(CosmosCosmwasmError::ServiceError)?;
 
+        // TODO: Add workflow id to the label
         let m = MsgInstantiateContract2 {
             sender: self.wallet.account_address.clone(),
             admin: self.wallet.account_address.clone(),
@@ -260,5 +298,144 @@ impl Connector for CosmosCosmwasmConnector {
             .await
             .map(|_| ())
             .map_err(|e| CosmosCosmwasmError::Error(e).into())
+    }
+
+    async fn instantiate_authorization(
+        &mut self,
+        workflow_id: u64,
+        salt: Vec<u8>,
+        processor_addr: String,
+        external_domains: Vec<ExternalDomain>,
+    ) -> ConnectorResult<()> {
+        // If we are not on the main chain, we error out, should not happen
+        if !self.is_main_chain {
+            return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                "Authorization contract can only be instantiated on the main chain"
+            ))
+            .into());
+        }
+
+        let code_id = *self
+            .code_ids
+            .get("authorization")
+            .context(format!("Code id not found for: {}", "authorization"))
+            .map_err(CosmosCosmwasmError::Error)?;
+
+        let msg = to_vec(&valence_authorization::msg::InstantiateMsg {
+            owner: self.wallet.account_address.clone(),
+            sub_owners: vec![],
+            processor: processor_addr,
+            external_domains,
+        })
+        .map_err(CosmosCosmwasmError::SerdeJsonError)?;
+
+        let m = MsgInstantiateContract2 {
+            sender: self.wallet.account_address.clone(),
+            admin: self.wallet.account_address.clone(),
+            code_id,
+            label: format!("valence-authorization-{}", workflow_id),
+            msg,
+            funds: vec![],
+            salt: salt.clone(),
+            fix_msg: false,
+        }
+        .build_any();
+
+        self.wallet
+            .simulate_tx(vec![m])
+            // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
+            .await
+            .map(|_| ())
+            .map_err(|e| CosmosCosmwasmError::Error(e).into())
+    }
+
+    async fn instantiate_processor(
+        &mut self,
+        workflow_id: u64,
+        salt: Vec<u8>,
+        admin: String,
+        polytone_addr: Option<PolytoneContracts>,
+    ) -> ConnectorResult<()> {
+        let code_id = *self
+            .code_ids
+            .get("processor")
+            .context(format!("Code id not found for: {}", "processor"))
+            .map_err(CosmosCosmwasmError::Error)?;
+
+        let msg = to_vec(&valence_processor::msg::InstantiateMsg {
+            owner: admin.clone(),
+            authorization_contract: admin.clone(),
+            polytone_contracts: polytone_addr,
+        })
+        .map_err(CosmosCosmwasmError::SerdeJsonError)?;
+
+        let m = MsgInstantiateContract2 {
+            sender: self.wallet.account_address.clone(),
+            admin,
+            code_id,
+            label: format!("valence-processor-{}", workflow_id),
+            msg,
+            funds: vec![],
+            salt: salt.clone(),
+            fix_msg: false,
+        }
+        .build_any();
+
+        self.wallet
+            .simulate_tx(vec![m])
+            // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
+            .await
+            .map(|_| ())
+            .map_err(|e| CosmosCosmwasmError::Error(e).into())
+    }
+}
+
+// Helpers
+impl CosmosCosmwasmConnector {
+    pub fn get_bridge_info(
+        &self,
+        main_chain: &str,
+        sender_chain: &str,
+        receive_chain: &str,
+    ) -> Result<PolytoneSingleChainInfo, CosmosCosmwasmError> {
+        let info = if main_chain == sender_chain {
+            CONFIG
+                .get_bridge_info(sender_chain, receive_chain)?
+                .get_polytone_info()
+        } else if main_chain == receive_chain {
+            CONFIG
+                .get_bridge_info(receive_chain, sender_chain)?
+                .get_polytone_info()
+        } else {
+            return Err(anyhow!(
+                "Failed to get brdige info, none of the provded chains is the main chain"
+            )
+            .into());
+        };
+
+        info.get(receive_chain)
+            .context(format!("Bridge info not found for: {}", receive_chain))
+            .map_err(CosmosCosmwasmError::Error)
+            .cloned()
+    }
+    pub async fn get_checksum(&mut self, code_id: u64) -> Result<Vec<u8>, CosmosCosmwasmError> {
+        let req = QueryCodeRequest { code_id };
+        let code_res = self
+            .wallet
+            .client
+            .clients
+            .wasm
+            .code(req)
+            .await
+            .context(format!("Code request failed for: {}", code_id))?;
+
+        Ok(code_res
+            .into_inner()
+            .code_info
+            .context(format!(
+                "Failed to parse the response of code id: {}",
+                code_id
+            ))?
+            .data_hash)
     }
 }
