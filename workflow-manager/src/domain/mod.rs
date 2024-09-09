@@ -96,6 +96,11 @@ pub trait Connector: fmt::Debug {
         salt: Vec<u8>,
         processor_addr: String,
     ) -> ConnectorResult<()>;
+    async fn change_authorization_owner(
+        &mut self,
+        authorization_addr: String,
+        owner: String,
+    ) -> ConnectorResult<()>;
     async fn instantiate_processor(
         &mut self,
         workflow_id: u64,
@@ -107,7 +112,13 @@ pub trait Connector: fmt::Debug {
         &mut self,
         main_domain: &str,
         domain: &str,
+        authorrization_addr: String,
         processor_addr: String,
         processor_bridge_account_addr: String,
+    ) -> ConnectorResult<()>;
+    async fn instantiate_processor_bridge_account(
+        &mut self,
+        processor_addr: String,
+        retry: u8,
     ) -> ConnectorResult<()>;
 }

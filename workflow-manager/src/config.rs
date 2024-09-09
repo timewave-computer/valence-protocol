@@ -9,7 +9,7 @@ use crate::bridges::Bridges;
 
 pub type ConfigResult<T> = Result<T, ConfigError>;
 
-pub static CONFIG: Lazy<Config> = Lazy::new(|| Config::default());
+pub static CONFIG: Lazy<Config> = Lazy::new(Config::default);
 
 #[derive(Error, Debug)]
 pub enum ConfigError {

@@ -2,17 +2,21 @@ use std::{
     collections::HashMap,
     fmt,
     str::FromStr,
-    time::{SystemTime, UNIX_EPOCH},
+    thread,
+    time::{self, SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 use cosmos_grpc_client::{
-    cosmos_sdk_proto::cosmwasm::wasm::v1::{MsgInstantiateContract2, QueryCodeRequest},
+    cosmos_sdk_proto::cosmwasm::wasm::v1::{
+        MsgExecuteContract, MsgInstantiateContract2, QueryCodeRequest,
+        QuerySmartContractStateRequest,
+    },
     cosmrs::bip32::secp256k1::sha2::{digest::Update, Digest, Sha256},
     Decimal, GrpcClient, ProstMsgNameToAny, Wallet,
 };
-use cosmwasm_std::Addr;
+use cosmwasm_std::{from_json, Addr};
 use serde_json::to_vec;
 use thiserror::Error;
 
@@ -62,6 +66,9 @@ pub enum CosmosCosmwasmError {
 
     #[error(transparent)]
     ServiceError(#[from] ServiceError),
+
+    #[error(transparent)]
+    CosmwasmStdError(#[from] cosmwasm_std::StdError),
 }
 
 pub struct CosmosCosmwasmConnector {
@@ -347,6 +354,37 @@ impl Connector for CosmosCosmwasmConnector {
             .map_err(|e| CosmosCosmwasmError::Error(e).into())
     }
 
+    async fn change_authorization_owner(
+        &mut self,
+        authorization_addr: String,
+        owner: String,
+    ) -> ConnectorResult<()> {
+        let msg = to_vec(
+            &valence_authorization_utils::msg::ExecuteMsg::UpdateOwnership(
+                cw_ownable::Action::TransferOwnership {
+                    new_owner: owner,
+                    expiry: None,
+                },
+            ),
+        )
+        .map_err(CosmosCosmwasmError::SerdeJsonError)?;
+
+        let m = MsgExecuteContract {
+            sender: self.wallet.account_address.clone(),
+            contract: authorization_addr,
+            msg,
+            funds: vec![],
+        }
+        .build_any();
+
+        self.wallet
+            .simulate_tx(vec![m])
+            // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
+            .await
+            .map(|_| ())
+            .map_err(|e| CosmosCosmwasmError::Error(e).into())
+    }
+
     async fn instantiate_processor(
         &mut self,
         workflow_id: u64,
@@ -390,6 +428,7 @@ impl Connector for CosmosCosmwasmConnector {
         &mut self,
         main_domain: &str,
         domain: &str,
+        authorrization_addr: String,
         processor_addr: String,
         processor_bridge_account_addr: String,
     ) -> ConnectorResult<()> {
@@ -402,7 +441,7 @@ impl Connector for CosmosCosmwasmConnector {
 
         let bridge = self.get_bridge_info(main_domain, main_domain, domain)?;
 
-        let _external_domain = valence_authorization_utils::domain::ExternalDomain {
+        let external_domain = valence_authorization_utils::domain::ExternalDomain {
             name: domain.to_string(),
             execution_environment:
                 valence_authorization_utils::domain::ExecutionEnvironment::CosmWasm,
@@ -415,12 +454,124 @@ impl Connector for CosmosCosmwasmConnector {
             ),
         };
 
-        Ok(())
+        let msg = to_vec(
+            &valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
+                valence_authorization_utils::msg::PermissionedMsg::AddExternalDomains {
+                    external_domains: vec![external_domain],
+                },
+            ),
+        )
+        .map_err(CosmosCosmwasmError::SerdeJsonError)?;
+
+        let m = MsgExecuteContract {
+            sender: self.wallet.account_address.clone(),
+            contract: authorrization_addr,
+            msg,
+            funds: vec![],
+        }
+        .build_any();
+
+        self.wallet
+            .simulate_tx(vec![m])
+            // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
+            .await
+            .map(|_| ())
+            .map_err(|e| CosmosCosmwasmError::Error(e).into())
+    }
+
+    async fn instantiate_processor_bridge_account(
+        &mut self,
+        processor_addr: String,
+        mut retry: u8,
+    ) -> ConnectorResult<()> {
+        // TODO: First check if the queue is empty or not
+        // if its not, we tick the processor.
+        // if it is empty, we retry
+        // if retry is 0, we return an error.
+
+        match self
+            ._instantiate_processor_bridge_account(processor_addr.clone())
+            .await
+        {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                if retry == 0 {
+                    return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                        "Failed to instantiate processor bridge account, max retry reached. Error: {e}",
+                    ))
+                    .into());
+                } else {
+                    retry -= 1;
+                }
+
+                // Wait for 1 minute before retrying
+                thread::sleep(time::Duration::from_secs(60));
+
+                self.instantiate_processor_bridge_account(processor_addr, retry)
+                    .await
+            }
+        }
     }
 }
 
 // Helpers
 impl CosmosCosmwasmConnector {
+    pub async fn _instantiate_processor_bridge_account(
+        &mut self,
+        processor_addr: String,
+    ) -> Result<(), CosmosCosmwasmError> {
+        let query_data = to_vec(&valence_processor_utils::msg::QueryMsg::IsQueueEmpty {})
+            .map_err(CosmosCosmwasmError::SerdeJsonError)?;
+        let is_queue_empty_req = QuerySmartContractStateRequest {
+            address: processor_addr.clone(),
+            query_data,
+        };
+        let is_queue_empty_res = from_json::<bool>(
+            self.wallet
+                .client
+                .clients
+                .wasm
+                .smart_contract_state(is_queue_empty_req)
+                .await
+                .context("Failed to query the processor")
+                .map_err(CosmosCosmwasmError::Error)?
+                .into_inner()
+                .data,
+        )
+        .map_err(CosmosCosmwasmError::CosmwasmStdError)?;
+
+        if !is_queue_empty_res {
+            // queue is not empty, means we can tick the processor
+            let msg = to_vec(
+                &valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+                    valence_processor_utils::msg::PermissionlessMsg::Tick {},
+                ),
+            )
+            .unwrap();
+
+            let m = MsgExecuteContract {
+                sender: self.wallet.account_address.clone(),
+                contract: processor_addr,
+                msg,
+                funds: vec![],
+            }
+            .build_any();
+
+            self.wallet
+                .simulate_tx(vec![m])
+                // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
+                .await
+                .map(|_| ())
+                .map_err(CosmosCosmwasmError::Error)?;
+
+            Ok(())
+        } else {
+            Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                "Queue is empty, can't tick the processor"
+            )))
+        }
+    }
+
     pub fn get_bridge_info(
         &self,
         main_chain: &str,

@@ -110,16 +110,24 @@ impl WorkflowConfig {
                     )
                     .await?;
 
-                // TODO: Instantiate the bridge account on the main domain for this processor
-
-                // TODO: construct and add the `ExternalDomain` info to the authorization contract
+                // construct and add the `ExternalDomain` info to the authorization contract
                 main_connector
                     .add_external_domain(
                         MAIN_CHAIN,
                         domain.get_chain_name(),
-                        processor_addr,
+                        authorization_addr.clone(),
+                        processor_addr.clone(),
                         processor_bridge_account_addr,
                     )
+                    .await?;
+
+                // Adding external domain to the authorization contract will create the bridge account on that domain
+                // But we still need to create the processor bridge account on main domain.
+                // for CW polytone, the authorization will send a dummy request to the processor to return a callback
+                // which will create the polytone account on the main domain for that processor.
+                // But we still need to tick the processor to start this tx.
+                connector
+                    .instantiate_processor_bridge_account(processor_addr, 5)
                     .await?;
             };
         }
@@ -208,7 +216,10 @@ impl WorkflowConfig {
                 .await?;
         }
 
-        // TODO: Change the admin of the authorization contract to the owner of the workflow
+        // Change the admin of the authorization contract to the owner of the workflow
+        main_connector
+            .change_authorization_owner(authorization_addr, self.owner.clone())
+            .await?;
 
         Ok(())
     }
