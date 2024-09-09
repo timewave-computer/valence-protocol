@@ -5,9 +5,7 @@ use cw2::set_contract_version;
 
 use crate::error::ContractError;
 use crate::state::WORKFLOWS;
-use valence_workflow_registry_utils::{
-    ExecuteMsg, InstantiateMsg, QueryMsg, WorkflowResponse,
-};
+use valence_workflow_registry_utils::{ExecuteMsg, InstantiateMsg, QueryMsg, WorkflowResponse};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:base_account";
