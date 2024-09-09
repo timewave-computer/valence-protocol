@@ -479,6 +479,9 @@ impl Connector for CosmosCosmwasmConnector {
             .map_err(|e| CosmosCosmwasmError::Error(e).into())
     }
 
+    // TODO: IGNORE for now.
+    // Change this method with the new design where the beidge account is created on instantiation of the processor.
+    // But this function will just check if the bridge account was created, and if not, it will try to create it with a retry logic.
     async fn instantiate_processor_bridge_account(
         &mut self,
         processor_addr: String,
@@ -489,28 +492,29 @@ impl Connector for CosmosCosmwasmConnector {
         // if it is empty, we retry
         // if retry is 0, we return an error.
 
-        match self
-            ._instantiate_processor_bridge_account(processor_addr.clone())
-            .await
-        {
-            Ok(_) => Ok(()),
-            Err(e) => {
-                if retry == 0 {
-                    return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
-                        "Failed to instantiate processor bridge account, max retry reached. Error: {e}",
-                    ))
-                    .into());
-                } else {
-                    retry -= 1;
-                }
+        // match self
+        //     ._instantiate_processor_bridge_account(processor_addr.clone())
+        //     .await
+        // {
+        //     Ok(_) => Ok(()),
+        //     Err(e) => {
+        //         if retry == 0 {
+        //             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+        //                 "Failed to instantiate processor bridge account, max retry reached. Error: {e}",
+        //             ))
+        //             .into());
+        //         } else {
+        //             retry -= 1;
+        //         }
 
-                // Wait for 1 minute before retrying
-                thread::sleep(time::Duration::from_secs(60));
+        //         // Wait for 1 minute before retrying
+        //         thread::sleep(time::Duration::from_secs(60));
 
-                self.instantiate_processor_bridge_account(processor_addr, retry)
-                    .await
-            }
-        }
+        //         self.instantiate_processor_bridge_account(processor_addr, retry)
+        //             .await
+        //     }
+        // }
+        unimplemented!()
     }
 }
 

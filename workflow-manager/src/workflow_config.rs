@@ -123,9 +123,8 @@ impl WorkflowConfig {
 
                 // Adding external domain to the authorization contract will create the bridge account on that domain
                 // But we still need to create the processor bridge account on main domain.
-                // for CW polytone, the authorization will send a dummy request to the processor to return a callback
-                // which will create the polytone account on the main domain for that processor.
-                // But we still need to tick the processor to start this tx.
+                // The processor will create the bridge account on instantiation, but we still need to verify the account was created
+                // and if it wasn't, we want to retry couple of times before erroring out.
                 connector
                     .instantiate_processor_bridge_account(processor_addr, 5)
                     .await?;
