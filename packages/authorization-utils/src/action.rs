@@ -1,26 +1,71 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Binary;
+use cosmwasm_std::{Addr, Binary};
+use cw_utils::Duration;
 
-use crate::{domain::Domain, message::MessageDetails};
+use crate::{authorization_message::MessageDetails, domain::Domain};
 
 #[cw_serde]
-pub struct Action {
+pub struct AtomicAction {
     // Note: for V1, all actions will be executed in the same domain
     pub domain: Domain,
     pub message_details: MessageDetails,
     // We use String instead of Addr because it can be a contract address in other execution environments
     pub contract_address: String,
-    // If no retry logic is provided, we will assume that the action can't be retried
+}
+
+#[cw_serde]
+pub struct NonAtomicAction {
+    // Note: for V1, all actions will be executed in the same domain
+    pub domain: Domain,
+    pub message_details: MessageDetails,
+    // We use String instead of Addr because it can be a contract address in other execution environments
+    pub contract_address: String,
+    // A non atomic action might need to be retried, in that case we will include the retry logic.
     pub retry_logic: Option<RetryLogic>,
-    // Only applicable for NonAtomic execution type batches. An action might need to receive a callback to be confirmed, in that case we will include the callback confirmation.
+    // An action might need to receive a callback to be confirmed, in that case we will include the callback confirmation.
     // If not provided, we assume that correct execution of the message implies confirmation.
     pub callback_confirmation: Option<ActionCallback>,
+}
+
+pub trait Action {
+    fn domain(&self) -> &Domain;
+    fn message_details(&self) -> &MessageDetails;
+    fn get_contract_address(&self) -> &str;
+}
+
+// Implement this trait for both AtomicAction and NonAtomicAction
+impl Action for AtomicAction {
+    fn domain(&self) -> &Domain {
+        &self.domain
+    }
+
+    fn message_details(&self) -> &MessageDetails {
+        &self.message_details
+    }
+
+    fn get_contract_address(&self) -> &str {
+        &self.contract_address
+    }
+}
+
+impl Action for NonAtomicAction {
+    fn domain(&self) -> &Domain {
+        &self.domain
+    }
+
+    fn message_details(&self) -> &MessageDetails {
+        &self.message_details
+    }
+
+    fn get_contract_address(&self) -> &str {
+        &self.contract_address
+    }
 }
 
 #[cw_serde]
 pub struct RetryLogic {
     pub times: RetryTimes,
-    pub interval: RetryInterval,
+    pub interval: Duration,
 }
 
 #[cw_serde]
@@ -30,15 +75,9 @@ pub enum RetryTimes {
 }
 
 #[cw_serde]
-pub enum RetryInterval {
-    Seconds(u64),
-    Blocks(u64),
-}
-
-#[cw_serde]
 pub struct ActionCallback {
     // Address of contract we should receive the Callback from
-    pub contract_address: String,
+    pub contract_address: Addr,
     // What we should receive from the callback to consider the action completed
     pub callback_message: Binary,
 }

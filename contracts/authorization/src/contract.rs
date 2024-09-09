@@ -13,19 +13,21 @@ use valence_authorization_utils::{
         Authorization, AuthorizationInfo, AuthorizationMode, AuthorizationState, PermissionType,
         Priority,
     },
+    callback::{CallbackInfo, ExecutionResult},
     domain::{Domain, ExternalDomain},
+    msg::{
+        ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, PermissionedMsg, PermissionlessMsg,
+        ProcessorMessage, QueryMsg,
+    },
 };
-use valence_processor::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExecuteMsg};
+use valence_processor_utils::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExecuteMsg};
 
 use crate::{
     authorization::Validate,
     domain::{add_domain, create_wasm_msg_for_processor_or_proxy, get_domain},
     error::{AuthorizationErrorReason, ContractError, UnauthorizedReason},
-    msg::{
-        ExecuteMsg, InstantiateMsg, Mint, OwnerMsg, PermissionedMsg, PermissionlessMsg, QueryMsg,
-    },
     state::{
-        AUTHORIZATIONS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS,
+        AUTHORIZATIONS, CALLBACKS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS,
         PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS,
     },
 };
@@ -92,9 +94,9 @@ pub fn execute(
                 OwnerMsg::RemoveSubOwner { sub_owner } => remove_sub_owner(deps, sub_owner),
             }
         }
-        ExecuteMsg::PermissionedAction(sub_owner_msg) => {
+        ExecuteMsg::PermissionedAction(permissioned_msg) => {
             assert_owner_or_subowner(deps.storage, info.sender)?;
-            match sub_owner_msg {
+            match permissioned_msg {
                 PermissionedMsg::AddExternalDomains { external_domains } => {
                     add_external_domains(deps, external_domains)
                 }
@@ -122,25 +124,29 @@ pub fn execute(
                 PermissionedMsg::MintAuthorizations { label, mints } => {
                     mint_authorizations(deps, env, label, mints)
                 }
-                PermissionedMsg::RemoveMsgs {
+                PermissionedMsg::EvictMsgs {
                     domain,
                     queue_position,
                     priority,
-                } => remove_messages(deps, domain, queue_position, priority),
-                PermissionedMsg::AddMsgs {
+                } => evict_messages(deps, domain, queue_position, priority),
+                PermissionedMsg::InsertMsgs {
                     label,
                     queue_position,
                     priority,
                     messages,
-                } => add_messages(deps, label, queue_position, priority, messages),
+                } => insert_messages(deps, label, queue_position, priority, messages),
                 PermissionedMsg::PauseProcessor { domain } => pause_processor(deps, domain),
                 PermissionedMsg::ResumeProcessor { domain } => resume_processor(deps, domain),
             }
         }
-        ExecuteMsg::UserAction(user_msg) => match user_msg {
+        ExecuteMsg::PermissionlessAction(permissionless_msg) => match permissionless_msg {
             PermissionlessMsg::SendMsgs { label, messages } => {
                 send_msgs(deps, env, info, label, messages)
             }
+            PermissionlessMsg::Callback {
+                execution_id,
+                execution_result,
+            } => process_callback(deps, info, execution_id, execution_result),
         },
     }
 }
@@ -369,12 +375,12 @@ fn resume_processor(deps: DepsMut, domain: Domain) -> Result<Response<NeutronMsg
         .add_attribute("action", "resume_processor"))
 }
 
-fn add_messages(
+fn insert_messages(
     deps: DepsMut,
     label: String,
     queue_position: u64,
     priority: Priority,
-    messages: Vec<Binary>,
+    messages: Vec<ProcessorMessage>,
 ) -> Result<Response<NeutronMsg>, ContractError> {
     let authorization = AUTHORIZATIONS
         .load(deps.storage, label.clone())
@@ -382,29 +388,33 @@ fn add_messages(
             ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
         })?;
 
-    // We dont need to perform any validation because this is sent by the owner
+    // Validate that the messages match with the label
+    authorization.validate_messages(deps.storage, &messages)?;
+
     let current_executions = CURRENT_EXECUTIONS
         .load(deps.storage, label.clone())
         .unwrap_or_default();
     CURRENT_EXECUTIONS.save(
         deps.storage,
-        label,
+        label.clone(),
         &current_executions.checked_add(1).expect("Overflow"),
     )?;
 
     let domain = get_domain(&authorization)?;
     let id = get_and_increase_execution_id(deps.storage)?;
     let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
-        AuthorizationMsg::AddMsgs {
+        AuthorizationMsg::InsertMsgs {
             id,
             queue_position,
-            msgs: messages,
-            action_batch: authorization.action_batch,
+            msgs: messages.clone(),
+            actions_config: authorization.actions_config,
             priority,
         },
     ))?;
     let wasm_msg =
         create_wasm_msg_for_processor_or_proxy(deps.storage, execute_msg_binary, &domain)?;
+
+    store_in_process_callback(deps.storage, id, domain, label, messages)?;
 
     Ok(Response::new()
         .add_message(wasm_msg)
@@ -412,14 +422,14 @@ fn add_messages(
         .add_attribute("authorization_label", authorization.label))
 }
 
-fn remove_messages(
+fn evict_messages(
     deps: DepsMut,
     domain: Domain,
     queue_position: u64,
     priority: Priority,
 ) -> Result<Response<NeutronMsg>, ContractError> {
     let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
-        AuthorizationMsg::RemoveMsgs {
+        AuthorizationMsg::EvictMsgs {
             queue_position,
             priority,
         },
@@ -437,7 +447,7 @@ fn send_msgs(
     env: Env,
     info: MessageInfo,
     label: String,
-    messages: Vec<Binary>,
+    messages: Vec<ProcessorMessage>,
 ) -> Result<Response<NeutronMsg>, ContractError> {
     let authorization = AUTHORIZATIONS
         .load(deps.storage, label.clone())
@@ -465,7 +475,7 @@ fn send_msgs(
     }
     CURRENT_EXECUTIONS.save(
         deps.storage,
-        label,
+        label.clone(),
         &current_executions.checked_add(1).expect("Overflow"),
     )?;
 
@@ -477,8 +487,8 @@ fn send_msgs(
     let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
         AuthorizationMsg::EnqueueMsgs {
             id,
-            msgs: messages,
-            action_batch: authorization.action_batch,
+            msgs: messages.clone(),
+            actions_config: authorization.actions_config,
             priority: authorization.priority,
         },
     ))?;
@@ -486,10 +496,37 @@ fn send_msgs(
     let wasm_msg =
         create_wasm_msg_for_processor_or_proxy(deps.storage, execute_msg_binary, &domain)?;
 
+    store_in_process_callback(deps.storage, id, domain, label, messages)?;
+
     Ok(Response::new()
         .add_message(wasm_msg)
         .add_attribute("action", "send_msgs")
         .add_attribute("authorization_label", authorization.label))
+}
+
+fn process_callback(
+    deps: DepsMut,
+    info: MessageInfo,
+    execution_id: u64,
+    execution_result: ExecutionResult,
+) -> Result<Response<NeutronMsg>, ContractError> {
+    let mut callback = CALLBACKS.load(deps.storage, execution_id)?;
+
+    // Check that the sender is the one that should send the callback
+    if info.sender != callback.address {
+        return Err(ContractError::Unauthorized(
+            UnauthorizedReason::UnauthorizedCallbackSender {},
+        ));
+    }
+
+    // Updated the result
+    callback.execution_result = execution_result;
+
+    CALLBACKS.save(deps.storage, execution_id, &callback)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "process_callback")
+        .add_attribute("execution_id", execution_id.to_string()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -504,6 +541,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Authorizations { start_after, limit } => {
             to_json_binary(&get_authorizations(deps, start_after, limit))
         }
+        QueryMsg::Callbacks { start_after, limit } => {
+            to_json_binary(&get_callbacks(deps, start_after, limit))
+        }
+        QueryMsg::Callback { execution_id } => to_json_binary(&get_callback(deps, execution_id)?),
     }
 }
 
@@ -554,6 +595,22 @@ fn get_authorizations(
         .collect()
 }
 
+fn get_callbacks(deps: Deps, start_after: Option<u64>, limit: Option<u32>) -> Vec<CallbackInfo> {
+    let limit = limit.unwrap_or(MAX_PAGE_LIMIT).min(MAX_PAGE_LIMIT);
+    let start = start_after.map(Bound::exclusive);
+
+    CALLBACKS
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit as usize)
+        .filter_map(Result::ok)
+        .map(|(_, cb)| cb)
+        .collect()
+}
+
+fn get_callback(deps: Deps, execution_id: u64) -> StdResult<CallbackInfo> {
+    CALLBACKS.load(deps.storage, execution_id)
+}
+
 // Helpers
 
 /// Asserts that the caller is the owner or a subowner
@@ -571,9 +628,39 @@ pub fn build_tokenfactory_denom(contract_address: &str, label: &str) -> String {
     format!("factory/{}/{}", contract_address, label)
 }
 
-// Unique ID for an execution on any processor
+/// Unique ID for an execution on any processor
 pub fn get_and_increase_execution_id(storage: &mut dyn Storage) -> StdResult<u64> {
     let id = EXECUTION_ID.load(storage)?;
-    EXECUTION_ID.save(storage, &id.checked_add(1).expect("Overflow"))?;
+    EXECUTION_ID.save(storage, &id.wrapping_add(1))?;
     Ok(id)
+}
+
+/// Store the pending callback
+pub fn store_in_process_callback(
+    storage: &mut dyn Storage,
+    id: u64,
+    domain: Domain,
+    label: String,
+    messages: Vec<ProcessorMessage>,
+) -> StdResult<()> {
+    let address = match &domain {
+        Domain::Main => PROCESSOR_ON_MAIN_DOMAIN.load(storage)?,
+        Domain::External(domain_name) => {
+            let external_domain = EXTERNAL_DOMAINS.load(storage, domain_name.clone())?;
+            external_domain.get_connector_address()
+        }
+    };
+
+    let callback = CallbackInfo {
+        execution_id: id,
+        address,
+        domain,
+        label,
+        messages,
+        execution_result: ExecutionResult::InProcess,
+    };
+
+    CALLBACKS.save(storage, id, &callback)?;
+
+    Ok(())
 }

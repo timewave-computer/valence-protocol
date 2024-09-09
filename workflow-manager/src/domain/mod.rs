@@ -7,12 +7,10 @@ use cosmos_cw::{CosmosCosmwasmConnector, CosmosCosmwasmError};
 // use cosmos_evm::CosmosEvmError;
 use strum::Display;
 use thiserror::Error;
-use valence_authorization_utils::domain::ExternalDomain;
-use valence_processor::msg::PolytoneContracts;
 
 use crate::{
     account::InstantiateAccountData,
-    config::{Config, ConfigError, CONFIG},
+    config::{ConfigError, CONFIG},
     service::ServiceConfig,
 };
 
@@ -97,18 +95,16 @@ pub trait Connector: fmt::Debug {
         workflow_id: u64,
         salt: Vec<u8>,
         processor_addr: String,
-        external_domains: Vec<ExternalDomain>,
     ) -> ConnectorResult<()>;
     async fn instantiate_processor(
         &mut self,
         workflow_id: u64,
         salt: Vec<u8>,
         admin: String,
-        polytone_addr: Option<PolytoneContracts>,
+        polytone_addr: Option<valence_processor_utils::msg::PolytoneContracts>,
     ) -> ConnectorResult<()>;
     async fn add_external_domain(
         &mut self,
-        cfg: &Config,
         main_domain: &str,
         domain: &str,
         processor_addr: String,

@@ -1,11 +1,10 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use services_utils::Id;
-use valence_authorization_utils::{authorization::AuthorizationInfo, domain::ExternalDomain};
+use valence_authorization_utils::authorization::AuthorizationInfo;
 
 use crate::{
     account::{AccountInfo, AccountType, InstantiateAccountData},
-    config::Config,
     connectors::Connectors,
     domain::Domain,
     error::{ManagerError, ManagerResult},
@@ -38,7 +37,7 @@ pub struct WorkflowConfig {
 
 impl WorkflowConfig {
     /// Instantiate a workflow on all domains.
-    pub async fn init(&mut self, cfg: &Config) -> ManagerResult<()> {
+    pub async fn init(&mut self) -> ManagerResult<()> {
         let connectors = Connectors::default();
 
         // TODO: Get workflow next id from on chain workflow registry
@@ -62,7 +61,6 @@ impl WorkflowConfig {
                 1, //TODO: change this to workflow id
                 authorization_salt,
                 main_processor_addr,
-                vec![],
             )
             .await?;
 
@@ -103,7 +101,7 @@ impl WorkflowConfig {
                     .await?;
 
                 // Get the processor bridge account address on main domain
-                let _processor_bridge_account_addr = main_connector
+                let processor_bridge_account_addr = main_connector
                     .get_address_bridge(
                         processor_addr.as_str(),
                         MAIN_CHAIN,
@@ -115,7 +113,14 @@ impl WorkflowConfig {
                 // TODO: Instantiate the bridge account on the main domain for this processor
 
                 // TODO: construct and add the `ExternalDomain` info to the authorization contract
-                main_connector.add_external_domain(cfg, MAIN_CHAIN, domain.get_chain_name()).await?;
+                main_connector
+                    .add_external_domain(
+                        MAIN_CHAIN,
+                        domain.get_chain_name(),
+                        processor_addr,
+                        processor_bridge_account_addr,
+                    )
+                    .await?;
             };
         }
 

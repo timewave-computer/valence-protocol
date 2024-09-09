@@ -4052,13 +4052,17 @@ dependencies = [
  "cw-storage-plus",
  "cw-utils",
  "cw2",
+ "hex",
+ "margined-neutron-std",
  "neutron-sdk",
  "neutron-test-tube",
+ "serde",
  "serde_json",
  "thiserror",
  "valence-authorization-utils",
  "valence-processor",
  "valence-processor-utils",
+ "valence-test-service",
 ]
 
 [[package]]
@@ -4067,6 +4071,7 @@ version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 2.1.3",
  "cosmwasm-std 2.1.3",
+ "cw-ownable",
  "cw-utils",
  "neutron-sdk",
 ]
@@ -4102,8 +4107,8 @@ version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 2.1.3",
  "cosmwasm-std 2.1.3",
- "cw-ownable",
  "cw-storage-plus",
+ "cw-utils",
  "cw2",
  "thiserror",
  "valence-authorization-utils",
@@ -4117,7 +4122,9 @@ dependencies = [
  "cosmwasm-schema 2.1.3",
  "cosmwasm-std 2.1.3",
  "cw-storage-plus",
+ "cw-utils",
  "serde",
+ "serde_json",
  "valence-authorization-utils",
 ]
 
@@ -4172,6 +4179,17 @@ dependencies = [
  "valence-base-account",
  "valence-macros",
  "valence-service-base",
+]
+
+[[package]]
+name = "valence-test-service"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.3",
+ "cosmwasm-std 2.1.3",
+ "cw-storage-plus",
+ "thiserror",
+ "valence-processor-utils",
 ]
 
 [[package]]
@@ -4531,6 +4549,7 @@ dependencies = [
  "valence-base-account",
  "valence-macros",
  "valence-processor",
+ "valence-processor-utils",
  "valence-reverse-splitter",
  "valence-service-base",
  "valence-splitter",

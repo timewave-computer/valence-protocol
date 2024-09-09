@@ -1,8 +1,11 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Uint128};
+use cosmwasm_std::{Addr, Binary, Uint128, WasmMsg};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query, Expiration};
-use valence_authorization_utils::{
+
+use crate::{
     authorization::{Authorization, AuthorizationInfo, Priority},
+    authorization_message::MessageType,
+    callback::{CallbackInfo, ExecutionResult},
     domain::{Domain, ExternalDomain},
 };
 
@@ -22,7 +25,7 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     OwnerAction(OwnerMsg),
     PermissionedAction(PermissionedMsg),
-    UserAction(PermissionlessMsg),
+    PermissionlessAction(PermissionlessMsg),
 }
 
 #[cw_serde]
@@ -58,7 +61,7 @@ pub enum PermissionedMsg {
         mints: Vec<Mint>,
     },
     // Method to remove any set of messages from any queue in any domain
-    RemoveMsgs {
+    EvictMsgs {
         // Which domain we are targetting
         domain: Domain,
         // position in the queue
@@ -66,15 +69,15 @@ pub enum PermissionedMsg {
         // what queue we are targetting
         priority: Priority,
     },
-    // Method to add messages from an authorization to any queue
-    AddMsgs {
+    // Method to insert messages from an authorization to any queue
+    InsertMsgs {
         // The authorization label
         label: String,
         // Where and in which queue we are putting them
         queue_position: u64,
         priority: Priority,
-        // Messages to add
-        messages: Vec<Binary>,
+        // Messages to insert
+        messages: Vec<ProcessorMessage>,
     },
     // Pause a processor in any domain
     PauseProcessor {
@@ -96,8 +99,56 @@ pub struct Mint {
 pub enum PermissionlessMsg {
     SendMsgs {
         label: String,
-        messages: Vec<Binary>,
+        messages: Vec<ProcessorMessage>,
     },
+    Callback {
+        execution_id: u64,
+        execution_result: ExecutionResult,
+    },
+}
+
+#[cw_serde]
+pub enum ProcessorMessage {
+    CosmwasmExecuteMsg { msg: Binary },
+    CosmwasmMigrateMsg { code_id: u64, msg: Binary },
+}
+
+impl ProcessorMessage {
+    pub fn get_message_type(&self) -> MessageType {
+        match self {
+            ProcessorMessage::CosmwasmExecuteMsg { .. } => MessageType::CosmwasmExecuteMsg,
+            ProcessorMessage::CosmwasmMigrateMsg { .. } => MessageType::CosmwasmMigrateMsg,
+        }
+    }
+
+    pub fn get_msg(&self) -> &Binary {
+        match self {
+            ProcessorMessage::CosmwasmExecuteMsg { msg } => msg,
+            ProcessorMessage::CosmwasmMigrateMsg { msg, .. } => msg,
+        }
+    }
+
+    pub fn set_msg(&mut self, msg: Binary) {
+        match self {
+            ProcessorMessage::CosmwasmExecuteMsg { msg: msg_ref } => *msg_ref = msg,
+            ProcessorMessage::CosmwasmMigrateMsg { msg: msg_ref, .. } => *msg_ref = msg,
+        }
+    }
+
+    pub fn to_wasm_message(&self, contract_addr: &str) -> WasmMsg {
+        match self {
+            ProcessorMessage::CosmwasmExecuteMsg { msg } => WasmMsg::Execute {
+                contract_addr: contract_addr.to_string(),
+                msg: msg.clone(),
+                funds: vec![],
+            },
+            ProcessorMessage::CosmwasmMigrateMsg { code_id, msg } => WasmMsg::Migrate {
+                contract_addr: contract_addr.to_string(),
+                new_code_id: *code_id,
+                msg: msg.clone(),
+            },
+        }
+    }
 }
 
 #[cw_ownable_query]
@@ -118,4 +169,11 @@ pub enum QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
+    #[returns(Vec<CallbackInfo>)]
+    Callbacks {
+        start_after: Option<u64>,
+        limit: Option<u32>,
+    },
+    #[returns(CallbackInfo)]
+    Callback { execution_id: u64 },
 }

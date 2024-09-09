@@ -1,13 +1,15 @@
-use cosmwasm_std::{Binary, BlockInfo, MessageInfo, QuerierWrapper, Storage, Uint128};
+use cosmwasm_std::{BlockInfo, MessageInfo, QuerierWrapper, Storage, Uint128};
 use cw_utils::{must_pay, Expiration};
 use serde_json::Value;
 use valence_authorization_utils::{
+    action::Action,
     authorization::{
-        Authorization, AuthorizationMode, AuthorizationState, ExecutionType, PermissionType,
+        ActionsConfig, Authorization, AuthorizationMode, AuthorizationState, PermissionType,
         Priority,
     },
+    authorization_message::ParamRestriction,
     domain::{Domain, ExecutionEnvironment},
-    message::ParamRestriction,
+    msg::ProcessorMessage,
 };
 
 use crate::{
@@ -18,6 +20,11 @@ use crate::{
 
 pub trait Validate {
     fn validate(&self, store: &dyn Storage) -> Result<(), ContractError>;
+    fn validate_actions<T: Action>(
+        &self,
+        store: &dyn Storage,
+        actions: &[T],
+    ) -> Result<(), ContractError>;
     fn ensure_enabled(&self) -> Result<(), ContractError>;
     fn ensure_active(&self, block: &BlockInfo) -> Result<(), ContractError>;
     fn ensure_not_expired(&self, block: &BlockInfo) -> Result<(), ContractError>;
@@ -30,7 +37,12 @@ pub trait Validate {
     fn validate_messages(
         &self,
         store: &dyn Storage,
-        messages: &[Binary],
+        messages: &[ProcessorMessage],
+    ) -> Result<(), ContractError>;
+    fn validate_messages_generic<T: Action>(
+        store: &dyn Storage,
+        messages: &[ProcessorMessage],
+        actions: &[T],
     ) -> Result<(), ContractError>;
     fn validate_executable(
         &self,
@@ -39,47 +51,22 @@ pub trait Validate {
         querier: QuerierWrapper,
         contract_address: &str,
         info: &MessageInfo,
-        messages: &[Binary],
+        messages: &[ProcessorMessage],
     ) -> Result<(), ContractError>;
 }
 
 impl Validate for Authorization {
     fn validate(&self, store: &dyn Storage) -> Result<(), ContractError> {
-        // Label can't be empty or already exist
+        // Label can't be empty
         if self.label.is_empty() {
             return Err(ContractError::Authorization(
                 AuthorizationErrorReason::EmptyLabel {},
             ));
         }
 
-        let mut actions_iter = self.action_batch.actions.iter();
-        // An authorization must have actions
-        let first_action = match actions_iter.next() {
-            None => {
-                return Err(ContractError::Authorization(
-                    AuthorizationErrorReason::NoActions {},
-                ))
-            }
-            Some(action) => action,
-        };
-
-        // The domain of the actions must be registered
-        match &first_action.domain {
-            Domain::Main => (),
-            Domain::External(domain_name) => {
-                if !EXTERNAL_DOMAINS.has(store, domain_name.clone()) {
-                    return Err(ContractError::DomainIsNotRegistered(domain_name.clone()));
-                }
-            }
-        }
-
-        // All actions in an authorization must be executed in the same domain (for v1)
-        for each_action in actions_iter {
-            if !each_action.domain.eq(&first_action.domain) {
-                return Err(ContractError::Authorization(
-                    AuthorizationErrorReason::DifferentActionDomains {},
-                ));
-            }
+        match &self.actions_config {
+            ActionsConfig::Atomic(config) => self.validate_actions(store, &config.actions)?,
+            ActionsConfig::NonAtomic(config) => self.validate_actions(store, &config.actions)?,
         }
 
         // If an authorization is permissionless, it can't have high priority
@@ -91,17 +78,37 @@ impl Validate for Authorization {
             ));
         }
 
-        // An authorization can't have actions with callback confirmations if needs to be executed atomically
-        if self.action_batch.execution_type.eq(&ExecutionType::Atomic) {
-            for each_action in self.action_batch.actions.iter() {
-                if each_action.callback_confirmation.is_some() {
-                    return Err(ContractError::Authorization(
-                        AuthorizationErrorReason::AtomicWithCallbackConfirmation {},
-                    ));
+        Ok(())
+    }
+
+    fn validate_actions<T: Action>(
+        &self,
+        store: &dyn Storage,
+        actions: &[T],
+    ) -> Result<(), ContractError> {
+        // An authorization must have actions
+        let first_action = actions.first().ok_or(ContractError::Authorization(
+            AuthorizationErrorReason::NoActions {},
+        ))?;
+
+        // The domain of the actions must be registered
+        match &first_action.domain() {
+            Domain::Main => (),
+            Domain::External(domain_name) => {
+                if !EXTERNAL_DOMAINS.has(store, domain_name.clone()) {
+                    return Err(ContractError::DomainIsNotRegistered(domain_name.clone()));
                 }
             }
         }
 
+        // All actions in an authorization must be executed in the same domain (for v1)
+        for each_action in actions.iter().skip(1) {
+            if !each_action.domain().eq(first_action.domain()) {
+                return Err(ContractError::Authorization(
+                    AuthorizationErrorReason::DifferentActionDomains {},
+                ));
+            }
+        }
         Ok(())
     }
 
@@ -175,14 +182,30 @@ impl Validate for Authorization {
     fn validate_messages(
         &self,
         store: &dyn Storage,
-        messages: &[Binary],
+        messages: &[ProcessorMessage],
     ) -> Result<(), ContractError> {
-        if messages.len() != self.action_batch.actions.len() {
+        match &self.actions_config {
+            ActionsConfig::Atomic(config) => {
+                Self::validate_messages_generic(store, messages, &config.actions)?
+            }
+            ActionsConfig::NonAtomic(config) => {
+                Self::validate_messages_generic(store, messages, &config.actions)?
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_messages_generic<T: Action>(
+        store: &dyn Storage,
+        messages: &[ProcessorMessage],
+        actions: &[T],
+    ) -> Result<(), ContractError> {
+        if messages.len() != actions.len() {
             return Err(ContractError::Message(MessageErrorReason::InvalidAmount {}));
         }
 
-        for (each_message, each_action) in messages.iter().zip(self.action_batch.actions.iter()) {
-            let execution_environment = match &each_action.domain {
+        for (each_message, each_action) in messages.iter().zip(actions.iter()) {
+            let execution_environment = match each_action.domain() {
                 Domain::Main => ExecutionEnvironment::CosmWasm,
                 Domain::External(name) => {
                     let domain = EXTERNAL_DOMAINS.load(store, name.clone())?;
@@ -192,13 +215,21 @@ impl Validate for Authorization {
 
             match &execution_environment {
                 ExecutionEnvironment::CosmWasm => {
+                    // Check that the message type matches the action type
+                    if each_message.get_message_type() != each_action.message_details().message_type
+                    {
+                        return Err(ContractError::Message(MessageErrorReason::InvalidType {}));
+                    }
+
+                    // Extract the message from the ProcessorMessage
+                    let msg = each_message.get_msg();
+
                     // Extract the json from each message
-                    let json: Value =
-                        serde_json::from_slice(each_message.as_slice()).map_err(|e| {
-                            ContractError::InvalidJson {
-                                error: e.to_string(),
-                            }
-                        })?;
+                    let json: Value = serde_json::from_slice(msg.as_slice()).map_err(|e| {
+                        ContractError::InvalidJson {
+                            error: e.to_string(),
+                        }
+                    })?;
 
                     // Check that json only has one top level key
                     if json.as_object().map(|obj| obj.len()).unwrap_or(0) != 1 {
@@ -209,7 +240,7 @@ impl Validate for Authorization {
 
                     // Check that top level key matches the message name
                     if json
-                        .get(each_action.message_details.message.name.as_str())
+                        .get(each_action.message_details().message.name.as_str())
                         .is_none()
                     {
                         return Err(ContractError::Message(MessageErrorReason::DoesNotMatch {}));
@@ -217,7 +248,7 @@ impl Validate for Authorization {
 
                     // Check that all the Parameter restrictions are met
                     if let Some(param_restrictions) =
-                        &each_action.message_details.message.params_restrictions
+                        &each_action.message_details().message.params_restrictions
                     {
                         for each_restriction in param_restrictions {
                             check_restriction(&json, each_restriction)?;
@@ -226,7 +257,6 @@ impl Validate for Authorization {
                 }
             }
         }
-
         Ok(())
     }
 
@@ -237,7 +267,7 @@ impl Validate for Authorization {
         querier: QuerierWrapper,
         contract_address: &str,
         info: &MessageInfo,
-        messages: &[Binary],
+        messages: &[ProcessorMessage],
     ) -> Result<(), ContractError> {
         self.ensure_enabled()?;
         self.ensure_active(block)?;

@@ -4,32 +4,32 @@ use neutron_test_tube::{neutron_std::types::cosmos::base::v1beta1::Coin, Module,
 use serde_json::json;
 use valence_authorization_utils::{
     authorization::{AuthorizationDuration, AuthorizationMode, PermissionType},
-    message::{Message, MessageDetails, MessageType, ParamRestriction},
+    authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
+    msg::{ExecuteMsg, PermissionedMsg, PermissionlessMsg, ProcessorMessage},
 };
 
 use crate::{
     contract::build_tokenfactory_denom,
     error::{AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason},
-    msg::{ExecuteMsg, PermissionedMsg, PermissionlessMsg},
-    tests::{builders::JsonBuilder, helpers::wait_for_height},
+    tests::{
+        builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, JsonBuilder},
+        helpers::wait_for_height,
+    },
 };
 
 use super::{
-    builders::{ActionBatchBuilder, ActionBuilder, AuthorizationBuilder, NeutronTestAppBuilder},
+    builders::{AuthorizationBuilder, NeutronTestAppBuilder},
     helpers::store_and_instantiate_authorization_with_processor_contract,
 };
 
 #[test]
 fn disabled() {
-    let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(6)
-        .build()
-        .unwrap();
+    let setup = NeutronTestAppBuilder::new().build().unwrap();
 
     let wasm = Wasm::new(&setup.app);
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
-        &wasm,
+        &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
@@ -39,9 +39,9 @@ fn disabled() {
     // We'll create a generic permissionless authorization
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
-        .with_action_batch(
-            ActionBatchBuilder::new()
-                .with_action(ActionBuilder::new().build())
+        .with_actions_config(
+            AtomicActionsConfigBuilder::new()
+                .with_action(AtomicActionBuilder::new().build())
                 .build(),
         )
         .build()];
@@ -69,9 +69,11 @@ fn disabled() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissionless".to_string(),
-                messages: vec![Binary::default()],
+                messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
+                    msg: Binary::default(),
+                }],
             }),
             &[],
             &setup.accounts[2],
@@ -88,9 +90,11 @@ fn disabled() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "non_existent".to_string(),
-                messages: vec![Binary::default()],
+                messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
+                    msg: Binary::default(),
+                }],
             }),
             &[],
             &setup.accounts[2],
@@ -108,15 +112,12 @@ fn disabled() {
 
 #[test]
 fn invalid_time() {
-    let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(6)
-        .build()
-        .unwrap();
+    let setup = NeutronTestAppBuilder::new().build().unwrap();
 
     let wasm = Wasm::new(&setup.app);
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
-        &wasm,
+        &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
@@ -135,9 +136,9 @@ fn invalid_time() {
         .with_mode(AuthorizationMode::Permissioned(
             PermissionType::WithoutCallLimit(vec![setup.owner_addr.clone()]),
         ))
-        .with_action_batch(
-            ActionBatchBuilder::new()
-                .with_action(ActionBuilder::new().build())
+        .with_actions_config(
+            AtomicActionsConfigBuilder::new()
+                .with_action(AtomicActionBuilder::new().build())
                 .build(),
         )
         .build()];
@@ -155,9 +156,11 @@ fn invalid_time() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned".to_string(),
-                messages: vec![Binary::default()],
+                messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
+                    msg: Binary::default(),
+                }],
             }),
             &[],
             &setup.accounts[2],
@@ -177,9 +180,11 @@ fn invalid_time() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned".to_string(),
-                messages: vec![Binary::default()],
+                messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
+                    msg: Binary::default(),
+                }],
             }),
             &[],
             &setup.accounts[2],
@@ -199,9 +204,11 @@ fn invalid_time() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned".to_string(),
-                messages: vec![Binary::default()],
+                messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
+                    msg: Binary::default(),
+                }],
             }),
             &[],
             &setup.accounts[2],
@@ -223,9 +230,9 @@ fn invalid_time() {
         .with_mode(AuthorizationMode::Permissioned(
             PermissionType::WithoutCallLimit(vec![setup.owner_addr.clone()]),
         ))
-        .with_action_batch(
-            ActionBatchBuilder::new()
-                .with_action(ActionBuilder::new().build())
+        .with_actions_config(
+            AtomicActionsConfigBuilder::new()
+                .with_action(AtomicActionBuilder::new().build())
                 .build(),
         )
         .build()];
@@ -243,9 +250,11 @@ fn invalid_time() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned2".to_string(),
-                messages: vec![Binary::default()],
+                messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
+                    msg: Binary::default(),
+                }],
             }),
             &[],
             &setup.accounts[2],
@@ -264,9 +273,11 @@ fn invalid_time() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned2".to_string(),
-                messages: vec![Binary::default()],
+                messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
+                    msg: Binary::default(),
+                }],
             }),
             &[],
             &setup.accounts[2],
@@ -285,9 +296,11 @@ fn invalid_time() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned2".to_string(),
-                messages: vec![Binary::default()],
+                messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
+                    msg: Binary::default(),
+                }],
             }),
             &[],
             &setup.accounts[2],
@@ -303,15 +316,12 @@ fn invalid_time() {
 
 #[test]
 fn invalid_permission() {
-    let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(6)
-        .build()
-        .unwrap();
+    let setup = NeutronTestAppBuilder::new().build().unwrap();
 
     let wasm = Wasm::new(&setup.app);
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
-        &wasm,
+        &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
@@ -325,9 +335,9 @@ fn invalid_permission() {
             .with_mode(AuthorizationMode::Permissioned(
                 PermissionType::WithoutCallLimit(vec![setup.owner_addr.clone()]),
             ))
-            .with_action_batch(
-                ActionBatchBuilder::new()
-                    .with_action(ActionBuilder::new().build())
+            .with_actions_config(
+                AtomicActionsConfigBuilder::new()
+                    .with_action(AtomicActionBuilder::new().build())
                     .build(),
             )
             .build(),
@@ -336,9 +346,9 @@ fn invalid_permission() {
             .with_mode(AuthorizationMode::Permissioned(
                 PermissionType::WithCallLimit(vec![(setup.user_addr.clone(), Uint128::new(10))]),
             ))
-            .with_action_batch(
-                ActionBatchBuilder::new()
-                    .with_action(ActionBuilder::new().build())
+            .with_actions_config(
+                AtomicActionsConfigBuilder::new()
+                    .with_action(AtomicActionBuilder::new().build())
                     .build(),
             )
             .build(),
@@ -357,9 +367,11 @@ fn invalid_permission() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned-without-limit".to_string(),
-                messages: vec![Binary::default()],
+                messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
+                    msg: Binary::default(),
+                }],
             }),
             &[],
             &setup.accounts[2],
@@ -376,9 +388,11 @@ fn invalid_permission() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned-with-limit".to_string(),
-                messages: vec![Binary::default()],
+                messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
+                    msg: Binary::default(),
+                }],
             }),
             &[],
             &setup.accounts[2],
@@ -397,9 +411,11 @@ fn invalid_permission() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "permissioned-with-limit".to_string(),
-                messages: vec![Binary::default()],
+                messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
+                    msg: Binary::default(),
+                }],
             }),
             &[Coin {
                 denom: permission_token.clone(),
@@ -418,15 +434,12 @@ fn invalid_permission() {
 
 #[test]
 fn invalid_messages() {
-    let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(6)
-        .build()
-        .unwrap();
+    let setup = NeutronTestAppBuilder::new().build().unwrap();
 
     let wasm = Wasm::new(&setup.app);
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
-        &wasm,
+        &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
@@ -438,12 +451,12 @@ fn invalid_messages() {
         // No param restrictions
         AuthorizationBuilder::new()
             .with_label("no-restrictions")
-            .with_action_batch(
-                ActionBatchBuilder::new()
+            .with_actions_config(
+                AtomicActionsConfigBuilder::new()
                     .with_action(
-                        ActionBuilder::new()
+                        AtomicActionBuilder::new()
                             .with_message_details(MessageDetails {
-                                message_type: MessageType::ExecuteMsg,
+                                message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
                                     name: "execute_method".to_string(),
                                     params_restrictions: None,
@@ -456,12 +469,12 @@ fn invalid_messages() {
             .build(),
         AuthorizationBuilder::new()
             .with_label("with-restrictions")
-            .with_action_batch(
-                ActionBatchBuilder::new()
+            .with_actions_config(
+                AtomicActionsConfigBuilder::new()
                     .with_action(
-                        ActionBuilder::new()
+                        AtomicActionBuilder::new()
                             .with_message_details(MessageDetails {
-                                message_type: MessageType::ExecuteMsg,
+                                message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
                                     name: "execute_method".to_string(),
                                     params_restrictions: Some(vec![
@@ -512,9 +525,16 @@ fn invalid_messages() {
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "no-restrictions".to_string(),
-                messages: vec![Binary::default(), Binary::default()],
+                messages: vec![
+                    ProcessorMessage::CosmwasmExecuteMsg {
+                        msg: Binary::default(),
+                    },
+                    ProcessorMessage::CosmwasmExecuteMsg {
+                        msg: Binary::default(),
+                    },
+                ],
             }),
             &[],
             &setup.accounts[2],
@@ -527,13 +547,37 @@ fn invalid_messages() {
             .as_str()
     ));
 
+    // If we try to execute an authorization sending different messages types than expected, it should fail
+    let error = wasm
+        .execute::<ExecuteMsg>(
+            &contract_addr,
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
+                label: "no-restrictions".to_string(),
+                messages: vec![ProcessorMessage::CosmwasmMigrateMsg {
+                    code_id: 40,
+                    msg: Binary::default(),
+                }],
+            }),
+            &[],
+            &setup.accounts[2],
+        )
+        .unwrap_err();
+
+    assert!(error.to_string().contains(
+        ContractError::Message(MessageErrorReason::InvalidType {})
+            .to_string()
+            .as_str()
+    ));
+
     // If we try to execute the authorization with something that cannot be parsed into a json, it should fail
-    let message = Binary::from(b"This is not JSON");
+    let message = ProcessorMessage::CosmwasmExecuteMsg {
+        msg: Binary::from(b"This is not JSON"),
+    };
 
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "no-restrictions".to_string(),
                 messages: vec![message],
             }),
@@ -545,13 +589,14 @@ fn invalid_messages() {
     assert!(error.to_string().contains("Invalid JSON passed"));
 
     // If we try to execute the authorization with a json that has multiple top keys, it should fail
-    let message =
-        Binary::from(serde_json::to_vec(&json!({"key1": "value", "key2": "value"})).unwrap());
+    let message = ProcessorMessage::CosmwasmExecuteMsg {
+        msg: Binary::from(serde_json::to_vec(&json!({"key1": "value", "key2": "value"})).unwrap()),
+    };
 
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "no-restrictions".to_string(),
                 messages: vec![message],
             }),
@@ -567,14 +612,18 @@ fn invalid_messages() {
     ));
 
     // If we try to execute the authorization with a json that has the wrong key, it should fail
-    let message = JsonBuilder::new().main("wrong_key").build();
+    let message = ProcessorMessage::CosmwasmExecuteMsg {
+        msg: Binary::from(
+            serde_json::to_vec(&JsonBuilder::new().main("wrong_key").build()).unwrap(),
+        ),
+    };
 
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "no-restrictions".to_string(),
-                messages: vec![Binary::from(serde_json::to_vec(&message).unwrap())],
+                messages: vec![message],
             }),
             &[],
             &setup.accounts[2],
@@ -590,17 +639,24 @@ fn invalid_messages() {
     // If we try to execute the authorization with jsons that don't match the restriction they should fail
 
     // Doesn't have key1.key2
-    let message = JsonBuilder::new()
-        .main("execute_method")
-        .add("key7.key8", json!("value"))
-        .build();
+    let message = ProcessorMessage::CosmwasmExecuteMsg {
+        msg: Binary::from(
+            serde_json::to_vec(
+                &JsonBuilder::new()
+                    .main("execute_method")
+                    .add("key7.key8", json!("value"))
+                    .build(),
+            )
+            .unwrap(),
+        ),
+    };
 
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "with-restrictions".to_string(),
-                messages: vec![Binary::from(serde_json::to_vec(&message).unwrap())],
+                messages: vec![message],
             }),
             &[],
             &setup.accounts[2],
@@ -614,18 +670,25 @@ fn invalid_messages() {
     ));
 
     // Has key1.key2 but also has key3.key4 which is not allowed
-    let message = JsonBuilder::new()
-        .main("execute_method")
-        .add("key1.key2", json!("value"))
-        .add("key3.key4", json!("value"))
-        .build();
+    let message = ProcessorMessage::CosmwasmExecuteMsg {
+        msg: Binary::from(
+            serde_json::to_vec(
+                &JsonBuilder::new()
+                    .main("execute_method")
+                    .add("key1.key2", json!("value"))
+                    .add("key3.key4", json!("value"))
+                    .build(),
+            )
+            .unwrap(),
+        ),
+    };
 
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "with-restrictions".to_string(),
-                messages: vec![Binary::from(serde_json::to_vec(&message).unwrap())],
+                messages: vec![message],
             }),
             &[],
             &setup.accounts[2],
@@ -639,19 +702,26 @@ fn invalid_messages() {
     ));
 
     // Has key1.key and doesn't have key3.key4 but key5.key6 and key7 doesn't have the values specified
-    let message = JsonBuilder::new()
-        .main("execute_method")
-        .add("key1.key2", json!("value"))
-        .add("key5.key6", json!("value"))
-        .add("key7", json!("value"))
-        .build();
+    let message = ProcessorMessage::CosmwasmExecuteMsg {
+        msg: Binary::from(
+            serde_json::to_vec(
+                &JsonBuilder::new()
+                    .main("execute_method")
+                    .add("key1.key2", json!("value"))
+                    .add("key5.key6", json!("value"))
+                    .add("key7", json!("value"))
+                    .build(),
+            )
+            .unwrap(),
+        ),
+    };
 
     let error = wasm
         .execute::<ExecuteMsg>(
             &contract_addr,
-            &ExecuteMsg::UserAction(PermissionlessMsg::SendMsgs {
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "with-restrictions".to_string(),
-                messages: vec![Binary::from(serde_json::to_vec(&message).unwrap())],
+                messages: vec![message],
             }),
             &[],
             &setup.accounts[2],

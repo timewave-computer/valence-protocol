@@ -51,9 +51,6 @@ pub enum AuthorizationErrorReason {
     #[error("Permissionless authorizations can't have high priority")]
     PermissionlessWithHighPriority {},
 
-    #[error("Atomic authorizations can't have callback confirmations")]
-    AtomicWithCallbackConfirmation {},
-
     #[error("Authorization with label {0} does not exist")]
     DoesNotExist(String),
 
@@ -80,12 +77,18 @@ pub enum UnauthorizedReason {
 
     #[error("To proceed with this action, you must send exactly one token of this authorization")]
     RequiresOneToken {},
+
+    #[error("The sender is not the authorized callback address")]
+    UnauthorizedCallbackSender {},
 }
 
 #[derive(Error, Debug, PartialEq)]
 pub enum MessageErrorReason {
     #[error("The amount of messages you send must match the amount of actions in the list")]
     InvalidAmount {},
+
+    #[error("The message sent has a different type than expected")]
+    InvalidType {},
 
     #[error("The message doesn't match the action")]
     DoesNotMatch {},

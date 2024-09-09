@@ -15,13 +15,11 @@ use cosmos_grpc_client::{
 use cosmwasm_std::Addr;
 use serde_json::to_vec;
 use thiserror::Error;
-use valence_authorization_utils::domain::ExternalDomain;
-use valence_processor::msg::PolytoneContracts;
 
 use crate::{
     account::{AccountType, InstantiateAccountData},
     bridges::PolytoneSingleChainInfo,
-    config::{ChainInfo, Config, ConfigError, CONFIG},
+    config::{ChainInfo, ConfigError, CONFIG},
     service::{ServiceConfig, ServiceError},
     MAIN_CHAIN,
 };
@@ -306,7 +304,6 @@ impl Connector for CosmosCosmwasmConnector {
         workflow_id: u64,
         salt: Vec<u8>,
         processor_addr: String,
-        external_domains: Vec<ExternalDomain>,
     ) -> ConnectorResult<()> {
         // If we are not on the main chain, we error out, should not happen
         if !self.is_main_chain {
@@ -322,11 +319,11 @@ impl Connector for CosmosCosmwasmConnector {
             .context(format!("Code id not found for: {}", "authorization"))
             .map_err(CosmosCosmwasmError::Error)?;
 
-        let msg = to_vec(&valence_authorization::msg::InstantiateMsg {
+        let msg = to_vec(&valence_authorization_utils::msg::InstantiateMsg {
             owner: self.wallet.account_address.clone(),
             sub_owners: vec![],
             processor: processor_addr,
-            external_domains,
+            external_domains: vec![],
         })
         .map_err(CosmosCosmwasmError::SerdeJsonError)?;
 
@@ -355,7 +352,7 @@ impl Connector for CosmosCosmwasmConnector {
         workflow_id: u64,
         salt: Vec<u8>,
         admin: String,
-        polytone_addr: Option<PolytoneContracts>,
+        polytone_addr: Option<valence_processor_utils::msg::PolytoneContracts>,
     ) -> ConnectorResult<()> {
         let code_id = *self
             .code_ids
@@ -363,8 +360,7 @@ impl Connector for CosmosCosmwasmConnector {
             .context(format!("Code id not found for: {}", "processor"))
             .map_err(CosmosCosmwasmError::Error)?;
 
-        let msg = to_vec(&valence_processor::msg::InstantiateMsg {
-            owner: admin.clone(),
+        let msg = to_vec(&valence_processor_utils::msg::InstantiateMsg {
             authorization_contract: admin.clone(),
             polytone_contracts: polytone_addr,
         })
@@ -392,7 +388,6 @@ impl Connector for CosmosCosmwasmConnector {
 
     async fn add_external_domain(
         &mut self,
-        cfg: &Config,
         main_domain: &str,
         domain: &str,
         processor_addr: String,
@@ -407,7 +402,7 @@ impl Connector for CosmosCosmwasmConnector {
 
         let bridge = self.get_bridge_info(main_domain, main_domain, domain)?;
 
-        let external_domain = ExternalDomain {
+        let _external_domain = valence_authorization_utils::domain::ExternalDomain {
             name: domain.to_string(),
             execution_environment:
                 valence_authorization_utils::domain::ExecutionEnvironment::CosmWasm,

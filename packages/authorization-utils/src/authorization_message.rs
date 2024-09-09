@@ -8,9 +8,9 @@ pub struct MessageDetails {
 }
 
 #[cw_serde]
-// Abstracting this because maybe we might have different message types in the future (e.g. Migration)
 pub enum MessageType {
-    ExecuteMsg,
+    CosmwasmExecuteMsg,
+    CosmwasmMigrateMsg,
 }
 
 #[cw_serde]
