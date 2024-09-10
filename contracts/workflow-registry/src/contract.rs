@@ -3,7 +3,7 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
 
-use crate::error::ContractError;
+use crate::{error::ContractError, state::LAST_ID};
 use crate::state::WORKFLOWS;
 use valence_workflow_registry_utils::{ExecuteMsg, InstantiateMsg, QueryMsg, WorkflowResponse};
 
@@ -21,6 +21,8 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     cw_ownable::initialize_owner(deps.storage, deps.api, Some(&msg.admin))?;
+
+    LAST_ID.save(deps.storage, &0)?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
