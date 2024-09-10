@@ -8,7 +8,7 @@ use crate::state::WORKFLOWS;
 use valence_workflow_registry_utils::{ExecuteMsg, InstantiateMsg, QueryMsg, WorkflowResponse};
 
 // version info for migration info
-const CONTRACT_NAME: &str = "crates.io:base_account";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -35,7 +35,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::GetId {} => execute::get_id(deps, &info),
+        ExecuteMsg::ReserveId {} => execute::get_id(deps, &info),
         ExecuteMsg::SaveWorkflow {
             id,
             workflow_config,
@@ -54,7 +54,7 @@ pub fn execute(
 
 mod execute {
     use cosmwasm_std::{Binary, DepsMut, MessageInfo, Response};
-    use cw_ownable::is_owner;
+    use cw_ownable::assert_owner;
 
     use crate::{
         state::{LAST_ID, WORKFLOWS},
@@ -62,7 +62,7 @@ mod execute {
     };
 
     pub fn get_id(deps: DepsMut, info: &MessageInfo) -> Result<Response, ContractError> {
-        is_owner(deps.storage, &info.sender)?;
+        assert_owner(deps.storage, &info.sender)?;
 
         let id = LAST_ID.load(deps.storage)? + 1;
         LAST_ID.save(deps.storage, &id)?;
@@ -78,7 +78,7 @@ mod execute {
         id: u64,
         workflow_config: Binary,
     ) -> Result<Response, ContractError> {
-        is_owner(deps.storage, &info.sender)?;
+        assert_owner(deps.storage, &info.sender)?;
 
         if WORKFLOWS.has(deps.storage, id) {
             return Err(ContractError::WorkflowAlreadyExists(id));
@@ -97,7 +97,7 @@ mod execute {
         id: u64,
         workflow_config: Binary,
     ) -> Result<Response, ContractError> {
-        is_owner(deps.storage, &info.sender)?;
+        assert_owner(deps.storage, &info.sender)?;
 
         if WORKFLOWS.has(deps.storage, id) {
             WORKFLOWS.save(deps.storage, id, &workflow_config)?;

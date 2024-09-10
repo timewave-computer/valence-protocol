@@ -11,7 +11,7 @@ pub struct InstantiateMsg {
 #[cw_serde]
 pub enum ExecuteMsg {
     /// "Lock" an id for a workflow to avoid race conditions
-    GetId {},
+    ReserveId {},
     /// Save the
     SaveWorkflow {
         id: u64,
