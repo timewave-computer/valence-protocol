@@ -26,8 +26,13 @@ pub enum ExecuteMsg {
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
+    /// Gets the most up to date workflow config for the id
     #[returns(WorkflowResponse)]
     GetConfig { id: u64 },
+    /// Gets the previous workflow config for the id
+    /// returns None if there is no backup
+    #[returns(Option<WorkflowResponse>)]
+    GetConfigBackup { id: u64 },
 }
 
 #[cw_serde]

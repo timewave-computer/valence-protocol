@@ -3,7 +3,7 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
 
-use crate::state::WORKFLOWS;
+use crate::state::{WORKFLOWS, WORKFLOWS_BACKUP};
 use crate::{error::ContractError, state::LAST_ID};
 use valence_workflow_registry_utils::{ExecuteMsg, InstantiateMsg, QueryMsg, WorkflowResponse};
 
@@ -59,7 +59,7 @@ mod execute {
     use cw_ownable::assert_owner;
 
     use crate::{
-        state::{LAST_ID, WORKFLOWS},
+        state::{LAST_ID, WORKFLOWS, WORKFLOWS_BACKUP},
         ContractError,
     };
 
@@ -101,11 +101,13 @@ mod execute {
     ) -> Result<Response, ContractError> {
         assert_owner(deps.storage, &info.sender)?;
 
-        if WORKFLOWS.has(deps.storage, id) {
-            WORKFLOWS.save(deps.storage, id, &workflow_config)?;
-        } else {
-            return Err(ContractError::WorkflowDoesntExists(id));
-        }
+        match WORKFLOWS.may_load(deps.storage, id)? {
+            Some(previous_workflow) => {
+                WORKFLOWS_BACKUP.save(deps.storage, id, &previous_workflow)?;
+                WORKFLOWS.save(deps.storage, id, &workflow_config)?;
+            }
+            None => return Err(ContractError::WorkflowDoesntExists(id)),
+        };
 
         Ok(Response::new()
             .add_attribute("method", "get_id")
@@ -122,6 +124,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 id,
                 workflow_config: config,
             };
+            to_json_binary(&workflow)
+        }
+        QueryMsg::GetConfigBackup { id } => {
+            let config = WORKFLOWS_BACKUP.may_load(deps.storage, id)?;
+            let workflow = config.map(|config| WorkflowResponse {
+                id,
+                workflow_config: config,
+            });
             to_json_binary(&workflow)
         }
     }
