@@ -2,16 +2,22 @@
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response,
-    StdResult, SubMsg, SubMsgResult, WasmMsg,
+    from_json, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Reply,
+    Response, StdResult, SubMsg, SubMsgResult, Uint64, WasmMsg,
 };
+
+use serde_json::Value;
 use valence_authorization_utils::{
     authorization::{ActionsConfig, Priority},
     callback::ExecutionResult,
+    domain::PolytoneProxyState,
     msg::ProcessorMessage,
 };
+use valence_polytone_utils::polytone::{
+    Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg,
+};
 use valence_processor_utils::{
-    callback::PendingCallback,
+    callback::{PendingCallback, PolytoneCallbackState},
     msg::{
         AuthorizationMsg, ExecuteMsg, InstantiateMsg, InternalProcessorMsg, PermissionlessMsg,
         QueryMsg,
@@ -28,6 +34,7 @@ use crate::{
     queue::get_queue_map,
     state::{
         CONFIG, EXECUTION_ID_TO_BATCH, NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX, PENDING_CALLBACK,
+        PENDING_POLYTONE_CALLBACKS,
     },
 };
 
@@ -37,7 +44,7 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
@@ -49,6 +56,8 @@ pub fn instantiate(
             Some(pc) => ProcessorDomain::External(Polytone {
                 polytone_proxy_address: deps.api.addr_validate(&pc.polytone_proxy_address)?,
                 polytone_note_address: deps.api.addr_validate(&pc.polytone_note_address)?,
+                timeout_seconds: pc.timeout_seconds,
+                proxy_on_main_domain_state: PolytoneProxyState::PendingResponse,
             }),
             None => ProcessorDomain::Main,
         },
@@ -56,7 +65,28 @@ pub fn instantiate(
     };
     CONFIG.save(deps.storage, &config)?;
 
-    Ok(Response::new().add_attribute("method", "instantiate_processor"))
+    // Create an empty array of messages to trigger the proxy creation if it's not the main domain's processor
+    let response = match config.processor_domain {
+        ProcessorDomain::Main => Response::default(),
+        ProcessorDomain::External(polytone) => {
+            let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: polytone.polytone_note_address.to_string(),
+                msg: to_json_binary(&PolytoneExecuteMsg::Execute {
+                    msgs: vec![],
+                    callback: Some(CallbackRequest {
+                        receiver: env.contract.address.to_string(),
+                        // Any string would work, we just need to know what we are getting the callback for
+                        msg: to_json_binary(&"create_proxy".to_string())?,
+                    }),
+                    timeout_seconds: Uint64::from(polytone.timeout_seconds),
+                })?,
+                funds: vec![],
+            });
+            Response::new().add_message(msg)
+        }
+    };
+
+    Ok(response.add_attribute("method", "instantiate_processor"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -91,7 +121,7 @@ pub fn execute(
                 AuthorizationMsg::EvictMsgs {
                     queue_position,
                     priority,
-                } => evict_messages(deps, queue_position, priority),
+                } => evict_messages(deps, env, queue_position, priority),
                 AuthorizationMsg::InsertMsgs {
                     id,
                     queue_position,
@@ -105,6 +135,10 @@ pub fn execute(
         }
         ExecuteMsg::PermissionlessAction(permissionless_msg) => match permissionless_msg {
             PermissionlessMsg::Tick {} => process_tick(deps, env),
+            PermissionlessMsg::RetryCallback { execution_id } => {
+                retry_callback(deps, env, execution_id)
+            }
+            PermissionlessMsg::RetryBridgeCreation {} => retry_bridge_creation(deps, env),
         },
         ExecuteMsg::InternalProcessorAction(internal_processor_msg) => match internal_processor_msg
         {
@@ -113,6 +147,9 @@ pub fn execute(
             }
             InternalProcessorMsg::ExecuteAtomic { batch } => execute_atomic(info, env, batch),
         },
+        ExecuteMsg::PolytoneCallback(callback_msg) => {
+            process_polytone_callback(deps, env, info, callback_msg)
+        }
     }
 }
 
@@ -161,6 +198,7 @@ fn enqueue_messages(
 
 fn evict_messages(
     deps: DepsMut,
+    env: Env,
     queue_position: u64,
     priority: Priority,
 ) -> Result<Response, ContractError> {
@@ -174,8 +212,13 @@ fn evict_messages(
             EXECUTION_ID_TO_BATCH.remove(deps.storage, batch.id);
             NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.remove(deps.storage, batch.id);
             PENDING_CALLBACK.remove(deps.storage, batch.id);
-            let callback_msg =
-                create_callback_message(&config, batch.id, ExecutionResult::RemovedByOwner)?;
+            let callback_msg = create_callback_message(
+                deps.storage,
+                &config,
+                batch.id,
+                ExecutionResult::RemovedByOwner,
+                &env.contract.address,
+            )?;
             Ok(Response::new()
                 .add_message(callback_msg)
                 .add_attribute("method", "remove_messages")
@@ -310,6 +353,78 @@ fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     }
 }
 
+fn retry_callback(deps: DepsMut, env: Env, execution_id: u64) -> Result<Response, ContractError> {
+    let pending_callback = PENDING_POLYTONE_CALLBACKS
+        .load(deps.storage, execution_id)
+        .map_err(|_| {
+            ContractError::CallbackError(CallbackErrorReason::PolytonePendingCallbackNotFound {})
+        })?;
+
+    // If the callback is not timed out (still pending) we won't retry it
+    if pending_callback.state.ne(&PolytoneCallbackState::TimedOut) {
+        return Err(ContractError::CallbackError(
+            CallbackErrorReason::PolytoneCallbackNotTimedOut {},
+        ));
+    }
+
+    let config = CONFIG.load(deps.storage)?;
+    let callback_msg = create_callback_message(
+        deps.storage,
+        &config,
+        execution_id,
+        pending_callback.execution_result,
+        &env.contract.address,
+    )?;
+
+    Ok(Response::new()
+        .add_message(callback_msg)
+        .add_attribute("method", "retry_callback"))
+}
+
+fn retry_bridge_creation(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+    let mut config = CONFIG.load(deps.storage)?;
+    let polytone = match &mut config.processor_domain {
+        ProcessorDomain::External(polytone) => polytone,
+        ProcessorDomain::Main => {
+            return Err(ContractError::Unauthorized(
+                UnauthorizedReason::NotExternalDomainProcessor {},
+            ))
+        }
+    };
+
+    // If the proxy is not in a timedout state we won't retry it
+    if polytone
+        .proxy_on_main_domain_state
+        .ne(&PolytoneProxyState::TimedOut)
+    {
+        return Err(ContractError::CallbackError(
+            CallbackErrorReason::PolytoneCallbackNotTimedOut {},
+        ));
+    }
+
+    let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: polytone.polytone_note_address.to_string(),
+        msg: to_json_binary(&PolytoneExecuteMsg::Execute {
+            msgs: vec![],
+            callback: Some(CallbackRequest {
+                receiver: env.contract.address.to_string(),
+                // Any string would work, we just need to know what we are getting the callback for
+                msg: to_json_binary(&"create_proxy".to_string())?,
+            }),
+            timeout_seconds: Uint64::from(polytone.timeout_seconds),
+        })?,
+        funds: vec![],
+    });
+
+    // Update the state of the bridge creation so that we can't trigger this multiple times
+    polytone.proxy_on_main_domain_state = PolytoneProxyState::PendingResponse;
+    CONFIG.save(deps.storage, &config)?;
+
+    Ok(Response::new()
+        .add_message(msg)
+        .add_attribute("method", "retry_bridge_creation"))
+}
+
 fn process_callback(
     deps: DepsMut,
     env: Env,
@@ -347,6 +462,7 @@ fn process_callback(
             &config,
             &env.block,
             Some(index),
+            &env.contract.address,
         )?;
     } else {
         handle_successful_non_atomic_callback(
@@ -355,6 +471,7 @@ fn process_callback(
             execution_id,
             &pending_callback.message_batch,
             &mut messages,
+            &env.contract.address,
         )?;
     }
 
@@ -384,6 +501,116 @@ fn execute_atomic(
         .add_attribute("method", "execute_atomic"))
 }
 
+fn process_polytone_callback(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    callback_msg: CallbackMessage,
+) -> Result<Response, ContractError> {
+    // We will only process callbacks from message initiated by the processor
+    if callback_msg.initiator.to_string() != env.contract.address.to_string() {
+        return Err(ContractError::Unauthorized(
+            UnauthorizedReason::InvalidPolytoneCallbackInitiator {},
+        ));
+    }
+
+    let mut config = CONFIG.load(deps.storage)?;
+    // We might need to update this
+    let polytone = match &mut config.processor_domain {
+        ProcessorDomain::External(polytone) => polytone,
+        ProcessorDomain::Main => {
+            return Err(ContractError::Unauthorized(
+                UnauthorizedReason::NotExternalDomainProcessor {},
+            ))
+        }
+    };
+
+    // Only the polytone note address is allowed to send callbacks here
+    if info.sender != polytone.polytone_note_address {
+        return Err(ContractError::CallbackError(
+            CallbackErrorReason::UnauthorizedPolytoneCallbackSender {},
+        ));
+    }
+
+    // Let's see what we are getting a callback for: creating a proxy or for sending the callback
+    match from_json(callback_msg.initiator_msg) {
+        Ok(Value::Number(n)) if n.is_u64() => {
+            match n.as_u64() {
+                Some(execution_id) => {
+                    match callback_msg.result {
+                        // We should only receive callbacks for Execute messages because that's the only thing we are sending
+                        Callback::Execute(result) => {
+                            // If the result is a timeout, we store it so that it can be resent
+                            if result == Err("timeout".to_string()) {
+                                PENDING_POLYTONE_CALLBACKS.update(
+                                deps.storage,
+                                execution_id,
+                                |callback_info| -> Result<_, ContractError> {
+                                    match callback_info {
+                                        Some(mut info) => {
+                                            info.state = PolytoneCallbackState::TimedOut;
+                                            Ok(info)
+                                        },
+                                        // This should never happen
+                                        None => Err(ContractError::CallbackError(CallbackErrorReason::PolytonePendingCallbackNotFound {  })),
+                                    }
+                                },
+                            )?;
+                            } else {
+                                // If the result is not a timeout, we'll remove the callback from the pending callbacks
+                                PENDING_POLYTONE_CALLBACKS.remove(deps.storage, execution_id);
+                            }
+                        }
+                        _ => {
+                            // We shouldn't receive other type of callbacks
+                            return Err(ContractError::CallbackError(
+                                CallbackErrorReason::InvalidPolytoneCallback {},
+                            ));
+                        }
+                    }
+                }
+                // We should never enter here because we checked it's a u64 before
+                _ => {
+                    return Err(ContractError::CallbackError(
+                        CallbackErrorReason::InvalidPolytoneCallback {},
+                    ));
+                }
+            }
+        }
+        // If the callback we are getting is for creating the proxy, we'll update the state of the proxy to Created if it was successful
+        // or to TimedOutResponse it it was timedout so that we can retry it
+        Ok(Value::String(_)) => {
+            let config = CONFIG.load(deps.storage)?;
+            match callback_msg.result {
+                // We should only receive callbacks for Execute messages because that's the only thing we are sending
+                Callback::Execute(result) => {
+                    // If the result is a timeout, we will update the state of the connector to timeout otherwise we will update to Created
+                    if result == Err("timeout".to_string()) {
+                        polytone.proxy_on_main_domain_state = PolytoneProxyState::TimedOut
+                    } else {
+                        polytone.proxy_on_main_domain_state = PolytoneProxyState::Created
+                    }
+                }
+                // We should never enter here
+                _ => {
+                    return Err(ContractError::CallbackError(
+                        CallbackErrorReason::InvalidPolytoneCallback {},
+                    ));
+                }
+            }
+            CONFIG.save(deps.storage, &config)?;
+        }
+        // If we are receiving something unexpected (shouldn't happen unless someone is pretending to be polytone and sending a callback) we will return an error
+        _ => {
+            return Err(ContractError::CallbackError(
+                CallbackErrorReason::InvalidPolytoneCallback {},
+            ))
+        }
+    }
+
+    Ok(Response::new().add_attribute("action", "process_polytone_callback"))
+}
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
     // The reply logic will be different depending on the execution type of the batch
@@ -406,6 +633,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
                             msg.id,
                             &batch,
                             &mut messages,
+                            &env.contract.address,
                         )?;
                     }
                 }
@@ -419,6 +647,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
                         &config,
                         &env.block,
                         Some(index),
+                        &env.contract.address,
                     )?;
                 }
             }
@@ -427,7 +656,13 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
             // Atomic
             match msg.result {
                 SubMsgResult::Ok(_) => {
-                    handle_successful_atomic_callback(&config, msg.id, &mut messages)?;
+                    handle_successful_atomic_callback(
+                        deps.storage,
+                        &config,
+                        msg.id,
+                        &mut messages,
+                        &env.contract.address,
+                    )?;
                 }
                 SubMsgResult::Err(error) => {
                     handle_unsuccessful_callback(
@@ -439,6 +674,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
                         &config,
                         &env.block,
                         None,
+                        &env.contract.address,
                     )?;
                 }
             }

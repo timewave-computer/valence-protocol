@@ -10,7 +10,7 @@ use neutron_test_tube::{
     SigningAccount, Wasm,
 };
 use serde::Serialize;
-use valence_authorization_utils::msg::{ExternalDomainApi, InstantiateMsg};
+use valence_authorization_utils::msg::{ExternalDomainInfo, InstantiateMsg};
 use valence_processor_utils::msg::InstantiateMsg as ProcessorInstantiateMsg;
 use valence_test_service::msg::InstantiateMsg as TestServiceInstantiateMsg;
 
@@ -93,7 +93,7 @@ pub fn store_and_instantiate_authorization_with_processor_contract(
     signer: &SigningAccount,
     owner: String,
     sub_owners: Vec<String>,
-    external_domains: Vec<ExternalDomainApi>,
+    external_domains: Vec<ExternalDomainInfo>,
 ) -> (String, String) {
     let wasm = Wasm::new(app);
     let extended_wasm = ExtendedWasm::new(app);

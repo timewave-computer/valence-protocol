@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Api, Binary, StdResult, Uint128, WasmMsg};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query, Expiration};
-use polytone::callbacks::CallbackMessage;
+use valence_polytone_utils::polytone::CallbackMessage;
 
 use crate::{
     authorization::{Authorization, AuthorizationInfo, Priority},
@@ -18,11 +18,11 @@ pub struct InstantiateMsg {
     // Processor on Main domain
     pub processor: String,
     // External domains
-    pub external_domains: Vec<ExternalDomainApi>,
+    pub external_domains: Vec<ExternalDomainInfo>,
 }
 
 #[cw_serde]
-pub struct ExternalDomainApi {
+pub struct ExternalDomainInfo {
     pub name: String,
     pub execution_environment: ExecutionEnvironment,
     pub connector: Connector,
@@ -30,7 +30,7 @@ pub struct ExternalDomainApi {
     pub callback_proxy: CallbackProxy,
 }
 
-impl ExternalDomainApi {
+impl ExternalDomainInfo {
     pub fn to_external_domain_validated(&self, api: &dyn Api) -> StdResult<ExternalDomain> {
         Ok(ExternalDomain {
             name: self.name.clone(),
@@ -106,7 +106,7 @@ pub enum OwnerMsg {
 #[cw_serde]
 pub enum PermissionedMsg {
     AddExternalDomains {
-        external_domains: Vec<ExternalDomainApi>,
+        external_domains: Vec<ExternalDomainInfo>,
     },
     CreateAuthorizations {
         authorizations: Vec<AuthorizationInfo>,
@@ -177,6 +177,9 @@ pub enum PermissionlessMsg {
     RetryMsgs {
         // The execution ID that the messages were sent with and timed out
         execution_id: u64,
+    },
+    RetryBridgeCreation {
+        domain_name: String,
     },
 }
 

@@ -20,10 +20,10 @@ cw2                         = { workspace = true }
 cw-ownable                  = { workspace = true }
 valence-authorization-utils = { workspace = true }
 valence-processor-utils     = { workspace = true }
+valence-polytone-utils      = { workspace = true }
 neutron-sdk                 = { workspace = true }
 cw-utils                    = { workspace = true }
 serde_json                  = { workspace = true }
-polytone                    = { workspace = true }
 
 [dev-dependencies]
 neutron-test-tube    = { workspace = true }

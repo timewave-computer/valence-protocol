@@ -53,11 +53,9 @@ valence-test-service     = { path = "contracts/services/test-service", features 
 valence-macros              = { path = "packages/valence-macros" }
 valence-authorization-utils = { path = "packages/authorization-utils" }
 valence-processor-utils     = { path = "packages/processor-utils" }
+valence-polytone-utils      = { path = "packages/polytone-utils" }
 services-utils              = { path = "packages/services-utils" }
 service-base                = { package = "valence-service-base", path = "packages/service-base" }
-
-# external packages
-polytone = { git = "https://github.com/DA0-DA0/polytone/", rev = "f70440a" }
 
 # dev-dependencies
 cw-multi-test        = "2.1.1"

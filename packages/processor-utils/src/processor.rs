@@ -5,6 +5,7 @@ use serde_json::{json, Value};
 use valence_authorization_utils::{
     action::Action,
     authorization::{ActionsConfig, Priority},
+    domain::PolytoneProxyState,
     msg::ProcessorMessage,
 };
 
@@ -28,6 +29,10 @@ pub struct Polytone {
     pub polytone_proxy_address: Addr,
     // Address of note contract (for callbacks) if processor is sitting on a different chain
     pub polytone_note_address: Addr,
+    // Timeout for the IBC messages
+    pub timeout_seconds: u64,
+    // State of proxy on main domain
+    pub proxy_on_main_domain_state: PolytoneProxyState,
 }
 
 #[cw_serde]

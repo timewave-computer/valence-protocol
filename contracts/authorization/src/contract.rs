@@ -3,13 +3,12 @@ use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
     from_json, to_json_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Order,
-    Response, StdResult, Storage, Uint128,
+    Response, StdResult, Storage, Uint128, Uint64, WasmMsg,
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner, is_owner};
 use cw_storage_plus::Bound;
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::NeutronMsg;
-use polytone::callbacks::CallbackMessage;
 use serde_json::Value;
 use valence_authorization_utils::{
     authorization::{
@@ -17,12 +16,14 @@ use valence_authorization_utils::{
         Priority,
     },
     callback::{ExecutionResult, ProcessorCallbackInfo},
-    domain::{Domain, ExternalDomain, PolytoneProxyState},
+    domain::{Connector, Domain, ExternalDomain, PolytoneProxyState},
     msg::{
-        ExecuteMsg, ExternalDomainApi, InstantiateMsg, InternalAuthorizationMsg, Mint, OwnerMsg,
+        ExecuteMsg, ExternalDomainInfo, InstantiateMsg, InternalAuthorizationMsg, Mint, OwnerMsg,
         PermissionedMsg, PermissionlessMsg, ProcessorMessage, QueryMsg,
     },
-    polytone::CallbackRequest,
+};
+use valence_polytone_utils::polytone::{
+    Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg,
 };
 use valence_processor_utils::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExecuteMsg};
 
@@ -150,6 +151,9 @@ pub fn execute(
                 ttl,
             } => send_msgs(deps, env, info, label, ttl, messages),
             PermissionlessMsg::RetryMsgs { execution_id } => retry_msgs(deps, env, execution_id),
+            PermissionlessMsg::RetryBridgeCreation { domain_name } => {
+                retry_bridge_creation(deps, env, domain_name)
+            }
         },
         ExecuteMsg::InternalAuthorizationAction(internal_authorization_msg) => {
             match internal_authorization_msg {
@@ -197,7 +201,7 @@ fn remove_sub_owner(
 fn add_external_domains(
     mut deps: DepsMut,
     env: Env,
-    external_domains: Vec<ExternalDomainApi>,
+    external_domains: Vec<ExternalDomainInfo>,
 ) -> Result<Response<NeutronMsg>, ContractError> {
     for domain in external_domains {
         add_domain(deps.branch(), env.contract.address.to_string(), &domain)?;
@@ -566,9 +570,7 @@ fn retry_msgs(
 
     // Only messages that are in Timeout state can be retried
     if callback_info.execution_result != ExecutionResult::Timeout {
-        return Err(ContractError::Unauthorized(
-            UnauthorizedReason::NotTimedOut {},
-        ));
+        return Err(ContractError::Message(MessageErrorReason::NotTimedOut {}));
     }
 
     let retry_msg = match callback_info.ttl {
@@ -627,6 +629,49 @@ fn retry_msgs(
         .add_attribute("action", "retry_msgs"))
 }
 
+fn retry_bridge_creation(
+    deps: DepsMut,
+    env: Env,
+    domain_name: String,
+) -> Result<Response<NeutronMsg>, ContractError> {
+    let mut external_domain = EXTERNAL_DOMAINS.load(deps.storage, domain_name.clone())?;
+
+    let wasm_msg = match external_domain.connector {
+        Connector::PolytoneNote {
+            address,
+            timeout_seconds,
+            ref mut state,
+        } => {
+            if state.to_owned().ne(&PolytoneProxyState::TimedOut) {
+                return Err(ContractError::Unauthorized(
+                    UnauthorizedReason::BridgeCreationNotTimedOut {},
+                ));
+            }
+
+            // Set creation back to pending response
+            *state = PolytoneProxyState::PendingResponse;
+
+            WasmMsg::Execute {
+                contract_addr: address.to_string(),
+                msg: to_json_binary(&PolytoneExecuteMsg::Execute {
+                    msgs: vec![],
+                    callback: Some(CallbackRequest {
+                        receiver: env.contract.address.to_string(),
+                        // When we add domain we will return a callback with the name of the domain to know that we are getting the callback when trying to create the proxy
+                        msg: to_json_binary(&external_domain.name)?,
+                    }),
+                    timeout_seconds: Uint64::from(timeout_seconds),
+                })?,
+                funds: vec![],
+            }
+        }
+    };
+
+    Ok(Response::new()
+        .add_message(wasm_msg)
+        .add_attribute("action", "retry_bridge_creation"))
+}
+
 fn process_processor_callback(
     deps: DepsMut,
     info: MessageInfo,
@@ -659,7 +704,7 @@ fn process_polytone_callback(
     callback_msg: CallbackMessage,
 ) -> Result<Response<NeutronMsg>, ContractError> {
     // We will only process callbacks from message initiated by the authorization contract
-    if callback_msg.initiator != env.contract.address.to_string() {
+    if callback_msg.initiator.to_string() != env.contract.address.to_string() {
         return Err(ContractError::Unauthorized(
             UnauthorizedReason::InvalidPolytoneCallbackInitiator {},
         ));
@@ -681,7 +726,7 @@ fn process_polytone_callback(
                         }
                         match callback_msg.result {
                             // We should only receive callbacks for Execute messages because that's the only thing we are sending
-                            polytone::ack::Callback::Execute(result) => {
+                            Callback::Execute(result) => {
                                 // If the result is a timeout, we will update the state of the connector to timeout so it can be permissionlessly retry if ttl is not expired
                                 if result == Err("timeout".to_string())
                                     && callback_info.execution_result == ExecutionResult::InProcess
@@ -733,7 +778,7 @@ fn process_polytone_callback(
 
             match callback_msg.result {
                 // We should only receive callbacks for Execute messages because that's the only thing we are sending
-                polytone::ack::Callback::Execute(result) => {
+                Callback::Execute(result) => {
                     // If the result is a timeout, we will update the state of the connector to timeout otherwise we will update to Created
                     if result == Err("timeout".to_string())
                         && external_domain.get_connector_state()

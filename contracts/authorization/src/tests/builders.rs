@@ -10,7 +10,7 @@ use valence_authorization_utils::{
     },
     authorization_message::{Message, MessageDetails, MessageType},
     domain::{Domain, ExecutionEnvironment},
-    msg::{CallbackProxy, Connector, ExternalDomainApi},
+    msg::{CallbackProxy, Connector, ExternalDomainInfo},
 };
 
 const FEE_DENOM: &str = "untrn";
@@ -63,7 +63,7 @@ impl NeutronTestAppBuilder {
         let callback_proxy_addr = Addr::unchecked(callback_proxy.address());
         let user_addr = Addr::unchecked(user.address());
 
-        let external_domain = ExternalDomainApi {
+        let external_domain = ExternalDomainInfo {
             name: self.external_domain,
             execution_environment: ExecutionEnvironment::CosmWasm,
             connector: Connector::PolytoneNote {
@@ -88,7 +88,7 @@ impl NeutronTestAppBuilder {
 pub struct NeutronTestAppSetup {
     pub app: NeutronTestApp,
     pub accounts: Vec<SigningAccount>,
-    pub external_domain: ExternalDomainApi,
+    pub external_domain: ExternalDomainInfo,
     pub owner_addr: Addr,
     pub subowner_addr: Addr,
     pub user_addr: Addr,

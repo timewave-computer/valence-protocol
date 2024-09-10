@@ -2,9 +2,9 @@ use cosmwasm_std::{to_json_binary, Binary, CosmosMsg, DepsMut, Storage, Uint64, 
 use valence_authorization_utils::{
     authorization::{ActionsConfig, Authorization},
     domain::{Connector, Domain},
-    msg::ExternalDomainApi,
-    polytone::{CallbackRequest, PolytoneExecuteMsg},
+    msg::ExternalDomainInfo,
 };
+use valence_polytone_utils::polytone::{CallbackRequest, PolytoneExecuteMsg};
 
 use crate::{
     error::{AuthorizationErrorReason, ContractError},
@@ -15,7 +15,7 @@ use crate::{
 pub fn add_domain(
     deps: DepsMut,
     callback_receiver: String,
-    domain: &ExternalDomainApi,
+    domain: &ExternalDomainInfo,
 ) -> Result<CosmosMsg, ContractError> {
     let external_domain = domain.to_external_domain_validated(deps.api)?;
 
