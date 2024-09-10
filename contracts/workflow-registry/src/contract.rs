@@ -37,7 +37,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::ReserveId {} => execute::get_id(deps, &info),
+        ExecuteMsg::ReserveId {} => execute::reserve_id(deps, &info),
         ExecuteMsg::SaveWorkflow {
             id,
             workflow_config,
@@ -63,14 +63,14 @@ mod execute {
         ContractError,
     };
 
-    pub fn get_id(deps: DepsMut, info: &MessageInfo) -> Result<Response, ContractError> {
+    pub fn reserve_id(deps: DepsMut, info: &MessageInfo) -> Result<Response, ContractError> {
         assert_owner(deps.storage, &info.sender)?;
 
         let id = LAST_ID.load(deps.storage)? + 1;
         LAST_ID.save(deps.storage, &id)?;
 
         Ok(Response::new()
-            .add_attribute("method", "get_id")
+            .add_attribute("method", "reserve_id")
             .add_attribute("id", id.to_string()))
     }
 
