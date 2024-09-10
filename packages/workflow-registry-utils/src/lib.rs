@@ -12,11 +12,12 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     /// "Lock" an id for a workflow to avoid race conditions
     ReserveId {},
-    /// Save the
+    /// Save a new workflow config for the id
     SaveWorkflow {
         id: u64,
         workflow_config: Binary,
     },
+    /// Update a workflow config for the id
     UpdateWorkflow {
         id: u64,
         workflow_config: Binary,
