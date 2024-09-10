@@ -3,8 +3,8 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
 
-use crate::{error::ContractError, state::LAST_ID};
 use crate::state::WORKFLOWS;
+use crate::{error::ContractError, state::LAST_ID};
 use valence_workflow_registry_utils::{ExecuteMsg, InstantiateMsg, QueryMsg, WorkflowResponse};
 
 // version info for migration info
