@@ -21,7 +21,7 @@ use thiserror::Error;
 
 use crate::{
     account::{AccountType, InstantiateAccountData},
-    bridges::PolytoneSingleChainInfo,
+    bridge::PolytoneSingleChainInfo,
     config::{ChainInfo, ConfigError, CONFIG},
     service::{ServiceConfig, ServiceError},
     MAIN_CHAIN,

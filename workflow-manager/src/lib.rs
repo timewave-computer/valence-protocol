@@ -1,5 +1,5 @@
 pub mod account;
-pub mod bridges;
+pub mod bridge;
 pub mod config;
 pub mod connectors;
 pub mod domain;

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Bridges {
+pub enum Bridge {
     /// This is the details we need for the bridge to predict the address of the proxy
     /// https://github.com/DA0-DA0/polytone/blob/main/contracts/main/voice/src/contract.rs#L186
     ///
@@ -31,10 +31,10 @@ pub struct PolytoneSingleChainInfo {
     pub channel_id: String,
 }
 
-impl Bridges {
+impl Bridge {
     pub fn get_polytone_info(&self) -> PolytoneBridgeInfo {
         match self {
-            Bridges::Polytone(polytone_bridge) => polytone_bridge.clone(),
+            Bridge::Polytone(polytone_bridge) => polytone_bridge.clone(),
             // _ => unimplemented!("Bridge is not Polytone"),
         }
     }

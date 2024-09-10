@@ -5,7 +5,7 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 use thiserror::Error;
 
-use crate::bridges::Bridges;
+use crate::bridge::Bridge;
 
 pub type ConfigResult<T> = Result<T, ConfigError>;
 
@@ -30,7 +30,7 @@ pub enum ConfigError {
 pub struct Config {
     pub chains: HashMap<String, ChainInfo>,
     pub contracts: Contracts,
-    pub bridges: HashMap<String, HashMap<String, Bridges>>,
+    pub bridges: HashMap<String, HashMap<String, Bridge>>,
 }
 
 impl Default for Config {
@@ -101,7 +101,7 @@ impl Config {
             .ok_or(ConfigError::CodeIdsNotFound(chain_name.to_string()))
     }
 
-    pub fn get_bridge_info(&self, main_chain: &str, chain_name: &str) -> ConfigResult<&Bridges> {
+    pub fn get_bridge_info(&self, main_chain: &str, chain_name: &str) -> ConfigResult<&Bridge> {
         self.bridges
             .get(main_chain)
             .ok_or(ConfigError::MainChainBridgeNotFound(main_chain.to_string()))?
