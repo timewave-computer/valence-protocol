@@ -24,7 +24,7 @@ use crate::{
     bridge::PolytoneSingleChainInfo,
     config::{ChainInfo, ConfigError, CONFIG},
     service::{ServiceConfig, ServiceError},
-    MAIN_CHAIN,
+    MAIN_CHAIN, NEUTRON_DOMAIN,
 };
 
 use super::{Connector, ConnectorResult};
@@ -74,7 +74,7 @@ pub struct CosmosCosmwasmConnector {
     is_main_chain: bool,
     wallet: Wallet,
     code_ids: HashMap<String, u64>,
-    _chain_name: String,
+    chain_name: String,
 }
 
 impl fmt::Debug for CosmosCosmwasmConnector {
@@ -118,16 +118,29 @@ impl CosmosCosmwasmConnector {
             is_main_chain: chain_info.name == MAIN_CHAIN,
             wallet,
             code_ids: code_ids.clone(),
-            _chain_name: chain_info.name.clone(),
+            chain_name: chain_info.name.clone(),
         })
     }
 }
 
 #[async_trait]
 impl Connector for CosmosCosmwasmConnector {
+    async fn reserve_workflow_id(&mut self) -> ConnectorResult<u64> {
+        if self.chain_name != NEUTRON_DOMAIN.get_chain_name() {
+            return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                "Should only be implemented on neutron connector"
+            ))
+            .into());
+        }
+
+        // TODO: Execute a message to reserve the workflow id
+        // TODO: Query the block to get the workflow id from the events
+
+        Ok(1)
+    }
     async fn get_address(
         &mut self,
-        id: &u64,
+        id: u64,
         contract_name: &str,
         extra_salt: &str,
     ) -> ConnectorResult<(String, Vec<u8>)> {

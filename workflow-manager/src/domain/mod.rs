@@ -23,6 +23,7 @@ pub enum ConnectorError {
 
     #[error("Cosmos Cosmwasm")]
     CosmosCosmwasm(#[from] CosmosCosmwasmError),
+
     // #[error("Cosmos Evm")]
     // CosmosEvm(#[from] CosmosEvmError),
 }
@@ -58,12 +59,17 @@ impl Domain {
 }
 
 #[async_trait]
-pub trait Connector: fmt::Debug {
+pub trait Connector: fmt::Debug + Send + Sync {
+    /// We want this function to only be implemented on neutron connector
+    /// We provide a defualt implemention that errors out if it is used on a different connector.
+    async fn reserve_workflow_id(&mut self) -> ConnectorResult<u64> {
+        unimplemented!("Should only be implemented on neutron connector");
+    }
     /// Predict the address of a contract
     /// returns the address and the salt that should be used.
     async fn get_address(
         &mut self,
-        workflow_id: &u64,
+        workflow_id: u64,
         contract_name: &str,
         extra_salt: &str,
     ) -> ConnectorResult<(String, Vec<u8>)>;

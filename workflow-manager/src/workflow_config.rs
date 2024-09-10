@@ -9,7 +9,7 @@ use crate::{
     domain::Domain,
     error::{ManagerError, ManagerResult},
     service::ServiceInfo,
-    MAIN_CHAIN, MAIN_DOMAIN,
+    MAIN_CHAIN, MAIN_DOMAIN, NEUTRON_DOMAIN,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -37,12 +37,14 @@ pub struct WorkflowConfig {
 
 impl WorkflowConfig {
     /// Instantiate a workflow on all domains.
-    pub async fn init(&mut self) -> ManagerResult<()> {
-        let connectors = Connectors::default();
-
-        // TODO: Get workflow next id from on chain workflow registry
-
+    pub async fn init(&mut self, connectors: &Connectors) -> ManagerResult<()> {
         // TODO: We probably want to verify the whole workflow config first, before doing any operations
+
+        // We create the neutron connector specifically because our registry is on neutron.
+        let mut neutron_connector = connectors.get_or_create_connector(&NEUTRON_DOMAIN).await?;
+
+        // Get workflow next id from on chain workflow registry
+        let workflow_id = neutron_connector.reserve_workflow_id().await?;
 
         // Instantiate the authorization module contracts.
         let all_domains = self.get_all_domains();
@@ -50,23 +52,19 @@ impl WorkflowConfig {
         // Instantiate our autorization and processor contracts on the main domain
         let mut main_connector = connectors.get_or_create_connector(&MAIN_DOMAIN).await?;
         let (authorization_addr, authorization_salt) = main_connector
-            .get_address(&0, "authorization", "authorization")
+            .get_address(workflow_id, "authorization", "authorization")
             .await?;
         let (main_processor_addr, main_processor_salt) = main_connector
-            .get_address(&0, "processor", "processor")
+            .get_address(workflow_id, "processor", "processor")
             .await?;
 
         main_connector
-            .instantiate_authorization(
-                1, //TODO: change this to workflow id
-                authorization_salt,
-                main_processor_addr,
-            )
+            .instantiate_authorization(workflow_id, authorization_salt, main_processor_addr)
             .await?;
 
         main_connector
             .instantiate_processor(
-                1, //TODO: change this to workflow id
+                workflow_id,
                 main_processor_salt,
                 authorization_addr.clone(),
                 None,
@@ -76,7 +74,7 @@ impl WorkflowConfig {
         // init processors and bridge accounts on all other domains
         // For mainnet we need to instantiate a bridge account for each processor instantiated on other domains
         // For other domains, we need to instantiate a bridge account on the main domain for the authorization contract
-        for (id, domain) in all_domains.iter().enumerate() {
+        for domain in all_domains.iter() {
             if domain != &MAIN_DOMAIN {
                 let mut connector = connectors.get_or_create_connector(domain).await?;
 
@@ -92,12 +90,17 @@ impl WorkflowConfig {
 
                 // Get the processor address on the other domain
                 let (processor_addr, salt) = connector
-                    .get_address(&(id as u64), "processor", "processor")
+                    .get_address(workflow_id, "processor", "processor")
                     .await?;
 
                 // Instantiate the processor on the other domain, the admin is the bridge account address of the authorization contract
                 connector
-                    .instantiate_processor(id as u64, salt, authorization_bridge_account_addr, None)
+                    .instantiate_processor(
+                        workflow_id,
+                        salt,
+                        authorization_bridge_account_addr,
+                        None,
+                    )
                     .await?;
 
                 // Get the processor bridge account address on main domain
@@ -147,7 +150,11 @@ impl WorkflowConfig {
 
             let mut domain_connector = connectors.get_or_create_connector(&account.domain).await?;
             let (addr, salt) = domain_connector
-                .get_address(account_id, &account.ty.to_string(), "account")
+                .get_address(
+                    workflow_id,
+                    &account.ty.to_string(),
+                    format!("account_{}", account_id).as_str(),
+                )
                 .await?;
 
             account_instantiate_datas.insert(
@@ -167,7 +174,11 @@ impl WorkflowConfig {
 
             let mut domain_connector = connectors.get_or_create_connector(&service.domain).await?;
             let (service_addr, salt) = domain_connector
-                .get_address(&link.service_id, &service.config.to_string(), "service")
+                .get_address(
+                    workflow_id,
+                    &service.config.to_string(),
+                    format!("service_{}", link_id).as_str(),
+                )
                 .await?;
 
             let mut patterns =
