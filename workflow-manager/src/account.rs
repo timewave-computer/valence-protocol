@@ -16,6 +16,7 @@ pub enum AccountType {
 /// and what type of account we should work with.
 #[derive(Debug, PartialEq, Clone)]
 pub struct AccountInfo {
+    pub name: String,
     pub ty: AccountType,
     pub domain: Domain,
 }

@@ -1064,6 +1064,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "dashmap"
+version = "6.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5041cc499144891f3790297212f32a74fb938e5136a14943f338ef9e0ae276cf"
+dependencies = [
+ "cfg-if",
+ "crossbeam-utils",
+ "hashbrown 0.14.5",
+ "lock_api",
+ "once_cell",
+ "parking_lot_core",
+]
+
+[[package]]
 name = "der"
 version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4540,10 +4554,13 @@ dependencies = [
  "config",
  "cosmos-grpc-client",
  "cosmwasm-std 2.1.3",
+ "cw-ownable",
+ "dashmap",
  "dhat",
  "futures",
  "glob",
  "hex",
+ "once_cell",
  "prost 0.12.6",
  "prost-types 0.12.6",
  "serde",
@@ -4555,9 +4572,12 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "valence-authorization",
  "valence-authorization-utils",
  "valence-base-account",
  "valence-macros",
+ "valence-processor",
+ "valence-processor-utils",
  "valence-reverse-splitter",
  "valence-service-base",
  "valence-splitter",

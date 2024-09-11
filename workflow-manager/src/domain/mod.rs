@@ -1,16 +1,16 @@
 pub mod cosmos_cw;
-pub mod cosmos_evm;
+// pub mod cosmos_evm;
 use std::fmt;
 
 use async_trait::async_trait;
 use cosmos_cw::{CosmosCosmwasmConnector, CosmosCosmwasmError};
-use cosmos_evm::{CosmosEvmConnector, CosmosEvmError};
+// use cosmos_evm::CosmosEvmError;
 use strum::Display;
 use thiserror::Error;
 
 use crate::{
     account::InstantiateAccountData,
-    config::{Config, ConfigError},
+    config::{ConfigError, CONFIG},
     service::ServiceConfig,
 };
 
@@ -23,31 +23,36 @@ pub enum ConnectorError {
 
     #[error("Cosmos Cosmwasm")]
     CosmosCosmwasm(#[from] CosmosCosmwasmError),
-
-    #[error("Cosmos Evm")]
-    CosmosEvm(#[from] CosmosEvmError),
+    // #[error("Cosmos Evm")]
+    // CosmosEvm(#[from] CosmosEvmError),
 }
 
 /// We need some way of knowing which domain we are talking with
 /// TODO: chain connection, execution, bridges for authorization.
 #[derive(Debug, Display, Clone, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub enum Domain {
-    CosmosCosmwasm(String),
-    CosmosEvm(String),
+    CosmosCosmwasm(&'static str),
+    // CosmosEvm(&'static str),
     // Solana
 }
 
 impl Domain {
-    pub async fn generate_connector(&self, cfg: &Config) -> ConnectorResult<Box<dyn Connector>> {
+    pub fn get_chain_name(&self) -> &str {
+        match self {
+            Domain::CosmosCosmwasm(chain_name) => chain_name,
+            // Domain::CosmosEvm(chain_name) => chain_name,
+        }
+    }
+    pub async fn generate_connector(&self) -> ConnectorResult<Box<dyn Connector>> {
         Ok(match self {
             Domain::CosmosCosmwasm(chain_name) => Box::new(
                 CosmosCosmwasmConnector::new(
-                    cfg.get_chain_info(chain_name)?,
-                    cfg.get_code_ids(chain_name)?,
+                    CONFIG.get_chain_info(chain_name)?,
+                    CONFIG.get_code_ids(chain_name)?,
                 )
                 .await?,
             ),
-            Domain::CosmosEvm(_) => Box::new(CosmosEvmConnector::new().await?),
+            // Domain::CosmosEvm(_) => Box::new(CosmosEvmConnector::new().await?),
         })
     }
 }
@@ -56,18 +61,64 @@ impl Domain {
 pub trait Connector: fmt::Debug {
     /// Predict the address of a contract
     /// returns the address and the salt that should be used.
-    async fn predict_address(
+    async fn get_address(
         &mut self,
-        account_id: &u64,
+        workflow_id: &u64,
         contract_name: &str,
         extra_salt: &str,
     ) -> ConnectorResult<(String, Vec<u8>)>;
-    /// Instantiate an account based onthe provided data
+    /// Bridge account need specific information to create an account.
+    async fn get_address_bridge(
+        &mut self,
+        sender_addr: &str,
+        main_chain: &str,
+        sender_chain: &str,
+        receiving_chain: &str,
+    ) -> ConnectorResult<String>;
+    /// Instantiate an account based on the provided data
     async fn instantiate_account(&mut self, data: &InstantiateAccountData) -> ConnectorResult<()>;
+    /// Instantiate a service contract based on the given data
     async fn instantiate_service(
         &mut self,
         service_id: u64,
         service_config: &ServiceConfig,
         salt: Vec<u8>,
+    ) -> ConnectorResult<()>;
+    /// Instantiate the authorization contract, only on the main domain for a workflow
+    /// Currently Neutron is the only main domain we use, this might change in the future.
+    /// CosmosCosmwasmConnector is the only connector that should implement it fully,
+    /// while checking that this operation only happens on the main domain.
+    /// Other connectors should return an error.
+    /// Should return the address of the authorization contract.
+    async fn instantiate_authorization(
+        &mut self,
+        workflow_id: u64,
+        salt: Vec<u8>,
+        processor_addr: String,
+    ) -> ConnectorResult<()>;
+    async fn change_authorization_owner(
+        &mut self,
+        authorization_addr: String,
+        owner: String,
+    ) -> ConnectorResult<()>;
+    async fn instantiate_processor(
+        &mut self,
+        workflow_id: u64,
+        salt: Vec<u8>,
+        admin: String,
+        polytone_addr: Option<valence_processor_utils::msg::PolytoneContracts>,
+    ) -> ConnectorResult<()>;
+    async fn add_external_domain(
+        &mut self,
+        main_domain: &str,
+        domain: &str,
+        authorrization_addr: String,
+        processor_addr: String,
+        processor_bridge_account_addr: String,
+    ) -> ConnectorResult<()>;
+    async fn instantiate_processor_bridge_account(
+        &mut self,
+        processor_addr: String,
+        retry: u8,
     ) -> ConnectorResult<()>;
 }

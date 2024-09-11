@@ -1,0 +1,12 @@
+[bridges.neutron.cosmos-hub.polytone.neutron]
+voice_addr      = "neutron1vq2z7zgj7v4yj7z2zgj7v4yj7z2zgj7z2zgj7v"
+note_addr       = "neutron1vq2z7zgj7v4yj7z2zgj7v4yj7z2zgj7z2zgj7v"
+other_note_port = "wasm.cosmos1vq2z7zgj7v4yj7z2zgj7v4yj7z2zgj7z2zgj7v"
+connection_id   = "connection-0"
+channel_id      = "channel-0"
+[bridges.neutron.cosmos-hub.polytone.cosmos_hub]
+voice_addr      = "cosmos1vq2z7zgj7v4yj7z2zgj7v4yj7z2zgj7z2zgj7v"
+note_addr       = "cosmos1vq2z7zgj7v4yj7z2zgj7v4yj7z2zgj7z2zgj7v"
+other_note_port = "wasm.neutron1vq2z7zgj7v4yj7z2zgj7v4yj7z2zgj7z2zgj7v"
+connection_id   = "connection-0"
+channel_id      = "channel-0"

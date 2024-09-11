@@ -9,25 +9,31 @@ mod test {
 
     use crate::{
         account::{AccountInfo, AccountType},
-        context::Context,
+        config::Config,
         domain::Domain,
         init_workflow,
         service::{ServiceConfig, ServiceInfo},
         workflow_config::{Link, WorkflowConfig},
     };
 
-    #[global_allocator]
-    static ALLOC: dhat::Alloc = dhat::Alloc;
+    /// test to make sure on config is parsed correctlly.
+    /// MUST fix this test before handling other tests, config is part of the context we use, if we can't generate it successfully
+    /// probably means other tests are also failing because of it.
+    #[tokio::test]
+    async fn test_config() {
+        let config = Config::default();
+        println!("{:#?}", config.bridges);
+    }
 
     #[ignore = "internal test"]
     #[tokio::test]
     async fn test_domains() {
         // let _profiler = dhat::Profiler::builder().testing().build();
-        let ctx = Context::default();
+        let _config = Config::default();
+        // let ctx = Connectors::new(&config);
 
-        let domain = Domain::CosmosCosmwasm("neutron".to_string());
-        let _connector = domain.generate_connector(&ctx.config).await.unwrap();
-
+        let domain = Domain::CosmosCosmwasm("neutron");
+        let _connector = domain.generate_connector().await.unwrap();
         // // let domain2 = Domain::Cosmos("neutron".to_string());
         // let mut domain_info = DomainInfo::from_domain(&domain).await;
         // println!("{domain_info:?}");
@@ -98,33 +104,38 @@ mod test {
         config.accounts.insert(
             1,
             AccountInfo {
+                name: "test_1".to_string(),
                 ty: AccountType::Base { admin: None },
-                domain: Domain::CosmosCosmwasm("neutron".to_string()),
+                domain: Domain::CosmosCosmwasm("neutron"),
             },
         );
         config.accounts.insert(
             2,
             AccountInfo {
+                name: "test_2".to_string(),
                 ty: AccountType::Base { admin: None },
-                domain: Domain::CosmosCosmwasm("neutron".to_string()),
+                domain: Domain::CosmosCosmwasm("neutron"),
             },
         );
         config.accounts.insert(
             3,
             AccountInfo {
+                name: "test_3".to_string(),
                 ty: AccountType::Base { admin: None },
-                domain: Domain::CosmosCosmwasm("neutron".to_string()),
+                domain: Domain::CosmosCosmwasm("neutron"),
             },
         );
 
         let mut splits: BTreeSet<(ServiceAccountType, Uint128)> = BTreeSet::new();
         splits.insert((ServiceAccountType::AccountId(2), 100_u128.into()));
         splits.insert((ServiceAccountType::AccountId(3), 200_u128.into()));
+        splits.insert((ServiceAccountType::AccountId(4), 200_u128.into()));
 
         config.services.insert(
             1,
             ServiceInfo {
-                domain: Domain::CosmosCosmwasm("neutron".to_string()),
+                name: "test_services".to_string(),
+                domain: Domain::CosmosCosmwasm("neutron"),
                 config: ServiceConfig::Splitter(SplitterServiceConfig {
                     input_addr: ServiceAccountType::AccountId(1),
                     splits: (BTreeMap::from_iter(vec![("NTRN".to_string(), splits)].into_iter())),
