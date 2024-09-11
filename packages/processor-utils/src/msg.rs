@@ -81,4 +81,6 @@ pub enum QueryMsg {
         to: Option<u64>,
         priority: Priority,
     },
+    #[returns(bool)]
+    IsQueueEmpty {},
 }

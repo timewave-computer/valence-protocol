@@ -1,6 +1,5 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-
 use cosmwasm_std::{
     from_json, to_json_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Order,
     Response, StdResult, Storage, Uint128, Uint64, WasmMsg,

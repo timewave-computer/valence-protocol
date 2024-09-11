@@ -693,6 +693,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetQueue { from, to, priority } => {
             to_json_binary(&get_queue(deps, from, to, &priority)?)
         }
+        QueryMsg::IsQueueEmpty {} => to_json_binary(&is_queue_empty(deps)?),
     }
 }
 
@@ -708,4 +709,11 @@ fn get_queue(
 ) -> StdResult<Vec<MessageBatch>> {
     let queue = get_queue_map(priority);
     queue.query(deps.storage, from, to, Order::Ascending)
+}
+
+fn is_queue_empty(deps: Deps) -> StdResult<bool> {
+    let queue_high = get_queue_map(&Priority::High);
+    let queue_med = get_queue_map(&Priority::Medium);
+
+    Ok(queue_high.is_empty(deps.storage)? && queue_med.is_empty(deps.storage)?)
 }

@@ -1,6 +1,17 @@
 [contracts]
 
 [contracts.code_ids.neutron]
+polytone_proxy   = 1
 base_account     = 5987
+processor        = 4
+authorization    = 5
+splitter         = 6049
+reverse_splitter = 3
+
+[contracts.code_ids.cosmos-hub]
+polytone_proxy   = 1
+processor        = 4
+base_account     = 5987
+authorization    = 5
 splitter         = 6049
 reverse_splitter = 3
