@@ -47,6 +47,7 @@ impl WorkflowConfig {
         // TODO: get registry address
         let workflow_id = neutron_connector.reserve_workflow_id("test".to_string()).await?;
 
+
         // Instantiate the authorization module contracts.
         let all_domains = self.get_all_domains();
 
@@ -61,6 +62,7 @@ impl WorkflowConfig {
 
         main_connector
             .instantiate_authorization(workflow_id, authorization_salt, main_processor_addr)
+
             .await?;
 
         main_connector
@@ -155,6 +157,7 @@ impl WorkflowConfig {
 
             let mut domain_connector = connectors.get_or_create_connector(&account.domain).await?;
             let (addr, salt) = domain_connector
+
                 .get_address(
                     workflow_id,
                     &account.ty.to_string(),

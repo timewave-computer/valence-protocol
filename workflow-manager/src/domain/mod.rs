@@ -43,6 +43,7 @@ impl Domain {
             // Domain::CosmosEvm(chain_name) => chain_name,
         }
     }
+    
     pub async fn generate_connector(&self) -> ConnectorResult<Box<dyn Connector>> {
         Ok(match self {
             Domain::CosmosCosmwasm(chain_name) => Box::new(
