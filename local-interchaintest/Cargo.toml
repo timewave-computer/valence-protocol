@@ -7,7 +7,11 @@ repository = { workspace = true }
 
 [dependencies]
 localic-std                        = { git = "https://github.com/strangelove-ventures/interchaintest", branch = "main" }
-localic-utils                      = { git = "https://github.com/timewave-computer/localic-utils", branch = "main" }
+localic-utils                      = { git = "https://github.com/timewave-computer/localic-utils", branch = "keyne/upload-single" }
 valence-local-interchaintest-utils = { workspace = true }
+valence-authorization-utils        = { workspace = true }
+valence-processor-utils            = { workspace = true }
+hex                                = { workspace = true }
+serde_json                         = { workspace = true }
 env_logger                         = "0.11.5"
 log                                = "0.4.22"

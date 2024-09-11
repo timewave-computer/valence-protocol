@@ -2296,10 +2296,14 @@ name = "local-interchaintest"
 version = "0.1.0"
 dependencies = [
  "env_logger 0.11.5",
+ "hex",
  "localic-std",
  "localic-utils",
  "log",
+ "serde_json",
+ "valence-authorization-utils",
  "valence-local-interchaintest-utils",
+ "valence-processor-utils",
 ]
 
 [[package]]
@@ -2317,7 +2321,7 @@ dependencies = [
 [[package]]
 name = "localic-utils"
 version = "0.1.0"
-source = "git+https://github.com/timewave-computer/localic-utils?branch=main#a4ec702a15c60aafd1d926d3365ab84a6c25927e"
+source = "git+https://github.com/timewave-computer/localic-utils?branch=keyne/upload-single#d050f7e9f1df37197cf9febabcd09933515f76d9"
 dependencies = [
  "astroport",
  "cosmwasm-std 1.5.7",
