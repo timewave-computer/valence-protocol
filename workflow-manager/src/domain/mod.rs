@@ -23,7 +23,6 @@ pub enum ConnectorError {
 
     #[error("Cosmos Cosmwasm")]
     CosmosCosmwasm(#[from] CosmosCosmwasmError),
-
     // #[error("Cosmos Evm")]
     // CosmosEvm(#[from] CosmosEvmError),
 }
@@ -60,11 +59,6 @@ impl Domain {
 
 #[async_trait]
 pub trait Connector: fmt::Debug + Send + Sync {
-    /// We want this function to only be implemented on neutron connector
-    /// We provide a defualt implemention that errors out if it is used on a different connector.
-    async fn reserve_workflow_id(&mut self) -> ConnectorResult<u64> {
-        unimplemented!("Should only be implemented on neutron connector");
-    }
     /// Predict the address of a contract
     /// returns the address and the salt that should be used.
     async fn get_address(
@@ -73,6 +67,7 @@ pub trait Connector: fmt::Debug + Send + Sync {
         contract_name: &str,
         extra_salt: &str,
     ) -> ConnectorResult<(String, Vec<u8>)>;
+
     /// Bridge account need specific information to create an account.
     async fn get_address_bridge(
         &mut self,
@@ -81,8 +76,10 @@ pub trait Connector: fmt::Debug + Send + Sync {
         sender_chain: &str,
         receiving_chain: &str,
     ) -> ConnectorResult<String>;
+
     /// Instantiate an account based on the provided data
     async fn instantiate_account(&mut self, data: &InstantiateAccountData) -> ConnectorResult<()>;
+
     /// Instantiate a service contract based on the given data
     async fn instantiate_service(
         &mut self,
@@ -90,23 +87,8 @@ pub trait Connector: fmt::Debug + Send + Sync {
         service_config: &ServiceConfig,
         salt: Vec<u8>,
     ) -> ConnectorResult<()>;
-    /// Instantiate the authorization contract, only on the main domain for a workflow
-    /// Currently Neutron is the only main domain we use, this might change in the future.
-    /// CosmosCosmwasmConnector is the only connector that should implement it fully,
-    /// while checking that this operation only happens on the main domain.
-    /// Other connectors should return an error.
-    /// Should return the address of the authorization contract.
-    async fn instantiate_authorization(
-        &mut self,
-        workflow_id: u64,
-        salt: Vec<u8>,
-        processor_addr: String,
-    ) -> ConnectorResult<()>;
-    async fn change_authorization_owner(
-        &mut self,
-        authorization_addr: String,
-        owner: String,
-    ) -> ConnectorResult<()>;
+
+    /// Instantiate a processor contract
     async fn instantiate_processor(
         &mut self,
         workflow_id: u64,
@@ -114,17 +96,64 @@ pub trait Connector: fmt::Debug + Send + Sync {
         admin: String,
         polytone_addr: Option<valence_processor_utils::msg::PolytoneContracts>,
     ) -> ConnectorResult<()>;
-    async fn add_external_domain(
-        &mut self,
-        main_domain: &str,
-        domain: &str,
-        authorrization_addr: String,
-        processor_addr: String,
-        processor_bridge_account_addr: String,
-    ) -> ConnectorResult<()>;
+
+    /// The processor should create the account on instantiation, but if it fails we need to be to retry
     async fn instantiate_processor_bridge_account(
         &mut self,
         processor_addr: String,
         retry: u8,
     ) -> ConnectorResult<()>;
+
+    // ---------------------------------------------------------------------------------------
+    // Below are functions that sohuld only be implemented on a specific domain
+    // For example authorization contract methods should only be implemented on the main domain
+    // And they should have a default to prevent other connectors the need to implement them.
+
+    /// We want this function to only be implemented on neutron connector
+    /// We provide a defualt implemention that errors out if it is used on a different connector.
+    #[allow(unused_variables)]
+    async fn reserve_workflow_id(&mut self, registry_addr: String) -> ConnectorResult<u64> {
+        unimplemented!("'reserve_workflow_id' should only be implemented on neutron domain");
+    }
+
+    /// Instantiate the authorization contract, only on the main domain for a workflow
+    /// Currently Neutron is the only main domain we use, this might change in the future.
+    /// CosmosCosmwasmConnector is the only connector that should implement it fully,
+    /// while checking that this operation only happens on the main domain.
+    /// Other connectors should return an error.
+    /// Should return the address of the authorization contract.
+    #[allow(unused_variables)]
+    async fn instantiate_authorization(
+        &mut self,
+        workflow_id: u64,
+        salt: Vec<u8>,
+        processor_addr: String,
+    ) -> ConnectorResult<()> {
+        unimplemented!("'instantiate_authorization' should only be implemented on main domain");
+    }
+
+    /// Add an external domain to the processor contract
+    /// This is only called on the authorization contract, so will only be called on the main domain
+    #[allow(unused_variables)]
+    async fn add_external_domain(
+        &mut self,
+        main_domain: &str,
+        domain: &str,
+        authorization_addr: String,
+        processor_addr: String,
+        processor_bridge_account_addr: String,
+    ) -> ConnectorResult<()> {
+        unimplemented!("'add_external_domain' should only be implemented on main domain");
+    }
+
+    /// Change the owner of the authorization contract
+    /// This will only be called on our main domain as there is where our authorization contract is
+    #[allow(unused_variables)]
+    async fn change_authorization_owner(
+        &mut self,
+        authorization_addr: String,
+        owner: String,
+    ) -> ConnectorResult<()> {
+        unimplemented!("'change_authorization_owner' should only be implemented on main domain");
+    }
 }

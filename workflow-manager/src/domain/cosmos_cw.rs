@@ -125,7 +125,7 @@ impl CosmosCosmwasmConnector {
 
 #[async_trait]
 impl Connector for CosmosCosmwasmConnector {
-    async fn reserve_workflow_id(&mut self) -> ConnectorResult<u64> {
+    async fn reserve_workflow_id(&mut self, registry_addr: String) -> ConnectorResult<u64> {
         if self.chain_name != NEUTRON_DOMAIN.get_chain_name() {
             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                 "Should only be implemented on neutron connector"
@@ -134,10 +134,34 @@ impl Connector for CosmosCosmwasmConnector {
         }
 
         // TODO: Execute a message to reserve the workflow id
+        let msg = to_vec(&valence_workflow_registry_utils::ExecuteMsg::ReserveId {})
+            .map_err(CosmosCosmwasmError::SerdeJsonError)?;
+
+        let m = MsgExecuteContract {
+            sender: self.wallet.account_address.clone(),
+            contract: registry_addr,
+            msg,
+            funds: vec![],
+        }
+        .build_any();
+
+        let block_hash = self
+            .wallet
+            .simulate_tx(vec![m])
+            // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
+            .await
+            .map_err(CosmosCosmwasmError::Error)?
+            .result
+            .context("'reserve_workflow_id' failed to get result")
+            .map_err(CosmosCosmwasmError::Error)?;
+
+        println!("{:?}", block_hash);
+
         // TODO: Query the block to get the workflow id from the events
 
         Ok(1)
     }
+
     async fn get_address(
         &mut self,
         id: u64,

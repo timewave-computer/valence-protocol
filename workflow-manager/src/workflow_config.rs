@@ -44,7 +44,8 @@ impl WorkflowConfig {
         let mut neutron_connector = connectors.get_or_create_connector(&NEUTRON_DOMAIN).await?;
 
         // Get workflow next id from on chain workflow registry
-        let workflow_id = neutron_connector.reserve_workflow_id().await?;
+        // TODO: get registry address
+        let workflow_id = neutron_connector.reserve_workflow_id("test".to_string()).await?;
 
         // Instantiate the authorization module contracts.
         let all_domains = self.get_all_domains();
@@ -124,6 +125,10 @@ impl WorkflowConfig {
                     )
                     .await?;
 
+                // TODO: Add instantiate authorization bridge account step, to very the bridge was instantiated correctly.
+                // Maybe this step should be done after this loop to give at least some time for the contract to create the account
+                // because this is async and requires an IBC msg.
+
                 // Adding external domain to the authorization contract will create the bridge account on that domain
                 // But we still need to create the processor bridge account on main domain.
                 // The processor will create the bridge account on instantiation, but we still need to verify the account was created
@@ -144,7 +149,7 @@ impl WorkflowConfig {
                 // and how we can update its approved services list.
                 // We can also assume the initier knows what he is doing, and will adjust those accounts manually.
                 // We can also output what the needed operations to adjust it,
-                // similar to what we what we will do on workflow update
+                // similar to what we will do on workflow update
                 continue;
             }
 
@@ -231,6 +236,7 @@ impl WorkflowConfig {
             .change_authorization_owner(authorization_addr, self.owner.clone())
             .await?;
 
+        // TODO: Verify the workflow is complete and everything is instantiatied correctly
         Ok(())
     }
 }

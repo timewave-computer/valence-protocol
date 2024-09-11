@@ -4581,6 +4581,8 @@ dependencies = [
  "valence-reverse-splitter",
  "valence-service-base",
  "valence-splitter",
+ "valence-workflow-registry",
+ "valence-workflow-registry-utils",
 ]
 
 [[package]]
