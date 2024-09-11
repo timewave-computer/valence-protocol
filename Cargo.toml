@@ -7,6 +7,7 @@ members = [
     "contracts/workflow-registry",
     "packages/*",
     "workflow-manager",
+    "local-interchaintest",
 ]
 resolver = "2"
 
@@ -52,13 +53,14 @@ valence-workflow-registry = { path = "contracts/workflow-registry", features = [
 valence-test-service      = { path = "contracts/services/test-service", features = ["library"] }
 
 # our packages
-valence-macros                  = { path = "packages/valence-macros" }
-valence-authorization-utils     = { path = "packages/authorization-utils" }
-valence-processor-utils         = { path = "packages/processor-utils" }
-valence-polytone-utils          = { path = "packages/polytone-utils" }
-services-utils                  = { path = "packages/services-utils" }
-service-base                    = { package = "valence-service-base", path = "packages/service-base" }
-valence-workflow-registry-utils = { path = "packages/workflow-registry-utils" }
+valence-macros                     = { path = "packages/valence-macros" }
+valence-authorization-utils        = { path = "packages/authorization-utils" }
+valence-processor-utils            = { path = "packages/processor-utils" }
+valence-polytone-utils             = { path = "packages/polytone-utils" }
+services-utils                     = { path = "packages/services-utils" }
+service-base                       = { package = "valence-service-base", path = "packages/service-base" }
+valence-workflow-registry-utils    = { path = "packages/workflow-registry-utils" }
+valence-local-interchaintest-utils = { path = "packages/local-interchaintest-utils" }
 
 # dev-dependencies
 cw-multi-test        = "2.1.1"
