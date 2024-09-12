@@ -6,7 +6,7 @@ use service_base::{
     ServiceError,
 };
 
-use crate::msg::{ActionsMsgs, OptionalServiceConfig, QueryMsg, ServiceConfig};
+use crate::msg::{ActionsMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -124,7 +124,10 @@ mod execute {
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetOwner {} => to_json_binary(&cw_ownable::get_ownership(deps.storage)?),
-        QueryMsg::GetServiceConfig {} => to_json_binary(&service_base::load_config(deps.storage)?),
+        QueryMsg::GetServiceConfig {} => {
+            let config: Config = service_base::load_config(deps.storage)?;
+            to_json_binary(&config)
+        }
     }
 }
 
