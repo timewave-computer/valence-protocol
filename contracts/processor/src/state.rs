@@ -29,7 +29,7 @@ pub const NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX: Map<u64, usize> =
 // we will continue the batch execution, if it isn't it will be put back to the queue with the right retry logic
 pub const PENDING_CALLBACK: Map<u64, PendingCallback> = Map::new("pending_callback");
 
-// Pending and Timedout polytone callbacks will be stored here so that we anyone can permissionlessly retry them if they are timedout
+// Pending and Timedout polytone callbacks will be stored here so that anyone can permissionlessly retry them if they are timedout
 // The key will be the execution ID the callback was for and we will store the result and the status to re-send if the status is
 pub const PENDING_POLYTONE_CALLBACKS: Map<u64, PendingPolytoneCallbackInfo> =
     Map::new("pending_polytone_callbacks");
