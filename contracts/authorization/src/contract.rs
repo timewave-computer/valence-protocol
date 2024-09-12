@@ -715,7 +715,7 @@ fn process_polytone_callback(
                 // Make sure that the right address sent the polytone callback
                 let mut callback_info = PROCESSOR_CALLBACKS.load(deps.storage, execution_id)?;
                 match callback_info.bridge_callback_address {
-                    Some(polytone_address) => {
+                    Some(ref polytone_address) => {
                         // Only the correct polytone address for this execution id is allowed to send this callback
                         if info.sender != polytone_address {
                             return Err(ContractError::Unauthorized(
@@ -735,6 +735,13 @@ fn process_polytone_callback(
                                             } else {
                                                 ExecutionResult::UnexpectedError(error)
                                             };
+
+                                            // Save the callback update
+                                            PROCESSOR_CALLBACKS.save(
+                                                deps.storage,
+                                                execution_id,
+                                                &callback_info,
+                                            )?;
 
                                             // Update the current executions for the label
                                             CURRENT_EXECUTIONS.update(
