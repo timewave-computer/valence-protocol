@@ -1,6 +1,7 @@
 use cosmwasm_std::{to_json_binary, Binary, CosmosMsg, DepsMut, Storage, Uint64, WasmMsg};
 use valence_authorization_utils::{
     authorization::{ActionsConfig, Authorization},
+    callback::PolytoneCallbackMsg,
     domain::{Connector, Domain},
     msg::ExternalDomainInfo,
 };
@@ -41,7 +42,7 @@ pub fn add_domain(
                 callback: Some(CallbackRequest {
                     receiver: callback_receiver,
                     // When we add domain we will return a callback with the name of the domain to know that we are getting the callback when trying to create the proxy
-                    msg: to_json_binary(&external_domain.name)?,
+                    msg: to_json_binary(&PolytoneCallbackMsg::CreateProxy(external_domain.name))?,
                 }),
                 timeout_seconds: Uint64::from(timeout_seconds),
             })?,

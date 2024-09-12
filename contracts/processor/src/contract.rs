@@ -6,7 +6,6 @@ use cosmwasm_std::{
     Response, StdResult, SubMsg, SubMsgResult, Uint64, WasmMsg,
 };
 
-use serde_json::Value;
 use valence_authorization_utils::{
     authorization::{ActionsConfig, Priority},
     callback::ExecutionResult,
@@ -17,7 +16,7 @@ use valence_polytone_utils::polytone::{
     Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg,
 };
 use valence_processor_utils::{
-    callback::{PendingCallback, PolytoneCallbackState},
+    callback::{PendingCallback, PolytoneCallbackMsg, PolytoneCallbackState},
     msg::{
         AuthorizationMsg, ExecuteMsg, InstantiateMsg, InternalProcessorMsg, PermissionlessMsg,
         QueryMsg,
@@ -76,7 +75,7 @@ pub fn instantiate(
                     callback: Some(CallbackRequest {
                         receiver: env.contract.address.to_string(),
                         // Any string would work, we just need to know what we are getting the callback for
-                        msg: to_json_binary(&"create_proxy".to_string())?,
+                        msg: to_json_binary(&PolytoneCallbackMsg::CreateProxy)?,
                     }),
                     timeout_seconds: Uint64::from(polytone.timeout_seconds),
                 })?,
@@ -363,7 +362,7 @@ fn retry_callback(deps: DepsMut, env: Env, execution_id: u64) -> Result<Response
     // If the callback is not timed out (still pending) we won't retry it
     if pending_callback.state.ne(&PolytoneCallbackState::TimedOut) {
         return Err(ContractError::CallbackError(
-            CallbackErrorReason::PolytoneCallbackNotTimedOut {},
+            CallbackErrorReason::PolytoneCallbackStillPending {},
         ));
     }
 
@@ -398,7 +397,7 @@ fn retry_bridge_creation(deps: DepsMut, env: Env) -> Result<Response, ContractEr
         .ne(&PolytoneProxyState::TimedOut)
     {
         return Err(ContractError::CallbackError(
-            CallbackErrorReason::PolytoneCallbackNotTimedOut {},
+            CallbackErrorReason::PolytoneCallbackNotRetriable {},
         ));
     }
 
@@ -409,7 +408,7 @@ fn retry_bridge_creation(deps: DepsMut, env: Env) -> Result<Response, ContractEr
             callback: Some(CallbackRequest {
                 receiver: env.contract.address.to_string(),
                 // Any string would work, we just need to know what we are getting the callback for
-                msg: to_json_binary(&"create_proxy".to_string())?,
+                msg: to_json_binary(&PolytoneCallbackMsg::CreateProxy)?,
             }),
             timeout_seconds: Uint64::from(polytone.timeout_seconds),
         })?,
@@ -507,15 +506,14 @@ fn process_polytone_callback(
     info: MessageInfo,
     callback_msg: CallbackMessage,
 ) -> Result<Response, ContractError> {
-    // We will only process callbacks from message initiated by the processor
-    if callback_msg.initiator.to_string() != env.contract.address.to_string() {
+    // Check if the callback is from the processor
+    if callback_msg.initiator != env.contract.address {
         return Err(ContractError::Unauthorized(
             UnauthorizedReason::InvalidPolytoneCallbackInitiator {},
         ));
     }
 
     let mut config = CONFIG.load(deps.storage)?;
-    // We might need to update this
     let polytone = match &mut config.processor_domain {
         ProcessorDomain::External(polytone) => polytone,
         ProcessorDomain::Main => {
@@ -525,88 +523,73 @@ fn process_polytone_callback(
         }
     };
 
-    // Only the polytone note address is allowed to send callbacks here
+    // Check if the sender is the authorized polytone note address
     if info.sender != polytone.polytone_note_address {
         return Err(ContractError::CallbackError(
             CallbackErrorReason::UnauthorizedPolytoneCallbackSender {},
         ));
     }
 
-    // Let's see what we are getting a callback for: creating a proxy or for sending the callback
-    match from_json(callback_msg.initiator_msg) {
-        Ok(Value::Number(n)) if n.is_u64() => {
-            match n.as_u64() {
-                Some(execution_id) => {
-                    match callback_msg.result {
-                        // We should only receive callbacks for Execute messages because that's the only thing we are sending
-                        Callback::Execute(result) => {
-                            // If the result is a timeout, we store it so that it can be resent
-                            if result == Err("timeout".to_string()) {
-                                PENDING_POLYTONE_CALLBACKS.update(
-                                deps.storage,
-                                execution_id,
-                                |callback_info| -> Result<_, ContractError> {
-                                    match callback_info {
-                                        Some(mut info) => {
-                                            info.state = PolytoneCallbackState::TimedOut;
-                                            Ok(info)
-                                        },
-                                        // This should never happen
-                                        None => Err(ContractError::CallbackError(CallbackErrorReason::PolytonePendingCallbackNotFound {  })),
-                                    }
-                                },
-                            )?;
-                            } else {
-                                // If the result is not a timeout, we'll remove the callback from the pending callbacks
-                                PENDING_POLYTONE_CALLBACKS.remove(deps.storage, execution_id);
-                            }
-                        }
-                        _ => {
-                            // We shouldn't receive other type of callbacks
-                            return Err(ContractError::CallbackError(
-                                CallbackErrorReason::InvalidPolytoneCallback {},
-                            ));
-                        }
+    match from_json::<PolytoneCallbackMsg>(callback_msg.initiator_msg.clone()) {
+        Ok(polytone_callback_msg) => match polytone_callback_msg {
+            PolytoneCallbackMsg::ExecutionID(execution_id) => match callback_msg.result {
+                Callback::Execute(result) => match result {
+                    Ok(_) => {
+                        PENDING_POLYTONE_CALLBACKS.remove(deps.storage, execution_id);
                     }
-                }
-                // We should never enter here because we checked it's a u64 before
+                    Err(error) => {
+                        PENDING_POLYTONE_CALLBACKS.update(
+                            deps.storage,
+                            execution_id,
+                            |callback_info| -> Result<_, ContractError> {
+                                match callback_info {
+                                    Some(mut info) => {
+                                        if error == "timeout" {
+                                            info.state = PolytoneCallbackState::TimedOut;
+                                        } else {
+                                            info.state =
+                                                PolytoneCallbackState::UnexpectedError(error);
+                                        }
+                                        Ok(info)
+                                    }
+                                    None => Err(ContractError::CallbackError(
+                                        CallbackErrorReason::PolytonePendingCallbackNotFound {},
+                                    )),
+                                }
+                            },
+                        )?;
+                    }
+                },
                 _ => {
                     return Err(ContractError::CallbackError(
                         CallbackErrorReason::InvalidPolytoneCallback {},
                     ));
                 }
-            }
-        }
-        // If the callback we are getting is for creating the proxy, we'll update the state of the proxy to Created if it was successful
-        // or to TimedOutResponse it it was timedout so that we can retry it
-        Ok(Value::String(_)) => {
-            let config = CONFIG.load(deps.storage)?;
-            match callback_msg.result {
-                // We should only receive callbacks for Execute messages because that's the only thing we are sending
+            },
+            PolytoneCallbackMsg::CreateProxy => match callback_msg.result {
                 Callback::Execute(result) => {
-                    // If the result is a timeout, we will update the state of the connector to timeout otherwise we will update to Created
                     if result == Err("timeout".to_string()) {
                         polytone.proxy_on_main_domain_state = PolytoneProxyState::TimedOut
                     } else {
                         polytone.proxy_on_main_domain_state = PolytoneProxyState::Created
                     }
                 }
-                // We should never enter here
                 _ => {
                     return Err(ContractError::CallbackError(
                         CallbackErrorReason::InvalidPolytoneCallback {},
                     ));
                 }
-            }
-            CONFIG.save(deps.storage, &config)?;
-        }
-        // If we are receiving something unexpected (shouldn't happen unless someone is pretending to be polytone and sending a callback) we will return an error
-        _ => {
+            },
+        },
+        // We should never enter here
+        Err(_) => {
             return Err(ContractError::CallbackError(
                 CallbackErrorReason::InvalidPolytoneCallback {},
-            ))
+            ));
         }
     }
+
+    CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new().add_attribute("action", "process_polytone_callback"))
 }

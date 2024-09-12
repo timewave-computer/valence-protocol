@@ -8,13 +8,12 @@ use cw_ownable::{assert_owner, get_ownership, initialize_owner, is_owner};
 use cw_storage_plus::Bound;
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::NeutronMsg;
-use serde_json::Value;
 use valence_authorization_utils::{
     authorization::{
         Authorization, AuthorizationInfo, AuthorizationMode, AuthorizationState, PermissionType,
         Priority,
     },
-    callback::{ExecutionResult, ProcessorCallbackInfo},
+    callback::{ExecutionResult, PolytoneCallbackMsg, ProcessorCallbackInfo},
     domain::{Connector, Domain, ExternalDomain, PolytoneProxyState},
     msg::{
         ExecuteMsg, ExternalDomainInfo, InstantiateMsg, InternalAuthorizationMsg, Mint, OwnerMsg,
@@ -442,7 +441,7 @@ fn insert_messages(
     let callback_request = CallbackRequest {
         receiver: env.contract.address.to_string(),
         // We will use the ID to know which callback we are getting
-        msg: to_json_binary(&id)?,
+        msg: to_json_binary(&PolytoneCallbackMsg::ExecutionID(id))?,
     };
 
     let wasm_msg = create_wasm_msg_for_main_processor_or_bridge(
@@ -539,7 +538,7 @@ fn send_msgs(
     let callback_request = CallbackRequest {
         receiver: env.contract.address.to_string(),
         // We will use the ID to know which callback we are getting
-        msg: to_json_binary(&id)?,
+        msg: to_json_binary(&PolytoneCallbackMsg::ExecutionID(id))?,
     };
 
     // We need to know if this will be sent to the processor on the main domain or to an external domain
@@ -606,7 +605,7 @@ fn retry_msgs(
             let callback_request = CallbackRequest {
                 receiver: env.contract.address.to_string(),
                 // We will use the ID to know which callback we are getting
-                msg: to_json_binary(&execution_id)?,
+                msg: to_json_binary(&PolytoneCallbackMsg::ExecutionID(execution_id))?,
             };
 
             create_wasm_msg_for_main_processor_or_bridge(
@@ -657,7 +656,7 @@ fn retry_bridge_creation(
                     callback: Some(CallbackRequest {
                         receiver: env.contract.address.to_string(),
                         // When we add domain we will return a callback with the name of the domain to know that we are getting the callback when trying to create the proxy
-                        msg: to_json_binary(&external_domain.name)?,
+                        msg: to_json_binary(&PolytoneCallbackMsg::CreateProxy(domain_name))?,
                     }),
                     timeout_seconds: Uint64::from(timeout_seconds),
                 })?,
@@ -702,17 +701,17 @@ fn process_polytone_callback(
     info: MessageInfo,
     callback_msg: CallbackMessage,
 ) -> Result<Response<NeutronMsg>, ContractError> {
-    // We will only process callbacks from message initiated by the authorization contract
-    if callback_msg.initiator.to_string() != env.contract.address.to_string() {
+    // We will only process callbacks from messages initiated by the authorization contract
+    if callback_msg.initiator != env.contract.address {
         return Err(ContractError::Unauthorized(
             UnauthorizedReason::InvalidPolytoneCallbackInitiator {},
         ));
     }
 
-    // Let's see what we are getting a callback for: creating a proxy or for message execution
-    match from_json(callback_msg.initiator_msg) {
-        Ok(Value::Number(n)) if n.is_u64() => match n.as_u64() {
-            Some(execution_id) => {
+    // Parse the initiator_msg into our new PolytoneCallbackMsg enum
+    match from_json::<PolytoneCallbackMsg>(callback_msg.initiator_msg) {
+        Ok(polytone_callback_msg) => match polytone_callback_msg {
+            PolytoneCallbackMsg::ExecutionID(execution_id) => {
                 // Make sure that the right address sent the polytone callback
                 let mut callback_info = PROCESSOR_CALLBACKS.load(deps.storage, execution_id)?;
                 match callback_info.bridge_callback_address {
@@ -724,24 +723,33 @@ fn process_polytone_callback(
                             ));
                         }
                         match callback_msg.result {
-                            // We should only receive callbacks for Execute messages because that's the only thing we are sending
                             Callback::Execute(result) => {
-                                // If the result is a timeout, we will update the state of the connector to timeout so it can be permissionlessly retry if ttl is not expired
-                                if result == Err("timeout".to_string())
-                                    && callback_info.execution_result == ExecutionResult::InProcess
-                                {
-                                    callback_info.execution_result = ExecutionResult::Timeout;
-                                    // Update the current executions for the label
-                                    CURRENT_EXECUTIONS.update(
-                                        deps.storage,
-                                        callback_info.label,
-                                        |current| -> StdResult<_> {
-                                            Ok(current.unwrap_or_default().saturating_sub(1))
-                                        },
-                                    )?;
+                                match result {
+                                    Ok(_) => (),
+                                    Err(error) => {
+                                        if callback_info.execution_result
+                                            == ExecutionResult::InProcess
+                                        {
+                                            callback_info.execution_result = if error == "timeout" {
+                                                ExecutionResult::Timeout
+                                            } else {
+                                                ExecutionResult::UnexpectedError(error)
+                                            };
+
+                                            // Update the current executions for the label
+                                            CURRENT_EXECUTIONS.update(
+                                                deps.storage,
+                                                callback_info.label,
+                                                |current| -> StdResult<_> {
+                                                    Ok(current
+                                                        .unwrap_or_default()
+                                                        .saturating_sub(1))
+                                                },
+                                            )?;
+                                        }
+                                    }
                                 }
                             }
-                            // We should never enter here
                             _ => {
                                 return Err(ContractError::Message(
                                     MessageErrorReason::InvalidPolytoneCallback {},
@@ -750,55 +758,45 @@ fn process_polytone_callback(
                         }
                     }
                     None => {
-                        // Someone is trying to send a callback for a message that is not cross-domain
                         return Err(ContractError::Unauthorized(
                             UnauthorizedReason::UnauthorizedPolytoneCallbackSender {},
                         ));
                     }
                 }
             }
-            // We should never enter here
-            None => {
-                return Err(ContractError::Message(
-                    MessageErrorReason::InvalidPolytoneCallback {},
-                ))
-            }
-        },
-        // If the callback we are getting is for creating a proxy we will check if the correct Polytone Note contract sent it
-        Ok(Value::String(domain_name)) => {
-            // Get the domain name we are getting the polytone callback for
-            let mut external_domain = EXTERNAL_DOMAINS.load(deps.storage, domain_name.clone())?;
-            // Only Polytone Note is allowed to send this callback
-            if info.sender != external_domain.get_connector_address() {
-                return Err(ContractError::Unauthorized(
-                    UnauthorizedReason::UnauthorizedPolytoneCallbackSender {},
-                ));
-            }
+            PolytoneCallbackMsg::CreateProxy(domain_name) => {
+                // Get the domain name we are getting the polytone callback for
+                let mut external_domain =
+                    EXTERNAL_DOMAINS.load(deps.storage, domain_name.clone())?;
+                // Only Polytone Note is allowed to send this callback
+                if info.sender != external_domain.get_connector_address() {
+                    return Err(ContractError::Unauthorized(
+                        UnauthorizedReason::UnauthorizedPolytoneCallbackSender {},
+                    ));
+                }
 
-            match callback_msg.result {
-                // We should only receive callbacks for Execute messages because that's the only thing we are sending
-                Callback::Execute(result) => {
-                    // If the result is a timeout, we will update the state of the connector to timeout otherwise we will update to Created
-                    if result == Err("timeout".to_string())
-                        && external_domain.get_connector_state()
-                            == PolytoneProxyState::PendingResponse
-                    {
-                        external_domain.set_connector_state(PolytoneProxyState::TimedOut)
-                    } else {
-                        external_domain.set_connector_state(PolytoneProxyState::Created)
+                match callback_msg.result {
+                    Callback::Execute(result) => {
+                        // If the result is a timeout, we will update the state of the connector to timeout otherwise we will update to Created
+                        if result == Err("timeout".to_string())
+                            && external_domain.get_connector_state()
+                                == PolytoneProxyState::PendingResponse
+                        {
+                            external_domain.set_connector_state(PolytoneProxyState::TimedOut)
+                        } else {
+                            external_domain.set_connector_state(PolytoneProxyState::Created)
+                        }
+                    }
+                    _ => {
+                        return Err(ContractError::Message(
+                            MessageErrorReason::InvalidPolytoneCallback {},
+                        ))
                     }
                 }
-                // We should never enter here
-                _ => {
-                    return Err(ContractError::Message(
-                        MessageErrorReason::InvalidPolytoneCallback {},
-                    ))
-                }
+                EXTERNAL_DOMAINS.save(deps.storage, domain_name, &external_domain)?;
             }
-            EXTERNAL_DOMAINS.save(deps.storage, domain_name, &external_domain)?;
-        }
-        // If we are receiving something unexpected (shouldn't happen unless someone is pretending to be polytone and sending a callback) we will return an error
-        _ => {
+        },
+        Err(_) => {
             return Err(ContractError::Message(
                 MessageErrorReason::InvalidPolytoneCallback {},
             ))

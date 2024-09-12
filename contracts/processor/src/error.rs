@@ -37,8 +37,11 @@ pub enum CallbackErrorReason {
     #[error("Polytone pending callback not found")]
     PolytonePendingCallbackNotFound {},
 
-    #[error("Polytone callback not timed out")]
-    PolytoneCallbackNotTimedOut {},
+    #[error("Polytone callback still pending")]
+    PolytoneCallbackStillPending {},
+
+    #[error("Polytone callback status is not timed out, can only be retried if timed out")]
+    PolytoneCallbackNotRetriable {},
 }
 
 #[derive(Error, Debug, PartialEq)]

@@ -38,4 +38,12 @@ pub enum ExecutionResult {
     RemovedByOwner,
     // Timeout - happens when the bridged message times out
     Timeout,
+    // Unexpected error that should never happen but we'll store it here if it ever does
+    UnexpectedError(String),
+}
+
+#[cw_serde]
+pub enum PolytoneCallbackMsg {
+    ExecutionID(u64),
+    CreateProxy(String),
 }

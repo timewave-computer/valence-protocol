@@ -22,6 +22,13 @@ pub struct PendingPolytoneCallbackInfo {
 
 #[cw_serde]
 pub enum PolytoneCallbackState {
+    UnexpectedError(String),
     Pending,
     TimedOut,
+}
+
+#[cw_serde]
+pub enum PolytoneCallbackMsg {
+    ExecutionID(u64),
+    CreateProxy,
 }

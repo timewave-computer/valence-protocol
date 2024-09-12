@@ -7,7 +7,7 @@ use valence_authorization_utils::{
 };
 use valence_polytone_utils::polytone::{CallbackRequest, PolytoneExecuteMsg};
 use valence_processor_utils::{
-    callback::{PendingPolytoneCallbackInfo, PolytoneCallbackState},
+    callback::{PendingPolytoneCallbackInfo, PolytoneCallbackMsg, PolytoneCallbackState},
     processor::{Config, MessageBatch, ProcessorDomain},
 };
 
@@ -60,7 +60,7 @@ pub fn create_callback_message(
                     callback: Some(CallbackRequest {
                         receiver: processor_address.to_string(),
                         // We'll return the execution ID to know for what we are receiving de callback for
-                        msg: to_json_binary(&execution_id)?,
+                        msg: to_json_binary(&PolytoneCallbackMsg::ExecutionID(execution_id))?,
                     }),
                     timeout_seconds: Uint64::from(polytone.timeout_seconds),
                 })?,
