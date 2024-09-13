@@ -141,7 +141,7 @@ pub fn execute(
         },
         ExecuteMsg::InternalProcessorAction(internal_processor_msg) => match internal_processor_msg
         {
-            InternalProcessorMsg::Callback { execution_id, msg } => {
+            InternalProcessorMsg::ServiceCallback { execution_id, msg } => {
                 process_callback(deps, env, info, execution_id, msg)
             }
             InternalProcessorMsg::ExecuteAtomic { batch } => execute_atomic(info, env, batch),

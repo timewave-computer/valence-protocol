@@ -27,7 +27,7 @@ use valence_processor_utils::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExec
 
 use crate::{
     authorization::Validate,
-    domain::{add_domain, create_wasm_msg_for_main_processor_or_bridge, get_domain},
+    domain::{add_domain, create_wasm_msg_for_processor_or_bridge, get_domain},
     error::{AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason},
     state::{
         AUTHORIZATIONS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS, PROCESSOR_CALLBACKS,
@@ -372,12 +372,8 @@ fn pause_processor(deps: DepsMut, domain: Domain) -> Result<Response<NeutronMsg>
     let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
         AuthorizationMsg::Pause {},
     ))?;
-    let wasm_msg = create_wasm_msg_for_main_processor_or_bridge(
-        deps.storage,
-        execute_msg_binary,
-        &domain,
-        None,
-    )?;
+    let wasm_msg =
+        create_wasm_msg_for_processor_or_bridge(deps.storage, execute_msg_binary, &domain, None)?;
 
     Ok(Response::new()
         .add_message(wasm_msg)
@@ -388,12 +384,8 @@ fn resume_processor(deps: DepsMut, domain: Domain) -> Result<Response<NeutronMsg
     let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
         AuthorizationMsg::Resume {},
     ))?;
-    let wasm_msg = create_wasm_msg_for_main_processor_or_bridge(
-        deps.storage,
-        execute_msg_binary,
-        &domain,
-        None,
-    )?;
+    let wasm_msg =
+        create_wasm_msg_for_processor_or_bridge(deps.storage, execute_msg_binary, &domain, None)?;
 
     Ok(Response::new()
         .add_message(wasm_msg)
@@ -444,7 +436,7 @@ fn insert_messages(
         msg: to_json_binary(&PolytoneCallbackMsg::ExecutionID(id))?,
     };
 
-    let wasm_msg = create_wasm_msg_for_main_processor_or_bridge(
+    let wasm_msg = create_wasm_msg_for_processor_or_bridge(
         deps.storage,
         execute_msg_binary,
         &domain,
@@ -471,12 +463,8 @@ fn evict_messages(
             priority,
         },
     ))?;
-    let wasm_msg = create_wasm_msg_for_main_processor_or_bridge(
-        deps.storage,
-        execute_msg_binary,
-        &domain,
-        None,
-    )?;
+    let wasm_msg =
+        create_wasm_msg_for_processor_or_bridge(deps.storage, execute_msg_binary, &domain, None)?;
 
     Ok(Response::new()
         .add_message(wasm_msg)
@@ -542,7 +530,7 @@ fn send_msgs(
     };
 
     // We need to know if this will be sent to the processor on the main domain or to an external domain
-    let wasm_msg = create_wasm_msg_for_main_processor_or_bridge(
+    let wasm_msg = create_wasm_msg_for_processor_or_bridge(
         deps.storage,
         execute_msg_binary,
         &domain,
@@ -608,7 +596,7 @@ fn retry_msgs(
                 msg: to_json_binary(&PolytoneCallbackMsg::ExecutionID(execution_id))?,
             };
 
-            create_wasm_msg_for_main_processor_or_bridge(
+            create_wasm_msg_for_processor_or_bridge(
                 deps.storage,
                 execute_msg_binary,
                 &callback_info.domain,

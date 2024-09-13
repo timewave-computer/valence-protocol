@@ -72,7 +72,7 @@ pub fn get_domain(authorization: &Authorization) -> Result<Domain, ContractError
     }
 }
 
-pub fn create_wasm_msg_for_main_processor_or_bridge(
+pub fn create_wasm_msg_for_processor_or_bridge(
     storage: &dyn Storage,
     execute_msg: Binary,
     domain: &Domain,

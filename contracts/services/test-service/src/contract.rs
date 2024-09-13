@@ -48,11 +48,12 @@ pub fn execute(
             }
         }
         ExecuteMsg::SendCallback { to, callback } => {
-            let callback_msg =
-                ProcessorExecuteMsg::InternalProcessorAction(InternalProcessorMsg::Callback {
+            let callback_msg = ProcessorExecuteMsg::InternalProcessorAction(
+                InternalProcessorMsg::ServiceCallback {
                     execution_id: EXECUTION_ID.load(deps.storage)?,
                     msg: callback,
-                });
+                },
+            );
 
             let wasm_msg = WasmMsg::Execute {
                 contract_addr: to,
