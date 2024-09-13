@@ -757,7 +757,29 @@ fn process_polytone_callback(
                                     }
                                 }
                             }
-                            _ => {
+                            // We might have run out of gas so we need to log the error for this and it won't be retriable
+                            Callback::FatalError(error) => {
+                                callback_info.execution_result =
+                                    ExecutionResult::UnexpectedError(error);
+
+                                // Save the callback update
+                                PROCESSOR_CALLBACKS.save(
+                                    deps.storage,
+                                    execution_id,
+                                    &callback_info,
+                                )?;
+
+                                // Update the current executions for the label
+                                CURRENT_EXECUTIONS.update(
+                                    deps.storage,
+                                    callback_info.label,
+                                    |current| -> StdResult<_> {
+                                        Ok(current.unwrap_or_default().saturating_sub(1))
+                                    },
+                                )?;
+                            }
+                            // This should never happen because we are not sending queries
+                            Callback::Query(_) => {
                                 return Err(ContractError::Message(
                                     MessageErrorReason::InvalidPolytoneCallback {},
                                 ))
@@ -794,7 +816,13 @@ fn process_polytone_callback(
                             external_domain.set_connector_state(PolytoneProxyState::Created)
                         }
                     }
-                    _ => {
+                    Callback::FatalError(error) => {
+                        // We should never run out of gas for executing an empty array of messages, but in the case we do we'll log it
+                        external_domain
+                            .set_connector_state(PolytoneProxyState::UnexpectedError(error))
+                    }
+                    // Should never happen because we don't do queries
+                    Callback::Query(_) => {
                         return Err(ContractError::Message(
                             MessageErrorReason::InvalidPolytoneCallback {},
                         ))

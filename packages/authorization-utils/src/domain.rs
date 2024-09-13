@@ -69,6 +69,8 @@ pub enum PolytoneProxyState {
     PendingResponse,
     // IBC transaction was successfull and thus the proxy contract was created
     Created,
+    // Unexpected error occured during creation
+    UnexpectedError(String),
 }
 
 #[cw_serde]

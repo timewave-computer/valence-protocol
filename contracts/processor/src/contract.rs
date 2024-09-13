@@ -560,7 +560,26 @@ fn process_polytone_callback(
                         )?;
                     }
                 },
-                _ => {
+                Callback::FatalError(error) => {
+                    // We shouldn't run out of gas during a callback, but the possibility is there so let's log it just in case for debugging purposes
+                    PENDING_POLYTONE_CALLBACKS.update(
+                        deps.storage,
+                        execution_id,
+                        |callback_info| -> Result<_, ContractError> {
+                            match callback_info {
+                                Some(mut info) => {
+                                    info.state = PolytoneCallbackState::UnexpectedError(error);
+                                    Ok(info)
+                                }
+                                None => Err(ContractError::CallbackError(
+                                    CallbackErrorReason::PolytonePendingCallbackNotFound {},
+                                )),
+                            }
+                        },
+                    )?;
+                }
+                // It shouldn't happen because we are not sending queries
+                Callback::Query(_) => {
                     return Err(ContractError::CallbackError(
                         CallbackErrorReason::InvalidPolytoneCallback {},
                     ));
@@ -574,14 +593,19 @@ fn process_polytone_callback(
                         polytone.proxy_on_main_domain_state = PolytoneProxyState::Created
                     }
                 }
-                _ => {
+                Callback::FatalError(error) => {
+                    // We should never run out of gas for executing an empty array of messages, but in the case we do we'll log it
+                    polytone.proxy_on_main_domain_state = PolytoneProxyState::UnexpectedError(error)
+                }
+                // Should never happen because we don't do queries
+                Callback::Query(_) => {
                     return Err(ContractError::CallbackError(
                         CallbackErrorReason::InvalidPolytoneCallback {},
                     ));
                 }
             },
         },
-        // We should never enter here
+        // We should never enter here because we are always sending PolytoneCallbackMsgs
         Err(_) => {
             return Err(ContractError::CallbackError(
                 CallbackErrorReason::InvalidPolytoneCallback {},
