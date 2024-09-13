@@ -4182,6 +4182,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-template-service"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.3",
+ "cosmwasm-std 2.1.3",
+ "cw-multi-test",
+ "cw-ownable",
+ "cw-storage-plus",
+ "cw2",
+ "schemars",
+ "serde",
+ "services-utils",
+ "thiserror",
+ "valence-base-account",
+ "valence-macros",
+ "valence-service-base",
+]
+
+[[package]]
 name = "valence-test-service"
 version = "0.1.0"
 dependencies = [
