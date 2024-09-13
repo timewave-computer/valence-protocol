@@ -42,5 +42,4 @@ impl OptionalServiceConfig {
 }
 
 #[cw_serde]
-
 pub struct Config {}
