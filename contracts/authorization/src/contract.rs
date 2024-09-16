@@ -626,16 +626,20 @@ fn retry_bridge_creation(
         Connector::PolytoneNote {
             address,
             timeout_seconds,
-            ref mut state,
+            state,
         } => {
-            if state.to_owned().ne(&PolytoneProxyState::TimedOut) {
+            if state.ne(&PolytoneProxyState::TimedOut) {
                 return Err(ContractError::Unauthorized(
                     UnauthorizedReason::BridgeCreationNotTimedOut {},
                 ));
             }
 
-            // Set creation back to pending response
-            *state = PolytoneProxyState::PendingResponse;
+            // Update the state
+            external_domain.connector = Connector::PolytoneNote {
+                address: address.clone(),
+                timeout_seconds,
+                state: PolytoneProxyState::PendingResponse,
+            };
 
             WasmMsg::Execute {
                 contract_addr: address.to_string(),
@@ -697,58 +701,43 @@ fn process_polytone_callback(
     }
 
     // Parse the initiator_msg into our new PolytoneCallbackMsg enum
-    match from_json::<PolytoneCallbackMsg>(callback_msg.initiator_msg) {
-        Ok(polytone_callback_msg) => match polytone_callback_msg {
-            PolytoneCallbackMsg::ExecutionID(execution_id) => {
-                // Make sure that the right address sent the polytone callback
-                let mut callback_info = PROCESSOR_CALLBACKS.load(deps.storage, execution_id)?;
-                match callback_info.bridge_callback_address {
-                    Some(ref polytone_address) => {
-                        // Only the correct polytone address for this execution id is allowed to send this callback
-                        if info.sender != polytone_address {
-                            return Err(ContractError::Unauthorized(
-                                UnauthorizedReason::UnauthorizedPolytoneCallbackSender {},
-                            ));
-                        }
-                        match callback_msg.result {
-                            Callback::Execute(result) => {
-                                match result {
-                                    Ok(_) => (),
-                                    Err(error) => {
-                                        if callback_info.execution_result
-                                            == ExecutionResult::InProcess
-                                        {
-                                            callback_info.execution_result = if error == "timeout" {
-                                                ExecutionResult::Timeout
-                                            } else {
-                                                ExecutionResult::UnexpectedError(error)
-                                            };
+    let Ok(polytone_callback_msg) = from_json::<PolytoneCallbackMsg>(callback_msg.initiator_msg)
+    else {
+        return Err(ContractError::Message(
+            MessageErrorReason::InvalidPolytoneCallback {},
+        ));
+    };
 
-                                            // Save the callback update
-                                            PROCESSOR_CALLBACKS.save(
-                                                deps.storage,
-                                                execution_id,
-                                                &callback_info,
-                                            )?;
+    match polytone_callback_msg {
+        PolytoneCallbackMsg::ExecutionID(execution_id) => {
+            // Make sure that the right address sent the polytone callback
+            let mut callback_info = PROCESSOR_CALLBACKS.load(deps.storage, execution_id)?;
 
-                                            // Update the current executions for the label
-                                            CURRENT_EXECUTIONS.update(
-                                                deps.storage,
-                                                callback_info.label,
-                                                |current| -> StdResult<_> {
-                                                    Ok(current
-                                                        .unwrap_or_default()
-                                                        .saturating_sub(1))
-                                                },
-                                            )?;
-                                        }
-                                    }
-                                }
-                            }
-                            // We might have run out of gas so we need to log the error for this and it won't be retriable
-                            Callback::FatalError(error) => {
-                                callback_info.execution_result =
-                                    ExecutionResult::UnexpectedError(error);
+            // Get the polytone address
+            let Some(ref polytone_address) = callback_info.bridge_callback_address else {
+                return Err(ContractError::Unauthorized(
+                    UnauthorizedReason::UnauthorizedPolytoneCallbackSender {},
+                ));
+            };
+
+            // Only the polytone address can send the callback
+            if info.sender != polytone_address {
+                return Err(ContractError::Unauthorized(
+                    UnauthorizedReason::UnauthorizedPolytoneCallbackSender {},
+                ));
+            }
+
+            match callback_msg.result {
+                Callback::Execute(result) => {
+                    match result {
+                        Ok(_) => (),
+                        Err(error) => {
+                            if callback_info.execution_result == ExecutionResult::InProcess {
+                                callback_info.execution_result = if error == "timeout" {
+                                    ExecutionResult::Timeout
+                                } else {
+                                    ExecutionResult::UnexpectedError(error)
+                                };
 
                                 // Save the callback update
                                 PROCESSOR_CALLBACKS.save(
@@ -766,63 +755,67 @@ fn process_polytone_callback(
                                     },
                                 )?;
                             }
-                            // This should never happen because we are not sending queries
-                            Callback::Query(_) => {
-                                return Err(ContractError::Message(
-                                    MessageErrorReason::InvalidPolytoneCallback {},
-                                ))
-                            }
                         }
                     }
-                    None => {
-                        return Err(ContractError::Unauthorized(
-                            UnauthorizedReason::UnauthorizedPolytoneCallbackSender {},
-                        ));
-                    }
                 }
-            }
-            PolytoneCallbackMsg::CreateProxy(domain_name) => {
-                // Get the domain name we are getting the polytone callback for
-                let mut external_domain =
-                    EXTERNAL_DOMAINS.load(deps.storage, domain_name.clone())?;
-                // Only Polytone Note is allowed to send this callback
-                if info.sender != external_domain.get_connector_address() {
-                    return Err(ContractError::Unauthorized(
-                        UnauthorizedReason::UnauthorizedPolytoneCallbackSender {},
-                    ));
-                }
+                // We might have run out of gas so we need to log the error for this and it won't be retriable
+                Callback::FatalError(error) => {
+                    callback_info.execution_result = ExecutionResult::UnexpectedError(error);
 
-                match callback_msg.result {
-                    Callback::Execute(result) => {
-                        // If the result is a timeout, we will update the state of the connector to timeout otherwise we will update to Created
-                        if result == Err("timeout".to_string())
-                            && external_domain.get_connector_state()
-                                == PolytoneProxyState::PendingResponse
-                        {
-                            external_domain.set_connector_state(PolytoneProxyState::TimedOut)
-                        } else {
-                            external_domain.set_connector_state(PolytoneProxyState::Created)
-                        }
-                    }
-                    Callback::FatalError(error) => {
-                        // We should never run out of gas for executing an empty array of messages, but in the case we do we'll log it
-                        external_domain
-                            .set_connector_state(PolytoneProxyState::UnexpectedError(error))
-                    }
-                    // Should never happen because we don't do queries
-                    Callback::Query(_) => {
-                        return Err(ContractError::Message(
-                            MessageErrorReason::InvalidPolytoneCallback {},
-                        ))
+                    // Save the callback update
+                    PROCESSOR_CALLBACKS.save(deps.storage, execution_id, &callback_info)?;
+
+                    // Update the current executions for the label
+                    CURRENT_EXECUTIONS.update(
+                        deps.storage,
+                        callback_info.label,
+                        |current| -> StdResult<_> {
+                            Ok(current.unwrap_or_default().saturating_sub(1))
+                        },
+                    )?;
+                }
+                // This should never happen because we are not sending queries
+                Callback::Query(_) => {
+                    return Err(ContractError::Message(
+                        MessageErrorReason::InvalidPolytoneCallback {},
+                    ))
+                }
+            }
+        }
+        PolytoneCallbackMsg::CreateProxy(domain_name) => {
+            // Get the domain name we are getting the polytone callback for
+            let mut external_domain = EXTERNAL_DOMAINS.load(deps.storage, domain_name.clone())?;
+            // Only Polytone Note is allowed to send this callback
+            if info.sender != external_domain.get_connector_address() {
+                return Err(ContractError::Unauthorized(
+                    UnauthorizedReason::UnauthorizedPolytoneCallbackSender {},
+                ));
+            }
+
+            match callback_msg.result {
+                Callback::Execute(result) => {
+                    // If the result is a timeout, we will update the state of the connector to timeout otherwise we will update to Created
+                    if result == Err("timeout".to_string())
+                        && external_domain.get_connector_state()
+                            == PolytoneProxyState::PendingResponse
+                    {
+                        external_domain.set_connector_state(PolytoneProxyState::TimedOut)
+                    } else {
+                        external_domain.set_connector_state(PolytoneProxyState::Created)
                     }
                 }
-                EXTERNAL_DOMAINS.save(deps.storage, domain_name, &external_domain)?;
+                Callback::FatalError(error) => {
+                    // We should never run out of gas for executing an empty array of messages, but in the case we do we'll log it
+                    external_domain.set_connector_state(PolytoneProxyState::UnexpectedError(error))
+                }
+                // Should never happen because we don't do queries
+                Callback::Query(_) => {
+                    return Err(ContractError::Message(
+                        MessageErrorReason::InvalidPolytoneCallback {},
+                    ))
+                }
             }
-        },
-        Err(_) => {
-            return Err(ContractError::Message(
-                MessageErrorReason::InvalidPolytoneCallback {},
-            ))
+            EXTERNAL_DOMAINS.save(deps.storage, domain_name, &external_domain)?;
         }
     }
 

@@ -65,8 +65,8 @@ pub fn instantiate(
     CONFIG.save(deps.storage, &config)?;
 
     // Create an empty array of messages to trigger the proxy creation if it's not the main domain's processor
-    let response = match config.processor_domain {
-        ProcessorDomain::Main => Response::default(),
+    let msgs = match config.processor_domain {
+        ProcessorDomain::Main => vec![],
         ProcessorDomain::External(polytone) => {
             let msg = CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: polytone.polytone_note_address.to_string(),
@@ -81,11 +81,13 @@ pub fn instantiate(
                 })?,
                 funds: vec![],
             });
-            Response::new().add_message(msg)
+            vec![msg]
         }
     };
 
-    Ok(response.add_attribute("method", "instantiate_processor"))
+    Ok(Response::new()
+        .add_messages(msgs)
+        .add_attribute("method", "instantiate_processor"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -530,45 +532,32 @@ fn process_polytone_callback(
         ));
     }
 
-    match from_json::<PolytoneCallbackMsg>(callback_msg.initiator_msg.clone()) {
-        Ok(polytone_callback_msg) => match polytone_callback_msg {
-            PolytoneCallbackMsg::ExecutionID(execution_id) => match callback_msg.result {
-                Callback::Execute(result) => match result {
-                    Ok(_) => {
-                        PENDING_POLYTONE_CALLBACKS.remove(deps.storage, execution_id);
-                    }
-                    Err(error) => {
-                        PENDING_POLYTONE_CALLBACKS.update(
-                            deps.storage,
-                            execution_id,
-                            |callback_info| -> Result<_, ContractError> {
-                                match callback_info {
-                                    Some(mut info) => {
-                                        if error == "timeout" {
-                                            info.state = PolytoneCallbackState::TimedOut;
-                                        } else {
-                                            info.state =
-                                                PolytoneCallbackState::UnexpectedError(error);
-                                        }
-                                        Ok(info)
-                                    }
-                                    None => Err(ContractError::CallbackError(
-                                        CallbackErrorReason::PolytonePendingCallbackNotFound {},
-                                    )),
-                                }
-                            },
-                        )?;
-                    }
-                },
-                Callback::FatalError(error) => {
-                    // We shouldn't run out of gas during a callback, but the possibility is there so let's log it just in case for debugging purposes
+    let Ok(polytone_callback_msg) = from_json::<PolytoneCallbackMsg>(callback_msg.initiator_msg)
+    else {
+        // We should never get here
+        return Err(ContractError::CallbackError(
+            CallbackErrorReason::InvalidPolytoneCallback {},
+        ));
+    };
+
+    match polytone_callback_msg {
+        PolytoneCallbackMsg::ExecutionID(execution_id) => match callback_msg.result {
+            Callback::Execute(result) => match result {
+                Ok(_) => {
+                    PENDING_POLYTONE_CALLBACKS.remove(deps.storage, execution_id);
+                }
+                Err(error) => {
                     PENDING_POLYTONE_CALLBACKS.update(
                         deps.storage,
                         execution_id,
                         |callback_info| -> Result<_, ContractError> {
                             match callback_info {
                                 Some(mut info) => {
-                                    info.state = PolytoneCallbackState::UnexpectedError(error);
+                                    if error == "timeout" {
+                                        info.state = PolytoneCallbackState::TimedOut;
+                                    } else {
+                                        info.state = PolytoneCallbackState::UnexpectedError(error);
+                                    }
                                     Ok(info)
                                 }
                                 None => Err(ContractError::CallbackError(
@@ -578,41 +567,53 @@ fn process_polytone_callback(
                         },
                     )?;
                 }
-                // It shouldn't happen because we are not sending queries
-                Callback::Query(_) => {
-                    return Err(ContractError::CallbackError(
-                        CallbackErrorReason::InvalidPolytoneCallback {},
-                    ));
-                }
             },
-            PolytoneCallbackMsg::CreateProxy => match callback_msg.result {
-                Callback::Execute(result) => {
-                    if result == Err("timeout".to_string()) {
-                        polytone.proxy_on_main_domain_state = PolytoneProxyState::TimedOut
-                    } else {
-                        polytone.proxy_on_main_domain_state = PolytoneProxyState::Created
-                    }
-                }
-                Callback::FatalError(error) => {
-                    // We should never run out of gas for executing an empty array of messages, but in the case we do we'll log it
-                    polytone.proxy_on_main_domain_state = PolytoneProxyState::UnexpectedError(error)
-                }
-                // Should never happen because we don't do queries
-                Callback::Query(_) => {
-                    return Err(ContractError::CallbackError(
-                        CallbackErrorReason::InvalidPolytoneCallback {},
-                    ));
-                }
-            },
+            Callback::FatalError(error) => {
+                // We shouldn't run out of gas during a callback, but the possibility is there so let's log it just in case for debugging purposes
+                PENDING_POLYTONE_CALLBACKS.update(
+                    deps.storage,
+                    execution_id,
+                    |callback_info| -> Result<_, ContractError> {
+                        match callback_info {
+                            Some(mut info) => {
+                                info.state = PolytoneCallbackState::UnexpectedError(error);
+                                Ok(info)
+                            }
+                            None => Err(ContractError::CallbackError(
+                                CallbackErrorReason::PolytonePendingCallbackNotFound {},
+                            )),
+                        }
+                    },
+                )?;
+            }
+            // It shouldn't happen because we are not sending queries
+            Callback::Query(_) => {
+                return Err(ContractError::CallbackError(
+                    CallbackErrorReason::InvalidPolytoneCallback {},
+                ));
+            }
         },
-        // We should never enter here because we are always sending PolytoneCallbackMsgs
-        Err(_) => {
-            return Err(ContractError::CallbackError(
-                CallbackErrorReason::InvalidPolytoneCallback {},
-            ));
-        }
+        PolytoneCallbackMsg::CreateProxy => match callback_msg.result {
+            Callback::Execute(result) => {
+                polytone.proxy_on_main_domain_state = match result {
+                    Err(err) if err == "timeout" => PolytoneProxyState::TimedOut,
+                    _ => PolytoneProxyState::Created,
+                };
+            }
+            Callback::FatalError(error) => {
+                // We should never run out of gas for executing an empty array of messages, but in the case we do we'll log it
+                polytone.proxy_on_main_domain_state = PolytoneProxyState::UnexpectedError(error)
+            }
+            // Should never happen because we don't do queries
+            Callback::Query(_) => {
+                return Err(ContractError::CallbackError(
+                    CallbackErrorReason::InvalidPolytoneCallback {},
+                ));
+            }
+        },
     }
 
+    // We need to save the changes of the polytone state which is part of the config
     CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new().add_attribute("action", "process_polytone_callback"))

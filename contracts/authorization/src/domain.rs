@@ -30,7 +30,7 @@ pub fn add_domain(
 
     // Create the message to create the bridge account
     let msg = match external_domain.connector {
-        // We will send an empty message just for the sake of creating the proxy account.
+        // In polytone to create the proxy we can send an empty vector of messages
         Connector::PolytoneNote {
             address,
             timeout_seconds,
