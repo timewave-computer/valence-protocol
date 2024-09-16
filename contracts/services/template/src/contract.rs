@@ -40,65 +40,20 @@ pub fn execute(
 }
 
 mod actions {
-    use cosmwasm_std::{
-        to_json_binary, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, WasmMsg,
-    };
+    use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
     use service_base::ServiceError;
 
     use crate::msg::{ActionsMsgs, Config};
 
     pub fn process_action(
-        deps: &DepsMut,
+        _deps: &DepsMut,
         _env: Env,
         _info: MessageInfo,
         msg: ActionsMsgs,
-        cfg: Config,
+        _cfg: Config,
     ) -> Result<Response, ServiceError> {
         match msg {
-            ActionsMsgs::Split {} => {
-                let mut messages: Vec<CosmosMsg> = vec![];
-
-                cfg.splits.iter().try_for_each(|(denom, split)| {
-                    // Query bank balance
-                    let balance = deps.querier.query_balance(&cfg.input_addr, denom)?;
-
-                    // TODO: Check that balance is not zero
-                    if !balance.amount.is_zero() {
-                        // TODO: change split to be percentage and not amounts
-                        messages.extend(
-                            split
-                                .iter()
-                                .map(|(addr, amount)| {
-                                    let bank_msg = BankMsg::Send {
-                                        to_address: addr.to_string()?,
-                                        amount: vec![Coin {
-                                            denom: denom.clone(),
-                                            amount: *amount,
-                                        }],
-                                    };
-
-                                    Ok(WasmMsg::Execute {
-                                        contract_addr: cfg.input_addr.to_string(),
-                                        msg: to_json_binary(
-                                            &valence_base_account::msg::ExecuteMsg::ExecuteMsg {
-                                                msgs: vec![bank_msg.into()],
-                                            },
-                                        )?,
-                                        funds: vec![],
-                                    }
-                                    .into())
-                                })
-                                .collect::<Result<Vec<_>, ServiceError>>()?,
-                        );
-                    }
-
-                    Ok::<(), ServiceError>(())
-                })?;
-
-                Ok(Response::new()
-                    .add_messages(messages)
-                    .add_attribute("method", "split"))
-            }
+            ActionsMsgs::NoOp {} => Ok(Response::new().add_attribute("method", "noop")),
         }
     }
 }
