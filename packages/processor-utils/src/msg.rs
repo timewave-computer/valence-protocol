@@ -4,6 +4,7 @@ use valence_authorization_utils::{
     authorization::{ActionsConfig, Priority},
     msg::ProcessorMessage,
 };
+use valence_polytone_utils::polytone::CallbackMessage;
 
 use crate::processor::{Config, MessageBatch};
 
@@ -18,6 +19,7 @@ pub struct InstantiateMsg {
 pub struct PolytoneContracts {
     pub polytone_proxy_address: String,
     pub polytone_note_address: String,
+    pub timeout_seconds: u64,
 }
 
 #[cw_serde]
@@ -25,6 +27,9 @@ pub enum ExecuteMsg {
     AuthorizationModuleAction(AuthorizationMsg),
     PermissionlessAction(PermissionlessMsg),
     InternalProcessorAction(InternalProcessorMsg),
+    // Polytone callback listener
+    #[serde(rename = "callback")]
+    PolytoneCallback(CallbackMessage),
 }
 
 #[cw_serde]
@@ -54,11 +59,13 @@ pub enum AuthorizationMsg {
 #[cw_serde]
 pub enum PermissionlessMsg {
     Tick {},
+    RetryCallback { execution_id: u64 },
+    RetryBridgeCreation {},
 }
 
 #[cw_serde]
 pub enum InternalProcessorMsg {
-    Callback { execution_id: u64, msg: Binary },
+    ServiceCallback { execution_id: u64, msg: Binary },
     // Entry point for the processor to execute batches atomically, this will only be able to be called by the processor itself
     ExecuteAtomic { batch: MessageBatch },
 }

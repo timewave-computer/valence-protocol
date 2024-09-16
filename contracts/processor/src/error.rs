@@ -27,6 +27,21 @@ pub enum CallbackErrorReason {
 
     #[error("Invalid callback sender")]
     InvalidCallbackSender {},
+
+    #[error("The polytone callback was not sent by polytone note address")]
+    UnauthorizedPolytoneCallbackSender {},
+
+    #[error("Invalid polytone callback received")]
+    InvalidPolytoneCallback {},
+
+    #[error("Polytone pending callback not found")]
+    PolytonePendingCallbackNotFound {},
+
+    #[error("Polytone callback still pending")]
+    PolytoneCallbackStillPending {},
+
+    #[error("Polytone callback status is not timed out, can only be retried if timed out")]
+    PolytoneCallbackNotRetriable {},
 }
 
 #[derive(Error, Debug, PartialEq)]
@@ -36,4 +51,10 @@ pub enum UnauthorizedReason {
 
     #[error("Atomic execution can only be triggered by the processor itself")]
     NotProcessor {},
+
+    #[error("The polytone callback is not for a message initiated by the processor contract")]
+    InvalidPolytoneCallbackInitiator {},
+
+    #[error("This processor is on the main domain, it's not using polytone")]
+    NotExternalDomainProcessor {},
 }

@@ -1,7 +1,7 @@
 use cosmwasm_std::{Addr, Empty};
 use cw_storage_plus::{Item, Map};
 use valence_authorization_utils::{
-    authorization::Authorization, callback::CallbackInfo, domain::ExternalDomain,
+    authorization::Authorization, callback::ProcessorCallbackInfo, domain::ExternalDomain,
 };
 
 pub const SUB_OWNERS: Map<Addr, Empty> = Map::new("sub_owners");
@@ -12,4 +12,4 @@ pub const EXECUTION_ID: Item<u64> = Item::new("execution_id");
 // To track how many of each authorization are pending completion
 pub const CURRENT_EXECUTIONS: Map<String, u64> = Map::new("current_executions");
 // Track all the callbacks for the processor, if they haven't been processed yet they will be in ExecutionResult::InProcess
-pub const CALLBACKS: Map<u64, CallbackInfo> = Map::new("callbacks");
+pub const PROCESSOR_CALLBACKS: Map<u64, ProcessorCallbackInfo> = Map::new("processor_callbacks");

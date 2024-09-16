@@ -19,7 +19,30 @@ pub struct ExternalDomain {
 impl ExternalDomain {
     pub fn get_connector_address(&self) -> Addr {
         match &self.connector {
-            Connector::PolytoneNote(addr) => addr.clone(),
+            Connector::PolytoneNote { address, .. } => address.clone(),
+        }
+    }
+
+    pub fn get_callback_proxy_address(&self) -> Addr {
+        match &self.callback_proxy {
+            CallbackProxy::PolytoneProxy(address) => address.clone(),
+        }
+    }
+
+    pub fn get_connector_state(&self) -> PolytoneProxyState {
+        match &self.connector {
+            Connector::PolytoneNote { state, .. } => state.clone(),
+        }
+    }
+
+    pub fn set_connector_state(&mut self, state: PolytoneProxyState) {
+        match &mut self.connector {
+            Connector::PolytoneNote {
+                state: current_state,
+                ..
+            } => {
+                *current_state = state;
+            }
         }
     }
 }
@@ -31,7 +54,23 @@ pub enum ExecutionEnvironment {
 
 #[cw_serde]
 pub enum Connector {
-    PolytoneNote(Addr),
+    PolytoneNote {
+        address: Addr,
+        timeout_seconds: u64,
+        state: PolytoneProxyState,
+    },
+}
+
+#[cw_serde]
+pub enum PolytoneProxyState {
+    // IBC transaction was timedout
+    TimedOut,
+    // Waiting for IBC acknowledgement
+    PendingResponse,
+    // IBC transaction was successfull and thus the proxy contract was created
+    Created,
+    // Unexpected error occured during creation
+    UnexpectedError(String),
 }
 
 #[cw_serde]

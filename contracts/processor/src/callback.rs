@@ -1,37 +1,75 @@
-use cosmwasm_std::{to_json_binary, BlockInfo, Storage, WasmMsg};
+use cosmwasm_std::{to_json_binary, Addr, BlockInfo, CosmosMsg, Storage, Uint64, WasmMsg};
 use valence_authorization_utils::{
     action::RetryTimes,
     authorization::ActionsConfig,
     callback::ExecutionResult,
-    msg::{ExecuteMsg, PermissionlessMsg},
+    msg::{ExecuteMsg, InternalAuthorizationMsg},
 };
-use valence_processor_utils::processor::{Config, MessageBatch, ProcessorDomain};
+use valence_polytone_utils::polytone::{CallbackRequest, PolytoneExecuteMsg};
+use valence_processor_utils::{
+    callback::{PendingPolytoneCallbackInfo, PolytoneCallbackMsg, PolytoneCallbackState},
+    processor::{Config, MessageBatch, ProcessorDomain},
+};
 
 use crate::{
     error::ContractError,
     queue::{get_queue_map, put_back_into_queue},
-    state::{CONFIG, EXECUTION_ID_TO_BATCH, NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX},
+    state::{
+        CONFIG, EXECUTION_ID_TO_BATCH, NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX,
+        PENDING_POLYTONE_CALLBACKS,
+    },
 };
 
 pub fn create_callback_message(
+    storage: &mut dyn Storage,
     config: &Config,
     execution_id: u64,
     execution_result: ExecutionResult,
-) -> Result<WasmMsg, ContractError> {
-    let wasm_msg = match &config.processor_domain {
-        ProcessorDomain::Main => WasmMsg::Execute {
-            contract_addr: config.authorization_contract.to_string(),
-            msg: to_json_binary(&ExecuteMsg::PermissionlessAction(
-                PermissionlessMsg::Callback {
-                    execution_id,
+    processor_address: &Addr,
+) -> Result<CosmosMsg, ContractError> {
+    // Message that will be sent to authorization contract
+    let authorization_callback = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: config.authorization_contract.to_string(),
+        msg: to_json_binary(&ExecuteMsg::InternalAuthorizationAction(
+            InternalAuthorizationMsg::ProcessorCallback {
+                execution_id,
+                execution_result: execution_result.clone(),
+            },
+        ))?,
+        funds: vec![],
+    });
+
+    let message = match &config.processor_domain {
+        ProcessorDomain::Main => authorization_callback,
+        // If it has to go through polytone we'll create the polytone message
+        ProcessorDomain::External(polytone) => {
+            // We store the pending callback so that we can track what is pending and what is timedout
+            PENDING_POLYTONE_CALLBACKS.save(
+                storage,
+                execution_id,
+                &PendingPolytoneCallbackInfo {
                     execution_result,
+                    state: PolytoneCallbackState::Pending,
                 },
-            ))?,
-            funds: vec![],
-        },
-        ProcessorDomain::External(_polytone) => todo!(),
+            )?;
+
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: polytone.polytone_note_address.to_string(),
+                msg: to_json_binary(&PolytoneExecuteMsg::Execute {
+                    msgs: vec![authorization_callback],
+                    callback: Some(CallbackRequest {
+                        receiver: processor_address.to_string(),
+                        // We'll return the execution ID to know for what we are receiving de callback for
+                        msg: to_json_binary(&PolytoneCallbackMsg::ExecutionID(execution_id))?,
+                    }),
+                    timeout_seconds: Uint64::from(polytone.timeout_seconds),
+                })?,
+                funds: vec![],
+            })
+        }
     };
-    Ok(wasm_msg)
+
+    Ok(message)
 }
 
 pub fn handle_successful_non_atomic_callback(
@@ -39,7 +77,8 @@ pub fn handle_successful_non_atomic_callback(
     index: usize,
     execution_id: u64,
     batch: &MessageBatch,
-    messages: &mut Vec<WasmMsg>,
+    messages: &mut Vec<CosmosMsg>,
+    processor_address: &Addr,
 ) -> Result<(), ContractError> {
     // Advance to the next action if there is one and if not, provide the successfull callback to the authorization module
     let next_index = index.checked_add(1).expect("Overflow");
@@ -47,9 +86,11 @@ pub fn handle_successful_non_atomic_callback(
         // We finished the batch, we'll provide the successfull callback to the authorization module
         let config = CONFIG.load(storage)?;
         messages.push(create_callback_message(
+            storage,
             &config,
             execution_id,
             ExecutionResult::Success,
+            processor_address,
         )?);
 
         // Clean up
@@ -67,14 +108,18 @@ pub fn handle_successful_non_atomic_callback(
 }
 
 pub fn handle_successful_atomic_callback(
+    storage: &mut dyn Storage,
     config: &Config,
     execution_id: u64,
-    messages: &mut Vec<WasmMsg>,
+    messages: &mut Vec<CosmosMsg>,
+    processor_address: &Addr,
 ) -> Result<(), ContractError> {
     messages.push(create_callback_message(
+        storage,
         config,
         execution_id,
         ExecutionResult::Success,
+        processor_address,
     )?);
 
     Ok(())
@@ -85,11 +130,12 @@ pub fn handle_unsuccessful_callback(
     storage: &mut dyn Storage,
     execution_id: u64,
     batch: &mut MessageBatch,
-    messages: &mut Vec<WasmMsg>,
+    messages: &mut Vec<CosmosMsg>,
     error: String,
     config: &Config,
     block: &BlockInfo,
     index: Option<usize>,
+    processor_address: &Addr,
 ) -> Result<(), ContractError> {
     let retry_logic = match &batch.actions_config {
         ActionsConfig::Atomic(config) => config.retry_logic.clone(),
@@ -119,9 +165,11 @@ pub fn handle_unsuccessful_callback(
                         };
 
                         messages.push(create_callback_message(
+                            storage,
                             config,
                             execution_id,
                             execution_result,
+                            processor_address,
                         )?);
                         // Clean up
                         NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.remove(storage, execution_id);
@@ -139,9 +187,11 @@ pub fn handle_unsuccessful_callback(
         None => {
             // No retry logic, return callback to authorization module
             messages.push(create_callback_message(
+                storage,
                 config,
                 execution_id,
                 ExecutionResult::Rejected(error),
+                processor_address,
             )?);
             // Clean up for non-atomic case
             NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.remove(storage, execution_id);

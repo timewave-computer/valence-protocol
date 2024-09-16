@@ -9,6 +9,7 @@ description = "Helpers for processor contract"
 cosmwasm-std                = { workspace = true }
 cosmwasm-schema             = { workspace = true }
 valence-authorization-utils = { workspace = true }
+valence-polytone-utils      = { workspace = true }
 cw-storage-plus             = { workspace = true }
 serde                       = { workspace = true }
 cw-utils                    = { workspace = true }
