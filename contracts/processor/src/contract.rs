@@ -50,7 +50,7 @@ pub fn instantiate(
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let config = Config {
-        authorization_contract: deps.api.addr_validate(&msg.authorization_contract)?,
+        authorization_contract: msg.authorization_contract,
         processor_domain: match msg.polytone_contracts {
             Some(pc) => ProcessorDomain::External(Polytone {
                 polytone_proxy_address: deps.api.addr_validate(&pc.polytone_proxy_address)?,
@@ -103,10 +103,10 @@ pub fn execute(
 
             let authorized_sender = match config.processor_domain {
                 ProcessorDomain::Main => config.authorization_contract,
-                ProcessorDomain::External(polytone) => polytone.polytone_proxy_address,
+                ProcessorDomain::External(polytone) => polytone.polytone_proxy_address.to_string(),
             };
 
-            if info.sender != authorized_sender {
+            if info.sender.to_string() != authorized_sender {
                 return Err(ContractError::Unauthorized(
                     UnauthorizedReason::NotAuthorizationModule {},
                 ));

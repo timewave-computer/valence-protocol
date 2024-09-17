@@ -1,18 +1,26 @@
-use std::{env, error::Error};
+use std::{env, error::Error, time::SystemTime};
 
 use cosmwasm_std::Uint64;
 use localic_std::{
-    modules::cosmwasm::{contract_instantiate, CosmWasm},
+    modules::cosmwasm::{contract_execute, contract_instantiate, CosmWasm},
     relayer::Relayer,
 };
 use localic_utils::{
-    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, JUNO_CHAIN_NAME,
-    LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
+    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, JUNO_CHAIN_ADMIN_ADDR,
+    JUNO_CHAIN_ID, JUNO_CHAIN_NAME, LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_ID,
+    NEUTRON_CHAIN_NAME,
 };
 use log::info;
-use valence_local_interchaintest_utils::{
-    LOCAL_CODE_ID_CACHE_PATH_JUNO, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, POLYTONE_PATH,
+use valence_authorization_utils::msg::{
+    CallbackProxy, Connector, ExternalDomainInfo, PermissionedMsg,
 };
+use valence_local_interchaintest_utils::{
+    polytone::salt_for_proxy, EXECUTE_FLAGS, LOCAL_CODE_ID_CACHE_PATH_JUNO,
+    LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, POLYTONE_PATH,
+};
+use valence_processor_utils::msg::PolytoneContracts;
+
+const TIMEOUT_SECONDS: u64 = 5;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -63,7 +71,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         .send_single_contract(&processor_contract_path)?;
 
     // We need to predict the authorization contract address in advance for the processor contract on the main domain
-    let salt = hex::encode("authorization");
+    // We'll use the current time as a salt so we can run this test multiple times
+    let now = SystemTime::now();
+    let salt = hex::encode(
+        now.duration_since(SystemTime::UNIX_EPOCH)?
+            .as_secs()
+            .to_string(),
+    );
     let predicted_authorization_contract_address = test_ctx
         .get_built_contract_address()
         .src(NEUTRON_CHAIN_NAME)
@@ -81,7 +95,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap();
 
     let processor_instantiate_msg = valence_processor_utils::msg::InstantiateMsg {
-        authorization_contract: predicted_authorization_contract_address,
+        authorization_contract: predicted_authorization_contract_address.clone(),
         polytone_contracts: None,
     };
 
@@ -118,20 +132,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         external_domains: vec![],
     };
 
-    let authorization_contract = contract_instantiate(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        DEFAULT_KEY,
-        authorization_code_id,
-        &serde_json::to_string(&authorization_instantiate_msg).unwrap(),
-        "authorization",
-        None,
-        "",
-    )
-    .unwrap();
-
-    info!("Authorization contract: {}", authorization_contract.address);
+    test_ctx
+        .build_tx_instantiate2()
+        .with_label("authorization")
+        .with_code_id(authorization_code_id)
+        .with_salt_hex_encoded(&salt)
+        .with_msg(serde_json::to_value(&authorization_instantiate_msg).unwrap())
+        .send()
+        .unwrap();
 
     // Before setting up the external domains and the processor on the external domain, we are going to set up polytone and predict the proxy addresses on both sides
     let mut polytone_note_on_neutron = test_ctx.get_contract().contract("polytone_note").get_cw();
@@ -177,7 +185,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Instantiating polytone contracts on both domains...");
 
-    polytone_note_on_neutron
+    let polytone_note_on_neutron_address = polytone_note_on_neutron
         .instantiate(
             DEFAULT_KEY,
             &serde_json::to_string(&polytone_note_instantiate_msg).unwrap(),
@@ -185,9 +193,14 @@ fn main() -> Result<(), Box<dyn Error>> {
             None,
             "",
         )
-        .unwrap();
+        .unwrap()
+        .address;
+    info!(
+        "Polytone Note on Neutron: {}",
+        polytone_note_on_neutron_address
+    );
 
-    polytone_voice_on_neutron
+    let polytone_voice_on_neutron_address = polytone_voice_on_neutron
         .instantiate(
             DEFAULT_KEY,
             &serde_json::to_string(&neutron_polytone_voice_instantiate_msg).unwrap(),
@@ -195,9 +208,14 @@ fn main() -> Result<(), Box<dyn Error>> {
             None,
             "",
         )
-        .unwrap();
+        .unwrap()
+        .address;
+    info!(
+        "Polytone Voice on Neutron: {}",
+        polytone_voice_on_neutron_address
+    );
 
-    polytone_note_on_juno
+    let polytone_note_on_juno_address = polytone_note_on_juno
         .instantiate(
             DEFAULT_KEY,
             &serde_json::to_string(&polytone_note_instantiate_msg).unwrap(),
@@ -205,9 +223,11 @@ fn main() -> Result<(), Box<dyn Error>> {
             None,
             "",
         )
-        .unwrap();
+        .unwrap()
+        .address;
+    info!("Polytone Note on Juno: {}", polytone_note_on_juno_address);
 
-    polytone_voice_on_juno
+    let polytone_voice_on_juno_address = polytone_voice_on_juno
         .instantiate(
             DEFAULT_KEY,
             &serde_json::to_string(&juno_polytone_voice_instantiate_msg).unwrap(),
@@ -215,7 +235,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             None,
             "",
         )
-        .unwrap();
+        .unwrap()
+        .address;
+    info!("Polytone Voice on Juno: {}", polytone_voice_on_juno_address);
 
     info!("Creating WASM connections...");
 
@@ -235,29 +257,164 @@ fn main() -> Result<(), Box<dyn Error>> {
                     .get_request_builder(JUNO_CHAIN_NAME),
                 None,
                 None,
-                Some(polytone_voice_on_juno.contract_addr.unwrap()),
+                Some(polytone_voice_on_juno_address.clone()),
             ),
             "unordered",
             "polytone-1",
         )
         .unwrap();
 
-    polytone_note_on_juno
+    polytone_voice_on_neutron
         .create_wasm_connection(
             &relayer,
-            "juno-neutron",
+            "neutron-juno",
             &CosmWasm::new_from_existing(
                 test_ctx
                     .get_request_builder()
-                    .get_request_builder(NEUTRON_CHAIN_NAME),
+                    .get_request_builder(JUNO_CHAIN_NAME),
                 None,
                 None,
-                Some(polytone_voice_on_neutron.contract_addr.unwrap()),
+                Some(polytone_note_on_juno_address.clone()),
             ),
             "unordered",
             "polytone-1",
         )
         .unwrap();
+
+    // Get the connection-ids so that we can predict the proxy addresses
+    let neutron_channels = relayer.get_channels(NEUTRON_CHAIN_ID).unwrap();
+
+    let connection_id_neutron_to_juno = neutron_channels.iter().find_map(|neutron_channel| {
+        if neutron_channel.port_id == format!("wasm.{}", polytone_note_on_neutron_address.clone()) {
+            neutron_channel.connection_hops.get(0).cloned()
+        } else {
+            None
+        }
+    });
+    info!(
+        "Connection ID of Wasm connection Neutron to Juno: {:?}",
+        connection_id_neutron_to_juno
+    );
+
+    let juno_channels = relayer.get_channels(JUNO_CHAIN_ID).unwrap();
+
+    let connection_id_juno_to_neutron = juno_channels.iter().find_map(|juno_channel| {
+        if juno_channel.port_id == format!("wasm.{}", polytone_note_on_juno_address.clone()) {
+            juno_channel.connection_hops.get(0).cloned()
+        } else {
+            None
+        }
+    });
+    info!(
+        "Connection ID of Wasm connection Juno to Neutron: {:?}",
+        connection_id_juno_to_neutron
+    );
+
+    let salt_for_proxy_on_juno = salt_for_proxy(
+        &connection_id_juno_to_neutron.unwrap(),
+        &format!("wasm.{}", polytone_note_on_neutron_address.clone()),
+        &predicted_authorization_contract_address,
+    );
+
+    // Predict the address the proxy on juno that the authorization module will have
+    let predicted_proxy_address_on_juno = test_ctx
+        .get_built_contract_address()
+        .src(JUNO_CHAIN_NAME)
+        .creator(&polytone_voice_on_juno_address.clone())
+        .contract("polytone_proxy")
+        .salt_hex_encoded(&hex::encode(salt_for_proxy_on_juno))
+        .get();
+
+    // To predict the proxy address on neutron for the processor on juno we need to first predict the processor address
+    let predicted_processor_on_juno_address = test_ctx
+        .get_built_contract_address()
+        .src(JUNO_CHAIN_NAME)
+        .creator(JUNO_CHAIN_ADMIN_ADDR)
+        .contract("valence_processor")
+        .salt_hex_encoded(&salt)
+        .get();
+
+    // Let's now predict the proxy
+    let salt_for_proxy_on_neutron = salt_for_proxy(
+        &connection_id_neutron_to_juno.unwrap(),
+        &format!(
+            "wasm.{}",
+            polytone_note_on_juno.contract_addr.clone().unwrap()
+        ),
+        &predicted_processor_on_juno_address,
+    );
+    let predicted_proxy_address_on_neutron = test_ctx
+        .get_built_contract_address()
+        .src(NEUTRON_CHAIN_NAME)
+        .creator(&polytone_voice_on_neutron_address.clone())
+        .contract("polytone_proxy")
+        .salt_hex_encoded(&hex::encode(salt_for_proxy_on_neutron))
+        .get();
+
+    // Instantiate the processor on the external domain
+    let processor_instantiate_msg = valence_processor_utils::msg::InstantiateMsg {
+        authorization_contract: predicted_authorization_contract_address.clone(),
+        polytone_contracts: Some(PolytoneContracts {
+            polytone_proxy_address: predicted_proxy_address_on_juno,
+            polytone_note_address: polytone_note_on_juno_address.clone(),
+            timeout_seconds: TIMEOUT_SECONDS,
+        }),
+    };
+
+    // Before instantiating the processor and adding the external domain we are going to stop the relayer to force timeouts
+    test_ctx.stop_relayer();
+
+    let processor_code_id_on_juno = test_ctx
+        .get_contract()
+        .src(JUNO_CHAIN_NAME)
+        .contract("valence_processor")
+        .get_cw()
+        .code_id
+        .unwrap();
+
+    // Instantiate processor
+    let processor_contract_on_juno = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(JUNO_CHAIN_NAME),
+        DEFAULT_KEY,
+        processor_code_id_on_juno,
+        &serde_json::to_string(&processor_instantiate_msg).unwrap(),
+        "processor",
+        None,
+        "",
+    )
+    .unwrap();
+
+    info!("Processor on Juno: {}", processor_contract_on_juno.address);
+
+    // Add external domain
+    let add_external_domain_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
+        PermissionedMsg::AddExternalDomains {
+            external_domains: vec![ExternalDomainInfo {
+                name: "juno".to_string(),
+                execution_environment:
+                    valence_authorization_utils::domain::ExecutionEnvironment::CosmWasm,
+                connector: Connector::PolytoneNote {
+                    address: polytone_note_on_neutron_address.clone(),
+                    timeout_seconds: TIMEOUT_SECONDS,
+                },
+                processor: processor_contract_on_juno.address.clone(),
+                callback_proxy: CallbackProxy::PolytoneProxy(predicted_proxy_address_on_neutron),
+            }],
+        },
+    );
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &predicted_authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&add_external_domain_msg).unwrap(),
+        EXECUTE_FLAGS,
+    )
+    .unwrap();
 
     Ok(())
 }

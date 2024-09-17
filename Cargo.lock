@@ -4629,6 +4629,9 @@ dependencies = [
 [[package]]
 name = "valence-local-interchaintest-utils"
 version = "0.1.0"
+dependencies = [
+ "sha2 0.10.8",
+]
 
 [[package]]
 name = "valence-macros"

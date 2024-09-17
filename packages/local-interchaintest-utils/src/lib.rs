@@ -8,3 +8,6 @@ pub const LOGS_FILE_PATH: &str = "local-interchaintest/configs/logs.json";
 pub const LOCAL_CODE_ID_CACHE_PATH_NEUTRON: &str =
     "local-interchaintest/code_id_cache_neutron.json";
 pub const LOCAL_CODE_ID_CACHE_PATH_JUNO: &str = "local-interchaintest/code_id_cache_juno.json";
+pub const EXECUTE_FLAGS: &str = "--gas=auto --gas-adjustment=3.0";
+
+pub mod polytone;

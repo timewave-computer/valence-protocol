@@ -11,8 +11,8 @@ use valence_authorization_utils::{
 
 #[cw_serde]
 pub struct Config {
-    // Address of the authorization contract
-    pub authorization_contract: Addr,
+    // Address of the authorization contract (if the processor is an external domain processor the authorization contract sits on another domain)
+    pub authorization_contract: String,
     pub processor_domain: ProcessorDomain,
     pub state: State,
 }

@@ -4,3 +4,6 @@ version     = { workspace = true }
 edition     = { workspace = true }
 authors     = ["Timewave Labs"]
 description = "Utils for local interchain tests"
+
+[dependencies]
+sha2         = { workspace = true }
