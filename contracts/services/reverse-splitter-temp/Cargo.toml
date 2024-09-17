@@ -31,7 +31,7 @@ thiserror            = { workspace = true }
 valence-macros       = { workspace = true }
 cw-ownable           = { workspace = true }
 valence-base-account = { workspace = true }
-services-utils       = { workspace = true }
+service-utils        = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }
