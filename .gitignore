@@ -19,3 +19,7 @@
 
 # raw schemas
 contracts/**/schema/raw
+
+# local-interchaintest
+local-interchaintest/configs
+local-interchaintest/code_id_cache*

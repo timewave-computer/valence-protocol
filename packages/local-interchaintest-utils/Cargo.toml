@@ -1,0 +1,6 @@
+[package]
+name        = "valence-local-interchaintest-utils"
+version     = { workspace = true }
+edition     = { workspace = true }
+authors     = ["Timewave Labs"]
+description = "Utils for local interchain tests"
