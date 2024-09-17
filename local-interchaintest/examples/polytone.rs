@@ -10,14 +10,16 @@ use localic_std::{
     relayer::Relayer,
 };
 use localic_utils::{
-    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, JUNO_CHAIN_ADMIN_ADDR,
-    JUNO_CHAIN_ID, JUNO_CHAIN_NAME, LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_ID,
-    NEUTRON_CHAIN_NAME,
+    utils::test_context::TestContext, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
+    GAIA_CHAIN_NAME, JUNO_CHAIN_ADMIN_ADDR, JUNO_CHAIN_ID, JUNO_CHAIN_NAME, LOCAL_IC_API_URL,
+    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
 };
 use log::info;
 use valence_authorization_utils::{
-    domain::PolytoneProxyState,
-    msg::{CallbackProxy, Connector, ExternalDomainInfo, PermissionedMsg},
+    domain::{Connector, ExternalDomain, PolytoneProxyState},
+    msg::{
+        CallbackProxy, Connector as AuthorizationConnector, ExternalDomainInfo, PermissionedMsg,
+    },
 };
 use valence_local_interchaintest_utils::{
     polytone::salt_for_proxy, EXECUTE_FLAGS, LOCAL_CODE_ID_CACHE_PATH_JUNO,
@@ -29,6 +31,7 @@ use valence_processor_utils::{
 };
 
 const TIMEOUT_SECONDS: u64 = 5;
+const MAX_ATTEMPTS: u64 = 10;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -403,7 +406,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 name: "juno".to_string(),
                 execution_environment:
                     valence_authorization_utils::domain::ExecutionEnvironment::CosmWasm,
-                connector: Connector::PolytoneNote {
+                connector: AuthorizationConnector::PolytoneNote {
                     address: polytone_note_on_neutron_address.clone(),
                     timeout_seconds: TIMEOUT_SECONDS,
                 },
@@ -430,17 +433,85 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Start the relayer again
     test_ctx.start_relayer();
 
-    // This should eventually timeout
-    let mut max_attempts = 0;
+    // The proxy creation from the processor should have timed out
+    verify_proxy_state_on_processor(
+        &mut test_ctx,
+        &processor_contract_on_juno.address,
+        &PolytoneProxyState::TimedOut,
+    );
+
+    // The proxy creation for the external domain that we added on the authorization contract should have timed out too
+    verify_proxy_state_on_authorization(
+        &mut test_ctx,
+        &predicted_authorization_contract_address,
+        &PolytoneProxyState::TimedOut,
+    );
+
+    // If we retry the proxy creation now, it should succeed and it should create the proxy on both domains
+    let retry_proxy_creation_msg_on_authorization_contract =
+        valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+            valence_authorization_utils::msg::PermissionlessMsg::RetryBridgeCreation {
+                domain_name: "juno".to_string(),
+            },
+        );
+
+    let retry_proxy_creation_on_juno_processor =
+        valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+            valence_processor_utils::msg::PermissionlessMsg::RetryBridgeCreation {},
+        );
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &predicted_authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&retry_proxy_creation_msg_on_authorization_contract).unwrap(),
+        EXECUTE_FLAGS,
+    )
+    .unwrap();
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(JUNO_CHAIN_NAME),
+        &processor_contract_on_juno.address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&retry_proxy_creation_on_juno_processor).unwrap(),
+        EXECUTE_FLAGS,
+    )
+    .unwrap();
+
+    // Now both proxies should be created
+    verify_proxy_state_on_processor(
+        &mut test_ctx,
+        &processor_contract_on_juno.address,
+        &PolytoneProxyState::Created,
+    );
+
+    verify_proxy_state_on_authorization(
+        &mut test_ctx,
+        &predicted_authorization_contract_address,
+        &PolytoneProxyState::Created,
+    );
+
+    Ok(())
+}
+
+fn verify_proxy_state_on_processor(
+    test_ctx: &mut TestContext,
+    processor_address: &str,
+    expected_state: &PolytoneProxyState,
+) {
+    let mut attempts = 0;
     loop {
-        max_attempts += 1;
-        std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+        attempts += 1;
         let config: Config = serde_json::from_value(
             contract_query(
                 test_ctx
                     .get_request_builder()
                     .get_request_builder(JUNO_CHAIN_NAME),
-                &processor_contract_on_juno.address,
+                &processor_address,
                 &serde_json::to_string(&valence_processor_utils::msg::QueryMsg::Config {}).unwrap(),
             )["data"]
                 .clone(),
@@ -448,20 +519,63 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap();
 
         if let ProcessorDomain::External(external) = &config.processor_domain {
-            if external.proxy_on_main_domain_state == PolytoneProxyState::TimedOut {
-                info!("The proxy creation timedout");
+            if external.proxy_on_main_domain_state.eq(expected_state) {
+                info!("Target state reached!");
                 break;
             } else {
-                info!("The proxy creation is still waiting for a response");
+                info!("Waiting for the right state");
             }
         } else {
             panic!("The processor domain is not external!");
         }
 
-        if max_attempts >= 4 {
+        if attempts > MAX_ATTEMPTS {
             panic!("Maximum number of attempts reached. Cancelling execution.");
         }
+        std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
     }
+}
 
-    Ok(())
+fn verify_proxy_state_on_authorization(
+    test_ctx: &mut TestContext,
+    authorization_address: &str,
+    expected_state: &PolytoneProxyState,
+) {
+    let mut attempts = 0;
+    loop {
+        attempts += 1;
+        let external_domains: Vec<ExternalDomain> = serde_json::from_value(
+            contract_query(
+                test_ctx
+                    .get_request_builder()
+                    .get_request_builder(NEUTRON_CHAIN_NAME),
+                &authorization_address,
+                &serde_json::to_string(
+                    &valence_authorization_utils::msg::QueryMsg::ExternalDomains {
+                        start_after: None,
+                        limit: None,
+                    },
+                )
+                .unwrap(),
+            )["data"]
+                .clone(),
+        )
+        .unwrap();
+
+        match &external_domains.first().unwrap().connector {
+            Connector::PolytoneNote { state, .. } => {
+                if state.eq(expected_state) {
+                    info!("Target state reached!");
+                    break;
+                } else {
+                    info!("Waiting for the right state");
+                }
+            }
+        }
+
+        if attempts > MAX_ATTEMPTS {
+            panic!("Maximum number of attempts reached. Cancelling execution.");
+        }
+        std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+    }
 }
