@@ -504,7 +504,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &PolytoneProxyState::Created,
     );
 
-    // Let's verify that the addresses that the voice contract created are the same that we predicted
+    info!("Verifying that predicted and generated addresses match...");
     let remote_address: String = serde_json::from_value(
         contract_query(
             test_ctx
@@ -556,7 +556,7 @@ fn verify_proxy_state_on_processor(
                 test_ctx
                     .get_request_builder()
                     .get_request_builder(JUNO_CHAIN_NAME),
-                &processor_address,
+                processor_address,
                 &serde_json::to_string(&valence_processor_utils::msg::QueryMsg::Config {}).unwrap(),
             )["data"]
                 .clone(),
@@ -594,7 +594,7 @@ fn verify_proxy_state_on_authorization(
                 test_ctx
                     .get_request_builder()
                     .get_request_builder(NEUTRON_CHAIN_NAME),
-                &authorization_address,
+                authorization_address,
                 &serde_json::to_string(
                     &valence_authorization_utils::msg::QueryMsg::ExternalDomains {
                         start_after: None,
