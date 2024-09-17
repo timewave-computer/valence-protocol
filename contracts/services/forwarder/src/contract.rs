@@ -40,9 +40,8 @@ pub fn execute(
 }
 
 mod actions {
-    use cosmwasm_std::{
-        to_json_binary, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, WasmMsg,
-    };
+    use base_account::msg::execute_on_behalf_of;
+    use cosmwasm_std::{coin, BankMsg, CosmosMsg, DepsMut, Env, MessageInfo, Response};
     use service_base::ServiceError;
 
     use crate::msg::{ActionsMsgs, Config};
@@ -55,49 +54,38 @@ mod actions {
         cfg: Config,
     ) -> Result<Response, ServiceError> {
         match msg {
-            ActionsMsgs::Split {} => {
-                let mut messages: Vec<CosmosMsg> = vec![];
+            ActionsMsgs::Forward { execution_id: _ } => {
+                let coins_to_transfer: Vec<_> = cfg
+                    .forwarding_configs()
+                    .iter()
+                    .filter_map(|(denom, fwd_cfg)| {
+                        deps.querier
+                            .query_balance(cfg.input_addr(), denom)
+                            .ok()
+                            .filter(|balance| !balance.amount.is_zero())
+                            .map(|balance| {
+                                let amount_to_transfer = balance.amount.min(*fwd_cfg.max_amount());
+                                coin(amount_to_transfer.into(), denom)
+                            })
+                    })
+                    .collect();
 
-                cfg.splits.iter().try_for_each(|(denom, split)| {
-                    // Query bank balance
-                    let balance = deps.querier.query_balance(&cfg.input_addr, denom)?;
-
-                    // TODO: Check that balance is not zero
-                    if !balance.amount.is_zero() {
-                        // TODO: change split to be percentage and not amounts
-                        messages.extend(
-                            split
-                                .iter()
-                                .map(|(addr, amount)| {
-                                    let bank_msg = BankMsg::Send {
-                                        to_address: addr.to_string()?,
-                                        amount: vec![Coin {
-                                            denom: denom.clone(),
-                                            amount: *amount,
-                                        }],
-                                    };
-
-                                    Ok(WasmMsg::Execute {
-                                        contract_addr: cfg.input_addr.to_string(),
-                                        msg: to_json_binary(
-                                            &valence_base_account::msg::ExecuteMsg::ExecuteMsg {
-                                                msgs: vec![bank_msg.into()],
-                                            },
-                                        )?,
-                                        funds: vec![],
-                                    }
-                                    .into())
-                                })
-                                .collect::<Result<Vec<_>, ServiceError>>()?,
-                        );
-                    }
-
-                    Ok::<(), ServiceError>(())
-                })?;
+                let bank_sends: Vec<CosmosMsg> = coins_to_transfer
+                    .into_iter()
+                    .map(|c| {
+                        BankMsg::Send {
+                            to_address: cfg.output_addr().to_string(),
+                            amount: vec![c],
+                        }
+                        .into()
+                    })
+                    .collect();
+                let input_account_msgs =
+                    execute_on_behalf_of(bank_sends, &cfg.input_addr().clone().into())?;
 
                 Ok(Response::new()
-                    .add_messages(messages)
-                    .add_attribute("method", "split"))
+                    .add_attribute("method", "forward")
+                    .add_message(input_account_msgs))
             }
         }
     }
@@ -124,12 +112,10 @@ mod execute {
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetOwner {} => to_json_binary(&cw_ownable::get_ownership(deps.storage)?),
+        QueryMsg::GetProcessor {} => to_json_binary(&service_base::get_processor(deps.storage)?),
         QueryMsg::GetServiceConfig {} => {
             let config: Config = service_base::load_config(deps.storage)?;
             to_json_binary(&config)
         }
     }
 }
-
-#[cfg(test)]
-mod tests {}

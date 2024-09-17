@@ -20,6 +20,12 @@ pub enum ServiceAccountType {
     AccountId(Id),
 }
 
+impl From<Addr> for ServiceAccountType {
+    fn from(addr: Addr) -> Self {
+        ServiceAccountType::AccountAddr(addr.to_string())
+    }
+}
+
 impl ServiceAccountType {
     pub fn to_string(&self) -> StdResult<String> {
         match self {

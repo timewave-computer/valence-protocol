@@ -1,5 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, CosmosMsg};
+use cosmwasm_std::{to_json_binary, Addr, CosmosMsg, StdError, StdResult, WasmMsg};
+use services_utils::ServiceAccountType;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -22,4 +23,20 @@ pub enum QueryMsg {
     GetOwner {}, // Get current owner
     #[returns(Vec<String>)]
     ListApprovedServices {}, // Get list of approved services
+}
+
+pub fn execute_on_behalf_of(
+    msgs: Vec<CosmosMsg>,
+    account: &ServiceAccountType,
+) -> StdResult<CosmosMsg> {
+    match account {
+        ServiceAccountType::AccountAddr(account) => Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: account.clone(),
+            msg: to_json_binary(&ExecuteMsg::ExecuteMsg { msgs })?,
+            funds: vec![],
+        })),
+        ServiceAccountType::AccountId(_) => {
+            Err(StdError::generic_err("Account type is not an address"))
+        }
+    }
 }

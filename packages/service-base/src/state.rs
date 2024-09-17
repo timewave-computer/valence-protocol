@@ -7,6 +7,10 @@ use serde::{de::DeserializeOwned, Serialize};
 pub const CONFIG_KEY: &[u8] = b"config";
 pub const PROCESSOR: Item<Addr> = Item::new("processor");
 
+pub fn get_processor(store: &dyn Storage) -> StdResult<Addr> {
+    PROCESSOR.load(store)
+}
+
 pub fn save_config<T>(store: &mut dyn Storage, config: &T) -> StdResult<()>
 where
     T: Serialize + DeserializeOwned,
