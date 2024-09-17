@@ -8,7 +8,7 @@ use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::state::{ADMIN, APPROVED_SERVICES};
 
 // version info for migration info
-const CONTRACT_NAME: &str = "crates.io:base_account";
+const CONTRACT_NAME: &str = "crates.io:service_account";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]

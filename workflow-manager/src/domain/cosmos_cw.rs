@@ -232,13 +232,15 @@ impl Connector for CosmosCosmwasmConnector {
 
         // TODO: change the admin to authorization
         let msg: Vec<u8> = match &data.info.ty {
-            AccountType::Base { admin } => to_vec(&valence_base_account::msg::InstantiateMsg {
-                admin: admin
-                    .clone()
-                    .unwrap_or_else(|| self.wallet.account_address.to_string()),
-                approved_services: data.approved_services.clone(),
-            })
-            .map_err(CosmosCosmwasmError::SerdeJsonError)?,
+            AccountType::ServiceAccount { admin } => {
+                to_vec(&valence_service_account::msg::InstantiateMsg {
+                    admin: admin
+                        .clone()
+                        .unwrap_or_else(|| self.wallet.account_address.to_string()),
+                    approved_services: data.approved_services.clone(),
+                })
+                .map_err(CosmosCosmwasmError::SerdeJsonError)?
+            }
             AccountType::Addr { .. } => return Ok(()),
         };
 

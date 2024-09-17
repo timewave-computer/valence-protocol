@@ -110,7 +110,7 @@ mod actions {
                                 Ok(WasmMsg::Execute {
                                     contract_addr: addr.to_string()?,
                                     msg: to_json_binary(
-                                        &valence_base_account::msg::ExecuteMsg::ExecuteMsg {
+                                        &valence_service_account::msg::ExecuteMsg::ExecuteMsg {
                                             msgs: vec![bank_msg.into()],
                                         },
                                     )?,

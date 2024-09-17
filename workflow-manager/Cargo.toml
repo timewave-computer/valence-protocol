@@ -23,7 +23,7 @@ service-base                = { workspace = true }
 
 valence-splitter         = { workspace = true }
 valence-reverse-splitter = { workspace = true }
-valence-base-account     = { workspace = true }
+valence-service-account     = { workspace = true }
 valence-authorization    = { workspace = true }
 valence-processor        = { workspace = true }
 

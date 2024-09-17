@@ -4079,20 +4079,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "valence-base-account"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema 2.1.3",
- "cosmwasm-std 2.1.3",
- "cw-multi-test",
- "cw-storage-plus",
- "cw2",
- "schemars",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "valence-macros"
 version = "0.1.0"
 dependencies = [
@@ -4155,8 +4141,22 @@ dependencies = [
  "serde",
  "services-utils",
  "thiserror",
- "valence-base-account",
  "valence-macros",
+ "valence-service-account",
+]
+
+[[package]]
+name = "valence-service-account"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.3",
+ "cosmwasm-std 2.1.3",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "cw2",
+ "schemars",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -4189,8 +4189,8 @@ dependencies = [
  "serde",
  "services-utils",
  "thiserror",
- "valence-base-account",
  "valence-macros",
+ "valence-service-account",
  "valence-service-base",
 ]
 
@@ -4601,11 +4601,11 @@ dependencies = [
  "tracing-subscriber",
  "valence-authorization",
  "valence-authorization-utils",
- "valence-base-account",
  "valence-macros",
  "valence-processor",
  "valence-processor-utils",
  "valence-reverse-splitter",
+ "valence-service-account",
  "valence-service-base",
  "valence-splitter",
 ]

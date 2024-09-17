@@ -105,7 +105,7 @@ mod test {
             1,
             AccountInfo {
                 name: "test_1".to_string(),
-                ty: AccountType::Base { admin: None },
+                ty: AccountType::ServiceAccount { admin: None },
                 domain: Domain::CosmosCosmwasm("neutron"),
             },
         );
@@ -113,7 +113,7 @@ mod test {
             2,
             AccountInfo {
                 name: "test_2".to_string(),
-                ty: AccountType::Base { admin: None },
+                ty: AccountType::ServiceAccount { admin: None },
                 domain: Domain::CosmosCosmwasm("neutron"),
             },
         );
@@ -121,7 +121,7 @@ mod test {
             3,
             AccountInfo {
                 name: "test_3".to_string(),
-                ty: AccountType::Base { admin: None },
+                ty: AccountType::ServiceAccount { admin: None },
                 domain: Domain::CosmosCosmwasm("neutron"),
             },
         );
