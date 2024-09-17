@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    from_json, to_json_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Order,
-    Response, StdResult, Storage, Uint128, Uint64, WasmMsg,
+    from_json, to_json_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo,
+    Order, Response, StdResult, Storage, Uint128, Uint64, WasmMsg,
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner, is_owner};
 use cw_storage_plus::Bound;
@@ -71,14 +71,21 @@ pub fn instantiate(
         &deps.api.addr_validate(msg.processor.as_str())?,
     )?;
 
+    let mut messages = vec![];
     // Save all external domains
     for domain in msg.external_domains {
-        add_domain(deps.branch(), env.contract.address.to_string(), &domain)?;
+        messages.push(add_domain(
+            deps.branch(),
+            env.contract.address.to_string(),
+            &domain,
+        )?);
     }
 
     EXECUTION_ID.save(deps.storage, &0)?;
 
-    Ok(Response::new().add_attribute("method", "instantiate_authorization"))
+    Ok(Response::new()
+        .add_messages(messages)
+        .add_attribute("method", "instantiate_authorization"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -201,11 +208,25 @@ fn add_external_domains(
     env: Env,
     external_domains: Vec<ExternalDomainInfo>,
 ) -> Result<Response<NeutronMsg>, ContractError> {
+    let mut messages = vec![];
+    // Save all external domains
     for domain in external_domains {
-        add_domain(deps.branch(), env.contract.address.to_string(), &domain)?;
+        messages.push(add_domain(
+            deps.branch(),
+            env.contract.address.to_string(),
+            &domain,
+        )?);
     }
 
-    Ok(Response::new().add_attribute("action", "add_external_domains"))
+    // Need to convert to NeutronMsg
+    let neutron_msgs: Vec<CosmosMsg<NeutronMsg>> = messages
+        .into_iter()
+        .filter_map(|msg| msg.change_custom())
+        .collect();
+
+    Ok(Response::new()
+        .add_messages(neutron_msgs)
+        .add_attribute("action", "add_external_domains"))
 }
 
 fn create_authorizations(

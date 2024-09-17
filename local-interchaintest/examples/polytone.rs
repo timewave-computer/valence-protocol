@@ -1,8 +1,12 @@
-use std::{env, error::Error, time::SystemTime};
+use std::{
+    env,
+    error::Error,
+    time::{Duration, SystemTime},
+};
 
 use cosmwasm_std::Uint64;
 use localic_std::{
-    modules::cosmwasm::{contract_execute, contract_instantiate, CosmWasm},
+    modules::cosmwasm::{contract_execute, contract_instantiate, contract_query, CosmWasm},
     relayer::Relayer,
 };
 use localic_utils::{
@@ -11,14 +15,18 @@ use localic_utils::{
     NEUTRON_CHAIN_NAME,
 };
 use log::info;
-use valence_authorization_utils::msg::{
-    CallbackProxy, Connector, ExternalDomainInfo, PermissionedMsg,
+use valence_authorization_utils::{
+    domain::PolytoneProxyState,
+    msg::{CallbackProxy, Connector, ExternalDomainInfo, PermissionedMsg},
 };
 use valence_local_interchaintest_utils::{
     polytone::salt_for_proxy, EXECUTE_FLAGS, LOCAL_CODE_ID_CACHE_PATH_JUNO,
     LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, POLYTONE_PATH,
 };
-use valence_processor_utils::msg::PolytoneContracts;
+use valence_processor_utils::{
+    msg::PolytoneContracts,
+    processor::{Config, ProcessorDomain},
+};
 
 const TIMEOUT_SECONDS: u64 = 5;
 
@@ -286,7 +294,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let connection_id_neutron_to_juno = neutron_channels.iter().find_map(|neutron_channel| {
         if neutron_channel.port_id == format!("wasm.{}", polytone_note_on_neutron_address.clone()) {
-            neutron_channel.connection_hops.get(0).cloned()
+            neutron_channel.connection_hops.first().cloned()
         } else {
             None
         }
@@ -300,7 +308,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let connection_id_juno_to_neutron = juno_channels.iter().find_map(|juno_channel| {
         if juno_channel.port_id == format!("wasm.{}", polytone_note_on_juno_address.clone()) {
-            juno_channel.connection_hops.get(0).cloned()
+            juno_channel.connection_hops.first().cloned()
         } else {
             None
         }
@@ -388,7 +396,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Processor on Juno: {}", processor_contract_on_juno.address);
 
-    // Add external domain
+    info!("Adding external domain to the authorization contract...");
     let add_external_domain_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
         PermissionedMsg::AddExternalDomains {
             external_domains: vec![ExternalDomainInfo {
@@ -415,6 +423,45 @@ fn main() -> Result<(), Box<dyn Error>> {
         EXECUTE_FLAGS,
     )
     .unwrap();
+
+    // Let's make sure that when we start the relayer, the packets will time out
+    std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+
+    // Start the relayer again
+    test_ctx.start_relayer();
+
+    // This should eventually timeout
+    let mut max_attempts = 0;
+    loop {
+        max_attempts += 1;
+        std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+        let config: Config = serde_json::from_value(
+            contract_query(
+                test_ctx
+                    .get_request_builder()
+                    .get_request_builder(JUNO_CHAIN_NAME),
+                &processor_contract_on_juno.address,
+                &serde_json::to_string(&valence_processor_utils::msg::QueryMsg::Config {}).unwrap(),
+            )["data"]
+                .clone(),
+        )
+        .unwrap();
+
+        if let ProcessorDomain::External(external) = &config.processor_domain {
+            if external.proxy_on_main_domain_state == PolytoneProxyState::TimedOut {
+                info!("The proxy creation timedout");
+                break;
+            } else {
+                info!("The proxy creation is still waiting for a response");
+            }
+        } else {
+            panic!("The processor domain is not external!");
+        }
+
+        if max_attempts >= 4 {
+            panic!("Maximum number of attempts reached. Cancelling execution.");
+        }
+    }
 
     Ok(())
 }

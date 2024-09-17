@@ -11,7 +11,7 @@ use valence_authorization_utils::{
         PermissionType, Priority,
     },
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
-    domain::{Domain, ExternalDomain},
+    domain::Domain,
     msg::{ExecuteMsg, Mint, OwnerMsg, PermissionedMsg, QueryMsg},
 };
 use valence_processor::error::ContractError as ProcessorContractError;
@@ -34,13 +34,13 @@ use crate::{
 #[test]
 fn contract_instantiation() {
     let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(6)
+        .with_num_accounts(4)
         .build()
         .unwrap();
 
     let wasm = Wasm::new(&setup.app);
 
-    let subowner2 = Addr::unchecked(setup.accounts[5].address());
+    let subowner2 = Addr::unchecked(setup.accounts[3].address());
 
     // Let's instantiate with all parameters and query them to see if they are stored correctly
     let (authorization_contract, processor_address) =
@@ -49,7 +49,7 @@ fn contract_instantiation() {
             &setup.accounts[0],
             setup.user_addr.to_string(),
             vec![setup.subowner_addr.to_string(), subowner2.to_string()],
-            vec![setup.external_domain.clone()],
+            vec![],
         );
 
     // Query current owner
@@ -77,32 +77,18 @@ fn contract_instantiation() {
         .unwrap();
 
     assert_eq!(query_processor, Addr::unchecked(processor_address));
-
-    // Query external domains
-    let query_external_domains = wasm
-        .query::<QueryMsg, Vec<ExternalDomain>>(
-            &authorization_contract,
-            &QueryMsg::ExternalDomains {
-                start_after: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    assert_eq!(query_external_domains.len(), 1);
-    assert_eq!(query_external_domains[0].name, setup.external_domain.name);
 }
 
 #[test]
 fn transfer_ownership() {
     let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(6)
+        .with_num_accounts(4)
         .build()
         .unwrap();
 
     let wasm = Wasm::new(&setup.app);
 
-    let new_owner = &setup.accounts[5];
+    let new_owner = &setup.accounts[3];
 
     let (authorization_contract, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
@@ -249,49 +235,6 @@ fn add_and_remove_sub_owners() {
 }
 
 #[test]
-fn add_external_domains() {
-    let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(7)
-        .build()
-        .unwrap();
-
-    let wasm = Wasm::new(&setup.app);
-
-    let (authorization_contract, _) = store_and_instantiate_authorization_with_processor_contract(
-        &setup.app,
-        &setup.accounts[0],
-        setup.owner_addr.to_string(),
-        vec![],
-        vec![],
-    );
-
-    // Owner can add external domains
-    wasm.execute::<ExecuteMsg>(
-        &authorization_contract,
-        &ExecuteMsg::PermissionedAction(PermissionedMsg::AddExternalDomains {
-            external_domains: vec![setup.external_domain.clone()],
-        }),
-        &[],
-        &setup.accounts[0],
-    )
-    .unwrap();
-
-    // Check that it's added
-    let query_external_domains = wasm
-        .query::<QueryMsg, Vec<ExternalDomain>>(
-            &authorization_contract,
-            &QueryMsg::ExternalDomains {
-                start_after: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    assert_eq!(query_external_domains.len(), 1);
-    assert_eq!(query_external_domains[0].name, setup.external_domain.name);
-}
-
-#[test]
 fn create_valid_authorizations() {
     let setup = NeutronTestAppBuilder::new().build().unwrap();
 
@@ -304,7 +247,7 @@ fn create_valid_authorizations() {
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        vec![setup.external_domain.clone()],
+        vec![],
     );
 
     let valid_authorizations = vec![
@@ -344,7 +287,6 @@ fn create_valid_authorizations() {
                 NonAtomicActionsConfigBuilder::new()
                     .with_action(
                         NonAtomicActionBuilder::new()
-                            .with_domain(Domain::External("osmosis".to_string()))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -365,7 +307,6 @@ fn create_valid_authorizations() {
                     )
                     .with_action(
                         NonAtomicActionBuilder::new()
-                            .with_domain(Domain::External("osmosis".to_string()))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -585,7 +526,7 @@ fn create_invalid_authorizations() {
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![],
-        vec![setup.external_domain.clone()],
+        vec![],
     );
 
     // Invalid authorizations and the errors we are supposed to get for each one
@@ -619,21 +560,6 @@ fn create_invalid_authorizations() {
                 )
                 .build(),
             ContractError::DomainIsNotRegistered("ethereum".to_string()),
-        ),
-        (
-            AuthorizationBuilder::new()
-                .with_actions_config(
-                    AtomicActionsConfigBuilder::new()
-                        .with_action(AtomicActionBuilder::new().with_domain(Domain::Main).build())
-                        .with_action(
-                            AtomicActionBuilder::new()
-                                .with_domain(Domain::External("osmosis".to_string()))
-                                .build(),
-                        )
-                        .build(),
-                )
-                .build(),
-            ContractError::Authorization(AuthorizationErrorReason::DifferentActionDomains {}),
         ),
         (
             AuthorizationBuilder::new()
@@ -877,14 +803,14 @@ fn modify_authorization() {
 #[test]
 fn mint_authorizations() {
     let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(6)
+        .with_num_accounts(4)
         .build()
         .unwrap();
 
     let wasm = Wasm::new(&setup.app);
     let bank = Bank::new(&setup.app);
 
-    let user2 = &setup.accounts[5];
+    let user2 = &setup.accounts[3];
     let user2_addr = Addr::unchecked(user2.address());
 
     let (authorization_contract, _) = store_and_instantiate_authorization_with_processor_contract(

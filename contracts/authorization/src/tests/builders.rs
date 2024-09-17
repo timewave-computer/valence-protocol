@@ -9,14 +9,12 @@ use valence_authorization_utils::{
         AuthorizationMode, NonAtomicActionsConfig, Priority,
     },
     authorization_message::{Message, MessageDetails, MessageType},
-    domain::{Domain, ExecutionEnvironment},
-    msg::{CallbackProxy, Connector, ExternalDomainInfo},
+    domain::Domain,
 };
 
 const FEE_DENOM: &str = "untrn";
 
 pub struct NeutronTestAppBuilder {
-    external_domain: String,
     fee_denom: String,
     initial_balance: u128,
     num_accounts: u64,
@@ -25,7 +23,6 @@ pub struct NeutronTestAppBuilder {
 impl NeutronTestAppBuilder {
     pub fn new() -> Self {
         NeutronTestAppBuilder {
-            external_domain: "osmosis".to_string(),
             fee_denom: FEE_DENOM.to_string(),
             initial_balance: 100_000_000_000,
             num_accounts: 5,
@@ -40,8 +37,8 @@ impl NeutronTestAppBuilder {
     pub fn build(self) -> Result<NeutronTestAppSetup, &'static str> {
         let app = NeutronTestApp::new();
 
-        if self.num_accounts < 5 {
-            return Err("Number of accounts must be at least 5");
+        if self.num_accounts < 3 {
+            return Err("Number of accounts must be at least 3");
         }
 
         let accounts = app
@@ -54,30 +51,14 @@ impl NeutronTestAppBuilder {
         let owner = &accounts[0];
         let subowner = &accounts[1];
         let user = &accounts[2];
-        let connector = &accounts[3];
-        let callback_proxy = &accounts[4];
 
         let owner_addr = Addr::unchecked(owner.address());
         let subowner_addr = Addr::unchecked(subowner.address());
-        let connector_addr = Addr::unchecked(connector.address());
-        let callback_proxy_addr = Addr::unchecked(callback_proxy.address());
         let user_addr = Addr::unchecked(user.address());
-
-        let external_domain = ExternalDomainInfo {
-            name: self.external_domain,
-            execution_environment: ExecutionEnvironment::CosmWasm,
-            connector: Connector::PolytoneNote {
-                address: connector_addr.to_string(),
-                timeout_seconds: 100,
-            },
-            processor: "processor".to_string(),
-            callback_proxy: CallbackProxy::PolytoneProxy(callback_proxy_addr.to_string()),
-        };
 
         Ok(NeutronTestAppSetup {
             app,
             accounts,
-            external_domain,
             owner_addr,
             subowner_addr,
             user_addr,
@@ -88,7 +69,6 @@ impl NeutronTestAppBuilder {
 pub struct NeutronTestAppSetup {
     pub app: NeutronTestApp,
     pub accounts: Vec<SigningAccount>,
-    pub external_domain: ExternalDomainInfo,
     pub owner_addr: Addr,
     pub subowner_addr: Addr,
     pub user_addr: Addr,
@@ -287,11 +267,6 @@ impl NonAtomicActionBuilder {
             retry_logic: None,
             callback_confirmation: None,
         }
-    }
-
-    pub fn with_domain(mut self, domain: Domain) -> Self {
-        self.domain = domain;
-        self
     }
 
     pub fn with_message_details(mut self, message_details: MessageDetails) -> Self {
