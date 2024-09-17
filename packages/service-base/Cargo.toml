@@ -1,6 +1,6 @@
 [package]
-name    = "valence-service-base"
-authors = ["Timewave Labs"]
+name       = "valence-service-base"
+authors    = ["Timewave Labs"]
 edition    = { workspace = true }
 license    = { workspace = true }
 version    = { workspace = true }
