@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut, Uint128};
 use service_base::{msg::ServiceConfigValidation, ServiceError};
-use services_utils::{ServiceAccountType, ServiceConfigInterface};
+use service_utils::{ServiceAccountType, ServiceConfigInterface};
 use valence_macros::OptionalStruct;
 
 #[cw_serde]

@@ -56,7 +56,7 @@ valence-macros                     = { path = "packages/valence-macros" }
 valence-authorization-utils        = { path = "packages/authorization-utils" }
 valence-processor-utils            = { path = "packages/processor-utils" }
 valence-polytone-utils             = { path = "packages/polytone-utils" }
-services-utils                     = { path = "packages/services-utils" }
+service-utils                      = { package = "valence-service-utils", path = "packages/service-utils" }
 service-base                       = { package = "valence-service-base", path = "packages/service-base" }
 valence-workflow-registry-utils    = { path = "packages/workflow-registry-utils" }
 

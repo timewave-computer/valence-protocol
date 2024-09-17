@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use services_utils::Id;
+use service_utils::Id;
 use valence_authorization_utils::authorization::AuthorizationInfo;
 
 use crate::{
