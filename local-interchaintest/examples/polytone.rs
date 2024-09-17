@@ -22,7 +22,7 @@ use valence_authorization_utils::{
     },
 };
 use valence_local_interchaintest_utils::{
-    polytone::salt_for_proxy, EXECUTE_FLAGS, LOCAL_CODE_ID_CACHE_PATH_JUNO,
+    polytone::salt_for_proxy, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_JUNO,
     LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, POLYTONE_PATH,
 };
 use valence_processor_utils::{
@@ -31,7 +31,7 @@ use valence_processor_utils::{
 };
 
 const TIMEOUT_SECONDS: u64 = 5;
-const MAX_ATTEMPTS: u64 = 10;
+const MAX_ATTEMPTS: u64 = 25;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -336,6 +336,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         .salt_hex_encoded(&hex::encode(salt_for_proxy_on_juno))
         .get();
 
+    info!(
+        "Predicted proxy address on Juno: {}",
+        predicted_proxy_address_on_juno
+    );
+
     // To predict the proxy address on neutron for the processor on juno we need to first predict the processor address
     let predicted_processor_on_juno_address = test_ctx
         .get_built_contract_address()
@@ -362,11 +367,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         .salt_hex_encoded(&hex::encode(salt_for_proxy_on_neutron))
         .get();
 
+    info!(
+        "Predicted proxy address on Neutron: {}",
+        predicted_proxy_address_on_neutron
+    );
+
     // Instantiate the processor on the external domain
     let processor_instantiate_msg = valence_processor_utils::msg::InstantiateMsg {
         authorization_contract: predicted_authorization_contract_address.clone(),
         polytone_contracts: Some(PolytoneContracts {
-            polytone_proxy_address: predicted_proxy_address_on_juno,
+            polytone_proxy_address: predicted_proxy_address_on_juno.clone(),
             polytone_note_address: polytone_note_on_juno_address.clone(),
             timeout_seconds: TIMEOUT_SECONDS,
         }),
@@ -384,20 +394,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap();
 
     // Instantiate processor
-    let processor_contract_on_juno = contract_instantiate(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(JUNO_CHAIN_NAME),
-        DEFAULT_KEY,
-        processor_code_id_on_juno,
-        &serde_json::to_string(&processor_instantiate_msg).unwrap(),
-        "processor",
-        None,
-        "",
-    )
-    .unwrap();
-
-    info!("Processor on Juno: {}", processor_contract_on_juno.address);
+    test_ctx
+        .build_tx_instantiate2()
+        .with_chain_name(JUNO_CHAIN_NAME)
+        .with_label("processor")
+        .with_code_id(processor_code_id_on_juno)
+        .with_salt_hex_encoded(&salt)
+        .with_msg(serde_json::to_value(&processor_instantiate_msg).unwrap())
+        .with_flags(GAS_FLAGS)
+        .send()
+        .unwrap();
 
     info!("Adding external domain to the authorization contract...");
     let add_external_domain_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
@@ -410,8 +416,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                     address: polytone_note_on_neutron_address.clone(),
                     timeout_seconds: TIMEOUT_SECONDS,
                 },
-                processor: processor_contract_on_juno.address.clone(),
-                callback_proxy: CallbackProxy::PolytoneProxy(predicted_proxy_address_on_neutron),
+                processor: predicted_processor_on_juno_address.clone(),
+                callback_proxy: CallbackProxy::PolytoneProxy(
+                    predicted_proxy_address_on_neutron.clone(),
+                ),
             }],
         },
     );
@@ -423,7 +431,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &predicted_authorization_contract_address,
         DEFAULT_KEY,
         &serde_json::to_string(&add_external_domain_msg).unwrap(),
-        EXECUTE_FLAGS,
+        GAS_FLAGS,
     )
     .unwrap();
 
@@ -436,7 +444,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // The proxy creation from the processor should have timed out
     verify_proxy_state_on_processor(
         &mut test_ctx,
-        &processor_contract_on_juno.address,
+        &predicted_processor_on_juno_address,
         &PolytoneProxyState::TimedOut,
     );
 
@@ -447,6 +455,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &PolytoneProxyState::TimedOut,
     );
 
+    info!("Retrying proxy creation...");
     // If we retry the proxy creation now, it should succeed and it should create the proxy on both domains
     let retry_proxy_creation_msg_on_authorization_contract =
         valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
@@ -467,7 +476,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &predicted_authorization_contract_address,
         DEFAULT_KEY,
         &serde_json::to_string(&retry_proxy_creation_msg_on_authorization_contract).unwrap(),
-        EXECUTE_FLAGS,
+        GAS_FLAGS,
     )
     .unwrap();
 
@@ -475,17 +484,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         test_ctx
             .get_request_builder()
             .get_request_builder(JUNO_CHAIN_NAME),
-        &processor_contract_on_juno.address,
+        &predicted_processor_on_juno_address,
         DEFAULT_KEY,
         &serde_json::to_string(&retry_proxy_creation_on_juno_processor).unwrap(),
-        EXECUTE_FLAGS,
+        GAS_FLAGS,
     )
     .unwrap();
 
     // Now both proxies should be created
     verify_proxy_state_on_processor(
         &mut test_ctx,
-        &processor_contract_on_juno.address,
+        &predicted_processor_on_juno_address,
         &PolytoneProxyState::Created,
     );
 
@@ -494,6 +503,42 @@ fn main() -> Result<(), Box<dyn Error>> {
         &predicted_authorization_contract_address,
         &PolytoneProxyState::Created,
     );
+
+    // Let's verify that the addresses that the voice contract created are the same that we predicted
+    let remote_address: String = serde_json::from_value(
+        contract_query(
+            test_ctx
+                .get_request_builder()
+                .get_request_builder(NEUTRON_CHAIN_NAME),
+            &polytone_note_on_neutron_address,
+            &serde_json::to_string(&polytone_note::msg::QueryMsg::RemoteAddress {
+                local_address: predicted_authorization_contract_address,
+            })
+            .unwrap(),
+        )["data"]
+            .clone(),
+    )
+    .unwrap();
+
+    assert_eq!(remote_address, predicted_proxy_address_on_juno);
+
+    let remote_address: String = serde_json::from_value(
+        contract_query(
+            test_ctx
+                .get_request_builder()
+                .get_request_builder(JUNO_CHAIN_NAME),
+            &polytone_note_on_juno_address,
+            &serde_json::to_string(&polytone_note::msg::QueryMsg::RemoteAddress {
+                local_address: predicted_processor_on_juno_address,
+            })
+            .unwrap(),
+        )["data"]
+            .clone(),
+    )
+    .unwrap();
+
+    assert_eq!(remote_address, predicted_proxy_address_on_neutron);
+    info!("Predicted and created addresses match!");
 
     Ok(())
 }

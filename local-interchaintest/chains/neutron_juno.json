@@ -181,13 +181,13 @@
       "bech32_prefix": "juno",
       "docker_image": {
         "repository": "ghcr.io/strangelove-ventures/heighliner/juno",
-        "version": "v23.1.0"
+        "version": "v24.0.0"
       },
       "gas_prices": "0%DENOM%",
       "chain_type": "cosmos",
       "coin_type": 118,
       "trusting_period": "336h",
-      "gas_adjustment": 2.0,
+      "gas_adjustment": 3.0,
       "number_vals": 1,
       "number_node": 0,
       "ibc_paths": ["neutron-juno"],
@@ -195,6 +195,10 @@
       "debugging": true,
       "genesis": {
         "modify": [
+          {
+            "key": "consensus_params.block.max_gas",
+            "value": "100000000"
+          },
           {
             "key": "app_state.gov.params.voting_period",
             "value": "15s"
