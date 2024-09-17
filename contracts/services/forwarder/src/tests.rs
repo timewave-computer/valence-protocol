@@ -1,8 +1,9 @@
 use cosmwasm_std::{
     coin, instantiate2_address, testing::MockApi, Addr, Api, CodeInfoResponse, Coin, StdResult,
 };
-use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
+use cw_multi_test::{error::AnyResult, next_block, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
+use cw_utils::Duration;
 use getset::{Getters, Setters};
 use service_base::msg::{ExecuteMsg, InstantiateMsg};
 use sha2::{Digest, Sha256};
@@ -159,6 +160,17 @@ impl ForwarderTestSuite {
             .execute_contract(self.processor().clone(), addr, &msg, &[])
     }
 
+    fn next_block(&mut self) {
+        self.app.update_block(next_block);
+    }
+
+    fn forward(&mut self, addr: Addr) -> AnyResult<AppResponse> {
+        self.execute(
+            addr,
+            ExecuteMsg::ProcessAction(ActionsMsgs::Forward { execution_id: None }),
+        )
+    }
+
     fn query_balance(&self, addr: &Addr, denom: &str) -> StdResult<Coin> {
         self.app.wrap().query_balance(addr, denom)
     }
@@ -185,103 +197,236 @@ impl ForwarderTestSuite {
 }
 
 #[test]
-fn instantiate_with_valid_config_succeeds() {
-    // Arrange
+fn instantiate_with_valid_config() {
     let mut suite = ForwarderTestSuite::default();
 
-    let svc_cfg = suite.service_config(
+    // Set max amount to be forwarded to 1_000_000 NTRN (and no constraints)
+    let cfg = suite.service_config(
         &[("untrn".to_string(), 1_000_000_000_000_u128.into())],
         Default::default(),
     );
 
-    // Act
-    let addr = suite.instantiate(&svc_cfg).unwrap();
+    // Instantiate Forwarder contract
+    let svc = suite.instantiate(&cfg).unwrap();
 
-    // Assert
+    // Verify owner
     let owner_res = suite
-        .query_wasm::<Ownership<Addr>>(&addr, &QueryMsg::GetOwner {})
+        .query_wasm::<Ownership<Addr>>(&svc, &QueryMsg::GetOwner {})
         .unwrap();
     assert_eq!(owner_res.owner, Some(suite.owner().clone()));
 
+    // Verify processor
     let processor_addr = suite
-        .query_wasm::<Addr>(&addr, &QueryMsg::GetProcessor {})
+        .query_wasm::<Addr>(&svc, &QueryMsg::GetProcessor {})
         .unwrap();
     assert_eq!(processor_addr, suite.processor().clone());
 
-    let cfg = suite
-        .query_wasm::<Config>(&addr, &QueryMsg::GetServiceConfig {})
+    // Verify service config
+    let svc_cfg = suite
+        .query_wasm::<Config>(&svc, &QueryMsg::GetServiceConfig {})
         .unwrap();
     assert_eq!(
-        cfg,
+        svc_cfg,
         Config::new(
             suite.input_addr().clone(),
             suite.output_addr().clone(),
-            svc_cfg.forwarding_configs,
-            svc_cfg.forwarding_constraints
+            cfg.forwarding_configs,
+            cfg.forwarding_constraints
         )
     );
 }
 
 #[test]
-fn forward_native_token_succeeds() {
-    // Arrange
+fn forward_native_token_full_amount() {
+    // Initialize input account with 1_000_000 NTRN
     let mut suite =
         ForwarderTestSuite::with_input_balances(Some(&[(1_000_000_000_000_u128, "untrn")]));
 
-    let svc_cfg = suite.service_config(
+    // Set max amount to be forwarded to 1_000_000 NTRN (and no constraints)
+    let cfg = suite.service_config(
         &[("untrn".to_string(), 1_000_000_000_000_u128.into())],
         Default::default(),
     );
 
-    let addr = suite.instantiate(&svc_cfg).unwrap();
+    // Instantiate Forwarder contract
+    let svc = suite.instantiate(&cfg).unwrap();
 
-    // Act
-    let _ = suite
-        .execute(
-            addr,
-            ExecuteMsg::ProcessAction(ActionsMsgs::Forward { execution_id: None }),
-        )
-        .unwrap();
+    // Execute forward action
+    let res = suite.forward(svc);
+    assert!(res.is_ok());
 
-    // Assert
-
-    // Input balance should be zero
+    // Verify input account's balance: should be zero
     let input_balance = suite.query_balance(&suite.input_addr, "untrn").unwrap();
     assert_eq!(input_balance, coin(0, "untrn"));
 
-    // Output balance should be 1_000_000_000_000
+    // Verify output account's balance: should be 1_000_000 NTRN
     let output_balance = suite.query_balance(&suite.output_addr, "untrn").unwrap();
     assert_eq!(output_balance, coin(1_000_000_000_000, "untrn"));
 }
 
 #[test]
-fn forward_cw20_token_succeeds() {
-    // Arrange
+fn forward_native_token_partial_amount() {
+    // Initialize input account with 1_000_000 NTRN
     let mut suite =
         ForwarderTestSuite::with_input_balances(Some(&[(1_000_000_000_000_u128, "untrn")]));
 
-    let svc_cfg = suite.service_config(
-        &[("untrn".to_string(), 1_000_000_000_000_u128.into())],
+    // Set max amount to be forwarded to 1_000 NTRN (and no constraints)
+    let cfg = suite.service_config(
+        &[("untrn".to_string(), 1_000_000_000.into())],
         Default::default(),
     );
 
-    let addr = suite.instantiate(&svc_cfg).unwrap();
+    // Instantiate Forwarder contract
+    let svc = suite.instantiate(&cfg).unwrap();
 
-    // Act
-    let _ = suite
-        .execute(
-            addr,
-            ExecuteMsg::ProcessAction(ActionsMsgs::Forward { execution_id: None }),
-        )
-        .unwrap();
+    // Execute forward action
+    let res = suite.forward(svc);
+    assert!(res.is_ok());
 
-    // Assert
-
-    // Input balance should be zero
+    // Verify input account's balance: should be 999_000 NTR
     let input_balance = suite.query_balance(&suite.input_addr, "untrn").unwrap();
-    assert_eq!(input_balance, coin(0, "untrn"));
+    assert_eq!(input_balance, coin(999_000_000_000_u128, "untrn"));
 
-    // Output balance should be 1_000_000_000_000
+    // Verify output account's balance: should be 1_000 NTRN
     let output_balance = suite.query_balance(&suite.output_addr, "untrn").unwrap();
-    assert_eq!(output_balance, coin(1_000_000_000_000, "untrn"));
+    assert_eq!(output_balance, coin(1_000_000_000, "untrn"));
+}
+
+// #[test]
+// fn forward_cw20_token_succeeds() {
+//     // Arrange
+//     let mut suite =
+//         ForwarderTestSuite::with_input_balances(Some(&[(1_000_000_000_000_u128, "untrn")]));
+
+//     let svc_cfg = suite.service_config(
+//         &[("untrn".to_string(), 1_000_000_000_000_u128.into())],
+//         Default::default(),
+//     );
+
+//     let addr = suite.instantiate(&svc_cfg).unwrap();
+
+//     // Act
+//     let _ = suite
+//         .execute(
+//             addr,
+//             ExecuteMsg::ProcessAction(ActionsMsgs::Forward { execution_id: None }),
+//         )
+//         .unwrap();
+
+//     // Assert
+
+//     // Input balance should be zero
+//     let input_balance = suite.query_balance(&suite.input_addr, "untrn").unwrap();
+//     assert_eq!(input_balance, coin(0, "untrn"));
+
+//     // Output balance should be 1_000_000_000_000
+//     let output_balance = suite.query_balance(&suite.output_addr, "untrn").unwrap();
+//     assert_eq!(output_balance, coin(1_000_000_000_000, "untrn"));
+// }
+
+#[test]
+fn forward_with_height_interval_constraint() {
+    // Initialize input account with 1_000_000 NTRN
+    let mut suite =
+        ForwarderTestSuite::with_input_balances(Some(&[(1_000_000_000_000_u128, "untrn")]));
+
+    // Set max amount to be forwarded to 1_000 NTRN,
+    // and constrain forward operation to once every 3 blocks.
+    let cfg = suite.service_config(
+        &[("untrn".to_string(), 1_000_000_000.into())],
+        ForwardingConstraints::from(Duration::Height(3)),
+    );
+
+    // Instantiate Forwarder contract
+    let svc = suite.instantiate(&cfg).unwrap();
+
+    // BLOCK N
+    // Execute forward action shoud succeed
+    let mut res = suite.forward(svc.clone());
+    assert!(res.is_ok());
+
+    // BLOCK N+1
+    suite.next_block();
+    // Execute forward action shoud fail
+    res = suite.forward(svc.clone());
+    assert!(res.is_err());
+
+    // BLOCK N+2
+    suite.next_block();
+    // Execute forward action shoud fail
+    res = suite.forward(svc.clone());
+    assert!(res.is_err());
+
+    // BLOCK N+3
+    suite.next_block();
+    // Execute forward action shoud succeed
+    res = suite.forward(svc.clone());
+    assert!(res.is_ok());
+
+    // Verify input account's balance: should be 998_000 NTR because of 2 successful forwards
+    let input_balance = suite.query_balance(&suite.input_addr, "untrn").unwrap();
+    assert_eq!(input_balance, coin(998_000_000_000_u128, "untrn"));
+
+    // Verify output account's balance: should be 2_000 NTRN because of 2 successful forwards
+    let output_balance = suite.query_balance(&suite.output_addr, "untrn").unwrap();
+    assert_eq!(output_balance, coin(2_000_000_000, "untrn"));
+}
+
+#[test]
+fn forward_with_time_interval_constraint() {
+    // Initialize input account with 1_000_000 NTRN
+    let mut suite =
+        ForwarderTestSuite::with_input_balances(Some(&[(1_000_000_000_000_u128, "untrn")]));
+
+    // Set max amount to be forwarded to 1_000 NTRN,
+    // and constrain forward operation to once every 20 seconds.
+    let cfg = suite.service_config(
+        &[("untrn".to_string(), 1_000_000_000.into())],
+        ForwardingConstraints::from(Duration::Time(20)),
+    );
+
+    // Instantiate Forwarder contract
+    let svc = suite.instantiate(&cfg).unwrap();
+
+    // NOTE: This test verifies the time interval constraint by simulating the passage of time.
+    // => cw-multi-test 'next_block' function uses 5 seconds per block.
+    // Therefore, 4 blocks are required to simulate 20 seconds.
+    // While unrealistic, this is a simple way to test the time interval constraint.
+
+    // BLOCK N
+    // Execute forward action shoud succeed
+    let mut res = suite.forward(svc.clone());
+    assert!(res.is_ok());
+
+    // BLOCK N+1
+    suite.next_block();
+    // Execute forward action shoud fail
+    res = suite.forward(svc.clone());
+    assert!(res.is_err());
+
+    // BLOCK N+2
+    suite.next_block();
+    // Execute forward action shoud fail
+    res = suite.forward(svc.clone());
+    assert!(res.is_err());
+
+    // BLOCK N+3
+    suite.next_block();
+    // Execute forward action shoud fail
+    res = suite.forward(svc.clone());
+    assert!(res.is_err());
+
+    // BLOCK N+4
+    suite.next_block();
+    // Execute forward action shoud succeed
+    res = suite.forward(svc.clone());
+    assert!(res.is_ok());
+
+    // Verify input account's balance: should be 998_000 NTR because of 2 successful forwards
+    let input_balance = suite.query_balance(&suite.input_addr, "untrn").unwrap();
+    assert_eq!(input_balance, coin(998_000_000_000_u128, "untrn"));
+
+    // Verify output account's balance: should be 2_000 NTRN because of 2 successful forwards
+    let output_balance = suite.query_balance(&suite.output_addr, "untrn").unwrap();
+    assert_eq!(output_balance, coin(2_000_000_000, "untrn"));
 }

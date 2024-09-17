@@ -102,7 +102,7 @@ impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
 }
 
 impl OptionalServiceConfig {
-    pub fn update_config(self, _deps: &DepsMut, _config: &mut Config) -> Result<(), ServiceError> {
+    pub fn update_config(self, _deps: DepsMut, _config: &mut Config) -> Result<(), ServiceError> {
         Ok(())
     }
 }

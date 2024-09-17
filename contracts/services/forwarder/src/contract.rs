@@ -41,20 +41,26 @@ pub fn execute(
 
 mod actions {
     use base_account::msg::execute_on_behalf_of;
-    use cosmwasm_std::{coin, BankMsg, CosmosMsg, DepsMut, Env, MessageInfo, Response};
+    use cosmwasm_std::{coin, BankMsg, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError};
     use service_base::ServiceError;
 
-    use crate::msg::{ActionsMsgs, Config};
+    use crate::{
+        msg::{ActionsMsgs, Config},
+        state::LAST_SUCCESSFUL_FORWARD,
+    };
 
     pub fn process_action(
-        deps: &DepsMut,
-        _env: Env,
+        deps: DepsMut,
+        env: Env,
         _info: MessageInfo,
         msg: ActionsMsgs,
         cfg: Config,
     ) -> Result<Response, ServiceError> {
         match msg {
             ActionsMsgs::Forward { execution_id: _ } => {
+                ensure_forwarding_interval(&cfg, &deps, &env)?;
+
+                // Determine the amount to transfer for each denom
                 let coins_to_transfer: Vec<_> = cfg
                     .forwarding_configs()
                     .iter()
@@ -70,6 +76,7 @@ mod actions {
                     })
                     .collect();
 
+                // Prepare messages to send the coins to the output account
                 let bank_sends: Vec<CosmosMsg> = coins_to_transfer
                     .into_iter()
                     .map(|c| {
@@ -80,14 +87,39 @@ mod actions {
                         .into()
                     })
                     .collect();
+
+                // Wrap the transfer messages to be executed on behalf of the input account
                 let input_account_msgs =
                     execute_on_behalf_of(bank_sends, &cfg.input_addr().clone().into())?;
+
+                // Save last successful forward
+                LAST_SUCCESSFUL_FORWARD.save(deps.storage, &env.block)?;
 
                 Ok(Response::new()
                     .add_attribute("method", "forward")
                     .add_message(input_account_msgs))
             }
         }
+    }
+
+    fn ensure_forwarding_interval(
+        cfg: &Config,
+        deps: &DepsMut<'_>,
+        env: &Env,
+    ) -> Result<(), ServiceError> {
+        if let Some(min_interval) = cfg.forwarding_constraints().min_interval() {
+            if let Some(last_successful_forward) = LAST_SUCCESSFUL_FORWARD.may_load(deps.storage)? {
+                if !min_interval
+                    .after(&last_successful_forward)
+                    .is_expired(&env.block)
+                {
+                    return Err(ServiceError::Std(StdError::generic_err(
+                        "Forwarding constraint not met",
+                    )));
+                }
+            }
+        };
+        Ok(())
     }
 }
 
@@ -98,7 +130,7 @@ mod execute {
     use crate::msg::{Config, OptionalServiceConfig};
 
     pub fn update_config(
-        deps: &DepsMut,
+        deps: DepsMut,
         _env: Env,
         _info: MessageInfo,
         config: &mut Config,

@@ -66,3 +66,5 @@ cw-multi-test        = { version = "2.1.1", features = ["cosmwasm_1_4"] }
 neutron-test-tube    = "4.2.0"
 margined-neutron-std = "4.2.0"
 hex                  = "0.4.3"
+cw20                 = { version = "2.0.0" }
+cw20-base            = { version = "2.0.0" }
