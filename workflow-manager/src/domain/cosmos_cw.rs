@@ -738,9 +738,8 @@ impl CosmosCosmwasmConnector {
         sleep_duration: u64,
     ) -> Result<bool, CosmosCosmwasmError> {
         let query_data = to_vec(
-            &valence_authorization_utils::msg::QueryMsg::ExternalDomains {
-                start_after: Some(domain.clone()),
-                limit: Some(1),
+            &valence_authorization_utils::msg::QueryMsg::ExternalDomain {
+                name: domain.clone(),
             },
         )
         .map_err(CosmosCosmwasmError::SerdeJsonError)?;
