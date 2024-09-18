@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut};
 use service_base::{msg::ServiceConfigValidation, ServiceError};
-use services_utils::ServiceConfigInterface;
+use service_utils::ServiceConfigInterface;
 use valence_macros::OptionalStruct;
 
 #[cw_serde]

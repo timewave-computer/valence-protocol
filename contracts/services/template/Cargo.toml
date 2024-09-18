@@ -20,5 +20,5 @@ schemars             = { workspace = true }
 serde                = { workspace = true }
 valence-macros       = { workspace = true }
 cw-ownable           = { workspace = true }
-services-utils       = { workspace = true }
+service-utils        = { workspace = true }
 service-base         = { workspace = true }

@@ -4,7 +4,7 @@ mod test {
 
     use cosmwasm_std::Uint128;
     use serde_json_any_key::MapIterToJson;
-    use services_utils::ServiceAccountType;
+    use service_utils::ServiceAccountType;
     use valence_splitter::msg::ServiceConfig as SplitterServiceConfig;
 
     use crate::{
