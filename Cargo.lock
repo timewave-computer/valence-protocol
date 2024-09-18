@@ -1596,7 +1596,7 @@ dependencies = [
  "proc-macro-error2",
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -2544,7 +2544,7 @@ dependencies = [
  "proc-macro-error-attr2",
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -4154,8 +4154,8 @@ dependencies = [
  "cw2",
  "schemars",
  "serde",
- "services-utils",
  "thiserror",
+ "valence-service-utils",
 ]
 
 [[package]]
@@ -4174,12 +4174,12 @@ dependencies = [
  "getset",
  "schemars",
  "serde",
- "services-utils",
  "sha2 0.10.8",
  "thiserror",
  "valence-base-account",
  "valence-macros",
  "valence-service-base",
+ "valence-service-utils",
 ]
 
 [[package]]

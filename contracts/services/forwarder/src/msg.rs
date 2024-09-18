@@ -4,7 +4,7 @@ use cw_denom::{CheckedDenom, DenomError, UncheckedDenom};
 use cw_utils::Duration;
 use getset::{Getters, Setters};
 use service_base::{msg::ServiceConfigValidation, ServiceError};
-use services_utils::{ServiceAccountType, ServiceConfigInterface};
+use service_utils::{ServiceAccountType, ServiceConfigInterface};
 use std::collections::HashMap;
 use valence_macros::OptionalStruct;
 

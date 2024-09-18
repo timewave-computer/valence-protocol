@@ -23,7 +23,7 @@ valence-macros       = { workspace = true }
 cw-ownable           = { workspace = true }
 cw-utils             = { workspace = true }
 base-account         = { workspace = true }
-services-utils       = { workspace = true }
+service-utils        = { workspace = true }
 service-base         = { workspace = true }
 getset               = { workspace = true }
 sha2                 = { workspace = true }

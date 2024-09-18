@@ -1,6 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{to_json_binary, Addr, CosmosMsg, StdError, StdResult, WasmMsg};
-use services_utils::ServiceAccountType;
+use service_utils::ServiceAccountType;
 
 #[cw_serde]
 pub struct InstantiateMsg {
