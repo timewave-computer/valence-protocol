@@ -100,4 +100,6 @@ jobs:
           curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
 
       - name: Run polytone example
+        env:
+          RUST_LOG: debug
         run: cargo run --package local-interchaintest --example polytone
