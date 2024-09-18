@@ -840,6 +840,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ExternalDomains { start_after, limit } => {
             to_json_binary(&get_external_domains(deps, start_after, limit))
         }
+        QueryMsg::ExternalDomain { name } => to_json_binary(&get_external_domain(deps, name)?),
         QueryMsg::Authorizations { start_after, limit } => {
             to_json_binary(&get_authorizations(deps, start_after, limit))
         }
@@ -881,6 +882,10 @@ fn get_external_domains(
         .filter_map(Result::ok)
         .map(|(_, ed)| ed)
         .collect()
+}
+
+fn get_external_domain(deps: Deps, name: String) -> StdResult<ExternalDomain> {
+    EXTERNAL_DOMAINS.load(deps.storage, name)
 }
 
 fn get_authorizations(
