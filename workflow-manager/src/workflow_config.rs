@@ -65,6 +65,7 @@ impl AuthorizationData {
 #[serde(bound(deserialize = "'de: 'static"))]
 pub struct WorkflowConfig {
     // This is the id of the workflow
+    #[serde(default)]
     pub id: u64,
     pub owner: String,
     /// A list of links between an accounts and services
@@ -323,6 +324,9 @@ impl WorkflowConfig {
 
     /// Verify the config is correct and are not missing any data
     fn verify_new_config(&mut self) -> ManagerResult<()> {
+        // Verify id is 0, new configs should not have id
+        ensure!(self.id == 0, ManagerError::IdNotZero);
+
         // make sure config authorization data is empty,
         // in new configs, this data should be set to default as it is getting populated
         // by the init function.
@@ -330,6 +334,9 @@ impl WorkflowConfig {
             self.authorization_data == AuthorizationData::default(),
             ManagerError::AuthorizationDataNotDefault
         );
+
+        // TODO: Verify links have all accounts and services include from the list.
+        // TODO: Verify all accounts are referenced in service config at least once (or else we have unused account)
 
         Ok(())
     }

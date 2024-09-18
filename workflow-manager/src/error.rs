@@ -23,6 +23,9 @@ pub enum ManagerError {
 
     #[error("Config authorization data is not empty")]
     AuthorizationDataNotDefault,
+    
+    #[error("Config has an id")]
+    IdNotZero,
 
     #[error("No instantiate data for account id: {0} | link id: {1}")]
     FailedToRetrieveAccountInitData(u64, u64),
