@@ -64,6 +64,8 @@ impl AuthorizationData {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(bound(deserialize = "'de: 'static"))]
 pub struct WorkflowConfig {
+    // This is the id of the workflow
+    pub id: u64,
     pub owner: String,
     /// A list of links between an accounts and services
     pub links: BTreeMap<Id, Link>,
@@ -91,6 +93,7 @@ impl WorkflowConfig {
 
         // Get workflow next id from on chain workflow registry
         let workflow_id = neutron_connector.reserve_workflow_id().await?;
+        self.id = workflow_id;
 
         // Instantiate the authorization module contracts.
         let all_domains = self.get_all_domains();
