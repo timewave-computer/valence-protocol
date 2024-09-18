@@ -171,9 +171,15 @@ impl WorkflowConfig {
                     )
                     .await?;
 
-                // TODO: Add instantiate authorization bridge account step, to very the bridge was instantiated correctly.
-                // Maybe this step should be done after this loop to give at least some time for the contract to create the account
-                // because this is async and requires an IBC msg.
+                // Instantiate the authorization bridge account on main connector to external domain
+                // in polytone and because its IBC, we basically verify this account was created or retry if it wasn't.
+                main_connector
+                    .instantiate_authorization_bridge_account(
+                        authorization_addr.clone(),
+                        domain.get_chain_name().to_string(),
+                        3,
+                    )
+                    .await?;
 
                 // The processor will create the bridge account on instantiation, but we still need to verify the account was created
                 // and if it wasn't, we want to retry a couple of times before erroring out.
