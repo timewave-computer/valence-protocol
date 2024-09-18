@@ -97,7 +97,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .send_single_contract(&processor_contract_path)?;
 
     // We need to predict the authorization contract address in advance for the processor contract on the main domain
-    // We'll use the current time as a salt so we can run this test multiple times
+    // We'll use the current time as a salt so we can run this test multiple times locally without getting conflicts
     let now = SystemTime::now();
     let salt = hex::encode(
         now.duration_since(SystemTime::UNIX_EPOCH)?
@@ -143,7 +143,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         processor_on_main_domain.address
     );
 
-    // Instantiate the authorization contract now, we will add the external domains later on
+    // Instantiate the authorization contract now, we will add the external domains later
     let authorization_code_id = test_ctx
         .get_contract()
         .contract("valence_authorization")
@@ -307,7 +307,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         )
         .unwrap();
 
-    // Get the connection-ids so that we can predict the proxy addresses
+    // Get the connection ids so that we can predict the proxy addresses
     let neutron_channels = relayer.get_channels(NEUTRON_CHAIN_ID).unwrap();
 
     let connection_id_neutron_to_juno = neutron_channels.iter().find_map(|neutron_channel| {
@@ -342,7 +342,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &predicted_authorization_contract_address,
     );
 
-    // Predict the address the proxy on juno that the authorization module will have
+    // Predict the address the proxy on juno for the authorization module
     let predicted_proxy_address_on_juno = test_ctx
         .get_built_contract_address()
         .src(JUNO_CHAIN_NAME)
@@ -557,7 +557,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Let's test the action creation and execution / retrying
 
-    // First scenario: we are going to try to add an authorization with an action for an invalid domain, which should fail
+    // First we are going to try to add an authorization with an action for an invalid domain, which should fail
     let mut action = AtomicAction {
         domain: Domain::External("osmosis".to_string()),
         message_details: MessageDetails {
@@ -644,7 +644,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     std::thread::sleep(Duration::from_secs(3));
 
-    // Now that it's created, the user will send the message twice, once with TTL and once without, so after the timeout only one can be retried
+    // Now that it's created, the user will send the message twice, once without TTL and once with it, so after the timeout only the one with non-expired TTL can be retried
     let msg = Binary::from(serde_json::to_vec(&json!({"any": {}})).unwrap());
 
     info!("Stopping relayer to force timeouts...");
