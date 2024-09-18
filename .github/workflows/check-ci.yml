@@ -19,16 +19,14 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Run clippy
         run: cargo clippy --all-targets --verbose -- -D warnings
+      - name: Optimize contracts
+        run: |
+          docker run --user $(id -u):$(id -g) --rm \
+          -v .:/code -v ./target:/target \
+          -v ./target:/usr/local/cargo/registry cosmwasm/optimizer:0.16.0
 
-  optimize:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run optimization script
-        run: ./devtools/optimize.sh
-        
   tests:
-    needs: optimize
+    needs: check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,6 +36,7 @@ jobs:
           RUST_BACKTRACE: 1
 
   local-ic-polytone:
+    needs: check
     name: Authorization-Processor polytone integration test
     runs-on: ubuntu-latest
     steps:
