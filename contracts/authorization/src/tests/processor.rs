@@ -54,7 +54,6 @@ fn user_enqueing_messages() {
             &setup.accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
 
     // We'll create two authorization, one with high priority and one without to test the correct queueing of messages
@@ -303,7 +302,6 @@ fn max_concurrent_execution_limit() {
             &setup.accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
 
     // We'll create an authorization with max concurrent executions and check that we can't queue more than that
@@ -412,7 +410,6 @@ fn owner_adding_and_removing_messages() {
             &setup.accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
 
     // We'll create two authorization, one with high priority and one without to test the correct queueing of messages
@@ -889,7 +886,6 @@ fn invalid_msg_rejected() {
             &setup.accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
     let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0], None);
 
@@ -1002,7 +998,6 @@ fn queue_shifting_when_not_retriable() {
             &setup.accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
     let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0], None);
 
@@ -1253,7 +1248,6 @@ fn higher_priority_queue_is_processed_first() {
             &setup.accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
     let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0], None);
 
@@ -1493,7 +1487,6 @@ fn retry_multi_action_atomic_batch_until_success() {
             &setup.accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
     let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0], None);
 
@@ -1679,7 +1672,6 @@ fn retry_multi_action_non_atomic_batch_until_success() {
             &setup.accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
     let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0], None);
 
@@ -1907,7 +1899,6 @@ fn failed_atomic_batch_after_retries() {
             &setup.accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
     let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0], None);
 
@@ -2065,7 +2056,6 @@ fn failed_non_atomic_batch_after_retries() {
             &setup.accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
     let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0], None);
 
@@ -2197,7 +2187,6 @@ fn successful_non_atomic_and_atomic_batches_together() {
             &setup.accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
     let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0], None);
 
@@ -2406,7 +2395,6 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
             &setup.accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
     let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0], None);
 
@@ -2634,7 +2622,6 @@ fn migration() {
             &setup.accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
     let test_service_contract =
         store_and_instantiate_test_service(&wasm, &setup.accounts[0], Some(&processor_contract));

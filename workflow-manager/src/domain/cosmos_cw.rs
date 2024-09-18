@@ -398,7 +398,6 @@ impl Connector for CosmosCosmwasmConnector {
             owner: self.wallet.account_address.clone(),
             sub_owners: vec![],
             processor: processor_addr,
-            external_domains: vec![],
         })
         .map_err(CosmosCosmwasmError::SerdeJsonError)?;
 
