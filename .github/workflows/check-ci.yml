@@ -24,12 +24,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Optimize contracts
-        run: |
-          docker run --user $(id -u):$(id -g) --rm \
-          -v .:/code -v ./target:/target \
-          -v ./target:/usr/local/cargo/registry cosmwasm/optimizer:0.16.0
-
+      - name: Run optimization script
+        run: ./devtools/optimize.sh
+        
   tests:
     needs: optimize
     runs-on: ubuntu-latest
