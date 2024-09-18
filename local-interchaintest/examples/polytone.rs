@@ -419,6 +419,22 @@ fn main() -> Result<(), Box<dyn Error>> {
         .send()
         .unwrap();
 
+    // Let's make sure that when we start the relayer, the packets will time out
+    std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+
+    // Start the relayer again
+    test_ctx.start_relayer();
+
+    // The proxy creation from the processor should have timed out
+    verify_proxy_state_on_processor(
+        &mut test_ctx,
+        &predicted_processor_on_juno_address,
+        &PolytoneProxyState::TimedOut,
+    );
+
+    // Stop the relayer again to force a time out when adding external domain
+    test_ctx.stop_relayer();
+
     info!("Adding external domain to the authorization contract...");
     let add_external_domain_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
         PermissionedMsg::AddExternalDomains {
@@ -454,13 +470,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Start the relayer again
     test_ctx.start_relayer();
-
-    // The proxy creation from the processor should have timed out
-    verify_proxy_state_on_processor(
-        &mut test_ctx,
-        &predicted_processor_on_juno_address,
-        &PolytoneProxyState::TimedOut,
-    );
 
     // The proxy creation for the external domain that we added on the authorization contract should have timed out too
     verify_proxy_state_on_authorization(
