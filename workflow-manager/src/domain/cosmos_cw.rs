@@ -622,8 +622,10 @@ impl Connector for CosmosCosmwasmConnector {
                 .into());
             } else {
                 let msg = to_vec(
-                    &valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
-                        valence_processor_utils::msg::PermissionlessMsg::RetryBridgeCreation {},
+                    &valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+                        valence_authorization_utils::msg::PermissionlessMsg::RetryBridgeCreation {
+                            domain_name: domain.clone(),
+                        },
                     ),
                 )
                 .map_err(CosmosCosmwasmError::SerdeJsonError)?;
