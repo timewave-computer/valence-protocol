@@ -48,7 +48,7 @@ mod actions {
     use crate::msg::{ActionsMsgs, Config};
 
     pub fn process_action(
-        deps: &DepsMut,
+        deps: DepsMut,
         _env: Env,
         _info: MessageInfo,
         msg: ActionsMsgs,

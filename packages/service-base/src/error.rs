@@ -10,6 +10,9 @@ pub enum ServiceError {
     #[error(transparent)]
     OwnershipError(#[from] OwnershipError),
 
+    #[error("Configuration error: {0}")]
+    ConfigurationError(String),
+
     #[error("Unauthorized: {0}")]
     Unauthorized(#[from] UnauthorizedReason),
 }

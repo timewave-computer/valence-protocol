@@ -41,7 +41,7 @@ pub fn execute(
 
 mod actions {
     use base_account::msg::execute_on_behalf_of;
-    use cosmwasm_std::{coin, BankMsg, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError};
+    use cosmwasm_std::{CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError, StdResult};
     use service_base::ServiceError;
 
     use crate::{
@@ -57,43 +57,44 @@ mod actions {
         cfg: Config,
     ) -> Result<Response, ServiceError> {
         match msg {
-            ActionsMsgs::Forward { execution_id: _ } => {
+            ActionsMsgs::Forward { execution_id } => {
                 ensure_forwarding_interval(&cfg, &deps, &env)?;
 
                 // Determine the amount to transfer for each denom
                 let coins_to_transfer: Vec<_> = cfg
                     .forwarding_configs()
                     .iter()
-                    .filter_map(|(denom, fwd_cfg)| {
-                        deps.querier
-                            .query_balance(cfg.input_addr(), denom)
+                    .filter_map(|fwd_cfg| {
+                        fwd_cfg
+                            .denom()
+                            .query_balance(&deps.querier, cfg.input_addr())
                             .ok()
-                            .filter(|balance| !balance.amount.is_zero())
+                            .filter(|balance| !balance.is_zero())
                             .map(|balance| {
-                                let amount_to_transfer = balance.amount.min(*fwd_cfg.max_amount());
-                                coin(amount_to_transfer.into(), denom)
+                                // Take minimum of input account balance and configured max amount for denom
+                                let amount = balance.min(*fwd_cfg.max_amount());
+                                (amount, fwd_cfg.denom())
                             })
                     })
                     .collect();
 
                 // Prepare messages to send the coins to the output account
-                let bank_sends: Vec<CosmosMsg> = coins_to_transfer
+                let transfer_messages = coins_to_transfer
                     .into_iter()
-                    .map(|c| {
-                        BankMsg::Send {
-                            to_address: cfg.output_addr().to_string(),
-                            amount: vec![c],
-                        }
-                        .into()
-                    })
-                    .collect();
+                    .map(|(amount, denom)| denom.get_transfer_to_message(cfg.output_addr(), amount))
+                    .collect::<StdResult<Vec<CosmosMsg>>>()?;
 
                 // Wrap the transfer messages to be executed on behalf of the input account
                 let input_account_msgs =
-                    execute_on_behalf_of(bank_sends, &cfg.input_addr().clone().into())?;
+                    execute_on_behalf_of(transfer_messages, &cfg.input_addr().clone().into())?;
 
                 // Save last successful forward
                 LAST_SUCCESSFUL_FORWARD.save(deps.storage, &env.block)?;
+
+                if let Some(_execution_id) = execution_id {
+                    todo!();
+                    return Ok(Response::new());
+                }
 
                 Ok(Response::new()
                     .add_attribute("method", "forward")
@@ -130,7 +131,7 @@ mod execute {
     use crate::msg::{Config, OptionalServiceConfig};
 
     pub fn update_config(
-        deps: DepsMut,
+        deps: &DepsMut,
         _env: Env,
         _info: MessageInfo,
         config: &mut Config,

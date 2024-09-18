@@ -979,6 +979,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw-denom"
+version = "2.4.2"
+source = "git+https://github.com/DA0-DA0/dao-contracts?branch=cw-std-2#48ce9249ebd28c9092de0bf2368c78458726c9e9"
+dependencies = [
+ "cosmwasm-schema 2.1.3",
+ "cosmwasm-std 2.1.3",
+ "cw20",
+ "thiserror",
+]
+
+[[package]]
 name = "cw-multi-test"
 version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4161,6 +4172,7 @@ version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 2.1.3",
  "cosmwasm-std 2.1.3",
+ "cw-denom",
  "cw-multi-test",
  "cw-ownable",
  "cw-storage-plus",
