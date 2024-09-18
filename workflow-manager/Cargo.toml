@@ -15,7 +15,7 @@ thiserror    = { workspace = true }
 anyhow       = { workspace = true }
 cw-ownable   = { workspace = true }
 
-service-utils                  = { workspace = true }
+service-utils                   = { workspace = true }
 valence-macros                  = { workspace = true }
 valence-authorization-utils     = { workspace = true }
 valence-processor-utils         = { workspace = true }
