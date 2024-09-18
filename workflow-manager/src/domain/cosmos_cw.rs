@@ -30,7 +30,7 @@ use serde_json::to_vec;
 use thiserror::Error;
 use tokio::time::sleep;
 
-use super::{Connector, ConnectorResult};
+use super::{Connector, ConnectorResult, POLYTONE_TIMEOUT};
 
 const MNEMONIC: &str = "margin moon alcohol assume tube bullet long cook edit delay boat camp stone coyote gather design aisle comfort width sound innocent long dumb jungle";
 
@@ -152,7 +152,7 @@ impl Connector for CosmosCosmwasmConnector {
         let tx_hash = self
             .wallet
             // .simulate_tx(vec![m])
-            .broadcast_tx(vec![m], None, None, BroadcastMode::Sync) 
+            .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map_err(CosmosCosmwasmError::Error)?
             .tx_response
@@ -500,6 +500,7 @@ impl Connector for CosmosCosmwasmConnector {
             .map_err(|e| CosmosCosmwasmError::Error(e).into())
     }
 
+    // TODO: Currently its only working for polytone, we will need to support other bridges at some point
     async fn add_external_domain(
         &mut self,
         main_domain: &str,
@@ -523,7 +524,7 @@ impl Connector for CosmosCosmwasmConnector {
                 valence_authorization_utils::domain::ExecutionEnvironment::CosmWasm,
             connector: valence_authorization_utils::msg::Connector::PolytoneNote {
                 address: bridge.note_addr,
-                timeout_seconds: 60,
+                timeout_seconds: POLYTONE_TIMEOUT,
             },
 
             processor: processor_addr,
@@ -557,100 +558,267 @@ impl Connector for CosmosCosmwasmConnector {
             .map_err(|e| CosmosCosmwasmError::Error(e).into())
     }
 
-    // TODO: IGNORE for now.
-    // Change this method with the new design where the beidge account is created on instantiation of the processor.
-    // But this function will just check if the bridge account was created, and if not, it will try to create it with a retry logic.
     async fn instantiate_processor_bridge_account(
         &mut self,
-        _processor_addr: String,
-        mut _retry: u8,
+        processor_addr: String,
+        retry: u8,
     ) -> ConnectorResult<()> {
-        // TODO: First check if the queue is empty or not
-        // if its not, we tick the processor.
-        // if it is empty, we retry
-        // if retry is 0, we return an error.
+        // We check if we should retry or not,
+        let should_retry = self
+            ._should_retry_processor_bridge_account_creation(processor_addr.clone(), 5, 60)
+            .await?;
 
-        // match self
-        //     ._instantiate_processor_bridge_account(processor_addr.clone())
-        //     .await
-        // {
-        //     Ok(_) => Ok(()),
-        //     Err(e) => {
-        //         if retry == 0 {
-        //             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
-        //                 "Failed to instantiate processor bridge account, max retry reached. Error: {e}",
-        //             ))
-        //             .into());
-        //         } else {
-        //             retry -= 1;
-        //         }
+        if should_retry {
+            if retry == 0 {
+                return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                    "'instantiate_processor_bridge_account', max retry reached"
+                ))
+                .into());
+            } else {
+                let msg = to_vec(
+                    &valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+                        valence_processor_utils::msg::PermissionlessMsg::RetryBridgeCreation {},
+                    ),
+                )
+                .map_err(CosmosCosmwasmError::SerdeJsonError)?;
 
-        //         // Wait for 1 minute before retrying
-        //         thread::sleep(time::Duration::from_secs(60));
+                let m = MsgExecuteContract {
+                    sender: self.wallet.account_address.clone(),
+                    contract: processor_addr.clone(),
+                    msg,
+                    funds: vec![],
+                }
+                .build_any();
 
-        //         self.instantiate_processor_bridge_account(processor_addr, retry)
-        //             .await
-        //     }
-        // }
-        unimplemented!()
+                self.wallet
+                    .simulate_tx(vec![m])
+                    // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
+                    .await
+                    .map(|_| ())
+                    .map_err(CosmosCosmwasmError::Error)?;
+
+                return self
+                    .instantiate_processor_bridge_account(processor_addr, retry - 1)
+                    .await;
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn instantiate_authorization_bridge_account(
+        &mut self,
+        authorization_addr: String,
+        domain: String,
+        retry: u8,
+    ) -> ConnectorResult<()> {
+        // We check if we should retry or not,
+        let should_retry = self
+            ._should_retry_authorization_bridge_account_creation(
+                authorization_addr.clone(),
+                domain.clone(),
+                5,
+                60,
+            )
+            .await?;
+
+        if should_retry {
+            if retry == 0 {
+                return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                    "'instantiate_authorization_bridge_account', max retry reached"
+                ))
+                .into());
+            } else {
+                let msg = to_vec(
+                    &valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+                        valence_processor_utils::msg::PermissionlessMsg::RetryBridgeCreation {},
+                    ),
+                )
+                .map_err(CosmosCosmwasmError::SerdeJsonError)?;
+
+                let m = MsgExecuteContract {
+                    sender: self.wallet.account_address.clone(),
+                    contract: authorization_addr.clone(),
+                    msg,
+                    funds: vec![],
+                }
+                .build_any();
+
+                self.wallet
+                    .simulate_tx(vec![m])
+                    // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
+                    .await
+                    .map(|_| ())
+                    .map_err(CosmosCosmwasmError::Error)?;
+
+                return self
+                    .instantiate_authorization_bridge_account(authorization_addr, domain, retry - 1)
+                    .await;
+            }
+        }
+
+        Ok(())
     }
 }
 
 // Helpers
 impl CosmosCosmwasmConnector {
-    pub async fn _instantiate_processor_bridge_account(
+    /// Here we check if we should retry or not the bridge account creation
+    /// It will error we have reached our maximum retry amount
+    /// It will send a response otherwise
+    pub async fn _should_retry_processor_bridge_account_creation(
         &mut self,
         processor_addr: String,
-    ) -> Result<(), CosmosCosmwasmError> {
-        let query_data = to_vec(&valence_processor_utils::msg::QueryMsg::IsQueueEmpty {})
+        retry_amount: u64,
+        sleep_duration: u64,
+    ) -> Result<bool, CosmosCosmwasmError> {
+        let query_data = to_vec(&valence_processor_utils::msg::QueryMsg::Config {})
             .map_err(CosmosCosmwasmError::SerdeJsonError)?;
-        let is_queue_empty_req = QuerySmartContractStateRequest {
+        let config_req = QuerySmartContractStateRequest {
             address: processor_addr.clone(),
             query_data,
         };
-        let is_queue_empty_res = from_json::<bool>(
+
+        let config_res = from_json::<valence_processor_utils::processor::Config>(
             self.wallet
                 .client
                 .clients
                 .wasm
-                .smart_contract_state(is_queue_empty_req)
+                .smart_contract_state(config_req)
                 .await
-                .context("Failed to query the processor")
+                .context("'_should_retry_processor_bridge_account_creation' Failed to query the processor")
                 .map_err(CosmosCosmwasmError::Error)?
                 .into_inner()
                 .data,
         )
         .map_err(CosmosCosmwasmError::CosmwasmStdError)?;
 
-        if !is_queue_empty_res {
-            // queue is not empty, means we can tick the processor
-            let msg = to_vec(
-                &valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
-                    valence_processor_utils::msg::PermissionlessMsg::Tick {},
-                ),
-            )
-            .unwrap();
-
-            let m = MsgExecuteContract {
-                sender: self.wallet.account_address.clone(),
-                contract: processor_addr,
-                msg,
-                funds: vec![],
+        let state = match config_res.processor_domain {
+            valence_processor_utils::processor::ProcessorDomain::Main => {
+                return Err(anyhow!("'_should_retry_processor_bridge_account_creation' Processor domain is main, should be external").into())
             }
-            .build_any();
+            valence_processor_utils::processor::ProcessorDomain::External(polytone) => {
+                polytone.proxy_on_main_domain_state
+            }
+        };
 
-            self.wallet
-                .simulate_tx(vec![m])
-                // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
+        match state {
+            valence_authorization_utils::domain::PolytoneProxyState::TimedOut => {
+                // if timeouted, we should retry the account creation
+                Ok(true)
+            }
+            valence_authorization_utils::domain::PolytoneProxyState::PendingResponse => {
+                // Still pending, but we reached our maximum retry amount
+                if retry_amount == 0 {
+                    return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                        "'_should_retry_processor_bridge_account_creation' Max retry reached"
+                    )));
+                }
+                // Still pending and have retries left to do, we sleep, and then retry the check
+                sleep(std::time::Duration::from_secs(sleep_duration)).await;
+                Box::pin(self._should_retry_processor_bridge_account_creation(
+                    processor_addr,
+                    retry_amount - 1,
+                    sleep_duration,
+                ))
                 .await
-                .map(|_| ())
-                .map_err(CosmosCosmwasmError::Error)?;
+            }
+            valence_authorization_utils::domain::PolytoneProxyState::Created => {
+                // Account was created, so we don't need to do anything anymore
+                Ok(false)
+            }
+            valence_authorization_utils::domain::PolytoneProxyState::UnexpectedError(err) => {
+                // We got an unexpected error, we should retry the account creation
+                Err(CosmosCosmwasmError::Error(anyhow::anyhow!(format!(
+                    "'_should_retry_processor_bridge_account_creation' UnexpectedError: {}",
+                    err
+                ))))
+            }
+        }
+    }
 
-            Ok(())
-        } else {
-            Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
-                "Queue is empty, can't tick the processor"
-            )))
+    pub async fn _should_retry_authorization_bridge_account_creation(
+        &mut self,
+        authorization_addr: String,
+        domain: String,
+        retry_amount: u64,
+        sleep_duration: u64,
+    ) -> Result<bool, CosmosCosmwasmError> {
+        let query_data = to_vec(
+            &valence_authorization_utils::msg::QueryMsg::ExternalDomains {
+                start_after: Some(domain.clone()),
+                limit: Some(1),
+            },
+        )
+        .map_err(CosmosCosmwasmError::SerdeJsonError)?;
+        let req = QuerySmartContractStateRequest {
+            address: authorization_addr.clone(),
+            query_data,
+        };
+
+        let res = from_json::<Vec<valence_authorization_utils::domain::ExternalDomain>>(
+            self.wallet
+                .client
+                .clients
+                .wasm
+                .smart_contract_state(req)
+                .await
+                .context("'_should_retry_authorization_bridge_account_creation' Failed to query the authorization")
+                .map_err(CosmosCosmwasmError::Error)?
+                .into_inner()
+                .data,
+        )
+        .map_err(CosmosCosmwasmError::CosmwasmStdError)?;
+
+        if res.is_empty() {
+            return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                "'_should_retry_authorization_bridge_account_creation' External domain not found"
+            )));
+        }
+
+        if res.len() > 1 {
+            return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                "'_should_retry_authorization_bridge_account_creation' Found more than 1 External domain"
+            )));
+        }
+
+        let state = match res[0].clone().connector {
+            valence_authorization_utils::domain::Connector::PolytoneNote { state, .. } => state,
+        };
+
+        match state {
+            valence_authorization_utils::domain::PolytoneProxyState::TimedOut => {
+                // if timeouted, we should retry the account creation
+                Ok(true)
+            }
+            valence_authorization_utils::domain::PolytoneProxyState::PendingResponse => {
+                // Still pending, but we reached our maximum retry amount
+                if retry_amount == 0 {
+                    return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                        "'_should_retry_authorization_bridge_account_creation' Max retry reached"
+                    )));
+                }
+                // Still pending and have retries left to do, we sleep, and then retry the check
+                sleep(std::time::Duration::from_secs(sleep_duration)).await;
+                Box::pin(self._should_retry_authorization_bridge_account_creation(
+                    authorization_addr,
+                    domain,
+                    retry_amount - 1,
+                    sleep_duration,
+                ))
+                .await
+            }
+            valence_authorization_utils::domain::PolytoneProxyState::Created => {
+                // Account was created, so we don't need to do anything anymore
+                Ok(false)
+            }
+            valence_authorization_utils::domain::PolytoneProxyState::UnexpectedError(err) => {
+                // We got an unexpected error, we should retry the account creation
+                Err(CosmosCosmwasmError::Error(anyhow::anyhow!(format!(
+                    "'_should_retry_authorization_bridge_account_creation' UnexpectedError: {}",
+                    err
+                ))))
+            }
         }
     }
 

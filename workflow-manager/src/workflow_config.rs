@@ -160,6 +160,7 @@ impl WorkflowConfig {
                     .await?;
 
                 // construct and add the `ExternalDomain` info to the authorization contract
+                // Adding external domain to the authorization contract will create the bridge account on that domain
                 main_connector
                     .add_external_domain(
                         MAIN_CHAIN,
@@ -174,12 +175,10 @@ impl WorkflowConfig {
                 // Maybe this step should be done after this loop to give at least some time for the contract to create the account
                 // because this is async and requires an IBC msg.
 
-                // Adding external domain to the authorization contract will create the bridge account on that domain
-                // But we still need to create the processor bridge account on main domain.
                 // The processor will create the bridge account on instantiation, but we still need to verify the account was created
-                // and if it wasn't, we want to retry couple of times before erroring out.
+                // and if it wasn't, we want to retry a couple of times before erroring out.
                 connector
-                    .instantiate_processor_bridge_account(processor_addr.clone(), 5)
+                    .instantiate_processor_bridge_account(processor_addr.clone(), 3)
                     .await?;
 
                 // Add processor address to list of processor by domain
@@ -199,6 +198,10 @@ impl WorkflowConfig {
                 );
             };
         }
+
+        // TODO: Discuss if we want to separate the bridge account instantiation from contract creation.
+        // The main benefit of this is that it will give some time for the async operation to complete
+        // but if the creation fails, it means we continued the workflow instantiatoin for no reason.
 
         // Predict account addresses and get the instantiate datas for each account
         let mut account_instantiate_datas: HashMap<u64, InstantiateAccountData> = HashMap::new();

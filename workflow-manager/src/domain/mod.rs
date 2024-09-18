@@ -16,6 +16,8 @@ use crate::{
 
 pub type ConnectorResult<T> = Result<T, ConnectorError>;
 
+pub const POLYTONE_TIMEOUT: u64 = 300;
+
 #[derive(Error, Debug)]
 pub enum ConnectorError {
     #[error(transparent)]
@@ -98,7 +100,12 @@ pub trait Connector: fmt::Debug + Send + Sync {
         polytone_addr: Option<valence_processor_utils::msg::PolytoneContracts>,
     ) -> ConnectorResult<()>;
 
-    /// The processor should create the account on instantiation, but if it fails we need to be to retry
+    /// We need to do 2 things here:
+    /// 1. Instantiate the bridge account
+    /// 2. Verify it was created
+    ///
+    /// For polytone, we create account it when we instantiate the processor contract, but because its async
+    /// we needd to verify that it was created.
     async fn instantiate_processor_bridge_account(
         &mut self,
         processor_addr: String,
@@ -131,6 +138,25 @@ pub trait Connector: fmt::Debug + Send + Sync {
         processor_addr: String,
     ) -> ConnectorResult<()> {
         unimplemented!("'instantiate_authorization' should only be implemented on main domain");
+    }
+
+    /// We need to instantiate the bridge accounts for the authorization contract on all other domains
+    /// There are 2 things we need to here:
+    /// 1. Instantiate the bridge account
+    /// 2. Verify it was created
+    ///
+    /// For polytone, we create account when we add the external domain but because its async
+    /// we still need to verify it was created, so this is what we will be doing for polytone
+    #[allow(unused_variables)]
+    async fn instantiate_authorization_bridge_account(
+        &mut self,
+        authorization_addr: String,
+        domain: String,
+        retry: u8,
+    ) -> ConnectorResult<()> {
+        unimplemented!(
+            "'instantiate_authorization_bridge_account' should only be implemented on main domain"
+        );
     }
 
     /// Add an external domain to the processor contract
