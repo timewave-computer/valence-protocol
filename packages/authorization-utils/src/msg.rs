@@ -248,6 +248,8 @@ pub enum QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
+    #[returns(ExternalDomain)]
+    ExternalDomain { name: String },
     #[returns(Vec<Authorization>)]
     Authorizations {
         start_after: Option<String>,
