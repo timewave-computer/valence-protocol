@@ -90,7 +90,7 @@ fn contract_instantiation() {
         .unwrap();
 
     assert_eq!(query_external_domains.len(), 1);
-    assert_eq!(query_external_domains[0], setup.external_domain);
+    assert_eq!(query_external_domains[0].name, setup.external_domain.name);
 }
 
 #[test]
@@ -288,7 +288,7 @@ fn add_external_domains() {
         .unwrap();
 
     assert_eq!(query_external_domains.len(), 1);
-    assert_eq!(query_external_domains[0], setup.external_domain);
+    assert_eq!(query_external_domains[0].name, setup.external_domain.name);
 }
 
 #[test]

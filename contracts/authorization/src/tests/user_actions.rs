@@ -74,6 +74,7 @@ fn disabled() {
                 messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
                     msg: Binary::default(),
                 }],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -95,6 +96,7 @@ fn disabled() {
                 messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
                     msg: Binary::default(),
                 }],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -161,6 +163,7 @@ fn invalid_time() {
                 messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
                     msg: Binary::default(),
                 }],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -185,6 +188,7 @@ fn invalid_time() {
                 messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
                     msg: Binary::default(),
                 }],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -209,6 +213,7 @@ fn invalid_time() {
                 messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
                     msg: Binary::default(),
                 }],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -255,6 +260,7 @@ fn invalid_time() {
                 messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
                     msg: Binary::default(),
                 }],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -278,6 +284,7 @@ fn invalid_time() {
                 messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
                     msg: Binary::default(),
                 }],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -301,6 +308,7 @@ fn invalid_time() {
                 messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
                     msg: Binary::default(),
                 }],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -372,6 +380,7 @@ fn invalid_permission() {
                 messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
                     msg: Binary::default(),
                 }],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -393,6 +402,7 @@ fn invalid_permission() {
                 messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
                     msg: Binary::default(),
                 }],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -416,6 +426,7 @@ fn invalid_permission() {
                 messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
                     msg: Binary::default(),
                 }],
+                ttl: None,
             }),
             &[Coin {
                 denom: permission_token.clone(),
@@ -535,6 +546,7 @@ fn invalid_messages() {
                         msg: Binary::default(),
                     },
                 ],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -557,6 +569,7 @@ fn invalid_messages() {
                     code_id: 40,
                     msg: Binary::default(),
                 }],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -580,6 +593,7 @@ fn invalid_messages() {
             &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "no-restrictions".to_string(),
                 messages: vec![message],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -599,6 +613,7 @@ fn invalid_messages() {
             &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "no-restrictions".to_string(),
                 messages: vec![message],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -624,6 +639,7 @@ fn invalid_messages() {
             &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "no-restrictions".to_string(),
                 messages: vec![message],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -657,6 +673,7 @@ fn invalid_messages() {
             &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "with-restrictions".to_string(),
                 messages: vec![message],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -689,6 +706,7 @@ fn invalid_messages() {
             &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "with-restrictions".to_string(),
                 messages: vec![message],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],
@@ -722,6 +740,7 @@ fn invalid_messages() {
             &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
                 label: "with-restrictions".to_string(),
                 messages: vec![message],
+                ttl: None,
             }),
             &[],
             &setup.accounts[2],

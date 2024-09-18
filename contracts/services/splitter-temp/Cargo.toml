@@ -32,7 +32,7 @@ thiserror            = { workspace = true }
 valence-macros       = { workspace = true }
 cw-ownable           = { workspace = true }
 valence-base-account = { workspace = true }
-services-utils       = { workspace = true }
+service-utils       = { workspace = true }
 service-base         = { workspace = true }
 
 [dev-dependencies]

@@ -25,7 +25,7 @@ use cosmos_grpc_client::{
     cosmrs::bip32::secp256k1::sha2::{digest::Update, Digest, Sha256},
     BroadcastMode, Decimal, GrpcClient, ProstMsgNameToAny, Wallet,
 };
-use cosmwasm_std::{from_json, Addr};
+use cosmwasm_std::from_json;
 use serde_json::to_vec;
 use thiserror::Error;
 use tokio::time::sleep;
@@ -152,7 +152,7 @@ impl Connector for CosmosCosmwasmConnector {
         let tx_hash = self
             .wallet
             // .simulate_tx(vec![m])
-            .broadcast_tx(vec![m], None, None, BroadcastMode::Sync) // TODO: change once we ready
+            .broadcast_tx(vec![m], None, None, BroadcastMode::Sync) 
             .await
             .map_err(CosmosCosmwasmError::Error)?
             .tx_response
@@ -517,16 +517,18 @@ impl Connector for CosmosCosmwasmConnector {
 
         let bridge = self.get_bridge_info(main_domain, main_domain, domain)?;
 
-        let external_domain = valence_authorization_utils::domain::ExternalDomain {
+        let external_domain = valence_authorization_utils::msg::ExternalDomainInfo {
             name: domain.to_string(),
             execution_environment:
                 valence_authorization_utils::domain::ExecutionEnvironment::CosmWasm,
-            connector: valence_authorization_utils::domain::Connector::PolytoneNote(
-                Addr::unchecked(bridge.note_addr),
-            ),
+            connector: valence_authorization_utils::msg::Connector::PolytoneNote {
+                address: bridge.note_addr,
+                timeout_seconds: 60,
+            },
+
             processor: processor_addr,
-            callback_proxy: valence_authorization_utils::domain::CallbackProxy::PolytoneProxy(
-                Addr::unchecked(processor_bridge_account_addr),
+            callback_proxy: valence_authorization_utils::msg::CallbackProxy::PolytoneProxy(
+                processor_bridge_account_addr,
             ),
         };
 

@@ -1,12 +1,13 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Uint128, WasmMsg};
+use cosmwasm_std::{Addr, Api, Binary, StdResult, Uint128, WasmMsg};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query, Expiration};
+use valence_polytone_utils::polytone::CallbackMessage;
 
 use crate::{
     authorization::{Authorization, AuthorizationInfo, Priority},
     authorization_message::MessageType,
-    callback::{CallbackInfo, ExecutionResult},
-    domain::{Domain, ExternalDomain},
+    callback::{ExecutionResult, ProcessorCallbackInfo},
+    domain::{Domain, ExecutionEnvironment, ExternalDomain},
 };
 
 #[cw_serde]
@@ -17,7 +18,71 @@ pub struct InstantiateMsg {
     // Processor on Main domain
     pub processor: String,
     // External domains
-    pub external_domains: Vec<ExternalDomain>,
+    pub external_domains: Vec<ExternalDomainInfo>,
+}
+
+#[cw_serde]
+pub struct ExternalDomainInfo {
+    pub name: String,
+    pub execution_environment: ExecutionEnvironment,
+    pub connector: Connector,
+    pub processor: String,
+    pub callback_proxy: CallbackProxy,
+}
+
+impl ExternalDomainInfo {
+    pub fn to_external_domain_validated(&self, api: &dyn Api) -> StdResult<ExternalDomain> {
+        Ok(ExternalDomain {
+            name: self.name.clone(),
+            execution_environment: self.execution_environment.clone(),
+            connector: crate::domain::Connector::PolytoneNote {
+                address: self.connector.to_addr(api)?,
+                timeout_seconds: self.connector.timeout_seconds(),
+                state: crate::domain::PolytoneProxyState::PendingResponse,
+            },
+            processor: self.processor.clone(),
+            callback_proxy: crate::domain::CallbackProxy::PolytoneProxy(
+                self.callback_proxy.to_addr(api)?,
+            ),
+        })
+    }
+}
+
+#[cw_serde]
+pub enum Connector {
+    PolytoneNote {
+        address: String,
+        timeout_seconds: u64,
+    },
+}
+
+impl Connector {
+    pub fn to_addr(&self, api: &dyn Api) -> StdResult<Addr> {
+        match self {
+            Connector::PolytoneNote { address, .. } => api.addr_validate(address),
+        }
+    }
+
+    pub fn timeout_seconds(&self) -> u64 {
+        match self {
+            Connector::PolytoneNote {
+                timeout_seconds, ..
+            } => *timeout_seconds,
+        }
+    }
+}
+
+#[cw_serde]
+pub enum CallbackProxy {
+    PolytoneProxy(String),
+}
+
+impl CallbackProxy {
+    pub fn to_addr(&self, api: &dyn Api) -> StdResult<Addr> {
+        match self {
+            CallbackProxy::PolytoneProxy(addr) => api.addr_validate(addr),
+        }
+    }
 }
 
 #[cw_ownable_execute]
@@ -26,6 +91,10 @@ pub enum ExecuteMsg {
     OwnerAction(OwnerMsg),
     PermissionedAction(PermissionedMsg),
     PermissionlessAction(PermissionlessMsg),
+    InternalAuthorizationAction(InternalAuthorizationMsg),
+    // Polytone callback listener
+    #[serde(rename = "callback")]
+    PolytoneCallback(CallbackMessage),
 }
 
 #[cw_serde]
@@ -37,7 +106,7 @@ pub enum OwnerMsg {
 #[cw_serde]
 pub enum PermissionedMsg {
     AddExternalDomains {
-        external_domains: Vec<ExternalDomain>,
+        external_domains: Vec<ExternalDomainInfo>,
     },
     CreateAuthorizations {
         authorizations: Vec<AuthorizationInfo>,
@@ -100,8 +169,23 @@ pub enum PermissionlessMsg {
     SendMsgs {
         label: String,
         messages: Vec<ProcessorMessage>,
+        // Used in case of timeouts for cross-domain transactions. If they fail due to a timeout for example, anyone can permissionlessly re-send them if they are not expired.
+        // If no expiration is set, they won't be able to be re-sent.
+        ttl: Option<Expiration>,
     },
-    Callback {
+    // Permissionless entry point that allows retrying messages that have timed out
+    RetryMsgs {
+        // The execution ID that the messages were sent with and timed out
+        execution_id: u64,
+    },
+    RetryBridgeCreation {
+        domain_name: String,
+    },
+}
+
+#[cw_serde]
+pub enum InternalAuthorizationMsg {
+    ProcessorCallback {
         execution_id: u64,
         execution_result: ExecutionResult,
     },
@@ -169,11 +253,11 @@ pub enum QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
-    #[returns(Vec<CallbackInfo>)]
-    Callbacks {
+    #[returns(Vec<ProcessorCallbackInfo>)]
+    ProcessorCallbacks {
         start_after: Option<u64>,
         limit: Option<u32>,
     },
-    #[returns(CallbackInfo)]
-    Callback { execution_id: u64 },
+    #[returns(ProcessorCallbackInfo)]
+    ProcessorCallback { execution_id: u64 },
 }
