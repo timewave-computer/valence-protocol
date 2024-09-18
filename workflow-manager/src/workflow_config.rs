@@ -22,6 +22,43 @@ pub struct Link {
     pub service_id: Id,
 }
 
+/// This struct holds all the data regarding our authorization and processor
+/// contracts and bridge accounts
+#[derive(Clone, Debug, Default)]
+pub struct AuthorizationData {
+    /// authorization contract address on neutron
+    pub authorization_addr: String,
+    /// List of processor addresses by domain
+    /// Key: domain name | Value: processor address
+    pub processor_addrs: BTreeMap<String, String>,
+    /// List of authorization bridge addresses by domain
+    /// The addresses are on the specified domain
+    /// Key: domain name | Value: authorization bridge address on that domain
+    pub authorization_bridge_addrs: BTreeMap<String, String>,
+    /// List of processor bridge addresses by domain
+    /// All addresses are on nuetron, mapping to what domain this bridge account is for
+    /// Key: domain name | Value: processor bridge address on that domain
+    pub processor_bridge_addrs: BTreeMap<String, String>,
+}
+
+impl AuthorizationData {
+    pub fn set_authorization_addr(&mut self, addr: String) {
+        self.authorization_addr = addr;
+    }
+
+    pub fn set_processor_addr(&mut self, domain: String, addr: String) {
+        self.processor_addrs.insert(domain, addr);
+    }
+
+    pub fn set_authorization_bridge_addr(&mut self, domain: String, addr: String) {
+        self.authorization_bridge_addrs.insert(domain, addr);
+    }
+
+    pub fn set_processor_bridge_addr(&mut self, domain: String, addr: String) {
+        self.processor_bridge_addrs.insert(domain, addr);
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct WorkflowConfig {
     pub owner: String,
@@ -31,8 +68,12 @@ pub struct WorkflowConfig {
     pub authorizations: BTreeMap<Id, AuthorizationInfo>,
     /// The list account data by id
     pub accounts: BTreeMap<Id, AccountInfo>,
-    // /// The list service data by id
+    /// The list service data by id
     pub services: BTreeMap<Id, ServiceInfo>,
+    /// This is the info regarding authorization andp rocessor contracts.
+    /// Must be empty (Default) when a new workflow is instantiated.
+    /// It gets populated when the workflow is instantiated.
+    pub authorization_data: AuthorizationData,
 }
 
 impl WorkflowConfig {
@@ -44,7 +85,6 @@ impl WorkflowConfig {
         let mut neutron_connector = connectors.get_or_create_connector(&NEUTRON_DOMAIN).await?;
 
         // Get workflow next id from on chain workflow registry
-        // TODO: get registry address
         let workflow_id = neutron_connector.reserve_workflow_id().await?;
 
         // Instantiate the authorization module contracts.
@@ -60,7 +100,7 @@ impl WorkflowConfig {
             .await?;
 
         main_connector
-            .instantiate_authorization(workflow_id, authorization_salt, main_processor_addr)
+            .instantiate_authorization(workflow_id, authorization_salt, main_processor_addr.clone())
             .await?;
 
         main_connector
@@ -71,6 +111,11 @@ impl WorkflowConfig {
                 None,
             )
             .await?;
+
+        self.authorization_data
+            .set_authorization_addr(authorization_addr.clone());
+        self.authorization_data
+            .set_processor_addr(MAIN_DOMAIN.to_string(), main_processor_addr);
 
         // init processors and bridge accounts on all other domains
         // For mainnet we need to instantiate a bridge account for each processor instantiated on other domains
@@ -99,7 +144,7 @@ impl WorkflowConfig {
                     .instantiate_processor(
                         workflow_id,
                         salt,
-                        authorization_bridge_account_addr,
+                        authorization_bridge_account_addr.clone(),
                         None,
                     )
                     .await?;
@@ -121,7 +166,7 @@ impl WorkflowConfig {
                         domain.get_chain_name(),
                         authorization_addr.clone(),
                         processor_addr.clone(),
-                        processor_bridge_account_addr,
+                        processor_bridge_account_addr.clone(),
                     )
                     .await?;
 
@@ -134,8 +179,24 @@ impl WorkflowConfig {
                 // The processor will create the bridge account on instantiation, but we still need to verify the account was created
                 // and if it wasn't, we want to retry couple of times before erroring out.
                 connector
-                    .instantiate_processor_bridge_account(processor_addr, 5)
+                    .instantiate_processor_bridge_account(processor_addr.clone(), 5)
                     .await?;
+
+                // Add processor address to list of processor by domain
+                self.authorization_data
+                    .set_processor_addr(domain.get_chain_name().to_string(), processor_addr);
+
+                // Add authorization bridge account info by domain
+                self.authorization_data.set_authorization_bridge_addr(
+                    domain.get_chain_name().to_string(),
+                    authorization_bridge_account_addr,
+                );
+
+                // Add processor bridge account info by domain
+                self.authorization_data.set_processor_bridge_addr(
+                    domain.get_chain_name().to_string(),
+                    processor_bridge_account_addr,
+                );
             };
         }
 
