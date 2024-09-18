@@ -2,7 +2,7 @@ use aho_corasick::AhoCorasick;
 
 use serde_json::to_vec;
 use service_base::msg::InstantiateMsg;
-use services_utils::ServiceConfigInterface;
+use service_utils::ServiceConfigInterface;
 use thiserror::Error;
 use valence_reverse_splitter::msg::ServiceConfig as ReverseSplitterServiceConfig;
 use valence_splitter::msg::ServiceConfig as SplitterServiceConfig;
