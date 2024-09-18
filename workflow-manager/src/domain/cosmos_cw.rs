@@ -748,7 +748,7 @@ impl CosmosCosmwasmConnector {
             query_data,
         };
 
-        let res = from_json::<Vec<valence_authorization_utils::domain::ExternalDomain>>(
+        let res = from_json::<valence_authorization_utils::domain::ExternalDomain>(
             self.wallet
                 .client
                 .clients
@@ -762,19 +762,7 @@ impl CosmosCosmwasmConnector {
         )
         .map_err(CosmosCosmwasmError::CosmwasmStdError)?;
 
-        if res.is_empty() {
-            return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
-                "'_should_retry_authorization_bridge_account_creation' External domain not found"
-            )));
-        }
-
-        if res.len() > 1 {
-            return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
-                "'_should_retry_authorization_bridge_account_creation' Found more than 1 External domain"
-            )));
-        }
-
-        let state = match res[0].clone().connector {
+        let state = match res.clone().connector {
             valence_authorization_utils::domain::Connector::PolytoneNote { state, .. } => state,
         };
 
