@@ -7,6 +7,7 @@ pub mod error;
 pub mod service;
 pub mod tests;
 pub mod workflow_config;
+pub mod macros;
 
 use connectors::Connectors;
 use domain::Domain;

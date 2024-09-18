@@ -1,5 +1,6 @@
 use aho_corasick::AhoCorasick;
 
+use serde::{Deserialize, Serialize};
 use serde_json::to_vec;
 use service_base::msg::InstantiateMsg;
 use service_utils::ServiceConfigInterface;
@@ -20,7 +21,8 @@ pub enum ServiceError {
     SerdeJsonError(#[from] serde_json::Error),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'static"))]
 pub struct ServiceInfo {
     pub name: String,
     pub domain: Domain,
@@ -28,7 +30,7 @@ pub struct ServiceInfo {
 }
 
 /// This is a list of all our services we support and their configs.
-#[derive(Debug, Clone, strum::Display)]
+#[derive(Debug, Clone, strum::Display, Serialize, Deserialize)]
 #[strum(serialize_all = "snake_case")]
 pub enum ServiceConfig {
     // General {

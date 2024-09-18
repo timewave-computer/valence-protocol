@@ -4,6 +4,7 @@ use std::fmt;
 
 use async_trait::async_trait;
 use cosmos_cw::{CosmosCosmwasmConnector, CosmosCosmwasmError};
+use serde::{Deserialize, Serialize};
 // use cosmos_evm::CosmosEvmError;
 use strum::Display;
 use thiserror::Error;
@@ -31,7 +32,7 @@ pub enum ConnectorError {
 
 /// We need some way of knowing which domain we are talking with
 /// TODO: chain connection, execution, bridges for authorization.
-#[derive(Debug, Display, Clone, PartialEq, PartialOrd, Ord, Eq, Hash)]
+#[derive(Debug, Display, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
 pub enum Domain {
     CosmosCosmwasm(&'static str),
     // CosmosEvm(&'static str),

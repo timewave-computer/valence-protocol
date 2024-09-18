@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+use serde::{Deserialize, Serialize};
 use service_utils::Id;
 use valence_authorization_utils::authorization::AuthorizationInfo;
 
@@ -8,11 +9,12 @@ use crate::{
     connectors::Connectors,
     domain::Domain,
     error::{ManagerError, ManagerResult},
+    macros::ensure,
     service::ServiceInfo,
     MAIN_CHAIN, MAIN_DOMAIN, NEUTRON_DOMAIN,
 };
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Link {
     /// List of input accounts by id
     pub input_accounts_id: Vec<Id>,
@@ -24,7 +26,7 @@ pub struct Link {
 
 /// This struct holds all the data regarding our authorization and processor
 /// contracts and bridge accounts
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct AuthorizationData {
     /// authorization contract address on neutron
     pub authorization_addr: String,
@@ -59,7 +61,8 @@ impl AuthorizationData {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'static"))]
 pub struct WorkflowConfig {
     pub owner: String,
     /// A list of links between an accounts and services
@@ -73,13 +76,15 @@ pub struct WorkflowConfig {
     /// This is the info regarding authorization andp rocessor contracts.
     /// Must be empty (Default) when a new workflow is instantiated.
     /// It gets populated when the workflow is instantiated.
+    #[serde(default)]
     pub authorization_data: AuthorizationData,
 }
 
 impl WorkflowConfig {
     /// Instantiate a workflow on all domains.
     pub async fn init(&mut self, connectors: &Connectors) -> ManagerResult<()> {
-        // TODO: We probably want to verify the whole workflow config first, before doing any operations
+        // Verify the whole workflow config
+        self.verify_new_config()?;
 
         // We create the neutron connector specifically because our registry is on neutron.
         let mut neutron_connector = connectors.get_or_create_connector(&NEUTRON_DOMAIN).await?;
@@ -307,6 +312,22 @@ impl WorkflowConfig {
             .await?;
 
         // TODO: Verify the workflow is complete and everything is instantiatied correctly
+        Ok(())
+    }
+
+    /// Modify an existing config with a new config
+    fn _modify(&mut self) {}
+
+    /// Verify the config is correct and are not missing any data
+    fn verify_new_config(&mut self) -> ManagerResult<()> {
+        // make sure config authorization data is empty,
+        // in new configs, this data should be set to default as it is getting populated
+        // by the init function.
+        ensure!(
+            self.authorization_data == AuthorizationData::default(),
+            ManagerError::AuthorizationDataNotDefault
+        );
+
         Ok(())
     }
 }

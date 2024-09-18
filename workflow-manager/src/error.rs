@@ -6,6 +6,9 @@ pub type ManagerResult<T> = Result<T, ManagerError>;
 
 #[derive(Error, Debug)]
 pub enum ManagerError {
+    #[error(transparent)]
+    Error(#[from] anyhow::Error),
+    
     #[error("Generic Error: {0}")]
     Generic(String),
 
@@ -17,6 +20,9 @@ pub enum ManagerError {
 
     #[error(transparent)]
     ServiceError(#[from] ServiceError),
+
+    #[error("Config authorization data is not empty")]
+    AuthorizationDataNotDefault,
 
     #[error("No instantiate data for account id: {0} | link id: {1}")]
     FailedToRetrieveAccountInitData(u64, u64),
