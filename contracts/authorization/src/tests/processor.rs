@@ -4,7 +4,7 @@ use neutron_test_tube::{Module, Wasm};
 use valence_authorization_utils::{
     action::{ActionCallback, RetryLogic, RetryTimes},
     authorization::{
-        ActionsConfig, AtomicActionsConfig, AuthorizationMode, PermissionType, Priority,
+        ActionsConfig, AtomicActionsConfig, AuthorizationModeInfo, PermissionTypeInfo, Priority,
     },
     authorization_message::{Message, MessageDetails, MessageType},
     callback::{ExecutionResult, ProcessorCallbackInfo},
@@ -71,10 +71,10 @@ fn user_enqueing_messages() {
         AuthorizationBuilder::new()
             .with_label("permissioned-without-limit")
             .with_max_concurrent_executions(10)
-            .with_mode(AuthorizationMode::Permissioned(
-                PermissionType::WithoutCallLimit(vec![
-                    setup.subowner_addr.clone(),
-                    setup.user_addr.clone(),
+            .with_mode(AuthorizationModeInfo::Permissioned(
+                PermissionTypeInfo::WithoutCallLimit(vec![
+                    setup.subowner_addr.to_string(),
+                    setup.user_addr.to_string(),
                 ]),
             ))
             .with_actions_config(
@@ -429,10 +429,10 @@ fn owner_adding_and_removing_messages() {
         AuthorizationBuilder::new()
             .with_label("permissioned-without-limit")
             .with_max_concurrent_executions(10)
-            .with_mode(AuthorizationMode::Permissioned(
-                PermissionType::WithoutCallLimit(vec![
-                    setup.subowner_addr.clone(),
-                    setup.user_addr.clone(),
+            .with_mode(AuthorizationModeInfo::Permissioned(
+                PermissionTypeInfo::WithoutCallLimit(vec![
+                    setup.subowner_addr.to_string(),
+                    setup.user_addr.to_string(),
                 ]),
             ))
             .with_actions_config(
@@ -1282,8 +1282,8 @@ fn higher_priority_queue_is_processed_first() {
         AuthorizationBuilder::new()
             .with_label("permissioned-without-limit")
             .with_max_concurrent_executions(10)
-            .with_mode(AuthorizationMode::Permissioned(
-                PermissionType::WithoutCallLimit(vec![setup.user_addr.clone()]),
+            .with_mode(AuthorizationModeInfo::Permissioned(
+                PermissionTypeInfo::WithoutCallLimit(vec![setup.user_addr.to_string()]),
             ))
             .with_actions_config(
                 AtomicActionsConfigBuilder::new()

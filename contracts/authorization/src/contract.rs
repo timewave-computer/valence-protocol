@@ -237,7 +237,7 @@ fn create_authorizations(
     let mut tokenfactory_msgs = vec![];
 
     for each_authorization in authorizations {
-        let authorization = each_authorization.into_authorization(&env.block);
+        let authorization = each_authorization.into_authorization(&env.block, deps.api);
 
         // Check that it doesn't exist yet
         if AUTHORIZATIONS.has(deps.storage, authorization.label.clone()) {

@@ -2296,6 +2296,8 @@ name = "local-interchaintest"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std 1.5.7",
+ "cosmwasm-std 2.1.3",
+ "cw-utils 2.0.0",
  "env_logger 0.11.5",
  "hex",
  "localic-std",
@@ -2304,8 +2306,10 @@ dependencies = [
  "polytone-note",
  "polytone-voice",
  "serde_json",
+ "valence-authorization",
  "valence-authorization-utils",
  "valence-local-interchaintest-utils",
+ "valence-processor",
  "valence-processor-utils",
 ]
 

@@ -4,7 +4,9 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use cosmwasm_std::Uint64;
+use cosmwasm_std::{Binary, Uint128};
+use cosmwasm_std_polytone::Uint64;
+use cw_utils::Expiration;
 use localic_std::{
     modules::cosmwasm::{contract_execute, contract_instantiate, contract_query, CosmWasm},
     relayer::Relayer,
@@ -15,10 +17,20 @@ use localic_utils::{
     NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
 };
 use log::info;
+use serde_json::json;
+use valence_authorization::error::ContractError;
 use valence_authorization_utils::{
-    domain::{Connector, ExternalDomain, PolytoneProxyState},
+    action::AtomicAction,
+    authorization::{
+        ActionsConfig, AtomicActionsConfig, AuthorizationDuration, AuthorizationInfo,
+        AuthorizationModeInfo, PermissionTypeInfo, Priority,
+    },
+    authorization_message::{Message, MessageDetails, MessageType},
+    callback::{ExecutionResult, ProcessorCallbackInfo},
+    domain::{Connector, Domain, ExternalDomain, PolytoneProxyState},
     msg::{
         CallbackProxy, Connector as AuthorizationConnector, ExternalDomainInfo, PermissionedMsg,
+        ProcessorMessage,
     },
 };
 use valence_local_interchaintest_utils::{
@@ -26,12 +38,15 @@ use valence_local_interchaintest_utils::{
     LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, POLYTONE_PATH,
 };
 use valence_processor_utils::{
+    callback::{PendingPolytoneCallbackInfo, PolytoneCallbackState},
     msg::PolytoneContracts,
-    processor::{Config, ProcessorDomain},
+    processor::{Config, MessageBatch, ProcessorDomain},
 };
 
 const TIMEOUT_SECONDS: u64 = 5;
 const MAX_ATTEMPTS: u64 = 25;
+const USER_ADDRESS: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
+const USER_KEY: &str = "acc1";
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -512,7 +527,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .get_request_builder(NEUTRON_CHAIN_NAME),
             &polytone_note_on_neutron_address,
             &serde_json::to_string(&polytone_note::msg::QueryMsg::RemoteAddress {
-                local_address: predicted_authorization_contract_address,
+                local_address: predicted_authorization_contract_address.clone(),
             })
             .unwrap(),
         )["data"]
@@ -529,7 +544,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .get_request_builder(JUNO_CHAIN_NAME),
             &polytone_note_on_juno_address,
             &serde_json::to_string(&polytone_note::msg::QueryMsg::RemoteAddress {
-                local_address: predicted_processor_on_juno_address,
+                local_address: predicted_processor_on_juno_address.clone(),
             })
             .unwrap(),
         )["data"]
@@ -539,6 +554,313 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     assert_eq!(remote_address, predicted_proxy_address_on_neutron);
     info!("Predicted and created addresses match!");
+
+    // Let's test the action creation and execution / retrying
+
+    // First scenario: we are going to try to add an authorization with an action for an invalid domain, which should fail
+    let mut action = AtomicAction {
+        domain: Domain::External("osmosis".to_string()),
+        message_details: MessageDetails {
+            message_type: MessageType::CosmwasmExecuteMsg,
+            message: Message {
+                name: "any".to_string(),
+                params_restrictions: None,
+            },
+        },
+        // We don't care about the execution result so we will just make it fail when ticking the processor
+        contract_address: "any".to_string(),
+    };
+    let mut authorization = AuthorizationInfo {
+        label: "label".to_string(),
+        mode: AuthorizationModeInfo::Permissioned(PermissionTypeInfo::WithCallLimit(vec![(
+            USER_ADDRESS.to_string(),
+            Uint128::new(2),
+        )])),
+        not_before: Expiration::Never {},
+        duration: AuthorizationDuration::Forever,
+        max_concurrent_executions: Some(2),
+        actions_config: ActionsConfig::Atomic(AtomicActionsConfig {
+            actions: vec![action.clone()],
+            retry_logic: None,
+        }),
+        priority: None,
+    };
+    let tokenfactory_token = format!(
+        "factory/{}/label",
+        predicted_authorization_contract_address.clone()
+    );
+
+    info!("Trying to create an authorization with an invalid external domain...");
+
+    let error = contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &predicted_authorization_contract_address.clone(),
+        DEFAULT_KEY,
+        &serde_json::to_string(
+            &valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
+                PermissionedMsg::CreateAuthorizations {
+                    authorizations: vec![authorization.clone()],
+                },
+            ),
+        )
+        .unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap_err();
+
+    assert!(error.to_string().contains(
+        ContractError::DomainIsNotRegistered("osmosis".to_string())
+            .to_string()
+            .as_str()
+    ));
+
+    info!("Creating a valid authorization...");
+
+    action.domain = Domain::External("juno".to_string());
+    authorization.actions_config = ActionsConfig::Atomic(AtomicActionsConfig {
+        actions: vec![action.clone()],
+        retry_logic: None,
+    });
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &predicted_authorization_contract_address.clone(),
+        DEFAULT_KEY,
+        &serde_json::to_string(
+            &valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
+                PermissionedMsg::CreateAuthorizations {
+                    authorizations: vec![authorization.clone()],
+                },
+            ),
+        )
+        .unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+
+    std::thread::sleep(Duration::from_secs(3));
+
+    // Now that it's created, the user will send the message twice, once with TTL and once without, so after the timeout only one can be retried
+    let msg = Binary::from(serde_json::to_vec(&json!({"any": {}})).unwrap());
+
+    info!("Stopping relayer to force timeouts...");
+    test_ctx.stop_relayer();
+
+    info!("Sending the messages without TTL...");
+    let flags = format!("--amount 1{} {}", tokenfactory_token, GAS_FLAGS);
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &predicted_authorization_contract_address.clone(),
+        USER_KEY,
+        &serde_json::to_string(
+            &valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+                valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+                    label: "label".to_string(),
+                    messages: vec![ProcessorMessage::CosmwasmExecuteMsg { msg: msg.clone() }],
+                    ttl: None,
+                },
+            ),
+        )
+        .unwrap(),
+        &flags,
+    )
+    .unwrap();
+
+    std::thread::sleep(Duration::from_secs(3));
+
+    info!("Sending the messages with TTL...");
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &predicted_authorization_contract_address.clone(),
+        USER_KEY,
+        &serde_json::to_string(
+            &valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+                valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+                    label: "label".to_string(),
+                    messages: vec![ProcessorMessage::CosmwasmExecuteMsg { msg }],
+                    ttl: Some(Expiration::Never {}),
+                },
+            ),
+        )
+        .unwrap(),
+        &flags,
+    )
+    .unwrap();
+
+    // Let's make sure that when we start the relayer, the packets will time out
+    std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+
+    info!("Restarting the relayer...");
+    test_ctx.start_relayer();
+
+    // Verify that both messages are in timeout state
+    verify_authorization_execution_result(
+        &mut test_ctx,
+        &predicted_authorization_contract_address,
+        0,
+        &ExecutionResult::Timeout,
+    );
+
+    verify_authorization_execution_result(
+        &mut test_ctx,
+        &predicted_authorization_contract_address,
+        1,
+        &ExecutionResult::Timeout,
+    );
+
+    info!("Both messages correctly timed out");
+
+    info!("Retrying resending the message without TTL...");
+    let error = contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &predicted_authorization_contract_address.clone(),
+        USER_KEY,
+        &serde_json::to_string(
+            &valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+                valence_authorization_utils::msg::PermissionlessMsg::RetryMsgs { execution_id: 0 },
+            ),
+        )
+        .unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap_err();
+
+    assert!(error.to_string().contains(
+        ContractError::Unauthorized(
+            valence_authorization::error::UnauthorizedReason::TtlExpired {}
+        )
+        .to_string()
+        .as_str()
+    ));
+
+    info!("Retrying resending the message with TTL...");
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &predicted_authorization_contract_address.clone(),
+        USER_KEY,
+        &serde_json::to_string(
+            &valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+                valence_authorization_utils::msg::PermissionlessMsg::RetryMsgs { execution_id: 1 },
+            ),
+        )
+        .unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+
+    // This should bridge and enqueue into the processor
+    info!("Querying the batch from the processor...");
+    let mut attempts = 0;
+    let mut batches;
+    loop {
+        attempts += 1;
+        batches = get_processor_queue_items(
+            &mut test_ctx,
+            &predicted_processor_on_juno_address,
+            Priority::Medium,
+        );
+
+        if batches.len() == 1 {
+            info!("Batch found!");
+            break;
+        }
+
+        if attempts > MAX_ATTEMPTS {
+            panic!("Maximum number of attempts reached. Cancelling execution.");
+        }
+        std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+    }
+
+    assert_eq!(batches[0].id, 1);
+
+    info!("Stopping the relayer again before ticking the processor to force a timeout...");
+    test_ctx.stop_relayer();
+
+    info!("Ticking the processor to trigger sending the callback...");
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(JUNO_CHAIN_NAME),
+        &predicted_processor_on_juno_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(
+            &valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+                valence_processor_utils::msg::PermissionlessMsg::Tick {},
+            ),
+        )
+        .unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+
+    // Wait enough time to force the time out
+    std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+
+    info!("Restarting the relayer...");
+    test_ctx.start_relayer();
+
+    // The polytone callback in the processor should have timed out
+    info!("Querying the callback from the processor...");
+    let mut attempts = 0;
+    let mut callback_info;
+    loop {
+        attempts += 1;
+        callback_info = get_processor_pending_polytone_callback(
+            &mut test_ctx,
+            &predicted_processor_on_juno_address,
+            1,
+        );
+
+        if callback_info.state.eq(&PolytoneCallbackState::TimedOut) {
+            info!("Callback successfully timed out!");
+            break;
+        }
+
+        if attempts > MAX_ATTEMPTS {
+            panic!("Maximum number of attempts reached. Cancelling execution.");
+        }
+        std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+    }
+
+    // Now we should be able to retry the callback permissionlessly
+    info!("Retrying the callback...");
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(JUNO_CHAIN_NAME),
+        &predicted_processor_on_juno_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(
+            &valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+                valence_processor_utils::msg::PermissionlessMsg::RetryCallback { execution_id: 1 },
+            ),
+        )
+        .unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+
+    info!("Querying the execution result on the authorization contract...");
+    verify_authorization_execution_result(
+        &mut test_ctx,
+        &predicted_authorization_contract_address,
+        1,
+        &ExecutionResult::Rejected("anything".to_string()),
+    );
+
+    info!("All polytone tests passed!");
 
     Ok(())
 }
@@ -568,7 +890,10 @@ fn verify_proxy_state_on_processor(
                 info!("Target state reached!");
                 break;
             } else {
-                info!("Waiting for the right state");
+                info!(
+                    "Waiting for the right state, current state: {:?}",
+                    external.proxy_on_main_domain_state
+                );
             }
         } else {
             panic!("The processor domain is not external!");
@@ -613,7 +938,7 @@ fn verify_proxy_state_on_authorization(
                     info!("Target state reached!");
                     break;
                 } else {
-                    info!("Waiting for the right state");
+                    info!("Waiting for the right state, current state: {:?}", state);
                 }
             }
         }
@@ -623,4 +948,94 @@ fn verify_proxy_state_on_authorization(
         }
         std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
     }
+}
+
+fn verify_authorization_execution_result(
+    test_ctx: &mut TestContext,
+    authorization_address: &str,
+    execution_id: u64,
+    expected_result: &ExecutionResult,
+) {
+    let mut attempts = 0;
+    loop {
+        attempts += 1;
+        let callback_info: ProcessorCallbackInfo = serde_json::from_value(
+            contract_query(
+                test_ctx
+                    .get_request_builder()
+                    .get_request_builder(NEUTRON_CHAIN_NAME),
+                authorization_address,
+                &serde_json::to_string(
+                    &valence_authorization_utils::msg::QueryMsg::ProcessorCallback { execution_id },
+                )
+                .unwrap(),
+            )["data"]
+                .clone(),
+        )
+        .unwrap();
+
+        let result_matches = match (expected_result, &callback_info.execution_result) {
+            (ExecutionResult::Rejected(_), ExecutionResult::Rejected(_)) => true,
+            _ => callback_info.execution_result.eq(expected_result),
+        };
+
+        if result_matches {
+            info!("Target execution result reached!");
+            break;
+        } else {
+            info!(
+                "Waiting for the right execution result, current execution result: {:?}",
+                callback_info.execution_result
+            );
+        }
+
+        if attempts > MAX_ATTEMPTS {
+            panic!("Maximum number of attempts reached. Cancelling execution.");
+        }
+        std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+    }
+}
+
+fn get_processor_queue_items(
+    test_ctx: &mut TestContext,
+    processor_address: &str,
+    priority: Priority,
+) -> Vec<MessageBatch> {
+    serde_json::from_value(
+        contract_query(
+            test_ctx
+                .get_request_builder()
+                .get_request_builder(JUNO_CHAIN_NAME),
+            processor_address,
+            &serde_json::to_string(&valence_processor_utils::msg::QueryMsg::GetQueue {
+                from: None,
+                to: None,
+                priority,
+            })
+            .unwrap(),
+        )["data"]
+            .clone(),
+    )
+    .unwrap()
+}
+
+fn get_processor_pending_polytone_callback(
+    test_ctx: &mut TestContext,
+    processor_address: &str,
+    execution_id: u64,
+) -> PendingPolytoneCallbackInfo {
+    serde_json::from_value(
+        contract_query(
+            test_ctx
+                .get_request_builder()
+                .get_request_builder(JUNO_CHAIN_NAME),
+            processor_address,
+            &serde_json::to_string(
+                &valence_processor_utils::msg::QueryMsg::PendingPolytoneCallback { execution_id },
+            )
+            .unwrap(),
+        )["data"]
+            .clone(),
+    )
+    .unwrap()
 }

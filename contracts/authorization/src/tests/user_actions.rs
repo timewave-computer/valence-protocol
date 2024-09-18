@@ -3,7 +3,7 @@ use cw_utils::Expiration;
 use neutron_test_tube::{neutron_std::types::cosmos::base::v1beta1::Coin, Module, Wasm};
 use serde_json::json;
 use valence_authorization_utils::{
-    authorization::{AuthorizationDuration, AuthorizationMode, PermissionType},
+    authorization::{AuthorizationDuration, AuthorizationModeInfo, PermissionTypeInfo},
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
     msg::{ExecuteMsg, PermissionedMsg, PermissionlessMsg, ProcessorMessage},
 };
@@ -135,8 +135,8 @@ fn invalid_time() {
             current_time + 1000,
         )))
         .with_duration(AuthorizationDuration::Seconds(1500))
-        .with_mode(AuthorizationMode::Permissioned(
-            PermissionType::WithoutCallLimit(vec![setup.owner_addr.clone()]),
+        .with_mode(AuthorizationModeInfo::Permissioned(
+            PermissionTypeInfo::WithoutCallLimit(vec![setup.owner_addr.to_string()]),
         ))
         .with_actions_config(
             AtomicActionsConfigBuilder::new()
@@ -232,8 +232,8 @@ fn invalid_time() {
         .with_label("permissioned2")
         .with_not_before(Expiration::AtHeight(current_height + 10))
         .with_duration(AuthorizationDuration::Blocks(15))
-        .with_mode(AuthorizationMode::Permissioned(
-            PermissionType::WithoutCallLimit(vec![setup.owner_addr.clone()]),
+        .with_mode(AuthorizationModeInfo::Permissioned(
+            PermissionTypeInfo::WithoutCallLimit(vec![setup.owner_addr.to_string()]),
         ))
         .with_actions_config(
             AtomicActionsConfigBuilder::new()
@@ -340,8 +340,8 @@ fn invalid_permission() {
     let authorizations = vec![
         AuthorizationBuilder::new()
             .with_label("permissioned-without-limit")
-            .with_mode(AuthorizationMode::Permissioned(
-                PermissionType::WithoutCallLimit(vec![setup.owner_addr.clone()]),
+            .with_mode(AuthorizationModeInfo::Permissioned(
+                PermissionTypeInfo::WithoutCallLimit(vec![setup.owner_addr.to_string()]),
             ))
             .with_actions_config(
                 AtomicActionsConfigBuilder::new()
@@ -351,8 +351,11 @@ fn invalid_permission() {
             .build(),
         AuthorizationBuilder::new()
             .with_label("permissioned-with-limit")
-            .with_mode(AuthorizationMode::Permissioned(
-                PermissionType::WithCallLimit(vec![(setup.user_addr.clone(), Uint128::new(10))]),
+            .with_mode(AuthorizationModeInfo::Permissioned(
+                PermissionTypeInfo::WithCallLimit(vec![(
+                    setup.user_addr.to_string(),
+                    Uint128::new(10),
+                )]),
             ))
             .with_actions_config(
                 AtomicActionsConfigBuilder::new()

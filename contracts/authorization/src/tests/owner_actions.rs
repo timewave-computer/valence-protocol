@@ -7,8 +7,8 @@ use neutron_test_tube::{
 use valence_authorization_utils::{
     action::{ActionCallback, RetryLogic, RetryTimes},
     authorization::{
-        Authorization, AuthorizationDuration, AuthorizationMode, AuthorizationState,
-        PermissionType, Priority,
+        Authorization, AuthorizationDuration, AuthorizationModeInfo, AuthorizationState,
+        PermissionTypeInfo, Priority,
     },
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
     domain::Domain,
@@ -278,8 +278,11 @@ fn create_valid_authorizations() {
         // This one will mint 5 tokens to subowner_addr
         AuthorizationBuilder::new()
             .with_label("permissioned-limit-authorization")
-            .with_mode(AuthorizationMode::Permissioned(
-                PermissionType::WithCallLimit(vec![(setup.subowner_addr.clone(), Uint128::new(5))]),
+            .with_mode(AuthorizationModeInfo::Permissioned(
+                PermissionTypeInfo::WithCallLimit(vec![(
+                    setup.subowner_addr.to_string(),
+                    Uint128::new(5),
+                )]),
             ))
             .with_duration(AuthorizationDuration::Blocks(100))
             .with_max_concurrent_executions(4)
@@ -334,10 +337,10 @@ fn create_valid_authorizations() {
         // This one will mint 1 token to subowner_addr and 1 token to user_addr
         AuthorizationBuilder::new()
             .with_label("permissioned-without-limit-authorization")
-            .with_mode(AuthorizationMode::Permissioned(
-                PermissionType::WithoutCallLimit(vec![
-                    setup.subowner_addr.clone(),
-                    setup.user_addr.clone(),
+            .with_mode(AuthorizationModeInfo::Permissioned(
+                PermissionTypeInfo::WithoutCallLimit(vec![
+                    setup.subowner_addr.to_string(),
+                    setup.user_addr.to_string(),
                 ]),
             ))
             .with_duration(AuthorizationDuration::Seconds(50000000))
@@ -609,8 +612,8 @@ fn modify_authorization() {
     );
 
     let authorization = AuthorizationBuilder::new()
-        .with_mode(AuthorizationMode::Permissioned(
-            PermissionType::WithoutCallLimit(vec![setup.user_addr]),
+        .with_mode(AuthorizationModeInfo::Permissioned(
+            PermissionTypeInfo::WithoutCallLimit(vec![setup.user_addr.to_string()]),
         ))
         .with_actions_config(
             AtomicActionsConfigBuilder::new()
@@ -832,8 +835,11 @@ fn mint_authorizations() {
             .build(),
         AuthorizationBuilder::new()
             .with_label("permissioned-limit")
-            .with_mode(AuthorizationMode::Permissioned(
-                PermissionType::WithCallLimit(vec![(setup.user_addr.clone(), Uint128::new(10))]),
+            .with_mode(AuthorizationModeInfo::Permissioned(
+                PermissionTypeInfo::WithCallLimit(vec![(
+                    setup.user_addr.to_string(),
+                    Uint128::new(10),
+                )]),
             ))
             .with_duration(AuthorizationDuration::Blocks(50000))
             .with_max_concurrent_executions(4)

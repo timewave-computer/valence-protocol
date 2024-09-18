@@ -6,6 +6,7 @@ use cosmwasm_std::{
     Response, StdResult, SubMsg, SubMsgResult, Uint64, WasmMsg,
 };
 
+use cw_storage_plus::Bound;
 use valence_authorization_utils::{
     authorization::{ActionsConfig, Priority},
     callback::ExecutionResult,
@@ -16,7 +17,9 @@ use valence_polytone_utils::polytone::{
     Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg,
 };
 use valence_processor_utils::{
-    callback::{PendingCallback, PolytoneCallbackMsg, PolytoneCallbackState},
+    callback::{
+        PendingCallback, PendingPolytoneCallbackInfo, PolytoneCallbackMsg, PolytoneCallbackState,
+    },
     msg::{
         AuthorizationMsg, ExecuteMsg, InstantiateMsg, InternalProcessorMsg, PermissionlessMsg,
         QueryMsg,
@@ -36,6 +39,9 @@ use crate::{
         PENDING_POLYTONE_CALLBACKS,
     },
 };
+
+// pagination info for queries
+const MAX_PAGE_LIMIT: u32 = 250;
 
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -702,6 +708,12 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             to_json_binary(&get_queue(deps, from, to, &priority)?)
         }
         QueryMsg::IsQueueEmpty {} => to_json_binary(&is_queue_empty(deps)?),
+        QueryMsg::PendingPolytoneCallbacks { start_after, limit } => {
+            to_json_binary(&get_pending_polytone_callbacks(deps, start_after, limit))
+        }
+        QueryMsg::PendingPolytoneCallback { execution_id } => {
+            to_json_binary(&get_pending_polytone_callback(deps, execution_id)?)
+        }
     }
 }
 
@@ -724,4 +736,27 @@ fn is_queue_empty(deps: Deps) -> StdResult<bool> {
     let queue_med = get_queue_map(&Priority::Medium);
 
     Ok(queue_high.is_empty(deps.storage)? && queue_med.is_empty(deps.storage)?)
+}
+
+fn get_pending_polytone_callbacks(
+    deps: Deps,
+    start_after: Option<u64>,
+    limit: Option<u32>,
+) -> Vec<PendingPolytoneCallbackInfo> {
+    let limit = limit.unwrap_or(MAX_PAGE_LIMIT).min(MAX_PAGE_LIMIT);
+    let start = start_after.map(Bound::exclusive);
+
+    PENDING_POLYTONE_CALLBACKS
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit as usize)
+        .filter_map(Result::ok)
+        .map(|(_, cb)| cb)
+        .collect()
+}
+
+fn get_pending_polytone_callback(
+    deps: Deps,
+    execution_id: u64,
+) -> StdResult<PendingPolytoneCallbackInfo> {
+    PENDING_POLYTONE_CALLBACKS.load(deps.storage, execution_id)
 }

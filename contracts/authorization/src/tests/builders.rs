@@ -6,7 +6,7 @@ use valence_authorization_utils::{
     action::{ActionCallback, AtomicAction, NonAtomicAction, RetryLogic},
     authorization::{
         ActionsConfig, AtomicActionsConfig, AuthorizationDuration, AuthorizationInfo,
-        AuthorizationMode, NonAtomicActionsConfig, Priority,
+        AuthorizationModeInfo, NonAtomicActionsConfig, Priority,
     },
     authorization_message::{Message, MessageDetails, MessageType},
     domain::Domain,
@@ -76,7 +76,7 @@ pub struct NeutronTestAppSetup {
 
 pub struct AuthorizationBuilder {
     label: String,
-    mode: AuthorizationMode,
+    mode: AuthorizationModeInfo,
     not_before: Expiration,
     duration: AuthorizationDuration,
     max_concurrent_executions: Option<u64>,
@@ -88,7 +88,7 @@ impl AuthorizationBuilder {
     pub fn new() -> Self {
         AuthorizationBuilder {
             label: "authorization".to_string(),
-            mode: AuthorizationMode::Permissionless,
+            mode: AuthorizationModeInfo::Permissionless,
             not_before: Expiration::Never {},
             duration: AuthorizationDuration::Forever,
             max_concurrent_executions: None,
@@ -105,7 +105,7 @@ impl AuthorizationBuilder {
         self
     }
 
-    pub fn with_mode(mut self, mode: AuthorizationMode) -> Self {
+    pub fn with_mode(mut self, mode: AuthorizationModeInfo) -> Self {
         self.mode = mode;
         self
     }

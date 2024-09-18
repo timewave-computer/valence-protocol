@@ -1,4 +1,5 @@
 name: build and test
+
 on:
   push:
     branches: [main]
@@ -7,6 +8,7 @@ on:
 
 env:
   RUSTFLAGS: "-Dwarnings"
+  GO_VERSION: "1.21"
 
 jobs:
   check:
@@ -17,12 +19,47 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Run clippy
         run: cargo clippy --all-targets --verbose -- -D warnings
+
+  optimize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - name: Optimize contracts
         run: |
           docker run --user $(id -u):$(id -g) --rm \
           -v .:/code -v ./target:/target \
           -v ./target:/usr/local/cargo/registry cosmwasm/optimizer:0.16.0
+
+  tests:
+    needs: optimize
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - name: Run tests
         run: cargo test --verbose
         env:
           RUST_BACKTRACE: 1
+
+  local-ic-polytone:
+    name: Authorization-Processor polytone integration test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Install local-ic
+        run: git clone --depth 1 --branch v8.7.0 https://github.com/strangelove-ventures/interchaintest && cd interchaintest/local-interchain && make install
+      - name: Get cargo
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Start local-ic and wait for it to be ready
+        run: |
+          cd examples
+          local-ic start neutron_gaia --api-port 42069 &
+          curl --head -X GET --retry 200 --retry-connrefused --retry-delay 1 http://localhost:42069
+      - name: Run polytone example
+        run: cargo run --package local-interchaintest --example polytone
