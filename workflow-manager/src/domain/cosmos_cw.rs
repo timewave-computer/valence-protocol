@@ -1,23 +1,9 @@
 use std::{
     collections::HashMap,
     fmt,
-    str::FromStr,
+    str::{from_utf8, FromStr},
     time::{SystemTime, UNIX_EPOCH},
 };
-
-use anyhow::{anyhow, Context};
-use async_trait::async_trait;
-use cosmos_grpc_client::{
-    cosmos_sdk_proto::cosmwasm::wasm::v1::{
-        MsgExecuteContract, MsgInstantiateContract2, QueryCodeRequest,
-        QuerySmartContractStateRequest,
-    },
-    cosmrs::bip32::secp256k1::sha2::{digest::Update, Digest, Sha256},
-    Decimal, GrpcClient, ProstMsgNameToAny, Wallet,
-};
-use cosmwasm_std::{from_json, Addr};
-use serde_json::to_vec;
-use thiserror::Error;
 
 use crate::{
     account::{AccountType, InstantiateAccountData},
@@ -26,10 +12,27 @@ use crate::{
     service::{ServiceConfig, ServiceError},
     MAIN_CHAIN, NEUTRON_DOMAIN,
 };
+use anyhow::{anyhow, Context};
+use async_trait::async_trait;
+use cosmos_grpc_client::{
+    cosmos_sdk_proto::{
+        cosmos::tx::v1beta1::GetTxRequest,
+        cosmwasm::wasm::v1::{
+            MsgExecuteContract, MsgInstantiateContract2, QueryCodeRequest,
+            QuerySmartContractStateRequest,
+        },
+    },
+    cosmrs::bip32::secp256k1::sha2::{digest::Update, Digest, Sha256},
+    BroadcastMode, Decimal, GrpcClient, ProstMsgNameToAny, Wallet,
+};
+use cosmwasm_std::{from_json, Addr};
+use serde_json::to_vec;
+use thiserror::Error;
+use tokio::time::sleep;
 
 use super::{Connector, ConnectorResult};
 
-const MNEMONIC: &str = "crazy into this wheel interest enroll basket feed fashion leave feed depth wish throw rack language comic hand family shield toss leisure repair kite";
+const MNEMONIC: &str = "margin moon alcohol assume tube bullet long cook edit delay boat camp stone coyote gather design aisle comfort width sound innocent long dumb jungle";
 
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryBuildAddressRequest {
@@ -103,7 +106,7 @@ impl CosmosCosmwasmConnector {
             MNEMONIC,
             chain_info.prefix.clone(),
             chain_info.coin_type,
-            0,
+            321,
             gas_price,
             gas_adj,
             &chain_info.gas_denom,
@@ -125,15 +128,16 @@ impl CosmosCosmwasmConnector {
 
 #[async_trait]
 impl Connector for CosmosCosmwasmConnector {
-    async fn reserve_workflow_id(&mut self, registry_addr: String) -> ConnectorResult<u64> {
+    async fn reserve_workflow_id(&mut self) -> ConnectorResult<u64> {
         if self.chain_name != NEUTRON_DOMAIN.get_chain_name() {
             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                 "Should only be implemented on neutron connector"
             ))
             .into());
         }
+        let registry_addr = CONFIG.get_registry_addr();
 
-        // TODO: Execute a message to reserve the workflow id
+        // Execute a message to reserve the workflow id
         let msg = to_vec(&valence_workflow_registry_utils::ExecuteMsg::ReserveId {})
             .map_err(CosmosCosmwasmError::SerdeJsonError)?;
 
@@ -145,21 +149,57 @@ impl Connector for CosmosCosmwasmConnector {
         }
         .build_any();
 
-        let block_hash = self
+        let tx_hash = self
             .wallet
-            .simulate_tx(vec![m])
-            // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
+            // .simulate_tx(vec![m])
+            .broadcast_tx(vec![m], None, None, BroadcastMode::Sync) // TODO: change once we ready
             .await
             .map_err(CosmosCosmwasmError::Error)?
-            .result
-            .context("'reserve_workflow_id' failed to get result")
+            .tx_response
+            .unwrap()
+            .txhash;
+
+        // We rely on the tx hash above to be on chain before we can query to get its events.
+        // so we are sleeping here for a good 15 seconds to make sure we have the tx on chain.
+        // TODO: We can have a retry logic here to sleep for 5 seconds at a time until we get the tx on chain.
+        sleep(std::time::Duration::from_secs(15)).await;
+
+        let res = self
+            .wallet
+            .client
+            .clients
+            .tx
+            .get_tx(GetTxRequest { hash: tx_hash })
+            .await
+            .context("'reserve_workflow_id' Failed to query the chain for TX")
+            .map_err(CosmosCosmwasmError::Error)?
+            .into_inner()
+            .tx_response
+            .context("'reserve_workflow_id' Failed to get `tx_response`")
+            .map_err(CosmosCosmwasmError::Error)?
+            .events
+            .iter()
+            .find_map(|e| {
+                if e.r#type == "wasm"
+                    && e.attributes[0].key == "_contract_address"
+                    && e.attributes[0].value == CONFIG.get_registry_addr()
+                    && e.attributes[1].key == "method"
+                    && e.attributes[1].value == "reserve_id"
+                {
+                    Some(e.attributes[2].value.clone())
+                } else {
+                    None
+                }
+            })
+            .context("'reserve_workflow_id' Failed to find the event with the id")
             .map_err(CosmosCosmwasmError::Error)?;
 
-        println!("{:?}", block_hash);
-
-        // TODO: Query the block to get the workflow id from the events
-
-        Ok(1)
+        Ok(from_utf8(&res)
+            .context("'reserve_workflow_id' Failed to convert bytes to string")
+            .map_err(CosmosCosmwasmError::Error)?
+            .parse::<u64>()
+            .context("'reserve_workflow_id' Failed to parse string to u64")
+            .map_err(CosmosCosmwasmError::Error)?)
     }
 
     async fn get_address(
@@ -294,7 +334,7 @@ impl Connector for CosmosCosmwasmConnector {
 
         self.wallet
             .simulate_tx(vec![m])
-            // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
+            // .broadcast_tx(vec![m], None, None, BroadcastMode::Sync) // TODO: change once we ready
             .await
             .map(|_| ())
             .context("Failed to broadcast the TX")

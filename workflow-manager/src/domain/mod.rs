@@ -43,7 +43,7 @@ impl Domain {
             // Domain::CosmosEvm(chain_name) => chain_name,
         }
     }
-    
+
     pub async fn generate_connector(&self) -> ConnectorResult<Box<dyn Connector>> {
         Ok(match self {
             Domain::CosmosCosmwasm(chain_name) => Box::new(
@@ -113,7 +113,7 @@ pub trait Connector: fmt::Debug + Send + Sync {
     /// We want this function to only be implemented on neutron connector
     /// We provide a defualt implemention that errors out if it is used on a different connector.
     #[allow(unused_variables)]
-    async fn reserve_workflow_id(&mut self, registry_addr: String) -> ConnectorResult<u64> {
+    async fn reserve_workflow_id(&mut self) -> ConnectorResult<u64> {
         unimplemented!("'reserve_workflow_id' should only be implemented on neutron domain");
     }
 

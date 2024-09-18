@@ -22,18 +22,34 @@ mod test {
     #[tokio::test]
     async fn test_config() {
         let config = Config::default();
-        println!("{:#?}", config.bridges);
+        println!("{:#?}", config.general);
     }
 
     #[ignore = "internal test"]
     #[tokio::test]
     async fn test_domains() {
         // let _profiler = dhat::Profiler::builder().testing().build();
+
         let _config = Config::default();
         // let ctx = Connectors::new(&config);
 
         let domain = Domain::CosmosCosmwasm("neutron");
-        let _connector = domain.generate_connector().await.unwrap();
+        let mut _connector = domain.generate_connector().await.unwrap();
+        // let (addr, salt) = connector
+        //     .get_address(1, "base_account", "account")
+        //     .await
+        //     .unwrap();
+        // let account_info = InstantiateAccountData {
+        //     id: 1,
+        //     info: AccountInfo{ name: "Test".to_string(), ty: AccountType::Base { admin: None }, domain },
+        //     addr,
+        //     salt,
+        //     approved_services: vec![],
+        // };
+
+        // let id = connector.reserve_workflow_id().await.unwrap();
+        // println!("{:?}", id);
+
         // // let domain2 = Domain::Cosmos("neutron".to_string());
         // let mut domain_info = DomainInfo::from_domain(&domain).await;
         // println!("{domain_info:?}");
