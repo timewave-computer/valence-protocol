@@ -76,20 +76,6 @@ fn contract_instantiation() {
         .unwrap();
 
     assert_eq!(query_processor, Addr::unchecked(processor_address));
-
-    // Query external domains
-    let query_external_domains = wasm
-        .query::<QueryMsg, Vec<ExternalDomain>>(
-            &authorization_contract,
-            &QueryMsg::ExternalDomains {
-                start_after: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    assert_eq!(query_external_domains.len(), 1);
-    assert_eq!(query_external_domains[0].name, setup.external_domain.name);
 }
 
 #[test]
@@ -339,7 +325,6 @@ fn create_valid_authorizations() {
                 NonAtomicActionsConfigBuilder::new()
                     .with_action(
                         NonAtomicActionBuilder::new()
-                            .with_domain(Domain::External("osmosis".to_string()))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -360,7 +345,6 @@ fn create_valid_authorizations() {
                     )
                     .with_action(
                         NonAtomicActionBuilder::new()
-                            .with_domain(Domain::External("osmosis".to_string()))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {

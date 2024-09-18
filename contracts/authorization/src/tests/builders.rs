@@ -289,11 +289,6 @@ impl NonAtomicActionBuilder {
         }
     }
 
-    pub fn with_domain(mut self, domain: Domain) -> Self {
-        self.domain = domain;
-        self
-    }
-
     pub fn with_message_details(mut self, message_details: MessageDetails) -> Self {
         self.message_details = message_details;
         self
