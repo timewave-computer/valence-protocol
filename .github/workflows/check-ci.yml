@@ -54,7 +54,7 @@ jobs:
           toolchain: stable
       - name: Start local-ic and wait for it to be ready
         run: |
-          cd examples
+          cd local-interchaintest
           local-ic start neutron_gaia --api-port 42069 &
           curl --head -X GET --retry 200 --retry-connrefused --retry-delay 1 http://localhost:42069
       - name: Run polytone example
