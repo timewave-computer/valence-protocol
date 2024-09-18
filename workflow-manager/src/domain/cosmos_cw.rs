@@ -2,7 +2,6 @@ use std::{
     collections::HashMap,
     fmt,
     str::{from_utf8, FromStr},
-    time::{SystemTime, UNIX_EPOCH},
 };
 
 use crate::{
@@ -217,17 +216,10 @@ impl Connector for CosmosCosmwasmConnector {
 
         let checksum = self.get_checksum(code_id).await?;
 
-        // TODO: generate a unique salt per workflow and per contract by adding timestamp
-        let since_the_epoch = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_millis();
-
         let salt = Sha256::new()
             .chain(contract_name)
             .chain(id.to_string())
             .chain(extra_salt)
-            .chain(since_the_epoch.to_string())
             .finalize()
             .to_vec();
 
