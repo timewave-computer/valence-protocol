@@ -33,7 +33,6 @@ fn disabled() {
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        vec![],
     );
 
     // We'll create a generic permissionless authorization
@@ -123,7 +122,6 @@ fn invalid_time() {
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        vec![],
     );
 
     let current_time = setup.app.get_block_time_seconds() as u64;
@@ -333,7 +331,6 @@ fn invalid_permission() {
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        vec![],
     );
 
     // We'll create a couple permissioned authorizations
@@ -457,7 +454,6 @@ fn invalid_messages() {
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        vec![],
     );
 
     // Let's create several permissionless authorizations to validate the messages against

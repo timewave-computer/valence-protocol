@@ -49,7 +49,6 @@ fn contract_instantiation() {
             &setup.accounts[0],
             setup.user_addr.to_string(),
             vec![setup.subowner_addr.to_string(), subowner2.to_string()],
-            vec![],
         );
 
     // Query current owner
@@ -94,7 +93,6 @@ fn transfer_ownership() {
         &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
-        vec![],
         vec![],
     );
 
@@ -159,7 +157,6 @@ fn add_and_remove_sub_owners() {
         &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
-        vec![],
         vec![],
     );
 
@@ -247,7 +244,6 @@ fn create_valid_authorizations() {
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        vec![],
     );
 
     let valid_authorizations = vec![
@@ -529,7 +525,6 @@ fn create_invalid_authorizations() {
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![],
-        vec![],
     );
 
     // Invalid authorizations and the errors we are supposed to get for each one
@@ -608,7 +603,6 @@ fn modify_authorization() {
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        vec![],
     );
 
     let authorization = AuthorizationBuilder::new()
@@ -821,7 +815,6 @@ fn mint_authorizations() {
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        vec![],
     );
 
     let authorizations = vec![
@@ -979,7 +972,6 @@ fn pausing_and_resuming_processor() {
             &setup.app,
             &setup.accounts[0],
             setup.owner_addr.to_string(),
-            vec![],
             vec![],
         );
 

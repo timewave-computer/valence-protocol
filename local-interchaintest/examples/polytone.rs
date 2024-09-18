@@ -155,7 +155,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         sub_owners: vec![],
         processor: processor_on_main_domain.address,
-        external_domains: vec![],
     };
 
     test_ctx

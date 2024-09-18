@@ -43,8 +43,8 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    mut deps: DepsMut,
-    env: Env,
+    deps: DepsMut,
+    _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
@@ -71,21 +71,9 @@ pub fn instantiate(
         &deps.api.addr_validate(msg.processor.as_str())?,
     )?;
 
-    let mut messages = vec![];
-    // Save all external domains
-    for domain in msg.external_domains {
-        messages.push(add_domain(
-            deps.branch(),
-            env.contract.address.to_string(),
-            &domain,
-        )?);
-    }
-
     EXECUTION_ID.save(deps.storage, &0)?;
 
-    Ok(Response::new()
-        .add_messages(messages)
-        .add_attribute("method", "instantiate_authorization"))
+    Ok(Response::new().add_attribute("method", "instantiate_authorization"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
