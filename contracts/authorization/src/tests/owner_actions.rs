@@ -49,7 +49,6 @@ fn contract_instantiation() {
             &setup.accounts[0],
             setup.user_addr.to_string(),
             vec![setup.subowner_addr.to_string(), subowner2.to_string()],
-            vec![setup.external_domain.clone()],
         );
 
     // Query current owner
@@ -77,20 +76,6 @@ fn contract_instantiation() {
         .unwrap();
 
     assert_eq!(query_processor, Addr::unchecked(processor_address));
-
-    // Query external domains
-    let query_external_domains = wasm
-        .query::<QueryMsg, Vec<ExternalDomain>>(
-            &authorization_contract,
-            &QueryMsg::ExternalDomains {
-                start_after: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    assert_eq!(query_external_domains.len(), 1);
-    assert_eq!(query_external_domains[0].name, setup.external_domain.name);
 }
 
 #[test]
@@ -108,7 +93,6 @@ fn transfer_ownership() {
         &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
-        vec![],
         vec![],
     );
 
@@ -173,7 +157,6 @@ fn add_and_remove_sub_owners() {
         &setup.app,
         &setup.accounts[0],
         setup.owner_addr.to_string(),
-        vec![],
         vec![],
     );
 
@@ -262,7 +245,6 @@ fn add_external_domains() {
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![],
-        vec![],
     );
 
     // Owner can add external domains
@@ -304,7 +286,6 @@ fn create_valid_authorizations() {
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        vec![setup.external_domain.clone()],
     );
 
     let valid_authorizations = vec![
@@ -344,7 +325,6 @@ fn create_valid_authorizations() {
                 NonAtomicActionsConfigBuilder::new()
                     .with_action(
                         NonAtomicActionBuilder::new()
-                            .with_domain(Domain::External("osmosis".to_string()))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -365,7 +345,6 @@ fn create_valid_authorizations() {
                     )
                     .with_action(
                         NonAtomicActionBuilder::new()
-                            .with_domain(Domain::External("osmosis".to_string()))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -585,7 +564,6 @@ fn create_invalid_authorizations() {
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![],
-        vec![setup.external_domain.clone()],
     );
 
     // Invalid authorizations and the errors we are supposed to get for each one
@@ -679,7 +657,6 @@ fn modify_authorization() {
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        vec![],
     );
 
     let authorization = AuthorizationBuilder::new()
@@ -892,7 +869,6 @@ fn mint_authorizations() {
         &setup.accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        vec![],
     );
 
     let authorizations = vec![
@@ -1047,7 +1023,6 @@ fn pausing_and_resuming_processor() {
             &setup.app,
             &setup.accounts[0],
             setup.owner_addr.to_string(),
-            vec![],
             vec![],
         );
 
