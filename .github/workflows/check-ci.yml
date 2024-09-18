@@ -103,3 +103,6 @@ jobs:
         env:
           RUST_LOG: debug
         run: cargo run --package local-interchaintest --example polytone
+
+      - name: Cleanup
+        run: killall local-ic && exit 0
