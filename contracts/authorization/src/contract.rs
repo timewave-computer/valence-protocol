@@ -68,7 +68,7 @@ pub fn instantiate(
     )?;
 
     EXECUTION_ID.save(deps.storage, &0)?;
-    // When onwership is transfered for the first time this will be changed
+    // When onwership is transferred for the first time this will be changed
     FIRST_OWNERSHIP.save(deps.storage, &true)?;
 
     Ok(Response::new().add_attribute("method", "instantiate_authorization"))

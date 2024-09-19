@@ -108,8 +108,8 @@ fn transfer_ownership() {
     )
     .unwrap();
 
-    // Since it's the first time ownership is transfered, there's no need to accept it.
-    // Check owner has been transfered
+    // Since it's the first time ownership is transferred, there's no need to accept it.
+    // Check owner has been transferred
     let query_owner = wasm
         .query::<QueryMsg, cw_ownable::Ownership<String>>(
             &authorization_contract,
@@ -140,7 +140,7 @@ fn transfer_ownership() {
     )
     .unwrap();
 
-    // Verify it has been transfered back
+    // Verify it has been transferred back
     let query_owner = wasm
         .query::<QueryMsg, cw_ownable::Ownership<String>>(
             &authorization_contract,
