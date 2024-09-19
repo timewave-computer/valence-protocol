@@ -556,7 +556,7 @@ impl Connector for CosmosCosmwasmConnector {
     ) -> ConnectorResult<()> {
         // We check if we should retry or not,
         let should_retry = self
-            ._should_retry_processor_bridge_account_creation(processor_addr.clone(), 5, 60)
+            .should_retry_processor_bridge_account_creation(processor_addr.clone(), 5, 60)
             .await?;
 
         if should_retry {
@@ -605,7 +605,7 @@ impl Connector for CosmosCosmwasmConnector {
     ) -> ConnectorResult<()> {
         // We check if we should retry or not,
         let should_retry = self
-            ._should_retry_authorization_bridge_account_creation(
+            .should_retry_authorization_bridge_account_creation(
                 authorization_addr.clone(),
                 domain.clone(),
                 5,
@@ -659,7 +659,7 @@ impl CosmosCosmwasmConnector {
     /// Here we check if we should retry or not the bridge account creation
     /// It will error we have reached our maximum retry amount
     /// It will send a response otherwise
-    pub async fn _should_retry_processor_bridge_account_creation(
+    async fn should_retry_processor_bridge_account_creation(
         &mut self,
         processor_addr: String,
         retry_amount: u64,
@@ -709,7 +709,7 @@ impl CosmosCosmwasmConnector {
                 }
                 // Still pending and have retries left to do, we sleep, and then retry the check
                 sleep(std::time::Duration::from_secs(sleep_duration)).await;
-                Box::pin(self._should_retry_processor_bridge_account_creation(
+                Box::pin(self.should_retry_processor_bridge_account_creation(
                     processor_addr,
                     retry_amount - 1,
                     sleep_duration,
@@ -730,7 +730,7 @@ impl CosmosCosmwasmConnector {
         }
     }
 
-    pub async fn _should_retry_authorization_bridge_account_creation(
+    async fn should_retry_authorization_bridge_account_creation(
         &mut self,
         authorization_addr: String,
         domain: String,
@@ -780,7 +780,7 @@ impl CosmosCosmwasmConnector {
                 }
                 // Still pending and have retries left to do, we sleep, and then retry the check
                 sleep(std::time::Duration::from_secs(sleep_duration)).await;
-                Box::pin(self._should_retry_authorization_bridge_account_creation(
+                Box::pin(self.should_retry_authorization_bridge_account_creation(
                     authorization_addr,
                     domain,
                     retry_amount - 1,
