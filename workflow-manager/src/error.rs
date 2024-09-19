@@ -1,3 +1,6 @@
+use std::collections::BTreeSet;
+
+use service_utils::Id;
 use thiserror::Error;
 
 use crate::{config::ConfigError, domain::ConnectorError, service::ServiceError};
@@ -6,6 +9,9 @@ pub type ManagerResult<T> = Result<T, ManagerError>;
 
 #[derive(Error, Debug)]
 pub enum ManagerError {
+    #[error(transparent)]
+    Error(#[from] anyhow::Error),
+
     #[error("Generic Error: {0}")]
     Generic(String),
 
@@ -17,6 +23,36 @@ pub enum ManagerError {
 
     #[error(transparent)]
     ServiceError(#[from] ServiceError),
+
+    #[error("Config authorization data is not empty")]
+    AuthorizationDataNotDefault,
+
+    #[error("Config has an id")]
+    IdNotZero,
+
+    #[error("Config has no owner")]
+    OwnerEmpty,
+
+    #[error("Config has no authorizations")]
+    NoAuthorizations,
+
+    #[error("Account id: {0} is not linked to any service")]
+    AccountIdNotFoundInLinks(Id),
+
+    #[error("Account id: {0} is not found in any service config")]
+    AccountIdNotFoundInServices(Id),
+
+    #[error("Service id: {0} is not linked to any service")]
+    ServiceIdNotFoundInLinks(Id),
+
+    #[error("Account ids: {:#?} is linked but not found in list", {0})]
+    AccountIdNotFoundLink(BTreeSet<Id>),
+
+    #[error("Account ids: {:#?} is found in config but not found in list", {0})]
+    AccountIdNotFoundServiceConfig(BTreeSet<Id>),
+
+    #[error("Service ids: {:#?} is linked but not found in list", {0})]
+    ServiceIdNotFoundLink(BTreeSet<Id>),
 
     #[error("No instantiate data for account id: {0} | link id: {1}")]
     FailedToRetrieveAccountInitData(u64, u64),

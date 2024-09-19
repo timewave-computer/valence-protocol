@@ -1,8 +1,11 @@
+use std::num::ParseIntError;
+
 use aho_corasick::AhoCorasick;
 
+use serde::{Deserialize, Serialize};
 use serde_json::to_vec;
 use service_base::msg::InstantiateMsg;
-use service_utils::ServiceConfigInterface;
+use service_utils::{Id, ServiceConfigInterface};
 use thiserror::Error;
 use valence_reverse_splitter::msg::ServiceConfig as ReverseSplitterServiceConfig;
 use valence_splitter::msg::ServiceConfig as SplitterServiceConfig;
@@ -18,9 +21,13 @@ pub enum ServiceError {
 
     #[error("serde_json Error: {0}")]
     SerdeJsonError(#[from] serde_json::Error),
+
+    #[error("ParseIntError Error: {0}")]
+    ParseIntError(#[from] ParseIntError),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'static"))]
 pub struct ServiceInfo {
     pub name: String,
     pub domain: Domain,
@@ -28,7 +35,7 @@ pub struct ServiceInfo {
 }
 
 /// This is a list of all our services we support and their configs.
-#[derive(Debug, Clone, strum::Display)]
+#[derive(Debug, Clone, strum::Display, Serialize, Deserialize)]
 #[strum(serialize_all = "snake_case")]
 pub enum ServiceConfig {
     // General {
@@ -57,6 +64,8 @@ pub enum ServiceConfig {
     // },
 }
 
+// TODO: create macro for the methods that work the same over all of the configs
+// We are delegating a lot of the methods to the specific config, so most of the methods can be under the macro
 impl ServiceConfig {
     pub fn is_diff(&self, other: &ServiceConfig) -> bool {
         match (self, other) {
@@ -133,5 +142,55 @@ impl ServiceConfig {
             }),
         }
         .map_err(ServiceError::SerdeJsonError)
+    }
+
+    // TODO: Finish validate config
+    pub fn soft_validate_config(&self) -> ServiceResult<()> {
+        match self {
+            ServiceConfig::Splitter(_config) => {
+                // config.validate();
+                Ok(())
+            }
+            ServiceConfig::ReverseSplitter(_config) => {
+                // config.validate();
+                Ok(())
+            }
+        }
+    }
+
+    pub fn get_account_ids(&self) -> ServiceResult<Vec<Id>> {
+        let ac: AhoCorasick = AhoCorasick::new(["\"|account_id|\":"]).unwrap();
+
+        match self {
+            ServiceConfig::Splitter(config) => {
+                Self::find_account_ids(ac, serde_json::to_string(&config)?)
+            }
+            ServiceConfig::ReverseSplitter(config) => {
+                Self::find_account_ids(ac, serde_json::to_string(&config)?)
+            }
+        }
+    }
+
+    /// Helper to find account ids in the json string
+    fn find_account_ids(ac: AhoCorasick, json: String) -> ServiceResult<Vec<Id>> {
+        // We find all the places `"|account_id|": is used
+        let res = ac.find_iter(&json);
+        let mut account_ids = vec![];
+
+        // LOist of all matches
+        for mat in res {
+            // we take a substring from our match to the next 5 characters
+            // we loop over those characters and see if they are numbers
+            // once we found a char that is not a number we stop
+            // we get Vec<char> and convert it to a string and parse to Id (u64)
+            let number = json[mat.end()..]
+                .chars()
+                .map_while(|char| if char.is_numeric() { Some(char) } else { None })
+                .collect::<String>()
+                .parse::<Id>()?;
+            account_ids.push(number);
+        }
+
+        Ok(account_ids)
     }
 }
