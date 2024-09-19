@@ -17,8 +17,6 @@ pub struct InstantiateMsg {
     pub sub_owners: Vec<String>,
     // Processor on Main domain
     pub processor: String,
-    // External domains
-    pub external_domains: Vec<ExternalDomainInfo>,
 }
 
 #[cw_serde]
@@ -248,6 +246,8 @@ pub enum QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
+    #[returns(ExternalDomain)]
+    ExternalDomain { name: String },
     #[returns(Vec<Authorization>)]
     Authorizations {
         start_after: Option<String>,

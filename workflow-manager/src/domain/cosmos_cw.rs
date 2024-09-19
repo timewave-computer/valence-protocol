@@ -398,7 +398,6 @@ impl Connector for CosmosCosmwasmConnector {
             owner: self.wallet.account_address.clone(),
             sub_owners: vec![],
             processor: processor_addr,
-            external_domains: vec![],
         })
         .map_err(CosmosCosmwasmError::SerdeJsonError)?;
 
@@ -557,7 +556,7 @@ impl Connector for CosmosCosmwasmConnector {
     ) -> ConnectorResult<()> {
         // We check if we should retry or not,
         let should_retry = self
-            ._should_retry_processor_bridge_account_creation(processor_addr.clone(), 5, 60)
+            .should_retry_processor_bridge_account_creation(processor_addr.clone(), 5, 60)
             .await?;
 
         if should_retry {
@@ -606,7 +605,7 @@ impl Connector for CosmosCosmwasmConnector {
     ) -> ConnectorResult<()> {
         // We check if we should retry or not,
         let should_retry = self
-            ._should_retry_authorization_bridge_account_creation(
+            .should_retry_authorization_bridge_account_creation(
                 authorization_addr.clone(),
                 domain.clone(),
                 5,
@@ -622,8 +621,10 @@ impl Connector for CosmosCosmwasmConnector {
                 .into());
             } else {
                 let msg = to_vec(
-                    &valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
-                        valence_processor_utils::msg::PermissionlessMsg::RetryBridgeCreation {},
+                    &valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+                        valence_authorization_utils::msg::PermissionlessMsg::RetryBridgeCreation {
+                            domain_name: domain.clone(),
+                        },
                     ),
                 )
                 .map_err(CosmosCosmwasmError::SerdeJsonError)?;
@@ -658,7 +659,7 @@ impl CosmosCosmwasmConnector {
     /// Here we check if we should retry or not the bridge account creation
     /// It will error we have reached our maximum retry amount
     /// It will send a response otherwise
-    pub async fn _should_retry_processor_bridge_account_creation(
+    async fn should_retry_processor_bridge_account_creation(
         &mut self,
         processor_addr: String,
         retry_amount: u64,
@@ -708,7 +709,7 @@ impl CosmosCosmwasmConnector {
                 }
                 // Still pending and have retries left to do, we sleep, and then retry the check
                 sleep(std::time::Duration::from_secs(sleep_duration)).await;
-                Box::pin(self._should_retry_processor_bridge_account_creation(
+                Box::pin(self.should_retry_processor_bridge_account_creation(
                     processor_addr,
                     retry_amount - 1,
                     sleep_duration,
@@ -729,7 +730,7 @@ impl CosmosCosmwasmConnector {
         }
     }
 
-    pub async fn _should_retry_authorization_bridge_account_creation(
+    async fn should_retry_authorization_bridge_account_creation(
         &mut self,
         authorization_addr: String,
         domain: String,
@@ -737,9 +738,8 @@ impl CosmosCosmwasmConnector {
         sleep_duration: u64,
     ) -> Result<bool, CosmosCosmwasmError> {
         let query_data = to_vec(
-            &valence_authorization_utils::msg::QueryMsg::ExternalDomains {
-                start_after: Some(domain.clone()),
-                limit: Some(1),
+            &valence_authorization_utils::msg::QueryMsg::ExternalDomain {
+                name: domain.clone(),
             },
         )
         .map_err(CosmosCosmwasmError::SerdeJsonError)?;
@@ -748,7 +748,7 @@ impl CosmosCosmwasmConnector {
             query_data,
         };
 
-        let res = from_json::<Vec<valence_authorization_utils::domain::ExternalDomain>>(
+        let res = from_json::<valence_authorization_utils::domain::ExternalDomain>(
             self.wallet
                 .client
                 .clients
@@ -762,19 +762,7 @@ impl CosmosCosmwasmConnector {
         )
         .map_err(CosmosCosmwasmError::CosmwasmStdError)?;
 
-        if res.is_empty() {
-            return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
-                "'_should_retry_authorization_bridge_account_creation' External domain not found"
-            )));
-        }
-
-        if res.len() > 1 {
-            return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
-                "'_should_retry_authorization_bridge_account_creation' Found more than 1 External domain"
-            )));
-        }
-
-        let state = match res[0].clone().connector {
+        let state = match res.clone().connector {
             valence_authorization_utils::domain::Connector::PolytoneNote { state, .. } => state,
         };
 
@@ -792,7 +780,7 @@ impl CosmosCosmwasmConnector {
                 }
                 // Still pending and have retries left to do, we sleep, and then retry the check
                 sleep(std::time::Duration::from_secs(sleep_duration)).await;
-                Box::pin(self._should_retry_authorization_bridge_account_creation(
+                Box::pin(self.should_retry_authorization_bridge_account_creation(
                     authorization_addr,
                     domain,
                     retry_amount - 1,
