@@ -785,7 +785,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         if attempts > MAX_ATTEMPTS {
             panic!("Maximum number of attempts reached. Cancelling execution.");
         }
-        std::thread::sleep(Duration::from_secs(5));
+        std::thread::sleep(Duration::from_secs(10));
     }
 
     assert_eq!(batches[0].id, 1);
@@ -841,7 +841,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         if attempts > MAX_ATTEMPTS {
             panic!("Maximum number of attempts reached. Cancelling execution.");
         }
-        std::thread::sleep(Duration::from_secs(5));
+        std::thread::sleep(Duration::from_secs(10));
     }
 
     // Now we should be able to retry the callback permissionlessly
@@ -917,7 +917,7 @@ fn verify_proxy_state_on_processor(
         if attempts > MAX_ATTEMPTS {
             panic!("Maximum number of attempts reached. Cancelling execution.");
         }
-        std::thread::sleep(Duration::from_secs(5));
+        std::thread::sleep(Duration::from_secs(10));
     }
 }
 
@@ -966,7 +966,7 @@ fn verify_proxy_state_on_authorization(
         if attempts > MAX_ATTEMPTS {
             panic!("Maximum number of attempts reached. Cancelling execution.");
         }
-        std::thread::sleep(Duration::from_secs(5));
+        std::thread::sleep(Duration::from_secs(10));
     }
 }
 
@@ -1017,7 +1017,7 @@ fn verify_authorization_execution_result(
         if attempts > MAX_ATTEMPTS {
             panic!("Maximum number of attempts reached. Cancelling execution.");
         }
-        std::thread::sleep(Duration::from_secs(5));
+        std::thread::sleep(Duration::from_secs(10));
     }
 }
 
