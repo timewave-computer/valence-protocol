@@ -341,7 +341,7 @@ fn instantiate_fails_for_duplicate_denoms() {
 
     assert_eq!(
         res.unwrap_err().root_cause().to_string(),
-        "Configuration error: Duplicate denom 'untrn' in forwarding config."
+        "Configuration error: Duplicate denom 'Native(\"untrn\")' in forwarding config."
     );
 }
 

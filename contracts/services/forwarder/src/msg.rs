@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Deps, DepsMut, Uint128};
+use cosmwasm_std::{Addr, Api, Deps, DepsMut, Uint128};
 use cw_utils::Duration;
 use getset::{Getters, Setters};
 use service_base::{msg::ServiceConfigValidation, ServiceError};
@@ -103,7 +103,20 @@ impl ServiceConfig {
 }
 
 impl ServiceConfigValidation<Config> for ServiceConfig {
+    fn pre_validate(&self, api: &dyn Api) -> Result<(), ServiceError> {
+        api.addr_validate(&self.input_addr)?;
+        api.addr_validate(&self.output_addr)?;
+        // Ensure denoms are unique in forwarding configs
+        ensure_denom_uniqueness(&self.forwarding_configs)?;
+        Ok(())
+    }
+
     fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
+        let input_addr = deps.api.addr_validate(&self.input_addr)?;
+        let output_addr = deps.api.addr_validate(&self.output_addr)?;
+        // Ensure denoms are unique in forwarding configs
+        ensure_denom_uniqueness(&self.forwarding_configs)?;
+
         // Convert the unchecked denoms to checked denoms
         let checked_fwd_configs = self
             .forwarding_configs
@@ -120,26 +133,30 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
             .collect::<Result<Vec<ForwardingConfig>, DenomError>>()
             .map_err(|err| ServiceError::ConfigurationError(err.to_string()))?;
 
-        // Ensure denoms are unique in forwarding configs
-        let mut denom_map: HashMap<String, ()> = HashMap::new();
-        for cfc in &checked_fwd_configs {
-            let key = format!("{:?}", cfc.denom);
-            if denom_map.contains_key(&key) {
-                return Err(ServiceError::ConfigurationError(format!(
-                    "Duplicate denom '{}' in forwarding config.",
-                    cfc.denom
-                )));
-            }
-            denom_map.insert(key, ());
-        }
-
         Ok(Config {
-            input_addr: deps.api.addr_validate(&self.input_addr)?,
-            output_addr: deps.api.addr_validate(&self.output_addr)?,
+            input_addr,
+            output_addr,
             forwarding_configs: checked_fwd_configs,
             forwarding_constraints: self.forwarding_constraints.clone(),
         })
     }
+}
+
+fn ensure_denom_uniqueness(
+    checked_fwd_configs: &Vec<UncheckedForwardingConfig>,
+) -> Result<(), ServiceError> {
+    let mut denom_map: HashMap<String, ()> = HashMap::new();
+    for ufc in checked_fwd_configs {
+        let key = format!("{:?}", ufc.denom);
+        if denom_map.contains_key(&key) {
+            return Err(ServiceError::ConfigurationError(format!(
+                "Duplicate denom '{:?}' in forwarding config.",
+                ufc.denom
+            )));
+        }
+        denom_map.insert(key, ());
+    }
+    Ok(())
 }
 
 impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {

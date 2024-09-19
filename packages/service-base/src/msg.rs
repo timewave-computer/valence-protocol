@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Deps;
+use cosmwasm_std::{Api, Deps};
 use cw_ownable::cw_ownable_execute;
 
 use crate::ServiceError;
@@ -12,6 +12,7 @@ pub struct InstantiateMsg<T> {
 }
 
 pub trait ServiceConfigValidation<T> {
+    fn pre_validate(&self, api: &dyn Api) -> Result<(), ServiceError>;
     fn validate(&self, deps: Deps) -> Result<T, ServiceError>;
 }
 
