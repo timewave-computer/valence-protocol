@@ -6,7 +6,10 @@ use valence_authorization_utils::{
 };
 use valence_polytone_utils::polytone::CallbackMessage;
 
-use crate::processor::{Config, MessageBatch};
+use crate::{
+    callback::PendingPolytoneCallbackInfo,
+    processor::{Config, MessageBatch},
+};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -83,4 +86,11 @@ pub enum QueryMsg {
     },
     #[returns(bool)]
     IsQueueEmpty {},
+    #[returns(Vec<PendingPolytoneCallbackInfo>)]
+    PendingPolytoneCallbacks {
+        start_after: Option<u64>,
+        limit: Option<u32>,
+    },
+    #[returns(PendingPolytoneCallbackInfo)]
+    PendingPolytoneCallback { execution_id: u64 },
 }

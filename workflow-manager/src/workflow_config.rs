@@ -315,7 +315,6 @@ impl WorkflowConfig {
             .change_authorization_owner(authorization_addr, self.owner.clone())
             .await?;
 
-        // TODO: Verify the workflow is complete and everything is instantiatied correctly
         Ok(())
     }
 

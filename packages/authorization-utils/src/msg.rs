@@ -158,7 +158,7 @@ pub enum PermissionedMsg {
 
 #[cw_serde]
 pub struct Mint {
-    pub address: Addr,
+    pub address: String,
     pub amount: Uint128,
 }
 

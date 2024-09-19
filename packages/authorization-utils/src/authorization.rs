@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, BlockInfo, Uint128};
+use cosmwasm_std::{Addr, Api, BlockInfo, Uint128};
 use cw_utils::Expiration;
 
 use crate::action::{Action, AtomicAction, NonAtomicAction, RetryLogic};
@@ -9,7 +9,7 @@ use crate::action::{Action, AtomicAction, NonAtomicAction, RetryLogic};
 pub struct AuthorizationInfo {
     // Unique ID for the authorization, will be used as denom of the TokenFactory token if needed
     pub label: String,
-    pub mode: AuthorizationMode,
+    pub mode: AuthorizationModeInfo,
     pub not_before: Expiration,
     pub duration: AuthorizationDuration,
     // Default will be 1, defines how many times a specific authorization can be executed concurrently
@@ -40,7 +40,7 @@ pub struct Authorization {
 }
 
 impl AuthorizationInfo {
-    pub fn into_authorization(self, block_info: &BlockInfo) -> Authorization {
+    pub fn into_authorization(self, block_info: &BlockInfo, api: &dyn Api) -> Authorization {
         let expiration = match self.duration {
             AuthorizationDuration::Forever => Expiration::Never {},
             AuthorizationDuration::Seconds(seconds) => {
@@ -52,13 +52,57 @@ impl AuthorizationInfo {
         };
         Authorization {
             label: self.label,
-            mode: self.mode,
+            mode: self.mode.into_mode_validated(api),
             not_before: self.not_before,
             expiration,
             max_concurrent_executions: self.max_concurrent_executions.unwrap_or(1),
             actions_config: self.actions_config,
             priority: self.priority.unwrap_or_default(),
             state: AuthorizationState::Enabled,
+        }
+    }
+}
+
+#[cw_serde]
+pub enum AuthorizationModeInfo {
+    Permissioned(PermissionTypeInfo),
+    Permissionless,
+}
+
+#[cw_serde]
+pub enum PermissionTypeInfo {
+    // With call limit, we will mint certain amount of tokens per address. Each time they execute successfully we'll burn the token they send
+    WithCallLimit(Vec<(String, Uint128)>),
+    // Without call limit we will mint 1 token per address and we will query the sender if he has the token to verify if he can execute the actions
+    WithoutCallLimit(Vec<String>),
+}
+
+impl AuthorizationModeInfo {
+    pub fn into_mode_validated(&self, api: &dyn Api) -> AuthorizationMode {
+        match self {
+            Self::Permissioned(permission_type) => {
+                AuthorizationMode::Permissioned(permission_type.into_type_validated(api))
+            }
+            Self::Permissionless => AuthorizationMode::Permissionless,
+        }
+    }
+}
+
+impl PermissionTypeInfo {
+    pub fn into_type_validated(&self, api: &dyn Api) -> PermissionType {
+        match self {
+            Self::WithCallLimit(permissions) => PermissionType::WithCallLimit(
+                permissions
+                    .iter()
+                    .map(|(addr, amount)| (api.addr_validate(addr).unwrap(), *amount))
+                    .collect(),
+            ),
+            Self::WithoutCallLimit(permissions) => PermissionType::WithoutCallLimit(
+                permissions
+                    .iter()
+                    .map(|addr| api.addr_validate(addr).unwrap())
+                    .collect(),
+            ),
         }
     }
 }
