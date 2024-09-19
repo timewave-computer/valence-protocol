@@ -476,7 +476,7 @@ fn process_callback(
             deps.storage,
             index,
             execution_id,
-            &pending_callback.message_batch,
+            &mut pending_callback.message_batch,
             &mut messages,
             &env.contract.address,
         )?;
@@ -645,7 +645,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
                             deps.storage,
                             index,
                             msg.id,
-                            &batch,
+                            &mut batch,
                             &mut messages,
                             &env.contract.address,
                         )?;
