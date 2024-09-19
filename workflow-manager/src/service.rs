@@ -64,7 +64,8 @@ pub enum ServiceConfig {
     // },
 }
 
-// TODO: create macro for the methods that are work the same over all of the configs
+// TODO: create macro for the methods that work the same over all of the configs
+
 // We are deligating a lot of the methods to the specific config, so most of the methods can be under the macro
 impl ServiceConfig {
     pub fn is_diff(&self, other: &ServiceConfig) -> bool {
@@ -173,10 +174,19 @@ impl ServiceConfig {
 
     /// Helper to find account ids in the json string
     fn find_account_ids(ac: AhoCorasick, json: String) -> ServiceResult<Vec<Id>> {
+        // We find all the places `"|account_id|": is used
         let res = ac.find_iter(&json);
         let mut account_ids = vec![];
 
+        // LOist of all matches
         for mat in res {
+            // we take a substring from our match to the next 5 characters
+            // we loop over those charactors and see if they are numbers
+            // once we found a char that is not a number we stop
+            // we get Vec<char> and convert it to a string and parse to Id (u64)
+            //
+            // this gives our a soft limit of 5 digits for the account id (max=99999)
+            // But if we ever need 99999 in a single workflow, we are doing something crazy.
             let number = json[mat.end()..mat.end() + 5]
                 .chars()
                 .map_while(|char| if char.is_numeric() { Some(char) } else { None })
