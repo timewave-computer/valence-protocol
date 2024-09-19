@@ -405,9 +405,9 @@ impl WorkflowConfig {
             ManagerError::AccountIdNotFoundServiceConfig(accounts)
         );
 
-        // TODO: Run the validate (soft_validate) method on each service config
-        for _service in self.services.values() {
-            // service.config.soft_validate()?;
+        // Run the soft_validate method on each service config
+        for service in self.services.values() {
+            service.config.soft_validate_config()?;
         }
 
         Ok(())

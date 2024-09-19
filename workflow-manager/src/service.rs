@@ -64,6 +64,8 @@ pub enum ServiceConfig {
     // },
 }
 
+// TODO: create macro for the methods that are work the same over all of the configs
+// We are deligating a lot of the methods to the specific config, so most of the methods can be under the macro
 impl ServiceConfig {
     pub fn is_diff(&self, other: &ServiceConfig) -> bool {
         match (self, other) {
@@ -142,6 +144,20 @@ impl ServiceConfig {
         .map_err(ServiceError::SerdeJsonError)
     }
 
+    // TODO: Finish validate config
+    pub fn soft_validate_config(&self) -> ServiceResult<()> {
+        match self {
+            ServiceConfig::Splitter(_config) => {
+                // config.validate();
+                Ok(())
+            }
+            ServiceConfig::ReverseSplitter(_config) => {
+                // config.validate();
+                Ok(())
+            }
+        }
+    }
+
     pub fn get_account_ids(&self) -> ServiceResult<Vec<Id>> {
         let ac: AhoCorasick = AhoCorasick::new(["\"|account_id|\":"]).unwrap();
 
@@ -155,6 +171,7 @@ impl ServiceConfig {
         }
     }
 
+    /// Helper to find account ids in the json string
     fn find_account_ids(ac: AhoCorasick, json: String) -> ServiceResult<Vec<Id>> {
         let res = ac.find_iter(&json);
         let mut account_ids = vec![];
