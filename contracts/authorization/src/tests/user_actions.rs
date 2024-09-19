@@ -1,9 +1,9 @@
 use cosmwasm_std::{Binary, Timestamp, Uint128};
 use cw_utils::Expiration;
-use neutron_test_tube::{neutron_std::types::cosmos::base::v1beta1::Coin, Module, Wasm};
+use neutron_test_tube::{neutron_std::types::cosmos::base::v1beta1::Coin, Account, Module, Wasm};
 use serde_json::json;
 use valence_authorization_utils::{
-    authorization::{AuthorizationDuration, AuthorizationMode, PermissionType},
+    authorization::{AuthorizationDuration, AuthorizationModeInfo, PermissionTypeInfo},
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
     msg::{ExecuteMsg, PermissionedMsg, PermissionlessMsg, ProcessorMessage},
 };
@@ -30,10 +30,9 @@ fn disabled() {
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        vec![setup.external_domain.clone()],
     );
 
     // We'll create a generic permissionless authorization
@@ -51,7 +50,7 @@ fn disabled() {
         &contract_addr,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -61,7 +60,7 @@ fn disabled() {
             label: "permissionless".to_string(),
         }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -77,7 +76,7 @@ fn disabled() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -99,7 +98,7 @@ fn disabled() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -120,10 +119,9 @@ fn invalid_time() {
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        vec![setup.external_domain.clone()],
     );
 
     let current_time = setup.app.get_block_time_seconds() as u64;
@@ -135,8 +133,8 @@ fn invalid_time() {
             current_time + 1000,
         )))
         .with_duration(AuthorizationDuration::Seconds(1500))
-        .with_mode(AuthorizationMode::Permissioned(
-            PermissionType::WithoutCallLimit(vec![setup.owner_addr.clone()]),
+        .with_mode(AuthorizationModeInfo::Permissioned(
+            PermissionTypeInfo::WithoutCallLimit(vec![setup.owner_addr.to_string()]),
         ))
         .with_actions_config(
             AtomicActionsConfigBuilder::new()
@@ -150,7 +148,7 @@ fn invalid_time() {
         &contract_addr,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -166,7 +164,7 @@ fn invalid_time() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -191,7 +189,7 @@ fn invalid_time() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -216,7 +214,7 @@ fn invalid_time() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -232,8 +230,8 @@ fn invalid_time() {
         .with_label("permissioned2")
         .with_not_before(Expiration::AtHeight(current_height + 10))
         .with_duration(AuthorizationDuration::Blocks(15))
-        .with_mode(AuthorizationMode::Permissioned(
-            PermissionType::WithoutCallLimit(vec![setup.owner_addr.clone()]),
+        .with_mode(AuthorizationModeInfo::Permissioned(
+            PermissionTypeInfo::WithoutCallLimit(vec![setup.owner_addr.to_string()]),
         ))
         .with_actions_config(
             AtomicActionsConfigBuilder::new()
@@ -247,7 +245,7 @@ fn invalid_time() {
         &contract_addr,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -263,7 +261,7 @@ fn invalid_time() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -287,7 +285,7 @@ fn invalid_time() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -311,7 +309,7 @@ fn invalid_time() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -330,18 +328,17 @@ fn invalid_permission() {
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        vec![setup.external_domain.clone()],
     );
 
     // We'll create a couple permissioned authorizations
     let authorizations = vec![
         AuthorizationBuilder::new()
             .with_label("permissioned-without-limit")
-            .with_mode(AuthorizationMode::Permissioned(
-                PermissionType::WithoutCallLimit(vec![setup.owner_addr.clone()]),
+            .with_mode(AuthorizationModeInfo::Permissioned(
+                PermissionTypeInfo::WithoutCallLimit(vec![setup.owner_addr.to_string()]),
             ))
             .with_actions_config(
                 AtomicActionsConfigBuilder::new()
@@ -351,8 +348,11 @@ fn invalid_permission() {
             .build(),
         AuthorizationBuilder::new()
             .with_label("permissioned-with-limit")
-            .with_mode(AuthorizationMode::Permissioned(
-                PermissionType::WithCallLimit(vec![(setup.user_addr.clone(), Uint128::new(10))]),
+            .with_mode(AuthorizationModeInfo::Permissioned(
+                PermissionTypeInfo::WithCallLimit(vec![(
+                    setup.user_accounts[0].address().to_string(),
+                    Uint128::new(10),
+                )]),
             ))
             .with_actions_config(
                 AtomicActionsConfigBuilder::new()
@@ -367,7 +367,7 @@ fn invalid_permission() {
         &contract_addr,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -383,7 +383,7 @@ fn invalid_permission() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -405,7 +405,7 @@ fn invalid_permission() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -432,7 +432,7 @@ fn invalid_permission() {
                 denom: permission_token.clone(),
                 amount: "2".to_string(),
             }],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -451,10 +451,9 @@ fn invalid_messages() {
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
-        vec![setup.external_domain.clone()],
     );
 
     // Let's create several permissionless authorizations to validate the messages against
@@ -528,7 +527,7 @@ fn invalid_messages() {
         &contract_addr,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -549,7 +548,7 @@ fn invalid_messages() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -572,7 +571,7 @@ fn invalid_messages() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -596,7 +595,7 @@ fn invalid_messages() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -616,7 +615,7 @@ fn invalid_messages() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -642,7 +641,7 @@ fn invalid_messages() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -676,7 +675,7 @@ fn invalid_messages() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -709,7 +708,7 @@ fn invalid_messages() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -743,7 +742,7 @@ fn invalid_messages() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 

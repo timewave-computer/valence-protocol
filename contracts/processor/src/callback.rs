@@ -76,7 +76,7 @@ pub fn handle_successful_non_atomic_callback(
     storage: &mut dyn Storage,
     index: usize,
     execution_id: u64,
-    batch: &MessageBatch,
+    batch: &mut MessageBatch,
     messages: &mut Vec<CosmosMsg>,
     processor_address: &Addr,
 ) -> Result<(), ContractError> {
@@ -98,8 +98,9 @@ pub fn handle_successful_non_atomic_callback(
         EXECUTION_ID_TO_BATCH.remove(storage, execution_id);
     } else {
         // We have more actions to process
-        // Increase the index and re-add batch to the queue
+        // Increase the index, reset retries and re-add batch to the queue
         NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.save(storage, execution_id, &next_index)?;
+        batch.retry = None;
         let queue = get_queue_map(&batch.priority);
         queue.push_back(storage, batch)?;
     }

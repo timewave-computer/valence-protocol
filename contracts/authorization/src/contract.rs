@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    from_json, to_json_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Order,
-    Response, StdResult, Storage, Uint128, Uint64, WasmMsg,
+    from_json, to_json_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo,
+    Order, Response, StdResult, Storage, Uint128, Uint64, WasmMsg,
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner, is_owner};
 use cw_storage_plus::Bound;
@@ -30,8 +30,8 @@ use crate::{
     domain::{add_domain, create_wasm_msg_for_processor_or_bridge, get_domain},
     error::{AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason},
     state::{
-        AUTHORIZATIONS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS, PROCESSOR_CALLBACKS,
-        PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS,
+        AUTHORIZATIONS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS, FIRST_OWNERSHIP,
+        PROCESSOR_CALLBACKS, PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS,
     },
 };
 
@@ -43,19 +43,15 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    mut deps: DepsMut,
-    env: Env,
+    deps: DepsMut,
+    _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     // Set up owners and initial subowners
-    initialize_owner(
-        deps.storage,
-        deps.api,
-        Some(deps.api.addr_validate(&msg.owner)?.as_str()),
-    )?;
+    initialize_owner(deps.storage, deps.api, Some(&msg.owner))?;
 
     for sub_owner in msg.sub_owners {
         SUB_OWNERS.save(
@@ -71,12 +67,9 @@ pub fn instantiate(
         &deps.api.addr_validate(msg.processor.as_str())?,
     )?;
 
-    // Save all external domains
-    for domain in msg.external_domains {
-        add_domain(deps.branch(), env.contract.address.to_string(), &domain)?;
-    }
-
     EXECUTION_ID.save(deps.storage, &0)?;
+    // When onwership is transferred for the first time this will be changed
+    FIRST_OWNERSHIP.save(deps.storage, &true)?;
 
     Ok(Response::new().add_attribute("method", "instantiate_authorization"))
 }
@@ -173,6 +166,15 @@ fn update_ownership(
     info: MessageInfo,
     action: cw_ownable::Action,
 ) -> Result<Response<NeutronMsg>, ContractError> {
+    if let cw_ownable::Action::TransferOwnership { new_owner, .. } = &action {
+        if FIRST_OWNERSHIP.load(deps.storage)? {
+            assert_owner(deps.storage, &info.sender)?;
+            FIRST_OWNERSHIP.save(deps.storage, &false)?;
+            let ownership = initialize_owner(deps.storage, deps.api, Some(new_owner))?;
+            return Ok(Response::new().add_attributes(ownership.into_attributes()));
+        }
+    }
+
     let ownership = cw_ownable::update_ownership(deps, &env.block, &info.sender, action)?;
     Ok(Response::new().add_attributes(ownership.into_attributes()))
 }
@@ -201,11 +203,25 @@ fn add_external_domains(
     env: Env,
     external_domains: Vec<ExternalDomainInfo>,
 ) -> Result<Response<NeutronMsg>, ContractError> {
+    let mut messages = vec![];
+    // Save all external domains
     for domain in external_domains {
-        add_domain(deps.branch(), env.contract.address.to_string(), &domain)?;
+        messages.push(add_domain(
+            deps.branch(),
+            env.contract.address.to_string(),
+            &domain,
+        )?);
     }
 
-    Ok(Response::new().add_attribute("action", "add_external_domains"))
+    // Need to convert to NeutronMsg
+    let neutron_msgs: Vec<CosmosMsg<NeutronMsg>> = messages
+        .into_iter()
+        .filter_map(|msg| msg.change_custom())
+        .collect();
+
+    Ok(Response::new()
+        .add_messages(neutron_msgs)
+        .add_attribute("action", "add_external_domains"))
 }
 
 fn create_authorizations(
@@ -216,7 +232,7 @@ fn create_authorizations(
     let mut tokenfactory_msgs = vec![];
 
     for each_authorization in authorizations {
-        let authorization = each_authorization.into_authorization(&env.block);
+        let authorization = each_authorization.into_authorization(&env.block, deps.api);
 
         // Check that it doesn't exist yet
         if AUTHORIZATIONS.has(deps.storage, authorization.label.clone()) {
@@ -831,6 +847,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ExternalDomains { start_after, limit } => {
             to_json_binary(&get_external_domains(deps, start_after, limit))
         }
+        QueryMsg::ExternalDomain { name } => to_json_binary(&get_external_domain(deps, name)?),
         QueryMsg::Authorizations { start_after, limit } => {
             to_json_binary(&get_authorizations(deps, start_after, limit))
         }
@@ -872,6 +889,10 @@ fn get_external_domains(
         .filter_map(Result::ok)
         .map(|(_, ed)| ed)
         .collect()
+}
+
+fn get_external_domain(deps: Deps, name: String) -> StdResult<ExternalDomain> {
+    EXTERNAL_DOMAINS.load(deps.storage, name)
 }
 
 fn get_authorizations(

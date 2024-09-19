@@ -1,10 +1,10 @@
 use cosmwasm_std::{Addr, Binary};
 use cw_utils::Duration;
-use neutron_test_tube::{Module, Wasm};
+use neutron_test_tube::{Account, Module, Wasm};
 use valence_authorization_utils::{
     action::{ActionCallback, RetryLogic, RetryTimes},
     authorization::{
-        ActionsConfig, AtomicActionsConfig, AuthorizationMode, PermissionType, Priority,
+        ActionsConfig, AtomicActionsConfig, AuthorizationModeInfo, PermissionTypeInfo, Priority,
     },
     authorization_message::{Message, MessageDetails, MessageType},
     callback::{ExecutionResult, ProcessorCallbackInfo},
@@ -51,10 +51,9 @@ fn user_enqueing_messages() {
     let (authorization_contract, processor_contract) =
         store_and_instantiate_authorization_with_processor_contract(
             &setup.app,
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
 
     // We'll create two authorization, one with high priority and one without to test the correct queueing of messages
@@ -71,10 +70,10 @@ fn user_enqueing_messages() {
         AuthorizationBuilder::new()
             .with_label("permissioned-without-limit")
             .with_max_concurrent_executions(10)
-            .with_mode(AuthorizationMode::Permissioned(
-                PermissionType::WithoutCallLimit(vec![
-                    setup.subowner_addr.clone(),
-                    setup.user_addr.clone(),
+            .with_mode(AuthorizationModeInfo::Permissioned(
+                PermissionTypeInfo::WithoutCallLimit(vec![
+                    setup.subowner_addr.to_string(),
+                    setup.user_accounts[0].address().to_string(),
                 ]),
             ))
             .with_actions_config(
@@ -91,7 +90,7 @@ fn user_enqueing_messages() {
         &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -134,7 +133,7 @@ fn user_enqueing_messages() {
             ttl: None,
         }),
         &[],
-        &setup.accounts[2],
+        &setup.user_accounts[0],
     )
     .unwrap();
 
@@ -176,7 +175,7 @@ fn user_enqueing_messages() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap();
     }
@@ -225,7 +224,7 @@ fn user_enqueing_messages() {
             ttl: None,
         }),
         &[],
-        &setup.accounts[2],
+        &setup.user_accounts[0],
     )
     .unwrap();
 
@@ -266,7 +265,7 @@ fn user_enqueing_messages() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap();
     }
@@ -300,10 +299,9 @@ fn max_concurrent_execution_limit() {
     let (authorization_contract, processor_contract) =
         store_and_instantiate_authorization_with_processor_contract(
             &setup.app,
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
 
     // We'll create an authorization with max concurrent executions and check that we can't queue more than that
@@ -322,7 +320,7 @@ fn max_concurrent_execution_limit() {
         &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -340,7 +338,7 @@ fn max_concurrent_execution_limit() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap();
     }
@@ -355,7 +353,7 @@ fn max_concurrent_execution_limit() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -375,7 +373,7 @@ fn max_concurrent_execution_limit() {
             messages: vec![message.clone()],
         }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -409,10 +407,9 @@ fn owner_adding_and_removing_messages() {
     let (authorization_contract, processor_contract) =
         store_and_instantiate_authorization_with_processor_contract(
             &setup.app,
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
 
     // We'll create two authorization, one with high priority and one without to test the correct queueing of messages
@@ -429,10 +426,10 @@ fn owner_adding_and_removing_messages() {
         AuthorizationBuilder::new()
             .with_label("permissioned-without-limit")
             .with_max_concurrent_executions(10)
-            .with_mode(AuthorizationMode::Permissioned(
-                PermissionType::WithoutCallLimit(vec![
-                    setup.subowner_addr.clone(),
-                    setup.user_addr.clone(),
+            .with_mode(AuthorizationModeInfo::Permissioned(
+                PermissionTypeInfo::WithoutCallLimit(vec![
+                    setup.subowner_addr.to_string(),
+                    setup.user_accounts[0].address().to_string(),
                 ]),
             ))
             .with_actions_config(
@@ -449,7 +446,7 @@ fn owner_adding_and_removing_messages() {
         &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -467,7 +464,7 @@ fn owner_adding_and_removing_messages() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap();
 
@@ -479,7 +476,7 @@ fn owner_adding_and_removing_messages() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap();
     }
@@ -532,7 +529,7 @@ fn owner_adding_and_removing_messages() {
             messages: vec![message.clone()],
         }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -566,7 +563,7 @@ fn owner_adding_and_removing_messages() {
             messages: vec![message.clone()],
         }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -579,7 +576,7 @@ fn owner_adding_and_removing_messages() {
             messages: vec![message.clone()],
         }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -614,7 +611,7 @@ fn owner_adding_and_removing_messages() {
                 messages: vec![message.clone()],
             }),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap_err();
 
@@ -630,7 +627,7 @@ fn owner_adding_and_removing_messages() {
                 priority: Priority::High,
             }),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap();
     }
@@ -688,7 +685,7 @@ fn owner_adding_and_removing_messages() {
                 priority: Priority::High,
             }),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap_err();
 
@@ -706,7 +703,7 @@ fn owner_adding_and_removing_messages() {
                 messages: vec![message.clone()],
             }),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap();
     }
@@ -740,7 +737,7 @@ fn owner_adding_and_removing_messages() {
             priority: Priority::High,
         }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -774,7 +771,7 @@ fn owner_adding_and_removing_messages() {
             messages: vec![message.clone()],
         }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -808,7 +805,7 @@ fn owner_adding_and_removing_messages() {
                 priority: Priority::High,
             }),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap();
     }
@@ -886,12 +883,12 @@ fn invalid_msg_rejected() {
     let (authorization_contract, processor_contract) =
         store_and_instantiate_authorization_with_processor_contract(
             &setup.app,
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
-    let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0], None);
+    let test_service_contract =
+        store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
 
     // Let's create an authorization for sending a message to the test service that doesn't even exist on the contract
     let authorizations = vec![AuthorizationBuilder::new()
@@ -913,7 +910,7 @@ fn invalid_msg_rejected() {
         &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -931,7 +928,7 @@ fn invalid_msg_rejected() {
             ttl: None,
         }),
         &[],
-        &setup.accounts[2],
+        &setup.user_accounts[0],
     )
     .unwrap();
 
@@ -954,7 +951,7 @@ fn invalid_msg_rejected() {
         &processor_contract,
         &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -999,12 +996,12 @@ fn queue_shifting_when_not_retriable() {
     let (authorization_contract, processor_contract) =
         store_and_instantiate_authorization_with_processor_contract(
             &setup.app,
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
-    let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0], None);
+    let test_service_contract =
+        store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
 
     // Let's create two authorizations (one atomic and one non atomic) that will always fail and see that when they fail, they are put back on the back in the queue
     // and when the retrying cooldown is not reached, they are shifted to the back of the queue
@@ -1063,7 +1060,7 @@ fn queue_shifting_when_not_retriable() {
         &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -1084,7 +1081,7 @@ fn queue_shifting_when_not_retriable() {
             ttl: None,
         }),
         &[],
-        &setup.accounts[2],
+        &setup.user_accounts[0],
     )
     .unwrap();
 
@@ -1096,7 +1093,7 @@ fn queue_shifting_when_not_retriable() {
             ttl: None,
         }),
         &[],
-        &setup.accounts[2],
+        &setup.user_accounts[0],
     )
     .unwrap();
 
@@ -1126,7 +1123,7 @@ fn queue_shifting_when_not_retriable() {
         &processor_contract,
         &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -1171,7 +1168,7 @@ fn queue_shifting_when_not_retriable() {
         &processor_contract,
         &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -1182,7 +1179,7 @@ fn queue_shifting_when_not_retriable() {
             &processor_contract,
             &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap();
 
@@ -1197,7 +1194,7 @@ fn queue_shifting_when_not_retriable() {
             &processor_contract,
             &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap();
 
@@ -1216,7 +1213,7 @@ fn queue_shifting_when_not_retriable() {
             &processor_contract,
             &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap();
 
@@ -1231,7 +1228,7 @@ fn queue_shifting_when_not_retriable() {
             &processor_contract,
             &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap();
 
@@ -1250,12 +1247,12 @@ fn higher_priority_queue_is_processed_first() {
     let (authorization_contract, processor_contract) =
         store_and_instantiate_authorization_with_processor_contract(
             &setup.app,
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
-    let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0], None);
+    let test_service_contract =
+        store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
 
     // We'll create two authorizations, one with high priority and one without, and we'll enqueue two messages for both
     let authorizations = vec![
@@ -1282,8 +1279,10 @@ fn higher_priority_queue_is_processed_first() {
         AuthorizationBuilder::new()
             .with_label("permissioned-without-limit")
             .with_max_concurrent_executions(10)
-            .with_mode(AuthorizationMode::Permissioned(
-                PermissionType::WithoutCallLimit(vec![setup.user_addr.clone()]),
+            .with_mode(AuthorizationModeInfo::Permissioned(
+                PermissionTypeInfo::WithoutCallLimit(vec![setup.user_accounts[0]
+                    .address()
+                    .to_string()]),
             ))
             .with_actions_config(
                 AtomicActionsConfigBuilder::new()
@@ -1309,7 +1308,7 @@ fn higher_priority_queue_is_processed_first() {
         &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -1328,7 +1327,7 @@ fn higher_priority_queue_is_processed_first() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap();
 
@@ -1340,7 +1339,7 @@ fn higher_priority_queue_is_processed_first() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap();
     }
@@ -1350,7 +1349,7 @@ fn higher_priority_queue_is_processed_first() {
         &processor_contract,
         &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -1388,7 +1387,7 @@ fn higher_priority_queue_is_processed_first() {
         &processor_contract,
         &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -1441,7 +1440,7 @@ fn higher_priority_queue_is_processed_first() {
             &processor_contract,
             &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap();
     }
@@ -1490,12 +1489,12 @@ fn retry_multi_action_atomic_batch_until_success() {
     let (authorization_contract, processor_contract) =
         store_and_instantiate_authorization_with_processor_contract(
             &setup.app,
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
-    let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0], None);
+    let test_service_contract =
+        store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
 
     // We'll create an authorization with 3 actions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
     let authorizations = vec![AuthorizationBuilder::new()
@@ -1550,7 +1549,7 @@ fn retry_multi_action_atomic_batch_until_success() {
         &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -1571,7 +1570,7 @@ fn retry_multi_action_atomic_batch_until_success() {
             ttl: None,
         }),
         &[],
-        &setup.accounts[2],
+        &setup.user_accounts[0],
     )
     .unwrap();
 
@@ -1596,7 +1595,7 @@ fn retry_multi_action_atomic_batch_until_success() {
             &processor_contract,
             &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap();
 
@@ -1621,7 +1620,7 @@ fn retry_multi_action_atomic_batch_until_success() {
         &test_service_contract,
         &TestServiceExecuteMsg::SetCondition { condition: true },
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -1630,7 +1629,7 @@ fn retry_multi_action_atomic_batch_until_success() {
         &processor_contract,
         &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -1676,12 +1675,12 @@ fn retry_multi_action_non_atomic_batch_until_success() {
     let (authorization_contract, processor_contract) =
         store_and_instantiate_authorization_with_processor_contract(
             &setup.app,
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
-    let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0], None);
+    let test_service_contract =
+        store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
 
     // We'll create an authorization with 3 actions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
     let authorizations = vec![AuthorizationBuilder::new()
@@ -1736,7 +1735,7 @@ fn retry_multi_action_non_atomic_batch_until_success() {
         &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -1757,7 +1756,7 @@ fn retry_multi_action_non_atomic_batch_until_success() {
             ttl: None,
         }),
         &[],
-        &setup.accounts[2],
+        &setup.user_accounts[0],
     )
     .unwrap();
 
@@ -1781,7 +1780,7 @@ fn retry_multi_action_non_atomic_batch_until_success() {
         &processor_contract,
         &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -1800,12 +1799,12 @@ fn retry_multi_action_non_atomic_batch_until_success() {
     assert_eq!(query_med_prio_queue.len(), 1);
 
     // No matter how many times we tick, the second message will always fail and it will be re-added to the queue
-    for _ in 0..5 {
+    for i in 0..5 {
         wasm.execute::<ProcessorExecuteMsg>(
             &processor_contract,
             &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap();
 
@@ -1822,6 +1821,11 @@ fn retry_multi_action_non_atomic_batch_until_success() {
             .unwrap();
 
         assert_eq!(query_med_prio_queue.len(), 1);
+        // Verify the current retry we are at
+        assert_eq!(
+            query_med_prio_queue[0].retry.clone().unwrap().retry_amounts,
+            i + 1
+        );
         setup.app.increase_time(5);
     }
 
@@ -1830,7 +1834,7 @@ fn retry_multi_action_non_atomic_batch_until_success() {
         &test_service_contract,
         &TestServiceExecuteMsg::SetCondition { condition: true },
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -1839,7 +1843,7 @@ fn retry_multi_action_non_atomic_batch_until_success() {
         &processor_contract,
         &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -1856,13 +1860,15 @@ fn retry_multi_action_non_atomic_batch_until_success() {
         .unwrap();
 
     assert_eq!(query_med_prio_queue.len(), 1);
+    // Verify that after moving to the next action, the current retries has been reset
+    assert_eq!(query_med_prio_queue[0].retry, None);
 
     // Last tick will process the last message and send the callback
     wasm.execute::<ProcessorExecuteMsg>(
         &processor_contract,
         &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -1904,12 +1910,12 @@ fn failed_atomic_batch_after_retries() {
     let (authorization_contract, processor_contract) =
         store_and_instantiate_authorization_with_processor_contract(
             &setup.app,
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
-    let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0], None);
+    let test_service_contract =
+        store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
 
     // We'll create an authorization with 3 actions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
     let authorizations = vec![AuthorizationBuilder::new()
@@ -1952,7 +1958,7 @@ fn failed_atomic_batch_after_retries() {
         &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -1977,7 +1983,7 @@ fn failed_atomic_batch_after_retries() {
             ttl: None,
         }),
         &[],
-        &setup.accounts[2],
+        &setup.user_accounts[0],
     )
     .unwrap();
 
@@ -1998,7 +2004,7 @@ fn failed_atomic_batch_after_retries() {
                 },
             }),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap_err();
 
@@ -2014,7 +2020,7 @@ fn failed_atomic_batch_after_retries() {
             &processor_contract,
             &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap();
 
@@ -2062,12 +2068,12 @@ fn failed_non_atomic_batch_after_retries() {
     let (authorization_contract, processor_contract) =
         store_and_instantiate_authorization_with_processor_contract(
             &setup.app,
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
-    let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0], None);
+    let test_service_contract =
+        store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
 
     // We'll create an authorization with 3 actions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
     let authorizations = vec![AuthorizationBuilder::new()
@@ -2110,7 +2116,7 @@ fn failed_non_atomic_batch_after_retries() {
         &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -2135,7 +2141,7 @@ fn failed_non_atomic_batch_after_retries() {
             ttl: None,
         }),
         &[],
-        &setup.accounts[2],
+        &setup.user_accounts[0],
     )
     .unwrap();
 
@@ -2145,7 +2151,7 @@ fn failed_non_atomic_batch_after_retries() {
             &processor_contract,
             &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap();
 
@@ -2194,12 +2200,12 @@ fn successful_non_atomic_and_atomic_batches_together() {
     let (authorization_contract, processor_contract) =
         store_and_instantiate_authorization_with_processor_contract(
             &setup.app,
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
-    let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0], None);
+    let test_service_contract =
+        store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
 
     // We'll create two authorizations, one atomic and one non-atomic, with 2 actions each where both of them will succeed
     let authorizations = vec![
@@ -2272,7 +2278,7 @@ fn successful_non_atomic_and_atomic_batches_together() {
         &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -2289,7 +2295,7 @@ fn successful_non_atomic_and_atomic_batches_together() {
             ttl: None,
         }),
         &[],
-        &setup.accounts[2],
+        &setup.user_accounts[0],
     )
     .unwrap();
 
@@ -2301,7 +2307,7 @@ fn successful_non_atomic_and_atomic_batches_together() {
             ttl: None,
         }),
         &[],
-        &setup.accounts[2],
+        &setup.user_accounts[0],
     )
     .unwrap();
 
@@ -2310,7 +2316,7 @@ fn successful_non_atomic_and_atomic_batches_together() {
         &processor_contract,
         &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -2352,7 +2358,7 @@ fn successful_non_atomic_and_atomic_batches_together() {
             &processor_contract,
             &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap();
 
@@ -2403,12 +2409,12 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
     let (authorization_contract, processor_contract) =
         store_and_instantiate_authorization_with_processor_contract(
             &setup.app,
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
-    let test_service_contract = store_and_instantiate_test_service(&wasm, &setup.accounts[0], None);
+    let test_service_contract =
+        store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
 
     // We'll create an authorization with 2 actions, where both will succeed but second one needs to confirmed with a callback
     let authorizations = vec![AuthorizationBuilder::new()
@@ -2456,7 +2462,7 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
         &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -2473,7 +2479,7 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
             ttl: None,
         }),
         &[],
-        &setup.accounts[2],
+        &setup.user_accounts[0],
     )
     .unwrap();
 
@@ -2482,7 +2488,7 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
         &processor_contract,
         &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -2505,7 +2511,7 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
         &processor_contract,
         &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -2533,7 +2539,7 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
             callback,
         },
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -2558,7 +2564,7 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
         &processor_contract,
         &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -2586,7 +2592,7 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
             callback,
         },
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -2631,20 +2637,22 @@ fn migration() {
     let (authorization_contract, processor_contract) =
         store_and_instantiate_authorization_with_processor_contract(
             &setup.app,
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
-            vec![setup.external_domain.clone()],
         );
-    let test_service_contract =
-        store_and_instantiate_test_service(&wasm, &setup.accounts[0], Some(&processor_contract));
+    let test_service_contract = store_and_instantiate_test_service(
+        &wasm,
+        &setup.owner_accounts[0],
+        Some(&processor_contract),
+    );
 
     // Store it again to get a new code id
     let wasm_byte_code =
         std::fs::read(format!("{}/valence_test_service.wasm", ARTIFACTS_DIR)).unwrap();
 
     let code_id = wasm
-        .store_code(&wasm_byte_code, None, &setup.accounts[0])
+        .store_code(&wasm_byte_code, None, &setup.owner_accounts[0])
         .unwrap()
         .data
         .code_id;
@@ -2675,7 +2683,7 @@ fn migration() {
         &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -2699,7 +2707,7 @@ fn migration() {
             ttl: None,
         }),
         &[],
-        &setup.accounts[2],
+        &setup.user_accounts[0],
     )
     .unwrap();
 
@@ -2708,7 +2716,7 @@ fn migration() {
         &processor_contract,
         &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
