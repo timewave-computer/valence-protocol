@@ -45,7 +45,7 @@ use valence_processor_utils::{
 };
 
 const TIMEOUT_SECONDS: u64 = 15;
-const MAX_ATTEMPTS: u64 = 25;
+const MAX_ATTEMPTS: u64 = 50;
 const USER_ADDRESS: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
 const USER_KEY: &str = "acc1";
 
