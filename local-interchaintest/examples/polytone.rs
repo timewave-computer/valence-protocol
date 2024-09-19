@@ -400,9 +400,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Before instantiating the processor and adding the external domain we are going to stop the relayer to force timeouts
     test_ctx.stop_relayer();
 
-    // Pause for a bit to make sure the relayer is stopped
-    std::thread::sleep(Duration::from_secs(5));
-
     let processor_code_id_on_juno = test_ctx
         .get_contract()
         .src(JUNO_CHAIN_NAME)
@@ -422,25 +419,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_flags(GAS_FLAGS)
         .send()
         .unwrap();
-
-    // Let's make sure that when we start the relayer, the packets will time out
-    std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
-
-    // Start the relayer again
-    test_ctx.start_relayer();
-
-    // The proxy creation from the processor should have timed out
-    verify_proxy_state_on_processor(
-        &mut test_ctx,
-        &predicted_processor_on_juno_address,
-        &PolytoneProxyState::TimedOut,
-    );
-
-    // Stop the relayer again to force a time out when adding external domain
-    test_ctx.stop_relayer();
-
-    // Pause for a bit to make sure the relayer is stopped
-    std::thread::sleep(Duration::from_secs(5));
 
     info!("Adding external domain to the authorization contract...");
     let add_external_domain_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
@@ -477,6 +455,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Start the relayer again
     test_ctx.start_relayer();
+
+    // The proxy creation from the processor should have timed out
+    verify_proxy_state_on_processor(
+        &mut test_ctx,
+        &predicted_processor_on_juno_address,
+        &PolytoneProxyState::TimedOut,
+    );
 
     // The proxy creation for the external domain that we added on the authorization contract should have timed out too
     verify_proxy_state_on_authorization(
@@ -665,9 +650,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Stopping relayer to force timeouts...");
     test_ctx.stop_relayer();
 
-    // Pause for a bit to make sure the relayer is stopped
-    std::thread::sleep(Duration::from_secs(5));
-
     info!("Sending the messages without TTL...");
     let flags = format!("--amount 1{} {}", tokenfactory_token, GAS_FLAGS);
     contract_execute(
@@ -806,9 +788,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Stopping the relayer again before ticking the processor to force a timeout...");
     test_ctx.stop_relayer();
 
-    // Pause for a bit to make sure the relayer is stopped
-    std::thread::sleep(Duration::from_secs(5));
-
     info!("Ticking the processor to trigger sending the callback...");
     contract_execute(
         test_ctx
@@ -920,6 +899,12 @@ fn verify_proxy_state_on_processor(
             panic!("The processor domain is not external!");
         }
 
+        if attempts % 5 == 0 {
+            // Sometimes the relayer doesn't pick up the changes, so we restart it
+            test_ctx.stop_relayer();
+            test_ctx.start_relayer();
+        }
+
         if attempts > MAX_ATTEMPTS {
             panic!("Maximum number of attempts reached. Cancelling execution.");
         }
@@ -962,6 +947,12 @@ fn verify_proxy_state_on_authorization(
                     info!("Waiting for the right state, current state: {:?}", state);
                 }
             }
+        }
+
+        if attempts % 5 == 0 {
+            // Sometimes the relayer doesn't pick up the changes, so we restart it
+            test_ctx.stop_relayer();
+            test_ctx.start_relayer();
         }
 
         if attempts > MAX_ATTEMPTS {
@@ -1008,6 +999,12 @@ fn verify_authorization_execution_result(
                 "Waiting for the right execution result, current execution result: {:?}",
                 callback_info.execution_result
             );
+        }
+
+        if attempts % 5 == 0 {
+            // Sometimes the relayer doesn't pick up the changes, so we restart it
+            test_ctx.stop_relayer();
+            test_ctx.start_relayer();
         }
 
         if attempts > MAX_ATTEMPTS {
