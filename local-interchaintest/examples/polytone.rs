@@ -814,7 +814,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
 
     info!("Restarting the relayer...");
-    test_ctx.start_relayer();
+    restart_relayer(&mut test_ctx);
 
     // The polytone callback in the processor should have timed out
     info!("Querying the callback from the processor...");
