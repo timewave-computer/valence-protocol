@@ -454,7 +454,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
 
     // Start the relayer again
-    test_ctx.start_relayer();
+    restart_relayer(&mut test_ctx);
 
     // The proxy creation from the processor should have timed out
     verify_proxy_state_on_processor(
@@ -699,7 +699,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
 
     info!("Restarting the relayer...");
-    test_ctx.start_relayer();
+    restart_relayer(&mut test_ctx);
 
     // Verify that both messages are in timeout state
     verify_authorization_execution_result(
@@ -828,6 +828,11 @@ fn main() -> Result<(), Box<dyn Error>> {
             break;
         }
 
+        if attempts % 5 == 0 {
+            // Sometimes the relayer doesn't pick up the changes, so we restart it
+            restart_relayer(&mut test_ctx);
+        }
+
         if attempts > MAX_ATTEMPTS {
             panic!("Maximum number of attempts reached. Cancelling execution.");
         }
@@ -901,8 +906,7 @@ fn verify_proxy_state_on_processor(
 
         if attempts % 5 == 0 {
             // Sometimes the relayer doesn't pick up the changes, so we restart it
-            test_ctx.stop_relayer();
-            test_ctx.start_relayer();
+            restart_relayer(test_ctx);
         }
 
         if attempts > MAX_ATTEMPTS {
@@ -951,8 +955,7 @@ fn verify_proxy_state_on_authorization(
 
         if attempts % 5 == 0 {
             // Sometimes the relayer doesn't pick up the changes, so we restart it
-            test_ctx.stop_relayer();
-            test_ctx.start_relayer();
+            restart_relayer(test_ctx);
         }
 
         if attempts > MAX_ATTEMPTS {
@@ -1003,8 +1006,7 @@ fn verify_authorization_execution_result(
 
         if attempts % 5 == 0 {
             // Sometimes the relayer doesn't pick up the changes, so we restart it
-            test_ctx.stop_relayer();
-            test_ctx.start_relayer();
+            restart_relayer(test_ctx);
         }
 
         if attempts > MAX_ATTEMPTS {
@@ -1056,4 +1058,9 @@ fn get_processor_pending_polytone_callback(
             .clone(),
     )
     .unwrap()
+}
+
+fn restart_relayer(test_ctx: &mut TestContext) {
+    test_ctx.stop_relayer();
+    test_ctx.start_relayer();
 }
