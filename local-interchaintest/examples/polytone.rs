@@ -400,6 +400,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Before instantiating the processor and adding the external domain we are going to stop the relayer to force timeouts
     test_ctx.stop_relayer();
 
+    // Pause for a bit to make sure the relayer is stopped
+    std::thread::sleep(Duration::from_secs(5));
+
     let processor_code_id_on_juno = test_ctx
         .get_contract()
         .src(JUNO_CHAIN_NAME)
@@ -435,6 +438,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Stop the relayer again to force a time out when adding external domain
     test_ctx.stop_relayer();
+
+    // Pause for a bit to make sure the relayer is stopped
+    std::thread::sleep(Duration::from_secs(5));
 
     info!("Adding external domain to the authorization contract...");
     let add_external_domain_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
@@ -659,6 +665,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Stopping relayer to force timeouts...");
     test_ctx.stop_relayer();
 
+    // Pause for a bit to make sure the relayer is stopped
+    std::thread::sleep(Duration::from_secs(5));
+
     info!("Sending the messages without TTL...");
     let flags = format!("--amount 1{} {}", tokenfactory_token, GAS_FLAGS);
     contract_execute(
@@ -796,6 +805,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Stopping the relayer again before ticking the processor to force a timeout...");
     test_ctx.stop_relayer();
+
+    // Pause for a bit to make sure the relayer is stopped
+    std::thread::sleep(Duration::from_secs(5));
 
     info!("Ticking the processor to trigger sending the callback...");
     contract_execute(
