@@ -1799,7 +1799,7 @@ fn retry_multi_action_non_atomic_batch_until_success() {
     assert_eq!(query_med_prio_queue.len(), 1);
 
     // No matter how many times we tick, the second message will always fail and it will be re-added to the queue
-    for _ in 0..5 {
+    for i in 0..5 {
         wasm.execute::<ProcessorExecuteMsg>(
             &processor_contract,
             &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
@@ -1821,6 +1821,11 @@ fn retry_multi_action_non_atomic_batch_until_success() {
             .unwrap();
 
         assert_eq!(query_med_prio_queue.len(), 1);
+        // Verify the current retry we are at
+        assert_eq!(
+            query_med_prio_queue[0].retry.clone().unwrap().retry_amounts,
+            i + 1
+        );
         setup.app.increase_time(5);
     }
 
@@ -1855,6 +1860,8 @@ fn retry_multi_action_non_atomic_batch_until_success() {
         .unwrap();
 
     assert_eq!(query_med_prio_queue.len(), 1);
+    // Verify that after moving to the next action, the current retries has been reset
+    assert_eq!(query_med_prio_queue[0].retry, None);
 
     // Last tick will process the last message and send the callback
     wasm.execute::<ProcessorExecuteMsg>(
