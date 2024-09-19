@@ -7,11 +7,11 @@ use neutron_test_tube::{
 use valence_authorization_utils::{
     action::{ActionCallback, RetryLogic, RetryTimes},
     authorization::{
-        Authorization, AuthorizationDuration, AuthorizationMode, AuthorizationState,
-        PermissionType, Priority,
+        Authorization, AuthorizationDuration, AuthorizationModeInfo, AuthorizationState,
+        PermissionTypeInfo, Priority,
     },
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
-    domain::{Domain, ExternalDomain},
+    domain::Domain,
     msg::{ExecuteMsg, Mint, OwnerMsg, PermissionedMsg, QueryMsg},
 };
 use valence_processor::error::ContractError as ProcessorContractError;
@@ -34,21 +34,21 @@ use crate::{
 #[test]
 fn contract_instantiation() {
     let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(6)
+        .with_num_accounts(4)
         .build()
         .unwrap();
 
     let wasm = Wasm::new(&setup.app);
 
-    let subowner2 = Addr::unchecked(setup.accounts[5].address());
+    let new_subowner = Addr::unchecked(setup.user_accounts[1].address());
 
     // Let's instantiate with all parameters and query them to see if they are stored correctly
     let (authorization_contract, processor_address) =
         store_and_instantiate_authorization_with_processor_contract(
             &setup.app,
-            &setup.accounts[0],
-            setup.user_addr.to_string(),
-            vec![setup.subowner_addr.to_string(), subowner2.to_string()],
+            &setup.owner_accounts[0],
+            setup.user_accounts[0].address(),
+            vec![setup.subowner_addr.to_string(), new_subowner.to_string()],
         );
 
     // Query current owner
@@ -59,7 +59,7 @@ fn contract_instantiation() {
         )
         .unwrap();
 
-    assert_eq!(query_owner.owner.unwrap(), setup.user_addr.to_string());
+    assert_eq!(query_owner.owner.unwrap(), setup.user_accounts[0].address());
 
     // Query subowners
     let query_subowners = wasm
@@ -68,7 +68,7 @@ fn contract_instantiation() {
 
     assert_eq!(query_subowners.len(), 2);
     assert!(query_subowners.contains(&setup.subowner_addr));
-    assert!(query_subowners.contains(&subowner2));
+    assert!(query_subowners.contains(&new_subowner));
 
     // Query processor
     let query_processor = wasm
@@ -81,17 +81,17 @@ fn contract_instantiation() {
 #[test]
 fn transfer_ownership() {
     let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(6)
+        .with_num_accounts(4)
         .build()
         .unwrap();
 
     let wasm = Wasm::new(&setup.app);
 
-    let new_owner = &setup.accounts[5];
+    let new_owner = &setup.user_accounts[1];
 
     let (authorization_contract, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
         setup.owner_addr.to_string(),
         vec![],
     );
@@ -104,7 +104,7 @@ fn transfer_ownership() {
             expiry: None,
         }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -137,7 +137,7 @@ fn transfer_ownership() {
                 expiry: None,
             }),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap_err();
 
@@ -155,7 +155,7 @@ fn add_and_remove_sub_owners() {
 
     let (authorization_contract, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
         setup.owner_addr.to_string(),
         vec![],
     );
@@ -167,7 +167,7 @@ fn add_and_remove_sub_owners() {
             sub_owner: setup.subowner_addr.to_string(),
         }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -186,7 +186,7 @@ fn add_and_remove_sub_owners() {
                 sub_owner: setup.subowner_addr.to_string(),
             }),
             &[],
-            &setup.accounts[1],
+            &setup.owner_accounts[1],
         )
         .unwrap_err();
 
@@ -203,7 +203,7 @@ fn add_and_remove_sub_owners() {
                 sub_owner: setup.subowner_addr.to_string(),
             }),
             &[],
-            &setup.accounts[1],
+            &setup.owner_accounts[1],
         )
         .unwrap_err();
 
@@ -220,7 +220,7 @@ fn add_and_remove_sub_owners() {
             sub_owner: setup.subowner_addr.to_string(),
         }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -229,48 +229,6 @@ fn add_and_remove_sub_owners() {
         .unwrap();
 
     assert!(query_subowners.is_empty());
-}
-
-#[test]
-fn add_external_domains() {
-    let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(7)
-        .build()
-        .unwrap();
-
-    let wasm = Wasm::new(&setup.app);
-
-    let (authorization_contract, _) = store_and_instantiate_authorization_with_processor_contract(
-        &setup.app,
-        &setup.accounts[0],
-        setup.owner_addr.to_string(),
-        vec![],
-    );
-
-    // Owner can add external domains
-    wasm.execute::<ExecuteMsg>(
-        &authorization_contract,
-        &ExecuteMsg::PermissionedAction(PermissionedMsg::AddExternalDomains {
-            external_domains: vec![setup.external_domain.clone()],
-        }),
-        &[],
-        &setup.accounts[0],
-    )
-    .unwrap();
-
-    // Check that it's added
-    let query_external_domains = wasm
-        .query::<QueryMsg, Vec<ExternalDomain>>(
-            &authorization_contract,
-            &QueryMsg::ExternalDomains {
-                start_after: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    assert_eq!(query_external_domains.len(), 1);
-    assert_eq!(query_external_domains[0].name, setup.external_domain.name);
 }
 
 #[test]
@@ -283,7 +241,7 @@ fn create_valid_authorizations() {
     // Let's instantiate with all parameters and query them to see if they are stored correctly
     let (authorization_contract, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
     );
@@ -316,8 +274,11 @@ fn create_valid_authorizations() {
         // This one will mint 5 tokens to subowner_addr
         AuthorizationBuilder::new()
             .with_label("permissioned-limit-authorization")
-            .with_mode(AuthorizationMode::Permissioned(
-                PermissionType::WithCallLimit(vec![(setup.subowner_addr.clone(), Uint128::new(5))]),
+            .with_mode(AuthorizationModeInfo::Permissioned(
+                PermissionTypeInfo::WithCallLimit(vec![(
+                    setup.subowner_addr.to_string(),
+                    Uint128::new(5),
+                )]),
             ))
             .with_duration(AuthorizationDuration::Blocks(100))
             .with_max_concurrent_executions(4)
@@ -372,10 +333,10 @@ fn create_valid_authorizations() {
         // This one will mint 1 token to subowner_addr and 1 token to user_addr
         AuthorizationBuilder::new()
             .with_label("permissioned-without-limit-authorization")
-            .with_mode(AuthorizationMode::Permissioned(
-                PermissionType::WithoutCallLimit(vec![
-                    setup.subowner_addr.clone(),
-                    setup.user_addr.clone(),
+            .with_mode(AuthorizationModeInfo::Permissioned(
+                PermissionTypeInfo::WithoutCallLimit(vec![
+                    setup.subowner_addr.to_string(),
+                    setup.user_accounts[0].address(),
                 ]),
             ))
             .with_duration(AuthorizationDuration::Seconds(50000000))
@@ -428,7 +389,7 @@ fn create_valid_authorizations() {
                 authorizations: valid_authorizations.clone(),
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -445,7 +406,7 @@ fn create_valid_authorizations() {
             authorizations: vec![valid_authorizations[0].clone()],
         }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -458,7 +419,7 @@ fn create_valid_authorizations() {
             ],
         }),
         &[],
-        &setup.accounts[1],
+        &setup.owner_accounts[1],
     )
     .unwrap();
 
@@ -505,7 +466,7 @@ fn create_valid_authorizations() {
 
     let user_balance = bank
         .query_all_balances(&QueryAllBalancesRequest {
-            address: setup.user_addr.to_string(),
+            address: setup.user_accounts[0].address(),
             pagination: None,
             resolve_denom: false,
         })
@@ -539,7 +500,7 @@ fn create_valid_authorizations() {
                 authorizations: valid_authorizations,
             }),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap_err();
 
@@ -561,7 +522,7 @@ fn create_invalid_authorizations() {
     // Let's instantiate with all parameters and query them to see if they are stored correctly
     let (authorization_contract, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
         setup.owner_addr.to_string(),
         vec![],
     );
@@ -602,21 +563,6 @@ fn create_invalid_authorizations() {
             AuthorizationBuilder::new()
                 .with_actions_config(
                     AtomicActionsConfigBuilder::new()
-                        .with_action(AtomicActionBuilder::new().with_domain(Domain::Main).build())
-                        .with_action(
-                            AtomicActionBuilder::new()
-                                .with_domain(Domain::External("osmosis".to_string()))
-                                .build(),
-                        )
-                        .build(),
-                )
-                .build(),
-            ContractError::Authorization(AuthorizationErrorReason::DifferentActionDomains {}),
-        ),
-        (
-            AuthorizationBuilder::new()
-                .with_actions_config(
-                    AtomicActionsConfigBuilder::new()
                         .with_action(AtomicActionBuilder::new().build())
                         .build(),
                 )
@@ -636,7 +582,7 @@ fn create_invalid_authorizations() {
                     authorizations: vec![authorization],
                 }),
                 &[],
-                &setup.accounts[0],
+                &setup.owner_accounts[0],
             )
             .unwrap_err();
 
@@ -654,14 +600,14 @@ fn modify_authorization() {
 
     let (authorization_contract, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
     );
 
     let authorization = AuthorizationBuilder::new()
-        .with_mode(AuthorizationMode::Permissioned(
-            PermissionType::WithoutCallLimit(vec![setup.user_addr]),
+        .with_mode(AuthorizationModeInfo::Permissioned(
+            PermissionTypeInfo::WithoutCallLimit(vec![setup.user_accounts[0].address()]),
         ))
         .with_actions_config(
             AtomicActionsConfigBuilder::new()
@@ -677,7 +623,7 @@ fn modify_authorization() {
             authorizations: vec![authorization.clone()],
         }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -692,7 +638,7 @@ fn modify_authorization() {
             priority: None,
         }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -720,7 +666,7 @@ fn modify_authorization() {
             priority: Some(Priority::High),
         }),
         &[],
-        &setup.accounts[1],
+        &setup.owner_accounts[1],
     )
     .unwrap();
 
@@ -750,7 +696,7 @@ fn modify_authorization() {
                 priority: Some(Priority::Medium),
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -772,7 +718,7 @@ fn modify_authorization() {
                 priority: Some(Priority::Medium),
             }),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap_err();
 
@@ -791,7 +737,7 @@ fn modify_authorization() {
             label: "authorization".to_string(),
         }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -815,7 +761,7 @@ fn modify_authorization() {
             label: "authorization".to_string(),
         }),
         &[],
-        &setup.accounts[1],
+        &setup.owner_accounts[1],
     )
     .unwrap();
 
@@ -840,7 +786,7 @@ fn modify_authorization() {
                 label: "authorization".to_string(),
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -854,19 +800,19 @@ fn modify_authorization() {
 #[test]
 fn mint_authorizations() {
     let setup = NeutronTestAppBuilder::new()
-        .with_num_accounts(6)
+        .with_num_accounts(4)
         .build()
         .unwrap();
 
     let wasm = Wasm::new(&setup.app);
     let bank = Bank::new(&setup.app);
 
-    let user2 = &setup.accounts[5];
+    let user2 = &setup.user_accounts[1];
     let user2_addr = Addr::unchecked(user2.address());
 
     let (authorization_contract, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
     );
@@ -882,8 +828,11 @@ fn mint_authorizations() {
             .build(),
         AuthorizationBuilder::new()
             .with_label("permissioned-limit")
-            .with_mode(AuthorizationMode::Permissioned(
-                PermissionType::WithCallLimit(vec![(setup.user_addr.clone(), Uint128::new(10))]),
+            .with_mode(AuthorizationModeInfo::Permissioned(
+                PermissionTypeInfo::WithCallLimit(vec![(
+                    setup.user_accounts[0].address(),
+                    Uint128::new(10),
+                )]),
             ))
             .with_duration(AuthorizationDuration::Blocks(50000))
             .with_max_concurrent_executions(4)
@@ -900,7 +849,7 @@ fn mint_authorizations() {
         &authorization_contract,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -911,12 +860,12 @@ fn mint_authorizations() {
             &ExecuteMsg::PermissionedAction(PermissionedMsg::MintAuthorizations {
                 label: "permissionless".to_string(),
                 mints: vec![Mint {
-                    address: setup.user_addr.clone(),
+                    address: setup.user_accounts[0].address(),
                     amount: Uint128::new(1),
                 }],
             }),
             &[],
-            &setup.accounts[1],
+            &setup.owner_accounts[1],
         )
         .unwrap_err();
 
@@ -932,7 +881,7 @@ fn mint_authorizations() {
 
     let user1_balance_before = bank
         .query_balance(&QueryBalanceRequest {
-            address: setup.user_addr.to_string(),
+            address: setup.user_accounts[0].address(),
             denom: tokenfactory_denom_permissioned_limit.clone(),
         })
         .unwrap();
@@ -955,24 +904,24 @@ fn mint_authorizations() {
             label: "permissioned-limit".to_string(),
             mints: vec![
                 Mint {
-                    address: setup.user_addr.clone(),
+                    address: setup.user_accounts[0].address(),
                     amount: Uint128::new(1),
                 },
                 Mint {
-                    address: user2_addr.clone(),
+                    address: user2_addr.to_string(),
                     amount: Uint128::new(5),
                 },
             ],
         }),
         &[],
-        &setup.accounts[1],
+        &setup.owner_accounts[1],
     )
     .unwrap();
 
     // Check balances after minting
     let user1_balance_after = bank
         .query_balance(&QueryBalanceRequest {
-            address: setup.user_addr.to_string(),
+            address: setup.user_accounts[0].address(),
             denom: tokenfactory_denom_permissioned_limit.clone(),
         })
         .unwrap();
@@ -996,12 +945,12 @@ fn mint_authorizations() {
             &ExecuteMsg::PermissionedAction(PermissionedMsg::MintAuthorizations {
                 label: "permissioned-limit".to_string(),
                 mints: vec![Mint {
-                    address: setup.user_addr.clone(),
+                    address: setup.user_accounts[0].address(),
                     amount: Uint128::new(1),
                 }],
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -1021,7 +970,7 @@ fn pausing_and_resuming_processor() {
     let (authorization_contract, processor_contract) =
         store_and_instantiate_authorization_with_processor_contract(
             &setup.app,
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
             setup.owner_addr.to_string(),
             vec![],
         );
@@ -1033,7 +982,7 @@ fn pausing_and_resuming_processor() {
             domain: Domain::Main,
         }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -1043,7 +992,7 @@ fn pausing_and_resuming_processor() {
             &processor_contract,
             &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap_err();
 
@@ -1060,7 +1009,7 @@ fn pausing_and_resuming_processor() {
             domain: Domain::Main,
         }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -1070,7 +1019,7 @@ fn pausing_and_resuming_processor() {
             &processor_contract,
             &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
             &[],
-            &setup.accounts[0],
+            &setup.owner_accounts[0],
         )
         .unwrap_err();
 

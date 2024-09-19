@@ -1,4 +1,5 @@
 name: build and test
+
 on:
   push:
     branches: [main]
@@ -9,20 +10,99 @@ env:
   RUSTFLAGS: "-Dwarnings"
 
 jobs:
-  check:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
+
       - name: Run clippy
         run: cargo clippy --all-targets --verbose -- -D warnings
+
       - name: Optimize contracts
         run: |
           docker run --user $(id -u):$(id -g) --rm \
           -v .:/code -v ./target:/target \
           -v ./target:/usr/local/cargo/registry cosmwasm/optimizer:0.16.0
+
+      - name: List artifact contents
+        run: ls -l ./artifacts
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: optimized-contracts
+          path: ./artifacts/*.wasm
+          if-no-files-found: error
+
+  tests:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get cargo
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: optimized-contracts
+          path: ./artifacts
+
+      - name: List downloaded files
+        run: ls -l ./artifacts
+
       - name: Run tests
         run: cargo test --verbose
         env:
           RUST_BACKTRACE: 1
+#
+#local-ic-polytone:
+#  needs: build
+#  name: Authorization-Processor polytone integration test
+#  runs-on: ubuntu-latest
+#  steps:
+#    - name: Checkout
+#      uses: actions/checkout@v4
+#
+#    - name: Set up Go
+#      uses: actions/setup-go@v4
+#      with:
+#        go-version: ${{ env.GO_VERSION }}
+#
+#    - name: Install local-ic
+#      run: git clone https://github.com/strangelove-ventures/interchaintest && cd interchaintest/local-interchain && make install
+#
+#    - name: Get cargo
+#      uses: actions-rs/toolchain@v1
+#      with:
+#        toolchain: stable
+#
+#    - name: Download artifacts
+#      uses: actions/download-artifact@v3
+#      with:
+#        name: optimized-contracts
+#        path: ./artifacts
+#
+#    - name: List downloaded files
+#      run: ls -l ./artifacts
+#
+#    - name: Start local-ic and wait for it to be ready
+#      run: |
+#        cd local-interchaintest
+#        local-ic start neutron_juno --api-port 42069 &
+#        curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
+#
+#    - name: Run polytone example
+#      env:
+#        RUST_LOG: debug
+#      run: cargo run --package local-interchaintest --example polytone
+#
+#    - name: Cleanup
+#      run: killall local-ic && exit 0
+#
