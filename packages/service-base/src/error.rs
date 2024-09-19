@@ -10,11 +10,14 @@ pub enum ServiceError {
     #[error(transparent)]
     OwnershipError(#[from] OwnershipError),
 
+    #[error("Unauthorized: {0}")]
+    Unauthorized(#[from] UnauthorizedReason),
+
     #[error("Configuration error: {0}")]
     ConfigurationError(String),
 
-    #[error("Unauthorized: {0}")]
-    Unauthorized(#[from] UnauthorizedReason),
+    #[error("Execution error: {0}")]
+    ExecutionError(String),
 }
 
 #[derive(Error, Debug, PartialEq)]

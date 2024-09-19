@@ -12,7 +12,7 @@ pub mod msg;
 pub mod state;
 
 pub use crate::error::ServiceError;
-pub use crate::state::{get_processor, load_config, save_config};
+pub use crate::state::{get_ownership, get_processor, load_config, save_config};
 
 pub fn instantiate<T, U>(
     deps: DepsMut,

@@ -13,3 +13,4 @@ cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true }
 serde           = { workspace = true }
 serde_json      = { workspace = true }
+cw-denom        = { workspace = true }

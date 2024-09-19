@@ -1,10 +1,12 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut, Uint128};
-use cw_denom::{CheckedDenom, DenomError, UncheckedDenom};
 use cw_utils::Duration;
 use getset::{Getters, Setters};
 use service_base::{msg::ServiceConfigValidation, ServiceError};
-use service_utils::{ServiceAccountType, ServiceConfigInterface};
+use service_utils::{
+    denoms::{CheckedDenom, DenomError, UncheckedDenom},
+    ServiceConfigInterface,
+};
 use std::collections::HashMap;
 use valence_macros::OptionalStruct;
 
@@ -54,11 +56,9 @@ pub struct ForwardingConstraints {
     min_interval: Option<Duration>,
 }
 
-impl From<Duration> for ForwardingConstraints {
-    fn from(min_interval: Duration) -> Self {
-        ForwardingConstraints {
-            min_interval: Some(min_interval),
-        }
+impl ForwardingConstraints {
+    pub fn new(min_interval: Option<Duration>) -> Self {
+        ForwardingConstraints { min_interval }
     }
 }
 
@@ -80,7 +80,7 @@ impl From<(UncheckedDenom, u128)> for UncheckedForwardingConfig {
 #[cw_serde]
 #[derive(OptionalStruct)]
 pub struct ServiceConfig {
-    pub input_addr: ServiceAccountType,
+    pub input_addr: String,
     pub output_addr: String,
     pub forwarding_configs: Vec<UncheckedForwardingConfig>,
     pub forwarding_constraints: ForwardingConstraints,
@@ -88,7 +88,7 @@ pub struct ServiceConfig {
 
 impl ServiceConfig {
     pub fn new(
-        input_addr: ServiceAccountType,
+        input_addr: String,
         output_addr: String,
         forwarding_configs: Vec<UncheckedForwardingConfig>,
         forwarding_constraints: ForwardingConstraints,
@@ -134,7 +134,7 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
         }
 
         Ok(Config {
-            input_addr: self.input_addr.to_addr(deps)?,
+            input_addr: deps.api.addr_validate(&self.input_addr)?,
             output_addr: deps.api.addr_validate(&self.output_addr)?,
             forwarding_configs: checked_fwd_configs,
             forwarding_constraints: self.forwarding_constraints.clone(),

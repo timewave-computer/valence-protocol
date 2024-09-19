@@ -1,5 +1,9 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Deps, StdError, StdResult};
+use cosmwasm_std::{to_json_binary, Addr, CosmosMsg, Deps, StdError, StdResult, WasmMsg};
+
+pub mod denoms {
+    pub use cw_denom::{CheckedDenom, DenomError, UncheckedDenom};
+}
 
 pub type Id = u64;
 
@@ -44,4 +48,17 @@ impl ServiceAccountType {
             }
         }
     }
+}
+
+#[cw_serde]
+pub enum ExecuteMsg {
+    ExecuteMsg { msgs: Vec<CosmosMsg> }, // Execute any CosmosMsg (approved services or admin)
+}
+
+pub fn execute_on_behalf_of(msgs: Vec<CosmosMsg>, account: &Addr) -> StdResult<CosmosMsg> {
+    Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: account.to_string(),
+        msg: to_json_binary(&ExecuteMsg::ExecuteMsg { msgs })?,
+        funds: vec![],
+    }))
 }

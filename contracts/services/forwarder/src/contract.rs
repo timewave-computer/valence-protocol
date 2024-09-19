@@ -40,9 +40,9 @@ pub fn execute(
 }
 
 mod actions {
-    use base_account::msg::execute_on_behalf_of;
-    use cosmwasm_std::{CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError, StdResult};
+    use cosmwasm_std::{CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult};
     use service_base::ServiceError;
+    use service_utils::execute_on_behalf_of;
 
     use crate::{
         msg::{ActionsMsgs, Config},
@@ -61,7 +61,7 @@ mod actions {
                 ensure_forwarding_interval(&cfg, &deps, &env)?;
 
                 // Determine the amount to transfer for each denom
-                let coins_to_transfer: Vec<_> = cfg
+                let coins_to_transfer = cfg
                     .forwarding_configs()
                     .iter()
                     .filter_map(|fwd_cfg| {
@@ -76,7 +76,7 @@ mod actions {
                                 (amount, fwd_cfg.denom())
                             })
                     })
-                    .collect();
+                    .collect::<Vec<_>>();
 
                 // Prepare messages to send the coins to the output account
                 let transfer_messages = coins_to_transfer
@@ -85,8 +85,7 @@ mod actions {
                     .collect::<StdResult<Vec<CosmosMsg>>>()?;
 
                 // Wrap the transfer messages to be executed on behalf of the input account
-                let input_account_msgs =
-                    execute_on_behalf_of(transfer_messages, &cfg.input_addr().clone().into())?;
+                let input_account_msgs = execute_on_behalf_of(transfer_messages, cfg.input_addr())?;
 
                 // Save last successful forward
                 LAST_SUCCESSFUL_FORWARD.save(deps.storage, &env.block)?;
@@ -114,9 +113,9 @@ mod actions {
                     .after(&last_successful_forward)
                     .is_expired(&env.block)
                 {
-                    return Err(ServiceError::Std(StdError::generic_err(
-                        "Forwarding constraint not met",
-                    )));
+                    return Err(ServiceError::ExecutionError(
+                        "Forwarding constraint not met.".to_string(),
+                    ));
                 }
             }
         };
@@ -144,7 +143,7 @@ mod execute {
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetOwner {} => to_json_binary(&cw_ownable::get_ownership(deps.storage)?),
+        QueryMsg::GetOwner {} => to_json_binary(&service_base::get_ownership(deps.storage)?),
         QueryMsg::GetProcessor {} => to_json_binary(&service_base::get_processor(deps.storage)?),
         QueryMsg::GetServiceConfig {} => {
             let config: Config = service_base::load_config(deps.storage)?;
