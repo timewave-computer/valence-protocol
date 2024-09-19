@@ -9,7 +9,7 @@ use crate::{
     domain::Domain,
     error::{ManagerError, ManagerResult},
     service::ServiceInfo,
-    MAIN_CHAIN, MAIN_DOMAIN,
+    MAIN_CHAIN, MAIN_DOMAIN, NEUTRON_DOMAIN,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -22,8 +22,47 @@ pub struct Link {
     pub service_id: Id,
 }
 
+/// This struct holds all the data regarding our authorization and processor
+/// contracts and bridge accounts
+#[derive(Clone, Debug, Default)]
+pub struct AuthorizationData {
+    /// authorization contract address on neutron
+    pub authorization_addr: String,
+    /// List of processor addresses by domain
+    /// Key: domain name | Value: processor address
+    pub processor_addrs: BTreeMap<String, String>,
+    /// List of authorization bridge addresses by domain
+    /// The addresses are on the specified domain
+    /// Key: domain name | Value: authorization bridge address on that domain
+    pub authorization_bridge_addrs: BTreeMap<String, String>,
+    /// List of processor bridge addresses by domain
+    /// All addresses are on nuetron, mapping to what domain this bridge account is for
+    /// Key: domain name | Value: processor bridge address on that domain
+    pub processor_bridge_addrs: BTreeMap<String, String>,
+}
+
+impl AuthorizationData {
+    pub fn set_authorization_addr(&mut self, addr: String) {
+        self.authorization_addr = addr;
+    }
+
+    pub fn set_processor_addr(&mut self, domain: String, addr: String) {
+        self.processor_addrs.insert(domain, addr);
+    }
+
+    pub fn set_authorization_bridge_addr(&mut self, domain: String, addr: String) {
+        self.authorization_bridge_addrs.insert(domain, addr);
+    }
+
+    pub fn set_processor_bridge_addr(&mut self, domain: String, addr: String) {
+        self.processor_bridge_addrs.insert(domain, addr);
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct WorkflowConfig {
+    // This is the id of the workflow
+    pub id: u64,
     pub owner: String,
     /// A list of links between an accounts and services
     pub links: BTreeMap<Id, Link>,
@@ -31,18 +70,25 @@ pub struct WorkflowConfig {
     pub authorizations: BTreeMap<Id, AuthorizationInfo>,
     /// The list account data by id
     pub accounts: BTreeMap<Id, AccountInfo>,
-    // /// The list service data by id
+    /// The list service data by id
     pub services: BTreeMap<Id, ServiceInfo>,
+    /// This is the info regarding authorization andp rocessor contracts.
+    /// Must be empty (Default) when a new workflow is instantiated.
+    /// It gets populated when the workflow is instantiated.
+    pub authorization_data: AuthorizationData,
 }
 
 impl WorkflowConfig {
     /// Instantiate a workflow on all domains.
-    pub async fn init(&mut self) -> ManagerResult<()> {
-        let connectors = Connectors::default();
-
-        // TODO: Get workflow next id from on chain workflow registry
-
+    pub async fn init(&mut self, connectors: &Connectors) -> ManagerResult<()> {
         // TODO: We probably want to verify the whole workflow config first, before doing any operations
+
+        // We create the neutron connector specifically because our registry is on neutron.
+        let mut neutron_connector = connectors.get_or_create_connector(&NEUTRON_DOMAIN).await?;
+
+        // Get workflow next id from on chain workflow registry
+        let workflow_id = neutron_connector.reserve_workflow_id().await?;
+        self.id = workflow_id;
 
         // Instantiate the authorization module contracts.
         let all_domains = self.get_all_domains();
@@ -50,33 +96,34 @@ impl WorkflowConfig {
         // Instantiate our autorization and processor contracts on the main domain
         let mut main_connector = connectors.get_or_create_connector(&MAIN_DOMAIN).await?;
         let (authorization_addr, authorization_salt) = main_connector
-            .get_address(&0, "authorization", "authorization")
+            .get_address(workflow_id, "authorization", "authorization")
             .await?;
         let (main_processor_addr, main_processor_salt) = main_connector
-            .get_address(&0, "processor", "processor")
+            .get_address(workflow_id, "processor", "processor")
             .await?;
 
         main_connector
-            .instantiate_authorization(
-                1, //TODO: change this to workflow id
-                authorization_salt,
-                main_processor_addr,
-            )
+            .instantiate_authorization(workflow_id, authorization_salt, main_processor_addr.clone())
             .await?;
 
         main_connector
             .instantiate_processor(
-                1, //TODO: change this to workflow id
+                workflow_id,
                 main_processor_salt,
                 authorization_addr.clone(),
                 None,
             )
             .await?;
 
+        self.authorization_data
+            .set_authorization_addr(authorization_addr.clone());
+        self.authorization_data
+            .set_processor_addr(MAIN_DOMAIN.to_string(), main_processor_addr);
+
         // init processors and bridge accounts on all other domains
         // For mainnet we need to instantiate a bridge account for each processor instantiated on other domains
         // For other domains, we need to instantiate a bridge account on the main domain for the authorization contract
-        for (id, domain) in all_domains.iter().enumerate() {
+        for domain in all_domains.iter() {
             if domain != &MAIN_DOMAIN {
                 let mut connector = connectors.get_or_create_connector(domain).await?;
 
@@ -92,12 +139,17 @@ impl WorkflowConfig {
 
                 // Get the processor address on the other domain
                 let (processor_addr, salt) = connector
-                    .get_address(&(id as u64), "processor", "processor")
+                    .get_address(workflow_id, "processor", "processor")
                     .await?;
 
                 // Instantiate the processor on the other domain, the admin is the bridge account address of the authorization contract
                 connector
-                    .instantiate_processor(id as u64, salt, authorization_bridge_account_addr, None)
+                    .instantiate_processor(
+                        workflow_id,
+                        salt,
+                        authorization_bridge_account_addr.clone(),
+                        None,
+                    )
                     .await?;
 
                 // Get the processor bridge account address on main domain
@@ -111,25 +163,54 @@ impl WorkflowConfig {
                     .await?;
 
                 // construct and add the `ExternalDomain` info to the authorization contract
+                // Adding external domain to the authorization contract will create the bridge account on that domain
                 main_connector
                     .add_external_domain(
                         MAIN_CHAIN,
                         domain.get_chain_name(),
                         authorization_addr.clone(),
                         processor_addr.clone(),
-                        processor_bridge_account_addr,
+                        processor_bridge_account_addr.clone(),
                     )
                     .await?;
 
-                // Adding external domain to the authorization contract will create the bridge account on that domain
-                // But we still need to create the processor bridge account on main domain.
-                // The processor will create the bridge account on instantiation, but we still need to verify the account was created
-                // and if it wasn't, we want to retry couple of times before erroring out.
-                connector
-                    .instantiate_processor_bridge_account(processor_addr, 5)
+                // Instantiate the authorization bridge account on main connector to external domain
+                // in polytone and because its IBC, we basically verify this account was created or retry if it wasn't.
+                main_connector
+                    .instantiate_authorization_bridge_account(
+                        authorization_addr.clone(),
+                        domain.get_chain_name().to_string(),
+                        3,
+                    )
                     .await?;
+
+                // The processor will create the bridge account on instantiation, but we still need to verify the account was created
+                // and if it wasn't, we want to retry a couple of times before erroring out.
+                connector
+                    .instantiate_processor_bridge_account(processor_addr.clone(), 3)
+                    .await?;
+
+                // Add processor address to list of processor by domain
+                self.authorization_data
+                    .set_processor_addr(domain.get_chain_name().to_string(), processor_addr);
+
+                // Add authorization bridge account info by domain
+                self.authorization_data.set_authorization_bridge_addr(
+                    domain.get_chain_name().to_string(),
+                    authorization_bridge_account_addr,
+                );
+
+                // Add processor bridge account info by domain
+                self.authorization_data.set_processor_bridge_addr(
+                    domain.get_chain_name().to_string(),
+                    processor_bridge_account_addr,
+                );
             };
         }
+
+        // TODO: Discuss if we want to separate the bridge account instantiation from contract creation.
+        // The main benefit of this is that it will give some time for the async operation to complete
+        // but if the creation fails, it means we continued the workflow instantiatoin for no reason.
 
         // Predict account addresses and get the instantiate datas for each account
         let mut account_instantiate_datas: HashMap<u64, InstantiateAccountData> = HashMap::new();
@@ -141,13 +222,17 @@ impl WorkflowConfig {
                 // and how we can update its approved services list.
                 // We can also assume the initier knows what he is doing, and will adjust those accounts manually.
                 // We can also output what the needed operations to adjust it,
-                // similar to what we what we will do on workflow update
+                // similar to what we will do on workflow update
                 continue;
             }
 
             let mut domain_connector = connectors.get_or_create_connector(&account.domain).await?;
             let (addr, salt) = domain_connector
-                .get_address(account_id, &account.ty.to_string(), "account")
+                .get_address(
+                    workflow_id,
+                    &account.ty.to_string(),
+                    format!("account_{}", account_id).as_str(),
+                )
                 .await?;
 
             account_instantiate_datas.insert(
@@ -167,7 +252,11 @@ impl WorkflowConfig {
 
             let mut domain_connector = connectors.get_or_create_connector(&service.domain).await?;
             let (service_addr, salt) = domain_connector
-                .get_address(&link.service_id, &service.config.to_string(), "service")
+                .get_address(
+                    workflow_id,
+                    &service.config.to_string(),
+                    format!("service_{}", link_id).as_str(),
+                )
                 .await?;
 
             let mut patterns =
@@ -220,6 +309,7 @@ impl WorkflowConfig {
             .change_authorization_owner(authorization_addr, self.owner.clone())
             .await?;
 
+        // TODO: Verify the workflow is complete and everything is instantiatied correctly
         Ok(())
     }
 }

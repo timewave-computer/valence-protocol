@@ -31,6 +31,7 @@ pub struct Config {
     pub chains: HashMap<String, ChainInfo>,
     pub contracts: Contracts,
     pub bridges: HashMap<String, HashMap<String, Bridge>>,
+    pub general: GeneralConfig,
 }
 
 impl Default for Config {
@@ -83,6 +84,11 @@ pub struct ChainInfo {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct GeneralConfig {
+    pub registry_addr: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct Contracts {
     pub code_ids: HashMap<String, HashMap<String, u64>>,
 }
@@ -107,5 +113,9 @@ impl Config {
             .ok_or(ConfigError::MainChainBridgeNotFound(main_chain.to_string()))?
             .get(chain_name)
             .ok_or(ConfigError::ChainBridgeNotFound(chain_name.to_string()))
+    }
+
+    pub fn get_registry_addr(&self) -> String {
+        self.general.registry_addr.to_string()
     }
 }

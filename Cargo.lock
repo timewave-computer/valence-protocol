@@ -5165,6 +5165,8 @@ dependencies = [
  "valence-service-base",
  "valence-service-utils",
  "valence-splitter",
+ "valence-workflow-registry",
+ "valence-workflow-registry-utils",
 ]
 
 [[package]]

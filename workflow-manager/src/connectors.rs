@@ -12,7 +12,7 @@ pub struct Connectors {
 
 impl Connectors {
     /// Get the domain from ctx if exists
-    /// otherwise it gets a new domain info and save it in context
+    /// otherwise it gets a new domain connector and save it in cache
     pub async fn get_or_create_connector(
         &self,
         domain: &Domain,
@@ -25,7 +25,7 @@ impl Connectors {
         self.connectors
             .get_mut(domain)
             .ok_or(ManagerError::generic_err(
-                "Failed to get connector from context",
+                "Failed to get connector from cache",
             ))
     }
 }
