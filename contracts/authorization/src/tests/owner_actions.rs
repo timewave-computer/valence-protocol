@@ -108,16 +108,8 @@ fn transfer_ownership() {
     )
     .unwrap();
 
-    // New owner is going to accept the ownership
-    wasm.execute::<ExecuteMsg>(
-        &authorization_contract,
-        &ExecuteMsg::UpdateOwnership(cw_ownable::Action::AcceptOwnership {}),
-        &[],
-        new_owner,
-    )
-    .unwrap();
-
-    // Check owner has been transfered
+    // Since it's the first time ownership is transferred, there's no need to accept it.
+    // Check owner has been transferred
     let query_owner = wasm
         .query::<QueryMsg, cw_ownable::Ownership<String>>(
             &authorization_contract,
@@ -127,17 +119,50 @@ fn transfer_ownership() {
 
     assert_eq!(query_owner.owner.unwrap(), new_owner.address().to_string());
 
-    // Trying to transfer ownership again should fail because the old owner is not the owner anymore
-    // Try transfering from old owner again, should fail
+    // Transfering it again will require accepting it, so let's transfer it back and check
+    wasm.execute::<ExecuteMsg>(
+        &authorization_contract,
+        &ExecuteMsg::UpdateOwnership(cw_ownable::Action::TransferOwnership {
+            new_owner: setup.owner_accounts[0].address(),
+            expiry: None,
+        }),
+        &[],
+        &setup.user_accounts[1],
+    )
+    .unwrap();
+
+    // New owner is going to accept the ownership
+    wasm.execute::<ExecuteMsg>(
+        &authorization_contract,
+        &ExecuteMsg::UpdateOwnership(cw_ownable::Action::AcceptOwnership {}),
+        &[],
+        &setup.owner_accounts[0],
+    )
+    .unwrap();
+
+    // Verify it has been transferred back
+    let query_owner = wasm
+        .query::<QueryMsg, cw_ownable::Ownership<String>>(
+            &authorization_contract,
+            &QueryMsg::Ownership {},
+        )
+        .unwrap();
+
+    assert_eq!(
+        query_owner.owner.unwrap(),
+        setup.owner_accounts[0].address()
+    );
+
+    // Trying to transfer ownership again should fail because the previous owner is not the owner anymore
     let transfer_error = wasm
         .execute::<ExecuteMsg>(
             &authorization_contract,
             &ExecuteMsg::UpdateOwnership(cw_ownable::Action::TransferOwnership {
-                new_owner: new_owner.address(),
+                new_owner: setup.owner_accounts[0].address(),
                 expiry: None,
             }),
             &[],
-            &setup.owner_accounts[0],
+            &setup.user_accounts[1],
         )
         .unwrap_err();
 
