@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 use service_utils::Id;
@@ -324,8 +324,11 @@ impl WorkflowConfig {
 
     /// Verify the config is correct and are not missing any data
     fn verify_new_config(&mut self) -> ManagerResult<()> {
-        // Verify id is 0, new configs should not have id
+        // Verify id is 0, new configs should not have an id
         ensure!(self.id == 0, ManagerError::IdNotZero);
+
+        // Verify owner is not empty
+        ensure!(!self.owner.is_empty(), ManagerError::OwnerEmpty);
 
         // make sure config authorization data is empty,
         // in new configs, this data should be set to default as it is getting populated
@@ -335,8 +338,77 @@ impl WorkflowConfig {
             ManagerError::AuthorizationDataNotDefault
         );
 
-        // TODO: Verify links have all accounts and services include from the list.
-        // TODO: Verify all accounts are referenced in service config at least once (or else we have unused account)
+        // Verify authorizations is not empty
+        ensure!(
+            !self.authorizations.is_empty(),
+            ManagerError::NoAuthorizations
+        );
+
+        // Get all services and accounts ids that exists in links
+        let mut services: BTreeSet<Id> = BTreeSet::new();
+        let mut accounts: BTreeSet<Id> = BTreeSet::new();
+
+        for (_, link) in self.links.iter() {
+            for account_id in link.input_accounts_id.iter() {
+                accounts.insert(*account_id);
+            }
+
+            for account_id in link.output_accounts_id.iter() {
+                accounts.insert(*account_id);
+            }
+
+            services.insert(link.service_id);
+        }
+
+        // Verify all accounts are referenced in links at least once
+        for account_id in self.accounts.keys() {
+            if !accounts.remove(account_id) {
+                return Err(ManagerError::AccountIdNotFoundInLinks(*account_id));
+            }
+        }
+
+        // Verify accounts is empty, if its not, it means we have a link with an account id that doesn't exists
+        ensure!(
+            accounts.is_empty(),
+            ManagerError::AccountIdNotFoundLink(accounts)
+        );
+
+        // Verify all services are referenced in links at least once
+        for service_id in self.services.keys() {
+            if !services.remove(service_id) {
+                return Err(ManagerError::ServiceIdNotFoundInLinks(*service_id));
+            }
+        }
+
+        // Verify services is empty, if its not, it means we have a link with a service id that doesn't exists
+        ensure!(
+            services.is_empty(),
+            ManagerError::ServiceIdNotFoundLink(services)
+        );
+
+        // Verify all accounts are referenced in service config at least once (or else we have unused account)
+        // accounts should be empty here
+        for service in self.services.values() {
+            accounts.extend(service.config.get_account_ids()?);
+        }
+
+        // we remove each account if we found
+        // if account id was not removed, it means we didn't find it in any service config
+        for account_id in self.accounts.keys() {
+            if !accounts.remove(account_id) {
+                return Err(ManagerError::AccountIdNotFoundInServices(*account_id));
+            }
+        }
+
+        ensure!(
+            accounts.is_empty(),
+            ManagerError::AccountIdNotFoundServiceConfig(accounts)
+        );
+
+        // TODO: Run the validate (soft_validate) method on each service config
+        for _service in self.services.values() {
+            // service.config.soft_validate()?;
+        }
 
         Ok(())
     }

@@ -1,9 +1,11 @@
+use std::num::ParseIntError;
+
 use aho_corasick::AhoCorasick;
 
 use serde::{Deserialize, Serialize};
 use serde_json::to_vec;
 use service_base::msg::InstantiateMsg;
-use service_utils::ServiceConfigInterface;
+use service_utils::{Id, ServiceConfigInterface};
 use thiserror::Error;
 use valence_reverse_splitter::msg::ServiceConfig as ReverseSplitterServiceConfig;
 use valence_splitter::msg::ServiceConfig as SplitterServiceConfig;
@@ -19,6 +21,9 @@ pub enum ServiceError {
 
     #[error("serde_json Error: {0}")]
     SerdeJsonError(#[from] serde_json::Error),
+
+    #[error("ParseIntError Error: {0}")]
+    ParseIntError(#[from] ParseIntError),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -135,5 +140,34 @@ impl ServiceConfig {
             }),
         }
         .map_err(ServiceError::SerdeJsonError)
+    }
+
+    pub fn get_account_ids(&self) -> ServiceResult<Vec<Id>> {
+        let ac: AhoCorasick = AhoCorasick::new(["\"|account_id|\":"]).unwrap();
+
+        match self {
+            ServiceConfig::Splitter(config) => {
+                Self::find_account_ids(ac, serde_json::to_string(&config)?)
+            }
+            ServiceConfig::ReverseSplitter(config) => {
+                Self::find_account_ids(ac, serde_json::to_string(&config)?)
+            }
+        }
+    }
+
+    fn find_account_ids(ac: AhoCorasick, json: String) -> ServiceResult<Vec<Id>> {
+        let res = ac.find_iter(&json);
+        let mut account_ids = vec![];
+
+        for mat in res {
+            let number = json[mat.end()..mat.end() + 5]
+                .chars()
+                .map_while(|char| if char.is_numeric() { Some(char) } else { None })
+                .collect::<String>()
+                .parse::<Id>()?;
+            account_ids.push(number);
+        }
+
+        Ok(account_ids)
     }
 }

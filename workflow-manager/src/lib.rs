@@ -4,10 +4,10 @@ pub mod config;
 pub mod connectors;
 pub mod domain;
 pub mod error;
+pub mod macros;
 pub mod service;
 pub mod tests;
 pub mod workflow_config;
-pub mod macros;
 
 use connectors::Connectors;
 use domain::Domain;
