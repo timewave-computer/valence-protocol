@@ -65,8 +65,7 @@ pub enum ServiceConfig {
 }
 
 // TODO: create macro for the methods that work the same over all of the configs
-
-// We are deligating a lot of the methods to the specific config, so most of the methods can be under the macro
+// We are delegating a lot of the methods to the specific config, so most of the methods can be under the macro
 impl ServiceConfig {
     pub fn is_diff(&self, other: &ServiceConfig) -> bool {
         match (self, other) {
@@ -181,13 +180,10 @@ impl ServiceConfig {
         // LOist of all matches
         for mat in res {
             // we take a substring from our match to the next 5 characters
-            // we loop over those charactors and see if they are numbers
+            // we loop over those characters and see if they are numbers
             // once we found a char that is not a number we stop
             // we get Vec<char> and convert it to a string and parse to Id (u64)
-            //
-            // this gives our a soft limit of 5 digits for the account id (max=99999)
-            // But if we ever need 99999 in a single workflow, we are doing something crazy.
-            let number = json[mat.end()..mat.end() + 5]
+            let number = json[mat.end()..]
                 .chars()
                 .map_while(|char| if char.is_numeric() { Some(char) } else { None })
                 .collect::<String>()

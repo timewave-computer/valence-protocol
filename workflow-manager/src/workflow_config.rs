@@ -76,7 +76,7 @@ pub struct WorkflowConfig {
     pub accounts: BTreeMap<Id, AccountInfo>,
     /// The list service data by id
     pub services: BTreeMap<Id, ServiceInfo>,
-    /// This is the info regarding authorization andp rocessor contracts.
+    /// This is the info regarding authorization and processor contracts.
     /// Must be empty (Default) when a new workflow is instantiated.
     /// It gets populated when the workflow is instantiated.
     #[serde(default)]
@@ -329,7 +329,7 @@ impl WorkflowConfig {
         // Verify owner is not empty
         ensure!(!self.owner.is_empty(), ManagerError::OwnerEmpty);
 
-        // make sure config authorization data is empty,
+        // Make sure config authorization data is empty,
         // in new configs, this data should be set to default as it is getting populated
         // by the init function.
         ensure!(
@@ -391,7 +391,7 @@ impl WorkflowConfig {
             accounts.extend(service.config.get_account_ids()?);
         }
 
-        // we remove each account if we found
+        // We remove each account if we found
         // if account id was not removed, it means we didn't find it in any service config
         for account_id in self.accounts.keys() {
             if !accounts.remove(account_id) {
