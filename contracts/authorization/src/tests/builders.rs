@@ -48,30 +48,32 @@ impl NeutronTestAppBuilder {
             )
             .map_err(|_| "Failed to initialize accounts")?;
 
-        let owner = &accounts[0];
-        let subowner = &accounts[1];
-        let user = &accounts[2];
+        let mut accounts_iter = accounts.into_iter();
+        let owner_accounts: Vec<SigningAccount> = accounts_iter.by_ref().take(2).collect();
+        let user_accounts: Vec<SigningAccount> = accounts_iter.collect();
+
+        let owner = &owner_accounts[0];
+        let subowner = &owner_accounts[1];
 
         let owner_addr = Addr::unchecked(owner.address());
         let subowner_addr = Addr::unchecked(subowner.address());
-        let user_addr = Addr::unchecked(user.address());
 
         Ok(NeutronTestAppSetup {
             app,
-            accounts,
+            owner_accounts,
+            user_accounts,
             owner_addr,
             subowner_addr,
-            user_addr,
         })
     }
 }
 
 pub struct NeutronTestAppSetup {
     pub app: NeutronTestApp,
-    pub accounts: Vec<SigningAccount>,
+    pub owner_accounts: Vec<SigningAccount>,
+    pub user_accounts: Vec<SigningAccount>,
     pub owner_addr: Addr,
     pub subowner_addr: Addr,
-    pub user_addr: Addr,
 }
 
 pub struct AuthorizationBuilder {

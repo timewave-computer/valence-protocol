@@ -35,7 +35,7 @@ jobs:
         with:
           name: optimized-contracts
           path: ./artifacts/*.wasm
-          if-no-files-found: warn
+          if-no-files-found: error
 
   tests:
     needs: build

@@ -35,7 +35,8 @@ use valence_authorization_utils::{
 };
 use valence_local_interchaintest_utils::{
     polytone::salt_for_proxy, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_JUNO,
-    LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, POLYTONE_PATH,
+    LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, POLYTONE_ARTIFACTS_PATH,
+    VALENCE_ARTIFACTS_PATH,
 };
 use valence_processor_utils::{
     callback::{PendingPolytoneCallbackInfo, PolytoneCallbackState},
@@ -54,7 +55,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut test_ctx = TestContextBuilder::default()
         .with_unwrap_raw_logs(true)
         .with_api_url(LOCAL_IC_API_URL)
-        .with_artifacts_dir("artifacts")
+        .with_artifacts_dir(VALENCE_ARTIFACTS_PATH)
         .with_chain(ConfigChainBuilder::default_neutron().build()?)
         .with_chain(ConfigChainBuilder::default_gaia().build()?)
         .with_chain(ConfigChainBuilder::default_juno().build()?)
@@ -67,12 +68,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Upload all Polytone contracts to both Neutron and Juno
     uploader
-        .send_with_local_cache(POLYTONE_PATH, LOCAL_CODE_ID_CACHE_PATH_NEUTRON)
+        .send_with_local_cache(POLYTONE_ARTIFACTS_PATH, LOCAL_CODE_ID_CACHE_PATH_NEUTRON)
         .unwrap();
 
     uploader
         .with_chain_name(JUNO_CHAIN_NAME)
-        .send_with_local_cache(POLYTONE_PATH, LOCAL_CODE_ID_CACHE_PATH_JUNO)
+        .send_with_local_cache(POLYTONE_ARTIFACTS_PATH, LOCAL_CODE_ID_CACHE_PATH_JUNO)
         .unwrap();
 
     // Upload the authorization contract to Neutron and the processor to both Neutron and Juno

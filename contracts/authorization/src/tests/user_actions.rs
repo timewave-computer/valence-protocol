@@ -1,6 +1,6 @@
 use cosmwasm_std::{Binary, Timestamp, Uint128};
 use cw_utils::Expiration;
-use neutron_test_tube::{neutron_std::types::cosmos::base::v1beta1::Coin, Module, Wasm};
+use neutron_test_tube::{neutron_std::types::cosmos::base::v1beta1::Coin, Account, Module, Wasm};
 use serde_json::json;
 use valence_authorization_utils::{
     authorization::{AuthorizationDuration, AuthorizationModeInfo, PermissionTypeInfo},
@@ -30,7 +30,7 @@ fn disabled() {
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
     );
@@ -50,7 +50,7 @@ fn disabled() {
         &contract_addr,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -60,7 +60,7 @@ fn disabled() {
             label: "permissionless".to_string(),
         }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -76,7 +76,7 @@ fn disabled() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -98,7 +98,7 @@ fn disabled() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -119,7 +119,7 @@ fn invalid_time() {
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
     );
@@ -148,7 +148,7 @@ fn invalid_time() {
         &contract_addr,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -164,7 +164,7 @@ fn invalid_time() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -189,7 +189,7 @@ fn invalid_time() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -214,7 +214,7 @@ fn invalid_time() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -245,7 +245,7 @@ fn invalid_time() {
         &contract_addr,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -261,7 +261,7 @@ fn invalid_time() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -285,7 +285,7 @@ fn invalid_time() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -309,7 +309,7 @@ fn invalid_time() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -328,7 +328,7 @@ fn invalid_permission() {
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
     );
@@ -350,7 +350,7 @@ fn invalid_permission() {
             .with_label("permissioned-with-limit")
             .with_mode(AuthorizationModeInfo::Permissioned(
                 PermissionTypeInfo::WithCallLimit(vec![(
-                    setup.user_addr.to_string(),
+                    setup.user_accounts[0].address().to_string(),
                     Uint128::new(10),
                 )]),
             ))
@@ -367,7 +367,7 @@ fn invalid_permission() {
         &contract_addr,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -383,7 +383,7 @@ fn invalid_permission() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -405,7 +405,7 @@ fn invalid_permission() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -432,7 +432,7 @@ fn invalid_permission() {
                 denom: permission_token.clone(),
                 amount: "2".to_string(),
             }],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -451,7 +451,7 @@ fn invalid_messages() {
 
     let (contract_addr, _) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
         setup.owner_addr.to_string(),
         vec![setup.subowner_addr.to_string()],
     );
@@ -527,7 +527,7 @@ fn invalid_messages() {
         &contract_addr,
         &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
         &[],
-        &setup.accounts[0],
+        &setup.owner_accounts[0],
     )
     .unwrap();
 
@@ -548,7 +548,7 @@ fn invalid_messages() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -571,7 +571,7 @@ fn invalid_messages() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -595,7 +595,7 @@ fn invalid_messages() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -615,7 +615,7 @@ fn invalid_messages() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -641,7 +641,7 @@ fn invalid_messages() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -675,7 +675,7 @@ fn invalid_messages() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -708,7 +708,7 @@ fn invalid_messages() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
@@ -742,7 +742,7 @@ fn invalid_messages() {
                 ttl: None,
             }),
             &[],
-            &setup.accounts[2],
+            &setup.user_accounts[0],
         )
         .unwrap_err();
 
