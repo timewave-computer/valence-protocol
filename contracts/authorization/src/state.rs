@@ -4,7 +4,7 @@ use valence_authorization_utils::{
     authorization::Authorization, callback::ProcessorCallbackInfo, domain::ExternalDomain,
 };
 
-pub const FIRST_OWNERSHIP: Item<bool> = Item::new("first_ownership_change");
+pub const FIRST_OWNERSHIP: Item<bool> = Item::new("first_ownership");
 pub const SUB_OWNERS: Map<Addr, Empty> = Map::new("sub_owners");
 pub const AUTHORIZATIONS: Map<String, Authorization> = Map::new("authorizations");
 pub const PROCESSOR_ON_MAIN_DOMAIN: Item<Addr> = Item::new("processor_on_main_domain");
