@@ -30,8 +30,8 @@ use crate::{
     domain::{add_domain, create_wasm_msg_for_processor_or_bridge, get_domain},
     error::{AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason},
     state::{
-        AUTHORIZATIONS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS, PROCESSOR_CALLBACKS,
-        PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS,
+        AUTHORIZATIONS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS, FIRST_OWNERSHIP,
+        PROCESSOR_CALLBACKS, PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS,
     },
 };
 
@@ -51,11 +51,7 @@ pub fn instantiate(
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     // Set up owners and initial subowners
-    initialize_owner(
-        deps.storage,
-        deps.api,
-        Some(deps.api.addr_validate(&msg.owner)?.as_str()),
-    )?;
+    initialize_owner(deps.storage, deps.api, Some(&msg.owner))?;
 
     for sub_owner in msg.sub_owners {
         SUB_OWNERS.save(
@@ -72,6 +68,8 @@ pub fn instantiate(
     )?;
 
     EXECUTION_ID.save(deps.storage, &0)?;
+    // When onwership is transfered for the first time this will be changed
+    FIRST_OWNERSHIP.save(deps.storage, &true)?;
 
     Ok(Response::new().add_attribute("method", "instantiate_authorization"))
 }
@@ -168,6 +166,15 @@ fn update_ownership(
     info: MessageInfo,
     action: cw_ownable::Action,
 ) -> Result<Response<NeutronMsg>, ContractError> {
+    if let cw_ownable::Action::TransferOwnership { new_owner, .. } = &action {
+        if FIRST_OWNERSHIP.load(deps.storage)? {
+            assert_owner(deps.storage, &info.sender)?;
+            FIRST_OWNERSHIP.save(deps.storage, &false)?;
+            let ownership = initialize_owner(deps.storage, deps.api, Some(new_owner))?;
+            return Ok(Response::new().add_attributes(ownership.into_attributes()));
+        }
+    }
+
     let ownership = cw_ownable::update_ownership(deps, &env.block, &info.sender, action)?;
     Ok(Response::new().add_attributes(ownership.into_attributes()))
 }
