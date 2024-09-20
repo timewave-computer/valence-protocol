@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    coin, instantiate2_address, testing::MockApi, Addr, Api, CodeInfoResponse, Coin, StdResult,
-    Uint128,
+    coin, instantiate2_address, testing::MockApi, Addr, Api, CodeInfoResponse,
+    Coin, StdResult, Uint128,
 };
 use cw20::Cw20Coin;
 use cw_multi_test::{error::AnyResult, next_block, App, AppResponse, ContractWrapper, Executor};
@@ -195,7 +195,7 @@ impl ForwarderTestSuite {
     fn execute(
         &mut self,
         addr: Addr,
-        msg: ExecuteMsg<ActionsMsgs, Config>,
+        msg: ExecuteMsg<ActionsMsgs, ServiceConfig>,
     ) -> AnyResult<AppResponse> {
         self.app
             .execute_contract(self.processor().clone(), addr, &msg, &[])
@@ -266,6 +266,15 @@ impl ForwarderTestSuite {
         };
         self.app
             .execute_contract(sender.clone(), cw20_addr.clone(), &msg, &[])
+    }
+
+    fn update_config(&mut self, addr: Addr, new_config: ServiceConfig) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            self.owner().clone(),
+            addr,
+            &ExecuteMsg::<ActionsMsgs, ServiceConfig>::UpdateConfig { new_config },
+            &[],
+        )
     }
 }
 
@@ -793,4 +802,55 @@ fn forward_multiple_tokens_continuously() {
         .query_cw20_balance(&suite.output_addr, &cw20_addr)
         .unwrap();
     assert_eq!(output_balance, Uint128::from(60_000_000_u128));
+}
+
+#[test]
+fn update_config() {
+    // Initialize input account with 1_000_000 NTRN
+    let mut suite = ForwarderTestSuite::new(Some(&[(1_000_000_000_000_u128, "untrn")]));
+
+    // Set max amount to be forwarded to 1_000 NTRN (and no constraints)
+    let cfg = suite.service_config(
+        vec![(
+            UncheckedDenom::Native("untrn".to_string()),
+            1_000_000_000_u128,
+        )],
+        Default::default(),
+    );
+
+    // Instantiate Forwarder contract
+    let svc = suite.instantiate(&cfg).unwrap();
+
+    // Update config to forward 2_000 NTRN, add constraint,
+    // and swap input and output addresses.
+    let mut new_config = suite.service_config(
+        vec![(
+            UncheckedDenom::Native("untrn".to_string()),
+            2_000_000_000_u128,
+        )],
+        ForwardingConstraints::new(Duration::Height(3).into()),
+    );
+    new_config.input_addr = suite.output_addr.to_string();
+    new_config.output_addr = suite.input_addr.to_string();
+
+    // Execute update config action
+    suite.update_config(svc.clone(), new_config).unwrap();
+
+    // Verify service config
+    let cfg = suite
+        .query_wasm::<Config>(&svc, &QueryMsg::GetServiceConfig {})
+        .unwrap();
+    assert_eq!(
+        cfg,
+        Config::new(
+            suite.output_addr,
+            suite.input_addr,
+            vec![(
+                CheckedDenom::Native("untrn".to_string()),
+                2_000_000_000_u128
+            )
+                .into()],
+            ForwardingConstraints::new(Duration::Height(3).into())
+        )
+    );
 }

@@ -127,20 +127,7 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
         ensure_denom_uniqueness(&self.forwarding_configs)?;
 
         // Convert the unchecked denoms to checked denoms
-        let checked_fwd_configs = self
-            .forwarding_configs
-            .iter()
-            .map(|ufc| {
-                ufc.denom
-                    .clone()
-                    .into_checked(deps)
-                    .map(|checked| ForwardingConfig {
-                        denom: checked,
-                        max_amount: ufc.max_amount,
-                    })
-            })
-            .collect::<Result<Vec<ForwardingConfig>, DenomError>>()
-            .map_err(|err| ServiceError::ConfigurationError(err.to_string()))?;
+        let checked_fwd_configs = convert_to_checked_configs(&self.forwarding_configs, deps)?;
 
         Ok(Config {
             input_addr,
@@ -153,20 +140,39 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
 
 /// Ensure denoms are unique in forwarding configs
 fn ensure_denom_uniqueness(
-    checked_fwd_configs: &Vec<UncheckedForwardingConfig>,
+    fwd_configs: &Vec<UncheckedForwardingConfig>,
 ) -> Result<(), ServiceError> {
     let mut denom_map: HashMap<String, ()> = HashMap::new();
-    for ufc in checked_fwd_configs {
-        let key = format!("{:?}", ufc.denom);
+    for cfg in fwd_configs {
+        let key = format!("{:?}", cfg.denom);
         if denom_map.contains_key(&key) {
             return Err(ServiceError::ConfigurationError(format!(
                 "Duplicate denom '{:?}' in forwarding config.",
-                ufc.denom
+                cfg.denom
             )));
         }
         denom_map.insert(key, ());
     }
     Ok(())
+}
+
+fn convert_to_checked_configs(
+    fwd_configs: &[UncheckedForwardingConfig],
+    deps: Deps<'_>,
+) -> Result<Vec<ForwardingConfig>, ServiceError> {
+    fwd_configs
+        .iter()
+        .map(|ufc| {
+            ufc.denom
+                .clone()
+                .into_checked(deps)
+                .map(|checked| ForwardingConfig {
+                    denom: checked,
+                    max_amount: ufc.max_amount,
+                })
+        })
+        .collect::<Result<Vec<ForwardingConfig>, DenomError>>()
+        .map_err(|err| ServiceError::ConfigurationError(err.to_string()))
 }
 
 impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
@@ -177,8 +183,30 @@ impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
 }
 
 impl OptionalServiceConfig {
-    pub fn update_config(self, _deps: &DepsMut, _config: &mut Config) -> Result<(), ServiceError> {
-        //TODO: Implement update_config
+    pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
+        if let Some(input_addr) = self.input_addr {
+            config.input_addr = deps.api.addr_validate(&input_addr)?;
+        }
+
+        if let Some(output_addr) = self.output_addr {
+            config.output_addr = deps.api.addr_validate(&output_addr)?;
+        }
+
+        if let Some(forwarding_configs) = self.forwarding_configs {
+            // Ensure denoms are unique in forwarding configs
+            ensure_denom_uniqueness(&forwarding_configs)?;
+
+            // Convert the unchecked denoms to checked denoms
+            let checked_fwd_configs =
+                convert_to_checked_configs(&forwarding_configs, deps.as_ref())?;
+
+            config.forwarding_configs = checked_fwd_configs;
+        }
+
+        if let Some(forwarding_constraints) = self.forwarding_constraints {
+            config.forwarding_constraints = forwarding_constraints;
+        }
+
         Ok(())
     }
 }
