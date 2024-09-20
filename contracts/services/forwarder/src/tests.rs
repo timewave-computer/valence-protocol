@@ -206,10 +206,7 @@ impl ForwarderTestSuite {
     }
 
     fn forward(&mut self, addr: Addr) -> AnyResult<AppResponse> {
-        self.execute(
-            addr,
-            ExecuteMsg::ProcessAction(ActionsMsgs::Forward { execution_id: None }),
-        )
+        self.execute(addr, ExecuteMsg::ProcessAction(ActionsMsgs::Forward {}))
     }
 
     fn query_balance(&self, addr: &Addr, denom: &str) -> StdResult<Coin> {
