@@ -40,7 +40,9 @@ pub fn execute(
 }
 
 mod actions {
-    use cosmwasm_std::{CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult};
+    use cosmwasm_std::{
+        Addr, CosmosMsg, DepsMut, Env, MessageInfo, QuerierWrapper, Response, StdResult,
+    };
     use valence_service_base::ServiceError;
     use valence_service_utils::execute_on_behalf_of;
 
@@ -61,28 +63,11 @@ mod actions {
                 ensure_forwarding_interval(&cfg, &deps, &env)?;
 
                 // Determine the amount to transfer for each denom
-                let coins_to_transfer = cfg
-                    .forwarding_configs()
-                    .iter()
-                    .filter_map(|fwd_cfg| {
-                        fwd_cfg
-                            .denom()
-                            .query_balance(&deps.querier, cfg.input_addr())
-                            .ok()
-                            .filter(|balance| !balance.is_zero())
-                            .map(|balance| {
-                                // Take minimum of input account balance and configured max amount for denom
-                                let amount = balance.min(*fwd_cfg.max_amount());
-                                (amount, fwd_cfg.denom())
-                            })
-                    })
-                    .collect::<Vec<_>>();
+                let transfer_amounts = prepare_transfer_amounts(&cfg, &deps.querier);
 
                 // Prepare messages to send the coins to the output account
-                let transfer_messages = coins_to_transfer
-                    .into_iter()
-                    .map(|(amount, denom)| denom.get_transfer_to_message(cfg.output_addr(), amount))
-                    .collect::<StdResult<Vec<CosmosMsg>>>()?;
+                let transfer_messages =
+                    prepare_transfer_messages(transfer_amounts, cfg.output_addr())?;
 
                 // Wrap the transfer messages to be executed on behalf of the input account
                 let input_account_msgs = execute_on_behalf_of(transfer_messages, cfg.input_addr())?;
@@ -97,6 +82,55 @@ mod actions {
         }
     }
 
+    // Prepare transfer messages for each denom
+    fn prepare_transfer_messages<I>(
+        coins_to_transfer: I,
+        output_addr: &Addr,
+    ) -> Result<Vec<CosmosMsg>, ServiceError>
+    where
+        I: IntoIterator<
+            Item = (
+                cosmwasm_std::Uint128,
+                valence_service_utils::denoms::CheckedDenom,
+            ),
+        >,
+    {
+        let transfer_messages = coins_to_transfer
+            .into_iter()
+            .map(|(amount, denom)| denom.get_transfer_to_message(output_addr, amount))
+            .collect::<StdResult<Vec<CosmosMsg>>>()?;
+        Ok(transfer_messages)
+    }
+
+    // Prepare transfer amounts for each denom
+    fn prepare_transfer_amounts<C>(
+        cfg: &Config,
+        querier: &QuerierWrapper<C>,
+    ) -> Vec<(
+        cosmwasm_std::Uint128,
+        valence_service_utils::denoms::CheckedDenom,
+    )>
+    where
+        C: cosmwasm_std::CustomQuery,
+    {
+        cfg.forwarding_configs()
+            .iter()
+            .filter_map(|fwd_cfg| {
+                fwd_cfg
+                    .denom()
+                    .query_balance(querier, cfg.input_addr())
+                    .ok()
+                    .filter(|balance| !balance.is_zero())
+                    .map(|balance| {
+                        // Take minimum of input account balance and configured max amount for denom
+                        let amount = balance.min(*fwd_cfg.max_amount());
+                        (amount, fwd_cfg.denom().clone())
+                    })
+            })
+            .collect::<Vec<_>>()
+    }
+
+    // Ensure the forwarding interval constraint is met
     fn ensure_forwarding_interval(
         cfg: &Config,
         deps: &DepsMut<'_>,

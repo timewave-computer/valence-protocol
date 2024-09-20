@@ -11,17 +11,23 @@ use valence_service_utils::{
 };
 
 #[cw_serde]
+/// Enum representing the different action messages that can be sent.
 pub enum ActionsMsgs {
+    /// Message to forward tokens.
     Forward {},
 }
 
 #[cw_serde]
 #[derive(QueryResponses)]
+/// Enum representing the different query messages that can be sent.
 pub enum QueryMsg {
+    /// Query to get the owner address.
     #[returns(Addr)]
     GetOwner {},
+    /// Query to get the processor address.
     #[returns(Addr)]
     GetProcessor {},
+    /// Query to get the service configuration.
     #[returns(Config)]
     GetServiceConfig {},
 }
@@ -29,14 +35,16 @@ pub enum QueryMsg {
 // Forwarding configuration per denom
 type ForwardingConfigs = Vec<ForwardingConfig>;
 
-// Defines the max amount of tokens to be forwarded per time period for a given denom
 #[cw_serde]
 #[derive(Getters, Setters)]
+/// Struct representing the forwarding configuration for a specific denom.
 pub struct ForwardingConfig {
+    /// The denom to be forwarded.
     #[getset(get = "pub", set)]
     denom: CheckedDenom,
+    /// The maximum amount of tokens to be transferred per forward operation.
     #[getset(get = "pub", set)]
-    max_amount: Uint128, // Max amount of tokens to be transferred per Forward operation
+    max_amount: Uint128,
 }
 
 impl From<(CheckedDenom, u128)> for ForwardingConfig {
@@ -48,10 +56,11 @@ impl From<(CheckedDenom, u128)> for ForwardingConfig {
     }
 }
 
-// Time constraints on forwarding operations
 #[cw_serde]
 #[derive(Getters, Setters, Default)]
+/// Struct representing the time constraints on forwarding operations.
 pub struct ForwardingConstraints {
+    /// The minimum interval between forwarding operations.
     #[getset(get = "pub", set)]
     min_interval: Option<Duration>,
 }
@@ -63,8 +72,11 @@ impl ForwardingConstraints {
 }
 
 #[cw_serde]
+/// Struct representing an unchecked forwarding configuration.
 pub struct UncheckedForwardingConfig {
+    /// The denom to be forwarded.
     pub denom: UncheckedDenom,
+    /// The maximum amount of tokens to be transferred per forward operation.
     pub max_amount: Uint128,
 }
 
@@ -79,10 +91,15 @@ impl From<(UncheckedDenom, u128)> for UncheckedForwardingConfig {
 
 #[cw_serde]
 #[derive(OptionalStruct)]
+/// Struct representing the service configuration.
 pub struct ServiceConfig {
+    /// The input address for the service.
     pub input_addr: String,
+    /// The output address for the service.
     pub output_addr: String,
+    /// The forwarding configurations for the service.
     pub forwarding_configs: Vec<UncheckedForwardingConfig>,
+    /// The forwarding constraints for the service.
     pub forwarding_constraints: ForwardingConstraints,
 }
 
@@ -134,6 +151,7 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
     }
 }
 
+/// Ensure denoms are unique in forwarding configs
 fn ensure_denom_uniqueness(
     checked_fwd_configs: &Vec<UncheckedForwardingConfig>,
 ) -> Result<(), ServiceError> {
@@ -167,13 +185,18 @@ impl OptionalServiceConfig {
 
 #[cw_serde]
 #[derive(Getters, Setters)]
+/// Struct representing the validated service configuration.
 pub struct Config {
+    /// The input address for the service.
     #[getset(get = "pub", set)]
     input_addr: Addr,
+    /// The output address for the service.
     #[getset(get = "pub", set)]
     output_addr: Addr,
+    /// The forwarding configurations for the service.
     #[getset(get = "pub", set)]
     forwarding_configs: ForwardingConfigs,
+    /// The forwarding constraints for the service.
     #[getset(get = "pub", set)]
     forwarding_constraints: ForwardingConstraints,
 }
