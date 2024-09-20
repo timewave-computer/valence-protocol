@@ -51,9 +51,9 @@ impl ForwarderTestSuite {
 
         // Input account
         let account_code = ContractWrapper::new(
-            base_account::contract::execute,
-            base_account::contract::instantiate,
-            base_account::contract::query,
+            valence_base_account::contract::execute,
+            valence_base_account::contract::instantiate,
+            valence_base_account::contract::query,
         );
 
         let account_code_id = app.store_code(Box::new(account_code));
@@ -132,7 +132,7 @@ impl ForwarderTestSuite {
             None,
         )?;
 
-        let init_msg = base_account::msg::InstantiateMsg {
+        let init_msg = valence_base_account::msg::InstantiateMsg {
             admin: self.owner.to_string(),
             approved_services: vec![forwarder_addr.to_string()],
         };

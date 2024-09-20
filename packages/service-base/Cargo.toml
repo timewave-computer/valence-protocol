@@ -18,13 +18,13 @@ library = []
 [dependencies]
 cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true }
+cw-ownable      = { workspace = true }
 cw-storage-plus = { workspace = true }
 cw2             = { workspace = true }
 schemars        = { workspace = true }
 serde           = { workspace = true }
 thiserror       = { workspace = true }
 valence-macros  = { workspace = true }
-cw-ownable      = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }

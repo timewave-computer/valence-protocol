@@ -4817,7 +4817,6 @@ dependencies = [
  "cw-denom",
  "serde",
  "serde_json",
- "valence-processor-utils",
 ]
 
 [[package]]
