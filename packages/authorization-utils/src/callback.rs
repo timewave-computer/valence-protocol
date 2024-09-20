@@ -8,6 +8,8 @@ use crate::{domain::Domain, msg::ProcessorMessage};
 pub struct ProcessorCallbackInfo {
     // Execution ID that the callback was for
     pub execution_id: u64,
+    // Who started this operation, used for tokenfactory actions
+    pub initiator: OperationInitiator,
     // Address that can send a bridge timeout or success for the message (if applied)
     pub bridge_callback_address: Option<Addr>,
     // Address that will send the callback for the processor
@@ -22,6 +24,13 @@ pub struct ProcessorCallbackInfo {
     pub ttl: Option<Expiration>,
     // Result of the execution
     pub execution_result: ExecutionResult,
+}
+
+#[cw_serde]
+pub enum OperationInitiator {
+    // Owner can execute operations without using tokens
+    Owner,
+    User(Addr),
 }
 
 #[cw_serde]

@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    from_json, to_json_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo,
-    Order, Response, StdResult, Storage, Uint128, Uint64, WasmMsg,
+    coins, from_json, to_json_binary, Addr, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Empty, Env,
+    MessageInfo, Order, Response, StdResult, Storage, Uint128, Uint64, WasmMsg,
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner, is_owner};
 use cw_storage_plus::Bound;
@@ -13,7 +13,7 @@ use valence_authorization_utils::{
         Authorization, AuthorizationInfo, AuthorizationMode, AuthorizationState, PermissionType,
         Priority,
     },
-    callback::{ExecutionResult, PolytoneCallbackMsg, ProcessorCallbackInfo},
+    callback::{ExecutionResult, OperationInitiator, PolytoneCallbackMsg, ProcessorCallbackInfo},
     domain::{Connector, Domain, ExternalDomain, PolytoneProxyState},
     msg::{
         ExecuteMsg, ExternalDomainInfo, InstantiateMsg, InternalAuthorizationMsg, Mint, OwnerMsg,
@@ -151,7 +151,7 @@ pub fn execute(
                 InternalAuthorizationMsg::ProcessorCallback {
                     execution_id,
                     execution_result,
-                } => process_processor_callback(deps, info, execution_id, execution_result),
+                } => process_processor_callback(deps, env, info, execution_id, execution_result),
             }
         }
         ExecuteMsg::PolytoneCallback(callback_msg) => {
@@ -213,14 +213,8 @@ fn add_external_domains(
         )?);
     }
 
-    // Need to convert to NeutronMsg
-    let neutron_msgs: Vec<CosmosMsg<NeutronMsg>> = messages
-        .into_iter()
-        .filter_map(|msg| msg.change_custom())
-        .collect();
-
     Ok(Response::new()
-        .add_messages(neutron_msgs)
+        .add_messages(messages)
         .add_attribute("action", "add_external_domains"))
 }
 
@@ -459,7 +453,15 @@ fn insert_messages(
         Some(callback_request),
     )?;
 
-    store_inprocess_callback(deps.storage, id, domain, label, None, messages)?;
+    store_inprocess_callback(
+        deps.storage,
+        id,
+        OperationInitiator::Owner,
+        domain,
+        label,
+        None,
+        messages,
+    )?;
 
     Ok(Response::new()
         .add_message(wasm_msg)
@@ -553,7 +555,15 @@ fn send_msgs(
         Some(callback_request),
     )?;
 
-    store_inprocess_callback(deps.storage, id, domain, label, ttl, messages)?;
+    store_inprocess_callback(
+        deps.storage,
+        id,
+        OperationInitiator::User(info.sender),
+        domain,
+        label,
+        ttl,
+        messages,
+    )?;
 
     Ok(Response::new()
         .add_message(wasm_msg)
@@ -680,6 +690,7 @@ fn retry_bridge_creation(
 
 fn process_processor_callback(
     deps: DepsMut,
+    env: Env,
     info: MessageInfo,
     execution_id: u64,
     execution_result: ExecutionResult,
@@ -693,12 +704,47 @@ fn process_processor_callback(
         ));
     }
 
-    // Updated the result
+    // Update the result
     callback.execution_result = execution_result;
-
     PROCESSOR_CALLBACKS.save(deps.storage, execution_id, &callback)?;
 
+    // Reduce the current executions for the label
+    CURRENT_EXECUTIONS.update(
+        deps.storage,
+        callback.label.clone(),
+        |current| -> StdResult<_> { Ok(current.unwrap_or_default().saturating_sub(1)) },
+    )?;
+
+    // Check if a token was sent to perform this operation and that it wasn't started by the owner
+    let authorization = AUTHORIZATIONS.load(deps.storage, callback.label.clone())?;
+    let mut messages = vec![];
+    if let OperationInitiator::User(initiator_addr) = &callback.initiator {
+        if let AuthorizationMode::Permissioned(PermissionType::WithCallLimit(_)) =
+            authorization.mode
+        {
+            let denom =
+                build_tokenfactory_denom(env.contract.address.as_str(), &authorization.label);
+
+            let msg = match callback.execution_result {
+                ExecutionResult::Success | ExecutionResult::PartiallyExecuted(_, _) => {
+                    // If the operation was executed or partially executed, the token will be burned
+                    NeutronMsg::submit_burn_tokens(denom, Uint128::one()).into()
+                }
+                _ => {
+                    // Otherwise, the tokens will be sent back
+                    CosmosMsg::Bank(BankMsg::Send {
+                        to_address: initiator_addr.to_string(),
+                        amount: coins(1, denom),
+                    })
+                }
+            };
+
+            messages.push(msg);
+        }
+    }
+
     Ok(Response::new()
+        .add_messages(messages)
         .add_attribute("action", "process_processor_callback")
         .add_attribute("execution_id", execution_id.to_string()))
 }
@@ -959,6 +1005,7 @@ pub fn get_and_increase_execution_id(storage: &mut dyn Storage) -> StdResult<u64
 pub fn store_inprocess_callback(
     storage: &mut dyn Storage,
     id: u64,
+    initiator: OperationInitiator,
     domain: Domain,
     label: String,
     ttl: Option<Expiration>,
@@ -978,6 +1025,7 @@ pub fn store_inprocess_callback(
 
     let callback = ProcessorCallbackInfo {
         execution_id: id,
+        initiator,
         bridge_callback_address,
         processor_callback_address,
         domain,
