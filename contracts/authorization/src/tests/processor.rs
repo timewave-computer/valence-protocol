@@ -2649,7 +2649,7 @@ fn refund_and_burn_tokens_after_callback() {
     let test_service_contract =
         store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
 
-    // We'll create an authorization that we'll force to succeed once and fail another time to check that refund and burning works
+    // We'll create an authorization that we'll force to fail and succeed once to check that refund and burning works
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissioned-with-limit")
         .with_mode(AuthorizationModeInfo::Permissioned(
