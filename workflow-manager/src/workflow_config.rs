@@ -1,5 +1,6 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
+use serde::{Deserialize, Serialize};
 use valence_authorization_utils::authorization::AuthorizationInfo;
 use valence_service_utils::Id;
 
@@ -8,11 +9,12 @@ use crate::{
     connectors::Connectors,
     domain::Domain,
     error::{ManagerError, ManagerResult},
+    macros::ensure,
     service::ServiceInfo,
     MAIN_CHAIN, MAIN_DOMAIN, NEUTRON_DOMAIN,
 };
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Link {
     /// List of input accounts by id
     pub input_accounts_id: Vec<Id>,
@@ -24,7 +26,7 @@ pub struct Link {
 
 /// This struct holds all the data regarding our authorization and processor
 /// contracts and bridge accounts
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct AuthorizationData {
     /// authorization contract address on neutron
     pub authorization_addr: String,
@@ -59,9 +61,11 @@ impl AuthorizationData {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'static"))]
 pub struct WorkflowConfig {
     // This is the id of the workflow
+    #[serde(default)]
     pub id: u64,
     pub owner: String,
     /// A list of links between an accounts and services
@@ -72,16 +76,18 @@ pub struct WorkflowConfig {
     pub accounts: BTreeMap<Id, AccountInfo>,
     /// The list service data by id
     pub services: BTreeMap<Id, ServiceInfo>,
-    /// This is the info regarding authorization andp rocessor contracts.
+    /// This is the info regarding authorization and processor contracts.
     /// Must be empty (Default) when a new workflow is instantiated.
     /// It gets populated when the workflow is instantiated.
+    #[serde(default)]
     pub authorization_data: AuthorizationData,
 }
 
 impl WorkflowConfig {
     /// Instantiate a workflow on all domains.
     pub async fn init(&mut self, connectors: &Connectors) -> ManagerResult<()> {
-        // TODO: We probably want to verify the whole workflow config first, before doing any operations
+        // Verify the whole workflow config
+        self.verify_new_config()?;
 
         // We create the neutron connector specifically because our registry is on neutron.
         let mut neutron_connector = connectors.get_or_create_connector(&NEUTRON_DOMAIN).await?;
@@ -309,7 +315,100 @@ impl WorkflowConfig {
             .change_authorization_owner(authorization_addr, self.owner.clone())
             .await?;
 
-        // TODO: Verify the workflow is complete and everything is instantiatied correctly
+        Ok(())
+    }
+
+    /// Modify an existing config with a new config
+    fn _modify(&mut self) {}
+
+    /// Verify the config is correct and are not missing any data
+    fn verify_new_config(&mut self) -> ManagerResult<()> {
+        // Verify id is 0, new configs should not have an id
+        ensure!(self.id == 0, ManagerError::IdNotZero);
+
+        // Verify owner is not empty
+        ensure!(!self.owner.is_empty(), ManagerError::OwnerEmpty);
+
+        // Make sure config authorization data is empty,
+        // in new configs, this data should be set to default as it is getting populated
+        // by the init function.
+        ensure!(
+            self.authorization_data == AuthorizationData::default(),
+            ManagerError::AuthorizationDataNotDefault
+        );
+
+        // Verify authorizations is not empty
+        ensure!(
+            !self.authorizations.is_empty(),
+            ManagerError::NoAuthorizations
+        );
+
+        // Get all services and accounts ids that exists in links
+        let mut services: BTreeSet<Id> = BTreeSet::new();
+        let mut accounts: BTreeSet<Id> = BTreeSet::new();
+
+        for (_, link) in self.links.iter() {
+            for account_id in link.input_accounts_id.iter() {
+                accounts.insert(*account_id);
+            }
+
+            for account_id in link.output_accounts_id.iter() {
+                accounts.insert(*account_id);
+            }
+
+            services.insert(link.service_id);
+        }
+
+        // Verify all accounts are referenced in links at least once
+        for account_id in self.accounts.keys() {
+            if !accounts.remove(account_id) {
+                return Err(ManagerError::AccountIdNotFoundInLinks(*account_id));
+            }
+        }
+
+        // Verify accounts is empty, if its not, it means we have a link with an account id that doesn't exists
+        ensure!(
+            accounts.is_empty(),
+            ManagerError::AccountIdNotFoundLink(accounts)
+        );
+
+        // Verify all services are referenced in links at least once
+        for service_id in self.services.keys() {
+            if !services.remove(service_id) {
+                return Err(ManagerError::ServiceIdNotFoundInLinks(*service_id));
+            }
+        }
+
+        // Verify services is empty, if its not, it means we have a link with a service id that doesn't exists
+        ensure!(
+            services.is_empty(),
+            ManagerError::ServiceIdNotFoundLink(services)
+        );
+
+        // Verify all accounts are referenced in service config at least once (or else we have unused account)
+        // accounts should be empty here
+        for service in self.services.values() {
+            accounts.extend(service.config.get_account_ids()?);
+        }
+
+        // We remove each account if we found
+        // if account id was not removed, it means we didn't find it in any service config
+        for account_id in self.accounts.keys() {
+            if !accounts.remove(account_id) {
+                return Err(ManagerError::AccountIdNotFoundInServices(*account_id));
+            }
+        }
+
+        ensure!(
+            accounts.is_empty(),
+            ManagerError::AccountIdNotFoundServiceConfig(accounts)
+        );
+
+        // Run the soft_validate method on each service config
+        for service in self.services.values() {
+            service.config.soft_validate_config()?;
+        }
+
         Ok(())
     }
 }

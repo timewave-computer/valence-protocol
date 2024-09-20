@@ -72,6 +72,23 @@ mod test {
         // println!("Balance: {d:?}");
     }
 
+    #[ignore = "internal test"]
+    #[test]
+    fn test_config_find_accounts_ids() {
+        let mut splits: BTreeSet<(ServiceAccountType, Uint128)> = BTreeSet::new();
+        splits.insert((ServiceAccountType::AccountId(2), 100_u128.into()));
+        splits.insert((ServiceAccountType::AccountId(3), 200_u128.into()));
+        splits.insert((ServiceAccountType::AccountId(4), 200_u128.into()));
+
+        let config = ServiceConfig::Splitter(SplitterServiceConfig {
+            input_addr: ServiceAccountType::AccountId(1),
+            splits: (BTreeMap::from_iter(vec![("NTRN".to_string(), splits)])),
+        });
+
+        let account_ids = config.get_account_ids().unwrap();
+        println!("{account_ids:?}");
+    }
+
     #[test]
     fn test_serialize() {
         use serde::{Deserialize, Serialize};
