@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    coin, instantiate2_address, testing::MockApi, Addr, Api, CodeInfoResponse,
-    Coin, StdResult, Uint128,
+    coin, instantiate2_address, testing::MockApi, Addr, Api, CodeInfoResponse, Coin, StdResult,
+    Uint128,
 };
 use cw20::Cw20Coin;
 use cw_multi_test::{error::AnyResult, next_block, App, AppResponse, ContractWrapper, Executor};
