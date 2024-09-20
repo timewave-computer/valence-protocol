@@ -1,6 +1,6 @@
 [package]
 name       = "valence-service-utils"
-authors    = ["Timewave Labs"]
+authors    = { workspace = true }
 edition    = { workspace = true }
 license    = { workspace = true }
 version    = { workspace = true }
@@ -9,8 +9,9 @@ repository = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cosmwasm-schema = { workspace = true }
-cosmwasm-std    = { workspace = true }
-serde           = { workspace = true }
-serde_json      = { workspace = true }
-cw-denom        = { workspace = true }
+cosmwasm-schema         = { workspace = true }
+cosmwasm-std            = { workspace = true }
+serde                   = { workspace = true }
+serde_json              = { workspace = true }
+cw-denom                = { workspace = true }
+valence-processor-utils = { workspace = true }

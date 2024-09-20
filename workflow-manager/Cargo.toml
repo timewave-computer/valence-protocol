@@ -15,12 +15,12 @@ thiserror    = { workspace = true }
 anyhow       = { workspace = true }
 cw-ownable   = { workspace = true }
 
-service-utils                   = { workspace = true }
+valence-service-utils           = { workspace = true }
 valence-macros                  = { workspace = true }
 valence-authorization-utils     = { workspace = true }
 valence-processor-utils         = { workspace = true }
 valence-workflow-registry-utils = { workspace = true }
-service-base                    = { workspace = true }
+valence-service-base            = { workspace = true }
 
 valence-splitter          = { workspace = true }
 valence-reverse-splitter  = { workspace = true }

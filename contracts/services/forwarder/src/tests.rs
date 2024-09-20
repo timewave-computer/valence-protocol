@@ -8,9 +8,9 @@ use cw_ownable::Ownership;
 use cw_utils::Duration;
 use getset::{Getters, Setters};
 use serde::Serialize;
-use service_base::msg::{ExecuteMsg, InstantiateMsg};
-use service_utils::denoms::{CheckedDenom, UncheckedDenom};
 use sha2::{Digest, Sha256};
+use valence_service_base::msg::{ExecuteMsg, InstantiateMsg};
+use valence_service_utils::denoms::{CheckedDenom, UncheckedDenom};
 
 use crate::msg::{ActionsMsgs, Config, ForwardingConstraints, QueryMsg, ServiceConfig};
 

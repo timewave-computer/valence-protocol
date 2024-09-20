@@ -1,18 +1,18 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Api, Deps, DepsMut, Uint128};
+use cosmwasm_std::{Addr, Deps, DepsMut, Uint128};
 use cw_utils::Duration;
 use getset::{Getters, Setters};
-use service_base::{msg::ServiceConfigValidation, ServiceError};
-use service_utils::{
+use std::collections::HashMap;
+use valence_macros::OptionalStruct;
+use valence_service_base::{msg::ServiceConfigValidation, ServiceError};
+use valence_service_utils::{
     denoms::{CheckedDenom, DenomError, UncheckedDenom},
     ServiceConfigInterface,
 };
-use std::collections::HashMap;
-use valence_macros::OptionalStruct;
 
 #[cw_serde]
 pub enum ActionsMsgs {
-    Forward { execution_id: Option<u64> },
+    Forward {},
 }
 
 #[cw_serde]
@@ -103,14 +103,6 @@ impl ServiceConfig {
 }
 
 impl ServiceConfigValidation<Config> for ServiceConfig {
-    fn pre_validate(&self, api: &dyn Api) -> Result<(), ServiceError> {
-        api.addr_validate(&self.input_addr)?;
-        api.addr_validate(&self.output_addr)?;
-        // Ensure denoms are unique in forwarding configs
-        ensure_denom_uniqueness(&self.forwarding_configs)?;
-        Ok(())
-    }
-
     fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
         let input_addr = deps.api.addr_validate(&self.input_addr)?;
         let output_addr = deps.api.addr_validate(&self.output_addr)?;
@@ -168,7 +160,7 @@ impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
 
 impl OptionalServiceConfig {
     pub fn update_config(self, _deps: &DepsMut, _config: &mut Config) -> Result<(), ServiceError> {
-        todo!();
+        //TODO: Implement update_config
         Ok(())
     }
 }

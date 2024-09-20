@@ -1,7 +1,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
-use service_base::{
+use valence_service_base::{
     msg::{ExecuteMsg, InstantiateMsg},
     ServiceError,
 };
@@ -19,7 +19,7 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg<ServiceConfig>,
 ) -> Result<Response, ServiceError> {
-    service_base::instantiate(deps, CONTRACT_NAME, CONTRACT_VERSION, msg)
+    valence_service_base::instantiate(deps, CONTRACT_NAME, CONTRACT_VERSION, msg)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -29,7 +29,7 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg<ActionsMsgs, OptionalServiceConfig>,
 ) -> Result<Response, ServiceError> {
-    service_base::execute(
+    valence_service_base::execute(
         deps,
         env,
         info,
@@ -41,8 +41,8 @@ pub fn execute(
 
 mod actions {
     use cosmwasm_std::{CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult};
-    use service_base::ServiceError;
-    use service_utils::execute_on_behalf_of;
+    use valence_service_base::ServiceError;
+    use valence_service_utils::execute_on_behalf_of;
 
     use crate::{
         msg::{ActionsMsgs, Config},
@@ -57,7 +57,7 @@ mod actions {
         cfg: Config,
     ) -> Result<Response, ServiceError> {
         match msg {
-            ActionsMsgs::Forward { execution_id } => {
+            ActionsMsgs::Forward {} => {
                 ensure_forwarding_interval(&cfg, &deps, &env)?;
 
                 // Determine the amount to transfer for each denom
@@ -90,11 +90,6 @@ mod actions {
                 // Save last successful forward
                 LAST_SUCCESSFUL_FORWARD.save(deps.storage, &env.block)?;
 
-                if let Some(_execution_id) = execution_id {
-                    todo!();
-                    return Ok(Response::new());
-                }
-
                 Ok(Response::new()
                     .add_attribute("method", "forward")
                     .add_message(input_account_msgs))
@@ -125,7 +120,7 @@ mod actions {
 
 mod execute {
     use cosmwasm_std::{DepsMut, Env, MessageInfo};
-    use service_base::ServiceError;
+    use valence_service_base::ServiceError;
 
     use crate::msg::{Config, OptionalServiceConfig};
 
@@ -143,10 +138,14 @@ mod execute {
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetOwner {} => to_json_binary(&service_base::get_ownership(deps.storage)?),
-        QueryMsg::GetProcessor {} => to_json_binary(&service_base::get_processor(deps.storage)?),
+        QueryMsg::GetOwner {} => {
+            to_json_binary(&valence_service_base::get_ownership(deps.storage)?)
+        }
+        QueryMsg::GetProcessor {} => {
+            to_json_binary(&valence_service_base::get_processor(deps.storage)?)
+        }
         QueryMsg::GetServiceConfig {} => {
-            let config: Config = service_base::load_config(deps.storage)?;
+            let config: Config = valence_service_base::load_config(deps.storage)?;
             to_json_binary(&config)
         }
     }

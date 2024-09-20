@@ -1,7 +1,7 @@
 use cosmwasm_schema::write_api;
 
-use service_base::msg::{ExecuteMsg, InstantiateMsg};
 use valence_forwarder_service::msg::{ActionsMsgs, OptionalServiceConfig, QueryMsg, ServiceConfig};
+use valence_service_base::msg::{ExecuteMsg, InstantiateMsg};
 
 fn main() {
     write_api! {
