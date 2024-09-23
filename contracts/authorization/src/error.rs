@@ -93,9 +93,6 @@ pub enum UnauthorizedReason {
     #[error("The polytone callback was not sent by an unauthorized address")]
     UnauthorizedPolytoneCallbackSender {},
 
-    #[error("These messages are not retriable because their ttl has expired")]
-    TtlExpired {},
-
     #[error("Creation of bridge was not timed out")]
     BridgeCreationNotTimedOut {},
 }
@@ -120,6 +117,6 @@ pub enum MessageErrorReason {
     #[error("Invalid polytone callback")]
     InvalidPolytoneCallback {},
 
-    #[error("Messages are not retriable because they are not timed out")]
-    NotTimedOut {},
+    #[error("Messages are not retriable")]
+    NotRetriable {},
 }
