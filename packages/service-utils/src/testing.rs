@@ -3,22 +3,15 @@ use cosmwasm_std::{
 };
 use cw20::Cw20Coin;
 use cw_multi_test::{error::AnyResult, next_block, App, AppResponse, ContractWrapper, Executor};
-use getset::{Getters, Setters};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::fmt::Debug;
 
-#[derive(Getters, Setters)]
 pub struct ServiceTestSuiteBase {
-    #[getset(get)]
     app: App,
-    #[getset(get)]
     owner: Addr,
-    #[getset(get)]
     processor: Addr,
-    #[getset(get)]
     account_code_id: u64,
-    #[getset(get)]
     cw20_code_id: u64,
 }
 
@@ -65,7 +58,6 @@ impl ServiceTestSuiteBase {
 pub trait ServiceTestSuite {
     fn app(&self) -> &App;
     fn app_mut(&mut self) -> &mut App;
-    // fn api(&self) -> &MockApi;
     fn owner(&self) -> &Addr;
     fn processor(&self) -> &Addr;
     fn account_code_id(&self) -> u64;
@@ -254,7 +246,6 @@ pub trait ServiceTestSuite {
     }
 }
 
-#[allow(dead_code)]
 impl ServiceTestSuite for ServiceTestSuiteBase {
     fn app(&self) -> &App {
         &self.app

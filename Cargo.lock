@@ -4821,7 +4821,6 @@ dependencies = [
  "cw-utils 2.0.0",
  "cw20 2.0.0",
  "cw20-base",
- "getset",
  "serde",
  "serde_json",
  "sha2 0.10.8",
