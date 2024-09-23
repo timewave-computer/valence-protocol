@@ -712,7 +712,14 @@ fn process_processor_callback(
     CURRENT_EXECUTIONS.update(
         deps.storage,
         callback.label.clone(),
-        |current| -> StdResult<_> { Ok(current.unwrap_or_default().saturating_sub(1)) },
+        |current| -> Result<u64, ContractError> {
+            let count = current.unwrap_or_default();
+            if count == 0 {
+                Err(ContractError::CurrentExecutionsIsZero {})
+            } else {
+                Ok(count - 1)
+            }
+        },
     )?;
 
     // Check if a token was sent to perform this operation and that it wasn't started by the owner
@@ -812,8 +819,13 @@ fn process_polytone_callback(
                                 CURRENT_EXECUTIONS.update(
                                     deps.storage,
                                     callback_info.label,
-                                    |current| -> StdResult<_> {
-                                        Ok(current.unwrap_or_default().saturating_sub(1))
+                                    |current| -> Result<u64, ContractError> {
+                                        let count = current.unwrap_or_default();
+                                        if count == 0 {
+                                            Err(ContractError::CurrentExecutionsIsZero {})
+                                        } else {
+                                            Ok(count - 1)
+                                        }
                                     },
                                 )?;
                             }
@@ -831,8 +843,13 @@ fn process_polytone_callback(
                     CURRENT_EXECUTIONS.update(
                         deps.storage,
                         callback_info.label,
-                        |current| -> StdResult<_> {
-                            Ok(current.unwrap_or_default().saturating_sub(1))
+                        |current| -> Result<u64, ContractError> {
+                            let count = current.unwrap_or_default();
+                            if count == 0 {
+                                Err(ContractError::CurrentExecutionsIsZero {})
+                            } else {
+                                Ok(count - 1)
+                            }
                         },
                     )?;
                 }
