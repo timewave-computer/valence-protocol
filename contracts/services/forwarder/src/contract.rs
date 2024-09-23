@@ -171,7 +171,7 @@ mod execute {
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetOwner {} => {
+        QueryMsg::Ownership {} => {
             to_json_binary(&valence_service_base::get_ownership(deps.storage)?)
         }
         QueryMsg::GetProcessor {} => {

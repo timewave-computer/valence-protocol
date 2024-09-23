@@ -158,7 +158,7 @@ fn instantiate_with_valid_config() {
     let svc = suite.forwarder_init(&cfg);
 
     // Verify owner
-    let owner_res: Ownership<Addr> = suite.query_wasm(&svc, &QueryMsg::GetOwner {});
+    let owner_res: Ownership<Addr> = suite.query_wasm(&svc, &QueryMsg::Ownership {});
     assert_eq!(owner_res.owner, Some(suite.owner().clone()));
 
     // Verify processor

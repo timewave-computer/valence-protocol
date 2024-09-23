@@ -1,5 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut, Uint128};
+use cw_ownable::cw_ownable_query;
 use cw_utils::Duration;
 use getset::{Getters, Setters};
 use std::collections::HashMap;
@@ -18,13 +19,11 @@ pub enum ActionsMsgs {
     Forward {},
 }
 
+#[cw_ownable_query]
 #[cw_serde]
 #[derive(QueryResponses)]
 /// Enum representing the different query messages that can be sent.
 pub enum QueryMsg {
-    /// Query to get the owner address.
-    #[returns(Addr)]
-    GetOwner {},
     /// Query to get the processor address.
     #[returns(Addr)]
     GetProcessor {},
