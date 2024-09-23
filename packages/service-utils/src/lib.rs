@@ -55,7 +55,6 @@ impl ServiceAccountType {
     }
 }
 
-
 // Private enum mimicking the ExecuteMsg from the base_account contract
 #[cw_serde]
 enum ExecuteMsg {
