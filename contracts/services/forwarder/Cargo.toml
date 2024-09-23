@@ -31,5 +31,7 @@ cw-multi-test        = { workspace = true }
 cw-ownable           = { workspace = true }
 cw20                 = { workspace = true }
 cw20-base            = { workspace = true }
+delegate             = { workspace = true }
 sha2                 = { workspace = true }
 valence-base-account = { workspace = true }
+valence-service-utils = { workspace = true, features = ["testing"] }

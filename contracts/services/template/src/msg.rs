@@ -1,8 +1,9 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut};
 use valence_macros::OptionalStruct;
-use valence_service_base::{msg::ServiceConfigValidation, ServiceError};
-use valence_service_utils::ServiceConfigInterface;
+use valence_service_utils::{
+    error::ServiceError, msg::ServiceConfigValidation, ServiceConfigInterface,
+};
 
 #[cw_serde]
 pub enum ActionsMsgs {

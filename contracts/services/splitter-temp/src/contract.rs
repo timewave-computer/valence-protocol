@@ -1,9 +1,9 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
-use valence_service_base::{
+use valence_service_utils::{
+    error::ServiceError,
     msg::{ExecuteMsg, InstantiateMsg},
-    ServiceError,
 };
 
 use crate::msg::{ActionsMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig};
@@ -43,7 +43,7 @@ mod actions {
     use cosmwasm_std::{
         to_json_binary, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, WasmMsg,
     };
-    use valence_service_base::ServiceError;
+    use valence_service_utils::error::ServiceError;
 
     use crate::msg::{ActionsMsgs, Config};
 
@@ -105,7 +105,7 @@ mod actions {
 
 mod execute {
     use cosmwasm_std::{DepsMut, Env, MessageInfo};
-    use valence_service_base::ServiceError;
+    use valence_service_utils::error::ServiceError;
 
     use crate::msg::{Config, OptionalServiceConfig};
 

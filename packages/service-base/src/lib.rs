@@ -3,15 +3,15 @@ use helpers::assert_processor;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use msg::{ExecuteMsg, InstantiateMsg, ServiceConfigValidation};
 use state::PROCESSOR;
+use valence_service_utils::{
+    error::ServiceError,
+    msg::{ExecuteMsg, InstantiateMsg, ServiceConfigValidation},
+};
 
-pub mod error;
 pub mod helpers;
-pub mod msg;
 pub mod state;
 
-pub use crate::error::ServiceError;
 pub use crate::state::{get_ownership, get_processor, load_config, save_config};
 
 pub fn instantiate<T, U>(

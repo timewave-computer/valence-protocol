@@ -3,8 +3,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut, Uint128};
 use valence_macros::OptionalStruct;
-use valence_service_base::{msg::ServiceConfigValidation, ServiceError};
-use valence_service_utils::{ServiceAccountType, ServiceConfigInterface};
+use valence_service_utils::{
+    error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType, ServiceConfigInterface,
+};
 
 #[cw_serde]
 pub enum ActionsMsgs {

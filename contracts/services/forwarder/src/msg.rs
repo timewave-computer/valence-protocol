@@ -4,9 +4,10 @@ use cw_utils::Duration;
 use getset::{Getters, Setters};
 use std::collections::HashMap;
 use valence_macros::OptionalStruct;
-use valence_service_base::{msg::ServiceConfigValidation, ServiceError};
 use valence_service_utils::{
     denoms::{CheckedDenom, DenomError, UncheckedDenom},
+    error::ServiceError,
+    msg::ServiceConfigValidation,
     ServiceConfigInterface,
 };
 

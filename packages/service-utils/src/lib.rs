@@ -1,9 +1,14 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{to_json_binary, Addr, CosmosMsg, Deps, StdError, StdResult, WasmMsg};
-
 pub mod denoms {
     pub use cw_denom::{CheckedDenom, DenomError, UncheckedDenom};
 }
+
+pub mod error;
+pub mod msg;
+
+#[cfg(feature = "testing")]
+pub mod testing;
 
 pub type Id = u64;
 
