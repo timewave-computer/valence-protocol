@@ -35,6 +35,9 @@ pub enum ContractError {
 
     #[error("Execution ID {execution_id} does not exist")]
     ExecutionIDNotFound { execution_id: u64 },
+
+    #[error("Unexpected current executions value, cannot be 0")]
+    CurrentExecutionsIsZero {},
 }
 
 #[derive(Error, Debug, PartialEq)]

@@ -1,4 +1,5 @@
 use cosmwasm_std::{to_json_binary, Binary, CosmosMsg, DepsMut, Storage, Uint64, WasmMsg};
+use neutron_sdk::bindings::msg::NeutronMsg;
 use valence_authorization_utils::{
     authorization::{ActionsConfig, Authorization},
     callback::PolytoneCallbackMsg,
@@ -17,7 +18,7 @@ pub fn add_domain(
     deps: DepsMut,
     callback_receiver: String,
     domain: &ExternalDomainInfo,
-) -> Result<CosmosMsg, ContractError> {
+) -> Result<CosmosMsg<NeutronMsg>, ContractError> {
     let external_domain = domain.to_external_domain_validated(deps.api)?;
 
     if EXTERNAL_DOMAINS.has(deps.storage, external_domain.name.clone()) {
