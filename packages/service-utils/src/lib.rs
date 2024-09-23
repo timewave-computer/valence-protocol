@@ -55,11 +55,14 @@ impl ServiceAccountType {
     }
 }
 
+
+// Private enum mimicking the ExecuteMsg from the base_account contract
 #[cw_serde]
-pub enum ExecuteMsg {
+enum ExecuteMsg {
     ExecuteMsg { msgs: Vec<CosmosMsg> }, // Execute any CosmosMsg (approved services or admin)
 }
 
+// This is a helper function to execute a CosmosMsg on behalf of an account
 pub fn execute_on_behalf_of(msgs: Vec<CosmosMsg>, account: &Addr) -> StdResult<CosmosMsg> {
     Ok(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: account.to_string(),

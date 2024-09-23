@@ -62,6 +62,10 @@ impl ForwarderTestSuite {
         }
     }
 
+    // Delegate implemetation of trait ServiceTestSuite functions to inner.
+    // Note: this is needed until we get function delegation in Rust.
+    // cfr. RFC-3530 https://github.com/rust-lang/rfcs/pull/3530
+    // See also: https://github.com/rust-lang/rust/issues/118212
     delegate! {
         to self.inner {
             fn app(&mut self) -> &App;
