@@ -307,6 +307,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         )
         .unwrap();
 
+    // Give some time to make sure the channels are open
+    std::thread::sleep(Duration::from_secs(15));
+
     // Get the connection ids so that we can predict the proxy addresses
     let neutron_channels = relayer.get_channels(NEUTRON_CHAIN_ID).unwrap();
 
