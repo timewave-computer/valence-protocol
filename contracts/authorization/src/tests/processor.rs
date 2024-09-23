@@ -1,6 +1,9 @@
-use cosmwasm_std::{Addr, Binary};
+use cosmwasm_std::{Addr, Binary, Uint128};
 use cw_utils::Duration;
-use neutron_test_tube::{Account, Module, Wasm};
+use margined_neutron_std::types::cosmos::{
+    bank::v1beta1::QueryBalanceRequest, base::v1beta1::Coin,
+};
+use neutron_test_tube::{Account, Bank, Module, Wasm};
 use valence_authorization_utils::{
     action::{ActionCallback, RetryLogic, RetryTimes},
     authorization::{
@@ -14,6 +17,7 @@ use valence_authorization_utils::{
 use valence_processor_utils::{msg::InternalProcessorMsg, processor::MessageBatch};
 
 use crate::{
+    contract::build_tokenfactory_denom,
     error::{AuthorizationErrorReason, ContractError},
     tests::{
         builders::{
@@ -2626,6 +2630,191 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
         query_callbacks[0].execution_result,
         ExecutionResult::Success
     );
+}
+
+#[test]
+fn refund_and_burn_tokens_after_callback() {
+    let setup = NeutronTestAppBuilder::new().build().unwrap();
+
+    let wasm = Wasm::new(&setup.app);
+    let bank = Bank::new(&setup.app);
+
+    let (authorization_contract, processor_contract) =
+        store_and_instantiate_authorization_with_processor_contract(
+            &setup.app,
+            &setup.owner_accounts[0],
+            setup.owner_addr.to_string(),
+            vec![setup.subowner_addr.to_string()],
+        );
+    let test_service_contract =
+        store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
+
+    // We'll create an authorization that we'll force to fail and succeed once to check that refund and burning works
+    let authorizations = vec![AuthorizationBuilder::new()
+        .with_label("permissioned-with-limit")
+        .with_mode(AuthorizationModeInfo::Permissioned(
+            PermissionTypeInfo::WithCallLimit(vec![(
+                setup.user_accounts[0].address(),
+                // Mint two tokens to also check concurrent executions
+                Uint128::new(2),
+            )]),
+        ))
+        .with_actions_config(
+            NonAtomicActionsConfigBuilder::new()
+                .with_action(
+                    NonAtomicActionBuilder::new()
+                        .with_contract_address(&test_service_contract)
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "will_succeed_if_true".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .build(),
+        )
+        .build()];
+
+    // Create the authorization and messages that will be sent
+    wasm.execute::<ExecuteMsg>(
+        &authorization_contract,
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
+        &[],
+        &setup.owner_accounts[0],
+    )
+    .unwrap();
+
+    let binary =
+        Binary::from(serde_json::to_vec(&TestServiceExecuteMsg::WillSucceedIfTrue {}).unwrap());
+
+    let message1 = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
+
+    // The token that was minted to the user
+    let permission_token =
+        build_tokenfactory_denom(&authorization_contract, "permissioned-with-limit");
+
+    // Sending the message will enqueue into the processor
+    wasm.execute::<ExecuteMsg>(
+        &authorization_contract,
+        &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
+            label: "permissioned-with-limit".to_string(),
+            messages: vec![message1.clone()],
+            ttl: None,
+        }),
+        &[Coin {
+            denom: permission_token.clone(),
+            amount: "1".to_string(),
+        }],
+        &setup.user_accounts[0],
+    )
+    .unwrap();
+
+    // Trying to send again will fail because there's only 1 concurrent execution allowed
+    let error = wasm
+        .execute::<ExecuteMsg>(
+            &authorization_contract,
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
+                label: "permissioned-with-limit".to_string(),
+                messages: vec![message1.clone()],
+                ttl: None,
+            }),
+            &[Coin {
+                denom: permission_token.clone(),
+                amount: "1".to_string(),
+            }],
+            &setup.user_accounts[0],
+        )
+        .unwrap_err();
+
+    assert!(error.to_string().contains(
+        ContractError::Authorization(AuthorizationErrorReason::MaxConcurrentExecutionsReached {})
+            .to_string()
+            .as_str()
+    ));
+
+    // Let's balance of the user to verify he only has 1 token left
+    let balance = bank
+        .query_balance(&QueryBalanceRequest {
+            address: setup.user_accounts[0].address(),
+            denom: permission_token.clone(),
+        })
+        .unwrap();
+
+    assert_eq!(balance.balance.unwrap().amount, "1");
+
+    // Ticking the processor will make it fail and send a Rejected callback, which should refund the token to the user
+    wasm.execute::<ProcessorExecuteMsg>(
+        &processor_contract,
+        &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
+        &[],
+        &setup.owner_accounts[0],
+    )
+    .unwrap();
+
+    // Check that the user has been refunded
+    let balance = bank
+        .query_balance(&QueryBalanceRequest {
+            address: setup.user_accounts[0].address(),
+            denom: permission_token.clone(),
+        })
+        .unwrap();
+
+    assert_eq!(balance.balance.unwrap().amount, "2");
+
+    // Now we should be able to enqueue again
+    wasm.execute::<ExecuteMsg>(
+        &authorization_contract,
+        &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
+            label: "permissioned-with-limit".to_string(),
+            messages: vec![message1],
+            ttl: None,
+        }),
+        &[Coin {
+            denom: permission_token.clone(),
+            amount: "1".to_string(),
+        }],
+        &setup.user_accounts[0],
+    )
+    .unwrap();
+
+    // Modify the test service to make the message succeed when it eventually executes
+    wasm.execute::<TestServiceExecuteMsg>(
+        &test_service_contract,
+        &TestServiceExecuteMsg::SetCondition { condition: true },
+        &[],
+        &setup.owner_accounts[0],
+    )
+    .unwrap();
+
+    // Ticking the processor will make it succeed and send a Success callback, which should burn the token instead of refunding it
+    wasm.execute::<ProcessorExecuteMsg>(
+        &processor_contract,
+        &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
+        &[],
+        &setup.owner_accounts[0],
+    )
+    .unwrap();
+
+    // Verify that user still has 1 token and contract doesn't have any
+    let user_balance = bank
+        .query_balance(&QueryBalanceRequest {
+            address: setup.user_accounts[0].address(),
+            denom: permission_token.clone(),
+        })
+        .unwrap();
+
+    assert_eq!(user_balance.balance.unwrap().amount, "1");
+
+    let contract_balance = bank
+        .query_balance(&QueryBalanceRequest {
+            address: authorization_contract.clone(),
+            denom: permission_token.clone(),
+        })
+        .unwrap();
+
+    assert_eq!(contract_balance.balance.unwrap().amount, "0");
 }
 
 #[test]
