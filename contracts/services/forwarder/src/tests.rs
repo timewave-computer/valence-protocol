@@ -1,13 +1,10 @@
 use crate::msg::{ActionsMsgs, Config, ForwardingConstraints, QueryMsg, ServiceConfig};
-use cosmwasm_std::{coin, testing::MockApi, Addr, Coin, Uint128};
+use cosmwasm_std::{coin, Addr, Coin, Uint128};
 use cw20::Cw20Coin;
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
 use cw_utils::Duration;
-use delegate::delegate;
 use getset::{Getters, Setters};
-use serde::Serialize;
-use std::fmt::Debug;
 use valence_service_utils::{
     denoms::{CheckedDenom, UncheckedDenom},
     msg::ExecuteMsg,
@@ -59,81 +56,6 @@ impl ForwarderTestSuite {
             input_addr,
             output_addr,
             input_balances,
-        }
-    }
-
-    // Delegate implemetation of trait ServiceTestSuite functions to inner.
-    // Note: this is needed until we get function delegation in Rust.
-    // cfr. RFC-3530 https://github.com/rust-lang/rfcs/pull/3530
-    // See also: https://github.com/rust-lang/rust/issues/118212
-    delegate! {
-        to self.inner {
-            fn app(&mut self) -> &App;
-            fn app_mut(&mut self) -> &mut App;
-            fn api(&self) -> &MockApi;
-            fn owner(&self) -> &Addr;
-            fn processor(&self) -> &Addr;
-            fn account_code_id(&self) -> u64;
-            fn cw20_code_id(&self) -> u64;
-            fn account_init(&mut self, salt: &str, approved_services: Vec<String>) -> Addr;
-            fn get_contract_addr(&mut self, code_id: u64, salt: &str) -> Addr;
-
-            fn contract_init<T: Serialize>(
-                &mut self,
-                code_id: u64,
-                label: &str,
-                init_msg: &T,
-                funds: &[Coin],
-            ) -> Addr;
-
-            fn contract_init2<T: Serialize>(
-                &mut self,
-                code_id: u64,
-                salt: &str,
-                init_msg: &T,
-                funds: &[Coin],
-            ) -> Addr;
-
-            fn contract_execute<T: Serialize + Debug>(
-                &mut self,
-                addr: Addr,
-                msg: &T,
-            ) -> AnyResult<AppResponse>;
-
-            fn next_block(&mut self);
-
-            fn query_balance(&self, addr: &Addr, denom: &str) -> Coin;
-
-            fn query_all_balances(&self, addr: &Addr) -> Vec<Coin>;
-
-            fn assert_balance(&self, addr: &Addr, coin: Coin);
-
-            fn init_balance(&mut self, addr: &Addr, amounts: Vec<Coin>);
-
-            fn cw20_init(
-                &mut self,
-                name: &str,
-                symbol: &str,
-                decimals: u8,
-                initial_balances: Vec<Cw20Coin>,
-            ) -> Addr;
-
-            fn cw20_query_balance(&self, addr: &Addr, cw20_addr: &Addr) -> Uint128;
-
-            fn query_wasm<T, U>(&self, addr: &Addr, query: &T) -> U
-            where
-                T: Serialize,
-                U: serde::de::DeserializeOwned;
-
-            fn send_tokens(&mut self, sender: &Addr, recipient: &Addr, amount: &[Coin]) -> AppResponse;
-
-            fn cw20_send_tokens(
-                &mut self,
-                cw20_addr: &Addr,
-                sender: &Addr,
-                recipient: &Addr,
-                amount: u128,
-            ) -> AppResponse;
         }
     }
 
@@ -190,6 +112,32 @@ impl ForwarderTestSuite {
             &ExecuteMsg::<ActionsMsgs, ServiceConfig>::UpdateConfig { new_config },
             &[],
         )
+    }
+}
+
+impl ServiceTestSuite for ForwarderTestSuite {
+    fn app(&self) -> &App {
+        self.inner.app()
+    }
+
+    fn app_mut(&mut self) -> &mut App {
+        self.inner.app_mut()
+    }
+
+    fn owner(&self) -> &Addr {
+        self.inner.owner()
+    }
+
+    fn processor(&self) -> &Addr {
+        self.inner.processor()
+    }
+
+    fn account_code_id(&self) -> u64 {
+        self.inner.account_code_id()
+    }
+
+    fn cw20_code_id(&self) -> u64 {
+        self.inner.cw20_code_id()
     }
 }
 
