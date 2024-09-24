@@ -1,9 +1,7 @@
 use cosmwasm_std::{Addr, Storage};
+use valence_service_utils::error::{ServiceError, UnauthorizedReason};
 
-use crate::{
-    error::{ServiceError, UnauthorizedReason},
-    state::PROCESSOR,
-};
+use crate::state::PROCESSOR;
 
 pub fn assert_processor(store: &dyn Storage, sender: &Addr) -> Result<(), ServiceError> {
     let processor = PROCESSOR.load(store)?;

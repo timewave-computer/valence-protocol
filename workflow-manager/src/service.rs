@@ -4,10 +4,9 @@ use aho_corasick::AhoCorasick;
 
 use serde::{Deserialize, Serialize};
 use serde_json::to_vec;
-use service_base::msg::InstantiateMsg;
-use service_utils::{Id, ServiceConfigInterface};
 use thiserror::Error;
 use valence_reverse_splitter::msg::ServiceConfig as ReverseSplitterServiceConfig;
+use valence_service_utils::{msg::InstantiateMsg, Id, ServiceConfigInterface};
 use valence_splitter::msg::ServiceConfig as SplitterServiceConfig;
 
 use crate::domain::Domain;

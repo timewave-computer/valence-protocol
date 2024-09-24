@@ -27,7 +27,7 @@ use valence_processor_utils::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExec
 
 use crate::{
     authorization::Validate,
-    domain::{add_domain, create_wasm_msg_for_processor_or_bridge, get_domain},
+    domain::{add_domain, create_msg_for_processor_or_bridge, get_domain},
     error::{AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason},
     state::{
         AUTHORIZATIONS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS, FIRST_OWNERSHIP,
@@ -382,11 +382,11 @@ fn pause_processor(deps: DepsMut, domain: Domain) -> Result<Response<NeutronMsg>
     let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
         AuthorizationMsg::Pause {},
     ))?;
-    let wasm_msg =
-        create_wasm_msg_for_processor_or_bridge(deps.storage, execute_msg_binary, &domain, None)?;
+    let message =
+        create_msg_for_processor_or_bridge(deps.storage, execute_msg_binary, &domain, None)?;
 
     Ok(Response::new()
-        .add_message(wasm_msg)
+        .add_message(message)
         .add_attribute("action", "pause_processor"))
 }
 
@@ -394,11 +394,11 @@ fn resume_processor(deps: DepsMut, domain: Domain) -> Result<Response<NeutronMsg
     let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
         AuthorizationMsg::Resume {},
     ))?;
-    let wasm_msg =
-        create_wasm_msg_for_processor_or_bridge(deps.storage, execute_msg_binary, &domain, None)?;
+    let message =
+        create_msg_for_processor_or_bridge(deps.storage, execute_msg_binary, &domain, None)?;
 
     Ok(Response::new()
-        .add_message(wasm_msg)
+        .add_message(message)
         .add_attribute("action", "resume_processor"))
 }
 
@@ -446,7 +446,7 @@ fn insert_messages(
         msg: to_json_binary(&PolytoneCallbackMsg::ExecutionID(id))?,
     };
 
-    let wasm_msg = create_wasm_msg_for_processor_or_bridge(
+    let msg = create_msg_for_processor_or_bridge(
         deps.storage,
         execute_msg_binary,
         &domain,
@@ -464,7 +464,7 @@ fn insert_messages(
     )?;
 
     Ok(Response::new()
-        .add_message(wasm_msg)
+        .add_message(msg)
         .add_attribute("action", "add_messages")
         .add_attribute("authorization_label", authorization.label))
 }
@@ -481,11 +481,10 @@ fn evict_messages(
             priority,
         },
     ))?;
-    let wasm_msg =
-        create_wasm_msg_for_processor_or_bridge(deps.storage, execute_msg_binary, &domain, None)?;
+    let msg = create_msg_for_processor_or_bridge(deps.storage, execute_msg_binary, &domain, None)?;
 
     Ok(Response::new()
-        .add_message(wasm_msg)
+        .add_message(msg)
         .add_attribute("action", "remove_messages"))
 }
 
@@ -548,7 +547,7 @@ fn send_msgs(
     };
 
     // We need to know if this will be sent to the processor on the main domain or to an external domain
-    let wasm_msg = create_wasm_msg_for_processor_or_bridge(
+    let msg = create_msg_for_processor_or_bridge(
         deps.storage,
         execute_msg_binary,
         &domain,
@@ -566,7 +565,7 @@ fn send_msgs(
     )?;
 
     Ok(Response::new()
-        .add_message(wasm_msg)
+        .add_message(msg)
         .add_attribute("action", "send_msgs")
         .add_attribute("authorization_label", authorization.label))
 }
@@ -576,25 +575,23 @@ fn retry_msgs(
     env: Env,
     execution_id: u64,
 ) -> Result<Response<NeutronMsg>, ContractError> {
-    let callback_info = PROCESSOR_CALLBACKS
+    let mut callback_info = PROCESSOR_CALLBACKS
         .load(deps.storage, execution_id)
         .map_err(|_| ContractError::ExecutionIDNotFound { execution_id })?;
 
-    // Only messages that are in Timeout state can be retried
-    if callback_info.execution_result != ExecutionResult::Timeout {
-        return Err(ContractError::Message(MessageErrorReason::NotTimedOut {}));
+    // Only messages that are in Timeout(retriable) state can be retried
+    if callback_info.execution_result != ExecutionResult::Timeout(true) {
+        return Err(ContractError::Message(MessageErrorReason::NotRetriable {}));
     }
 
-    let retry_msg = match callback_info.ttl {
+    let mut messages = vec![];
+    match callback_info.ttl {
         Some(ttl) if !ttl.is_expired(&env.block) => {
             // They can be retried
-
             // Check if we already passed the maximum amount of concurrent executions and update it if we didn't
             let current_executions =
                 CURRENT_EXECUTIONS.load(deps.storage, callback_info.label.clone())?;
-
             let authorization = AUTHORIZATIONS.load(deps.storage, callback_info.label.clone())?;
-
             if current_executions >= authorization.max_concurrent_executions {
                 return Err(ContractError::Authorization(
                     AuthorizationErrorReason::MaxConcurrentExecutionsReached {},
@@ -605,7 +602,6 @@ fn retry_msgs(
                 callback_info.label.clone(),
                 &current_executions.checked_add(1).expect("Overflow"),
             )?;
-
             let execute_msg_binary = to_json_binary(
                 &ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::EnqueueMsgs {
                     id: execution_id,
@@ -614,30 +610,50 @@ fn retry_msgs(
                     priority: authorization.priority,
                 }),
             )?;
-
+            // Update the state
+            callback_info.execution_result = ExecutionResult::InProcess;
             // Create the callback again
             let callback_request = CallbackRequest {
                 receiver: env.contract.address.to_string(),
                 // We will use the ID to know which callback we are getting
                 msg: to_json_binary(&PolytoneCallbackMsg::ExecutionID(execution_id))?,
             };
-
-            create_wasm_msg_for_processor_or_bridge(
+            messages.push(create_msg_for_processor_or_bridge(
                 deps.storage,
                 execute_msg_binary,
                 &callback_info.domain,
                 Some(callback_request),
-            )?
+            )?);
         }
         _ => {
-            return Err(ContractError::Unauthorized(
-                UnauthorizedReason::TtlExpired {},
-            ));
+            // TTL has expired, check if we need to send a token back
+            if let (
+                OperationInitiator::User(initiator_addr),
+                AuthorizationMode::Permissioned(PermissionType::WithCallLimit(_)),
+            ) = (
+                &callback_info.initiator,
+                &AUTHORIZATIONS
+                    .load(deps.storage, callback_info.label.clone())?
+                    .mode,
+            ) {
+                // Update the state to not retriable anymore
+                callback_info.execution_result = ExecutionResult::Timeout(false);
+
+                let denom =
+                    build_tokenfactory_denom(env.contract.address.as_str(), &callback_info.label);
+                messages.push(CosmosMsg::Bank(BankMsg::Send {
+                    to_address: initiator_addr.to_string(),
+                    amount: coins(1, denom),
+                }));
+            }
         }
     };
 
+    // Save the callback info that was modified when processing the retry
+    PROCESSOR_CALLBACKS.save(deps.storage, execution_id, &callback_info)?;
+
     Ok(Response::new()
-        .add_message(retry_msg)
+        .add_messages(messages)
         .add_attribute("action", "retry_msgs"))
 }
 
@@ -648,7 +664,7 @@ fn retry_bridge_creation(
 ) -> Result<Response<NeutronMsg>, ContractError> {
     let mut external_domain = EXTERNAL_DOMAINS.load(deps.storage, domain_name.clone())?;
 
-    let wasm_msg = match external_domain.connector {
+    let msg = match external_domain.connector {
         Connector::PolytoneNote {
             address,
             timeout_seconds,
@@ -684,7 +700,7 @@ fn retry_bridge_creation(
     };
 
     Ok(Response::new()
-        .add_message(wasm_msg)
+        .add_message(msg)
         .add_attribute("action", "retry_bridge_creation"))
 }
 
@@ -777,6 +793,8 @@ fn process_polytone_callback(
         ));
     };
 
+    let mut messages = vec![];
+
     match polytone_callback_msg {
         PolytoneCallbackMsg::ExecutionID(execution_id) => {
             // Make sure that the right address sent the polytone callback
@@ -802,8 +820,35 @@ fn process_polytone_callback(
                         Ok(_) => (),
                         Err(error) => {
                             if callback_info.execution_result == ExecutionResult::InProcess {
-                                callback_info.execution_result = if error == "timeout" {
-                                    ExecutionResult::Timeout
+                                let is_expired = callback_info
+                                    .ttl
+                                    .map(|ttl| ttl.is_expired(&env.block))
+                                    .unwrap_or(true);
+                                callback_info.execution_result = if error == "timeout" && is_expired
+                                {
+                                    // We check if we need to send the token back, if action was initiatiated by a user and a token was sent
+                                    if let (
+                                        OperationInitiator::User(initiator_addr),
+                                        AuthorizationMode::Permissioned(
+                                            PermissionType::WithCallLimit(_),
+                                        ),
+                                    ) = (
+                                        &callback_info.initiator,
+                                        &AUTHORIZATIONS
+                                            .load(deps.storage, callback_info.label.clone())?
+                                            .mode,
+                                    ) {
+                                        let denom = build_tokenfactory_denom(
+                                            env.contract.address.as_str(),
+                                            &callback_info.label,
+                                        );
+                                        messages.push(CosmosMsg::Bank(BankMsg::Send {
+                                            to_address: initiator_addr.to_string(),
+                                            amount: coins(1, denom),
+                                        }));
+                                    }
+                                    // Update the execution result to not retriable anymore
+                                    ExecutionResult::Timeout(false)
                                 } else {
                                     ExecutionResult::UnexpectedError(error)
                                 };
@@ -898,7 +943,9 @@ fn process_polytone_callback(
         }
     }
 
-    Ok(Response::new().add_attribute("action", "process_polytone_callback"))
+    Ok(Response::new()
+        .add_messages(messages)
+        .add_attribute("action", "process_polytone_callback"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

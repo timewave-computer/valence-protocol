@@ -1,11 +1,20 @@
 use std::any::type_name;
 
 use cosmwasm_std::{from_json, to_json_vec, Addr, StdError, StdResult, Storage};
+use cw_ownable::Ownership;
 use cw_storage_plus::Item;
 use serde::{de::DeserializeOwned, Serialize};
 
 pub const CONFIG_KEY: &[u8] = b"config";
 pub const PROCESSOR: Item<Addr> = Item::new("processor");
+
+pub fn get_ownership(store: &dyn Storage) -> StdResult<Ownership<Addr>> {
+    cw_ownable::get_ownership(store)
+}
+
+pub fn get_processor(store: &dyn Storage) -> StdResult<Addr> {
+    PROCESSOR.load(store)
+}
 
 pub fn save_config<T>(store: &mut dyn Storage, config: &T) -> StdResult<()>
 where
