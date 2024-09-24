@@ -17,15 +17,16 @@ testing = [
 ]
 
 [dependencies]
-cosmwasm-schema = { workspace = true }
-cosmwasm-std    = { workspace = true }
-cw-denom        = { workspace = true }
-cw-ownable      = { workspace = true }
-cw-utils        = { workspace = true }
-serde           = { workspace = true }
-serde_json      = { workspace = true }
-thiserror       = { workspace = true }
-valence-macros  = { workspace = true }
+cosmwasm-schema       = { workspace = true }
+cosmwasm-std          = { workspace = true }
+cw-denom              = { workspace = true }
+cw-ownable            = { workspace = true }
+cw-utils              = { workspace = true }
+serde                 = { workspace = true }
+serde_json            = { workspace = true }
+thiserror             = { workspace = true }
+valence-account-utils = { workspace = true }
+valence-macros        = { workspace = true }
 
 # Testing dependencies
 cw-multi-test        = { workspace = true, optional = true }

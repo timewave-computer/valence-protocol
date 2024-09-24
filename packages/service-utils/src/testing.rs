@@ -68,7 +68,7 @@ pub trait ServiceTestSuite {
     }
 
     fn account_init(&mut self, salt: &str, approved_services: Vec<String>) -> Addr {
-        let init_msg = valence_base_account::msg::InstantiateMsg {
+        let init_msg = valence_account_utils::msg::InstantiateMsg {
             admin: self.owner().to_string(),
             approved_services,
         };

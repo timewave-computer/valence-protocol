@@ -30,7 +30,7 @@ serde                 = { workspace = true }
 thiserror             = { workspace = true }
 valence-macros        = { workspace = true }
 cw-ownable            = { workspace = true }
-valence-base-account  = { workspace = true }
+valence-account-utils = { workspace = true }
 valence-service-utils = { workspace = true }
 
 [dev-dependencies]

@@ -301,7 +301,7 @@ impl Connector for CosmosCosmwasmConnector {
 
         // TODO: change the admin to authorization
         let msg: Vec<u8> = match &data.info.ty {
-            AccountType::Base { admin } => to_vec(&valence_base_account::msg::InstantiateMsg {
+            AccountType::Base { admin } => to_vec(&valence_account_utils::msg::InstantiateMsg {
                 admin: admin
                     .clone()
                     .unwrap_or_else(|| self.wallet.account_address.to_string()),

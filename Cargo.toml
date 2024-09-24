@@ -56,6 +56,7 @@ valence-test-service      = { path = "contracts/services/test-service", features
 valence-workflow-registry = { path = "contracts/workflow-registry", features = ["library"] }
 
 # our packages
+valence-account-utils              = { path = "packages/account-utils" }
 valence-authorization-utils        = { path = "packages/authorization-utils" }
 valence-local-interchaintest-utils = { path = "packages/local-interchaintest-utils" }
 valence-macros                     = { path = "packages/valence-macros" }

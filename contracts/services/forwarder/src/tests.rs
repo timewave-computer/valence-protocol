@@ -68,7 +68,7 @@ impl ForwarderTestSuite {
         let addr = self.contract_init(self.forwarder_code_id, "forwarder", &init_msg, &[]);
 
         let input_addr = self.input_addr().clone();
-        if self.inner.app_mut().contract_data(&input_addr).is_err() {
+        if self.app_mut().contract_data(&input_addr).is_err() {
             let account_addr = self.account_init("input_account", vec![addr.to_string()]);
             assert_eq!(account_addr, input_addr);
 
