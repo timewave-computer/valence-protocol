@@ -820,40 +820,38 @@ fn process_polytone_callback(
                         Ok(_) => (),
                         Err(error) => {
                             if callback_info.execution_result == ExecutionResult::InProcess {
-                                callback_info.execution_result = if error == "timeout" {
-                                    let is_expired = callback_info
-                                        .ttl
-                                        .map(|ttl| ttl.is_expired(&env.block))
-                                        .unwrap_or(true);
-                                    // If it's expired it's not retriable
-                                    ExecutionResult::Timeout(!is_expired)
+                                let is_expired = callback_info
+                                    .ttl
+                                    .map(|ttl| ttl.is_expired(&env.block))
+                                    .unwrap_or(true);
+                                callback_info.execution_result = if error == "timeout" && is_expired
+                                {
+                                    // We check if we need to send the token back, if action was initiatiated by a user and a token was sent
+                                    if let (
+                                        OperationInitiator::User(initiator_addr),
+                                        AuthorizationMode::Permissioned(
+                                            PermissionType::WithCallLimit(_),
+                                        ),
+                                    ) = (
+                                        &callback_info.initiator,
+                                        &AUTHORIZATIONS
+                                            .load(deps.storage, callback_info.label.clone())?
+                                            .mode,
+                                    ) {
+                                        let denom = build_tokenfactory_denom(
+                                            env.contract.address.as_str(),
+                                            &callback_info.label,
+                                        );
+                                        messages.push(CosmosMsg::Bank(BankMsg::Send {
+                                            to_address: initiator_addr.to_string(),
+                                            amount: coins(1, denom),
+                                        }));
+                                    }
+                                    // Update the execution result to not retriable anymore
+                                    ExecutionResult::Timeout(false)
                                 } else {
                                     ExecutionResult::UnexpectedError(error)
                                 };
-
-                                // If the callback is not retriable anymore, was initiated by a user and a token was sent, we'll send it back
-                                if let (
-                                    ExecutionResult::Timeout(false),
-                                    OperationInitiator::User(initiator_addr),
-                                    AuthorizationMode::Permissioned(PermissionType::WithCallLimit(
-                                        _,
-                                    )),
-                                ) = (
-                                    &callback_info.execution_result,
-                                    &callback_info.initiator,
-                                    &AUTHORIZATIONS
-                                        .load(deps.storage, callback_info.label.clone())?
-                                        .mode,
-                                ) {
-                                    let denom = build_tokenfactory_denom(
-                                        env.contract.address.as_str(),
-                                        &callback_info.label,
-                                    );
-                                    messages.push(CosmosMsg::Bank(BankMsg::Send {
-                                        to_address: initiator_addr.to_string(),
-                                        amount: coins(1, denom),
-                                    }));
-                                }
 
                                 // Save the callback update
                                 PROCESSOR_CALLBACKS.save(
