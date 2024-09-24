@@ -1,9 +1,9 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
-use service_base::{
+use valence_service_utils::{
+    error::ServiceError,
     msg::{ExecuteMsg, InstantiateMsg},
-    ServiceError,
 };
 
 use crate::msg::{ActionsMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig};
@@ -19,7 +19,7 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg<ServiceConfig>,
 ) -> Result<Response, ServiceError> {
-    service_base::instantiate(deps, CONTRACT_NAME, CONTRACT_VERSION, msg)
+    valence_service_base::instantiate(deps, CONTRACT_NAME, CONTRACT_VERSION, msg)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -29,7 +29,7 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg<ActionsMsgs, OptionalServiceConfig>,
 ) -> Result<Response, ServiceError> {
-    service_base::execute(
+    valence_service_base::execute(
         deps,
         env,
         info,
@@ -41,12 +41,12 @@ pub fn execute(
 
 mod actions {
     use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
-    use service_base::ServiceError;
+    use valence_service_utils::error::ServiceError;
 
     use crate::msg::{ActionsMsgs, Config};
 
     pub fn process_action(
-        _deps: &DepsMut,
+        _deps: DepsMut,
         _env: Env,
         _info: MessageInfo,
         msg: ActionsMsgs,
@@ -60,7 +60,7 @@ mod actions {
 
 mod execute {
     use cosmwasm_std::{DepsMut, Env, MessageInfo};
-    use service_base::ServiceError;
+    use valence_service_utils::error::ServiceError;
 
     use crate::msg::{Config, OptionalServiceConfig};
 
@@ -80,7 +80,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetOwner {} => to_json_binary(&cw_ownable::get_ownership(deps.storage)?),
         QueryMsg::GetServiceConfig {} => {
-            let config: Config = service_base::load_config(deps.storage)?;
+            let config: Config = valence_service_base::load_config(deps.storage)?;
             to_json_binary(&config)
         }
     }

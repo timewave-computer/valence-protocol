@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
-use service_utils::Id;
 use valence_authorization_utils::authorization::AuthorizationInfo;
+use valence_service_utils::Id;
 
 use crate::{
     account::{AccountInfo, AccountType, InstantiateAccountData},

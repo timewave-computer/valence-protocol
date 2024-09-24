@@ -2,9 +2,11 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
+use valence_account_utils::{
+    error::ContractError,
+    msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
+};
 
-use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::state::{ADMIN, APPROVED_SERVICES};
 
 // version info for migration info
@@ -49,11 +51,11 @@ pub fn execute(
 
 mod execute {
     use cosmwasm_std::{CosmosMsg, DepsMut, Empty, MessageInfo, Response};
+    use valence_account_utils::error::ContractError;
 
     use crate::{
         helpers::check_admin,
         state::{ADMIN, APPROVED_SERVICES},
-        ContractError,
     };
 
     pub fn transfer_admin(
