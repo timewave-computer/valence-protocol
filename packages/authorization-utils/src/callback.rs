@@ -46,7 +46,10 @@ pub enum ExecutionResult {
     // Removed by Owner - happens when, from the authorization contract, a remove item from queue is sent
     RemovedByOwner,
     // Timeout - happens when the bridged message times out
-    Timeout,
+    // We'll use a flag to indicate if the timeout is retriable or not
+    // true - retriable
+    // false - not retriable
+    Timeout(bool),
     // Unexpected error that should never happen but we'll store it here if it ever does
     UnexpectedError(String),
 }
