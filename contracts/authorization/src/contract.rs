@@ -824,31 +824,32 @@ fn process_polytone_callback(
                                     .ttl
                                     .map(|ttl| ttl.is_expired(&env.block))
                                     .unwrap_or(true);
-                                callback_info.execution_result = if error == "timeout" && is_expired
-                                {
-                                    // We check if we need to send the token back, if action was initiatiated by a user and a token was sent
-                                    if let (
-                                        OperationInitiator::User(initiator_addr),
-                                        AuthorizationMode::Permissioned(
-                                            PermissionType::WithCallLimit(_),
-                                        ),
-                                    ) = (
-                                        &callback_info.initiator,
-                                        &AUTHORIZATIONS
-                                            .load(deps.storage, callback_info.label.clone())?
-                                            .mode,
-                                    ) {
-                                        let denom = build_tokenfactory_denom(
-                                            env.contract.address.as_str(),
-                                            &callback_info.label,
-                                        );
-                                        messages.push(CosmosMsg::Bank(BankMsg::Send {
-                                            to_address: initiator_addr.to_string(),
-                                            amount: coins(1, denom),
-                                        }));
+                                callback_info.execution_result = if error == "timeout" {
+                                    if is_expired {
+                                        // We check if we need to send the token back, if action was initiatiated by a user and a token was sent
+                                        if let (
+                                            OperationInitiator::User(initiator_addr),
+                                            AuthorizationMode::Permissioned(
+                                                PermissionType::WithCallLimit(_),
+                                            ),
+                                        ) = (
+                                            &callback_info.initiator,
+                                            &AUTHORIZATIONS
+                                                .load(deps.storage, callback_info.label.clone())?
+                                                .mode,
+                                        ) {
+                                            let denom = build_tokenfactory_denom(
+                                                env.contract.address.as_str(),
+                                                &callback_info.label,
+                                            );
+                                            messages.push(CosmosMsg::Bank(BankMsg::Send {
+                                                to_address: initiator_addr.to_string(),
+                                                amount: coins(1, denom),
+                                            }));
+                                        }
                                     }
-                                    // Update the execution result to not retriable anymore
-                                    ExecutionResult::Timeout(false)
+                                    // If it's expired it's not retriable anymore
+                                    ExecutionResult::Timeout(!is_expired)
                                 } else {
                                     ExecutionResult::UnexpectedError(error)
                                 };

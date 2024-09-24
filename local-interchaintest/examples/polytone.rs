@@ -47,8 +47,8 @@ use valence_processor_utils::{
     processor::{Config, MessageBatch, ProcessorDomain},
 };
 
-const TIMEOUT_SECONDS: u64 = 5;
-const MAX_ATTEMPTS: u64 = 25;
+const TIMEOUT_SECONDS: u64 = 15;
+const MAX_ATTEMPTS: u64 = 50;
 const USER_ADDRESS: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
 const USER_KEY: &str = "acc1";
 
@@ -310,6 +310,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         )
         .unwrap();
 
+    // Give some time to make sure the channels are open
+    std::thread::sleep(Duration::from_secs(15));
+
     // Get the connection ids so that we can predict the proxy addresses
     let neutron_channels = relayer.get_channels(NEUTRON_CHAIN_ID).unwrap();
 
@@ -423,22 +426,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         .send()
         .unwrap();
 
-    // Let's make sure that when we start the relayer, the packets will time out
-    std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
-
-    // Start the relayer again
-    test_ctx.start_relayer();
-
-    // The proxy creation from the processor should have timed out
-    verify_proxy_state_on_processor(
-        &mut test_ctx,
-        &predicted_processor_on_juno_address,
-        &PolytoneProxyState::TimedOut,
-    );
-
-    // Stop the relayer again to force a time out when adding external domain
-    test_ctx.stop_relayer();
-
     info!("Adding external domain to the authorization contract...");
     let add_external_domain_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
         PermissionedMsg::AddExternalDomains {
@@ -473,7 +460,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
 
     // Start the relayer again
-    test_ctx.start_relayer();
+    restart_relayer(&mut test_ctx);
+
+    // The proxy creation from the processor should have timed out
+    verify_proxy_state_on_processor(
+        &mut test_ctx,
+        &predicted_processor_on_juno_address,
+        &PolytoneProxyState::TimedOut,
+    );
 
     // The proxy creation for the external domain that we added on the authorization contract should have timed out too
     verify_proxy_state_on_authorization(
@@ -746,7 +740,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
 
     info!("Restarting the relayer...");
-    test_ctx.start_relayer();
+    restart_relayer(&mut test_ctx);
 
     // Verify that all messages are in timeout state
     // The one without TTL should not be retriable and the two with TTL should be retriable
@@ -922,10 +916,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             break;
         }
 
+        if attempts % 5 == 0 {
+            // Sometimes the relayer doesn't pick up the changes, so we restart it
+            restart_relayer(&mut test_ctx);
+        }
+
         if attempts > MAX_ATTEMPTS {
             panic!("Maximum number of attempts reached. Cancelling execution.");
         }
-        std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+        std::thread::sleep(Duration::from_secs(15));
     }
 
     assert_eq!(batches[0].id, 1);
@@ -954,7 +953,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
 
     info!("Restarting the relayer...");
-    test_ctx.start_relayer();
+    restart_relayer(&mut test_ctx);
 
     // The polytone callback in the processor should have timed out
     info!("Querying the callback from the processor...");
@@ -973,10 +972,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             break;
         }
 
+        if attempts % 5 == 0 {
+            // Sometimes the relayer doesn't pick up the changes, so we restart it
+            restart_relayer(&mut test_ctx);
+        }
+
         if attempts > MAX_ATTEMPTS {
             panic!("Maximum number of attempts reached. Cancelling execution.");
         }
-        std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+        std::thread::sleep(Duration::from_secs(15));
     }
 
     // Now we should be able to retry the callback permissionlessly
@@ -1044,10 +1048,15 @@ fn verify_proxy_state_on_processor(
             panic!("The processor domain is not external!");
         }
 
+        if attempts % 5 == 0 {
+            // Sometimes the relayer doesn't pick up the changes, so we restart it
+            restart_relayer(test_ctx);
+        }
+
         if attempts > MAX_ATTEMPTS {
             panic!("Maximum number of attempts reached. Cancelling execution.");
         }
-        std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+        std::thread::sleep(Duration::from_secs(15));
     }
 }
 
@@ -1088,10 +1097,15 @@ fn verify_proxy_state_on_authorization(
             }
         }
 
+        if attempts % 5 == 0 {
+            // Sometimes the relayer doesn't pick up the changes, so we restart it
+            restart_relayer(test_ctx);
+        }
+
         if attempts > MAX_ATTEMPTS {
             panic!("Maximum number of attempts reached. Cancelling execution.");
         }
-        std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+        std::thread::sleep(Duration::from_secs(15));
     }
 }
 
@@ -1134,10 +1148,15 @@ fn verify_authorization_execution_result(
             );
         }
 
+        if attempts % 5 == 0 {
+            // Sometimes the relayer doesn't pick up the changes, so we restart it
+            restart_relayer(test_ctx);
+        }
+
         if attempts > MAX_ATTEMPTS {
             panic!("Maximum number of attempts reached. Cancelling execution.");
         }
-        std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+        std::thread::sleep(Duration::from_secs(15));
     }
 }
 
@@ -1183,4 +1202,9 @@ fn get_processor_pending_polytone_callback(
             .clone(),
     )
     .unwrap()
+}
+
+fn restart_relayer(test_ctx: &mut TestContext) {
+    test_ctx.stop_relayer();
+    test_ctx.start_relayer();
 }
