@@ -3,16 +3,16 @@ use helpers::assert_processor;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use msg::{ExecuteMsg, InstantiateMsg, ServiceConfigValidation};
 use state::PROCESSOR;
+use valence_service_utils::{
+    error::ServiceError,
+    msg::{ExecuteMsg, InstantiateMsg, ServiceConfigValidation},
+};
 
-pub mod error;
 pub mod helpers;
-pub mod msg;
 pub mod state;
 
-pub use crate::error::ServiceError;
-pub use crate::state::{load_config, save_config};
+pub use crate::state::{get_ownership, get_processor, load_config, save_config};
 
 pub fn instantiate<T, U>(
     deps: DepsMut,
@@ -43,7 +43,7 @@ pub fn execute<T, U, V>(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg<T, V>,
-    process_action: fn(&DepsMut, Env, MessageInfo, T, U) -> Result<Response, ServiceError>,
+    process_action: fn(DepsMut, Env, MessageInfo, T, U) -> Result<Response, ServiceError>,
     update_config: fn(&DepsMut, Env, MessageInfo, &mut U, V) -> Result<(), ServiceError>,
 ) -> Result<Response, ServiceError>
 where
@@ -53,7 +53,7 @@ where
         ExecuteMsg::ProcessAction(action) => {
             assert_processor(deps.as_ref().storage, &info.sender)?;
             let config = load_config(deps.storage)?;
-            process_action(&deps, env, info, action, config)
+            process_action(deps, env, info, action, config)
         }
         ExecuteMsg::UpdateConfig { new_config } => {
             cw_ownable::assert_owner(deps.as_ref().storage, &info.sender)?;

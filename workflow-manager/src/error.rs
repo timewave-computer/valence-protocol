@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
-use service_utils::Id;
 use thiserror::Error;
+use valence_service_utils::Id;
 
 use crate::{config::ConfigError, domain::ConnectorError, service::ServiceError};
 
