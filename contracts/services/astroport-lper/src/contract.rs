@@ -3,7 +3,7 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 
 use crate::{
-    error::ServiceError,
+    error::{ServiceError, UnauthorizedReason},
     msg::{Config, ExecuteMsg, InstantiateMsg, QueryMsg, ServiceConfigValidation},
     state::{CONFIG, PROCESSOR},
 };
@@ -41,6 +41,12 @@ pub fn execute(
 ) -> Result<Response, ServiceError> {
     match msg {
         ExecuteMsg::ProcessAction(action_msgs) => {
+            let processor = PROCESSOR.load(deps.storage)?;
+            if info.sender != processor {
+                return Err(ServiceError::Unauthorized(
+                    UnauthorizedReason::NotAllowed {},
+                ));
+            }
             let config = CONFIG.load(deps.storage)?;
             actions::process_action(deps, env, info, action_msgs, config)
         }
