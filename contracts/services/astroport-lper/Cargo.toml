@@ -20,7 +20,5 @@ cosmwasm-schema         = "1.5.7"
 cw2                     = "1.1.2"
 cw-ownable              = "0.5.1"
 thiserror               = { workspace = true }
-valence-macros          = { workspace = true }
-valence-account-utils   = { workspace = true }
 astroport               = { workspace = true }
 astroport-cw20-lp-token = { workspace = true }

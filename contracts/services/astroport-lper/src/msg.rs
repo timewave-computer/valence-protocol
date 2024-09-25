@@ -1,7 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{ensure, Addr, Decimal, Deps, DepsMut, Uint128};
+use cosmwasm_std::{ensure, Addr, Decimal, Deps, Uint128};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query};
-use valence_macros::OptionalStruct;
 
 use crate::error::ServiceError;
 
@@ -63,7 +62,6 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
-#[derive(OptionalStruct)]
 pub struct ServiceConfig {
     pub input_addr: String,
     pub output_addr: String,
@@ -120,35 +118,6 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
             pool_addr,
             lp_config: self.lp_config.clone(),
         })
-    }
-}
-
-impl OptionalServiceConfig {
-    pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
-        if let Some(input_addr) = self.input_addr {
-            config.input_addr = deps.api.addr_validate(&input_addr)?;
-        }
-
-        if let Some(output_addr) = self.output_addr {
-            config.output_addr = deps.api.addr_validate(&output_addr)?;
-        }
-
-        if let Some(pool_addr) = self.pool_addr {
-            config.pool_addr = deps.api.addr_validate(&pool_addr)?;
-        }
-
-        if let Some(lp_config) = self.lp_config {
-            ensure_asset_uniqueness(&lp_config.asset_data)?;
-            config.lp_config = lp_config;
-        }
-
-        ensure_correct_pool_type(
-            config.pool_addr.to_string(),
-            &config.lp_config.pool_type,
-            &deps.as_ref(),
-        )?;
-
-        Ok(())
     }
 }
 
