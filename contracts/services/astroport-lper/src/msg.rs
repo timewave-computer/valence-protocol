@@ -1,8 +1,28 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{ensure, Addr, Deps, DepsMut, Uint128};
-use cw_ownable::cw_ownable_query;
+use cosmwasm_std::{ensure, Addr, Decimal, Deps, DepsMut, Uint128};
+use cw_ownable::{cw_ownable_execute, cw_ownable_query};
 use valence_macros::OptionalStruct;
-use valence_service_utils::{error::ServiceError, msg::ServiceConfigValidation};
+
+use crate::error::ServiceError;
+
+#[cw_serde]
+pub struct InstantiateMsg {
+    pub owner: String,
+    pub processor: String,
+    pub config: ServiceConfig,
+}
+
+pub trait ServiceConfigValidation<T> {
+    fn validate(&self, deps: Deps) -> Result<T, ServiceError>;
+}
+
+#[cw_ownable_execute]
+#[cw_serde]
+pub enum ExecuteMsg {
+    ProcessAction(ActionsMsgs),
+    UpdateConfig { new_config: ServiceConfig },
+    UpdateProcessor { processor: String },
+}
 
 #[cw_serde]
 pub enum ActionsMsgs {
@@ -18,15 +38,12 @@ pub enum ActionsMsgs {
 
 #[cw_serde]
 pub struct DecimalRange {
-    min: cosmwasm_std_astroport::Decimal,
-    max: cosmwasm_std_astroport::Decimal,
+    min: Decimal,
+    max: Decimal,
 }
 
 impl DecimalRange {
-    pub fn is_within_range(
-        &self,
-        value: cosmwasm_std_astroport::Decimal,
-    ) -> Result<(), ServiceError> {
+    pub fn is_within_range(&self, value: Decimal) -> Result<(), ServiceError> {
         ensure!(
             value >= self.min && value <= self.max,
             ServiceError::ExecutionError("Value is not within the expected range".to_string())
@@ -62,7 +79,7 @@ pub struct LiquidityProviderConfig {
     /// Denoms of both native assets we are going to provide liquidity for
     pub asset_data: AssetData,
     /// Slippage tolerance when providing liquidity
-    pub slippage_tolerance: Option<cosmwasm_std_astroport::Decimal>,
+    pub slippage_tolerance: Option<Decimal>,
 }
 
 #[cw_serde]

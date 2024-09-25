@@ -1,12 +1,12 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
-use valence_service_utils::{
-    error::ServiceError,
-    msg::{ExecuteMsg, InstantiateMsg},
-};
 
-use crate::msg::{ActionsMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig};
+use crate::{
+    error::ServiceError,
+    msg::{Config, ExecuteMsg, InstantiateMsg, QueryMsg, ServiceConfigValidation},
+    state::{CONFIG, PROCESSOR},
+};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -17,9 +17,19 @@ pub fn instantiate(
     deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    msg: InstantiateMsg<ServiceConfig>,
+    msg: InstantiateMsg,
 ) -> Result<Response, ServiceError> {
-    valence_service_base::instantiate(deps, CONTRACT_NAME, CONTRACT_VERSION, msg)
+    cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    cw_ownable::initialize_owner(deps.storage, deps.api, Some(&msg.owner))?;
+
+    PROCESSOR.save(deps.storage, &deps.api.addr_validate(&msg.processor)?)?;
+
+    let config = msg.config.validate(deps.as_ref())?;
+    CONFIG.save(deps.storage, &config)?;
+
+    Ok(Response::new()
+        .add_attribute("method", "instantiate")
+        .add_attribute("owner", msg.owner))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -27,24 +37,49 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg<ActionsMsgs, OptionalServiceConfig>,
+    msg: ExecuteMsg,
 ) -> Result<Response, ServiceError> {
-    valence_service_base::execute(
-        deps,
-        env,
-        info,
-        msg,
-        actions::process_action,
-        execute::update_config,
-    )
+    match msg {
+        ExecuteMsg::ProcessAction(action_msgs) => {
+            let config = CONFIG.load(deps.storage)?;
+            actions::process_action(deps, env, info, action_msgs, config)
+        }
+        ExecuteMsg::UpdateConfig { new_config } => {
+            cw_ownable::assert_owner(deps.as_ref().storage, &info.sender)?;
+            let config = new_config.validate(deps.as_ref())?;
+            CONFIG.save(deps.storage, &config)?;
+            Ok(Response::new().add_attribute("method", "update_config"))
+        }
+        ExecuteMsg::UpdateProcessor { processor } => {
+            cw_ownable::assert_owner(deps.as_ref().storage, &info.sender)?;
+            PROCESSOR.save(deps.storage, &deps.api.addr_validate(&processor)?)?;
+            Ok(Response::default()
+                .add_attribute("method", "update_processor")
+                .add_attribute("processor", processor))
+        }
+        ExecuteMsg::UpdateOwnership(action) => {
+            let result =
+                cw_ownable::update_ownership(deps, &env.block, &info.sender, action.clone())?;
+            Ok(Response::default()
+                .add_attribute("method", "update_ownership")
+                .add_attribute("action", format!("{:?}", action))
+                .add_attribute("result", format!("{:?}", result)))
+        }
+    }
 }
 
 mod actions {
     use astroport::DecimalCheckedOps;
-    use cosmwasm_std::{Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128};
-    use valence_service_utils::{error::ServiceError, execute_on_behalf_of};
+    use cosmwasm_schema::cw_serde;
+    use cosmwasm_std::{
+        to_json_binary, Addr, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult,
+        Uint128, WasmMsg,
+    };
 
-    use crate::msg::{ActionsMsgs, Config, DecimalRange, PoolType};
+    use crate::{
+        error::ServiceError,
+        msg::{ActionsMsgs, Config, DecimalRange, PoolType},
+    };
 
     use super::{astroport_cw20, astroport_native};
 
@@ -86,7 +121,7 @@ mod actions {
 
         // Get the pool asset ratios
         let pool_asset_ratios =
-            cosmwasm_std_astroport::Decimal::from_ratio(pool_asset1_balance, pool_asset2_balance);
+            cosmwasm_std::Decimal::from_ratio(pool_asset1_balance, pool_asset2_balance);
 
         // If we have an expected pool ratio range, we need to check if the pool is within that range
         if let Some(range) = expected_pool_ratio_range {
@@ -179,11 +214,11 @@ mod actions {
         balance2: u128,
         pool_asset1_balance: u128,
         pool_asset2_balance: u128,
-        pool_asset_ratio: cosmwasm_std_astroport::Decimal,
+        pool_asset_ratio: cosmwasm_std::Decimal,
     ) -> Result<(u128, u128), ServiceError> {
         // Let's get the maximum amount of assets that we can provide liquidity
         let required_asset1_amount = pool_asset_ratio
-            .checked_mul_uint128(cosmwasm_std_astroport::Uint128::from(balance2))
+            .checked_mul_uint128(cosmwasm_std::Uint128::from(balance2))
             .map_err(|error| ServiceError::ExecutionError(error.to_string()))?;
 
         // We can provide all asset2 tokens along with the corresponding maximum of asset1 tokens
@@ -191,15 +226,12 @@ mod actions {
             Ok((required_asset1_amount.u128(), balance2))
         } else {
             // We can't provide all asset2 tokens so we need to determine how many we can provide according to our available asset1
-            let ratio = cosmwasm_std_astroport::Decimal::from_ratio(
-                pool_asset1_balance,
-                pool_asset2_balance,
-            );
+            let ratio = cosmwasm_std::Decimal::from_ratio(pool_asset1_balance, pool_asset2_balance);
 
             Ok((
                 balance1,
                 ratio
-                    .checked_mul_uint128(cosmwasm_std_astroport::Uint128::new(balance1))
+                    .checked_mul_uint128(cosmwasm_std::Uint128::new(balance1))
                     .map_err(|error| ServiceError::ExecutionError(error.to_string()))?
                     .u128(),
             ))
@@ -223,19 +255,19 @@ mod actions {
 
     // Define a trait that both Asset types can implement
     pub trait AssetTrait {
-        fn as_coin(&self) -> Result<cosmwasm_std_astroport::Coin, ServiceError>;
+        fn as_coin(&self) -> Result<cosmwasm_std::Coin, ServiceError>;
     }
 
     // Implement the trait for both Asset types
     impl AssetTrait for astroport::asset::Asset {
-        fn as_coin(&self) -> Result<cosmwasm_std_astroport::Coin, ServiceError> {
+        fn as_coin(&self) -> Result<cosmwasm_std::Coin, ServiceError> {
             self.as_coin()
                 .map_err(|error| ServiceError::ExecutionError(error.to_string()))
         }
     }
 
     impl AssetTrait for astroport_cw20_lp_token::asset::Asset {
-        fn as_coin(&self) -> Result<cosmwasm_std_astroport::Coin, ServiceError> {
+        fn as_coin(&self) -> Result<cosmwasm_std::Coin, ServiceError> {
             self.to_coin()
                 .map_err(|error| ServiceError::ExecutionError(error.to_string()))
         }
@@ -272,10 +304,8 @@ mod actions {
 
         // Check pool ratio if range is provided
         if let Some(range) = expected_pool_ratio_range {
-            let pool_asset_ratios = cosmwasm_std_astroport::Decimal::from_ratio(
-                pool_asset1_balance,
-                pool_asset2_balance,
-            );
+            let pool_asset_ratios =
+                cosmwasm_std::Decimal::from_ratio(pool_asset1_balance, pool_asset2_balance);
             range.is_within_range(pool_asset_ratios)?;
         }
 
@@ -311,16 +341,32 @@ mod actions {
             .add_attribute("method", "provide_single_sided_liquidity")
             .add_attribute("asset_amount", asset_balance.amount.to_string()))
     }
+
+    // This is a helper function to execute a CosmosMsg on behalf of an account
+    pub fn execute_on_behalf_of(msgs: Vec<CosmosMsg>, account: &Addr) -> StdResult<CosmosMsg> {
+        // Used to execute a CosmosMsg on behalf of an account
+        #[cw_serde]
+        pub enum ExecuteMsg {
+            ExecuteMsg { msgs: Vec<CosmosMsg> }, // Execute any CosmosMsg (approved services or admin)
+        }
+
+        Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: account.to_string(),
+            msg: to_json_binary(&ExecuteMsg::ExecuteMsg { msgs })?,
+            funds: vec![],
+        }))
+    }
 }
 
 mod astroport_native {
+    use crate::error::ServiceError;
     use crate::msg::PoolType;
 
     use super::*;
     use astroport::asset::{Asset, AssetInfo};
     use astroport::pair::{ExecuteMsg, PoolResponse, QueryMsg};
+    use cosmwasm_std::Uint128;
     use cosmwasm_std::{coin, CosmosMsg, WasmMsg};
-    use cosmwasm_std_astroport::Uint128;
 
     pub fn query_pool(deps: &DepsMut, pool_addr: &str) -> Result<Vec<Asset>, ServiceError> {
         let response: PoolResponse = deps
@@ -393,19 +439,16 @@ mod astroport_native {
         asset_balance: &cosmwasm_std::Coin,
         other_asset: &cosmwasm_std::Coin,
     ) -> Result<Vec<CosmosMsg>, ServiceError> {
-        let halved_coin = cosmwasm_std_astroport::Coin {
+        let halved_coin = cosmwasm_std::Coin {
             denom: asset_balance.denom.clone(),
-            amount: cosmwasm_std_astroport::Uint128::from(asset_balance.amount.u128())
-                / cosmwasm_std_astroport::Uint128::from(2u128),
+            amount: cosmwasm_std::Uint128::from(asset_balance.amount.u128())
+                / cosmwasm_std::Uint128::from(2u128),
         };
 
         let (offer_asset, mut ask_asset) = {
             (
-                cosmwasm_std_astroport::coin(
-                    halved_coin.amount.u128(),
-                    asset_balance.denom.clone(),
-                ),
-                cosmwasm_std_astroport::coin(other_asset.amount.u128(), other_asset.denom.clone()),
+                cosmwasm_std::coin(halved_coin.amount.u128(), asset_balance.denom.clone()),
+                cosmwasm_std::coin(other_asset.amount.u128(), other_asset.denom.clone()),
             )
         };
 
@@ -505,13 +548,14 @@ mod astroport_native {
 }
 
 mod astroport_cw20 {
+    use crate::error::ServiceError;
     use crate::msg::PoolType;
 
     use super::*;
     use astroport_cw20_lp_token::asset::{Asset, AssetInfo};
     use astroport_cw20_lp_token::pair::{ExecuteMsg, PoolResponse, QueryMsg};
+    use cosmwasm_std::Uint128;
     use cosmwasm_std::{coin, CosmosMsg, WasmMsg};
-    use cosmwasm_std_astroport::Uint128;
 
     pub fn query_pool(deps: &DepsMut, pool_addr: &str) -> Result<Vec<Asset>, ServiceError> {
         let response: PoolResponse = deps
@@ -583,19 +627,16 @@ mod astroport_cw20 {
         asset_balance: &cosmwasm_std::Coin,
         other_asset: &cosmwasm_std::Coin,
     ) -> Result<Vec<CosmosMsg>, ServiceError> {
-        let halved_coin = cosmwasm_std_astroport::Coin {
+        let halved_coin = cosmwasm_std::Coin {
             denom: asset_balance.denom.clone(),
-            amount: cosmwasm_std_astroport::Uint128::from(asset_balance.amount.u128())
-                / cosmwasm_std_astroport::Uint128::from(2u128),
+            amount: cosmwasm_std::Uint128::from(asset_balance.amount.u128())
+                / cosmwasm_std::Uint128::from(2u128),
         };
 
         let (offer_asset, mut ask_asset) = {
             (
-                cosmwasm_std_astroport::coin(
-                    halved_coin.amount.u128(),
-                    asset_balance.denom.clone(),
-                ),
-                cosmwasm_std_astroport::coin(other_asset.amount.u128(), other_asset.denom.clone()),
+                cosmwasm_std::coin(halved_coin.amount.u128(), asset_balance.denom.clone()),
+                cosmwasm_std::coin(other_asset.amount.u128(), other_asset.denom.clone()),
             )
         };
 
@@ -693,34 +734,16 @@ mod astroport_cw20 {
     }
 }
 
-mod execute {
-    use cosmwasm_std::{DepsMut, Env, MessageInfo};
-    use valence_service_utils::error::ServiceError;
-
-    use crate::msg::{Config, OptionalServiceConfig};
-
-    pub fn update_config(
-        deps: &DepsMut,
-        _env: Env,
-        _info: MessageInfo,
-        config: &mut Config,
-        new_config: OptionalServiceConfig,
-    ) -> Result<(), ServiceError> {
-        new_config.update_config(deps, config)
-    }
-}
-
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Ownership {} => {
-            to_json_binary(&valence_service_base::get_ownership(deps.storage)?)
-        }
+        QueryMsg::Ownership {} => to_json_binary(&cw_ownable::get_ownership(deps.storage)?),
         QueryMsg::GetProcessor {} => {
-            to_json_binary(&valence_service_base::get_processor(deps.storage)?)
+            let processor = PROCESSOR.load(deps.storage)?;
+            to_json_binary(&processor)
         }
         QueryMsg::GetServiceConfig {} => {
-            let config: Config = valence_service_base::load_config(deps.storage)?;
+            let config: Config = CONFIG.load(deps.storage)?;
             to_json_binary(&config)
         }
     }
