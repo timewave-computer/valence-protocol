@@ -4750,6 +4750,7 @@ dependencies = [
  "astroport 2.9.5",
  "astroport 5.0.0",
  "cosmwasm-schema 2.1.3",
+ "cosmwasm-std 1.5.7",
  "cosmwasm-std 2.1.3",
  "cw-ownable",
  "valence-macros",

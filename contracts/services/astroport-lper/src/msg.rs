@@ -1,13 +1,38 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, Deps, DepsMut, Uint128};
+use cosmwasm_std::{ensure, Addr, Deps, DepsMut, Uint128};
 use cw_ownable::cw_ownable_query;
 use valence_macros::OptionalStruct;
 use valence_service_utils::{error::ServiceError, msg::ServiceConfigValidation};
 
 #[cw_serde]
 pub enum ActionsMsgs {
-    ProvideDoubleSidedLiquidity {},
-    ProvideSingleSidedLiquidity {},
+    ProvideDoubleSidedLiquidity {
+        expected_pool_ratio_range: Option<DecimalRange>,
+    },
+    ProvideSingleSidedLiquidity {
+        asset: String,
+        limit: Option<Uint128>,
+        expected_pool_ratio_range: Option<DecimalRange>,
+    },
+}
+
+#[cw_serde]
+pub struct DecimalRange {
+    min: cosmwasm_std_astroport::Decimal,
+    max: cosmwasm_std_astroport::Decimal,
+}
+
+impl DecimalRange {
+    pub fn is_within_range(
+        &self,
+        value: cosmwasm_std_astroport::Decimal,
+    ) -> Result<(), ServiceError> {
+        ensure!(
+            value >= self.min && value <= self.max,
+            ServiceError::ExecutionError("Value is not within the expected range".to_string())
+        );
+        Ok(())
+    }
 }
 
 #[cw_ownable_query]
@@ -31,22 +56,19 @@ pub struct ServiceConfig {
 
 #[cw_serde]
 pub struct LiquidityProviderConfig {
-    /// LP token type, old Astroport pools use Cw20 lp tokens and new pools use native tokens, so we specify here what kind of token we are going to get.
-    /// Also useful to know which version of Astroport we are going to interact with
-    pub lp_token_type: LpTokenType,
+    /// Pool type, old Astroport pools use Cw20 lp tokens and new pools use native tokens, so we specify here what kind of token we are going to get.
+    /// We also provide the PairType structure of the right Astroport version that we are going to use for each scenario
+    pub pool_type: PoolType,
     /// Denoms of both native assets we are going to provide liquidity for
     pub asset_data: AssetData,
-    /// Amounts of both tokens we consider OK to single-side lp
-    pub single_side_lp_limits: SingleSideLpLimits,
-    pub slippage_tolerance: Option<Decimal>,
-    /// Config for the pool price expectations upon instantiation
-    pub pool_price_config: PoolPriceConfig,
+    /// Slippage tolerance when providing liquidity
+    pub slippage_tolerance: Option<cosmwasm_std_astroport::Decimal>,
 }
 
 #[cw_serde]
-pub enum LpTokenType {
-    Native,
-    Cw20,
+pub enum PoolType {
+    NativeLpToken(astroport::factory::PairType),
+    Cw20LpToken(astroport_cw20_lp_token::factory::PairType),
 }
 
 #[cw_serde]
@@ -55,18 +77,6 @@ pub struct AssetData {
     pub asset1: String,
     /// Denom of the second asset
     pub asset2: String,
-}
-
-#[cw_serde]
-pub struct SingleSideLpLimits {
-    pub asset1_limit: Uint128,
-    pub asset2_limit: Uint128,
-}
-
-#[cw_serde]
-pub struct PoolPriceConfig {
-    pub expected_spot_price: Decimal,
-    pub acceptable_price_spread: Decimal,
 }
 
 #[cw_serde]
@@ -85,6 +95,7 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
         let pool_addr = deps.api.addr_validate(&self.pool_addr)?;
 
         ensure_asset_uniqueness(&self.lp_config.asset_data)?;
+        ensure_correct_pool_type(self.pool_addr.to_string(), &self.lp_config.pool_type, &deps)?;
 
         Ok(Config {
             input_addr,
@@ -114,8 +125,47 @@ impl OptionalServiceConfig {
             config.lp_config = lp_config;
         }
 
+        ensure_correct_pool_type(
+            config.pool_addr.to_string(),
+            &config.lp_config.pool_type,
+            &deps.as_ref(),
+        )?;
+
         Ok(())
     }
+}
+
+fn ensure_correct_pool_type(
+    pool_addr: String,
+    pool_type: &PoolType,
+    deps: &Deps,
+) -> Result<(), ServiceError> {
+    match pool_type {
+        PoolType::NativeLpToken(pair_type) => {
+            let pool_response: astroport::asset::PairInfo = deps
+                .querier
+                .query_wasm_smart(pool_addr, &astroport::pair::QueryMsg::Pair {})?;
+
+            if pool_response.pair_type != *pair_type {
+                return Err(ServiceError::ConfigurationError(
+                    "Pool type does not match the expected pair type".to_string(),
+                ));
+            }
+        }
+        PoolType::Cw20LpToken(pair_type) => {
+            let pool_response: astroport_cw20_lp_token::asset::PairInfo = deps
+                .querier
+                .query_wasm_smart(pool_addr, &astroport_cw20_lp_token::pair::QueryMsg::Pair {})?;
+
+            if pool_response.pair_type != *pair_type {
+                return Err(ServiceError::ConfigurationError(
+                    "Pool type does not match the expected pair type".to_string(),
+                ));
+            }
+        }
+    }
+
+    Ok(())
 }
 
 fn ensure_asset_uniqueness(asset_data: &AssetData) -> Result<(), ServiceError> {

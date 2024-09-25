@@ -46,36 +46,22 @@ pub struct ServiceConfig {
 }
 
 pub struct LiquidityProviderConfig {
-    // LP token type, old Astroport pools use Cw20 lp tokens and new pools use native tokens, so we specify here what kind of token we are going to get.
-    // Also useful to know which version of Astroport we are going to interact with
-    pub lp_token_type: LpTokenType,
+    // Pool type, old Astroport pools use Cw20 lp tokens and new pools use native tokens, so we specify here what kind of token we are going to get.
+    // We also provide the PairType structure of the right Astroport version that we are going to use for each scenario
+    pub pool_type: PoolType,
     // Denoms of both native assets we are going to provide liquidity for
     pub asset_data: AssetData,
-    // Amounts of both tokens we consider ok to single-side lp
-    pub single_side_lp_limits: SingleSideLpLimits,
-    // Slippage tolerance parameter for liquidity provisioning
+    // Slippage tolerance
     pub slippage_tolerance: Option<Decimal>,
-    // Config for the pool price expectations upon instantiation
-    pub pool_price_config: PoolPriceConfig,
 }
 
-pub enum LpTokenType {
-    Native,
-    Cw20,
+pub enum PoolType {
+    NativeLpToken(astroport::factory::PairType),
+    Cw20LpToken(astroport_cw20_lp_token::factory::PairType),
 }
 
 pub struct AssetData {
     pub asset1: String,
     pub asset2: String,
-}
-
-pub struct SingleSideLpLimits {
-    pub asset1_limit: Uint128,
-    pub asset2_limit: Uint128,
-}
-
-pub struct PoolPriceConfig {
-    pub expected_spot_price: Decimal,
-    pub acceptable_price_spread: Decimal,
 }
 ```
