@@ -73,22 +73,22 @@ pub fn get_domain(authorization: &Authorization) -> Result<Domain, ContractError
     }
 }
 
-pub fn create_wasm_msg_for_processor_or_bridge(
+pub fn create_msg_for_processor_or_bridge(
     storage: &dyn Storage,
     execute_msg: Binary,
     domain: &Domain,
     callback_request: Option<CallbackRequest>,
-) -> Result<WasmMsg, ContractError> {
+) -> Result<CosmosMsg<NeutronMsg>, ContractError> {
     // If the domain is the main domain we will use the processor on the main domain, otherwise we will use polytone to send it to the processor on the external domain
     match domain {
         Domain::Main => {
             let processor = PROCESSOR_ON_MAIN_DOMAIN.load(storage)?;
             // Simple message for the main domain's processor
-            Ok(WasmMsg::Execute {
+            Ok(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: processor.to_string(),
                 msg: execute_msg,
                 funds: vec![],
-            })
+            }))
         }
         Domain::External(name) => {
             let external_domain = EXTERNAL_DOMAINS.load(storage, name.clone())?;
@@ -98,7 +98,7 @@ pub fn create_wasm_msg_for_processor_or_bridge(
                     address,
                     timeout_seconds,
                     ..
-                } => Ok(WasmMsg::Execute {
+                } => Ok(CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: address.to_string(),
                     msg: to_json_binary(&PolytoneExecuteMsg::Execute {
                         msgs: vec![CosmosMsg::Wasm(WasmMsg::Execute {
@@ -110,7 +110,7 @@ pub fn create_wasm_msg_for_processor_or_bridge(
                         timeout_seconds: Uint64::from(timeout_seconds),
                     })?,
                     funds: vec![],
-                }),
+                })),
             }
         }
     }

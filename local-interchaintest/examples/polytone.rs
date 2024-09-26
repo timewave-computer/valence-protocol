@@ -4,11 +4,14 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use cosmwasm_std::{Binary, Uint128};
+use cosmwasm_std::{Binary, Timestamp, Uint128};
 use cosmwasm_std_polytone::Uint64;
 use cw_utils::Expiration;
 use localic_std::{
-    modules::cosmwasm::{contract_execute, contract_instantiate, contract_query, CosmWasm},
+    modules::{
+        bank,
+        cosmwasm::{contract_execute, contract_instantiate, contract_query, CosmWasm},
+    },
     relayer::Relayer,
 };
 use localic_utils::{
@@ -44,8 +47,8 @@ use valence_processor_utils::{
     processor::{Config, MessageBatch, ProcessorDomain},
 };
 
-const TIMEOUT_SECONDS: u64 = 5;
-const MAX_ATTEMPTS: u64 = 25;
+const TIMEOUT_SECONDS: u64 = 15;
+const MAX_ATTEMPTS: u64 = 50;
 const USER_ADDRESS: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
 const USER_KEY: &str = "acc1";
 
@@ -307,6 +310,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         )
         .unwrap();
 
+    // Give some time to make sure the channels are open
+    std::thread::sleep(Duration::from_secs(15));
+
     // Get the connection ids so that we can predict the proxy addresses
     let neutron_channels = relayer.get_channels(NEUTRON_CHAIN_ID).unwrap();
 
@@ -420,22 +426,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         .send()
         .unwrap();
 
-    // Let's make sure that when we start the relayer, the packets will time out
-    std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
-
-    // Start the relayer again
-    test_ctx.start_relayer();
-
-    // The proxy creation from the processor should have timed out
-    verify_proxy_state_on_processor(
-        &mut test_ctx,
-        &predicted_processor_on_juno_address,
-        &PolytoneProxyState::TimedOut,
-    );
-
-    // Stop the relayer again to force a time out when adding external domain
-    test_ctx.stop_relayer();
-
     info!("Adding external domain to the authorization contract...");
     let add_external_domain_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
         PermissionedMsg::AddExternalDomains {
@@ -470,7 +460,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
 
     // Start the relayer again
-    test_ctx.start_relayer();
+    restart_relayer(&mut test_ctx);
+
+    // The proxy creation from the processor should have timed out
+    verify_proxy_state_on_processor(
+        &mut test_ctx,
+        &predicted_processor_on_juno_address,
+        &PolytoneProxyState::TimedOut,
+    );
 
     // The proxy creation for the external domain that we added on the authorization contract should have timed out too
     verify_proxy_state_on_authorization(
@@ -583,11 +580,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         label: "label".to_string(),
         mode: AuthorizationModeInfo::Permissioned(PermissionTypeInfo::WithCallLimit(vec![(
             USER_ADDRESS.to_string(),
-            Uint128::new(2),
+            Uint128::new(3),
         )])),
         not_before: Expiration::Never {},
         duration: AuthorizationDuration::Forever,
-        max_concurrent_executions: Some(2),
+        max_concurrent_executions: Some(3),
         actions_config: ActionsConfig::Atomic(AtomicActionsConfig {
             actions: vec![action.clone()],
             retry_logic: None,
@@ -653,7 +650,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     std::thread::sleep(Duration::from_secs(3));
 
-    // Now that it's created, the user will send the message twice, once without TTL and once with it, so after the timeout only the one with non-expired TTL can be retried
+    // Now that it's created, we will send the message three times:
+    // One without TTL, which should return the token when timed out
+    // Another one with TTL never, which should time out and be retriable
+    // And one with TTL at a future timestamp, which should time out (being retriable at that point), and not be retriable after a while, and the token should be returned when we retry it after TTL expires
     let msg = Binary::from(serde_json::to_vec(&json!({"any": {}})).unwrap());
 
     info!("Stopping relayer to force timeouts...");
@@ -683,7 +683,34 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     std::thread::sleep(Duration::from_secs(3));
 
-    info!("Sending the messages with TTL...");
+    info!("Sending the messages with TTL (and expire = never)...");
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &predicted_authorization_contract_address.clone(),
+        USER_KEY,
+        &serde_json::to_string(
+            &valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+                valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+                    label: "label".to_string(),
+                    messages: vec![ProcessorMessage::CosmwasmExecuteMsg { msg: msg.clone() }],
+                    ttl: Some(Expiration::Never {}),
+                },
+            ),
+        )
+        .unwrap(),
+        &flags,
+    )
+    .unwrap();
+
+    std::thread::sleep(Duration::from_secs(3));
+
+    let ttl_time = 60;
+    info!(
+        "Sending the messages with TTL (and {} seconds as expire)...",
+        ttl_time
+    );
     contract_execute(
         test_ctx
             .get_request_builder()
@@ -695,7 +722,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                 valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
                     label: "label".to_string(),
                     messages: vec![ProcessorMessage::CosmwasmExecuteMsg { msg }],
-                    ttl: Some(Expiration::Never {}),
+                    ttl: Some(Expiration::AtTime(Timestamp::from_seconds(
+                        SystemTime::now()
+                            .duration_since(SystemTime::UNIX_EPOCH)?
+                            .as_secs()
+                            + ttl_time,
+                    ))),
                 },
             ),
         )
@@ -708,24 +740,51 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
 
     info!("Restarting the relayer...");
-    test_ctx.start_relayer();
+    restart_relayer(&mut test_ctx);
 
-    // Verify that both messages are in timeout state
+    // Verify that all messages are in timeout state
+    // The one without TTL should not be retriable and the two with TTL should be retriable
     verify_authorization_execution_result(
         &mut test_ctx,
         &predicted_authorization_contract_address,
         0,
-        &ExecutionResult::Timeout,
+        &ExecutionResult::Timeout(false),
     );
 
     verify_authorization_execution_result(
         &mut test_ctx,
         &predicted_authorization_contract_address,
         1,
-        &ExecutionResult::Timeout,
+        &ExecutionResult::Timeout(true),
     );
 
-    info!("Both messages correctly timed out");
+    verify_authorization_execution_result(
+        &mut test_ctx,
+        &predicted_authorization_contract_address,
+        2,
+        &ExecutionResult::Timeout(true),
+    );
+
+    info!("All messages correctly timed out");
+
+    info!("Check user balance...");
+    // Let's check the balance of the sender, to verify that 1 token was sent back and the others were not because they are still retriable
+    let token_balances = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        USER_ADDRESS,
+    );
+
+    assert_eq!(
+        token_balances
+            .iter()
+            .find(|coin| coin.denom.eq(&tokenfactory_token))
+            .unwrap()
+            .amount
+            .u128(),
+        1,
+    );
 
     info!("Retrying resending the message without TTL...");
     let error = contract_execute(
@@ -745,11 +804,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     .unwrap_err();
 
     assert!(error.to_string().contains(
-        ContractError::Unauthorized(
-            valence_authorization::error::UnauthorizedReason::TtlExpired {}
-        )
-        .to_string()
-        .as_str()
+        ContractError::Message(valence_authorization::error::MessageErrorReason::NotRetriable {})
+            .to_string()
+            .as_str()
     ));
 
     info!("Retrying resending the message with TTL...");
@@ -769,6 +826,79 @@ fn main() -> Result<(), Box<dyn Error>> {
     )
     .unwrap();
 
+    std::thread::sleep(Duration::from_secs(3));
+
+    // If we try to retry again, it won't work because it's InProcess again
+    let error = contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &predicted_authorization_contract_address.clone(),
+        USER_KEY,
+        &serde_json::to_string(
+            &valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+                valence_authorization_utils::msg::PermissionlessMsg::RetryMsgs { execution_id: 1 },
+            ),
+        )
+        .unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap_err();
+
+    assert!(error.to_string().contains(
+        ContractError::Message(valence_authorization::error::MessageErrorReason::NotRetriable {})
+            .to_string()
+            .as_str()
+    ));
+
+    // Make sure the 3rd message will not be retriable after the TTL expires and that the token is correctly sent back
+    info!("Waiting for the TTL to expire...");
+    std::thread::sleep(Duration::from_secs(ttl_time - TIMEOUT_SECONDS));
+
+    info!("Retrying resending the message with TTL after it expired...");
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &predicted_authorization_contract_address.clone(),
+        USER_KEY,
+        &serde_json::to_string(
+            &valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+                valence_authorization_utils::msg::PermissionlessMsg::RetryMsgs { execution_id: 2 },
+            ),
+        )
+        .unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+
+    // Let's check that the execution result is correctly updated
+    verify_authorization_execution_result(
+        &mut test_ctx,
+        &predicted_authorization_contract_address,
+        2,
+        &ExecutionResult::Timeout(false),
+    );
+
+    info!("Check user balance...");
+    // Let's also check that the token was sent back correctly
+    let token_balances = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        USER_ADDRESS,
+    );
+
+    assert_eq!(
+        token_balances
+            .iter()
+            .find(|coin| coin.denom.eq(&tokenfactory_token))
+            .unwrap()
+            .amount
+            .u128(),
+        2,
+    );
+
     // This should bridge and enqueue into the processor
     info!("Querying the batch from the processor...");
     let mut attempts = 0;
@@ -786,10 +916,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             break;
         }
 
+        if attempts % 5 == 0 {
+            // Sometimes the relayer doesn't pick up the changes, so we restart it
+            restart_relayer(&mut test_ctx);
+        }
+
         if attempts > MAX_ATTEMPTS {
             panic!("Maximum number of attempts reached. Cancelling execution.");
         }
-        std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+        std::thread::sleep(Duration::from_secs(15));
     }
 
     assert_eq!(batches[0].id, 1);
@@ -818,7 +953,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
 
     info!("Restarting the relayer...");
-    test_ctx.start_relayer();
+    restart_relayer(&mut test_ctx);
 
     // The polytone callback in the processor should have timed out
     info!("Querying the callback from the processor...");
@@ -837,10 +972,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             break;
         }
 
+        if attempts % 5 == 0 {
+            // Sometimes the relayer doesn't pick up the changes, so we restart it
+            restart_relayer(&mut test_ctx);
+        }
+
         if attempts > MAX_ATTEMPTS {
             panic!("Maximum number of attempts reached. Cancelling execution.");
         }
-        std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+        std::thread::sleep(Duration::from_secs(15));
     }
 
     // Now we should be able to retry the callback permissionlessly
@@ -908,10 +1048,15 @@ fn verify_proxy_state_on_processor(
             panic!("The processor domain is not external!");
         }
 
+        if attempts % 5 == 0 {
+            // Sometimes the relayer doesn't pick up the changes, so we restart it
+            restart_relayer(test_ctx);
+        }
+
         if attempts > MAX_ATTEMPTS {
             panic!("Maximum number of attempts reached. Cancelling execution.");
         }
-        std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+        std::thread::sleep(Duration::from_secs(15));
     }
 }
 
@@ -952,10 +1097,15 @@ fn verify_proxy_state_on_authorization(
             }
         }
 
+        if attempts % 5 == 0 {
+            // Sometimes the relayer doesn't pick up the changes, so we restart it
+            restart_relayer(test_ctx);
+        }
+
         if attempts > MAX_ATTEMPTS {
             panic!("Maximum number of attempts reached. Cancelling execution.");
         }
-        std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+        std::thread::sleep(Duration::from_secs(15));
     }
 }
 
@@ -998,10 +1148,15 @@ fn verify_authorization_execution_result(
             );
         }
 
+        if attempts % 5 == 0 {
+            // Sometimes the relayer doesn't pick up the changes, so we restart it
+            restart_relayer(test_ctx);
+        }
+
         if attempts > MAX_ATTEMPTS {
             panic!("Maximum number of attempts reached. Cancelling execution.");
         }
-        std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+        std::thread::sleep(Duration::from_secs(15));
     }
 }
 
@@ -1047,4 +1202,9 @@ fn get_processor_pending_polytone_callback(
             .clone(),
     )
     .unwrap()
+}
+
+fn restart_relayer(test_ctx: &mut TestContext) {
+    test_ctx.stop_relayer();
+    test_ctx.start_relayer();
 }
