@@ -7,8 +7,7 @@ use cw_utils::Duration;
 use getset::{Getters, Setters};
 use valence_service_utils::{
     denoms::{CheckedDenom, UncheckedDenom},
-    msg::ExecuteMsg,
-    msg::InstantiateMsg,
+    msg::{ExecuteMsg, InstantiateMsg, ServiceConfigValidation},
     testing::{ServiceTestSuite, ServiceTestSuiteBase},
 };
 
@@ -224,6 +223,23 @@ fn instantiate_fails_for_unknown_cw20() {
 
     // Instantiate Forwarder contract
     suite.forwarder_init(&cfg);
+}
+
+#[test]
+fn pre_validate_config_works() {
+    let suite = ForwarderTestSuite::default();
+
+    // Set max amount to be forwarded to 1_000_000 NTRN (and no constraints)
+    let cfg = suite.forwarder_config(
+        vec![(
+            UncheckedDenom::Native("untrn".to_string()),
+            1_000_000_000_000_u128,
+        )],
+        Default::default(),
+    );
+
+    // Pre-validate config
+    cfg.pre_validate(suite.api()).unwrap();
 }
 
 #[test]
