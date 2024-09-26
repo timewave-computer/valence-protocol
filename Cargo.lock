@@ -4782,6 +4782,7 @@ dependencies = [
  "cw2 1.1.2",
  "cw20 1.1.2",
  "thiserror",
+ "valence-macros",
 ]
 
 [[package]]

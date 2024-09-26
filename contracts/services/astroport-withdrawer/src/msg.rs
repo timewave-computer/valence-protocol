@@ -1,6 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{ensure, Addr, Decimal, Deps};
+use cosmwasm_std::{ensure, Addr, Decimal, Deps, DepsMut};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query};
+use valence_macros::OptionalStruct;
 
 use crate::error::ServiceError;
 
@@ -13,6 +14,11 @@ pub struct InstantiateMsg {
 
 pub trait ServiceConfigValidation<T> {
     fn validate(&self, deps: Deps) -> Result<T, ServiceError>;
+}
+
+pub trait ServiceConfigInterface<T> {
+    /// T is the config type
+    fn is_diff(&self, other: &T) -> bool;
 }
 
 #[cw_ownable_execute]
@@ -55,6 +61,7 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
+#[derive(OptionalStruct)]
 pub struct ServiceConfig {
     pub input_addr: String,
     pub output_addr: String,
@@ -95,5 +102,33 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
             pool_addr,
             withdrawer_config: self.withdrawer_config.clone(),
         })
+    }
+}
+
+impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
+    /// This function is used to see if 2 configs are different
+    fn is_diff(&self, other: &ServiceConfig) -> bool {
+        !self.eq(other)
+    }
+}
+
+impl OptionalServiceConfig {
+    pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
+        if let Some(input_addr) = self.input_addr {
+            config.input_addr = deps.api.addr_validate(&input_addr)?;
+        }
+
+        if let Some(output_addr) = self.output_addr {
+            config.output_addr = deps.api.addr_validate(&output_addr)?;
+        }
+
+        if let Some(pool_addr) = self.pool_addr {
+            config.pool_addr = deps.api.addr_validate(&pool_addr)?;
+        }
+
+        if let Some(withdrawer_config) = self.withdrawer_config {
+            config.withdrawer_config = withdrawer_config;
+        }
+        Ok(())
     }
 }
