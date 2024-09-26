@@ -109,8 +109,12 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
         let output_addr = deps.api.addr_validate(&self.output_addr)?;
         let pool_addr = deps.api.addr_validate(&self.pool_addr)?;
 
-        ensure_asset_uniqueness(&self.lp_config.asset_data)?;
-        ensure_correct_pool_type(self.pool_addr.to_string(), &self.lp_config.pool_type, &deps)?;
+        ensure_correct_pool(
+            self.pool_addr.to_string(),
+            &self.lp_config.pool_type,
+            &self.lp_config.asset_data,
+            &deps,
+        )?;
 
         Ok(Config {
             input_addr,
@@ -121,9 +125,10 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
     }
 }
 
-fn ensure_correct_pool_type(
+fn ensure_correct_pool(
     pool_addr: String,
     pool_type: &PoolType,
+    assets: &AssetData,
     deps: &Deps,
 ) -> Result<(), ServiceError> {
     match pool_type {
@@ -137,6 +142,28 @@ fn ensure_correct_pool_type(
                     "Pool type does not match the expected pair type".to_string(),
                 ));
             }
+
+            // Check that both assets in the pool are native and that they match our assets
+            for (pool_asset, expected_asset) in pool_response
+                .asset_infos
+                .iter()
+                .zip([&assets.asset1, &assets.asset2].iter())
+            {
+                match pool_asset {
+                    astroport::asset::AssetInfo::Token { .. } => {
+                        return Err(ServiceError::ConfigurationError(
+                            "Pool asset is not a native token".to_string(),
+                        ))
+                    }
+                    astroport::asset::AssetInfo::NativeToken { denom } => {
+                        if denom != *expected_asset {
+                            return Err(ServiceError::ConfigurationError(
+                                "Pool asset does not match the expected asset".to_string(),
+                            ));
+                        }
+                    }
+                }
+            }
         }
         PoolType::Cw20LpToken(pair_type) => {
             let pool_response: astroport_cw20_lp_token::asset::PairInfo = deps
@@ -148,17 +175,30 @@ fn ensure_correct_pool_type(
                     "Pool type does not match the expected pair type".to_string(),
                 ));
             }
+
+            // Check that both assets in the pool are native and that they match our assets
+            for (pool_asset, expected_asset) in pool_response
+                .asset_infos
+                .iter()
+                .zip([&assets.asset1, &assets.asset2].iter())
+            {
+                match pool_asset {
+                    astroport_cw20_lp_token::asset::AssetInfo::Token { .. } => {
+                        return Err(ServiceError::ConfigurationError(
+                            "Pool asset is not a native token".to_string(),
+                        ))
+                    }
+                    astroport_cw20_lp_token::asset::AssetInfo::NativeToken { denom } => {
+                        if denom != *expected_asset {
+                            return Err(ServiceError::ConfigurationError(
+                                "Pool asset does not match the expected asset".to_string(),
+                            ));
+                        }
+                    }
+                }
+            }
         }
     }
 
-    Ok(())
-}
-
-fn ensure_asset_uniqueness(asset_data: &AssetData) -> Result<(), ServiceError> {
-    if asset_data.asset1 == asset_data.asset2 {
-        return Err(ServiceError::ConfigurationError(
-            "Asset1 and Asset2 cannot be the same".to_string(),
-        ));
-    }
     Ok(())
 }
