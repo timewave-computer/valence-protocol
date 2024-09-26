@@ -4781,6 +4781,7 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
  "thiserror",
+ "valence-macros",
 ]
 
 [[package]]

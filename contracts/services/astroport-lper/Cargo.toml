@@ -19,6 +19,7 @@ cw-storage-plus         = "1.2.0"
 cosmwasm-schema         = "1.5.7"
 cw2                     = "1.1.2"
 cw-ownable              = "0.5.1"
+valence-macros          = { workspace = true }
 thiserror               = { workspace = true }
 astroport               = { workspace = true }
 astroport-cw20-lp-token = { workspace = true }

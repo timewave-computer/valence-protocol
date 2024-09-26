@@ -1,6 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{ensure, Addr, Decimal, Deps, Uint128};
+use cosmwasm_std::{ensure, Addr, Decimal, Deps, DepsMut, Uint128};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query};
+use valence_macros::OptionalStruct;
 
 use crate::error::ServiceError;
 
@@ -13,6 +14,11 @@ pub struct InstantiateMsg {
 
 pub trait ServiceConfigValidation<T> {
     fn validate(&self, deps: Deps) -> Result<T, ServiceError>;
+}
+
+pub trait ServiceConfigInterface<T> {
+    /// T is the config type
+    fn is_diff(&self, other: &T) -> bool;
 }
 
 #[cw_ownable_execute]
@@ -62,6 +68,7 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
+#[derive(OptionalStruct)]
 pub struct ServiceConfig {
     pub input_addr: String,
     pub output_addr: String,
@@ -103,6 +110,13 @@ pub struct Config {
     pub lp_config: LiquidityProviderConfig,
 }
 
+impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
+    /// This function is used to see if 2 configs are different
+    fn is_diff(&self, other: &ServiceConfig) -> bool {
+        !self.eq(other)
+    }
+}
+
 impl ServiceConfigValidation<Config> for ServiceConfig {
     fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
         let input_addr = deps.api.addr_validate(&self.input_addr)?;
@@ -122,6 +136,35 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
             pool_addr,
             lp_config: self.lp_config.clone(),
         })
+    }
+}
+
+impl OptionalServiceConfig {
+    pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
+        if let Some(input_addr) = self.input_addr {
+            config.input_addr = deps.api.addr_validate(&input_addr)?;
+        }
+
+        if let Some(output_addr) = self.output_addr {
+            config.output_addr = deps.api.addr_validate(&output_addr)?;
+        }
+
+        if let Some(pool_addr) = self.pool_addr {
+            config.pool_addr = deps.api.addr_validate(&pool_addr)?;
+        }
+
+        if let Some(lp_config) = self.lp_config {
+            config.lp_config = lp_config;
+        }
+
+        ensure_correct_pool(
+            config.pool_addr.to_string(),
+            &config.lp_config.pool_type,
+            &config.lp_config.asset_data,
+            &deps.as_ref(),
+        )?;
+
+        Ok(())
     }
 }
 
