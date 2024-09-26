@@ -23,6 +23,8 @@ optimize = """docker run --rm -v "$(pwd)":/code \
 [dependencies]
 cosmwasm-schema       = { workspace = true }
 cosmwasm-std          = { workspace = true }
+
+cw-ownable            = { workspace = true }
 cw-storage-plus       = { workspace = true }
 cw2                   = { workspace = true }
 schemars              = { workspace = true }
@@ -31,4 +33,12 @@ thiserror             = { workspace = true }
 valence-account-utils = { workspace = true }
 
 [dev-dependencies]
-cw-multi-test = { workspace = true }
+cw-multi-test         = { workspace = true }
+cw-denom              = { workspace = true }
+cw-ownable            = { workspace = true }
+cw20                  = { workspace = true }
+cw20-base             = { workspace = true }
+getset                = { workspace = true }
+itertools             = { workspace = true }
+sha2                  = { workspace = true }
+valence-account-utils = { workspace = true, features = ["testing"] }

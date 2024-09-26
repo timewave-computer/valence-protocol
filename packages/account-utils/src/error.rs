@@ -1,16 +1,24 @@
 use cosmwasm_std::StdError;
+use cw_ownable::OwnershipError;
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
-    #[error("Unauthorized, Not the admin")]
+    #[error(transparent)]
+    OwnershipError(#[from] OwnershipError),
+
+    #[error("Unauthorized: {0}")]
+    Unauthorized(#[from] UnauthorizedReason),
+}
+
+#[derive(Error, Debug, PartialEq)]
+pub enum UnauthorizedReason {
+    #[error("Unauthorized: Not the admin")]
     NotAdmin,
 
-    #[error("Unauthorized, Not the admin or an approved service")]
+    #[error("Unauthorized: Not the admin or an approved service")]
     NotAdminOrApprovedService,
-    // Add any other custom errors you like here.
-    // Look at https://docs.rs/thiserror/1.0.21/thiserror/ for details.
 }
