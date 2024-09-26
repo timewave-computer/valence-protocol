@@ -31,6 +31,7 @@ pub struct ServiceInfo {
     pub name: String,
     pub domain: Domain,
     pub config: ServiceConfig,
+    pub addr: Option<String>,
 }
 
 /// This is a list of all our services we support and their configs.

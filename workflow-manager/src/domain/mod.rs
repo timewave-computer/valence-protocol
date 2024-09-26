@@ -184,4 +184,13 @@ pub trait Connector: fmt::Debug + Send + Sync {
     ) -> ConnectorResult<()> {
         unimplemented!("'change_authorization_owner' should only be implemented on main domain");
     }
+
+    #[allow(unused_variables)]
+    async fn query_workflow_registry(
+        &mut self,
+        main_domain: &str,
+        id: u64,
+    ) -> ConnectorResult<valence_workflow_registry_utils::WorkflowResponse> {
+        unimplemented!("'query_workflow_registry' should only be implemented on neutron domain");
+    }
 }

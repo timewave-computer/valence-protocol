@@ -292,14 +292,13 @@ impl WorkflowConfig {
             }
 
             service.config.replace_config(patterns, replace_with)?;
+            service.addr = Some(service_addr);
 
             // init the service
             domain_connector
                 .instantiate_service(link.service_id, &service.config, salt)
                 .await?
         }
-
-        // println!("{:#?}", account_instantiate_datas);
 
         // Instantiate accounts after we added all services addresses to the approved services list for each account
         for (account_id, account_instantiate_data) in account_instantiate_datas.iter() {
@@ -314,6 +313,12 @@ impl WorkflowConfig {
         main_connector
             .change_authorization_owner(authorization_addr, self.owner.clone())
             .await?;
+
+        // Verify the workflow was instantiated successfully
+        self.verify_init_was_successful(connectors, account_instantiate_datas).await?;
+
+        // Save the workflow config to registry
+        // neutron_connector.save_workflow_config(self).await?;
 
         Ok(())
     }
@@ -409,6 +414,25 @@ impl WorkflowConfig {
             service.config.soft_validate_config()?;
         }
 
+        Ok(())
+    }
+
+    /// Verify our workflow was instantiated successfully
+    async fn verify_init_was_successful(&mut self, connectors: &Connectors, account_instantiate_datas: HashMap<u64, InstantiateAccountData>) -> ManagerResult<()> {
+        let mut neutron_connector = connectors.get_or_create_connector(&NEUTRON_DOMAIN).await?;
+        // verify id that is used in workflow is not taken and is not 0
+        ensure!(
+            neutron_connector.query_workflow_registry(NEUTRON_DOMAIN.get_chain_name(), self.id).await.is_ok(),
+            ManagerError::WorkflowIdAlreadyExists(self.id)
+        );
+
+        // verify all accounts have addresses and they return the correct code id
+        for account in account_instantiate_datas {
+
+        }
+        // verify services have an address and query on-chain contract to make sure its correct
+
+        // Verify authorization data and bridge accounts are instantiated
         Ok(())
     }
 }

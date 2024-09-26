@@ -173,6 +173,7 @@ mod test {
                     input_addr: ServiceAccountType::AccountId(1),
                     splits: (BTreeMap::from_iter(vec![("NTRN".to_string(), splits)].into_iter())),
                 }),
+                addr: None,
             },
         );
 

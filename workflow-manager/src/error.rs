@@ -56,6 +56,9 @@ pub enum ManagerError {
 
     #[error("No instantiate data for account id: {0} | link id: {1}")]
     FailedToRetrieveAccountInitData(u64, u64),
+    
+    #[error("Trying to instantiate a new workflow with an existing id: {0}")]
+    WorkflowIdAlreadyExists(u64),
 }
 
 impl ManagerError {

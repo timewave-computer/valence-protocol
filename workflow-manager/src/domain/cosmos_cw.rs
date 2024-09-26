@@ -652,6 +652,43 @@ impl Connector for CosmosCosmwasmConnector {
 
         Ok(())
     }
+
+    async fn query_workflow_registry(
+        &mut self,
+        main_domain: &str,
+        id: u64,
+    ) -> ConnectorResult<valence_workflow_registry_utils::WorkflowResponse> {
+        if self.chain_name != main_domain {
+            return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                "Adding external domain is only possible on main domain in authorization contract"
+            ))
+            .into());
+        }
+
+        // Query for workflow config for an idea
+        let query_data = to_vec(&valence_workflow_registry_utils::QueryMsg::GetConfig { id })
+            .map_err(CosmosCosmwasmError::SerdeJsonError)?;
+        let config_req = QuerySmartContractStateRequest {
+            address: CONFIG.get_registry_addr().clone(),
+            query_data,
+        };
+
+        let config_res = from_json::<valence_workflow_registry_utils::WorkflowResponse>(
+            self.wallet
+                .client
+                .clients
+                .wasm
+                .smart_contract_state(config_req)
+                .await
+                .context("'_should_retry_processor_bridge_account_creation' Failed to query the processor")
+                .map_err(CosmosCosmwasmError::Error)?
+                .into_inner()
+                .data,
+        )
+        .map_err(CosmosCosmwasmError::CosmwasmStdError)?;
+
+        Ok(config_res)
+    }
 }
 
 // Helpers
