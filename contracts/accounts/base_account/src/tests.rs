@@ -158,7 +158,11 @@ impl BaseAccountTestSuite {
         )
     }
 
-    fn transfer_ownership_non_owner(&mut self, addr: Addr, new_owner: Addr) -> AnyResult<AppResponse> {
+    fn transfer_ownership_non_owner(
+        &mut self,
+        addr: Addr,
+        new_owner: Addr,
+    ) -> AnyResult<AppResponse> {
         self.app_mut().execute_contract(
             new_owner.clone(),
             addr,
@@ -190,7 +194,7 @@ impl BaseAccountTestSuite {
         self.app_mut().execute_contract(
             sender,
             addr,
-            &ExecuteMsg::UpdateOwnership(cw_ownable::Action::RenounceOwnership { }),
+            &ExecuteMsg::UpdateOwnership(cw_ownable::Action::RenounceOwnership {}),
             &[],
         )
     }
@@ -633,8 +637,7 @@ fn transfer_account_ownership_by_non_owner() {
 
     // New owner tries to transfer ownership to itself
     let new_owner = suite.api().addr_make("new_owner");
-    let res = suite
-        .transfer_ownership_non_owner(acc.clone(), new_owner.clone());
+    let res = suite.transfer_ownership_non_owner(acc.clone(), new_owner.clone());
     assert!(res.is_err());
 
     assert_eq!(
