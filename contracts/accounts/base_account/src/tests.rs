@@ -2,7 +2,7 @@ use cosmwasm_std::{coin, Addr, Coin, CosmosMsg, StdResult, Uint128};
 use cw20::Cw20Coin;
 use cw_denom::CheckedDenom;
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
-use cw_ownable::Ownership;
+use cw_ownable::{Ownership, OwnershipError};
 use getset::{Getters, Setters};
 use itertools::sorted;
 use std::string::ToString;
@@ -158,6 +158,18 @@ impl BaseAccountTestSuite {
         )
     }
 
+    fn transfer_ownership_non_owner(&mut self, addr: Addr, new_owner: Addr) -> AnyResult<AppResponse> {
+        self.app_mut().execute_contract(
+            new_owner.clone(),
+            addr,
+            &ExecuteMsg::UpdateOwnership(cw_ownable::Action::TransferOwnership {
+                new_owner: new_owner.to_string(),
+                expiry: None,
+            }),
+            &[],
+        )
+    }
+
     fn accept_ownership(&mut self, addr: Addr, new_owner: Addr) -> AnyResult<AppResponse> {
         self.app_mut().execute_contract(
             new_owner,
@@ -171,6 +183,15 @@ impl BaseAccountTestSuite {
         self.contract_execute(
             addr,
             &ExecuteMsg::UpdateOwnership(cw_ownable::Action::RenounceOwnership {}),
+        )
+    }
+
+    fn renounce_ownership_non_owner(&mut self, addr: Addr, sender: Addr) -> AnyResult<AppResponse> {
+        self.app_mut().execute_contract(
+            sender,
+            addr,
+            &ExecuteMsg::UpdateOwnership(cw_ownable::Action::RenounceOwnership { }),
+            &[],
         )
     }
 
@@ -554,7 +575,6 @@ fn transfer_cw20_tokens_by_unknown_account() {
         recipient.clone(),
         1_000_000_000_u128,
     );
-
     assert!(res.is_err());
 
     assert_eq!(
@@ -605,6 +625,25 @@ fn transfer_account_ownership_by_owner() {
 }
 
 #[test]
+fn transfer_account_ownership_by_non_owner() {
+    let mut suite = BaseAccountTestSuite::default();
+
+    // Instantiate Base account contract
+    let acc = suite.account_init(vec![]);
+
+    // New owner tries to transfer ownership to itself
+    let new_owner = suite.api().addr_make("new_owner");
+    let res = suite
+        .transfer_ownership_non_owner(acc.clone(), new_owner.clone());
+    assert!(res.is_err());
+
+    assert_eq!(
+        res.unwrap_err().downcast::<ContractError>().unwrap(),
+        ContractError::OwnershipError(OwnershipError::NotOwner)
+    );
+}
+
+#[test]
 fn renounce_account_ownership() {
     let mut suite = BaseAccountTestSuite::default();
 
@@ -623,5 +662,23 @@ fn renounce_account_ownership() {
             pending_owner: None,
             pending_expiry: None,
         }
+    );
+}
+
+#[test]
+fn renounce_account_ownership_by_non_owner() {
+    let mut suite = BaseAccountTestSuite::default();
+
+    // Instantiate Base account contract
+    let acc = suite.account_init(vec![]);
+
+    // Owner renounces ownership
+    let non_owner = suite.api().addr_make("non_owner");
+    let res = suite.renounce_ownership_non_owner(acc.clone(), non_owner);
+    assert!(res.is_err());
+
+    assert_eq!(
+        res.unwrap_err().downcast::<ContractError>().unwrap(),
+        ContractError::OwnershipError(OwnershipError::NotOwner)
     );
 }
