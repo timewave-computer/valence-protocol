@@ -29,6 +29,11 @@ pub enum QueryMsg {
 pub struct ServiceConfig {}
 
 impl ServiceConfigValidation<Config> for ServiceConfig {
+    #[cfg(not(target_arch = "wasm32"))]
+    fn pre_validate(&self, _api: &dyn cosmwasm_std::Api) -> Result<(), ServiceError> {
+        Ok(())
+    }
+
     fn validate(&self, _deps: Deps) -> Result<Config, ServiceError> {
         Ok(Config {})
     }
