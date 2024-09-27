@@ -29,8 +29,8 @@ impl AstroportTestAppBuilder {
     pub fn new() -> Self {
         AstroportTestAppBuilder {
             fee_denom: FEE_DENOM.to_string(),
-            initial_balance: 100_000_000_000,
-            num_accounts: 4,
+            initial_balance: 100_000_000_000_000_000,
+            num_accounts: 2,
         }
     }
 
@@ -267,15 +267,7 @@ impl AstroportTestAppSetup {
         &self.accounts[0]
     }
 
-    pub fn input_acc(&self) -> &SigningAccount {
-        &self.accounts[1]
-    }
-
-    pub fn output_acc(&self) -> &SigningAccount {
-        &self.accounts[2]
-    }
-
     pub fn processor_acc(&self) -> &SigningAccount {
-        &self.accounts[3]
+        &self.accounts[1]
     }
 }

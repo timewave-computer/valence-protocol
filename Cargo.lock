@@ -4786,6 +4786,7 @@ dependencies = [
  "cw2 1.1.2",
  "neutron-test-tube",
  "thiserror",
+ "valence-account-utils",
  "valence-astroport-utils",
  "valence-macros",
 ]

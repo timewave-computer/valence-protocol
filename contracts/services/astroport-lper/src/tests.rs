@@ -1,22 +1,106 @@
-use neutron_test_tube::{
-    neutron_std::types::cosmos::bank::v1beta1::QueryAllBalancesRequest, Account, Bank, Module, Wasm,
-};
+use neutron_test_tube::{Account, Module, Wasm};
 use valence_astroport_utils::suite::{AstroportTestAppBuilder, AstroportTestAppSetup};
 
 use crate::{
     error::ServiceError,
     msg::{
-        ActionsMsgs, AssetData, ExecuteMsg, InstantiateMsg, LiquidityProviderConfig, PoolType,
-        ServiceConfig,
+        AssetData, ExecuteMsg, InstantiateMsg, LiquidityProviderConfig, PoolType, ServiceConfig,
     },
 };
 
-const CONTRACT_PATH: &str = "../../../artifacts/valence_astroport_lper.wasm";
+const CONTRACT_PATH: &str = "../../../artifacts";
 
-fn instantiate_lper_contract(setup: &AstroportTestAppSetup, native_lp_token: bool) -> String {
+struct LPerTestSuite {
+    pub inner: AstroportTestAppSetup,
+    pub lper_addr: String,
+    pub input_acc: String,
+    pub output_acc: String,
+}
+
+impl Default for LPerTestSuite {
+    fn default() -> Self {
+        Self::new(true)
+    }
+}
+
+impl LPerTestSuite {
+    pub fn new(native_lp_token: bool) -> Self {
+        let inner = AstroportTestAppBuilder::new().build().unwrap();
+
+        // Create two base accounts
+        let wasm = Wasm::new(&inner.app);
+        let wasm_byte_code =
+            std::fs::read(format!("{}/{}", CONTRACT_PATH, "base_account.wasm")).unwrap();
+        let code_id = wasm
+            .store_code(&wasm_byte_code, None, inner.owner_acc())
+            .unwrap()
+            .data
+            .code_id;
+
+        let input_acc = instantiate_input_account(code_id, &inner);
+        let output_acc = instantiate_input_account(code_id, &inner);
+        let lper_addr = instantiate_lper_contract(
+            &inner,
+            native_lp_token,
+            input_acc.clone(),
+            output_acc.clone(),
+        );
+
+        // Approve the service for the input account
+        approve_service(&inner, input_acc.clone(), output_acc.clone());
+
+        LPerTestSuite {
+            inner,
+            lper_addr,
+            input_acc,
+            output_acc,
+        }
+    }
+}
+
+fn instantiate_input_account(code_id: u64, setup: &AstroportTestAppSetup) -> String {
     let wasm = Wasm::new(&setup.app);
+    wasm.instantiate(
+        code_id,
+        &valence_account_utils::msg::InstantiateMsg {
+            admin: setup.owner_acc().address(),
+            approved_services: vec![],
+        },
+        None,
+        Some("base_account"),
+        &[],
+        setup.owner_acc(),
+    )
+    .unwrap()
+    .data
+    .address
+}
 
-    let wasm_byte_code = std::fs::read(CONTRACT_PATH).unwrap();
+fn approve_service(setup: &AstroportTestAppSetup, account_addr: String, service_addr: String) {
+    let wasm = Wasm::new(&setup.app);
+    wasm.execute::<valence_account_utils::msg::ExecuteMsg>(
+        &account_addr,
+        &valence_account_utils::msg::ExecuteMsg::ApproveService {
+            service: service_addr,
+        },
+        &[],
+        setup.owner_acc(),
+    )
+    .unwrap();
+}
+
+fn instantiate_lper_contract(
+    setup: &AstroportTestAppSetup,
+    native_lp_token: bool,
+    input_acc: String,
+    output_acc: String,
+) -> String {
+    let wasm = Wasm::new(&setup.app);
+    let wasm_byte_code = std::fs::read(format!(
+        "{}/{}",
+        CONTRACT_PATH, "valence_astroport_lper.wasm"
+    ))
+    .unwrap();
 
     let code_id = wasm
         .store_code(&wasm_byte_code, None, setup.owner_acc())
@@ -42,8 +126,8 @@ fn instantiate_lper_contract(setup: &AstroportTestAppSetup, native_lp_token: boo
             owner: setup.owner_acc().address(),
             processor: setup.processor_acc().address(),
             config: ServiceConfig {
-                input_addr: setup.input_acc().address(),
-                output_addr: setup.output_acc().address(),
+                input_addr: input_acc,
+                output_addr: output_acc,
                 pool_addr,
                 lp_config: LiquidityProviderConfig {
                     pool_type,
@@ -66,45 +150,19 @@ fn instantiate_lper_contract(setup: &AstroportTestAppSetup, native_lp_token: boo
 }
 
 #[test]
-pub fn test_input_account_balance_initiation() {
-    let setup = AstroportTestAppBuilder::new().build().unwrap();
-
-    let bank = Bank::new(&setup.app);
-
-    let balance = bank
-        .query_all_balances(&QueryAllBalancesRequest {
-            address: setup.input_acc().address(),
-            pagination: None,
-            resolve_denom: false,
-        })
-        .unwrap();
-
-    assert_eq!(balance.balances.len(), 2);
-    assert!(balance
-        .balances
-        .iter()
-        .any(|token| token.denom == setup.pool_asset1));
-    assert!(balance
-        .balances
-        .iter()
-        .any(|token| token.denom == setup.pool_asset2));
-}
-
-#[test]
 pub fn only_owner_can_update_config() {
-    let setup = AstroportTestAppBuilder::new().build().unwrap();
-    let lper_addr = instantiate_lper_contract(&setup, false);
-    let wasm = Wasm::new(&setup.app);
+    let setup = LPerTestSuite::new(true);
+    let wasm = Wasm::new(&setup.inner.app);
 
     let new_config = ServiceConfig {
-        input_addr: setup.input_acc().address(),
-        output_addr: setup.output_acc().address(),
-        pool_addr: setup.pool_cw20_addr.clone(),
+        input_addr: setup.input_acc.clone(),
+        output_addr: setup.output_acc.clone(),
+        pool_addr: setup.inner.pool_cw20_addr.clone(),
         lp_config: LiquidityProviderConfig {
             pool_type: PoolType::Cw20LpToken(astroport_cw20_lp_token::factory::PairType::Xyk {}),
             asset_data: AssetData {
-                asset1: setup.pool_asset1.clone(),
-                asset2: setup.pool_asset2.clone(),
+                asset1: setup.inner.pool_asset1.clone(),
+                asset2: setup.inner.pool_asset2.clone(),
             },
             slippage_tolerance: None,
         },
@@ -112,12 +170,12 @@ pub fn only_owner_can_update_config() {
 
     let error = wasm
         .execute::<ExecuteMsg>(
-            &lper_addr,
+            &setup.lper_addr,
             &ExecuteMsg::UpdateConfig {
                 new_config: new_config.clone(),
             },
             &[],
-            setup.input_acc(),
+            setup.inner.processor_acc(),
         )
         .unwrap_err();
 
@@ -128,28 +186,27 @@ pub fn only_owner_can_update_config() {
     ),);
 
     wasm.execute::<ExecuteMsg>(
-        &lper_addr,
+        &setup.lper_addr,
         &ExecuteMsg::UpdateConfig { new_config },
         &[],
-        setup.owner_acc(),
+        setup.inner.owner_acc(),
     )
     .unwrap();
 }
 
 #[test]
 fn only_owner_can_update_processor() {
-    let setup = AstroportTestAppBuilder::new().build().unwrap();
-    let lper_addr = instantiate_lper_contract(&setup, false);
-    let wasm = Wasm::new(&setup.app);
+    let setup = LPerTestSuite::new(true);
+    let wasm = Wasm::new(&setup.inner.app);
 
     let error = wasm
         .execute::<ExecuteMsg>(
-            &lper_addr,
+            &setup.lper_addr,
             &ExecuteMsg::UpdateProcessor {
-                processor: setup.input_acc().address(),
+                processor: setup.inner.owner_acc().address(),
             },
             &[],
-            setup.input_acc(),
+            setup.inner.processor_acc(),
         )
         .unwrap_err();
 
@@ -160,31 +217,30 @@ fn only_owner_can_update_processor() {
     ),);
 
     wasm.execute::<ExecuteMsg>(
-        &lper_addr,
+        &setup.lper_addr,
         &ExecuteMsg::UpdateProcessor {
-            processor: setup.input_acc().address(),
+            processor: setup.inner.owner_acc().address(),
         },
         &[],
-        setup.owner_acc(),
+        setup.inner.owner_acc(),
     )
     .unwrap();
 }
 
 #[test]
 fn only_owner_can_transfer_ownership() {
-    let setup = AstroportTestAppBuilder::new().build().unwrap();
-    let lper_addr = instantiate_lper_contract(&setup, false);
-    let wasm = Wasm::new(&setup.app);
+    let setup = LPerTestSuite::new(true);
+    let wasm = Wasm::new(&setup.inner.app);
 
     let error = wasm
         .execute::<ExecuteMsg>(
-            &lper_addr,
+            &setup.lper_addr,
             &ExecuteMsg::UpdateOwnership(cw_ownable::Action::TransferOwnership {
-                new_owner: setup.input_acc().address(),
+                new_owner: setup.inner.processor_acc().address(),
                 expiry: None,
             }),
             &[],
-            setup.input_acc(),
+            setup.inner.processor_acc(),
         )
         .unwrap_err();
 
@@ -195,46 +251,50 @@ fn only_owner_can_transfer_ownership() {
     ),);
 
     wasm.execute::<ExecuteMsg>(
-        &lper_addr,
+        &setup.lper_addr,
         &ExecuteMsg::UpdateOwnership(cw_ownable::Action::TransferOwnership {
-            new_owner: setup.input_acc().address(),
+            new_owner: setup.inner.processor_acc().address(),
             expiry: None,
         }),
         &[],
-        setup.owner_acc(),
+        setup.inner.owner_acc(),
     )
     .unwrap();
 }
 
 #[test]
 fn instantiate_with_wrong_assets() {
-    let setup = AstroportTestAppBuilder::new().build().unwrap();
-    let wasm = Wasm::new(&setup.app);
+    let setup = LPerTestSuite::new(true);
+    let wasm = Wasm::new(&setup.inner.app);
 
     let error = wasm
         .instantiate(
             wasm.store_code(
-                &std::fs::read(CONTRACT_PATH).unwrap(),
+                &std::fs::read(format!(
+                    "{}/{}",
+                    CONTRACT_PATH, "valence_astroport_lper.wasm"
+                ))
+                .unwrap(),
                 None,
-                setup.owner_acc(),
+                setup.inner.owner_acc(),
             )
             .unwrap()
             .data
             .code_id,
             &InstantiateMsg {
-                owner: setup.owner_acc().address(),
-                processor: setup.processor_acc().address(),
+                owner: setup.inner.owner_acc().address(),
+                processor: setup.inner.processor_acc().address(),
                 config: ServiceConfig {
-                    input_addr: setup.input_acc().address(),
-                    output_addr: setup.output_acc().address(),
-                    pool_addr: setup.pool_cw20_addr.clone(),
+                    input_addr: setup.inner.owner_acc().address(),
+                    output_addr: setup.inner.owner_acc().address(),
+                    pool_addr: setup.inner.pool_cw20_addr.clone(),
                     lp_config: LiquidityProviderConfig {
                         pool_type: PoolType::Cw20LpToken(
                             astroport_cw20_lp_token::factory::PairType::Xyk {},
                         ),
                         asset_data: AssetData {
-                            asset1: setup.pool_asset2.clone(),
-                            asset2: setup.pool_asset1.clone(),
+                            asset1: setup.inner.pool_asset2.clone(),
+                            asset2: setup.inner.pool_asset1.clone(),
                         },
                         slippage_tolerance: None,
                     },
@@ -243,7 +303,7 @@ fn instantiate_with_wrong_assets() {
             None,
             Some("lper"),
             &[],
-            setup.owner_acc(),
+            setup.inner.owner_acc(),
         )
         .unwrap_err();
 
@@ -254,33 +314,37 @@ fn instantiate_with_wrong_assets() {
 
 #[test]
 fn instantiate_with_wrong_pool_type() {
-    let setup = AstroportTestAppBuilder::new().build().unwrap();
-    let wasm = Wasm::new(&setup.app);
+    let setup = LPerTestSuite::new(true);
+    let wasm = Wasm::new(&setup.inner.app);
 
     let error = wasm
         .instantiate(
             wasm.store_code(
-                &std::fs::read(CONTRACT_PATH).unwrap(),
+                &std::fs::read(format!(
+                    "{}/{}",
+                    CONTRACT_PATH, "valence_astroport_lper.wasm"
+                ))
+                .unwrap(),
                 None,
-                setup.owner_acc(),
+                setup.inner.owner_acc(),
             )
             .unwrap()
             .data
             .code_id,
             &InstantiateMsg {
-                owner: setup.owner_acc().address(),
-                processor: setup.processor_acc().address(),
+                owner: setup.inner.owner_acc().address(),
+                processor: setup.inner.processor_acc().address(),
                 config: ServiceConfig {
-                    input_addr: setup.input_acc().address(),
-                    output_addr: setup.output_acc().address(),
-                    pool_addr: setup.pool_cw20_addr.clone(),
+                    input_addr: setup.inner.owner_acc().address(),
+                    output_addr: setup.inner.owner_acc().address(),
+                    pool_addr: setup.inner.pool_cw20_addr.clone(),
                     lp_config: LiquidityProviderConfig {
                         pool_type: PoolType::Cw20LpToken(
                             astroport_cw20_lp_token::factory::PairType::Stable {},
                         ),
                         asset_data: AssetData {
-                            asset1: setup.pool_asset2.clone(),
-                            asset2: setup.pool_asset1.clone(),
+                            asset1: setup.inner.pool_asset2.clone(),
+                            asset2: setup.inner.pool_asset1.clone(),
                         },
                         slippage_tolerance: None,
                     },
@@ -289,7 +353,7 @@ fn instantiate_with_wrong_pool_type() {
             None,
             Some("lper"),
             &[],
-            setup.owner_acc(),
+            setup.inner.owner_acc(),
         )
         .unwrap_err();
 
