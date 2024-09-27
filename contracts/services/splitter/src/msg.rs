@@ -89,6 +89,22 @@ pub struct UncheckedSplitConfig {
 }
 
 impl UncheckedSplitConfig {
+    pub fn new(
+        denom: UncheckedDenom,
+        account: String,
+        amount: Option<Uint128>,
+        ratio: Option<UncheckedRatioConfig>,
+        factor: Option<u64>,
+    ) -> Self {
+        UncheckedSplitConfig {
+            denom,
+            account,
+            amount,
+            ratio,
+            factor,
+        }
+    }
+
     pub fn with_native_amount(amount: u128, denom: &str, output: &Addr) -> Self {
         UncheckedSplitConfig {
             denom: UncheckedDenom::Native(denom.to_string()),
@@ -109,9 +125,9 @@ impl UncheckedSplitConfig {
         }
     }
 
-    pub fn with_fixed_ratio(ratio: Decimal, denom: UncheckedDenom, output: &Addr) -> Self {
+    pub fn with_fixed_ratio(ratio: Decimal, denom: &str, output: &Addr) -> Self {
         UncheckedSplitConfig {
-            denom,
+            denom: UncheckedDenom::Native(denom.to_string()),
             account: output.to_string(),
             amount: None,
             ratio: Some(UncheckedRatioConfig::FixedRatio(ratio)),
@@ -271,7 +287,7 @@ fn validate_splits(
 ) -> Result<(), ServiceError> {
     if splits.is_empty() {
         return Err(ServiceError::ConfigurationError(
-            "No split configuration provided".to_string(),
+            "No split configuration provided.".to_string(),
         ));
     }
 
@@ -285,6 +301,13 @@ fn validate_splits(
             ));
         }
 
+        if split.amount.is_some() && split.factor.is_some() {
+            return Err(ServiceError::ConfigurationError(
+                "Invalid split config: a factor cannot be specified with an amount.".to_string(),
+            ));
+        }
+
+        // Verify base denom split config
         if split.denom == *base_denom {
             match (split.amount, split.ratio.clone()) {
                 (Some(_), None) => {
@@ -310,6 +333,17 @@ fn validate_splits(
         {
             api.addr_validate(contract_addr)?;
         }
+    }
+
+    // If there are ratios, we only allow an amount to be set for the base denom
+    if splits.iter().any(|s| s.ratio.is_some())
+        && splits
+            .iter()
+            .any(|s| s.amount.is_some() && s.denom != *base_denom)
+    {
+        return Err(ServiceError::ConfigurationError(
+            "Invalid split config: only base denom can have an amount when ratios are specified for other some denoms.".to_string(),
+        ));
     }
 
     Ok(())

@@ -1,5 +1,5 @@
 use crate::msg::{ActionMsgs, Config, QueryMsg, ServiceConfig, SplitConfig, UncheckedSplitConfig};
-use cosmwasm_std::{coin, Addr, Coin};
+use cosmwasm_std::{coin, Addr, Coin, Decimal};
 use cw20::Cw20Coin;
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
@@ -195,6 +195,41 @@ fn instantiate_with_valid_single_split() {
 }
 
 #[test]
+#[should_panic(expected = "Configuration error: No split configuration provided.")]
+fn instantiate_fails_for_no_split_config() {
+    let mut suite = SplitterTestSuite::default();
+
+    // Configure splitter with duplicate split
+    let cfg = suite.splitter_config(vec![], UncheckedDenom::Native(NTRN.into()));
+
+    // Instantiate Splitter contract
+    suite.splitter_init(&cfg);
+}
+
+#[test]
+#[should_panic(
+    expected = "Configuration error: Invalid split config: should specify either an amount or a ratio."
+)]
+fn instantiate_fails_for_invalid_split_config() {
+    let mut suite = SplitterTestSuite::default();
+
+    let output_addr = suite.api().addr_make("output_account");
+
+    // Configure splitter with duplicate split
+    let split_cfg = UncheckedSplitConfig::new(
+        UncheckedDenom::Native(NTRN.into()),
+        output_addr.to_string(),
+        None,
+        None,
+        None,
+    );
+    let cfg = suite.splitter_config(vec![split_cfg], UncheckedDenom::Native(NTRN.into()));
+
+    // Instantiate Splitter contract
+    suite.splitter_init(&cfg);
+}
+
+#[test]
 #[should_panic(
     expected = "Configuration error: Duplicate split 'Native(\"untrn\")|cosmwasm1ea6n0jqm0hj663khx7a5xklsmjgrazjp9vjeewejn84sanr0wgxq2p70xl' in split config."
 )]
@@ -332,7 +367,7 @@ fn split_cw20_single_token_amount_single_output() {
             &cw20_addr,
             &output_addr,
         )],
-        UncheckedDenom::Native(NTRN.into()),
+        UncheckedDenom::Cw20(cw20_addr.to_string()),
     );
 
     // Instantiate Splitter contract
@@ -363,7 +398,7 @@ fn split_cw20_single_token_amount_two_outputs() {
             UncheckedSplitConfig::with_cw20_amount(600_000_000_000_u128, &cw20_addr, &output1_addr),
             UncheckedSplitConfig::with_cw20_amount(400_000_000_000_u128, &cw20_addr, &output2_addr),
         ],
-        UncheckedDenom::Native(NTRN.into()),
+        UncheckedDenom::Cw20(cw20_addr.to_string()),
     );
 
     // Instantiate Splitter contract
@@ -399,7 +434,7 @@ fn split_cw20_two_token_amounts_two_outputs() {
             UncheckedSplitConfig::with_cw20_amount(ONE_MILLION, &cw20_1_addr, &output1_addr),
             UncheckedSplitConfig::with_cw20_amount(TEN_MILLION, &cw20_2_addr, &output2_addr),
         ],
-        UncheckedDenom::Native(NTRN.into()),
+        UncheckedDenom::Cw20(cw20_1_addr.to_string()),
     );
 
     // Instantiate Splitter contract
@@ -506,7 +541,7 @@ fn split_cw20_single_token_amount_fails_for_insufficient_balance() {
             &cw20_addr,
             &output_addr,
         )],
-        UncheckedDenom::Native(NTRN.into()),
+        UncheckedDenom::Cw20(cw20_addr.to_string()),
     );
 
     // Instantiate Splitter contract
@@ -544,3 +579,38 @@ fn split_native_single_token_amount_two_outputs_fails_for_insufficient_balance()
 }
 
 // Native & CW20 token ratio splits
+
+#[test]
+fn split_native_two_token_ratios_two_outputs() {
+    let mut suite = SplitterTestSuite::new(Some(vec![
+        (ONE_MILLION, NTRN.into()),
+        (TEN_MILLION, STARS.into()),
+    ]));
+
+    let output1_addr = suite.api().addr_make("output_account_1");
+    let output2_addr = suite.api().addr_make("output_account_2");
+
+    // Hypothetical ratio for NTRN/STARS is 1:10
+    let cfg = suite.splitter_config(
+        vec![
+            UncheckedSplitConfig::with_fixed_ratio(Decimal::one(), NTRN, &output1_addr),
+            UncheckedSplitConfig::with_fixed_ratio(Decimal::percent(10u64), STARS, &output2_addr),
+        ],
+        UncheckedDenom::Native(NTRN.into()),
+    );
+
+    // Instantiate Splitter contract
+    let svc = suite.splitter_init(&cfg);
+
+    // Execute split
+    suite.execute_split(svc).unwrap();
+
+    // Verify input account's balance: should be zero
+    suite.assert_balance(suite.input_addr(), ZERO, NTRN);
+
+    // Verify output account 1's balance: should be 600_000 NTRN
+    suite.assert_balance(&output1_addr, ONE_MILLION, NTRN);
+
+    // Verify output account 2's balance: should be 400_000 NTRN
+    suite.assert_balance(&output2_addr, TEN_MILLION, STARS);
+}
