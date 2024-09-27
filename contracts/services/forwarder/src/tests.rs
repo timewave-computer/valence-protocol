@@ -11,7 +11,7 @@ use valence_service_utils::{
     testing::{ServiceTestSuite, ServiceTestSuiteBase},
 };
 
-const NTRN: &str = "ntrn";
+const NTRN: &str = "untrn";
 
 #[derive(Getters, Setters)]
 struct ForwarderTestSuite {
@@ -535,7 +535,7 @@ fn forward_multiple_tokens_continuously() {
     let svc = suite.forwarder_init(&cfg);
 
     // Initialize owner account with 1_000_000 NTRN
-    suite.init_balance(&owner_addr, vec![coin(1_000_000_000_000_u128, NTRN.into())]);
+    suite.init_balance(&owner_addr, vec![coin(1_000_000_000_000_u128, NTRN)]);
 
     // BLOCK N
     // Forward successful: 1_000 NTRN & 10 MEME
