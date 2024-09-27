@@ -12,6 +12,11 @@ use valence_account_utils::{
     testing::{AccountTestSuite, AccountTestSuiteBase},
 };
 
+const NTRN: &str = "untrn";
+const MEME: &str = "umeme";
+const ONE_THOUSAND: u128 = 1_000_000_000_u128;
+const ONE_MILLION: u128 = 1_000_000_000_000_u128;
+
 #[derive(Getters, Setters)]
 struct BaseAccountTestSuite {
     #[getset(get)]
@@ -51,7 +56,7 @@ impl BaseAccountTestSuite {
             admin: self.owner().to_string(),
             approved_services,
         };
-        let acc_addr = self.contract_init(self.account_code_id(), "forwarder", &init_msg, &[]);
+        let acc_addr = self.contract_init(self.account_code_id(), "base_account", &init_msg, &[]);
 
         if let Some(balances) = self.input_balances.as_ref().cloned() {
             let amounts = balances
@@ -62,6 +67,18 @@ impl BaseAccountTestSuite {
         }
 
         acc_addr
+    }
+
+    fn cw20_token_init(&mut self, name: &str, symbol: &str, amount: u128, addr: String) -> Addr {
+        self.cw20_init(
+            name,
+            symbol,
+            6,
+            vec![Cw20Coin {
+                address: addr.to_string(),
+                amount: amount.into(),
+            }],
+        )
     }
 
     fn approve_service(&mut self, addr: Addr, service: Addr) -> AnyResult<AppResponse> {
@@ -361,14 +378,13 @@ fn remove_service_by_non_owner() {
 
 #[test]
 fn transfer_native_tokens_by_owner() {
-    let mut suite =
-        BaseAccountTestSuite::new(Some(vec![(1_000_000_000_000_u128, "untrn".to_string())]));
+    let mut suite = BaseAccountTestSuite::new(Some(vec![(ONE_MILLION, NTRN.to_string())]));
 
     // Instantiate Base account contract
     let acc = suite.account_init(vec![]);
 
     // Assert account balance
-    suite.assert_balance(&acc, coin(1_000_000_000_000_u128, "untrn"));
+    suite.assert_balance(&acc, coin(ONE_MILLION, NTRN));
 
     // Owner transfers tokens from account
     let recipient = suite.api().addr_make("recipient");
@@ -377,19 +393,18 @@ fn transfer_native_tokens_by_owner() {
             acc.clone(),
             suite.owner().clone(),
             recipient.clone(),
-            vec![coin(1_000_000_000_u128, "untrn")],
+            vec![coin(ONE_THOUSAND, NTRN)],
         )
         .unwrap();
 
     // Verify account & recipient balances
-    suite.assert_balance(&acc, coin(999_000_000_000_u128, "untrn"));
-    suite.assert_balance(&recipient, coin(1_000_000_000_u128, "untrn"));
+    suite.assert_balance(&acc, coin(999_000_000_000_u128, NTRN));
+    suite.assert_balance(&recipient, coin(ONE_THOUSAND, NTRN));
 }
 
 #[test]
 fn transfer_native_tokens_by_approved_service() {
-    let mut suite =
-        BaseAccountTestSuite::new(Some(vec![(1_000_000_000_000_u128, "untrn".to_string())]));
+    let mut suite = BaseAccountTestSuite::new(Some(vec![(ONE_MILLION, NTRN.to_string())]));
 
     let svc1 = suite.api().addr_make("service_1");
 
@@ -397,7 +412,7 @@ fn transfer_native_tokens_by_approved_service() {
     let acc = suite.account_init(vec![svc1.to_string()]);
 
     // Assert account balance
-    suite.assert_balance(&acc, coin(1_000_000_000_000_u128, "untrn"));
+    suite.assert_balance(&acc, coin(ONE_MILLION, NTRN));
 
     // Owner transfers tokens from account
     let recipient = suite.api().addr_make("recipient");
@@ -406,19 +421,18 @@ fn transfer_native_tokens_by_approved_service() {
             acc.clone(),
             svc1,
             recipient.clone(),
-            vec![coin(1_000_000_000_u128, "untrn")],
+            vec![coin(ONE_THOUSAND, NTRN)],
         )
         .unwrap();
 
     // Verify account & recipient balances
-    suite.assert_balance(&acc, coin(999_000_000_000_u128, "untrn"));
-    suite.assert_balance(&recipient, coin(1_000_000_000_u128, "untrn"));
+    suite.assert_balance(&acc, coin(ONE_MILLION - ONE_THOUSAND, NTRN));
+    suite.assert_balance(&recipient, coin(ONE_THOUSAND, NTRN));
 }
 
 #[test]
 fn transfer_native_tokens_by_unknown_account() {
-    let mut suite =
-        BaseAccountTestSuite::new(Some(vec![(1_000_000_000_000_u128, "untrn".to_string())]));
+    let mut suite = BaseAccountTestSuite::new(Some(vec![(ONE_MILLION, NTRN.to_string())]));
 
     let svc1 = suite.api().addr_make("service_1");
 
@@ -426,7 +440,7 @@ fn transfer_native_tokens_by_unknown_account() {
     let acc = suite.account_init(vec![svc1.to_string()]);
 
     // Assert account balance
-    suite.assert_balance(&acc, coin(1_000_000_000_000_u128, "untrn"));
+    suite.assert_balance(&acc, coin(ONE_MILLION, NTRN));
 
     let non_owner = suite.api().addr_make("non_owner");
 
@@ -436,7 +450,7 @@ fn transfer_native_tokens_by_unknown_account() {
         acc.clone(),
         non_owner,
         recipient.clone(),
-        vec![coin(1_000_000_000_u128, "untrn")],
+        vec![coin(ONE_THOUSAND, NTRN)],
     );
     assert!(res.is_err());
 
@@ -454,20 +468,12 @@ fn transfer_cw20_tokens_by_owner() {
     let acc = suite.account_init(vec![]);
 
     // Instantiate CW20 token contract, and initialize input account with 1_000_000 MEME
-    let cw20_addr = suite.cw20_init(
-        "umeme",
-        "MEME",
-        6,
-        vec![Cw20Coin {
-            address: acc.to_string(),
-            amount: 1_000_000_000_000_u128.into(),
-        }],
-    );
+    let cw20_addr = suite.cw20_token_init(MEME, "MEME", ONE_MILLION, acc.to_string());
 
     // Assert account balance
     assert_eq!(
         suite.cw20_query_balance(&acc, &cw20_addr),
-        Uint128::from(1_000_000_000_000_u128)
+        Uint128::from(ONE_MILLION)
     );
 
     // Owner transfers tokens from account
@@ -478,18 +484,18 @@ fn transfer_cw20_tokens_by_owner() {
             cw20_addr.clone(),
             suite.owner().clone(),
             recipient.clone(),
-            1_000_000_000_u128,
+            ONE_THOUSAND,
         )
         .unwrap();
 
     // Verify account & recipient balances
     assert_eq!(
         suite.cw20_query_balance(&acc, &cw20_addr),
-        Uint128::from(999_000_000_000_u128)
+        Uint128::from(ONE_MILLION - ONE_THOUSAND)
     );
     assert_eq!(
         suite.cw20_query_balance(&recipient, &cw20_addr),
-        Uint128::from(1_000_000_000_u128)
+        Uint128::from(ONE_THOUSAND)
     );
 }
 
@@ -503,20 +509,12 @@ fn transfer_cw20_tokens_by_approved_service() {
     let acc = suite.account_init(vec![svc1.to_string()]);
 
     // Instantiate CW20 token contract, and initialize input account with 1_000_000 MEME
-    let cw20_addr = suite.cw20_init(
-        "umeme",
-        "MEME",
-        6,
-        vec![Cw20Coin {
-            address: acc.to_string(),
-            amount: 1_000_000_000_000_u128.into(),
-        }],
-    );
+    let cw20_addr = suite.cw20_token_init(MEME, "MEME", ONE_MILLION, acc.to_string());
 
     // Assert account balance
     assert_eq!(
         suite.cw20_query_balance(&acc, &cw20_addr),
-        Uint128::from(1_000_000_000_000_u128)
+        Uint128::from(ONE_MILLION)
     );
 
     // Owner transfers tokens from account
@@ -527,18 +525,18 @@ fn transfer_cw20_tokens_by_approved_service() {
             cw20_addr.clone(),
             svc1,
             recipient.clone(),
-            1_000_000_000_u128,
+            ONE_THOUSAND,
         )
         .unwrap();
 
     // Verify account & recipient balances
     assert_eq!(
         suite.cw20_query_balance(&acc, &cw20_addr),
-        Uint128::from(999_000_000_000_u128)
+        Uint128::from(ONE_MILLION - ONE_THOUSAND)
     );
     assert_eq!(
         suite.cw20_query_balance(&recipient, &cw20_addr),
-        Uint128::from(1_000_000_000_u128)
+        Uint128::from(ONE_THOUSAND)
     );
 }
 
@@ -552,20 +550,12 @@ fn transfer_cw20_tokens_by_unknown_account() {
     let acc = suite.account_init(vec![svc1.to_string()]);
 
     // Instantiate CW20 token contract, and initialize input account with 1_000_000 MEME
-    let cw20_addr = suite.cw20_init(
-        "umeme",
-        "MEME",
-        6,
-        vec![Cw20Coin {
-            address: acc.to_string(),
-            amount: 1_000_000_000_000_u128.into(),
-        }],
-    );
+    let cw20_addr = suite.cw20_token_init(MEME, "MEME", ONE_MILLION, acc.to_string());
 
     // Assert account balance
     assert_eq!(
         suite.cw20_query_balance(&acc, &cw20_addr),
-        Uint128::from(1_000_000_000_000_u128)
+        Uint128::from(ONE_MILLION)
     );
 
     let non_owner = suite.api().addr_make("non_owner");
@@ -577,7 +567,7 @@ fn transfer_cw20_tokens_by_unknown_account() {
         cw20_addr.clone(),
         non_owner,
         recipient.clone(),
-        1_000_000_000_u128,
+        ONE_THOUSAND,
     );
     assert!(res.is_err());
 
