@@ -156,11 +156,11 @@ impl ServiceConfig {
 }
 
 impl ServiceConfigValidation<Config> for ServiceConfig {
-    // #[cfg(not(target_arch = "wasm32"))]
-    // fn pre_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<(), ServiceError> {
-    //     self.do_validate(api)?;
-    //     Ok(())
-    // }
+    #[cfg(not(target_arch = "wasm32"))]
+    fn pre_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<(), ServiceError> {
+        self.do_validate(api)?;
+        Ok(())
+    }
 
     fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
         let input_addr = self.do_validate(deps.api)?;
