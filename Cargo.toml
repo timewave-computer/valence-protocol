@@ -58,6 +58,7 @@ valence-astroport-lper    = { path = "contracts/services/astroport-lper", featur
 
 # our packages
 valence-account-utils              = { path = "packages/account-utils" }
+valence-astroport-utils            = { path = "packages/astroport-utils" }
 valence-authorization-utils        = { path = "packages/authorization-utils" }
 valence-local-interchaintest-utils = { path = "packages/local-interchaintest-utils" }
 valence-macros                     = { path = "packages/valence-macros" }

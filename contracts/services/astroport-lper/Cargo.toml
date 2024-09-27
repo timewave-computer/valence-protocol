@@ -23,3 +23,6 @@ valence-macros          = { workspace = true }
 thiserror               = { workspace = true }
 astroport               = { workspace = true }
 astroport-cw20-lp-token = { workspace = true }
+
+[dev-dependencies]
+valence-astroport-utils = { workspace = true, features = ["testing"] }

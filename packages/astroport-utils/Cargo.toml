@@ -1,0 +1,21 @@
+[package]
+name        = "valence-astroport-utils"
+version     = { workspace = true }
+edition     = { workspace = true }
+authors     = ["Timewave Labs"]
+description = "Utils for astroport services"
+
+[features]
+default = []
+testing = [
+    "dep:cosmwasm-std",
+    "dep:astroport",
+    "dep:astroport-cw20-lp-token",
+    "dep:neutron-test-tube",
+]
+
+[dependencies]
+cosmwasm-std            = { workspace = true, optional = true }
+astroport               = { workspace = true, optional = true }
+astroport-cw20-lp-token = { workspace = true, optional = true }
+neutron-test-tube       = { workspace = true, optional = true }
