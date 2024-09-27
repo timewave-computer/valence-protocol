@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    instantiate2_address, testing::MockApi, Addr, Api, CodeInfoResponse, Coin, Uint128,
+    coin, instantiate2_address, testing::MockApi, Addr, Api, CodeInfoResponse, Coin, Uint128,
 };
 use cw20::Cw20Coin;
 use cw_multi_test::{error::AnyResult, next_block, App, AppResponse, ContractWrapper, Executor};
@@ -158,9 +158,14 @@ pub trait ServiceTestSuite {
         self.app().wrap().query_all_balances(addr).unwrap()
     }
 
-    fn assert_balance(&self, addr: &Addr, coin: Coin) {
-        let bal = self.query_balance(addr, &coin.denom);
-        assert_eq!(bal, coin);
+    fn assert_balance(&self, addr: &Addr, amount: u128, denom: &str) {
+        let bal = self.query_balance(addr, denom);
+        assert_eq!(bal, coin(amount, denom));
+    }
+
+    fn assert_cw20_balance(&self, addr: &Addr, amount: u128, cw20_addr: &Addr) {
+        let bal = self.cw20_query_balance(addr, cw20_addr);
+        assert_eq!(bal, Uint128::new(amount));
     }
 
     fn init_balance(&mut self, addr: &Addr, amounts: Vec<Coin>) {
