@@ -51,7 +51,7 @@ impl From<(CheckedDenom, u128)> for ForwardingConfig {
     fn from((denom, max_amount): (CheckedDenom, u128)) -> Self {
         ForwardingConfig {
             denom,
-            max_amount: Uint128::from(max_amount),
+            max_amount: max_amount.into(),
         }
     }
 }
@@ -84,7 +84,7 @@ impl From<(UncheckedDenom, u128)> for UncheckedForwardingConfig {
     fn from((denom, max_amount): (UncheckedDenom, u128)) -> Self {
         UncheckedForwardingConfig {
             denom,
-            max_amount: Uint128::from(max_amount),
+            max_amount: max_amount.into(),
         }
     }
 }
