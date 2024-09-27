@@ -30,6 +30,11 @@ pub struct ServiceConfig {
 }
 
 impl ServiceConfigValidation<Config> for ServiceConfig {
+    #[cfg(not(target_arch = "wasm32"))]
+    fn pre_validate(&self, _api: &dyn cosmwasm_std::Api) -> Result<(), ServiceError> {
+        Ok(())
+    }
+
     fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
         // TODO: Verify splits are valid
         Ok(Config {
