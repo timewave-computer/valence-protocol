@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{ensure, Addr, Decimal, Deps, DepsMut};
+use cosmwasm_std::{ensure, Addr, Api, Decimal, Deps, DepsMut};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query};
 use valence_macros::OptionalStruct;
 
@@ -13,6 +13,8 @@ pub struct InstantiateMsg {
 }
 
 pub trait ServiceConfigValidation<T> {
+    #[cfg(not(target_arch = "wasm32"))]
+    fn pre_validate(&self, api: &dyn Api) -> Result<(), ServiceError>;
     fn validate(&self, deps: Deps) -> Result<T, ServiceError>;
 }
 
@@ -68,6 +70,31 @@ pub struct ServiceConfig {
     pub pool_addr: String,
     pub withdrawer_config: LiquidityWithdrawerConfig,
 }
+
+impl ServiceConfig {
+    pub fn new(
+        input_addr: String,
+        output_addr: String,
+        pool_addr: String,
+        withdrawer_config: LiquidityWithdrawerConfig,
+    ) -> Self {
+        ServiceConfig {
+            input_addr,
+            output_addr,
+            pool_addr,
+            withdrawer_config,
+        }
+    }
+
+    fn do_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<(Addr, Addr), ServiceError> {
+        let input_addr = api.addr_validate(&self.input_addr)?;
+        let output_addr = api.addr_validate(&self.output_addr)?;
+        api.addr_validate(&self.pool_addr)?;
+
+        Ok((input_addr, output_addr))
+    }
+}
+
 #[cw_serde]
 pub struct LiquidityWithdrawerConfig {
     /// Pool type, old Astroport pools use Cw20 lp tokens and new pools use native tokens, so we specify here what kind of token we are going to get.
@@ -91,6 +118,12 @@ pub struct Config {
 }
 
 impl ServiceConfigValidation<Config> for ServiceConfig {
+    #[cfg(not(target_arch = "wasm32"))]
+    fn pre_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<(), ServiceError> {
+        self.do_validate(api)?;
+        Ok(())
+    }
+
     fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
         let input_addr = deps.api.addr_validate(&self.input_addr)?;
         let output_addr = deps.api.addr_validate(&self.output_addr)?;
