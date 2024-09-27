@@ -706,7 +706,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     std::thread::sleep(Duration::from_secs(3));
 
-    let ttl_time = 60;
+    let ttl_time = 120;
     info!(
         "Sending the messages with TTL (and {} seconds as expire)...",
         ttl_time
