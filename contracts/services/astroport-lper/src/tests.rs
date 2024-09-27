@@ -6,7 +6,8 @@ use valence_astroport_utils::suite::{AstroportTestAppBuilder, AstroportTestAppSe
 use crate::{
     error::ServiceError,
     msg::{
-        AssetData, ExecuteMsg, InstantiateMsg, LiquidityProviderConfig, PoolType, ServiceConfig,
+        ActionsMsgs, AssetData, ExecuteMsg, InstantiateMsg, LiquidityProviderConfig, PoolType,
+        ServiceConfig,
     },
 };
 
@@ -206,7 +207,7 @@ fn only_owner_can_transfer_ownership() {
 }
 
 #[test]
-fn cant_instantiate_with_wrong_assets() {
+fn instantiate_with_wrong_assets() {
     let setup = AstroportTestAppBuilder::new().build().unwrap();
     let wasm = Wasm::new(&setup.app);
 
@@ -249,4 +250,50 @@ fn cant_instantiate_with_wrong_assets() {
     assert!(error
         .to_string()
         .contains("Pool asset does not match the expected asset"),);
+}
+
+#[test]
+fn instantiate_with_wrong_pool_type() {
+    let setup = AstroportTestAppBuilder::new().build().unwrap();
+    let wasm = Wasm::new(&setup.app);
+
+    let error = wasm
+        .instantiate(
+            wasm.store_code(
+                &std::fs::read(CONTRACT_PATH).unwrap(),
+                None,
+                setup.owner_acc(),
+            )
+            .unwrap()
+            .data
+            .code_id,
+            &InstantiateMsg {
+                owner: setup.owner_acc().address(),
+                processor: setup.processor_acc().address(),
+                config: ServiceConfig {
+                    input_addr: setup.input_acc().address(),
+                    output_addr: setup.output_acc().address(),
+                    pool_addr: setup.pool_cw20_addr.clone(),
+                    lp_config: LiquidityProviderConfig {
+                        pool_type: PoolType::Cw20LpToken(
+                            astroport_cw20_lp_token::factory::PairType::Stable {},
+                        ),
+                        asset_data: AssetData {
+                            asset1: setup.pool_asset2.clone(),
+                            asset2: setup.pool_asset1.clone(),
+                        },
+                        slippage_tolerance: None,
+                    },
+                },
+            },
+            None,
+            Some("lper"),
+            &[],
+            setup.owner_acc(),
+        )
+        .unwrap_err();
+
+    assert!(error
+        .to_string()
+        .contains("Pool type does not match the expected pair type"),);
 }
