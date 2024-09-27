@@ -4780,6 +4780,7 @@ dependencies = [
  "cw-ownable 0.5.1",
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
+ "neutron-test-tube",
  "thiserror",
  "valence-astroport-utils",
  "valence-macros",

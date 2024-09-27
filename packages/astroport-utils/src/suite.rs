@@ -2,11 +2,14 @@ use std::{collections::HashMap, path::PathBuf};
 
 use cosmwasm_std::coins;
 use neutron_test_tube::{
-    neutron_std::types::osmosis::tokenfactory::v1beta1::MsgCreateDenom, Account, Module,
-    NeutronTestApp, SigningAccount, TokenFactory, Wasm,
+    neutron_std::types::{
+        cosmos::base::v1beta1::Coin,
+        osmosis::tokenfactory::v1beta1::{MsgCreateDenom, MsgMint},
+    },
+    Account, Module, NeutronTestApp, SigningAccount, TokenFactory, Wasm,
 };
 
-const FEE_DENOM: &str = "untrn";
+pub const FEE_DENOM: &str = "untrn";
 const PROJECT_ROOT: &str = env!("CARGO_MANIFEST_DIR");
 const CONTRACTS_DIR: &str = "packages/astroport-utils/contracts";
 
@@ -91,6 +94,21 @@ impl AstroportTestAppBuilder {
             .unwrap()
             .data
             .new_token_denom;
+
+        // Mint some to the input account so that it can eventually provide liquidity to the pools
+        token_factory
+            .mint(
+                MsgMint {
+                    sender: accounts[0].address().clone(),
+                    amount: Some(Coin {
+                        denom: denom.clone(),
+                        amount: 1_000_000_000_000u128.to_string(),
+                    }),
+                    mint_to_address: accounts[1].address().clone(),
+                },
+                &accounts[0],
+            )
+            .unwrap();
 
         // Instantiate the first factory and create a pool with NTRN and the new denom as assets
         let factory_native_address = wasm
