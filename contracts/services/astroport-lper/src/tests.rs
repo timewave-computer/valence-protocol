@@ -30,7 +30,7 @@ impl LPerTestSuite {
         // Create two base accounts
         let wasm = Wasm::new(&inner.app);
         let wasm_byte_code =
-            std::fs::read(format!("{}/{}", CONTRACT_PATH, "base_account.wasm")).unwrap();
+            std::fs::read(format!("{}/{}", CONTRACT_PATH, "valence_base_account.wasm")).unwrap();
         let code_id = wasm
             .store_code(&wasm_byte_code, None, inner.owner_acc())
             .unwrap()
