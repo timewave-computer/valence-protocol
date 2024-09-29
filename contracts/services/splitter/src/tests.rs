@@ -642,8 +642,16 @@ fn split_mix_three_token_ratios_three_outputs() {
     let cfg = suite.splitter_config(
         vec![
             UncheckedSplitConfig::with_native_ratio(Decimal::one(), NTRN, &output1_addr),
-            UncheckedSplitConfig::with_native_ratio(Decimal::percent(100u64 / NTRN_STARS_RATIO as u64), STARS, &output2_addr),
-            UncheckedSplitConfig::with_cw20_ratio(Decimal::percent(100u64 / NTRN_MEME_RATIO as u64), &cw20_addr, &output3_addr),
+            UncheckedSplitConfig::with_native_ratio(
+                Decimal::percent(100u64 / NTRN_STARS_RATIO as u64),
+                STARS,
+                &output2_addr,
+            ),
+            UncheckedSplitConfig::with_cw20_ratio(
+                Decimal::percent(100u64 / NTRN_MEME_RATIO as u64),
+                &cw20_addr,
+                &output3_addr,
+            ),
         ],
         UncheckedDenom::Native(NTRN.into()),
     );
@@ -674,8 +682,16 @@ fn split_mix_three_token_ratios_three_outputs() {
 
     // Verify input account balances
     suite.assert_balance(suite.input_addr(), ZERO, NTRN);
-    suite.assert_balance(suite.input_addr(), STARS_AMOUNT - (NTRN_AMOUNT * NTRN_STARS_RATIO), STARS);
-    suite.assert_cw20_balance(suite.input_addr(), MEME_AMOUNT - (NTRN_AMOUNT * NTRN_MEME_RATIO), &cw20_addr);
+    suite.assert_balance(
+        suite.input_addr(),
+        STARS_AMOUNT - (NTRN_AMOUNT * NTRN_STARS_RATIO),
+        STARS,
+    );
+    suite.assert_cw20_balance(
+        suite.input_addr(),
+        MEME_AMOUNT - (NTRN_AMOUNT * NTRN_MEME_RATIO),
+        &cw20_addr,
+    );
 
     // Verify output account 1's balance: should be 333_333 NTRN
     suite.assert_balance(&output1_addr, NTRN_AMOUNT, NTRN);
