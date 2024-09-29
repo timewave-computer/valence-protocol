@@ -18,6 +18,7 @@ const CATZ: &str = "ucatz";
 const ZERO: u128 = 0u128;
 const ONE_MILLION: u128 = 1_000_000_000_000_u128;
 const TEN_MILLION: u128 = 10_000_000_000_000_u128;
+const HUNDRED_MILLION: u128 = 100_000_000_000_000_u128;
 
 #[derive(Getters, Setters)]
 struct SplitterTestSuite {
@@ -593,8 +594,8 @@ fn split_native_two_token_ratios_two_outputs() {
     // Hypothetical ratio for NTRN/STARS is 1:10
     let cfg = suite.splitter_config(
         vec![
-            UncheckedSplitConfig::with_fixed_ratio(Decimal::one(), NTRN, &output1_addr),
-            UncheckedSplitConfig::with_fixed_ratio(Decimal::percent(10u64), STARS, &output2_addr),
+            UncheckedSplitConfig::with_native_ratio(Decimal::one(), NTRN, &output1_addr),
+            UncheckedSplitConfig::with_native_ratio(Decimal::percent(10u64), STARS, &output2_addr),
         ],
         UncheckedDenom::Native(NTRN.into()),
     );
@@ -611,6 +612,77 @@ fn split_native_two_token_ratios_two_outputs() {
     // Verify output account 1's balance: should be 600_000 NTRN
     suite.assert_balance(&output1_addr, ONE_MILLION, NTRN);
 
-    // Verify output account 2's balance: should be 400_000 NTRN
+    // Verify output account 2's balance: should be 400_000 STARS
     suite.assert_balance(&output2_addr, TEN_MILLION, STARS);
+}
+
+#[test]
+fn split_mix_three_token_ratios_three_outputs() {
+    const NTRN_AMOUNT: u128 = ONE_MILLION / 3;
+    const STARS_AMOUNT: u128 = TEN_MILLION;
+    const MEME_AMOUNT: u128 = HUNDRED_MILLION / 2;
+    const NTRN_STARS_RATIO: u128 = 10;
+    const NTRN_MEME_RATIO: u128 = 100;
+
+    let mut suite = SplitterTestSuite::new(Some(vec![
+        (NTRN_AMOUNT, NTRN.into()),
+        (STARS_AMOUNT, STARS.into()),
+    ]));
+
+    let cw20_addr =
+        suite.cw20_token_init(MEME, "MEME", MEME_AMOUNT, suite.input_addr().to_string());
+
+    let output1_addr = suite.api().addr_make("output_account_1");
+    let output2_addr = suite.api().addr_make("output_account_2");
+    let output3_addr = suite.api().addr_make("output_account_3");
+
+    // Hypothetical ratios:
+    // NTRN/STARS is 1:10
+    // NTRN/MEME is 1:100
+    let cfg = suite.splitter_config(
+        vec![
+            UncheckedSplitConfig::with_native_ratio(Decimal::one(), NTRN, &output1_addr),
+            UncheckedSplitConfig::with_native_ratio(Decimal::percent(100u64 / NTRN_STARS_RATIO as u64), STARS, &output2_addr),
+            UncheckedSplitConfig::with_cw20_ratio(Decimal::percent(100u64 / NTRN_MEME_RATIO as u64), &cw20_addr, &output3_addr),
+        ],
+        UncheckedDenom::Native(NTRN.into()),
+    );
+
+    // Instantiate Splitter contract
+    let svc = suite.splitter_init(&cfg);
+
+    // Execute split
+    suite.execute_split(svc).unwrap();
+
+    // The expected splits are based on the fact that the Splitter
+    // will transfer as big an amount as possible in the base denom.
+    //
+    // Starting balances in input account:
+    // NTRN:     333_333
+    // STARS: 10_000_000
+    // MEME:  50_000_000
+    //
+    // Expected transferred amounts:
+    // NTRN:                     333_333
+    // STARS: 333_333 *  10 =  3_333_330
+    // MEME:  333_333 * 100 = 33_333_300
+    //
+    // Expected remaining balances:
+    // NTRN:     333_333 -    333_333 =          0
+    // STARS: 10_000_000 -  3_333_330 =  6_666_670
+    // MEME:  50_000_000 - 33_333_300 = 16_666_700
+
+    // Verify input account balances
+    suite.assert_balance(suite.input_addr(), ZERO, NTRN);
+    suite.assert_balance(suite.input_addr(), STARS_AMOUNT - (NTRN_AMOUNT * NTRN_STARS_RATIO), STARS);
+    suite.assert_cw20_balance(suite.input_addr(), MEME_AMOUNT - (NTRN_AMOUNT * NTRN_MEME_RATIO), &cw20_addr);
+
+    // Verify output account 1's balance: should be 333_333 NTRN
+    suite.assert_balance(&output1_addr, NTRN_AMOUNT, NTRN);
+
+    // Verify output account 2's balance: should be 3_333_330 STARS
+    suite.assert_balance(&output2_addr, NTRN_AMOUNT * NTRN_STARS_RATIO, STARS);
+
+    // Verify output account 3's balance: should be 33_333_300 STARS
+    suite.assert_cw20_balance(&output3_addr, NTRN_AMOUNT * NTRN_MEME_RATIO, &cw20_addr);
 }

@@ -125,7 +125,7 @@ impl UncheckedSplitConfig {
         }
     }
 
-    pub fn with_fixed_ratio(ratio: Decimal, denom: &str, output: &Addr) -> Self {
+    pub fn with_native_ratio(ratio: Decimal, denom: &str, output: &Addr) -> Self {
         UncheckedSplitConfig {
             denom: UncheckedDenom::Native(denom.to_string()),
             account: output.to_string(),
@@ -133,6 +133,21 @@ impl UncheckedSplitConfig {
             ratio: Some(UncheckedRatioConfig::FixedRatio(ratio)),
             factor: None,
         }
+    }
+
+    pub fn with_cw20_ratio(ratio: Decimal, addr: &Addr, output: &Addr) -> Self {
+        UncheckedSplitConfig {
+            denom: UncheckedDenom::Cw20(addr.to_string()),
+            account: output.to_string(),
+            amount: None,
+            ratio: Some(UncheckedRatioConfig::FixedRatio(ratio)),
+            factor: None,
+        }
+    }
+
+    pub fn with_factor(mut self, factor: u64) -> Self {
+        self.factor = Some(factor);
+        self
     }
 }
 

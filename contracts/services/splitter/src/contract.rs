@@ -200,7 +200,6 @@ mod actions {
                             })
                     })
                     .expect("Split config must have either an amount or a ratio")
-                // .map(|amount| (amount, denom.clone(), split.account().clone()))
             })
             .collect::<Result<Vec<_>, ServiceError>>()?;
 
