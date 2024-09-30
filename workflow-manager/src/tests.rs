@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod test {
-    use std::collections::{BTreeMap, BTreeSet};
+    use std::collections::BTreeMap;
 
     use cosmwasm_std::Uint128;
     use serde_json_any_key::MapIterToJson;
     use valence_service_utils::ServiceAccountType;
-    use valence_splitter::msg::ServiceConfig as SplitterServiceConfig;
+    use valence_splitter_service::msg::ServiceConfig as SplitterServiceConfig;
 
     use crate::{
         account::{AccountInfo, AccountType},
@@ -75,14 +75,25 @@ mod test {
     #[ignore = "internal test"]
     #[test]
     fn test_config_find_accounts_ids() {
-        let mut splits: BTreeSet<(ServiceAccountType, Uint128)> = BTreeSet::new();
-        splits.insert((ServiceAccountType::AccountId(2), 100_u128.into()));
-        splits.insert((ServiceAccountType::AccountId(3), 200_u128.into()));
-        splits.insert((ServiceAccountType::AccountId(4), 200_u128.into()));
-
         let config = ServiceConfig::Splitter(SplitterServiceConfig {
-            input_addr: ServiceAccountType::AccountId(1),
-            splits: (BTreeMap::from_iter(vec![("NTRN".to_string(), splits)])),
+            input_addr: "|account_id|:1".to_string(),
+            base_denom: valence_service_utils::denoms::UncheckedDenom::Native("NTRN".to_string()),
+            splits: vec![
+                valence_splitter_service::msg::UncheckedSplitConfig::new(
+                    valence_service_utils::denoms::UncheckedDenom::Native("NTRN".to_string()),
+                    "|account_id|:2".to_string(),
+                    Some(Uint128::from(1_000_000u128)),
+                    None,
+                    None,
+                ),
+                valence_splitter_service::msg::UncheckedSplitConfig::new(
+                    valence_service_utils::denoms::UncheckedDenom::Native("NTRN".to_string()),
+                    "|account_id|:3".to_string(),
+                    Some(Uint128::from(1_000_000u128)),
+                    None,
+                    None,
+                ),
+            ],
         });
 
         let account_ids = config.get_account_ids().unwrap();
@@ -159,19 +170,36 @@ mod test {
             },
         );
 
-        let mut splits: BTreeSet<(ServiceAccountType, Uint128)> = BTreeSet::new();
-        splits.insert((ServiceAccountType::AccountId(2), 100_u128.into()));
-        splits.insert((ServiceAccountType::AccountId(3), 200_u128.into()));
-        splits.insert((ServiceAccountType::AccountId(4), 200_u128.into()));
-
         config.services.insert(
             1,
             ServiceInfo {
                 name: "test_services".to_string(),
                 domain: Domain::CosmosCosmwasm("neutron"),
                 config: ServiceConfig::Splitter(SplitterServiceConfig {
-                    input_addr: ServiceAccountType::AccountId(1),
-                    splits: (BTreeMap::from_iter(vec![("NTRN".to_string(), splits)].into_iter())),
+                    input_addr: "|account_id|:1".to_string(),
+                    base_denom: valence_service_utils::denoms::UncheckedDenom::Native(
+                        "NTRN".to_string(),
+                    ),
+                    splits: vec![
+                        valence_splitter_service::msg::UncheckedSplitConfig::new(
+                            valence_service_utils::denoms::UncheckedDenom::Native(
+                                "NTRN".to_string(),
+                            ),
+                            "|account_id|:2".to_string(),
+                            Some(Uint128::from(1_000_000u128)),
+                            None,
+                            None,
+                        ),
+                        valence_splitter_service::msg::UncheckedSplitConfig::new(
+                            valence_service_utils::denoms::UncheckedDenom::Native(
+                                "NTRN".to_string(),
+                            ),
+                            "|account_id|:3".to_string(),
+                            Some(Uint128::from(1_000_000u128)),
+                            None,
+                            None,
+                        ),
+                    ],
                 }),
             },
         );

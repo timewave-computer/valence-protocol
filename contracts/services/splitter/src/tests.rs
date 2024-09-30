@@ -21,6 +21,8 @@ const ZERO: u128 = 0u128;
 const ONE_MILLION: u128 = 1_000_000_000_000_u128;
 const TEN_MILLION: u128 = 10_000_000_000_000_u128;
 const HUNDRED_MILLION: u128 = 100_000_000_000_000_u128;
+const HALF_MILLION: u128 = ONE_MILLION / 2;
+const FIVE_MILLION: u128 = TEN_MILLION / 2;
 
 #[derive(Getters, Setters)]
 struct SplitterTestSuite {
@@ -583,6 +585,49 @@ fn split_mix_two_token_amounts_two_outputs() {
 
     // Verify output account 2's balance: should be 10_000_000 CATZ
     suite.assert_cw20_balance(&output2_addr, TEN_MILLION, &cw20_addr);
+}
+
+#[test]
+fn split_native_two_token_partial_amounts_two_outputs() {
+    let mut suite = SplitterTestSuite::new(Some(vec![
+        (TEN_MILLION, NTRN.into()),
+        (ONE_MILLION, STARS.into()),
+    ]));
+
+    let output1_addr = suite.api().addr_make("output_account_1");
+    let output2_addr = suite.api().addr_make("output_account_2");
+
+    let cfg = suite.splitter_config(
+        vec![
+            UncheckedSplitConfig::with_native_amount(FIVE_MILLION, NTRN, &output1_addr),
+            UncheckedSplitConfig::with_native_amount(HALF_MILLION, STARS, &output1_addr),
+            UncheckedSplitConfig::with_native_amount(FIVE_MILLION, NTRN, &output2_addr),
+            UncheckedSplitConfig::with_native_amount(HALF_MILLION, STARS, &output2_addr),
+        ],
+        UncheckedDenom::Native(NTRN.into()),
+    );
+
+    // Instantiate Splitter contract
+    let svc = suite.splitter_init(&cfg);
+
+    // Assert initial balances
+    suite.assert_balance(suite.input_addr(), TEN_MILLION, NTRN);
+    suite.assert_balance(suite.input_addr(), ONE_MILLION, STARS);
+
+    // Execute split
+    suite.execute_split(svc).unwrap();
+
+    // Verify input account's balance: should be zero
+    suite.assert_balance(suite.input_addr(), ZERO, NTRN);
+    suite.assert_balance(suite.input_addr(), ZERO, STARS);
+
+    // Verify output account 1's balance: should be 5 million STARS & half a million NTRN
+    suite.assert_balance(&output1_addr, FIVE_MILLION, NTRN);
+    suite.assert_balance(&output1_addr, HALF_MILLION, STARS);
+
+    // Verify output account 2's balance: should be 5 million STARS & half a million NTRN
+    suite.assert_balance(&output2_addr, FIVE_MILLION, NTRN);
+    suite.assert_balance(&output2_addr, HALF_MILLION, STARS);
 }
 
 // Insufficient balance tests
