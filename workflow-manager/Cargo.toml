@@ -22,7 +22,7 @@ valence-processor-utils         = { workspace = true }
 valence-workflow-registry-utils = { workspace = true }
 valence-service-base            = { workspace = true }
 
-valence-splitter          = { workspace = true }
+valence-splitter-service  = { workspace = true }
 valence-reverse-splitter  = { workspace = true }
 valence-account-utils     = { workspace = true }
 valence-authorization     = { workspace = true }
