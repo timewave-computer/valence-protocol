@@ -55,10 +55,12 @@ pub struct LiquidityProviderConfig {
     pub slippage_tolerance: Option<Decimal>,
 }
 
+#[cw_serde]
 pub enum PoolType {
-    NativeLpToken(astroport::factory::PairType),
-    Cw20LpToken(astroport_cw20_lp_token::factory::PairType),
+    NativeLpToken(valence_astroport_utils::astroport_native_lp_token::PairType),
+    Cw20LpToken(valence_astroport_utils::astroport_cw20_lp_token::PairType),
 }
+
 
 pub struct AssetData {
     pub asset1: String,
