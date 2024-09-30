@@ -8,16 +8,10 @@ description = "Utils for astroport services"
 [features]
 default = []
 testing = [
-    "dep:cosmwasm-std",
-    "dep:cosmwasm-std-old",
-    "dep:astroport",
-    "dep:astroport-cw20-lp-token",
     "dep:neutron-test-tube",
 ]
 
 [dependencies]
-cosmwasm-std            = { workspace = true, optional = true }
-cosmwasm-std-old        = { package = "cosmwasm-std", version = "1.5.7", optional = true }
-astroport               = { workspace = true, optional = true }
-astroport-cw20-lp-token = { workspace = true, optional = true }
+cosmwasm-std            = { workspace = true }
+cosmwasm-schema         = { workspace = true }
 neutron-test-tube       = { workspace = true, optional = true }

@@ -1,7 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use cosmwasm_std::coins;
-use cosmwasm_std_old::Uint128;
+use cosmwasm_std::{coins, Uint128};
 use neutron_test_tube::{
     neutron_std::types::{
         cosmos::base::v1beta1::Coin,
@@ -115,10 +114,10 @@ impl AstroportTestAppBuilder {
         let factory_native_address = wasm
             .instantiate(
                 *code_ids.get("astroport_factory_native").unwrap(),
-                &astroport::factory::InstantiateMsg {
-                    pair_configs: vec![astroport::factory::PairConfig {
+                &crate::astroport_native_lp_token::FactoryInstantiateMsg {
+                    pair_configs: vec![crate::astroport_native_lp_token::PairConfig {
                         code_id: *code_ids.get("astroport_pair_native").unwrap(),
-                        pair_type: astroport::factory::PairType::Xyk {},
+                        pair_type: crate::astroport_native_lp_token::PairType::Xyk {},
                         total_fee_bps: 0,
                         maker_fee_bps: 0,
                         is_disabled: false,
@@ -143,18 +142,18 @@ impl AstroportTestAppBuilder {
             .address;
 
         let assets = vec![
-            astroport::asset::AssetInfo::NativeToken {
+            crate::astroport_native_lp_token::AssetInfo::NativeToken {
                 denom: FEE_DENOM.to_string(),
             },
-            astroport::asset::AssetInfo::NativeToken {
+            crate::astroport_native_lp_token::AssetInfo::NativeToken {
                 denom: denom.clone(),
             },
         ];
         // Create a pool with NTRN and the denom as assets
         wasm.execute(
             &factory_native_address,
-            &astroport::factory::ExecuteMsg::CreatePair {
-                pair_type: astroport::factory::PairType::Xyk {},
+            &crate::astroport_native_lp_token::FactoryExecuteMsg::CreatePair {
+                pair_type: crate::astroport_native_lp_token::PairType::Xyk {},
                 asset_infos: assets.clone(),
                 init_params: None,
             },
@@ -165,9 +164,9 @@ impl AstroportTestAppBuilder {
 
         // Get the pool address
         let pair_info = wasm
-            .query::<astroport::factory::QueryMsg, astroport::asset::PairInfo>(
+            .query::<crate::astroport_native_lp_token::FactoryQueries, crate::astroport_native_lp_token::PairInfo>(
                 &factory_native_address,
-                &astroport::factory::QueryMsg::Pair {
+                &crate::astroport_native_lp_token::FactoryQueries::Pair {
                     asset_infos: assets,
                 },
             )
@@ -179,17 +178,17 @@ impl AstroportTestAppBuilder {
         // Provide some initial liquidity
         wasm.execute(
             &pool_native_addr,
-            &astroport::pair::ExecuteMsg::ProvideLiquidity {
+            &crate::astroport_native_lp_token::ExecuteMsg::ProvideLiquidity {
                 assets: vec![
-                    astroport::asset::Asset {
-                        info: astroport::asset::AssetInfo::NativeToken {
+                    crate::astroport_native_lp_token::Asset {
+                        info: crate::astroport_native_lp_token::AssetInfo::NativeToken {
                             denom: FEE_DENOM.to_string(),
                         },
                         amount: Uint128::new(1_000_000_000),
                     },
-                    astroport::asset::Asset {
-                        info: astroport::asset::AssetInfo::NativeToken {
-                            denom: denom.clone(),
+                    crate::astroport_native_lp_token::Asset {
+                        info: crate::astroport_native_lp_token::AssetInfo::NativeToken {
+                            denom: denom.to_string(),
                         },
                         amount: Uint128::new(1_000_000_000),
                     },
@@ -217,10 +216,10 @@ impl AstroportTestAppBuilder {
         let factory_cw20_address = wasm
             .instantiate(
                 *code_ids.get("astroport_factory_cw20").unwrap(),
-                &astroport_cw20_lp_token::factory::InstantiateMsg {
-                    pair_configs: vec![astroport_cw20_lp_token::factory::PairConfig {
+                &crate::astroport_cw20_lp_token::FactoryInstantiateMsg {
+                    pair_configs: vec![crate::astroport_cw20_lp_token::PairConfig {
                         code_id: *code_ids.get("astroport_pair_cw20").unwrap(),
-                        pair_type: astroport_cw20_lp_token::factory::PairType::Xyk {},
+                        pair_type: crate::astroport_cw20_lp_token::PairType::Xyk {},
                         total_fee_bps: 0,
                         maker_fee_bps: 0,
                         is_disabled: false,
@@ -243,18 +242,18 @@ impl AstroportTestAppBuilder {
             .address;
 
         let assets = vec![
-            astroport_cw20_lp_token::asset::AssetInfo::NativeToken {
+            crate::astroport_cw20_lp_token::AssetInfo::NativeToken {
                 denom: FEE_DENOM.to_string(),
             },
-            astroport_cw20_lp_token::asset::AssetInfo::NativeToken {
+            crate::astroport_cw20_lp_token::AssetInfo::NativeToken {
                 denom: denom.clone(),
             },
         ];
         // Create a pool with NTRN and the denom as assets
         wasm.execute(
             &factory_cw20_address,
-            &astroport_cw20_lp_token::factory::ExecuteMsg::CreatePair {
-                pair_type: astroport_cw20_lp_token::factory::PairType::Xyk {},
+            &crate::astroport_cw20_lp_token::FactoryExecuteMsg::CreatePair {
+                pair_type: crate::astroport_cw20_lp_token::PairType::Xyk {},
                 asset_infos: assets.clone(),
                 init_params: None,
             },
@@ -265,9 +264,9 @@ impl AstroportTestAppBuilder {
 
         // Get the pool address
         let pair_info = wasm
-            .query::<astroport_cw20_lp_token::factory::QueryMsg, astroport_cw20_lp_token::asset::PairInfo>(
+            .query::<crate::astroport_cw20_lp_token::FactoryQueries, crate::astroport_cw20_lp_token::PairInfo>(
                 &factory_cw20_address,
-                &astroport_cw20_lp_token::factory::QueryMsg::Pair {
+                &crate::astroport_cw20_lp_token::FactoryQueries::Pair {
                     asset_infos: assets,
                 },
             )
@@ -279,16 +278,16 @@ impl AstroportTestAppBuilder {
         // Provide some initial liquidity
         wasm.execute(
             &pool_cw20_addr,
-            &astroport_cw20_lp_token::pair::ExecuteMsg::ProvideLiquidity {
+            &crate::astroport_cw20_lp_token::ExecuteMsg::ProvideLiquidity {
                 assets: vec![
-                    astroport_cw20_lp_token::asset::Asset {
-                        info: astroport_cw20_lp_token::asset::AssetInfo::NativeToken {
+                    crate::astroport_cw20_lp_token::Asset {
+                        info: crate::astroport_cw20_lp_token::AssetInfo::NativeToken {
                             denom: FEE_DENOM.to_string(),
                         },
                         amount: Uint128::new(1_000_000_000),
                     },
-                    astroport_cw20_lp_token::asset::Asset {
-                        info: astroport_cw20_lp_token::asset::AssetInfo::NativeToken {
+                    crate::astroport_cw20_lp_token::Asset {
+                        info: crate::astroport_cw20_lp_token::AssetInfo::NativeToken {
                             denom: denom.clone(),
                         },
                         amount: Uint128::new(1_000_000_000),

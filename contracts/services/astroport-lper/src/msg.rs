@@ -1,35 +1,10 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{ensure, Addr, Api, Decimal, Deps, DepsMut, Uint128};
-use cw_ownable::{cw_ownable_execute, cw_ownable_query};
+use cosmwasm_std::{ensure, Addr, Decimal, Deps, DepsMut, Uint128};
+use cw_ownable::cw_ownable_query;
 use valence_macros::OptionalStruct;
-
-use crate::error::ServiceError;
-
-#[cw_serde]
-pub struct InstantiateMsg {
-    pub owner: String,
-    pub processor: String,
-    pub config: ServiceConfig,
-}
-
-pub trait ServiceConfigValidation<T> {
-    #[cfg(not(target_arch = "wasm32"))]
-    fn pre_validate(&self, api: &dyn Api) -> Result<(), ServiceError>;
-    fn validate(&self, deps: Deps) -> Result<T, ServiceError>;
-}
-
-pub trait ServiceConfigInterface<T> {
-    /// T is the config type
-    fn is_diff(&self, other: &T) -> bool;
-}
-
-#[cw_ownable_execute]
-#[cw_serde]
-pub enum ExecuteMsg {
-    ProcessAction(ActionsMsgs),
-    UpdateConfig { new_config: ServiceConfig },
-    UpdateProcessor { processor: String },
-}
+use valence_service_utils::{
+    error::ServiceError, msg::ServiceConfigValidation, ServiceConfigInterface,
+};
 
 #[cw_serde]
 pub enum ActionsMsgs {
@@ -115,8 +90,8 @@ pub struct LiquidityProviderConfig {
 
 #[cw_serde]
 pub enum PoolType {
-    NativeLpToken(astroport::factory::PairType),
-    Cw20LpToken(astroport_cw20_lp_token::factory::PairType),
+    NativeLpToken(valence_astroport_utils::astroport_native_lp_token::PairType),
+    Cw20LpToken(valence_astroport_utils::astroport_cw20_lp_token::PairType),
 }
 
 #[cw_serde]
@@ -206,9 +181,11 @@ fn ensure_correct_pool(
 ) -> Result<(), ServiceError> {
     match pool_type {
         PoolType::NativeLpToken(pair_type) => {
-            let pool_response: astroport::asset::PairInfo = deps
-                .querier
-                .query_wasm_smart(pool_addr, &astroport::pair::QueryMsg::Pair {})?;
+            let pool_response: valence_astroport_utils::astroport_native_lp_token::PairInfo =
+                deps.querier.query_wasm_smart(
+                    pool_addr,
+                    &valence_astroport_utils::astroport_native_lp_token::PoolQueryMsg::Pair {},
+                )?;
 
             if pool_response.pair_type != *pair_type {
                 return Err(ServiceError::ConfigurationError(
@@ -223,12 +200,12 @@ fn ensure_correct_pool(
                 .zip([&assets.asset1, &assets.asset2].iter())
             {
                 match pool_asset {
-                    astroport::asset::AssetInfo::Token { .. } => {
+                    valence_astroport_utils::astroport_native_lp_token::AssetInfo::Token { .. } => {
                         return Err(ServiceError::ConfigurationError(
                             "Pool asset is not a native token".to_string(),
                         ))
                     }
-                    astroport::asset::AssetInfo::NativeToken { denom } => {
+                    valence_astroport_utils::astroport_native_lp_token::AssetInfo::NativeToken { denom } => {
                         if denom != *expected_asset {
                             return Err(ServiceError::ConfigurationError(
                                 "Pool asset does not match the expected asset".to_string(),
@@ -239,9 +216,11 @@ fn ensure_correct_pool(
             }
         }
         PoolType::Cw20LpToken(pair_type) => {
-            let pool_response: astroport_cw20_lp_token::asset::PairInfo = deps
-                .querier
-                .query_wasm_smart(pool_addr, &astroport_cw20_lp_token::pair::QueryMsg::Pair {})?;
+            let pool_response: valence_astroport_utils::astroport_cw20_lp_token::PairInfo =
+                deps.querier.query_wasm_smart(
+                    pool_addr,
+                    &valence_astroport_utils::astroport_cw20_lp_token::PoolQueryMsg::Pair {},
+                )?;
 
             if pool_response.pair_type != *pair_type {
                 return Err(ServiceError::ConfigurationError(
@@ -256,12 +235,16 @@ fn ensure_correct_pool(
                 .zip([&assets.asset1, &assets.asset2].iter())
             {
                 match pool_asset {
-                    astroport_cw20_lp_token::asset::AssetInfo::Token { .. } => {
+                    valence_astroport_utils::astroport_cw20_lp_token::AssetInfo::Token {
+                        ..
+                    } => {
                         return Err(ServiceError::ConfigurationError(
                             "Pool asset is not a native token".to_string(),
                         ))
                     }
-                    astroport_cw20_lp_token::asset::AssetInfo::NativeToken { denom } => {
+                    valence_astroport_utils::astroport_cw20_lp_token::AssetInfo::NativeToken {
+                        denom,
+                    } => {
                         if denom != *expected_asset {
                             return Err(ServiceError::ConfigurationError(
                                 "Pool asset does not match the expected asset".to_string(),

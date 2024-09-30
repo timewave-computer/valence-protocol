@@ -1,12 +1,12 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
-
-use crate::{
-    error::{ServiceError, UnauthorizedReason},
-    msg::{Config, ExecuteMsg, InstantiateMsg, QueryMsg, ServiceConfigValidation},
-    state::{CONFIG, PROCESSOR},
+use valence_service_utils::{
+    error::ServiceError,
+    msg::{ExecuteMsg, InstantiateMsg},
 };
+
+use crate::msg::{ActionsMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -17,19 +17,9 @@ pub fn instantiate(
     deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    msg: InstantiateMsg,
+    msg: InstantiateMsg<ServiceConfig>,
 ) -> Result<Response, ServiceError> {
-    cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    cw_ownable::initialize_owner(deps.storage, deps.api, Some(&msg.owner))?;
-
-    PROCESSOR.save(deps.storage, &deps.api.addr_validate(&msg.processor)?)?;
-
-    let config = msg.config.validate(deps.as_ref())?;
-    CONFIG.save(deps.storage, &config)?;
-
-    Ok(Response::new()
-        .add_attribute("method", "instantiate")
-        .add_attribute("owner", msg.owner))
+    valence_service_base::instantiate(deps, CONTRACT_NAME, CONTRACT_VERSION, msg)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -37,54 +27,45 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg,
+    msg: ExecuteMsg<ActionsMsgs, OptionalServiceConfig>,
 ) -> Result<Response, ServiceError> {
-    match msg {
-        ExecuteMsg::ProcessAction(action_msgs) => {
-            let processor = PROCESSOR.load(deps.storage)?;
-            if info.sender != processor {
-                return Err(ServiceError::Unauthorized(
-                    UnauthorizedReason::NotAllowed {},
-                ));
-            }
-            let config = CONFIG.load(deps.storage)?;
-            actions::process_action(deps, env, info, action_msgs, config)
-        }
-        ExecuteMsg::UpdateConfig { new_config } => {
-            cw_ownable::assert_owner(deps.as_ref().storage, &info.sender)?;
-            let config = new_config.validate(deps.as_ref())?;
-            CONFIG.save(deps.storage, &config)?;
-            Ok(Response::new().add_attribute("method", "update_config"))
-        }
-        ExecuteMsg::UpdateProcessor { processor } => {
-            cw_ownable::assert_owner(deps.as_ref().storage, &info.sender)?;
-            PROCESSOR.save(deps.storage, &deps.api.addr_validate(&processor)?)?;
-            Ok(Response::default()
-                .add_attribute("method", "update_processor")
-                .add_attribute("processor", processor))
-        }
-        ExecuteMsg::UpdateOwnership(action) => {
-            let result =
-                cw_ownable::update_ownership(deps, &env.block, &info.sender, action.clone())?;
-            Ok(Response::default()
-                .add_attribute("method", "update_ownership")
-                .add_attribute("action", format!("{:?}", action))
-                .add_attribute("result", format!("{:?}", result)))
-        }
+    valence_service_base::execute(
+        deps,
+        env,
+        info,
+        msg,
+        actions::process_action,
+        execute::update_config,
+    )
+}
+
+mod execute {
+    use cosmwasm_std::{DepsMut, Env, MessageInfo};
+    use valence_service_utils::error::ServiceError;
+
+    use crate::msg::{Config, OptionalServiceConfig};
+
+    pub fn update_config(
+        deps: &DepsMut,
+        _env: Env,
+        _info: MessageInfo,
+        config: &mut Config,
+        new_config: OptionalServiceConfig,
+    ) -> Result<(), ServiceError> {
+        new_config.update_config(deps, config)
     }
 }
 
 mod actions {
-    use astroport::DecimalCheckedOps;
     use cosmwasm_schema::cw_serde;
     use cosmwasm_std::{
-        to_json_binary, Addr, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult,
-        Uint128, WasmMsg,
+        to_json_binary, Addr, Coin, CosmosMsg, Decimal, DepsMut, Env, Fraction, MessageInfo,
+        OverflowError, Response, StdResult, Uint128, Uint256, WasmMsg,
     };
+    use valence_service_utils::error::ServiceError;
 
     use crate::{
         astroport_cw20, astroport_native,
-        error::ServiceError,
         msg::{ActionsMsgs, Config, DecimalRange, PoolType},
     };
 
@@ -264,17 +245,37 @@ mod actions {
     }
 
     // Implement the trait for both Asset types
-    impl AssetTrait for astroport::asset::Asset {
+    impl AssetTrait for valence_astroport_utils::astroport_native_lp_token::Asset {
         fn as_coin(&self) -> Result<cosmwasm_std::Coin, ServiceError> {
             self.as_coin()
                 .map_err(|error| ServiceError::ExecutionError(error.to_string()))
         }
     }
 
-    impl AssetTrait for astroport_cw20_lp_token::asset::Asset {
+    impl AssetTrait for valence_astroport_utils::astroport_cw20_lp_token::Asset {
         fn as_coin(&self) -> Result<cosmwasm_std::Coin, ServiceError> {
             self.to_coin()
                 .map_err(|error| ServiceError::ExecutionError(error.to_string()))
+        }
+    }
+
+    // We define the helper for Decimals
+    pub trait DecimalCheckedOps {
+        fn checked_mul_uint128(self, other: Uint128) -> Result<Uint128, OverflowError>;
+    }
+
+    impl DecimalCheckedOps for Decimal {
+        fn checked_mul_uint128(self, other: Uint128) -> Result<Uint128, OverflowError> {
+            if self.is_zero() || other.is_zero() {
+                return Ok(Uint128::zero());
+            }
+            let multiply_ratio =
+                other.full_mul(self.numerator()) / Uint256::from(self.denominator());
+            if multiply_ratio > Uint256::from(Uint128::MAX) {
+                Err(OverflowError::new(cosmwasm_std::OverflowOperation::Mul))
+            } else {
+                Ok(multiply_ratio.try_into().unwrap())
+            }
         }
     }
 
@@ -366,13 +367,14 @@ mod actions {
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Ownership {} => to_json_binary(&cw_ownable::get_ownership(deps.storage)?),
+        QueryMsg::Ownership {} => {
+            to_json_binary(&valence_service_base::get_ownership(deps.storage)?)
+        }
         QueryMsg::GetProcessor {} => {
-            let processor = PROCESSOR.load(deps.storage)?;
-            to_json_binary(&processor)
+            to_json_binary(&valence_service_base::get_processor(deps.storage)?)
         }
         QueryMsg::GetServiceConfig {} => {
-            let config: Config = CONFIG.load(deps.storage)?;
+            let config: Config = valence_service_base::load_config(deps.storage)?;
             to_json_binary(&config)
         }
     }

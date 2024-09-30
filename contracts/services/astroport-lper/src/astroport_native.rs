@@ -1,15 +1,15 @@
-use crate::error::ServiceError;
 use crate::msg::{Config, PoolType};
-
-use astroport::asset::{Asset, AssetInfo};
-use astroport::pair::{ExecuteMsg, PoolResponse, QueryMsg};
 use cosmwasm_std::{coin, CosmosMsg, WasmMsg};
 use cosmwasm_std::{to_json_binary, DepsMut, Uint128};
+use valence_astroport_utils::astroport_native_lp_token::{
+    Asset, AssetInfo, ExecuteMsg, PairType, PoolQueryMsg, PoolResponse, SimulationResponse,
+};
+use valence_service_utils::error::ServiceError;
 
 pub fn query_pool(deps: &DepsMut, pool_addr: &str) -> Result<Vec<Asset>, ServiceError> {
     let response: PoolResponse = deps
         .querier
-        .query_wasm_smart(pool_addr, &QueryMsg::Pool {})?;
+        .query_wasm_smart(pool_addr, &PoolQueryMsg::Pool {})?;
     Ok(response.assets)
 }
 
@@ -58,10 +58,8 @@ pub fn create_single_sided_liquidity_msg(
 ) -> Result<Vec<CosmosMsg>, ServiceError> {
     match cfg.lp_config.pool_type.clone() {
         PoolType::NativeLpToken(pair_type) => match pair_type {
-            astroport::factory::PairType::Xyk {} => {
-                create_xyk_liquidity_msg(deps, cfg, asset_balance, other_asset)
-            }
-            astroport::factory::PairType::Stable {} | astroport::factory::PairType::Custom(_) => {
+            PairType::Xyk {} => create_xyk_liquidity_msg(deps, cfg, asset_balance, other_asset),
+            PairType::Stable {} | PairType::Custom(_) => {
                 create_stable_or_custom_liquidity_msg(cfg, asset_balance, other_asset)
             }
         },
@@ -106,9 +104,9 @@ fn create_xyk_liquidity_msg(
     };
 
     // We simulate a swap with 1/2 of the offer asset
-    let simulation: astroport::pair::SimulationResponse = deps.querier.query_wasm_smart(
+    let simulation: SimulationResponse = deps.querier.query_wasm_smart(
         &cfg.pool_addr,
-        &QueryMsg::Simulation {
+        &PoolQueryMsg::Simulation {
             offer_asset: astroport_offer_asset.clone(),
             ask_asset_info: None,
         },
