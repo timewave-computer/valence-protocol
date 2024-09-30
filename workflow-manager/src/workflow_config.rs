@@ -27,20 +27,21 @@ pub struct Link {
 /// This struct holds all the data regarding our authorization and processor
 /// contracts and bridge accounts
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'static"))]
 pub struct AuthorizationData {
     /// authorization contract address on neutron
     pub authorization_addr: String,
     /// List of processor addresses by domain
     /// Key: domain name | Value: processor address
-    pub processor_addrs: BTreeMap<String, String>,
+    pub processor_addrs: BTreeMap<Domain, String>,
     /// List of authorization bridge addresses by domain
     /// The addresses are on the specified domain
     /// Key: domain name | Value: authorization bridge address on that domain
-    pub authorization_bridge_addrs: BTreeMap<String, String>,
+    pub authorization_bridge_addrs: BTreeMap<Domain, String>,
     /// List of processor bridge addresses by domain
     /// All addresses are on nuetron, mapping to what domain this bridge account is for
     /// Key: domain name | Value: processor bridge address on that domain
-    pub processor_bridge_addrs: BTreeMap<String, String>,
+    pub processor_bridge_addrs: BTreeMap<Domain, String>,
 }
 
 impl AuthorizationData {
@@ -48,15 +49,15 @@ impl AuthorizationData {
         self.authorization_addr = addr;
     }
 
-    pub fn set_processor_addr(&mut self, domain: String, addr: String) {
+    pub fn set_processor_addr(&mut self, domain: Domain, addr: String) {
         self.processor_addrs.insert(domain, addr);
     }
 
-    pub fn set_authorization_bridge_addr(&mut self, domain: String, addr: String) {
+    pub fn set_authorization_bridge_addr(&mut self, domain: Domain, addr: String) {
         self.authorization_bridge_addrs.insert(domain, addr);
     }
 
-    pub fn set_processor_bridge_addr(&mut self, domain: String, addr: String) {
+    pub fn set_processor_bridge_addr(&mut self, domain: Domain, addr: String) {
         self.processor_bridge_addrs.insert(domain, addr);
     }
 }
@@ -124,7 +125,7 @@ impl WorkflowConfig {
         self.authorization_data
             .set_authorization_addr(authorization_addr.clone());
         self.authorization_data
-            .set_processor_addr(MAIN_DOMAIN.to_string(), main_processor_addr);
+            .set_processor_addr(MAIN_DOMAIN, main_processor_addr);
 
         // init processors and bridge accounts on all other domains
         // For mainnet we need to instantiate a bridge account for each processor instantiated on other domains
@@ -198,17 +199,17 @@ impl WorkflowConfig {
 
                 // Add processor address to list of processor by domain
                 self.authorization_data
-                    .set_processor_addr(domain.get_chain_name().to_string(), processor_addr);
+                    .set_processor_addr(domain.clone(), processor_addr);
 
                 // Add authorization bridge account info by domain
                 self.authorization_data.set_authorization_bridge_addr(
-                    domain.get_chain_name().to_string(),
+                    domain.clone(),
                     authorization_bridge_account_addr,
                 );
 
                 // Add processor bridge account info by domain
                 self.authorization_data.set_processor_bridge_addr(
-                    domain.get_chain_name().to_string(),
+                    domain.clone(),
                     processor_bridge_account_addr,
                 );
             };
@@ -315,7 +316,8 @@ impl WorkflowConfig {
             .await?;
 
         // Verify the workflow was instantiated successfully
-        self.verify_init_was_successful(connectors, account_instantiate_datas).await?;
+        self.verify_init_was_successful(connectors, account_instantiate_datas)
+            .await?;
 
         // Save the workflow config to registry
         // neutron_connector.save_workflow_config(self).await?;
@@ -418,21 +420,56 @@ impl WorkflowConfig {
     }
 
     /// Verify our workflow was instantiated successfully
-    async fn verify_init_was_successful(&mut self, connectors: &Connectors, account_instantiate_datas: HashMap<u64, InstantiateAccountData>) -> ManagerResult<()> {
+    async fn verify_init_was_successful(
+        &mut self,
+        connectors: &Connectors,
+        account_instantiate_datas: HashMap<u64, InstantiateAccountData>,
+    ) -> ManagerResult<()> {
         let mut neutron_connector = connectors.get_or_create_connector(&NEUTRON_DOMAIN).await?;
         // verify id that is used in workflow is not taken and is not 0
         ensure!(
-            neutron_connector.query_workflow_registry(NEUTRON_DOMAIN.get_chain_name(), self.id).await.is_ok(),
+            neutron_connector
+                .query_workflow_registry(NEUTRON_DOMAIN.get_chain_name(), self.id)
+                .await
+                .is_ok(),
             ManagerError::WorkflowIdAlreadyExists(self.id)
         );
 
         // verify all accounts have addresses and they return the correct code id
-        for account in account_instantiate_datas {
+        for (_, account_data) in account_instantiate_datas {
+            let mut connector = connectors
+                .get_or_create_connector(&account_data.info.domain)
+                .await?;
 
+            connector.verify_account(account_data.addr.clone()).await?;
         }
-        // verify services have an address and query on-chain contract to make sure its correct
 
-        // Verify authorization data and bridge accounts are instantiated
+        // verify services have an address and query on-chain contract to make sure its correct
+        for (_, service) in self.services.iter() {
+            let mut connector = connectors.get_or_create_connector(&service.domain).await?;
+
+            connector.verify_service(service.addr.clone()).await?;
+        }
+
+        // Verify authorization contract is correct on neutron chain
+        neutron_connector
+            .verify_authorization_addr(self.authorization_data.authorization_addr.clone())
+            .await?;
+
+        // Veryify each processor was instantiated correctly
+        for (domain, processor_addr) in self.authorization_data.processor_addrs.iter() {
+            let mut connector = connectors.get_or_create_connector(domain).await?;
+
+            connector.verify_processor(processor_addr.clone()).await?;
+        }
+        
+        // Verify authorization and processor bridge accounts were created correctly
+        for (domain, authorization_bridge_addr) in self.authorization_data.authorization_bridge_addrs.iter() {
+            let mut connector = connectors.get_or_create_connector(domain).await?;
+
+            connector.verify_bridge_account(authorization_bridge_addr.clone()).await?;
+        }
+
         Ok(())
     }
 }

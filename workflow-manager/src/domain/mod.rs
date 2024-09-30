@@ -113,6 +113,16 @@ pub trait Connector: fmt::Debug + Send + Sync {
         retry: u8,
     ) -> ConnectorResult<()>;
 
+    /// Verify the account was instantiated correct and its one of our accounts
+    async fn verify_account(&mut self, account_addr: String) -> ConnectorResult<()>;
+
+    // Verify the service has an address and it was instantiated
+    async fn verify_service(&mut self, service_addr: Option<String>) -> ConnectorResult<()>;
+
+    async fn verify_processor(&mut self, processor_addr: String) -> ConnectorResult<()>;
+
+    async fn verify_bridge_account(&mut self, bridge_addr: String) -> ConnectorResult<()>;
+
     // ---------------------------------------------------------------------------------------
     // Below are functions that sohuld only be implemented on a specific domain
     // For example authorization contract methods should only be implemented on the main domain
@@ -192,5 +202,13 @@ pub trait Connector: fmt::Debug + Send + Sync {
         id: u64,
     ) -> ConnectorResult<valence_workflow_registry_utils::WorkflowResponse> {
         unimplemented!("'query_workflow_registry' should only be implemented on neutron domain");
+    }
+
+    #[allow(unused_variables)]
+    async fn verify_authorization_addr(
+        &mut self,
+        addr: String,
+    ) -> ConnectorResult<()> {
+        unimplemented!("'verify_authorization_addr' should only be implemented on neutron domain");
     }
 }

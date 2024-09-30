@@ -18,7 +18,7 @@ use cosmos_grpc_client::{
         cosmos::tx::v1beta1::GetTxRequest,
         cosmwasm::wasm::v1::{
             MsgExecuteContract, MsgInstantiateContract2, QueryCodeRequest,
-            QuerySmartContractStateRequest,
+            QueryContractInfoRequest, QuerySmartContractStateRequest,
         },
     },
     cosmrs::bip32::secp256k1::sha2::{digest::Update, Digest, Sha256},
@@ -26,6 +26,7 @@ use cosmos_grpc_client::{
 };
 use cosmwasm_std::from_json;
 use serde_json::to_vec;
+use strum::VariantNames;
 use thiserror::Error;
 use tokio::time::sleep;
 
@@ -680,7 +681,7 @@ impl Connector for CosmosCosmwasmConnector {
                 .wasm
                 .smart_contract_state(config_req)
                 .await
-                .context("'_should_retry_processor_bridge_account_creation' Failed to query the processor")
+                .context("'query_workflow_registry' Failed to query workflow registry")
                 .map_err(CosmosCosmwasmError::Error)?
                 .into_inner()
                 .data,
@@ -688,6 +689,75 @@ impl Connector for CosmosCosmwasmConnector {
         .map_err(CosmosCosmwasmError::CosmwasmStdError)?;
 
         Ok(config_res)
+    }
+
+    async fn verify_account(&mut self, account_addr: String) -> ConnectorResult<()> {
+        let contract_name = self.get_contract_name_by_code_id(account_addr).await?;
+
+        // Loop over account types and see if any matches the contract name of the code id
+        // error if it doesn't match, else return ()
+        Ok(AccountType::VARIANTS
+            .iter()
+            .find(|x| x.to_string() == contract_name)
+            .context("'verify_account' Code id doesn't match any account type")
+            .map(|_| ())
+            .map_err(CosmosCosmwasmError::Error)?)
+    }
+
+    async fn verify_service(&mut self, service_addr: Option<String>) -> ConnectorResult<()> {
+        let service_addr = service_addr
+            .context("'verify_service' Service address is empty")
+            .map_err(CosmosCosmwasmError::Error)?;
+
+        let contract_name = self.get_contract_name_by_code_id(service_addr).await?;
+
+        Ok(ServiceConfig::VARIANTS
+            .iter()
+            .find(|x| x.to_string() == contract_name)
+            .context("'verify_account' Code id doesn't match any account type")
+            .map(|_| ())
+            .map_err(CosmosCosmwasmError::Error)?)
+    }
+
+    async fn verify_processor(&mut self, processor_addr: String) -> ConnectorResult<()> {
+        let contract_name = self.get_contract_name_by_code_id(processor_addr).await?;
+
+        // Make sure the code id is of name processor
+        if contract_name != "processor" {
+            return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                "'verify_processor' Code id isn't of processor code id"
+            ))
+            .into());
+        }
+
+        Ok(())
+    }
+
+    async fn verify_bridge_account(&mut self, bridge_addr: String) -> ConnectorResult<()> {
+        // If the address have a code id, it means it was instantiated.
+        self.get_code_id_of_addr(bridge_addr)
+            .await
+            .map(|_| ())
+            .map_err(|e| e.into())
+    }
+
+    async fn verify_authorization_addr(&mut self, addr: String) -> ConnectorResult<()> {
+        let code_id = *self
+            .code_ids
+            .get("authorization")
+            .context(format!("Code id not found for: {}", "authorization"))
+            .map_err(CosmosCosmwasmError::Error)?;
+
+        let code_id_on_chain = self.get_code_id_of_addr(addr).await?;
+
+        if code_id_on_chain != code_id {
+            return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                "'verify_authorization_addr' Code id doesn't match authorization"
+            ))
+            .into());
+        }
+
+        Ok(())
     }
 }
 
@@ -865,6 +935,7 @@ impl CosmosCosmwasmConnector {
             .map_err(CosmosCosmwasmError::Error)
             .cloned()
     }
+
     pub async fn get_checksum(&mut self, code_id: u64) -> Result<Vec<u8>, CosmosCosmwasmError> {
         let req = QueryCodeRequest { code_id };
         let code_res = self
@@ -884,5 +955,45 @@ impl CosmosCosmwasmConnector {
                 code_id
             ))?
             .data_hash)
+    }
+
+    pub async fn get_code_id_of_addr(&mut self, addr: String) -> Result<u64, CosmosCosmwasmError> {
+        // find the code id of the address
+        let code_id_req = QueryContractInfoRequest {
+            address: addr.clone(),
+        };
+
+        // Query for the code id of the address
+        Ok(self
+            .wallet
+            .client
+            .clients
+            .wasm
+            .contract_info(code_id_req)
+            .await
+            .context(format!("Failed to query address info: {}", addr))
+            .map_err(CosmosCosmwasmError::Error)?
+            .into_inner()
+            .contract_info
+            .context(format!("No contract info found: {}", addr))
+            .map_err(CosmosCosmwasmError::Error)?
+            .code_id)
+    }
+
+    pub async fn get_contract_name_by_code_id(
+        &mut self,
+        addr: String,
+    ) -> Result<String, CosmosCosmwasmError> {
+        let code_id = self.get_code_id_of_addr(addr.clone()).await?;
+
+        // find if code id is in our list of code ids and get the contract name
+        Ok(self
+            .code_ids
+            .iter()
+            .find(|(_, v)| **v == code_id)
+            .context(format!("Code id not found: {} | {}", code_id, addr))
+            .map_err(CosmosCosmwasmError::Error)?
+            .0
+            .clone())
     }
 }
