@@ -51,7 +51,7 @@ impl From<(CheckedDenom, u128)> for ForwardingConfig {
     fn from((denom, max_amount): (CheckedDenom, u128)) -> Self {
         ForwardingConfig {
             denom,
-            max_amount: Uint128::from(max_amount),
+            max_amount: max_amount.into(),
         }
     }
 }
@@ -84,7 +84,7 @@ impl From<(UncheckedDenom, u128)> for UncheckedForwardingConfig {
     fn from((denom, max_amount): (UncheckedDenom, u128)) -> Self {
         UncheckedForwardingConfig {
             denom,
-            max_amount: Uint128::from(max_amount),
+            max_amount: max_amount.into(),
         }
     }
 }
@@ -117,14 +117,25 @@ impl ServiceConfig {
             forwarding_constraints,
         }
     }
+
+    fn do_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<(Addr, Addr), ServiceError> {
+        let input_addr = api.addr_validate(&self.input_addr)?;
+        let output_addr = api.addr_validate(&self.output_addr)?;
+        // Ensure denoms are unique in forwarding configs
+        ensure_denom_uniqueness(&self.forwarding_configs)?;
+        Ok((input_addr, output_addr))
+    }
 }
 
 impl ServiceConfigValidation<Config> for ServiceConfig {
+    #[cfg(not(target_arch = "wasm32"))]
+    fn pre_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<(), ServiceError> {
+        self.do_validate(api)?;
+        Ok(())
+    }
+
     fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
-        let input_addr = deps.api.addr_validate(&self.input_addr)?;
-        let output_addr = deps.api.addr_validate(&self.output_addr)?;
-        // Ensure denoms are unique in forwarding configs
-        ensure_denom_uniqueness(&self.forwarding_configs)?;
+        let (input_addr, output_addr) = self.do_validate(deps.api)?;
 
         // Convert the unchecked denoms to checked denoms
         let checked_fwd_configs = convert_to_checked_configs(&self.forwarding_configs, deps)?;

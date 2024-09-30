@@ -78,13 +78,15 @@ mod execute {
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetOwner {} => to_json_binary(&cw_ownable::get_ownership(deps.storage)?),
+        QueryMsg::Ownership {} => {
+            to_json_binary(&valence_service_base::get_ownership(deps.storage)?)
+        }
+        QueryMsg::GetProcessor {} => {
+            to_json_binary(&valence_service_base::get_processor(deps.storage)?)
+        }
         QueryMsg::GetServiceConfig {} => {
             let config: Config = valence_service_base::load_config(deps.storage)?;
             to_json_binary(&config)
         }
     }
 }
-
-#[cfg(test)]
-mod tests {}

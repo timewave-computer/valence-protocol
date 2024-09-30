@@ -1,41 +1,29 @@
 use cosmwasm_std::{
-    instantiate2_address, testing::MockApi, Addr, Api, CodeInfoResponse, Coin, Uint128,
+    instantiate2_address, testing::MockApi, Addr, Api, CodeInfoResponse, Coin, Empty, Uint128,
 };
 use cw20::Cw20Coin;
-use cw_multi_test::{error::AnyResult, next_block, App, AppResponse, ContractWrapper, Executor};
+use cw_multi_test::{
+    error::AnyResult, next_block, App, AppResponse, Contract, ContractWrapper, Executor,
+};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::fmt::Debug;
 
-pub struct ServiceTestSuiteBase {
+pub struct AccountTestSuiteBase {
     app: App,
     owner: Addr,
-    processor: Addr,
     account_code_id: u64,
     cw20_code_id: u64,
 }
 
-impl Default for ServiceTestSuiteBase {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 #[allow(dead_code)]
-impl ServiceTestSuiteBase {
-    pub fn new() -> Self {
+impl AccountTestSuiteBase {
+    pub fn new(account_contract: Box<dyn Contract<Empty>>) -> Self {
         let mut app = App::default();
 
         let owner = app.api().addr_make("owner");
-        let processor = app.api().addr_make("processor");
 
-        let account_code = ContractWrapper::new(
-            valence_base_account::contract::execute,
-            valence_base_account::contract::instantiate,
-            valence_base_account::contract::query,
-        );
-
-        let account_code_id = app.store_code(Box::new(account_code));
+        let account_code_id = app.store_code(account_contract);
 
         let cw20_code = ContractWrapper::new(
             cw20_base::contract::execute,
@@ -48,32 +36,21 @@ impl ServiceTestSuiteBase {
         Self {
             app,
             owner,
-            processor,
             account_code_id,
             cw20_code_id,
         }
     }
 }
 
-pub trait ServiceTestSuite {
+pub trait AccountTestSuite {
     fn app(&self) -> &App;
     fn app_mut(&mut self) -> &mut App;
     fn owner(&self) -> &Addr;
-    fn processor(&self) -> &Addr;
     fn account_code_id(&self) -> u64;
     fn cw20_code_id(&self) -> u64;
 
     fn api(&self) -> &MockApi {
         self.app().api()
-    }
-
-    fn account_init(&mut self, salt: &str, approved_services: Vec<String>) -> Addr {
-        let init_msg = valence_account_utils::msg::InstantiateMsg {
-            admin: self.owner().to_string(),
-            approved_services,
-        };
-
-        self.contract_init2(self.account_code_id(), salt, &init_msg, &[])
     }
 
     fn get_contract_addr(&mut self, code_id: u64, salt: &str) -> Addr {
@@ -142,7 +119,7 @@ pub trait ServiceTestSuite {
         addr: Addr,
         msg: &T,
     ) -> AnyResult<AppResponse> {
-        let sender = self.processor().clone();
+        let sender = self.owner().clone();
         self.app_mut().execute_contract(sender, addr, &msg, &[])
     }
 
@@ -246,7 +223,8 @@ pub trait ServiceTestSuite {
     }
 }
 
-impl ServiceTestSuite for ServiceTestSuiteBase {
+#[allow(dead_code)]
+impl AccountTestSuite for AccountTestSuiteBase {
     fn app(&self) -> &App {
         &self.app
     }
@@ -257,10 +235,6 @@ impl ServiceTestSuite for ServiceTestSuiteBase {
 
     fn owner(&self) -> &Addr {
         &self.owner
-    }
-
-    fn processor(&self) -> &Addr {
-        &self.processor
     }
 
     fn account_code_id(&self) -> u64 {
