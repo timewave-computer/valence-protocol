@@ -13,6 +13,7 @@ use crate::{
     account::InstantiateAccountData,
     config::{ConfigError, CONFIG},
     service::ServiceConfig,
+    workflow_config::WorkflowConfig,
 };
 
 pub type ConnectorResult<T> = Result<T, ConnectorError>;
@@ -82,13 +83,21 @@ pub trait Connector: fmt::Debug + Send + Sync {
     ) -> ConnectorResult<String>;
 
     /// Instantiate an account based on the provided data
-    async fn instantiate_account(&mut self, data: &InstantiateAccountData) -> ConnectorResult<()>;
+    async fn instantiate_account(
+        &mut self,
+        workflow_id: u64,
+        auth_addr: String,
+        data: &InstantiateAccountData,
+    ) -> ConnectorResult<()>;
 
     /// Instantiate a service contract based on the given data
     async fn instantiate_service(
         &mut self,
+        workflow_id: u64,
+        auth_addr: String,
+        processor_bridge_addr: String,
         service_id: u64,
-        service_config: &ServiceConfig,
+        service_config: ServiceConfig,
         salt: Vec<u8>,
     ) -> ConnectorResult<()>;
 
@@ -119,8 +128,10 @@ pub trait Connector: fmt::Debug + Send + Sync {
     // Verify the service has an address and it was instantiated
     async fn verify_service(&mut self, service_addr: Option<String>) -> ConnectorResult<()>;
 
+    // Verify the processor was instantiated
     async fn verify_processor(&mut self, processor_addr: String) -> ConnectorResult<()>;
 
+    // Verify the bridge account was instantiated
     async fn verify_bridge_account(&mut self, bridge_addr: String) -> ConnectorResult<()>;
 
     // ---------------------------------------------------------------------------------------
@@ -205,10 +216,12 @@ pub trait Connector: fmt::Debug + Send + Sync {
     }
 
     #[allow(unused_variables)]
-    async fn verify_authorization_addr(
-        &mut self,
-        addr: String,
-    ) -> ConnectorResult<()> {
+    async fn verify_authorization_addr(&mut self, addr: String) -> ConnectorResult<()> {
         unimplemented!("'verify_authorization_addr' should only be implemented on neutron domain");
+    }
+
+    #[allow(unused_variables)]
+    async fn save_workflow_config(&mut self, config: WorkflowConfig) -> ConnectorResult<()> {
+        unimplemented!("'save_workflow_config' should only be implemented on neutron domain");
     }
 }

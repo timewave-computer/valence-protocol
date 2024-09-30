@@ -9,6 +9,7 @@ use crate::{
     bridge::PolytoneSingleChainInfo,
     config::{ChainInfo, ConfigError, CONFIG},
     service::{ServiceConfig, ServiceError},
+    workflow_config::WorkflowConfig,
     MAIN_CHAIN, NEUTRON_DOMAIN,
 };
 use anyhow::{anyhow, Context};
@@ -24,7 +25,7 @@ use cosmos_grpc_client::{
     cosmrs::bip32::secp256k1::sha2::{digest::Update, Digest, Sha256},
     BroadcastMode, Decimal, GrpcClient, ProstMsgNameToAny, Wallet,
 };
-use cosmwasm_std::from_json;
+use cosmwasm_std::{from_json, to_json_binary};
 use serde_json::to_vec;
 use strum::VariantNames;
 use thiserror::Error;
@@ -156,7 +157,8 @@ impl Connector for CosmosCosmwasmConnector {
             .await
             .map_err(CosmosCosmwasmError::Error)?
             .tx_response
-            .unwrap()
+            .context("'reserve_workflow_id' Failed to get tx_response")
+            .map_err(CosmosCosmwasmError::Error)?
             .txhash;
 
         // We rely on the tx hash above to be on chain before we can query to get its events.
@@ -293,31 +295,32 @@ impl Connector for CosmosCosmwasmConnector {
         Ok(addr)
     }
 
-    async fn instantiate_account(&mut self, data: &InstantiateAccountData) -> ConnectorResult<()> {
+    async fn instantiate_account(
+        &mut self,
+        workflow_id: u64,
+        auth_addr: String,
+        data: &InstantiateAccountData,
+    ) -> ConnectorResult<()> {
         let code_id = *self
             .code_ids
             .get(&data.info.ty.to_string())
             .context(format!("Code id not found for: {}", data.info.ty))
             .map_err(CosmosCosmwasmError::Error)?;
 
-        // TODO: change the admin to authorization
         let msg: Vec<u8> = match &data.info.ty {
             AccountType::Base { admin } => to_vec(&valence_account_utils::msg::InstantiateMsg {
-                admin: admin
-                    .clone()
-                    .unwrap_or_else(|| self.wallet.account_address.to_string()),
+                admin: admin.clone().unwrap_or_else(|| auth_addr.clone()),
                 approved_services: data.approved_services.clone(),
             })
             .map_err(CosmosCosmwasmError::SerdeJsonError)?,
             AccountType::Addr { .. } => return Ok(()),
         };
 
-        // TODO: Add workflow id to the label
         let m = MsgInstantiateContract2 {
             sender: self.wallet.account_address.clone(),
-            admin: self.wallet.account_address.clone(),
+            admin: auth_addr,
             code_id,
-            label: format!("account-{}", data.id),
+            label: format!("workflow-{}|account-{}", workflow_id, data.id),
             msg,
             funds: vec![],
             salt: data.salt.clone(),
@@ -326,8 +329,8 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         self.wallet
-            .simulate_tx(vec![m])
-            // .broadcast_tx(vec![m], None, None, BroadcastMode::Sync) // TODO: change once we ready
+            // .simulate_tx(vec![m])
+            .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map(|_| ())
             .context("Failed to broadcast the TX")
@@ -336,8 +339,11 @@ impl Connector for CosmosCosmwasmConnector {
 
     async fn instantiate_service(
         &mut self,
+        workflow_id: u64,
+        auth_addr: String,
+        processor_addr: String,
         service_id: u64,
-        service_config: &ServiceConfig,
+        service_config: ServiceConfig,
         salt: Vec<u8>,
     ) -> ConnectorResult<()> {
         let code_id = *self
@@ -346,20 +352,18 @@ impl Connector for CosmosCosmwasmConnector {
             .context(format!("Code id not found for: {}", service_config))
             .map_err(CosmosCosmwasmError::Error)?;
 
-        // TODO: change the admin to authorization
         let msg = service_config
-            .get_instantiate_msg(
-                self.wallet.account_address.clone(),
-                self.wallet.account_address.clone(),
-            )
+            .get_instantiate_msg(processor_addr.clone(), processor_addr.clone())
             .map_err(CosmosCosmwasmError::ServiceError)?;
 
-        // TODO: Add workflow id to the label
         let m = MsgInstantiateContract2 {
             sender: self.wallet.account_address.clone(),
-            admin: self.wallet.account_address.clone(),
+            admin: auth_addr,
             code_id,
-            label: format!("service-{}-{}", service_config, service_id),
+            label: format!(
+                "workflow-{}|service-{}-{}",
+                workflow_id, service_config, service_id
+            ),
             msg,
             funds: vec![],
             salt: salt.clone(),
@@ -368,8 +372,8 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         self.wallet
-            .simulate_tx(vec![m])
-            // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
+            // .simulate_tx(vec![m])
+            .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map(|_| ())
             .map_err(|e| CosmosCosmwasmError::Error(e).into())
@@ -756,6 +760,41 @@ impl Connector for CosmosCosmwasmConnector {
             ))
             .into());
         }
+
+        Ok(())
+    }
+
+    async fn save_workflow_config(&mut self, config: WorkflowConfig) -> ConnectorResult<()> {
+        if self.chain_name != NEUTRON_DOMAIN.get_chain_name() {
+            return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                "Should only be implemented on neutron connector"
+            ))
+            .into());
+        }
+        let registry_addr = CONFIG.get_registry_addr();
+
+        let workflow_binary =
+            to_json_binary(&config).map_err(CosmosCosmwasmError::CosmwasmStdError)?;
+
+        let msg = to_vec(&valence_workflow_registry_utils::ExecuteMsg::SaveWorkflow {
+            id: config.id,
+            workflow_config: workflow_binary,
+        })
+        .map_err(CosmosCosmwasmError::SerdeJsonError)?;
+
+        let m = MsgExecuteContract {
+            sender: self.wallet.account_address.clone(),
+            contract: registry_addr,
+            msg,
+            funds: vec![],
+        }
+        .build_any();
+
+        self.wallet
+            .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
+            .await
+            .map(|_| ())
+            .map_err(CosmosCosmwasmError::Error)?;
 
         Ok(())
     }
