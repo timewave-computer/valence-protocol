@@ -81,11 +81,11 @@ pub enum UncheckedRatioConfig {
 
 #[cw_serde]
 pub struct UncheckedSplitConfig {
-    denom: UncheckedDenom,
-    account: String,
-    amount: Option<Uint128>,
-    ratio: Option<UncheckedRatioConfig>,
-    factor: Option<u64>,
+    pub denom: UncheckedDenom,
+    pub account: String,
+    pub amount: Option<Uint128>,
+    pub ratio: Option<UncheckedRatioConfig>,
+    pub factor: Option<u64>,
 }
 
 impl UncheckedSplitConfig {
@@ -159,9 +159,9 @@ struct DynamicRatioResponse {
 #[cw_serde]
 #[derive(OptionalStruct)]
 pub struct ServiceConfig {
-    input_addr: String,
-    splits: Vec<UncheckedSplitConfig>,
-    base_denom: UncheckedDenom,
+    pub input_addr: String,
+    pub splits: Vec<UncheckedSplitConfig>,
+    pub base_denom: UncheckedDenom,
 }
 
 impl ServiceConfig {
@@ -179,8 +179,6 @@ impl ServiceConfig {
 
     fn do_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<Addr, ServiceError> {
         let input_addr = api.addr_validate(&self.input_addr)?;
-        // Ensure denoms are unique in split configs
-        ensure_split_uniqueness(&self.splits)?;
         validate_splits(api, &self.splits, &self.base_denom)?;
         Ok(input_addr)
     }
@@ -209,22 +207,6 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
             base_denom,
         })
     }
-}
-
-/// Ensure splits are unique in split configs
-fn ensure_split_uniqueness(splits: &Vec<UncheckedSplitConfig>) -> Result<(), ServiceError> {
-    let mut denom_map: HashMap<String, ()> = HashMap::new();
-    for cfg in splits {
-        let key = format!("{:?}|{}", cfg.denom, cfg.account);
-        if denom_map.contains_key(&key) {
-            return Err(ServiceError::ConfigurationError(format!(
-                "Duplicate split '{:?}|{}' in split config.",
-                cfg.denom, cfg.account
-            )));
-        }
-        denom_map.insert(key, ());
-    }
-    Ok(())
 }
 
 fn convert_to_checked_configs(
@@ -282,14 +264,30 @@ impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
 
 impl OptionalServiceConfig {
     pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
+        // First update input_addr & base_denom (if needed)
         if let Some(input_addr) = self.input_addr {
             config.input_addr = deps.api.addr_validate(&input_addr)?;
         }
 
-        if let Some(_splits) = self.splits {
-            // validate_splits(&splits)?;
-            todo!();
-            // config.splits = splits;
+        if let Some(base_denom) = self.base_denom.clone() {
+            config.base_denom = base_denom
+                .into_checked(deps.as_ref())
+                .map_err(|err| ServiceError::ConfigurationError(err.to_string()))?;
+        }
+
+        // Then validate & update splits (if needed)
+        if let Some(splits) = self.splits {
+            validate_splits(
+                deps.api,
+                &splits,
+                // Use the new base_denom if it was updated, or the existing one (as unchecked)
+                &self.base_denom.unwrap_or(match &config.base_denom {
+                    CheckedDenom::Native(denom) => UncheckedDenom::Native(denom.clone()),
+                    CheckedDenom::Cw20(addr) => UncheckedDenom::Cw20(addr.to_string()),
+                }),
+            )?;
+
+            config.splits = convert_to_checked_configs(deps.as_ref(), &splits)?;
         }
         Ok(())
     }
@@ -306,9 +304,20 @@ fn validate_splits(
         ));
     }
 
+    let mut denom_map: HashMap<String, ()> = HashMap::new();
     for split in splits {
         api.addr_validate(&split.account)?;
         // Note: can't validate denom without the deps
+
+        // Ensure splits are unique in split configs
+        let key = format!("{:?}|{}", split.denom, split.account);
+        if denom_map.contains_key(&key) {
+            return Err(ServiceError::ConfigurationError(format!(
+                "Duplicate split '{:?}|{}' in split config.",
+                split.denom, split.account
+            )));
+        }
+        denom_map.insert(key, ());
 
         if !(split.amount.is_some() || split.ratio.is_some()) {
             return Err(ServiceError::ConfigurationError(

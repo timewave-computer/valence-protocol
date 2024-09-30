@@ -1,4 +1,6 @@
-use crate::msg::{ActionMsgs, Config, QueryMsg, ServiceConfig, SplitConfig, UncheckedSplitConfig};
+use crate::msg::{
+    ActionMsgs, Config, QueryMsg, RatioConfig, ServiceConfig, SplitConfig, UncheckedSplitConfig,
+};
 use cosmwasm_std::{coin, Addr, Coin, Decimal};
 use cw20::Cw20Coin;
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
@@ -253,6 +255,91 @@ fn instantiate_fails_for_duplicate_split() {
 // More tests for invalid configurations
 // TODO: Add more tests for invalid configurations
 //______________________________________________________________________________
+
+#[test]
+#[should_panic(expected = "Configuration error: No split configuration provided.")]
+fn update_config_validates_config() {
+    // Initialize input account with 1_000_000 NTRN
+    let mut suite = SplitterTestSuite::new(Some(vec![(ONE_MILLION, NTRN.into())]));
+
+    let output_addr = suite.api().addr_make("output_account");
+
+    let mut cfg = suite.splitter_config(
+        vec![UncheckedSplitConfig::with_native_amount(
+            ONE_MILLION,
+            NTRN,
+            &output_addr,
+        )],
+        UncheckedDenom::Native(NTRN.into()),
+    );
+
+    // Instantiate Splitter contract
+    let svc = suite.splitter_init(&cfg);
+
+    // Update config to clear all split configs
+    cfg.splits.clear();
+
+    // Execute update config action
+    suite.update_config(svc.clone(), cfg).unwrap();
+}
+
+#[test]
+fn update_config_with_valid_config() {
+    // Initialize input account with 1_000_000 NTRN
+    let mut suite = SplitterTestSuite::new(Some(vec![(ONE_MILLION, NTRN.into())]));
+
+    let output_addr = suite.api().addr_make("output_account");
+
+    let mut cfg = suite.splitter_config(
+        vec![UncheckedSplitConfig::with_native_amount(
+            ONE_MILLION,
+            NTRN,
+            &output_addr,
+        )],
+        UncheckedDenom::Native(NTRN.into()),
+    );
+
+    // Instantiate Splitter contract
+    let svc = suite.splitter_init(&cfg);
+
+    // Update config to a split config for STARS based on ratio,
+    // and swap input and output addresses.
+    cfg.splits.push(UncheckedSplitConfig::with_native_ratio(
+        Decimal::percent(10u64),
+        STARS,
+        &suite.input_addr,
+    ));
+    cfg.input_addr = output_addr.to_string();
+
+    // Execute update config action
+    suite.update_config(svc.clone(), cfg).unwrap();
+
+    // Verify service config
+    let svc_cfg: Config = suite.query_wasm(&svc, &QueryMsg::GetServiceConfig {});
+    assert_eq!(
+        svc_cfg,
+        Config::new(
+            output_addr.clone(),
+            vec![
+                SplitConfig::new(
+                    CheckedDenom::Native(NTRN.into()),
+                    output_addr,
+                    Some(ONE_MILLION.into()),
+                    None,
+                    None
+                ),
+                SplitConfig::new(
+                    CheckedDenom::Native(STARS.into()),
+                    suite.input_addr().clone(),
+                    None,
+                    Some(RatioConfig::FixedRatio(Decimal::percent(10u64))),
+                    None
+                )
+            ],
+            CheckedDenom::Native(NTRN.into())
+        )
+    );
+}
 
 // Native & CW20 token amount splits
 
