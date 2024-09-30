@@ -32,7 +32,7 @@ pub enum ConnectorError {
 }
 
 /// We need some way of knowing which domain we are talking with
-/// TODO: chain connection, execution, bridges for authorization.
+/// chain connection, execution, bridges for authorization.
 #[derive(Debug, Display, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
 pub enum Domain {
     CosmosCosmwasm(&'static str),

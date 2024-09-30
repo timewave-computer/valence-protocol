@@ -419,8 +419,8 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         self.wallet
-            .simulate_tx(vec![m])
-            // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
+            // .simulate_tx(vec![m])
+            .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map(|_| ())
             .map_err(|e| CosmosCosmwasmError::Error(e).into())
@@ -450,8 +450,8 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         self.wallet
-            .simulate_tx(vec![m])
-            // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
+            // .simulate_tx(vec![m])
+            .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map(|_| ())
             .map_err(|e| CosmosCosmwasmError::Error(e).into())
@@ -489,8 +489,8 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         self.wallet
-            .simulate_tx(vec![m])
-            // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
+            // .simulate_tx(vec![m])
+            .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map(|_| ())
             .map_err(|e| CosmosCosmwasmError::Error(e).into())
@@ -547,8 +547,8 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         self.wallet
-            .simulate_tx(vec![m])
-            // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
+            // .simulate_tx(vec![m])
+            .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map(|_| ())
             .map_err(|e| CosmosCosmwasmError::Error(e).into())
@@ -587,8 +587,8 @@ impl Connector for CosmosCosmwasmConnector {
                 .build_any();
 
                 self.wallet
-                    .simulate_tx(vec![m])
-                    // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
+                    // .simulate_tx(vec![m])
+                    .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
                     .await
                     .map(|_| ())
                     .map_err(CosmosCosmwasmError::Error)?;
@@ -643,8 +643,8 @@ impl Connector for CosmosCosmwasmConnector {
                 .build_any();
 
                 self.wallet
-                    .simulate_tx(vec![m])
-                    // .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync) // TODO: change once we ready
+                    // .simulate_tx(vec![m])
+                    .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
                     .await
                     .map(|_| ())
                     .map_err(CosmosCosmwasmError::Error)?;
