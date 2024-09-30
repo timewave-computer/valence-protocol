@@ -76,6 +76,14 @@ fn create_xyk_liquidity_msg(
     asset_balance: &cosmwasm_std::Coin,
     other_asset: &cosmwasm_std::Coin,
 ) -> Result<Vec<CosmosMsg>, ServiceError> {
+    // Xyk pools do not allow for automatic single-sided liquidity provision.
+    // We therefore perform a manual swap with 1/2 of the available denom, and execute
+    // two-sided lp provision with the resulting assets.
+
+    // We halve the non-zero coin we have in order to swap it for the other denom.
+    // The halved coin amount here is the floor of the division result,
+    // so it is safe to assume that after the swap we will have at least
+    // the same amount of the offer asset left.
     let halved_coin = cosmwasm_std::Coin {
         denom: asset_balance.denom.clone(),
         amount: cosmwasm_std::Uint128::from(asset_balance.amount.u128())
@@ -96,7 +104,7 @@ fn create_xyk_liquidity_msg(
         amount: Uint128::new(offer_asset.amount.u128()),
     };
 
-    // Simulate swap
+    // We simulate a swap with 1/2 of the offer asset
     let simulation: astroport_cw20_lp_token::pair::SimulationResponse =
         deps.querier.query_wasm_smart(
             &cfg.pool_addr,
