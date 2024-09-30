@@ -26,5 +26,6 @@ astroport-cw20-lp-token = { workspace = true }
 
 [dev-dependencies]
 valence-astroport-utils = { workspace = true, features = ["testing"] }
+cw20                    = { workspace = true }
 valence-account-utils   = { workspace = true }
 neutron-test-tube       = { workspace = true }

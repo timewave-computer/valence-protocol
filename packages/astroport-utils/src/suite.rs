@@ -1,6 +1,7 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use cosmwasm_std::coins;
+use cosmwasm_std_old::Uint128;
 use neutron_test_tube::{
     neutron_std::types::{
         cosmos::base::v1beta1::Coin,
@@ -95,16 +96,16 @@ impl AstroportTestAppBuilder {
             .data
             .new_token_denom;
 
-        // Mint some to the input account so that it can eventually provide liquidity to the pools
+        // Mint some tokens to the owner account so that we can provide liquidity and later on send some tokens for tests
         token_factory
             .mint(
                 MsgMint {
                     sender: accounts[0].address().clone(),
                     amount: Some(Coin {
                         denom: denom.clone(),
-                        amount: 1_000_000_000_000u128.to_string(),
+                        amount: 1_000_000_000_000_000u128.to_string(),
                     }),
-                    mint_to_address: accounts[1].address().clone(),
+                    mint_to_address: accounts[0].address().clone(),
                 },
                 &accounts[0],
             )
@@ -175,6 +176,43 @@ impl AstroportTestAppBuilder {
         let pool_native_addr = pair_info.contract_addr.to_string();
         let pool_native_liquidity_token = pair_info.liquidity_token;
 
+        // Provide some initial liquidity
+        wasm.execute(
+            &pool_native_addr,
+            &astroport::pair::ExecuteMsg::ProvideLiquidity {
+                assets: vec![
+                    astroport::asset::Asset {
+                        info: astroport::asset::AssetInfo::NativeToken {
+                            denom: FEE_DENOM.to_string(),
+                        },
+                        amount: Uint128::new(1_000_000_000),
+                    },
+                    astroport::asset::Asset {
+                        info: astroport::asset::AssetInfo::NativeToken {
+                            denom: denom.clone(),
+                        },
+                        amount: Uint128::new(1_000_000_000),
+                    },
+                ],
+                slippage_tolerance: None,
+                auto_stake: Some(false),
+                receiver: None,
+                min_lp_to_receive: None,
+            },
+            &[
+                Coin {
+                    denom: denom.clone(),
+                    amount: 1_000_000_000u128.to_string(),
+                },
+                Coin {
+                    denom: FEE_DENOM.to_string(),
+                    amount: 1_000_000_000u128.to_string(),
+                },
+            ],
+            &accounts[0],
+        )
+        .unwrap();
+
         // Create now the pool using the old factory
         let factory_cw20_address = wasm
             .instantiate(
@@ -228,7 +266,7 @@ impl AstroportTestAppBuilder {
         // Get the pool address
         let pair_info = wasm
             .query::<astroport_cw20_lp_token::factory::QueryMsg, astroport_cw20_lp_token::asset::PairInfo>(
-                &factory_native_address,
+                &factory_cw20_address,
                 &astroport_cw20_lp_token::factory::QueryMsg::Pair {
                     asset_infos: assets,
                 },
@@ -237,6 +275,42 @@ impl AstroportTestAppBuilder {
 
         let pool_cw20_addr = pair_info.contract_addr.to_string();
         let pool_cw20_liquidity_token = pair_info.liquidity_token.to_string();
+
+        // Provide some initial liquidity
+        wasm.execute(
+            &pool_cw20_addr,
+            &astroport_cw20_lp_token::pair::ExecuteMsg::ProvideLiquidity {
+                assets: vec![
+                    astroport_cw20_lp_token::asset::Asset {
+                        info: astroport_cw20_lp_token::asset::AssetInfo::NativeToken {
+                            denom: FEE_DENOM.to_string(),
+                        },
+                        amount: Uint128::new(1_000_000_000),
+                    },
+                    astroport_cw20_lp_token::asset::Asset {
+                        info: astroport_cw20_lp_token::asset::AssetInfo::NativeToken {
+                            denom: denom.clone(),
+                        },
+                        amount: Uint128::new(1_000_000_000),
+                    },
+                ],
+                slippage_tolerance: None,
+                auto_stake: Some(false),
+                receiver: None,
+            },
+            &[
+                Coin {
+                    denom: denom.clone(),
+                    amount: 1_000_000_000u128.to_string(),
+                },
+                Coin {
+                    denom: FEE_DENOM.to_string(),
+                    amount: 1_000_000_000u128.to_string(),
+                },
+            ],
+            &accounts[0],
+        )
+        .unwrap();
 
         Ok(AstroportTestAppSetup {
             app,

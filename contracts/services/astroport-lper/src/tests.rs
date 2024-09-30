@@ -1,10 +1,18 @@
-use neutron_test_tube::{Account, Module, Wasm};
+use cosmwasm_std::Uint128;
+use neutron_test_tube::{
+    neutron_std::types::cosmos::{
+        bank::v1beta1::{MsgSend, QueryAllBalancesRequest},
+        base::v1beta1::Coin as BankCoin,
+    },
+    Account, Bank, Module, Wasm,
+};
 use valence_astroport_utils::suite::{AstroportTestAppBuilder, AstroportTestAppSetup};
 
 use crate::{
-    error::ServiceError,
+    error::{ServiceError, UnauthorizedReason},
     msg::{
-        AssetData, ExecuteMsg, InstantiateMsg, LiquidityProviderConfig, PoolType, ServiceConfig,
+        ActionsMsgs, AssetData, ExecuteMsg, InstantiateMsg, LiquidityProviderConfig, PoolType,
+        ServiceConfig,
     },
 };
 
@@ -47,7 +55,28 @@ impl LPerTestSuite {
         );
 
         // Approve the service for the input account
-        approve_service(&inner, input_acc.clone(), output_acc.clone());
+        approve_service(&inner, input_acc.clone(), lper_addr.clone());
+
+        // Give some tokens to the input account so that it can provide liquidity
+        let bank = Bank::new(&inner.app);
+        bank.send(
+            MsgSend {
+                from_address: inner.owner_acc().address(),
+                to_address: input_acc.clone(),
+                amount: vec![
+                    BankCoin {
+                        denom: inner.pool_asset2.clone(),
+                        amount: 1_000_000u128.to_string(),
+                    },
+                    BankCoin {
+                        denom: inner.pool_asset1.clone(),
+                        amount: 1_000_000u128.to_string(),
+                    },
+                ],
+            },
+            inner.owner_acc(),
+        )
+        .unwrap();
 
         LPerTestSuite {
             inner,
@@ -151,7 +180,7 @@ fn instantiate_lper_contract(
 
 #[test]
 pub fn only_owner_can_update_config() {
-    let setup = LPerTestSuite::new(true);
+    let setup = LPerTestSuite::default();
     let wasm = Wasm::new(&setup.inner.app);
 
     let new_config = ServiceConfig {
@@ -196,7 +225,7 @@ pub fn only_owner_can_update_config() {
 
 #[test]
 fn only_owner_can_update_processor() {
-    let setup = LPerTestSuite::new(true);
+    let setup = LPerTestSuite::default();
     let wasm = Wasm::new(&setup.inner.app);
 
     let error = wasm
@@ -229,7 +258,7 @@ fn only_owner_can_update_processor() {
 
 #[test]
 fn only_owner_can_transfer_ownership() {
-    let setup = LPerTestSuite::new(true);
+    let setup = LPerTestSuite::default();
     let wasm = Wasm::new(&setup.inner.app);
 
     let error = wasm
@@ -264,7 +293,7 @@ fn only_owner_can_transfer_ownership() {
 
 #[test]
 fn instantiate_with_wrong_assets() {
-    let setup = LPerTestSuite::new(true);
+    let setup = LPerTestSuite::default();
     let wasm = Wasm::new(&setup.inner.app);
 
     let error = wasm
@@ -314,7 +343,7 @@ fn instantiate_with_wrong_assets() {
 
 #[test]
 fn instantiate_with_wrong_pool_type() {
-    let setup = LPerTestSuite::new(true);
+    let setup = LPerTestSuite::default();
     let wasm = Wasm::new(&setup.inner.app);
 
     let error = wasm
@@ -360,4 +389,316 @@ fn instantiate_with_wrong_pool_type() {
     assert!(error
         .to_string()
         .contains("Pool type does not match the expected pair type"),);
+}
+
+#[test]
+fn only_processor_can_execute_actions() {
+    let setup = LPerTestSuite::default();
+    let wasm = Wasm::new(&setup.inner.app);
+
+    let error = wasm
+        .execute::<ExecuteMsg>(
+            &setup.lper_addr,
+            &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideDoubleSidedLiquidity {
+                expected_pool_ratio_range: None,
+            }),
+            &[],
+            setup.inner.owner_acc(),
+        )
+        .unwrap_err();
+
+    assert!(error.to_string().contains(
+        ServiceError::Unauthorized(UnauthorizedReason::NotAllowed {})
+            .to_string()
+            .as_str(),
+    ),);
+
+    wasm.execute::<ExecuteMsg>(
+        &setup.lper_addr,
+        &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideDoubleSidedLiquidity {
+            expected_pool_ratio_range: None,
+        }),
+        &[],
+        setup.inner.processor_acc(),
+    )
+    .unwrap();
+}
+
+#[test]
+fn provide_double_sided_liquidity_native_lp_token() {
+    let setup = LPerTestSuite::default();
+    let wasm = Wasm::new(&setup.inner.app);
+    let bank = Bank::new(&setup.inner.app);
+
+    // Get balances before providing liquidity
+    let input_acc_balance_before = bank
+        .query_all_balances(&QueryAllBalancesRequest {
+            address: setup.input_acc.clone(),
+            pagination: None,
+            resolve_denom: false,
+        })
+        .unwrap();
+
+    assert_eq!(input_acc_balance_before.balances.len(), 2);
+    assert!(input_acc_balance_before
+        .balances
+        .iter()
+        .any(|c| c.denom == setup.inner.pool_asset1));
+    assert!(input_acc_balance_before
+        .balances
+        .iter()
+        .any(|c| c.denom == setup.inner.pool_asset2));
+
+    wasm.execute::<ExecuteMsg>(
+        &setup.lper_addr,
+        &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideDoubleSidedLiquidity {
+            expected_pool_ratio_range: None,
+        }),
+        &[],
+        setup.inner.processor_acc(),
+    )
+    .unwrap();
+
+    // No balance should be left in the input account
+    let input_acc_balance_after = bank
+        .query_all_balances(&QueryAllBalancesRequest {
+            address: setup.input_acc.clone(),
+            pagination: None,
+            resolve_denom: false,
+        })
+        .unwrap();
+
+    assert_eq!(input_acc_balance_after.balances.len(), 0);
+
+    // Output account should have the LP tokens
+    let output_acc_balance = bank
+        .query_all_balances(&QueryAllBalancesRequest {
+            address: setup.output_acc.clone(),
+            pagination: None,
+            resolve_denom: false,
+        })
+        .unwrap();
+
+    assert_eq!(output_acc_balance.balances.len(), 1);
+    assert_eq!(
+        output_acc_balance.balances[0].denom,
+        setup.inner.pool_native_liquidity_token
+    );
+}
+
+#[test]
+fn provide_double_sided_liquidity_cw20_lp_token() {
+    let setup = LPerTestSuite::new(false);
+    let wasm = Wasm::new(&setup.inner.app);
+    let bank = Bank::new(&setup.inner.app);
+
+    // Get balances before providing liquidity
+    let input_acc_balance_before = bank
+        .query_all_balances(&QueryAllBalancesRequest {
+            address: setup.input_acc.clone(),
+            pagination: None,
+            resolve_denom: false,
+        })
+        .unwrap();
+
+    assert_eq!(input_acc_balance_before.balances.len(), 2);
+    assert!(input_acc_balance_before
+        .balances
+        .iter()
+        .any(|c| c.denom == setup.inner.pool_asset1));
+    assert!(input_acc_balance_before
+        .balances
+        .iter()
+        .any(|c| c.denom == setup.inner.pool_asset2));
+
+    wasm.execute::<ExecuteMsg>(
+        &setup.lper_addr,
+        &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideDoubleSidedLiquidity {
+            expected_pool_ratio_range: None,
+        }),
+        &[],
+        setup.inner.processor_acc(),
+    )
+    .unwrap();
+
+    // No balance should be left in the input account
+    let input_acc_balance_after = bank
+        .query_all_balances(&QueryAllBalancesRequest {
+            address: setup.input_acc.clone(),
+            pagination: None,
+            resolve_denom: false,
+        })
+        .unwrap();
+
+    assert_eq!(input_acc_balance_after.balances.len(), 0);
+
+    // Output account should have the LP tokens
+    let query_balance = wasm
+        .query::<cw20::Cw20QueryMsg, cw20::BalanceResponse>(
+            &setup.inner.pool_cw20_liquidity_token,
+            &cw20::Cw20QueryMsg::Balance {
+                address: setup.output_acc.clone(),
+            },
+        )
+        .unwrap();
+
+    assert!(query_balance.balance.u128() > 0);
+}
+
+#[test]
+fn provide_single_sided_liquidity_native_lp_token() {
+    let setup = LPerTestSuite::default();
+    let wasm = Wasm::new(&setup.inner.app);
+    let bank = Bank::new(&setup.inner.app);
+
+    // Get balances before providing liquidity
+    let input_acc_balance_before = bank
+        .query_all_balances(&QueryAllBalancesRequest {
+            address: setup.input_acc.clone(),
+            pagination: None,
+            resolve_denom: false,
+        })
+        .unwrap();
+
+    assert_eq!(input_acc_balance_before.balances.len(), 2);
+    assert!(input_acc_balance_before
+        .balances
+        .iter()
+        .any(|c| c.denom == setup.inner.pool_asset1));
+    assert!(input_acc_balance_before
+        .balances
+        .iter()
+        .any(|c| c.denom == setup.inner.pool_asset2));
+
+    wasm.execute::<ExecuteMsg>(
+        &setup.lper_addr,
+        &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideSingleSidedLiquidity {
+            asset: setup.inner.pool_asset1.clone(),
+            limit: None,
+            expected_pool_ratio_range: None,
+        }),
+        &[],
+        setup.inner.processor_acc(),
+    )
+    .unwrap();
+
+    // No balance should be left in the input account
+    let input_acc_balance_after = bank
+        .query_all_balances(&QueryAllBalancesRequest {
+            address: setup.input_acc.clone(),
+            pagination: None,
+            resolve_denom: false,
+        })
+        .unwrap();
+
+    assert_eq!(input_acc_balance_after.balances.len(), 1);
+    assert_eq!(
+        input_acc_balance_after.balances[0].denom,
+        setup.inner.pool_asset2
+    );
+
+    // Output account should have the LP tokens
+    let output_acc_balance = bank
+        .query_all_balances(&QueryAllBalancesRequest {
+            address: setup.output_acc.clone(),
+            pagination: None,
+            resolve_denom: false,
+        })
+        .unwrap();
+
+    assert_eq!(output_acc_balance.balances.len(), 1);
+    assert_eq!(
+        output_acc_balance.balances[0].denom,
+        setup.inner.pool_native_liquidity_token
+    );
+}
+
+#[test]
+fn provide_single_sided_liquidity_cw20_lp_token() {
+    let setup = LPerTestSuite::new(false);
+    let wasm = Wasm::new(&setup.inner.app);
+    let bank = Bank::new(&setup.inner.app);
+
+    // Get balances before providing liquidity
+    let input_acc_balance_before = bank
+        .query_all_balances(&QueryAllBalancesRequest {
+            address: setup.input_acc.clone(),
+            pagination: None,
+            resolve_denom: false,
+        })
+        .unwrap();
+
+    assert_eq!(input_acc_balance_before.balances.len(), 2);
+    assert!(input_acc_balance_before
+        .balances
+        .iter()
+        .any(|c| c.denom == setup.inner.pool_asset1));
+    assert!(input_acc_balance_before
+        .balances
+        .iter()
+        .any(|c| c.denom == setup.inner.pool_asset2));
+
+    wasm.execute::<ExecuteMsg>(
+        &setup.lper_addr,
+        &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideSingleSidedLiquidity {
+            asset: setup.inner.pool_asset1.clone(),
+            limit: None,
+            expected_pool_ratio_range: None,
+        }),
+        &[],
+        setup.inner.processor_acc(),
+    )
+    .unwrap();
+
+    // No balance should be left in the input account
+    let input_acc_balance_after = bank
+        .query_all_balances(&QueryAllBalancesRequest {
+            address: setup.input_acc.clone(),
+            pagination: None,
+            resolve_denom: false,
+        })
+        .unwrap();
+
+    assert_eq!(input_acc_balance_after.balances.len(), 1);
+    assert_eq!(
+        input_acc_balance_after.balances[0].denom,
+        setup.inner.pool_asset2
+    );
+
+    // Output account should have the LP tokens
+    let query_balance = wasm
+        .query::<cw20::Cw20QueryMsg, cw20::BalanceResponse>(
+            &setup.inner.pool_cw20_liquidity_token,
+            &cw20::Cw20QueryMsg::Balance {
+                address: setup.output_acc.clone(),
+            },
+        )
+        .unwrap();
+
+    assert!(query_balance.balance.u128() > 0);
+}
+
+#[test]
+fn test_limit_single_sided_liquidity() {
+    let setup = LPerTestSuite::default();
+    let wasm = Wasm::new(&setup.inner.app);
+
+    let error = wasm
+        .execute::<ExecuteMsg>(
+            &setup.lper_addr,
+            &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideSingleSidedLiquidity {
+                asset: setup.inner.pool_asset1.clone(),
+                limit: Some(Uint128::new(1)),
+                expected_pool_ratio_range: None,
+            }),
+            &[],
+            setup.inner.processor_acc(),
+        )
+        .unwrap_err();
+
+    assert!(error.to_string().contains(
+        ServiceError::ExecutionError("Asset amount is greater than the limit".to_string())
+            .to_string()
+            .as_str(),
+    ),);
 }

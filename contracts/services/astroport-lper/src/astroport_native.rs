@@ -116,7 +116,7 @@ fn create_xyk_liquidity_msg(
             to: None,
             ask_asset_info: None,
         })?,
-        funds: vec![coin(ask_asset.amount.u128(), ask_asset.denom.clone())],
+        funds: vec![coin(offer_asset.amount.u128(), offer_asset.denom.clone())],
     });
 
     let provide_liquidity_msg = CosmosMsg::Wasm(WasmMsg::Execute {
