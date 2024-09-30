@@ -86,12 +86,12 @@ impl ServiceConfig {
         }
     }
 
-    fn do_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<(Addr, Addr), ServiceError> {
+    fn do_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<(Addr, Addr, Addr), ServiceError> {
         let input_addr = api.addr_validate(&self.input_addr)?;
         let output_addr = api.addr_validate(&self.output_addr)?;
-        api.addr_validate(&self.pool_addr)?;
+        let pool_addr = api.addr_validate(&self.pool_addr)?;
 
-        Ok((input_addr, output_addr))
+        Ok((input_addr, output_addr, pool_addr))
     }
 }
 
@@ -125,9 +125,7 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
     }
 
     fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
-        let input_addr = deps.api.addr_validate(&self.input_addr)?;
-        let output_addr = deps.api.addr_validate(&self.output_addr)?;
-        let pool_addr = deps.api.addr_validate(&self.pool_addr)?;
+        let (input_addr, output_addr, pool_addr) = self.do_validate(deps.api)?;
 
         Ok(Config {
             input_addr,
