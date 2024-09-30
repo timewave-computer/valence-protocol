@@ -57,12 +57,11 @@ mod execute {
 }
 
 mod actions {
-    use cosmwasm_schema::cw_serde;
     use cosmwasm_std::{
-        to_json_binary, Addr, Coin, CosmosMsg, Decimal, DepsMut, Env, Fraction, MessageInfo,
-        OverflowError, Response, StdResult, Uint128, Uint256, WasmMsg,
+        Coin, CosmosMsg, Decimal, DepsMut, Env, Fraction, MessageInfo, OverflowError, Response,
+        Uint128, Uint256,
     };
-    use valence_service_utils::error::ServiceError;
+    use valence_service_utils::{error::ServiceError, execute_on_behalf_of};
 
     use crate::{
         astroport_cw20, astroport_native,
@@ -346,21 +345,6 @@ mod actions {
             .add_message(input_account_msgs)
             .add_attribute("method", "provide_single_sided_liquidity")
             .add_attribute("asset_amount", asset_balance.amount.to_string()))
-    }
-
-    // This is a helper function to execute a CosmosMsg on behalf of an account
-    pub fn execute_on_behalf_of(msgs: Vec<CosmosMsg>, account: &Addr) -> StdResult<CosmosMsg> {
-        // Used to execute a CosmosMsg on behalf of an account
-        #[cw_serde]
-        pub enum ExecuteMsg {
-            ExecuteMsg { msgs: Vec<CosmosMsg> }, // Execute any CosmosMsg (approved services or admin)
-        }
-
-        Ok(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: account.to_string(),
-            msg: to_json_binary(&ExecuteMsg::ExecuteMsg { msgs })?,
-            funds: vec![],
-        }))
     }
 }
 
