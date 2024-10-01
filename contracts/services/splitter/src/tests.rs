@@ -32,6 +32,8 @@ struct SplitterTestSuite {
     #[getset(get)]
     splitter_code_id: u64,
     #[getset(get)]
+    dyn_ratio_code_id: u64,
+    #[getset(get)]
     input_addr: Addr,
     #[getset(get)]
     input_balances: Option<Vec<(u128, String)>>,
@@ -59,9 +61,18 @@ impl SplitterTestSuite {
 
         let splitter_code_id = inner.app_mut().store_code(Box::new(splitter_code));
 
+        let dyn_ratio_code = ContractWrapper::new(
+            valence_test_dynamic_ratio::contract::execute,
+            valence_test_dynamic_ratio::contract::instantiate,
+            valence_test_dynamic_ratio::contract::query,
+        );
+
+        let dyn_ratio_code_id = inner.app_mut().store_code(Box::new(dyn_ratio_code));
+
         Self {
             inner,
             splitter_code_id,
+            dyn_ratio_code_id,
             input_addr,
             input_balances,
         }
@@ -90,6 +101,13 @@ impl SplitterTestSuite {
         }
 
         addr
+    }
+
+    pub fn dyn_ratio_contract_init(&mut self, denom: &str, ratio: Decimal) -> Addr {
+        let init_msg = valence_test_dynamic_ratio::msg::InstantiateMsg {
+            denom_ratios: [(denom.to_string(), ratio)].into(),
+        };
+        self.contract_init(self.dyn_ratio_code_id, "dynamic_ratio", &init_msg, &[])
     }
 
     fn splitter_config(&self, splits: Vec<UncheckedSplitConfig>) -> ServiceConfig {
@@ -882,4 +900,33 @@ fn split_native_two_token_ratios_and_factors_two_outputs() {
     // Verify output account 2's balance: should be 6_666_666 NTRN and 5_000_000 STARS
     suite.assert_balance(&output2_addr, ONE_MILLION * 2 / 3, NTRN);
     suite.assert_balance(&output2_addr, TEN_MILLION / 2, STARS);
+}
+
+// Dynamic ratio tests
+
+#[test]
+fn split_native_single_token_dyn_ratio_single_output() {
+    let mut suite = SplitterTestSuite::new(Some(vec![(ONE_MILLION, NTRN.into())]));
+
+    let output_addr = suite.api().addr_make("output_account");
+    let dyn_ratio_addr = suite.dyn_ratio_contract_init(NTRN, Decimal::one());
+
+    let cfg = suite.splitter_config(vec![UncheckedSplitConfig::with_native_dyn_ratio(
+        &dyn_ratio_addr,
+        "",
+        NTRN,
+        &output_addr,
+    )]);
+
+    // Instantiate Splitter contract
+    let svc = suite.splitter_init(&cfg);
+
+    // Execute split
+    suite.execute_split(svc).unwrap();
+
+    // Verify input account's balance: should be zero
+    suite.assert_balance(suite.input_addr(), ZERO, NTRN);
+
+    // Verify output account's balance: should be 1_000_000 NTRN
+    suite.assert_balance(&output_addr, ONE_MILLION, NTRN);
 }

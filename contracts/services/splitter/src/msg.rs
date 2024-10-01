@@ -133,11 +133,23 @@ impl UncheckedSplitConfig {
             ratio: Some(UncheckedRatioConfig::FixedRatio(ratio)),
         }
     }
-}
 
-#[allow(dead_code)]
-struct DynamicRatioResponse {
-    ratio: Uint128,
+    pub fn with_native_dyn_ratio(
+        contract_addr: &Addr,
+        params: &str,
+        denom: &str,
+        output: &Addr,
+    ) -> Self {
+        UncheckedSplitConfig {
+            denom: UncheckedDenom::Native(denom.to_string()),
+            account: output.to_string(),
+            amount: None,
+            ratio: Some(UncheckedRatioConfig::DynamicRatio {
+                contract_addr: contract_addr.to_string(),
+                params: params.to_string(),
+            }),
+        }
+    }
 }
 
 #[cw_serde]
