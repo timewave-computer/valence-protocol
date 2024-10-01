@@ -51,7 +51,7 @@ mod actions {
         denoms::CheckedDenom,
         error::ServiceError,
         execute_on_behalf_of,
-        msg::{DynamicRatioQuery, DynamicRatioQueryMsg, DynamicRatioResponse},
+        msg::{DynamicRatioQueryMsg, DynamicRatioResponse},
     };
 
     use crate::msg::{ActionMsgs, Config, RatioConfig};
@@ -201,10 +201,10 @@ mod actions {
         let denom_name = denom.to_string();
         let res: DynamicRatioResponse = querier.query_wasm_smart(
             contract_addr,
-            &DynamicRatioQueryMsg::DynamicRatio(DynamicRatioQuery {
+            &DynamicRatioQueryMsg::DynamicRatio {
                 denoms: vec![denom_name.clone()],
                 params: params.to_string(),
-            }),
+            },
         )?;
         res.denom_ratios
             .get(&denom_name)

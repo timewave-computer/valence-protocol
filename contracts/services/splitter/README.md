@@ -53,8 +53,21 @@ enum UncheckedRatioConfig {
   }
 }
 
+// Standard query & response for contract computing a dynamic ratio
+// for the Splitter & Reverse Splitter services.
+#[cw_serde]
+#[derive(QueryResponses)]
+pub enum DynamicRatioQueryMsg {
+    #[returns(DynamicRatioResponse)]
+    DynamicRatio {
+        denoms: Vec<String>,
+        params: String,
+    }
+}
+
+#[cw_serde]
 // Response returned by the external contract for a dynamic ratio
 struct DynamicRatioResponse {
-  ratio: Uint128,
+    pub denom_ratios: HashMap<String, Decimal>,
 }
 ```

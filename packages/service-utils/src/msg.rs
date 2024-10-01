@@ -31,13 +31,7 @@ pub enum ExecuteMsg<T, U> {
 #[derive(QueryResponses)]
 pub enum DynamicRatioQueryMsg {
     #[returns(DynamicRatioResponse)]
-    DynamicRatio(DynamicRatioQuery),
-}
-
-#[cw_serde]
-pub struct DynamicRatioQuery {
-    pub denoms: Vec<String>,
-    pub params: String,
+    DynamicRatio { denoms: Vec<String>, params: String },
 }
 
 #[cw_serde]

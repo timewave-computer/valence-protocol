@@ -34,10 +34,9 @@ pub fn execute(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: DynamicRatioQueryMsg) -> StdResult<Binary> {
     match msg {
-        DynamicRatioQueryMsg::DynamicRatio(dyn_ratio_query) => {
+        DynamicRatioQueryMsg::DynamicRatio { denoms, params: _ } => {
             let ratios = DENOM_RATIOS.load(deps.storage)?;
-            let result: HashMap<_, _> = dyn_ratio_query
-                .denoms
+            let result: HashMap<_, _> = denoms
                 .into_iter()
                 .filter_map(|denom| ratios.get(&denom).map(|&ratio| (denom, ratio)))
                 .collect();
