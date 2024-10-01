@@ -43,8 +43,8 @@ mod actions {
     use std::collections::{hash_map::Entry, HashMap};
 
     use cosmwasm_std::{
-        Addr, CosmosMsg, Decimal, DepsMut, Empty, Env, Fraction, MessageInfo, QuerierWrapper,
-        Response, StdResult, Uint128,
+        Addr, CosmosMsg, DepsMut, Empty, Env, Fraction, MessageInfo, QuerierWrapper, Response,
+        StdResult, Uint128,
     };
 
     use valence_service_utils::{denoms::CheckedDenom, error::ServiceError, execute_on_behalf_of};
@@ -77,39 +77,40 @@ mod actions {
     }
 
     // Prepare transfer messages for each denom
-    fn prepare_transfer_messages<I>(coins_to_transfer: I) -> Result<Vec<CosmosMsg>, ServiceError>
+    fn prepare_transfer_messages<'a, I>(
+        coins_to_transfer: I,
+    ) -> Result<Vec<CosmosMsg>, ServiceError>
     where
         I: IntoIterator<
             Item = (
                 cosmwasm_std::Uint128,
-                valence_service_utils::denoms::CheckedDenom,
-                Addr,
+                &'a valence_service_utils::denoms::CheckedDenom,
+                &'a Addr,
             ),
         >,
     {
         let transfer_messages = coins_to_transfer
             .into_iter()
-            .map(|(amount, denom, account)| denom.get_transfer_to_message(&account, amount))
+            .map(|(amount, denom, account)| denom.get_transfer_to_message(account, amount))
             .collect::<StdResult<Vec<CosmosMsg>>>()?;
         Ok(transfer_messages)
     }
 
-    fn prepare_transfer_amounts(
-        cfg: &Config,
+    fn prepare_transfer_amounts<'a>(
+        cfg: &'a Config,
         querier: &QuerierWrapper<Empty>,
     ) -> Result<
         Vec<(
             cosmwasm_std::Uint128,
-            valence_service_utils::denoms::CheckedDenom,
-            Addr,
+            &'a valence_service_utils::denoms::CheckedDenom,
+            &'a Addr,
         )>,
         ServiceError,
     > {
         // Get input account balances for each denom (one balance query per denom)
         let mut denom_balances: HashMap<String, Uint128> = HashMap::new();
-        // Compute cumulative sum of amounts for each denom
+        // Compute cumulative sum of amounts per denom
         let mut denom_amounts: HashMap<String, Uint128> = HashMap::new();
-        let mut denom_amount_count = 0;
 
         for split in cfg.splits() {
             let denom = split.denom();
@@ -121,9 +122,10 @@ mod actions {
             }
             // Increment the split amount for the denom
             if let Some(amount) = split.amount() {
-                let denom_amount = denom_amounts.entry(key.clone()).or_insert(Uint128::zero());
-                *denom_amount += amount;
-                denom_amount_count += 1;
+                denom_amounts
+                    .entry(key)
+                    .and_modify(|denom_amount| *denom_amount += amount)
+                    .or_insert(*amount);
             }
         }
 
@@ -139,62 +141,25 @@ mod actions {
             Ok(())
         })?;
 
-        if denom_amount_count == cfg.splits().len() {
-            // If all splits have an amount (and we have checked the balances),
-            // we can return the amounts as-is.
-            return cfg
-                .splits()
-                .iter()
-                .map(|split| {
-                    let denom = split.denom();
-                    let amount = split.amount().unwrap();
-                    Ok((amount, denom.clone(), split.account().clone()))
-                })
-                .collect::<Result<Vec<_>, _>>();
-        }
-
-        // If not all splits have an amount, we need to compute the amounts based on the ratios
-
         // Prepare transfer messages for each split config
-        let amounts_in_base_denom = cfg
+        let amounts = cfg
             .splits()
             .iter()
             .map(|split| {
-                // Lookup denom balance
-                let denom = split.denom();
-                let balance = denom_balances.get(&denom_key(denom)).unwrap();
                 split
                     .amount()
-                    .map(|amount| {
-                        assert_eq!(denom, cfg.base_denom());
-                        Ok((
-                            amount,
-                            Decimal::one(),
-                            split.factor(),
-                            denom.clone(),
-                            split.account().clone(),
-                        ))
-                    })
+                    .map(|amount| Ok((amount, split.denom(), split.account())))
                     .or_else(|| {
                         split
                             .ratio()
                             .as_ref()
                             .map(|ratio_config| match ratio_config {
                                 RatioConfig::FixedRatio(ratio) => {
-                                    let mut amount = balance
+                                    let balance =
+                                        denom_balances.get(&denom_key(split.denom())).unwrap();
+                                    let amount = balance
                                         .multiply_ratio(ratio.numerator(), ratio.denominator());
-                                    if let Some(factor) = split.factor() {
-                                        amount = amount
-                                            .checked_div((*factor as u128).into())
-                                            .map_err(|err| ServiceError::Std(err.into()))?;
-                                    }
-                                    Ok((
-                                        amount,
-                                        *ratio,
-                                        split.factor(),
-                                        denom.clone(),
-                                        split.account().clone(),
-                                    ))
+                                    Ok((amount, split.denom(), split.account()))
                                 }
                                 RatioConfig::DynamicRatio { .. } => todo!(),
                             })
@@ -203,27 +168,7 @@ mod actions {
             })
             .collect::<Result<Vec<_>, ServiceError>>()?;
 
-        // Find the minimum amount in base denom
-        let min_amount_in_base_denom = *amounts_in_base_denom
-            .iter()
-            .map(|(amount, _, _, _, _)| amount)
-            .min()
-            .unwrap();
-
-        amounts_in_base_denom
-            .into_iter()
-            .map(|(_, ratio, factor, denom, account)| {
-                // Divide min amount by ratio (invert ratio's numerator and denominator and multiply)
-                let mut amount =
-                    min_amount_in_base_denom.multiply_ratio(ratio.denominator(), ratio.numerator());
-                if let Some(factor) = factor {
-                    amount = amount
-                        .checked_mul((*factor as u128).into())
-                        .map_err(|err| ServiceError::Std(err.into()))?;
-                }
-                Ok((amount, denom, account))
-            })
-            .collect::<Result<Vec<_>, _>>()
+        Ok(amounts)
     }
 
     fn denom_key(denom: &CheckedDenom) -> String {

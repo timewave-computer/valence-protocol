@@ -34,7 +34,6 @@ The service is configured on instantiation via the `ServiceConfig` type.
 struct ServiceConfig {
     input_addr: String,                // Address of the input account
     splits: Vec<UncheckedSplitConfig>, // Split configuration per denom
-    base_denom: UncheckedDenom,        // Base denom
 }
 
 // Split config for specified account
@@ -43,7 +42,6 @@ struct UncheckedSplitConfig {
   account: String,                      // Address of the output account for this split config
   amount: Option<Uint128>,              // Fixed amount of tokens
   ratio: Option<UncheckedRatioConfig>,  // Amount defined based on a ratio
-  factor: Option<u64>,                  // Multiplier relative to other denoms (only used if a ratio is specified)
 }
 
 // Ratio configuration, either fixed & dynamically calculated
