@@ -1,7 +1,8 @@
 use astroport::asset::{Asset, PairInfo};
 use cosmwasm_std::{to_json_binary, Coin, CosmosMsg, DepsMut};
+use valence_service_utils::error::ServiceError;
 
-use crate::{error::ServiceError, msg::Config};
+use crate::msg::Config;
 
 pub fn query_liquidity_token(deps: &DepsMut, cfg: &Config) -> Result<String, ServiceError> {
     let pair_info: PairInfo = deps

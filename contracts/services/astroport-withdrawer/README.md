@@ -51,7 +51,7 @@ pub struct LiquidityWithdrawerConfig {
 }
 
 pub enum PoolType {
-    NativeLpToken(astroport::factory::PairType),
-    Cw20LpToken(astroport_cw20_lp_token::factory::PairType),
+    NativeLpToken,
+    Cw20LpToken,
 }
 ```

@@ -14,13 +14,10 @@ crate-type = ["cdylib", "rlib"]
 library = []
 
 [dependencies]
-cosmwasm-std            = "1.5.7"
-cw-storage-plus         = "1.2.0"
-cosmwasm-schema         = "1.5.7"
-cw2                     = "1.1.2"
-cw-ownable              = "0.5.1"
-cw20                    = "1.1.2"
-valence-macros          = { workspace = true }
-thiserror               = { workspace = true }
-astroport               = { workspace = true }
-astroport-cw20-lp-token = { workspace = true }
+cosmwasm-std          = { workspace = true }
+cosmwasm-schema       = { workspace = true }
+cw-ownable            = { workspace = true }
+cw20                  = { workspace = true }
+valence-macros        = { workspace = true }
+valence-service-utils = { workspace = true }
+valence-service-base  = { workspace = true }

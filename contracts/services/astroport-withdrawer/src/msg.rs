@@ -1,55 +1,12 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{ensure, Addr, Api, Decimal, Deps, DepsMut};
-use cw_ownable::{cw_ownable_execute, cw_ownable_query};
+use cosmwasm_std::{Addr, Deps, DepsMut};
+use cw_ownable::cw_ownable_query;
 use valence_macros::OptionalStruct;
-
-use crate::error::ServiceError;
-
-#[cw_serde]
-pub struct InstantiateMsg {
-    pub owner: String,
-    pub processor: String,
-    pub config: ServiceConfig,
-}
-
-pub trait ServiceConfigValidation<T> {
-    #[cfg(not(target_arch = "wasm32"))]
-    fn pre_validate(&self, api: &dyn Api) -> Result<(), ServiceError>;
-    fn validate(&self, deps: Deps) -> Result<T, ServiceError>;
-}
-
-pub trait ServiceConfigInterface<T> {
-    /// T is the config type
-    fn is_diff(&self, other: &T) -> bool;
-}
-
-#[cw_ownable_execute]
-#[cw_serde]
-pub enum ExecuteMsg {
-    ProcessAction(ActionsMsgs),
-    UpdateConfig { new_config: ServiceConfig },
-    UpdateProcessor { processor: String },
-}
+use valence_service_utils::{error::ServiceError, msg::ServiceConfigValidation};
 
 #[cw_serde]
 pub enum ActionsMsgs {
     WithdrawLiquidity {},
-}
-
-#[cw_serde]
-pub struct DecimalRange {
-    min: Decimal,
-    max: Decimal,
-}
-
-impl DecimalRange {
-    pub fn is_within_range(&self, value: Decimal) -> Result<(), ServiceError> {
-        ensure!(
-            value >= self.min && value <= self.max,
-            ServiceError::ExecutionError("Value is not within the expected range".to_string())
-        );
-        Ok(())
-    }
 }
 
 #[cw_ownable_query]
@@ -133,13 +90,6 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
             pool_addr,
             withdrawer_config: self.withdrawer_config.clone(),
         })
-    }
-}
-
-impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
-    /// This function is used to see if 2 configs are different
-    fn is_diff(&self, other: &ServiceConfig) -> bool {
-        !self.eq(other)
     }
 }
 
