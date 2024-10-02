@@ -57,10 +57,8 @@ mod execute {
 }
 
 mod actions {
-    use cosmwasm_std::{
-        Coin, CosmosMsg, Decimal, DepsMut, Env, Fraction, MessageInfo, OverflowError, Response,
-        Uint128, Uint256,
-    };
+    use cosmwasm_std::{Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128};
+    use valence_astroport_utils::decimal_checked_ops::DecimalCheckedOps;
     use valence_service_utils::{error::ServiceError, execute_on_behalf_of};
 
     use crate::{
@@ -203,7 +201,7 @@ mod actions {
     ) -> Result<(u128, u128), ServiceError> {
         // Let's get the maximum amount of assets that we can provide liquidity
         let required_asset1_amount = pool_asset_ratio
-            .checked_mul_uint128(cosmwasm_std::Uint128::from(balance2))
+            .checked_mul_uint128(balance2.into())
             .map_err(|error| ServiceError::ExecutionError(error.to_string()))?;
 
         // We can provide all asset2 tokens along with the corresponding maximum of asset1 tokens
@@ -255,26 +253,6 @@ mod actions {
         fn as_coin(&self) -> Result<cosmwasm_std::Coin, ServiceError> {
             self.to_coin()
                 .map_err(|error| ServiceError::ExecutionError(error.to_string()))
-        }
-    }
-
-    // We define the helper for Decimals
-    pub trait DecimalCheckedOps {
-        fn checked_mul_uint128(self, other: Uint128) -> Result<Uint128, OverflowError>;
-    }
-
-    impl DecimalCheckedOps for Decimal {
-        fn checked_mul_uint128(self, other: Uint128) -> Result<Uint128, OverflowError> {
-            if self.is_zero() || other.is_zero() {
-                return Ok(Uint128::zero());
-            }
-            let multiply_ratio =
-                other.full_mul(self.numerator()) / Uint256::from(self.denominator());
-            if multiply_ratio > Uint256::from(Uint128::MAX) {
-                Err(OverflowError::new(cosmwasm_std::OverflowOperation::Mul))
-            } else {
-                Ok(multiply_ratio.try_into().unwrap())
-            }
         }
     }
 
