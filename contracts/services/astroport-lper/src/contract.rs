@@ -214,7 +214,7 @@ mod actions {
             Ok((
                 balance1,
                 ratio
-                    .checked_mul_uint128(cosmwasm_std::Uint128::new(balance1))
+                    .checked_mul_uint128(balance1.into())
                     .map_err(|error| ServiceError::ExecutionError(error.to_string()))?
                     .u128(),
             ))
