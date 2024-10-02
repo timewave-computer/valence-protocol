@@ -1,13 +1,14 @@
-use astroport_cw20_lp_token::asset::{Asset, PairInfo};
 use cosmwasm_std::{to_json_binary, Addr, Coin, CosmosMsg, DepsMut};
 use cw20::{BalanceResponse, Cw20ExecuteMsg};
+use valence_astroport_utils::astroport_cw20_lp_token::{Asset, PairInfo};
+use valence_service_utils::error::ServiceError;
 
-use crate::{error::ServiceError, msg::Config};
+use crate::msg::Config;
 
 pub fn query_liquidity_token(deps: &DepsMut, cfg: &Config) -> Result<Addr, ServiceError> {
     let pair_info: PairInfo = deps.querier.query_wasm_smart(
         cfg.pool_addr.clone(),
-        &astroport_cw20_lp_token::pair::QueryMsg::Pair {},
+        &valence_astroport_utils::astroport_cw20_lp_token::PoolQueryMsg::Pair {},
     )?;
 
     Ok(pair_info.liquidity_token)
@@ -36,7 +37,7 @@ pub fn create_withdraw_liquidity_msgs(
     // Calculate how much we are going to get when we withdraw
     let withdrawn_assets: Vec<Asset> = deps.querier.query_wasm_smart(
         cfg.pool_addr.clone(),
-        &astroport_cw20_lp_token::pair::QueryMsg::Share {
+        &valence_astroport_utils::astroport_cw20_lp_token::PoolQueryMsg::Share {
             amount: balance_response.balance,
         },
     )?;
@@ -48,7 +49,9 @@ pub fn create_withdraw_liquidity_msgs(
             contract: cfg.pool_addr.to_string(),
             amount: balance_response.balance,
             msg: to_json_binary(
-                &astroport_cw20_lp_token::pair::Cw20HookMsg::WithdrawLiquidity { assets: vec![] },
+                &valence_astroport_utils::astroport_cw20_lp_token::Cw20HookMsg::WithdrawLiquidity {
+                    assets: vec![],
+                },
             )?,
         })?,
         funds: vec![],

@@ -59,6 +59,7 @@ valence-astroport-withdrawer = { path = "contracts/services/astroport-withdrawer
 
 # our packages
 valence-account-utils              = { path = "packages/account-utils" }
+valence-astroport-utils            = { path = "packages/astroport-utils" }
 valence-authorization-utils        = { path = "packages/authorization-utils" }
 valence-local-interchaintest-utils = { path = "packages/local-interchaintest-utils" }
 valence-macros                     = { path = "packages/valence-macros" }

@@ -57,10 +57,7 @@ mod execute {
 }
 
 mod actions {
-    use cosmwasm_schema::cw_serde;
-    use cosmwasm_std::{
-        to_json_binary, Addr, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult, WasmMsg,
-    };
+    use cosmwasm_std::{CosmosMsg, DepsMut, Env, MessageInfo, Response};
     use valence_service_utils::{error::ServiceError, execute_on_behalf_of};
 
     use crate::{
