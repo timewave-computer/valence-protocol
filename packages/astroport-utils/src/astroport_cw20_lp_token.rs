@@ -1,6 +1,6 @@
 // Since astroport is using an old CosmWasm version still, to make it compatible with our packages, we are going to redefine the messages here using Cosmwasm 2.x that we need
 // for our contract
-// The content of this file is taken from the 'astroport crate', specifically version 2.9.5
+// The content of this file is taken from the 'astroport' crate, specifically version 2.9.5
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary, Coin, Decimal, StdError, StdResult, Uint128};
