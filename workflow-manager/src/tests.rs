@@ -19,7 +19,6 @@ mod test {
         account::{AccountInfo, AccountType},
         config::Config,
         domain::Domain,
-        init_workflow,
         service::{ServiceConfig, ServiceInfo},
         workflow_config::{Link, WorkflowConfig},
     };

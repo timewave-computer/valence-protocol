@@ -454,7 +454,7 @@ impl WorkflowConfig {
         // verify id is not taken (have no config in registry)
         ensure!(
             neutron_connector
-                .query_workflow_registry(NEUTRON_CHAIN, self.id)
+                .query_workflow_registry(self.id)
                 .await
                 .is_err(),
             ManagerError::WorkflowIdAlreadyExists(self.id)

@@ -680,12 +680,11 @@ impl Connector for CosmosCosmwasmConnector {
 
     async fn query_workflow_registry(
         &mut self,
-        main_domain: &str,
         id: u64,
     ) -> ConnectorResult<valence_workflow_registry_utils::WorkflowResponse> {
-        if self.chain_name != main_domain {
+        if self.chain_name != NEUTRON_CHAIN {
             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
-                "Adding external domain is only possible on main domain in authorization contract"
+                "workflow registry only exists on neutron chain"
             ))
             .into());
         }
@@ -716,7 +715,7 @@ impl Connector for CosmosCosmwasmConnector {
     }
 
     async fn verify_account(&mut self, account_addr: String) -> ConnectorResult<()> {
-        let contract_name = self.get_contract_name_by_code_id(account_addr).await?;
+        let contract_name = self.get_contract_name_by_address(account_addr).await?;
 
         // Loop over account types and see if any matches the contract name of the code id
         // error if it doesn't match, else return ()
@@ -733,7 +732,7 @@ impl Connector for CosmosCosmwasmConnector {
             .context("'verify_service' Service address is empty")
             .map_err(CosmosCosmwasmError::Error)?;
 
-        let contract_name = self.get_contract_name_by_code_id(service_addr).await?;
+        let contract_name = self.get_contract_name_by_address(service_addr).await?;
 
         Ok(ServiceConfig::VARIANTS
             .iter()
@@ -744,7 +743,7 @@ impl Connector for CosmosCosmwasmConnector {
     }
 
     async fn verify_processor(&mut self, processor_addr: String) -> ConnectorResult<()> {
-        let contract_name = self.get_contract_name_by_code_id(processor_addr).await?;
+        let contract_name = self.get_contract_name_by_address(processor_addr).await?;
 
         // Make sure the code id is of name processor
         if contract_name != "processor" {
@@ -758,7 +757,7 @@ impl Connector for CosmosCosmwasmConnector {
     }
 
     async fn verify_bridge_account(&mut self, bridge_addr: String) -> ConnectorResult<()> {
-        // If the address have a code id, it means it was instantiated.
+        // If the address has a code id, it means it was instantiated.
         self.get_code_id_of_addr(bridge_addr)
             .await
             .map(|_| ())
@@ -1040,7 +1039,8 @@ impl CosmosCosmwasmConnector {
             .code_id)
     }
 
-    pub async fn get_contract_name_by_code_id(
+    // We query the chain for the code id of the address, and look this code id into our list of code ids to get the contract name
+    pub async fn get_contract_name_by_address(
         &mut self,
         addr: String,
     ) -> Result<String, CosmosCosmwasmError> {
