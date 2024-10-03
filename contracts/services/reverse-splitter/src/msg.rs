@@ -145,6 +145,42 @@ impl UncheckedSplitConfig {
         }
     }
 
+    pub fn with_native_dyn_ratio(
+        contract_addr: &Addr,
+        params: &str,
+        denom: &str,
+        input: &Addr,
+    ) -> Self {
+        UncheckedSplitConfig {
+            denom: UncheckedDenom::Native(denom.to_string()),
+            account: input.to_string(),
+            amount: None,
+            ratio: Some(UncheckedRatioConfig::DynamicRatio {
+                contract_addr: contract_addr.to_string(),
+                params: params.to_string(),
+            }),
+            factor: None,
+        }
+    }
+
+    pub fn with_cw20_dyn_ratio(
+        contract_addr: &Addr,
+        params: &str,
+        addr: &Addr,
+        input: &Addr,
+    ) -> Self {
+        UncheckedSplitConfig {
+            denom: UncheckedDenom::Cw20(addr.to_string()),
+            account: input.to_string(),
+            amount: None,
+            ratio: Some(UncheckedRatioConfig::DynamicRatio {
+                contract_addr: contract_addr.to_string(),
+                params: params.to_string(),
+            }),
+            factor: None,
+        }
+    }
+
     pub fn with_factor(mut self, factor: u64) -> Self {
         self.factor = Some(factor);
         self
@@ -319,43 +355,44 @@ fn validate_splits(
         }
         denom_map.insert(key, ());
 
-        if !(split.amount.is_some() || split.ratio.is_some()) {
-            return Err(ServiceError::ConfigurationError(
-                "Invalid split config: should specify either an amount or a ratio.".to_string(),
-            ));
-        }
-
-        if split.amount.is_some() && split.factor.is_some() {
-            return Err(ServiceError::ConfigurationError(
-                "Invalid split config: a factor cannot be specified with an amount.".to_string(),
-            ));
-        }
-
-        // Verify base denom split config
-        if split.denom == *base_denom {
-            match (split.amount, split.ratio.clone()) {
-                (Some(_), None) => {
-                    // Valid config: specific amount configured for base denom
+        match (split.amount, &split.ratio) {
+            (Some(_), None) => {
+                if split.factor.is_some() {
+                    return Err(ServiceError::ConfigurationError(
+                        "Invalid split config: a factor cannot be specified with an amount."
+                            .to_string(),
+                    ));
                 }
-                (None, Some(UncheckedRatioConfig::FixedRatio(ratio)))
-                    if ratio == Decimal::one() =>
-                {
-                    // Valid config: fixed ratio of 1 configured for base denom
-                }
-                _ => {
+            }
+            (None, Some(UncheckedRatioConfig::FixedRatio(ratio))) => {
+                if split.denom == *base_denom && *ratio != Decimal::one() {
                     return Err(ServiceError::ConfigurationError(
                         "Invalid split config: fixed ratio for base denom must be 1.".to_string(),
                     ));
                 }
             }
+            (None, Some(UncheckedRatioConfig::DynamicRatio { contract_addr, .. })) => {
+                api.addr_validate(contract_addr)?;
+                if split.denom == *base_denom {
+                    return Err(ServiceError::ConfigurationError(
+                        "Invalid split config: ratio for base denom cannot be a dynamic one."
+                            .to_string(),
+                    ));
+                }
+            }
+            (Some(_), Some(_)) | (None, None) => {
+                return Err(ServiceError::ConfigurationError(
+                    "Invalid split config: should specify either an amount or a ratio.".to_string(),
+                ));
+            }
         }
 
-        if let Some(UncheckedRatioConfig::DynamicRatio {
-            contract_addr,
-            params: _,
-        }) = &split.ratio
-        {
-            api.addr_validate(contract_addr)?;
+        if let Some(factor) = split.factor {
+            if factor == 0 {
+                return Err(ServiceError::ConfigurationError(
+                    "Invalid split config: factor cannot be 0.".to_string(),
+                ));
+            }
         }
     }
 

@@ -40,14 +40,19 @@ pub fn execute(
 }
 
 mod actions {
-    use std::collections::HashMap;
+    use std::collections::{hash_map::Entry, HashMap};
 
     use cosmwasm_std::{
         Addr, CosmosMsg, Decimal, DepsMut, Empty, Env, Fraction, MessageInfo, QuerierWrapper,
         Response, StdResult, Uint128,
     };
 
-    use valence_service_utils::{denoms::CheckedDenom, error::ServiceError, execute_on_behalf_of};
+    use valence_service_utils::{
+        denoms::CheckedDenom,
+        error::ServiceError,
+        execute_on_behalf_of,
+        msg::{DynamicRatioQueryMsg, DynamicRatioResponse},
+    };
 
     use crate::msg::{ActionMsgs, Config, RatioConfig};
 
@@ -118,6 +123,8 @@ mod actions {
     > {
         // Get input account balances for each denom (one balance query per denom)
         let mut account_balances: HashMap<String, Uint128> = HashMap::new();
+        // Dynamic ratios
+        let mut dynamic_ratios: HashMap<String, Decimal> = HashMap::new();
         let mut denom_amount_count = 0;
 
         for split in cfg.splits() {
@@ -136,6 +143,18 @@ mod actions {
                 denom_amount_count += 1;
             }
             account_balances.insert(key, balance);
+
+            if let Some(RatioConfig::DynamicRatio {
+                contract_addr,
+                params,
+            }) = split.ratio()
+            {
+                let key = dyn_ratio_key(denom, contract_addr, params);
+                if let Entry::Vacant(e) = dynamic_ratios.entry(key) {
+                    let ratio = query_dynamic_ratio(querier, contract_addr, params, denom)?;
+                    e.insert(ratio);
+                }
+            }
         }
 
         if denom_amount_count == cfg.splits().len() {
@@ -166,22 +185,26 @@ mod actions {
                         Ok((amount, Decimal::one(), &None, denom, account))
                     })
                     .or_else(|| {
-                        split
-                            .ratio()
-                            .as_ref()
-                            .map(|ratio_config| match ratio_config {
-                                RatioConfig::FixedRatio(ratio) => {
-                                    let mut amount = balance
-                                        .multiply_ratio(ratio.numerator(), ratio.denominator());
-                                    if let Some(factor) = split.factor() {
-                                        amount = amount
-                                            .checked_div((*factor as u128).into())
-                                            .map_err(|err| ServiceError::Std(err.into()))?;
-                                    }
-                                    Ok((amount, *ratio, split.factor(), denom, split.account()))
-                                }
-                                RatioConfig::DynamicRatio { .. } => todo!(),
-                            })
+                        split.ratio().as_ref().map(|ratio_config| {
+                            let ratio = match ratio_config {
+                                RatioConfig::FixedRatio(ratio) => ratio,
+                                RatioConfig::DynamicRatio {
+                                    contract_addr,
+                                    params,
+                                } => dynamic_ratios
+                                    .get(&dyn_ratio_key(split.denom(), contract_addr, params))
+                                    .unwrap(),
+                            };
+                            let mut amount =
+                                balance.multiply_ratio(ratio.numerator(), ratio.denominator());
+                            let factor = split.factor();
+                            if let Some(factor) = factor {
+                                amount = amount
+                                    .checked_div((*factor as u128).into())
+                                    .map_err(|err| ServiceError::Std(err.into()))?;
+                            }
+                            Ok((amount, *ratio, factor, denom, account))
+                        })
                     })
                     .expect("Split config must have either an amount or a ratio")
             })
@@ -210,8 +233,35 @@ mod actions {
             .collect::<Result<Vec<_>, _>>()
     }
 
+    fn query_dynamic_ratio(
+        querier: &QuerierWrapper<Empty>,
+        contract_addr: &Addr,
+        params: &str,
+        denom: &CheckedDenom,
+    ) -> Result<Decimal, ServiceError> {
+        let denom_name = denom.to_string();
+        let res: DynamicRatioResponse = querier.query_wasm_smart(
+            contract_addr,
+            &DynamicRatioQueryMsg::DynamicRatio {
+                denoms: vec![denom_name.clone()],
+                params: params.to_string(),
+            },
+        )?;
+        res.denom_ratios
+            .get(&denom_name)
+            .copied()
+            .ok_or(ServiceError::ExecutionError(format!(
+                "Dynamic ratio not found for denom '{}'.",
+                denom
+            )))
+    }
+
     fn account_key(account: &Addr, denom: &CheckedDenom) -> String {
         format!("{}/{:?}", account, denom)
+    }
+
+    fn dyn_ratio_key(denom: &CheckedDenom, contract_addr: &Addr, params: &str) -> String {
+        format!("{:?}-{}/{}", denom, contract_addr, params)
     }
 }
 

@@ -31,6 +31,8 @@ struct ReverseSplitterTestSuite {
     #[getset(get)]
     reverse_splitter_code_id: u64,
     #[getset(get)]
+    dyn_ratio_code_id: u64,
+    #[getset(get)]
     output_addr: Addr,
 }
 
@@ -56,9 +58,18 @@ impl ReverseSplitterTestSuite {
 
         let reverse_splitter_code_id = inner.app_mut().store_code(Box::new(reverse_splitter_code));
 
+        let dyn_ratio_code = ContractWrapper::new(
+            valence_test_dynamic_ratio::contract::execute,
+            valence_test_dynamic_ratio::contract::instantiate,
+            valence_test_dynamic_ratio::contract::query,
+        );
+
+        let dyn_ratio_code_id = inner.app_mut().store_code(Box::new(dyn_ratio_code));
+
         Self {
             inner,
             reverse_splitter_code_id,
+            dyn_ratio_code_id,
             output_addr,
         }
     }
@@ -80,6 +91,13 @@ impl ReverseSplitterTestSuite {
         });
 
         addr
+    }
+
+    pub fn dyn_ratio_contract_init(&mut self, denom: &str, ratio: Decimal) -> Addr {
+        let init_msg = valence_test_dynamic_ratio::msg::InstantiateMsg {
+            denom_ratios: [(denom.to_string(), ratio)].into(),
+        };
+        self.contract_init(self.dyn_ratio_code_id, "dynamic_ratio", &init_msg, &[])
     }
 
     fn reverse_splitter_config(
@@ -805,4 +823,81 @@ fn split_mix_three_token_ratios_three_inputs() {
         NTRN_AMOUNT * NTRN_MEME_RATIO,
         &cw20_addr,
     );
+}
+
+// Dynamic ratio tests
+
+#[test]
+fn split_native_single_token_dyn_ratio_single_input() {
+    let mut suite = ReverseSplitterTestSuite::default();
+
+    let input1_addr =
+        suite.account_init_with_balances("input_account_1", vec![(ONE_MILLION, NTRN.into())]);
+    let input2_addr =
+        suite.account_init_with_balances("input_account_2", vec![(TEN_MILLION, STARS.into())]);
+
+    let dyn_ratio_addr = suite.dyn_ratio_contract_init(STARS, Decimal::percent(10u64));
+
+    let cfg = suite.reverse_splitter_config(
+        vec![
+            UncheckedSplitConfig::with_native_ratio(Decimal::one(), NTRN, &input1_addr),
+            UncheckedSplitConfig::with_native_dyn_ratio(&dyn_ratio_addr, "", STARS, &input2_addr),
+        ],
+        UncheckedDenom::Native(NTRN.into()),
+    );
+
+    // Instantiate Splitter contract
+    let svc = suite.reverse_splitter_init(&cfg);
+
+    // Execute split
+    suite.execute_split(svc).unwrap();
+
+    // Verify input account's balance: should be zero
+    suite.assert_balance(&input1_addr, ZERO, NTRN);
+    suite.assert_balance(&input2_addr, ZERO, STARS);
+
+    // Verify output account's balance: should be 1_000_000 NTRN
+    suite.assert_balance(suite.output_addr(), ONE_MILLION, NTRN);
+    suite.assert_balance(suite.output_addr(), TEN_MILLION, STARS);
+}
+
+#[test]
+fn split_cw20_single_token_dyn_ratio_single_output() {
+    let mut suite = ReverseSplitterTestSuite::default();
+
+    let input1_addr =
+        suite.account_init_with_balances("input_account_1", vec![(ONE_MILLION, NTRN.into())]);
+    let input2_addr = suite.account_init_with_balances("input_account_2", vec![]);
+
+    let cw20_addr =
+        suite.cw20_token_init(MEME, "MEME", vec![(TEN_MILLION, input2_addr.to_string())]);
+
+    let dyn_ratio_addr = suite.dyn_ratio_contract_init(cw20_addr.as_ref(), Decimal::percent(10u64));
+
+    let cfg = suite.reverse_splitter_config(
+        vec![
+            UncheckedSplitConfig::with_native_ratio(Decimal::one(), NTRN, &input1_addr),
+            UncheckedSplitConfig::with_cw20_dyn_ratio(
+                &dyn_ratio_addr,
+                "",
+                &cw20_addr,
+                &input2_addr,
+            ),
+        ],
+        UncheckedDenom::Native(NTRN.into()),
+    );
+
+    // Instantiate Reverse Splitter contract
+    let svc = suite.reverse_splitter_init(&cfg);
+
+    // Execute split
+    suite.execute_split(svc).unwrap();
+
+    // Verify input account's balance: should be zero
+    suite.assert_balance(&input1_addr, ZERO, NTRN);
+    suite.assert_cw20_balance(&input2_addr, ZERO, &cw20_addr);
+
+    // Verify output account's balance: should be 1_000_000 MEME
+    suite.assert_balance(suite.output_addr(), ONE_MILLION, NTRN);
+    suite.assert_cw20_balance(suite.output_addr(), TEN_MILLION, &cw20_addr);
 }
