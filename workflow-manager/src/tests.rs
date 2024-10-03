@@ -77,20 +77,17 @@ mod test {
     fn test_config_find_accounts_ids() {
         let config = ServiceConfig::Splitter(SplitterServiceConfig {
             input_addr: "|account_id|:1".to_string(),
-            base_denom: valence_service_utils::denoms::UncheckedDenom::Native("NTRN".to_string()),
             splits: vec![
                 valence_splitter_service::msg::UncheckedSplitConfig::new(
                     valence_service_utils::denoms::UncheckedDenom::Native("NTRN".to_string()),
                     "|account_id|:2".to_string(),
                     Some(Uint128::from(1_000_000u128)),
                     None,
-                    None,
                 ),
                 valence_splitter_service::msg::UncheckedSplitConfig::new(
                     valence_service_utils::denoms::UncheckedDenom::Native("NTRN".to_string()),
                     "|account_id|:3".to_string(),
                     Some(Uint128::from(1_000_000u128)),
-                    None,
                     None,
                 ),
             ],
@@ -177,9 +174,6 @@ mod test {
                 domain: Domain::CosmosCosmwasm("neutron"),
                 config: ServiceConfig::Splitter(SplitterServiceConfig {
                     input_addr: "|account_id|:1".to_string(),
-                    base_denom: valence_service_utils::denoms::UncheckedDenom::Native(
-                        "NTRN".to_string(),
-                    ),
                     splits: vec![
                         valence_splitter_service::msg::UncheckedSplitConfig::new(
                             valence_service_utils::denoms::UncheckedDenom::Native(
@@ -188,7 +182,6 @@ mod test {
                             "|account_id|:2".to_string(),
                             Some(Uint128::from(1_000_000u128)),
                             None,
-                            None,
                         ),
                         valence_splitter_service::msg::UncheckedSplitConfig::new(
                             valence_service_utils::denoms::UncheckedDenom::Native(
@@ -196,7 +189,6 @@ mod test {
                             ),
                             "|account_id|:3".to_string(),
                             Some(Uint128::from(1_000_000u128)),
-                            None,
                             None,
                         ),
                     ],
