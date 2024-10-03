@@ -56,6 +56,7 @@ valence-splitter             = { path = "contracts/services/splitter-temp", feat
 valence-test-service         = { path = "contracts/services/test-service", features = ["library"] }
 valence-workflow-registry    = { path = "contracts/workflow-registry", features = ["library"] }
 valence-astroport-withdrawer = { path = "contracts/services/astroport-withdrawer", features = ["library"] }
+valence-astroport-lper    = { path = "contracts/services/astroport-lper", features = ["library"] }
 
 # our packages
 valence-account-utils              = { path = "packages/account-utils" }
