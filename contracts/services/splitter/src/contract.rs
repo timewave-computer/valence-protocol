@@ -47,6 +47,7 @@ mod actions {
         Response, StdResult, Uint128,
     };
 
+    use itertools::Itertools;
     use valence_service_utils::{
         denoms::CheckedDenom,
         error::ServiceError,
@@ -114,8 +115,6 @@ mod actions {
     > {
         // Get input account balances for each denom (one balance query per denom)
         let mut denom_balances: HashMap<String, Uint128> = HashMap::new();
-        // Compute cumulative sum of amounts per denom
-        let mut denom_amounts: HashMap<String, Uint128> = HashMap::new();
         // Dynamic ratios
         let mut dynamic_ratios: HashMap<String, Decimal> = HashMap::new();
 
@@ -126,13 +125,6 @@ mod actions {
             if let Entry::Vacant(e) = denom_balances.entry(key.clone()) {
                 let balance = denom.query_balance(querier, cfg.input_addr())?;
                 e.insert(balance);
-            }
-            // Increment the split amount for the denom
-            if let Some(amount) = split.amount() {
-                denom_amounts
-                    .entry(key)
-                    .and_modify(|denom_amount| *denom_amount += amount)
-                    .or_insert(*amount);
             }
 
             if let Some(RatioConfig::DynamicRatio {
@@ -147,18 +139,6 @@ mod actions {
                 }
             }
         }
-
-        // Check if the input account has sufficient balance for each denom
-        denom_amounts.iter().try_for_each(|(denom, amount)| {
-            let balance = denom_balances.get(denom).unwrap();
-            if amount > balance {
-                return Err(ServiceError::ExecutionError(format!(
-                    "Insufficient balance for denom '{}' in split config (required: {}, available: {}).",
-                    denom, amount, balance,
-                )));
-            }
-            Ok(())
-        })?;
 
         // Prepare transfer messages for each split config
         let amounts = cfg
@@ -188,6 +168,21 @@ mod actions {
                     .expect("Split config must have either an amount or a ratio")
             })
             .collect::<Result<Vec<_>, ServiceError>>()?;
+
+        amounts.iter()
+            .into_group_map_by(|(_, denom, _)| denom_key(denom))
+            .into_iter()
+            .map(|(denom, amounts)| {
+            let total_amount: Uint128 = amounts.iter().map(|(amount, _, _)| *amount).sum();
+            let balance = denom_balances.get(&denom).unwrap();
+            if total_amount > *balance {
+                return Err(ServiceError::ExecutionError(format!(
+                    "Insufficient balance for denom '{}' in split config (required: {}, available: {}).",
+                    denom, total_amount, balance,
+                )));
+            }
+            Ok(())
+        }).collect::<Result<Vec<()>, ServiceError>>()?;
 
         Ok(amounts)
     }

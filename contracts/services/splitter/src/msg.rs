@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Decimal, Deps, DepsMut, Uint128};
@@ -150,6 +150,23 @@ impl UncheckedSplitConfig {
             }),
         }
     }
+
+    pub fn with_cw20_dyn_ratio(
+        contract_addr: &Addr,
+        params: &str,
+        addr: &Addr, 
+        output: &Addr,
+    ) -> Self {
+        UncheckedSplitConfig {
+            denom: UncheckedDenom::Cw20(addr.to_string()),
+            account: output.to_string(),
+            amount: None,
+            ratio: Some(UncheckedRatioConfig::DynamicRatio {
+                contract_addr: contract_addr.to_string(),
+                params: params.to_string(),
+            }),
+        }
+    }
 }
 
 #[cw_serde]
@@ -269,7 +286,8 @@ fn validate_splits(
         ));
     }
 
-    let mut denom_map: HashMap<String, ()> = HashMap::new();
+    let mut denom_set = HashSet::new();
+    let mut denom_amount = HashSet::new();
     let mut denom_ratios: HashMap<String, Decimal> = HashMap::new();
     for split in splits {
         api.addr_validate(&split.account)?;
@@ -277,21 +295,22 @@ fn validate_splits(
 
         // Ensure splits are unique in split configs
         let key = format!("{:?}|{}", split.denom, split.account);
-        if denom_map.contains_key(&key) {
+        if !denom_set.insert(key) {
             return Err(ServiceError::ConfigurationError(format!(
                 "Duplicate split '{:?}|{}' in split config.",
                 split.denom, split.account
             )));
         }
-        denom_map.insert(key.clone(), ());
 
+        let denom_key = format!("{:?}", split.denom);
         match (split.amount, &split.ratio) {
             (Some(_), None) => {
-                // No need to validate amount
+                // Mark that this denom has a split amount
+                denom_amount.insert(denom_key);
             }
             (None, Some(UncheckedRatioConfig::FixedRatio(ratio))) => {
                 denom_ratios
-                    .entry(format!("{:?}", split.denom))
+                    .entry(denom_key)
                     .and_modify(|sum| *sum += ratio)
                     .or_insert(*ratio);
             }
@@ -308,6 +327,13 @@ fn validate_splits(
 
     // Verify sum per denom is equal to 1 (rounded up)
     for (key, sum) in denom_ratios.iter() {
+        if denom_amount.contains(key) {
+            return Err(ServiceError::ConfigurationError(format!(
+                "Invalid split config: cannot combine amount and ratio for the same denom '{}'.",
+                key
+            )));
+        }
+
         if sum.to_uint_ceil() != Uint128::one() {
             return Err(ServiceError::ConfigurationError(format!(
                 "Invalid split config: sum of ratios for denom '{}' is not equal to 1.",

@@ -4894,6 +4894,7 @@ dependencies = [
  "cw20 2.0.0",
  "cw20-base",
  "getset",
+ "itertools 0.13.0",
  "schemars",
  "serde",
  "sha2 0.10.8",

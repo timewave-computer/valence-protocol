@@ -275,14 +275,48 @@ fn instantiate_fails_for_invalid_ratio_sum() {
     // Configure splitter with invalid ratio sum
     let cfg = suite.splitter_config(vec![
         UncheckedSplitConfig::with_native_ratio(
-            Decimal::one() - Decimal::one(),
+            Decimal::one(),
             NTRN,
             &output1_addr,
         ),
         UncheckedSplitConfig::with_native_ratio(
-            Decimal::one() - Decimal::one(),
+            Decimal::one(),
             NTRN,
             &output2_addr,
+        ),
+    ]);
+
+    // Instantiate Splitter contract
+    suite.splitter_init(&cfg);
+}
+
+#[test]
+#[should_panic(
+    expected = "Configuration error: Invalid split config: cannot combine amount and ratio for the same denom 'Native(\"untrn\")'."
+)]
+fn instantiate_fails_for_mix_of_amount_and_ratio() {
+    let mut suite = SplitterTestSuite::default();
+
+    let output1_addr = suite.api().addr_make("output_account_1");
+    let output2_addr = suite.api().addr_make("output_account_2");
+    let output3_addr = suite.api().addr_make("output_account_3");
+
+    // Configure splitter with invalid ratio sum
+    let cfg = suite.splitter_config(vec![
+        UncheckedSplitConfig::with_native_amount(
+            ONE_MILLION,
+            NTRN,
+            &output1_addr,
+        ),
+        UncheckedSplitConfig::with_native_ratio(
+            Decimal::percent(50u64),
+            NTRN,
+            &output2_addr,
+        ),
+        UncheckedSplitConfig::with_native_ratio(
+            Decimal::percent(50u64),
+            NTRN,
+            &output3_addr,
         ),
     ]);
 
@@ -929,4 +963,34 @@ fn split_native_single_token_dyn_ratio_single_output() {
 
     // Verify output account's balance: should be 1_000_000 NTRN
     suite.assert_balance(&output_addr, ONE_MILLION, NTRN);
+}
+
+#[test]
+fn split_cw20_single_token_dyn_ratio_single_output() {
+    let mut suite = SplitterTestSuite::default();
+
+    let cw20_addr =
+        suite.cw20_token_init(MEME, "MEME", ONE_MILLION, suite.input_addr().to_string());
+    
+    let output_addr = suite.api().addr_make("output_account");
+    let dyn_ratio_addr = suite.dyn_ratio_contract_init(cw20_addr.as_ref(), Decimal::one());
+
+    let cfg = suite.splitter_config(vec![UncheckedSplitConfig::with_cw20_dyn_ratio(
+        &dyn_ratio_addr,
+        "",
+        &cw20_addr,
+        &output_addr,
+    )]);
+
+    // Instantiate Splitter contract
+    let svc = suite.splitter_init(&cfg);
+
+    // Execute split
+    suite.execute_split(svc).unwrap();
+
+    // Verify input account's balance: should be zero
+    suite.assert_cw20_balance(suite.input_addr(), ZERO, &cw20_addr);
+
+    // Verify output account's balance: should be 1_000_000 MEME
+    suite.assert_cw20_balance(&output_addr, ONE_MILLION, &cw20_addr);
 }
