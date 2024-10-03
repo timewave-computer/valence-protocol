@@ -1,12 +1,15 @@
 pub mod cosmos_cw;
 // pub mod cosmos_evm;
+
 use std::fmt;
 
+use anyhow::anyhow;
 use async_trait::async_trait;
 use cosmos_cw::{CosmosCosmwasmConnector, CosmosCosmwasmError};
+
 use serde::{Deserialize, Serialize};
+
 // use cosmos_evm::CosmosEvmError;
-use strum::Display;
 use thiserror::Error;
 
 use crate::{
@@ -33,14 +36,36 @@ pub enum ConnectorError {
 
 /// We need some way of knowing which domain we are talking with
 /// chain connection, execution, bridges for authorization.
-#[derive(Debug, Display, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
 pub enum Domain {
-    CosmosCosmwasm(&'static str),
+    CosmosCosmwasm(String),
     // CosmosEvm(&'static str),
     // Solana
 }
 
+impl fmt::Display for Domain {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // IMPORTANT: to get fromStr, we need to separate everything using ":"
+        match self {
+            Domain::CosmosCosmwasm(chain_name) => write!(f, "{}:{}", "CosmosCosmwasm", chain_name),
+            // Domain::CosmosEvm(chain_name) => write!(f, "{}", chain_name),
+        }
+    }
+}
+
 impl Domain {
+    pub fn from_string(input: String) -> Result<Domain, anyhow::Error> {
+        let mut split = input.split(":");
+
+        let _cosmos_cw = Domain::CosmosCosmwasm("".to_string()).to_string();
+
+        match split.next() {
+            Some(_cosmos_cw) => Ok(Domain::CosmosCosmwasm(split.next().unwrap().to_string())),
+            // "CosmosEvm" => Ok(Domain::CosmosEvm(split[1])),
+            _ => Err(anyhow!("Failed to parse domain from string")),
+        }
+    }
+
     pub fn get_chain_name(&self) -> &str {
         match self {
             Domain::CosmosCosmwasm(chain_name) => chain_name,
@@ -86,7 +111,7 @@ pub trait Connector: fmt::Debug + Send + Sync {
     async fn instantiate_account(
         &mut self,
         workflow_id: u64,
-        auth_addr: String,
+        processor_addr: String,
         data: &InstantiateAccountData,
     ) -> ConnectorResult<()>;
 
@@ -95,7 +120,7 @@ pub trait Connector: fmt::Debug + Send + Sync {
         &mut self,
         workflow_id: u64,
         auth_addr: String,
-        processor_bridge_addr: String,
+        processor_addr: String,
         service_id: u64,
         service_config: ServiceConfig,
         salt: Vec<u8>,

@@ -38,7 +38,7 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
     fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
         // TODO: Verify splits are valid
         Ok(Config {
-            input_addr: self.input_addr.to_addr(deps)?,
+            input_addr: self.input_addr.to_addr(deps.api)?,
             splits: self.splits.clone(),
         })
     }
@@ -58,7 +58,7 @@ impl OptionalServiceConfig {
     /// You can return here anything the service needs
     pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
         if let Some(input_addr) = self.input_addr {
-            config.input_addr = input_addr.to_addr(deps.as_ref())?;
+            config.input_addr = input_addr.to_addr(deps.api)?;
         }
 
         if let Some(splits) = self.splits {

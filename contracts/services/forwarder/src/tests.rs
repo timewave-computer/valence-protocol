@@ -89,8 +89,8 @@ impl ForwarderTestSuite {
         forwarding_constraints: ForwardingConstraints,
     ) -> ServiceConfig {
         ServiceConfig::new(
-            self.input_addr.to_string(),
-            self.output_addr.to_string(),
+            self.input_addr.clone().into(),
+            self.output_addr.clone().into(),
             forwarding_configs.into_iter().map(Into::into).collect(),
             forwarding_constraints,
         )
@@ -684,8 +684,8 @@ fn update_config() {
         )],
         ForwardingConstraints::new(Duration::Height(3).into()),
     );
-    new_config.input_addr = suite.output_addr.to_string();
-    new_config.output_addr = suite.input_addr.to_string();
+    new_config.input_addr = suite.output_addr.clone().into();
+    new_config.output_addr = suite.input_addr.clone().into();
 
     // Execute update config action
     suite.update_config(svc.clone(), new_config).unwrap();

@@ -49,7 +49,7 @@ impl ServiceConfig {
     pub fn validate(&self, deps: Deps) -> Result<Config, ContractError> {
         // TODO: Verify splits are valid
         Ok(Config {
-            output_addr: self.output_addr.to_addr(deps)?,
+            output_addr: self.output_addr.to_addr(deps.api)?,
             splits: self.splits.clone(),
         })
     }
@@ -70,7 +70,7 @@ impl OptionalServiceConfig {
         let mut config = CONFIG.load(deps.storage)?;
 
         if let Some(output_addr) = self.output_addr {
-            config.output_addr = output_addr.to_addr(deps.as_ref())?;
+            config.output_addr = output_addr.to_addr(deps.api)?;
         }
 
         if let Some(splits) = self.splits {

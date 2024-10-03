@@ -65,7 +65,7 @@ pub enum ManagerError {
     WorkflowIdAlreadyExists(u64),
 
     #[error("Failed to get processor address for this domain: {0}")]
-    ProcessorBridgeAddrNotFound(Domain),
+    ProcessorAddrNotFound(Domain),
 }
 
 impl ManagerError {

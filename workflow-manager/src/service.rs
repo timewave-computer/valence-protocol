@@ -6,9 +6,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::to_vec;
 use strum::VariantNames;
 use thiserror::Error;
-use valence_reverse_splitter::msg::ServiceConfig as ReverseSplitterServiceConfig;
-use valence_service_utils::{msg::InstantiateMsg, Id, ServiceConfigInterface};
-use valence_splitter::msg::ServiceConfig as SplitterServiceConfig;
+use valence_service_utils::{
+    msg::{InstantiateMsg, ServiceConfigValidation},
+    Id, ServiceConfigInterface,
+};
 
 use crate::domain::Domain;
 
@@ -24,6 +25,9 @@ pub enum ServiceError {
 
     #[error("ParseIntError Error: {0}")]
     ParseIntError(#[from] ParseIntError),
+
+    #[error("ValenceServiceError Error: {0}")]
+    ValenceServiceError(#[from] valence_service_utils::error::ServiceError),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,14 +43,15 @@ pub struct ServiceInfo {
 #[derive(Debug, Clone, strum::Display, Serialize, Deserialize, VariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub enum ServiceConfig {
+    Forwarder(valence_forwarder_service::msg::ServiceConfig),
     // General {
     //     config: GeneralServiceConfig,
     // },
-    /// 1 to many
-    Splitter(SplitterServiceConfig),
+    // 1 to many
+    // Splitter(SplitterServiceConfig),
 
-    /// Many to 1
-    ReverseSplitter(ReverseSplitterServiceConfig),
+    // /// Many to 1
+    // ReverseSplitter(ReverseSplitterServiceConfig),
     // /// Many to Many
     // Mapper {
     //     config: MapperSplitterServiceConfig,
@@ -70,14 +75,9 @@ pub enum ServiceConfig {
 impl ServiceConfig {
     pub fn is_diff(&self, other: &ServiceConfig) -> bool {
         match (self, other) {
-            (ServiceConfig::Splitter(config), ServiceConfig::Splitter(other_config)) => {
+            (ServiceConfig::Forwarder(config), ServiceConfig::Forwarder(other_config)) => {
                 config.is_diff(other_config)
-            }
-            (
-                ServiceConfig::ReverseSplitter(config),
-                ServiceConfig::ReverseSplitter(other_config),
-            ) => config.is_diff(other_config),
-            _ => false,
+            } // _ => false,
         }
     }
 
@@ -89,41 +89,12 @@ impl ServiceConfig {
         let ac = AhoCorasick::new(patterns)?;
 
         match self {
-            ServiceConfig::Splitter(ref mut config) => {
+            ServiceConfig::Forwarder(ref mut config) => {
                 let json = serde_json::to_string(&config)?;
                 let res = ac.replace_all(&json, &replace_with);
 
                 *config = serde_json::from_str(&res)?;
             }
-            ServiceConfig::ReverseSplitter(config) => {
-                let json = serde_json::to_string(&config)?;
-                let res = ac.replace_all(&json, &replace_with);
-
-                *config = serde_json::from_str(&res)?;
-            } // ServiceConfig::GlobalSplitter { config, .. } => {
-              //     let json = serde_json::to_string(&config).unwrap();
-              //     let res = ac.replace_all(&json, &replace_with);
-
-              //     *config = serde_json::from_str(&res).unwrap();
-              // }
-              // ServiceConfig::Lper { config, .. } => {
-              //     let json = serde_json::to_string(&config).unwrap();
-              //     let res = ac.replace_all(&json, &replace_with);
-
-              //     *config = serde_json::from_str(&res).unwrap();
-              // }
-              // ServiceConfig::Lwer { config, .. } => {
-              //     let json = serde_json::to_string(&config).unwrap();
-              //     let res = ac.replace_all(&json, &replace_with);
-
-              //     *config = serde_json::from_str(&res).unwrap();
-              // }
-              // ServiceConfig::Forwarder { config, .. } => {
-              //     let json = serde_json::to_string(&config).unwrap();
-              //     let res = ac.replace_all(&json, &replace_with);
-
-              //     *config = serde_json::from_str(&res).unwrap();
-              // }
         }
 
         Ok(self)
@@ -131,12 +102,7 @@ impl ServiceConfig {
 
     pub fn get_instantiate_msg(&self, owner: String, processor: String) -> ServiceResult<Vec<u8>> {
         match self {
-            ServiceConfig::Splitter(config) => to_vec(&InstantiateMsg {
-                owner,
-                processor,
-                config: config.clone(),
-            }),
-            ServiceConfig::ReverseSplitter(config) => to_vec(&InstantiateMsg {
+            ServiceConfig::Forwarder(config) => to_vec(&InstantiateMsg {
                 owner,
                 processor,
                 config: config.clone(),
@@ -146,13 +112,10 @@ impl ServiceConfig {
     }
 
     // TODO: Finish validate config
-    pub fn soft_validate_config(&self) -> ServiceResult<()> {
+    pub fn soft_validate_config(&self, api: &dyn cosmwasm_std::Api) -> ServiceResult<()> {
         match self {
-            ServiceConfig::Splitter(_config) => {
-                // config.validate();
-                Ok(())
-            }
-            ServiceConfig::ReverseSplitter(_config) => {
+            ServiceConfig::Forwarder(config) => {
+                config.pre_validate(api)?;
                 // config.validate();
                 Ok(())
             }
@@ -163,10 +126,7 @@ impl ServiceConfig {
         let ac: AhoCorasick = AhoCorasick::new(["\"|account_id|\":"]).unwrap();
 
         match self {
-            ServiceConfig::Splitter(config) => {
-                Self::find_account_ids(ac, serde_json::to_string(&config)?)
-            }
-            ServiceConfig::ReverseSplitter(config) => {
+            ServiceConfig::Forwarder(config) => {
                 Self::find_account_ids(ac, serde_json::to_string(&config)?)
             }
         }

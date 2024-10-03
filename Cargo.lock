@@ -5299,6 +5299,7 @@ dependencies = [
  "valence-account-utils",
  "valence-authorization",
  "valence-authorization-utils",
+ "valence-forwarder-service",
  "valence-macros",
  "valence-processor",
  "valence-processor-utils",

@@ -10,7 +10,7 @@ use crate::{
     config::{ChainInfo, ConfigError, CONFIG},
     service::{ServiceConfig, ServiceError},
     workflow_config::WorkflowConfig,
-    MAIN_CHAIN, NEUTRON_DOMAIN,
+    NEUTRON_CHAIN,
 };
 use anyhow::{anyhow, Context};
 use async_trait::async_trait;
@@ -34,6 +34,7 @@ use tokio::time::sleep;
 use super::{Connector, ConnectorResult, POLYTONE_TIMEOUT};
 
 const MNEMONIC: &str = "margin moon alcohol assume tube bullet long cook edit delay boat camp stone coyote gather design aisle comfort width sound innocent long dumb jungle";
+// const MNEMONIC: &str = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry";
 
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryBuildAddressRequest {
@@ -119,7 +120,7 @@ impl CosmosCosmwasmConnector {
         ))?;
 
         Ok(CosmosCosmwasmConnector {
-            is_main_chain: chain_info.name == MAIN_CHAIN,
+            is_main_chain: chain_info.name == NEUTRON_CHAIN.to_string(),
             wallet,
             code_ids: code_ids.clone(),
             chain_name: chain_info.name.clone(),
@@ -130,7 +131,7 @@ impl CosmosCosmwasmConnector {
 #[async_trait]
 impl Connector for CosmosCosmwasmConnector {
     async fn reserve_workflow_id(&mut self) -> ConnectorResult<u64> {
-        if self.chain_name != NEUTRON_DOMAIN.get_chain_name() {
+        if self.chain_name != NEUTRON_CHAIN.to_string() {
             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                 "Should only be implemented on neutron connector"
             ))
@@ -298,7 +299,7 @@ impl Connector for CosmosCosmwasmConnector {
     async fn instantiate_account(
         &mut self,
         workflow_id: u64,
-        auth_addr: String,
+        processor_addr: String,
         data: &InstantiateAccountData,
     ) -> ConnectorResult<()> {
         let code_id = *self
@@ -309,7 +310,7 @@ impl Connector for CosmosCosmwasmConnector {
 
         let msg: Vec<u8> = match &data.info.ty {
             AccountType::Base { admin } => to_vec(&valence_account_utils::msg::InstantiateMsg {
-                admin: admin.clone().unwrap_or_else(|| auth_addr.clone()),
+                admin: admin.clone().unwrap_or_else(|| processor_addr.clone()),
                 approved_services: data.approved_services.clone(),
             })
             .map_err(CosmosCosmwasmError::SerdeJsonError)?,
@@ -318,7 +319,7 @@ impl Connector for CosmosCosmwasmConnector {
 
         let m = MsgInstantiateContract2 {
             sender: self.wallet.account_address.clone(),
-            admin: auth_addr,
+            admin: processor_addr,
             code_id,
             label: format!("workflow-{}|account-{}", workflow_id, data.id),
             msg,
@@ -784,7 +785,7 @@ impl Connector for CosmosCosmwasmConnector {
     }
 
     async fn save_workflow_config(&mut self, config: WorkflowConfig) -> ConnectorResult<()> {
-        if self.chain_name != NEUTRON_DOMAIN.get_chain_name() {
+        if self.chain_name != NEUTRON_CHAIN.to_string() {
             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                 "Should only be implemented on neutron connector"
             ))

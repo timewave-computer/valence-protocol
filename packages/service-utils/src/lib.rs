@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{to_json_binary, Addr, CosmosMsg, Deps, StdError, StdResult, WasmMsg};
+use cosmwasm_std::{to_json_binary, Addr, Api, CosmosMsg, StdError, StdResult, WasmMsg};
 pub mod denoms {
     pub use cw_denom::{CheckedDenom, DenomError, UncheckedDenom};
 }
@@ -45,9 +45,9 @@ impl ServiceAccountType {
         }
     }
 
-    pub fn to_addr(&self, deps: Deps) -> StdResult<Addr> {
+    pub fn to_addr(&self, api: &dyn Api) -> StdResult<Addr> {
         match self {
-            ServiceAccountType::AccountAddr(addr) => deps.api.addr_validate(addr),
+            ServiceAccountType::AccountAddr(addr) => api.addr_validate(addr),
             ServiceAccountType::AccountId(_) => {
                 Err(StdError::generic_err("Account type is not an address"))
             }

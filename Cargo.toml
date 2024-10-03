@@ -56,6 +56,9 @@ valence-splitter          = { path = "contracts/services/splitter-temp", feature
 valence-test-service      = { path = "contracts/services/test-service", features = ["library"] }
 valence-workflow-registry = { path = "contracts/workflow-registry", features = ["library"] }
 
+# Services
+valence-forwarder-service = { path = "contracts/services/forwarder", features = ["library"] }
+
 # our packages
 valence-account-utils              = { path = "packages/account-utils" }
 valence-authorization-utils        = { path = "packages/authorization-utils" }
