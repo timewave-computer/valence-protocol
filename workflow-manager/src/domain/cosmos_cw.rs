@@ -332,9 +332,11 @@ impl Connector for CosmosCosmwasmConnector {
             // .simulate_tx(vec![m])
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
-            .map(|_| ())
-            .context("Failed to broadcast the TX")
-            .map_err(|e| CosmosCosmwasmError::Error(e).into())
+            .map_err(CosmosCosmwasmError::Error)?;
+
+        sleep(std::time::Duration::from_secs(12)).await;
+
+        Ok(())
     }
 
     async fn instantiate_service(
@@ -375,8 +377,11 @@ impl Connector for CosmosCosmwasmConnector {
             // .simulate_tx(vec![m])
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
-            .map(|_| ())
-            .map_err(|e| CosmosCosmwasmError::Error(e).into())
+            .map_err(CosmosCosmwasmError::Error)?;
+
+        sleep(std::time::Duration::from_secs(12)).await;
+
+        Ok(())
     }
 
     async fn instantiate_authorization(
@@ -422,8 +427,11 @@ impl Connector for CosmosCosmwasmConnector {
             // .simulate_tx(vec![m])
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
-            .map(|_| ())
-            .map_err(|e| CosmosCosmwasmError::Error(e).into())
+            .map_err(CosmosCosmwasmError::Error)?;
+
+        sleep(std::time::Duration::from_secs(12)).await;
+
+        Ok(())
     }
 
     async fn change_authorization_owner(
@@ -453,8 +461,11 @@ impl Connector for CosmosCosmwasmConnector {
             // .simulate_tx(vec![m])
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
-            .map(|_| ())
-            .map_err(|e| CosmosCosmwasmError::Error(e).into())
+            .map_err(CosmosCosmwasmError::Error)?;
+
+        sleep(std::time::Duration::from_secs(12)).await;
+
+        Ok(())
     }
 
     async fn instantiate_processor(
@@ -492,8 +503,11 @@ impl Connector for CosmosCosmwasmConnector {
             // .simulate_tx(vec![m])
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
-            .map(|_| ())
-            .map_err(|e| CosmosCosmwasmError::Error(e).into())
+            .map_err(CosmosCosmwasmError::Error)?;
+
+        sleep(std::time::Duration::from_secs(12)).await;
+
+        Ok(())
     }
 
     // TODO: Currently its only working for polytone, we will need to support other bridges at some point
@@ -550,8 +564,11 @@ impl Connector for CosmosCosmwasmConnector {
             // .simulate_tx(vec![m])
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
-            .map(|_| ())
-            .map_err(|e| CosmosCosmwasmError::Error(e).into())
+            .map_err(CosmosCosmwasmError::Error)?;
+
+        sleep(std::time::Duration::from_secs(12)).await;
+
+        Ok(())
     }
 
     async fn instantiate_processor_bridge_account(
@@ -590,8 +607,9 @@ impl Connector for CosmosCosmwasmConnector {
                     // .simulate_tx(vec![m])
                     .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
                     .await
-                    .map(|_| ())
                     .map_err(CosmosCosmwasmError::Error)?;
+
+                sleep(std::time::Duration::from_secs(12)).await;
 
                 return self
                     .instantiate_processor_bridge_account(processor_addr, retry - 1)
@@ -646,8 +664,9 @@ impl Connector for CosmosCosmwasmConnector {
                     // .simulate_tx(vec![m])
                     .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
                     .await
-                    .map(|_| ())
                     .map_err(CosmosCosmwasmError::Error)?;
+
+                sleep(std::time::Duration::from_secs(12)).await;
 
                 return self
                     .instantiate_authorization_bridge_account(authorization_addr, domain, retry - 1)
@@ -793,8 +812,9 @@ impl Connector for CosmosCosmwasmConnector {
         self.wallet
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
-            .map(|_| ())
             .map_err(CosmosCosmwasmError::Error)?;
+
+        sleep(std::time::Duration::from_secs(12)).await;
 
         Ok(())
     }
