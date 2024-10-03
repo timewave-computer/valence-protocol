@@ -33,7 +33,7 @@ overflow-checks  = true
 anyhow          = "1.0.86"
 cosmwasm-std    = { version = "2.1.3", features = ["cosmwasm_1_4"] }
 cosmwasm-schema = "2.1.3"
-cw-denom        = { package = "cw-denom", git = "https://github.com/DA0-DA0/dao-contracts", branch = "cw-std-2"}
+cw-denom        = { package = "cw-denom", git = "https://github.com/DA0-DA0/dao-contracts", branch = "cw-std-2" }
 cw-ownable      = "2.0.0"
 cw-utils        = "2.0.0"
 cw-storage-plus = "2.0.0"
@@ -55,9 +55,11 @@ valence-reverse-splitter-service = { path = "contracts/services/reverse-splitter
 valence-splitter-service         = { path = "contracts/services/splitter", features = ["library"] }
 valence-test-service             = { path = "contracts/services/test-service", features = ["library"] }
 valence-workflow-registry        = { path = "contracts/workflow-registry", features = ["library"] }
+valence-astroport-lper    = { path = "contracts/services/astroport-lper", features = ["library"] }
 
 # our packages
 valence-account-utils              = { path = "packages/account-utils" }
+valence-astroport-utils            = { path = "packages/astroport-utils" }
 valence-authorization-utils        = { path = "packages/authorization-utils" }
 valence-local-interchaintest-utils = { path = "packages/local-interchaintest-utils" }
 valence-macros                     = { path = "packages/valence-macros" }

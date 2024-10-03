@@ -4673,6 +4673,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-astroport-lper"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 2.1.4",
+ "cw-ownable",
+ "cw20 2.0.0",
+ "neutron-test-tube",
+ "valence-account-utils",
+ "valence-astroport-utils",
+ "valence-macros",
+ "valence-service-base",
+ "valence-service-utils",
+]
+
+[[package]]
+name = "valence-astroport-utils"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 2.1.4",
+ "neutron-test-tube",
+]
+
+[[package]]
 name = "valence-authorization"
 version = "0.1.0"
 dependencies = [
