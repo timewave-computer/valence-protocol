@@ -76,6 +76,30 @@ pub trait ServiceTestSuite {
         self.contract_init2(self.account_code_id(), salt, &init_msg, &[])
     }
 
+    fn account_init_with_balances(&mut self, salt: &str, balances: Vec<(u128, String)>) -> Addr {
+        let addr = self.account_init(salt, vec![]);
+
+        if !balances.is_empty() {
+            let balances = balances
+                .into_iter()
+                .map(|(amount, denom)| coin(amount, denom))
+                .collect();
+            self.init_balance(&addr, balances);
+        }
+
+        addr
+    }
+
+    fn account_approve_service(&mut self, addr: Addr, service: String) -> AnyResult<AppResponse> {
+        let sender = self.owner().clone();
+        self.app_mut().execute_contract(
+            sender,
+            addr,
+            &valence_account_utils::msg::ExecuteMsg::ApproveService { service },
+            &[],
+        )
+    }
+
     fn get_contract_addr(&mut self, code_id: u64, salt: &str) -> Addr {
         let mut hasher = Sha256::new();
         hasher.update(salt);
