@@ -11,6 +11,8 @@ use valence_service_utils::{
     testing::{ServiceTestSuite, ServiceTestSuiteBase},
 };
 
+const NTRN: &str = "untrn";
+
 #[derive(Getters, Setters)]
 struct ForwarderTestSuite {
     #[getset(get)]
@@ -37,7 +39,6 @@ impl ForwarderTestSuite {
         let mut inner = ServiceTestSuiteBase::new();
 
         let input_addr = inner.get_contract_addr(inner.account_code_id(), "input_account");
-        println!("input_addr: {:?}", input_addr);
         let output_addr = inner.api().addr_make("output_account");
 
         // Forwarder contract
@@ -146,10 +147,7 @@ fn instantiate_with_valid_config() {
 
     // Set max amount to be forwarded to 1_000_000 NTRN (and no constraints)
     let cfg = suite.forwarder_config(
-        vec![(
-            UncheckedDenom::Native("untrn".to_string()),
-            1_000_000_000_000_u128,
-        )],
+        vec![(UncheckedDenom::Native(NTRN.into()), 1_000_000_000_000_u128)],
         Default::default(),
     );
 
@@ -171,11 +169,7 @@ fn instantiate_with_valid_config() {
         Config::new(
             suite.input_addr().clone(),
             suite.output_addr().clone(),
-            vec![(
-                CheckedDenom::Native("untrn".to_string()),
-                1_000_000_000_000_u128
-            )
-                .into()],
+            vec![(CheckedDenom::Native(NTRN.into()), 1_000_000_000_000_u128).into()],
             cfg.forwarding_constraints
         )
     );
@@ -191,11 +185,8 @@ fn instantiate_fails_for_duplicate_denoms() {
     // Set max amount to be forwarded to 1_000_000 NTRN (and no constraints)
     let cfg = suite.forwarder_config(
         vec![
-            (
-                UncheckedDenom::Native("untrn".to_string()),
-                1_000_000_000_000_u128,
-            ),
-            (UncheckedDenom::Native("untrn".to_string()), 1_000_000_u128),
+            (UncheckedDenom::Native(NTRN.into()), 1_000_000_000_000_u128),
+            (UncheckedDenom::Native(NTRN.into()), 1_000_000_u128),
         ],
         Default::default(),
     );
@@ -245,15 +236,11 @@ fn pre_validate_config_works() {
 #[test]
 fn forward_native_token_full_amount() {
     // Initialize input account with 1_000_000 NTRN
-    let mut suite =
-        ForwarderTestSuite::new(Some(vec![(1_000_000_000_000_u128, "untrn".to_string())]));
+    let mut suite = ForwarderTestSuite::new(Some(vec![(1_000_000_000_000_u128, NTRN.into())]));
 
     // Set max amount to be forwarded to 1_000_000 NTRN (and no constraints)
     let cfg = suite.forwarder_config(
-        vec![(
-            UncheckedDenom::Native("untrn".to_string()),
-            1_000_000_000_000_u128,
-        )],
+        vec![(UncheckedDenom::Native(NTRN.into()), 1_000_000_000_000_u128)],
         Default::default(),
     );
 
@@ -264,26 +251,22 @@ fn forward_native_token_full_amount() {
     suite.execute_forward(svc).unwrap();
 
     // Verify input account's balance: should be zero
-    let input_balance = suite.query_balance(&suite.input_addr, "untrn");
-    assert_eq!(input_balance, coin(0, "untrn"));
+    let input_balance = suite.query_balance(&suite.input_addr, NTRN);
+    assert_eq!(input_balance, coin(0, NTRN));
 
     // Verify output account's balance: should be 1_000_000 NTRN
-    let output_balance = suite.query_balance(&suite.output_addr, "untrn");
-    assert_eq!(output_balance, coin(1_000_000_000_000, "untrn"));
+    let output_balance = suite.query_balance(&suite.output_addr, NTRN);
+    assert_eq!(output_balance, coin(1_000_000_000_000, NTRN));
 }
 
 #[test]
 fn forward_native_token_partial_amount() {
     // Initialize input account with 1_000_000 NTRN
-    let mut suite =
-        ForwarderTestSuite::new(Some(vec![(1_000_000_000_000_u128, "untrn".to_string())]));
+    let mut suite = ForwarderTestSuite::new(Some(vec![(1_000_000_000_000_u128, NTRN.into())]));
 
     // Set max amount to be forwarded to 1_000 NTRN (and no constraints)
     let cfg = suite.forwarder_config(
-        vec![(
-            UncheckedDenom::Native("untrn".to_string()),
-            1_000_000_000_u128,
-        )],
+        vec![(UncheckedDenom::Native(NTRN.into()), 1_000_000_000_u128)],
         Default::default(),
     );
 
@@ -294,12 +277,12 @@ fn forward_native_token_partial_amount() {
     suite.execute_forward(svc).unwrap();
 
     // Verify input account's balance: should be 999_000 NTR
-    let input_balance = suite.query_balance(&suite.input_addr, "untrn");
-    assert_eq!(input_balance, coin(999_000_000_000_u128, "untrn"));
+    let input_balance = suite.query_balance(&suite.input_addr, NTRN);
+    assert_eq!(input_balance, coin(999_000_000_000_u128, NTRN));
 
     // Verify output account's balance: should be 1_000 NTRN
-    let output_balance = suite.query_balance(&suite.output_addr, "untrn");
-    assert_eq!(output_balance, coin(1_000_000_000, "untrn"));
+    let output_balance = suite.query_balance(&suite.output_addr, NTRN);
+    assert_eq!(output_balance, coin(1_000_000_000, NTRN));
 }
 
 #[test]
@@ -309,10 +292,7 @@ fn forward_native_token_zero_balance() {
 
     // Set max amount to be forwarded to 1_000 NTRN (and no constraints)
     let cfg = suite.forwarder_config(
-        vec![(
-            UncheckedDenom::Native("untrn".to_string()),
-            1_000_000_000_u128,
-        )],
+        vec![(UncheckedDenom::Native(NTRN.into()), 1_000_000_000_u128)],
         Default::default(),
     );
 
@@ -323,12 +303,12 @@ fn forward_native_token_zero_balance() {
     suite.execute_forward(svc).unwrap();
 
     // Verify input account's balance: should be zero
-    let input_balance = suite.query_balance(&suite.input_addr, "untrn");
-    assert_eq!(input_balance, coin(0_u128, "untrn"));
+    let input_balance = suite.query_balance(&suite.input_addr, NTRN);
+    assert_eq!(input_balance, coin(0_u128, NTRN));
 
     // Verify output account's balance: should be zero
-    let output_balance = suite.query_balance(&suite.output_addr, "untrn");
-    assert_eq!(output_balance, coin(0_u128, "untrn"));
+    let output_balance = suite.query_balance(&suite.output_addr, NTRN);
+    assert_eq!(output_balance, coin(0_u128, NTRN));
 }
 
 #[test]
@@ -412,16 +392,12 @@ fn forward_cw20_partial_amount() {
 #[test]
 fn forward_with_height_interval_constraint() {
     // Initialize input account with 1_000_000 NTRN
-    let mut suite =
-        ForwarderTestSuite::new(Some(vec![(1_000_000_000_000_u128, "untrn".to_string())]));
+    let mut suite = ForwarderTestSuite::new(Some(vec![(1_000_000_000_000_u128, NTRN.into())]));
 
     // Set max amount to be forwarded to 1_000 NTRN,
     // and constrain forward operation to once every 3 blocks.
     let cfg = suite.forwarder_config(
-        vec![(
-            UncheckedDenom::Native("untrn".to_string()),
-            1_000_000_000_u128,
-        )],
+        vec![(UncheckedDenom::Native(NTRN.into()), 1_000_000_000_u128)],
         ForwardingConstraints::new(Duration::Height(3).into()),
     );
 
@@ -455,27 +431,23 @@ fn forward_with_height_interval_constraint() {
     suite.execute_forward(svc.clone()).unwrap();
 
     // Verify input account's balance: should be 998_000 NTR because of 2 successful forwards
-    let input_balance = suite.query_balance(&suite.input_addr, "untrn");
-    assert_eq!(input_balance, coin(998_000_000_000_u128, "untrn"));
+    let input_balance = suite.query_balance(&suite.input_addr, NTRN);
+    assert_eq!(input_balance, coin(998_000_000_000_u128, NTRN));
 
     // Verify output account's balance: should be 2_000 NTRN because of 2 successful forwards
-    let output_balance = suite.query_balance(&suite.output_addr, "untrn");
-    assert_eq!(output_balance, coin(2_000_000_000, "untrn"));
+    let output_balance = suite.query_balance(&suite.output_addr, NTRN);
+    assert_eq!(output_balance, coin(2_000_000_000, NTRN));
 }
 
 #[test]
 fn forward_with_time_interval_constraint() {
     // Initialize input account with 1_000_000 NTRN
-    let mut suite =
-        ForwarderTestSuite::new(Some(vec![(1_000_000_000_000_u128, "untrn".to_string())]));
+    let mut suite = ForwarderTestSuite::new(Some(vec![(1_000_000_000_000_u128, NTRN.into())]));
 
     // Set max amount to be forwarded to 1_000 NTRN,
     // and constrain forward operation to once every 20 seconds.
     let cfg = suite.forwarder_config(
-        vec![(
-            UncheckedDenom::Native("untrn".to_string()),
-            1_000_000_000_u128,
-        )],
+        vec![(UncheckedDenom::Native(NTRN.into()), 1_000_000_000_u128)],
         ForwardingConstraints::new(Duration::Time(20).into()),
     );
 
@@ -515,18 +487,18 @@ fn forward_with_time_interval_constraint() {
     suite.execute_forward(svc.clone()).unwrap();
 
     // Verify input account's balance: should be 998_000 NTR because of 2 successful forwards
-    let input_balance = suite.query_balance(&suite.input_addr, "untrn");
-    assert_eq!(input_balance, coin(998_000_000_000_u128, "untrn"));
+    let input_balance = suite.query_balance(&suite.input_addr, NTRN);
+    assert_eq!(input_balance, coin(998_000_000_000_u128, NTRN));
 
     // Verify output account's balance: should be 2_000 NTRN because of 2 successful forwards
-    let output_balance = suite.query_balance(&suite.output_addr, "untrn");
-    assert_eq!(output_balance, coin(2_000_000_000, "untrn"));
+    let output_balance = suite.query_balance(&suite.output_addr, NTRN);
+    assert_eq!(output_balance, coin(2_000_000_000, NTRN));
 }
 
 #[test]
 fn forward_multiple_tokens_continuously() {
     // Initialize input account with 2000 NTRN
-    let mut suite = ForwarderTestSuite::new(Some(vec![(2_000_000_000_u128, "untrn".to_string())]));
+    let mut suite = ForwarderTestSuite::new(Some(vec![(2_000_000_000_u128, NTRN.into())]));
 
     let owner_addr = suite.owner().clone();
     let input_addr = suite.input_addr.clone();
@@ -553,10 +525,7 @@ fn forward_multiple_tokens_continuously() {
     // and constrain forward operation to once every 2 blocks.
     let cfg = suite.forwarder_config(
         vec![
-            (
-                UncheckedDenom::Native("untrn".to_string()),
-                1_000_000_000_u128,
-            ),
+            (UncheckedDenom::Native(NTRN.into()), 1_000_000_000_u128),
             (UncheckedDenom::Cw20(cw20_addr.to_string()), 10_000_000_u128),
         ],
         ForwardingConstraints::new(Duration::Height(2).into()),
@@ -566,10 +535,7 @@ fn forward_multiple_tokens_continuously() {
     let svc = suite.forwarder_init(&cfg);
 
     // Initialize owner account with 1_000_000 NTRN
-    suite.init_balance(
-        &owner_addr,
-        vec![coin(1_000_000_000_000_u128, "untrn".to_string())],
-    );
+    suite.init_balance(&owner_addr, vec![coin(1_000_000_000_000_u128, NTRN)]);
 
     // BLOCK N
     // Forward successful: 1_000 NTRN & 10 MEME
@@ -593,11 +559,7 @@ fn forward_multiple_tokens_continuously() {
     assert!(res.is_err());
 
     // Transfer 6_000 NTRN to input account (should be zero at this point)
-    let _ = suite.send_tokens(
-        &owner_addr,
-        &input_addr,
-        &[coin(6_000_000_000_u128, "untrn")],
-    );
+    let _ = suite.send_tokens(&owner_addr, &input_addr, &[coin(6_000_000_000_u128, NTRN)]);
 
     // BLOCK N+4
     suite.next_block();
@@ -641,16 +603,16 @@ fn forward_multiple_tokens_continuously() {
     suite.execute_forward(svc.clone()).unwrap();
 
     // Verify input account's NTRN balance: should be 2_000 NTRN
-    let input_balance = suite.query_balance(&suite.input_addr, "untrn");
-    assert_eq!(input_balance, coin(2_000_000_000_u128, "untrn"));
+    let input_balance = suite.query_balance(&suite.input_addr, NTRN);
+    assert_eq!(input_balance, coin(2_000_000_000_u128, NTRN));
 
     // Verify input account's MEME balance: should be 10 MEME
     let input_balance = suite.cw20_query_balance(&suite.input_addr, &cw20_addr);
     assert_eq!(input_balance, Uint128::from(10_000_000_u128));
 
     // Verify output account's balance: should be 6_000 NTRN
-    let output_balance = suite.query_balance(&suite.output_addr, "untrn");
-    assert_eq!(output_balance, coin(6_000_000_000, "untrn"));
+    let output_balance = suite.query_balance(&suite.output_addr, NTRN);
+    assert_eq!(output_balance, coin(6_000_000_000, NTRN));
 
     // Verify output account's balance: should be 60 MEME
     let output_balance = suite.cw20_query_balance(&suite.output_addr, &cw20_addr);
@@ -660,15 +622,11 @@ fn forward_multiple_tokens_continuously() {
 #[test]
 fn update_config() {
     // Initialize input account with 1_000_000 NTRN
-    let mut suite =
-        ForwarderTestSuite::new(Some(vec![(1_000_000_000_000_u128, "untrn".to_string())]));
+    let mut suite = ForwarderTestSuite::new(Some(vec![(1_000_000_000_000_u128, NTRN.into())]));
 
     // Set max amount to be forwarded to 1_000 NTRN (and no constraints)
     let cfg = suite.forwarder_config(
-        vec![(
-            UncheckedDenom::Native("untrn".to_string()),
-            1_000_000_000_u128,
-        )],
+        vec![(UncheckedDenom::Native(NTRN.into()), 1_000_000_000_u128)],
         Default::default(),
     );
 
@@ -678,10 +636,7 @@ fn update_config() {
     // Update config to forward 2_000 NTRN, add constraint,
     // and swap input and output addresses.
     let mut new_config = suite.forwarder_config(
-        vec![(
-            UncheckedDenom::Native("untrn".to_string()),
-            2_000_000_000_u128,
-        )],
+        vec![(UncheckedDenom::Native(NTRN.into()), 2_000_000_000_u128)],
         ForwardingConstraints::new(Duration::Height(3).into()),
     );
     new_config.input_addr = suite.output_addr.clone().into();
@@ -697,11 +652,7 @@ fn update_config() {
         Config::new(
             suite.output_addr,
             suite.input_addr,
-            vec![(
-                CheckedDenom::Native("untrn".to_string()),
-                2_000_000_000_u128
-            )
-                .into()],
+            vec![(CheckedDenom::Native(NTRN.into()), 2_000_000_000_u128).into()],
             ForwardingConstraints::new(Duration::Height(3).into())
         )
     );

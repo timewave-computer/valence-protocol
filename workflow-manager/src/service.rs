@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::to_vec;
 use strum::VariantNames;
 use thiserror::Error;
+
 use valence_service_utils::{
     msg::{InstantiateMsg, ServiceConfigValidation},
     Id, ServiceConfigInterface,
