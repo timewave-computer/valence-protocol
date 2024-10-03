@@ -1,5 +1,7 @@
-use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Api, Deps};
+use std::collections::HashMap;
+
+use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_std::{Api, Decimal, Deps};
 use cw_ownable::cw_ownable_execute;
 
 use crate::error::ServiceError;
@@ -23,4 +25,17 @@ pub enum ExecuteMsg<T, U> {
     ProcessAction(T),
     UpdateConfig { new_config: U },
     UpdateProcessor { processor: String },
+}
+
+#[cw_serde]
+#[derive(QueryResponses)]
+pub enum DynamicRatioQueryMsg {
+    #[returns(DynamicRatioResponse)]
+    DynamicRatio { denoms: Vec<String>, params: String },
+}
+
+#[cw_serde]
+#[allow(dead_code)]
+pub struct DynamicRatioResponse {
+    pub denom_ratios: HashMap<String, Decimal>,
 }
