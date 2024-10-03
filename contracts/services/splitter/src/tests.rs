@@ -274,16 +274,8 @@ fn instantiate_fails_for_invalid_ratio_sum() {
 
     // Configure splitter with invalid ratio sum
     let cfg = suite.splitter_config(vec![
-        UncheckedSplitConfig::with_native_ratio(
-            Decimal::one(),
-            NTRN,
-            &output1_addr,
-        ),
-        UncheckedSplitConfig::with_native_ratio(
-            Decimal::one(),
-            NTRN,
-            &output2_addr,
-        ),
+        UncheckedSplitConfig::with_native_ratio(Decimal::one(), NTRN, &output1_addr),
+        UncheckedSplitConfig::with_native_ratio(Decimal::one(), NTRN, &output2_addr),
     ]);
 
     // Instantiate Splitter contract
@@ -303,21 +295,9 @@ fn instantiate_fails_for_mix_of_amount_and_ratio() {
 
     // Configure splitter with invalid ratio sum
     let cfg = suite.splitter_config(vec![
-        UncheckedSplitConfig::with_native_amount(
-            ONE_MILLION,
-            NTRN,
-            &output1_addr,
-        ),
-        UncheckedSplitConfig::with_native_ratio(
-            Decimal::percent(50u64),
-            NTRN,
-            &output2_addr,
-        ),
-        UncheckedSplitConfig::with_native_ratio(
-            Decimal::percent(50u64),
-            NTRN,
-            &output3_addr,
-        ),
+        UncheckedSplitConfig::with_native_amount(ONE_MILLION, NTRN, &output1_addr),
+        UncheckedSplitConfig::with_native_ratio(Decimal::percent(50u64), NTRN, &output2_addr),
+        UncheckedSplitConfig::with_native_ratio(Decimal::percent(50u64), NTRN, &output3_addr),
     ]);
 
     // Instantiate Splitter contract
@@ -971,7 +951,7 @@ fn split_cw20_single_token_dyn_ratio_single_output() {
 
     let cw20_addr =
         suite.cw20_token_init(MEME, "MEME", ONE_MILLION, suite.input_addr().to_string());
-    
+
     let output_addr = suite.api().addr_make("output_account");
     let dyn_ratio_addr = suite.dyn_ratio_contract_init(cw20_addr.as_ref(), Decimal::one());
 

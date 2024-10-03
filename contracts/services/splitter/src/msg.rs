@@ -154,7 +154,7 @@ impl UncheckedSplitConfig {
     pub fn with_cw20_dyn_ratio(
         contract_addr: &Addr,
         params: &str,
-        addr: &Addr, 
+        addr: &Addr,
         output: &Addr,
     ) -> Self {
         UncheckedSplitConfig {
