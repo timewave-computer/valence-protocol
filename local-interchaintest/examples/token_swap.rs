@@ -24,7 +24,7 @@ use valence_authorization_utils::{
     builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
     msg::ProcessorMessage,
 };
-use valence_service_utils::denoms::UncheckedDenom;
+use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
 use valence_splitter_service::msg::{
     ActionMsgs, OptionalServiceConfig, ServiceConfig, UncheckedSplitConfig,
 };
@@ -201,7 +201,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             input_addr: base_account_1.clone(),
             splits: vec![UncheckedSplitConfig {
                 denom: UncheckedDenom::Native(token1.clone()),
-                account: base_account_2.clone(),
+                account: ServiceAccountType::AccountAddr(base_account_2.clone()),
                 amount: Some(swap_amount.into()),
                 ratio: None,
             }],
@@ -229,7 +229,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             input_addr: base_account_2.clone(),
             splits: vec![UncheckedSplitConfig {
                 denom: UncheckedDenom::Native(token2.clone()),
-                account: base_account_1.clone(),
+                account: ServiceAccountType::AccountAddr(base_account_1.clone()),
                 amount: Some(swap_amount.into()),
                 ratio: None,
             }],
