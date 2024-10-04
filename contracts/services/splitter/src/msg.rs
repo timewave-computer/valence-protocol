@@ -6,10 +6,10 @@ use cw_ownable::cw_ownable_query;
 use getset::{Getters, Setters};
 use valence_macros::OptionalStruct;
 use valence_service_utils::denoms::CheckedDenom;
-use valence_service_utils::ServiceConfigInterface;
 use valence_service_utils::{
     denoms::UncheckedDenom, error::ServiceError, msg::ServiceConfigValidation,
 };
+use valence_service_utils::{ServiceAccountType, ServiceConfigInterface};
 
 #[cw_serde]
 pub enum ActionMsgs {
@@ -78,7 +78,7 @@ pub enum UncheckedRatioConfig {
 #[cw_serde]
 pub struct UncheckedSplitConfig {
     pub denom: UncheckedDenom,
-    pub account: String,
+    pub account: ServiceAccountType,
     pub amount: Option<Uint128>,
     pub ratio: Option<UncheckedRatioConfig>,
 }
@@ -86,52 +86,52 @@ pub struct UncheckedSplitConfig {
 impl UncheckedSplitConfig {
     pub fn new(
         denom: UncheckedDenom,
-        account: String,
+        account: impl Into<ServiceAccountType>,
         amount: Option<Uint128>,
         ratio: Option<UncheckedRatioConfig>,
     ) -> Self {
         UncheckedSplitConfig {
             denom,
-            account,
+            account: account.into(),
             amount,
             ratio,
         }
     }
 
     pub fn with_native_amount(amount: u128, denom: &str, output: &Addr) -> Self {
-        UncheckedSplitConfig {
-            denom: UncheckedDenom::Native(denom.to_string()),
-            account: output.to_string(),
-            amount: Some(amount.into()),
-            ratio: None,
-        }
+        UncheckedSplitConfig::new(
+            UncheckedDenom::Native(denom.to_string()),
+            output,
+            Some(amount.into()),
+            None,
+        )
     }
 
     pub fn with_cw20_amount(amount: u128, addr: &Addr, output: &Addr) -> Self {
-        UncheckedSplitConfig {
-            denom: UncheckedDenom::Cw20(addr.to_string()),
-            account: output.to_string(),
-            amount: Some(amount.into()),
-            ratio: None,
-        }
+        UncheckedSplitConfig::new(
+            UncheckedDenom::Cw20(addr.to_string()),
+            output,
+            Some(amount.into()),
+            None,
+        )
     }
 
     pub fn with_native_ratio(ratio: Decimal, denom: &str, output: &Addr) -> Self {
-        UncheckedSplitConfig {
-            denom: UncheckedDenom::Native(denom.to_string()),
-            account: output.to_string(),
-            amount: None,
-            ratio: Some(UncheckedRatioConfig::FixedRatio(ratio)),
-        }
+        UncheckedSplitConfig::new(
+            UncheckedDenom::Native(denom.to_string()),
+            output,
+            None,
+            Some(UncheckedRatioConfig::FixedRatio(ratio)),
+        )
     }
 
     pub fn with_cw20_ratio(ratio: Decimal, addr: &Addr, output: &Addr) -> Self {
-        UncheckedSplitConfig {
-            denom: UncheckedDenom::Cw20(addr.to_string()),
-            account: output.to_string(),
-            amount: None,
-            ratio: Some(UncheckedRatioConfig::FixedRatio(ratio)),
-        }
+        UncheckedSplitConfig::new(
+            UncheckedDenom::Cw20(addr.to_string()),
+            output,
+            None,
+            Some(UncheckedRatioConfig::FixedRatio(ratio)),
+        )
     }
 
     pub fn with_native_dyn_ratio(
@@ -140,15 +140,15 @@ impl UncheckedSplitConfig {
         denom: &str,
         output: &Addr,
     ) -> Self {
-        UncheckedSplitConfig {
-            denom: UncheckedDenom::Native(denom.to_string()),
-            account: output.to_string(),
-            amount: None,
-            ratio: Some(UncheckedRatioConfig::DynamicRatio {
+        UncheckedSplitConfig::new(
+            UncheckedDenom::Native(denom.to_string()),
+            output,
+            None,
+            Some(UncheckedRatioConfig::DynamicRatio {
                 contract_addr: contract_addr.to_string(),
                 params: params.to_string(),
             }),
-        }
+        )
     }
 
     pub fn with_cw20_dyn_ratio(
@@ -157,15 +157,15 @@ impl UncheckedSplitConfig {
         addr: &Addr,
         output: &Addr,
     ) -> Self {
-        UncheckedSplitConfig {
-            denom: UncheckedDenom::Cw20(addr.to_string()),
-            account: output.to_string(),
-            amount: None,
-            ratio: Some(UncheckedRatioConfig::DynamicRatio {
+        UncheckedSplitConfig::new(
+            UncheckedDenom::Cw20(addr.to_string()),
+            output,
+            None,
+            Some(UncheckedRatioConfig::DynamicRatio {
                 contract_addr: contract_addr.to_string(),
                 params: params.to_string(),
             }),
-        }
+        )
     }
 }
 
@@ -219,19 +219,14 @@ fn convert_to_checked_configs(
                 .clone()
                 .into_checked(deps)
                 .map_err(|err| ServiceError::ConfigurationError(err.to_string()))?;
-            let account = deps.api.addr_validate(&c.account)?;
+            let account = c.account.to_addr(deps.api)?;
             let ratio = c
                 .ratio
                 .as_ref()
                 .map(|r| convert_to_checked_ratio_config(deps.api, r))
                 .transpose()?;
 
-            Ok(SplitConfig {
-                denom,
-                account,
-                amount: c.amount,
-                ratio,
-            })
+            Ok(SplitConfig::new(denom, account, c.amount, ratio))
         })
         .collect()
 }
@@ -290,14 +285,14 @@ fn validate_splits(
     let mut denom_amount = HashSet::new();
     let mut denom_ratios: HashMap<String, Decimal> = HashMap::new();
     for split in splits {
-        api.addr_validate(&split.account)?;
+        split.account.to_addr(api)?;
         // Note: can't validate denom without the deps
 
         // Ensure splits are unique in split configs
-        let key = format!("{:?}|{}", split.denom, split.account);
+        let key = format!("{:?}|{:?}", split.denom, split.account);
         if !denom_set.insert(key) {
             return Err(ServiceError::ConfigurationError(format!(
-                "Duplicate split '{:?}|{}' in split config.",
+                "Duplicate split '{:?}|{:?}' in split config.",
                 split.denom, split.account
             )));
         }

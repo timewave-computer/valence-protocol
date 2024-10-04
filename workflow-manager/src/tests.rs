@@ -80,13 +80,13 @@ mod test {
             splits: vec![
                 valence_splitter_service::msg::UncheckedSplitConfig::new(
                     valence_service_utils::denoms::UncheckedDenom::Native("NTRN".to_string()),
-                    "|account_id|:2".to_string(),
+                    "|account_id|:2",
                     Some(Uint128::from(1_000_000u128)),
                     None,
                 ),
                 valence_splitter_service::msg::UncheckedSplitConfig::new(
                     valence_service_utils::denoms::UncheckedDenom::Native("NTRN".to_string()),
-                    "|account_id|:3".to_string(),
+                    "|account_id|:3",
                     Some(Uint128::from(1_000_000u128)),
                     None,
                 ),
@@ -179,7 +179,7 @@ mod test {
                             valence_service_utils::denoms::UncheckedDenom::Native(
                                 "NTRN".to_string(),
                             ),
-                            "|account_id|:2".to_string(),
+                            "|account_id|:2",
                             Some(Uint128::from(1_000_000u128)),
                             None,
                         ),
@@ -187,7 +187,7 @@ mod test {
                             valence_service_utils::denoms::UncheckedDenom::Native(
                                 "NTRN".to_string(),
                             ),
-                            "|account_id|:3".to_string(),
+                            "|account_id|:3",
                             Some(Uint128::from(1_000_000u128)),
                             None,
                         ),

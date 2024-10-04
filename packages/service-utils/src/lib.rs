@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{to_json_binary, Addr, CosmosMsg, Deps, StdError, StdResult, WasmMsg};
+use cosmwasm_std::{to_json_binary, Addr, CosmosMsg, StdError, StdResult, WasmMsg};
 pub mod denoms {
     pub use cw_denom::{CheckedDenom, DenomError, UncheckedDenom};
 }
@@ -29,9 +29,19 @@ pub enum ServiceAccountType {
     AccountId(Id),
 }
 
-impl From<Addr> for ServiceAccountType {
-    fn from(addr: Addr) -> Self {
+impl From<&Addr> for ServiceAccountType {
+    fn from(addr: &Addr) -> Self {
         ServiceAccountType::AccountAddr(addr.to_string())
+    }
+}
+
+impl From<&str> for ServiceAccountType {
+    fn from(addr: &str) -> Self {
+        if addr.starts_with("|account_id|:") {
+            ServiceAccountType::AccountId(addr.trim_start_matches("|account_id|:").parse().unwrap())
+        } else {
+            ServiceAccountType::AccountAddr(addr.to_owned())
+        }
     }
 }
 
@@ -45,9 +55,9 @@ impl ServiceAccountType {
         }
     }
 
-    pub fn to_addr(&self, deps: Deps) -> StdResult<Addr> {
+    pub fn to_addr(&self, api: &dyn cosmwasm_std::Api) -> StdResult<Addr> {
         match self {
-            ServiceAccountType::AccountAddr(addr) => deps.api.addr_validate(addr),
+            ServiceAccountType::AccountAddr(addr) => api.addr_validate(addr),
             ServiceAccountType::AccountId(_) => {
                 Err(StdError::generic_err("Account type is not an address"))
             }

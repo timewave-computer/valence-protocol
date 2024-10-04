@@ -235,7 +235,7 @@ fn instantiate_fails_for_invalid_split_config() {
     // Configure splitter with invalid split config
     let split_cfg = UncheckedSplitConfig::new(
         UncheckedDenom::Native(NTRN.into()),
-        output_addr.to_string(),
+        &output_addr,
         None,
         None,
     );
@@ -247,7 +247,7 @@ fn instantiate_fails_for_invalid_split_config() {
 
 #[test]
 #[should_panic(
-    expected = "Configuration error: Duplicate split 'Native(\"untrn\")|cosmwasm1ea6n0jqm0hj663khx7a5xklsmjgrazjp9vjeewejn84sanr0wgxq2p70xl' in split config."
+    expected = "Configuration error: Duplicate split 'Native(\"untrn\")|AccountAddr(\"cosmwasm1ea6n0jqm0hj663khx7a5xklsmjgrazjp9vjeewejn84sanr0wgxq2p70xl\")' in split config."
 )]
 fn instantiate_fails_for_duplicate_split() {
     let mut suite = SplitterTestSuite::default();
