@@ -3,7 +3,7 @@ use cosmwasm_std::{ensure, Addr, Decimal, Deps, DepsMut, Uint128};
 use cw_ownable::cw_ownable_query;
 use valence_macros::OptionalStruct;
 use valence_service_utils::{
-    error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType, ServiceConfigInterface
+    error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType, ServiceConfigInterface,
 };
 
 #[cw_serde]
