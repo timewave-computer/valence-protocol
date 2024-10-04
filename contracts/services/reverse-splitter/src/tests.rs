@@ -1,7 +1,7 @@
 use crate::msg::{
     ActionMsgs, Config, QueryMsg, RatioConfig, ServiceConfig, SplitConfig, UncheckedSplitConfig,
 };
-use cosmwasm_std::{Addr, Api, Decimal};
+use cosmwasm_std::{Addr, Decimal};
 use cw20::Cw20Coin;
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
@@ -84,7 +84,7 @@ impl ReverseSplitterTestSuite {
 
         cfg.splits.iter().for_each(|split| {
             self.account_approve_service(
-                self.api().addr_validate(&split.account).unwrap(),
+                split.account.to_addr(self.api()).unwrap(),
                 addr.to_string(),
             )
             .unwrap();
@@ -105,7 +105,7 @@ impl ReverseSplitterTestSuite {
         splits: Vec<UncheckedSplitConfig>,
         base_denom: UncheckedDenom,
     ) -> ServiceConfig {
-        ServiceConfig::new(self.output_addr.to_string(), splits, base_denom)
+        ServiceConfig::new(self.output_addr(), splits, base_denom)
     }
 
     fn cw20_token_init(
@@ -240,7 +240,7 @@ fn instantiate_fails_for_invalid_split_config() {
     // Configure reverse splitter with invalid split config
     let split_cfg = UncheckedSplitConfig::new(
         UncheckedDenom::Native(NTRN.into()),
-        input_addr.to_string(),
+        &input_addr,
         None,
         None,
         None,
@@ -253,7 +253,7 @@ fn instantiate_fails_for_invalid_split_config() {
 
 #[test]
 #[should_panic(
-    expected = "Configuration error: Duplicate split 'cosmwasm1xj6u4ccauyhvylgtj82x2qqc34lk3xuzw4mujevzqyr4gj7gqsjsv4856c/Native(\"untrn\")' in split config."
+    expected = "Configuration error: Duplicate split 'AccountAddr(\"cosmwasm1xj6u4ccauyhvylgtj82x2qqc34lk3xuzw4mujevzqyr4gj7gqsjsv4856c\")/Native(\"untrn\")' in split config."
 )]
 fn instantiate_fails_for_duplicate_split() {
     let mut suite = ReverseSplitterTestSuite::default();
@@ -326,7 +326,7 @@ fn update_config_with_valid_config() {
         STARS,
         &suite.output_addr,
     ));
-    cfg.output_addr = input_addr.to_string();
+    cfg.output_addr = (&input_addr).into();
 
     // Execute update config action
     suite.update_config(svc.clone(), cfg).unwrap();
