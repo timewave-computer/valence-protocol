@@ -2,7 +2,9 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut};
 use cw_ownable::cw_ownable_query;
 use valence_macros::OptionalStruct;
-use valence_service_utils::{error::ServiceError, msg::ServiceConfigValidation};
+use valence_service_utils::{
+    error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType,
+};
 
 #[cw_serde]
 pub enum ActionsMsgs {
@@ -22,30 +24,30 @@ pub enum QueryMsg {
 #[cw_serde]
 #[derive(OptionalStruct)]
 pub struct ServiceConfig {
-    pub input_addr: String,
-    pub output_addr: String,
+    pub input_addr: ServiceAccountType,
+    pub output_addr: ServiceAccountType,
     pub pool_addr: String,
     pub withdrawer_config: LiquidityWithdrawerConfig,
 }
 
 impl ServiceConfig {
     pub fn new(
-        input_addr: String,
-        output_addr: String,
+        input_addr: impl Into<ServiceAccountType>,
+        output_addr: impl Into<ServiceAccountType>,
         pool_addr: String,
         withdrawer_config: LiquidityWithdrawerConfig,
     ) -> Self {
         ServiceConfig {
-            input_addr,
-            output_addr,
+            input_addr: input_addr.into(),
+            output_addr: output_addr.into(),
             pool_addr,
             withdrawer_config,
         }
     }
 
     fn do_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<(Addr, Addr, Addr), ServiceError> {
-        let input_addr = api.addr_validate(&self.input_addr)?;
-        let output_addr = api.addr_validate(&self.output_addr)?;
+        let input_addr = self.input_addr.to_addr(api)?;
+        let output_addr = self.output_addr.to_addr(api)?;
         let pool_addr = api.addr_validate(&self.pool_addr)?;
 
         Ok((input_addr, output_addr, pool_addr))
@@ -96,11 +98,11 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
 impl OptionalServiceConfig {
     pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
         if let Some(input_addr) = self.input_addr {
-            config.input_addr = deps.api.addr_validate(&input_addr)?;
+            config.input_addr = input_addr.to_addr(deps.api)?;
         }
 
         if let Some(output_addr) = self.output_addr {
-            config.output_addr = deps.api.addr_validate(&output_addr)?;
+            config.output_addr = output_addr.to_addr(deps.api)?;
         }
 
         if let Some(pool_addr) = self.pool_addr {

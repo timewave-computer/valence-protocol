@@ -156,12 +156,12 @@ fn instantiate_withdrawer_contract(
         &InstantiateMsg {
             owner: setup.owner_acc().address(),
             processor: setup.processor_acc().address(),
-            config: ServiceConfig {
-                input_addr: input_acc,
-                output_addr: output_acc,
+            config: ServiceConfig::new(
+                input_acc.as_str(),
+                output_acc.as_str(),
                 pool_addr,
-                withdrawer_config: LiquidityWithdrawerConfig { pool_type },
-            },
+                LiquidityWithdrawerConfig { pool_type },
+            ),
         },
         None,
         Some("withdrawer"),
@@ -179,8 +179,8 @@ pub fn only_owner_can_update_config() {
     let wasm = Wasm::new(&setup.inner.app);
 
     let new_config = OptionalServiceConfig {
-        input_addr: Some(setup.input_acc.clone()),
-        output_addr: Some(setup.output_acc.clone()),
+        input_addr: Some(setup.input_acc.as_str().into()),
+        output_addr: Some(setup.output_acc.as_str().into()),
         pool_addr: Some(setup.inner.pool_cw20_addr.clone()),
         withdrawer_config: Some(LiquidityWithdrawerConfig {
             pool_type: PoolType::Cw20LpToken,
