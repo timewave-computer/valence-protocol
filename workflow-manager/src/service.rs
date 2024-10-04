@@ -8,7 +8,7 @@ use strum::VariantNames;
 use thiserror::Error;
 use valence_reverse_splitter::msg::ServiceConfig as ReverseSplitterServiceConfig;
 use valence_service_utils::{msg::InstantiateMsg, Id, ServiceConfigInterface};
-use valence_splitter::msg::ServiceConfig as SplitterServiceConfig;
+use valence_splitter_service::msg::ServiceConfig as SplitterServiceConfig;
 
 use crate::domain::Domain;
 
