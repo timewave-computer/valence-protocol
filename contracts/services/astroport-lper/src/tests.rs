@@ -158,11 +158,11 @@ fn instantiate_lper_contract(
         &InstantiateMsg {
             owner: setup.owner_acc().address(),
             processor: setup.processor_acc().address(),
-            config: ServiceConfig {
-                input_addr: input_acc,
-                output_addr: output_acc,
+            config: ServiceConfig::new(
+                input_acc.as_str(),
+                output_acc.as_str(),
                 pool_addr,
-                lp_config: LiquidityProviderConfig {
+                LiquidityProviderConfig {
                     pool_type,
                     asset_data: AssetData {
                         asset1: setup.pool_asset1.clone(),
@@ -170,7 +170,7 @@ fn instantiate_lper_contract(
                     },
                     slippage_tolerance: None,
                 },
-            },
+            ),
         },
         None,
         Some("lper"),
@@ -188,8 +188,8 @@ pub fn only_owner_can_update_config() {
     let wasm = Wasm::new(&setup.inner.app);
 
     let new_config = OptionalServiceConfig {
-        input_addr: Some(setup.input_acc.clone()),
-        output_addr: Some(setup.output_acc.clone()),
+        input_addr: Some(setup.input_acc.as_str().into()),
+        output_addr: Some(setup.output_acc.as_str().into()),
         pool_addr: Some(setup.inner.pool_cw20_addr.clone()),
         lp_config: Some(LiquidityProviderConfig {
             pool_type: PoolType::Cw20LpToken(
@@ -319,11 +319,11 @@ fn instantiate_with_wrong_assets() {
             &InstantiateMsg {
                 owner: setup.inner.owner_acc().address(),
                 processor: setup.inner.processor_acc().address(),
-                config: ServiceConfig {
-                    input_addr: setup.inner.owner_acc().address(),
-                    output_addr: setup.inner.owner_acc().address(),
-                    pool_addr: setup.inner.pool_cw20_addr.clone(),
-                    lp_config: LiquidityProviderConfig {
+                config: ServiceConfig::new(
+                    setup.inner.owner_acc().address().as_str(),
+                    setup.inner.owner_acc().address().as_str(),
+                    setup.inner.pool_cw20_addr.clone(),
+                    LiquidityProviderConfig {
                         pool_type: PoolType::Cw20LpToken(
                             valence_astroport_utils::astroport_cw20_lp_token::PairType::Xyk {},
                         ),
@@ -333,7 +333,7 @@ fn instantiate_with_wrong_assets() {
                         },
                         slippage_tolerance: None,
                     },
-                },
+                ),
             },
             None,
             Some("lper"),
@@ -369,11 +369,11 @@ fn instantiate_with_wrong_pool_type() {
             &InstantiateMsg {
                 owner: setup.inner.owner_acc().address(),
                 processor: setup.inner.processor_acc().address(),
-                config: ServiceConfig {
-                    input_addr: setup.inner.owner_acc().address(),
-                    output_addr: setup.inner.owner_acc().address(),
-                    pool_addr: setup.inner.pool_cw20_addr.clone(),
-                    lp_config: LiquidityProviderConfig {
+                config: ServiceConfig::new(
+                    setup.inner.owner_acc().address().as_str(),
+                    setup.inner.owner_acc().address().as_str(),
+                    setup.inner.pool_cw20_addr.clone(),
+                    LiquidityProviderConfig {
                         pool_type: PoolType::Cw20LpToken(
                             valence_astroport_utils::astroport_cw20_lp_token::PairType::Stable {},
                         ),
@@ -383,7 +383,7 @@ fn instantiate_with_wrong_pool_type() {
                         },
                         slippage_tolerance: None,
                     },
-                },
+                ),
             },
             None,
             Some("lper"),
