@@ -105,14 +105,14 @@ pub struct ServiceConfig {
 
 impl ServiceConfig {
     pub fn new(
-        input_addr: ServiceAccountType,
-        output_addr: ServiceAccountType,
+        input_addr: impl Into<ServiceAccountType>,
+        output_addr: impl Into<ServiceAccountType>,
         forwarding_configs: Vec<UncheckedForwardingConfig>,
         forwarding_constraints: ForwardingConstraints,
     ) -> Self {
         ServiceConfig {
-            input_addr,
-            output_addr,
+            input_addr: input_addr.into(),
+            output_addr: output_addr.into(),
             forwarding_configs,
             forwarding_constraints,
         }
@@ -140,12 +140,12 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
         // Convert the unchecked denoms to checked denoms
         let checked_fwd_configs = convert_to_checked_configs(&self.forwarding_configs, deps)?;
 
-        Ok(Config {
+        Ok(Config::new(
             input_addr,
             output_addr,
-            forwarding_configs: checked_fwd_configs,
-            forwarding_constraints: self.forwarding_constraints.clone(),
-        })
+            checked_fwd_configs,
+            self.forwarding_constraints.clone(),
+        ))
     }
 }
 

@@ -129,18 +129,20 @@ mod test {
     #[ignore = "internal test"]
     #[test]
     fn test_config_find_accounts_ids() {
-        // let mut splits: BTreeSet<(ServiceAccountType, Uint128)> = BTreeSet::new();
-        // splits.insert((ServiceAccountType::AccountId(2), 100_u128.into()));
-        // splits.insert((ServiceAccountType::AccountId(3), 200_u128.into()));
-        // splits.insert((ServiceAccountType::AccountId(4), 200_u128.into()));
+        let config = ServiceConfig::Forwarder(valence_forwarder_service::msg::ServiceConfig {
+            input_addr: "|account_id|:1".into(),
+            output_addr: "|account_id|:2".into(),
+            forwarding_configs: vec![valence_forwarder_service::msg::UncheckedForwardingConfig {
+                denom: UncheckedDenom::Native("untrn".to_string()),
+                max_amount: Uint128::new(100),
+            }],
+            forwarding_constraints: valence_forwarder_service::msg::ForwardingConstraints::new(
+                None,
+            ),
+        });
 
-        // let config = ServiceConfig::Splitter(SplitterServiceConfig {
-        //     input_addr: ServiceAccountType::AccountId(1),
-        //     splits: (BTreeMap::from_iter(vec![("NTRN".to_string(), splits)])),
-        // });
-
-        // let account_ids = config.get_account_ids().unwrap();
-        // println!("{account_ids:?}");
+        let account_ids = config.get_account_ids().unwrap();
+        println!("{account_ids:?}");
     }
 
     #[ignore = "internal test"]
