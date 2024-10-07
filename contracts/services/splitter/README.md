@@ -33,7 +33,7 @@ The service is configured on instantiation via the `ServiceConfig` type.
 
 ```rust
 struct ServiceConfig {
-    input_addr: ServiceAccountType,                // Address of the input account
+    input_addr: ServiceAccountType,    // Address of the input account
     splits: Vec<UncheckedSplitConfig>, // Split configuration per denom
 }
 
