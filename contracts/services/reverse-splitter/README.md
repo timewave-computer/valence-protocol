@@ -43,13 +43,13 @@ struct ServiceConfig {
 struct UncheckedSplitConfig {
   denom: UncheckedDenom,                // Denom for this split configuration (either native or CW20).
   account: ServiceAccountType,          // Address of the input account for this split config.
-  amount: Option<Uint128>,              // Fixed amount of tokens.
-  ratio: Option<UncheckedRatioConfig>,  // Amount defined based on a ratio.
+  amount: UncheckedSplitAmount,         // Fixed amount of tokens or an amount defined based on a ratio.
   factor: Option<u64>                   // Multiplier relative to other denoms (only used if a ratio is specified).
 }
 
 // Ratio configuration, either fixed & dynamically calculated
 enum UncheckedRatioConfig {
+  FixedAmount(Uint128), // Fixed amount of tokens
   FixedRatio(Decimal),  // Fixed ratio e.g. 0.0262 for NTRN/STARS (or could be another arbitrary ratio)
   DynamicRatio {        // Dynamic ratio calculation (delegated to external contract)
 	contract_addr: "<TWAP Oracle wrapper contract address>",

@@ -39,9 +39,7 @@ pub struct SplitConfig {
     #[getset(get = "pub", set)]
     account: Addr,
     #[getset(get = "pub", set)]
-    amount: Option<Uint128>,
-    #[getset(get = "pub", set)]
-    ratio: Option<RatioConfig>,
+    amount: SplitAmount,
     #[getset(get = "pub", set)]
     factor: Option<u64>,
 }
@@ -50,28 +48,28 @@ impl SplitConfig {
     pub fn new(
         denom: CheckedDenom,
         account: Addr,
-        amount: Option<Uint128>,
-        ratio: Option<RatioConfig>,
+        amount: SplitAmount,
         factor: Option<u64>,
     ) -> Self {
         SplitConfig {
             denom,
             account,
             amount,
-            ratio,
             factor,
         }
     }
 }
 
 #[cw_serde]
-pub enum RatioConfig {
+pub enum SplitAmount {
+    FixedAmount(Uint128),
     FixedRatio(Decimal),
     DynamicRatio { contract_addr: Addr, params: String },
 }
 
 #[cw_serde]
-pub enum UncheckedRatioConfig {
+pub enum UncheckedSplitAmount {
+    FixedAmount(Uint128),
     FixedRatio(Decimal),
     DynamicRatio {
         contract_addr: String,
@@ -83,8 +81,7 @@ pub enum UncheckedRatioConfig {
 pub struct UncheckedSplitConfig {
     pub denom: UncheckedDenom,
     pub account: ServiceAccountType,
-    pub amount: Option<Uint128>,
-    pub ratio: Option<UncheckedRatioConfig>,
+    pub amount: UncheckedSplitAmount,
     pub factor: Option<u64>,
 }
 
@@ -92,15 +89,13 @@ impl UncheckedSplitConfig {
     pub fn new(
         denom: UncheckedDenom,
         account: impl Into<ServiceAccountType>,
-        amount: Option<Uint128>,
-        ratio: Option<UncheckedRatioConfig>,
+        amount: UncheckedSplitAmount,
         factor: Option<u64>,
     ) -> Self {
         UncheckedSplitConfig {
             denom,
             account: account.into(),
             amount,
-            ratio,
             factor,
         }
     }
@@ -109,8 +104,7 @@ impl UncheckedSplitConfig {
         UncheckedSplitConfig::new(
             UncheckedDenom::Native(denom.to_string()),
             input,
-            Some(amount.into()),
-            None,
+            UncheckedSplitAmount::FixedAmount(amount.into()),
             None,
         )
     }
@@ -119,8 +113,7 @@ impl UncheckedSplitConfig {
         UncheckedSplitConfig::new(
             UncheckedDenom::Cw20(addr.to_string()),
             input,
-            Some(amount.into()),
-            None,
+            UncheckedSplitAmount::FixedAmount(amount.into()),
             None,
         )
     }
@@ -129,8 +122,7 @@ impl UncheckedSplitConfig {
         UncheckedSplitConfig::new(
             UncheckedDenom::Native(denom.to_string()),
             input,
-            None,
-            Some(UncheckedRatioConfig::FixedRatio(ratio)),
+            UncheckedSplitAmount::FixedRatio(ratio),
             None,
         )
     }
@@ -139,8 +131,7 @@ impl UncheckedSplitConfig {
         UncheckedSplitConfig::new(
             UncheckedDenom::Cw20(addr.to_string()),
             input,
-            None,
-            Some(UncheckedRatioConfig::FixedRatio(ratio)),
+            UncheckedSplitAmount::FixedRatio(ratio),
             None,
         )
     }
@@ -154,11 +145,10 @@ impl UncheckedSplitConfig {
         UncheckedSplitConfig::new(
             UncheckedDenom::Native(denom.to_string()),
             input,
-            None,
-            Some(UncheckedRatioConfig::DynamicRatio {
+            UncheckedSplitAmount::DynamicRatio {
                 contract_addr: contract_addr.to_string(),
                 params: params.to_string(),
-            }),
+            },
             None,
         )
     }
@@ -172,11 +162,10 @@ impl UncheckedSplitConfig {
         UncheckedSplitConfig::new(
             UncheckedDenom::Cw20(addr.to_string()),
             input,
-            None,
-            Some(UncheckedRatioConfig::DynamicRatio {
+            UncheckedSplitAmount::DynamicRatio {
                 contract_addr: contract_addr.to_string(),
                 params: params.to_string(),
-            }),
+            },
             None,
         )
     }
@@ -258,33 +247,29 @@ fn convert_to_checked_configs(
                 .into_checked(deps)
                 .map_err(|err| ServiceError::ConfigurationError(err.to_string()))?;
             let account = c.account.to_addr(deps.api)?;
-            let ratio = c
-                .ratio
-                .as_ref()
-                .map(|r| convert_to_checked_ratio_config(deps.api, r))
-                .transpose()?;
+            let amount = convert_to_checked_split_amount(deps.api, &c.amount)?;
 
             Ok(SplitConfig {
                 denom,
                 account,
-                amount: c.amount,
-                ratio,
+                amount,
                 factor: c.factor,
             })
         })
         .collect()
 }
 
-fn convert_to_checked_ratio_config(
+fn convert_to_checked_split_amount(
     api: &dyn cosmwasm_std::Api,
-    ratio: &UncheckedRatioConfig,
-) -> Result<RatioConfig, ServiceError> {
-    match ratio {
-        UncheckedRatioConfig::FixedRatio(r) => Ok(RatioConfig::FixedRatio(*r)),
-        UncheckedRatioConfig::DynamicRatio {
+    amount: &UncheckedSplitAmount,
+) -> Result<SplitAmount, ServiceError> {
+    match amount {
+        UncheckedSplitAmount::FixedAmount(a) => Ok(SplitAmount::FixedAmount(*a)),
+        UncheckedSplitAmount::FixedRatio(r) => Ok(SplitAmount::FixedRatio(*r)),
+        UncheckedSplitAmount::DynamicRatio {
             contract_addr,
             params,
-        } => Ok(RatioConfig::DynamicRatio {
+        } => Ok(SplitAmount::DynamicRatio {
             contract_addr: api.addr_validate(contract_addr)?,
             params: params.clone(),
         }),
@@ -354,11 +339,11 @@ fn validate_splits(
             )));
         }
 
-        match (split.amount, &split.ratio) {
-            (Some(amount), None) => {
+        match &split.amount {
+            UncheckedSplitAmount::FixedAmount(amount) => {
                 if amount == Uint128::zero() {
                     return Err(ServiceError::ConfigurationError(
-                        "Invalid split config: amount cannot be 0.".to_string(),
+                        "Invalid split config: amount cannot be zero.".to_string(),
                     ));
                 }
 
@@ -369,19 +354,19 @@ fn validate_splits(
                     ));
                 }
             }
-            (None, Some(UncheckedRatioConfig::FixedRatio(ratio))) => {
+            UncheckedSplitAmount::FixedRatio(ratio) => {
                 if ratio == Decimal::zero() {
                     return Err(ServiceError::ConfigurationError(
-                        "Invalid split config: ratio cannot be 0.".to_string(),
+                        "Invalid split config: ratio cannot be zero.".to_string(),
                     ));
                 }
-                if split.denom == *base_denom && *ratio != Decimal::one() {
+                if split.denom == *base_denom && ratio != Decimal::one() {
                     return Err(ServiceError::ConfigurationError(
                         "Invalid split config: fixed ratio for base denom must be 1.".to_string(),
                     ));
                 }
             }
-            (None, Some(UncheckedRatioConfig::DynamicRatio { contract_addr, .. })) => {
+            UncheckedSplitAmount::DynamicRatio { contract_addr, .. } => {
                 api.addr_validate(contract_addr)?;
                 if split.denom == *base_denom {
                     return Err(ServiceError::ConfigurationError(
@@ -390,27 +375,24 @@ fn validate_splits(
                     ));
                 }
             }
-            (Some(_), Some(_)) | (None, None) => {
-                return Err(ServiceError::ConfigurationError(
-                    "Invalid split config: should specify either an amount or a ratio.".to_string(),
-                ));
-            }
         }
 
         if let Some(factor) = split.factor {
             if factor == 0 {
                 return Err(ServiceError::ConfigurationError(
-                    "Invalid split config: factor cannot be 0.".to_string(),
+                    "Invalid split config: factor cannot be zero.".to_string(),
                 ));
             }
         }
     }
 
     // If there are ratios, we only allow an amount to be set for the base denom
-    if splits.iter().any(|s| s.ratio.is_some())
-        && splits
-            .iter()
-            .any(|s| s.amount.is_some() && s.denom != *base_denom)
+    if splits
+        .iter()
+        .any(|s| !matches!(s.amount, UncheckedSplitAmount::FixedAmount(..)))
+        && splits.iter().any(|s| {
+            matches!(s.amount, UncheckedSplitAmount::FixedAmount(..)) && s.denom != *base_denom
+        })
     {
         return Err(ServiceError::ConfigurationError(
             "Invalid split config: only base denom can have an amount when ratios are specified for other some denoms.".to_string(),

@@ -1,8 +1,7 @@
 use crate::msg::{
-    ActionMsgs, Config, QueryMsg, RatioConfig, ServiceConfig, SplitConfig, UncheckedRatioConfig,
-    UncheckedSplitConfig,
+    ActionMsgs, Config, QueryMsg, ServiceConfig, SplitAmount, SplitConfig, UncheckedSplitConfig,
 };
-use cosmwasm_std::{Addr, Decimal, Uint128};
+use cosmwasm_std::{Addr, Decimal};
 use cw20::Cw20Coin;
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
@@ -208,9 +207,8 @@ fn instantiate_with_valid_single_split() {
             vec![SplitConfig::new(
                 CheckedDenom::Native(NTRN.into()),
                 input_addr,
-                Some(ONE_MILLION.into()),
+                SplitAmount::FixedAmount(ONE_MILLION.into()),
                 None,
-                None
             )],
             CheckedDenom::Native(NTRN.into())
         )
@@ -230,43 +228,14 @@ fn instantiate_fails_for_no_split_config() {
 }
 
 #[test]
-#[should_panic(
-    expected = "Configuration error: Invalid split config: should specify either an amount or a ratio."
-)]
-fn instantiate_fails_for_invalid_split_config() {
-    let mut suite = ReverseSplitterTestSuite::default();
-
-    let input_addr = suite.account_init("input_account", vec![]);
-
-    // Configure reverse splitter with invalid split config
-    let split_cfg = UncheckedSplitConfig::new(
-        UncheckedDenom::Native(NTRN.into()),
-        &input_addr,
-        None,
-        None,
-        None,
-    );
-    let cfg = suite.reverse_splitter_config(vec![split_cfg], UncheckedDenom::Native(NTRN.into()));
-
-    // Instantiate Reverse Splitter contract
-    suite.reverse_splitter_init(&cfg);
-}
-
-#[test]
-#[should_panic(expected = "Configuration error: Invalid split config: amount cannot be 0.")]
+#[should_panic(expected = "Configuration error: Invalid split config: amount cannot be zero.")]
 fn instantiate_fails_for_zero_amount() {
     let mut suite = ReverseSplitterTestSuite::default();
 
     let input_addr = suite.account_init("input_account", vec![]);
 
     // Configure reverse splitter with invalid split config
-    let split_cfg = UncheckedSplitConfig::new(
-        UncheckedDenom::Native(NTRN.into()),
-        &input_addr,
-        Some(Uint128::zero()),
-        None,
-        None,
-    );
+    let split_cfg = UncheckedSplitConfig::with_native_amount(ZERO, NTRN, &input_addr);
     let cfg = suite.reverse_splitter_config(vec![split_cfg], UncheckedDenom::Native(NTRN.into()));
 
     // Instantiate Reverse Splitter contract
@@ -274,20 +243,14 @@ fn instantiate_fails_for_zero_amount() {
 }
 
 #[test]
-#[should_panic(expected = "Configuration error: Invalid split config: ratio cannot be 0.")]
+#[should_panic(expected = "Configuration error: Invalid split config: ratio cannot be zero.")]
 fn instantiate_fails_for_zero_ratio() {
     let mut suite = ReverseSplitterTestSuite::default();
 
     let input_addr = suite.account_init("input_account", vec![]);
 
     // Configure reverse splitter with invalid split config
-    let split_cfg = UncheckedSplitConfig::new(
-        UncheckedDenom::Native(NTRN.into()),
-        &input_addr,
-        None,
-        Some(UncheckedRatioConfig::FixedRatio(Decimal::zero())),
-        None,
-    );
+    let split_cfg = UncheckedSplitConfig::with_native_ratio(Decimal::zero(), NTRN, &input_addr);
     let cfg = suite.reverse_splitter_config(vec![split_cfg], UncheckedDenom::Native(NTRN.into()));
 
     // Instantiate Reverse Splitter contract
@@ -384,15 +347,13 @@ fn update_config_with_valid_config() {
                 SplitConfig::new(
                     CheckedDenom::Native(NTRN.into()),
                     input_addr,
-                    Some(ONE_MILLION.into()),
-                    None,
+                    SplitAmount::FixedAmount(ONE_MILLION.into()),
                     None
                 ),
                 SplitConfig::new(
                     CheckedDenom::Native(STARS.into()),
                     suite.output_addr().clone(),
-                    None,
-                    Some(RatioConfig::FixedRatio(Decimal::percent(10u64))),
+                    SplitAmount::FixedRatio(Decimal::percent(10u64)),
                     None
                 )
             ],

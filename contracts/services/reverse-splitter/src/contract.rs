@@ -54,7 +54,7 @@ mod actions {
         msg::{DynamicRatioQueryMsg, DynamicRatioResponse},
     };
 
-    use crate::msg::{ActionMsgs, Config, RatioConfig};
+    use crate::msg::{ActionMsgs, Config, SplitAmount};
 
     pub fn process_action(
         deps: DepsMut,
@@ -132,28 +132,30 @@ mod actions {
             let key = account_key(split.account(), denom);
             // Query account/denom balance and add it to cache
             let balance = denom.query_balance(querier, split.account())?;
-            if let Some(amount) = split.amount() {
-                // Stop if the specified amount is greater than the input account's balance
-                if *amount > balance {
-                    return Err(ServiceError::ExecutionError(format!(
-                        "Insufficient balance on account {} for denom '{:?}' in split config (required: {}, available: {}).",
-                        split.account(), denom, amount, balance,
-                    )));
-                }
-                denom_amount_count += 1;
-            }
             account_balances.insert(key, balance);
 
-            if let Some(RatioConfig::DynamicRatio {
-                contract_addr,
-                params,
-            }) = split.ratio()
-            {
-                let key = dyn_ratio_key(denom, contract_addr, params);
-                if let Entry::Vacant(e) = dynamic_ratios.entry(key) {
-                    let ratio = query_dynamic_ratio(querier, contract_addr, params, denom)?;
-                    e.insert(ratio);
+            match split.amount() {
+                SplitAmount::FixedAmount(amount) => {
+                    // Stop if the specified amount is greater than the input account's balance
+                    if *amount > balance {
+                        return Err(ServiceError::ExecutionError(format!(
+                            "Insufficient balance on account {} for denom '{:?}' in split config (required: {}, available: {}).",
+                            split.account(), denom, amount, balance,
+                        )));
+                    }
+                    denom_amount_count += 1;
                 }
+                SplitAmount::DynamicRatio {
+                    contract_addr,
+                    params,
+                } => {
+                    let key = dyn_ratio_key(denom, contract_addr, params);
+                    if let Entry::Vacant(e) = dynamic_ratios.entry(key) {
+                        let ratio = query_dynamic_ratio(querier, contract_addr, params, denom)?;
+                        e.insert(ratio);
+                    }
+                }
+                _ => {}
             }
         }
 
@@ -163,7 +165,12 @@ mod actions {
             return cfg
                 .splits()
                 .iter()
-                .map(|split| Ok((split.amount().unwrap(), split.denom(), split.account())))
+                .map(|split| match split.amount() {
+                    SplitAmount::FixedAmount(amount) => {
+                        Ok((*amount, split.denom(), split.account()))
+                    }
+                    _ => unreachable!(),
+                })
                 .collect::<Result<Vec<_>, _>>();
         }
 
@@ -178,32 +185,30 @@ mod actions {
                 let account = split.account();
                 let denom = split.denom();
                 let balance = account_balances.get(&account_key(account, denom)).unwrap();
-                split
-                    .amount()
-                    .map(|amount| Ok((amount, Decimal::one(), &None, denom, account)))
-                    .or_else(|| {
-                        split.ratio().as_ref().map(|ratio_config| {
-                            let ratio = match ratio_config {
-                                RatioConfig::FixedRatio(ratio) => ratio,
-                                RatioConfig::DynamicRatio {
-                                    contract_addr,
-                                    params,
-                                } => dynamic_ratios
-                                    .get(&dyn_ratio_key(split.denom(), contract_addr, params))
-                                    .unwrap(),
-                            };
-                            let mut amount =
-                                balance.multiply_ratio(ratio.numerator(), ratio.denominator());
-                            let factor = split.factor();
-                            if let Some(factor) = factor {
-                                amount = amount
-                                    .checked_div((*factor as u128).into())
-                                    .map_err(|err| ServiceError::Std(err.into()))?;
-                            }
-                            Ok((amount, *ratio, factor, denom, account))
-                        })
-                    })
-                    .expect("Split config must have either an amount or a ratio")
+                let (amount, ratio, factor) = if let SplitAmount::FixedAmount(amount) =
+                    split.amount()
+                {
+                    (*amount, Decimal::one(), &None::<u64>)
+                } else {
+                    let ratio = match split.amount() {
+                        SplitAmount::FixedRatio(ratio) => *ratio,
+                        SplitAmount::DynamicRatio {
+                            contract_addr,
+                            params,
+                        } => *dynamic_ratios
+                            .get(&dyn_ratio_key(denom, contract_addr, params))
+                            .unwrap(),
+                        _ => unreachable!(),
+                    };
+                    let mut amount = balance.multiply_ratio(ratio.numerator(), ratio.denominator());
+                    if let Some(factor) = split.factor() {
+                        amount = amount
+                            .checked_div((*factor as u128).into())
+                            .map_err(|err| ServiceError::Std(err.into()))?;
+                    }
+                    (amount, ratio, split.factor())
+                };
+                Ok((amount, ratio, factor, denom, account))
             })
             .collect::<Result<Vec<_>, ServiceError>>()?;
 
