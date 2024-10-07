@@ -85,7 +85,7 @@ mod actions {
         }
     }
 
-    // // Prepare transfer messages for each denom
+    // Prepare transfer messages for each denom
     fn prepare_transfer_messages<'a, I>(
         coins_to_transfer: I,
         output_addr: &Addr,
@@ -180,10 +180,7 @@ mod actions {
                 let balance = account_balances.get(&account_key(account, denom)).unwrap();
                 split
                     .amount()
-                    .map(|amount| {
-                        assert_eq!(denom, cfg.base_denom());
-                        Ok((amount, Decimal::one(), &None, denom, account))
-                    })
+                    .map(|amount| Ok((amount, Decimal::one(), &None, denom, account)))
                     .or_else(|| {
                         split.ratio().as_ref().map(|ratio_config| {
                             let ratio = match ratio_config {

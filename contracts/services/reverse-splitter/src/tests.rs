@@ -1,7 +1,8 @@
 use crate::msg::{
-    ActionMsgs, Config, QueryMsg, RatioConfig, ServiceConfig, SplitConfig, UncheckedSplitConfig,
+    ActionMsgs, Config, QueryMsg, RatioConfig, ServiceConfig, SplitConfig, UncheckedRatioConfig,
+    UncheckedSplitConfig,
 };
-use cosmwasm_std::{Addr, Decimal};
+use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw20::Cw20Coin;
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
@@ -252,8 +253,50 @@ fn instantiate_fails_for_invalid_split_config() {
 }
 
 #[test]
+#[should_panic(expected = "Configuration error: Invalid split config: amount cannot be 0.")]
+fn instantiate_fails_for_zero_amount() {
+    let mut suite = ReverseSplitterTestSuite::default();
+
+    let input_addr = suite.account_init("input_account", vec![]);
+
+    // Configure reverse splitter with invalid split config
+    let split_cfg = UncheckedSplitConfig::new(
+        UncheckedDenom::Native(NTRN.into()),
+        &input_addr,
+        Some(Uint128::zero()),
+        None,
+        None,
+    );
+    let cfg = suite.reverse_splitter_config(vec![split_cfg], UncheckedDenom::Native(NTRN.into()));
+
+    // Instantiate Reverse Splitter contract
+    suite.reverse_splitter_init(&cfg);
+}
+
+#[test]
+#[should_panic(expected = "Configuration error: Invalid split config: ratio cannot be 0.")]
+fn instantiate_fails_for_zero_ratio() {
+    let mut suite = ReverseSplitterTestSuite::default();
+
+    let input_addr = suite.account_init("input_account", vec![]);
+
+    // Configure reverse splitter with invalid split config
+    let split_cfg = UncheckedSplitConfig::new(
+        UncheckedDenom::Native(NTRN.into()),
+        &input_addr,
+        None,
+        Some(UncheckedRatioConfig::FixedRatio(Decimal::zero())),
+        None,
+    );
+    let cfg = suite.reverse_splitter_config(vec![split_cfg], UncheckedDenom::Native(NTRN.into()));
+
+    // Instantiate Reverse Splitter contract
+    suite.reverse_splitter_init(&cfg);
+}
+
+#[test]
 #[should_panic(
-    expected = "Configuration error: Duplicate split 'AccountAddr(\"cosmwasm1xj6u4ccauyhvylgtj82x2qqc34lk3xuzw4mujevzqyr4gj7gqsjsv4856c\")/Native(\"untrn\")' in split config."
+    expected = "Configuration error: Duplicate split 'Native(\"untrn\")|AccountAddr(\"cosmwasm1xj6u4ccauyhvylgtj82x2qqc34lk3xuzw4mujevzqyr4gj7gqsjsv4856c\")' in split config."
 )]
 fn instantiate_fails_for_duplicate_split() {
     let mut suite = ReverseSplitterTestSuite::default();

@@ -299,11 +299,21 @@ fn validate_splits(
 
         let denom_key = format!("{:?}", split.denom);
         match (split.amount, &split.ratio) {
-            (Some(_), None) => {
+            (Some(amount), None) => {
+                if amount == Uint128::zero() {
+                    return Err(ServiceError::ConfigurationError(
+                        "Invalid split config: amount cannot be 0.".to_string(),
+                    ));
+                }
                 // Mark that this denom has a split amount
                 denom_amount.insert(denom_key);
             }
             (None, Some(UncheckedRatioConfig::FixedRatio(ratio))) => {
+                if ratio == Decimal::zero() {
+                    return Err(ServiceError::ConfigurationError(
+                        "Invalid split config: ratio cannot be 0.".to_string(),
+                    ));
+                }
                 denom_ratios
                     .entry(denom_key)
                     .and_modify(|sum| *sum += ratio)

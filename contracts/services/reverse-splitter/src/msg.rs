@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::HashSet;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Decimal, Deps, DepsMut, Uint128};
@@ -340,23 +340,28 @@ fn validate_splits(
         ));
     }
 
-    let mut denom_map: HashMap<String, ()> = HashMap::new();
+    let mut denom_set = HashSet::new();
     for split in splits {
         split.account.to_addr(api)?;
         // Note: can't validate denom without the deps
 
         // Ensure splits are unique in split configs
-        let key = format!("{:?}/{:?}", split.account, split.denom);
-        if denom_map.contains_key(&key) {
+        let key = format!("{:?}|{:?}", split.denom, split.account);
+        if !denom_set.insert(key) {
             return Err(ServiceError::ConfigurationError(format!(
-                "Duplicate split '{:?}/{:?}' in split config.",
-                split.account, split.denom
+                "Duplicate split '{:?}|{:?}' in split config.",
+                split.denom, split.account
             )));
         }
-        denom_map.insert(key, ());
 
         match (split.amount, &split.ratio) {
-            (Some(_), None) => {
+            (Some(amount), None) => {
+                if amount == Uint128::zero() {
+                    return Err(ServiceError::ConfigurationError(
+                        "Invalid split config: amount cannot be 0.".to_string(),
+                    ));
+                }
+
                 if split.factor.is_some() {
                     return Err(ServiceError::ConfigurationError(
                         "Invalid split config: a factor cannot be specified with an amount."
@@ -365,6 +370,11 @@ fn validate_splits(
                 }
             }
             (None, Some(UncheckedRatioConfig::FixedRatio(ratio))) => {
+                if ratio == Decimal::zero() {
+                    return Err(ServiceError::ConfigurationError(
+                        "Invalid split config: ratio cannot be 0.".to_string(),
+                    ));
+                }
                 if split.denom == *base_denom && *ratio != Decimal::one() {
                     return Err(ServiceError::ConfigurationError(
                         "Invalid split config: fixed ratio for base denom must be 1.".to_string(),

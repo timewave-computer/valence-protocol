@@ -1,7 +1,8 @@
 use crate::msg::{
-    ActionMsgs, Config, QueryMsg, RatioConfig, ServiceConfig, SplitConfig, UncheckedSplitConfig,
+    ActionMsgs, Config, QueryMsg, RatioConfig, ServiceConfig, SplitConfig, UncheckedRatioConfig,
+    UncheckedSplitConfig,
 };
-use cosmwasm_std::{coin, Addr, Coin, Decimal};
+use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
 use cw20::Cw20Coin;
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
@@ -238,6 +239,46 @@ fn instantiate_fails_for_invalid_split_config() {
         &output_addr,
         None,
         None,
+    );
+    let cfg = suite.splitter_config(vec![split_cfg]);
+
+    // Instantiate Splitter contract
+    suite.splitter_init(&cfg);
+}
+
+#[test]
+#[should_panic(expected = "Configuration error: Invalid split config: amount cannot be 0.")]
+fn instantiate_fails_for_zero_amount() {
+    let mut suite = SplitterTestSuite::default();
+
+    let input_addr = suite.account_init("input_account", vec![]);
+
+    // Configure splitter with invalid split config
+    let split_cfg = UncheckedSplitConfig::new(
+        UncheckedDenom::Native(NTRN.into()),
+        &input_addr,
+        Some(Uint128::zero()),
+        None,
+    );
+    let cfg = suite.splitter_config(vec![split_cfg]);
+
+    // Instantiate Splitter contract
+    suite.splitter_init(&cfg);
+}
+
+#[test]
+#[should_panic(expected = "Configuration error: Invalid split config: ratio cannot be 0.")]
+fn instantiate_fails_for_zero_ratio() {
+    let mut suite = SplitterTestSuite::default();
+
+    let input_addr = suite.account_init("input_account", vec![]);
+
+    // Configure reverse splitter with invalid split config
+    let split_cfg = UncheckedSplitConfig::new(
+        UncheckedDenom::Native(NTRN.into()),
+        &input_addr,
+        None,
+        Some(UncheckedRatioConfig::FixedRatio(Decimal::zero())),
     );
     let cfg = suite.splitter_config(vec![split_cfg]);
 
