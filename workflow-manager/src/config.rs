@@ -67,8 +67,6 @@ impl Default for Config {
             .unwrap()
             .try_deserialize()
             .unwrap()
-
-        // TODO: Verify the config is not missing any info
     }
 }
 

@@ -4,6 +4,7 @@ use aho_corasick::AhoCorasick;
 
 use serde::{Deserialize, Serialize};
 use serde_json::to_vec;
+use strum::VariantNames;
 use thiserror::Error;
 use valence_reverse_splitter::msg::ServiceConfig as ReverseSplitterServiceConfig;
 use valence_service_utils::{msg::InstantiateMsg, Id, ServiceConfigInterface};
@@ -31,10 +32,11 @@ pub struct ServiceInfo {
     pub name: String,
     pub domain: Domain,
     pub config: ServiceConfig,
+    pub addr: Option<String>,
 }
 
 /// This is a list of all our services we support and their configs.
-#[derive(Debug, Clone, strum::Display, Serialize, Deserialize)]
+#[derive(Debug, Clone, strum::Display, Serialize, Deserialize, VariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub enum ServiceConfig {
     // General {
