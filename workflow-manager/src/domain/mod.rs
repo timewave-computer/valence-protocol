@@ -3,7 +3,7 @@ pub mod cosmos_cw;
 
 use std::fmt;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 use cosmos_cw::{CosmosCosmwasmConnector, CosmosCosmwasmError};
 
@@ -39,7 +39,7 @@ pub enum ConnectorError {
 #[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
 pub enum Domain {
     CosmosCosmwasm(String),
-    // CosmosEvm(&'static str),
+    // CosmosEvm(String),
     // Solana
 }
 
@@ -48,7 +48,7 @@ impl fmt::Display for Domain {
         // IMPORTANT: to get from_string, we need to separate everything using ":"
         match self {
             Domain::CosmosCosmwasm(chain_name) => write!(f, "CosmosCosmwasm:{}", chain_name),
-            // Domain::CosmosEvm(chain_name) => write!(f, "{}", chain_name),
+            // Domain::CosmosEvm(chain_name) => write!(f, "CosmosEvm:{}", chain_name),
         }
     }
 }
@@ -57,17 +57,25 @@ impl Domain {
     pub fn from_string(input: String) -> Result<Domain, anyhow::Error> {
         let mut split = input.split(":");
 
-        let _cosmos_cw = Domain::CosmosCosmwasm("".to_string()).to_string();
+        let domain = split.next().context("Domain is missing")?;
 
-        match split.next() {
-            Some(_cosmos_cw) => Ok(Domain::CosmosCosmwasm(
+        match domain {
+            "CosmosCosmwasm" => Ok(Domain::CosmosCosmwasm(
                 split
                     .next()
-                    .expect("CosmosCosmwasm Domain missing chain name")
+                    .context("CosmosCosmwasm Domain missing chain name")?
                     .to_string(),
             )),
-            // "CosmosEvm" => Ok(Domain::CosmosEvm(split[1])),
-            _ => Err(anyhow!("Failed to parse domain from string")),
+            // "CosmosEvm" => Ok(Domain::CosmosEvm(
+            //     split
+            //         .next()
+            //         .context("CosmosCosmwasm Domain missing chain name")?
+            //         .to_string(),
+            // )),
+            s => Err(anyhow!(format!(
+                "Failed to parse domain from string: {}",
+                s
+            ))),
         }
     }
 
@@ -87,7 +95,11 @@ impl Domain {
                 )
                 .await?,
             ),
-            // Domain::CosmosEvm(_) => Box::new(CosmosEvmConnector::new().await?),
+            // Domain::CosmosEvm(_) => {
+            //     return Err(ConnectorError::ConfigError(
+            //         ConfigError::ChainBridgeNotFound("test".to_string()),
+            //     ))
+            // }
         })
     }
 }

@@ -32,6 +32,18 @@ mod test {
     }
 
     #[ignore = "internal test"]
+    #[test]
+    fn test_domain_ser() {
+        // Make sure to_string returns the correct string
+        let domain_string = Domain::CosmosCosmwasm("neutron".to_string()).to_string();
+        assert_eq!(domain_string, "CosmosCosmwasm:neutron");
+
+        // Make sure from_string returns the correct domain
+        let domain = Domain::from_string(domain_string.clone()).unwrap();
+        assert_eq!(domain, Domain::CosmosCosmwasm("neutron".to_string()));
+    }
+
+    #[ignore = "internal test"]
     #[tokio::test]
     async fn test_domains() {
         // let _profiler = dhat::Profiler::builder().testing().build();
