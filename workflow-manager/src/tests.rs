@@ -193,6 +193,7 @@ mod test {
                         ),
                     ],
                 }),
+                addr: None,
             },
         );
 

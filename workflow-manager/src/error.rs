@@ -3,7 +3,11 @@ use std::collections::BTreeSet;
 use thiserror::Error;
 use valence_service_utils::Id;
 
-use crate::{config::ConfigError, domain::ConnectorError, service::ServiceError};
+use crate::{
+    config::ConfigError,
+    domain::{ConnectorError, Domain},
+    service::ServiceError,
+};
 
 pub type ManagerResult<T> = Result<T, ManagerError>;
 
@@ -56,6 +60,12 @@ pub enum ManagerError {
 
     #[error("No instantiate data for account id: {0} | link id: {1}")]
     FailedToRetrieveAccountInitData(u64, u64),
+
+    #[error("Trying to instantiate a new workflow with an existing id: {0}")]
+    WorkflowIdAlreadyExists(u64),
+
+    #[error("Failed to get processor address for this domain: {0}")]
+    ProcessorBridgeAddrNotFound(Domain),
 }
 
 impl ManagerError {
