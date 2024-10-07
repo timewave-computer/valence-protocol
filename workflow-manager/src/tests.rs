@@ -114,7 +114,7 @@ mod test {
         let mut json = serde_json::to_string(&t).unwrap();
         println!("{json:?}");
 
-        json = json.replace("|account_id|\":1", "account_addr\":\"cosmos1\"");
+        json = json.replace("|account_id|\":1", "service_account_addr\":\"cosmos1\"");
         println!("{json:?}");
 
         let back_struct = serde_json::from_str::<Test>(&json).unwrap();

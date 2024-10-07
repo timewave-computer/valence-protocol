@@ -247,7 +247,7 @@ fn instantiate_fails_for_invalid_split_config() {
 
 #[test]
 #[should_panic(
-    expected = "Configuration error: Duplicate split 'Native(\"untrn\")|AccountAddr(\"cosmwasm1ea6n0jqm0hj663khx7a5xklsmjgrazjp9vjeewejn84sanr0wgxq2p70xl\")' in split config."
+    expected = "Configuration error: Duplicate split 'Native(\"untrn\")|Addr(\"cosmwasm1ea6n0jqm0hj663khx7a5xklsmjgrazjp9vjeewejn84sanr0wgxq2p70xl\")' in split config."
 )]
 fn instantiate_fails_for_duplicate_split() {
     let mut suite = SplitterTestSuite::default();
