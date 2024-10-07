@@ -5,7 +5,9 @@ mod test {
     use cosmwasm_std::Uint128;
     use serde_json_any_key::MapIterToJson;
     use valence_service_utils::ServiceAccountType;
-    use valence_splitter_service::msg::ServiceConfig as SplitterServiceConfig;
+    use valence_splitter_service::msg::{
+        ServiceConfig as SplitterServiceConfig, UncheckedSplitAmount,
+    };
 
     use crate::{
         account::{AccountInfo, AccountType},
@@ -81,14 +83,12 @@ mod test {
                 valence_splitter_service::msg::UncheckedSplitConfig::new(
                     valence_service_utils::denoms::UncheckedDenom::Native("NTRN".to_string()),
                     "|account_id|:2",
-                    Some(Uint128::from(1_000_000u128)),
-                    None,
+                    UncheckedSplitAmount::FixedAmount(Uint128::from(1_000_000u128)),
                 ),
                 valence_splitter_service::msg::UncheckedSplitConfig::new(
                     valence_service_utils::denoms::UncheckedDenom::Native("NTRN".to_string()),
                     "|account_id|:3",
-                    Some(Uint128::from(1_000_000u128)),
-                    None,
+                    UncheckedSplitAmount::FixedAmount(Uint128::from(1_000_000u128)),
                 ),
             ],
         });
@@ -180,16 +180,14 @@ mod test {
                                 "NTRN".to_string(),
                             ),
                             "|account_id|:2",
-                            Some(Uint128::from(1_000_000u128)),
-                            None,
+                            UncheckedSplitAmount::FixedAmount(Uint128::from(1_000_000u128)),
                         ),
                         valence_splitter_service::msg::UncheckedSplitConfig::new(
                             valence_service_utils::denoms::UncheckedDenom::Native(
                                 "NTRN".to_string(),
                             ),
                             "|account_id|:3",
-                            Some(Uint128::from(1_000_000u128)),
-                            None,
+                            UncheckedSplitAmount::FixedAmount(Uint128::from(1_000_000u128)),
                         ),
                     ],
                 }),
