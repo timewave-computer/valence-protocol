@@ -6,7 +6,7 @@ members = [
     "contracts/processor",
     "contracts/testing/*",
     "contracts/workflow-registry",
-    "packages/*",    
+    "packages/*",
     "workflow-manager",
     "local-interchaintest",
 ]
@@ -58,8 +58,6 @@ valence-test-dynamic-ratio = { path = "contracts/testing/test-dynamic-ratio", fe
 valence-test-service       = { path = "contracts/testing/test-service", features = ["library"] }
 valence-workflow-registry  = { path = "contracts/workflow-registry", features = ["library"] }
 valence-astroport-lper     = { path = "contracts/services/astroport-lper", features = ["library"] }
-
-# Services
 valence-forwarder-service = { path = "contracts/services/forwarder", features = ["library"] }
 
 # our packages
