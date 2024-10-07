@@ -50,16 +50,15 @@ impl AuthorizationData {
     }
 
     pub fn set_processor_addr(&mut self, domain: Domain, addr: String) {
-        self.processor_addrs.insert(domain.to_string(), addr);
+        self.processor_addrs.insert(domain, addr);
     }
 
     pub fn set_authorization_bridge_addr(&mut self, domain: Domain, addr: String) {
-        self.authorization_bridge_addrs
-            .insert(domain.to_string(), addr);
+        self.authorization_bridge_addrs.insert(domain, addr);
     }
 
     pub fn set_processor_bridge_addr(&mut self, domain: Domain, addr: String) {
-        self.processor_bridge_addrs.insert(domain.to_string(), addr);
+        self.processor_bridge_addrs.insert(domain, addr);
     }
 }
 
@@ -322,7 +321,7 @@ impl WorkflowConfig {
             let processor_addr = self
                 .authorization_data
                 .processor_addrs
-                .get(&account.domain.to_string())
+                .get(&account.domain)
                 .ok_or(ManagerError::ProcessorAddrNotFound(account.domain.clone()))?;
 
             domain_connector
@@ -508,64 +507,6 @@ impl WorkflowConfig {
 
         Ok(())
     }
-
-    /// Verify our workflow was instantiated successfully
-    async fn verify_init_was_successful(
-        &mut self,
-        connectors: &Connectors,
-        account_instantiate_datas: HashMap<u64, InstantiateAccountData>,
-    ) -> ManagerResult<()> {
-        let mut neutron_connector = connectors.get_or_create_connector(&NEUTRON_DOMAIN).await?;
-        // verify id that is used in workflow is not taken and is not 0
-        ensure!(
-            neutron_connector
-                .query_workflow_registry(NEUTRON_DOMAIN.get_chain_name(), self.id)
-                .await
-                .is_ok(),
-            ManagerError::WorkflowIdAlreadyExists(self.id)
-        );
-
-        // verify all accounts have addresses and they return the correct code id
-        for (_, account_data) in account_instantiate_datas {
-            let mut connector = connectors
-                .get_or_create_connector(&account_data.info.domain)
-                .await?;
-
-            connector.verify_account(account_data.addr.clone()).await?;
-        }
-
-        // verify services have an address and query on-chain contract to make sure its correct
-        for (_, service) in self.services.iter() {
-            let mut connector = connectors.get_or_create_connector(&service.domain).await?;
-
-            connector.verify_service(service.addr.clone()).await?;
-        }
-
-        // Verify authorization contract is correct on neutron chain
-        neutron_connector
-            .verify_authorization_addr(self.authorization_data.authorization_addr.clone())
-            .await?;
-
-        // Veryify each processor was instantiated correctly
-        for (domain, processor_addr) in self.authorization_data.processor_addrs.iter() {
-            let mut connector = connectors.get_or_create_connector(domain).await?;
-
-            connector.verify_processor(processor_addr.clone()).await?;
-        }
-
-        // Verify authorization and processor bridge accounts were created correctly
-        for (domain, authorization_bridge_addr) in
-            self.authorization_data.authorization_bridge_addrs.iter()
-        {
-            let mut connector = connectors.get_or_create_connector(domain).await?;
-
-            connector
-                .verify_bridge_account(authorization_bridge_addr.clone())
-                .await?;
-        }
-
-        Ok(())
-    }
 }
 
 impl WorkflowConfig {
@@ -574,7 +515,7 @@ impl WorkflowConfig {
         let processor_addr = self
             .authorization_data
             .processor_addrs
-            .get_key_value(&domain.to_string())
+            .get_key_value(&domain)
             .ok_or(ManagerError::ProcessorAddrNotFound(domain.clone()))?
             .1;
 
