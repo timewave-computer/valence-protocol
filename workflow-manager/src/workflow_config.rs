@@ -33,15 +33,15 @@ pub struct AuthorizationData {
     pub authorization_addr: String,
     /// List of processor addresses by domain
     /// Key: domain name | Value: processor address
-    pub processor_addrs: BTreeMap<String, String>,
+    pub processor_addrs: BTreeMap<Domain, String>,
     /// List of authorization bridge addresses by domain
     /// The addresses are on the specified domain
     /// Key: domain name | Value: authorization bridge address on that domain
-    pub authorization_bridge_addrs: BTreeMap<String, String>,
+    pub authorization_bridge_addrs: BTreeMap<Domain, String>,
     /// List of processor bridge addresses by domain
     /// All addresses are on nuetron, mapping to what domain this bridge account is for
     /// Key: domain name | Value: processor bridge address on that domain
-    pub processor_bridge_addrs: BTreeMap<String, String>,
+    pub processor_bridge_addrs: BTreeMap<Domain, String>,
 }
 
 impl AuthorizationData {
@@ -500,6 +500,64 @@ impl WorkflowConfig {
             let mut connector = connectors
                 .get_or_create_connector(&Domain::from_string(domain.to_string())?)
                 .await?;
+
+            connector
+                .verify_bridge_account(authorization_bridge_addr.clone())
+                .await?;
+        }
+
+        Ok(())
+    }
+
+    /// Verify our workflow was instantiated successfully
+    async fn verify_init_was_successful(
+        &mut self,
+        connectors: &Connectors,
+        account_instantiate_datas: HashMap<u64, InstantiateAccountData>,
+    ) -> ManagerResult<()> {
+        let mut neutron_connector = connectors.get_or_create_connector(&NEUTRON_DOMAIN).await?;
+        // verify id that is used in workflow is not taken and is not 0
+        ensure!(
+            neutron_connector
+                .query_workflow_registry(NEUTRON_DOMAIN.get_chain_name(), self.id)
+                .await
+                .is_ok(),
+            ManagerError::WorkflowIdAlreadyExists(self.id)
+        );
+
+        // verify all accounts have addresses and they return the correct code id
+        for (_, account_data) in account_instantiate_datas {
+            let mut connector = connectors
+                .get_or_create_connector(&account_data.info.domain)
+                .await?;
+
+            connector.verify_account(account_data.addr.clone()).await?;
+        }
+
+        // verify services have an address and query on-chain contract to make sure its correct
+        for (_, service) in self.services.iter() {
+            let mut connector = connectors.get_or_create_connector(&service.domain).await?;
+
+            connector.verify_service(service.addr.clone()).await?;
+        }
+
+        // Verify authorization contract is correct on neutron chain
+        neutron_connector
+            .verify_authorization_addr(self.authorization_data.authorization_addr.clone())
+            .await?;
+
+        // Veryify each processor was instantiated correctly
+        for (domain, processor_addr) in self.authorization_data.processor_addrs.iter() {
+            let mut connector = connectors.get_or_create_connector(domain).await?;
+
+            connector.verify_processor(processor_addr.clone()).await?;
+        }
+
+        // Verify authorization and processor bridge accounts were created correctly
+        for (domain, authorization_bridge_addr) in
+            self.authorization_data.authorization_bridge_addrs.iter()
+        {
+            let mut connector = connectors.get_or_create_connector(domain).await?;
 
             connector
                 .verify_bridge_account(authorization_bridge_addr.clone())
