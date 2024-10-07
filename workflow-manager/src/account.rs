@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
+use strum::VariantNames;
 
 use crate::domain::Domain;
 
 /// What account type we talking about
-#[derive(Debug, PartialEq, Clone, strum::Display, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, strum::Display, VariantNames, Serialize, Deserialize)]
 pub enum AccountType {
     /// This means the account is already instantiated
     Addr { addr: String },

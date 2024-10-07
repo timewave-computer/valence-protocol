@@ -1,0 +1,30 @@
+[package]
+name       = "valence-astroport-withdrawer"
+authors    = { workspace = true }
+edition    = { workspace = true }
+license    = { workspace = true }
+version    = { workspace = true }
+repository = { workspace = true }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# use library feature to disable all instantiate/execute/query exports
+library = []
+
+[dependencies]
+cosmwasm-std            = { workspace = true }
+cosmwasm-schema         = { workspace = true }
+cw-ownable              = { workspace = true }
+cw20                    = { workspace = true }
+valence-macros          = { workspace = true }
+valence-service-utils   = { workspace = true }
+valence-service-base    = { workspace = true }
+valence-astroport-utils = { workspace = true }
+
+[dev-dependencies]
+valence-astroport-utils = { workspace = true, features = ["testing"] }
+cw20                    = { workspace = true }
+valence-account-utils   = { workspace = true }
+neutron-test-tube       = { workspace = true }

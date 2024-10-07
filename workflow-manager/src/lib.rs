@@ -23,6 +23,7 @@ const NEUTRON_DOMAIN: Domain = Domain::CosmosCosmwasm("neutron");
 pub async fn init_workflow(mut workflow_config: WorkflowConfig) {
     let connectors = Connectors::default();
 
+    // TODO: We probably want to register the error we got, with the config in question so we can know when it failed and why
     workflow_config.init(&connectors).await.unwrap();
 
     println!("{:#?}", workflow_config);
