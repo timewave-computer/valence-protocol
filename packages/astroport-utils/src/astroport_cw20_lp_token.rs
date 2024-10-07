@@ -105,6 +105,9 @@ pub enum PoolQueryMsg {
         offer_asset: Asset,
         ask_asset_info: Option<AssetInfo>,
     },
+    /// Returns information about the share of the pool in a vector that contains objects of type [`Asset`].
+    #[returns(Vec<Asset>)]
+    Share { amount: Uint128 },
 }
 
 #[derive(Eq)]
@@ -189,5 +192,15 @@ pub enum FactoryQueries {
     Pair {
         /// The assets for which we return a pair
         asset_infos: Vec<AssetInfo>,
+    },
+}
+
+/// This structure describes a CW20 hook message.
+#[cw_serde]
+pub enum Cw20HookMsg {
+    /// Withdraw liquidity from the pool
+    WithdrawLiquidity {
+        #[serde(default)]
+        assets: Vec<Asset>,
     },
 }

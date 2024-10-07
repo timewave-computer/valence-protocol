@@ -77,6 +77,12 @@ pub enum ExecuteMsg {
         receiver: Option<String>,
         min_lp_to_receive: Option<Uint128>,
     },
+    /// WithdrawLiquidity allows someone to withdraw liquidity from the pool
+    WithdrawLiquidity {
+        #[serde(default)]
+        assets: Vec<Asset>,
+        min_assets_to_receive: Option<Vec<Asset>>,
+    },
 }
 
 #[cw_serde]
@@ -104,6 +110,9 @@ pub enum PoolQueryMsg {
         offer_asset: Asset,
         ask_asset_info: Option<AssetInfo>,
     },
+    /// Returns information about the share of the pool in a vector that contains objects of type [`Asset`].
+    #[returns(Vec<Asset>)]
+    Share { amount: Uint128 },
 }
 
 #[derive(Eq)]
