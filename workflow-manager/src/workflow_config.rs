@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 use valence_authorization_utils::authorization::AuthorizationInfo;
+
 use valence_service_utils::Id;
 
 use crate::{
@@ -72,7 +73,7 @@ pub struct WorkflowConfig {
     /// A list of links between an accounts and services
     pub links: BTreeMap<Id, Link>,
     /// A list of authorizations
-    pub authorizations: BTreeMap<Id, AuthorizationInfo>,
+    pub authorizations: Vec<AuthorizationInfo>,
     /// The list account data by id
     pub accounts: BTreeMap<Id, AccountInfo>,
     /// The list service data by id
@@ -278,7 +279,10 @@ impl WorkflowConfig {
                 account_data.add_service(service_addr.to_string());
 
                 patterns.push(format!("|account_id|\":{account_id}"));
-                replace_with.push(format!("account_addr\":\"{}\"", account_data.addr.clone()))
+                replace_with.push(format!(
+                    "service_account_addr\":\"{}\"",
+                    account_data.addr.clone()
+                ))
             }
 
             for account_id in link.output_accounts_id.iter() {
@@ -287,7 +291,10 @@ impl WorkflowConfig {
                 )?;
 
                 patterns.push(format!("|account_id|\":{account_id}"));
-                replace_with.push(format!("account_addr\":\"{}\"", account_data.addr.clone()))
+                replace_with.push(format!(
+                    "service_account_addr\":\"{}\"",
+                    account_data.addr.clone()
+                ))
             }
 
             service.config.replace_config(patterns, replace_with)?;
@@ -324,6 +331,61 @@ impl WorkflowConfig {
                 )
                 .await?;
         }
+
+        // Loop over authorizations, and change ids to their addresses
+        for authorization in self.authorizations.iter_mut() {
+            match &mut authorization.actions_config {
+                valence_authorization_utils::authorization::ActionsConfig::Atomic(
+                    atomic_actions_config,
+                ) => {
+                    atomic_actions_config.actions.iter_mut().for_each(|action| {
+                        let addr = match &action.contract_address {
+                            valence_service_utils::ServiceAccountType::Addr(a) => a.to_string(),
+                            valence_service_utils::ServiceAccountType::AccountId(account_id) => {
+                                account_instantiate_datas
+                                    .get(account_id)
+                                    .unwrap()
+                                    .addr
+                                    .clone()
+                            }
+                            valence_service_utils::ServiceAccountType::ServiceId(service_id) => {
+                                self.services.get(service_id).unwrap().addr.clone().unwrap()
+                            }
+                        };
+                        action.contract_address =
+                            valence_service_utils::ServiceAccountType::Addr(addr);
+                    });
+                }
+                valence_authorization_utils::authorization::ActionsConfig::NonAtomic(
+                    non_atomic_actions_config,
+                ) => {
+                    non_atomic_actions_config
+                        .actions
+                        .iter_mut()
+                        .for_each(|action| {
+                            let addr = match &action.contract_address {
+                                valence_service_utils::ServiceAccountType::Addr(a) => a.to_string(),
+                                valence_service_utils::ServiceAccountType::AccountId(
+                                    account_id,
+                                ) => account_instantiate_datas
+                                    .get(account_id)
+                                    .unwrap()
+                                    .addr
+                                    .clone(),
+                                valence_service_utils::ServiceAccountType::ServiceId(
+                                    service_id,
+                                ) => self.services.get(service_id).unwrap().addr.clone().unwrap(),
+                            };
+                            action.contract_address =
+                                valence_service_utils::ServiceAccountType::Addr(addr);
+                        });
+                }
+            }
+        }
+
+        main_connector
+            .add_authorizations(authorization_addr.clone(), self.authorizations.clone())
+            .await?;
 
         // Change the admin of the authorization contract to the owner of the workflow
         main_connector

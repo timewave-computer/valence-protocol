@@ -22,3 +22,4 @@ cosmwasm-std-polytone              = { package = "cosmwasm-std", version = "1.5.
 cw-utils                           = { workspace = true }
 valence-authorization              = { workspace = true }
 valence-processor                  = { workspace = true }
+valence-service-utils              = { workspace = true }

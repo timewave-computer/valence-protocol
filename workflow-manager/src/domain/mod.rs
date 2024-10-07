@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 // use cosmos_evm::CosmosEvmError;
 use strum::Display;
 use thiserror::Error;
+use valence_authorization_utils::authorization::AuthorizationInfo;
 
 use crate::{
     account::InstantiateAccountData,
@@ -160,6 +161,16 @@ pub trait Connector: fmt::Debug + Send + Sync {
         processor_addr: String,
     ) -> ConnectorResult<()> {
         unimplemented!("'instantiate_authorization' should only be implemented on main domain");
+    }
+
+    /// Add authorizations to the authorization contract
+    #[allow(unused_variables)]
+    async fn add_authorizations(
+        &mut self,
+        authorization_addr: String,
+        authorizations: Vec<AuthorizationInfo>,
+    ) -> ConnectorResult<()> {
+        unimplemented!("'add_authorizations' should only be implemented on main domain");
     }
 
     /// We need to instantiate the bridge accounts for the authorization contract on all other domains

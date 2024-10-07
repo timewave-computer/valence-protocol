@@ -23,15 +23,17 @@ pub trait ServiceConfigInterface<T> {
 #[cw_serde]
 #[derive(Eq, PartialOrd, Ord)]
 pub enum ServiceAccountType {
-    #[serde(rename = "|account_addr|", alias = "account_addr")]
-    AccountAddr(String),
+    #[serde(rename = "|service_account_addr|", alias = "service_account_addr")]
+    Addr(String),
     #[serde(rename = "|account_id|", alias = "account_id")]
     AccountId(Id),
+    #[serde(rename = "|service_id|", alias = "service_id")]
+    ServiceId(Id),
 }
 
 impl From<&Addr> for ServiceAccountType {
     fn from(addr: &Addr) -> Self {
-        ServiceAccountType::AccountAddr(addr.to_string())
+        ServiceAccountType::Addr(addr.to_string())
     }
 }
 
@@ -40,7 +42,7 @@ impl From<&str> for ServiceAccountType {
         if addr.starts_with("|account_id|:") {
             ServiceAccountType::AccountId(addr.trim_start_matches("|account_id|:").parse().unwrap())
         } else {
-            ServiceAccountType::AccountAddr(addr.to_owned())
+            ServiceAccountType::Addr(addr.to_owned())
         }
     }
 }
@@ -48,19 +50,19 @@ impl From<&str> for ServiceAccountType {
 impl ServiceAccountType {
     pub fn to_string(&self) -> StdResult<String> {
         match self {
-            ServiceAccountType::AccountAddr(addr) => Ok(addr.to_string()),
-            ServiceAccountType::AccountId(_) => {
-                Err(StdError::generic_err("Account type is not an address"))
-            }
+            ServiceAccountType::Addr(addr) => Ok(addr.to_string()),
+            ServiceAccountType::AccountId(_) | ServiceAccountType::ServiceId(_) => Err(
+                StdError::generic_err("ServiceAccountType must be an address"),
+            ),
         }
     }
 
     pub fn to_addr(&self, api: &dyn cosmwasm_std::Api) -> StdResult<Addr> {
         match self {
-            ServiceAccountType::AccountAddr(addr) => api.addr_validate(addr),
-            ServiceAccountType::AccountId(_) => {
-                Err(StdError::generic_err("Account type is not an address"))
-            }
+            ServiceAccountType::Addr(addr) => api.addr_validate(addr),
+            ServiceAccountType::AccountId(_) | ServiceAccountType::ServiceId(_) => Err(
+                StdError::generic_err("ServiceAccountType must be an address"),
+            ),
         }
     }
 }

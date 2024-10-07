@@ -12,3 +12,4 @@ cosmwasm-schema        = { workspace = true }
 neutron-sdk            = { workspace = true }
 cw-ownable             = { workspace = true }
 valence-polytone-utils = { workspace = true }
+valence-service-utils  = { workspace = true }

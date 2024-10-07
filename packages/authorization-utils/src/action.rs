@@ -1,6 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Binary};
 use cw_utils::Duration;
+use valence_service_utils::ServiceAccountType;
 
 use crate::{authorization_message::MessageDetails, domain::Domain};
 
@@ -10,7 +11,7 @@ pub struct AtomicAction {
     pub domain: Domain,
     pub message_details: MessageDetails,
     // We use String instead of Addr because it can be a contract address in other execution environments
-    pub contract_address: String,
+    pub contract_address: ServiceAccountType,
 }
 
 #[cw_serde]
@@ -19,7 +20,7 @@ pub struct NonAtomicAction {
     pub domain: Domain,
     pub message_details: MessageDetails,
     // We use String instead of Addr because it can be a contract address in other execution environments
-    pub contract_address: String,
+    pub contract_address: ServiceAccountType,
     // A non atomic action might need to be retried, in that case we will include the retry logic.
     pub retry_logic: Option<RetryLogic>,
     // An action might need to receive a callback to be confirmed, in that case we will include the callback confirmation.
@@ -30,7 +31,7 @@ pub struct NonAtomicAction {
 pub trait Action {
     fn domain(&self) -> &Domain;
     fn message_details(&self) -> &MessageDetails;
-    fn get_contract_address(&self) -> &str;
+    fn get_contract_address(&self) -> String;
 }
 
 // Implement this trait for both AtomicAction and NonAtomicAction
@@ -43,8 +44,8 @@ impl Action for AtomicAction {
         &self.message_details
     }
 
-    fn get_contract_address(&self) -> &str {
-        &self.contract_address
+    fn get_contract_address(&self) -> String {
+        self.contract_address.to_string().unwrap()
     }
 }
 
@@ -57,8 +58,8 @@ impl Action for NonAtomicAction {
         &self.message_details
     }
 
-    fn get_contract_address(&self) -> &str {
-        &self.contract_address
+    fn get_contract_address(&self) -> String {
+        self.contract_address.to_string().unwrap()
     }
 }
 

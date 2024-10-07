@@ -2364,6 +2364,7 @@ dependencies = [
  "valence-local-interchaintest-utils",
  "valence-processor",
  "valence-processor-utils",
+ "valence-service-utils",
 ]
 
 [[package]]
@@ -4738,6 +4739,7 @@ dependencies = [
  "cw-utils 2.0.0",
  "neutron-sdk",
  "valence-polytone-utils",
+ "valence-service-utils",
 ]
 
 [[package]]
