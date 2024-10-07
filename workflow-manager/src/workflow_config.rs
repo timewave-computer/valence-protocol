@@ -173,7 +173,7 @@ impl WorkflowConfig {
                 // Adding external domain to the authorization contract will create the bridge account on that domain
                 neutron_connector
                     .add_external_domain(
-                        &neutron_domain.get_chain_name(),
+                        neutron_domain.get_chain_name(),
                         domain.get_chain_name(),
                         authorization_addr.clone(),
                         processor_addr.clone(),

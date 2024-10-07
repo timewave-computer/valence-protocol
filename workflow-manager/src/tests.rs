@@ -191,9 +191,11 @@ mod test {
         //     .expect("setting default subscriber failed");
         let neutron_domain = Domain::CosmosCosmwasm("neutron".to_string());
 
-        let mut config = WorkflowConfig::default();
+        let mut config = WorkflowConfig {
+            owner: "neutron1tl0w0djc5y53aqfr60a794f02drwktpujm5xxe".to_string(),
+            ..Default::default()
+        };
 
-        config.owner = "neutron1tl0w0djc5y53aqfr60a794f02drwktpujm5xxe".to_string();
         config.accounts.insert(
             1,
             AccountInfo {

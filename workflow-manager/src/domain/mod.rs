@@ -47,7 +47,7 @@ impl fmt::Display for Domain {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // IMPORTANT: to get from_string, we need to separate everything using ":"
         match self {
-            Domain::CosmosCosmwasm(chain_name) => write!(f, "{}:{}", "CosmosCosmwasm", chain_name),
+            Domain::CosmosCosmwasm(chain_name) => write!(f, "CosmosCosmwasm:{}", chain_name),
             // Domain::CosmosEvm(chain_name) => write!(f, "{}", chain_name),
         }
     }
@@ -60,7 +60,12 @@ impl Domain {
         let _cosmos_cw = Domain::CosmosCosmwasm("".to_string()).to_string();
 
         match split.next() {
-            Some(_cosmos_cw) => Ok(Domain::CosmosCosmwasm(split.next().expect("CosmosCosmwasm Domain missing chain name").to_string())),
+            Some(_cosmos_cw) => Ok(Domain::CosmosCosmwasm(
+                split
+                    .next()
+                    .expect("CosmosCosmwasm Domain missing chain name")
+                    .to_string(),
+            )),
             // "CosmosEvm" => Ok(Domain::CosmosEvm(split[1])),
             _ => Err(anyhow!("Failed to parse domain from string")),
         }

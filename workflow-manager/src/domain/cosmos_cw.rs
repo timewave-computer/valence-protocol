@@ -120,7 +120,7 @@ impl CosmosCosmwasmConnector {
         ))?;
 
         Ok(CosmosCosmwasmConnector {
-            is_main_chain: chain_info.name == NEUTRON_CHAIN.to_string(),
+            is_main_chain: chain_info.name == *NEUTRON_CHAIN,
             wallet,
             code_ids: code_ids.clone(),
             chain_name: chain_info.name.clone(),
@@ -131,7 +131,7 @@ impl CosmosCosmwasmConnector {
 #[async_trait]
 impl Connector for CosmosCosmwasmConnector {
     async fn reserve_workflow_id(&mut self) -> ConnectorResult<u64> {
-        if self.chain_name != NEUTRON_CHAIN.to_string() {
+        if self.chain_name != *NEUTRON_CHAIN {
             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                 "Should only be implemented on neutron connector"
             ))
@@ -784,7 +784,7 @@ impl Connector for CosmosCosmwasmConnector {
     }
 
     async fn save_workflow_config(&mut self, config: WorkflowConfig) -> ConnectorResult<()> {
-        if self.chain_name != NEUTRON_CHAIN.to_string() {
+        if self.chain_name != *NEUTRON_CHAIN {
             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                 "Should only be implemented on neutron connector"
             ))
