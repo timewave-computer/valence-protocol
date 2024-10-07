@@ -35,9 +35,9 @@ The service is configured on instantiation via the `ServiceConfig` type.
 ```rust
 pub struct ServiceConfig {
     // Account from which the funds are LPed
-    pub input_addr: String,
+    pub input_addr: ServiceAccountType,
     // Account to which the LP tokens are forwarded
-    pub output_addr: String,
+    pub output_addr: ServiceAccountType,
     // Pool address
     pub pool_addr: String,
     // Liquidity withdrawer configuration
