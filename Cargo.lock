@@ -4804,6 +4804,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-osmosis-lper"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.3",
+ "cosmwasm-std 2.1.3",
+ "cw-ownable",
+ "cw20 2.0.0",
+ "neutron-test-tube",
+ "valence-account-utils",
+ "valence-macros",
+ "valence-service-base",
+ "valence-service-utils",
+]
+
+[[package]]
 name = "valence-polytone-utils"
 version = "0.1.0"
 dependencies = [
