@@ -30,16 +30,17 @@ graph LR
 ## Configuration
 
 The service is configured on instantiation via the `ServiceConfig` type.
+
 ```rust
 struct ServiceConfig {
-    input_addr: String,                // Address of the input account
+    input_addr: ServiceAccountType,    // Address of the input account
     splits: Vec<UncheckedSplitConfig>, // Split configuration per denom
 }
 
 // Split config for specified account
 struct UncheckedSplitConfig {
   denom: UncheckedDenom,                // Denom for this split configuration (either native or CW20)
-  account: String,                      // Address of the output account for this split config
+  account: ServiceAccountType,          // Address of the output account for this split config
   amount: Option<Uint128>,              // Fixed amount of tokens
   ratio: Option<UncheckedRatioConfig>,  // Amount defined based on a ratio
 }
