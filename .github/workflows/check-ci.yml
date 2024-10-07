@@ -143,7 +143,7 @@ jobs:
           local-ic start neutron_juno --api-port 42069 &
           curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
 
-      - name: Run polytone example
+      - name: Run token_swap example
         env:
           RUST_LOG: debug
         run: cargo run --package local-interchaintest --example token_swap

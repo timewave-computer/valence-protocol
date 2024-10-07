@@ -25,9 +25,7 @@ use valence_authorization_utils::{
     msg::ProcessorMessage,
 };
 use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
-use valence_splitter_service::msg::{
-    ActionMsgs, OptionalServiceConfig, ServiceConfig, UncheckedSplitConfig,
-};
+use valence_splitter_service::msg::{ActionMsgs, ServiceConfig, UncheckedSplitConfig};
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -325,10 +323,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Send the messages to the authorization contract...");
     let binary = Binary::from(
-        serde_json::to_vec(&valence_service_utils::msg::ExecuteMsg::<
-            ActionMsgs,
-            OptionalServiceConfig,
-        >::ProcessAction(ActionMsgs::Split {}))
+        serde_json::to_vec(
+            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(ActionMsgs::Split {}),
+        )
         .unwrap(),
     );
     let message = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
