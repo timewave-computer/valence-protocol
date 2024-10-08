@@ -8,6 +8,7 @@ use crate::{
     account::{AccountType, InstantiateAccountData},
     bridge::PolytoneSingleChainInfo,
     config::{ChainInfo, ConfigError, CONFIG},
+    helpers::{addr_canonicalize, addr_humanize},
     service::{ServiceConfig, ServiceError},
     workflow_config::WorkflowConfig,
     MAIN_CHAIN, NEUTRON_DOMAIN,
@@ -25,7 +26,7 @@ use cosmos_grpc_client::{
     cosmrs::bip32::secp256k1::sha2::{digest::Update, Digest, Sha256},
     BroadcastMode, Decimal, GrpcClient, ProstMsgNameToAny, Wallet,
 };
-use cosmwasm_std::{from_json, to_json_binary};
+use cosmwasm_std::{from_json, instantiate2_address, to_json_binary};
 use serde_json::to_vec;
 use strum::VariantNames;
 use thiserror::Error;
@@ -79,6 +80,7 @@ pub struct CosmosCosmwasmConnector {
     wallet: Wallet,
     code_ids: HashMap<String, u64>,
     chain_name: String,
+    prefix: String,
 }
 
 impl fmt::Debug for CosmosCosmwasmConnector {
@@ -123,6 +125,7 @@ impl CosmosCosmwasmConnector {
             wallet,
             code_ids: code_ids.clone(),
             chain_name: chain_info.name.clone(),
+            prefix: chain_info.prefix.clone(),
         })
     }
 }
@@ -226,24 +229,36 @@ impl Connector for CosmosCosmwasmConnector {
             .finalize()
             .to_vec();
 
-        let addr = self
-            .wallet
-            .client
-            .proto_query::<QueryBuildAddressRequest, QueryBuildAddressResponse>(
-                QueryBuildAddressRequest {
-                    code_hash: hex::encode(checksum.clone()),
-                    creator_address: self.wallet.account_address.clone(),
-                    salt: hex::encode(salt.clone()),
-                },
-                "/cosmwasm.wasm.v1.Query/BuildAddress",
-            )
-            .await
-            .context(format!(
-                "Failed to query the instantiate2 address: {:?}",
-                checksum
-            ))
-            .map_err(CosmosCosmwasmError::Error)?
-            .address;
+        let addr_canonical = instantiate2_address(
+            &checksum,
+            &addr_canonicalize(&self.prefix, self.wallet.account_address.as_str()).unwrap(),
+            &salt,
+        )
+        .context("Failed to instantiate2 address")
+        .map_err(CosmosCosmwasmError::Error)?;
+
+        let addr =
+            addr_humanize(&self.prefix, &addr_canonical).map_err(CosmosCosmwasmError::Error)?;
+
+        // TODO: Remove this later
+        // let addr2 = self
+        //     .wallet
+        //     .client
+        //     .proto_query::<QueryBuildAddressRequest, QueryBuildAddressResponse>(
+        //         QueryBuildAddressRequest {
+        //             code_hash: hex::encode(checksum.clone()),
+        //             creator_address: self.wallet.account_address.clone(),
+        //             salt: hex::encode(salt.clone()),
+        //         },
+        //         "/cosmwasm.wasm.v1.Query/BuildAddress",
+        //     )
+        //     .await
+        //     .context(format!(
+        //         "Failed to query the instantiate2 address: {:?}",
+        //         checksum
+        //     ))
+        //     .map_err(CosmosCosmwasmError::Error)?
+        //     .address;
 
         Ok((addr, salt.to_vec()))
     }
