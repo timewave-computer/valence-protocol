@@ -5,20 +5,20 @@ use serde_json::json;
 use valence_authorization_utils::{
     authorization::{AuthorizationDuration, AuthorizationModeInfo, PermissionTypeInfo},
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
+    builders::{
+        AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder, JsonBuilder,
+    },
     msg::{ExecuteMsg, PermissionedMsg, PermissionlessMsg, ProcessorMessage},
 };
 
 use crate::{
     contract::build_tokenfactory_denom,
     error::{AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason},
-    tests::{
-        builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, JsonBuilder},
-        helpers::wait_for_height,
-    },
+    tests::helpers::wait_for_height,
 };
 
 use super::{
-    builders::{AuthorizationBuilder, NeutronTestAppBuilder},
+    builders::NeutronTestAppBuilder,
     helpers::store_and_instantiate_authorization_with_processor_contract,
 };
 
