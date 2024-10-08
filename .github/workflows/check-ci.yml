@@ -65,7 +65,7 @@ jobs:
 
   local-ic-polytone:
     needs: build
-    name: Authorization-Processor polytone integration test
+    name: authorization & processor polytone integration test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -103,6 +103,50 @@ jobs:
         env:
           RUST_LOG: debug
         run: cargo run --package local-interchaintest --example polytone
+
+      - name: Cleanup
+        run: killall local-ic && exit 0
+
+  local-ic-token-swap:
+    needs: build
+    name: token swap e2e test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install local-ic
+        run: git clone https://github.com/strangelove-ventures/interchaintest && cd interchaintest/local-interchain && make install
+
+      - name: Get cargo
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: optimized-contracts
+          path: ./artifacts
+
+      - name: List downloaded files
+        run: ls -l ./artifacts
+
+      - name: Start local-ic and wait for it to be ready
+        run: |
+          cd local-interchaintest
+          local-ic start neutron_juno --api-port 42069 &
+          curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
+
+      - name: Run token_swap example
+        env:
+          RUST_LOG: debug
+        run: cargo run --package local-interchaintest --example token_swap
 
       - name: Cleanup
         run: killall local-ic && exit 0

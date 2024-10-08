@@ -11,6 +11,10 @@ use valence_authorization_utils::{
         PermissionTypeInfo, Priority,
     },
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
+    builders::{
+        AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder,
+        NonAtomicActionBuilder, NonAtomicActionsConfigBuilder,
+    },
     domain::Domain,
     msg::{ExecuteMsg, Mint, OwnerMsg, PermissionedMsg, QueryMsg},
 };
@@ -23,10 +27,7 @@ use crate::{
     contract::build_tokenfactory_denom,
     error::{AuthorizationErrorReason, ContractError, UnauthorizedReason},
     tests::{
-        builders::{
-            AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder,
-            NeutronTestAppBuilder, NonAtomicActionBuilder, NonAtomicActionsConfigBuilder,
-        },
+        builders::NeutronTestAppBuilder,
         helpers::store_and_instantiate_authorization_with_processor_contract,
     },
 };

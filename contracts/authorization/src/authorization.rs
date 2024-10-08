@@ -301,7 +301,7 @@ fn check_restriction(
     //
     // assert_eq!(data.pointer("/x/y/1").unwrap(), &json!("zz"));
     // assert_eq!(data.pointer("/a/b/c"), None);
-    let pointer = |keys: &[String]| -> String { keys.join("/") };
+    let pointer = |keys: &[String]| -> String { format!("/{}", keys.join("/")) };
 
     match param_restriction {
         ParamRestriction::MustBeIncluded(keys) => {
