@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod test {
+    use cosmwasm_std::Uint128;
     use std::collections::BTreeMap;
 
-    use cosmwasm_std::Uint128;
     use serde_json_any_key::MapIterToJson;
     use valence_service_utils::ServiceAccountType;
     use valence_splitter_service::msg::{
@@ -35,43 +35,12 @@ mod test {
         let _config = Config::default();
         // let ctx = Connectors::new(&config);
 
-        let domain = Domain::CosmosCosmwasm("neutron");
-        let mut _connector = domain.generate_connector().await.unwrap();
+        // let domain = Domain::CosmosCosmwasm("neutron");
+        // let mut connector = domain.generate_connector().await.unwrap();
         // let (addr, salt) = connector
-        //     .get_address(1, "base_account", "account")
+        //     .get_address(2, "splitter", "splitter")
         //     .await
         //     .unwrap();
-        // let account_info = InstantiateAccountData {
-        //     id: 1,
-        //     info: AccountInfo{ name: "Test".to_string(), ty: AccountType::Base { admin: None }, domain },
-        //     addr,
-        //     salt,
-        //     approved_services: vec![],
-        // };
-
-        // let id = connector.reserve_workflow_id().await.unwrap();
-        // println!("{:?}", id);
-
-        // // let domain2 = Domain::Cosmos("neutron".to_string());
-        // let mut domain_info = DomainInfo::from_domain(&domain).await;
-        // println!("{domain_info:?}");
-        // let mut domain_info2 = DomainInfo::from_domain(domain2).await;
-        // println!("{domain_info2:?}");
-
-        // let mut domain_info3 = DomainInfo::from_domain(domain).await;
-        // println!("{domain_info3:?}");
-
-        // let stats = dhat::HeapStats::get();
-
-        // let d = domain_info
-        //     .connector
-        //     .init_account(
-        //         1,
-        //         None,
-        //         "label".to_string(),
-        //     )
-        //     .await;
-        // println!("Balance: {d:?}");
     }
 
     #[ignore = "internal test"]
