@@ -48,6 +48,7 @@ use valence_processor_utils::{
     msg::PolytoneContracts,
     processor::{Config, MessageBatch, ProcessorDomain},
 };
+use valence_service_utils::ServiceAccountType;
 
 const TIMEOUT_SECONDS: u64 = 15;
 const MAX_ATTEMPTS: u64 = 50;
@@ -506,7 +507,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             },
         },
         // We don't care about the execution result so we will just make it fail when ticking the processor
-        contract_address: "any".to_string(),
+        contract_address: ServiceAccountType::Addr("any".to_string()),
     };
     let mut authorization = AuthorizationInfo {
         label: "label".to_string(),

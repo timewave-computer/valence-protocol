@@ -94,7 +94,7 @@ mod test {
         let mut json = serde_json::to_string(&t).unwrap();
         println!("{json:?}");
 
-        json = json.replace("|account_id|\":1", "account_addr\":\"cosmos1\"");
+        json = json.replace("|account_id|\":1", "service_account_addr\":\"cosmos1\"");
         println!("{json:?}");
 
         let back_struct = serde_json::from_str::<Test>(&json).unwrap();
@@ -192,9 +192,7 @@ mod test {
                                 params_restrictions: None,
                             },
                         },
-                        contract_address:
-                            "neutron1dzx7zsljlf38x8jyhstk5ts58x6yyd450x62aaejk9cn4cskyvlsd7lchu"
-                                .to_string(),
+                        contract_address: ServiceAccountType::ServiceId(1),
                     }],
                     retry_logic: None,
                 }),

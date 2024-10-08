@@ -65,7 +65,6 @@ valence-reverse-splitter-service = { path = "contracts/services/reverse-splitter
 valence-account-utils              = { path = "packages/account-utils" }
 valence-astroport-utils            = { path = "packages/astroport-utils" }
 valence-authorization-utils        = { path = "packages/authorization-utils" }
-valence-local-interchaintest-utils = { path = "packages/local-interchaintest-utils" }
 valence-macros                     = { path = "packages/valence-macros" }
 valence-polytone-utils             = { path = "packages/polytone-utils" }
 valence-processor-utils            = { path = "packages/processor-utils" }

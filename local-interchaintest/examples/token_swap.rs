@@ -201,7 +201,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             input_addr: base_account_1.clone(),
             splits: vec![UncheckedSplitConfig {
                 denom: UncheckedDenom::Native(token1.clone()),
-                account: ServiceAccountType::AccountAddr(base_account_2.clone()),
+                account: ServiceAccountType::Addr(base_account_2.clone()),
                 amount: UncheckedSplitAmount::FixedAmount(swap_amount.into()),
             }],
         },
@@ -228,7 +228,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             input_addr: base_account_2.clone(),
             splits: vec![UncheckedSplitConfig {
                 denom: UncheckedDenom::Native(token2.clone()),
-                account: ServiceAccountType::AccountAddr(base_account_1.clone()),
+                account: ServiceAccountType::Addr(base_account_1.clone()),
                 amount: UncheckedSplitAmount::FixedAmount(swap_amount.into()),
             }],
         },

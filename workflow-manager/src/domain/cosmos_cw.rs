@@ -31,6 +31,7 @@ use serde_json::to_vec;
 use strum::VariantNames;
 use thiserror::Error;
 use tokio::time::sleep;
+use valence_authorization_utils::authorization::AuthorizationInfo;
 
 use super::{Connector, ConnectorResult, POLYTONE_TIMEOUT};
 
@@ -156,7 +157,6 @@ impl Connector for CosmosCosmwasmConnector {
 
         let tx_hash = self
             .wallet
-            // .simulate_tx(vec![m])
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map_err(CosmosCosmwasmError::Error)?
@@ -345,7 +345,6 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         self.wallet
-            // .simulate_tx(vec![m])
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map_err(CosmosCosmwasmError::Error)?;
@@ -390,7 +389,6 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         self.wallet
-            // .simulate_tx(vec![m])
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map_err(CosmosCosmwasmError::Error)?;
@@ -440,7 +438,6 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         self.wallet
-            // .simulate_tx(vec![m])
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map_err(CosmosCosmwasmError::Error)?;
@@ -474,7 +471,6 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         self.wallet
-            // .simulate_tx(vec![m])
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map_err(CosmosCosmwasmError::Error)?;
@@ -516,7 +512,6 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         self.wallet
-            // .simulate_tx(vec![m])
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map_err(CosmosCosmwasmError::Error)?;
@@ -577,7 +572,45 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         self.wallet
-            // .simulate_tx(vec![m])
+            .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
+            .await
+            .map_err(CosmosCosmwasmError::Error)?;
+
+        sleep(std::time::Duration::from_secs(12)).await;
+
+        Ok(())
+    }
+
+    async fn add_authorizations(
+        &mut self,
+        authorization_addr: String,
+        authorizations: Vec<AuthorizationInfo>,
+    ) -> ConnectorResult<()> {
+        if !self.is_main_chain {
+            return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                "Adding authorizations is only possible on main domain in authorization contract"
+            ))
+            .into());
+        }
+
+        let msg = to_vec(
+            &valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
+                valence_authorization_utils::msg::PermissionedMsg::CreateAuthorizations {
+                    authorizations,
+                },
+            ),
+        )
+        .map_err(CosmosCosmwasmError::SerdeJsonError)?;
+
+        let m = MsgExecuteContract {
+            sender: self.wallet.account_address.clone(),
+            contract: authorization_addr,
+            msg,
+            funds: vec![],
+        }
+        .build_any();
+
+        self.wallet
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map_err(CosmosCosmwasmError::Error)?;
@@ -620,7 +653,6 @@ impl Connector for CosmosCosmwasmConnector {
                 .build_any();
 
                 self.wallet
-                    // .simulate_tx(vec![m])
                     .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
                     .await
                     .map_err(CosmosCosmwasmError::Error)?;
@@ -677,7 +709,6 @@ impl Connector for CosmosCosmwasmConnector {
                 .build_any();
 
                 self.wallet
-                    // .simulate_tx(vec![m])
                     .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
                     .await
                     .map_err(CosmosCosmwasmError::Error)?;

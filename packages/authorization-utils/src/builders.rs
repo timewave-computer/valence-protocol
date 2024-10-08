@@ -200,7 +200,7 @@ impl AtomicActionBuilder {
         AtomicAction {
             domain: self.domain,
             message_details: self.message_details,
-            contract_address: self.contract_address,
+            contract_address: self.contract_address.as_str().into(),
         }
     }
 }
@@ -260,7 +260,7 @@ impl NonAtomicActionBuilder {
         NonAtomicAction {
             domain: self.domain,
             message_details: self.message_details,
-            contract_address: self.contract_address,
+            contract_address: self.contract_address.as_str().into(),
             retry_logic: self.retry_logic,
             callback_confirmation: self.callback_confirmation,
         }
