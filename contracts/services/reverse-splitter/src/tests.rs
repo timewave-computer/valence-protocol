@@ -362,7 +362,7 @@ fn update_config_with_valid_config() {
     );
 }
 
-// // Native & CW20 token amount splits
+// Native & CW20 token amount splits
 
 #[test]
 fn split_native_single_token_amount_single_input() {

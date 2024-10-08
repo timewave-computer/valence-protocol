@@ -170,7 +170,7 @@ impl UncheckedSplitConfig {
         )
     }
 
-    pub fn with_factor(mut self, factor: u64) -> Self {
+    pub fn set_factor(mut self, factor: u64) -> Self {
         self.factor = Some(factor);
         self
     }
@@ -326,6 +326,8 @@ fn validate_splits(
     }
 
     let mut denom_set = HashSet::new();
+    let mut config_has_ratio = false;
+    let mut config_has_amount_for_non_base_denom = false;
     for split in splits {
         split.account.to_addr(api)?;
         // Note: can't validate denom without the deps
@@ -353,6 +355,10 @@ fn validate_splits(
                             .to_string(),
                     ));
                 }
+
+                if split.denom != *base_denom {
+                    config_has_amount_for_non_base_denom = true;
+                }
             }
             UncheckedSplitAmount::FixedRatio(ratio) => {
                 if ratio == Decimal::zero() {
@@ -365,6 +371,7 @@ fn validate_splits(
                         "Invalid split config: fixed ratio for base denom must be 1.".to_string(),
                     ));
                 }
+                config_has_ratio = true;
             }
             UncheckedSplitAmount::DynamicRatio { contract_addr, .. } => {
                 api.addr_validate(contract_addr)?;
@@ -374,6 +381,7 @@ fn validate_splits(
                             .to_string(),
                     ));
                 }
+                config_has_ratio = true;
             }
         }
 
@@ -387,13 +395,7 @@ fn validate_splits(
     }
 
     // If there are ratios, we only allow an amount to be set for the base denom
-    if splits
-        .iter()
-        .any(|s| !matches!(s.amount, UncheckedSplitAmount::FixedAmount(..)))
-        && splits.iter().any(|s| {
-            matches!(s.amount, UncheckedSplitAmount::FixedAmount(..)) && s.denom != *base_denom
-        })
-    {
+    if config_has_ratio && config_has_amount_for_non_base_denom {
         return Err(ServiceError::ConfigurationError(
             "Invalid split config: only base denom can have an amount when ratios are specified for other some denoms.".to_string(),
         ));
