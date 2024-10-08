@@ -25,7 +25,9 @@ use valence_authorization_utils::{
     msg::ProcessorMessage,
 };
 use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
-use valence_splitter_service::msg::{ActionMsgs, ServiceConfig, UncheckedSplitConfig};
+use valence_splitter_service::msg::{
+    ActionMsgs, ServiceConfig, UncheckedSplitAmount, UncheckedSplitConfig,
+};
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -200,8 +202,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             splits: vec![UncheckedSplitConfig {
                 denom: UncheckedDenom::Native(token1.clone()),
                 account: ServiceAccountType::AccountAddr(base_account_2.clone()),
-                amount: Some(swap_amount.into()),
-                ratio: None,
+                amount: UncheckedSplitAmount::FixedAmount(swap_amount.into()),
             }],
         },
     };
@@ -228,8 +229,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             splits: vec![UncheckedSplitConfig {
                 denom: UncheckedDenom::Native(token2.clone()),
                 account: ServiceAccountType::AccountAddr(base_account_1.clone()),
-                amount: Some(swap_amount.into()),
-                ratio: None,
+                amount: UncheckedSplitAmount::FixedAmount(swap_amount.into()),
             }],
         },
     };
