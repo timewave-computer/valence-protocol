@@ -20,8 +20,11 @@ cw-ownable              = { workspace = true }
 valence-macros          = { workspace = true }
 valence-service-utils   = { workspace = true }
 valence-service-base    = { workspace = true }
+cosmwasm-std-polytone   = { package = "cosmwasm-std", version = "1.5.7" }
 
 [dev-dependencies]
 cw20                    = { workspace = true }
 valence-account-utils   = { workspace = true }
 neutron-test-tube       = { workspace = true }
+osmosis-test-tube       = { workspace = true }
+valence-astroport-utils = { workspace = true, features = ["testing"] }

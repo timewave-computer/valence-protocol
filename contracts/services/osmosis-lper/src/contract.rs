@@ -1,9 +1,15 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
-use valence_service_utils::error::ServiceError;
+use valence_service_utils::{
+    error::ServiceError,
+    msg::{ExecuteMsg, InstantiateMsg},
+};
 
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::{
+    msg::{ActionsMsgs, QueryMsg},
+    valence_service_integration::{OptionalServiceConfig, ServiceConfig},
+};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -14,9 +20,9 @@ pub fn instantiate(
     deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    msg: InstantiateMsg,
+    msg: InstantiateMsg<ServiceConfig>,
 ) -> Result<Response, ServiceError> {
-    Ok(Response::default())
+    valence_service_base::instantiate(deps, CONTRACT_NAME, CONTRACT_VERSION, msg)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -24,7 +30,7 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg,
+    msg: ExecuteMsg<ActionsMsgs, OptionalServiceConfig>,
 ) -> Result<Response, ServiceError> {
     Ok(Response::default())
 }

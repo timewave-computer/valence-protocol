@@ -1,8 +1,13 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Deps};
 use cw_ownable::cw_ownable_query;
+use valence_service_utils::error::ServiceError;
+
 #[cw_serde]
-pub enum ActionsMsgs {}
+pub enum ActionsMsgs {
+    ProvideDoubleSidedLiquidity {},
+    ProvideSingleSidedLiquidity {},
+}
 
 #[cw_ownable_query]
 #[cw_serde]
@@ -13,7 +18,10 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
-pub struct InstantiateMsg {}
+pub struct LiquidityProviderConfig {
+    pub pool_id: u64,
+}
 
-#[cw_serde]
-pub struct ExecuteMsg {}
+pub fn ensure_correct_pool(pool_id: String, deps: &Deps) -> Result<(), ServiceError> {
+    Ok(())
+}
