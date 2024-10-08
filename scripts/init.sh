@@ -7,7 +7,7 @@ shift
 
 if [[ "$CHAIN" == 'neutron' || "$CHAIN" == 'ntrn' ]]; then
   BINARY="neutrond"
-  GAS_PRICES="0.055untrn"
+  GAS_PRICES="0.1untrn"
   OWNER_ADDR="neutron1tl0w0djc5y53aqfr60a794f02drwktpujm5xxe"
   ADMIN_ADDR="neutron1tl0w0djc5y53aqfr60a794f02drwktpujm5xxe"
 
@@ -17,10 +17,11 @@ else
   echo "Unknown chain"
 fi
 
-TESTNET_NODE="https://neutron-testnet-rpc.polkachu.com:443"
-TESTNET_CHAIN_ID="pion-1"
+TESTNET_INFO="--node https://neutron-testnet-rpc.polkachu.com:443 --chain-id pion-1"
+LOCAL_IC_INFO="--node http://0.0.0.0:45791 --chain-id localneutron-1"
 
-EXECUTE_FLAGS="--gas-prices $GAS_PRICES --gas auto --gas-adjustment 1.5 --output json --node $TESTNET_NODE --chain-id $TESTNET_CHAIN_ID -y"
+TESTNET_EXECUTE_FLAGS="--gas-prices $GAS_PRICES --gas auto --gas-adjustment 1.5 --output json $TESTNET_INFO -y"
+LOCAL_IC_EXECUTE_FLAGS="--gas-prices $GAS_PRICES --gas auto --gas-adjustment 1.5 --output json $LOCAL_IC_INFO -y"
 
 ################################################
 ################### Registry ###################
@@ -33,7 +34,7 @@ if [[ "$COMMAND" == 'registry' ]]; then
     }')
 
   $BINARY tx wasm init $CODE_ID_REGISTRY "$init_msg" --label "Valence workflow registry" \
-    --admin $OWNER_ADDR --from $OWNER_ADDR $EXECUTE_FLAGS
+    --admin $OWNER_ADDR --from $OWNER_ADDR $TESTNET_EXECUTE_FLAGS
 
 else
   echo "Unknown command"

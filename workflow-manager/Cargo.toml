@@ -22,12 +22,13 @@ valence-processor-utils         = { workspace = true }
 valence-workflow-registry-utils = { workspace = true }
 valence-service-base            = { workspace = true }
 
-valence-splitter-service  = { workspace = true }
-valence-reverse-splitter  = { workspace = true }
-valence-account-utils     = { workspace = true }
-valence-authorization     = { workspace = true }
-valence-processor         = { workspace = true }
-valence-workflow-registry = { workspace = true }
+valence-splitter-service         = { workspace = true }
+valence-reverse-splitter-service = { workspace = true }
+valence-account-utils            = { workspace = true }
+valence-authorization            = { workspace = true }
+valence-processor                = { workspace = true }
+valence-workflow-registry        = { workspace = true }
+valence-forwarder-service        = { workspace = true }
 
 aho-corasick       = "1.1"
 serde_json_any_key = "2"

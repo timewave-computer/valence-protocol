@@ -5,19 +5,25 @@ use std::{
 };
 
 use cosmwasm_std::{Binary, Timestamp, Uint128};
-use cosmwasm_std_polytone::Uint64;
+use cosmwasm_std_old::Uint64;
 use cw_utils::Expiration;
+use local_interchaintest::utils::{
+    authorization::set_up_authorization_and_processor, polytone::salt_for_proxy,
+    processor::tick_processor, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_JUNO,
+    LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, NEUTRON_USER_ADDRESS_1,
+    POLYTONE_ARTIFACTS_PATH, USER_KEY_1, VALENCE_ARTIFACTS_PATH,
+};
 use localic_std::{
     modules::{
         bank,
-        cosmwasm::{contract_execute, contract_instantiate, contract_query, CosmWasm},
+        cosmwasm::{contract_execute, contract_query, CosmWasm},
     },
     relayer::Relayer,
 };
 use localic_utils::{
     utils::test_context::TestContext, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
     GAIA_CHAIN_NAME, JUNO_CHAIN_ADMIN_ADDR, JUNO_CHAIN_ID, JUNO_CHAIN_NAME, LOCAL_IC_API_URL,
-    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
+    NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
 };
 use log::info;
 use serde_json::json;
@@ -36,11 +42,7 @@ use valence_authorization_utils::{
         ProcessorMessage,
     },
 };
-use valence_local_interchaintest_utils::{
-    polytone::salt_for_proxy, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_JUNO,
-    LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, POLYTONE_ARTIFACTS_PATH,
-    VALENCE_ARTIFACTS_PATH,
-};
+
 use valence_processor_utils::{
     callback::{PendingPolytoneCallbackInfo, PolytoneCallbackState},
     msg::PolytoneContracts,
@@ -50,8 +52,6 @@ use valence_service_utils::ServiceAccountType;
 
 const TIMEOUT_SECONDS: u64 = 15;
 const MAX_ATTEMPTS: u64 = 50;
-const USER_ADDRESS: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
-const USER_KEY: &str = "acc1";
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -68,38 +68,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_transfer_channels(NEUTRON_CHAIN_NAME, JUNO_CHAIN_NAME)
         .build()?;
 
-    let mut uploader = test_ctx.build_tx_upload_contracts();
-
-    // Upload all Polytone contracts to both Neutron and Juno
-    uploader
-        .send_with_local_cache(POLYTONE_ARTIFACTS_PATH, LOCAL_CODE_ID_CACHE_PATH_NEUTRON)
-        .unwrap();
-
-    uploader
-        .with_chain_name(JUNO_CHAIN_NAME)
-        .send_with_local_cache(POLYTONE_ARTIFACTS_PATH, LOCAL_CODE_ID_CACHE_PATH_JUNO)
-        .unwrap();
-
     // Upload the authorization contract to Neutron and the processor to both Neutron and Juno
-    let current_dir = env::current_dir()?;
-
-    let authorization_contract_path = format!(
-        "{}/artifacts/valence_authorization.wasm",
-        current_dir.display()
-    );
-
-    info!("{}", authorization_contract_path);
-
-    let processor_contract_path =
-        format!("{}/artifacts/valence_processor.wasm", current_dir.display());
-    uploader
-        .with_chain_name(NEUTRON_CHAIN_NAME)
-        .send_single_contract(&authorization_contract_path)?;
-    uploader.send_single_contract(&processor_contract_path)?;
-
-    uploader
-        .with_chain_name(JUNO_CHAIN_NAME)
-        .send_single_contract(&processor_contract_path)?;
 
     // We need to predict the authorization contract address in advance for the processor contract on the main domain
     // We'll use the current time as a salt so we can run this test multiple times locally without getting conflicts
@@ -109,66 +78,29 @@ fn main() -> Result<(), Box<dyn Error>> {
             .as_secs()
             .to_string(),
     );
-    let predicted_authorization_contract_address = test_ctx
-        .get_built_contract_address()
-        .src(NEUTRON_CHAIN_NAME)
-        .creator(NEUTRON_CHAIN_ADMIN_ADDR)
-        .contract("valence_authorization")
-        .salt_hex_encoded(&salt)
-        .get();
+    // Upload and instantiate authorization and processor on Neutron
+    let (predicted_authorization_contract_address, _) =
+        set_up_authorization_and_processor(&mut test_ctx, salt.clone())?;
 
-    // Now we can instantiate the processor
-    let processor_code_id_on_neutron = test_ctx
-        .get_contract()
-        .contract("valence_processor")
-        .get_cw()
-        .code_id
+    // Upload the processor contract to Juno
+    let current_dir = env::current_dir()?;
+    let processor_contract_path =
+        format!("{}/artifacts/valence_processor.wasm", current_dir.display());
+
+    let mut uploader = test_ctx.build_tx_upload_contracts();
+    uploader
+        .with_chain_name(JUNO_CHAIN_NAME)
+        .send_single_contract(&processor_contract_path)?;
+
+    // Upload all Polytone contracts to both Neutron and Juno
+    let mut uploader = test_ctx.build_tx_upload_contracts();
+    uploader
+        .send_with_local_cache(POLYTONE_ARTIFACTS_PATH, LOCAL_CODE_ID_CACHE_PATH_NEUTRON)
         .unwrap();
 
-    let processor_instantiate_msg = valence_processor_utils::msg::InstantiateMsg {
-        authorization_contract: predicted_authorization_contract_address.clone(),
-        polytone_contracts: None,
-    };
-
-    let processor_on_main_domain = contract_instantiate(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        DEFAULT_KEY,
-        processor_code_id_on_neutron,
-        &serde_json::to_string(&processor_instantiate_msg).unwrap(),
-        "processor",
-        None,
-        "",
-    )
-    .unwrap();
-
-    info!(
-        "Processor on main domain: {}",
-        processor_on_main_domain.address
-    );
-
-    // Instantiate the authorization contract now, we will add the external domains later
-    let authorization_code_id = test_ctx
-        .get_contract()
-        .contract("valence_authorization")
-        .get_cw()
-        .code_id
-        .unwrap();
-
-    let authorization_instantiate_msg = valence_authorization_utils::msg::InstantiateMsg {
-        owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        sub_owners: vec![],
-        processor: processor_on_main_domain.address,
-    };
-
-    test_ctx
-        .build_tx_instantiate2()
-        .with_label("authorization")
-        .with_code_id(authorization_code_id)
-        .with_salt_hex_encoded(&salt)
-        .with_msg(serde_json::to_value(&authorization_instantiate_msg).unwrap())
-        .send()
+    uploader
+        .with_chain_name(JUNO_CHAIN_NAME)
+        .send_with_local_cache(POLYTONE_ARTIFACTS_PATH, LOCAL_CODE_ID_CACHE_PATH_JUNO)
         .unwrap();
 
     // Before setting up the external domains and the processor on the external domain, we are going to set up polytone and predict the proxy addresses on both sides
@@ -580,7 +512,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut authorization = AuthorizationInfo {
         label: "label".to_string(),
         mode: AuthorizationModeInfo::Permissioned(PermissionTypeInfo::WithCallLimit(vec![(
-            USER_ADDRESS.to_string(),
+            NEUTRON_USER_ADDRESS_1.to_string(),
             Uint128::new(3),
         )])),
         not_before: Expiration::Never {},
@@ -667,7 +599,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
         &predicted_authorization_contract_address.clone(),
-        USER_KEY,
+        USER_KEY_1,
         &serde_json::to_string(
             &valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
                 valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
@@ -690,7 +622,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
         &predicted_authorization_contract_address.clone(),
-        USER_KEY,
+        USER_KEY_1,
         &serde_json::to_string(
             &valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
                 valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
@@ -717,7 +649,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
         &predicted_authorization_contract_address.clone(),
-        USER_KEY,
+        USER_KEY_1,
         &serde_json::to_string(
             &valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
                 valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
@@ -774,7 +706,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
-        USER_ADDRESS,
+        NEUTRON_USER_ADDRESS_1,
     );
 
     assert_eq!(
@@ -793,7 +725,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
         &predicted_authorization_contract_address.clone(),
-        USER_KEY,
+        USER_KEY_1,
         &serde_json::to_string(
             &valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
                 valence_authorization_utils::msg::PermissionlessMsg::RetryMsgs { execution_id: 0 },
@@ -816,7 +748,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
         &predicted_authorization_contract_address.clone(),
-        USER_KEY,
+        USER_KEY_1,
         &serde_json::to_string(
             &valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
                 valence_authorization_utils::msg::PermissionlessMsg::RetryMsgs { execution_id: 1 },
@@ -835,7 +767,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
         &predicted_authorization_contract_address.clone(),
-        USER_KEY,
+        USER_KEY_1,
         &serde_json::to_string(
             &valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
                 valence_authorization_utils::msg::PermissionlessMsg::RetryMsgs { execution_id: 1 },
@@ -862,7 +794,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
         &predicted_authorization_contract_address.clone(),
-        USER_KEY,
+        USER_KEY_1,
         &serde_json::to_string(
             &valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
                 valence_authorization_utils::msg::PermissionlessMsg::RetryMsgs { execution_id: 2 },
@@ -887,7 +819,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
-        USER_ADDRESS,
+        NEUTRON_USER_ADDRESS_1,
     );
 
     assert_eq!(
@@ -934,21 +866,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     test_ctx.stop_relayer();
 
     info!("Ticking the processor to trigger sending the callback...");
-    contract_execute(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(JUNO_CHAIN_NAME),
-        &predicted_processor_on_juno_address,
+    tick_processor(
+        &mut test_ctx,
+        JUNO_CHAIN_NAME,
         DEFAULT_KEY,
-        &serde_json::to_string(
-            &valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
-                valence_processor_utils::msg::PermissionlessMsg::Tick {},
-            ),
-        )
-        .unwrap(),
-        GAS_FLAGS,
-    )
-    .unwrap();
+        &predicted_processor_on_juno_address,
+    );
 
     // Wait enough time to force the time out
     std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));

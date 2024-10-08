@@ -9,7 +9,11 @@ use valence_authorization_utils::{
     authorization::{
         ActionsConfig, AtomicActionsConfig, AuthorizationModeInfo, PermissionTypeInfo, Priority,
     },
-    authorization_message::{Message, MessageDetails, MessageType},
+    authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
+    builders::{
+        AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder, JsonBuilder,
+        NonAtomicActionBuilder, NonAtomicActionsConfigBuilder,
+    },
     callback::{ExecutionResult, ProcessorCallbackInfo},
     domain::Domain,
     msg::{ExecuteMsg, PermissionedMsg, PermissionlessMsg, ProcessorMessage, QueryMsg},
@@ -19,13 +23,7 @@ use valence_processor_utils::{msg::InternalProcessorMsg, processor::MessageBatch
 use crate::{
     contract::build_tokenfactory_denom,
     error::{AuthorizationErrorReason, ContractError},
-    tests::{
-        builders::{
-            AtomicActionBuilder, AtomicActionsConfigBuilder, NonAtomicActionBuilder,
-            NonAtomicActionsConfigBuilder,
-        },
-        helpers::{wait_for_height, ARTIFACTS_DIR},
-    },
+    tests::helpers::{wait_for_height, ARTIFACTS_DIR},
 };
 use valence_processor_utils::msg::{
     ExecuteMsg as ProcessorExecuteMsg, PermissionlessMsg as ProcessorPermissionlessMsg,
@@ -39,7 +37,7 @@ use valence_test_service::msg::{
 };
 
 use super::{
-    builders::{AuthorizationBuilder, JsonBuilder, NeutronTestAppBuilder},
+    builders::NeutronTestAppBuilder,
     helpers::{
         store_and_instantiate_authorization_with_processor_contract,
         store_and_instantiate_test_service,
@@ -1046,7 +1044,12 @@ fn queue_shifting_when_not_retriable() {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
                                     name: "will_error".to_string(),
-                                    params_restrictions: None,
+                                    params_restrictions: Some(vec![
+                                        ParamRestriction::MustBeIncluded(vec![
+                                            "will_error".to_string(),
+                                            "error".to_string(),
+                                        ]),
+                                    ]),
                                 },
                             })
                             .with_retry_logic(RetryLogic {
