@@ -28,9 +28,9 @@ The service is configured on instantiation via the `ServiceConfig` type.
 ```rust
 pub struct ServiceConfig {
     // Account from which the funds are pulled
-    pub input_addr: String,
+    pub input_addr: ServiceAccountType,
     // Account to which the funds are sent
-    pub output_addr: String,
+    pub output_addr: ServiceAccountType,
     // Forwarding configuration per denom
     pub forwarding_configs: Vec<UncheckedForwardingConfig>,
     // Constraints on forwarding operations
