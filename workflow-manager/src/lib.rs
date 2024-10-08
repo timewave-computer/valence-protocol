@@ -11,15 +11,14 @@ pub mod tests;
 pub mod workflow_config;
 
 use connectors::Connectors;
-use domain::Domain;
 use workflow_config::WorkflowConfig;
 
 // Main chain name
-const MAIN_CHAIN: &str = "neutron";
-// Main domain
-const MAIN_DOMAIN: Domain = Domain::CosmosCosmwasm(MAIN_CHAIN);
-// Neutron domain
-const NEUTRON_DOMAIN: Domain = Domain::CosmosCosmwasm("neutron");
+const NEUTRON_CHAIN: &str = "neutron";
+// // Main domain
+// const MAIN_DOMAIN: Domain = Domain::CosmosCosmwasm(MAIN_CHAIN);
+// // Neutron domain
+// const NEUTRON_DOMAIN: Domain = Domain::CosmosCosmwasm("neutron");
 
 pub async fn init_workflow(mut workflow_config: WorkflowConfig) {
     let connectors = Connectors::default();

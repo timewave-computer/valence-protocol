@@ -1,19 +1,24 @@
 #[cfg(test)]
 mod test {
     use cosmwasm_std::Uint128;
+    use cw_ownable::Expiration;
     use std::collections::BTreeMap;
 
     use serde_json_any_key::MapIterToJson;
-    use valence_service_utils::ServiceAccountType;
-    use valence_splitter_service::msg::{
-        ServiceConfig as SplitterServiceConfig, UncheckedSplitAmount,
+    use valence_authorization_utils::{
+        action::AtomicAction,
+        authorization::{
+            ActionsConfig, AtomicActionsConfig, AuthorizationDuration, AuthorizationInfo,
+            AuthorizationModeInfo,
+        },
+        authorization_message::{Message, MessageDetails, MessageType},
     };
+    use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
 
     use crate::{
         account::{AccountInfo, AccountType},
         config::Config,
         domain::Domain,
-        init_workflow,
         service::{ServiceConfig, ServiceInfo},
         workflow_config::{Link, WorkflowConfig},
     };
@@ -23,18 +28,24 @@ mod test {
     /// probably means other tests are also failing because of it.
     #[tokio::test]
     async fn test_config() {
-        let config = Config::default();
-        println!("{:#?}", config.general);
+        let _config = Config::default();
+    }
+
+    #[ignore = "internal test"]
+    #[test]
+    fn test_domain_ser() {
+        // Make sure to_string returns the correct string
+        let domain_string = Domain::CosmosCosmwasm("neutron".to_string()).to_string();
+        assert_eq!(domain_string, "CosmosCosmwasm:neutron");
+
+        // Make sure from_string returns the correct domain
+        let domain = Domain::from_string(domain_string.clone()).unwrap();
+        assert_eq!(domain, Domain::CosmosCosmwasm("neutron".to_string()));
     }
 
     #[ignore = "internal test"]
     #[tokio::test]
     async fn test_domains() {
-        // let _profiler = dhat::Profiler::builder().testing().build();
-
-        let _config = Config::default();
-        // let ctx = Connectors::new(&config);
-
         // let domain = Domain::CosmosCosmwasm("neutron");
         // let mut connector = domain.generate_connector().await.unwrap();
         // let (addr, salt) = connector
@@ -46,25 +57,25 @@ mod test {
     #[ignore = "internal test"]
     #[test]
     fn test_config_find_accounts_ids() {
-        let config = ServiceConfig::Splitter(SplitterServiceConfig {
-            input_addr: "|account_id|:1".to_string(),
-            splits: vec![
-                valence_splitter_service::msg::UncheckedSplitConfig::new(
-                    valence_service_utils::denoms::UncheckedDenom::Native("NTRN".to_string()),
-                    "|account_id|:2",
-                    UncheckedSplitAmount::FixedAmount(Uint128::from(1_000_000u128)),
-                ),
-                valence_splitter_service::msg::UncheckedSplitConfig::new(
-                    valence_service_utils::denoms::UncheckedDenom::Native("NTRN".to_string()),
-                    "|account_id|:3",
-                    UncheckedSplitAmount::FixedAmount(Uint128::from(1_000_000u128)),
-                ),
-            ],
+        let config = ServiceConfig::Forwarder(valence_forwarder_service::msg::ServiceConfig {
+            input_addr: "|account_id|:1".into(),
+            output_addr: "|account_id|:2".into(),
+            forwarding_configs: vec![valence_forwarder_service::msg::UncheckedForwardingConfig {
+                denom: UncheckedDenom::Native("untrn".to_string()),
+                max_amount: Uint128::new(100),
+            }],
+            forwarding_constraints: valence_forwarder_service::msg::ForwardingConstraints::new(
+                None,
+            ),
         });
 
         let account_ids = config.get_account_ids().unwrap();
         println!("{account_ids:?}");
     }
+
+    #[ignore = "internal test"]
+    #[test]
+    fn test_serialize_workflow() {}
 
     #[test]
     fn test_serialize() {
@@ -100,7 +111,7 @@ mod test {
 
     #[ignore = "internal test"]
     #[tokio::test]
-    async fn test() {
+    async fn test_full_workflow() {
         // let subscriber = tracing_subscriber::fmt()
         //     .with_max_level(tracing::Level::DEBUG)
         //     .with_test_writer()
@@ -108,15 +119,19 @@ mod test {
         //     .finish();
         // tracing::subscriber::set_global_default(subscriber)
         //     .expect("setting default subscriber failed");
+        let neutron_domain = Domain::CosmosCosmwasm("neutron".to_string());
 
-        let mut config = WorkflowConfig::default();
+        let mut config = WorkflowConfig {
+            owner: "neutron1tl0w0djc5y53aqfr60a794f02drwktpujm5xxe".to_string(),
+            ..Default::default()
+        };
 
         config.accounts.insert(
             1,
             AccountInfo {
                 name: "test_1".to_string(),
                 ty: AccountType::Base { admin: None },
-                domain: Domain::CosmosCosmwasm("neutron"),
+                domain: neutron_domain.clone(),
             },
         );
         config.accounts.insert(
@@ -124,41 +139,26 @@ mod test {
             AccountInfo {
                 name: "test_2".to_string(),
                 ty: AccountType::Base { admin: None },
-                domain: Domain::CosmosCosmwasm("neutron"),
-            },
-        );
-        config.accounts.insert(
-            3,
-            AccountInfo {
-                name: "test_3".to_string(),
-                ty: AccountType::Base { admin: None },
-                domain: Domain::CosmosCosmwasm("neutron"),
+                domain: neutron_domain.clone(),
             },
         );
 
         config.services.insert(
             1,
             ServiceInfo {
-                name: "test_services".to_string(),
-                domain: Domain::CosmosCosmwasm("neutron"),
-                config: ServiceConfig::Splitter(SplitterServiceConfig {
-                    input_addr: "|account_id|:1".to_string(),
-                    splits: vec![
-                        valence_splitter_service::msg::UncheckedSplitConfig::new(
-                            valence_service_utils::denoms::UncheckedDenom::Native(
-                                "NTRN".to_string(),
-                            ),
-                            "|account_id|:2",
-                            UncheckedSplitAmount::FixedAmount(Uint128::from(1_000_000u128)),
-                        ),
-                        valence_splitter_service::msg::UncheckedSplitConfig::new(
-                            valence_service_utils::denoms::UncheckedDenom::Native(
-                                "NTRN".to_string(),
-                            ),
-                            "|account_id|:3",
-                            UncheckedSplitAmount::FixedAmount(Uint128::from(1_000_000u128)),
-                        ),
+                name: "test_forwarder".to_string(),
+                domain: neutron_domain.clone(),
+                config: ServiceConfig::Forwarder(valence_forwarder_service::msg::ServiceConfig {
+                    input_addr: ServiceAccountType::AccountId(1),
+                    output_addr: ServiceAccountType::AccountId(2),
+                    forwarding_configs: vec![
+                        valence_forwarder_service::msg::UncheckedForwardingConfig {
+                            denom: UncheckedDenom::Native("untrn".to_string()),
+                            max_amount: Uint128::new(100),
+                        },
                     ],
+                    forwarding_constraints:
+                        valence_forwarder_service::msg::ForwardingConstraints::new(None),
                 }),
                 addr: None,
             },
@@ -168,12 +168,46 @@ mod test {
             1,
             Link {
                 input_accounts_id: vec![1],
-                output_accounts_id: vec![2, 3],
+                output_accounts_id: vec![2],
                 service_id: 1,
             },
         );
 
-        init_workflow(config).await;
+        // TODO: we need the id of the service here in contract_address
+        config.authorizations.insert(
+            1,
+            AuthorizationInfo {
+                label: "test".to_string(),
+                mode: AuthorizationModeInfo::Permissionless,
+                not_before: Expiration::Never {},
+                duration: AuthorizationDuration::Forever,
+                max_concurrent_executions: None,
+                actions_config: ActionsConfig::Atomic(AtomicActionsConfig {
+                    actions: vec![AtomicAction {
+                        domain: valence_authorization_utils::domain::Domain::Main,
+                        message_details: MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "test".to_string(),
+                                params_restrictions: None,
+                            },
+                        },
+                        contract_address:
+                            "neutron1dzx7zsljlf38x8jyhstk5ts58x6yyd450x62aaejk9cn4cskyvlsd7lchu"
+                                .to_string(),
+                    }],
+                    retry_logic: None,
+                }),
+                priority: None,
+            },
+        );
+
+        // config.authorization_data.set_processor_bridge_addr(Domain::CosmosCosmwasm("neutron".to_string()), "sdf".to_string());
+
+        // let b = to_json_binary(&config).unwrap();
+        // println!("{:#?}", b);
+
+        // init_workflow(config).await;
 
         // match timeout(Duration::from_secs(60), ).await {
         //     Ok(_) => println!("Workflow initialization completed successfully"),

@@ -1,5 +1,6 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{to_json_binary, Addr, CosmosMsg, StdError, StdResult, WasmMsg};
+
 pub mod denoms {
     pub use cw_denom::{CheckedDenom, DenomError, UncheckedDenom};
 }
