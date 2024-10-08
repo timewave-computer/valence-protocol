@@ -49,17 +49,16 @@ sha2            = "0.10.8"
 thiserror       = "1.0.63"
 
 # our contracts
-valence-authorization        = { path = "contracts/authorization", features = ["library"] }
-valence-base-account         = { path = "contracts/accounts/base_account", features = ["library"] }
-valence-processor            = { path = "contracts/processor", features = ["library"] }
-valence-reverse-splitter     = { path = "contracts/services/reverse-splitter-temp", features = ["library"] }
-valence-splitter             = { path = "contracts/services/splitter-temp", features = ["library"] }
-valence-workflow-registry    = { path = "contracts/workflow-registry", features = ["library"] }
-valence-astroport-withdrawer = { path = "contracts/services/astroport-withdrawer", features = ["library"] }
-valence-astroport-lper       = { path = "contracts/services/astroport-lper", features = ["library"] }
-valence-splitter-service     = { path = "contracts/services/splitter", features = ["library"] }
-valence-test-dynamic-ratio   = { path = "contracts/testing/test-dynamic-ratio", features = ["library"] }
-valence-test-service         = { path = "contracts/testing/test-service", features = ["library"] }
+valence-authorization            = { path = "contracts/authorization", features = ["library"] }
+valence-base-account             = { path = "contracts/accounts/base_account", features = ["library"] }
+valence-processor                = { path = "contracts/processor", features = ["library"] }
+valence-workflow-registry        = { path = "contracts/workflow-registry", features = ["library"] }
+valence-astroport-lper           = { path = "contracts/services/astroport-lper", features = ["library"] }
+valence-astroport-withdrawer     = { path = "contracts/services/astroport-withdrawer", features = ["library"] }
+valence-reverse-splitter-service = { path = "contracts/services/reverse-splitter", features = ["library"] }
+valence-splitter-service         = { path = "contracts/services/splitter", features = ["library"] }
+valence-test-dynamic-ratio       = { path = "contracts/testing/test-dynamic-ratio", features = ["library"] }
+valence-test-service             = { path = "contracts/testing/test-service", features = ["library"] }
 
 # our packages
 valence-account-utils              = { path = "packages/account-utils" }
