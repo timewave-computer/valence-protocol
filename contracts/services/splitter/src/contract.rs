@@ -55,7 +55,7 @@ mod actions {
         msg::{DynamicRatioQueryMsg, DynamicRatioResponse},
     };
 
-    use crate::msg::{ActionMsgs, Config, RatioConfig};
+    use crate::msg::{ActionMsgs, Config, SplitAmount};
 
     pub fn process_action(
         deps: DepsMut,
@@ -127,10 +127,10 @@ mod actions {
                 e.insert(balance);
             }
 
-            if let Some(RatioConfig::DynamicRatio {
+            if let SplitAmount::DynamicRatio {
                 contract_addr,
                 params,
-            }) = split.ratio()
+            } = split.amount()
             {
                 let key = dyn_ratio_key(denom, contract_addr, params);
                 if let Entry::Vacant(e) = dynamic_ratios.entry(key) {
@@ -145,27 +145,23 @@ mod actions {
             .splits()
             .iter()
             .map(|split| {
-                split
-                    .amount()
-                    .map(|amount| Ok((amount, split.denom(), split.account())))
-                    .or_else(|| {
-                        split.ratio().as_ref().map(|ratio_config| {
-                            let balance = denom_balances.get(&denom_key(split.denom())).unwrap();
-                            let ratio = match ratio_config {
-                                RatioConfig::FixedRatio(ratio) => ratio,
-                                RatioConfig::DynamicRatio {
-                                    contract_addr,
-                                    params,
-                                } => dynamic_ratios
-                                    .get(&dyn_ratio_key(split.denom(), contract_addr, params))
-                                    .unwrap(),
-                            };
-                            let amount =
-                                balance.multiply_ratio(ratio.numerator(), ratio.denominator());
-                            Ok((amount, split.denom(), split.account()))
-                        })
-                    })
-                    .expect("Split config must have either an amount or a ratio")
+                let balance = denom_balances.get(&denom_key(split.denom())).unwrap();
+                let amount = match split.amount() {
+                    SplitAmount::FixedAmount(amount) => *amount,
+                    SplitAmount::FixedRatio(ratio) => {
+                        balance.multiply_ratio(ratio.numerator(), ratio.denominator())
+                    }
+                    SplitAmount::DynamicRatio {
+                        contract_addr,
+                        params,
+                    } => {
+                        let ratio = dynamic_ratios
+                            .get(&dyn_ratio_key(split.denom(), contract_addr, params))
+                            .unwrap();
+                        balance.multiply_ratio(ratio.numerator(), ratio.denominator())
+                    }
+                };
+                Ok((amount, split.denom(), split.account()))
             })
             .collect::<Result<Vec<_>, ServiceError>>()?;
 
