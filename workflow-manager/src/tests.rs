@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod test {
-    use std::collections::BTreeMap;
-
     use cosmwasm_std::Uint128;
     use cw_ownable::Expiration;
+    use std::collections::BTreeMap;
+
     use serde_json_any_key::MapIterToJson;
     use valence_authorization_utils::{
         action::AtomicAction,
@@ -46,96 +46,12 @@ mod test {
     #[ignore = "internal test"]
     #[tokio::test]
     async fn test_domains() {
-        // let _profiler = dhat::Profiler::builder().testing().build();
-
-        let _config = Config::default();
-        // let ctx = Connectors::new(&config);
-
-        let domain = Domain::CosmosCosmwasm("neutron".to_string());
-        let mut _neutron_connector = domain.generate_connector().await.unwrap();
-
-        // let workflow_id = neutron_connector.reserve_workflow_id().await.unwrap();
-        let workflow_id = 4; // hardcoded for testing, we do not actually need to reserve a workflow id for testing because we don't save the id for now
-
-        let auth_addr = "neutron1psdjqpycm9cpqzu8av9ycepdmarq82dzh3p2ckg6r3y74v456mvsd5racz";
-        let processor_addr = "neutron106wur25r9asjeel9wumvlpw0h4fmmkt387gdjrgz5zgc2munv9js26ua7j";
-        let account_addr = "neutron1hpkn6y0tn4gdlyxc5pl3qcfcqfrg5y6q92upyk3xdk4y69vd63pqjhgmwq";
-        let forwarder_addr = "neutron1dzx7zsljlf38x8jyhstk5ts58x6yyd450x62aaejk9cn4cskyvlsd7lchu";
-
-        // // init auth contract
-        // let (auth_addr, auth_salt) = neutron_connector
-        //     .get_address(workflow_id, "authorization", "authorization")
+        // let domain = Domain::CosmosCosmwasm("neutron");
+        // let mut connector = domain.generate_connector().await.unwrap();
+        // let (addr, salt) = connector
+        //     .get_address(2, "splitter", "splitter")
         //     .await
         //     .unwrap();
-        // let (processor_addr, processor_salt) = neutron_connector
-        //     .get_address(workflow_id, "processor", "processor")
-        //     .await
-        //     .unwrap();
-        // let (account_addr, account_salt) = neutron_connector
-        //     .get_address(workflow_id, "base_account", "account:1")
-        //     .await
-        //     .unwrap();
-
-        // neutron_connector
-        //     .instantiate_authorization(workflow_id, auth_salt, processor_addr.clone())
-        //     .await
-        //     .unwrap();
-        // neutron_connector
-        //     .instantiate_processor(workflow_id, processor_salt, auth_addr.clone(), None)
-        //     .await
-        //     .unwrap();
-        // neutron_connector
-        //     .instantiate_account(
-        //         workflow_id,
-        //         processor_addr.clone(),
-        //         &InstantiateAccountData {
-        //             id: 1,
-        //             info: AccountInfo {
-        //                 name: "Test account".to_string(),
-        //                 ty: AccountType::Base { admin: None },
-        //                 domain,
-        //             },
-        //             addr: account_addr.clone(),
-        //             salt: account_salt,
-        //             approved_services: vec![],
-        //         },
-        //     )
-        //     .await
-        //     .unwrap();
-
-        // let (forwarder_addr, forwarder_salt) = neutron_connector
-        //     .get_address(workflow_id, "forwarder", "forwarder:1")
-        //     .await
-        //     .unwrap();
-
-        // neutron_connector
-        //     .instantiate_service(
-        //         workflow_id,
-        //         auth_addr.to_string(),
-        //         processor_addr.to_string(),
-        //         1,
-        //         ServiceConfig::Forwarder(valence_forwarder_service::msg::ServiceConfig {
-        //             input_addr: account_addr.to_string(),
-        //             output_addr: account_addr.to_string(),
-        //             forwarding_configs: vec![
-        //                 valence_forwarder_service::msg::UncheckedForwardingConfig {
-        //                     denom: UncheckedDenom::Native("untrn".to_string()),
-        //                     max_amount: Uint128::new(100),
-        //                 },
-        //             ],
-        //             forwarding_constraints:
-        //                 valence_forwarder_service::msg::ForwardingConstraints::new(None),
-        //         }),
-        //         forwarder_salt,
-        //     )
-        //     .await
-        //     .unwrap();
-
-        println!("id: {:?}", workflow_id);
-        println!("auth_addr: {:?}", auth_addr);
-        println!("processor_addr: {:?}", processor_addr);
-        println!("account_addr: {:?}", account_addr);
-        println!("service_addr: {:?}", forwarder_addr);
     }
 
     #[ignore = "internal test"]

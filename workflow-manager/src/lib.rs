@@ -4,6 +4,7 @@ pub mod config;
 pub mod connectors;
 pub mod domain;
 pub mod error;
+pub mod helpers;
 pub mod macros;
 pub mod service;
 pub mod tests;
