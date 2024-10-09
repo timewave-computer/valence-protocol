@@ -1,18 +1,18 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Deps, DepsMut};
+use cosmwasm_std::{Addr, Deps, DepsMut, Uint64};
 use valence_macros::OptionalStruct;
 use valence_service_utils::{
     error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType, ServiceConfigInterface,
 };
 
-use crate::msg::{ensure_correct_pool, LiquidityProviderConfig};
+use crate::msg::LiquidityProviderConfig;
 
 #[cw_serde]
 #[derive(OptionalStruct)]
 pub struct ServiceConfig {
     pub input_addr: ServiceAccountType,
     pub output_addr: ServiceAccountType,
-    pub pool_addr: String,
+    pub pool_id: Uint64,
     pub lp_config: LiquidityProviderConfig,
 }
 
@@ -20,23 +20,27 @@ impl ServiceConfig {
     pub fn new(
         input_addr: impl Into<ServiceAccountType>,
         output_addr: impl Into<ServiceAccountType>,
-        pool_addr: String,
+        pool_id: Uint64,
         lp_config: LiquidityProviderConfig,
     ) -> Self {
         ServiceConfig {
             input_addr: input_addr.into(),
             output_addr: output_addr.into(),
-            pool_addr,
+            pool_id,
             lp_config,
         }
     }
 
-    fn do_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<(Addr, Addr, Addr), ServiceError> {
+    fn do_validate(
+        &self,
+        api: &dyn cosmwasm_std::Api,
+    ) -> Result<(Addr, Addr, Uint64), ServiceError> {
         let input_addr = self.input_addr.to_addr(api)?;
         let output_addr = self.output_addr.to_addr(api)?;
-        let pool_addr = api.addr_validate(&self.pool_addr)?;
 
-        Ok((input_addr, output_addr, pool_addr))
+        // TODO: validate pool_id?
+
+        Ok((input_addr, output_addr, self.pool_id))
     }
 }
 
@@ -52,7 +56,7 @@ impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
 pub struct Config {
     pub input_addr: Addr,
     pub output_addr: Addr,
-    pub pool_addr: Addr,
+    pub pool_id: Uint64,
     pub lp_config: LiquidityProviderConfig,
 }
 
@@ -64,14 +68,12 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
     }
 
     fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
-        let (input_addr, output_addr, pool_addr) = self.do_validate(deps.api)?;
-
-        ensure_correct_pool(self.pool_addr.to_string(), &deps)?;
+        let (input_addr, output_addr, pool_id) = self.do_validate(deps.api)?;
 
         Ok(Config {
             input_addr,
             output_addr,
-            pool_addr,
+            pool_id,
             lp_config: self.lp_config.clone(),
         })
     }
@@ -87,15 +89,13 @@ impl OptionalServiceConfig {
             config.output_addr = output_addr.to_addr(deps.api)?;
         }
 
-        if let Some(pool_addr) = self.pool_addr {
-            config.pool_addr = deps.api.addr_validate(&pool_addr)?;
+        if let Some(id) = self.pool_id {
+            config.pool_id = id;
         }
 
         if let Some(lp_config) = self.lp_config {
             config.lp_config = lp_config;
         }
-
-        ensure_correct_pool(config.pool_addr.to_string(), &deps.as_ref())?;
 
         Ok(())
     }

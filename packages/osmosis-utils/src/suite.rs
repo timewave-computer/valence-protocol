@@ -1,3 +1,4 @@
+use cosmwasm_std::Uint64;
 use osmosis_test_tube::{Gamm, Module, OsmosisTestApp, SigningAccount};
 
 pub const OSMO_DENOM: &str = "uosmo";
@@ -5,7 +6,7 @@ pub const OSMO_DENOM: &str = "uosmo";
 pub struct OsmosisTestAppSetup {
     pub app: OsmosisTestApp,
     pub accounts: Vec<SigningAccount>,
-    pub pool_id: String,
+    pub pool_id: Uint64,
     pub pool_liquidity_token: String,
     pub pool_asset1: String,
     pub pool_asset2: String,
@@ -74,7 +75,7 @@ impl OsmosisTestAppBuilder {
         Ok(OsmosisTestAppSetup {
             app,
             accounts,
-            pool_id: pool_id.to_string(),
+            pool_id: Uint64::new(pool_id),
             pool_asset1: OSMO_DENOM.to_string(),
             pool_asset2: "utest".to_string(),
             pool_liquidity_token,

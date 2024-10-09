@@ -1,6 +1,7 @@
 use cosmwasm_std::Uint64;
 use osmosis_test_tube::{
-    osmosis_std::types::cosmos::bank::v1beta1::MsgSend, Account, Bank, Module, Wasm,
+    osmosis_std::types::cosmos::bank::v1beta1::{MsgSend, QueryAllBalancesRequest},
+    Account, Bank, Module, Wasm,
 };
 use valence_osmosis_utils::suite::{OsmosisTestAppBuilder, OsmosisTestAppSetup};
 use valence_service_utils::msg::InstantiateMsg;
@@ -28,10 +29,10 @@ impl LPerTestSuite {
 
         // Create two base accounts
         let wasm = Wasm::new(&inner.app);
-        
+
         let wasm_byte_code =
             std::fs::read(format!("{}/{}", CONTRACT_PATH, "valence_base_account.wasm")).unwrap();
-        println!("wasm byte code: {:?}", wasm_byte_code);
+
         let code_id = wasm
             .store_code(&wasm_byte_code, None, inner.owner_acc())
             .unwrap()
@@ -61,6 +62,17 @@ impl LPerTestSuite {
                         denom: inner.pool_asset2.clone(),
                         amount: 1_000_000u128.to_string(),
                     },
+                ],
+            },
+            inner.owner_acc(),
+        )
+        .unwrap();
+
+        bank.send(
+            MsgSend {
+                from_address: inner.owner_acc().address(),
+                to_address: input_acc.clone(),
+                amount: vec![
                     osmosis_test_tube::osmosis_std::types::cosmos::base::v1beta1::Coin {
                         denom: inner.pool_asset1.clone(),
                         amount: 1_000_000u128.to_string(),
@@ -127,23 +139,24 @@ fn instantiate_lper_contract(
         .data
         .code_id;
 
-    let pool_addr = "todo".to_string();
-    let pool_id = Uint64::one();
+    let instantiate_msg = InstantiateMsg {
+        owner: setup.owner_acc().address(),
+        processor: setup.processor_acc().address(),
+        config: ServiceConfig::new(
+            input_acc.as_str(),
+            output_acc.as_str(),
+            setup.pool_id,
+            LiquidityProviderConfig {
+                pool_id: setup.pool_id.into(),
+            },
+        ),
+    };
+
+    println!("instantiate msg: {:?}", instantiate_msg);
 
     wasm.instantiate(
         code_id,
-        &InstantiateMsg {
-            owner: setup.owner_acc().address(),
-            processor: setup.processor_acc().address(),
-            config: ServiceConfig::new(
-                input_acc.as_str(),
-                output_acc.as_str(),
-                pool_addr,
-                LiquidityProviderConfig {
-                    pool_id: pool_id.into(),
-                },
-            ),
-        },
+        &instantiate_msg,
         None,
         Some("lper"),
         &[],
