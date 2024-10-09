@@ -65,6 +65,7 @@ valence-test-service         = { path = "contracts/testing/test-service", featur
 # our packages
 valence-account-utils              = { path = "packages/account-utils" }
 valence-astroport-utils            = { path = "packages/astroport-utils" }
+valence-osmosis-utils              = { path = "packages/osmosis-utils" }
 valence-authorization-utils        = { path = "packages/authorization-utils" }
 valence-local-interchaintest-utils = { path = "packages/local-interchaintest-utils" }
 valence-macros                     = { path = "packages/valence-macros" }
@@ -81,4 +82,4 @@ cw20-base            = { version = "2.0.0" }
 hex                  = "0.4.3"
 margined-neutron-std = "4.2.0"
 neutron-test-tube    = "4.2.0"
-osmosis-test-tube    = "22.1.0"
+osmosis-test-tube    = { version = "22.1.0" }

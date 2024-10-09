@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Deps};
+use cosmwasm_std::{Addr, Deps, DepsMut};
 use valence_macros::OptionalStruct;
 use valence_service_utils::{
     error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType, ServiceConfigInterface,
@@ -74,5 +74,29 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
             pool_addr,
             lp_config: self.lp_config.clone(),
         })
+    }
+}
+
+impl OptionalServiceConfig {
+    pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
+        if let Some(input_addr) = self.input_addr {
+            config.input_addr = input_addr.to_addr(deps.api)?;
+        }
+
+        if let Some(output_addr) = self.output_addr {
+            config.output_addr = output_addr.to_addr(deps.api)?;
+        }
+
+        if let Some(pool_addr) = self.pool_addr {
+            config.pool_addr = deps.api.addr_validate(&pool_addr)?;
+        }
+
+        if let Some(lp_config) = self.lp_config {
+            config.lp_config = lp_config;
+        }
+
+        ensure_correct_pool(config.pool_addr.to_string(), &deps.as_ref())?;
+
+        Ok(())
     }
 }
