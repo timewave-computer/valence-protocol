@@ -1,9 +1,9 @@
-use cosmwasm_std::Uint64;
 use osmosis_test_tube::{
-    osmosis_std::types::cosmos::bank::v1beta1::{MsgSend, QueryAllBalancesRequest},
-    Account, Bank, Module, Wasm,
+    osmosis_std::types::cosmos::bank::v1beta1::MsgSend, Account, Bank, Module, Wasm,
 };
-use valence_osmosis_utils::suite::{OsmosisTestAppBuilder, OsmosisTestAppSetup};
+use valence_osmosis_utils::suite::{
+    approve_service, instantiate_input_account, OsmosisTestAppBuilder, OsmosisTestAppSetup,
+};
 use valence_service_utils::msg::InstantiateMsg;
 
 use crate::{msg::LiquidityProviderConfig, valence_service_integration::ServiceConfig};
@@ -92,37 +92,6 @@ impl LPerTestSuite {
     }
 }
 
-fn approve_service(setup: &OsmosisTestAppSetup, account_addr: String, service_addr: String) {
-    let wasm = Wasm::new(&setup.app);
-    wasm.execute::<valence_account_utils::msg::ExecuteMsg>(
-        &account_addr,
-        &valence_account_utils::msg::ExecuteMsg::ApproveService {
-            service: service_addr,
-        },
-        &[],
-        setup.owner_acc(),
-    )
-    .unwrap();
-}
-
-fn instantiate_input_account(code_id: u64, setup: &OsmosisTestAppSetup) -> String {
-    let wasm = Wasm::new(&setup.app);
-    wasm.instantiate(
-        code_id,
-        &valence_account_utils::msg::InstantiateMsg {
-            admin: setup.owner_acc().address(),
-            approved_services: vec![],
-        },
-        None,
-        Some("base_account"),
-        &[],
-        setup.owner_acc(),
-    )
-    .unwrap()
-    .data
-    .address
-}
-
 fn instantiate_lper_contract(
     setup: &OsmosisTestAppSetup,
     _native_lp_token: bool,
@@ -145,14 +114,11 @@ fn instantiate_lper_contract(
         config: ServiceConfig::new(
             input_acc.as_str(),
             output_acc.as_str(),
-            setup.pool_id,
             LiquidityProviderConfig {
                 pool_id: setup.pool_id.into(),
             },
         ),
     };
-
-    println!("instantiate msg: {:?}", instantiate_msg);
 
     wasm.instantiate(
         code_id,

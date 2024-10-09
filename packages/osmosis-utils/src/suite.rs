@@ -1,5 +1,5 @@
 use cosmwasm_std::Uint64;
-use osmosis_test_tube::{Gamm, Module, OsmosisTestApp, SigningAccount};
+use osmosis_test_tube::{Account, Gamm, Module, OsmosisTestApp, SigningAccount, Wasm};
 
 pub const OSMO_DENOM: &str = "uosmo";
 
@@ -81,4 +81,35 @@ impl OsmosisTestAppBuilder {
             pool_liquidity_token,
         })
     }
+}
+
+pub fn approve_service(setup: &OsmosisTestAppSetup, account_addr: String, service_addr: String) {
+    let wasm = Wasm::new(&setup.app);
+    wasm.execute::<valence_account_utils::msg::ExecuteMsg>(
+        &account_addr,
+        &valence_account_utils::msg::ExecuteMsg::ApproveService {
+            service: service_addr,
+        },
+        &[],
+        setup.owner_acc(),
+    )
+    .unwrap();
+}
+
+pub fn instantiate_input_account(code_id: u64, setup: &OsmosisTestAppSetup) -> String {
+    let wasm = Wasm::new(&setup.app);
+    wasm.instantiate(
+        code_id,
+        &valence_account_utils::msg::InstantiateMsg {
+            admin: setup.owner_acc().address(),
+            approved_services: vec![],
+        },
+        None,
+        Some("base_account"),
+        &[],
+        setup.owner_acc(),
+    )
+    .unwrap()
+    .data
+    .address
 }

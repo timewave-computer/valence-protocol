@@ -12,7 +12,6 @@ use crate::msg::LiquidityProviderConfig;
 pub struct ServiceConfig {
     pub input_addr: ServiceAccountType,
     pub output_addr: ServiceAccountType,
-    pub pool_id: Uint64,
     pub lp_config: LiquidityProviderConfig,
 }
 
@@ -20,13 +19,11 @@ impl ServiceConfig {
     pub fn new(
         input_addr: impl Into<ServiceAccountType>,
         output_addr: impl Into<ServiceAccountType>,
-        pool_id: Uint64,
         lp_config: LiquidityProviderConfig,
     ) -> Self {
         ServiceConfig {
             input_addr: input_addr.into(),
             output_addr: output_addr.into(),
-            pool_id,
             lp_config,
         }
     }
@@ -40,7 +37,7 @@ impl ServiceConfig {
 
         // TODO: validate pool_id?
 
-        Ok((input_addr, output_addr, self.pool_id))
+        Ok((input_addr, output_addr, self.lp_config.pool_id.into()))
     }
 }
 
@@ -56,7 +53,6 @@ impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
 pub struct Config {
     pub input_addr: Addr,
     pub output_addr: Addr,
-    pub pool_id: Uint64,
     pub lp_config: LiquidityProviderConfig,
 }
 
@@ -68,12 +64,11 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
     }
 
     fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
-        let (input_addr, output_addr, pool_id) = self.do_validate(deps.api)?;
+        let (input_addr, output_addr, _pool_id) = self.do_validate(deps.api)?;
 
         Ok(Config {
             input_addr,
             output_addr,
-            pool_id,
             lp_config: self.lp_config.clone(),
         })
     }
@@ -89,12 +84,8 @@ impl OptionalServiceConfig {
             config.output_addr = output_addr.to_addr(deps.api)?;
         }
 
-        if let Some(id) = self.pool_id {
-            config.pool_id = id;
-        }
-
-        if let Some(lp_config) = self.lp_config {
-            config.lp_config = lp_config;
+        if let Some(cfg) = self.lp_config {
+            config.lp_config = cfg;
         }
 
         Ok(())
