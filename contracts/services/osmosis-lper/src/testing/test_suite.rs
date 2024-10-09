@@ -1,5 +1,9 @@
+use std::str::FromStr;
+
+use cosmwasm_std::Uint128;
 use osmosis_test_tube::{
-    osmosis_std::types::cosmos::bank::v1beta1::MsgSend, Account, Bank, Module, Wasm,
+    osmosis_std::types::cosmos::bank::v1beta1::{MsgSend, QueryBalanceRequest},
+    Account, Bank, Module, Wasm,
 };
 use valence_osmosis_utils::suite::{
     approve_service, instantiate_input_account, OsmosisTestAppBuilder, OsmosisTestAppSetup,
@@ -90,6 +94,20 @@ impl LPerTestSuite {
             output_acc,
         }
     }
+
+    pub fn query_lp_token_balance(&self, addr: String) -> u128 {
+        let bank = Bank::new(&self.inner.app);
+        let resp = bank
+            .query_balance(&QueryBalanceRequest {
+                address: addr,
+                denom: self.inner.pool_liquidity_token.to_string(),
+            })
+            .unwrap();
+        match resp.balance {
+            Some(c) => Uint128::from_str(&c.amount).unwrap().u128(),
+            None => 0,
+        }
+    }
 }
 
 fn instantiate_lper_contract(
@@ -116,6 +134,8 @@ fn instantiate_lper_contract(
             output_acc.as_str(),
             LiquidityProviderConfig {
                 pool_id: setup.pool_id.into(),
+                pool_asset_1: setup.pool_asset1.to_string(),
+                pool_asset_2: setup.pool_asset2.to_string(),
             },
         ),
     };
