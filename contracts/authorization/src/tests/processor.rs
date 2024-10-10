@@ -902,7 +902,6 @@ fn invalid_msg_rejected() {
                 .with_action(
                     AtomicActionBuilder::new()
                         .with_contract_address(ServiceAccountType::Addr(test_service_contract))
-                        // .with_contract_address(&test_service_contract)
                         .build(),
                 )
                 .build(),
