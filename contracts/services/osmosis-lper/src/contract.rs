@@ -63,12 +63,14 @@ mod actions {
     use std::str::FromStr;
 
     use cosmwasm_std::{
-        Coin, CosmosMsg, Decimal, DepsMut, Env, Fraction, MessageInfo, Response, StdError,
+        coin, Coin, CosmosMsg, Decimal, DepsMut, Env, Fraction, MessageInfo, Response, StdError,
         StdResult, Uint128,
     };
     use osmosis_std::{
         cosmwasm_to_proto_coins,
-        types::osmosis::gamm::v1beta1::{GammQuerier, MsgJoinPool, Pool},
+        types::osmosis::gamm::v1beta1::{
+            GammQuerier, MsgJoinPool, MsgJoinSwapExternAmountIn, Pool,
+        },
     };
 
     use valence_service_utils::{error::ServiceError, execute_on_behalf_of};
@@ -87,10 +89,67 @@ mod actions {
             ActionsMsgs::ProvideDoubleSidedLiquidity {} => {
                 provide_double_sided_liquidity(deps, cfg)
             }
-            ActionsMsgs::ProvideSingleSidedLiquidity {} => {
-                provide_single_sided_liquidity(deps, cfg)
+            ActionsMsgs::ProvideSingleSidedLiquidity { asset, limit } => {
+                provide_single_sided_liquidity(deps, cfg, asset, limit)
             }
         }
+    }
+
+    fn provide_single_sided_liquidity(
+        deps: DepsMut,
+        cfg: Config,
+        asset: String,
+        limit: Uint128,
+    ) -> Result<Response, ServiceError> {
+        // first we assert the input account balance
+        let input_acc_asset_bal = query_pool_asset_balance(&deps, cfg.input_addr.as_str(), &asset)?;
+
+        deps.api.debug(
+            format!(
+                "input account pool asset balance: {:?}",
+                input_acc_asset_bal
+            )
+            .as_str(),
+        );
+
+        let provision_amount = if input_acc_asset_bal.amount > limit {
+            limit
+        } else {
+            input_acc_asset_bal.amount
+        };
+
+        let zero_bal_coin = if cfg.lp_config.pool_asset_1 == asset {
+            coin(0, cfg.lp_config.pool_asset_2.to_string())
+        } else {
+            coin(0, cfg.lp_config.pool_asset_1.to_string())
+        };
+
+        let share_out_amt = calculate_share_out_amt_swap(
+            &deps,
+            cfg.lp_config.pool_id,
+            vec![coin(provision_amount.u128(), asset.to_string())],
+        )?;
+
+        deps.api
+            .debug(&format!("share out amount: {share_out_amt}"));
+
+        let liquidity_provision_msg = get_provide_ss_liquidity_msg(
+            &cfg,
+            coin(provision_amount.u128(), asset),
+            share_out_amt,
+        )?;
+
+        deps.api.debug(&format!(
+            "liquidity provision msg: {:?}",
+            liquidity_provision_msg
+        ));
+
+        let delegated_input_acc_msgs =
+            execute_on_behalf_of(vec![liquidity_provision_msg], &cfg.input_addr.clone())?;
+        deps.api
+            .debug(format!("delegated lp msg: {:?}", delegated_input_acc_msgs).as_str());
+
+        Ok(Response::default().add_message(delegated_input_acc_msgs))
     }
 
     fn provide_double_sided_liquidity(
@@ -137,7 +196,7 @@ mod actions {
         ];
 
         let share_out_amt =
-            calculate_share_out_amt(&deps, cfg.lp_config.pool_id, provision_coins.clone())?;
+            calculate_share_out_amt_no_swap(&deps, cfg.lp_config.pool_id, provision_coins.clone())?;
 
         let liquidity_provision_msg: CosmosMsg =
             get_provide_liquidity_msg(&cfg, provision_coins, share_out_amt)?;
@@ -150,7 +209,7 @@ mod actions {
         Ok(Response::default().add_message(delegated_input_acc_msgs))
     }
 
-    fn calculate_share_out_amt(
+    fn calculate_share_out_amt_no_swap(
         deps: &DepsMut,
         pool_id: u64,
         coins_in: Vec<Coin>,
@@ -159,6 +218,17 @@ mod actions {
         let resp = gamm_querier
             .calc_join_pool_no_swap_shares(pool_id, cosmwasm_to_proto_coins(coins_in))?;
         Ok(resp.shares_out)
+    }
+
+    fn calculate_share_out_amt_swap(
+        deps: &DepsMut,
+        pool_id: u64,
+        coin_in: Vec<Coin>,
+    ) -> StdResult<String> {
+        let gamm_querier = GammQuerier::new(&deps.querier);
+        let resp = gamm_querier.calc_join_pool_shares(pool_id, cosmwasm_to_proto_coins(coin_in))?;
+
+        Ok(resp.share_out_amount)
     }
 
     fn calculate_provision_amounts(
@@ -199,6 +269,24 @@ mod actions {
         .into();
 
         Ok(msg_join_pool_no_swap)
+    }
+
+    fn get_provide_ss_liquidity_msg(
+        cfg: &Config,
+        provision_coin: Coin,
+        share_out_amt: String,
+    ) -> StdResult<CosmosMsg> {
+        let proto_coin_in = cosmwasm_to_proto_coins(vec![provision_coin]);
+
+        let msg_join_pool_yes_swap: CosmosMsg = MsgJoinSwapExternAmountIn {
+            sender: cfg.input_addr.to_string(),
+            pool_id: cfg.lp_config.pool_id,
+            token_in: Some(proto_coin_in[0].clone()),
+            share_out_min_amount: share_out_amt,
+        }
+        .into();
+
+        Ok(msg_join_pool_yes_swap)
     }
 
     fn query_pool(deps: &DepsMut, pool_id: u64) -> Result<Pool, ServiceError> {
@@ -251,14 +339,6 @@ mod actions {
     ) -> Result<Coin, ServiceError> {
         let asset_balance = deps.querier.query_balance(input_addr, asset)?;
         Ok(asset_balance)
-    }
-
-    fn provide_single_sided_liquidity(
-        _deps: DepsMut,
-        _cfg: Config,
-    ) -> Result<Response, ServiceError> {
-        // Implement single-sided liquidity provision logic
-        unimplemented!()
     }
 }
 

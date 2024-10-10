@@ -1,11 +1,11 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Uint128};
 use cw_ownable::cw_ownable_query;
 
 #[cw_serde]
 pub enum ActionsMsgs {
     ProvideDoubleSidedLiquidity {},
-    ProvideSingleSidedLiquidity {},
+    ProvideSingleSidedLiquidity { asset: String, limit: Uint128 },
 }
 
 #[cw_ownable_query]

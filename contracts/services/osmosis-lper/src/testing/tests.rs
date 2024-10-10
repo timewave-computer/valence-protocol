@@ -31,10 +31,10 @@ fn test_provide_single_sided_gamm_liquidity() {
     assert_eq!(input_bals.len(), 1);
     assert_eq!(output_bals.len(), 0);
 
-    setup.provide_single_sided_liquidity();
+    setup.provide_single_sided_liquidity(OSMO_DENOM, 10_000u128.into());
 
     let input_bals = setup.query_all_balances(&setup.input_acc).unwrap();
     let output_bals = setup.query_all_balances(&setup.output_acc).unwrap();
-    assert_eq!(input_bals.len(), 1);
+    assert_eq!(input_bals.len(), 2);
     assert_eq!(output_bals.len(), 0);
 }

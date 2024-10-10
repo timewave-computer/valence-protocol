@@ -1,10 +1,10 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{coin, Coin, StdResult, Uint128};
+use cosmwasm_std::{coin, Coin, Uint128};
 
 use osmosis_test_tube::{
     osmosis_std::{
-        cosmwasm_to_proto_coins, try_proto_to_cosmwasm_coins,
+        try_proto_to_cosmwasm_coins,
         types::cosmos::bank::v1beta1::{MsgSend, QueryAllBalancesRequest, QueryBalanceRequest},
     },
     Account, Bank, Module, Wasm,
@@ -131,12 +131,15 @@ impl LPerTestSuite {
         .unwrap();
     }
 
-    pub fn provide_single_sided_liquidity(&self) {
+    pub fn provide_single_sided_liquidity(&self, asset: &str, limit: Uint128) {
         let wasm = Wasm::new(&self.inner.app);
 
         wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
             &self.lper_addr,
-            &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideSingleSidedLiquidity {}),
+            &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideSingleSidedLiquidity {
+                asset: asset.to_string(),
+                limit,
+            }),
             &[],
             self.inner.processor_acc(),
         )
