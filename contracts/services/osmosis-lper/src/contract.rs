@@ -60,19 +60,16 @@ mod execute {
 }
 
 mod actions {
-    use std::str::FromStr;
-
     use cosmwasm_std::{
         coin, Coin, CosmosMsg, Decimal, DepsMut, Env, Fraction, MessageInfo, Response, StdError,
         StdResult, Uint128,
     };
-    use osmosis_std::{
-        cosmwasm_to_proto_coins,
-        types::osmosis::gamm::v1beta1::{
-            GammQuerier, MsgJoinPool, MsgJoinSwapExternAmountIn, Pool,
-        },
-    };
+    use osmosis_std::{cosmwasm_to_proto_coins, types::osmosis::gamm::v1beta1::GammQuerier};
 
+    use valence_osmosis_utils::utils::{
+        get_pool_ratio, get_provide_liquidity_msg, get_provide_ss_liquidity_msg, query_pool,
+        query_pool_asset_balance,
+    };
     use valence_service_utils::{error::ServiceError, execute_on_behalf_of};
 
     use crate::{msg::ActionsMsgs, valence_service_integration::Config};
@@ -128,7 +125,8 @@ mod actions {
             .debug(&format!("share out amount: {share_out_amt}"));
 
         let liquidity_provision_msg = get_provide_ss_liquidity_msg(
-            &cfg,
+            cfg.input_addr.as_str(),
+            cfg.lp_config.pool_id,
             coin(provision_amount.u128(), asset),
             share_out_amt,
         )?;
@@ -192,8 +190,12 @@ mod actions {
         let share_out_amt =
             calculate_share_out_amt_no_swap(&deps, cfg.lp_config.pool_id, provision_coins.clone())?;
 
-        let liquidity_provision_msg: CosmosMsg =
-            get_provide_liquidity_msg(&cfg, provision_coins, share_out_amt)?;
+        let liquidity_provision_msg: CosmosMsg = get_provide_liquidity_msg(
+            cfg.input_addr.as_str(),
+            cfg.lp_config.pool_id,
+            provision_coins,
+            share_out_amt,
+        )?;
 
         let delegated_input_acc_msgs =
             execute_on_behalf_of(vec![liquidity_provision_msg], &cfg.input_addr.clone())?;
@@ -247,95 +249,6 @@ mod actions {
             // if it is not, we provide all of asset_1 and the expected amount of asset_2
             Ok((asset_1_bal, expected_asset_2_provision_amt))
         }
-    }
-
-    fn get_provide_liquidity_msg(
-        cfg: &Config,
-        provision_coins: Vec<Coin>,
-        share_out_amt: String,
-    ) -> StdResult<CosmosMsg> {
-        let msg_join_pool_no_swap: CosmosMsg = MsgJoinPool {
-            sender: cfg.input_addr.to_string(),
-            pool_id: cfg.lp_config.pool_id,
-            share_out_amount: share_out_amt,
-            token_in_maxs: cosmwasm_to_proto_coins(provision_coins),
-        }
-        .into();
-
-        Ok(msg_join_pool_no_swap)
-    }
-
-    fn get_provide_ss_liquidity_msg(
-        cfg: &Config,
-        provision_coin: Coin,
-        share_out_amt: String,
-    ) -> StdResult<CosmosMsg> {
-        let proto_coin_in = cosmwasm_to_proto_coins(vec![provision_coin]);
-
-        let msg_join_pool_yes_swap: CosmosMsg = MsgJoinSwapExternAmountIn {
-            sender: cfg.input_addr.to_string(),
-            pool_id: cfg.lp_config.pool_id,
-            token_in: Some(proto_coin_in[0].clone()),
-            share_out_min_amount: share_out_amt,
-        }
-        .into();
-
-        Ok(msg_join_pool_yes_swap)
-    }
-
-    fn query_pool(deps: &DepsMut, pool_id: u64) -> Result<Pool, ServiceError> {
-        let gamm_querier = GammQuerier::new(&deps.querier);
-        // TODO: switch to the following:
-        // let pool_manager = PoolmanagerQuerier::new(&deps.querier);
-        // let pool_query_response = pool_manager.pool(pool_id)?;
-
-        let pool_query_response = gamm_querier.pool(pool_id)?;
-        let matched_pool: Pool = match pool_query_response.pool {
-            Some(any_pool) => any_pool
-                .try_into()
-                .map_err(|_| ServiceError::Std(StdError::generic_err("failed to decode proto")))?,
-            None => return Err(ServiceError::Std(StdError::generic_err("pool not found"))),
-        };
-        deps.api
-            .debug(&format!("pool response: {:?}", matched_pool));
-        Ok(matched_pool)
-    }
-
-    fn get_pool_ratio(pool: Pool, asset_1: String, asset_2: String) -> StdResult<Decimal> {
-        let (mut asset1_balance, mut asset2_balance) = (Uint128::zero(), Uint128::zero());
-
-        for asset in pool.pool_assets {
-            match asset.token {
-                Some(c) => {
-                    // let cw_coin = try_proto_to_cosmwasm_coins(vec![c])?;
-                    let coin = Coin {
-                        denom: c.denom,
-                        amount: Uint128::from_str(c.amount.as_str())?,
-                    };
-                    if coin.denom == asset_1 {
-                        asset1_balance = coin.amount;
-                    } else if coin.denom == asset_2 {
-                        asset2_balance = coin.amount;
-                    }
-                }
-                None => continue,
-            }
-        }
-
-        if asset1_balance.is_zero() || asset2_balance.is_zero() {
-            return Err(StdError::generic_err("pool does not contain both assets"));
-        }
-
-        Ok(Decimal::from_ratio(asset1_balance, asset2_balance))
-    }
-
-    fn query_pool_asset_balance(
-        deps: &DepsMut,
-        input_addr: &str,
-        asset: &str,
-    ) -> Result<Coin, ServiceError> {
-        let asset_balance = deps.querier.query_balance(input_addr, asset)?;
-        Ok(asset_balance)
     }
 }
 
