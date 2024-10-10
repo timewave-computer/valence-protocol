@@ -86,7 +86,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
 
-    // TODO: we need the id of the service here in contract_address
     workflow_config.authorizations = vec![AuthorizationBuilder::new()
         .with_label("swap")
         .with_actions_config(
