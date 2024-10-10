@@ -14,13 +14,9 @@ mod test {
         authorization_message::{Message, MessageDetails, MessageType},
     };
     use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
-
+    use config::{Config as ConfigHelper, File};
     use crate::{
-        account::{AccountInfo, AccountType},
-        config::Config,
-        domain::Domain,
-        service::{ServiceConfig, ServiceInfo},
-        workflow_config::{Link, WorkflowConfig},
+        account::{AccountInfo, AccountType}, config::{Config, GLOBAL_CONFIG}, domain::Domain, init_workflow, service::{ServiceConfig, ServiceInfo}, workflow_config::{Link, WorkflowConfig}
     };
 
     /// test to make sure on config is parsed correctlly.
@@ -28,7 +24,7 @@ mod test {
     /// probably means other tests are also failing because of it.
     #[tokio::test]
     async fn test_config() {
-        let _config = Config::default();
+        let _config = &GLOBAL_CONFIG.read().unwrap().general;
     }
 
     #[ignore = "internal test"]
@@ -57,17 +53,20 @@ mod test {
     #[ignore = "internal test"]
     #[test]
     fn test_config_find_accounts_ids() {
-        let config = ServiceConfig::Forwarder(valence_forwarder_service::msg::ServiceConfig {
-            input_addr: "|account_id|:1".into(),
-            output_addr: "|account_id|:2".into(),
-            forwarding_configs: vec![valence_forwarder_service::msg::UncheckedForwardingConfig {
-                denom: UncheckedDenom::Native("untrn".to_string()),
-                max_amount: Uint128::new(100),
-            }],
-            forwarding_constraints: valence_forwarder_service::msg::ForwardingConstraints::new(
-                None,
-            ),
-        });
+        let config =
+            ServiceConfig::ValenceForwarderService(valence_forwarder_service::msg::ServiceConfig {
+                input_addr: "|account_id|:1".into(),
+                output_addr: "|account_id|:2".into(),
+                forwarding_configs: vec![
+                    valence_forwarder_service::msg::UncheckedForwardingConfig {
+                        denom: UncheckedDenom::Native("untrn".to_string()),
+                        max_amount: Uint128::new(100),
+                    },
+                ],
+                forwarding_constraints: valence_forwarder_service::msg::ForwardingConstraints::new(
+                    None,
+                ),
+            });
 
         let account_ids = config.get_account_ids().unwrap();
         println!("{account_ids:?}");
@@ -119,6 +118,45 @@ mod test {
         //     .finish();
         // tracing::subscriber::set_global_default(subscriber)
         //     .expect("setting default subscriber failed");
+
+        let c: Config = ConfigHelper::builder()
+                    .add_source(
+                        glob::glob("conf/*")
+                            .unwrap()
+                            .filter_map(|path| {
+        
+                                let p = path.unwrap();
+                                println!("Path: {:?}", p);
+        
+                                if p.is_dir() {
+                                    None
+                                } else {
+                                    Some(File::from(p))
+                                }
+                            })
+                            .collect::<Vec<_>>(),
+                    )
+                    .add_source(
+                        glob::glob("conf/**/*")
+                            .unwrap()
+                            .filter_map(|path| {
+                                let p = path.unwrap();
+                                if p.is_dir() {
+                                    None
+                                } else {
+                                    Some(File::from(p))
+                                }
+                            })
+                            .collect::<Vec<_>>(),
+                    )
+                    .build()
+                    .unwrap()
+                    .try_deserialize()
+                    .unwrap();
+
+        *GLOBAL_CONFIG.write().unwrap() = c;
+
+
         let neutron_domain = Domain::CosmosCosmwasm("neutron".to_string());
 
         let mut config = WorkflowConfig {
@@ -132,6 +170,7 @@ mod test {
                 name: "test_1".to_string(),
                 ty: AccountType::Base { admin: None },
                 domain: neutron_domain.clone(),
+                addr: None,
             },
         );
         config.accounts.insert(
@@ -140,6 +179,7 @@ mod test {
                 name: "test_2".to_string(),
                 ty: AccountType::Base { admin: None },
                 domain: neutron_domain.clone(),
+                addr: None,
             },
         );
 
@@ -148,18 +188,20 @@ mod test {
             ServiceInfo {
                 name: "test_forwarder".to_string(),
                 domain: neutron_domain.clone(),
-                config: ServiceConfig::Forwarder(valence_forwarder_service::msg::ServiceConfig {
-                    input_addr: ServiceAccountType::AccountId(1),
-                    output_addr: ServiceAccountType::AccountId(2),
-                    forwarding_configs: vec![
-                        valence_forwarder_service::msg::UncheckedForwardingConfig {
-                            denom: UncheckedDenom::Native("untrn".to_string()),
-                            max_amount: Uint128::new(100),
-                        },
-                    ],
-                    forwarding_constraints:
-                        valence_forwarder_service::msg::ForwardingConstraints::new(None),
-                }),
+                config: ServiceConfig::ValenceForwarderService(
+                    valence_forwarder_service::msg::ServiceConfig {
+                        input_addr: ServiceAccountType::AccountId(1),
+                        output_addr: ServiceAccountType::AccountId(2),
+                        forwarding_configs: vec![
+                            valence_forwarder_service::msg::UncheckedForwardingConfig {
+                                denom: UncheckedDenom::Native("untrn".to_string()),
+                                max_amount: Uint128::new(100),
+                            },
+                        ],
+                        forwarding_constraints:
+                            valence_forwarder_service::msg::ForwardingConstraints::new(None),
+                    },
+                ),
                 addr: None,
             },
         );
@@ -205,7 +247,7 @@ mod test {
         // let b = to_json_binary(&config).unwrap();
         // println!("{:#?}", b);
 
-        // init_workflow(config).await;
+        init_workflow(&mut config).await.unwrap();
 
         // match timeout(Duration::from_secs(60), ).await {
         //     Ok(_) => println!("Workflow initialization completed successfully"),

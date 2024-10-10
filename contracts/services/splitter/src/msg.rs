@@ -157,17 +157,17 @@ impl UncheckedSplitConfig {
 #[cw_serde]
 #[derive(OptionalStruct)]
 pub struct ServiceConfig {
-    pub input_addr: String,
+    pub input_addr: ServiceAccountType,
     pub splits: Vec<UncheckedSplitConfig>,
 }
 
 impl ServiceConfig {
-    pub fn new(input_addr: String, splits: Vec<UncheckedSplitConfig>) -> Self {
-        ServiceConfig { input_addr, splits }
+    pub fn new(input_addr: impl Into<ServiceAccountType>, splits: Vec<UncheckedSplitConfig>) -> Self {
+        ServiceConfig { input_addr: input_addr.into(), splits }
     }
 
     fn do_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<Addr, ServiceError> {
-        let input_addr = api.addr_validate(&self.input_addr)?;
+        let input_addr = self.input_addr.to_addr(api)?;
         validate_splits(api, &self.splits)?;
         Ok(input_addr)
     }
@@ -240,7 +240,7 @@ impl OptionalServiceConfig {
     pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
         // First update input_addr (if needed)
         if let Some(input_addr) = self.input_addr {
-            config.input_addr = deps.api.addr_validate(&input_addr)?;
+            config.input_addr = input_addr.to_addr(deps.api)?;
         }
 
         // Then validate & update splits (if needed)

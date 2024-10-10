@@ -15,7 +15,7 @@ use valence_authorization_utils::authorization::AuthorizationInfo;
 
 use crate::{
     account::InstantiateAccountData,
-    config::{ConfigError, CONFIG},
+    config::{ConfigError, GLOBAL_CONFIG},
     service::ServiceConfig,
     workflow_config::WorkflowConfig,
 };
@@ -91,8 +91,8 @@ impl Domain {
         Ok(match self {
             Domain::CosmosCosmwasm(chain_name) => Box::new(
                 CosmosCosmwasmConnector::new(
-                    CONFIG.get_chain_info(chain_name)?,
-                    CONFIG.get_code_ids(chain_name)?,
+                    GLOBAL_CONFIG.read().unwrap().get_chain_info(chain_name)?,
+                    GLOBAL_CONFIG.read().unwrap().get_code_ids(chain_name)?,
                 )
                 .await?,
             ),

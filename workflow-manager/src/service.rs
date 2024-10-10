@@ -29,6 +29,9 @@ pub enum ServiceError {
 
     #[error("ValenceServiceError Error: {0}")]
     ValenceServiceError(#[from] valence_service_utils::error::ServiceError),
+
+    #[error("Tried to compare 2 different configs: {0} and {1}")]
+    ConfigsMismatch(String, String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,41 +47,34 @@ pub struct ServiceInfo {
 #[derive(Debug, Clone, strum::Display, Serialize, Deserialize, VariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub enum ServiceConfig {
-    Forwarder(valence_forwarder_service::msg::ServiceConfig),
-    // General {
-    //     config: GeneralServiceConfig,
-    // },
-    // 1 to many
-    // Splitter(SplitterServiceConfig),
-
-    // /// Many to 1
-    // ReverseSplitter(ReverseSplitterServiceConfig),
-    // /// Many to Many
-    // Mapper {
-    //     config: MapperSplitterServiceConfig,
-    // },
-    // Lper {
-    //     config: LperServiceConfig,
-    // },
-    // Lwer {
-    //     config: LwerServiceConfig,
-    // },
-    // Forwarder {
-    //     config: ForwarderServiceConfig,
-    // },
-    // Orbital {
-    //     config: OrbitalServiceConfig,
-    // },
+    ValenceForwarderService(valence_forwarder_service::msg::ServiceConfig),
+    ValenceSplitterService(valence_splitter_service::msg::ServiceConfig),
+    ValenceReverseSplitterService(valence_reverse_splitter_service::msg::ServiceConfig),
 }
 
 // TODO: create macro for the methods that work the same over all of the configs
 // We are delegating a lot of the methods to the specific config, so most of the methods can be under the macro
 impl ServiceConfig {
-    pub fn is_diff(&self, other: &ServiceConfig) -> bool {
+    pub fn is_diff(&self, other: &ServiceConfig) -> ServiceResult<bool> {
         match (self, other) {
-            (ServiceConfig::Forwarder(config), ServiceConfig::Forwarder(other_config)) => {
-                config.is_diff(other_config)
-            } // _ => false,
+            (
+                ServiceConfig::ValenceForwarderService(config),
+                ServiceConfig::ValenceForwarderService(other_config),
+            ) => Ok(config.is_diff(other_config)),
+            (
+                ServiceConfig::ValenceSplitterService(config),
+                ServiceConfig::ValenceSplitterService(other_config),
+            ) => Ok(config.is_diff(other_config)),
+            (
+                ServiceConfig::ValenceReverseSplitterService(config),
+                ServiceConfig::ValenceReverseSplitterService(other_config),
+            ) => Ok(config.is_diff(other_config)),
+            _ => {
+                return Err(ServiceError::ConfigsMismatch(
+                    self.to_string(),
+                    other.to_string(),
+                ))
+            }
         }
     }
 
@@ -90,7 +86,19 @@ impl ServiceConfig {
         let ac = AhoCorasick::new(patterns)?;
 
         match self {
-            ServiceConfig::Forwarder(ref mut config) => {
+            ServiceConfig::ValenceForwarderService(ref mut config) => {
+                let json = serde_json::to_string(&config)?;
+                let res = ac.replace_all(&json, &replace_with);
+
+                *config = serde_json::from_str(&res)?;
+            }
+            ServiceConfig::ValenceSplitterService(ref mut config) => {
+                let json = serde_json::to_string(&config)?;
+                let res = ac.replace_all(&json, &replace_with);
+
+                *config = serde_json::from_str(&res)?;
+            }
+            ServiceConfig::ValenceReverseSplitterService(ref mut config) => {
                 let json = serde_json::to_string(&config)?;
                 let res = ac.replace_all(&json, &replace_with);
 
@@ -103,7 +111,17 @@ impl ServiceConfig {
 
     pub fn get_instantiate_msg(&self, owner: String, processor: String) -> ServiceResult<Vec<u8>> {
         match self {
-            ServiceConfig::Forwarder(config) => to_vec(&InstantiateMsg {
+            ServiceConfig::ValenceForwarderService(config) => to_vec(&InstantiateMsg {
+                owner,
+                processor,
+                config: config.clone(),
+            }),
+            ServiceConfig::ValenceSplitterService(config) => to_vec(&InstantiateMsg {
+                owner,
+                processor,
+                config: config.clone(),
+            }),
+            ServiceConfig::ValenceReverseSplitterService(config) => to_vec(&InstantiateMsg {
                 owner,
                 processor,
                 config: config.clone(),
@@ -115,9 +133,16 @@ impl ServiceConfig {
     // TODO: Finish validate config
     pub fn soft_validate_config(&self, api: &dyn cosmwasm_std::Api) -> ServiceResult<()> {
         match self {
-            ServiceConfig::Forwarder(config) => {
+            ServiceConfig::ValenceForwarderService(config) => {
                 config.pre_validate(api)?;
-                // config.validate();
+                Ok(())
+            }
+            ServiceConfig::ValenceSplitterService(config) => {
+                config.pre_validate(api)?;
+                Ok(())
+            }
+            ServiceConfig::ValenceReverseSplitterService(config) => {
+                config.pre_validate(api)?;
                 Ok(())
             }
         }
@@ -127,7 +152,13 @@ impl ServiceConfig {
         let ac: AhoCorasick = AhoCorasick::new(["\"|account_id|\":"]).unwrap();
 
         match self {
-            ServiceConfig::Forwarder(config) => {
+            ServiceConfig::ValenceForwarderService(config) => {
+                Self::find_account_ids(ac, serde_json::to_string(&config)?)
+            }
+            ServiceConfig::ValenceSplitterService(config) => {
+                Self::find_account_ids(ac, serde_json::to_string(&config)?)
+            }
+            ServiceConfig::ValenceReverseSplitterService(config) => {
                 Self::find_account_ids(ac, serde_json::to_string(&config)?)
             }
         }

@@ -19,6 +19,7 @@ use valence_authorization_utils::{
     msg::{ExecuteMsg, PermissionedMsg, PermissionlessMsg, ProcessorMessage, QueryMsg},
 };
 use valence_processor_utils::{msg::InternalProcessorMsg, processor::MessageBatch};
+use valence_service_utils::ServiceAccountType;
 
 use crate::{
     contract::build_tokenfactory_denom,
@@ -900,7 +901,8 @@ fn invalid_msg_rejected() {
             AtomicActionsConfigBuilder::new()
                 .with_action(
                     AtomicActionBuilder::new()
-                        .with_contract_address(&test_service_contract)
+                        .with_contract_address(ServiceAccountType::Addr(test_service_contract))
+                        // .with_contract_address(&test_service_contract)
                         .build(),
                 )
                 .build(),
@@ -1015,7 +1017,7 @@ fn queue_shifting_when_not_retriable() {
                 AtomicActionsConfigBuilder::new()
                     .with_action(
                         AtomicActionBuilder::new()
-                            .with_contract_address(&test_service_contract)
+                            .with_contract_address(ServiceAccountType::Addr(test_service_contract.clone()))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -1039,7 +1041,7 @@ fn queue_shifting_when_not_retriable() {
                 NonAtomicActionsConfigBuilder::new()
                     .with_action(
                         NonAtomicActionBuilder::new()
-                            .with_contract_address(&test_service_contract)
+                            .with_contract_address(&test_service_contract.clone())
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -1270,7 +1272,7 @@ fn higher_priority_queue_is_processed_first() {
                 AtomicActionsConfigBuilder::new()
                     .with_action(
                         AtomicActionBuilder::new()
-                            .with_contract_address(&test_service_contract)
+                            .with_contract_address(ServiceAccountType::Addr(test_service_contract.clone()))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -1295,7 +1297,7 @@ fn higher_priority_queue_is_processed_first() {
                 AtomicActionsConfigBuilder::new()
                     .with_action(
                         AtomicActionBuilder::new()
-                            .with_contract_address(&test_service_contract)
+                            .with_contract_address(ServiceAccountType::Addr(test_service_contract.clone()))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -1514,7 +1516,7 @@ fn retry_multi_action_atomic_batch_until_success() {
                 })
                 .with_action(
                     AtomicActionBuilder::new()
-                        .with_contract_address(&test_service_contract)
+                        .with_contract_address(ServiceAccountType::Addr(test_service_contract.clone()))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -1526,7 +1528,7 @@ fn retry_multi_action_atomic_batch_until_success() {
                 )
                 .with_action(
                     AtomicActionBuilder::new()
-                        .with_contract_address(&test_service_contract)
+                        .with_contract_address(ServiceAccountType::Addr(test_service_contract.clone()))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -1538,7 +1540,7 @@ fn retry_multi_action_atomic_batch_until_success() {
                 )
                 .with_action(
                     AtomicActionBuilder::new()
-                        .with_contract_address(&test_service_contract)
+                        .with_contract_address(ServiceAccountType::Addr(test_service_contract.clone()))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -1624,7 +1626,7 @@ fn retry_multi_action_atomic_batch_until_success() {
 
     // Set the condition to true to make it succeed
     wasm.execute::<TestServiceExecuteMsg>(
-        &test_service_contract,
+        &test_service_contract.clone(),
         &TestServiceExecuteMsg::SetCondition { condition: true },
         &[],
         &setup.owner_accounts[0],
@@ -1935,7 +1937,7 @@ fn failed_atomic_batch_after_retries() {
                 })
                 .with_action(
                     AtomicActionBuilder::new()
-                        .with_contract_address(&test_service_contract)
+                        .with_contract_address(ServiceAccountType::Addr(test_service_contract.clone()))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -1947,7 +1949,7 @@ fn failed_atomic_batch_after_retries() {
                 )
                 .with_action(
                     AtomicActionBuilder::new()
-                        .with_contract_address(&test_service_contract)
+                        .with_contract_address(ServiceAccountType::Addr(test_service_contract.clone()))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -2222,7 +2224,7 @@ fn successful_non_atomic_and_atomic_batches_together() {
                 AtomicActionsConfigBuilder::new()
                     .with_action(
                         AtomicActionBuilder::new()
-                            .with_contract_address(&test_service_contract)
+                            .with_contract_address(ServiceAccountType::Addr(test_service_contract.clone()))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -2234,7 +2236,7 @@ fn successful_non_atomic_and_atomic_batches_together() {
                     )
                     .with_action(
                         AtomicActionBuilder::new()
-                            .with_contract_address(&test_service_contract)
+                            .with_contract_address(ServiceAccountType::Addr(test_service_contract.clone()))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -2253,7 +2255,7 @@ fn successful_non_atomic_and_atomic_batches_together() {
                 NonAtomicActionsConfigBuilder::new()
                     .with_action(
                         NonAtomicActionBuilder::new()
-                            .with_contract_address(&test_service_contract)
+                            .with_contract_address(&test_service_contract.clone())
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -2856,7 +2858,7 @@ fn migration() {
             AtomicActionsConfigBuilder::new()
                 .with_action(
                     AtomicActionBuilder::new()
-                        .with_contract_address(&test_service_contract)
+                        .with_contract_address(ServiceAccountType::Addr(test_service_contract.clone()))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmMigrateMsg,
                             message: Message {

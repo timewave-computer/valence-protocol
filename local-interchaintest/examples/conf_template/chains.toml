@@ -1,0 +1,30 @@
+[chains]
+
+# [chains.cosmos-hub]
+# name      = "cosmos-hub"
+# rpc       = "https://rpc.cosmos.network:443"
+# grpc      = "https://cosmos-testnet-grpc.polkachu.com:14990"
+# prefix    = "cosmos"
+# gas_price = "0.025"
+# gas_denom = "uatom"
+# coin_type = "118"
+
+[chains.juno]
+name      = "juno"
+rpc       = "http://0.0.0.0:34125"
+grpc      = "http://0.0.0.0:46547"
+prefix    = "juno"
+gas_price = "0.1"
+gas_denom = "ujuno"
+coin_type = "118"
+
+[chains.neutron]
+name      = "neutron"
+rpc       = "https://neutron-testnet-rpc.polkachu.com:443"
+grpc      = "https://grpc-falcron.pion-1.ntrn.tech:80"
+# grpc      = "https://neutron-testnet-rpc.polkachu.com:19190"
+prefix    = "neutron"
+gas_price = "0.055"
+gas_denom = "untrn"
+coin_type = "118"
+

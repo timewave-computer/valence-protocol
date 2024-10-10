@@ -9,7 +9,7 @@ use getset::{Getters, Setters};
 use valence_service_utils::{
     denoms::CheckedDenom,
     msg::{ExecuteMsg, InstantiateMsg},
-    testing::{ServiceTestSuite, ServiceTestSuiteBase},
+    testing::{ServiceTestSuite, ServiceTestSuiteBase}, ServiceAccountType,
 };
 
 const NTRN: &str = "untrn";
@@ -110,7 +110,7 @@ impl SplitterTestSuite {
     }
 
     fn splitter_config(&self, splits: Vec<UncheckedSplitConfig>) -> ServiceConfig {
-        ServiceConfig::new(self.input_addr.to_string(), splits)
+        ServiceConfig::new(self.input_addr.as_str(), splits)
     }
 
     fn cw20_token_init(&mut self, name: &str, symbol: &str, amount: u128, addr: String) -> Addr {
@@ -357,7 +357,7 @@ fn update_config_with_valid_config() {
         STARS,
         &suite.input_addr,
     ));
-    cfg.input_addr = output_addr.to_string();
+    cfg.input_addr = ServiceAccountType::Addr(output_addr.to_string());
 
     // Execute update config action
     suite.update_config(svc.clone(), cfg).unwrap();
