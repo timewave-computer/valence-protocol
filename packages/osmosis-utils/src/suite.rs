@@ -2,6 +2,7 @@ use cosmwasm_std::Uint64;
 use osmosis_test_tube::{Account, Gamm, Module, OsmosisTestApp, SigningAccount, Wasm};
 
 pub const OSMO_DENOM: &str = "uosmo";
+pub const TEST_DENOM: &str = "utest";
 
 pub struct OsmosisTestAppSetup {
     pub app: OsmosisTestApp,
@@ -51,7 +52,7 @@ impl OsmosisTestAppBuilder {
             .init_accounts(
                 &[
                     cosmwasm_std_polytone::Coin::new(self.initial_balance, self.fee_denom.as_str()),
-                    cosmwasm_std_polytone::Coin::new(self.initial_balance, "utest"),
+                    cosmwasm_std_polytone::Coin::new(self.initial_balance, TEST_DENOM),
                 ],
                 self.num_accounts,
             )
@@ -60,7 +61,7 @@ impl OsmosisTestAppBuilder {
         // create balancer pool with basic configuration
         let pool_liquidity = vec![
             cosmwasm_std_polytone::Coin::new(100_000u128, self.fee_denom),
-            cosmwasm_std_polytone::Coin::new(100_000u128, "utest"),
+            cosmwasm_std_polytone::Coin::new(100_000u128, TEST_DENOM),
         ];
         let pool_id = gamm
             .create_basic_pool(&pool_liquidity, &accounts[0])
@@ -77,7 +78,7 @@ impl OsmosisTestAppBuilder {
             accounts,
             pool_id: Uint64::new(pool_id),
             pool_asset1: OSMO_DENOM.to_string(),
-            pool_asset2: "utest".to_string(),
+            pool_asset2: TEST_DENOM.to_string(),
             pool_liquidity_token,
         })
     }

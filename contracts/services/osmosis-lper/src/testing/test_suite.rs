@@ -1,16 +1,24 @@
 use std::str::FromStr;
 
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{coin, Coin, StdResult, Uint128};
+
 use osmosis_test_tube::{
-    osmosis_std::types::cosmos::bank::v1beta1::{MsgSend, QueryBalanceRequest},
+    osmosis_std::{
+        cosmwasm_to_proto_coins, try_proto_to_cosmwasm_coins,
+        types::cosmos::bank::v1beta1::{MsgSend, QueryAllBalancesRequest, QueryBalanceRequest},
+    },
     Account, Bank, Module, Wasm,
 };
 use valence_osmosis_utils::suite::{
     approve_service, instantiate_input_account, OsmosisTestAppBuilder, OsmosisTestAppSetup,
+    OSMO_DENOM, TEST_DENOM,
 };
-use valence_service_utils::msg::InstantiateMsg;
+use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 
-use crate::{msg::LiquidityProviderConfig, valence_service_integration::ServiceConfig};
+use crate::{
+    msg::{ActionsMsgs, LiquidityProviderConfig},
+    valence_service_integration::{OptionalServiceConfig, ServiceConfig},
+};
 
 const CONTRACT_PATH: &str = "../../../artifacts";
 
@@ -23,12 +31,15 @@ pub struct LPerTestSuite {
 
 impl Default for LPerTestSuite {
     fn default() -> Self {
-        Self::new(true)
+        Self::new(vec![
+            coin(1_000_000u128, OSMO_DENOM),
+            coin(1_000_000u128, TEST_DENOM),
+        ])
     }
 }
 
 impl LPerTestSuite {
-    pub fn new(native_lp_token: bool) -> Self {
+    pub fn new(with_input_bals: Vec<Coin>) -> Self {
         let inner = OsmosisTestAppBuilder::new().build().unwrap();
 
         // Create two base accounts
@@ -45,47 +56,30 @@ impl LPerTestSuite {
 
         let input_acc = instantiate_input_account(code_id, &inner);
         let output_acc = instantiate_input_account(code_id, &inner);
-        let lper_addr = instantiate_lper_contract(
-            &inner,
-            native_lp_token,
-            input_acc.clone(),
-            output_acc.clone(),
-        );
+        let lper_addr = instantiate_lper_contract(&inner, input_acc.clone(), output_acc.clone());
 
         // Approve the service for the input account
         approve_service(&inner, input_acc.clone(), lper_addr.clone());
 
         // Give some tokens to the input account so that it can provide liquidity
         let bank = Bank::new(&inner.app);
-        bank.send(
-            MsgSend {
-                from_address: inner.owner_acc().address(),
-                to_address: input_acc.clone(),
-                amount: vec![
-                    osmosis_test_tube::osmosis_std::types::cosmos::base::v1beta1::Coin {
-                        denom: inner.pool_asset2.clone(),
-                        amount: 1_000_000u128.to_string(),
-                    },
-                ],
-            },
-            inner.owner_acc(),
-        )
-        .unwrap();
 
-        bank.send(
-            MsgSend {
-                from_address: inner.owner_acc().address(),
-                to_address: input_acc.clone(),
-                amount: vec![
-                    osmosis_test_tube::osmosis_std::types::cosmos::base::v1beta1::Coin {
-                        denom: inner.pool_asset1.clone(),
-                        amount: 1_000_000u128.to_string(),
-                    },
-                ],
-            },
-            inner.owner_acc(),
-        )
-        .unwrap();
+        for input_bal in with_input_bals {
+            bank.send(
+                MsgSend {
+                    from_address: inner.owner_acc().address(),
+                    to_address: input_acc.clone(),
+                    amount: vec![
+                        osmosis_test_tube::osmosis_std::types::cosmos::base::v1beta1::Coin {
+                            denom: input_bal.denom.clone(),
+                            amount: input_bal.amount.to_string(),
+                        },
+                    ],
+                },
+                inner.owner_acc(),
+            )
+            .unwrap();
+        }
 
         LPerTestSuite {
             inner,
@@ -93,6 +87,22 @@ impl LPerTestSuite {
             input_acc,
             output_acc,
         }
+    }
+
+    pub fn query_all_balances(
+        &self,
+        addr: &str,
+    ) -> cosmwasm_std_polytone::StdResult<Vec<cosmwasm_std_polytone::Coin>> {
+        let bank = Bank::new(&self.inner.app);
+        let resp = bank
+            .query_all_balances(&QueryAllBalancesRequest {
+                address: addr.to_string(),
+                pagination: None,
+            })
+            .unwrap();
+        let bals = try_proto_to_cosmwasm_coins(resp.balances)?;
+        println!("{addr} acc bals: {:?}", bals);
+        Ok(bals)
     }
 
     pub fn query_lp_token_balance(&self, addr: String) -> u128 {
@@ -108,11 +118,34 @@ impl LPerTestSuite {
             None => 0,
         }
     }
+
+    pub fn provide_two_sided_liquidity(&self) {
+        let wasm = Wasm::new(&self.inner.app);
+
+        wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
+            &self.lper_addr,
+            &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideDoubleSidedLiquidity {}),
+            &[],
+            self.inner.processor_acc(),
+        )
+        .unwrap();
+    }
+
+    pub fn provide_single_sided_liquidity(&self) {
+        let wasm = Wasm::new(&self.inner.app);
+
+        wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
+            &self.lper_addr,
+            &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideSingleSidedLiquidity {}),
+            &[],
+            self.inner.processor_acc(),
+        )
+        .unwrap();
+    }
 }
 
 fn instantiate_lper_contract(
     setup: &OsmosisTestAppSetup,
-    _native_lp_token: bool,
     input_acc: String,
     output_acc: String,
 ) -> String {

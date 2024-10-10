@@ -63,13 +63,14 @@ mod actions {
     use std::str::FromStr;
 
     use cosmwasm_std::{
-        to_json_binary, Coin, CosmosMsg, Decimal, DepsMut, Env, Fraction, MessageInfo, Response,
-        StdError, StdResult, Uint128, WasmMsg,
+        Coin, CosmosMsg, Decimal, DepsMut, Env, Fraction, MessageInfo, Response, StdError,
+        StdResult, Uint128,
     };
     use osmosis_std::{
         cosmwasm_to_proto_coins,
         types::osmosis::gamm::v1beta1::{GammQuerier, MsgJoinPool, Pool},
     };
+
     use valence_service_utils::{error::ServiceError, execute_on_behalf_of};
 
     use crate::{msg::ActionsMsgs, valence_service_integration::Config};
@@ -169,14 +170,14 @@ mod actions {
         // then we get the expected amount of asset_2 tokens to provide
         let expected_asset_2_provision_amt = asset_1_bal
             .checked_multiply_ratio(pool_ratio.numerator(), pool_ratio.denominator())
-            .map_err(|e| StdError::generic_err("failed to get ratio"))?;
+            .map_err(|e| StdError::generic_err(e.to_string()))?;
 
         // then we check if the expected amount of asset_2 tokens is greater than the available balance
         if expected_asset_2_provision_amt > asset_2_bal {
             // if it is, we calculate the amount of asset_1 tokens to provide
             let asset_1_provision_amt = asset_2_bal
                 .checked_multiply_ratio(pool_ratio.denominator(), pool_ratio.numerator())
-                .map_err(|e| StdError::generic_err("failed to get ratio"))?;
+                .map_err(|e| StdError::generic_err(e.to_string()))?;
             Ok((asset_1_provision_amt, asset_2_bal))
         } else {
             // if it is not, we provide all of asset_1 and the expected amount of asset_2
@@ -207,11 +208,11 @@ mod actions {
         let matched_pool: Pool = match pool_query_response.pool {
             Some(any_pool) => any_pool
                 .try_into()
-                .map_err(|e| ServiceError::Std(StdError::generic_err("failed to decode proto")))?,
+                .map_err(|_| ServiceError::Std(StdError::generic_err("failed to decode proto")))?,
             None => return Err(ServiceError::Std(StdError::generic_err("pool not found"))),
         };
         deps.api
-            .debug(format!("pool response: {:?}", matched_pool).as_str());
+            .debug(&format!("pool response: {:?}", matched_pool));
         Ok(matched_pool)
     }
 
@@ -221,6 +222,7 @@ mod actions {
         for asset in pool.pool_assets {
             match asset.token {
                 Some(c) => {
+                    // let cw_coin = try_proto_to_cosmwasm_coins(vec![c])?;
                     let coin = Coin {
                         denom: c.denom,
                         amount: Uint128::from_str(c.amount.as_str())?,
