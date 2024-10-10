@@ -7,6 +7,8 @@ pub mod processor;
 pub const VALENCE_ARTIFACTS_PATH: &str = "artifacts";
 // We keep the polytone contracts here for our tests
 pub const POLYTONE_ARTIFACTS_PATH: &str = "local-interchaintest/polytone_contracts";
+// Where we are keeping the astroport contracts for all our tests
+pub const ASTROPORT_PATH: &str = "packages/astroport-utils/contracts";
 // When spinning up local-ic, this is where the logs files will be stored, we used this to cache code_ids for a specific local-ic instance
 pub const LOGS_FILE_PATH: &str = "local-interchaintest/configs/logs.json";
 

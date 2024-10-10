@@ -26,3 +26,4 @@ valence-processor-utils     = { workspace = true }
 valence-account-utils       = { workspace = true }
 valence-service-utils       = { workspace = true }
 valence-splitter-service    = { workspace = true }
+valence-astroport-utils     = { workspace = true }

@@ -2384,6 +2384,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "valence-account-utils",
+ "valence-astroport-utils",
  "valence-authorization",
  "valence-authorization-utils",
  "valence-processor",
