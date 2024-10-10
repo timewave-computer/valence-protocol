@@ -9,7 +9,7 @@ pub enum AccountType {
     /// This means the account is already instantiated
     Addr { addr: String },
     /// This our base account implementation
-    #[strum(to_string = "base_account")]
+    #[strum(to_string = "valence_base_account")]
     Base { admin: Option<String> },
 }
 
@@ -23,6 +23,7 @@ pub struct AccountInfo {
     pub name: String,
     pub ty: AccountType,
     pub domain: Domain,
+    pub addr: Option<String>,
 }
 
 #[derive(Debug)]

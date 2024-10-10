@@ -26,9 +26,10 @@ cw-utils                    = { workspace = true }
 serde_json                  = { workspace = true }
 
 [dev-dependencies]
-neutron-test-tube    = { workspace = true }
-margined-neutron-std = { workspace = true }
-serde                = { workspace = true }
-hex                  = { workspace = true }
-valence-test-service = { workspace = true }
-valence-processor    = { workspace = true }
+neutron-test-tube     = { workspace = true }
+margined-neutron-std  = { workspace = true }
+serde                 = { workspace = true }
+hex                   = { workspace = true }
+valence-test-service  = { workspace = true }
+valence-processor     = { workspace = true }
+valence-service-utils = { workspace = true }

@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
-use config::{Config as ConfigHelper, File};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use thiserror::Error;
+use tokio::sync::Mutex;
 
 use crate::bridge::Bridge;
 
 pub type ConfigResult<T> = Result<T, ConfigError>;
 
-pub static CONFIG: Lazy<Config> = Lazy::new(Config::default);
+pub static GLOBAL_CONFIG: Lazy<Mutex<Config>> = Lazy::new(|| Mutex::new(Config::default()));
 
 #[derive(Error, Debug)]
 pub enum ConfigError {
@@ -26,7 +26,7 @@ pub enum ConfigError {
     ChainBridgeNotFound(String),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub struct Config {
     pub chains: HashMap<String, ChainInfo>,
     pub contracts: Contracts,
@@ -34,41 +34,45 @@ pub struct Config {
     pub general: GeneralConfig,
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        ConfigHelper::builder()
-            .add_source(
-                glob::glob("conf/*")
-                    .unwrap()
-                    .filter_map(|path| {
-                        let p = path.unwrap();
-                        if p.is_dir() {
-                            None
-                        } else {
-                            Some(File::from(p))
-                        }
-                    })
-                    .collect::<Vec<_>>(),
-            )
-            .add_source(
-                glob::glob("conf/**/*")
-                    .unwrap()
-                    .filter_map(|path| {
-                        let p = path.unwrap();
-                        if p.is_dir() {
-                            None
-                        } else {
-                            Some(File::from(p))
-                        }
-                    })
-                    .collect::<Vec<_>>(),
-            )
-            .build()
-            .unwrap()
-            .try_deserialize()
-            .unwrap()
-    }
-}
+// impl Default for Config {
+//     fn default() -> Self {
+//         println!("Checkk");
+//         ConfigHelper::builder()
+//             .add_source(
+//                 glob::glob("conf/*")
+//                     .unwrap()
+//                     .filter_map(|path| {
+
+//                         let p = path.unwrap();
+//                         println!("Path: {:?}", p);
+
+//                         if p.is_dir() {
+//                             None
+//                         } else {
+//                             Some(File::from(p))
+//                         }
+//                     })
+//                     .collect::<Vec<_>>(),
+//             )
+//             .add_source(
+//                 glob::glob("conf/**/*")
+//                     .unwrap()
+//                     .filter_map(|path| {
+//                         let p = path.unwrap();
+//                         if p.is_dir() {
+//                             None
+//                         } else {
+//                             Some(File::from(p))
+//                         }
+//                     })
+//                     .collect::<Vec<_>>(),
+//             )
+//             .build()
+//             .unwrap()
+//             .try_deserialize()
+//             .unwrap()
+//     }
+// }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ChainInfo {
@@ -81,12 +85,12 @@ pub struct ChainInfo {
     pub coin_type: u64,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct GeneralConfig {
     pub registry_addr: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct Contracts {
     pub code_ids: HashMap<String, HashMap<String, u64>>,
 }
@@ -115,5 +119,13 @@ impl Config {
 
     pub fn get_registry_addr(&self) -> String {
         self.general.registry_addr.to_string()
+    }
+
+    pub fn update_code_id(&mut self, chain_name: String, contract_name: String, code_id: u64) {
+        self.contracts
+            .code_ids
+            .entry(chain_name)
+            .or_default()
+            .insert(contract_name, code_id);
     }
 }

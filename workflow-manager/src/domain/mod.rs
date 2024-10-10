@@ -14,9 +14,7 @@ use thiserror::Error;
 use valence_authorization_utils::authorization::AuthorizationInfo;
 
 use crate::{
-    account::InstantiateAccountData,
-    config::{ConfigError, CONFIG},
-    service::ServiceConfig,
+    account::InstantiateAccountData, config::ConfigError, service::ServiceConfig,
     workflow_config::WorkflowConfig,
 };
 
@@ -89,18 +87,13 @@ impl Domain {
 
     pub async fn generate_connector(&self) -> ConnectorResult<Box<dyn Connector>> {
         Ok(match self {
-            Domain::CosmosCosmwasm(chain_name) => Box::new(
-                CosmosCosmwasmConnector::new(
-                    CONFIG.get_chain_info(chain_name)?,
-                    CONFIG.get_code_ids(chain_name)?,
-                )
-                .await?,
-            ),
-            // Domain::CosmosEvm(_) => {
-            //     return Err(ConnectorError::ConfigError(
-            //         ConfigError::ChainBridgeNotFound("test".to_string()),
-            //     ))
-            // }
+            Domain::CosmosCosmwasm(chain_name) => {
+                Box::new(CosmosCosmwasmConnector::new(chain_name.as_str()).await?)
+            } // Domain::CosmosEvm(_) => {
+              //     return Err(ConnectorError::ConfigError(
+              //         ConfigError::ChainBridgeNotFound("test".to_string()),
+              //     ))
+              // }
         })
     }
 }
