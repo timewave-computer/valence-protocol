@@ -46,7 +46,7 @@ jobs:
       - name: Install local-ic
         run: git clone https://github.com/strangelove-ventures/interchaintest && cd interchaintest/local-interchain && make install
 
-      - name: Upload localic artifact
+      - name: Upload local-ic artifact
         uses: actions/upload-artifact@v3
         with:
           name: local-ic
@@ -104,7 +104,7 @@ jobs:
       - name: List downloaded files
         run: ls -l ./artifacts
 
-      - name: Download local-ic Artifact
+      - name: Download local-ic artifact
         uses: actions/download-artifact@v3
         with:
           name: local-ic
@@ -156,7 +156,7 @@ jobs:
       - name: List downloaded files
         run: ls -l ./artifacts
 
-      - name: Download local-ic Artifact
+      - name: Download local-ic artifact
         uses: actions/download-artifact@v3
         with:
           name: local-ic
