@@ -69,12 +69,10 @@ impl ServiceConfig {
                 ServiceConfig::ValenceReverseSplitterService(config),
                 ServiceConfig::ValenceReverseSplitterService(other_config),
             ) => Ok(config.is_diff(other_config)),
-            _ => {
-                return Err(ServiceError::ConfigsMismatch(
-                    self.to_string(),
-                    other.to_string(),
-                ))
-            }
+            _ => Err(ServiceError::ConfigsMismatch(
+                self.to_string(),
+                other.to_string(),
+            )),
         }
     }
 

@@ -3,14 +3,13 @@ use std::collections::HashMap;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use thiserror::Error;
+use tokio::sync::Mutex;
 
 use crate::bridge::Bridge;
 
 pub type ConfigResult<T> = Result<T, ConfigError>;
 
-use std::sync::RwLock;
-
-pub static GLOBAL_CONFIG: Lazy<RwLock<Config>> = Lazy::new(|| RwLock::new(Config::default()));
+pub static GLOBAL_CONFIG: Lazy<Mutex<Config>> = Lazy::new(|| Mutex::new(Config::default()));
 
 #[derive(Error, Debug)]
 pub enum ConfigError {
@@ -126,7 +125,7 @@ impl Config {
         self.contracts
             .code_ids
             .entry(chain_name)
-            .or_insert_with(HashMap::new)
+            .or_default()
             .insert(contract_name, code_id);
     }
 }

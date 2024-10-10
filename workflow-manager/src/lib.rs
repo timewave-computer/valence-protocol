@@ -14,8 +14,6 @@ use connectors::Connectors;
 use error::ManagerResult;
 use workflow_config::WorkflowConfig;
 
-
-
 // Main chain name
 const NEUTRON_CHAIN: &str = "neutron";
 // // Main domain
@@ -25,10 +23,9 @@ const NEUTRON_CHAIN: &str = "neutron";
 
 pub async fn init_workflow(workflow_config: &mut WorkflowConfig) -> ManagerResult<()> {
     let connectors = Connectors::default();
-    
+
     // TODO: We probably want to register the error we got, with the config in question so we can know when it failed and why
-    let res = workflow_config.init(&connectors).await;
-    res 
+    workflow_config.init(&connectors).await
 }
 
 // pub fn update_workflow(mut workflow_config: WorkflowConfig, mut old_workflow_config: WorkflowConfig) {

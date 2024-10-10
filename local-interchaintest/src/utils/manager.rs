@@ -1,8 +1,15 @@
 use std::{collections::HashMap, env, error::Error, fs};
 
 use localic_std::modules::cosmwasm::contract_instantiate;
-use localic_utils::{utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME};
-use valence_workflow_manager::{config::{ChainInfo, GLOBAL_CONFIG}, error::ManagerResult, init_workflow, workflow_config::WorkflowConfig};
+use localic_utils::{
+    utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
+};
+use valence_workflow_manager::{
+    config::{ChainInfo, GLOBAL_CONFIG},
+    error::ManagerResult,
+    init_workflow,
+    workflow_config::WorkflowConfig,
+};
 
 const AUTHORIZATION_NAME: &str = "valence_authorization";
 const PROCESSOR_NAME: &str = "valence_processor";
@@ -15,7 +22,8 @@ const REGISTRY_NAME: &str = "valence_workflow_registry";
 pub fn setup_manager(test_ctx: &mut TestContext) -> Result<(), Box<dyn Error>> {
     let artifacts_dir = format!("{}/artifacts", env::current_dir()?.to_str().unwrap());
     let chain_infos = get_data_from_log();
-    GLOBAL_CONFIG.write().unwrap().chains = chain_infos.clone();
+    let mut gc = get_global_config();
+    gc.chains = chain_infos.clone();
 
     let mut uploader = test_ctx.build_tx_upload_contracts();
     uploader.with_chain_name(NEUTRON_CHAIN_NAME);
@@ -28,7 +36,7 @@ pub fn setup_manager(test_ctx: &mut TestContext) -> Result<(), Box<dyn Error>> {
     let reverse_splitter_contract_path = format!("{artifacts_dir}/{REVERSE_SPLITTER_NAME}.wasm");
     let forwarder_contract_path = format!("{artifacts_dir}/{FORWARDER_NAME}.wasm");
     let registry_contract_path = format!("{artifacts_dir}/{REGISTRY_NAME}.wasm");
-    
+
     // Upload all contracts
     uploader.send_single_contract(&authorization_contract_path)?;
     uploader.send_single_contract(&processor_contract_path)?;
@@ -91,10 +99,7 @@ pub fn setup_manager(test_ctx: &mut TestContext) -> Result<(), Box<dyn Error>> {
     code_ids_map.insert(REVERSE_SPLITTER_NAME.to_string(), reverse_splitter_code_id);
     code_ids_map.insert(FORWARDER_NAME.to_string(), forwarder_code_id);
 
-    GLOBAL_CONFIG
-        .write()
-        .unwrap()
-        .contracts
+    gc.contracts
         .code_ids
         .insert(NEUTRON_CHAIN_NAME.to_string(), code_ids_map);
 
@@ -116,8 +121,8 @@ pub fn setup_manager(test_ctx: &mut TestContext) -> Result<(), Box<dyn Error>> {
     )
     .unwrap();
 
-    GLOBAL_CONFIG.write().unwrap().general.registry_addr = registry.address;
-    
+    gc.general.registry_addr = registry.address;
+
     // let code_ids = GLOBAL_CONFIG.read().unwrap().contracts.code_ids.clone();
     // println!("{:?}", code_ids);
 
@@ -174,7 +179,7 @@ pub fn get_data_from_log() -> HashMap<String, ChainInfo> {
                 ChainInfo {
                     name: NEUTRON_CHAIN_NAME.to_string(),
                     rpc: rpc.to_string(),
-                    grpc: format!("http://{}", grpc.to_string()),
+                    grpc: format!("http://{}", grpc),
                     prefix: "neutron".to_string(),
                     gas_price: "0.025".to_string(),
                     gas_denom: "untrn".to_string(),
@@ -187,7 +192,19 @@ pub fn get_data_from_log() -> HashMap<String, ChainInfo> {
 }
 
 /// Helper function to start manager init to hide the tokio block_on
-pub fn use_manager_init(workflow_config: &mut WorkflowConfig) -> ManagerResult<()>{
-    let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+pub fn use_manager_init(workflow_config: &mut WorkflowConfig) -> ManagerResult<()> {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
     rt.block_on(init_workflow(workflow_config))
+}
+
+pub fn get_global_config(
+) -> tokio::sync::MutexGuard<'static, valence_workflow_manager::config::Config> {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    rt.block_on(GLOBAL_CONFIG.lock())
 }

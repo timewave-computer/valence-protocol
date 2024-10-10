@@ -181,7 +181,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 )
                 .with_action(
                     AtomicActionBuilder::new()
-                    .with_contract_address(ServiceAccountType::ServiceId(2))
+                        .with_contract_address(ServiceAccountType::ServiceId(2))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {

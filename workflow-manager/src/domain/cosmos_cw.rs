@@ -95,10 +95,11 @@ impl fmt::Debug for CosmosCosmwasmConnector {
 }
 
 impl CosmosCosmwasmConnector {
-    pub async fn new(
-        chain_info: &ChainInfo,
-        code_ids: &HashMap<String, u64>,
-    ) -> Result<Self, CosmosCosmwasmError> {
+    pub async fn new(chain_name: &str) -> Result<Self, CosmosCosmwasmError> {
+        let gc = GLOBAL_CONFIG.lock().await;
+        let chain_info: &ChainInfo = gc.get_chain_info(chain_name)?;
+        let code_ids: &HashMap<String, u64> = gc.get_code_ids(chain_name)?;
+
         let grpc = GrpcClient::new(&chain_info.grpc).await.context(format!(
             "Failed to create new client for: {}",
             chain_info.name
@@ -142,7 +143,7 @@ impl Connector for CosmosCosmwasmConnector {
             ))
             .into());
         }
-        let registry_addr = GLOBAL_CONFIG.read().unwrap().get_registry_addr();
+        let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();
 
         // Execute a message to reserve the workflow id
         let msg = to_vec(&valence_workflow_registry_utils::ExecuteMsg::ReserveId {})
@@ -150,7 +151,7 @@ impl Connector for CosmosCosmwasmConnector {
 
         let m = MsgExecuteContract {
             sender: self.wallet.account_address.clone(),
-            contract: registry_addr,
+            contract: registry_addr.clone(),
             msg,
             funds: vec![],
         }
@@ -168,7 +169,7 @@ impl Connector for CosmosCosmwasmConnector {
             .find_map(|e| {
                 if e.r#type == "wasm"
                     && e.attributes[0].key == "_contract_address"
-                    && e.attributes[0].value == GLOBAL_CONFIG.read().unwrap().get_registry_addr()
+                    && e.attributes[0].value == registry_addr
                     && e.attributes[1].key == "method"
                     && e.attributes[1].value == "reserve_id"
                 {
@@ -207,7 +208,7 @@ impl Connector for CosmosCosmwasmConnector {
             .chain(contract_name)
             .chain(id.to_string())
             .chain(extra_salt)
-            .chain(GLOBAL_CONFIG.read().unwrap().get_registry_addr())
+            .chain(GLOBAL_CONFIG.lock().await.get_registry_addr())
             .finalize()
             .to_vec();
 
@@ -238,8 +239,9 @@ impl Connector for CosmosCosmwasmConnector {
             .get("polytone_proxy")
             .context(format!("Code id not found for: {}", "polytone_proxy"))
             .map_err(CosmosCosmwasmError::Error)?;
-        let receiving_chain_bridge_info =
-            self.get_bridge_info(main_chain, sender_chain, receiving_chain)?;
+        let receiving_chain_bridge_info = self
+            .get_bridge_info(main_chain, sender_chain, receiving_chain)
+            .await?;
 
         let checksum = self.get_checksum(code_id).await?;
 
@@ -478,7 +480,9 @@ impl Connector for CosmosCosmwasmConnector {
             .into());
         }
 
-        let bridge = self.get_bridge_info(main_domain, main_domain, domain)?;
+        let bridge = self
+            .get_bridge_info(main_domain, main_domain, domain)
+            .await?;
 
         let external_domain = valence_authorization_utils::msg::ExternalDomainInfo {
             name: domain.to_string(),
@@ -666,7 +670,7 @@ impl Connector for CosmosCosmwasmConnector {
         let query_data = to_vec(&valence_workflow_registry_utils::QueryMsg::GetConfig { id })
             .map_err(CosmosCosmwasmError::SerdeJsonError)?;
         let config_req = QuerySmartContractStateRequest {
-            address: GLOBAL_CONFIG.read().unwrap().get_registry_addr().clone(),
+            address: GLOBAL_CONFIG.lock().await.get_registry_addr().clone(),
             query_data,
         };
 
@@ -763,7 +767,7 @@ impl Connector for CosmosCosmwasmConnector {
             ))
             .into());
         }
-        let registry_addr = GLOBAL_CONFIG.read().unwrap().get_registry_addr();
+        let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();
 
         let workflow_binary =
             to_json_binary(&config).map_err(CosmosCosmwasmError::CosmwasmStdError)?;
@@ -806,9 +810,9 @@ impl CosmosCosmwasmConnector {
             .map_err(CosmosCosmwasmError::Error)?;
 
         if res.code != 0 {
-            return Err(
-                CosmosCosmwasmError::Error(anyhow::anyhow!("Failed {err_id}: {res:?}",)).into(),
-            );
+            return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                "Failed {err_id}: {res:?}",
+            )));
         }
 
         // wait for the tx to be on chain
@@ -992,23 +996,19 @@ impl CosmosCosmwasmConnector {
         }
     }
 
-    pub fn get_bridge_info(
+    pub async fn get_bridge_info(
         &self,
         main_chain: &str,
         sender_chain: &str,
         receive_chain: &str,
     ) -> Result<PolytoneSingleChainInfo, CosmosCosmwasmError> {
+        let gc = GLOBAL_CONFIG.lock().await;
+
         let info = if main_chain == sender_chain {
-            GLOBAL_CONFIG
-                .read()
-                .unwrap()
-                .get_bridge_info(sender_chain, receive_chain)?
+            gc.get_bridge_info(sender_chain, receive_chain)?
                 .get_polytone_info()
         } else if main_chain == receive_chain {
-            GLOBAL_CONFIG
-                .read()
-                .unwrap()
-                .get_bridge_info(receive_chain, sender_chain)?
+            gc.get_bridge_info(receive_chain, sender_chain)?
                 .get_polytone_info()
         } else {
             return Err(anyhow!(

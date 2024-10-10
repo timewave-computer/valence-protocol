@@ -162,8 +162,14 @@ pub struct ServiceConfig {
 }
 
 impl ServiceConfig {
-    pub fn new(input_addr: impl Into<ServiceAccountType>, splits: Vec<UncheckedSplitConfig>) -> Self {
-        ServiceConfig { input_addr: input_addr.into(), splits }
+    pub fn new(
+        input_addr: impl Into<ServiceAccountType>,
+        splits: Vec<UncheckedSplitConfig>,
+    ) -> Self {
+        ServiceConfig {
+            input_addr: input_addr.into(),
+            splits,
+        }
     }
 
     fn do_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<Addr, ServiceError> {

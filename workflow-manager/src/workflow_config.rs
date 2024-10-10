@@ -55,7 +55,8 @@ impl AuthorizationData {
     }
 
     pub fn set_authorization_bridge_addr(&mut self, domain: Domain, addr: String) {
-        self.authorization_bridge_addrs.insert(domain.to_string(), addr);
+        self.authorization_bridge_addrs
+            .insert(domain.to_string(), addr);
     }
 
     pub fn set_processor_bridge_addr(&mut self, domain: Domain, addr: String) {

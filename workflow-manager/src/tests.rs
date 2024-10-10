@@ -4,6 +4,15 @@ mod test {
     use cw_ownable::Expiration;
     use std::collections::BTreeMap;
 
+    use crate::{
+        account::{AccountInfo, AccountType},
+        config::{Config, GLOBAL_CONFIG},
+        domain::Domain,
+        init_workflow,
+        service::{ServiceConfig, ServiceInfo},
+        workflow_config::{Link, WorkflowConfig},
+    };
+    use config::{Config as ConfigHelper, File};
     use serde_json_any_key::MapIterToJson;
     use valence_authorization_utils::{
         action::AtomicAction,
@@ -14,17 +23,13 @@ mod test {
         authorization_message::{Message, MessageDetails, MessageType},
     };
     use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
-    use config::{Config as ConfigHelper, File};
-    use crate::{
-        account::{AccountInfo, AccountType}, config::{Config, GLOBAL_CONFIG}, domain::Domain, init_workflow, service::{ServiceConfig, ServiceInfo}, workflow_config::{Link, WorkflowConfig}
-    };
 
     /// test to make sure on config is parsed correctlly.
     /// MUST fix this test before handling other tests, config is part of the context we use, if we can't generate it successfully
     /// probably means other tests are also failing because of it.
     #[tokio::test]
     async fn test_config() {
-        let _config = &GLOBAL_CONFIG.read().unwrap().general;
+        let _config = &GLOBAL_CONFIG.lock().await.general;
     }
 
     #[ignore = "internal test"]
@@ -120,42 +125,40 @@ mod test {
         //     .expect("setting default subscriber failed");
 
         let c: Config = ConfigHelper::builder()
-                    .add_source(
-                        glob::glob("conf/*")
-                            .unwrap()
-                            .filter_map(|path| {
-        
-                                let p = path.unwrap();
-                                println!("Path: {:?}", p);
-        
-                                if p.is_dir() {
-                                    None
-                                } else {
-                                    Some(File::from(p))
-                                }
-                            })
-                            .collect::<Vec<_>>(),
-                    )
-                    .add_source(
-                        glob::glob("conf/**/*")
-                            .unwrap()
-                            .filter_map(|path| {
-                                let p = path.unwrap();
-                                if p.is_dir() {
-                                    None
-                                } else {
-                                    Some(File::from(p))
-                                }
-                            })
-                            .collect::<Vec<_>>(),
-                    )
-                    .build()
+            .add_source(
+                glob::glob("conf/*")
                     .unwrap()
-                    .try_deserialize()
-                    .unwrap();
+                    .filter_map(|path| {
+                        let p = path.unwrap();
+                        println!("Path: {:?}", p);
 
-        *GLOBAL_CONFIG.write().unwrap() = c;
+                        if p.is_dir() {
+                            None
+                        } else {
+                            Some(File::from(p))
+                        }
+                    })
+                    .collect::<Vec<_>>(),
+            )
+            .add_source(
+                glob::glob("conf/**/*")
+                    .unwrap()
+                    .filter_map(|path| {
+                        let p = path.unwrap();
+                        if p.is_dir() {
+                            None
+                        } else {
+                            Some(File::from(p))
+                        }
+                    })
+                    .collect::<Vec<_>>(),
+            )
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
 
+        *GLOBAL_CONFIG.lock().await = c;
 
         let neutron_domain = Domain::CosmosCosmwasm("neutron".to_string());
 

@@ -93,7 +93,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             AtomicActionsConfigBuilder::new()
                 .with_action(
                     AtomicActionBuilder::new()
-                    .with_contract_address(ServiceAccountType::ServiceId(1))
+                        .with_contract_address(ServiceAccountType::ServiceId(1))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
