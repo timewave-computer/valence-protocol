@@ -138,8 +138,7 @@ pub fn setup_manager(test_ctx: &mut TestContext) -> Result<(), Box<dyn Error>> {
 
 /// Get the chain infos and bridge info from the log file
 pub fn get_data_from_log() -> HashMap<String, ChainInfo> {
-    let log_file = fs::File::open(LOG_FILE_PATH)
-        .expect("file should open read only");
+    let log_file = fs::File::open(LOG_FILE_PATH).expect("file should open read only");
     let log_json: serde_json::Value =
         serde_json::from_reader(log_file).expect("file should be proper JSON");
 
