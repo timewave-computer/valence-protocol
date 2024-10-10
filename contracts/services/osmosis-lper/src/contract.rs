@@ -118,12 +118,6 @@ mod actions {
             input_acc_asset_bal.amount
         };
 
-        let zero_bal_coin = if cfg.lp_config.pool_asset_1 == asset {
-            coin(0, cfg.lp_config.pool_asset_2.to_string())
-        } else {
-            coin(0, cfg.lp_config.pool_asset_1.to_string())
-        };
-
         let share_out_amt = calculate_share_out_amt_swap(
             &deps,
             cfg.lp_config.pool_id,
@@ -291,6 +285,9 @@ mod actions {
 
     fn query_pool(deps: &DepsMut, pool_id: u64) -> Result<Pool, ServiceError> {
         let gamm_querier = GammQuerier::new(&deps.querier);
+        // TODO: switch to the following:
+        // let pool_manager = PoolmanagerQuerier::new(&deps.querier);
+        // let pool_query_response = pool_manager.pool(pool_id)?;
 
         let pool_query_response = gamm_querier.pool(pool_id)?;
         let matched_pool: Pool = match pool_query_response.pool {

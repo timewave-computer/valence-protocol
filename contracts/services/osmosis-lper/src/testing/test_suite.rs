@@ -173,6 +173,7 @@ fn instantiate_lper_contract(
                 pool_asset_1: setup.pool_asset1.to_string(),
                 pool_asset_2: setup.pool_asset2.to_string(),
             },
+            setup.pool_type.clone(),
         ),
     };
 

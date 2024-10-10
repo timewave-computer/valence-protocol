@@ -1,6 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Deps, DepsMut, Uint64};
 use valence_macros::OptionalStruct;
+use valence_osmosis_utils::utils::OsmosisPoolType;
 use valence_service_utils::{
     error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType, ServiceConfigInterface,
 };
@@ -13,6 +14,7 @@ pub struct ServiceConfig {
     pub input_addr: ServiceAccountType,
     pub output_addr: ServiceAccountType,
     pub lp_config: LiquidityProviderConfig,
+    pub pool_type: OsmosisPoolType,
 }
 
 impl ServiceConfig {
@@ -20,11 +22,13 @@ impl ServiceConfig {
         input_addr: impl Into<ServiceAccountType>,
         output_addr: impl Into<ServiceAccountType>,
         lp_config: LiquidityProviderConfig,
+        pool_type: OsmosisPoolType,
     ) -> Self {
         ServiceConfig {
             input_addr: input_addr.into(),
             output_addr: output_addr.into(),
             lp_config,
+            pool_type,
         }
     }
 
