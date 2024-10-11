@@ -156,8 +156,8 @@ fn setup_concentrated_liquidity_pool(
                 sender: creator.address().to_string(),
                 denom0: OSMO_DENOM.to_string(),
                 denom1: TEST_DENOM.to_string(),
-                tick_spacing: 50,
-                spread_factor: "0".to_string(),
+                tick_spacing: 1000,
+                spread_factor: "500000000000000000".to_string(),
             },
             creator,
         )
@@ -172,8 +172,8 @@ fn setup_concentrated_liquidity_pool(
                 lower_tick: -1000,
                 upper_tick: 1000,
                 tokens_provided: vec![
-                    cosmwasm_std_polytone::Coin::new(100_000u128, OSMO_DENOM).into(),
-                    cosmwasm_std_polytone::Coin::new(100_000u128, TEST_DENOM).into(),
+                    cosmwasm_std_polytone::Coin::new(100_000_000u128, OSMO_DENOM).into(),
+                    cosmwasm_std_polytone::Coin::new(200_000_000u128, TEST_DENOM).into(),
                 ],
                 token_min_amount0: "0".to_string(),
                 token_min_amount1: "0".to_string(),

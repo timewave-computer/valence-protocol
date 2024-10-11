@@ -39,8 +39,8 @@ pub fn provide_double_sided_liquidity(
     let create_cl_position_msg: CosmosMsg = MsgCreatePosition {
         pool_id: cfg.lp_config.pool_id,
         sender: cfg.input_addr.to_string(),
-        lower_tick: -10_000,
-        upper_tick: 10_000,
+        lower_tick: -1_000,
+        upper_tick: 1_000,
         tokens_provided: cosmwasm_to_proto_coins(vec![bal_asset_1, bal_asset_2]),
         // should we be strict here and set them to the actual token amounts?
         token_min_amount0: "0".to_string(),

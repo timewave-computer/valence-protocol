@@ -72,10 +72,11 @@ fn test_provide_double_sided_cl_liquidity() {
 #[test]
 fn test_provide_single_sided_cl_liquidity() {
     let setup = LPerTestSuite::new(
-        vec![coin(1_000_000u128, OSMO_DENOM)],
+        vec![coin(10_000_000u128, OSMO_DENOM)],
         OsmosisPoolType::Concentrated,
     );
-    setup.shift_cl_price();
+
+    // setup.shift_cl_price(TEST_DENOM, "10000", OSMO_DENOM);
 
     let input_bals = setup.query_all_balances(&setup.input_acc).unwrap();
     let output_bals = setup.query_all_balances(&setup.output_acc).unwrap();
@@ -83,7 +84,7 @@ fn test_provide_single_sided_cl_liquidity() {
     assert_eq!(input_bals.len(), 1);
     assert_eq!(output_bals.len(), 0);
 
-    setup.provide_single_sided_liquidity(OSMO_DENOM, 1_000u128.into());
+    setup.provide_single_sided_liquidity(OSMO_DENOM, 10_000_000u128.into());
 
     let input_bals = setup.query_all_balances(&setup.input_acc).unwrap();
     let output_bals = setup.query_all_balances(&setup.output_acc).unwrap();

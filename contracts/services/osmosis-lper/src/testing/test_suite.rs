@@ -5,14 +5,9 @@ use cosmwasm_std::{coin, Coin, Uint128, Uint64};
 use osmosis_test_tube::{
     osmosis_std::{
         try_proto_to_cosmwasm_coins,
-        types::{
-            cosmos::bank::v1beta1::{MsgSend, QueryAllBalancesRequest, QueryBalanceRequest},
-            osmosis::concentratedliquidity::v1beta1::{
-                ConcentratedliquidityQuerier, MsgWithdrawPosition, UserPositionsRequest,
-            },
-        },
+        types::cosmos::bank::v1beta1::{MsgSend, QueryAllBalancesRequest, QueryBalanceRequest},
     },
-    Account, Bank, ConcentratedLiquidity, Module, Wasm,
+    Account, Bank, Module, PoolManager, Wasm,
 };
 use valence_osmosis_utils::{
     suite::{
@@ -148,33 +143,33 @@ impl LPerTestSuite {
         .unwrap();
     }
 
-    pub fn shift_cl_price(&self) {
-        let cl = ConcentratedLiquidity::new(&self.inner.app);
-        let active_positions = cl
-            .query_user_positions(&UserPositionsRequest {
-                address: self.inner.owner_acc().address().to_string(),
-                pagination: None,
-                pool_id: self.inner.cl_pool_cfg.pool_id.u64(),
-            })
+    pub fn shift_cl_price(&self, denom_in: &str, amount_in: &str, denom_out: &str) {
+        let pm = PoolManager::new(&self.inner.app);
+
+        let swap_route = osmosis_test_tube::osmosis_std::types::osmosis::poolmanager::v1beta1::SwapAmountInRoute {
+            pool_id: self.inner.cl_pool_cfg.pool_id.u64(),
+            token_out_denom: denom_out.to_string(),
+        };
+
+        let proto_coin = osmosis_test_tube::osmosis_std::types::cosmos::base::v1beta1::Coin {
+            denom: denom_in.to_string(),
+            amount: amount_in.to_string(),
+        };
+
+        let msg_swap = osmosis_test_tube::osmosis_std::types::osmosis::poolmanager::v1beta1::MsgSwapExactAmountIn {
+            sender: self.inner.owner_acc().address().to_string(),
+            routes: vec![swap_route],
+            token_in: Some(proto_coin.clone()),
+            token_out_min_amount: "1".to_string(),
+        };
+
+        let swap_response = pm
+            .swap_exact_amount_in(msg_swap, self.inner.owner_acc())
             .unwrap();
 
-        let position = active_positions.positions[0].clone();
-        println!("Position: {:?}", position);
-
-        let withdraw_position_response = cl
-            .withdraw_position(
-                MsgWithdrawPosition {
-                    position_id: position.position.unwrap().position_id,
-                    sender: self.inner.owner_acc().address().to_string(),
-                    liquidity_amount: "100149987506246025750296982".to_string(),
-                },
-                self.inner.owner_acc(),
-            )
-            .unwrap()
-            .data;
         println!(
-            "withdraw position response: {:?}",
-            withdraw_position_response
+            "swapped {:?}{} for {:?}",
+            swap_response.data.token_out_amount, denom_out, proto_coin
         );
     }
 
