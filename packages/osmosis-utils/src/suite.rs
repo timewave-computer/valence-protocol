@@ -1,5 +1,16 @@
-use cosmwasm_std::Uint64;
-use osmosis_test_tube::{Account, Gamm, Module, OsmosisTestApp, SigningAccount, Wasm};
+use cosmwasm_std::{StdResult, Uint64};
+// use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::{
+//     MsgCreateConcentratedPool, MsgCreateConcentratedPoolResponse,
+// };
+use osmosis_test_tube::{
+    osmosis_std::types::osmosis::concentratedliquidity::{
+        poolmodel::concentrated::v1beta1::{
+            MsgCreateConcentratedPool, MsgCreateConcentratedPoolResponse,
+        },
+        v1beta1::MsgCreatePosition,
+    },
+    Account, ConcentratedLiquidity, Gamm, Module, OsmosisTestApp, SigningAccount, Wasm,
+};
 
 use crate::utils::OsmosisPoolType;
 
@@ -9,8 +20,19 @@ pub const TEST_DENOM: &str = "utest";
 pub struct OsmosisTestAppSetup {
     pub app: OsmosisTestApp,
     pub accounts: Vec<SigningAccount>,
+    pub balancer_pool_cfg: BalancerPool,
+}
+
+pub struct BalancerPool {
     pub pool_id: Uint64,
     pub pool_liquidity_token: String,
+    pub pool_asset1: String,
+    pub pool_asset2: String,
+    pub pool_type: OsmosisPoolType,
+}
+
+pub struct ConcentratedLiquidityPool {
+    pub pool_id: Uint64,
     pub pool_asset1: String,
     pub pool_asset2: String,
     pub pool_type: OsmosisPoolType,
@@ -49,7 +71,6 @@ impl OsmosisTestAppBuilder {
 
     pub fn build(self) -> Result<OsmosisTestAppSetup, &'static str> {
         let app = OsmosisTestApp::new();
-        let gamm = Gamm::new(&app);
 
         let accounts = app
             .init_accounts(
@@ -61,31 +82,91 @@ impl OsmosisTestAppBuilder {
             )
             .map_err(|_| "Failed to initialize accounts")?;
 
-        // create balancer pool with basic configuration
-        let pool_liquidity = vec![
-            cosmwasm_std_polytone::Coin::new(100_000u128, self.fee_denom),
-            cosmwasm_std_polytone::Coin::new(100_000u128, TEST_DENOM),
-        ];
-        let pool_id = gamm
-            .create_basic_pool(&pool_liquidity, &accounts[0])
-            .unwrap()
-            .data
-            .pool_id;
-
-        let pool = gamm.query_pool(pool_id).unwrap();
-
-        let pool_liquidity_token = pool.total_shares.unwrap().denom;
+        let balancer_pool = setup_balancer_pool(&app, &accounts[0]).unwrap();
 
         Ok(OsmosisTestAppSetup {
             app,
             accounts,
-            pool_id: Uint64::new(pool_id),
-            pool_asset1: OSMO_DENOM.to_string(),
-            pool_asset2: TEST_DENOM.to_string(),
-            pool_liquidity_token,
-            pool_type: OsmosisPoolType::Balancer,
+            balancer_pool_cfg: balancer_pool,
         })
     }
+}
+
+fn setup_balancer_pool(app: &OsmosisTestApp, creator: &SigningAccount) -> StdResult<BalancerPool> {
+    let gamm = Gamm::new(app);
+
+    // create balancer pool with basic configuration
+    let pool_liquidity = vec![
+        cosmwasm_std_polytone::Coin::new(100_000u128, OSMO_DENOM),
+        cosmwasm_std_polytone::Coin::new(100_000u128, TEST_DENOM),
+    ];
+    let pool_id = gamm
+        .create_basic_pool(&pool_liquidity, creator)
+        .unwrap()
+        .data
+        .pool_id;
+
+    let pool = gamm.query_pool(pool_id).unwrap();
+
+    let pool_liquidity_token = pool.total_shares.unwrap().denom;
+
+    let balancer_pool = BalancerPool {
+        pool_id: pool_id.into(),
+        pool_liquidity_token,
+        pool_asset1: OSMO_DENOM.to_string(),
+        pool_asset2: TEST_DENOM.to_string(),
+        pool_type: OsmosisPoolType::Balancer,
+    };
+
+    Ok(balancer_pool)
+}
+
+fn _setup_concentrated_liquidity_pool(
+    app: &OsmosisTestApp,
+    creator: &SigningAccount,
+) -> StdResult<ConcentratedLiquidityPool> {
+    let cl = ConcentratedLiquidity::new(app);
+
+    let pool: MsgCreateConcentratedPoolResponse = cl
+        .create_concentrated_pool(
+            MsgCreateConcentratedPool {
+                sender: creator.address().to_string(),
+                denom0: OSMO_DENOM.to_string(),
+                denom1: TEST_DENOM.to_string(),
+                tick_spacing: 50,
+                spread_factor: "0".to_string(),
+            },
+            creator,
+        )
+        .unwrap()
+        .data;
+
+    let _create_position_response = cl
+        .create_position(
+            MsgCreatePosition {
+                pool_id: pool.pool_id,
+                sender: creator.address().to_string(),
+                lower_tick: -1000,
+                upper_tick: 1000,
+                tokens_provided: vec![
+                    cosmwasm_std_polytone::Coin::new(100_000u128, OSMO_DENOM).into(),
+                    cosmwasm_std_polytone::Coin::new(100_000u128, TEST_DENOM).into(),
+                ],
+                token_min_amount0: "1".to_string(),
+                token_min_amount1: "1".to_string(),
+            },
+            creator,
+        )
+        .unwrap();
+
+    let cl_pool = ConcentratedLiquidityPool {
+        pool_id: pool.pool_id.into(),
+        pool_asset1: OSMO_DENOM.to_string(),
+        pool_asset2: TEST_DENOM.to_string(),
+        pool_type: OsmosisPoolType::Balancer,
+    };
+
+    Ok(cl_pool)
 }
 
 pub fn approve_service(setup: &OsmosisTestAppSetup, account_addr: String, service_addr: String) {

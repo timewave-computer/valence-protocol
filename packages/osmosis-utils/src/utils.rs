@@ -4,7 +4,11 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, CosmosMsg, Decimal, DepsMut, StdError, StdResult, Uint128};
 use osmosis_std::{
     cosmwasm_to_proto_coins,
-    types::osmosis::gamm::v1beta1::{GammQuerier, MsgJoinPool, MsgJoinSwapExternAmountIn, Pool},
+    types::osmosis::{
+        concentratedliquidity::v1beta1::ConcentratedliquidityQuerier,
+        gamm::v1beta1::{MsgJoinPool, MsgJoinSwapExternAmountIn, Pool},
+        poolmanager::v1beta1::{PoolResponse, PoolmanagerQuerier},
+    },
 };
 
 #[cw_serde]
@@ -53,13 +57,10 @@ pub fn get_provide_ss_liquidity_msg(
     Ok(msg_join_pool_yes_swap)
 }
 
-pub fn query_pool(deps: &DepsMut, pool_id: u64) -> StdResult<Pool> {
-    let gamm_querier = GammQuerier::new(&deps.querier);
-    // TODO: switch to the following:
-    // let pool_manager = PoolmanagerQuerier::new(&deps.querier);
-    // let pool_query_response = pool_manager.pool(pool_id)?;
+pub fn query_pool_pm(deps: &DepsMut, pool_id: u64) -> StdResult<Pool> {
+    let pool_manager = PoolmanagerQuerier::new(&deps.querier);
+    let pool_query_response: PoolResponse = pool_manager.pool(pool_id)?;
 
-    let pool_query_response = gamm_querier.pool(pool_id)?;
     let matched_pool: Pool = match pool_query_response.pool {
         Some(any_pool) => any_pool
             .try_into()
@@ -69,6 +70,12 @@ pub fn query_pool(deps: &DepsMut, pool_id: u64) -> StdResult<Pool> {
     deps.api
         .debug(&format!("pool response: {:?}", matched_pool));
     Ok(matched_pool)
+}
+
+pub fn query_pool_cl(deps: &DepsMut, pool_id: u64) -> StdResult<()> {
+    let cl_querier = ConcentratedliquidityQuerier::new(&deps.querier);
+    let _position = cl_querier.position_by_id(pool_id)?;
+    Ok(())
 }
 
 pub fn get_pool_ratio(pool: Pool, asset_1: String, asset_2: String) -> StdResult<Decimal> {

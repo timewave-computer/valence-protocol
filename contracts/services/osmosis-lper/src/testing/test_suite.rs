@@ -105,12 +105,16 @@ impl LPerTestSuite {
         Ok(bals)
     }
 
-    pub fn query_lp_token_balance(&self, addr: String) -> u128 {
+    pub fn _query_lp_token_balance(&self, addr: String) -> u128 {
         let bank = Bank::new(&self.inner.app);
         let resp = bank
             .query_balance(&QueryBalanceRequest {
                 address: addr,
-                denom: self.inner.pool_liquidity_token.to_string(),
+                denom: self
+                    .inner
+                    .balancer_pool_cfg
+                    .pool_liquidity_token
+                    .to_string(),
             })
             .unwrap();
         match resp.balance {
@@ -169,11 +173,11 @@ fn instantiate_lper_contract(
             input_acc.as_str(),
             output_acc.as_str(),
             LiquidityProviderConfig {
-                pool_id: setup.pool_id.into(),
-                pool_asset_1: setup.pool_asset1.to_string(),
-                pool_asset_2: setup.pool_asset2.to_string(),
+                pool_id: setup.balancer_pool_cfg.pool_id.into(),
+                pool_asset_1: setup.balancer_pool_cfg.pool_asset1.to_string(),
+                pool_asset_2: setup.balancer_pool_cfg.pool_asset2.to_string(),
             },
-            setup.pool_type.clone(),
+            setup.balancer_pool_cfg.pool_type.clone(),
         ),
     };
 
