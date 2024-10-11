@@ -1,15 +1,16 @@
 use cosmwasm_std::{StdResult, Uint64};
-// use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::{
-//     MsgCreateConcentratedPool, MsgCreateConcentratedPoolResponse,
-// };
 use osmosis_test_tube::{
-    osmosis_std::types::osmosis::concentratedliquidity::{
-        poolmodel::concentrated::v1beta1::{
-            MsgCreateConcentratedPool, MsgCreateConcentratedPoolResponse,
+    osmosis_std::types::{
+        cosmos::params::v1beta1::{ParamChange, ParameterChangeProposal},
+        osmosis::concentratedliquidity::{
+            poolmodel::concentrated::v1beta1::{
+                MsgCreateConcentratedPool, MsgCreateConcentratedPoolResponse,
+            },
+            v1beta1::MsgCreatePosition,
         },
-        v1beta1::MsgCreatePosition,
     },
-    Account, ConcentratedLiquidity, Gamm, Module, OsmosisTestApp, SigningAccount, Wasm,
+    Account, ConcentratedLiquidity, Gamm, GovWithAppAccess, Module, OsmosisTestApp, SigningAccount,
+    Wasm,
 };
 
 use crate::utils::OsmosisPoolType;
@@ -21,6 +22,7 @@ pub struct OsmosisTestAppSetup {
     pub app: OsmosisTestApp,
     pub accounts: Vec<SigningAccount>,
     pub balancer_pool_cfg: BalancerPool,
+    pub cl_pool_cfg: ConcentratedLiquidityPool,
 }
 
 pub struct BalancerPool {
@@ -84,10 +86,13 @@ impl OsmosisTestAppBuilder {
 
         let balancer_pool = setup_balancer_pool(&app, &accounts[0]).unwrap();
 
+        let cl_pool = setup_concentrated_liquidity_pool(&app, &accounts[0]).unwrap();
+
         Ok(OsmosisTestAppSetup {
             app,
             accounts,
             balancer_pool_cfg: balancer_pool,
+            cl_pool_cfg: cl_pool,
         })
     }
 }
@@ -121,10 +126,28 @@ fn setup_balancer_pool(app: &OsmosisTestApp, creator: &SigningAccount) -> StdRes
     Ok(balancer_pool)
 }
 
-fn _setup_concentrated_liquidity_pool(
+fn setup_concentrated_liquidity_pool(
     app: &OsmosisTestApp,
     creator: &SigningAccount,
 ) -> StdResult<ConcentratedLiquidityPool> {
+    let gov_mod = GovWithAppAccess::new(app);
+    gov_mod
+        .propose_and_execute(
+            "/cosmos.params.v1beta1.ParameterChangeProposal".to_string(),
+            ParameterChangeProposal {
+                title: "freedom".to_string(),
+                description: "stop gatekeeping cl pools".to_string(),
+                changes: vec![ParamChange {
+                    subspace: "concentratedliquidity".to_string(),
+                    key: "UnrestrictedPoolCreatorWhitelist".to_string(),
+                    value: format!("[\"{}\"]", creator.address().as_str()),
+                }],
+            },
+            creator.address(),
+            creator,
+        )
+        .unwrap();
+
     let cl = ConcentratedLiquidity::new(app);
 
     let pool: MsgCreateConcentratedPoolResponse = cl
@@ -152,8 +175,8 @@ fn _setup_concentrated_liquidity_pool(
                     cosmwasm_std_polytone::Coin::new(100_000u128, OSMO_DENOM).into(),
                     cosmwasm_std_polytone::Coin::new(100_000u128, TEST_DENOM).into(),
                 ],
-                token_min_amount0: "1".to_string(),
-                token_min_amount1: "1".to_string(),
+                token_min_amount0: "0".to_string(),
+                token_min_amount1: "0".to_string(),
             },
             creator,
         )

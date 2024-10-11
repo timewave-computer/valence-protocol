@@ -1,17 +1,25 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{coin, Coin, Uint128};
+use cosmwasm_std::{coin, Coin, Uint128, Uint64};
 
 use osmosis_test_tube::{
     osmosis_std::{
         try_proto_to_cosmwasm_coins,
-        types::cosmos::bank::v1beta1::{MsgSend, QueryAllBalancesRequest, QueryBalanceRequest},
+        types::{
+            cosmos::bank::v1beta1::{MsgSend, QueryAllBalancesRequest, QueryBalanceRequest},
+            osmosis::concentratedliquidity::v1beta1::{
+                ConcentratedliquidityQuerier, MsgWithdrawPosition, UserPositionsRequest,
+            },
+        },
     },
-    Account, Bank, Module, Wasm,
+    Account, Bank, ConcentratedLiquidity, Module, Wasm,
 };
-use valence_osmosis_utils::suite::{
-    approve_service, instantiate_input_account, OsmosisTestAppBuilder, OsmosisTestAppSetup,
-    OSMO_DENOM, TEST_DENOM,
+use valence_osmosis_utils::{
+    suite::{
+        approve_service, instantiate_input_account, OsmosisTestAppBuilder, OsmosisTestAppSetup,
+        OSMO_DENOM, TEST_DENOM,
+    },
+    utils::OsmosisPoolType,
 };
 use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 
@@ -31,15 +39,19 @@ pub struct LPerTestSuite {
 
 impl Default for LPerTestSuite {
     fn default() -> Self {
-        Self::new(vec![
-            coin(1_000_000u128, OSMO_DENOM),
-            coin(1_000_000u128, TEST_DENOM),
-        ])
+        Self::new(
+            vec![
+                coin(1_000_000u128, OSMO_DENOM),
+                coin(1_000_000u128, TEST_DENOM),
+            ],
+            // default to balancer (GAMM)
+            OsmosisPoolType::Balancer,
+        )
     }
 }
 
 impl LPerTestSuite {
-    pub fn new(with_input_bals: Vec<Coin>) -> Self {
+    pub fn new(with_input_bals: Vec<Coin>, pool_type: OsmosisPoolType) -> Self {
         let inner = OsmosisTestAppBuilder::new().build().unwrap();
 
         // Create two base accounts
@@ -56,7 +68,8 @@ impl LPerTestSuite {
 
         let input_acc = instantiate_input_account(code_id, &inner);
         let output_acc = instantiate_input_account(code_id, &inner);
-        let lper_addr = instantiate_lper_contract(&inner, input_acc.clone(), output_acc.clone());
+        let lper_addr =
+            instantiate_lper_contract(&inner, input_acc.clone(), output_acc.clone(), pool_type);
 
         // Approve the service for the input account
         approve_service(&inner, input_acc.clone(), lper_addr.clone());
@@ -135,6 +148,36 @@ impl LPerTestSuite {
         .unwrap();
     }
 
+    pub fn shift_cl_price(&self) {
+        let cl = ConcentratedLiquidity::new(&self.inner.app);
+        let active_positions = cl
+            .query_user_positions(&UserPositionsRequest {
+                address: self.inner.owner_acc().address().to_string(),
+                pagination: None,
+                pool_id: self.inner.cl_pool_cfg.pool_id.u64(),
+            })
+            .unwrap();
+
+        let position = active_positions.positions[0].clone();
+        println!("Position: {:?}", position);
+
+        let withdraw_position_response = cl
+            .withdraw_position(
+                MsgWithdrawPosition {
+                    position_id: position.position.unwrap().position_id,
+                    sender: self.inner.owner_acc().address().to_string(),
+                    liquidity_amount: "100149987506246025750296982".to_string(),
+                },
+                self.inner.owner_acc(),
+            )
+            .unwrap()
+            .data;
+        println!(
+            "withdraw position response: {:?}",
+            withdraw_position_response
+        );
+    }
+
     pub fn provide_single_sided_liquidity(&self, asset: &str, limit: Uint128) {
         let wasm = Wasm::new(&self.inner.app);
 
@@ -155,6 +198,7 @@ fn instantiate_lper_contract(
     setup: &OsmosisTestAppSetup,
     input_acc: String,
     output_acc: String,
+    pool_type: OsmosisPoolType,
 ) -> String {
     let wasm = Wasm::new(&setup.app);
     let wasm_byte_code =
@@ -166,6 +210,13 @@ fn instantiate_lper_contract(
         .data
         .code_id;
 
+    let pool_id = match pool_type {
+        OsmosisPoolType::Balancer => setup.balancer_pool_cfg.pool_id,
+        OsmosisPoolType::Concentrated => setup.cl_pool_cfg.pool_id,
+        _ => Uint64::MAX, // todo
+    }
+    .u64();
+
     let instantiate_msg = InstantiateMsg {
         owner: setup.owner_acc().address(),
         processor: setup.processor_acc().address(),
@@ -173,11 +224,11 @@ fn instantiate_lper_contract(
             input_acc.as_str(),
             output_acc.as_str(),
             LiquidityProviderConfig {
-                pool_id: setup.balancer_pool_cfg.pool_id.into(),
+                pool_id,
                 pool_asset_1: setup.balancer_pool_cfg.pool_asset1.to_string(),
                 pool_asset_2: setup.balancer_pool_cfg.pool_asset2.to_string(),
             },
-            setup.balancer_pool_cfg.pool_type.clone(),
+            pool_type,
         ),
     };
 

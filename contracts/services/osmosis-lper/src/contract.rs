@@ -62,9 +62,14 @@ mod execute {
 mod actions {
     use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Uint128};
 
+    use valence_osmosis_utils::utils::OsmosisPoolType;
     use valence_service_utils::error::ServiceError;
 
-    use crate::{msg::ActionsMsgs, pool_types::balancer, valence_service_integration::Config};
+    use crate::{
+        msg::ActionsMsgs,
+        pool_types::{balancer, concentrated_liquidity},
+        valence_service_integration::Config,
+    };
 
     pub fn process_action(
         deps: DepsMut,
@@ -90,14 +95,30 @@ mod actions {
         asset: String,
         limit: Uint128,
     ) -> Result<Response, ServiceError> {
-        balancer::provide_single_sided_liquidity(deps, cfg, asset, limit)
+        match cfg.pool_type {
+            OsmosisPoolType::Balancer => {
+                balancer::provide_single_sided_liquidity(deps, cfg, asset, limit)
+            }
+            OsmosisPoolType::StableSwap => {
+                todo!()
+            }
+            OsmosisPoolType::Concentrated => {
+                concentrated_liquidity::provide_single_sided_liquidity(deps, cfg, asset, limit)
+            }
+        }
     }
 
     fn provide_double_sided_liquidity(
         deps: DepsMut,
         cfg: Config,
     ) -> Result<Response, ServiceError> {
-        balancer::provide_double_sided_liquidity(deps, cfg)
+        match cfg.pool_type {
+            OsmosisPoolType::Balancer => balancer::provide_double_sided_liquidity(deps, cfg),
+            OsmosisPoolType::StableSwap => todo!(),
+            OsmosisPoolType::Concentrated => {
+                concentrated_liquidity::provide_double_sided_liquidity(deps, cfg)
+            }
+        }
     }
 }
 

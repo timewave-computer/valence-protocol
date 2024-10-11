@@ -58,6 +58,7 @@ pub struct Config {
     pub input_addr: Addr,
     pub output_addr: Addr,
     pub lp_config: LiquidityProviderConfig,
+    pub pool_type: OsmosisPoolType,
 }
 
 impl ServiceConfigValidation<Config> for ServiceConfig {
@@ -74,6 +75,7 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
             input_addr,
             output_addr,
             lp_config: self.lp_config.clone(),
+            pool_type: self.pool_type.clone(),
         })
     }
 }
