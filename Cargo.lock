@@ -2370,6 +2370,7 @@ dependencies = [
  "valence-account-utils",
  "valence-authorization",
  "valence-authorization-utils",
+ "valence-ibc-transfer-service",
  "valence-processor",
  "valence-processor-utils",
  "valence-service-utils",
@@ -4803,6 +4804,37 @@ dependencies = [
  "valence-macros",
  "valence-service-base",
  "valence-service-utils",
+]
+
+[[package]]
+name = "valence-ibc-transfer-service"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 2.1.4",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "cw-utils 2.0.0",
+ "getset",
+ "neutron-sdk",
+ "schemars",
+ "serde",
+ "thiserror",
+ "valence-ibc-utils",
+ "valence-macros",
+ "valence-service-base",
+ "valence-service-utils",
+]
+
+[[package]]
+name = "valence-ibc-utils"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 2.1.4",
+ "cw-storage-plus 2.0.0",
+ "neutron-sdk",
+ "serde",
 ]
 
 [[package]]

@@ -55,6 +55,7 @@ valence-processor                = { path = "contracts/processor", features = ["
 valence-workflow-registry        = { path = "contracts/workflow-registry", features = ["library"] }
 valence-astroport-lper           = { path = "contracts/services/astroport-lper", features = ["library"] }
 valence-astroport-withdrawer     = { path = "contracts/services/astroport-withdrawer", features = ["library"] }
+valence-ibc-transfer-service     = { path = "contracts/services/ibc-transfer", features = ["library"] }
 valence-reverse-splitter-service = { path = "contracts/services/reverse-splitter", features = ["library"] }
 valence-splitter-service         = { path = "contracts/services/splitter", features = ["library"] }
 valence-test-dynamic-ratio       = { path = "contracts/testing/test-dynamic-ratio", features = ["library"] }
@@ -64,6 +65,7 @@ valence-test-service             = { path = "contracts/testing/test-service", fe
 valence-account-utils              = { path = "packages/account-utils" }
 valence-astroport-utils            = { path = "packages/astroport-utils" }
 valence-authorization-utils        = { path = "packages/authorization-utils" }
+valence-ibc-utils                  = { path = "packages/ibc-utils" }
 valence-local-interchaintest-utils = { path = "packages/local-interchaintest-utils" }
 valence-macros                     = { path = "packages/valence-macros" }
 valence-polytone-utils             = { path = "packages/polytone-utils" }

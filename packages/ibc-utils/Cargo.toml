@@ -1,0 +1,19 @@
+[package]
+name        = "valence-ibc-utils"
+version     = { workspace = true }
+edition     = { workspace = true }
+authors     = { workspace = true }
+description = "Helpers for IBC functionalities"
+
+[features]
+default = []
+neutron = ["dep:neutron-sdk"]
+
+[dependencies]
+cw-storage-plus = { workspace = true }
+cosmwasm-std    = { workspace = true }
+cosmwasm-schema = { workspace = true }
+serde           = { workspace = true }
+
+# Optional dependencies
+neutron-sdk     = { workspace = true, optional = true }
