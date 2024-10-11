@@ -93,7 +93,7 @@ impl MessageBatch {
             .get_contract_address_by_action_index(index);
 
         let submessage =
-            SubMsg::reply_always(self.msgs[index].to_wasm_message(contract_address), self.id);
+            SubMsg::reply_always(self.msgs[index].to_wasm_message(&contract_address), self.id);
         vec![submessage]
     }
 
@@ -127,7 +127,7 @@ impl MessageBatch {
             .get_contract_address_by_action_index(index);
 
         let submessage =
-            SubMsg::reply_always(new_msg.to_wasm_message(contract_address), execution_id);
+            SubMsg::reply_always(new_msg.to_wasm_message(&contract_address), execution_id);
         Ok(vec![submessage])
     }
 }

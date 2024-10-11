@@ -198,10 +198,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         processor: processor_contract_address.clone(),
         config: ServiceConfig {
-            input_addr: base_account_1.clone(),
+            input_addr: ServiceAccountType::Addr(base_account_1.clone()),
             splits: vec![UncheckedSplitConfig {
                 denom: UncheckedDenom::Native(token1.clone()),
-                account: ServiceAccountType::AccountAddr(base_account_2.clone()),
+                account: ServiceAccountType::Addr(base_account_2.clone()),
                 amount: UncheckedSplitAmount::FixedAmount(swap_amount.into()),
             }],
         },
@@ -225,10 +225,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         processor: processor_contract_address.clone(),
         config: ServiceConfig {
-            input_addr: base_account_2.clone(),
+            input_addr: ServiceAccountType::Addr(base_account_2.clone()),
             splits: vec![UncheckedSplitConfig {
                 denom: UncheckedDenom::Native(token2.clone()),
-                account: ServiceAccountType::AccountAddr(base_account_1.clone()),
+                account: ServiceAccountType::Addr(base_account_1.clone()),
                 amount: UncheckedSplitAmount::FixedAmount(swap_amount.into()),
             }],
         },

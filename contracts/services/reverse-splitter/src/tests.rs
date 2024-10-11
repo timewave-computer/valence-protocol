@@ -259,7 +259,7 @@ fn instantiate_fails_for_zero_ratio() {
 
 #[test]
 #[should_panic(
-    expected = "Configuration error: Duplicate split 'Native(\"untrn\")|AccountAddr(\"cosmwasm1xj6u4ccauyhvylgtj82x2qqc34lk3xuzw4mujevzqyr4gj7gqsjsv4856c\")' in split config."
+    expected = "Configuration error: Duplicate split 'Native(\"untrn\")|Addr(\"cosmwasm1xj6u4ccauyhvylgtj82x2qqc34lk3xuzw4mujevzqyr4gj7gqsjsv4856c\")' in split config."
 )]
 fn instantiate_fails_for_duplicate_split() {
     let mut suite = ReverseSplitterTestSuite::default();

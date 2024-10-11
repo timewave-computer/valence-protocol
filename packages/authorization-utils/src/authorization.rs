@@ -64,6 +64,7 @@ impl AuthorizationInfo {
 }
 
 #[cw_serde]
+
 pub enum AuthorizationModeInfo {
     Permissioned(PermissionTypeInfo),
     Permissionless,
@@ -128,7 +129,7 @@ pub enum ActionsConfig {
 }
 
 impl ActionsConfig {
-    pub fn get_contract_address_by_action_index(&self, index: usize) -> &str {
+    pub fn get_contract_address_by_action_index(&self, index: usize) -> String {
         self.get_action_by_index(index)
             .map(|action| action.get_contract_address())
             .unwrap_or_default()

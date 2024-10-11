@@ -27,18 +27,31 @@ else
   ADDRESSES="$OWNER_ADDR,$AUCTIONS_MANAGER_ADDR,$INIT_BY"
 fi
 
-TESTNET_NODE="https://neutron-testnet-rpc.polkachu.com:443"
-TESTNET_CHAIN_ID="pion-1"
+TESTNET_INFO="--node https://neutron-testnet-rpc.polkachu.com:443 --chain-id pion-1"
+LOCAL_IC_INFO="--node http://0.0.0.0:45791 --chain-id localneutron-1"
 
-EXECUTE_FLAGS="--gas-prices $GAS_PRICES --gas auto --gas-adjustment 1.5 --output json --instantiate-anyof-addresses $ADDRESSES --node $TESTNET_NODE --chain-id $TESTNET_CHAIN_ID -y"
-ACCOUNT_EXECUTE_FLAGS="--gas-prices $GAS_PRICES --gas auto --gas-adjustment 1.5 --output json -y"
+TESTNET_EXECUTE_FLAGS="--gas-prices $GAS_PRICES --gas auto --gas-adjustment 1.5 --output json $TESTNET_INFO -y"
+LOCAL_IC_EXECUTE_FLAGS="--gas-prices $GAS_PRICES --gas auto --gas-adjustment 1.5 --output json $LOCAL_IC_INFO -y"
+
 ARTIFACTS_PATH="../artifacts"
 
 # File names
 REGISTRY_FILE_NAME="$ARTIFACTS_PATH/valence_workflow_registry.wasm"
+AUTH_FILE_NAME="$ARTIFACTS_PATH/valence_authorization.wasm"
+PROCESSOR_FILE_NAME="$ARTIFACTS_PATH/valence_processor.wasm"
+BASE_ACCOUNT_FILE_NAME="$ARTIFACTS_PATH/valence_base_account.wasm"
+FORWARDER_FILE_NAME="$ARTIFACTS_PATH/valence_forwarder_service.wasm"
 
 if [[ "$COMMAND" == 'registry' ]]; then
-  $BINARY tx wasm s $REGISTRY_FILE_NAME --from $OWNER_ADDR $EXECUTE_FLAGS
+  $BINARY tx wasm s $REGISTRY_FILE_NAME --from $OWNER_ADDR $TESTNET_EXECUTE_FLAGS
+elif [[ "$COMMAND" == 'auth' ]]; then
+  $BINARY tx wasm s $AUTH_FILE_NAME --from $OWNER_ADDR $TESTNET_EXECUTE_FLAGS
+elif [[ "$COMMAND" == 'processor' ]]; then
+  $BINARY tx wasm s $PROCESSOR_FILE_NAME --from $OWNER_ADDR $TESTNET_EXECUTE_FLAGS
+elif [[ "$COMMAND" == 'base_account' ]]; then
+  $BINARY tx wasm s $BASE_ACCOUNT_FILE_NAME --from $OWNER_ADDR $TESTNET_EXECUTE_FLAGS
+elif [[ "$COMMAND" == 'forwarder' ]]; then
+  $BINARY tx wasm s $FORWARDER_FILE_NAME --from $OWNER_ADDR $TESTNET_EXECUTE_FLAGS
 else
   echo "Unknown command"
 fi

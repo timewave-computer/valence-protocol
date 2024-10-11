@@ -28,6 +28,7 @@ valence-account-utils            = { workspace = true }
 valence-authorization            = { workspace = true }
 valence-processor                = { workspace = true }
 valence-workflow-registry        = { workspace = true }
+valence-forwarder-service        = { workspace = true }
 
 aho-corasick       = "1.1"
 serde_json_any_key = "2"

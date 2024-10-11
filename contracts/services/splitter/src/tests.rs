@@ -110,7 +110,7 @@ impl SplitterTestSuite {
     }
 
     fn splitter_config(&self, splits: Vec<UncheckedSplitConfig>) -> ServiceConfig {
-        ServiceConfig::new(self.input_addr.to_string(), splits)
+        ServiceConfig::new(self.input_addr(), splits)
     }
 
     fn cw20_token_init(&mut self, name: &str, symbol: &str, amount: u128, addr: String) -> Addr {
@@ -223,7 +223,7 @@ fn instantiate_fails_for_no_split_config() {
 
 #[test]
 #[should_panic(
-    expected = "Configuration error: Duplicate split 'Native(\"untrn\")|AccountAddr(\"cosmwasm1ea6n0jqm0hj663khx7a5xklsmjgrazjp9vjeewejn84sanr0wgxq2p70xl\")' in split config."
+    expected = "Configuration error: Duplicate split 'Native(\"untrn\")|Addr(\"cosmwasm1ea6n0jqm0hj663khx7a5xklsmjgrazjp9vjeewejn84sanr0wgxq2p70xl\")' in split config."
 )]
 fn instantiate_fails_for_duplicate_split() {
     let mut suite = SplitterTestSuite::default();
@@ -357,7 +357,7 @@ fn update_config_with_valid_config() {
         STARS,
         &suite.input_addr,
     ));
-    cfg.input_addr = output_addr.to_string();
+    cfg.input_addr = (&output_addr).into();
 
     // Execute update config action
     suite.update_config(svc.clone(), cfg).unwrap();

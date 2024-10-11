@@ -11,7 +11,7 @@ use crate::{
     helpers::{addr_canonicalize, addr_humanize},
     service::{ServiceConfig, ServiceError},
     workflow_config::WorkflowConfig,
-    MAIN_CHAIN, NEUTRON_DOMAIN,
+    NEUTRON_CHAIN,
 };
 use anyhow::{anyhow, Context};
 use async_trait::async_trait;
@@ -31,10 +31,12 @@ use serde_json::to_vec;
 use strum::VariantNames;
 use thiserror::Error;
 use tokio::time::sleep;
+use valence_authorization_utils::authorization::AuthorizationInfo;
 
 use super::{Connector, ConnectorResult, POLYTONE_TIMEOUT};
 
 const MNEMONIC: &str = "margin moon alcohol assume tube bullet long cook edit delay boat camp stone coyote gather design aisle comfort width sound innocent long dumb jungle";
+// const MNEMONIC: &str = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry";
 
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryBuildAddressRequest {
@@ -121,7 +123,7 @@ impl CosmosCosmwasmConnector {
         ))?;
 
         Ok(CosmosCosmwasmConnector {
-            is_main_chain: chain_info.name == MAIN_CHAIN,
+            is_main_chain: chain_info.name == *NEUTRON_CHAIN,
             wallet,
             code_ids: code_ids.clone(),
             chain_name: chain_info.name.clone(),
@@ -133,7 +135,7 @@ impl CosmosCosmwasmConnector {
 #[async_trait]
 impl Connector for CosmosCosmwasmConnector {
     async fn reserve_workflow_id(&mut self) -> ConnectorResult<u64> {
-        if self.chain_name != NEUTRON_DOMAIN.get_chain_name() {
+        if self.chain_name != *NEUTRON_CHAIN {
             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                 "Should only be implemented on neutron connector"
             ))
@@ -155,7 +157,6 @@ impl Connector for CosmosCosmwasmConnector {
 
         let tx_hash = self
             .wallet
-            // .simulate_tx(vec![m])
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map_err(CosmosCosmwasmError::Error)?
@@ -313,7 +314,7 @@ impl Connector for CosmosCosmwasmConnector {
     async fn instantiate_account(
         &mut self,
         workflow_id: u64,
-        auth_addr: String,
+        processor_addr: String,
         data: &InstantiateAccountData,
     ) -> ConnectorResult<()> {
         let code_id = *self
@@ -324,7 +325,7 @@ impl Connector for CosmosCosmwasmConnector {
 
         let msg: Vec<u8> = match &data.info.ty {
             AccountType::Base { admin } => to_vec(&valence_account_utils::msg::InstantiateMsg {
-                admin: admin.clone().unwrap_or_else(|| auth_addr.clone()),
+                admin: admin.clone().unwrap_or_else(|| processor_addr.clone()),
                 approved_services: data.approved_services.clone(),
             })
             .map_err(CosmosCosmwasmError::SerdeJsonError)?,
@@ -333,7 +334,7 @@ impl Connector for CosmosCosmwasmConnector {
 
         let m = MsgInstantiateContract2 {
             sender: self.wallet.account_address.clone(),
-            admin: auth_addr,
+            admin: processor_addr,
             code_id,
             label: format!("workflow-{}|account-{}", workflow_id, data.id),
             msg,
@@ -344,7 +345,6 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         self.wallet
-            // .simulate_tx(vec![m])
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map_err(CosmosCosmwasmError::Error)?;
@@ -389,7 +389,6 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         self.wallet
-            // .simulate_tx(vec![m])
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map_err(CosmosCosmwasmError::Error)?;
@@ -439,7 +438,6 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         self.wallet
-            // .simulate_tx(vec![m])
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map_err(CosmosCosmwasmError::Error)?;
@@ -473,7 +471,6 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         self.wallet
-            // .simulate_tx(vec![m])
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map_err(CosmosCosmwasmError::Error)?;
@@ -515,7 +512,6 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         self.wallet
-            // .simulate_tx(vec![m])
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map_err(CosmosCosmwasmError::Error)?;
@@ -576,7 +572,45 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         self.wallet
-            // .simulate_tx(vec![m])
+            .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
+            .await
+            .map_err(CosmosCosmwasmError::Error)?;
+
+        sleep(std::time::Duration::from_secs(12)).await;
+
+        Ok(())
+    }
+
+    async fn add_authorizations(
+        &mut self,
+        authorization_addr: String,
+        authorizations: Vec<AuthorizationInfo>,
+    ) -> ConnectorResult<()> {
+        if !self.is_main_chain {
+            return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                "Adding authorizations is only possible on main domain in authorization contract"
+            ))
+            .into());
+        }
+
+        let msg = to_vec(
+            &valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
+                valence_authorization_utils::msg::PermissionedMsg::CreateAuthorizations {
+                    authorizations,
+                },
+            ),
+        )
+        .map_err(CosmosCosmwasmError::SerdeJsonError)?;
+
+        let m = MsgExecuteContract {
+            sender: self.wallet.account_address.clone(),
+            contract: authorization_addr,
+            msg,
+            funds: vec![],
+        }
+        .build_any();
+
+        self.wallet
             .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
             .await
             .map_err(CosmosCosmwasmError::Error)?;
@@ -619,7 +653,6 @@ impl Connector for CosmosCosmwasmConnector {
                 .build_any();
 
                 self.wallet
-                    // .simulate_tx(vec![m])
                     .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
                     .await
                     .map_err(CosmosCosmwasmError::Error)?;
@@ -676,7 +709,6 @@ impl Connector for CosmosCosmwasmConnector {
                 .build_any();
 
                 self.wallet
-                    // .simulate_tx(vec![m])
                     .broadcast_tx(vec![m], None, None, BroadcastMode::Sync)
                     .await
                     .map_err(CosmosCosmwasmError::Error)?;
@@ -694,12 +726,11 @@ impl Connector for CosmosCosmwasmConnector {
 
     async fn query_workflow_registry(
         &mut self,
-        main_domain: &str,
         id: u64,
     ) -> ConnectorResult<valence_workflow_registry_utils::WorkflowResponse> {
-        if self.chain_name != main_domain {
+        if self.chain_name != NEUTRON_CHAIN {
             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
-                "Adding external domain is only possible on main domain in authorization contract"
+                "workflow registry only exists on neutron chain"
             ))
             .into());
         }
@@ -730,7 +761,7 @@ impl Connector for CosmosCosmwasmConnector {
     }
 
     async fn verify_account(&mut self, account_addr: String) -> ConnectorResult<()> {
-        let contract_name = self.get_contract_name_by_code_id(account_addr).await?;
+        let contract_name = self.get_contract_name_by_address(account_addr).await?;
 
         // Loop over account types and see if any matches the contract name of the code id
         // error if it doesn't match, else return ()
@@ -747,7 +778,7 @@ impl Connector for CosmosCosmwasmConnector {
             .context("'verify_service' Service address is empty")
             .map_err(CosmosCosmwasmError::Error)?;
 
-        let contract_name = self.get_contract_name_by_code_id(service_addr).await?;
+        let contract_name = self.get_contract_name_by_address(service_addr).await?;
 
         Ok(ServiceConfig::VARIANTS
             .iter()
@@ -758,7 +789,7 @@ impl Connector for CosmosCosmwasmConnector {
     }
 
     async fn verify_processor(&mut self, processor_addr: String) -> ConnectorResult<()> {
-        let contract_name = self.get_contract_name_by_code_id(processor_addr).await?;
+        let contract_name = self.get_contract_name_by_address(processor_addr).await?;
 
         // Make sure the code id is of name processor
         if contract_name != "processor" {
@@ -772,7 +803,7 @@ impl Connector for CosmosCosmwasmConnector {
     }
 
     async fn verify_bridge_account(&mut self, bridge_addr: String) -> ConnectorResult<()> {
-        // If the address have a code id, it means it was instantiated.
+        // If the address has a code id, it means it was instantiated.
         self.get_code_id_of_addr(bridge_addr)
             .await
             .map(|_| ())
@@ -799,7 +830,7 @@ impl Connector for CosmosCosmwasmConnector {
     }
 
     async fn save_workflow_config(&mut self, config: WorkflowConfig) -> ConnectorResult<()> {
-        if self.chain_name != NEUTRON_DOMAIN.get_chain_name() {
+        if self.chain_name != *NEUTRON_CHAIN {
             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                 "Should only be implemented on neutron connector"
             ))
@@ -1054,7 +1085,8 @@ impl CosmosCosmwasmConnector {
             .code_id)
     }
 
-    pub async fn get_contract_name_by_code_id(
+    // We query the chain for the code id of the address, and look this code id into our list of code ids to get the contract name
+    pub async fn get_contract_name_by_address(
         &mut self,
         addr: String,
     ) -> Result<String, CosmosCosmwasmError> {
