@@ -139,7 +139,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         config: ServiceConfig {
-            input_addr: ServiceAccountType::AccountAddr(input_account.clone()),
+            input_addr: ServiceAccountType::Addr(input_account.clone()),
             output_addr: output_account.clone(),
             denom: UncheckedDenom::Native(NTRN_DENOM.to_string()),
             amount: transfer_amount.into(),
