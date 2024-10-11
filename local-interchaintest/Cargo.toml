@@ -6,24 +6,27 @@ version    = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-localic-std                 = { git = "https://github.com/strangelove-ventures/interchaintest", branch = "main" }
-localic-utils               = { git = "https://github.com/timewave-computer/localic-utils", branch = "main" }
-sha2                        = { workspace = true }
-hex                         = { workspace = true }
-serde_json                  = { workspace = true }
-env_logger                  = "0.11.5"
-log                         = "0.4.22"
-rand                        = "0.8.5"
-polytone-note               = { git = "https://github.com/DA0-DA0/polytone", rev = "f70440a" }
-polytone-voice              = { git = "https://github.com/DA0-DA0/polytone", rev = "f70440a" }
-cosmwasm-std                = { workspace = true }
-cosmwasm-std-old            = { package = "cosmwasm-std", version = "1.5.7" }
-cw-utils                    = { workspace = true }
-valence-authorization       = { workspace = true }
-valence-processor           = { workspace = true }
-valence-authorization-utils = { workspace = true }
-valence-processor-utils     = { workspace = true }
-valence-account-utils       = { workspace = true }
-valence-service-utils       = { workspace = true }
-valence-splitter-service    = { workspace = true }
-valence-astroport-utils     = { workspace = true }
+localic-std                      = { git = "https://github.com/strangelove-ventures/interchaintest", branch = "main" }
+localic-utils                    = { git = "https://github.com/timewave-computer/localic-utils", branch = "main" }
+sha2                             = { workspace = true }
+hex                              = { workspace = true }
+serde_json                       = { workspace = true }
+env_logger                       = "0.11.5"
+log                              = "0.4.22"
+rand                             = "0.8.5"
+polytone-note                    = { git = "https://github.com/DA0-DA0/polytone", rev = "f70440a" }
+polytone-voice                   = { git = "https://github.com/DA0-DA0/polytone", rev = "f70440a" }
+cosmwasm-std                     = { workspace = true }
+cosmwasm-std-old                 = { package = "cosmwasm-std", version = "1.5.7" }
+cw-utils                         = { workspace = true }
+valence-authorization            = { workspace = true }
+valence-processor                = { workspace = true }
+valence-authorization-utils      = { workspace = true }
+valence-processor-utils          = { workspace = true }
+valence-account-utils            = { workspace = true }
+valence-service-utils            = { workspace = true }
+valence-splitter-service         = { workspace = true }
+valence-reverse-splitter-service = { workspace = true }
+valence-astroport-lper           = { workspace = true }
+valence-astroport-withdrawer     = { workspace = true }
+valence-astroport-utils          = { workspace = true }
