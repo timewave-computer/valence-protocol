@@ -1,18 +1,14 @@
-use std::{env, error::Error, time::SystemTime};
+use std::error::Error;
 
 use cosmwasm_std::Binary;
 use cosmwasm_std_old::Coin as BankCoin;
 
 use local_interchaintest::utils::{
-    authorization::set_up_authorization_and_processor,
-    base_account::{approve_service, create_base_accounts},
+    manager::{setup_manager, use_manager_init},
     processor::tick_processor,
     GAS_FLAGS, LOGS_FILE_PATH, NTRN_DENOM, VALENCE_ARTIFACTS_PATH,
 };
-use localic_std::modules::{
-    bank,
-    cosmwasm::{contract_execute, contract_instantiate},
-};
+use localic_std::modules::{bank, cosmwasm::contract_execute};
 use localic_utils::{
     ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, LOCAL_IC_API_URL,
     NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
@@ -25,8 +21,11 @@ use valence_authorization_utils::{
     msg::ProcessorMessage,
 };
 use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
-use valence_splitter_service::msg::{
-    ActionMsgs, ServiceConfig, UncheckedSplitAmount, UncheckedSplitConfig,
+use valence_splitter_service::msg::{ActionMsgs, UncheckedSplitAmount, UncheckedSplitConfig};
+use valence_workflow_manager::{
+    account::{AccountInfo, AccountType},
+    service::{ServiceConfig, ServiceInfo},
+    workflow_config::{Link, WorkflowConfig},
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -39,49 +38,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_chain(ConfigChainBuilder::default_neutron().build()?)
         .with_log_file_path(LOGS_FILE_PATH)
         .build()?;
-
-    // We need to predict the authorization contract address in advance for the processor contract on the main domain
-    // We'll use the current time as a salt so we can run this test multiple times locally without getting conflicts
-    let now = SystemTime::now();
-    let salt = hex::encode(
-        now.duration_since(SystemTime::UNIX_EPOCH)?
-            .as_secs()
-            .to_string(),
-    );
-    // Upload and instantiate authorization and processor on Neutron
-    let (authorization_contract_address, processor_contract_address) =
-        set_up_authorization_and_processor(&mut test_ctx, salt.clone())?;
-
-    // Let's upload the base account contract to Neutron
-    let current_dir = env::current_dir()?;
-    let base_account_contract_path = format!(
-        "{}/artifacts/valence_base_account.wasm",
-        current_dir.display()
-    );
-
-    let mut uploader = test_ctx.build_tx_upload_contracts();
-    uploader.send_single_contract(&base_account_contract_path)?;
-
-    // Get the code id
-    let code_id_base_account = test_ctx
-        .get_contract()
-        .contract("valence_base_account")
-        .get_cw()
-        .code_id
-        .unwrap();
-
-    // We are going to create 2 base accounts on Neutron, who'll make a token swap with each other
-    let base_accounts = create_base_accounts(
-        &mut test_ctx,
-        DEFAULT_KEY,
-        NEUTRON_CHAIN_NAME,
-        code_id_base_account,
-        NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        vec![],
-        2,
-    );
-    let base_account_1 = base_accounts[0].clone();
-    let base_account_2 = base_accounts[1].clone();
 
     info!("Create and mint tokens to perform the swap...");
     // We are going to create 2 tokenfactory tokens so that we can test the token swap, one will be given to first account and the second one will be given to the second account
@@ -124,6 +80,157 @@ fn main() -> Result<(), Box<dyn Error>> {
         .get();
 
     let swap_amount = 1_000_000_000;
+
+    let mut workflow_config = WorkflowConfig {
+        owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        ..Default::default()
+    };
+    let neutron_domain =
+        valence_workflow_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
+
+    workflow_config.accounts.insert(
+        1,
+        AccountInfo {
+            name: "base_account_1".to_string(),
+            ty: AccountType::Base { admin: None },
+            domain: neutron_domain.clone(),
+            addr: None,
+        },
+    );
+    workflow_config.accounts.insert(
+        2,
+        AccountInfo {
+            name: "base_account_2".to_string(),
+            ty: AccountType::Base { admin: None },
+            domain: neutron_domain.clone(),
+            addr: None,
+        },
+    );
+
+    workflow_config.services.insert(
+        1,
+        ServiceInfo {
+            name: "splitter_1".to_string(),
+            domain: neutron_domain.clone(),
+            config: ServiceConfig::ValenceSplitterService(
+                valence_splitter_service::msg::ServiceConfig {
+                    input_addr: ServiceAccountType::AccountId(1),
+                    splits: vec![UncheckedSplitConfig {
+                        denom: UncheckedDenom::Native(token1.to_string()),
+                        account: ServiceAccountType::AccountId(2),
+                        amount: UncheckedSplitAmount::FixedAmount(swap_amount.into()),
+                    }],
+                },
+            ),
+            addr: None,
+        },
+    );
+    workflow_config.services.insert(
+        2,
+        ServiceInfo {
+            name: "splitter_2".to_string(),
+            domain: neutron_domain.clone(),
+            config: ServiceConfig::ValenceSplitterService(
+                valence_splitter_service::msg::ServiceConfig {
+                    input_addr: ServiceAccountType::AccountId(2),
+                    splits: vec![UncheckedSplitConfig {
+                        denom: UncheckedDenom::Native(token2.to_string()),
+                        account: ServiceAccountType::AccountId(1),
+                        amount: UncheckedSplitAmount::FixedAmount(swap_amount.into()),
+                    }],
+                },
+            ),
+            addr: None,
+        },
+    );
+
+    workflow_config.links.insert(
+        1,
+        Link {
+            input_accounts_id: vec![1],
+            output_accounts_id: vec![2],
+            service_id: 1,
+        },
+    );
+    workflow_config.links.insert(
+        2,
+        Link {
+            input_accounts_id: vec![2],
+            output_accounts_id: vec![1],
+            service_id: 2,
+        },
+    );
+
+    workflow_config.authorizations = vec![AuthorizationBuilder::new()
+        .with_label("swap")
+        .with_actions_config(
+            AtomicActionsConfigBuilder::new()
+                .with_action(
+                    AtomicActionBuilder::new()
+                        .with_contract_address(ServiceAccountType::ServiceId(1))
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "process_action".to_string(),
+                                params_restrictions: Some(vec![ParamRestriction::MustBeIncluded(
+                                    vec!["process_action".to_string(), "split".to_string()],
+                                )]),
+                            },
+                        })
+                        .build(),
+                )
+                .with_action(
+                    AtomicActionBuilder::new()
+                        .with_contract_address(ServiceAccountType::ServiceId(2))
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "process_action".to_string(),
+                                params_restrictions: Some(vec![ParamRestriction::MustBeIncluded(
+                                    vec!["process_action".to_string(), "split".to_string()],
+                                )]),
+                            },
+                        })
+                        .build(),
+                )
+                .build(),
+        )
+        .build()];
+
+    // Verify config is ok before we upload all contracts
+    workflow_config.verify_new_config()?;
+
+    // Setup the contracts and update the global config
+    info!("Setup manager...");
+    setup_manager(&mut test_ctx)?;
+
+    // init the workflow
+    info!("Start manager init...");
+    use_manager_init(&mut workflow_config)?;
+
+    // Get all the addresses we need to interact with
+    let authorization_contract_address = workflow_config.authorization_data.authorization_addr;
+    let processor_contract_address = workflow_config
+        .authorization_data
+        .processor_addrs
+        .get(&neutron_domain.to_string())
+        .unwrap()
+        .clone();
+    let base_account_1 = workflow_config
+        .accounts
+        .get(&1)
+        .unwrap()
+        .addr
+        .clone()
+        .unwrap();
+    let base_account_2 = workflow_config
+        .accounts
+        .get(&2)
+        .unwrap()
+        .addr
+        .clone()
+        .unwrap();
+
     // Mint some of each token and send it to the base accounts
     test_ctx
         .build_tx_mint_tokenfactory_token()
@@ -174,151 +281,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     )
     .unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
-    // Now that each account has its token to swap, let's prepare the workflow
-    // Let's upload the splitter, which is what we are going to use to do the swap.
-    let splitter_contract_path = format!(
-        "{}/artifacts/valence_splitter_service.wasm",
-        current_dir.display()
-    );
-    let mut uploader = test_ctx.build_tx_upload_contracts();
-    uploader.send_single_contract(&splitter_contract_path)?;
-
-    // Get the code id
-    let code_id_splitter = test_ctx
-        .get_contract()
-        .contract("valence_splitter_service")
-        .get_cw()
-        .code_id
-        .unwrap();
-
-    info!("Preparing splitters...");
-    let splitter_1_instantiate_msg = valence_service_utils::msg::InstantiateMsg::<ServiceConfig> {
-        owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        processor: processor_contract_address.clone(),
-        config: ServiceConfig {
-            input_addr: ServiceAccountType::Addr(base_account_1.clone()),
-            splits: vec![UncheckedSplitConfig {
-                denom: UncheckedDenom::Native(token1.clone()),
-                account: ServiceAccountType::Addr(base_account_2.clone()),
-                amount: UncheckedSplitAmount::FixedAmount(swap_amount.into()),
-            }],
-        },
-    };
-    let splitter1 = contract_instantiate(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        DEFAULT_KEY,
-        code_id_splitter,
-        &serde_json::to_string(&splitter_1_instantiate_msg).unwrap(),
-        "splitter",
-        None,
-        "",
-    )
-    .unwrap();
-
-    info!("Splitter 1: {}", splitter1.address.clone());
-
-    let splitter_2_instantiate_msg = valence_service_utils::msg::InstantiateMsg::<ServiceConfig> {
-        owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        processor: processor_contract_address.clone(),
-        config: ServiceConfig {
-            input_addr: ServiceAccountType::Addr(base_account_2.clone()),
-            splits: vec![UncheckedSplitConfig {
-                denom: UncheckedDenom::Native(token2.clone()),
-                account: ServiceAccountType::Addr(base_account_1.clone()),
-                amount: UncheckedSplitAmount::FixedAmount(swap_amount.into()),
-            }],
-        },
-    };
-
-    let splitter2 = contract_instantiate(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        DEFAULT_KEY,
-        code_id_splitter,
-        &serde_json::to_string(&splitter_2_instantiate_msg).unwrap(),
-        "splitter",
-        None,
-        "",
-    )
-    .unwrap();
-
-    info!("Splitter 2: {}", splitter2.address.clone());
-
-    // Approve the services for the base accounts
-    approve_service(
-        &mut test_ctx,
-        NEUTRON_CHAIN_NAME,
-        DEFAULT_KEY,
-        &base_account_1,
-        splitter1.address.clone(),
-    );
-    approve_service(
-        &mut test_ctx,
-        NEUTRON_CHAIN_NAME,
-        DEFAULT_KEY,
-        &base_account_2,
-        splitter2.address.clone(),
-    );
-
-    // Now that everything is set up, we need to create the authorization that will do the swap atomically between the 2 base accounts
-    let authorizations = vec![AuthorizationBuilder::new()
-        .with_label("swap")
-        .with_actions_config(
-            AtomicActionsConfigBuilder::new()
-                .with_action(
-                    AtomicActionBuilder::new()
-                        .with_contract_address(&splitter1.address)
-                        .with_message_details(MessageDetails {
-                            message_type: MessageType::CosmwasmExecuteMsg,
-                            message: Message {
-                                name: "process_action".to_string(),
-                                params_restrictions: Some(vec![ParamRestriction::MustBeIncluded(
-                                    vec!["process_action".to_string(), "split".to_string()],
-                                )]),
-                            },
-                        })
-                        .build(),
-                )
-                .with_action(
-                    AtomicActionBuilder::new()
-                        .with_contract_address(&splitter2.address)
-                        .with_message_details(MessageDetails {
-                            message_type: MessageType::CosmwasmExecuteMsg,
-                            message: Message {
-                                name: "process_action".to_string(),
-                                params_restrictions: Some(vec![ParamRestriction::MustBeIncluded(
-                                    vec!["process_action".to_string(), "split".to_string()],
-                                )]),
-                            },
-                        })
-                        .build(),
-                )
-                .build(),
-        )
-        .build()];
-
-    info!("Creating swap authorization...");
-    let create_authorization = valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
-        valence_authorization_utils::msg::PermissionedMsg::CreateAuthorizations { authorizations },
-    );
-
-    contract_execute(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        &authorization_contract_address,
-        DEFAULT_KEY,
-        &serde_json::to_string(&create_authorization).unwrap(),
-        GAS_FLAGS,
-    )
-    .unwrap();
-
-    info!("Swap authorization created!");
     std::thread::sleep(std::time::Duration::from_secs(3));
 
     info!("Send the messages to the authorization contract...");
