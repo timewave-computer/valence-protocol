@@ -42,6 +42,8 @@ impl From<&str> for ServiceAccountType {
     fn from(addr: &str) -> Self {
         if addr.starts_with("|account_id|:") {
             ServiceAccountType::AccountId(addr.trim_start_matches("|account_id|:").parse().unwrap())
+        } else if addr.starts_with("|service_id|:") {
+            ServiceAccountType::ServiceId(addr.trim_start_matches("|service_id|:").parse().unwrap())
         } else {
             ServiceAccountType::Addr(addr.to_owned())
         }

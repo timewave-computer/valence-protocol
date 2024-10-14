@@ -357,6 +357,7 @@ fn update_config_with_valid_config() {
         STARS,
         &suite.input_addr,
     ));
+
     cfg.input_addr = (&output_addr).into();
 
     // Execute update config action

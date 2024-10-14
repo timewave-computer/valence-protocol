@@ -1,5 +1,6 @@
 pub mod authorization;
 pub mod base_account;
+pub mod manager;
 pub mod polytone;
 pub mod processor;
 

@@ -34,15 +34,15 @@ pub struct AuthorizationData {
     pub authorization_addr: String,
     /// List of processor addresses by domain
     /// Key: domain name | Value: processor address
-    pub processor_addrs: BTreeMap<Domain, String>,
+    pub processor_addrs: BTreeMap<String, String>,
     /// List of authorization bridge addresses by domain
     /// The addresses are on the specified domain
     /// Key: domain name | Value: authorization bridge address on that domain
-    pub authorization_bridge_addrs: BTreeMap<Domain, String>,
+    pub authorization_bridge_addrs: BTreeMap<String, String>,
     /// List of processor bridge addresses by domain
     /// All addresses are on nuetron, mapping to what domain this bridge account is for
     /// Key: domain name | Value: processor bridge address on that domain
-    pub processor_bridge_addrs: BTreeMap<Domain, String>,
+    pub processor_bridge_addrs: BTreeMap<String, String>,
 }
 
 impl AuthorizationData {
@@ -51,15 +51,16 @@ impl AuthorizationData {
     }
 
     pub fn set_processor_addr(&mut self, domain: Domain, addr: String) {
-        self.processor_addrs.insert(domain, addr);
+        self.processor_addrs.insert(domain.to_string(), addr);
     }
 
     pub fn set_authorization_bridge_addr(&mut self, domain: Domain, addr: String) {
-        self.authorization_bridge_addrs.insert(domain, addr);
+        self.authorization_bridge_addrs
+            .insert(domain.to_string(), addr);
     }
 
     pub fn set_processor_bridge_addr(&mut self, domain: Domain, addr: String) {
-        self.processor_bridge_addrs.insert(domain, addr);
+        self.processor_bridge_addrs.insert(domain.to_string(), addr);
     }
 }
 
@@ -103,10 +104,10 @@ impl WorkflowConfig {
         let all_domains = self.get_all_domains();
 
         let (authorization_addr, authorization_salt) = neutron_connector
-            .get_address(self.id, "authorization", "authorization")
+            .get_address(self.id, "valence_authorization", "valence_authorization")
             .await?;
         let (main_processor_addr, main_processor_salt) = neutron_connector
-            .get_address(self.id, "processor", "processor")
+            .get_address(self.id, "valence_processor", "valence_processor")
             .await?;
 
         neutron_connector
@@ -146,7 +147,7 @@ impl WorkflowConfig {
 
                 // Get the processor address on the other domain
                 let (processor_addr, salt) = connector
-                    .get_address(self.id, "processor", "processor")
+                    .get_address(self.id, "valence_processor", "valence_processor")
                     .await?;
 
                 // Instantiate the processor on the other domain, the admin is the bridge account address of the authorization contract
@@ -249,7 +250,8 @@ impl WorkflowConfig {
                 InstantiateAccountData::new(*account_id, account.clone(), addr.clone(), salt),
             );
 
-            account.ty = AccountType::Addr { addr };
+            account.ty = AccountType::Addr { addr: addr.clone() };
+            account.addr = Some(addr);
         }
 
         // We first predict the service addresses
@@ -328,7 +330,7 @@ impl WorkflowConfig {
             let processor_addr = self
                 .authorization_data
                 .processor_addrs
-                .get(&account.domain)
+                .get(&account.domain.to_string())
                 .ok_or(ManagerError::ProcessorAddrNotFound(account.domain.clone()))?;
 
             domain_connector
@@ -387,6 +389,10 @@ impl WorkflowConfig {
             }
         }
 
+        // Verify the workflow was instantiated successfully
+        self.verify_init_was_successful(connectors, account_instantiate_datas)
+            .await?;
+
         // Get neutron connector again because we need it to change admin of the authorization contract
         let mut neutron_connector = connectors.get_or_create_connector(&neutron_domain).await?;
 
@@ -399,18 +405,6 @@ impl WorkflowConfig {
             .change_authorization_owner(authorization_addr.clone(), self.owner.clone())
             .await?;
 
-        // Verify the workflow was instantiated successfully
-        self.verify_init_was_successful(connectors, account_instantiate_datas)
-            .await?;
-
-        // Get neutron connector again because we need it to change admin of the authorization contract
-        let mut neutron_connector = connectors.get_or_create_connector(&neutron_domain).await?;
-
-        // Change the admin of the authorization contract to the owner of the workflow
-        neutron_connector
-            .change_authorization_owner(authorization_addr, self.owner.clone())
-            .await?;
-
         // Save the workflow config to registry
         neutron_connector.save_workflow_config(self.clone()).await?;
 
@@ -421,7 +415,7 @@ impl WorkflowConfig {
     fn _modify(&mut self) {}
 
     /// Verify the config is correct and are not missing any data
-    fn verify_new_config(&mut self) -> ManagerResult<()> {
+    pub fn verify_new_config(&mut self) -> ManagerResult<()> {
         // Verify id is 0, new configs should not have an id
         ensure!(self.id == 0, ManagerError::IdNotZero);
 
@@ -585,7 +579,7 @@ impl WorkflowConfig {
         let processor_addr = self
             .authorization_data
             .processor_addrs
-            .get_key_value(&domain)
+            .get_key_value(&domain.to_string())
             .ok_or(ManagerError::ProcessorAddrNotFound(domain.clone()))?
             .1;
 
