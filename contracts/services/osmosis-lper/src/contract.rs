@@ -60,16 +60,11 @@ mod execute {
 }
 
 mod actions {
-    use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Uint128};
+    use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 
-    use valence_osmosis_utils::utils::OsmosisPoolType;
     use valence_service_utils::error::ServiceError;
 
-    use crate::{
-        msg::ActionsMsgs,
-        pool_types::{balancer, concentrated_liquidity, cw},
-        valence_service_integration::Config,
-    };
+    use crate::{balancer, msg::ActionsMsgs, valence_service_integration::Config};
 
     pub fn process_action(
         deps: DepsMut,
@@ -78,48 +73,12 @@ mod actions {
         msg: ActionsMsgs,
         cfg: Config,
     ) -> Result<Response, ServiceError> {
-        println!("processing osmosis liquid pooler action: {:?}", msg);
         match msg {
             ActionsMsgs::ProvideDoubleSidedLiquidity {} => {
-                provide_double_sided_liquidity(deps, cfg)
+                balancer::provide_double_sided_liquidity(deps, cfg)
             }
             ActionsMsgs::ProvideSingleSidedLiquidity { asset, limit } => {
-                provide_single_sided_liquidity(deps, cfg, asset, limit)
-            }
-        }
-    }
-
-    fn provide_single_sided_liquidity(
-        deps: DepsMut,
-        cfg: Config,
-        asset: String,
-        limit: Uint128,
-    ) -> Result<Response, ServiceError> {
-        match cfg.pool_type {
-            OsmosisPoolType::Balancer => {
                 balancer::provide_single_sided_liquidity(deps, cfg, asset, limit)
-            }
-            OsmosisPoolType::Concentrated => {
-                concentrated_liquidity::provide_single_sided_liquidity(deps, cfg, asset, limit)
-            }
-            _ => {
-                todo!()
-            }
-        }
-    }
-
-    fn provide_double_sided_liquidity(
-        deps: DepsMut,
-        cfg: Config,
-    ) -> Result<Response, ServiceError> {
-        match cfg.pool_type {
-            OsmosisPoolType::Balancer => balancer::provide_double_sided_liquidity(deps, cfg),
-            OsmosisPoolType::Concentrated => {
-                concentrated_liquidity::provide_double_sided_liquidity(deps, cfg)
-            }
-            OsmosisPoolType::CosmWasm => cw::provide_double_sided_liquidity(deps, cfg),
-            _ => {
-                todo!()
             }
         }
     }

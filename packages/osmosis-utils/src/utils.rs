@@ -1,28 +1,13 @@
 use std::str::FromStr;
 
-use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, CosmosMsg, Decimal, DepsMut, StdError, StdResult, Uint128};
 use osmosis_std::{
     cosmwasm_to_proto_coins,
     types::osmosis::{
-        concentratedliquidity::v1beta1::ConcentratedliquidityQuerier,
-        cosmwasmpool::v1beta1::CosmwasmpoolQuerier,
         gamm::v1beta1::{MsgJoinPool, MsgJoinSwapExternAmountIn, Pool},
         poolmanager::v1beta1::{PoolResponse, PoolmanagerQuerier},
     },
 };
-
-#[cw_serde]
-pub enum OsmosisPoolType {
-    // gamm, xyk, defined in x/gamm
-    Balancer,
-    /// cfmm stableswap curve, defined in x/gamm
-    StableSwap,
-    // CL pool, defined in x/concentrated-liquidity
-    Concentrated,
-    // cosmwasm pool
-    CosmWasm,
-}
 
 pub fn get_provide_liquidity_msg(
     input_addr: &str,
@@ -73,12 +58,6 @@ pub fn query_pool_pm(deps: &DepsMut, pool_id: u64) -> StdResult<Pool> {
     deps.api
         .debug(&format!("pool response: {:?}", matched_pool));
     Ok(matched_pool)
-}
-
-pub fn query_pool_cl(deps: &DepsMut, pool_id: u64) -> StdResult<()> {
-    let cl_querier = ConcentratedliquidityQuerier::new(&deps.querier);
-    let _position = cl_querier.position_by_id(pool_id)?;
-    Ok(())
 }
 
 pub fn get_pool_ratio(pool: Pool, asset_1: String, asset_2: String) -> StdResult<Decimal> {
