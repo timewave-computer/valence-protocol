@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    coin, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Fraction, QuerierWrapper, Response, StdError,
-    StdResult, Uint128,
+    coin, coins, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Fraction, QuerierWrapper, Response,
+    StdError, StdResult, Uint128,
 };
 use osmosis_std::{
     cosmwasm_to_proto_coins,
@@ -27,14 +27,11 @@ pub fn provide_single_sided_liquidity(
     // first we assert the input account balance
     let input_acc_asset_bal = query_pool_asset_balance(&deps, cfg.input_addr.as_str(), &asset)?;
 
-    deps.api.debug(
-        format!(
-            "input account pool asset balance: {:?}",
-            input_acc_asset_bal
-        )
-        .as_str(),
-    );
+    deps.api
+        .debug(format!("input balance: {:?}", input_acc_asset_bal).as_str());
 
+    // if the input balance is greater than the limit, we provision the limit amount.
+    // otherwise we provision the full input balance.
     let provision_amount = if input_acc_asset_bal.amount > limit {
         limit
     } else {
@@ -44,28 +41,29 @@ pub fn provide_single_sided_liquidity(
     let share_out_amt = calculate_share_out_amt_swap(
         &deps,
         cfg.lp_config.pool_id,
-        vec![coin(provision_amount.u128(), asset.to_string())],
+        coins(provision_amount.u128(), asset.to_string()),
     )?;
-
-    deps.api
-        .debug(&format!("share out amount: {share_out_amt}"));
 
     let liquidity_provision_msg = get_provide_ss_liquidity_msg(
         cfg.input_addr.as_str(),
         cfg.lp_config.pool_id,
         coin(provision_amount.u128(), asset),
-        share_out_amt,
+        share_out_amt.to_string(),
     )?;
 
-    deps.api.debug(&format!(
-        "liquidity provision msg: {:?}",
-        liquidity_provision_msg
-    ));
+    let pool = get_pool_response(&deps.querier, cfg.lp_config)?;
 
-    let delegated_input_acc_msgs =
-        execute_on_behalf_of(vec![liquidity_provision_msg], &cfg.input_addr.clone())?;
-    deps.api
-        .debug(format!("delegated lp msg: {:?}", delegated_input_acc_msgs).as_str());
+    let transfer_lp_tokens_msg = get_transfer_lp_tokens_msg(
+        cfg.output_addr.to_string(),
+        pool.total_shares
+            .ok_or_else(|| StdError::generic_err("failed to get shares"))?
+            .denom,
+        share_out_amt,
+    );
+    let delegated_input_acc_msgs = execute_on_behalf_of(
+        vec![liquidity_provision_msg, transfer_lp_tokens_msg],
+        &cfg.input_addr.clone(),
+    )?;
 
     Ok(Response::default().add_message(delegated_input_acc_msgs))
 }
@@ -127,7 +125,7 @@ pub fn provide_double_sided_liquidity(
         pool.total_shares
             .ok_or_else(|| StdError::generic_err("failed to get shares"))?
             .denom,
-        Uint128::from_str(&share_out_amt)?,
+        share_out_amt,
     );
 
     let delegated_msgs = execute_on_behalf_of(
@@ -183,24 +181,26 @@ pub fn calculate_share_out_amt_no_swap(
     deps: &DepsMut,
     pool_id: u64,
     coins_in: Vec<Coin>,
-) -> StdResult<String> {
+) -> StdResult<Uint128> {
     let gamm_querier = GammQuerier::new(&deps.querier);
     let shares_out = gamm_querier
         .calc_join_pool_no_swap_shares(pool_id, cosmwasm_to_proto_coins(coins_in))?
         .shares_out;
 
-    Ok(shares_out)
+    Ok(Uint128::from_str(&shares_out)?)
 }
 
 pub fn calculate_share_out_amt_swap(
     deps: &DepsMut,
     pool_id: u64,
     coin_in: Vec<Coin>,
-) -> StdResult<String> {
+) -> StdResult<Uint128> {
     let gamm_querier = GammQuerier::new(&deps.querier);
-    let resp = gamm_querier.calc_join_pool_shares(pool_id, cosmwasm_to_proto_coins(coin_in))?;
+    let shares_out = gamm_querier
+        .calc_join_pool_shares(pool_id, cosmwasm_to_proto_coins(coin_in))?
+        .share_out_amount;
 
-    Ok(resp.share_out_amount)
+    Ok(Uint128::from_str(&shares_out)?)
 }
 
 pub fn calculate_provision_amounts(
