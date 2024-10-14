@@ -1,11 +1,11 @@
 use cosmwasm_std::{
-    instantiate2_address, testing::MockApi, Addr, Api, CodeInfoResponse, Coin, Empty, Uint128,
+    instantiate2_address, testing::MockApi, Addr, Api, CodeInfoResponse, Coin, CustomMsg, CustomQuery, Empty, Uint128
 };
 use cw20::Cw20Coin;
 use cw_multi_test::{
-    error::AnyResult, next_block, App, AppResponse, Contract, ContractWrapper, Executor,
+    custom_app, error::AnyResult, next_block, no_init, App, AppResponse, BasicAppBuilder, Contract, ContractWrapper, Executor
 };
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
 use sha2::{Digest, Sha256};
 use std::fmt::Debug;
 
@@ -18,8 +18,10 @@ pub struct AccountTestSuiteBase {
 
 #[allow(dead_code)]
 impl AccountTestSuiteBase {
-    pub fn new(account_contract: Box<dyn Contract<Empty>>) -> Self {
-        let mut app = App::default();
+    pub fn new<ExecC, QueryC>(account_contract: Box<dyn Contract<ExecC, QueryC>>) -> Self where
+    ExecC: CustomMsg + DeserializeOwned + 'static,
+    QueryC: Debug + CustomQuery + DeserializeOwned + 'static,{
+        let mut app = custom_app(no_init);
 
         let owner = app.api().addr_make("owner");
 
@@ -31,7 +33,7 @@ impl AccountTestSuiteBase {
             cw20_base::contract::query,
         );
 
-        let cw20_code_id = app.store_code(Box::new(cw20_code));
+        // let cw20_code_id = app.store_code::<>(Box::new(cw20_code));
 
         Self {
             app,

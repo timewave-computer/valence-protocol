@@ -42,7 +42,7 @@ impl BaseAccountTestSuite {
         );
 
         let inner = AccountTestSuiteBase::new(
-            Box::new(account_code) as Box<dyn cw_multi_test::Contract<_, _>>
+            Box::new(account_code)
         );
 
         Self {

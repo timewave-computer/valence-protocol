@@ -2386,7 +2386,8 @@ dependencies = [
  "valence-account-utils",
  "valence-authorization",
  "valence-authorization-utils",
- "valence-ibc-transfer-service",
+ "valence-generic-ibc-transfer-service",
+ "valence-neutron-ibc-transfer-service",
  "valence-processor",
  "valence-processor-utils",
  "valence-service-utils",
@@ -4683,6 +4684,7 @@ dependencies = [
  "cw-utils 2.0.0",
  "cw20 2.0.0",
  "cw20-base",
+ "neutron-sdk",
  "serde",
  "serde_json",
  "sha2 0.10.8",
@@ -4784,6 +4786,7 @@ dependencies = [
  "cw20-base",
  "getset",
  "itertools 0.13.0",
+ "neutron-sdk",
  "schemars",
  "serde",
  "sha2 0.10.8",
@@ -4815,7 +4818,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "valence-ibc-transfer-service"
+name = "valence-generic-ibc-transfer-service"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 2.1.4",
@@ -4854,6 +4857,27 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "valence-neutron-ibc-transfer-service"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 2.1.4",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "cw-utils 2.0.0",
+ "getset",
+ "neutron-sdk",
+ "schemars",
+ "serde",
+ "thiserror",
+ "valence-account-utils",
+ "valence-ibc-utils",
+ "valence-macros",
+ "valence-service-base",
+ "valence-service-utils",
 ]
 
 [[package]]

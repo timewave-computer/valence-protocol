@@ -1,7 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Reply, Response, StdResult,
+    to_json_binary, Binary, CustomMsg, Deps, DepsMut, Empty, Env, MessageInfo, Reply, Response,
+    StdResult,
 };
 use neutron_sdk::{
     bindings::{msg::NeutronMsg, query::NeutronQuery},
@@ -34,7 +35,7 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg<ActionsMsgs, OptionalServiceConfig>,
-) -> Result<Response<NeutronMsg>, ServiceError> {
+) -> Result<Response<impl CustomMsg>, ServiceError> {
     valence_service_base::execute(
         deps,
         env,
@@ -67,7 +68,10 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> StdResult<Response> {
 }
 
 mod actions {
-    use cosmwasm_std::{DepsMut, Empty, Env, MessageInfo, Response, SubMsg, Uint128};
+    use cosmwasm_std::{
+        to_json_binary, CosmosMsg, CustomMsg, DepsMut, Empty, Env, MessageInfo, Response, SubMsg,
+        Uint128, WasmMsg,
+    };
     use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
     use valence_service_utils::{error::ServiceError, execute_on_behalf_of};
 
@@ -79,7 +83,7 @@ mod actions {
         _info: MessageInfo,
         msg: ActionsMsgs,
         cfg: Config,
-    ) -> Result<Response<NeutronMsg>, ServiceError> {
+    ) -> Result<Response<impl CustomMsg>, ServiceError> {
         match msg {
             ActionsMsgs::IbcTransfer {} => {
                 let balance = cfg.denom().query_balance(&deps.querier, cfg.input_addr())?;
@@ -91,27 +95,28 @@ mod actions {
                 }
 
                 // Send funds from input account to the IBC transfer service
-                let transfer_msg = cfg
-                    .denom()
-                    .get_transfer_to_message(&env.contract.address, *cfg.amount())?;
+                // let transfer_msg = cfg
+                //     .denom()
+                //     .get_transfer_to_message(&env.contract.address, *cfg.amount())?;
 
-                let local_send_msg = SubMsg::new(
-                    execute_on_behalf_of(vec![transfer_msg], cfg.input_addr())?
-                        .change_custom()
-                        .ok_or_else(|| {
-                            ServiceError::ExecutionError(
-                                "Failed to change local send msg custom type.".to_owned(),
-                            )
-                        })?,
-                );
+                // let local_send_msg = SubMsg::new(
+                //     execute_on_behalf_of(vec![transfer_msg], cfg.input_addr())?
+                //         .change_custom()
+                //         .ok_or_else(|| {
+                //             ServiceError::ExecutionError(
+                //                 "Failed to change local send msg custom type.".to_owned(),
+                //             )
+                //         })?,
+                // );
 
-                // IBC Transfer funds from service to output account on the remote chain
+                // IBC Transfer funds from input account to output account on the remote chain
                 let block_time = env.block.time;
                 let ibc_send_msg = valence_ibc_utils::neutron::ibc_send_message(
                     deps,
                     env,
                     cfg.remote_chain_info().channel_id.clone(),
                     cfg.remote_chain_info().port_id.clone(),
+                    cfg.input_addr().to_string(),
                     cfg.output_addr().to_string(),
                     cfg.denom().to_string(),
                     cfg.amount().u128(),
@@ -123,10 +128,25 @@ mod actions {
                         .map(|timeout| block_time.plus_seconds(timeout.u64()).nanos()),
                 )
                 .map_err(|err| ServiceError::ExecutionError(err.to_string()))?;
+                // .change_custom::<Empty>()
+                // .ok_or_else(|| {
+                //     ServiceError::ExecutionError(
+                //         "Failed to change transfer msg custom type.".to_owned(),
+                //     )
+                // })?;
+
+                let input_account_msgs = CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: cfg.input_addr().to_string(),
+                    msg: to_json_binary(&valence_account_utils::msg::ExecuteMsg::ExecuteMsg {
+                        msgs: vec![ibc_send_msg],
+                    })?,
+                    funds: vec![],
+                });
 
                 Ok(Response::<NeutronMsg>::new()
                     .add_attribute("method", "ibc-transfer")
-                    .add_submessages(vec![local_send_msg, ibc_send_msg]))
+                    .add_message(input_account_msgs))
+                    // .add_messages(vec![ibc_send_msg]))
             }
             ActionsMsgs::RefundDust {} => {
                 let balance = cfg
@@ -150,7 +170,7 @@ mod actions {
                         )
                     })?;
 
-                Ok(Response::new()
+                Ok(Response::<NeutronMsg>::new()
                     .add_attribute("method", "refund-dust")
                     .add_message(transfer_msg))
             }

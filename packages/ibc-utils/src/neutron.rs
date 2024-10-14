@@ -18,10 +18,10 @@ use crate::state::{
     IBC_SUDO_ID_RANGE_END, IBC_SUDO_ID_RANGE_START,
 };
 
-// Default timeout for IbcTransfer is 10000000 blocks
-const DEFAULT_TIMEOUT_HEIGHT: u64 = 10000000;
-// Default timeout for IbcTransfer is 3600 seconds
-const DEFAULT_TIMEOUT_TIMESTAMP: u64 = 3600;
+// Default timeout for IbcTransfer is 300 blocks
+const DEFAULT_TIMEOUT_HEIGHT: u64 = 300;
+// Default timeout for IbcTransfer is 600 seconds
+const DEFAULT_TIMEOUT_TIMESTAMP: u64 = 600;
 const NTRN_DENOM: &str = "untrn";
 
 #[allow(clippy::too_many_arguments)]
@@ -30,6 +30,7 @@ pub fn ibc_send_message<TSudoPayload>(
     env: Env,
     channel: String,
     port: Option<String>,
+    sender: String,
     to: String,
     denom: String,
     amount: u128,
@@ -37,7 +38,8 @@ pub fn ibc_send_message<TSudoPayload>(
     sudo_payload: &TSudoPayload,
     timeout_height: Option<u64>,
     timeout_timestamp: Option<u64>,
-) -> StdResult<SubMsg<NeutronMsg>>
+    // ) -> StdResult<SubMsg<NeutronMsg>>
+) -> StdResult<CosmosMsg<NeutronMsg>>
 where
     TSudoPayload: Serialize + ?Sized,
 {
@@ -54,10 +56,10 @@ where
         .ok_or_else(|| StdError::generic_err("Amount too low to pay for IBC transfer fees."))?;
     let coin = coin(amount_minus_fee, denom.clone());
 
-    let msg = CosmosMsg::Custom(NeutronMsg::IbcTransfer {
+    let msg = NeutronMsg::IbcTransfer {
         source_port: port.unwrap_or("transfer".to_string()),
         source_channel: channel.clone(),
-        sender: env.contract.address.to_string(),
+        sender,
         receiver: to.clone(),
         token: coin,
         timeout_height: RequestPacketTimeoutHeight {
@@ -72,9 +74,11 @@ where
         ),
         memo,
         fee: ibc_fee,
-    });
+    }
+    .into();
 
-    msg_with_sudo_callback(deps.into_empty(), msg, sudo_payload)
+    // msg_with_sudo_callback(deps.into_empty(), msg, sudo_payload)
+    Ok(msg)
 }
 
 // saves payload to process later to the storage and returns a SubmitTX Cosmos SubMsg with necessary reply id

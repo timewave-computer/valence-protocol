@@ -14,30 +14,33 @@ use localic_std::modules::{
     cosmwasm::{contract_execute, contract_instantiate},
 };
 use localic_utils::{
-    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, JUNO_CHAIN_NAME,
-    LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
+    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, JUNO_CHAIN_NAME, LOCAL_IC_API_URL,
+    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
 };
 use log::info;
 
-use valence_ibc_transfer_service::msg::{ActionsMsgs, ServiceConfig};
+use valence_neutron_ibc_transfer_service::msg::{ActionsMsgs, ServiceConfig};
 use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    let ibc_denom = "ibc/4E41ED8F3DCAEA15F4D6ADC6EDD7C04A676160735C9710B904B7BF53525B56D6";
     let mut test_ctx = TestContextBuilder::default()
         .with_unwrap_raw_logs(true)
         .with_api_url(LOCAL_IC_API_URL)
         .with_artifacts_dir(VALENCE_ARTIFACTS_PATH)
         .with_chain(ConfigChainBuilder::default_neutron().build()?)
-        .with_chain(ConfigChainBuilder::default_gaia().build()?)
         .with_chain(ConfigChainBuilder::default_juno().build()?)
         .with_log_file_path(LOGS_FILE_PATH)
-        .with_transfer_channels(NEUTRON_CHAIN_NAME, GAIA_CHAIN_NAME)
         .with_transfer_channels(NEUTRON_CHAIN_NAME, JUNO_CHAIN_NAME)
-        .with_ibc_denom(NEUTRON_CHAIN_NAME, JUNO_CHAIN_NAME, ibc_denom.to_string())
         .build()?;
+
+    let neutron_on_juno_denom = test_ctx
+        .get_ibc_denom()
+        .base_denom(NTRN_DENOM.to_owned())
+        .src(NEUTRON_CHAIN_NAME)
+        .dest(JUNO_CHAIN_NAME)
+        .get();
 
     // Let's upload the base account contract to Neutron
     let current_dir = env::current_dir()?;
@@ -111,13 +114,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         &output_account,
     )
     .iter()
-    .find(|bal| bal.denom == ibc_denom)
+    .find(|bal| bal.denom == neutron_on_juno_denom)
     .map_or(0, |bal| bal.amount.u128());
     info!("Start output balance: {:?}", start_output_balance);
 
     info!("Prepare the IBC transfer service contract");
     let ibc_transfer_svc_contract_path = format!(
-        "{}/artifacts/valence_ibc_transfer_service.wasm",
+        "{}/artifacts/valence_neutron_ibc_transfer_service.wasm",
         current_dir.display()
     );
 
@@ -127,7 +130,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Get the code id
     let code_id_ibc_transfer_svc = test_ctx
         .get_contract()
-        .contract("valence_ibc_transfer_service")
+        .contract("valence_neutron_ibc_transfer_service")
         .get_cw()
         .code_id
         .unwrap();
@@ -144,15 +147,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             denom: UncheckedDenom::Native(NTRN_DENOM.to_string()),
             amount: transfer_amount.into(),
             memo: "".to_owned(),
-            remote_chain_info: valence_ibc_transfer_service::msg::RemoteChainInfo {
+            remote_chain_info: valence_neutron_ibc_transfer_service::msg::RemoteChainInfo {
                 channel_id: test_ctx
                     .transfer_channel_ids
                     .get(ntrn_juno_path)
                     .unwrap()
                     .clone(),
                 port_id: None,
-                denom: ibc_denom.to_string(),
-                ibc_transfer_timeout: Some(1000u64.into()),
+                denom: neutron_on_juno_denom.to_string(),
+                ibc_transfer_timeout: Some(600u64.into()),
             },
         },
     };
@@ -216,7 +219,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     .iter()
     .find(|bal| bal.denom == NTRN_DENOM)
     .map_or(0, |bal| bal.amount.u128());
-    assert_eq!(end_input_balance, start_input_balance.sub(transfer_amount));
+    assert_eq!(end_input_balance, start_input_balance.sub(transfer_amount).add(ibc_fee / 2));
 
     let end_output_balance = bank::get_balance(
         test_ctx
@@ -225,7 +228,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &output_account,
     )
     .iter()
-    .find(|bal| bal.denom == ibc_denom)
+    .find(|bal| bal.denom == neutron_on_juno_denom)
     .map_or(0, |bal| bal.amount.u128());
     assert_eq!(
         end_output_balance,

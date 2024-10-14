@@ -6,7 +6,8 @@ authors     = { workspace = true }
 description = "Helpers for IBC functionalities"
 
 [features]
-default = []
+default = ["generic"]
+generic = []
 neutron = ["dep:neutron-sdk"]
 
 [dependencies]

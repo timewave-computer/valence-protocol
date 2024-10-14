@@ -4,6 +4,7 @@ use cosmwasm_std::{
     to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Order, Response, StdResult,
 };
 use cw2::set_contract_version;
+use neutron_sdk::bindings::msg::NeutronMsg;
 use valence_account_utils::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
@@ -21,7 +22,7 @@ pub fn instantiate(
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> StdResult<Response> {
+) -> StdResult<Response<NeutronMsg>> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     cw_ownable::initialize_owner(deps.storage, deps.api, Some(&msg.admin))?;
 
@@ -40,7 +41,7 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response<NeutronMsg>, ContractError> {
     match msg {
         ExecuteMsg::ApproveService { service } => execute::approve_service(deps, info, service),
         ExecuteMsg::RemoveService { service } => execute::remove_service(deps, info, service),
@@ -51,6 +52,7 @@ pub fn execute(
 
 mod execute {
     use cosmwasm_std::{CosmosMsg, DepsMut, Empty, Env, MessageInfo, Response};
+    use neutron_sdk::bindings::msg::NeutronMsg;
     use valence_account_utils::error::{ContractError, UnauthorizedReason};
 
     use crate::state::APPROVED_SERVICES;
@@ -59,7 +61,7 @@ mod execute {
         deps: DepsMut,
         info: MessageInfo,
         service: String,
-    ) -> Result<Response, ContractError> {
+    ) -> Result<Response<NeutronMsg>, ContractError> {
         cw_ownable::assert_owner(deps.storage, &info.sender)?;
 
         let service_addr = deps.api.addr_validate(&service)?;
@@ -74,7 +76,7 @@ mod execute {
         deps: DepsMut,
         info: MessageInfo,
         service: String,
-    ) -> Result<Response, ContractError> {
+    ) -> Result<Response<NeutronMsg>, ContractError> {
         cw_ownable::assert_owner(deps.storage, &info.sender)?;
 
         let service_addr = deps.api.addr_validate(&service)?;
@@ -88,8 +90,8 @@ mod execute {
     pub fn execute_msg(
         deps: DepsMut,
         info: MessageInfo,
-        msgs: Vec<CosmosMsg>,
-    ) -> Result<Response, ContractError> {
+        msgs: Vec<CosmosMsg<NeutronMsg>>,
+    ) -> Result<Response<NeutronMsg>, ContractError> {
         // If not admin, check if it's an approved service
         if !cw_ownable::is_owner(deps.storage, &info.sender)?
             && !APPROVED_SERVICES.has(deps.storage, info.sender.clone())
@@ -111,7 +113,7 @@ mod execute {
         env: Env,
         info: MessageInfo,
         action: cw_ownable::Action,
-    ) -> Result<Response, ContractError> {
+    ) -> Result<Response<NeutronMsg>, ContractError> {
         let result = cw_ownable::update_ownership(deps, &env.block, &info.sender, action.clone())?;
         Ok(Response::default()
             .add_attribute("method", "update_ownership")

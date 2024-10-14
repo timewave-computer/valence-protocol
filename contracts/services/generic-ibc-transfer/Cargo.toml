@@ -1,5 +1,5 @@
 [package]
-name    = "valence-ibc-transfer-service"
+name    = "valence-generic-ibc-transfer-service"
 authors    = { workspace = true }
 edition    = { workspace = true }
 license    = { workspace = true }
@@ -25,7 +25,7 @@ schemars              = { workspace = true }
 serde                 = { workspace = true }
 thiserror             = { workspace = true }
 valence-macros        = { workspace = true }
-valence-ibc-utils     = { workspace = true, features = ["neutron"] }
+valence-ibc-utils     = { workspace = true }
 valence-service-utils = { workspace = true }
 valence-service-base  = { workspace = true }
 

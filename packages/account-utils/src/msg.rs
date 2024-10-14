@@ -1,6 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::CosmosMsg;
 use cw_ownable::{cw_ownable_execute, cw_ownable_query};
+use neutron_sdk::bindings::msg::NeutronMsg;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -13,7 +14,7 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     ApproveService { service: String }, // Add service to approved list (only admin)
     RemoveService { service: String },  // Remove service from approved list (only admin)
-    ExecuteMsg { msgs: Vec<CosmosMsg> }, // Execute any CosmosMsg (approved services or admin)
+    ExecuteMsg { msgs: Vec<CosmosMsg<NeutronMsg>> }, // Execute any CosmosMsg (approved services or admin)
 }
 
 #[cw_ownable_query]

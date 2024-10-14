@@ -1,6 +1,6 @@
 use cosmwasm_schema::write_api;
 
-use valence_ibc_transfer_service::msg::{
+use valence_neutron_ibc_transfer_service::msg::{
     ActionsMsgs, OptionalServiceConfig, QueryMsg, ServiceConfig,
 };
 use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};

@@ -1,3 +1,7 @@
+#[cfg(feature = "generic")]
+pub mod generic;
+
+#[cfg(feature = "neutron")]
 mod state;
 
 #[cfg(feature = "neutron")]
