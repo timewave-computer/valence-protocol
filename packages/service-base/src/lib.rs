@@ -14,7 +14,7 @@ use valence_service_utils::{
 pub mod helpers;
 pub mod state;
 
-pub use crate::state::{get_ownership, get_processor, load_config, save_config};
+pub use crate::state::{get_ownership, get_processor, load_config, load_raw_config, save_config};
 
 pub fn instantiate<T, U>(
     deps: DepsMut,
