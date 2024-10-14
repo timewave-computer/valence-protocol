@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut};
 use cw_ownable::cw_ownable_query;
-use valence_macros::OptionalStruct;
+use valence_macros::{valence_service_query, OptionalStruct};
 use valence_service_utils::{
     error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType,
 };
@@ -11,15 +11,11 @@ pub enum ActionsMsgs {
     WithdrawLiquidity {},
 }
 
+#[valence_service_query]
 #[cw_ownable_query]
 #[cw_serde]
 #[derive(QueryResponses)]
-pub enum QueryMsg {
-    #[returns(Addr)]
-    GetProcessor {},
-    #[returns(Config)]
-    GetServiceConfig {},
-}
+pub enum QueryMsg {}
 
 #[cw_serde]
 #[derive(OptionalStruct)]

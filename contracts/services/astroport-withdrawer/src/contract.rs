@@ -111,5 +111,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             let config: Config = valence_service_base::load_config(deps.storage)?;
             to_json_binary(&config)
         }
+        QueryMsg::GetRawServiceConfig {} => {
+            let raw_config = valence_service_utils::raw_config::query_raw_service_config::<
+                ServiceConfig,
+            >(deps.storage)?;
+            to_json_binary(&raw_config)
+        }
     }
 }

@@ -7,6 +7,8 @@ use state::PROCESSOR;
 use valence_service_utils::{
     error::ServiceError,
     msg::{ExecuteMsg, InstantiateMsg, ServiceConfigValidation},
+    raw_config::save_raw_service_config,
+    OptionalServiceConfigTrait,
 };
 
 pub mod helpers;
@@ -21,13 +23,16 @@ pub fn instantiate<T, U>(
     msg: InstantiateMsg<T>,
 ) -> Result<Response, ServiceError>
 where
-    T: ServiceConfigValidation<U>,
+    T: ServiceConfigValidation<U> + Serialize + DeserializeOwned,
     U: Serialize + DeserializeOwned,
 {
     cw2::set_contract_version(deps.storage, contract_name, contract_version)?;
     cw_ownable::initialize_owner(deps.storage, deps.api, Some(&msg.owner))?;
 
     PROCESSOR.save(deps.storage, &deps.api.addr_validate(&msg.processor)?)?;
+
+    // Saves the raw service config
+    save_raw_service_config(deps.storage, &msg.config)?;
 
     let config = msg.config.validate(deps.as_ref())?;
     save_config(deps.storage, &config)?;
@@ -48,6 +53,7 @@ pub fn execute<T, U, V>(
 ) -> Result<Response, ServiceError>
 where
     U: Serialize + DeserializeOwned,
+    V: OptionalServiceConfigTrait + Serialize + DeserializeOwned,
 {
     match msg {
         ExecuteMsg::ProcessAction(action) => {
@@ -57,6 +63,9 @@ where
         }
         ExecuteMsg::UpdateConfig { new_config } => {
             cw_ownable::assert_owner(deps.as_ref().storage, &info.sender)?;
+            // We update the raw storage
+            new_config.update_raw(deps.storage)?;
+
             let config = &mut load_config(deps.storage)?;
             update_config(&deps, env, info, config, new_config)?;
             save_config(deps.storage, config)?;

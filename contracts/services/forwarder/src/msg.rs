@@ -4,7 +4,7 @@ use cw_ownable::cw_ownable_query;
 use cw_utils::Duration;
 use getset::{Getters, Setters};
 use std::collections::HashMap;
-use valence_macros::OptionalStruct;
+use valence_macros::{valence_service_query, OptionalStruct};
 use valence_service_utils::{
     denoms::{CheckedDenom, DenomError, UncheckedDenom},
     error::ServiceError,
@@ -19,18 +19,12 @@ pub enum ActionsMsgs {
     Forward {},
 }
 
+#[valence_service_query]
 #[cw_ownable_query]
 #[cw_serde]
 #[derive(QueryResponses)]
 /// Enum representing the different query messages that can be sent.
-pub enum QueryMsg {
-    /// Query to get the processor address.
-    #[returns(Addr)]
-    GetProcessor {},
-    /// Query to get the service configuration.
-    #[returns(Config)]
-    GetServiceConfig {},
-}
+pub enum QueryMsg {}
 
 // Forwarding configuration per denom
 type ForwardingConfigs = Vec<ForwardingConfig>;
