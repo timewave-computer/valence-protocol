@@ -5116,7 +5116,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "valence-osmosis-lper"
+name = "valence-osmosis-gamm-lper"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 2.1.3",

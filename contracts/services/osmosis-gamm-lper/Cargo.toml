@@ -1,5 +1,5 @@
 [package]
-name = "valence-osmosis-lper"
+name = "valence-osmosis-gamm-lper"
 authors = { workspace = true }
 edition = { workspace = true }
 license = { workspace = true }

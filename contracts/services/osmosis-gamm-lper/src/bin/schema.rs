@@ -1,6 +1,6 @@
 use cosmwasm_schema::write_api;
 
-use valence_osmosis_lper::{
+use valence_osmosis_gamm_lper::{
     msg::{ActionsMsgs, QueryMsg},
     valence_service_integration::{OptionalServiceConfig, ServiceConfig},
 };
