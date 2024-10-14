@@ -67,7 +67,7 @@ mod actions {
 
     use crate::{
         msg::ActionsMsgs,
-        pool_types::{balancer, concentrated_liquidity},
+        pool_types::{balancer, concentrated_liquidity, cw},
         valence_service_integration::Config,
     };
 
@@ -117,6 +117,7 @@ mod actions {
             OsmosisPoolType::Concentrated => {
                 concentrated_liquidity::provide_double_sided_liquidity(deps, cfg)
             }
+            OsmosisPoolType::CosmWasm => cw::provide_double_sided_liquidity(deps, cfg),
             _ => {
                 todo!()
             }

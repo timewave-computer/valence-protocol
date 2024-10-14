@@ -6,6 +6,7 @@ use osmosis_std::{
     cosmwasm_to_proto_coins,
     types::osmosis::{
         concentratedliquidity::v1beta1::ConcentratedliquidityQuerier,
+        cosmwasmpool::v1beta1::CosmwasmpoolQuerier,
         gamm::v1beta1::{MsgJoinPool, MsgJoinSwapExternAmountIn, Pool},
         poolmanager::v1beta1::{PoolResponse, PoolmanagerQuerier},
     },

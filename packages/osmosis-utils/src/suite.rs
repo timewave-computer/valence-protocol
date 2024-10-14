@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{StdResult, Uint64};
 use cosmwasm_std_polytone::to_json_binary;
@@ -211,11 +213,13 @@ fn setup_concentrated_liquidity_pool(
 }
 
 fn setup_cosmwasm_pool(app: &OsmosisTestApp, creator: &SigningAccount) -> StdResult<CwPool> {
-    // first we upload the cosmwasm contract
     let gov = GovWithAppAccess::new(app);
 
     // upload cosmwasm pool (transmuter) code and whitelist through proposal
-    let wasm_byte_code = std::fs::read("../../../artifacts/transmuter.wasm").unwrap();
+
+    // print out the current directory
+    let relpath = "../../../packages/osmosis-utils/src/";
+    let wasm_byte_code = std::fs::read(format!("{relpath}transmuter.wasm")).unwrap();
     gov.propose_and_execute(
         UploadCosmWasmPoolCodeAndWhiteListProposal::TYPE_URL.to_string(),
         UploadCosmWasmPoolCodeAndWhiteListProposal {

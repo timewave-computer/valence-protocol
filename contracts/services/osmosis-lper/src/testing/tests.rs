@@ -76,8 +76,6 @@ fn test_provide_single_sided_cl_liquidity() {
         OsmosisPoolType::Concentrated,
     );
 
-    // setup.shift_cl_price(TEST_DENOM, "10000", OSMO_DENOM);
-
     let input_bals = setup.query_all_balances(&setup.input_acc).unwrap();
     let output_bals = setup.query_all_balances(&setup.output_acc).unwrap();
 
@@ -108,6 +106,7 @@ fn test_provide_double_sided_cw_liquidity() {
     assert_eq!(input_bals.len(), 2);
     assert_eq!(output_bals.len(), 0);
 
+    println!("providing two sided liquidity!");
     setup.provide_two_sided_liquidity();
 
     let input_bals = setup.query_all_balances(&setup.input_acc).unwrap();
