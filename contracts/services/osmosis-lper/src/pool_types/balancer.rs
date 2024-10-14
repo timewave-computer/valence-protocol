@@ -91,6 +91,8 @@ pub fn provide_double_sided_liquidity(
         cfg.lp_config.pool_asset_2.clone(),
     )?;
 
+    // TODO: look into SpotPriceRequest to obtain the ratio instead of querying the pool
+
     let (asset_1_provision_amt, asset_2_provision_amt) =
         calculate_provision_amounts(bal_asset_1.amount, bal_asset_2.amount, pool_ratio)?;
 

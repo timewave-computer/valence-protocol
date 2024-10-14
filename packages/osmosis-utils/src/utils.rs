@@ -19,6 +19,8 @@ pub enum OsmosisPoolType {
     StableSwap,
     // CL pool, defined in x/concentrated-liquidity
     Concentrated,
+    // cosmwasm pool
+    CosmWasm,
 }
 
 pub fn get_provide_liquidity_msg(

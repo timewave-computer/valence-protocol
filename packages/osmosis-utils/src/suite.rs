@@ -1,12 +1,19 @@
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{StdResult, Uint64};
+use cosmwasm_std_polytone::to_json_binary;
 use osmosis_test_tube::{
     osmosis_std::types::{
         cosmos::params::v1beta1::{ParamChange, ParameterChangeProposal},
-        osmosis::concentratedliquidity::{
-            poolmodel::concentrated::v1beta1::{
-                MsgCreateConcentratedPool, MsgCreateConcentratedPoolResponse,
+        osmosis::{
+            concentratedliquidity::{
+                poolmodel::concentrated::v1beta1::{
+                    MsgCreateConcentratedPool, MsgCreateConcentratedPoolResponse,
+                },
+                v1beta1::MsgCreatePosition,
             },
-            v1beta1::MsgCreatePosition,
+            cosmwasmpool::v1beta1::{
+                MsgCreateCosmWasmPool, UploadCosmWasmPoolCodeAndWhiteListProposal,
+            },
         },
     },
     Account, ConcentratedLiquidity, Gamm, GovWithAppAccess, Module, OsmosisTestApp, SigningAccount,
@@ -23,6 +30,7 @@ pub struct OsmosisTestAppSetup {
     pub accounts: Vec<SigningAccount>,
     pub balancer_pool_cfg: BalancerPool,
     pub cl_pool_cfg: ConcentratedLiquidityPool,
+    pub cw_pool: CwPool,
 }
 
 pub struct BalancerPool {
@@ -34,6 +42,13 @@ pub struct BalancerPool {
 }
 
 pub struct ConcentratedLiquidityPool {
+    pub pool_id: Uint64,
+    pub pool_asset1: String,
+    pub pool_asset2: String,
+    pub pool_type: OsmosisPoolType,
+}
+
+pub struct CwPool {
     pub pool_id: Uint64,
     pub pool_asset1: String,
     pub pool_asset2: String,
@@ -88,11 +103,14 @@ impl OsmosisTestAppBuilder {
 
         let cl_pool = setup_concentrated_liquidity_pool(&app, &accounts[0]).unwrap();
 
+        let cw_pool = setup_cosmwasm_pool(&app, &accounts[0]).unwrap();
+
         Ok(OsmosisTestAppSetup {
             app,
             accounts,
             balancer_pool_cfg: balancer_pool,
             cl_pool_cfg: cl_pool,
+            cw_pool,
         })
     }
 }
@@ -192,6 +210,55 @@ fn setup_concentrated_liquidity_pool(
     Ok(cl_pool)
 }
 
+fn setup_cosmwasm_pool(app: &OsmosisTestApp, creator: &SigningAccount) -> StdResult<CwPool> {
+    // first we upload the cosmwasm contract
+    let gov = GovWithAppAccess::new(app);
+
+    // upload cosmwasm pool (transmuter) code and whitelist through proposal
+    let wasm_byte_code = std::fs::read("../../../artifacts/transmuter.wasm").unwrap();
+    gov.propose_and_execute(
+        UploadCosmWasmPoolCodeAndWhiteListProposal::TYPE_URL.to_string(),
+        UploadCosmWasmPoolCodeAndWhiteListProposal {
+            title: String::from("test"),
+            description: String::from("test"),
+            wasm_byte_code,
+        },
+        creator.address(),
+        creator,
+    )
+    .unwrap();
+
+    #[cw_serde]
+    struct InstantiateMsg {
+        pool_asset_denoms: Vec<String>,
+        alloyed_asset_subdenom: String,
+    }
+
+    let create_cw_pool_request = MsgCreateCosmWasmPool {
+        code_id: 1,
+        instantiate_msg: to_json_binary(&InstantiateMsg {
+            pool_asset_denoms: vec![OSMO_DENOM.to_string(), TEST_DENOM.to_string()],
+            alloyed_asset_subdenom: OSMO_DENOM.to_string(),
+        })
+        .unwrap()
+        .to_vec(),
+        sender: creator.address().to_string(),
+    };
+
+    let cw_pool = cw_pool::CosmwasmPool::new(app);
+    let create_cw_pool_response = cw_pool
+        .create_cosmwasm_pool(create_cw_pool_request, creator)
+        .unwrap()
+        .data;
+
+    Ok(CwPool {
+        pool_id: create_cw_pool_response.pool_id.into(),
+        pool_asset1: OSMO_DENOM.to_string(),
+        pool_asset2: TEST_DENOM.to_string(),
+        pool_type: OsmosisPoolType::CosmWasm,
+    })
+}
+
 pub fn approve_service(setup: &OsmosisTestAppSetup, account_addr: String, service_addr: String) {
     let wasm = Wasm::new(&setup.app);
     wasm.execute::<valence_account_utils::msg::ExecuteMsg>(
@@ -221,4 +288,50 @@ pub fn instantiate_input_account(code_id: u64, setup: &OsmosisTestAppSetup) -> S
     .unwrap()
     .data
     .address
+}
+
+pub mod cw_pool {
+    use osmosis_test_tube::osmosis_std::types::osmosis::cosmwasmpool::v1beta1::{
+        ContractInfoByPoolIdRequest, ContractInfoByPoolIdResponse, MsgCreateCosmWasmPool,
+        MsgCreateCosmWasmPoolResponse,
+    };
+    use osmosis_test_tube::osmosis_std::types::osmosis::poolmanager::v1beta1::{
+        MsgSwapExactAmountIn, MsgSwapExactAmountInResponse, MsgSwapExactAmountOut,
+        MsgSwapExactAmountOutResponse,
+    };
+    use osmosis_test_tube::{fn_execute, fn_query};
+
+    use osmosis_test_tube::Module;
+    use osmosis_test_tube::Runner;
+
+    pub struct CosmwasmPool<'a, R: Runner<'a>> {
+        runner: &'a R,
+    }
+
+    impl<'a, R: Runner<'a>> Module<'a, R> for CosmwasmPool<'a, R> {
+        fn new(runner: &'a R) -> Self {
+            Self { runner }
+        }
+    }
+
+    impl<'a, R> CosmwasmPool<'a, R>
+    where
+        R: Runner<'a>,
+    {
+        fn_execute! {
+            pub create_cosmwasm_pool: MsgCreateCosmWasmPool => MsgCreateCosmWasmPoolResponse
+        }
+
+        fn_execute! {
+            pub swap_exact_amount_in: MsgSwapExactAmountIn => MsgSwapExactAmountInResponse
+        }
+
+        fn_execute! {
+            pub swap_exact_amount_out: MsgSwapExactAmountOut => MsgSwapExactAmountOutResponse
+        }
+
+        fn_query! {
+            pub contract_info_by_pool_id ["/osmosis.cosmwasmpool.v1beta1.Query/ContractInfoByPoolId"]: ContractInfoByPoolIdRequest => ContractInfoByPoolIdResponse
+        }
+    }
 }

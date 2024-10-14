@@ -99,11 +99,11 @@ mod actions {
             OsmosisPoolType::Balancer => {
                 balancer::provide_single_sided_liquidity(deps, cfg, asset, limit)
             }
-            OsmosisPoolType::StableSwap => {
-                todo!()
-            }
             OsmosisPoolType::Concentrated => {
                 concentrated_liquidity::provide_single_sided_liquidity(deps, cfg, asset, limit)
+            }
+            _ => {
+                todo!()
             }
         }
     }
@@ -114,9 +114,11 @@ mod actions {
     ) -> Result<Response, ServiceError> {
         match cfg.pool_type {
             OsmosisPoolType::Balancer => balancer::provide_double_sided_liquidity(deps, cfg),
-            OsmosisPoolType::StableSwap => todo!(),
             OsmosisPoolType::Concentrated => {
                 concentrated_liquidity::provide_double_sided_liquidity(deps, cfg)
+            }
+            _ => {
+                todo!()
             }
         }
     }

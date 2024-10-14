@@ -18,3 +18,4 @@ osmosis-test-tube       = { workspace = true, optional = true }
 cosmwasm-std-polytone   = { package = "cosmwasm-std", version = "1.5.7" }
 valence-account-utils   = { workspace = true }
 osmosis-std             = { workspace = true }
+transmuter              = { git = "https://github.com/osmosis-labs/transmuter" }

@@ -86,7 +86,7 @@ pub fn provide_single_sided_liquidity(
 
     let matched_pool = query_cl_pool(&deps, cfg.lp_config.pool_id)?;
 
-    let (token_min_amount0, token_min_amount1) = if matched_pool.token0 == asset {
+    let (_token_min_amount0, _token_min_amount1) = if matched_pool.token0 == asset {
         ("1".to_string(), "0".to_string())
     } else {
         ("0".to_string(), "1".to_string())
@@ -107,6 +107,10 @@ pub fn provide_single_sided_liquidity(
     .into();
     deps.api
         .debug(format!("cl position creation msg: {:?}", create_cl_position_msg).as_str());
+
+    // TODO: consider executing MsgTransferPositions to transfer the CL
+    // position from input to output account.
+
     let delegated_input_acc_msgs =
         execute_on_behalf_of(vec![create_cl_position_msg], &cfg.input_addr.clone())?;
 

@@ -143,7 +143,7 @@ impl LPerTestSuite {
         .unwrap();
     }
 
-    pub fn shift_cl_price(&self, denom_in: &str, amount_in: &str, denom_out: &str) {
+    pub fn _shift_cl_price(&self, denom_in: &str, amount_in: &str, denom_out: &str) {
         let pm = PoolManager::new(&self.inner.app);
 
         let swap_route = osmosis_test_tube::osmosis_std::types::osmosis::poolmanager::v1beta1::SwapAmountInRoute {
