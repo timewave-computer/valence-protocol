@@ -7,6 +7,7 @@ use valence_service_utils::{
 };
 
 use crate::{
+    balancer,
     msg::{ActionsMsgs, QueryMsg},
     valence_service_integration::{Config, OptionalServiceConfig, ServiceConfig},
 };
@@ -32,54 +33,32 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg<ActionsMsgs, OptionalServiceConfig>,
 ) -> Result<Response, ServiceError> {
-    valence_service_base::execute(
-        deps,
-        env,
-        info,
-        msg,
-        actions::process_action,
-        execute::update_config,
-    )
+    valence_service_base::execute(deps, env, info, msg, process_action, update_config)
 }
 
-mod execute {
-    use cosmwasm_std::{DepsMut, Env, MessageInfo};
-    use valence_service_utils::error::ServiceError;
-
-    use crate::valence_service_integration::{Config, OptionalServiceConfig};
-
-    pub fn update_config(
-        deps: &DepsMut,
-        _env: Env,
-        _info: MessageInfo,
-        config: &mut Config,
-        new_config: OptionalServiceConfig,
-    ) -> Result<(), ServiceError> {
-        new_config.update_config(deps, config)
-    }
+pub fn update_config(
+    deps: &DepsMut,
+    _env: Env,
+    _info: MessageInfo,
+    config: &mut Config,
+    new_config: OptionalServiceConfig,
+) -> Result<(), ServiceError> {
+    new_config.update_config(deps, config)
 }
 
-mod actions {
-    use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
-
-    use valence_service_utils::error::ServiceError;
-
-    use crate::{balancer, msg::ActionsMsgs, valence_service_integration::Config};
-
-    pub fn process_action(
-        deps: DepsMut,
-        _env: Env,
-        _info: MessageInfo,
-        msg: ActionsMsgs,
-        cfg: Config,
-    ) -> Result<Response, ServiceError> {
-        match msg {
-            ActionsMsgs::ProvideDoubleSidedLiquidity {} => {
-                balancer::provide_double_sided_liquidity(deps, cfg)
-            }
-            ActionsMsgs::ProvideSingleSidedLiquidity { asset, limit } => {
-                balancer::provide_single_sided_liquidity(deps, cfg, asset, limit)
-            }
+pub fn process_action(
+    deps: DepsMut,
+    _env: Env,
+    _info: MessageInfo,
+    msg: ActionsMsgs,
+    cfg: Config,
+) -> Result<Response, ServiceError> {
+    match msg {
+        ActionsMsgs::ProvideDoubleSidedLiquidity {} => {
+            balancer::provide_double_sided_liquidity(deps, cfg)
+        }
+        ActionsMsgs::ProvideSingleSidedLiquidity { asset, limit } => {
+            balancer::provide_single_sided_liquidity(deps, cfg, asset, limit)
         }
     }
 }

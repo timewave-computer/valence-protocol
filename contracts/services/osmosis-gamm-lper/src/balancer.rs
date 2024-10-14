@@ -1,14 +1,22 @@
+use std::str::FromStr;
+
 use cosmwasm_std::{
-    coin, Coin, CosmosMsg, Decimal, DepsMut, Fraction, Response, StdError, StdResult, Uint128,
+    coin, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Fraction, QuerierWrapper, Response, StdError,
+    StdResult, Uint128,
 };
-use osmosis_std::{cosmwasm_to_proto_coins, types::osmosis::gamm::v1beta1::GammQuerier};
+use osmosis_std::{
+    cosmwasm_to_proto_coins,
+    types::osmosis::{
+        gamm::v1beta1::{GammQuerier, Pool},
+        poolmanager::v1beta1::PoolmanagerQuerier,
+    },
+};
 use valence_osmosis_utils::utils::{
-    get_pool_ratio, get_provide_liquidity_msg, get_provide_ss_liquidity_msg,
-    query_pool_asset_balance, query_pool_pm,
+    get_provide_liquidity_msg, get_provide_ss_liquidity_msg, query_pool_asset_balance,
 };
 use valence_service_utils::{error::ServiceError, execute_on_behalf_of};
 
-use crate::valence_service_integration::Config;
+use crate::{msg::LiquidityProviderConfig, valence_service_integration::Config};
 
 pub fn provide_single_sided_liquidity(
     deps: DepsMut,
@@ -78,20 +86,15 @@ pub fn provide_double_sided_liquidity(
         cfg.lp_config.pool_asset_2.as_str(),
     )?;
 
-    deps.api
-        .debug(format!("input account pool asset 1 balance: {:?}", bal_asset_1).as_str());
-    deps.api
-        .debug(format!("input account pool asset 2 balance: {:?}", bal_asset_2).as_str());
+    deps.api.debug(
+        format!(
+            "input account pool asset balances: {}, {}",
+            bal_asset_1, bal_asset_2
+        )
+        .as_str(),
+    );
 
-    let pool_response = query_pool_pm(&deps, cfg.lp_config.pool_id)?;
-
-    let pool_ratio = get_pool_ratio(
-        pool_response,
-        cfg.lp_config.pool_asset_1.clone(),
-        cfg.lp_config.pool_asset_2.clone(),
-    )?;
-
-    // TODO: look into SpotPriceRequest to obtain the ratio instead of querying the pool
+    let pool_ratio = get_pool_spot_price(&deps.querier, &cfg.lp_config)?;
 
     let (asset_1_provision_amt, asset_2_provision_amt) =
         calculate_provision_amounts(bal_asset_1.amount, bal_asset_2.amount, pool_ratio)?;
@@ -114,15 +117,66 @@ pub fn provide_double_sided_liquidity(
         cfg.input_addr.as_str(),
         cfg.lp_config.pool_id,
         provision_coins,
-        share_out_amt,
+        share_out_amt.to_string(),
     )?;
 
-    let delegated_input_acc_msgs =
-        execute_on_behalf_of(vec![liquidity_provision_msg], &cfg.input_addr.clone())?;
-    deps.api
-        .debug(format!("delegated lp msg: {:?}", delegated_input_acc_msgs).as_str());
+    let pool = get_pool_response(&deps.querier, cfg.lp_config)?;
 
-    Ok(Response::default().add_message(delegated_input_acc_msgs))
+    let transfer_lp_tokens_msg = get_transfer_lp_tokens_msg(
+        cfg.output_addr.to_string(),
+        pool.total_shares
+            .ok_or_else(|| StdError::generic_err("failed to get shares"))?
+            .denom,
+        Uint128::from_str(&share_out_amt)?,
+    );
+
+    let delegated_msgs = execute_on_behalf_of(
+        vec![liquidity_provision_msg, transfer_lp_tokens_msg],
+        &cfg.input_addr.clone(),
+    )?;
+
+    Ok(Response::default().add_message(delegated_msgs))
+}
+
+pub fn get_pool_spot_price(
+    querier: &QuerierWrapper,
+    lp_config: &LiquidityProviderConfig,
+) -> StdResult<Decimal> {
+    let pm_querier = PoolmanagerQuerier::new(querier);
+    let spot_price_response = pm_querier.spot_price(
+        lp_config.pool_id,
+        lp_config.pool_asset_1.to_string(),
+        lp_config.pool_asset_2.to_string(),
+    )?;
+
+    let pool_ratio = Decimal::from_str(&spot_price_response.spot_price)?;
+
+    Ok(pool_ratio)
+}
+
+pub fn get_pool_response(
+    querier: &QuerierWrapper,
+    lp_config: LiquidityProviderConfig,
+) -> StdResult<Pool> {
+    let pm_querier = PoolmanagerQuerier::new(querier);
+
+    let pool_response = pm_querier.pool(lp_config.pool_id)?;
+
+    let pool: Pool = pool_response
+        .pool
+        .ok_or_else(|| StdError::generic_err("failed to get pool"))?
+        .try_into()
+        .map_err(|_| StdError::generic_err("failed to decode proto"))?;
+
+    Ok(pool)
+}
+
+pub fn get_transfer_lp_tokens_msg(dest: String, denom: String, amount: Uint128) -> CosmosMsg {
+    BankMsg::Send {
+        to_address: dest,
+        amount: vec![Coin { denom, amount }],
+    }
+    .into()
 }
 
 pub fn calculate_share_out_amt_no_swap(
@@ -131,9 +185,11 @@ pub fn calculate_share_out_amt_no_swap(
     coins_in: Vec<Coin>,
 ) -> StdResult<String> {
     let gamm_querier = GammQuerier::new(&deps.querier);
-    let resp =
-        gamm_querier.calc_join_pool_no_swap_shares(pool_id, cosmwasm_to_proto_coins(coins_in))?;
-    Ok(resp.shares_out)
+    let shares_out = gamm_querier
+        .calc_join_pool_no_swap_shares(pool_id, cosmwasm_to_proto_coins(coins_in))?
+        .shares_out;
+
+    Ok(shares_out)
 }
 
 pub fn calculate_share_out_amt_swap(

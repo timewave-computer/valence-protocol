@@ -157,8 +157,11 @@ fn instantiate_lper_contract(
     output_acc: String,
 ) -> String {
     let wasm = Wasm::new(&setup.app);
-    let wasm_byte_code =
-        std::fs::read(format!("{}/{}", CONTRACT_PATH, "valence_osmosis_lper.wasm")).unwrap();
+    let wasm_byte_code = std::fs::read(format!(
+        "{}/{}",
+        CONTRACT_PATH, "valence_osmosis_gamm_lper.wasm"
+    ))
+    .unwrap();
 
     let code_id = wasm
         .store_code(&wasm_byte_code, None, setup.owner_acc())
