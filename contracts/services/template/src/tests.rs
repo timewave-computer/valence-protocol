@@ -1,4 +1,4 @@
-use crate::msg::{ActionsMsgs, Config, QueryMsg, ServiceConfig};
+use crate::msg::{ActionsMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig};
 use cosmwasm_std::Addr;
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
@@ -52,8 +52,10 @@ impl TemplateTestSuite {
         self.contract_init(self.template_code_id, "template", &init_msg, &[])
     }
 
-    fn template_config(&self) -> ServiceConfig {
-        ServiceConfig {}
+    fn template_config(&self, admin: String) -> ServiceConfig {
+        ServiceConfig {
+            ignore_optional_admin: admin,
+        }
     }
 
     fn execute_noop(&mut self, addr: Addr) -> AnyResult<AppResponse> {
@@ -104,7 +106,8 @@ impl ServiceTestSuite for TemplateTestSuite {
 fn instantiate_with_valid_config() {
     let mut suite = TemplateTestSuite::default();
 
-    let cfg = suite.template_config();
+    let admin_addr = suite.owner().clone();
+    let cfg = suite.template_config(admin_addr.to_string());
 
     // Instantiate Template contract
     let svc = suite.template_init(&cfg);
@@ -119,14 +122,26 @@ fn instantiate_with_valid_config() {
 
     // Verify service config
     let svc_cfg: Config = suite.query_wasm(&svc, &QueryMsg::GetServiceConfig {});
-    assert_eq!(svc_cfg, Config {});
+    assert_eq!(svc_cfg, Config { admin: admin_addr });
+
+    let raw_svc_cfg: ServiceConfig = suite.query_wasm(&svc, &QueryMsg::GetRawServiceConfig {});
+    assert_eq!(
+        raw_svc_cfg,
+        ServiceConfig {
+            ignore_optional_admin: suite.owner().clone().to_string(),
+        }
+    );
+
+    // Here we just want to make sure that our ignore_optional actually works
+    // Because we ignore the only available field, OptionalServiceConfig expected to have no fields
+    let _ = OptionalServiceConfig {};
 }
 
 #[test]
 fn execute_action() {
     let mut suite = TemplateTestSuite::default();
 
-    let cfg = suite.template_config();
+    let cfg = suite.template_config(suite.owner().to_string());
 
     // Instantiate Template contract
     let svc = suite.template_init(&cfg);

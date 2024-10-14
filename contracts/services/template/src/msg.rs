@@ -20,7 +20,12 @@ pub enum QueryMsg {}
 
 #[cw_serde]
 #[derive(OptionalStruct)]
-pub struct ServiceConfig {}
+pub struct ServiceConfig {
+    /// We ignore this field when generating the OptionalServiceConfig
+    /// This means this field is not updatable
+    #[ignore_optional]
+    pub ignore_optional_admin: String,
+}
 
 impl ServiceConfigValidation<Config> for ServiceConfig {
     #[cfg(not(target_arch = "wasm32"))]
@@ -28,8 +33,10 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
         Ok(())
     }
 
-    fn validate(&self, _deps: Deps) -> Result<Config, ServiceError> {
-        Ok(Config {})
+    fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
+        Ok(Config {
+            admin: deps.api.addr_validate(&self.ignore_optional_admin)?,
+        })
     }
 }
 
@@ -47,4 +54,6 @@ impl OptionalServiceConfig {
 }
 
 #[cw_serde]
-pub struct Config {}
+pub struct Config {
+    pub admin: Addr,
+}
