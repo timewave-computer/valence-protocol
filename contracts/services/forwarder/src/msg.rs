@@ -14,7 +14,7 @@ use valence_service_utils::{
 
 #[cw_serde]
 /// Enum representing the different action messages that can be sent.
-pub enum ActionsMsgs {
+pub enum ActionMsgs {
     /// Message to forward tokens.
     Forward {},
 }

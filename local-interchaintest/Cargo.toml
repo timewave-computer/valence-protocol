@@ -27,9 +27,10 @@ valence-account-utils            = { workspace = true }
 valence-service-utils            = { workspace = true }
 valence-splitter-service         = { workspace = true }
 valence-reverse-splitter-service = { workspace = true }
+valence-forwarder-service        = { workspace = true }
 valence-astroport-lper           = { workspace = true }
 valence-astroport-withdrawer     = { workspace = true }
 valence-astroport-utils          = { workspace = true }
-valence-workflow-manager        = { workspace = true }
-valence-workflow-registry-utils = { workspace = true }
-tokio                           = { workspace = true }
+valence-workflow-manager         = { workspace = true }
+valence-workflow-registry-utils  = { workspace = true }
+tokio                            = { workspace = true }

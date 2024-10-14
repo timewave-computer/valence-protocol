@@ -13,7 +13,7 @@ use valence_service_utils::{
 };
 
 use crate::msg::{
-    ActionsMsgs, AssetData, LiquidityProviderConfig, OptionalServiceConfig, PoolType, ServiceConfig,
+    ActionMsgs, AssetData, LiquidityProviderConfig, OptionalServiceConfig, PoolType, ServiceConfig,
 };
 
 const CONTRACT_PATH: &str = "../../../artifacts";
@@ -204,7 +204,7 @@ pub fn only_owner_can_update_config() {
     };
 
     let error = wasm
-        .execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
+        .execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
             &setup.lper_addr,
             &ExecuteMsg::UpdateConfig {
                 new_config: new_config.clone(),
@@ -220,7 +220,7 @@ pub fn only_owner_can_update_config() {
             .as_str(),
     ),);
 
-    wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
+    wasm.execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
         &setup.lper_addr,
         &ExecuteMsg::UpdateConfig { new_config },
         &[],
@@ -235,7 +235,7 @@ fn only_owner_can_update_processor() {
     let wasm = Wasm::new(&setup.inner.app);
 
     let error = wasm
-        .execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
+        .execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
             &setup.lper_addr,
             &ExecuteMsg::UpdateProcessor {
                 processor: setup.inner.owner_acc().address(),
@@ -251,7 +251,7 @@ fn only_owner_can_update_processor() {
             .as_str(),
     ),);
 
-    wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
+    wasm.execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
         &setup.lper_addr,
         &ExecuteMsg::UpdateProcessor {
             processor: setup.inner.owner_acc().address(),
@@ -268,7 +268,7 @@ fn only_owner_can_transfer_ownership() {
     let wasm = Wasm::new(&setup.inner.app);
 
     let error = wasm
-        .execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
+        .execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
             &setup.lper_addr,
             &ExecuteMsg::UpdateOwnership(cw_ownable::Action::TransferOwnership {
                 new_owner: setup.inner.processor_acc().address(),
@@ -285,7 +285,7 @@ fn only_owner_can_transfer_ownership() {
             .as_str(),
     ),);
 
-    wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
+    wasm.execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
         &setup.lper_addr,
         &ExecuteMsg::UpdateOwnership(cw_ownable::Action::TransferOwnership {
             new_owner: setup.inner.processor_acc().address(),
@@ -403,9 +403,9 @@ fn only_processor_can_execute_actions() {
     let wasm = Wasm::new(&setup.inner.app);
 
     let error = wasm
-        .execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
+        .execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
             &setup.lper_addr,
-            &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideDoubleSidedLiquidity {
+            &ExecuteMsg::ProcessAction(ActionMsgs::ProvideDoubleSidedLiquidity {
                 expected_pool_ratio_range: None,
             }),
             &[],
@@ -419,9 +419,9 @@ fn only_processor_can_execute_actions() {
             .as_str(),
     ),);
 
-    wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
+    wasm.execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
         &setup.lper_addr,
-        &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideDoubleSidedLiquidity {
+        &ExecuteMsg::ProcessAction(ActionMsgs::ProvideDoubleSidedLiquidity {
             expected_pool_ratio_range: None,
         }),
         &[],
@@ -455,9 +455,9 @@ fn provide_double_sided_liquidity_native_lp_token() {
         .iter()
         .any(|c| c.denom == setup.inner.pool_asset2));
 
-    wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
+    wasm.execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
         &setup.lper_addr,
-        &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideDoubleSidedLiquidity {
+        &ExecuteMsg::ProcessAction(ActionMsgs::ProvideDoubleSidedLiquidity {
             expected_pool_ratio_range: None,
         }),
         &[],
@@ -517,9 +517,9 @@ fn provide_double_sided_liquidity_cw20_lp_token() {
         .iter()
         .any(|c| c.denom == setup.inner.pool_asset2));
 
-    wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
+    wasm.execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
         &setup.lper_addr,
-        &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideDoubleSidedLiquidity {
+        &ExecuteMsg::ProcessAction(ActionMsgs::ProvideDoubleSidedLiquidity {
             expected_pool_ratio_range: None,
         }),
         &[],
@@ -576,9 +576,9 @@ fn provide_single_sided_liquidity_native_lp_token() {
         .iter()
         .any(|c| c.denom == setup.inner.pool_asset2));
 
-    wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
+    wasm.execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
         &setup.lper_addr,
-        &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideSingleSidedLiquidity {
+        &ExecuteMsg::ProcessAction(ActionMsgs::ProvideSingleSidedLiquidity {
             asset: setup.inner.pool_asset1.clone(),
             limit: None,
             expected_pool_ratio_range: None,
@@ -644,9 +644,9 @@ fn provide_single_sided_liquidity_cw20_lp_token() {
         .iter()
         .any(|c| c.denom == setup.inner.pool_asset2));
 
-    wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
+    wasm.execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
         &setup.lper_addr,
-        &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideSingleSidedLiquidity {
+        &ExecuteMsg::ProcessAction(ActionMsgs::ProvideSingleSidedLiquidity {
             asset: setup.inner.pool_asset1.clone(),
             limit: None,
             expected_pool_ratio_range: None,
@@ -690,9 +690,9 @@ fn test_limit_single_sided_liquidity() {
     let wasm = Wasm::new(&setup.inner.app);
 
     let error = wasm
-        .execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
+        .execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
             &setup.lper_addr,
-            &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideSingleSidedLiquidity {
+            &ExecuteMsg::ProcessAction(ActionMsgs::ProvideSingleSidedLiquidity {
                 asset: setup.inner.pool_asset1.clone(),
                 limit: Some(Uint128::new(1)),
                 expected_pool_ratio_range: None,

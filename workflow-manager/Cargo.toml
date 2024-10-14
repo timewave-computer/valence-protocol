@@ -24,6 +24,8 @@ valence-service-base            = { workspace = true }
 
 valence-splitter-service         = { workspace = true }
 valence-reverse-splitter-service = { workspace = true }
+valence-astroport-lper           = { workspace = true }
+valence-astroport-withdrawer     = { workspace = true }
 valence-account-utils            = { workspace = true }
 valence-authorization            = { workspace = true }
 valence-processor                = { workspace = true }

@@ -1,4 +1,4 @@
-use crate::msg::{ActionsMsgs, Config, ForwardingConstraints, QueryMsg, ServiceConfig};
+use crate::msg::{ActionMsgs, Config, ForwardingConstraints, QueryMsg, ServiceConfig};
 use cosmwasm_std::{coin, Addr, Coin, Uint128};
 use cw20::Cw20Coin;
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
@@ -100,7 +100,7 @@ impl ForwarderTestSuite {
     fn execute_forward(&mut self, addr: Addr) -> AnyResult<AppResponse> {
         self.contract_execute(
             addr,
-            &ExecuteMsg::<_, ServiceConfig>::ProcessAction(ActionsMsgs::Forward {}),
+            &ExecuteMsg::<_, ServiceConfig>::ProcessAction(ActionMsgs::Forward {}),
         )
     }
 
@@ -109,7 +109,7 @@ impl ForwarderTestSuite {
         self.app_mut().execute_contract(
             owner,
             addr,
-            &ExecuteMsg::<ActionsMsgs, ServiceConfig>::UpdateConfig { new_config },
+            &ExecuteMsg::<ActionMsgs, ServiceConfig>::UpdateConfig { new_config },
             &[],
         )
     }

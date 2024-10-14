@@ -7,7 +7,7 @@ use valence_service_utils::{
 };
 
 #[cw_serde]
-pub enum ActionsMsgs {
+pub enum ActionMsgs {
     ProvideDoubleSidedLiquidity {
         expected_pool_ratio_range: Option<DecimalRange>,
     },

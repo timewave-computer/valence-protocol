@@ -21,3 +21,5 @@ pub const NTRN_DENOM: &str = "untrn";
 
 pub const NEUTRON_USER_ADDRESS_1: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
 pub const USER_KEY_1: &str = "acc1";
+
+pub const ASTROPORT_LP_SUBDENOM: &str = "astroport/share";

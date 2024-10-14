@@ -3,11 +3,11 @@ use cosmwasm_std::{Addr, Deps, DepsMut};
 use cw_ownable::cw_ownable_query;
 use valence_macros::OptionalStruct;
 use valence_service_utils::{
-    error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType,
+    error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType, ServiceConfigInterface,
 };
 
 #[cw_serde]
-pub enum ActionsMsgs {
+pub enum ActionMsgs {
     WithdrawLiquidity {},
 }
 
@@ -74,6 +74,13 @@ pub struct Config {
     pub output_addr: Addr,
     pub pool_addr: Addr,
     pub withdrawer_config: LiquidityWithdrawerConfig,
+}
+
+impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
+    /// This function is used to see if 2 configs are different
+    fn is_diff(&self, other: &ServiceConfig) -> bool {
+        !self.eq(other)
+    }
 }
 
 impl ServiceConfigValidation<Config> for ServiceConfig {

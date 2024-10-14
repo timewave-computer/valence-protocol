@@ -6,7 +6,7 @@ use valence_service_utils::{
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
-use crate::msg::{ActionsMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig};
+use crate::msg::{ActionMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -27,7 +27,7 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg<ActionsMsgs, OptionalServiceConfig>,
+    msg: ExecuteMsg<ActionMsgs, OptionalServiceConfig>,
 ) -> Result<Response, ServiceError> {
     valence_service_base::execute(
         deps,
@@ -63,21 +63,21 @@ mod actions {
 
     use crate::{
         astroport_cw20, astroport_native,
-        msg::{ActionsMsgs, Config, DecimalRange, PoolType},
+        msg::{ActionMsgs, Config, DecimalRange, PoolType},
     };
 
     pub fn process_action(
         deps: DepsMut,
         _env: Env,
         _info: MessageInfo,
-        msg: ActionsMsgs,
+        msg: ActionMsgs,
         cfg: Config,
     ) -> Result<Response, ServiceError> {
         match msg {
-            ActionsMsgs::ProvideDoubleSidedLiquidity {
+            ActionMsgs::ProvideDoubleSidedLiquidity {
                 expected_pool_ratio_range,
             } => provide_double_sided_liquidity(deps, cfg, expected_pool_ratio_range),
-            ActionsMsgs::ProvideSingleSidedLiquidity {
+            ActionMsgs::ProvideSingleSidedLiquidity {
                 asset,
                 limit,
                 expected_pool_ratio_range,
