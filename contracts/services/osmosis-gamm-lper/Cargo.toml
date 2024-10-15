@@ -25,7 +25,7 @@ valence-account-utils = { workspace = true }
 valence-osmosis-utils = { workspace = true }
 
 [dev-dependencies]
-cosmwasm-std-polytone = { package = "cosmwasm-std", version = "1.5.7" }
+cosmwasm-std-old = { package = "cosmwasm-std", version = "1.5.7" }
 cw20 = { workspace = true }
 osmosis-test-tube = { workspace = true }
 valence-osmosis-utils = { workspace = true, features = ["testing"] }

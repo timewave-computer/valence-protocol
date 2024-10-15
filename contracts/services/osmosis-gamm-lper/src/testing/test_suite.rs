@@ -19,10 +19,7 @@ use valence_osmosis_utils::{
 };
 use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 
-use crate::{
-    msg::{ActionsMsgs, LiquidityProviderConfig},
-    valence_service_integration::{OptionalServiceConfig, ServiceConfig},
-};
+use crate::msg::{ActionsMsgs, LiquidityProviderConfig, OptionalServiceConfig, ServiceConfig};
 
 const CONTRACT_PATH: &str = "../../../artifacts";
 
@@ -100,7 +97,7 @@ impl LPerTestSuite {
     pub fn query_all_balances(
         &self,
         addr: &str,
-    ) -> cosmwasm_std_polytone::StdResult<Vec<cosmwasm_std_polytone::Coin>> {
+    ) -> cosmwasm_std_old::StdResult<Vec<cosmwasm_std_old::Coin>> {
         let bank = Bank::new(&self.inner.app);
         let resp = bank
             .query_all_balances(&QueryAllBalancesRequest {
