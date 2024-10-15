@@ -28,3 +28,6 @@ valence-generic-ibc-transfer-service = { workspace = true }
 valence-neutron-ibc-transfer-service = { workspace = true }
 valence-service-utils                = { workspace = true }
 valence-splitter-service             = { workspace = true }
+valence-workflow-manager             = { workspace = true }
+valence-workflow-registry-utils      = { workspace = true }
+tokio                                = { workspace = true }
