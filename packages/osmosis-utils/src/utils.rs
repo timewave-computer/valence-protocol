@@ -1,8 +1,32 @@
-use cosmwasm_std::{Coin, CosmosMsg, StdResult};
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::{ensure, Coin, CosmosMsg, Decimal, StdResult};
 use osmosis_std::{
     cosmwasm_to_proto_coins,
     types::osmosis::gamm::v1beta1::{MsgJoinPool, MsgJoinSwapExternAmountIn},
 };
+use valence_service_utils::error::ServiceError;
+
+#[cw_serde]
+pub struct DecimalRange {
+    min: Decimal,
+    max: Decimal,
+}
+
+impl From<(Decimal, Decimal)> for DecimalRange {
+    fn from((min, max): (Decimal, Decimal)) -> Self {
+        DecimalRange { min, max }
+    }
+}
+
+impl DecimalRange {
+    pub fn contains(&self, value: Decimal) -> Result<(), ServiceError> {
+        ensure!(
+            value >= self.min && value <= self.max,
+            ServiceError::ExecutionError("Value is not within the expected range".to_string())
+        );
+        Ok(())
+    }
+}
 
 pub fn get_provide_liquidity_msg(
     input_addr: &str,

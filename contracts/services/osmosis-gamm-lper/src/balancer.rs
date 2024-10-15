@@ -11,13 +11,12 @@ use osmosis_std::{
         poolmanager::v1beta1::PoolmanagerQuerier,
     },
 };
-use valence_osmosis_utils::utils::{get_provide_liquidity_msg, get_provide_ss_liquidity_msg};
+use valence_osmosis_utils::utils::{
+    get_provide_liquidity_msg, get_provide_ss_liquidity_msg, DecimalRange,
+};
 use valence_service_utils::{error::ServiceError, execute_on_behalf_of};
 
-use crate::{
-    msg::{DecimalRange, LiquidityProviderConfig},
-    valence_service_integration::Config,
-};
+use crate::{msg::LiquidityProviderConfig, valence_service_integration::Config};
 
 pub fn provide_single_sided_liquidity(
     deps: DepsMut,

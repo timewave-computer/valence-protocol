@@ -1,9 +1,9 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{coin, Decimal};
-use valence_osmosis_utils::suite::OSMO_DENOM;
+use valence_osmosis_utils::{suite::OSMO_DENOM, utils::DecimalRange};
 
-use crate::msg::{DecimalRange, LiquidityProviderConfig};
+use crate::msg::LiquidityProviderConfig;
 
 use super::test_suite::LPerTestSuite;
 

@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{ensure, Addr, Decimal, Uint128};
+use cosmwasm_std::{Addr, Uint128};
 use cw_ownable::cw_ownable_query;
-use valence_service_utils::error::ServiceError;
+use valence_osmosis_utils::utils::DecimalRange;
 
 #[cw_serde]
 pub enum ActionsMsgs {
@@ -13,28 +13,6 @@ pub enum ActionsMsgs {
         asset: String,
         limit: Uint128,
     },
-}
-
-#[cw_serde]
-pub struct DecimalRange {
-    min: Decimal,
-    max: Decimal,
-}
-
-impl From<(Decimal, Decimal)> for DecimalRange {
-    fn from((min, max): (Decimal, Decimal)) -> Self {
-        DecimalRange { min, max }
-    }
-}
-
-impl DecimalRange {
-    pub fn contains(&self, value: Decimal) -> Result<(), ServiceError> {
-        ensure!(
-            value >= self.min && value <= self.max,
-            ServiceError::ExecutionError("Value is not within the expected range".to_string())
-        );
-        Ok(())
-    }
 }
 
 #[cw_ownable_query]

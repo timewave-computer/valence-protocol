@@ -1,25 +1,26 @@
-use std::str::FromStr;
-
 use cosmwasm_std::{coin, Coin, Uint128};
 
 use osmosis_test_tube::{
     osmosis_std::{
         try_proto_to_cosmwasm_coins,
         types::{
-            cosmos::bank::v1beta1::{MsgSend, QueryAllBalancesRequest, QueryBalanceRequest},
+            cosmos::bank::v1beta1::{MsgSend, QueryAllBalancesRequest},
             cosmwasm::wasm::v1::MsgExecuteContractResponse,
         },
     },
     Account, Bank, ExecuteResponse, Module, Wasm,
 };
-use valence_osmosis_utils::suite::{
-    approve_service, instantiate_input_account, OsmosisTestAppBuilder, OsmosisTestAppSetup,
-    OSMO_DENOM, TEST_DENOM,
+use valence_osmosis_utils::{
+    suite::{
+        approve_service, instantiate_input_account, OsmosisTestAppBuilder, OsmosisTestAppSetup,
+        OSMO_DENOM, TEST_DENOM,
+    },
+    utils::DecimalRange,
 };
 use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 
 use crate::{
-    msg::{ActionsMsgs, DecimalRange, LiquidityProviderConfig},
+    msg::{ActionsMsgs, LiquidityProviderConfig},
     valence_service_integration::{OptionalServiceConfig, ServiceConfig},
 };
 
@@ -109,24 +110,6 @@ impl LPerTestSuite {
             .unwrap();
         let bals = try_proto_to_cosmwasm_coins(resp.balances)?;
         Ok(bals)
-    }
-
-    pub fn _query_lp_token_balance(&self, addr: String) -> u128 {
-        let bank = Bank::new(&self.inner.app);
-        let resp = bank
-            .query_balance(&QueryBalanceRequest {
-                address: addr,
-                denom: self
-                    .inner
-                    .balancer_pool_cfg
-                    .pool_liquidity_token
-                    .to_string(),
-            })
-            .unwrap();
-        match resp.balance {
-            Some(c) => Uint128::from_str(&c.amount).unwrap().u128(),
-            None => 0,
-        }
     }
 
     pub fn provide_two_sided_liquidity(
