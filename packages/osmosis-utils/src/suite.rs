@@ -1,6 +1,12 @@
-use cosmwasm_std::{StdResult, Uint64};
+use cosmwasm_std::{Coin, StdResult, Uint64};
 
-use osmosis_test_tube::{Account, Module, OsmosisTestApp, SigningAccount, Wasm};
+use osmosis_test_tube::{
+    osmosis_std::{
+        try_proto_to_cosmwasm_coins,
+        types::cosmos::bank::v1beta1::{MsgSend, QueryAllBalancesRequest},
+    },
+    Account, Bank, Module, OsmosisTestApp, SigningAccount, Wasm,
+};
 
 pub const OSMO_DENOM: &str = "uosmo";
 pub const TEST_DENOM: &str = "utest";
@@ -57,8 +63,8 @@ impl OsmosisTestAppBuilder {
         let accounts = app
             .init_accounts(
                 &[
-                    cosmwasm_std_polytone::Coin::new(self.initial_balance, self.fee_denom.as_str()),
-                    cosmwasm_std_polytone::Coin::new(self.initial_balance, TEST_DENOM),
+                    cosmwasm_std_old::Coin::new(self.initial_balance, self.fee_denom.as_str()),
+                    cosmwasm_std_old::Coin::new(self.initial_balance, TEST_DENOM),
                 ],
                 self.num_accounts,
             )
@@ -118,5 +124,53 @@ impl<T: OsmosisTestPoolConfig> OsmosisTestAppSetup<T> {
             .code_id;
 
         code_id
+    }
+
+    pub fn fund_input_acc(&self, input_acc: String, with_input_bals: Vec<Coin>) {
+        let bank = Bank::new(&self.app);
+
+        for input_bal in with_input_bals {
+            bank.send(
+                MsgSend {
+                    from_address: self.owner_acc().address(),
+                    to_address: input_acc.clone(),
+                    amount: vec![
+                        osmosis_test_tube::osmosis_std::types::cosmos::base::v1beta1::Coin {
+                            denom: input_bal.denom.clone(),
+                            amount: input_bal.amount.to_string(),
+                        },
+                    ],
+                },
+                self.owner_acc(),
+            )
+            .unwrap();
+        }
+    }
+
+    pub fn store_account_contract(&self) -> u64 {
+        let wasm = Wasm::new(&self.app);
+
+        let wasm_byte_code =
+            std::fs::read(format!("{}/{}", CONTRACT_PATH, "valence_base_account.wasm")).unwrap();
+
+        wasm.store_code(&wasm_byte_code, None, self.owner_acc())
+            .unwrap()
+            .data
+            .code_id
+    }
+
+    pub fn query_all_balances(
+        &self,
+        addr: &str,
+    ) -> cosmwasm_std_old::StdResult<Vec<cosmwasm_std_old::Coin>> {
+        let bank = Bank::new(&self.app);
+        let resp = bank
+            .query_all_balances(&QueryAllBalancesRequest {
+                address: addr.to_string(),
+                pagination: None,
+            })
+            .unwrap();
+        let bals = try_proto_to_cosmwasm_coins(resp.balances)?;
+        Ok(bals)
     }
 }

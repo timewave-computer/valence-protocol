@@ -78,8 +78,8 @@ impl OsmosisTestPoolConfig for ConcentratedLiquidityPool {
                     lower_tick: -1000,
                     upper_tick: 1000,
                     tokens_provided: vec![
-                        cosmwasm_std_polytone::Coin::new(100_000_000u128, OSMO_DENOM).into(),
-                        cosmwasm_std_polytone::Coin::new(200_000_000u128, TEST_DENOM).into(),
+                        cosmwasm_std_old::Coin::new(100_000_000u128, OSMO_DENOM).into(),
+                        cosmwasm_std_old::Coin::new(200_000_000u128, TEST_DENOM).into(),
                     ],
                     token_min_amount0: "0".to_string(),
                     token_min_amount1: "0".to_string(),
