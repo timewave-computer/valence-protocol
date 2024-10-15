@@ -1,7 +1,7 @@
 use cosmwasm_std::Uint128;
 use neutron_test_tube::{
     neutron_std::types::cosmos::{
-        bank::v1beta1::{MsgSend, QueryAllBalancesRequest},
+        bank::v1beta1::{MsgSend, QueryAllBalancesRequest, QueryBalanceRequest},
         base::v1beta1::Coin as BankCoin,
     },
     Account, Bank, Module, Wasm,
@@ -688,23 +688,41 @@ fn provide_single_sided_liquidity_cw20_lp_token() {
 fn test_limit_single_sided_liquidity() {
     let setup = LPerTestSuite::default();
     let wasm = Wasm::new(&setup.inner.app);
+    let bank = Bank::new(&setup.inner.app);
 
-    let error = wasm
-        .execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
-            &setup.lper_addr,
-            &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideSingleSidedLiquidity {
-                asset: setup.inner.pool_asset1.clone(),
-                limit: Some(Uint128::new(1)),
-                expected_pool_ratio_range: None,
-            }),
-            &[],
-            setup.inner.processor_acc(),
-        )
-        .unwrap_err();
+    let query_balance = |address: &str| -> u128 {
+        bank.query_balance(&QueryBalanceRequest {
+            address: address.to_string(),
+            denom: setup.inner.pool_asset1.clone(),
+        })
+        .unwrap()
+        .balance
+        .unwrap()
+        .amount
+        .parse()
+        .unwrap()
+    };
 
-    assert!(error.to_string().contains(
-        ServiceError::ExecutionError("Asset amount is greater than the limit".to_string())
-            .to_string()
-            .as_str(),
-    ),);
+    let input_acc_balance_before = query_balance(&setup.input_acc);
+
+    let liquidity_provided = 500_000u128;
+
+    wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
+        &setup.lper_addr,
+        &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideSingleSidedLiquidity {
+            asset: setup.inner.pool_asset1.clone(),
+            limit: Some(Uint128::new(liquidity_provided)),
+            expected_pool_ratio_range: None,
+        }),
+        &[],
+        setup.inner.processor_acc(),
+    )
+    .unwrap();
+
+    let input_acc_balance_after = query_balance(&setup.input_acc);
+
+    assert_eq!(
+        input_acc_balance_before - liquidity_provided,
+        input_acc_balance_after
+    );
 }
