@@ -1,12 +1,7 @@
-use std::str::FromStr;
-
-use cosmwasm_std::{Coin, CosmosMsg, Decimal, DepsMut, StdError, StdResult, Uint128};
+use cosmwasm_std::{Coin, CosmosMsg, StdResult};
 use osmosis_std::{
     cosmwasm_to_proto_coins,
-    types::osmosis::{
-        gamm::v1beta1::{MsgJoinPool, MsgJoinSwapExternAmountIn, Pool},
-        poolmanager::v1beta1::{PoolResponse, PoolmanagerQuerier},
-    },
+    types::osmosis::gamm::v1beta1::{MsgJoinPool, MsgJoinSwapExternAmountIn},
 };
 
 pub fn get_provide_liquidity_msg(
@@ -15,11 +10,13 @@ pub fn get_provide_liquidity_msg(
     provision_coins: Vec<Coin>,
     share_out_amt: String,
 ) -> StdResult<CosmosMsg> {
+    let tokens_in_proto = cosmwasm_to_proto_coins(provision_coins);
+
     let msg_join_pool_no_swap: CosmosMsg = MsgJoinPool {
         sender: input_addr.to_string(),
         pool_id,
         share_out_amount: share_out_amt,
-        token_in_maxs: cosmwasm_to_proto_coins(provision_coins),
+        token_in_maxs: tokens_in_proto,
     }
     .into();
 
@@ -45,50 +42,35 @@ pub fn get_provide_ss_liquidity_msg(
     Ok(msg_join_pool_yes_swap)
 }
 
-pub fn query_pool_pm(deps: &DepsMut, pool_id: u64) -> StdResult<Pool> {
-    let pool_manager = PoolmanagerQuerier::new(&deps.querier);
-    let pool_query_response: PoolResponse = pool_manager.pool(pool_id)?;
+// pub fn get_pool_ratio(pool: Pool, asset_1: String, asset_2: String) -> StdResult<Decimal> {
+//     let (mut asset1_balance, mut asset2_balance) = (Uint128::zero(), Uint128::zero());
 
-    let matched_pool: Pool = match pool_query_response.pool {
-        Some(any_pool) => any_pool
-            .try_into()
-            .map_err(|_| StdError::generic_err("failed to decode proto"))?,
-        None => return Err(StdError::generic_err("pool not found")),
-    };
-    deps.api
-        .debug(&format!("pool response: {:?}", matched_pool));
-    Ok(matched_pool)
-}
+//     for asset in pool.pool_assets {
+//         match asset.token {
+//             Some(c) => {
+//                 // let cw_coin = try_proto_to_cosmwasm_coins(vec![c])?;
+//                 let coin = Coin {
+//                     denom: c.denom,
+//                     amount: Uint128::from_str(c.amount.as_str())?,
+//                 };
+//                 if coin.denom == asset_1 {
+//                     asset1_balance = coin.amount;
+//                 } else if coin.denom == asset_2 {
+//                     asset2_balance = coin.amount;
+//                 }
+//             }
+//             None => continue,
+//         }
+//     }
 
-pub fn get_pool_ratio(pool: Pool, asset_1: String, asset_2: String) -> StdResult<Decimal> {
-    let (mut asset1_balance, mut asset2_balance) = (Uint128::zero(), Uint128::zero());
+//     if asset1_balance.is_zero() || asset2_balance.is_zero() {
+//         return Err(StdError::generic_err("pool does not contain both assets"));
+//     }
 
-    for asset in pool.pool_assets {
-        match asset.token {
-            Some(c) => {
-                // let cw_coin = try_proto_to_cosmwasm_coins(vec![c])?;
-                let coin = Coin {
-                    denom: c.denom,
-                    amount: Uint128::from_str(c.amount.as_str())?,
-                };
-                if coin.denom == asset_1 {
-                    asset1_balance = coin.amount;
-                } else if coin.denom == asset_2 {
-                    asset2_balance = coin.amount;
-                }
-            }
-            None => continue,
-        }
-    }
+//     Ok(Decimal::from_ratio(asset1_balance, asset2_balance))
+// }
 
-    if asset1_balance.is_zero() || asset2_balance.is_zero() {
-        return Err(StdError::generic_err("pool does not contain both assets"));
-    }
-
-    Ok(Decimal::from_ratio(asset1_balance, asset2_balance))
-}
-
-pub fn query_pool_asset_balance(deps: &DepsMut, input_addr: &str, asset: &str) -> StdResult<Coin> {
-    let asset_balance = deps.querier.query_balance(input_addr, asset)?;
-    Ok(asset_balance)
-}
+// pub fn query_pool_asset_balance(deps: &DepsMut, input_addr: &str, asset: &str) -> StdResult<Coin> {
+//     let asset_balance = deps.querier.query_balance(input_addr, asset)?;
+//     Ok(asset_balance)
+// }

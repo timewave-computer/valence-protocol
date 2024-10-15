@@ -1,5 +1,5 @@
 use crate::msg::{
-    ActionMsgs, Config, QueryMsg, RatioConfig, ServiceConfig, SplitConfig, UncheckedSplitConfig,
+    ActionMsgs, Config, QueryMsg, ServiceConfig, SplitAmount, SplitConfig, UncheckedSplitConfig,
 };
 use cosmwasm_std::{coin, Addr, Coin, Decimal};
 use cw20::Cw20Coin;
@@ -7,9 +7,8 @@ use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executo
 use cw_ownable::Ownership;
 use getset::{Getters, Setters};
 use valence_service_utils::{
-    denoms::{CheckedDenom, UncheckedDenom},
-    msg::ExecuteMsg,
-    msg::InstantiateMsg,
+    denoms::CheckedDenom,
+    msg::{ExecuteMsg, InstantiateMsg},
     testing::{ServiceTestSuite, ServiceTestSuiteBase},
 };
 
@@ -111,7 +110,7 @@ impl SplitterTestSuite {
     }
 
     fn splitter_config(&self, splits: Vec<UncheckedSplitConfig>) -> ServiceConfig {
-        ServiceConfig::new(self.input_addr.to_string(), splits)
+        ServiceConfig::new(self.input_addr(), splits)
     }
 
     fn cw20_token_init(&mut self, name: &str, symbol: &str, amount: u128, addr: String) -> Addr {
@@ -204,8 +203,7 @@ fn instantiate_with_valid_single_split() {
             vec![SplitConfig::new(
                 CheckedDenom::Native(NTRN.into()),
                 output_addr,
-                Some(ONE_MILLION.into()),
-                None,
+                SplitAmount::FixedAmount(ONE_MILLION.into()),
             )],
         )
     );
@@ -225,29 +223,7 @@ fn instantiate_fails_for_no_split_config() {
 
 #[test]
 #[should_panic(
-    expected = "Configuration error: Invalid split config: should specify either an amount or a ratio."
-)]
-fn instantiate_fails_for_invalid_split_config() {
-    let mut suite = SplitterTestSuite::default();
-
-    let output_addr = suite.api().addr_make("output_account");
-
-    // Configure splitter with invalid split config
-    let split_cfg = UncheckedSplitConfig::new(
-        UncheckedDenom::Native(NTRN.into()),
-        &output_addr,
-        None,
-        None,
-    );
-    let cfg = suite.splitter_config(vec![split_cfg]);
-
-    // Instantiate Splitter contract
-    suite.splitter_init(&cfg);
-}
-
-#[test]
-#[should_panic(
-    expected = "Configuration error: Duplicate split 'Native(\"untrn\")|AccountAddr(\"cosmwasm1ea6n0jqm0hj663khx7a5xklsmjgrazjp9vjeewejn84sanr0wgxq2p70xl\")' in split config."
+    expected = "Configuration error: Duplicate split 'Native(\"untrn\")|Addr(\"cosmwasm1ea6n0jqm0hj663khx7a5xklsmjgrazjp9vjeewejn84sanr0wgxq2p70xl\")' in split config."
 )]
 fn instantiate_fails_for_duplicate_split() {
     let mut suite = SplitterTestSuite::default();
@@ -257,6 +233,36 @@ fn instantiate_fails_for_duplicate_split() {
     // Configure splitter with duplicate split config
     let split_cfg = UncheckedSplitConfig::with_native_amount(ONE_MILLION, NTRN, &output_addr);
     let cfg = suite.splitter_config(vec![split_cfg.clone(), split_cfg]);
+
+    // Instantiate Splitter contract
+    suite.splitter_init(&cfg);
+}
+
+#[test]
+#[should_panic(expected = "Configuration error: Invalid split config: amount cannot be zero.")]
+fn instantiate_fails_for_zero_amount() {
+    let mut suite = SplitterTestSuite::default();
+
+    let input_addr = suite.account_init("input_account", vec![]);
+
+    // Configure splitter with invalid split config
+    let split_cfg = UncheckedSplitConfig::with_native_amount(ZERO, NTRN, &input_addr);
+    let cfg = suite.splitter_config(vec![split_cfg]);
+
+    // Instantiate Splitter contract
+    suite.splitter_init(&cfg);
+}
+
+#[test]
+#[should_panic(expected = "Configuration error: Invalid split config: ratio cannot be zero.")]
+fn instantiate_fails_for_zero_ratio() {
+    let mut suite = SplitterTestSuite::default();
+
+    let input_addr = suite.account_init("input_account", vec![]);
+
+    // Configure splitter with invalid split config
+    let split_cfg = UncheckedSplitConfig::with_native_ratio(Decimal::zero(), NTRN, &input_addr);
+    let cfg = suite.splitter_config(vec![split_cfg]);
 
     // Instantiate Splitter contract
     suite.splitter_init(&cfg);
@@ -351,7 +357,8 @@ fn update_config_with_valid_config() {
         STARS,
         &suite.input_addr,
     ));
-    cfg.input_addr = output_addr.to_string();
+
+    cfg.input_addr = (&output_addr).into();
 
     // Execute update config action
     suite.update_config(svc.clone(), cfg).unwrap();
@@ -366,14 +373,12 @@ fn update_config_with_valid_config() {
                 SplitConfig::new(
                     CheckedDenom::Native(NTRN.into()),
                     output_addr,
-                    Some(ONE_MILLION.into()),
-                    None,
+                    SplitAmount::FixedAmount(ONE_MILLION.into()),
                 ),
                 SplitConfig::new(
                     CheckedDenom::Native(STARS.into()),
                     suite.input_addr().clone(),
-                    None,
-                    Some(RatioConfig::FixedRatio(Decimal::percent(10u64))),
+                    SplitAmount::FixedRatio(Decimal::percent(10u64)),
                 )
             ],
         )

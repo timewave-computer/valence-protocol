@@ -1,18 +1,20 @@
 pub mod cosmos_cw;
 // pub mod cosmos_evm;
+
 use std::fmt;
 
+use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 use cosmos_cw::{CosmosCosmwasmConnector, CosmosCosmwasmError};
+
 use serde::{Deserialize, Serialize};
+
 // use cosmos_evm::CosmosEvmError;
-use strum::Display;
 use thiserror::Error;
+use valence_authorization_utils::authorization::AuthorizationInfo;
 
 use crate::{
-    account::InstantiateAccountData,
-    config::{ConfigError, CONFIG},
-    service::ServiceConfig,
+    account::InstantiateAccountData, config::ConfigError, service::ServiceConfig,
     workflow_config::WorkflowConfig,
 };
 
@@ -33,14 +35,49 @@ pub enum ConnectorError {
 
 /// We need some way of knowing which domain we are talking with
 /// chain connection, execution, bridges for authorization.
-#[derive(Debug, Display, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
 pub enum Domain {
-    CosmosCosmwasm(&'static str),
-    // CosmosEvm(&'static str),
+    CosmosCosmwasm(String),
+    // CosmosEvm(String),
     // Solana
 }
 
+impl fmt::Display for Domain {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // IMPORTANT: to get from_string, we need to separate everything using ":"
+        match self {
+            Domain::CosmosCosmwasm(chain_name) => write!(f, "CosmosCosmwasm:{}", chain_name),
+            // Domain::CosmosEvm(chain_name) => write!(f, "CosmosEvm:{}", chain_name),
+        }
+    }
+}
+
 impl Domain {
+    pub fn from_string(input: String) -> Result<Domain, anyhow::Error> {
+        let mut split = input.split(':');
+
+        let domain = split.next().context("Domain is missing")?;
+
+        match domain {
+            "CosmosCosmwasm" => Ok(Domain::CosmosCosmwasm(
+                split
+                    .next()
+                    .context("CosmosCosmwasm Domain missing chain name")?
+                    .to_string(),
+            )),
+            // "CosmosEvm" => Ok(Domain::CosmosEvm(
+            //     split
+            //         .next()
+            //         .context("CosmosCosmwasm Domain missing chain name")?
+            //         .to_string(),
+            // )),
+            s => Err(anyhow!(format!(
+                "Failed to parse domain from string: {}",
+                s
+            ))),
+        }
+    }
+
     pub fn get_chain_name(&self) -> &str {
         match self {
             Domain::CosmosCosmwasm(chain_name) => chain_name,
@@ -50,14 +87,13 @@ impl Domain {
 
     pub async fn generate_connector(&self) -> ConnectorResult<Box<dyn Connector>> {
         Ok(match self {
-            Domain::CosmosCosmwasm(chain_name) => Box::new(
-                CosmosCosmwasmConnector::new(
-                    CONFIG.get_chain_info(chain_name)?,
-                    CONFIG.get_code_ids(chain_name)?,
-                )
-                .await?,
-            ),
-            // Domain::CosmosEvm(_) => Box::new(CosmosEvmConnector::new().await?),
+            Domain::CosmosCosmwasm(chain_name) => {
+                Box::new(CosmosCosmwasmConnector::new(chain_name.as_str()).await?)
+            } // Domain::CosmosEvm(_) => {
+              //     return Err(ConnectorError::ConfigError(
+              //         ConfigError::ChainBridgeNotFound("test".to_string()),
+              //     ))
+              // }
         })
     }
 }
@@ -86,7 +122,7 @@ pub trait Connector: fmt::Debug + Send + Sync {
     async fn instantiate_account(
         &mut self,
         workflow_id: u64,
-        auth_addr: String,
+        processor_addr: String,
         data: &InstantiateAccountData,
     ) -> ConnectorResult<()>;
 
@@ -95,7 +131,7 @@ pub trait Connector: fmt::Debug + Send + Sync {
         &mut self,
         workflow_id: u64,
         auth_addr: String,
-        processor_bridge_addr: String,
+        processor_addr: String,
         service_id: u64,
         service_config: ServiceConfig,
         salt: Vec<u8>,
@@ -162,6 +198,16 @@ pub trait Connector: fmt::Debug + Send + Sync {
         unimplemented!("'instantiate_authorization' should only be implemented on main domain");
     }
 
+    /// Add authorizations to the authorization contract
+    #[allow(unused_variables)]
+    async fn add_authorizations(
+        &mut self,
+        authorization_addr: String,
+        authorizations: Vec<AuthorizationInfo>,
+    ) -> ConnectorResult<()> {
+        unimplemented!("'add_authorizations' should only be implemented on main domain");
+    }
+
     /// We need to instantiate the bridge accounts for the authorization contract on all other domains
     /// There are 2 things we need to here:
     /// 1. Instantiate the bridge account
@@ -209,7 +255,6 @@ pub trait Connector: fmt::Debug + Send + Sync {
     #[allow(unused_variables)]
     async fn query_workflow_registry(
         &mut self,
-        main_domain: &str,
         id: u64,
     ) -> ConnectorResult<valence_workflow_registry_utils::WorkflowResponse> {
         unimplemented!("'query_workflow_registry' should only be implemented on neutron domain");

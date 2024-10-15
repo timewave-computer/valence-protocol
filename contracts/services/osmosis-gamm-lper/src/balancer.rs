@@ -11,9 +11,7 @@ use osmosis_std::{
         poolmanager::v1beta1::PoolmanagerQuerier,
     },
 };
-use valence_osmosis_utils::utils::{
-    get_provide_liquidity_msg, get_provide_ss_liquidity_msg, query_pool_asset_balance,
-};
+use valence_osmosis_utils::utils::{get_provide_liquidity_msg, get_provide_ss_liquidity_msg};
 use valence_service_utils::{error::ServiceError, execute_on_behalf_of};
 
 use crate::{
@@ -29,8 +27,7 @@ pub fn provide_single_sided_liquidity(
     expected_spot_price: Option<DecimalRange>,
 ) -> Result<Response, ServiceError> {
     // first we assert the input account balance
-    let input_acc_asset_bal = query_pool_asset_balance(&deps, cfg.input_addr.as_str(), &asset)?;
-
+    let input_acc_asset_bal = deps.querier.query_balance(&cfg.input_addr, &asset)?;
     let pm_querier = PoolmanagerQuerier::new(&deps.querier);
     let pool = pm_querier.get_pool_response(&cfg.lp_config)?;
     let pool_ratio = pm_querier.query_spot_price(&cfg.lp_config)?;
