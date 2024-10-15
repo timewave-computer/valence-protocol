@@ -4,6 +4,7 @@ use osmosis_test_tube::{Account, Module, OsmosisTestApp, SigningAccount, Wasm};
 
 pub const OSMO_DENOM: &str = "uosmo";
 pub const TEST_DENOM: &str = "utest";
+pub const CONTRACT_PATH: &str = "../../../artifacts";
 
 pub struct OsmosisTestAppSetup<T: OsmosisTestPoolConfig> {
     pub app: OsmosisTestApp,
@@ -16,6 +17,7 @@ pub trait OsmosisTestPoolConfig: Sized {
     fn pool_asset_1(&self) -> String;
     fn pool_asset_2(&self) -> String;
     fn setup_pool(app: &OsmosisTestApp, creator: &SigningAccount) -> StdResult<Self>;
+    fn get_contract_name() -> String;
 }
 
 impl<T: OsmosisTestPoolConfig> OsmosisTestAppSetup<T> {
@@ -72,40 +74,49 @@ impl OsmosisTestAppBuilder {
     }
 }
 
-pub fn approve_service<T: OsmosisTestPoolConfig>(
-    setup: &OsmosisTestAppSetup<T>,
-    account_addr: String,
-    service_addr: String,
-) {
-    let wasm = Wasm::new(&setup.app);
-    wasm.execute::<valence_account_utils::msg::ExecuteMsg>(
-        &account_addr,
-        &valence_account_utils::msg::ExecuteMsg::ApproveService {
-            service: service_addr,
-        },
-        &[],
-        setup.owner_acc(),
-    )
-    .unwrap();
-}
+impl<T: OsmosisTestPoolConfig> OsmosisTestAppSetup<T> {
+    pub fn approve_service(&self, account_addr: String, service_addr: String) {
+        let wasm = Wasm::new(&self.app);
+        wasm.execute::<valence_account_utils::msg::ExecuteMsg>(
+            &account_addr,
+            &valence_account_utils::msg::ExecuteMsg::ApproveService {
+                service: service_addr,
+            },
+            &[],
+            self.owner_acc(),
+        )
+        .unwrap();
+    }
 
-pub fn instantiate_input_account<T: OsmosisTestPoolConfig>(
-    code_id: u64,
-    setup: &OsmosisTestAppSetup<T>,
-) -> String {
-    let wasm = Wasm::new(&setup.app);
-    wasm.instantiate(
-        code_id,
-        &valence_account_utils::msg::InstantiateMsg {
-            admin: setup.owner_acc().address(),
-            approved_services: vec![],
-        },
-        None,
-        Some("base_account"),
-        &[],
-        setup.owner_acc(),
-    )
-    .unwrap()
-    .data
-    .address
+    pub fn instantiate_input_account(&self, code_id: u64) -> String {
+        let wasm = Wasm::new(&self.app);
+        wasm.instantiate(
+            code_id,
+            &valence_account_utils::msg::InstantiateMsg {
+                admin: self.owner_acc().address(),
+                approved_services: vec![],
+            },
+            None,
+            Some("base_account"),
+            &[],
+            self.owner_acc(),
+        )
+        .unwrap()
+        .data
+        .address
+    }
+
+    pub fn store_contract(&self) -> u64 {
+        let filename = T::get_contract_name();
+        let wasm = Wasm::new(&self.app);
+        let wasm_byte_code = std::fs::read(format!("{}/{}", CONTRACT_PATH, filename)).unwrap();
+
+        let code_id = wasm
+            .store_code(&wasm_byte_code, None, self.owner_acc())
+            .unwrap()
+            .data
+            .code_id;
+
+        code_id
+    }
 }

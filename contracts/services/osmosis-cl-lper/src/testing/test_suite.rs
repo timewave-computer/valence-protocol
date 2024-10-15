@@ -11,18 +11,13 @@ use osmosis_test_tube::{
     Account, Bank, ExecuteResponse, Module, Wasm,
 };
 use valence_osmosis_utils::{
-    suite::{
-        approve_service, instantiate_input_account, OsmosisTestAppBuilder, OsmosisTestAppSetup,
-        OSMO_DENOM, TEST_DENOM,
-    },
+    suite::{OsmosisTestAppBuilder, OsmosisTestAppSetup, CONTRACT_PATH, OSMO_DENOM, TEST_DENOM},
     testing::concentrated_liquidity::ConcentratedLiquidityPool,
     utils::DecimalRange,
 };
 use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 
 use crate::msg::{ActionsMsgs, LiquidityProviderConfig, OptionalServiceConfig, ServiceConfig};
-
-const CONTRACT_PATH: &str = "../../../artifacts";
 
 pub struct LPerTestSuite {
     pub inner: OsmosisTestAppSetup<ConcentratedLiquidityPool>,
@@ -45,7 +40,8 @@ impl Default for LPerTestSuite {
 
 impl LPerTestSuite {
     pub fn new(with_input_bals: Vec<Coin>, lp_config: Option<LiquidityProviderConfig>) -> Self {
-        let inner = OsmosisTestAppBuilder::new().build().unwrap();
+        let inner: OsmosisTestAppSetup<ConcentratedLiquidityPool> =
+            OsmosisTestAppBuilder::new().build().unwrap();
 
         // Create two base accounts
         let wasm = Wasm::new(&inner.app);
@@ -59,13 +55,39 @@ impl LPerTestSuite {
             .data
             .code_id;
 
-        let input_acc = instantiate_input_account(code_id, &inner);
-        let output_acc = instantiate_input_account(code_id, &inner);
-        let lper_addr =
-            instantiate_lper_contract(&inner, input_acc.clone(), output_acc.clone(), lp_config);
+        let input_acc = inner.instantiate_input_account(code_id);
+        let output_acc = inner.instantiate_input_account(code_id);
+        let code_id = inner.store_contract();
+
+        let instantiate_msg = InstantiateMsg {
+            owner: inner.owner_acc().address(),
+            processor: inner.processor_acc().address(),
+            config: ServiceConfig::new(
+                input_acc.as_str(),
+                output_acc.as_str(),
+                lp_config.unwrap_or(LiquidityProviderConfig {
+                    pool_id: inner.pool_cfg.pool_id.u64(),
+                    pool_asset_1: inner.pool_cfg.pool_asset_1.to_string(),
+                    pool_asset_2: inner.pool_cfg.pool_asset_2.to_string(),
+                }),
+            ),
+        };
+
+        let lper_addr = wasm
+            .instantiate(
+                code_id,
+                &instantiate_msg,
+                None,
+                Some("lper"),
+                &[],
+                inner.owner_acc(),
+            )
+            .unwrap()
+            .data
+            .address;
 
         // Approve the service for the input account
-        approve_service(&inner, input_acc.clone(), lper_addr.clone());
+        inner.approve_service(input_acc.clone(), lper_addr.clone());
 
         // Give some tokens to the input account so that it can provide liquidity
         let bank = Bank::new(&inner.app);
@@ -93,21 +115,6 @@ impl LPerTestSuite {
             input_acc,
             output_acc,
         }
-    }
-
-    pub fn query_all_balances(
-        &self,
-        addr: &str,
-    ) -> cosmwasm_std_old::StdResult<Vec<cosmwasm_std_old::Coin>> {
-        let bank = Bank::new(&self.inner.app);
-        let resp = bank
-            .query_all_balances(&QueryAllBalancesRequest {
-                address: addr.to_string(),
-                pagination: None,
-            })
-            .unwrap();
-        let bals = try_proto_to_cosmwasm_coins(resp.balances)?;
-        Ok(bals)
     }
 
     pub fn provide_two_sided_liquidity(
@@ -141,52 +148,4 @@ impl LPerTestSuite {
         )
         .unwrap()
     }
-}
-
-fn instantiate_lper_contract(
-    setup: &OsmosisTestAppSetup<ConcentratedLiquidityPool>,
-    input_acc: String,
-    output_acc: String,
-    lp_config: Option<LiquidityProviderConfig>,
-) -> String {
-    let wasm = Wasm::new(&setup.app);
-    let wasm_byte_code = std::fs::read(format!(
-        "{}/{}",
-        CONTRACT_PATH, "valence_osmosis_gamm_lper.wasm"
-    ))
-    .unwrap();
-
-    let code_id = wasm
-        .store_code(&wasm_byte_code, None, setup.owner_acc())
-        .unwrap()
-        .data
-        .code_id;
-
-    let pool_id = setup.pool_cfg.pool_id.u64();
-
-    let instantiate_msg = InstantiateMsg {
-        owner: setup.owner_acc().address(),
-        processor: setup.processor_acc().address(),
-        config: ServiceConfig::new(
-            input_acc.as_str(),
-            output_acc.as_str(),
-            lp_config.unwrap_or(LiquidityProviderConfig {
-                pool_id,
-                pool_asset_1: setup.pool_cfg.pool_asset_1.to_string(),
-                pool_asset_2: setup.pool_cfg.pool_asset_2.to_string(),
-            }),
-        ),
-    };
-
-    wasm.instantiate(
-        code_id,
-        &instantiate_msg,
-        None,
-        Some("lper"),
-        &[],
-        setup.owner_acc(),
-    )
-    .unwrap()
-    .data
-    .address
 }

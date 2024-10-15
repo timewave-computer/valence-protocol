@@ -8,7 +8,7 @@ use cw_ownable::cw_ownable_query;
 use osmosis_std::types::osmosis::{gamm::v1beta1::Pool, poolmanager::v1beta1::PoolmanagerQuerier};
 
 use valence_macros::OptionalStruct;
-use valence_osmosis_utils::utils::DecimalRange;
+use valence_osmosis_utils::utils::{DecimalRange, LiquidityProviderConfig};
 use valence_service_utils::{
     error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType, ServiceConfigInterface,
 };
@@ -32,13 +32,6 @@ pub enum QueryMsg {
     GetProcessor {},
     #[returns(Config)]
     GetServiceConfig {},
-}
-
-#[cw_serde]
-pub struct LiquidityProviderConfig {
-    pub pool_id: u64,
-    pub pool_asset_1: String,
-    pub pool_asset_2: String,
 }
 
 pub trait ValenceLiquidPooler {
