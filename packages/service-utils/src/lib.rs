@@ -72,13 +72,6 @@ impl ServiceAccountType {
 
 // This is a helper function to execute a CosmosMsg on behalf of an account
 pub fn execute_on_behalf_of(msgs: Vec<CosmosMsg>, account: &Addr) -> StdResult<CosmosMsg> {
-    let msgs = msgs
-        .into_iter()
-        .map(|m| {
-            m.change_custom::<_>()
-                .ok_or_else(|| StdError::generic_err("Failed to change custom message"))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
     Ok(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: account.to_string(),
         msg: to_json_binary(&valence_account_utils::msg::ExecuteMsg::ExecuteMsg { msgs })?,

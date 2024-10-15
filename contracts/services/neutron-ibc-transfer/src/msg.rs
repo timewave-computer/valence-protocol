@@ -14,7 +14,6 @@ use valence_service_utils::{
 #[cw_serde]
 pub enum ActionsMsgs {
     IbcTransfer {},
-    RefundDust {},
 }
 
 #[cw_ownable_query]
