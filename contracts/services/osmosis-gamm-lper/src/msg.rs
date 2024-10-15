@@ -1,11 +1,34 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128};
+use cosmwasm_std::{ensure, Addr, Decimal, Uint128};
 use cw_ownable::cw_ownable_query;
+use valence_service_utils::error::ServiceError;
 
 #[cw_serde]
 pub enum ActionsMsgs {
-    ProvideDoubleSidedLiquidity {},
-    ProvideSingleSidedLiquidity { asset: String, limit: Uint128 },
+    ProvideDoubleSidedLiquidity {
+        expected_spot_price: Option<DecimalRange>,
+    },
+    ProvideSingleSidedLiquidity {
+        expected_spot_price: Option<DecimalRange>,
+        asset: String,
+        limit: Uint128,
+    },
+}
+
+#[cw_serde]
+pub struct DecimalRange {
+    min: Decimal,
+    max: Decimal,
+}
+
+impl DecimalRange {
+    pub fn is_within_range(&self, value: Decimal) -> Result<(), ServiceError> {
+        ensure!(
+            value >= self.min && value <= self.max,
+            ServiceError::ExecutionError("Value is not within the expected range".to_string())
+        );
+        Ok(())
+    }
 }
 
 #[cw_ownable_query]

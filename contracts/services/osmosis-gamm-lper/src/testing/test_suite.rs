@@ -16,7 +16,7 @@ use valence_osmosis_utils::suite::{
 use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 
 use crate::{
-    msg::{ActionsMsgs, LiquidityProviderConfig},
+    msg::{ActionsMsgs, DecimalRange, LiquidityProviderConfig},
     valence_service_integration::{OptionalServiceConfig, ServiceConfig},
 };
 
@@ -101,7 +101,6 @@ impl LPerTestSuite {
             })
             .unwrap();
         let bals = try_proto_to_cosmwasm_coins(resp.balances)?;
-        println!("{addr} acc bals: {:?}", bals);
         Ok(bals)
     }
 
@@ -123,24 +122,32 @@ impl LPerTestSuite {
         }
     }
 
-    pub fn provide_two_sided_liquidity(&self) {
+    pub fn provide_two_sided_liquidity(&self, expected_spot_price: Option<DecimalRange>) {
         let wasm = Wasm::new(&self.inner.app);
 
         wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
             &self.lper_addr,
-            &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideDoubleSidedLiquidity {}),
+            &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideDoubleSidedLiquidity {
+                expected_spot_price,
+            }),
             &[],
             self.inner.processor_acc(),
         )
         .unwrap();
     }
 
-    pub fn provide_single_sided_liquidity(&self, asset: &str, limit: Uint128) {
+    pub fn provide_single_sided_liquidity(
+        &self,
+        asset: &str,
+        limit: Uint128,
+        expected_spot_price: Option<DecimalRange>,
+    ) {
         let wasm = Wasm::new(&self.inner.app);
 
         wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
             &self.lper_addr,
             &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideSingleSidedLiquidity {
+                expected_spot_price,
                 asset: asset.to_string(),
                 limit,
             }),

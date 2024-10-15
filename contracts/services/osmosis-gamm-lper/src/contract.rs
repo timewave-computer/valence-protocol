@@ -54,12 +54,14 @@ pub fn process_action(
     cfg: Config,
 ) -> Result<Response, ServiceError> {
     match msg {
-        ActionsMsgs::ProvideDoubleSidedLiquidity {} => {
-            balancer::provide_double_sided_liquidity(deps, cfg)
-        }
-        ActionsMsgs::ProvideSingleSidedLiquidity { asset, limit } => {
-            balancer::provide_single_sided_liquidity(deps, cfg, asset, limit)
-        }
+        ActionsMsgs::ProvideDoubleSidedLiquidity {
+            expected_spot_price,
+        } => balancer::provide_double_sided_liquidity(deps, cfg),
+        ActionsMsgs::ProvideSingleSidedLiquidity {
+            asset,
+            limit,
+            expected_spot_price,
+        } => balancer::provide_single_sided_liquidity(deps, cfg, asset, limit),
     }
 }
 
