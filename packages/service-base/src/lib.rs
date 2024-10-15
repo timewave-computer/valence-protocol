@@ -8,7 +8,7 @@ use valence_service_utils::{
     error::ServiceError,
     msg::{ExecuteMsg, InstantiateMsg, ServiceConfigValidation},
     raw_config::save_raw_service_config,
-    OptionalServiceConfigTrait,
+    ServiceConfigUpdateTrait,
 };
 
 pub mod helpers;
@@ -53,7 +53,7 @@ pub fn execute<T, U, V>(
 ) -> Result<Response, ServiceError>
 where
     U: Serialize + DeserializeOwned,
-    V: OptionalServiceConfigTrait + Serialize + DeserializeOwned,
+    V: ServiceConfigUpdateTrait + Serialize + DeserializeOwned,
 {
     match msg {
         ExecuteMsg::ProcessAction(action) => {

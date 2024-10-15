@@ -4,7 +4,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Decimal, Deps, DepsMut, Uint128};
 use cw_ownable::cw_ownable_query;
 use getset::{Getters, Setters};
-use valence_macros::{valence_service_query, OptionalStruct};
+use valence_macros::{valence_service_query, ValenceServiceInterface};
 use valence_service_utils::denoms::CheckedDenom;
 use valence_service_utils::ServiceAccountType;
 use valence_service_utils::{
@@ -149,7 +149,7 @@ impl UncheckedSplitConfig {
 }
 
 #[cw_serde]
-#[derive(OptionalStruct)]
+#[derive(ValenceServiceInterface)]
 pub struct ServiceConfig {
     pub input_addr: ServiceAccountType,
     pub splits: Vec<UncheckedSplitConfig>,
@@ -229,7 +229,7 @@ fn convert_to_checked_split_amount(
     }
 }
 
-impl OptionalServiceConfig {
+impl ServiceConfigUpdate {
     pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
         // First update input_addr (if needed)
         if let Some(input_addr) = self.input_addr {

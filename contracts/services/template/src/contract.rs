@@ -6,7 +6,7 @@ use valence_service_utils::{
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
-use crate::msg::{ActionsMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig};
+use crate::msg::{ActionsMsgs, Config, ServiceConfigUpdate, QueryMsg, ServiceConfig};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -27,7 +27,7 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg<ActionsMsgs, OptionalServiceConfig>,
+    msg: ExecuteMsg<ActionsMsgs, ServiceConfigUpdate>,
 ) -> Result<Response, ServiceError> {
     valence_service_base::execute(
         deps,
@@ -62,14 +62,14 @@ mod execute {
     use cosmwasm_std::{DepsMut, Env, MessageInfo};
     use valence_service_utils::error::ServiceError;
 
-    use crate::msg::{Config, OptionalServiceConfig};
+    use crate::msg::{Config, ServiceConfigUpdate};
 
     pub fn update_config(
         deps: &DepsMut,
         _env: Env,
         _info: MessageInfo,
         config: &mut Config,
-        new_config: OptionalServiceConfig,
+        new_config: ServiceConfigUpdate,
     ) -> Result<(), ServiceError> {
         new_config.update_config(deps, config)
     }

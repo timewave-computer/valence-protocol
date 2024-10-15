@@ -2,15 +2,14 @@ use std::num::ParseIntError;
 
 use aho_corasick::AhoCorasick;
 
-use cosmwasm_std::{from_json, to_json_binary, Binary, StdResult};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::to_vec;
 use strum::VariantNames;
 use thiserror::Error;
 
 use valence_service_utils::{
     msg::{InstantiateMsg, ServiceConfigValidation},
-    Id, ServiceConfigInterface,
+    Id,
 };
 
 use crate::domain::Domain;
@@ -63,47 +62,9 @@ impl Default for ServiceConfig {
     }
 }
 
-pub fn get_diff<O: Serialize + DeserializeOwned>(
-    service_config: ServiceConfig,
-    other_service_config: ServiceConfig,
-) -> StdResult<Option<O>> {
-    service_config
-        .get_diff(&other_service_config)
-        .unwrap()
-        .map(from_json::<O>)
-        .transpose()
-}
-
 // TODO: create macro for the methods that work the same over all of the configs
 // We are delegating a lot of the methods to the specific config, so most of the methods can be under the macro
 impl ServiceConfig {
-    pub fn get_diff(&self, other: &ServiceConfig) -> ServiceResult<Option<Binary>> {
-        match (self, other) {
-            (
-                ServiceConfig::ValenceForwarderService(config),
-                ServiceConfig::ValenceForwarderService(other_config),
-            ) => Ok(config
-                .get_diff(other_config)
-                .map(|r| to_json_binary(&r).unwrap())),
-            (
-                ServiceConfig::ValenceSplitterService(config),
-                ServiceConfig::ValenceSplitterService(other_config),
-            ) => Ok(config
-                .get_diff(other_config)
-                .map(|r| to_json_binary(&r).unwrap())),
-            (
-                ServiceConfig::ValenceReverseSplitterService(config),
-                ServiceConfig::ValenceReverseSplitterService(other_config),
-            ) => Ok(config
-                .get_diff(other_config)
-                .map(|r| to_json_binary(&r).unwrap())),
-            _ => Err(ServiceError::ConfigsMismatch(
-                self.to_string(),
-                other.to_string(),
-            )),
-        }
-    }
-
     pub fn replace_config(
         &mut self,
         patterns: Vec<String>,

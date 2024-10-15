@@ -6,13 +6,11 @@ mod test {
 
     use crate::{
         account::{AccountInfo, AccountType},
-        config::{Config, GLOBAL_CONFIG},
+        config::GLOBAL_CONFIG,
         domain::Domain,
-        init_workflow,
         service::{ServiceConfig, ServiceInfo},
         workflow_config::{Link, WorkflowConfig},
     };
-    use config::{Config as ConfigHelper, File};
     use serde_json_any_key::MapIterToJson;
     use valence_authorization_utils::{
         action::AtomicAction,
@@ -116,8 +114,12 @@ mod test {
     #[ignore = "internal test"]
     #[tokio::test]
     async fn test_parsing() {
-        let json_string = "{\"input_addr\": {\"|account_id|\": 1}, \"output_addr\": {\"|account_id|\": 2}}";
-        let config = serde_json::from_str::<valence_forwarder_service::msg::OptionalServiceConfig>(json_string).unwrap();
+        let json_string =
+            "{\"input_addr\": {\"|account_id|\": 1}, \"output_addr\": {\"|account_id|\": 2}}";
+        let config = serde_json::from_str::<valence_forwarder_service::msg::ServiceConfigUpdate>(
+            json_string,
+        )
+        .unwrap();
         println!("{:#?}", config);
     }
 
@@ -226,7 +228,6 @@ mod test {
             },
         );
 
-        // TODO: we need the id of the service here in contract_address
         config.authorizations.insert(
             0,
             AuthorizationInfo {
@@ -266,9 +267,15 @@ mod test {
 
         let binary = to_json_binary(&config).unwrap();
         let workflow_config = from_json::<WorkflowConfig>(&binary).unwrap();
-        
+
         // After parsing, workflow config should have no service config
-        let svc = workflow_config.services.first_key_value().unwrap().1.config.clone();
+        let svc = workflow_config
+            .services
+            .first_key_value()
+            .unwrap()
+            .1
+            .config
+            .clone();
         assert_eq!(svc, ServiceConfig::None);
 
         // match timeout(Duration::from_secs(60), ).await {

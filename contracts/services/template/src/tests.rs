@@ -1,4 +1,4 @@
-use crate::msg::{ActionsMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig};
+use crate::msg::{ActionsMsgs, Config, ServiceConfigUpdate, QueryMsg, ServiceConfig};
 use cosmwasm_std::Addr;
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
@@ -133,8 +133,8 @@ fn instantiate_with_valid_config() {
     );
 
     // Here we just want to make sure that our ignore_optional actually works
-    // Because we ignore the only available field, OptionalServiceConfig expected to have no fields
-    let _ = OptionalServiceConfig {};
+    // Because we ignore the only available field, ServiceConfigUpdate expected to have no fields
+    let _ = ServiceConfigUpdate {};
 }
 
 #[test]

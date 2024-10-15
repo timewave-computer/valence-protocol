@@ -4,7 +4,7 @@ use cw_ownable::cw_ownable_query;
 use cw_utils::Duration;
 use getset::{Getters, Setters};
 use std::collections::HashMap;
-use valence_macros::{valence_service_query, OptionalStruct};
+use valence_macros::{valence_service_query, ValenceServiceInterface};
 use valence_service_utils::{
     denoms::{CheckedDenom, DenomError, UncheckedDenom},
     error::ServiceError,
@@ -84,10 +84,9 @@ impl From<(UncheckedDenom, u128)> for UncheckedForwardingConfig {
 }
 
 #[cw_serde]
-#[derive(OptionalStruct)]
+#[derive(ValenceServiceInterface)]
 /// Struct representing the service configuration.
 pub struct ServiceConfig {
-    #[ignore_optional]
     /// The input address for the service.
     pub input_addr: ServiceAccountType,
     /// The output address for the service.
@@ -181,11 +180,11 @@ fn convert_to_checked_configs(
         .map_err(|err| ServiceError::ConfigurationError(err.to_string()))
 }
 
-impl OptionalServiceConfig {
+impl ServiceConfigUpdate {
     pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
-        // if let Some(input_addr) = self.input_addr {
-        //     config.input_addr = input_addr.to_addr(deps.api)?;
-        // }
+        if let Some(input_addr) = self.input_addr {
+            config.input_addr = input_addr.to_addr(deps.api)?;
+        }
 
         if let Some(output_addr) = self.output_addr {
             config.output_addr = output_addr.to_addr(deps.api)?;

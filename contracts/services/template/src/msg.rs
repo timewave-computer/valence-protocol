@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut};
 use cw_ownable::cw_ownable_query;
-use valence_macros::{valence_service_query, OptionalStruct};
+use valence_macros::{valence_service_query, ValenceServiceInterface};
 use valence_service_utils::{error::ServiceError, msg::ServiceConfigValidation};
 
 #[cw_serde]
@@ -17,11 +17,11 @@ pub enum ActionsMsgs {
 pub enum QueryMsg {}
 
 #[cw_serde]
-#[derive(OptionalStruct)]
+#[derive(ValenceServiceInterface)]
 pub struct ServiceConfig {
-    /// We ignore this field when generating the OptionalServiceConfig
+    /// We ignore this field when generating the ValenceServiceInterface
     /// This means this field is not updatable
-    #[ignore_optional]
+    #[skip_update]
     pub ignore_optional_admin: String,
 }
 
@@ -38,7 +38,7 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
     }
 }
 
-impl OptionalServiceConfig {
+impl ServiceConfigUpdate {
     pub fn update_config(self, _deps: &DepsMut, _config: &mut Config) -> Result<(), ServiceError> {
         Ok(())
     }

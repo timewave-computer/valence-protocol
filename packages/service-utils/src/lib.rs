@@ -14,12 +14,7 @@ pub mod testing;
 
 pub type Id = u64;
 
-pub trait ServiceConfigInterface<T, O> {
-    /// T is the config type
-    fn get_diff(&self, other: &T) -> Option<O>;
-}
-
-pub trait OptionalServiceConfigTrait {
+pub trait ServiceConfigUpdateTrait {
     fn update_raw(&self, storage: &mut dyn Storage) -> StdResult<()>;
 }
 
@@ -35,6 +30,12 @@ pub enum ServiceAccountType {
     AccountId(Id),
     #[serde(rename = "|service_id|", alias = "service_id")]
     ServiceId(Id),
+}
+
+#[cw_serde]
+pub enum UpdateOption<T> {
+    None,
+    Set(Option<T>),
 }
 
 impl From<&Addr> for ServiceAccountType {

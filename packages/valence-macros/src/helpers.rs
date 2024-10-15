@@ -2,11 +2,11 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, Attribute, AttributeArgs, DataEnum, DeriveInput};
 
-// Check if theres `ignore_optional` attribute on the field.
-pub(crate) fn has_ignore_optional_attr(attrs: &[Attribute]) -> bool {
+// Check if theres `skip_update` attribute on the field.
+pub(crate) fn has_skip_update_attr(attrs: &[Attribute]) -> bool {
     attrs
         .iter()
-        .any(|attr| attr.path.is_ident("ignore_optional"))
+        .any(|attr| attr.path.is_ident("skip_update"))
 }
 
 // Merges the variants of two enums.

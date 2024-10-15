@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{ensure, Addr, Decimal, Deps, DepsMut, Uint128};
 use cw_ownable::cw_ownable_query;
-use valence_macros::{valence_service_query, OptionalStruct};
+use valence_macros::{valence_service_query, ValenceServiceInterface};
 use valence_service_utils::{
     error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType,
 };
@@ -41,7 +41,7 @@ impl DecimalRange {
 pub enum QueryMsg {}
 
 #[cw_serde]
-#[derive(OptionalStruct)]
+#[derive(ValenceServiceInterface)]
 pub struct ServiceConfig {
     pub input_addr: ServiceAccountType,
     pub output_addr: ServiceAccountType,
@@ -133,7 +133,7 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
     }
 }
 
-impl OptionalServiceConfig {
+impl ServiceConfigUpdate {
     pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
         if let Some(input_addr) = self.input_addr {
             config.input_addr = input_addr.to_addr(deps.api)?;
