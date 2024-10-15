@@ -4963,6 +4963,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-osmosis-cl-lper"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 1.5.8",
+ "cosmwasm-std 2.1.4",
+ "cw-ownable",
+ "cw20 2.0.0",
+ "osmosis-std 0.26.0",
+ "osmosis-test-tube",
+ "valence-account-utils",
+ "valence-macros",
+ "valence-osmosis-utils",
+ "valence-service-base",
+ "valence-service-utils",
+]
+
+[[package]]
 name = "valence-osmosis-gamm-lper"
 version = "0.1.0"
 dependencies = [

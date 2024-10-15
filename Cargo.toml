@@ -64,6 +64,7 @@ valence-forwarder-service        = { path = "contracts/services/forwarder", feat
 valence-astroport-withdrawer     = { path = "contracts/services/astroport-withdrawer", features = ["library"] }
 valence-reverse-splitter-service = { path = "contracts/services/reverse-splitter", features = ["library"] }
 valence-osmosis-gamm-lper        = { path = "contracts/services/osmosis-gamm-lper", features = ["library"] }
+valence-osmosis-cl-lper          = { path = "contracts/services/osmosis-cl-lper", features = ["library"] }
 
 # our packages
 valence-account-utils           = { path = "packages/account-utils" }
