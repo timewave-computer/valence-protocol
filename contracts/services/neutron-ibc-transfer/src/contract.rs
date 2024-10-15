@@ -89,7 +89,6 @@ mod actions {
                 Ok(Response::new()
                     .add_attribute("method", "ibc-transfer")
                     .add_message(input_account_msgs))
-                // .add_messages(vec![ibc_send_msg]))
             }
         }
     }
