@@ -6,7 +6,7 @@ use valence_service_utils::{
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
-use crate::msg::{ActionsMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig};
+use crate::msg::{ActionMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -27,7 +27,7 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg<ActionsMsgs, OptionalServiceConfig>,
+    msg: ExecuteMsg<ActionMsgs, OptionalServiceConfig>,
 ) -> Result<Response, ServiceError> {
     valence_service_base::execute(
         deps,
@@ -43,24 +43,31 @@ mod actions {
     use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
     use valence_service_utils::{error::ServiceError, execute_on_behalf_of};
 
-    use crate::msg::{ActionsMsgs, Config};
+    use crate::msg::{ActionMsgs, Config, IbcTransferAmount};
 
     pub fn process_action(
         deps: DepsMut,
         env: Env,
         _info: MessageInfo,
-        msg: ActionsMsgs,
+        msg: ActionMsgs,
         cfg: Config,
     ) -> Result<Response, ServiceError> {
         match msg {
-            ActionsMsgs::IbcTransfer {} => {
+            ActionMsgs::IbcTransfer {} => {
                 let balance = cfg.denom().query_balance(&deps.querier, cfg.input_addr())?;
-                if balance < *cfg.amount() {
-                    return Err(ServiceError::ExecutionError(format!(
-                        "Insufficient balance for denom '{}' in config (required: {}, available: {}).",
-                        cfg.denom(), cfg.amount(), balance,
-                    )));
-                }
+
+                let amount = match cfg.amount() {
+                    IbcTransferAmount::FullAmount => balance,
+                    IbcTransferAmount::FixedAmount(amount) => {
+                        if balance < *amount {
+                            return Err(ServiceError::ExecutionError(format!(
+                                "Insufficient balance for denom '{}' in config (required: {}, available: {}).",
+                                cfg.denom(), amount, balance,
+                            )));
+                        }
+                        *amount
+                    }
+                };
 
                 let block_time = env.block.time;
                 let ibc_send_msg = valence_ibc_utils::generic::ibc_send_message(
@@ -68,7 +75,7 @@ mod actions {
                     cfg.remote_chain_info().channel_id.clone(),
                     cfg.output_addr().to_string(),
                     cfg.denom().to_string(),
-                    cfg.amount().u128(),
+                    amount.u128(),
                     cfg.memo().clone(),
                     None,
                     cfg.remote_chain_info()
