@@ -33,7 +33,7 @@ pub enum ServiceAccountType {
 }
 
 #[cw_serde]
-pub enum UpdateOption<T> {
+pub enum OptionUpdate<T> {
     None,
     Set(Option<T>),
 }

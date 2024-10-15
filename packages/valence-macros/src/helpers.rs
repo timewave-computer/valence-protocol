@@ -1,12 +1,27 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Attribute, AttributeArgs, DataEnum, DeriveInput};
+use syn::{parse_macro_input, Attribute, AttributeArgs, DataEnum, DeriveInput, GenericArgument, PathArguments, Type, TypePath};
 
 // Check if theres `skip_update` attribute on the field.
 pub(crate) fn has_skip_update_attr(attrs: &[Attribute]) -> bool {
     attrs
         .iter()
         .any(|attr| attr.path.is_ident("skip_update"))
+}
+
+pub(crate) fn get_option_inner_type(ty: &Type) -> Option<&Type> {
+    if let Type::Path(TypePath { path, .. }) = ty {
+        if let Some(segment) = path.segments.last() {
+            if segment.ident == "Option" {
+                if let PathArguments::AngleBracketed(args) = &segment.arguments {
+                    if let Some(GenericArgument::Type(inner_type)) = args.args.first() {
+                        return Some(inner_type);
+                    }
+                }
+            }
+        }
+    }
+    None
 }
 
 // Merges the variants of two enums.

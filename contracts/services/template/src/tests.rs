@@ -1,12 +1,11 @@
-use crate::msg::{ActionsMsgs, Config, ServiceConfigUpdate, QueryMsg, ServiceConfig};
+use crate::msg::{ActionsMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate};
 use cosmwasm_std::Addr;
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
 use getset::{Getters, Setters};
 use valence_service_utils::{
-    msg::ExecuteMsg,
-    msg::InstantiateMsg,
-    testing::{ServiceTestSuite, ServiceTestSuiteBase},
+    msg::{ExecuteMsg, InstantiateMsg},
+    testing::{ServiceTestSuite, ServiceTestSuiteBase}, OptionUpdate,
 };
 
 #[derive(Getters, Setters)]
@@ -54,7 +53,8 @@ impl TemplateTestSuite {
 
     fn template_config(&self, admin: String) -> ServiceConfig {
         ServiceConfig {
-            ignore_optional_admin: admin,
+            skip_update_admin: admin,
+            optional: None,
         }
     }
 
@@ -128,13 +128,14 @@ fn instantiate_with_valid_config() {
     assert_eq!(
         raw_svc_cfg,
         ServiceConfig {
-            ignore_optional_admin: suite.owner().clone().to_string(),
+            skip_update_admin: suite.owner().clone().to_string(),
+            optional: None
         }
     );
 
     // Here we just want to make sure that our ignore_optional actually works
     // Because we ignore the only available field, ServiceConfigUpdate expected to have no fields
-    let _ = ServiceConfigUpdate {};
+    let _ = ServiceConfigUpdate { optional: OptionUpdate::Set(None) };
 }
 
 #[test]

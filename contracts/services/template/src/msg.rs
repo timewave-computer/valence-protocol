@@ -22,7 +22,8 @@ pub struct ServiceConfig {
     /// We ignore this field when generating the ValenceServiceInterface
     /// This means this field is not updatable
     #[skip_update]
-    pub ignore_optional_admin: String,
+    pub skip_update_admin: String,
+    pub optional: Option<String>
 }
 
 impl ServiceConfigValidation<Config> for ServiceConfig {
@@ -33,7 +34,7 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
 
     fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
         Ok(Config {
-            admin: deps.api.addr_validate(&self.ignore_optional_admin)?,
+            admin: deps.api.addr_validate(&self.skip_update_admin)?,
         })
     }
 }
