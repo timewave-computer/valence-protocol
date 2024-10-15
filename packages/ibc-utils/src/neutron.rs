@@ -25,8 +25,7 @@ pub fn ibc_send_message(
     memo: String,
     timeout_height: Option<u64>,
     timeout_timestamp: Option<u64>,
-) -> StdResult<CosmosMsg>
-{
+) -> StdResult<CosmosMsg> {
     // contract must pay for relaying of acknowledgements
     // See more info here: https://docs.neutron.org/neutron/feerefunder/overview
     let ibc_fee = min_ntrn_ibc_fee(
