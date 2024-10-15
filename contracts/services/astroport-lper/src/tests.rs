@@ -721,6 +721,7 @@ fn test_limit_single_sided_liquidity() {
 
     let input_acc_balance_after = query_balance(&setup.input_acc);
 
+    assert!(input_acc_balance_after > 0);
     assert_eq!(
         input_acc_balance_before - liquidity_provided,
         input_acc_balance_after
