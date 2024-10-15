@@ -41,9 +41,7 @@ impl BaseAccountTestSuite {
             crate::contract::query,
         );
 
-        let inner = AccountTestSuiteBase::new(
-            Box::new(account_code)
-        );
+        let inner = AccountTestSuiteBase::new(Box::new(account_code));
 
         Self {
             inner,

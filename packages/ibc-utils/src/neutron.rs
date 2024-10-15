@@ -1,16 +1,19 @@
 use crate::state::SUDO_PAYLOAD;
+use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
+use cosmos_sdk_proto::traits::MessageExt;
 use cosmwasm_std::{
-    coin, from_json, Binary, CosmosMsg, Deps, DepsMut, Env, Reply, Response, StdError, StdResult,
-    SubMsg, Uint128,
+    from_json, Binary, CosmosMsg, Deps, DepsMut, Env, Reply, Response, StdError, StdResult, SubMsg,
+    Uint128,
 };
 use neutron_sdk::{
     bindings::{
-        msg::{IbcFee, MsgIbcTransferResponse, NeutronMsg},
+        msg::{IbcFee, MsgIbcTransferResponse},
         query::NeutronQuery,
     },
     query::min_ibc_fee::query_min_ibc_fee,
-    sudo::msg::{RequestPacket, RequestPacketTimeoutHeight, SudoMsg},
+    sudo::msg::{RequestPacket, SudoMsg},
 };
+
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::state::{
@@ -38,8 +41,7 @@ pub fn ibc_send_message<TSudoPayload>(
     sudo_payload: &TSudoPayload,
     timeout_height: Option<u64>,
     timeout_timestamp: Option<u64>,
-    // ) -> StdResult<SubMsg<NeutronMsg>>
-) -> StdResult<CosmosMsg<NeutronMsg>>
+) -> StdResult<CosmosMsg>
 where
     TSudoPayload: Serialize + ?Sized,
 {
@@ -54,18 +56,21 @@ where
     let amount_minus_fee = amount
         .checked_sub(total_fee.u128())
         .ok_or_else(|| StdError::generic_err("Amount too low to pay for IBC transfer fees."))?;
-    let coin = coin(amount_minus_fee, denom.clone());
+    let coin = Coin {
+        denom: denom.clone(),
+        amount: amount_minus_fee.to_string(),
+    };
 
-    let msg = NeutronMsg::IbcTransfer {
+    let msg = neutron_sdk::proto_types::neutron::transfer::MsgTransfer {
         source_port: port.unwrap_or("transfer".to_string()),
         source_channel: channel.clone(),
         sender,
         receiver: to.clone(),
-        token: coin,
-        timeout_height: RequestPacketTimeoutHeight {
-            revision_number: Some(2),
-            revision_height: timeout_height.or(Some(DEFAULT_TIMEOUT_HEIGHT)),
-        },
+        token: Some(coin),
+        timeout_height: Some(cosmos_sdk_proto::ibc::core::client::v1::Height {
+            revision_number: 2,
+            revision_height: timeout_height.unwrap_or(DEFAULT_TIMEOUT_HEIGHT),
+        }),
         timeout_timestamp: timeout_timestamp.unwrap_or(
             env.block
                 .time
@@ -73,12 +78,43 @@ where
                 .nanos(),
         ),
         memo,
-        fee: ibc_fee,
-    }
-    .into();
+        fee: Some(neutron_sdk::proto_types::neutron::feerefunder::Fee {
+            recv_fee: ibc_fee
+                .recv_fee
+                .into_iter()
+                .map(|c| Coin {
+                    denom: c.denom,
+                    amount: c.amount.to_string(),
+                })
+                .collect(),
+            ack_fee: ibc_fee
+                .ack_fee
+                .into_iter()
+                .map(|c| Coin {
+                    denom: c.denom,
+                    amount: c.amount.to_string(),
+                })
+                .collect(),
+            timeout_fee: ibc_fee
+                .timeout_fee
+                .into_iter()
+                .map(|c| Coin {
+                    denom: c.denom,
+                    amount: c.amount.to_string(),
+                })
+                .collect(),
+        }),
+    };
+
+    #[allow(deprecated)]
+    Ok(CosmosMsg::Stargate {
+        // type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
+        type_url: "/neutron.transfer.MsgTransfer".to_string(),
+        value: Binary::from(msg.to_bytes().unwrap()),
+    })
 
     // msg_with_sudo_callback(deps.into_empty(), msg, sudo_payload)
-    Ok(msg)
+    // Ok(msg)
 }
 
 // saves payload to process later to the storage and returns a SubmitTX Cosmos SubMsg with necessary reply id

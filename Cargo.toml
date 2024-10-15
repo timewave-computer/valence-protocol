@@ -31,22 +31,23 @@ incremental      = false
 overflow-checks  = true
 
 [workspace.dependencies]
-anyhow          = "1.0.86"
-cosmwasm-std    = { version = "2.1.3", features = ["cosmwasm_1_4","stargate"] }
-cosmwasm-schema = "2.1.3"
-cw-denom        = { package = "cw-denom", git = "https://github.com/DA0-DA0/dao-contracts", branch = "cw-std-2" }
-cw-ownable      = "2.0.0"
-cw-utils        = "2.0.0"
-cw-storage-plus = "2.0.0"
-cw2             = "2.0.0"
-getset          = "0.1.3"
-itertools       = "0.13.0"
-neutron-sdk     = "0.11.0"
-schemars        = "0.8.16"
-serde           = { version = "1.0.207", default-features = false, features = ["derive"] }
-serde_json      = "1.0.125"
-sha2            = "0.10.8"
-thiserror       = "1.0.63"
+anyhow           = "1.0.86"
+cosmos-sdk-proto = { version = "0.20.0", default-features = false }
+cosmwasm-std     = { version = "2.1.3", features = ["cosmwasm_1_4","stargate"] }
+cosmwasm-schema  = "2.1.3"
+cw-denom         = { package = "cw-denom", git = "https://github.com/DA0-DA0/dao-contracts", branch = "cw-std-2" }
+cw-ownable       = "2.0.0"
+cw-utils         = "2.0.0"
+cw-storage-plus  = "2.0.0"
+cw2              = "2.0.0"
+getset           = "0.1.3"
+itertools        = "0.13.0"
+neutron-sdk      = "0.11.0"
+schemars         = "0.8.16"
+serde            = { version = "1.0.207", default-features = false, features = ["derive"] }
+serde_json       = "1.0.125"
+sha2             = "0.10.8"
+thiserror        = "1.0.63"
 
 # our contracts
 valence-authorization                = { path = "contracts/authorization", features = ["library"] }

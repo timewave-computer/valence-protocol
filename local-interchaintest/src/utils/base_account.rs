@@ -1,4 +1,3 @@
-use cosmwasm_std::Empty;
 use localic_std::modules::cosmwasm::{contract_execute, contract_instantiate};
 use localic_utils::utils::test_context::TestContext;
 use log::info;

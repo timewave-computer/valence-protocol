@@ -20,7 +20,6 @@ cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true }
 cw-ownable      = { workspace = true }
 cw-utils        = { workspace = true }
-neutron-sdk     = { workspace = true }
 serde           = { workspace = true }
 serde_json      = { workspace = true }
 thiserror       = { workspace = true }

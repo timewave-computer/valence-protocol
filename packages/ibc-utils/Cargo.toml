@@ -11,10 +11,11 @@ generic = []
 neutron = ["dep:neutron-sdk"]
 
 [dependencies]
-cw-storage-plus = { workspace = true }
-cosmwasm-std    = { workspace = true }
-cosmwasm-schema = { workspace = true }
-serde           = { workspace = true }
+cw-storage-plus  = { workspace = true }
+cosmos-sdk-proto = { workspace = true }
+cosmwasm-std     = { workspace = true }
+cosmwasm-schema  = { workspace = true }
+serde            = { workspace = true }
 
 # Optional dependencies
-neutron-sdk     = { workspace = true, optional = true }
+neutron-sdk      = { workspace = true, optional = true }

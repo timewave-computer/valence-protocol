@@ -219,7 +219,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     .iter()
     .find(|bal| bal.denom == NTRN_DENOM)
     .map_or(0, |bal| bal.amount.u128());
-    assert_eq!(end_input_balance, start_input_balance.sub(transfer_amount).add(ibc_fee / 2));
+    assert_eq!(
+        end_input_balance,
+        start_input_balance.sub(transfer_amount).add(ibc_fee / 2)
+    );
 
     let end_output_balance = bank::get_balance(
         test_ctx
