@@ -5,9 +5,12 @@ use cosmwasm_std::{coin, Coin, Uint128};
 use osmosis_test_tube::{
     osmosis_std::{
         try_proto_to_cosmwasm_coins,
-        types::cosmos::bank::v1beta1::{MsgSend, QueryAllBalancesRequest, QueryBalanceRequest},
+        types::{
+            cosmos::bank::v1beta1::{MsgSend, QueryAllBalancesRequest, QueryBalanceRequest},
+            cosmwasm::wasm::v1::MsgExecuteContractResponse,
+        },
     },
-    Account, Bank, Module, Wasm,
+    Account, Bank, ExecuteResponse, Module, Wasm,
 };
 use valence_osmosis_utils::suite::{
     approve_service, instantiate_input_account, OsmosisTestAppBuilder, OsmosisTestAppSetup,
@@ -122,7 +125,10 @@ impl LPerTestSuite {
         }
     }
 
-    pub fn provide_two_sided_liquidity(&self, expected_spot_price: Option<DecimalRange>) {
+    pub fn provide_two_sided_liquidity(
+        &self,
+        expected_spot_price: Option<DecimalRange>,
+    ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
         wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
@@ -133,7 +139,7 @@ impl LPerTestSuite {
             &[],
             self.inner.processor_acc(),
         )
-        .unwrap();
+        .unwrap()
     }
 
     pub fn provide_single_sided_liquidity(
@@ -141,7 +147,7 @@ impl LPerTestSuite {
         asset: &str,
         limit: Uint128,
         expected_spot_price: Option<DecimalRange>,
-    ) {
+    ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
         wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
@@ -154,7 +160,7 @@ impl LPerTestSuite {
             &[],
             self.inner.processor_acc(),
         )
-        .unwrap();
+        .unwrap()
     }
 }
 

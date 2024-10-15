@@ -16,19 +16,30 @@ use valence_osmosis_utils::utils::{
 };
 use valence_service_utils::{error::ServiceError, execute_on_behalf_of};
 
-use crate::{msg::LiquidityProviderConfig, valence_service_integration::Config};
+use crate::{
+    msg::{DecimalRange, LiquidityProviderConfig},
+    valence_service_integration::Config,
+};
 
 pub fn provide_single_sided_liquidity(
     deps: DepsMut,
     cfg: Config,
     asset: String,
     limit: Uint128,
+    expected_spot_price: Option<DecimalRange>,
 ) -> Result<Response, ServiceError> {
     // first we assert the input account balance
     let input_acc_asset_bal = query_pool_asset_balance(&deps, cfg.input_addr.as_str(), &asset)?;
 
     let pm_querier = PoolmanagerQuerier::new(&deps.querier);
     let pool = pm_querier.get_pool_response(&cfg.lp_config)?;
+    let pool_ratio = pm_querier.query_spot_price(&cfg.lp_config)?;
+
+    // assert the spot price to be within our expectations,
+    // if expectations are set.
+    if let Some(acceptable_spot_price_range) = expected_spot_price {
+        acceptable_spot_price_range.contains(pool_ratio)?;
+    }
 
     // if the input balance is greater than the limit, we provision the limit amount.
     // otherwise we provision the full input balance.
@@ -72,6 +83,7 @@ pub fn provide_single_sided_liquidity(
 pub fn provide_double_sided_liquidity(
     deps: DepsMut,
     cfg: Config,
+    expected_spot_price: Option<DecimalRange>,
 ) -> Result<Response, ServiceError> {
     // first we assert the input account balances
     let bal_asset_1 = deps
@@ -85,6 +97,12 @@ pub fn provide_double_sided_liquidity(
 
     let pool_ratio = pm_querier.query_spot_price(&cfg.lp_config)?;
     let pool = pm_querier.get_pool_response(&cfg.lp_config)?;
+
+    // assert the spot price to be within our expectations,
+    // if expectations are set.
+    if let Some(acceptable_spot_price_range) = expected_spot_price {
+        acceptable_spot_price_range.contains(pool_ratio)?;
+    }
 
     let provision_coins = calculate_provision_amounts(bal_asset_1, bal_asset_2, pool_ratio)?;
 

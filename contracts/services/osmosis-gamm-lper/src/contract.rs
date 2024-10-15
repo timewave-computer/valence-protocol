@@ -56,12 +56,12 @@ pub fn process_action(
     match msg {
         ActionsMsgs::ProvideDoubleSidedLiquidity {
             expected_spot_price,
-        } => balancer::provide_double_sided_liquidity(deps, cfg),
+        } => balancer::provide_double_sided_liquidity(deps, cfg, expected_spot_price),
         ActionsMsgs::ProvideSingleSidedLiquidity {
             asset,
             limit,
             expected_spot_price,
-        } => balancer::provide_single_sided_liquidity(deps, cfg, asset, limit),
+        } => balancer::provide_single_sided_liquidity(deps, cfg, asset, limit, expected_spot_price),
     }
 }
 
