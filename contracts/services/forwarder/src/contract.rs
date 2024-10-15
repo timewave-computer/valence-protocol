@@ -19,7 +19,6 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg<ServiceConfig>,
 ) -> Result<Response, ServiceError> {
-    // Custom
     valence_service_base::instantiate(deps, CONTRACT_NAME, CONTRACT_VERSION, msg)
 }
 

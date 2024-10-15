@@ -18,7 +18,6 @@ pub enum AccountType {
 /// We need to know what domain we are talking with
 /// and what type of account we should work with.
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'static"))]
 pub struct AccountInfo {
     pub name: String,
     pub ty: AccountType,

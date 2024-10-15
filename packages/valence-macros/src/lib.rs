@@ -14,42 +14,55 @@ pub fn optional_struct_derive(input: TokenStream) -> TokenStream {
 
     let fields = match &ast.data {
         Data::Struct(data) => match &data.fields {
-            Fields::Named(fields) => &fields.named,
+            Fields::Named(fields) => fields,
             _ => panic!("OptionalStruct only works on structs with named fields"),
         },
         _ => panic!("OptionalStruct only works on structs"),
     };
 
-    let filter_fields = fields.iter().filter_map(|f| {
+    let filtered_fields: Vec<_> = fields
+        .named
+        .iter()
+        .filter(|f| !has_ignore_optional_attr(&f.attrs))
+        .collect();
+
+    let filter_fields = filtered_fields.iter().map(|f| {
         let name = &f.ident;
         let ty = &f.ty;
         let vis = &f.vis;
-        let ignore = has_ignore_optional_attr(&f.attrs);
-        if ignore {
-            None
-        } else {
-            Some(quote! {
-                #vis #name: std::option::Option<#ty>,
-            })
+        quote! {
+            #vis #name: std::option::Option<#ty>,
         }
     });
 
-    let update_fields = fields.iter().filter_map(|f| {
+    let update_fields = filtered_fields.iter().map(|f| {
         let name = &f.ident;
-        let ignore = has_ignore_optional_attr(&f.attrs);
-        if ignore {
-            None
-        } else {
-            Some(quote! {
-                if let Some(#name) = self.#name.clone() {
-                    raw_config.#name = #name;
-                }
-            })
+        quote! {
+            if let Some(#name) = self.#name.clone() {
+                raw_config.#name = #name;
+            }
+        }
+    });
+
+    let diff_fields = filtered_fields.iter().map(|f| {
+        let name = &f.ident;
+        quote! {
+            if self.#name != other.#name {
+                diff.#name = Some(other.#name.clone());
+                has_change = true;
+            }
+        }
+    });
+
+    let init_fields = filtered_fields.iter().map(|f| {
+        let name = &f.ident;
+        quote! {
+            #name: None
         }
     });
 
     let expanded = quote! {
-        use valence_service_utils::{OptionalServiceConfigTrait, raw_config::{save_raw_service_config, load_raw_service_config}};
+        use valence_service_utils::{ServiceConfigInterface, OptionalServiceConfigTrait, raw_config::{save_raw_service_config, load_raw_service_config}};
         use cosmwasm_std::StdResult;
 
         #[cw_serde]
@@ -64,6 +77,23 @@ pub fn optional_struct_derive(input: TokenStream) -> TokenStream {
                 #(#update_fields)*
 
                 save_raw_service_config(storage, &raw_config)
+            }
+        }
+
+        impl ServiceConfigInterface<#name, #filter_name> for #name {
+            fn get_diff(&self, other: &#name) -> Option<#filter_name> {
+                let mut diff = #filter_name {
+                    #(#init_fields),*
+                };
+                let mut has_change = false;
+
+                #(#diff_fields)*
+
+                if has_change {
+                    Some(diff)
+                } else {
+                    None
+                }
             }
         }
     };

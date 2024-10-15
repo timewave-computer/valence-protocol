@@ -3,7 +3,7 @@ use cosmwasm_std::{ensure, Addr, Decimal, Deps, DepsMut, Uint128};
 use cw_ownable::cw_ownable_query;
 use valence_macros::{valence_service_query, OptionalStruct};
 use valence_service_utils::{
-    error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType, ServiceConfigInterface,
+    error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType,
 };
 
 #[cw_serde]
@@ -105,13 +105,6 @@ pub struct Config {
     pub output_addr: Addr,
     pub pool_addr: Addr,
     pub lp_config: LiquidityProviderConfig,
-}
-
-impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
-    /// This function is used to see if 2 configs are different
-    fn is_diff(&self, other: &ServiceConfig) -> bool {
-        !self.eq(other)
-    }
 }
 
 impl ServiceConfigValidation<Config> for ServiceConfig {

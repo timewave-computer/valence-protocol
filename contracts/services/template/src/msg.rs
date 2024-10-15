@@ -2,9 +2,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut};
 use cw_ownable::cw_ownable_query;
 use valence_macros::{valence_service_query, OptionalStruct};
-use valence_service_utils::{
-    error::ServiceError, msg::ServiceConfigValidation, ServiceConfigInterface,
-};
+use valence_service_utils::{error::ServiceError, msg::ServiceConfigValidation};
 
 #[cw_serde]
 pub enum ActionsMsgs {
@@ -37,13 +35,6 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
         Ok(Config {
             admin: deps.api.addr_validate(&self.ignore_optional_admin)?,
         })
-    }
-}
-
-impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
-    /// This function is used to see if 2 configs are different
-    fn is_diff(&self, other: &ServiceConfig) -> bool {
-        !self.eq(other)
     }
 }
 

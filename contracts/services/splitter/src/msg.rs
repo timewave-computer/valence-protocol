@@ -6,10 +6,10 @@ use cw_ownable::cw_ownable_query;
 use getset::{Getters, Setters};
 use valence_macros::{valence_service_query, OptionalStruct};
 use valence_service_utils::denoms::CheckedDenom;
+use valence_service_utils::ServiceAccountType;
 use valence_service_utils::{
     denoms::UncheckedDenom, error::ServiceError, msg::ServiceConfigValidation,
 };
-use valence_service_utils::{ServiceAccountType, ServiceConfigInterface};
 
 #[cw_serde]
 pub enum ActionMsgs {
@@ -226,13 +226,6 @@ fn convert_to_checked_split_amount(
             contract_addr: api.addr_validate(contract_addr)?,
             params: params.clone(),
         }),
-    }
-}
-
-impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
-    /// This function is used to see if 2 configs are different
-    fn is_diff(&self, other: &ServiceConfig) -> bool {
-        !self.eq(other)
     }
 }
 

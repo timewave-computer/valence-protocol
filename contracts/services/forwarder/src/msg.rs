@@ -9,7 +9,7 @@ use valence_service_utils::{
     denoms::{CheckedDenom, DenomError, UncheckedDenom},
     error::ServiceError,
     msg::ServiceConfigValidation,
-    ServiceAccountType, ServiceConfigInterface,
+    ServiceAccountType,
 };
 
 #[cw_serde]
@@ -87,6 +87,7 @@ impl From<(UncheckedDenom, u128)> for UncheckedForwardingConfig {
 #[derive(OptionalStruct)]
 /// Struct representing the service configuration.
 pub struct ServiceConfig {
+    #[ignore_optional]
     /// The input address for the service.
     pub input_addr: ServiceAccountType,
     /// The output address for the service.
@@ -180,18 +181,11 @@ fn convert_to_checked_configs(
         .map_err(|err| ServiceError::ConfigurationError(err.to_string()))
 }
 
-impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
-    /// This function is used to see if 2 configs are different
-    fn is_diff(&self, other: &ServiceConfig) -> bool {
-        !self.eq(other)
-    }
-}
-
 impl OptionalServiceConfig {
     pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
-        if let Some(input_addr) = self.input_addr {
-            config.input_addr = input_addr.to_addr(deps.api)?;
-        }
+        // if let Some(input_addr) = self.input_addr {
+        //     config.input_addr = input_addr.to_addr(deps.api)?;
+        // }
 
         if let Some(output_addr) = self.output_addr {
             config.output_addr = output_addr.to_addr(deps.api)?;

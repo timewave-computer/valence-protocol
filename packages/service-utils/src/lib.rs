@@ -14,9 +14,9 @@ pub mod testing;
 
 pub type Id = u64;
 
-pub trait ServiceConfigInterface<T> {
+pub trait ServiceConfigInterface<T, O> {
     /// T is the config type
-    fn is_diff(&self, other: &T) -> bool;
+    fn get_diff(&self, other: &T) -> Option<O>;
 }
 
 pub trait OptionalServiceConfigTrait {

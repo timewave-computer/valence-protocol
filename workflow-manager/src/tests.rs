@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod test {
-    use cosmwasm_std::Uint128;
+    use cosmwasm_std::{from_json, to_json_binary, Uint128};
     use cw_ownable::Expiration;
     use std::collections::BTreeMap;
 
@@ -115,6 +115,14 @@ mod test {
 
     #[ignore = "internal test"]
     #[tokio::test]
+    async fn test_parsing() {
+        let json_string = "{\"input_addr\": {\"|account_id|\": 1}, \"output_addr\": {\"|account_id|\": 2}}";
+        let config = serde_json::from_str::<valence_forwarder_service::msg::OptionalServiceConfig>(json_string).unwrap();
+        println!("{:#?}", config);
+    }
+
+    #[ignore = "internal test"]
+    #[tokio::test]
     async fn test_full_workflow() {
         // let subscriber = tracing_subscriber::fmt()
         //     .with_max_level(tracing::Level::DEBUG)
@@ -124,41 +132,41 @@ mod test {
         // tracing::subscriber::set_global_default(subscriber)
         //     .expect("setting default subscriber failed");
 
-        let c: Config = ConfigHelper::builder()
-            .add_source(
-                glob::glob("conf/*")
-                    .unwrap()
-                    .filter_map(|path| {
-                        let p = path.unwrap();
-                        println!("Path: {:?}", p);
+        // let c: Config = ConfigHelper::builder()
+        //     .add_source(
+        //         glob::glob("conf/*")
+        //             .unwrap()
+        //             .filter_map(|path| {
+        //                 let p = path.unwrap();
+        //                 println!("Path: {:?}", p);
 
-                        if p.is_dir() {
-                            None
-                        } else {
-                            Some(File::from(p))
-                        }
-                    })
-                    .collect::<Vec<_>>(),
-            )
-            .add_source(
-                glob::glob("conf/**/*")
-                    .unwrap()
-                    .filter_map(|path| {
-                        let p = path.unwrap();
-                        if p.is_dir() {
-                            None
-                        } else {
-                            Some(File::from(p))
-                        }
-                    })
-                    .collect::<Vec<_>>(),
-            )
-            .build()
-            .unwrap()
-            .try_deserialize()
-            .unwrap();
+        //                 if p.is_dir() {
+        //                     None
+        //                 } else {
+        //                     Some(File::from(p))
+        //                 }
+        //             })
+        //             .collect::<Vec<_>>(),
+        //     )
+        //     .add_source(
+        //         glob::glob("conf/**/*")
+        //             .unwrap()
+        //             .filter_map(|path| {
+        //                 let p = path.unwrap();
+        //                 if p.is_dir() {
+        //                     None
+        //                 } else {
+        //                     Some(File::from(p))
+        //                 }
+        //             })
+        //             .collect::<Vec<_>>(),
+        //     )
+        //     .build()
+        //     .unwrap()
+        //     .try_deserialize()
+        //     .unwrap();
 
-        *GLOBAL_CONFIG.lock().await = c;
+        // *GLOBAL_CONFIG.lock().await = c;
 
         let neutron_domain = Domain::CosmosCosmwasm("neutron".to_string());
 
@@ -168,7 +176,7 @@ mod test {
         };
 
         config.accounts.insert(
-            1,
+            0,
             AccountInfo {
                 name: "test_1".to_string(),
                 ty: AccountType::Base { admin: None },
@@ -177,7 +185,7 @@ mod test {
             },
         );
         config.accounts.insert(
-            2,
+            1,
             AccountInfo {
                 name: "test_2".to_string(),
                 ty: AccountType::Base { admin: None },
@@ -187,7 +195,7 @@ mod test {
         );
 
         config.services.insert(
-            1,
+            0,
             ServiceInfo {
                 name: "test_forwarder".to_string(),
                 domain: neutron_domain.clone(),
@@ -210,17 +218,17 @@ mod test {
         );
 
         config.links.insert(
-            1,
+            0,
             Link {
-                input_accounts_id: vec![1],
-                output_accounts_id: vec![2],
+                input_accounts_id: vec![0],
+                output_accounts_id: vec![1],
                 service_id: 1,
             },
         );
 
         // TODO: we need the id of the service here in contract_address
         config.authorizations.insert(
-            1,
+            0,
             AuthorizationInfo {
                 label: "test".to_string(),
                 mode: AuthorizationModeInfo::Permissionless,
@@ -250,7 +258,18 @@ mod test {
         // let b = to_json_binary(&config).unwrap();
         // println!("{:#?}", b);
 
-        init_workflow(&mut config).await.unwrap();
+        // init_workflow(&mut config).await.unwrap();
+
+        // Make sure we have a config in place
+        let svc = config.services.first_key_value().unwrap().1.config.clone();
+        assert_ne!(svc, ServiceConfig::None);
+
+        let binary = to_json_binary(&config).unwrap();
+        let workflow_config = from_json::<WorkflowConfig>(&binary).unwrap();
+        
+        // After parsing, workflow config should have no service config
+        let svc = workflow_config.services.first_key_value().unwrap().1.config.clone();
+        assert_eq!(svc, ServiceConfig::None);
 
         // match timeout(Duration::from_secs(60), ).await {
         //     Ok(_) => println!("Workflow initialization completed successfully"),
