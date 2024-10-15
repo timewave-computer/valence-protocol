@@ -41,36 +41,3 @@ pub fn get_provide_ss_liquidity_msg(
 
     Ok(msg_join_pool_yes_swap)
 }
-
-// pub fn get_pool_ratio(pool: Pool, asset_1: String, asset_2: String) -> StdResult<Decimal> {
-//     let (mut asset1_balance, mut asset2_balance) = (Uint128::zero(), Uint128::zero());
-
-//     for asset in pool.pool_assets {
-//         match asset.token {
-//             Some(c) => {
-//                 // let cw_coin = try_proto_to_cosmwasm_coins(vec![c])?;
-//                 let coin = Coin {
-//                     denom: c.denom,
-//                     amount: Uint128::from_str(c.amount.as_str())?,
-//                 };
-//                 if coin.denom == asset_1 {
-//                     asset1_balance = coin.amount;
-//                 } else if coin.denom == asset_2 {
-//                     asset2_balance = coin.amount;
-//                 }
-//             }
-//             None => continue,
-//         }
-//     }
-
-//     if asset1_balance.is_zero() || asset2_balance.is_zero() {
-//         return Err(StdError::generic_err("pool does not contain both assets"));
-//     }
-
-//     Ok(Decimal::from_ratio(asset1_balance, asset2_balance))
-// }
-
-// pub fn query_pool_asset_balance(deps: &DepsMut, input_addr: &str, asset: &str) -> StdResult<Coin> {
-//     let asset_balance = deps.querier.query_balance(input_addr, asset)?;
-//     Ok(asset_balance)
-// }
