@@ -15,6 +15,7 @@ use valence_osmosis_utils::{
         approve_service, instantiate_input_account, OsmosisTestAppBuilder, OsmosisTestAppSetup,
         OSMO_DENOM, TEST_DENOM,
     },
+    testing::balancer::BalancerPool,
     utils::DecimalRange,
 };
 use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
@@ -24,7 +25,7 @@ use crate::msg::{ActionsMsgs, LiquidityProviderConfig, OptionalServiceConfig, Se
 const CONTRACT_PATH: &str = "../../../artifacts";
 
 pub struct LPerTestSuite {
-    pub inner: OsmosisTestAppSetup,
+    pub inner: OsmosisTestAppSetup<BalancerPool>,
     pub lper_addr: String,
     pub input_acc: String,
     pub output_acc: String,
@@ -149,7 +150,7 @@ impl LPerTestSuite {
 }
 
 fn instantiate_lper_contract(
-    setup: &OsmosisTestAppSetup,
+    setup: &OsmosisTestAppSetup<BalancerPool>,
     input_acc: String,
     output_acc: String,
     lp_config: Option<LiquidityProviderConfig>,
@@ -167,7 +168,7 @@ fn instantiate_lper_contract(
         .data
         .code_id;
 
-    let pool_id = setup.balancer_pool_cfg.pool_id.u64();
+    let pool_id = setup.pool_cfg.pool_id.u64();
 
     let instantiate_msg = InstantiateMsg {
         owner: setup.owner_acc().address(),
@@ -177,8 +178,8 @@ fn instantiate_lper_contract(
             output_acc.as_str(),
             lp_config.unwrap_or(LiquidityProviderConfig {
                 pool_id,
-                pool_asset_1: setup.balancer_pool_cfg.pool_asset1.to_string(),
-                pool_asset_2: setup.balancer_pool_cfg.pool_asset2.to_string(),
+                pool_asset_1: setup.pool_cfg.pool_asset1.to_string(),
+                pool_asset_2: setup.pool_cfg.pool_asset2.to_string(),
             }),
         ),
     };
