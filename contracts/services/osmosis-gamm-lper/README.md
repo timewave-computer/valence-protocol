@@ -1,1 +1,1 @@
-# Osmosis LPer service
+# Osmosis GAMM liquidity provider service
