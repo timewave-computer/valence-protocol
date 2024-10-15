@@ -1,7 +1,5 @@
-use std::str::FromStr;
-
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{ensure, Addr, Decimal, StdResult, Uint128};
+use cosmwasm_std::{ensure, Addr, Decimal, Uint128};
 use cw_ownable::cw_ownable_query;
 use valence_service_utils::error::ServiceError;
 
@@ -23,13 +21,13 @@ pub struct DecimalRange {
     max: Decimal,
 }
 
-impl DecimalRange {
-    pub fn from_strs(a: &str, b: &str) -> StdResult<Self> {
-        let min = Decimal::from_str(a)?;
-        let max = Decimal::from_str(b)?;
-        Ok(DecimalRange { min, max })
+impl From<(Decimal, Decimal)> for DecimalRange {
+    fn from((min, max): (Decimal, Decimal)) -> Self {
+        DecimalRange { min, max }
     }
+}
 
+impl DecimalRange {
     pub fn contains(&self, value: Decimal) -> Result<(), ServiceError> {
         ensure!(
             value >= self.min && value <= self.max,

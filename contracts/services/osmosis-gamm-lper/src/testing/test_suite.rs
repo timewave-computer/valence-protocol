@@ -34,15 +34,18 @@ pub struct LPerTestSuite {
 
 impl Default for LPerTestSuite {
     fn default() -> Self {
-        Self::new(vec![
-            coin(1_000_000u128, OSMO_DENOM),
-            coin(1_000_000u128, TEST_DENOM),
-        ])
+        Self::new(
+            vec![
+                coin(1_000_000u128, OSMO_DENOM),
+                coin(1_000_000u128, TEST_DENOM),
+            ],
+            None,
+        )
     }
 }
 
 impl LPerTestSuite {
-    pub fn new(with_input_bals: Vec<Coin>) -> Self {
+    pub fn new(with_input_bals: Vec<Coin>, lp_config: Option<LiquidityProviderConfig>) -> Self {
         let inner = OsmosisTestAppBuilder::new().build().unwrap();
 
         // Create two base accounts
@@ -59,7 +62,8 @@ impl LPerTestSuite {
 
         let input_acc = instantiate_input_account(code_id, &inner);
         let output_acc = instantiate_input_account(code_id, &inner);
-        let lper_addr = instantiate_lper_contract(&inner, input_acc.clone(), output_acc.clone());
+        let lper_addr =
+            instantiate_lper_contract(&inner, input_acc.clone(), output_acc.clone(), lp_config);
 
         // Approve the service for the input account
         approve_service(&inner, input_acc.clone(), lper_addr.clone());
@@ -168,6 +172,7 @@ fn instantiate_lper_contract(
     setup: &OsmosisTestAppSetup,
     input_acc: String,
     output_acc: String,
+    lp_config: Option<LiquidityProviderConfig>,
 ) -> String {
     let wasm = Wasm::new(&setup.app);
     let wasm_byte_code = std::fs::read(format!(
@@ -190,11 +195,11 @@ fn instantiate_lper_contract(
         config: ServiceConfig::new(
             input_acc.as_str(),
             output_acc.as_str(),
-            LiquidityProviderConfig {
+            lp_config.unwrap_or(LiquidityProviderConfig {
                 pool_id,
                 pool_asset_1: setup.balancer_pool_cfg.pool_asset1.to_string(),
                 pool_asset_2: setup.balancer_pool_cfg.pool_asset2.to_string(),
-            },
+            }),
         ),
     };
 

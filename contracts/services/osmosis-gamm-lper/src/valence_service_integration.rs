@@ -1,11 +1,12 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Deps, DepsMut, Uint64};
+use cosmwasm_std::{ensure, Addr, Deps, DepsMut, Uint64};
+use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
 use valence_macros::OptionalStruct;
 use valence_service_utils::{
     error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType, ServiceConfigInterface,
 };
 
-use crate::msg::LiquidityProviderConfig;
+use crate::{balancer::ValenceLiquidPooler, msg::LiquidityProviderConfig};
 
 #[cw_serde]
 #[derive(OptionalStruct)]
@@ -35,8 +36,6 @@ impl ServiceConfig {
         let input_addr = self.input_addr.to_addr(api)?;
         let output_addr = self.output_addr.to_addr(api)?;
 
-        // TODO: validate pool_id?
-
         Ok((input_addr, output_addr, self.lp_config.pool_id.into()))
     }
 }
@@ -65,6 +64,28 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
 
     fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
         let (input_addr, output_addr, _pool_id) = self.do_validate(deps.api)?;
+
+        let pm_querier = PoolmanagerQuerier::new(&deps.querier);
+        let pool = pm_querier.get_pool_response(&self.lp_config)?;
+
+        // perform soft pool validation by asserting that the lp config assets
+        // are all present in the pool
+        let (mut asset_1_found, mut asset_2_found) = (false, false);
+        for pool_asset in pool.pool_assets {
+            if let Some(asset) = pool_asset.token {
+                if self.lp_config.pool_asset_1 == asset.denom {
+                    asset_1_found = true;
+                }
+                if self.lp_config.pool_asset_2 == asset.denom {
+                    asset_2_found = true;
+                }
+            }
+        }
+
+        ensure!(
+            asset_1_found && asset_2_found,
+            ServiceError::ExecutionError("Pool does not contain expected assets".to_string())
+        );
 
         Ok(Config {
             input_addr,
