@@ -1,5 +1,4 @@
 use cosmwasm_std::{to_json_binary, Binary, CosmosMsg, DepsMut, Storage, Uint64, WasmMsg};
-use neutron_sdk::bindings::msg::NeutronMsg;
 use valence_authorization_utils::{
     authorization::{ActionsConfig, Authorization},
     callback::PolytoneCallbackMsg,
@@ -18,7 +17,7 @@ pub fn add_domain(
     deps: DepsMut,
     callback_receiver: String,
     domain: &ExternalDomainInfo,
-) -> Result<CosmosMsg<NeutronMsg>, ContractError> {
+) -> Result<CosmosMsg, ContractError> {
     let external_domain = domain.to_external_domain_validated(deps.api)?;
 
     if EXTERNAL_DOMAINS.has(deps.storage, external_domain.name.clone()) {
@@ -78,7 +77,7 @@ pub fn create_msg_for_processor_or_bridge(
     execute_msg: Binary,
     domain: &Domain,
     callback_request: Option<CallbackRequest>,
-) -> Result<CosmosMsg<NeutronMsg>, ContractError> {
+) -> Result<CosmosMsg, ContractError> {
     // If the domain is the main domain we will use the processor on the main domain, otherwise we will use polytone to send it to the processor on the external domain
     match domain {
         Domain::Main => {
