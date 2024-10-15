@@ -5049,6 +5049,7 @@ dependencies = [
 name = "valence-authorization"
 version = "0.1.0"
 dependencies = [
+ "cosmos-sdk-proto 0.20.0",
  "cosmwasm-schema 2.1.4",
  "cosmwasm-std 2.1.4",
  "cw-ownable",
@@ -5078,7 +5079,6 @@ dependencies = [
  "cosmwasm-std 2.1.4",
  "cw-ownable",
  "cw-utils 2.0.0",
- "neutron-sdk",
  "serde_json",
  "valence-polytone-utils",
  "valence-service-utils",

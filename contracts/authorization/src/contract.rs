@@ -1,13 +1,14 @@
+use cosmos_sdk_proto::{cosmos::base::v1beta1::Coin, traits::MessageExt};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     coins, from_json, to_json_binary, Addr, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Empty, Env,
-    MessageInfo, Order, Response, StdResult, Storage, Uint128, Uint64, WasmMsg,
+    MessageInfo, Order, Response, StdResult, Storage, Uint64, WasmMsg,
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner, is_owner};
 use cw_storage_plus::Bound;
 use cw_utils::Expiration;
-use neutron_sdk::bindings::msg::NeutronMsg;
+use neutron_sdk::proto_types::osmosis::tokenfactory::v1beta1::{MsgBurn, MsgCreateDenom, MsgMint};
 use valence_authorization_utils::{
     authorization::{
         Authorization, AuthorizationInfo, AuthorizationMode, AuthorizationState, PermissionType,
@@ -80,7 +81,7 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response<NeutronMsg>, ContractError> {
+) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::UpdateOwnership(action) => update_ownership(deps, env, info, action),
         ExecuteMsg::OwnerAction(owner_msg) => {
@@ -165,7 +166,7 @@ fn update_ownership(
     env: Env,
     info: MessageInfo,
     action: cw_ownable::Action,
-) -> Result<Response<NeutronMsg>, ContractError> {
+) -> Result<Response, ContractError> {
     if let cw_ownable::Action::TransferOwnership { new_owner, .. } = &action {
         if FIRST_OWNERSHIP.load(deps.storage)? {
             assert_owner(deps.storage, &info.sender)?;
@@ -179,7 +180,7 @@ fn update_ownership(
     Ok(Response::new().add_attributes(ownership.into_attributes()))
 }
 
-fn add_sub_owner(deps: DepsMut, sub_owner: String) -> Result<Response<NeutronMsg>, ContractError> {
+fn add_sub_owner(deps: DepsMut, sub_owner: String) -> Result<Response, ContractError> {
     SUB_OWNERS.save(deps.storage, deps.api.addr_validate(&sub_owner)?, &Empty {})?;
 
     Ok(Response::new()
@@ -187,10 +188,7 @@ fn add_sub_owner(deps: DepsMut, sub_owner: String) -> Result<Response<NeutronMsg
         .add_attribute("sub_owner", sub_owner))
 }
 
-fn remove_sub_owner(
-    deps: DepsMut,
-    sub_owner: String,
-) -> Result<Response<NeutronMsg>, ContractError> {
+fn remove_sub_owner(deps: DepsMut, sub_owner: String) -> Result<Response, ContractError> {
     SUB_OWNERS.remove(deps.storage, deps.api.addr_validate(&sub_owner)?);
 
     Ok(Response::new()
@@ -202,7 +200,7 @@ fn add_external_domains(
     mut deps: DepsMut,
     env: Env,
     external_domains: Vec<ExternalDomainInfo>,
-) -> Result<Response<NeutronMsg>, ContractError> {
+) -> Result<Response, ContractError> {
     let mut messages = vec![];
     // Save all external domains
     for domain in external_domains {
@@ -222,7 +220,7 @@ fn create_authorizations(
     deps: DepsMut,
     env: Env,
     authorizations: Vec<AuthorizationInfo>,
-) -> Result<Response<NeutronMsg>, ContractError> {
+) -> Result<Response, ContractError> {
     let mut tokenfactory_msgs = vec![];
 
     for each_authorization in authorizations {
@@ -242,8 +240,10 @@ fn create_authorizations(
         // execute the authorization
         if let AuthorizationMode::Permissioned(permission_type) = &authorization.mode {
             // We will always create the token if it's permissioned
-            let create_token_msg = NeutronMsg::submit_create_denom(authorization.label.clone());
-            tokenfactory_msgs.push(create_token_msg);
+            tokenfactory_msgs.push(create_denom_msg(
+                env.contract.address.to_string(),
+                authorization.label.clone(),
+            ));
 
             // Full denom of the token that will be created
             let denom =
@@ -254,7 +254,12 @@ fn create_authorizations(
                 PermissionType::WithCallLimit(call_limits) => {
                     for (addr, limit) in call_limits {
                         deps.api.addr_validate(addr.as_str())?;
-                        let mint_msg = NeutronMsg::submit_mint_tokens(&denom, *limit, addr);
+                        let mint_msg = mint_msg(
+                            env.contract.address.to_string(),
+                            addr.to_string(),
+                            limit.u128(),
+                            denom.clone(),
+                        );
                         tokenfactory_msgs.push(mint_msg);
                     }
                 }
@@ -262,7 +267,12 @@ fn create_authorizations(
                 PermissionType::WithoutCallLimit(addrs) => {
                     for addr in addrs {
                         deps.api.addr_validate(addr.as_str())?;
-                        let mint_msg = NeutronMsg::submit_mint_tokens(&denom, Uint128::one(), addr);
+                        let mint_msg = mint_msg(
+                            env.contract.address.to_string(),
+                            addr.to_string(),
+                            1,
+                            denom.clone(),
+                        );
                         tokenfactory_msgs.push(mint_msg);
                     }
                 }
@@ -285,7 +295,7 @@ fn modify_authorization(
     expiration: Option<Expiration>,
     max_concurrent_executions: Option<u64>,
     priority: Option<Priority>,
-) -> Result<Response<NeutronMsg>, ContractError> {
+) -> Result<Response, ContractError> {
     let mut authorization = AUTHORIZATIONS
         .load(deps.storage, label.clone())
         .map_err(|_| {
@@ -314,10 +324,7 @@ fn modify_authorization(
     Ok(Response::new().add_attribute("action", "modify_authorization"))
 }
 
-fn disable_authorization(
-    deps: DepsMut,
-    label: String,
-) -> Result<Response<NeutronMsg>, ContractError> {
+fn disable_authorization(deps: DepsMut, label: String) -> Result<Response, ContractError> {
     let mut authorization = AUTHORIZATIONS
         .load(deps.storage, label.clone())
         .map_err(|_| {
@@ -331,10 +338,7 @@ fn disable_authorization(
     Ok(Response::new().add_attribute("action", "disable_authorization"))
 }
 
-fn enable_authorization(
-    deps: DepsMut,
-    label: String,
-) -> Result<Response<NeutronMsg>, ContractError> {
+fn enable_authorization(deps: DepsMut, label: String) -> Result<Response, ContractError> {
     let mut authorization = AUTHORIZATIONS
         .load(deps.storage, label.clone())
         .map_err(|_| {
@@ -353,19 +357,20 @@ fn mint_authorizations(
     env: Env,
     label: String,
     mints: Vec<Mint>,
-) -> Result<Response<NeutronMsg>, ContractError> {
+) -> Result<Response, ContractError> {
     let authorization = AUTHORIZATIONS
         .load(deps.storage, label.clone())
         .map_err(|_| {
             ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
         })?;
 
-    let token_factory_msgs = match authorization.mode {
+    let tokenfactory_msgs = match authorization.mode {
         AuthorizationMode::Permissioned(_) => Ok(mints.iter().map(|mint| {
-            NeutronMsg::submit_mint_tokens(
-                build_tokenfactory_denom(env.contract.address.as_str(), &label),
-                mint.amount,
+            mint_msg(
+                env.contract.address.to_string(),
                 mint.address.clone(),
+                mint.amount.u128(),
+                build_tokenfactory_denom(env.contract.address.as_str(), &label),
             )
         })),
         AuthorizationMode::Permissionless => Err(ContractError::Authorization(
@@ -375,10 +380,10 @@ fn mint_authorizations(
 
     Ok(Response::new()
         .add_attribute("action", "mint_authorizations")
-        .add_messages(token_factory_msgs))
+        .add_messages(tokenfactory_msgs))
 }
 
-fn pause_processor(deps: DepsMut, domain: Domain) -> Result<Response<NeutronMsg>, ContractError> {
+fn pause_processor(deps: DepsMut, domain: Domain) -> Result<Response, ContractError> {
     let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
         AuthorizationMsg::Pause {},
     ))?;
@@ -390,7 +395,7 @@ fn pause_processor(deps: DepsMut, domain: Domain) -> Result<Response<NeutronMsg>
         .add_attribute("action", "pause_processor"))
 }
 
-fn resume_processor(deps: DepsMut, domain: Domain) -> Result<Response<NeutronMsg>, ContractError> {
+fn resume_processor(deps: DepsMut, domain: Domain) -> Result<Response, ContractError> {
     let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
         AuthorizationMsg::Resume {},
     ))?;
@@ -409,7 +414,7 @@ fn insert_messages(
     queue_position: u64,
     priority: Priority,
     messages: Vec<ProcessorMessage>,
-) -> Result<Response<NeutronMsg>, ContractError> {
+) -> Result<Response, ContractError> {
     let authorization = AUTHORIZATIONS
         .load(deps.storage, label.clone())
         .map_err(|_| {
@@ -474,7 +479,7 @@ fn evict_messages(
     domain: Domain,
     queue_position: u64,
     priority: Priority,
-) -> Result<Response<NeutronMsg>, ContractError> {
+) -> Result<Response, ContractError> {
     let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
         AuthorizationMsg::EvictMsgs {
             queue_position,
@@ -495,7 +500,7 @@ fn send_msgs(
     label: String,
     ttl: Option<Expiration>,
     messages: Vec<ProcessorMessage>,
-) -> Result<Response<NeutronMsg>, ContractError> {
+) -> Result<Response, ContractError> {
     let authorization = AUTHORIZATIONS
         .load(deps.storage, label.clone())
         .map_err(|_| {
@@ -570,11 +575,7 @@ fn send_msgs(
         .add_attribute("authorization_label", authorization.label))
 }
 
-fn retry_msgs(
-    deps: DepsMut,
-    env: Env,
-    execution_id: u64,
-) -> Result<Response<NeutronMsg>, ContractError> {
+fn retry_msgs(deps: DepsMut, env: Env, execution_id: u64) -> Result<Response, ContractError> {
     let mut callback_info = PROCESSOR_CALLBACKS
         .load(deps.storage, execution_id)
         .map_err(|_| ContractError::ExecutionIDNotFound { execution_id })?;
@@ -661,7 +662,7 @@ fn retry_bridge_creation(
     deps: DepsMut,
     env: Env,
     domain_name: String,
-) -> Result<Response<NeutronMsg>, ContractError> {
+) -> Result<Response, ContractError> {
     let mut external_domain = EXTERNAL_DOMAINS.load(deps.storage, domain_name.clone())?;
 
     let msg = match external_domain.connector {
@@ -710,7 +711,7 @@ fn process_processor_callback(
     info: MessageInfo,
     execution_id: u64,
     execution_result: ExecutionResult,
-) -> Result<Response<NeutronMsg>, ContractError> {
+) -> Result<Response, ContractError> {
     let mut callback = PROCESSOR_CALLBACKS.load(deps.storage, execution_id)?;
 
     // Check that the sender is the one that should send the callback
@@ -751,7 +752,7 @@ fn process_processor_callback(
             let msg = match callback.execution_result {
                 ExecutionResult::Success | ExecutionResult::PartiallyExecuted(_, _) => {
                     // If the operation was executed or partially executed, the token will be burned
-                    NeutronMsg::submit_burn_tokens(denom, Uint128::one()).into()
+                    burn_msg(env.contract.address.to_string(), 1, denom)
                 }
                 _ => {
                     // Otherwise, the tokens will be sent back
@@ -777,7 +778,7 @@ fn process_polytone_callback(
     env: Env,
     info: MessageInfo,
     callback_msg: CallbackMessage,
-) -> Result<Response<NeutronMsg>, ContractError> {
+) -> Result<Response, ContractError> {
     // We will only process callbacks from messages initiated by the authorization contract
     if callback_msg.initiator != env.contract.address {
         return Err(ContractError::Unauthorized(
@@ -1103,4 +1104,48 @@ pub fn store_inprocess_callback(
     PROCESSOR_CALLBACKS.save(storage, id, &callback)?;
 
     Ok(())
+}
+
+fn create_denom_msg(sender: String, subdenom: String) -> CosmosMsg {
+    let msg_create_denom = MsgCreateDenom { sender, subdenom };
+    // TODO: Change to AnyMsg instead of Stargate when we can test with CW 2.0 (They are the same, just a rename)
+    #[allow(deprecated)]
+    CosmosMsg::Stargate {
+        type_url: "/osmosis.tokenfactory.v1beta1.MsgCreateDenom".to_string(),
+        value: Binary::from(msg_create_denom.to_bytes().unwrap()),
+    }
+}
+
+fn mint_msg(sender: String, recipient: String, amount: u128, denom: String) -> CosmosMsg {
+    let msg_mint = MsgMint {
+        sender,
+        amount: Some(Coin {
+            denom,
+            amount: amount.to_string(),
+        }),
+        mint_to_address: recipient,
+    };
+    // TODO: Change to AnyMsg instead of Stargate when we can test with CW 2.0 (They are the same, just a rename)
+    #[allow(deprecated)]
+    CosmosMsg::Stargate {
+        type_url: "/osmosis.tokenfactory.v1beta1.MsgMint".to_string(),
+        value: Binary::from(msg_mint.to_bytes().unwrap()),
+    }
+}
+
+fn burn_msg(sender: String, amount: u128, denom: String) -> CosmosMsg {
+    let msg_burn = MsgBurn {
+        sender,
+        amount: Some(Coin {
+            denom,
+            amount: amount.to_string(),
+        }),
+        burn_from_address: "".to_string(),
+    };
+    // TODO: Change to AnyMsg instead of Stargate when we can test with CW 2.0 (They are the same, just a rename)
+    #[allow(deprecated)]
+    CosmosMsg::Stargate {
+        type_url: "/osmosis.tokenfactory.v1beta1.MsgBurn".to_string(),
+        value: Binary::from(msg_burn.to_bytes().unwrap()),
+    }
 }
