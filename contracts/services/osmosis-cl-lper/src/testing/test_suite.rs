@@ -1,13 +1,15 @@
-use cosmwasm_std::{coin, Coin, Uint128};
+use cosmwasm_std::{coin, Coin, Int64, Uint128};
 
 use osmosis_test_tube::{
-    osmosis_std::types::cosmwasm::wasm::v1::MsgExecuteContractResponse, Account, ExecuteResponse,
-    Module, Wasm,
+    osmosis_std::types::{
+        cosmwasm::wasm::v1::MsgExecuteContractResponse,
+        osmosis::concentratedliquidity::v1beta1::{UserPositionsRequest, UserPositionsResponse},
+    },
+    Account, ConcentratedLiquidity, ExecuteResponse, Module, Wasm,
 };
 use valence_osmosis_utils::{
     suite::{OsmosisTestAppBuilder, OsmosisTestAppSetup, OSMO_DENOM, TEST_DENOM},
     testing::concentrated_liquidity::ConcentratedLiquidityPool,
-    utils::DecimalRange,
 };
 use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 
@@ -86,15 +88,33 @@ impl LPerTestSuite {
         }
     }
 
+    pub fn query_cl_positions(&self, addr: String) -> UserPositionsResponse {
+        let cl = ConcentratedLiquidity::new(&self.inner.app);
+        let request = UserPositionsRequest {
+            address: addr,
+            pool_id: self.inner.pool_cfg.pool_id.u64(),
+            pagination: None,
+        };
+
+        let user_positions_response = cl.query_user_positions(&request).unwrap();
+        println!("user positions: {:?}", user_positions_response);
+
+        user_positions_response
+    }
+
     pub fn provide_two_sided_liquidity(
         &self,
-        expected_spot_price: Option<DecimalRange>,
+        lower_tick: i64,
+        upper_tick: i64,
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
         wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
             &self.lper_addr,
-            &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideDoubleSidedLiquidity {}),
+            &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideDoubleSidedLiquidity {
+                lower_tick: Int64::new(lower_tick),
+                upper_tick: Int64::new(upper_tick),
+            }),
             &[],
             self.inner.processor_acc(),
         )
@@ -105,13 +125,19 @@ impl LPerTestSuite {
         &self,
         asset: &str,
         limit: Uint128,
-        expected_spot_price: Option<DecimalRange>,
+        lower_tick: i64,
+        upper_tick: i64,
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
         wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
             &self.lper_addr,
-            &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideSingleSidedLiquidity {}),
+            &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideSingleSidedLiquidity {
+                asset: asset.to_string(),
+                limit,
+                lower_tick: Int64::new(lower_tick),
+                upper_tick: Int64::new(upper_tick),
+            }),
             &[],
             self.inner.processor_acc(),
         )

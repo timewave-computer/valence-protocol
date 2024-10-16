@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Deps, DepsMut, Uint64};
+use cosmwasm_std::{Addr, Deps, DepsMut, Int64, Uint128, Uint64};
 use cw_ownable::cw_ownable_query;
 
 use valence_macros::OptionalStruct;
@@ -8,8 +8,16 @@ use valence_service_utils::{
 };
 #[cw_serde]
 pub enum ActionsMsgs {
-    ProvideDoubleSidedLiquidity {},
-    ProvideSingleSidedLiquidity {},
+    ProvideDoubleSidedLiquidity {
+        lower_tick: Int64,
+        upper_tick: Int64,
+    },
+    ProvideSingleSidedLiquidity {
+        asset: String,
+        limit: Uint128,
+        lower_tick: Int64,
+        upper_tick: Int64,
+    },
 }
 
 #[cw_ownable_query]
