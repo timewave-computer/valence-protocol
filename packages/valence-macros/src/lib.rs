@@ -1,6 +1,6 @@
 mod helpers;
 
-use helpers::{has_skip_update_attr, get_option_inner_type, merge_variants};
+use helpers::{get_option_inner_type, has_skip_update_attr, merge_variants};
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::{parse_macro_input, Data, DeriveInput, Fields};
@@ -30,7 +30,7 @@ pub fn valence_service_interface_derive(input: TokenStream) -> TokenStream {
         let name = &f.ident;
         let ty = &f.ty;
         let vis = &f.vis;
-        
+
         if let Some(inner_type) = get_option_inner_type(ty) {
             quote! {
                 #vis #name: OptionUpdate<#inner_type>,
@@ -44,7 +44,7 @@ pub fn valence_service_interface_derive(input: TokenStream) -> TokenStream {
 
     let update_fields = filtered_fields.iter().map(|f| {
         let name = &f.ident;
-        
+
         if get_option_inner_type(&f.ty).is_some() {
             quote! {
                 match &self.#name {
@@ -60,16 +60,35 @@ pub fn valence_service_interface_derive(input: TokenStream) -> TokenStream {
             }
         }
     });
-    
+
+    let diff_update_fields = filtered_fields.iter().map(|f| {
+        let name = &f.ident;
+
+        if get_option_inner_type(&f.ty).is_some() {
+            quote! {
+                if self.#name != other.#name {
+                    update.#name = OptionUpdate::Set(other.#name.clone());
+                }
+            }
+        } else {
+            quote! {
+                if self.#name != other.#name {
+                    update.#name = Some(other.#name.clone());
+                }
+            }
+        }
+    });
+
     let expanded = quote! {
         use valence_service_utils::{ServiceConfigUpdateTrait, OptionUpdate, raw_config::{save_raw_service_config, load_raw_service_config}};
         use cosmwasm_std::StdResult;
-        
+
         #[cw_serde]
+        #[derive(Default)]
         #vis struct #filter_name {
             #(#filter_fields)*
         }
-        
+
         impl ServiceConfigUpdateTrait for #filter_name {
             fn update_raw(&self, storage: &mut dyn cosmwasm_std::Storage) -> StdResult<()> {
                 let mut raw_config = load_raw_service_config::<#name>(storage)?;
@@ -77,6 +96,21 @@ pub fn valence_service_interface_derive(input: TokenStream) -> TokenStream {
                 #(#update_fields)*
 
                 save_raw_service_config(storage, &raw_config)
+            }
+        }
+
+        impl #name {
+            pub fn get_diff_update(&self, other: #name) -> Option<#filter_name> {
+                let mut update = #filter_name::default();
+                let mut has_changes = false;
+
+                #(#diff_update_fields)*
+
+                if update != #filter_name::default() {
+                    Some(update)
+                } else {
+                    None
+                }
             }
         }
     };

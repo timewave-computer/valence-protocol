@@ -1,7 +1,7 @@
 use cosmwasm_schema::write_api;
 
 use valence_reverse_splitter_service::msg::{
-    ActionMsgs, ServiceConfigUpdate, QueryMsg, ServiceConfig,
+    ActionMsgs, QueryMsg, ServiceConfig, ServiceConfigUpdate,
 };
 use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 

@@ -23,7 +23,8 @@ pub struct ServiceConfig {
     /// This means this field is not updatable
     #[skip_update]
     pub skip_update_admin: String,
-    pub optional: Option<String>
+    pub optional: Option<String>,
+    pub optional2: String,
 }
 
 impl ServiceConfigValidation<Config> for ServiceConfig {

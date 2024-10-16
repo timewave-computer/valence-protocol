@@ -1,6 +1,6 @@
 use cosmwasm_schema::write_api;
 
-use valence_astroport_lper::msg::{ActionsMsgs, ServiceConfigUpdate, QueryMsg, ServiceConfig};
+use valence_astroport_lper::msg::{ActionsMsgs, QueryMsg, ServiceConfig, ServiceConfigUpdate};
 use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 
 fn main() {

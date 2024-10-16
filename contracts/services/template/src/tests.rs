@@ -5,7 +5,8 @@ use cw_ownable::Ownership;
 use getset::{Getters, Setters};
 use valence_service_utils::{
     msg::{ExecuteMsg, InstantiateMsg},
-    testing::{ServiceTestSuite, ServiceTestSuiteBase}, OptionUpdate,
+    testing::{ServiceTestSuite, ServiceTestSuiteBase},
+    OptionUpdate,
 };
 
 #[derive(Getters, Setters)]
@@ -55,6 +56,7 @@ impl TemplateTestSuite {
         ServiceConfig {
             skip_update_admin: admin,
             optional: None,
+            optional2: "s".to_string(),
         }
     }
 
@@ -129,13 +131,41 @@ fn instantiate_with_valid_config() {
         raw_svc_cfg,
         ServiceConfig {
             skip_update_admin: suite.owner().clone().to_string(),
-            optional: None
+            optional: None,
+            optional2: "s".to_string(),
         }
     );
 
     // Here we just want to make sure that our ignore_optional actually works
     // Because we ignore the only available field, ServiceConfigUpdate expected to have no fields
-    let _ = ServiceConfigUpdate { optional: OptionUpdate::Set(None) };
+    let _ = ServiceConfigUpdate {
+        optional: OptionUpdate::Set(None),
+        optional2: Some("s".to_string()),
+    };
+}
+
+#[test]
+fn get_diff_update() {
+    let suite = TemplateTestSuite::default();
+
+    let admin_addr = suite.owner().clone();
+    let old_cfg = suite.template_config(admin_addr.to_string());
+    let mut new_cfg = suite.template_config(admin_addr.to_string());
+
+    // We didn't change anything, so if we run get_diff_update, it should return None
+    assert!(old_cfg.get_diff_update(new_cfg.clone()).is_none());
+
+    new_cfg.optional = Some("optional".to_string());
+
+    // We changed the optional field, so if we run get_diff_update, it should return Some
+    let update = old_cfg.get_diff_update(new_cfg.clone());
+    assert_eq!(
+        update.unwrap(),
+        ServiceConfigUpdate {
+            optional: OptionUpdate::Set(Some("optional".to_string())),
+            optional2: None
+        }
+    );
 }
 
 #[test]

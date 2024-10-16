@@ -18,6 +18,14 @@ pub trait ServiceConfigUpdateTrait {
     fn update_raw(&self, storage: &mut dyn Storage) -> StdResult<()>;
 }
 
+#[cw_serde]
+#[derive(Default)]
+pub enum OptionUpdate<T> {
+    #[default]
+    None,
+    Set(Option<T>),
+}
+
 /// An account type that is used in the service configs
 /// It can either be an Id or Addr
 /// The config that will be passed to the service must be of Addr veriant
@@ -30,12 +38,6 @@ pub enum ServiceAccountType {
     AccountId(Id),
     #[serde(rename = "|service_id|", alias = "service_id")]
     ServiceId(Id),
-}
-
-#[cw_serde]
-pub enum OptionUpdate<T> {
-    None,
-    Set(Option<T>),
 }
 
 impl From<&Addr> for ServiceAccountType {

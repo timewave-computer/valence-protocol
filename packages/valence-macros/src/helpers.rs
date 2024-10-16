@@ -1,12 +1,13 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Attribute, AttributeArgs, DataEnum, DeriveInput, GenericArgument, PathArguments, Type, TypePath};
+use syn::{
+    parse_macro_input, Attribute, AttributeArgs, DataEnum, DeriveInput, GenericArgument,
+    PathArguments, Type, TypePath,
+};
 
 // Check if theres `skip_update` attribute on the field.
 pub(crate) fn has_skip_update_attr(attrs: &[Attribute]) -> bool {
-    attrs
-        .iter()
-        .any(|attr| attr.path.is_ident("skip_update"))
+    attrs.iter().any(|attr| attr.path.is_ident("skip_update"))
 }
 
 pub(crate) fn get_option_inner_type(ty: &Type) -> Option<&Type> {

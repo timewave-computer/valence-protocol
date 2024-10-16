@@ -13,7 +13,7 @@ use valence_service_utils::{
 };
 
 use crate::msg::{
-    ActionsMsgs, AssetData, LiquidityProviderConfig, ServiceConfigUpdate, PoolType, ServiceConfig,
+    ActionsMsgs, AssetData, LiquidityProviderConfig, PoolType, ServiceConfig, ServiceConfigUpdate,
 };
 
 const CONTRACT_PATH: &str = "../../../artifacts";

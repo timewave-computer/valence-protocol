@@ -47,19 +47,16 @@ pub struct ServiceInfo {
 }
 
 /// This is a list of all our services we support and their configs.
-#[derive(Debug, Clone, strum::Display, Serialize, Deserialize, VariantNames, PartialEq)]
+#[derive(
+    Debug, Clone, strum::Display, Serialize, Deserialize, VariantNames, PartialEq, Default,
+)]
 #[strum(serialize_all = "snake_case")]
 pub enum ServiceConfig {
+    #[default]
     None,
     ValenceForwarderService(valence_forwarder_service::msg::ServiceConfig),
     ValenceSplitterService(valence_splitter_service::msg::ServiceConfig),
     ValenceReverseSplitterService(valence_reverse_splitter_service::msg::ServiceConfig),
-}
-
-impl Default for ServiceConfig {
-    fn default() -> Self {
-        ServiceConfig::None
-    }
 }
 
 // TODO: create macro for the methods that work the same over all of the configs
@@ -121,7 +118,7 @@ impl ServiceConfig {
 
     pub fn soft_validate_config(&self, api: &dyn cosmwasm_std::Api) -> ServiceResult<()> {
         match self {
-            ServiceConfig::None => return Err(ServiceError::NoServiceConfig),
+            ServiceConfig::None => Err(ServiceError::NoServiceConfig),
             ServiceConfig::ValenceForwarderService(config) => {
                 config.pre_validate(api)?;
                 Ok(())
@@ -141,7 +138,7 @@ impl ServiceConfig {
         let ac: AhoCorasick = AhoCorasick::new(["\"|account_id|\":"]).unwrap();
 
         match self {
-            ServiceConfig::None => return Err(ServiceError::NoServiceConfig),
+            ServiceConfig::None => Err(ServiceError::NoServiceConfig),
             ServiceConfig::ValenceForwarderService(config) => {
                 Self::find_account_ids(ac, serde_json::to_string(&config)?)
             }
