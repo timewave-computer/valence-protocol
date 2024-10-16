@@ -4,6 +4,7 @@ use std::{
     ops::{Add, Sub},
 };
 
+use cosmwasm_std::Uint128;
 use local_interchaintest::utils::{
     base_account::{approve_service, create_base_accounts},
     GAS_FLAGS, LOGS_FILE_PATH, NTRN_DENOM, VALENCE_ARTIFACTS_PATH,
@@ -18,7 +19,7 @@ use localic_utils::{
 };
 use log::info;
 
-use valence_generic_ibc_transfer_service::msg::{ActionMsgs, IbcTransferAmount, ServiceConfig};
+use valence_generic_ibc_transfer_service::msg::{ActionMsgs, IbcTransferAmount, OptionalServiceConfig, ServiceConfig};
 use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -221,6 +222,78 @@ fn main() -> Result<(), Box<dyn Error>> {
     assert_eq!(
         end_output_balance,
         start_output_balance.add(transfer_amount)
+    );
+
+    // Update config to transfer the input account's full remaining balance
+    info!("Update service configuration...");
+    let new_config = valence_neutron_ibc_transfer_service::msg::OptionalServiceConfig {
+        input_addr: None,
+        output_addr: None,
+        denom: None,
+        amount: Some(IbcTransferAmount::FullAmount),
+        memo: None,
+        remote_chain_info: None,
+    };
+    let upd_cfg_msg = valence_service_utils::msg::ExecuteMsg::<ActionMsgs, OptionalServiceConfig>::UpdateConfig { new_config };
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(JUNO_CHAIN_NAME),
+        &ibc_transfer.address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&upd_cfg_msg).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(10));
+
+    info!("Initiate IBC transfer");
+    let ibc_transfer_msg =
+        &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(ActionMsgs::IbcTransfer {});
+    
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(JUNO_CHAIN_NAME),
+        &ibc_transfer.address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&ibc_transfer_msg).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+
+    info!("Messages sent to the IBC Transfer service!");
+    std::thread::sleep(std::time::Duration::from_secs(10));
+
+    info!("Verifying balances...");
+    let prev_end_input_balance = end_input_balance;
+    let end_input_balance = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(JUNO_CHAIN_NAME),
+        &input_account,
+    )
+    .iter()
+    .find(|bal| bal.denom == neutron_on_juno_denom)
+    .map_or(0, |bal| bal.amount.u128());
+    assert_eq!(
+        end_input_balance,
+        Uint128::zero().u128()
+    );
+
+    let prev_end_output_balance = end_output_balance;
+    let end_output_balance = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &output_account,
+    )
+    .iter()
+    .find(|bal| bal.denom == NTRN_DENOM)
+    .map_or(0, |bal| bal.amount.u128());
+    assert_eq!(
+        end_output_balance,
+        prev_end_output_balance.add(prev_end_input_balance)
     );
 
     info!("IBC transfer successful!");
