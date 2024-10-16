@@ -19,7 +19,9 @@ use localic_utils::{
 };
 use log::info;
 
-use valence_generic_ibc_transfer_service::msg::{ActionMsgs, IbcTransferAmount, OptionalServiceConfig, ServiceConfig};
+use valence_generic_ibc_transfer_service::msg::{
+    ActionMsgs, IbcTransferAmount, OptionalServiceConfig, ServiceConfig,
+};
 use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -234,7 +236,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         memo: None,
         remote_chain_info: None,
     };
-    let upd_cfg_msg = valence_service_utils::msg::ExecuteMsg::<ActionMsgs, OptionalServiceConfig>::UpdateConfig { new_config };
+    let upd_cfg_msg =
+        valence_service_utils::msg::ExecuteMsg::<ActionMsgs, OptionalServiceConfig>::UpdateConfig {
+            new_config,
+        };
     contract_execute(
         test_ctx
             .get_request_builder()
@@ -250,7 +255,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Initiate IBC transfer");
     let ibc_transfer_msg =
         &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(ActionMsgs::IbcTransfer {});
-    
+
     contract_execute(
         test_ctx
             .get_request_builder()
@@ -276,10 +281,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     .iter()
     .find(|bal| bal.denom == neutron_on_juno_denom)
     .map_or(0, |bal| bal.amount.u128());
-    assert_eq!(
-        end_input_balance,
-        Uint128::zero().u128()
-    );
+    assert_eq!(end_input_balance, Uint128::zero().u128());
 
     let prev_end_output_balance = end_output_balance;
     let end_output_balance = bank::get_balance(

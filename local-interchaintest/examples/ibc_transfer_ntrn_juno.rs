@@ -247,7 +247,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         memo: None,
         remote_chain_info: None,
     };
-    let upd_cfg_msg = valence_service_utils::msg::ExecuteMsg::<ActionMsgs, OptionalServiceConfig>::UpdateConfig { new_config };
+    let upd_cfg_msg =
+        valence_service_utils::msg::ExecuteMsg::<ActionMsgs, OptionalServiceConfig>::UpdateConfig {
+            new_config,
+        };
     contract_execute(
         test_ctx
             .get_request_builder()
@@ -263,7 +266,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Initiate IBC transfer");
     let ibc_transfer_msg =
         &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(ActionMsgs::IbcTransfer {});
-    
+
     contract_execute(
         test_ctx
             .get_request_builder()
@@ -289,10 +292,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     .iter()
     .find(|bal| bal.denom == NTRN_DENOM)
     .map_or(0, |bal| bal.amount.u128());
-    assert_eq!(
-        end_input_balance,
-        ibc_fee / 2
-    );
+    assert_eq!(end_input_balance, ibc_fee / 2);
 
     let prev_end_output_balance = end_output_balance;
     let end_output_balance = bank::get_balance(
@@ -306,7 +306,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     .map_or(0, |bal| bal.amount.u128());
     assert_eq!(
         end_output_balance,
-        prev_end_output_balance.add(prev_end_input_balance).sub(ibc_fee)
+        prev_end_output_balance
+            .add(prev_end_input_balance)
+            .sub(ibc_fee)
     );
 
     info!("IBC transfer successful!");
