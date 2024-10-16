@@ -1,3 +1,7 @@
+use crate::{
+    msg::{ActionsMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig},
+    state::PENDING_CTX,
+};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -7,7 +11,9 @@ use cosmwasm_std::{
 use osmosis_std::{
     cosmwasm_to_proto_coins,
     types::osmosis::{
-        concentratedliquidity::v1beta1::{MsgCreatePosition, MsgTransferPositions, Pool},
+        concentratedliquidity::v1beta1::{
+            ConcentratedliquidityQuerier, MsgCreatePosition, MsgTransferPositions, Pool,
+        },
         poolmanager::v1beta1::PoolmanagerQuerier,
     },
 };
@@ -15,11 +21,6 @@ use valence_service_utils::{
     error::ServiceError,
     execute_on_behalf_of,
     msg::{ExecuteMsg, InstantiateMsg},
-};
-
-use crate::{
-    msg::{ActionsMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig},
-    state::PENDING_CTX,
 };
 
 // version info for migration info
@@ -115,25 +116,40 @@ pub fn provide_double_sided_liquidity(
         token_min_amount1: token_min_amount_1.to_string(),
     };
 
-    deps.api
-        .debug(format!("msg_create_position: {:?}", create_cl_position_msg).as_str());
-
     let delegated_input_acc_msgs =
         execute_on_behalf_of(vec![create_cl_position_msg.into()], &cfg.input_addr.clone())?;
 
     PENDING_CTX.save(deps.storage, &cfg)?;
-    let submsg = SubMsg::reply_on_success(delegated_input_acc_msgs, REPLY_ID);
 
-    Ok(Response::default().add_submessage(submsg))
+    Ok(Response::default()
+        .add_submessage(SubMsg::reply_on_success(delegated_input_acc_msgs, REPLY_ID)))
 }
 
-fn get_transfer_position_msg(position_id: u64, from: &str, to: &str) -> CosmosMsg {
+fn get_transfer_position_msg(position_ids: Vec<u64>, from: &str, to: &str) -> CosmosMsg {
     MsgTransferPositions {
-        position_ids: vec![position_id],
+        position_ids,
         sender: from.to_string(),
         new_owner: to.to_string(),
     }
     .into()
+}
+
+fn query_cl_positions(
+    deps: &DepsMut,
+    pool_id: u64,
+    account: String,
+) -> Result<Vec<u64>, ServiceError> {
+    let pool_manager_querier = ConcentratedliquidityQuerier::new(&deps.querier);
+    let active_positions_response = pool_manager_querier.user_positions(account, pool_id, None)?;
+
+    let mut ids: Vec<u64> = vec![];
+    for active_position in active_positions_response.positions {
+        if let Some(p) = active_position.position {
+            ids.push(p.position_id);
+        }
+    }
+
+    Ok(ids)
 }
 
 pub fn provide_single_sided_liquidity(
@@ -153,14 +169,6 @@ pub fn provide_single_sided_liquidity(
         input_acc_asset_bal.amount
     };
 
-    let matched_pool = query_cl_pool(&deps, cfg.lp_config.pool_id)?;
-
-    let (_token_min_amount0, _token_min_amount1) = if matched_pool.token0 == asset {
-        ("1".to_string(), "0".to_string())
-    } else {
-        ("0".to_string(), "1".to_string())
-    };
-
     let create_cl_position_msg: CosmosMsg = MsgCreatePosition {
         pool_id: cfg.lp_config.pool_id,
         sender: cfg.input_addr.to_string(),
@@ -178,10 +186,13 @@ pub fn provide_single_sided_liquidity(
     let delegated_input_acc_msgs =
         execute_on_behalf_of(vec![create_cl_position_msg], &cfg.input_addr.clone())?;
 
-    Ok(Response::default().add_message(delegated_input_acc_msgs))
+    PENDING_CTX.save(deps.storage, &cfg)?;
+
+    Ok(Response::default()
+        .add_submessage(SubMsg::reply_on_success(delegated_input_acc_msgs, REPLY_ID)))
 }
 
-fn query_cl_pool(deps: &DepsMut, pool_id: u64) -> StdResult<Pool> {
+fn _query_cl_pool(deps: &DepsMut, pool_id: u64) -> StdResult<Pool> {
     let querier = PoolmanagerQuerier::new(&deps.querier);
     let pool_query_response = querier.pool(pool_id)?;
 
@@ -216,7 +227,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ServiceError> {
-    deps.api.debug("reply callback");
+    deps.api
+        .debug(format!("reply callback: {:?}", msg.result).as_str());
 
     match msg.id {
         REPLY_ID => handle_liquidity_provision_reply_id(deps, msg.result),
@@ -228,40 +240,26 @@ fn handle_liquidity_provision_reply_id(
     deps: DepsMut,
     result: SubMsgResult,
 ) -> Result<Response, ServiceError> {
-    match result {
-        SubMsgResult::Ok(sub_msg_response) => {
-            // here we need to find the event that contains the created position id
-            for event in sub_msg_response.events {
-                if event.ty == "create_position" {
-                    for attr in event.attributes {
-                        if attr.key == "position_id" {
-                            // extract the position id to be transferred
-                            let position_id = attr
-                                .value
-                                .parse::<u64>()
-                                .map_err(|_| StdError::generic_err("failed to get position id"))?;
+    match result.clone() {
+        SubMsgResult::Ok(_) => {
+            let cfg = PENDING_CTX.load(deps.storage)?;
+            let input_acc_positions =
+                query_cl_positions(&deps, cfg.lp_config.pool_id, cfg.input_addr.to_string())?;
 
-                            let ctx = PENDING_CTX.load(deps.storage)?;
+            let transfer_positions_msg = get_transfer_position_msg(
+                input_acc_positions,
+                cfg.input_addr.as_str(),
+                cfg.output_addr.as_str(),
+            );
 
-                            let transfer_position_msg = get_transfer_position_msg(
-                                position_id,
-                                ctx.input_addr.as_str(),
-                                ctx.output_addr.as_str(),
-                            );
+            let delegated_input_acc_msgs =
+                execute_on_behalf_of(vec![transfer_positions_msg], &cfg.input_addr.clone())?;
 
-                            let delegated_input_acc_msgs =
-                                execute_on_behalf_of(vec![transfer_position_msg], &ctx.input_addr)?;
-
-                            return Ok(Response::default().add_message(delegated_input_acc_msgs));
-                        }
-                    }
-                }
-            }
-            Ok(Response::default())
+            Ok(Response::default().add_message(delegated_input_acc_msgs))
         }
-        SubMsgResult::Err(e) => Err(ServiceError::Std(StdError::generic_err(format!(
-            "submsg error: {:?}",
-            e
+        SubMsgResult::Err(sub_msg_error) => Err(ServiceError::Std(StdError::generic_err(format!(
+            "failed to create position: {:?}",
+            sub_msg_error
         )))),
     }
 }

@@ -1,4 +1,4 @@
-use cosmwasm_std::{coin, Coin, Int64, Uint128};
+use cosmwasm_std::{coin, Coin, Int64};
 
 use osmosis_test_tube::{
     osmosis_std::types::{
@@ -96,10 +96,7 @@ impl LPerTestSuite {
             pagination: None,
         };
 
-        let user_positions_response = cl.query_user_positions(&request).unwrap();
-        println!("user positions: {:?}", user_positions_response);
-
-        user_positions_response
+        cl.query_user_positions(&request).unwrap()
     }
 
     pub fn provide_two_sided_liquidity(
@@ -128,7 +125,7 @@ impl LPerTestSuite {
     pub fn provide_single_sided_liquidity(
         &self,
         asset: &str,
-        limit: Uint128,
+        limit: u128,
         lower_tick: i64,
         upper_tick: i64,
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
@@ -138,7 +135,7 @@ impl LPerTestSuite {
             &self.lper_addr,
             &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideSingleSidedLiquidity {
                 asset: asset.to_string(),
-                limit,
+                limit: limit.into(),
                 lower_tick: Int64::new(lower_tick),
                 upper_tick: Int64::new(upper_tick),
             }),
