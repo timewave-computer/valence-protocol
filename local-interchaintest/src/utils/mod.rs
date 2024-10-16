@@ -1,6 +1,7 @@
 pub mod authorization;
 pub mod base_account;
 pub mod manager;
+pub mod persistence;
 pub mod polytone;
 pub mod processor;
 
@@ -19,3 +20,9 @@ pub const NTRN_DENOM: &str = "untrn";
 
 pub const NEUTRON_USER_ADDRESS_1: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
 pub const USER_KEY_1: &str = "acc1";
+
+pub const PERSISTENCE_CHAIN_DENOM: &str = "uxrpt";
+pub const PERSISTENCE_CHAIN_ID: &str = "localpersistence-1";
+pub const PERSISTENCE_CHAIN_NAME: &str = "persistence";
+pub const PERSISTENCE_CHAIN_PREFIX: &str = "persistence";
+pub const PERSISTENCE_CHAIN_ADMIN_ADDR: &str = "persistence1hj5fveer5cjtn4wd6wstzugjfdxzl0xpgq5pz8";
