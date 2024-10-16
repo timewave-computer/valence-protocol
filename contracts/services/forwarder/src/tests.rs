@@ -1,5 +1,5 @@
 use crate::msg::{ActionsMsgs, Config, ForwardingConstraints, QueryMsg, ServiceConfig};
-use cosmwasm_std::{coin, Addr, Coin, Uint128};
+use cosmwasm_std::{coin, Addr, Coin, Empty, Uint128};
 use cw20::Cw20Coin;
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
@@ -115,7 +115,7 @@ impl ForwarderTestSuite {
     }
 }
 
-impl ServiceTestSuite for ForwarderTestSuite {
+impl ServiceTestSuite<Empty, Empty> for ForwarderTestSuite {
     fn app(&self) -> &App {
         self.inner.app()
     }

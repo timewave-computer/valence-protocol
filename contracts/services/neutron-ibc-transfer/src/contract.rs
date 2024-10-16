@@ -7,7 +7,7 @@ use valence_service_utils::{
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
-use crate::msg::{ActionsMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig};
+use crate::msg::{ActionMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -15,12 +15,12 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    deps: DepsMut,
+    deps: DepsMut<NeutronQuery>,
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg<ServiceConfig>,
 ) -> Result<Response, ServiceError> {
-    valence_service_base::instantiate(deps, CONTRACT_NAME, CONTRACT_VERSION, msg)
+    valence_service_base::instantiate(deps.into_empty(), CONTRACT_NAME, CONTRACT_VERSION, msg)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -28,7 +28,7 @@ pub fn execute(
     deps: DepsMut<NeutronQuery>,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg<ActionsMsgs, OptionalServiceConfig>,
+    msg: ExecuteMsg<ActionMsgs, OptionalServiceConfig>,
 ) -> Result<Response, ServiceError> {
     valence_service_base::execute(
         deps,
@@ -45,24 +45,31 @@ mod actions {
     use neutron_sdk::bindings::query::NeutronQuery;
     use valence_service_utils::{error::ServiceError, execute_on_behalf_of};
 
-    use crate::msg::{ActionsMsgs, Config};
+    use crate::msg::{ActionMsgs, Config, IbcTransferAmount};
 
     pub fn process_action(
         deps: DepsMut<NeutronQuery>,
         env: Env,
         _info: MessageInfo,
-        msg: ActionsMsgs,
+        msg: ActionMsgs,
         cfg: Config,
     ) -> Result<Response, ServiceError> {
         match msg {
-            ActionsMsgs::IbcTransfer {} => {
+            ActionMsgs::IbcTransfer {} => {
                 let balance = cfg.denom().query_balance(&deps.querier, cfg.input_addr())?;
-                if balance < *cfg.amount() {
-                    return Err(ServiceError::ExecutionError(format!(
-                        "Insufficient balance for denom '{}' in config (required: {}, available: {}).",
-                        cfg.denom(), cfg.amount(), balance,
-                    )));
-                }
+
+                let amount = match cfg.amount() {
+                    IbcTransferAmount::FullAmount => balance,
+                    IbcTransferAmount::FixedAmount(amount) => {
+                        if balance < *amount {
+                            return Err(ServiceError::ExecutionError(format!(
+                                "Insufficient balance for denom '{}' in config (required: {}, available: {}).",
+                                cfg.denom(), amount, balance,
+                            )));
+                        }
+                        *amount
+                    }
+                };
 
                 // IBC Transfer funds from input account to output account on the remote chain
                 let block_time = env.block.time;
@@ -74,7 +81,7 @@ mod actions {
                     cfg.input_addr().to_string(),
                     cfg.output_addr().to_string(),
                     cfg.denom().to_string(),
-                    cfg.amount().u128(),
+                    amount.u128(),
                     cfg.memo().clone(),
                     None,
                     cfg.remote_chain_info()
@@ -113,7 +120,7 @@ mod execute {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps<NeutronQuery>, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Ownership {} => {
             to_json_binary(&valence_service_base::get_ownership(deps.storage)?)

@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Deps, DepsMut, Uint128, Uint64};
+use cosmwasm_std::{Addr, CustomQuery, Deps, DepsMut, Uint128, Uint64};
 use cw_ownable::cw_ownable_query;
 use getset::{Getters, Setters};
 use valence_macros::OptionalStruct;
@@ -48,7 +48,22 @@ pub enum IbcTransferAmount {
 #[cw_serde]
 pub struct RemoteChainInfo {
     pub channel_id: String,
+    pub port_id: Option<String>,
     pub ibc_transfer_timeout: Option<Uint64>,
+}
+
+impl RemoteChainInfo {
+    pub fn new(
+        channel_id: String,
+        port_id: Option<String>,
+        ibc_transfer_timeout: Option<Uint64>,
+    ) -> Self {
+        Self {
+            channel_id,
+            port_id,
+            ibc_transfer_timeout,
+        }
+    }
 }
 
 impl ServiceConfig {
@@ -89,6 +104,15 @@ impl ServiceConfig {
                 "Invalid IBC transfer config: remote_chain_info's channel_id cannot be empty."
                     .to_string(),
             ));
+        }
+
+        if let Some(port_id) = &self.remote_chain_info.port_id {
+            if port_id.is_empty() {
+                return Err(ServiceError::ConfigurationError(
+                    "Invalid IBC transfer config: remote_chain_info's port_id cannot be empty (if specified)."
+                        .to_string(),
+                ));
+            }
         }
 
         if let Some(timeout) = self.remote_chain_info.ibc_transfer_timeout {
@@ -136,7 +160,14 @@ impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
 }
 
 impl OptionalServiceConfig {
-    pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
+    pub fn update_config<T>(
+        self,
+        deps: &DepsMut<T>,
+        config: &mut Config,
+    ) -> Result<(), ServiceError>
+    where
+        T: CustomQuery,
+    {
         if let Some(input_addr) = self.input_addr {
             config.input_addr = input_addr.to_addr(deps.api)?;
         }
@@ -148,7 +179,7 @@ impl OptionalServiceConfig {
         if let Some(denom) = self.denom {
             config.denom = denom
                 .clone()
-                .into_checked(deps.as_ref())
+                .into_checked(deps.as_ref().into_empty())
                 .map_err(|err| ServiceError::ConfigurationError(err.to_string()))?;
         }
 

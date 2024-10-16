@@ -19,7 +19,8 @@ use localic_utils::{
 };
 use log::info;
 
-use valence_neutron_ibc_transfer_service::msg::{ActionsMsgs, ServiceConfig};
+use valence_generic_ibc_transfer_service::msg::IbcTransferAmount;
+use valence_neutron_ibc_transfer_service::msg::{ActionMsgs, ServiceConfig};
 use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -145,7 +146,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             input_addr: ServiceAccountType::Addr(input_account.clone()),
             output_addr: output_account.clone(),
             denom: UncheckedDenom::Native(NTRN_DENOM.to_string()),
-            amount: transfer_amount.into(),
+            amount: IbcTransferAmount::FixedAmount(transfer_amount.into()),
             memo: "".to_owned(),
             remote_chain_info: valence_neutron_ibc_transfer_service::msg::RemoteChainInfo {
                 channel_id: test_ctx
@@ -154,7 +155,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                     .unwrap()
                     .clone(),
                 port_id: None,
-                denom: neutron_on_juno_denom.to_string(),
                 ibc_transfer_timeout: Some(600u64.into()),
             },
         },
@@ -189,9 +189,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     info!("Initiate IBC transfer");
-    let ibc_transfer_msg = &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
-        ActionsMsgs::IbcTransfer {},
-    );
+    let ibc_transfer_msg =
+        &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(ActionMsgs::IbcTransfer {});
 
     contract_execute(
         test_ctx

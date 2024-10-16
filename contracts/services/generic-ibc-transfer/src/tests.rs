@@ -1,5 +1,5 @@
 use crate::msg::{ActionMsgs, Config, IbcTransferAmount, QueryMsg, RemoteChainInfo, ServiceConfig};
-use cosmwasm_std::{coin, Addr, Uint128, Uint64};
+use cosmwasm_std::{coin, Addr, Empty, Uint128, Uint64};
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
 use getset::{Getters, Setters};
@@ -18,7 +18,7 @@ struct IbcTransferTestSuite {
     #[getset(get)]
     inner: ServiceTestSuiteBase,
     #[getset(get)]
-    gen_ibc_transfer_code_id: u64,
+    ibc_transfer_code_id: u64,
     #[getset(get)]
     input_addr: Addr,
     #[getset(get)]
@@ -42,32 +42,32 @@ impl IbcTransferTestSuite {
         let output_addr = inner.api().addr_make("output_account");
 
         // Template contract
-        let gen_ibc_transfer_code = ContractWrapper::new(
+        let ibc_transfer_code = ContractWrapper::new(
             crate::contract::execute,
             crate::contract::instantiate,
             crate::contract::query,
         );
 
-        let gen_ibc_transfer_code_id = inner.app_mut().store_code(Box::new(gen_ibc_transfer_code));
+        let ibc_transfer_code_id = inner.app_mut().store_code(Box::new(ibc_transfer_code));
 
         Self {
             inner,
-            gen_ibc_transfer_code_id,
+            ibc_transfer_code_id,
             input_addr,
             output_addr,
             input_balance,
         }
     }
 
-    pub fn gen_ibc_transfer_init(&mut self, cfg: &ServiceConfig) -> Addr {
+    pub fn ibc_transfer_init(&mut self, cfg: &ServiceConfig) -> Addr {
         let init_msg = InstantiateMsg {
             owner: self.owner().to_string(),
             processor: self.processor().to_string(),
             config: cfg.clone(),
         };
         let addr = self.contract_init(
-            self.gen_ibc_transfer_code_id,
-            "generic_ibc_transfer_svc",
+            self.ibc_transfer_code_id,
+            "ibc_transfer_service",
             &init_msg,
             &[],
         );
@@ -85,7 +85,7 @@ impl IbcTransferTestSuite {
         addr
     }
 
-    fn gen_ibc_transfer_config(
+    fn ibc_transfer_config(
         &self,
         denom: String,
         amount: IbcTransferAmount,
@@ -122,7 +122,7 @@ impl IbcTransferTestSuite {
     }
 }
 
-impl ServiceTestSuite for IbcTransferTestSuite {
+impl ServiceTestSuite<Empty, Empty> for IbcTransferTestSuite {
     fn app(&self) -> &App {
         self.inner.app()
     }
@@ -148,22 +148,22 @@ impl ServiceTestSuite for IbcTransferTestSuite {
     }
 }
 
+// Note: all tests below are replicated to the Neutron IBC transfer service
+// Any change in the tests below should be reflected in the Neutron IBC transfer service.
+
 #[test]
 fn instantiate_with_valid_config() {
     let mut suite = IbcTransferTestSuite::default();
 
-    let cfg = suite.gen_ibc_transfer_config(
+    let cfg = suite.ibc_transfer_config(
         NTRN.to_string(),
         IbcTransferAmount::FullAmount,
         "".to_string(),
-        RemoteChainInfo {
-            channel_id: "channel-1".to_string(),
-            ibc_transfer_timeout: Some(600u64.into()),
-        },
+        RemoteChainInfo::new("channel-1".to_string(), None, Some(600u64.into())),
     );
 
     // Instantiate IBC transfer contract
-    let svc = suite.gen_ibc_transfer_init(&cfg);
+    let svc = suite.ibc_transfer_init(&cfg);
 
     // Verify owner
     let owner_res: Ownership<Addr> = suite.query_wasm(&svc, &QueryMsg::Ownership {});
@@ -192,14 +192,11 @@ fn instantiate_with_valid_config() {
 fn pre_validate_config_works() {
     let suite = IbcTransferTestSuite::default();
 
-    let cfg = suite.gen_ibc_transfer_config(
+    let cfg = suite.ibc_transfer_config(
         NTRN.to_string(),
         IbcTransferAmount::FullAmount,
         "".to_string(),
-        RemoteChainInfo {
-            channel_id: "channel-1".to_string(),
-            ibc_transfer_timeout: Some(600u64.into()),
-        },
+        RemoteChainInfo::new("channel-1".to_string(), None, Some(600u64.into())),
     );
 
     // Pre-validate config
@@ -211,18 +208,15 @@ fn pre_validate_config_works() {
 fn instantiate_fails_for_zero_amount() {
     let mut suite = IbcTransferTestSuite::default();
 
-    let cfg = suite.gen_ibc_transfer_config(
+    let cfg = suite.ibc_transfer_config(
         NTRN.to_string(),
         IbcTransferAmount::FixedAmount(Uint128::zero()),
         "".to_string(),
-        RemoteChainInfo {
-            channel_id: "channel-1".to_string(),
-            ibc_transfer_timeout: Some(600u64.into()),
-        },
+        RemoteChainInfo::new("channel-1".to_string(), None, Some(600u64.into())),
     );
 
-    // Instantiate Generic IBC transfer contract
-    suite.gen_ibc_transfer_init(&cfg);
+    // Instantiate IBC transfer contract
+    suite.ibc_transfer_init(&cfg);
 }
 
 #[test]
@@ -232,18 +226,37 @@ fn instantiate_fails_for_zero_amount() {
 fn instantiate_fails_for_invalid_channel_id() {
     let mut suite = IbcTransferTestSuite::default();
 
-    let cfg = suite.gen_ibc_transfer_config(
+    let cfg = suite.ibc_transfer_config(
         NTRN.to_string(),
         IbcTransferAmount::FixedAmount(Uint128::one()),
         "".to_string(),
-        RemoteChainInfo {
-            channel_id: "".to_string(),
-            ibc_transfer_timeout: Some(600u64.into()),
-        },
+        RemoteChainInfo::new("".to_string(), None, Some(600u64.into())),
     );
 
-    // Instantiate Generic IBC transfer contract
-    suite.gen_ibc_transfer_init(&cfg);
+    // Instantiate IBC transfer contract
+    suite.ibc_transfer_init(&cfg);
+}
+
+#[test]
+#[should_panic(
+    expected = "Invalid IBC transfer config: remote_chain_info's port_id cannot be empty (if specified)."
+)]
+fn instantiate_fails_for_invalid_port_id() {
+    let mut suite = IbcTransferTestSuite::default();
+
+    let cfg = suite.ibc_transfer_config(
+        NTRN.to_string(),
+        IbcTransferAmount::FixedAmount(Uint128::one()),
+        "".to_string(),
+        RemoteChainInfo::new(
+            "channel-1".to_string(),
+            Some("".to_string()),
+            Some(600u64.into()),
+        ),
+    );
+
+    // Instantiate IBC transfer contract
+    suite.ibc_transfer_init(&cfg);
 }
 
 #[test]
@@ -253,18 +266,15 @@ fn instantiate_fails_for_invalid_channel_id() {
 fn instantiate_fails_for_invalid_ibc_transfer_timeout() {
     let mut suite = IbcTransferTestSuite::default();
 
-    let cfg = suite.gen_ibc_transfer_config(
+    let cfg = suite.ibc_transfer_config(
         NTRN.to_string(),
         IbcTransferAmount::FixedAmount(Uint128::one()),
         "".to_string(),
-        RemoteChainInfo {
-            channel_id: "channel-1".to_string(),
-            ibc_transfer_timeout: Some(Uint64::zero()),
-        },
+        RemoteChainInfo::new("channel-1".to_string(), None, Some(Uint64::zero())),
     );
 
-    // Instantiate Generic IBC transfer contract
-    suite.gen_ibc_transfer_init(&cfg);
+    // Instantiate IBC transfer contract
+    suite.ibc_transfer_init(&cfg);
 }
 
 // Config update tests
@@ -274,18 +284,15 @@ fn instantiate_fails_for_invalid_ibc_transfer_timeout() {
 fn update_config_validates_config() {
     let mut suite = IbcTransferTestSuite::default();
 
-    let mut cfg = suite.gen_ibc_transfer_config(
+    let mut cfg = suite.ibc_transfer_config(
         NTRN.to_string(),
         IbcTransferAmount::FullAmount,
         "".to_string(),
-        RemoteChainInfo {
-            channel_id: "channel-1".to_string(),
-            ibc_transfer_timeout: Some(600u64.into()),
-        },
+        RemoteChainInfo::new("channel-1".to_string(), None, Some(600u64.into())),
     );
 
     // Instantiate IBC transfer contract
-    let svc = suite.gen_ibc_transfer_init(&cfg);
+    let svc = suite.ibc_transfer_init(&cfg);
 
     // Update config and set amount to zero
     cfg.amount = IbcTransferAmount::FixedAmount(Uint128::zero());
@@ -298,18 +305,15 @@ fn update_config_validates_config() {
 fn update_config_with_valid_config() {
     let mut suite = IbcTransferTestSuite::default();
 
-    let mut cfg = suite.gen_ibc_transfer_config(
+    let mut cfg = suite.ibc_transfer_config(
         NTRN.to_string(),
         IbcTransferAmount::FullAmount,
         "".to_string(),
-        RemoteChainInfo {
-            channel_id: "channel-1".to_string(),
-            ibc_transfer_timeout: Some(600u64.into()),
-        },
+        RemoteChainInfo::new("channel-1".to_string(), None, Some(600u64.into())),
     );
 
     // Instantiate IBC transfer contract
-    let svc = suite.gen_ibc_transfer_init(&cfg);
+    let svc = suite.ibc_transfer_init(&cfg);
 
     // Update config: swap input and output addresses
     cfg.input_addr = ServiceAccountType::Addr(suite.output_addr().to_string());
@@ -330,10 +334,7 @@ fn update_config_with_valid_config() {
             CheckedDenom::Native(NTRN.into()),
             IbcTransferAmount::FixedAmount(ONE_MILLION.into()),
             "Chancellor on brink of second bailout for banks.".to_string(),
-            RemoteChainInfo {
-                channel_id: "channel-1".to_string(),
-                ibc_transfer_timeout: Some(600u64.into())
-            }
+            RemoteChainInfo::new("channel-1".to_string(), None, Some(600u64.into()))
         )
     );
 }
@@ -347,18 +348,15 @@ fn update_config_with_valid_config() {
 fn ibc_transfer_fails_for_insufficient_balance() {
     let mut suite = IbcTransferTestSuite::default();
 
-    let cfg = suite.gen_ibc_transfer_config(
+    let cfg = suite.ibc_transfer_config(
         NTRN.to_string(),
         IbcTransferAmount::FixedAmount(ONE_MILLION.into()),
         "".to_string(),
-        RemoteChainInfo {
-            channel_id: "channel-1".to_string(),
-            ibc_transfer_timeout: Some(600u64.into()),
-        },
+        RemoteChainInfo::new("channel-1".to_string(), None, Some(600u64.into())),
     );
 
     // Instantiate  contract
-    let svc = suite.gen_ibc_transfer_init(&cfg);
+    let svc = suite.ibc_transfer_init(&cfg);
 
     // Execute IBC transfer
     suite.execute_ibc_transfer(svc).unwrap();
