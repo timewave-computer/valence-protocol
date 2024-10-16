@@ -4970,6 +4970,7 @@ dependencies = [
  "cosmwasm-std 1.5.8",
  "cosmwasm-std 2.1.4",
  "cw-ownable",
+ "cw-storage-plus 2.0.0",
  "cw20 2.0.0",
  "osmosis-std 0.26.0",
  "osmosis-test-tube",

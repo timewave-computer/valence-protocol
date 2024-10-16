@@ -106,6 +106,8 @@ impl LPerTestSuite {
         &self,
         lower_tick: i64,
         upper_tick: i64,
+        min_amount_0: u128,
+        min_amount_1: u128,
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
@@ -114,6 +116,8 @@ impl LPerTestSuite {
             &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideDoubleSidedLiquidity {
                 lower_tick: Int64::new(lower_tick),
                 upper_tick: Int64::new(upper_tick),
+                token_min_amount_0: min_amount_0.into(),
+                token_min_amount_1: min_amount_1.into(),
             }),
             &[],
             self.inner.processor_acc(),

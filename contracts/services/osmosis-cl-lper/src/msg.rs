@@ -11,6 +11,8 @@ pub enum ActionsMsgs {
     ProvideDoubleSidedLiquidity {
         lower_tick: Int64,
         upper_tick: Int64,
+        token_min_amount_0: Uint128,
+        token_min_amount_1: Uint128,
     },
     ProvideSingleSidedLiquidity {
         asset: String,
