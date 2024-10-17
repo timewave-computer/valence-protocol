@@ -7,12 +7,14 @@ use state::PROCESSOR;
 use valence_service_utils::{
     error::ServiceError,
     msg::{ExecuteMsg, InstantiateMsg, ServiceConfigValidation},
+    raw_config::save_raw_service_config,
+    ServiceConfigUpdateTrait,
 };
 
 pub mod helpers;
 pub mod state;
 
-pub use crate::state::{get_ownership, get_processor, load_config, save_config};
+pub use crate::state::{get_ownership, get_processor, load_config, load_raw_config, save_config};
 
 pub fn instantiate<T, U>(
     deps: DepsMut,
@@ -21,13 +23,16 @@ pub fn instantiate<T, U>(
     msg: InstantiateMsg<T>,
 ) -> Result<Response, ServiceError>
 where
-    T: ServiceConfigValidation<U>,
+    T: ServiceConfigValidation<U> + Serialize + DeserializeOwned,
     U: Serialize + DeserializeOwned,
 {
     cw2::set_contract_version(deps.storage, contract_name, contract_version)?;
     cw_ownable::initialize_owner(deps.storage, deps.api, Some(&msg.owner))?;
 
     PROCESSOR.save(deps.storage, &deps.api.addr_validate(&msg.processor)?)?;
+
+    // Saves the raw service config
+    save_raw_service_config(deps.storage, &msg.config)?;
 
     let config = msg.config.validate(deps.as_ref())?;
     save_config(deps.storage, &config)?;
@@ -39,15 +44,16 @@ where
 }
 
 pub fn execute<T, U, V>(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg<T, V>,
     process_action: fn(DepsMut, Env, MessageInfo, T, U) -> Result<Response, ServiceError>,
-    update_config: fn(&DepsMut, Env, MessageInfo, &mut U, V) -> Result<(), ServiceError>,
+    update_config: fn(DepsMut, Env, MessageInfo, V) -> Result<(), ServiceError>,
 ) -> Result<Response, ServiceError>
 where
     U: Serialize + DeserializeOwned,
+    V: ServiceConfigUpdateTrait + Serialize + DeserializeOwned,
 {
     match msg {
         ExecuteMsg::ProcessAction(action) => {
@@ -57,9 +63,9 @@ where
         }
         ExecuteMsg::UpdateConfig { new_config } => {
             cw_ownable::assert_owner(deps.as_ref().storage, &info.sender)?;
-            let config = &mut load_config(deps.storage)?;
-            update_config(&deps, env, info, config, new_config)?;
-            save_config(deps.storage, config)?;
+            // We update the raw storage
+            new_config.update_raw(deps.storage)?;
+            update_config(deps.branch(), env, info, new_config)?;
             Ok(Response::new().add_attribute("method", "update_config"))
         }
         ExecuteMsg::UpdateProcessor { processor } => {
