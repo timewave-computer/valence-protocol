@@ -112,7 +112,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     ));
 
     let service_2 = workflow_config_builder.add_service(ServiceInfo::new(
-        "splitter_1".to_string(),
+        "splitter_2".to_string(),
         &neutron_domain,
         ServiceConfig::ValenceSplitterService(valence_splitter_service::msg::ServiceConfig {
             input_addr: account_2.clone(),
