@@ -136,13 +136,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     let ibc_transfer_instantiate_msg = valence_service_utils::msg::InstantiateMsg::<ServiceConfig> {
         owner: JUNO_CHAIN_ADMIN_ADDR.to_string(),
         processor: JUNO_CHAIN_ADMIN_ADDR.to_string(),
-        config: ServiceConfig {
-            input_addr: ServiceAccountType::Addr(input_account.clone()),
-            output_addr: output_account.clone(),
-            denom: UncheckedDenom::Native(neutron_on_juno_denom.to_string()),
-            amount: IbcTransferAmount::FixedAmount(transfer_amount.into()),
-            memo: "".to_owned(),
-            remote_chain_info: valence_generic_ibc_transfer_service::msg::RemoteChainInfo {
+        config: ServiceConfig::new(
+            ServiceAccountType::Addr(input_account.clone()),
+            output_account.clone(),
+            UncheckedDenom::Native(neutron_on_juno_denom.to_string()),
+            IbcTransferAmount::FixedAmount(transfer_amount.into()),
+            "".to_owned(),
+            valence_generic_ibc_transfer_service::msg::RemoteChainInfo {
                 channel_id: test_ctx
                     .get_transfer_channels()
                     .src(JUNO_CHAIN_NAME)
@@ -151,7 +151,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 port_id: None,
                 ibc_transfer_timeout: Some(600u64.into()),
             },
-        },
+        ),
     };
     info!(
         "IBC Transfer instantiate message: {:?}",
@@ -235,6 +235,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         amount: Some(IbcTransferAmount::FullAmount),
         memo: None,
         remote_chain_info: None,
+        denom_to_pfm_map: None,
     };
     let upd_cfg_msg =
         valence_service_utils::msg::ExecuteMsg::<ActionMsgs, OptionalServiceConfig>::UpdateConfig {

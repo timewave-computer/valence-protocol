@@ -87,6 +87,7 @@ mod actions {
                     cfg.remote_chain_info()
                         .ibc_transfer_timeout
                         .map(|timeout| block_time.plus_seconds(timeout.u64()).nanos()),
+                    cfg.denom_to_pfm_map().clone(),
                 )
                 .map_err(|err| ServiceError::ExecutionError(err.to_string()))?;
 

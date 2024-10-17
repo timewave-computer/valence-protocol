@@ -92,16 +92,14 @@ impl IbcTransferTestSuite {
         memo: String,
         remote_chain_info: RemoteChainInfo,
     ) -> ServiceConfig {
-        ServiceConfig {
-            input_addr: valence_service_utils::ServiceAccountType::Addr(
-                self.input_addr().to_string(),
-            ),
-            output_addr: self.output_addr().to_string(),
-            denom: valence_service_utils::denoms::UncheckedDenom::Native(denom),
+        ServiceConfig::new(
+            valence_service_utils::ServiceAccountType::Addr(self.input_addr().to_string()),
+            self.output_addr().to_string(),
+            valence_service_utils::denoms::UncheckedDenom::Native(denom),
             amount,
             memo,
             remote_chain_info,
-        }
+        )
     }
 
     fn execute_ibc_transfer(&mut self, addr: Addr) -> AnyResult<AppResponse> {
@@ -334,7 +332,7 @@ fn update_config_with_valid_config() {
             CheckedDenom::Native(NTRN.into()),
             IbcTransferAmount::FixedAmount(ONE_MILLION.into()),
             "Chancellor on brink of second bailout for banks.".to_string(),
-            RemoteChainInfo::new("channel-1".to_string(), None, Some(600u64.into()))
+            RemoteChainInfo::new("channel-1".to_string(), None, Some(600u64.into())),
         )
     );
 }

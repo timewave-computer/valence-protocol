@@ -1,7 +1,10 @@
+use std::collections::BTreeMap;
+
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, CustomQuery, Deps, DepsMut, Uint128, Uint64};
 use cw_ownable::cw_ownable_query;
 use getset::{Getters, Setters};
+use valence_ibc_utils::types::PacketForwardMiddlewareConfig;
 use valence_macros::OptionalStruct;
 use valence_service_utils::{
     denoms::{CheckedDenom, UncheckedDenom},
@@ -37,6 +40,7 @@ pub struct ServiceConfig {
     pub amount: IbcTransferAmount,
     pub memo: String,
     pub remote_chain_info: RemoteChainInfo,
+    pub denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
 }
 
 #[cw_serde]
@@ -82,6 +86,27 @@ impl ServiceConfig {
             amount,
             memo,
             remote_chain_info,
+            denom_to_pfm_map: BTreeMap::default(),
+        }
+    }
+
+    pub fn with_pfm_map(
+        input_addr: ServiceAccountType,
+        output_addr: String,
+        denom: UncheckedDenom,
+        amount: IbcTransferAmount,
+        memo: String,
+        remote_chain_info: RemoteChainInfo,
+        denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
+    ) -> Self {
+        Self {
+            input_addr,
+            output_addr,
+            denom,
+            amount,
+            memo,
+            remote_chain_info,
+            denom_to_pfm_map,
         }
     }
 
@@ -148,6 +173,7 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
             amount: self.amount.clone(),
             memo: self.memo.clone(),
             remote_chain_info: self.remote_chain_info.clone(),
+            denom_to_pfm_map: self.denom_to_pfm_map.clone(),
         })
     }
 }
@@ -221,6 +247,8 @@ pub struct Config {
     memo: String,
     #[getset(get = "pub", set)]
     remote_chain_info: RemoteChainInfo,
+    #[getset(get = "pub", set)]
+    denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
 }
 
 impl Config {
@@ -239,6 +267,27 @@ impl Config {
             amount,
             memo,
             remote_chain_info,
+            denom_to_pfm_map: BTreeMap::default(),
+        }
+    }
+
+    pub fn with_pfm_map(
+        input_addr: Addr,
+        output_addr: Addr,
+        denom: CheckedDenom,
+        amount: IbcTransferAmount,
+        memo: String,
+        remote_chain_info: RemoteChainInfo,
+        denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
+    ) -> Self {
+        Config {
+            input_addr,
+            output_addr,
+            denom,
+            amount,
+            memo,
+            remote_chain_info,
+            denom_to_pfm_map,
         }
     }
 }

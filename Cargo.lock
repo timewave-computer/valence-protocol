@@ -2388,6 +2388,7 @@ dependencies = [
  "valence-authorization",
  "valence-authorization-utils",
  "valence-generic-ibc-transfer-service",
+ "valence-ibc-utils",
  "valence-neutron-ibc-transfer-service",
  "valence-processor",
  "valence-processor-utils",

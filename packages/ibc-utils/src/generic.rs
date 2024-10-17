@@ -1,4 +1,8 @@
+use std::collections::BTreeMap;
+
 use cosmwasm_std::{coin, CosmosMsg, Env, IbcTimeout, IbcTimeoutBlock, StdResult, Timestamp};
+
+use crate::types::PacketForwardMiddlewareConfig;
 
 // Default timeout for IbcTransfer is 600 seconds
 const DEFAULT_TIMEOUT_TIMESTAMP: u64 = 600;
@@ -13,6 +17,7 @@ pub fn ibc_send_message(
     memo: String,
     timeout_height: Option<u64>,
     timeout_timestamp: Option<u64>,
+    _denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
 ) -> StdResult<CosmosMsg> {
     Ok(CosmosMsg::Ibc(cosmwasm_std::IbcMsg::Transfer {
         channel_id: channel,

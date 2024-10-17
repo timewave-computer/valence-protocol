@@ -1,10 +1,14 @@
+use std::collections::BTreeMap;
+
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::traits::MessageExt;
-use cosmwasm_std::{Binary, CosmosMsg, DepsMut, Env, StdError, StdResult, Uint128};
+use cosmwasm_std::{to_json_string, Binary, CosmosMsg, DepsMut, Env, StdError, StdResult, Uint128};
 use neutron_sdk::{
     bindings::{msg::IbcFee, query::NeutronQuery},
     query::min_ibc_fee::query_min_ibc_fee,
 };
+
+use crate::types::{ForwardMetadata, PacketForwardMiddlewareConfig, PacketMetadata};
 
 // Default timeout for IbcTransfer is 300 blocks
 const DEFAULT_TIMEOUT_HEIGHT: u64 = 300;
@@ -25,6 +29,7 @@ pub fn ibc_send_message(
     memo: String,
     timeout_height: Option<u64>,
     timeout_timestamp: Option<u64>,
+    denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
 ) -> StdResult<CosmosMsg> {
     // contract must pay for relaying of acknowledgements
     // See more info here: https://docs.neutron.org/neutron/feerefunder/overview
@@ -42,49 +47,54 @@ pub fn ibc_send_message(
         amount: amount_minus_fee.to_string(),
     };
 
-    let msg = neutron_sdk::proto_types::neutron::transfer::MsgTransfer {
-        source_port: port.unwrap_or("transfer".to_string()),
-        source_channel: channel.clone(),
-        sender,
-        receiver: to.clone(),
-        token: Some(coin),
-        timeout_height: Some(cosmos_sdk_proto::ibc::core::client::v1::Height {
-            revision_number: 2,
-            revision_height: timeout_height.unwrap_or(DEFAULT_TIMEOUT_HEIGHT),
-        }),
-        timeout_timestamp: timeout_timestamp.unwrap_or(
-            env.block
-                .time
-                .plus_seconds(DEFAULT_TIMEOUT_TIMESTAMP)
-                .nanos(),
-        ),
-        memo,
-        fee: Some(neutron_sdk::proto_types::neutron::feerefunder::Fee {
-            recv_fee: ibc_fee
-                .recv_fee
-                .into_iter()
-                .map(|c| Coin {
-                    denom: c.denom,
-                    amount: c.amount.to_string(),
-                })
-                .collect(),
-            ack_fee: ibc_fee
-                .ack_fee
-                .into_iter()
-                .map(|c| Coin {
-                    denom: c.denom,
-                    amount: c.amount.to_string(),
-                })
-                .collect(),
-            timeout_fee: ibc_fee
-                .timeout_fee
-                .into_iter()
-                .map(|c| Coin {
-                    denom: c.denom,
-                    amount: c.amount.to_string(),
-                })
-                .collect(),
-        }),
+    let msg = match denom_to_pfm_map.get(&denom) {
+        None => neutron_sdk::proto_types::neutron::transfer::MsgTransfer {
+            source_port: port.unwrap_or("transfer".to_string()),
+            source_channel: channel.clone(),
+            sender,
+            receiver: to.clone(),
+            token: Some(coin),
+            timeout_height: Some(cosmos_sdk_proto::ibc::core::client::v1::Height {
+                revision_number: 2,
+                revision_height: timeout_height.unwrap_or(DEFAULT_TIMEOUT_HEIGHT),
+            }),
+            timeout_timestamp: timeout_timestamp.unwrap_or(
+                env.block
+                    .time
+                    .plus_seconds(DEFAULT_TIMEOUT_TIMESTAMP)
+                    .nanos(),
+            ),
+            memo,
+            fee: Some(get_transfer_fee(ibc_fee)),
+        },
+        Some(pfm_config) => {
+            neutron_sdk::proto_types::neutron::transfer::MsgTransfer {
+                source_port: port.unwrap_or("transfer".to_string()),
+                source_channel: pfm_config.local_to_hop_chain_channel_id.to_string(),
+                sender,
+                receiver: pfm_config.hop_chain_receiver_address.to_string(),
+                token: Some(coin),
+                timeout_height: Some(cosmos_sdk_proto::ibc::core::client::v1::Height {
+                    revision_number: 2,
+                    revision_height: timeout_height.unwrap_or(DEFAULT_TIMEOUT_HEIGHT),
+                }),
+                timeout_timestamp: timeout_timestamp.unwrap_or(
+                    env.block
+                        .time
+                        .plus_seconds(DEFAULT_TIMEOUT_TIMESTAMP)
+                        .nanos(),
+                ),
+                memo: to_json_string(&PacketMetadata {
+                    forward: Some(ForwardMetadata {
+                        receiver: to.clone(),
+                        port: "transfer".to_string(),
+                        // hop chain to final receiver chain channel
+                        channel: pfm_config.hop_to_destination_chain_channel_id.to_string(),
+                    }),
+                })?,
+                fee: Some(get_transfer_fee(ibc_fee)),
+            }
+        }
     };
 
     #[allow(deprecated)]
@@ -126,4 +136,33 @@ fn flatten_ntrn_ibc_fee(ibc_fee: &IbcFee) -> Uint128 {
     }
 
     total
+}
+
+fn get_transfer_fee(ibc_fee: IbcFee) -> neutron_sdk::proto_types::neutron::feerefunder::Fee {
+    neutron_sdk::proto_types::neutron::feerefunder::Fee {
+        recv_fee: ibc_fee
+            .recv_fee
+            .into_iter()
+            .map(|c| Coin {
+                denom: c.denom,
+                amount: c.amount.to_string(),
+            })
+            .collect(),
+        ack_fee: ibc_fee
+            .ack_fee
+            .into_iter()
+            .map(|c| Coin {
+                denom: c.denom,
+                amount: c.amount.to_string(),
+            })
+            .collect(),
+        timeout_fee: ibc_fee
+            .timeout_fee
+            .into_iter()
+            .map(|c| Coin {
+                denom: c.denom,
+                amount: c.amount.to_string(),
+            })
+            .collect(),
+    }
 }
