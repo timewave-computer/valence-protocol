@@ -170,7 +170,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Setup the contracts and update the global config
     info!("Setup manager...");
-    setup_manager(&mut test_ctx, "", vec![])?;
+    setup_manager(&mut test_ctx, "neutron_juno.json", vec![])?;
 
     // init the workflow
     info!("Start manager init...");

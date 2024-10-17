@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_log_file_path(LOGS_FILE_PATH)
         .build()?;
 
-    setup_manager(&mut test_ctx, "", vec![])?;
+    setup_manager(&mut test_ctx, "neutron_juno.json", vec![])?;
 
     let mut builder = WorkflowConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
     let neutron_domain =
