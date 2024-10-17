@@ -4,33 +4,27 @@ use cw_ownable::cw_ownable_query;
 use cw_utils::Duration;
 use getset::{Getters, Setters};
 use std::collections::HashMap;
-use valence_macros::OptionalStruct;
+use valence_macros::{valence_service_query, ValenceServiceInterface};
 use valence_service_utils::{
     denoms::{CheckedDenom, DenomError, UncheckedDenom},
     error::ServiceError,
     msg::ServiceConfigValidation,
-    ServiceAccountType, ServiceConfigInterface,
+    ServiceAccountType,
 };
 
 #[cw_serde]
 /// Enum representing the different action messages that can be sent.
-pub enum ActionsMsgs {
+pub enum ActionMsgs {
     /// Message to forward tokens.
     Forward {},
 }
 
+#[valence_service_query]
 #[cw_ownable_query]
 #[cw_serde]
 #[derive(QueryResponses)]
 /// Enum representing the different query messages that can be sent.
-pub enum QueryMsg {
-    /// Query to get the processor address.
-    #[returns(Addr)]
-    GetProcessor {},
-    /// Query to get the service configuration.
-    #[returns(Config)]
-    GetServiceConfig {},
-}
+pub enum QueryMsg {}
 
 // Forwarding configuration per denom
 type ForwardingConfigs = Vec<ForwardingConfig>;
@@ -90,7 +84,7 @@ impl From<(UncheckedDenom, u128)> for UncheckedForwardingConfig {
 }
 
 #[cw_serde]
-#[derive(OptionalStruct)]
+#[derive(ValenceServiceInterface)]
 /// Struct representing the service configuration.
 pub struct ServiceConfig {
     /// The input address for the service.
@@ -186,15 +180,10 @@ fn convert_to_checked_configs(
         .map_err(|err| ServiceError::ConfigurationError(err.to_string()))
 }
 
-impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
-    /// This function is used to see if 2 configs are different
-    fn is_diff(&self, other: &ServiceConfig) -> bool {
-        !self.eq(other)
-    }
-}
+impl ServiceConfigUpdate {
+    pub fn update_config(self, deps: DepsMut) -> Result<(), ServiceError> {
+        let mut config: Config = valence_service_base::load_config(deps.storage)?;
 
-impl OptionalServiceConfig {
-    pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
         if let Some(input_addr) = self.input_addr {
             config.input_addr = input_addr.to_addr(deps.api)?;
         }
@@ -217,6 +206,8 @@ impl OptionalServiceConfig {
         if let Some(forwarding_constraints) = self.forwarding_constraints {
             config.forwarding_constraints = forwarding_constraints;
         }
+
+        valence_service_base::save_config(deps.storage, &config)?;
 
         Ok(())
     }

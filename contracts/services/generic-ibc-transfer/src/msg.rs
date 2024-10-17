@@ -5,12 +5,12 @@ use cosmwasm_std::{Addr, CustomQuery, Deps, DepsMut, Uint128, Uint64};
 use cw_ownable::cw_ownable_query;
 use getset::{Getters, Setters};
 use valence_ibc_utils::types::PacketForwardMiddlewareConfig;
-use valence_macros::OptionalStruct;
+use valence_macros::{valence_service_query, ValenceServiceInterface};
 use valence_service_utils::{
     denoms::{CheckedDenom, UncheckedDenom},
     error::ServiceError,
     msg::ServiceConfigValidation,
-    ServiceAccountType, ServiceConfigInterface,
+    ServiceAccountType,
 };
 
 #[cw_serde]
@@ -18,21 +18,15 @@ pub enum ActionMsgs {
     IbcTransfer {},
 }
 
+#[valence_service_query]
 #[cw_ownable_query]
 #[cw_serde]
 #[derive(QueryResponses)]
 /// Enum representing the different query messages that can be sent.
-pub enum QueryMsg {
-    /// Query to get the processor address.
-    #[returns(Addr)]
-    GetProcessor {},
-    /// Query to get the service configuration.
-    #[returns(Config)]
-    GetServiceConfig {},
-}
+pub enum QueryMsg {}
 
 #[cw_serde]
-#[derive(OptionalStruct)]
+#[derive(ValenceServiceInterface)]
 pub struct ServiceConfig {
     pub input_addr: ServiceAccountType,
     pub output_addr: String,
@@ -178,22 +172,13 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
     }
 }
 
-impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
-    /// This function is used to see if 2 configs are different
-    fn is_diff(&self, other: &ServiceConfig) -> bool {
-        !self.eq(other)
-    }
-}
-
-impl OptionalServiceConfig {
-    pub fn update_config<T>(
-        self,
-        deps: &DepsMut<T>,
-        config: &mut Config,
-    ) -> Result<(), ServiceError>
+impl ServiceConfigUpdate {
+    pub fn update_config<T>(self, deps: DepsMut<T>) -> Result<(), ServiceError>
     where
         T: CustomQuery,
     {
+        let mut config: Config = valence_service_base::load_config(deps.storage)?;
+
         if let Some(input_addr) = self.input_addr {
             config.input_addr = input_addr.to_addr(deps.api)?;
         }
@@ -227,6 +212,8 @@ impl OptionalServiceConfig {
         if let Some(remote_chain_info) = self.remote_chain_info {
             config.remote_chain_info = remote_chain_info;
         }
+
+        valence_service_base::save_config(deps.storage, &config)?;
 
         Ok(())
     }

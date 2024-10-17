@@ -25,8 +25,13 @@ valence-authorization-utils          = { workspace = true }
 valence-processor-utils              = { workspace = true }
 valence-account-utils                = { workspace = true }
 valence-ibc-utils                    = { workspace = true }
+valence-astroport-lper               = { workspace = true }
+valence-astroport-withdrawer         = { workspace = true }
+valence-astroport-utils              = { workspace = true }
+valence-forwarder-service            = { workspace = true }
 valence-generic-ibc-transfer-service = { workspace = true }
 valence-neutron-ibc-transfer-service = { workspace = true }
+valence-reverse-splitter-service     = { workspace = true }
 valence-service-utils                = { workspace = true }
 valence-splitter-service             = { workspace = true }
 valence-workflow-manager             = { workspace = true }
