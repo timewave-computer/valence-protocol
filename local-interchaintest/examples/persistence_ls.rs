@@ -55,8 +55,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &channel_id,
         &native_denom,
         DEFAULT_KEY,
-    )
-    .unwrap();
+    )?;
 
     info!("Activating host zone...");
     activate_host_zone(NEUTRON_CHAIN_ID)?;

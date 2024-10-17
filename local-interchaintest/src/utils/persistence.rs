@@ -7,7 +7,10 @@ use persistence_std::types::pstake::liquidstakeibc::v1beta1::{KvUpdate, MsgUpdat
 use serde_json::Value;
 use tokio::runtime::Runtime;
 
-use super::{LOGS_FILE_PATH, PERSISTENCE_CHAIN_ADMIN_ADDR, PERSISTENCE_CHAIN_ID};
+use super::{
+    LOGS_FILE_PATH, PERSISTENCE_CHAIN_ADMIN_ADDR, PERSISTENCE_CHAIN_DENOM, PERSISTENCE_CHAIN_ID,
+    PERSISTENCE_CHAIN_PREFIX,
+};
 
 pub fn register_host_zone(
     rb: &ChainRequestBuilder,
@@ -33,8 +36,19 @@ pub fn register_host_zone(
 }
 
 pub fn activate_host_zone(target_chain_id: &str) -> Result<(), Box<dyn Error>> {
-    // Because of RPC escaping the " character and Persistence being strict in wanting exactly the precise JSON payload, I can't do this via RPC so I'm using GRPC instead
-    // Parse into a JSON the Logs file
+    // Because of RPC on local-ic escaping the " character and Persistence being strict in wanting exactly the precise JSON payload, I'm using gRPC instead
+    // Open and parse the logs file
+    let target_grpc_address = get_grpc_address_from_logs()?;
+
+    // Send the activation via gRPC
+    let rt = Runtime::new()?;
+    rt.block_on(send_grpc_activation(target_chain_id, &target_grpc_address))?;
+
+    Ok(())
+}
+
+fn get_grpc_address_from_logs() -> Result<String, Box<dyn Error>> {
+    // Open the logs file
     let mut file = File::open(LOGS_FILE_PATH)?;
 
     // Read the file contents into a string
@@ -44,17 +58,15 @@ pub fn activate_host_zone(target_chain_id: &str) -> Result<(), Box<dyn Error>> {
     // Parse the string into a JSON value
     let json: Value = serde_json::from_str(&contents)?;
 
-    // Get the GRPC address
+    // Get the gRPC address of Persistence chain
     let chains = json["chains"]
         .as_array()
         .ok_or("'chains' field not found or not an array")?;
-
-    let mut target_grpc_address = "";
     for chain in chains {
         if let Some(chain_id) = chain["chain_id"].as_str() {
             if chain_id == PERSISTENCE_CHAIN_ID {
                 if let Some(grpc_address) = chain["grpc_address"].as_str() {
-                    target_grpc_address = grpc_address;
+                    return Ok(grpc_address.to_string());
                 } else {
                     return Err("gRPC address not found for the specified chain".into());
                 }
@@ -62,37 +74,47 @@ pub fn activate_host_zone(target_chain_id: &str) -> Result<(), Box<dyn Error>> {
         }
     }
 
-    // Send it via GRPC
-    let rt = Runtime::new()?;
-    rt.block_on(async {
-        let mut wallet = Wallet::from_seed_phrase(
-            GrpcClient::new(format!("http://{}", target_grpc_address)).await.unwrap(),
-            "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry",
-            "persistence",
-            CoinType::Cosmos,
-            0,
-            Decimal::from_str("0.0025").unwrap(),
-            Decimal::from_str("1.5").unwrap(),
-            "uxrpt",
-        ).await.unwrap();
+    Err("Persistence chain not found".into())
+}
 
-        let update_host_chain_msg = MsgUpdateHostChain { 
-            authority: PERSISTENCE_CHAIN_ADMIN_ADDR.to_string(), 
-            chain_id: target_chain_id.to_string(), 
-            updates: vec![KvUpdate { 
-                key: "active".to_string(), 
-                value: "true".to_string()}
-                ] 
-            }.build_any_with_type_url("/pstake.liquidstakeibc.v1beta1.MsgUpdateHostChain");
+async fn send_grpc_activation(
+    target_chain_id: &str,
+    target_grpc_address: &str,
+) -> Result<(), Box<dyn Error>> {
+    let grpc_client = GrpcClient::new(format!("http://{}", target_grpc_address)).await?;
 
-        wallet.broadcast_tx(vec![update_host_chain_msg], None, None, BroadcastMode::Sync).await.unwrap();
-    });
+    let mut wallet = Wallet::from_seed_phrase(
+        grpc_client,
+        "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry",
+        PERSISTENCE_CHAIN_PREFIX,
+        CoinType::Cosmos,
+        0,
+        Decimal::from_str("0.0025").unwrap(),
+        Decimal::from_str("1.5").unwrap(),
+        PERSISTENCE_CHAIN_DENOM,
+    ).await?;
+
+    let update = KvUpdate {
+        key: "active".to_string(),
+        value: "true".to_string(),
+    };
+
+    let update_host_chain_msg = MsgUpdateHostChain {
+        authority: PERSISTENCE_CHAIN_ADMIN_ADDR.to_string(),
+        chain_id: target_chain_id.to_string(),
+        updates: vec![update],
+    }
+    .build_any_with_type_url("/pstake.liquidstakeibc.v1beta1.MsgUpdateHostChain");
+
+    wallet
+        .broadcast_tx(vec![update_host_chain_msg], None, None, BroadcastMode::Sync)
+        .await?;
 
     Ok(())
 }
 
 pub fn query_host_zone(rb: &ChainRequestBuilder, target_chain_id: &str) -> bool {
-    let query_cmd = format!("liquidstakeibc host-chains --output=json");
+    let query_cmd = "liquidstakeibc host-chains --output=json".to_string();
     let host_chains_response = rb.q(&query_cmd, false);
 
     if let Some(host_chains) = host_chains_response["host_chains"].as_array() {
