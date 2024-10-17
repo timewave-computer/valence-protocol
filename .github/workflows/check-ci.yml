@@ -259,7 +259,7 @@ jobs:
 
   local-ic-ibc-transfer-ntrn-juno-gaia-pfm:
     needs: build
-    name: IBC transfer NTRN->JUNO-> e2e test
+    name: IBC transfer NTRN->JUNO->GAIA PFM e2e test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -304,7 +304,7 @@ jobs:
 
   local-ic-ibc-transfer-juno-gaia-ntrn-pfm:
     needs: build
-    name: IBC transfer NTRN->JUNO-> e2e test
+    name: IBC transfer JUNO->GAIA->NTRN PFM e2e test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
