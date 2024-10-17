@@ -66,6 +66,24 @@ impl GetId for ServiceAccountType {
     }
 }
 
+impl GetId for u64 {
+    fn get_id(&self) -> Id {
+        *self
+    }
+}
+
+impl GetId for &u64 {
+    fn get_id(&self) -> Id {
+        **self
+    }
+}
+
+impl GetId for u32 {
+    fn get_id(&self) -> Id {
+        *self as u64
+    }
+}
+
 impl ServiceAccountType {
     // pub fn get_id(&self) -> StdResult<Id> {
     //     match self {

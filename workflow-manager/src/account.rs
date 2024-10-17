@@ -1,3 +1,5 @@
+use std::default;
+
 use serde::{Deserialize, Serialize};
 use strum::VariantNames;
 
@@ -11,6 +13,22 @@ pub enum AccountType {
     /// This our base account implementation
     #[strum(to_string = "valence_base_account")]
     Base { admin: Option<String> },
+}
+
+impl default::Default for AccountType {
+    fn default() -> Self {
+        AccountType::Base { admin: None }
+    }
+}
+
+impl AccountType {
+    pub fn new_addr(addr: String) -> Self {
+        AccountType::Addr { addr }
+    }
+
+    pub fn new_base(admin: String) -> Self {
+        AccountType::Base { admin: Some(admin) }
+    }
 }
 
 /// The struct given to us by the user.
@@ -27,11 +45,11 @@ pub struct AccountInfo {
 }
 
 impl AccountInfo {
-    pub fn new(name: String, ty: AccountType, domain: Domain) -> Self {
+    pub fn new(name: String, domain: &Domain , ty: AccountType) -> Self {
         Self {
             name,
             ty,
-            domain,
+            domain: domain.clone(),
             addr: None,
         }
     }

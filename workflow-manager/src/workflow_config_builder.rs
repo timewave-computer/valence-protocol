@@ -54,9 +54,9 @@ impl WorkflowConfigBuilder {
 
     pub fn add_link(
         &mut self,
-        service_id: impl GetId,
-        inputs: Vec<impl GetId>,
-        outputs: Vec<impl GetId>,
+        service_id: &impl GetId,
+        inputs: Vec<&impl GetId>,
+        outputs: Vec<&impl GetId>,
     ) {
         let id = self.link_id;
         self.link_id += 1;

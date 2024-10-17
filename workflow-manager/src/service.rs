@@ -44,10 +44,10 @@ pub struct ServiceInfo {
 }
 
 impl ServiceInfo {
-    pub fn new(name: String, domain: Domain, config: ServiceConfig) -> Self {
+    pub fn new(name: String, domain: &Domain, config: ServiceConfig) -> Self {
         Self {
             name,
-            domain,
+            domain: domain.clone(),
             config,
             addr: None,
         }
