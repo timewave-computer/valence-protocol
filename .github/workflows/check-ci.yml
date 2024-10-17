@@ -85,11 +85,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
       - name: Get cargo
         uses: actions-rs/toolchain@v1
         with:
@@ -134,14 +129,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Install local-ic
-        run: git clone https://github.com/strangelove-ventures/interchaintest && cd interchaintest/local-interchain && make install
 
       - name: Get cargo
         uses: actions-rs/toolchain@v1
@@ -188,14 +175,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Install local-ic
-        run: git clone https://github.com/strangelove-ventures/interchaintest && cd interchaintest/local-interchain && make install
-
       - name: Get cargo
         uses: actions-rs/toolchain@v1
         with:
@@ -209,6 +188,15 @@ jobs:
 
       - name: List downloaded files
         run: ls -l ./artifacts
+
+      - name: Download local-ic artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: local-ic
+          path: /tmp
+
+      - name: Make local-ic executable
+        run: chmod +x /tmp/local-ic
 
       - name: Start local-ic and wait for it to be ready
         run: |
@@ -232,13 +220,50 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v4
+      - name: Get cargo
+        uses: actions-rs/toolchain@v1
         with:
-          go-version: ${{ env.GO_VERSION }}
+          toolchain: stable
 
-      - name: Install local-ic
-        run: git clone https://github.com/strangelove-ventures/interchaintest && cd interchaintest/local-interchain && make install
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: optimized-contracts
+          path: ./artifacts
+
+      - name: List downloaded files
+        run: ls -l ./artifacts
+
+      - name: Download local-ic artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: local-ic
+          path: /tmp
+
+      - name: Make local-ic executable
+        run: chmod +x /tmp/local-ic
+
+      - name: Start local-ic and wait for it to be ready
+        run: |
+          cd local-interchaintest
+          local-ic start neutron_juno --api-port 42069 &
+          curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
+
+      - name: Run IBC transfer JUNO->NTRN example
+        env:
+          RUST_LOG: debug
+        run: cargo run --package local-interchaintest --example ibc_transfer_juno_ntrn
+
+      - name: Cleanup
+        run: killall local-ic && exit 0
+
+  local-ic-ibc-transfer-ntrn-juno-gaia-pfm:
+    needs: build
+    name: IBC transfer NTRN->JUNO-> e2e test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Get cargo
         uses: actions-rs/toolchain@v1
@@ -254,16 +279,25 @@ jobs:
       - name: List downloaded files
         run: ls -l ./artifacts
 
+      - name: Download local-ic artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: local-ic
+          path: /tmp
+
+      - name: Make local-ic executable
+        run: chmod +x /tmp/local-ic
+
       - name: Start local-ic and wait for it to be ready
         run: |
           cd local-interchaintest
           local-ic start neutron_juno --api-port 42069 &
           curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
 
-      - name: Run IBC transfer JUNO->NTRN example
+      - name: Run IBC transfer NTRN->JUNO example
         env:
           RUST_LOG: debug
-        run: cargo run --package local-interchaintest --example ibc_transfer_juno_ntrn
+        run: cargo run --package local-interchaintest --example ibc_transfer_ntrn_juno_gaia_pfm
 
       - name: Cleanup
         run: killall local-ic && exit 0
