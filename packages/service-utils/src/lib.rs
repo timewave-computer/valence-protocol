@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{to_json_binary, Addr, CosmosMsg, StdError, StdResult, WasmMsg};
+use cosmwasm_std::{to_json_binary, Addr, CosmosMsg, StdError, StdResult, SubMsg, WasmMsg};
 
 pub mod denoms {
     pub use cw_denom::{CheckedDenom, DenomError, UncheckedDenom};
@@ -75,6 +75,14 @@ pub fn execute_on_behalf_of(msgs: Vec<CosmosMsg>, account: &Addr) -> StdResult<C
     Ok(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: account.to_string(),
         msg: to_json_binary(&valence_account_utils::msg::ExecuteMsg::ExecuteMsg { msgs })?,
+        funds: vec![],
+    }))
+}
+
+pub fn execute_submsgs_on_behalf_of(msgs: Vec<SubMsg>, account: &Addr) -> StdResult<CosmosMsg> {
+    Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: account.to_string(),
+        msg: to_json_binary(&valence_account_utils::msg::ExecuteMsg::ExecuteSubmsgs { msgs })?,
         funds: vec![],
     }))
 }
