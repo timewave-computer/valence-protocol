@@ -17,6 +17,7 @@ fn test_provide_liquidity_double_sided() {
     assert_eq!(output_acc_positions.len(), 0);
     let input_balances = suite.inner.query_all_balances(suite.input_acc.as_str());
     println!("input balances pre-lp: {:?}", input_balances);
+
     suite.provide_two_sided_liquidity(-1000, 0, 0, 0);
 
     let input_acc_positions = suite

@@ -54,7 +54,7 @@ impl LPerTestSuite {
                 input_acc.as_str(),
                 output_acc.as_str(),
                 lp_config.unwrap_or(LiquidityProviderConfig {
-                    pool_id: inner.pool_cfg.pool_id.u64(),
+                    pool_id: inner.pool_cfg.pool_id,
                     pool_asset_1: inner.pool_cfg.pool_asset_1.to_string(),
                     pool_asset_2: inner.pool_cfg.pool_asset_2.to_string(),
                 }),

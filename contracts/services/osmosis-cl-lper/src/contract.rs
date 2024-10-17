@@ -1,25 +1,18 @@
-use crate::{
-    msg::{ActionsMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig},
-    state::PENDING_CTX,
-};
-use base64::decode;
+use crate::msg::{ActionsMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    coin, from_json, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, Int64, MessageInfo,
-    Reply, Response, StdError, StdResult, SubMsg, SubMsgResponse, SubMsgResult, Uint128,
+    coin, to_json_binary, to_json_string, Binary, CosmosMsg, Deps, DepsMut, Env, Int64,
+    MessageInfo, Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128,
 };
 use osmosis_std::{
     cosmwasm_to_proto_coins,
-    types::osmosis::{
-        concentratedliquidity::v1beta1::{
-            ConcentratedliquidityQuerier, MsgCreatePosition, MsgCreatePositionResponse,
-            MsgTransferPositions, Pool,
-        },
-        poolmanager::v1beta1::PoolmanagerQuerier,
+    types::osmosis::concentratedliquidity::v1beta1::{
+        MsgCreatePosition, MsgCreatePositionResponse, MsgTransferPositions,
     },
 };
-use valence_account_utils::msg::ValenceCallback;
+
+use valence_account_utils::msg::{parse_valence_payload, ValenceCallback};
 use valence_service_utils::{
     error::ServiceError,
     execute_on_behalf_of, execute_submsgs_on_behalf_of,
@@ -109,23 +102,28 @@ pub fn provide_double_sided_liquidity(
         .querier
         .query_balance(&cfg.input_addr, cfg.lp_config.pool_asset_2.as_str())?;
 
-    let create_cl_position_msg = MsgCreatePosition {
-        pool_id: cfg.lp_config.pool_id,
+    let create_cl_position_msg: CosmosMsg = MsgCreatePosition {
+        pool_id: cfg.lp_config.pool_id.u64(),
         sender: cfg.input_addr.to_string(),
         lower_tick: lower_tick.i64(),
         upper_tick: upper_tick.i64(),
         tokens_provided: cosmwasm_to_proto_coins(vec![bal_asset_1, bal_asset_2]),
         token_min_amount0: token_min_amount_0.to_string(),
         token_min_amount1: token_min_amount_1.to_string(),
-    };
+    }
+    .into();
 
+    // we delegate the create position msg as a submsg as we will need to transfer
+    // the position afterwards. reply_always so that the saved state is cleared on error.
+    let sub_msg = SubMsg::reply_always(create_cl_position_msg, REPLY_ID);
+
+    let payload = to_json_string(&cfg)?;
     let delegated_input_acc_msgs =
-        execute_on_behalf_of(vec![create_cl_position_msg.into()], &cfg.input_addr.clone())?;
+        execute_submsgs_on_behalf_of(vec![sub_msg], Some(payload), &cfg.input_addr.clone())?;
 
-    PENDING_CTX.save(deps.storage, &cfg)?;
+    let service_submsg = SubMsg::reply_on_success(delegated_input_acc_msgs, REPLY_ID);
 
-    Ok(Response::default()
-        .add_submessage(SubMsg::reply_on_success(delegated_input_acc_msgs, REPLY_ID)))
+    Ok(Response::default().add_submessage(service_submsg))
 }
 
 fn get_transfer_position_msg(position_ids: Vec<u64>, from: &str, to: &str) -> CosmosMsg {
@@ -135,24 +133,6 @@ fn get_transfer_position_msg(position_ids: Vec<u64>, from: &str, to: &str) -> Co
         new_owner: to.to_string(),
     }
     .into()
-}
-
-fn query_cl_positions(
-    deps: &DepsMut,
-    pool_id: u64,
-    account: String,
-) -> Result<Vec<u64>, ServiceError> {
-    let pool_manager_querier = ConcentratedliquidityQuerier::new(&deps.querier);
-    let active_positions_response = pool_manager_querier.user_positions(account, pool_id, None)?;
-
-    let mut ids: Vec<u64> = vec![];
-    for active_position in active_positions_response.positions {
-        if let Some(p) = active_position.position {
-            ids.push(p.position_id);
-        }
-    }
-
-    Ok(ids)
 }
 
 pub fn provide_single_sided_liquidity(
@@ -173,7 +153,7 @@ pub fn provide_single_sided_liquidity(
     };
 
     let create_cl_position_msg: CosmosMsg = MsgCreatePosition {
-        pool_id: cfg.lp_config.pool_id,
+        pool_id: cfg.lp_config.pool_id.u64(),
         sender: cfg.input_addr.to_string(),
         lower_tick: lower_tick.i64(),
         upper_tick: upper_tick.i64(),
@@ -186,11 +166,12 @@ pub fn provide_single_sided_liquidity(
     }
     .into();
 
+    let payload = to_json_string(&cfg)?;
+    deps.api
+        .debug(format!("[CL LPER] payload passed to submsg: {:?}", payload).as_str());
     let sub_msg = SubMsg::reply_always(create_cl_position_msg, REPLY_ID);
     let delegated_input_acc_msgs =
-        execute_submsgs_on_behalf_of(vec![sub_msg], &cfg.input_addr.clone())?;
-
-    PENDING_CTX.save(deps.storage, &cfg)?;
+        execute_submsgs_on_behalf_of(vec![sub_msg], Some(payload), &cfg.input_addr.clone())?;
 
     Ok(Response::default()
         .add_submessage(SubMsg::reply_on_success(delegated_input_acc_msgs, REPLY_ID)))
@@ -213,40 +194,24 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ServiceError> {
-    deps.api
-        .debug(format!("[OSMO CL LPER] reply callback: {:?}", msg.result).as_str());
-
+pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ServiceError> {
     match msg.id {
-        REPLY_ID => handle_liquidity_provision_reply_id(deps, msg.result),
+        REPLY_ID => handle_liquidity_provision_reply_id(msg.result),
         _ => Err(ServiceError::Std(StdError::generic_err("unknown reply id"))),
     }
 }
 
-fn handle_liquidity_provision_reply_id(
-    deps: DepsMut,
-    result: SubMsgResult,
-) -> Result<Response, ServiceError> {
-    let valence_callback = ValenceCallback::try_from_sub_msg_result(result)?;
-    deps.api
-        .debug(format!("valence callback: {:?}", valence_callback).as_str());
-
+fn handle_liquidity_provision_reply_id(result: SubMsgResult) -> Result<Response, ServiceError> {
+    let cfg: Config = parse_valence_payload(&result)?;
+    let valence_callback = ValenceCallback::try_from(result)?;
     let decoded_resp: MsgCreatePositionResponse = valence_callback.result.try_into()?;
 
-    deps.api
-        .debug(format!("decoded msg create position response: {:?}", decoded_resp).as_str());
-
-    let cfg = PENDING_CTX.load(deps.storage)?;
-    let input_acc_positions =
-        query_cl_positions(&deps, cfg.lp_config.pool_id, cfg.input_addr.to_string())?;
-
     let transfer_positions_msg = get_transfer_position_msg(
-        input_acc_positions,
+        vec![decoded_resp.position_id],
         cfg.input_addr.as_str(),
         cfg.output_addr.as_str(),
     );
-    deps.api
-        .debug("[OSMO CL LPER] about to execute on behalf of input addr from cl lper reply");
+
     let delegated_input_acc_msgs =
         execute_on_behalf_of(vec![transfer_positions_msg], &cfg.input_addr.clone())?;
 

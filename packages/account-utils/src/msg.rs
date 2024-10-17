@@ -1,8 +1,13 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    from_json, to_json_binary, Binary, CosmosMsg, Reply, StdError, StdResult, SubMsg, SubMsgResult,
+    from_json, to_json_string, Attribute, Binary, CosmosMsg, Reply, StdError, StdResult, SubMsg,
+    SubMsgResult,
 };
 use cw_ownable::{cw_ownable_execute, cw_ownable_query};
+
+pub const VALENCE_CALLBACK_KEY: &str = "valence_callback";
+pub const VALENCE_PAYLOAD_KEY: &str = "valence_payload";
+pub const WASM_EVENT_TYPE: &str = "wasm";
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -13,10 +18,20 @@ pub struct InstantiateMsg {
 #[cw_ownable_execute]
 #[cw_serde]
 pub enum ExecuteMsg {
-    ApproveService { service: String }, // Add service to approved list (only admin)
-    RemoveService { service: String },  // Remove service from approved list (only admin)
-    ExecuteMsg { msgs: Vec<CosmosMsg> }, // Execute any CosmosMsg (approved services or admin)
-    ExecuteSubmsgs { msgs: Vec<SubMsg> },
+    ApproveService {
+        service: String,
+    }, // Add service to approved list (only admin)
+    RemoveService {
+        service: String,
+    }, // Remove service from approved list (only admin)
+    ExecuteMsg {
+        msgs: Vec<CosmosMsg>,
+    }, // Execute any CosmosMsg (approved services or admin)
+    ExecuteSubmsgs {
+        msgs: Vec<SubMsg>,
+        // json encoded
+        payload: Option<String>,
+    },
 }
 
 #[cw_ownable_query]
@@ -44,21 +59,29 @@ impl From<Reply> for ValenceCallback {
     }
 }
 
-impl ValenceCallback {
-    pub fn try_from_sub_msg_result(sub_msg_result: SubMsgResult) -> StdResult<Self> {
-        let sub_result = match sub_msg_result.into_result() {
-            Ok(field) => field,
-            Err(err) => return Err(StdError::generic_err(err)),
+impl TryInto<Attribute> for ValenceCallback {
+    type Error = StdError;
+
+    fn try_into(self) -> Result<Attribute, Self::Error> {
+        let attr = Attribute {
+            key: VALENCE_CALLBACK_KEY.to_string(),
+            value: to_json_string(&self)?,
         };
+        Ok(attr)
+    }
+}
+
+impl TryFrom<SubMsgResult> for ValenceCallback {
+    type Error = StdError;
+
+    fn try_from(value: SubMsgResult) -> Result<Self, Self::Error> {
+        let sub_result = value.into_result().map_err(StdError::generic_err)?;
 
         for event in sub_result.events {
-            if event.ty == "wasm" {
+            if event.ty == WASM_EVENT_TYPE {
                 for attr in event.attributes {
-                    if attr.key == "valence_callback" {
-                        let valence_callback: ValenceCallback = match from_json(attr.value) {
-                            Ok(field) => field,
-                            Err(err) => return Err(StdError::generic_err(err.to_string())),
-                        };
+                    if attr.key == VALENCE_CALLBACK_KEY {
+                        let valence_callback: ValenceCallback = from_json(attr.value)?;
                         return Ok(valence_callback);
                     }
                 }
@@ -66,4 +89,23 @@ impl ValenceCallback {
         }
         Err(StdError::generic_err("valence callback not found"))
     }
+}
+
+pub fn parse_valence_payload<T>(resp: &SubMsgResult) -> StdResult<T>
+where
+    T: serde::de::DeserializeOwned,
+{
+    if let Ok(sub_result) = resp.clone().into_result() {
+        for event in sub_result.events {
+            if event.ty == WASM_EVENT_TYPE {
+                for attr in event.attributes {
+                    if attr.key == VALENCE_PAYLOAD_KEY {
+                        let valence_callback: StdResult<T> = from_json(&attr.value);
+                        return valence_callback;
+                    }
+                }
+            }
+        }
+    }
+    Err(StdError::generic_err("valence payload not found"))
 }

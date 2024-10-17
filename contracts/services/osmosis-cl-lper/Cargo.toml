@@ -30,6 +30,7 @@ serde                   = { workspace = true }
 schemars                = { workspace = true }
 cw-utils                = { workspace = true }
 base64 = "0.22.1"
+serde_json                  = { workspace = true }
 
 [dev-dependencies]
 cosmwasm-std-old        = { package = "cosmwasm-std", version = "1.5.7" }

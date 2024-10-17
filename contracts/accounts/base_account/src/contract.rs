@@ -1,9 +1,8 @@
-use cosmwasm_schema::cw_serde;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    from_binary, from_json, to_json_binary, to_json_string, to_json_vec, Binary, Deps, DepsMut,
-    Empty, Env, MessageInfo, Order, Reply, Response, StdError, StdResult, SubMsgResult,
+    to_json_binary, Attribute, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Order, Reply,
+    Response, StdResult,
 };
 use cw2::set_contract_version;
 use valence_account_utils::{
@@ -48,13 +47,18 @@ pub fn execute(
         ExecuteMsg::RemoveService { service } => execute::remove_service(deps, info, service),
         ExecuteMsg::ExecuteMsg { msgs } => execute::execute_msg(deps, info, msgs),
         ExecuteMsg::UpdateOwnership(action) => execute::update_ownership(deps, env, info, action),
-        ExecuteMsg::ExecuteSubmsgs { msgs } => execute::execute_submsgs(deps, info, msgs),
+        ExecuteMsg::ExecuteSubmsgs { msgs, payload } => {
+            execute::execute_submsgs(deps, info, msgs, payload)
+        }
     }
 }
 
 mod execute {
     use cosmwasm_std::{ensure, CosmosMsg, DepsMut, Empty, Env, MessageInfo, Response, SubMsg};
-    use valence_account_utils::error::{ContractError, UnauthorizedReason};
+    use valence_account_utils::{
+        error::{ContractError, UnauthorizedReason},
+        msg::VALENCE_PAYLOAD_KEY,
+    };
 
     use crate::state::APPROVED_SERVICES;
 
@@ -92,18 +96,19 @@ mod execute {
         deps: DepsMut,
         info: MessageInfo,
         msgs: Vec<SubMsg>,
+        payload: Option<String>,
     ) -> Result<Response, ContractError> {
-        deps.api.debug(&format!(
-            "[BASE ACCOUNT] execute_sub_msgs call: {:?}\ninfo:{:?}",
-            msgs, info
-        ));
         ensure!(
             APPROVED_SERVICES.has(deps.storage, info.sender.clone()),
             ContractError::Unauthorized(UnauthorizedReason::NotAdminOrApprovedService,)
         );
 
-        // Execute the submessages
-        Ok(Response::new().add_submessages(msgs))
+        let mut resp = Response::new().add_submessages(msgs);
+        if let Some(json_encoded_bin) = payload {
+            resp = resp.add_attribute(VALENCE_PAYLOAD_KEY, json_encoded_bin);
+        }
+
+        Ok(resp)
     }
 
     pub fn execute_msg(
@@ -118,10 +123,6 @@ mod execute {
             ContractError::Unauthorized(UnauthorizedReason::NotAdminOrApprovedService)
         );
 
-        deps.api.debug(&format!(
-            "[BASE ACCOUNT] execute_msgs call: {:?}\ninfo:{:?}",
-            msgs, info
-        ));
         // Execute the message
         Ok(Response::new()
             .add_messages(msgs)
@@ -157,16 +158,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
+pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
     // we relay the response back to the initiating service
-    let valence_callback = ValenceCallback::from(msg);
-    deps.api.debug(
-        format!(
-            "base account reply handler!\nvalence_callback: {:?}",
-            valence_callback,
-        )
-        .as_str(),
-    );
-
-    Ok(Response::default().add_attribute("valence_callback", to_json_string(&valence_callback)?))
+    let response_attr: Attribute = ValenceCallback::from(msg).try_into()?;
+    Ok(Response::default().add_attributes(vec![response_attr]))
 }

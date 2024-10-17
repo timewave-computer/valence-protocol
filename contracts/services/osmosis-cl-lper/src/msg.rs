@@ -34,7 +34,7 @@ pub enum QueryMsg {
 
 #[cw_serde]
 pub struct LiquidityProviderConfig {
-    pub pool_id: u64,
+    pub pool_id: Uint64,
     pub pool_asset_1: String,
     pub pool_asset_2: String,
 }
@@ -67,7 +67,7 @@ impl ServiceConfig {
         let input_addr = self.input_addr.to_addr(api)?;
         let output_addr = self.output_addr.to_addr(api)?;
 
-        Ok((input_addr, output_addr, self.lp_config.pool_id.into()))
+        Ok((input_addr, output_addr, self.lp_config.pool_id))
     }
 }
 
@@ -78,8 +78,8 @@ impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
     }
 }
 
-#[cw_serde]
 /// Validated service configuration
+#[cw_serde]
 pub struct Config {
     pub input_addr: Addr,
     pub output_addr: Addr,

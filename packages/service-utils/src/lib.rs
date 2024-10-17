@@ -79,10 +79,17 @@ pub fn execute_on_behalf_of(msgs: Vec<CosmosMsg>, account: &Addr) -> StdResult<C
     }))
 }
 
-pub fn execute_submsgs_on_behalf_of(msgs: Vec<SubMsg>, account: &Addr) -> StdResult<CosmosMsg> {
+pub fn execute_submsgs_on_behalf_of(
+    msgs: Vec<SubMsg>,
+    payload: Option<String>,
+    account: &Addr,
+) -> StdResult<CosmosMsg> {
     Ok(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: account.to_string(),
-        msg: to_json_binary(&valence_account_utils::msg::ExecuteMsg::ExecuteSubmsgs { msgs })?,
+        msg: to_json_binary(&valence_account_utils::msg::ExecuteMsg::ExecuteSubmsgs {
+            msgs,
+            payload,
+        })?,
         funds: vec![],
     }))
 }
