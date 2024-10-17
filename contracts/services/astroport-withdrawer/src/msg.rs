@@ -7,7 +7,7 @@ use valence_service_utils::{
 };
 
 #[cw_serde]
-pub enum ActionsMsgs {
+pub enum ActionMsgs {
     WithdrawLiquidity {},
 }
 

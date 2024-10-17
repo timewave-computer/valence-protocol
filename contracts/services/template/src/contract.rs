@@ -7,7 +7,7 @@ use valence_service_utils::{
 };
 
 use crate::{
-    msg::{ActionsMsgs, Config, Config2, QueryMsg, ServiceConfig, ServiceConfigUpdate},
+    msg::{ActionMsgs, Config, Config2, QueryMsg, ServiceConfig, ServiceConfigUpdate},
     CONFIG2,
 };
 
@@ -36,7 +36,7 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg<ActionsMsgs, ServiceConfigUpdate>,
+    msg: ExecuteMsg<ActionMsgs, ServiceConfigUpdate>,
 ) -> Result<Response, ServiceError> {
     valence_service_base::execute(
         deps,
@@ -52,17 +52,17 @@ mod actions {
     use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
     use valence_service_utils::error::ServiceError;
 
-    use crate::msg::{ActionsMsgs, Config};
+    use crate::msg::{ActionMsgs, Config};
 
     pub fn process_action(
         _deps: DepsMut,
         _env: Env,
         _info: MessageInfo,
-        msg: ActionsMsgs,
+        msg: ActionMsgs,
         _cfg: Config,
     ) -> Result<Response, ServiceError> {
         match msg {
-            ActionsMsgs::NoOp {} => Ok(Response::new().add_attribute("method", "noop")),
+            ActionMsgs::NoOp {} => Ok(Response::new().add_attribute("method", "noop")),
         }
     }
 }

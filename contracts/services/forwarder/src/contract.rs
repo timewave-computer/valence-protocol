@@ -6,7 +6,7 @@ use valence_service_utils::{
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
-use crate::msg::{ActionsMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate};
+use crate::msg::{ActionMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -27,7 +27,7 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg<ActionsMsgs, ServiceConfigUpdate>,
+    msg: ExecuteMsg<ActionMsgs, ServiceConfigUpdate>,
 ) -> Result<Response, ServiceError> {
     valence_service_base::execute(
         deps,
@@ -46,7 +46,7 @@ mod actions {
     use valence_service_utils::{error::ServiceError, execute_on_behalf_of};
 
     use crate::{
-        msg::{ActionsMsgs, Config},
+        msg::{ActionMsgs, Config},
         state::LAST_SUCCESSFUL_FORWARD,
     };
 
@@ -54,11 +54,11 @@ mod actions {
         deps: DepsMut,
         env: Env,
         _info: MessageInfo,
-        msg: ActionsMsgs,
+        msg: ActionMsgs,
         cfg: Config,
     ) -> Result<Response, ServiceError> {
         match msg {
-            ActionsMsgs::Forward {} => {
+            ActionMsgs::Forward {} => {
                 ensure_forwarding_interval(&cfg, &deps, &env)?;
 
                 // Determine the amount to transfer for each denom

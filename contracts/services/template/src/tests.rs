@@ -1,4 +1,4 @@
-use crate::msg::{ActionsMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate};
+use crate::msg::{ActionMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate};
 use cosmwasm_std::Addr;
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
@@ -63,7 +63,7 @@ impl TemplateTestSuite {
     fn execute_noop(&mut self, addr: Addr) -> AnyResult<AppResponse> {
         self.contract_execute(
             addr,
-            &ExecuteMsg::<_, ServiceConfig>::ProcessAction(ActionsMsgs::NoOp {}),
+            &ExecuteMsg::<_, ServiceConfig>::ProcessAction(ActionMsgs::NoOp {}),
         )
     }
 
@@ -72,7 +72,7 @@ impl TemplateTestSuite {
         self.app_mut().execute_contract(
             owner,
             addr,
-            &ExecuteMsg::<ActionsMsgs, ServiceConfig>::UpdateConfig { new_config },
+            &ExecuteMsg::<ActionMsgs, ServiceConfig>::UpdateConfig { new_config },
             &[],
         )
     }

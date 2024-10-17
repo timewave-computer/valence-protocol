@@ -9,7 +9,7 @@ use valence_service_utils::{
 use crate::CONFIG2;
 
 #[cw_serde]
-pub enum ActionsMsgs {
+pub enum ActionMsgs {
     NoOp {},
 }
 
