@@ -127,41 +127,49 @@ fn main() -> Result<(), Box<dyn Error>> {
     workflow_config_builder.add_link(&service_1, vec![&account_1], vec![&account_2]);
     workflow_config_builder.add_link(&service_2, vec![&account_2], vec![&account_1]);
 
-    workflow_config_builder.add_authorization(AuthorizationBuilder::new()
-    .with_label("swap")
-    .with_actions_config(
-        AtomicActionsConfigBuilder::new()
-            .with_action(
-                AtomicActionBuilder::new()
-                    .with_contract_address(ServiceAccountType::ServiceId(1))
-                    .with_message_details(MessageDetails {
-                        message_type: MessageType::CosmwasmExecuteMsg,
-                        message: Message {
-                            name: "process_action".to_string(),
-                            params_restrictions: Some(vec![ParamRestriction::MustBeIncluded(
-                                vec!["process_action".to_string(), "split".to_string()],
-                            )]),
-                        },
-                    })
-                    .build(),
-            )
-            .with_action(
-                AtomicActionBuilder::new()
-                    .with_contract_address(ServiceAccountType::ServiceId(2))
-                    .with_message_details(MessageDetails {
-                        message_type: MessageType::CosmwasmExecuteMsg,
-                        message: Message {
-                            name: "process_action".to_string(),
-                            params_restrictions: Some(vec![ParamRestriction::MustBeIncluded(
-                                vec!["process_action".to_string(), "split".to_string()],
-                            )]),
-                        },
-                    })
+    workflow_config_builder.add_authorization(
+        AuthorizationBuilder::new()
+            .with_label("swap")
+            .with_actions_config(
+                AtomicActionsConfigBuilder::new()
+                    .with_action(
+                        AtomicActionBuilder::new()
+                            .with_contract_address(ServiceAccountType::ServiceId(1))
+                            .with_message_details(MessageDetails {
+                                message_type: MessageType::CosmwasmExecuteMsg,
+                                message: Message {
+                                    name: "process_action".to_string(),
+                                    params_restrictions: Some(vec![
+                                        ParamRestriction::MustBeIncluded(vec![
+                                            "process_action".to_string(),
+                                            "split".to_string(),
+                                        ]),
+                                    ]),
+                                },
+                            })
+                            .build(),
+                    )
+                    .with_action(
+                        AtomicActionBuilder::new()
+                            .with_contract_address(ServiceAccountType::ServiceId(2))
+                            .with_message_details(MessageDetails {
+                                message_type: MessageType::CosmwasmExecuteMsg,
+                                message: Message {
+                                    name: "process_action".to_string(),
+                                    params_restrictions: Some(vec![
+                                        ParamRestriction::MustBeIncluded(vec![
+                                            "process_action".to_string(),
+                                            "split".to_string(),
+                                        ]),
+                                    ]),
+                                },
+                            })
+                            .build(),
+                    )
                     .build(),
             )
             .build(),
-    )
-    .build());
+    );
 
     let mut workflow_config = workflow_config_builder.build();
 

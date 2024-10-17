@@ -331,7 +331,9 @@ impl WorkflowConfig {
                 .authorization_data
                 .processor_addrs
                 .get(&account.domain.to_string())
-                .ok_or(ManagerError::ProcessorAddrNotFound(account.domain.to_string()))?;
+                .ok_or(ManagerError::ProcessorAddrNotFound(
+                    account.domain.to_string(),
+                ))?;
 
             domain_connector
                 .instantiate_account(self.id, processor_addr.clone(), account_instantiate_data)

@@ -45,7 +45,7 @@ pub struct AccountInfo {
 }
 
 impl AccountInfo {
-    pub fn new(name: String, domain: &Domain , ty: AccountType) -> Self {
+    pub fn new(name: String, domain: &Domain, ty: AccountType) -> Self {
         Self {
             name,
             ty,
