@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut};
 use cw_ownable::cw_ownable_query;
-use valence_macros::OptionalStruct;
+use valence_macros::{valence_service_query, ValenceServiceInterface};
 use valence_service_utils::{
     error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType,
 };
@@ -11,18 +11,14 @@ pub enum ActionsMsgs {
     WithdrawLiquidity {},
 }
 
+#[valence_service_query]
 #[cw_ownable_query]
 #[cw_serde]
 #[derive(QueryResponses)]
-pub enum QueryMsg {
-    #[returns(Addr)]
-    GetProcessor {},
-    #[returns(Config)]
-    GetServiceConfig {},
-}
+pub enum QueryMsg {}
 
 #[cw_serde]
-#[derive(OptionalStruct)]
+#[derive(ValenceServiceInterface)]
 pub struct ServiceConfig {
     pub input_addr: ServiceAccountType,
     pub output_addr: ServiceAccountType,
@@ -95,8 +91,10 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
     }
 }
 
-impl OptionalServiceConfig {
-    pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
+impl ServiceConfigUpdate {
+    pub fn update_config(self, deps: DepsMut) -> Result<(), ServiceError> {
+        let mut config: Config = valence_service_base::load_config(deps.storage)?;
+
         if let Some(input_addr) = self.input_addr {
             config.input_addr = input_addr.to_addr(deps.api)?;
         }
@@ -112,6 +110,8 @@ impl OptionalServiceConfig {
         if let Some(withdrawer_config) = self.withdrawer_config {
             config.withdrawer_config = withdrawer_config;
         }
+
+        valence_service_base::save_config(deps.storage, &config)?;
         Ok(())
     }
 }
