@@ -201,7 +201,7 @@ jobs:
       - name: Start local-ic and wait for it to be ready
         run: |
           cd local-interchaintest
-          local-ic start neutron_juno --api-port 42069 &
+          /tmp/local-ic start neutron_juno --api-port 42069 &
           curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
 
       - name: Run IBC transfer NTRN->JUNO example
@@ -246,7 +246,7 @@ jobs:
       - name: Start local-ic and wait for it to be ready
         run: |
           cd local-interchaintest
-          local-ic start neutron_juno --api-port 42069 &
+          /tmp/local-ic start neutron_juno --api-port 42069 &
           curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
 
       - name: Run IBC transfer JUNO->NTRN example
@@ -291,13 +291,58 @@ jobs:
       - name: Start local-ic and wait for it to be ready
         run: |
           cd local-interchaintest
-          local-ic start neutron_juno --api-port 42069 &
+          /tmp/local-ic start neutron_juno --api-port 42069 &
           curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
 
       - name: Run IBC transfer NTRN->JUNO example
         env:
           RUST_LOG: debug
         run: cargo run --package local-interchaintest --example ibc_transfer_ntrn_juno_gaia_pfm
+
+      - name: Cleanup
+        run: killall local-ic && exit 0
+
+  local-ic-ibc-transfer-juno-gaia-ntrn-pfm:
+    needs: build
+    name: IBC transfer NTRN->JUNO-> e2e test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get cargo
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: optimized-contracts
+          path: ./artifacts
+
+      - name: List downloaded files
+        run: ls -l ./artifacts
+
+      - name: Download local-ic artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: local-ic
+          path: /tmp
+
+      - name: Make local-ic executable
+        run: chmod +x /tmp/local-ic
+
+      - name: Start local-ic and wait for it to be ready
+        run: |
+          cd local-interchaintest
+          /tmp/local-ic start neutron_juno --api-port 42069 &
+          curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
+
+      - name: Run IBC transfer NTRN->JUNO example
+        env:
+          RUST_LOG: debug
+        run: cargo run --package local-interchaintest --example ibc_transfer_juno_gaia_ntrn_pfm
 
       - name: Cleanup
         run: killall local-ic && exit 0
