@@ -194,10 +194,10 @@ fn get_chain_infos(chains_file_path: &str) -> HashMap<String, ChainInfo> {
 
     chain_json.iter().for_each(|chain_data| {
         let chain_name = chain_data
-            .get("chain_name")
-            .expect("Chain data must have chain_name")
+            .get("name")
+            .expect("Chain data must have name")
             .as_str()
-            .expect("chain_name must be a string");
+            .expect("name must be a string");
 
         let log_chain_data = log_json
             .iter()
