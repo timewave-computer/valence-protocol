@@ -244,8 +244,8 @@ fn get_chain_infos(chains_file_path: &str) -> HashMap<String, ChainInfo> {
         let coin_type = chain_data
             .get("coin_type")
             .expect("Chain data must have coin_type")
-            .as_str()
-            .expect("coin_type must be a string");
+            .as_u64()
+            .expect("coin_type must be a u64");
 
         chain_infos.insert(
             chain_name.to_string(),
@@ -256,7 +256,7 @@ fn get_chain_infos(chains_file_path: &str) -> HashMap<String, ChainInfo> {
                 prefix: prefix.to_string(),
                 gas_price: gas_price.to_string(),
                 gas_denom: gas_denom.to_string(),
-                coin_type: coin_type.parse().unwrap(),
+                coin_type,
             },
         );
     });
