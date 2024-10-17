@@ -3,6 +3,7 @@ use std::{error::Error, fs::File, io::Read, str::FromStr};
 use cosmos_grpc_client::{BroadcastMode, CoinType, GrpcClient, ProstMsgToAny, Wallet};
 use cosmwasm_std_old::Decimal;
 use localic_std::{errors::LocalError, transactions::ChainRequestBuilder};
+use log::info;
 use persistence_std::types::pstake::liquidstakeibc::v1beta1::{KvUpdate, MsgUpdateHostChain};
 use serde_json::Value;
 use tokio::runtime::Runtime;
@@ -43,6 +44,7 @@ pub fn activate_host_zone(target_chain_id: &str) -> Result<(), Box<dyn Error>> {
     // Send the activation via gRPC
     let rt = Runtime::new()?;
     rt.block_on(send_grpc_activation(target_chain_id, &target_grpc_address))?;
+    info!("Host zone activated successfully");
 
     Ok(())
 }

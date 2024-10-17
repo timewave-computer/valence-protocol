@@ -1,9 +1,11 @@
 pub mod authorization;
 pub mod base_account;
+pub mod ibc;
 pub mod manager;
 pub mod persistence;
 pub mod polytone;
 pub mod processor;
+pub mod relayer;
 
 // Path of all valence contracts
 pub const VALENCE_ARTIFACTS_PATH: &str = "artifacts";
@@ -15,6 +17,9 @@ pub const LOGS_FILE_PATH: &str = "local-interchaintest/configs/logs.json";
 pub const LOCAL_CODE_ID_CACHE_PATH_NEUTRON: &str =
     "local-interchaintest/code_id_cache_neutron.json";
 pub const LOCAL_CODE_ID_CACHE_PATH_JUNO: &str = "local-interchaintest/code_id_cache_juno.json";
+pub const LOCAL_CODE_ID_CACHE_PATH_PERSISTENCE: &str =
+    "local-interchaintest/code_id_cache_persistence.json";
+
 pub const GAS_FLAGS: &str = "--gas=auto --gas-adjustment=3.0";
 pub const NTRN_DENOM: &str = "untrn";
 
