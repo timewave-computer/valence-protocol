@@ -92,8 +92,6 @@ pub fn provide_double_sided_liquidity(
     token_min_amount_0: Uint128,
     token_min_amount_1: Uint128,
 ) -> Result<Response, ServiceError> {
-    deps.api
-        .debug("[OSMO CL LPER] provide double sided liquidity for concentrated liquidity pool");
     // first we assert the input account balances
     let bal_asset_1 = deps
         .querier
@@ -115,24 +113,15 @@ pub fn provide_double_sided_liquidity(
 
     // we delegate the create position msg as a submsg as we will need to transfer
     // the position afterwards. reply_always so that the saved state is cleared on error.
-    let sub_msg = SubMsg::reply_always(create_cl_position_msg, REPLY_ID);
-
-    let payload = to_json_string(&cfg)?;
-    let delegated_input_acc_msgs =
-        execute_submsgs_on_behalf_of(vec![sub_msg], Some(payload), &cfg.input_addr.clone())?;
+    let delegated_input_acc_msgs = execute_submsgs_on_behalf_of(
+        vec![SubMsg::reply_always(create_cl_position_msg, REPLY_ID)],
+        Some(to_json_string(&cfg)?),
+        &cfg.input_addr.clone(),
+    )?;
 
     let service_submsg = SubMsg::reply_on_success(delegated_input_acc_msgs, REPLY_ID);
 
     Ok(Response::default().add_submessage(service_submsg))
-}
-
-fn get_transfer_position_msg(position_ids: Vec<u64>, from: &str, to: &str) -> CosmosMsg {
-    MsgTransferPositions {
-        position_ids,
-        sender: from.to_string(),
-        new_owner: to.to_string(),
-    }
-    .into()
 }
 
 pub fn provide_single_sided_liquidity(
@@ -166,12 +155,15 @@ pub fn provide_single_sided_liquidity(
     }
     .into();
 
-    let payload = to_json_string(&cfg)?;
-    deps.api
-        .debug(format!("[CL LPER] payload passed to submsg: {:?}", payload).as_str());
-    let sub_msg = SubMsg::reply_always(create_cl_position_msg, REPLY_ID);
-    let delegated_input_acc_msgs =
-        execute_submsgs_on_behalf_of(vec![sub_msg], Some(payload), &cfg.input_addr.clone())?;
+    // we delegate the position creation message to the input account
+    let delegated_input_acc_msgs = execute_submsgs_on_behalf_of(
+        // we expect a reply from this submsg so we pass it as a submessage
+        vec![SubMsg::reply_always(create_cl_position_msg, REPLY_ID)],
+        // associate this msg with a cfg payload which will be used in the reply
+        // to restore the state used during this function
+        Some(to_json_string(&cfg)?),
+        &cfg.input_addr.clone(),
+    )?;
 
     Ok(Response::default()
         .add_submessage(SubMsg::reply_on_success(delegated_input_acc_msgs, REPLY_ID)))
@@ -202,18 +194,23 @@ pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ServiceE
 }
 
 fn handle_liquidity_provision_reply_id(result: SubMsgResult) -> Result<Response, ServiceError> {
+    // load the config that was used during the initiating message
+    // which triggered this reply
     let cfg: Config = parse_valence_payload(&result)?;
+    // decode the response from the submsg result
     let valence_callback = ValenceCallback::try_from(result)?;
+
+    // decode the underlying position creation response
     let decoded_resp: MsgCreatePositionResponse = valence_callback.result.try_into()?;
 
-    let transfer_positions_msg = get_transfer_position_msg(
-        vec![decoded_resp.position_id],
-        cfg.input_addr.as_str(),
-        cfg.output_addr.as_str(),
-    );
+    let transfer_positions_msg = MsgTransferPositions {
+        position_ids: vec![decoded_resp.position_id],
+        sender: cfg.input_addr.to_string(),
+        new_owner: cfg.output_addr.to_string(),
+    };
 
-    let delegated_input_acc_msgs =
-        execute_on_behalf_of(vec![transfer_positions_msg], &cfg.input_addr.clone())?;
-
-    Ok(Response::default().add_message(delegated_input_acc_msgs))
+    Ok(Response::default().add_message(execute_on_behalf_of(
+        vec![transfer_positions_msg.into()],
+        &cfg.input_addr.clone(),
+    )?))
 }
