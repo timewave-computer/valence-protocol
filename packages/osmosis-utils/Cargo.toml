@@ -1,0 +1,21 @@
+[package]
+name        = "valence-osmosis-utils"
+version     = { workspace = true }
+edition     = { workspace = true }
+authors     = ["Timewave Labs"]
+description = "Utils for osmosis services"
+
+[features]
+default = []
+testing = [
+    "dep:osmosis-test-tube",
+]
+
+[dependencies]
+cosmwasm-std            = { workspace = true }
+cosmwasm-schema         = { workspace = true }
+osmosis-test-tube       = { workspace = true, optional = true }
+cosmwasm-std-polytone   = { package = "cosmwasm-std", version = "1.5.7" }
+valence-account-utils   = { workspace = true }
+osmosis-std             = { workspace = true }
+valence-service-utils   = { workspace = true }
