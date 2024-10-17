@@ -275,7 +275,7 @@ mod actions {
         )?;
 
         // Check which asset is being provided and get its balance
-        let (asset_balance, other_asset) = if asset == cfg.lp_config.asset_data.asset1 {
+        let (mut asset_balance, other_asset) = if asset == cfg.lp_config.asset_data.asset1 {
             (balance_asset1.clone(), balance_asset2.clone())
         } else if asset == cfg.lp_config.asset_data.asset2 {
             (balance_asset2.clone(), balance_asset1.clone())
@@ -295,9 +295,7 @@ mod actions {
         // Check limit if provided
         if let Some(limit) = limit {
             if limit < asset_balance.amount {
-                return Err(ServiceError::ExecutionError(
-                    "Asset amount is greater than the limit".to_string(),
-                ));
+                asset_balance.amount = limit;
             }
         }
 
