@@ -83,7 +83,8 @@ pub fn setup_manager(
 
         for contract_name in contracts.iter() {
             let mut uploader = test_ctx.build_tx_upload_contracts();
-            let path = get_contract_path(chain_name, contract_name, artifacts_dir.as_str());
+            let (path, contrat_wasm_name, contract_name) =
+                get_contract_path(chain_name, contract_name, artifacts_dir.as_str());
 
             // Upload contract
             uploader.send_single_contract(path.as_str()).unwrap();
@@ -91,7 +92,7 @@ pub fn setup_manager(
             // get its code id
             let code_id = test_ctx
                 .get_contract()
-                .contract(contract_name)
+                .contract(contrat_wasm_name)
                 .get_cw()
                 .code_id
                 .unwrap();
@@ -131,19 +132,36 @@ pub fn setup_manager(
 
 /// A way to get specific contract path based on what chains we upload contract on.
 /// Need to add paths manually here
-fn get_contract_path(chain_name: &str, contract_name: &str, artifacts_dir: &str) -> String {
+/// The return is (path, contract wasm file name, contract name)
+fn get_contract_path<'a>(
+    chain_name: &str,
+    contract_name: &'a str,
+    artifacts_dir: &'a str,
+) -> (String, &'a str, &'a str) {
     if NEUTRON_IBC_TRANSFER_NAME.contains(contract_name)
         || GENERIC_IBC_TRANSFER_NAME.contains(contract_name)
         || contract_name == "ibc-transfer"
     {
         if chain_name == NEUTRON_CHAIN_NAME {
-            return format!("{}/{}.wasm", artifacts_dir, NEUTRON_IBC_TRANSFER_NAME);
+            return (
+                format!("{}/{}.wasm", artifacts_dir, NEUTRON_IBC_TRANSFER_NAME),
+                NEUTRON_IBC_TRANSFER_NAME,
+                "ibc_transfer",
+            );
         } else {
-            return format!("{}/{}.wasm", artifacts_dir, GENERIC_IBC_TRANSFER_NAME);
+            return (
+                format!("{}/{}.wasm", artifacts_dir, GENERIC_IBC_TRANSFER_NAME),
+                GENERIC_IBC_TRANSFER_NAME,
+                "ibc_transfer",
+            );
         }
     }
 
-    format!("{}/{}.wasm", artifacts_dir, contract_name)
+    (
+        format!("{}/{}.wasm", artifacts_dir, contract_name),
+        contract_name,
+        contract_name,
+    )
 }
 
 /// Get the chain infos and bridge info from the log file
