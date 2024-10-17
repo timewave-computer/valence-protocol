@@ -641,7 +641,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     std::thread::sleep(Duration::from_secs(3));
 
-    let ttl_time = 120;
+    // Give enough time to timeout just in case relayer is slow (specially on CI)
+    let ttl_time = 300;
     info!(
         "Sending the messages with TTL (and {} seconds as expire)...",
         ttl_time
