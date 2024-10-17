@@ -78,7 +78,7 @@ impl TemplateTestSuite {
     }
 }
 
-impl ServiceTestSuite for TemplateTestSuite {
+impl ServiceTestSuite<Empty, Empty> for TemplateTestSuite {
     fn app(&self) -> &App {
         self.inner.app()
     }

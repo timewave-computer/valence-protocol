@@ -41,9 +41,7 @@ impl BaseAccountTestSuite {
             crate::contract::query,
         );
 
-        let inner = AccountTestSuiteBase::new(
-            Box::new(account_code) as Box<dyn cw_multi_test::Contract<_, _>>
-        );
+        let inner = AccountTestSuiteBase::new(Box::new(account_code));
 
         Self {
             inner,

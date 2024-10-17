@@ -115,7 +115,7 @@ impl ForwarderTestSuite {
     }
 }
 
-impl ServiceTestSuite for ForwarderTestSuite {
+impl ServiceTestSuite<Empty, Empty> for ForwarderTestSuite {
     fn app(&self) -> &App {
         self.inner.app()
     }

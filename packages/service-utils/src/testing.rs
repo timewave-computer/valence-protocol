@@ -1,9 +1,12 @@
 use cosmwasm_std::{
-    coin, instantiate2_address, testing::MockApi, Addr, Api, CodeInfoResponse, Coin, Uint128,
+    coin, instantiate2_address, testing::MockApi, Addr, Api, CodeInfoResponse, Coin, CustomMsg,
+    CustomQuery, Empty, Uint128,
 };
 use cw20::Cw20Coin;
-use cw_multi_test::{error::AnyResult, next_block, App, AppResponse, ContractWrapper, Executor};
-use serde::Serialize;
+use cw_multi_test::{
+    error::AnyResult, next_block, App, AppResponse, BasicApp, ContractWrapper, Executor,
+};
+use serde::{de::DeserializeOwned, Serialize};
 use sha2::{Digest, Sha256};
 use std::fmt::Debug;
 
@@ -55,9 +58,13 @@ impl ServiceTestSuiteBase {
     }
 }
 
-pub trait ServiceTestSuite {
-    fn app(&self) -> &App;
-    fn app_mut(&mut self) -> &mut App;
+pub trait ServiceTestSuite<ExecC, QueryC>
+where
+    ExecC: CustomMsg + Debug + DeserializeOwned + 'static,
+    QueryC: CustomQuery + Debug + DeserializeOwned + 'static,
+{
+    fn app(&self) -> &BasicApp<ExecC, QueryC>;
+    fn app_mut(&mut self) -> &mut BasicApp<ExecC, QueryC>;
     fn owner(&self) -> &Addr;
     fn processor(&self) -> &Addr;
     fn account_code_id(&self) -> u64;
@@ -275,12 +282,89 @@ pub trait ServiceTestSuite {
     }
 }
 
-impl ServiceTestSuite for ServiceTestSuiteBase {
+impl ServiceTestSuite<Empty, Empty> for ServiceTestSuiteBase {
     fn app(&self) -> &App {
         &self.app
     }
 
     fn app_mut(&mut self) -> &mut App {
+        &mut self.app
+    }
+
+    fn owner(&self) -> &Addr {
+        &self.owner
+    }
+
+    fn processor(&self) -> &Addr {
+        &self.processor
+    }
+
+    fn account_code_id(&self) -> u64 {
+        self.account_code_id
+    }
+
+    fn cw20_code_id(&self) -> u64 {
+        self.cw20_code_id
+    }
+}
+
+pub struct CustomServiceTestSuiteBase<ExecC, QueryC>
+where
+    ExecC: CustomMsg + Debug + DeserializeOwned,
+    QueryC: CustomQuery + Debug + DeserializeOwned,
+{
+    app: BasicApp<ExecC, QueryC>,
+    owner: Addr,
+    processor: Addr,
+    account_code_id: u64,
+    cw20_code_id: u64,
+}
+
+impl<ExecC, QueryC> CustomServiceTestSuiteBase<ExecC, QueryC>
+where
+    ExecC: CustomMsg + Debug + DeserializeOwned + 'static,
+    QueryC: CustomQuery + Debug + DeserializeOwned + 'static,
+{
+    pub fn new(mut app: BasicApp<ExecC, QueryC>) -> Self {
+        let owner = app.api().addr_make("owner");
+        let processor = app.api().addr_make("processor");
+
+        let account_code = ContractWrapper::new_with_empty(
+            valence_base_account::contract::execute,
+            valence_base_account::contract::instantiate,
+            valence_base_account::contract::query,
+        );
+
+        let account_code_id = app.store_code(Box::new(account_code));
+
+        let cw20_code = ContractWrapper::new_with_empty(
+            cw20_base::contract::execute,
+            cw20_base::contract::instantiate,
+            cw20_base::contract::query,
+        );
+
+        let cw20_code_id = app.store_code(Box::new(cw20_code));
+
+        Self {
+            app,
+            owner,
+            processor,
+            account_code_id,
+            cw20_code_id,
+        }
+    }
+}
+
+impl<ExecC, QueryC> ServiceTestSuite<ExecC, QueryC> for CustomServiceTestSuiteBase<ExecC, QueryC>
+where
+    ExecC: CustomMsg + Debug + DeserializeOwned + 'static,
+    QueryC: CustomQuery + Debug + DeserializeOwned + 'static,
+{
+    fn app(&self) -> &BasicApp<ExecC, QueryC> {
+        &self.app
+    }
+
+    fn app_mut(&mut self) -> &mut BasicApp<ExecC, QueryC> {
         &mut self.app
     }
 

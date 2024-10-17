@@ -1,4 +1,4 @@
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{CustomQuery, DepsMut, Env, MessageInfo, Response};
 use helpers::assert_processor;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -43,15 +43,16 @@ where
         .add_attribute("owner", format!("{:?}", msg.owner)))
 }
 
-pub fn execute<T, U, V>(
-    mut deps: DepsMut,
+pub fn execute<T, U, V, Q>(
+    mut deps: DepsMut<Q>,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg<T, V>,
-    process_action: fn(DepsMut, Env, MessageInfo, T, U) -> Result<Response, ServiceError>,
-    update_config: fn(DepsMut, Env, MessageInfo, V) -> Result<(), ServiceError>,
+    process_action: fn(DepsMut<Q>, Env, MessageInfo, T, U) -> Result<Response, ServiceError>,
+    update_config: fn(DepsMut<Q>, Env, MessageInfo, V) -> Result<(), ServiceError>,
 ) -> Result<Response, ServiceError>
 where
+    Q: CustomQuery,
     U: Serialize + DeserializeOwned,
     V: ServiceConfigUpdateTrait + Serialize + DeserializeOwned,
 {
@@ -76,8 +77,12 @@ where
                 .add_attribute("processor", processor))
         }
         ExecuteMsg::UpdateOwnership(action) => {
-            let result =
-                cw_ownable::update_ownership(deps, &env.block, &info.sender, action.clone())?;
+            let result = cw_ownable::update_ownership(
+                deps.into_empty(),
+                &env.block,
+                &info.sender,
+                action.clone(),
+            )?;
             Ok(Response::default()
                 .add_attribute("method", "update_ownership")
                 .add_attribute("action", format!("{:?}", action))
