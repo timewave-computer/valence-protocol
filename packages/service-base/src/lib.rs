@@ -49,7 +49,7 @@ pub fn execute<T, U, V>(
     info: MessageInfo,
     msg: ExecuteMsg<T, V>,
     process_action: fn(DepsMut, Env, MessageInfo, T, U) -> Result<Response, ServiceError>,
-    update_config: fn(DepsMut, Env, MessageInfo, &mut U, V) -> Result<(), ServiceError>,
+    update_config: fn(DepsMut, Env, MessageInfo, V) -> Result<(), ServiceError>,
 ) -> Result<Response, ServiceError>
 where
     U: Serialize + DeserializeOwned,
@@ -65,10 +65,7 @@ where
             cw_ownable::assert_owner(deps.as_ref().storage, &info.sender)?;
             // We update the raw storage
             new_config.update_raw(deps.storage)?;
-
-            let config = &mut load_config(deps.storage)?;
-            update_config(deps.branch(), env, info, config, new_config)?;
-            save_config(deps.storage, config)?;
+            update_config(deps.branch(), env, info, new_config)?;
             Ok(Response::new().add_attribute("method", "update_config"))
         }
         ExecuteMsg::UpdateProcessor { processor } => {

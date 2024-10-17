@@ -181,7 +181,9 @@ fn convert_to_checked_configs(
 }
 
 impl ServiceConfigUpdate {
-    pub fn update_config(self, deps: DepsMut, config: &mut Config) -> Result<(), ServiceError> {
+    pub fn update_config(self, deps: DepsMut) -> Result<(), ServiceError> {
+        let mut config: Config = valence_service_base::load_config(deps.storage)?;
+
         if let Some(input_addr) = self.input_addr {
             config.input_addr = input_addr.to_addr(deps.api)?;
         }
@@ -204,6 +206,8 @@ impl ServiceConfigUpdate {
         if let Some(forwarding_constraints) = self.forwarding_constraints {
             config.forwarding_constraints = forwarding_constraints;
         }
+
+        valence_service_base::save_config(deps.storage, &config)?;
 
         Ok(())
     }

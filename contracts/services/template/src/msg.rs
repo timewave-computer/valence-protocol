@@ -52,7 +52,10 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
 }
 
 impl ServiceConfigUpdate {
-    pub fn update_config(self, deps: DepsMut, config: &mut Config) -> Result<(), ServiceError> {
+    /// Service developer must not forget to update config storage needed
+    pub fn update_config(self, deps: DepsMut) -> Result<(), ServiceError> {
+        let mut config: Config = valence_service_base::load_config(deps.storage)?;
+
         if let OptionUpdate::Set(optional) = self.optional {
             config.optional = optional;
         }
@@ -63,6 +66,7 @@ impl ServiceConfigUpdate {
             config2.optional2 = optional2;
         }
 
+        valence_service_base::save_config(deps.storage, &config)?;
         CONFIG2.save(deps.storage, &config2)?;
 
         Ok(())

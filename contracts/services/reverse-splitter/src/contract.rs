@@ -271,16 +271,15 @@ mod execute {
     use cosmwasm_std::{DepsMut, Env, MessageInfo};
     use valence_service_utils::error::ServiceError;
 
-    use crate::msg::{Config, ServiceConfigUpdate};
+    use crate::msg::ServiceConfigUpdate;
 
     pub fn update_config(
         deps: DepsMut,
         _env: Env,
         _info: MessageInfo,
-        config: &mut Config,
         new_config: ServiceConfigUpdate,
     ) -> Result<(), ServiceError> {
-        new_config.update_config(deps, config)
+        new_config.update_config(deps)
     }
 }
 

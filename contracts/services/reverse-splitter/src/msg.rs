@@ -271,7 +271,9 @@ fn convert_to_checked_split_amount(
 }
 
 impl ServiceConfigUpdate {
-    pub fn update_config(self, deps: DepsMut, config: &mut Config) -> Result<(), ServiceError> {
+    pub fn update_config(self, deps: DepsMut) -> Result<(), ServiceError> {
+        let mut config: Config = valence_service_base::load_config(deps.storage)?;
+
         // First update output_addr & base_denom (if needed)
         if let Some(output_addr) = self.output_addr {
             config.output_addr = output_addr.to_addr(deps.api)?;
@@ -297,6 +299,8 @@ impl ServiceConfigUpdate {
 
             config.splits = convert_to_checked_configs(deps.as_ref(), &splits)?;
         }
+
+        valence_service_base::save_config(deps.storage, &config)?;
         Ok(())
     }
 }
