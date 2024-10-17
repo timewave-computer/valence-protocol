@@ -1,10 +1,10 @@
 use cosmwasm_std::Uint128;
 use neutron_test_tube::{
     neutron_std::types::cosmos::{
-        bank::v1beta1::{MsgSend, QueryAllBalancesRequest},
+        bank::v1beta1::{MsgSend, QueryAllBalancesRequest, QueryBalanceRequest},
         base::v1beta1::Coin as BankCoin,
     },
-    Account, Bank, Module, Wasm,
+    Account, Bank, Module, NeutronTestApp, Wasm,
 };
 use valence_astroport_utils::suite::{AstroportTestAppBuilder, AstroportTestAppSetup};
 use valence_service_utils::{
@@ -180,6 +180,16 @@ fn instantiate_lper_contract(
     .unwrap()
     .data
     .address
+}
+
+fn query_balance_amount(bank: &Bank<'_, NeutronTestApp>, address: String, denom: String) -> u128 {
+    bank.query_balance(&QueryBalanceRequest { address, denom })
+        .unwrap()
+        .balance
+        .unwrap()
+        .amount
+        .parse()
+        .unwrap()
 }
 
 #[test]
@@ -688,23 +698,34 @@ fn provide_single_sided_liquidity_cw20_lp_token() {
 fn test_limit_single_sided_liquidity() {
     let setup = LPerTestSuite::default();
     let wasm = Wasm::new(&setup.inner.app);
+    let bank = Bank::new(&setup.inner.app);
 
-    let error = wasm
-        .execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
-            &setup.lper_addr,
-            &ExecuteMsg::ProcessAction(ActionMsgs::ProvideSingleSidedLiquidity {
-                asset: setup.inner.pool_asset1.clone(),
-                limit: Some(Uint128::new(1)),
-                expected_pool_ratio_range: None,
-            }),
-            &[],
-            setup.inner.processor_acc(),
-        )
-        .unwrap_err();
+    let input_acc_balance_before = query_balance_amount(
+        &bank,
+        setup.input_acc.clone(),
+        setup.inner.pool_asset1.clone(),
+    );
 
-    assert!(error.to_string().contains(
-        ServiceError::ExecutionError("Asset amount is greater than the limit".to_string())
-            .to_string()
-            .as_str(),
-    ),);
+    let liquidity_provided = 500_000u128;
+
+    wasm.execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
+        &setup.lper_addr,
+        &ExecuteMsg::ProcessAction(ActionMsgs::ProvideSingleSidedLiquidity {
+            asset: setup.inner.pool_asset1.clone(),
+            limit: Some(Uint128::new(liquidity_provided)),
+            expected_pool_ratio_range: None,
+        }),
+        &[],
+        setup.inner.processor_acc(),
+    )
+    .unwrap();
+
+    let input_acc_balance_after =
+        query_balance_amount(&bank, setup.input_acc, setup.inner.pool_asset1.clone());
+
+    assert!(input_acc_balance_after > 0);
+    assert_eq!(
+        input_acc_balance_before - liquidity_provided,
+        input_acc_balance_after
+    );
 }
