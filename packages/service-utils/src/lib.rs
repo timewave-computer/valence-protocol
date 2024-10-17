@@ -50,7 +50,33 @@ impl From<&str> for ServiceAccountType {
     }
 }
 
+pub trait GetId {
+    fn get_id(&self) -> Id;
+}
+
+impl GetId for ServiceAccountType {
+    fn get_id(&self) -> Id {
+        match self {
+            ServiceAccountType::Addr(_) => {
+                panic!("ServiceAccountType is an address")
+            }
+            ServiceAccountType::AccountId(id) => *id,
+            ServiceAccountType::ServiceId(id) => *id,
+        }
+    }
+}
+
 impl ServiceAccountType {
+    // pub fn get_id(&self) -> StdResult<Id> {
+    //     match self {
+    //         ServiceAccountType::Addr(_) => {
+    //             Err(StdError::generic_err("ServiceAccountType is an address"))
+    //         }
+    //         ServiceAccountType::AccountId(id) => Ok(*id),
+    //         ServiceAccountType::ServiceId(id) => Ok(*id),
+    //     }
+    // }
+
     pub fn to_string(&self) -> StdResult<String> {
         match self {
             ServiceAccountType::Addr(addr) => Ok(addr.to_string()),

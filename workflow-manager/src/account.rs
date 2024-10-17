@@ -26,6 +26,17 @@ pub struct AccountInfo {
     pub addr: Option<String>,
 }
 
+impl AccountInfo {
+    pub fn new(name: String, ty: AccountType, domain: Domain) -> Self {
+        Self {
+            name,
+            ty,
+            domain,
+            addr: None,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct InstantiateAccountData {
     pub id: u64,
