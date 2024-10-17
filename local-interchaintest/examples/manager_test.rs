@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use local_interchaintest::utils::{
-    manager::{setup_manager, use_manager_init},
+    manager::{setup_manager, use_manager_init, SPLITTER_NAME},
     LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
 };
 use localic_utils::{
@@ -29,7 +29,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_log_file_path(LOGS_FILE_PATH)
         .build()?;
 
-    setup_manager(&mut test_ctx, "neutron_juno.json", vec![])?;
+    setup_manager(
+        &mut test_ctx,
+        "neutron_juno.json",
+        vec![SPLITTER_NAME.to_string()],
+    )?;
 
     let mut builder = WorkflowConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
     let neutron_domain =

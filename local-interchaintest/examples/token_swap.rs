@@ -4,7 +4,7 @@ use cosmwasm_std::Binary;
 use cosmwasm_std_old::Coin as BankCoin;
 
 use local_interchaintest::utils::{
-    manager::{setup_manager, use_manager_init},
+    manager::{setup_manager, use_manager_init, SPLITTER_NAME},
     processor::tick_processor,
     GAS_FLAGS, LOGS_FILE_PATH, NTRN_DENOM, VALENCE_ARTIFACTS_PATH,
 };
@@ -178,7 +178,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Setup the contracts and update the global config
     info!("Setup manager...");
-    setup_manager(&mut test_ctx, "neutron_juno.json", vec![])?;
+    setup_manager(
+        &mut test_ctx,
+        "neutron_juno.json",
+        vec![SPLITTER_NAME.to_string()],
+    )?;
 
     // init the workflow
     info!("Start manager init...");
