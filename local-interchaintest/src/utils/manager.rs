@@ -198,16 +198,21 @@ fn get_chain_infos(chains_file_path: &str) -> HashMap<String, ChainInfo> {
             .expect("Chain data must have name")
             .as_str()
             .expect("name must be a string");
+        let chain_id = chain_data
+            .get("chain_id")
+            .expect("Chain data must have chain_id")
+            .as_str()
+            .expect("chain_id must be a string");
 
         let log_chain_data = log_json
             .iter()
             .find(|log_chain| {
                 log_chain
-                    .get("chain_name")
-                    .expect("Chain data must have chain_name")
+                    .get("chain_id")
+                    .expect("Chain data must have chain_id")
                     .as_str()
-                    .expect("chain_name must be a string")
-                    .contains(chain_name)
+                    .expect("chain_id must be a string")
+                    .contains(chain_id)
             })
             .expect("Chain data must be in log file");
 
