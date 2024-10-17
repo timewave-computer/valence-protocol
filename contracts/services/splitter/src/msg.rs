@@ -230,7 +230,7 @@ fn convert_to_checked_split_amount(
 }
 
 impl ServiceConfigUpdate {
-    pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
+    pub fn update_config(self, deps: DepsMut, config: &mut Config) -> Result<(), ServiceError> {
         // First update input_addr (if needed)
         if let Some(input_addr) = self.input_addr {
             config.input_addr = input_addr.to_addr(deps.api)?;

@@ -271,7 +271,7 @@ fn convert_to_checked_split_amount(
 }
 
 impl ServiceConfigUpdate {
-    pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
+    pub fn update_config(self, deps: DepsMut, config: &mut Config) -> Result<(), ServiceError> {
         // First update output_addr & base_denom (if needed)
         if let Some(output_addr) = self.output_addr {
             config.output_addr = output_addr.to_addr(deps.api)?;

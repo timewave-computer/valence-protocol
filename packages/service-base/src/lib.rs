@@ -44,12 +44,12 @@ where
 }
 
 pub fn execute<T, U, V>(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg<T, V>,
     process_action: fn(DepsMut, Env, MessageInfo, T, U) -> Result<Response, ServiceError>,
-    update_config: fn(&DepsMut, Env, MessageInfo, &mut U, V) -> Result<(), ServiceError>,
+    update_config: fn(DepsMut, Env, MessageInfo, &mut U, V) -> Result<(), ServiceError>,
 ) -> Result<Response, ServiceError>
 where
     U: Serialize + DeserializeOwned,
@@ -67,7 +67,7 @@ where
             new_config.update_raw(deps.storage)?;
 
             let config = &mut load_config(deps.storage)?;
-            update_config(&deps, env, info, config, new_config)?;
+            update_config(deps.branch(), env, info, config, new_config)?;
             save_config(deps.storage, config)?;
             Ok(Response::new().add_attribute("method", "update_config"))
         }

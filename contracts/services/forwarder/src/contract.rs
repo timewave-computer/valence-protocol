@@ -158,7 +158,7 @@ mod execute {
     use crate::msg::{Config, ServiceConfigUpdate};
 
     pub fn update_config(
-        deps: &DepsMut,
+        deps: DepsMut,
         _env: Env,
         _info: MessageInfo,
         config: &mut Config,

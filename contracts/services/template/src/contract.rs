@@ -6,7 +6,10 @@ use valence_service_utils::{
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
-use crate::msg::{ActionsMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate};
+use crate::{
+    msg::{ActionsMsgs, Config, Config2, QueryMsg, ServiceConfig, ServiceConfigUpdate},
+    CONFIG2,
+};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -19,6 +22,12 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg<ServiceConfig>,
 ) -> Result<Response, ServiceError> {
+    CONFIG2.save(
+        deps.storage,
+        &Config2 {
+            optional2: msg.config.optional2.clone(),
+        },
+    )?;
     valence_service_base::instantiate(deps, CONTRACT_NAME, CONTRACT_VERSION, msg)
 }
 
@@ -65,7 +74,7 @@ mod execute {
     use crate::msg::{Config, ServiceConfigUpdate};
 
     pub fn update_config(
-        deps: &DepsMut,
+        deps: DepsMut,
         _env: Env,
         _info: MessageInfo,
         config: &mut Config,

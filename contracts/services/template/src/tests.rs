@@ -54,7 +54,7 @@ impl TemplateTestSuite {
 
     fn template_config(&self, admin: String) -> ServiceConfig {
         ServiceConfig {
-            skip_update_admin: admin,
+            skip_update_admin: valence_service_utils::ServiceAccountType::Addr(admin),
             optional: None,
             optional2: "s".to_string(),
         }
@@ -124,13 +124,21 @@ fn instantiate_with_valid_config() {
 
     // Verify service config
     let svc_cfg: Config = suite.query_wasm(&svc, &QueryMsg::GetServiceConfig {});
-    assert_eq!(svc_cfg, Config { admin: admin_addr });
+    assert_eq!(
+        svc_cfg,
+        Config {
+            admin: admin_addr,
+            optional: None
+        }
+    );
 
     let raw_svc_cfg: ServiceConfig = suite.query_wasm(&svc, &QueryMsg::GetRawServiceConfig {});
     assert_eq!(
         raw_svc_cfg,
         ServiceConfig {
-            skip_update_admin: suite.owner().clone().to_string(),
+            skip_update_admin: valence_service_utils::ServiceAccountType::Addr(
+                suite.owner().to_string()
+            ),
             optional: None,
             optional2: "s".to_string(),
         }
