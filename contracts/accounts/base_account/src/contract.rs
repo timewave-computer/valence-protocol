@@ -104,8 +104,8 @@ mod execute {
         );
 
         let mut resp = Response::new().add_submessages(msgs);
-        if let Some(json_encoded_bin) = payload {
-            resp = resp.add_attribute(VALENCE_PAYLOAD_KEY, json_encoded_bin);
+        if let Some(json_encoded_str) = payload {
+            resp = resp.add_attribute(VALENCE_PAYLOAD_KEY, json_encoded_str);
         }
 
         Ok(resp)
