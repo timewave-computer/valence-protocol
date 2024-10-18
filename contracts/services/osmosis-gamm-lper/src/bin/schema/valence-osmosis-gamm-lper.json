@@ -142,7 +142,7 @@
             ],
             "properties": {
               "new_config": {
-                "$ref": "#/definitions/OptionalServiceConfig"
+                "$ref": "#/definitions/ServiceConfigUpdate"
               }
             },
             "additionalProperties": false
@@ -390,42 +390,6 @@
         },
         "additionalProperties": false
       },
-      "OptionalServiceConfig": {
-        "type": "object",
-        "properties": {
-          "input_addr": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/ServiceAccountType"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "lp_config": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/LiquidityProviderConfig"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "output_addr": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/ServiceAccountType"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "additionalProperties": false
-      },
       "ServiceAccountType": {
         "description": "An account type that is used in the service configs It can either be an Id or Addr The config that will be passed to the service must be of Addr veriant",
         "oneOf": [
@@ -471,6 +435,42 @@
           }
         ]
       },
+      "ServiceConfigUpdate": {
+        "type": "object",
+        "properties": {
+          "input_addr": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/ServiceAccountType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lp_config": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LiquidityProviderConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "output_addr": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/ServiceAccountType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
       "Timestamp": {
         "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
         "allOf": [
@@ -494,6 +494,7 @@
     "title": "QueryMsg",
     "oneOf": [
       {
+        "description": "Query to get the processor address.",
         "type": "object",
         "required": [
           "get_processor"
@@ -507,12 +508,26 @@
         "additionalProperties": false
       },
       {
+        "description": "Query to get the service configuration.",
         "type": "object",
         "required": [
           "get_service_config"
         ],
         "properties": {
           "get_service_config": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_raw_service_config"
+        ],
+        "properties": {
+          "get_raw_service_config": {
             "type": "object",
             "additionalProperties": false
           }
@@ -543,6 +558,97 @@
       "title": "Addr",
       "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
       "type": "string"
+    },
+    "get_raw_service_config": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ServiceConfig",
+      "type": "object",
+      "required": [
+        "input_addr",
+        "lp_config",
+        "output_addr"
+      ],
+      "properties": {
+        "input_addr": {
+          "$ref": "#/definitions/ServiceAccountType"
+        },
+        "lp_config": {
+          "$ref": "#/definitions/LiquidityProviderConfig"
+        },
+        "output_addr": {
+          "$ref": "#/definitions/ServiceAccountType"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "LiquidityProviderConfig": {
+          "type": "object",
+          "required": [
+            "pool_asset_1",
+            "pool_asset_2",
+            "pool_id"
+          ],
+          "properties": {
+            "pool_asset_1": {
+              "type": "string"
+            },
+            "pool_asset_2": {
+              "type": "string"
+            },
+            "pool_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "ServiceAccountType": {
+          "description": "An account type that is used in the service configs It can either be an Id or Addr The config that will be passed to the service must be of Addr veriant",
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "|service_account_addr|"
+              ],
+              "properties": {
+                "|service_account_addr|": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "|account_id|"
+              ],
+              "properties": {
+                "|account_id|": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "|service_id|"
+              ],
+              "properties": {
+                "|service_id|": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      }
     },
     "get_service_config": {
       "$schema": "http://json-schema.org/draft-07/schema#",

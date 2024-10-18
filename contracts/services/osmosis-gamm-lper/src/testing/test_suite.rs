@@ -19,7 +19,7 @@ use valence_osmosis_utils::{
 };
 use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 
-use crate::msg::{ActionMsgs, LiquidityProviderConfig, OptionalServiceConfig, ServiceConfig};
+use crate::msg::{ActionMsgs, LiquidityProviderConfig, ServiceConfig, ServiceConfigUpdate};
 
 const CONTRACT_PATH: &str = "../../../artifacts";
 
@@ -115,7 +115,7 @@ impl LPerTestSuite {
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
-        wasm.execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
+        wasm.execute::<ExecuteMsg<ActionMsgs, ServiceConfigUpdate>>(
             &self.lper_addr,
             &ExecuteMsg::ProcessAction(ActionMsgs::ProvideDoubleSidedLiquidity {
                 expected_spot_price,
@@ -134,7 +134,7 @@ impl LPerTestSuite {
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
-        wasm.execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
+        wasm.execute::<ExecuteMsg<ActionMsgs, ServiceConfigUpdate>>(
             &self.lper_addr,
             &ExecuteMsg::ProcessAction(ActionMsgs::ProvideSingleSidedLiquidity {
                 expected_spot_price,

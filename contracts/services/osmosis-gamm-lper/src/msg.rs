@@ -1,16 +1,13 @@
 use std::str::FromStr;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{
-    ensure, Addr, Decimal, Deps, DepsMut, Empty, StdError, StdResult, Uint128, Uint64,
-};
+use cosmwasm_std::{ensure, Addr, Decimal, Deps, DepsMut, Empty, StdError, Uint128, Uint64};
 use cw_ownable::cw_ownable_query;
 use osmosis_std::types::osmosis::{gamm::v1beta1::Pool, poolmanager::v1beta1::PoolmanagerQuerier};
-
-use valence_macros::OptionalStruct;
+use valence_macros::{valence_service_query, ValenceServiceInterface};
 use valence_osmosis_utils::utils::DecimalRange;
 use valence_service_utils::{
-    error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType, ServiceConfigInterface,
+    error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType,
 };
 
 #[cw_serde]
@@ -25,15 +22,11 @@ pub enum ActionMsgs {
     },
 }
 
+#[valence_service_query]
 #[cw_ownable_query]
 #[cw_serde]
 #[derive(QueryResponses)]
-pub enum QueryMsg {
-    #[returns(Addr)]
-    GetProcessor {},
-    #[returns(Config)]
-    GetServiceConfig {},
-}
+pub enum QueryMsg {}
 
 #[cw_serde]
 pub struct LiquidityProviderConfig {
@@ -73,7 +66,7 @@ impl ValenceLiquidPooler for PoolmanagerQuerier<'_, Empty> {
 }
 
 #[cw_serde]
-#[derive(OptionalStruct)]
+#[derive(ValenceServiceInterface)]
 pub struct ServiceConfig {
     pub input_addr: ServiceAccountType,
     pub output_addr: ServiceAccountType,
@@ -101,13 +94,6 @@ impl ServiceConfig {
         let output_addr = self.output_addr.to_addr(api)?;
 
         Ok((input_addr, output_addr, self.lp_config.pool_id.into()))
-    }
-}
-
-impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
-    /// This function is used to see if 2 configs are different
-    fn is_diff(&self, other: &ServiceConfig) -> bool {
-        !self.eq(other)
     }
 }
 
@@ -159,8 +145,10 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
     }
 }
 
-impl OptionalServiceConfig {
-    pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
+impl ServiceConfigUpdate {
+    pub fn update_config(self, deps: DepsMut) -> Result<(), ServiceError> {
+        let mut config: Config = valence_service_base::load_config(deps.storage)?;
+
         if let Some(input_addr) = self.input_addr {
             config.input_addr = input_addr.to_addr(deps.api)?;
         }
