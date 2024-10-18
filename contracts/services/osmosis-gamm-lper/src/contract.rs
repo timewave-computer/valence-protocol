@@ -20,7 +20,7 @@ use valence_service_utils::{
 };
 
 use crate::msg::{
-    ActionsMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig, ValenceLiquidPooler,
+    ActionMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig, ValenceLiquidPooler,
 };
 
 // version info for migration info
@@ -42,7 +42,7 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg<ActionsMsgs, OptionalServiceConfig>,
+    msg: ExecuteMsg<ActionMsgs, OptionalServiceConfig>,
 ) -> Result<Response, ServiceError> {
     valence_service_base::execute(deps, env, info, msg, process_action, update_config)
 }
@@ -61,14 +61,14 @@ pub fn process_action(
     deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    msg: ActionsMsgs,
+    msg: ActionMsgs,
     cfg: Config,
 ) -> Result<Response, ServiceError> {
     match msg {
-        ActionsMsgs::ProvideDoubleSidedLiquidity {
+        ActionMsgs::ProvideDoubleSidedLiquidity {
             expected_spot_price,
         } => provide_double_sided_liquidity(deps, cfg, expected_spot_price),
-        ActionsMsgs::ProvideSingleSidedLiquidity {
+        ActionMsgs::ProvideSingleSidedLiquidity {
             asset,
             limit,
             expected_spot_price,

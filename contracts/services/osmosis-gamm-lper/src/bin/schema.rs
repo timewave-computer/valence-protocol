@@ -1,12 +1,12 @@
 use cosmwasm_schema::write_api;
 
-use valence_osmosis_gamm_lper::msg::{ActionsMsgs, OptionalServiceConfig, QueryMsg, ServiceConfig};
+use valence_osmosis_gamm_lper::msg::{ActionMsgs, OptionalServiceConfig, QueryMsg, ServiceConfig};
 use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 
 fn main() {
     write_api! {
         instantiate: InstantiateMsg<ServiceConfig>,
-        execute: ExecuteMsg<ActionsMsgs, OptionalServiceConfig>,
+        execute: ExecuteMsg<ActionMsgs, OptionalServiceConfig>,
         query: QueryMsg,
     }
 }

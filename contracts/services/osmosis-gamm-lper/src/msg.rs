@@ -13,7 +13,7 @@ use valence_service_utils::{
     error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType, ServiceConfigInterface,
 };
 #[cw_serde]
-pub enum ActionsMsgs {
+pub enum ActionMsgs {
     ProvideDoubleSidedLiquidity {
         expected_spot_price: Option<DecimalRange>,
     },
