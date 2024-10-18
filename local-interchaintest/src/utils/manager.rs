@@ -48,7 +48,7 @@ pub fn setup_manager(
 
     // combine the basic contracts with the contracts passed
     BASIC_CONTRACTS.iter().for_each(|s| {
-        if !contracts.contains(&s) {
+        if !contracts.contains(s) {
             contracts.push(s);
         }
     });
