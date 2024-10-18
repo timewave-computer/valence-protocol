@@ -7,15 +7,19 @@ description = "Helpers for IBC functionalities"
 
 [features]
 default = ["generic"]
-generic = []
-neutron = ["dep:neutron-sdk"]
+generic = ["dep:cosmos-sdk-proto_0_24"]
+neutron = [
+    "dep:cosmos-sdk-proto",
+    "dep:neutron-sdk"
+]
 
 [dependencies]
 cw-storage-plus  = { workspace = true }
-cosmos-sdk-proto = { workspace = true }
 cosmwasm-std     = { workspace = true }
 cosmwasm-schema  = { workspace = true }
 serde            = { workspace = true }
 
 # Optional dependencies
+cosmos-sdk-proto = { workspace = true, optional = true }
+cosmos-sdk-proto_0_24 = { package = "cosmos-sdk-proto", version = "0.24.0", optional = true}
 neutron-sdk      = { workspace = true, optional = true }
