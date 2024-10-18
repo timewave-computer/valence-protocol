@@ -12,6 +12,7 @@ use valence_osmosis_utils::utils::DecimalRange;
 use valence_service_utils::{
     error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType, ServiceConfigInterface,
 };
+
 #[cw_serde]
 pub enum ActionMsgs {
     ProvideDoubleSidedLiquidity {
