@@ -8,7 +8,7 @@ Note: this service should not be used on another CosmWasm chain than Neutron, wh
 
 ```mermaid
 ---
-title: Generic IBC Transfer Service
+title: Neutron IBC Transfer Service
 ---
 graph LR
   IA((Input
@@ -16,9 +16,9 @@ graph LR
   OA((Output
 		  Account))
   P[Processor]
-  S[Gen IBC Transfer
+  S[Neutron IBC Transfer
     Service]
-  subgraph Chain 1
+  subgraph Neutron
   P -- 1/IbcTransfer --> S
   S -- 2/Query balances --> IA
   S -- 3/Do Send funds --> IA
