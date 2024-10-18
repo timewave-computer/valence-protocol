@@ -20,6 +20,8 @@ const SPLITTER_NAME: &str = "valence_splitter_service";
 const REVERSE_SPLITTER_NAME: &str = "valence_reverse_splitter_service";
 const FORWARDER_NAME: &str = "valence_forwarder_service";
 const REGISTRY_NAME: &str = "valence_workflow_registry";
+const ASTROPORT_LPER: &str = "valence_astroport_lper";
+const ASTROPORT_WITHDRAWER: &str = "valence_astroport_withdrawer";
 
 pub fn setup_manager(test_ctx: &mut TestContext) -> Result<(), Box<dyn Error>> {
     let artifacts_dir = format!("{}/artifacts", env::current_dir()?.to_str().unwrap());
@@ -38,6 +40,8 @@ pub fn setup_manager(test_ctx: &mut TestContext) -> Result<(), Box<dyn Error>> {
     let reverse_splitter_contract_path = format!("{artifacts_dir}/{REVERSE_SPLITTER_NAME}.wasm");
     let forwarder_contract_path = format!("{artifacts_dir}/{FORWARDER_NAME}.wasm");
     let registry_contract_path = format!("{artifacts_dir}/{REGISTRY_NAME}.wasm");
+    let astroport_lper_contract_path = format!("{artifacts_dir}/{ASTROPORT_LPER}.wasm");
+    let astroport_withdrawer_contract_path = format!("{artifacts_dir}/{ASTROPORT_WITHDRAWER}.wasm");
 
     // Upload all contracts
     uploader.send_single_contract(&authorization_contract_path)?;
@@ -47,6 +51,8 @@ pub fn setup_manager(test_ctx: &mut TestContext) -> Result<(), Box<dyn Error>> {
     uploader.send_single_contract(&reverse_splitter_contract_path)?;
     uploader.send_single_contract(&forwarder_contract_path)?;
     uploader.send_single_contract(&registry_contract_path)?;
+    uploader.send_single_contract(&astroport_lper_contract_path)?;
+    uploader.send_single_contract(&astroport_withdrawer_contract_path)?;
 
     // Get all contracts code ids
     let authorization_code_id = test_ctx
@@ -91,6 +97,18 @@ pub fn setup_manager(test_ctx: &mut TestContext) -> Result<(), Box<dyn Error>> {
         .get_cw()
         .code_id
         .unwrap();
+    let astroport_lper_code_id = test_ctx
+        .get_contract()
+        .contract(ASTROPORT_LPER)
+        .get_cw()
+        .code_id
+        .unwrap();
+    let astroport_withdrawer_code_id = test_ctx
+        .get_contract()
+        .contract(ASTROPORT_WITHDRAWER)
+        .get_cw()
+        .code_id
+        .unwrap();
 
     // Update config with all the code ids
     let mut code_ids_map = HashMap::new();
@@ -100,6 +118,11 @@ pub fn setup_manager(test_ctx: &mut TestContext) -> Result<(), Box<dyn Error>> {
     code_ids_map.insert(SPLITTER_NAME.to_string(), splitter_code_id);
     code_ids_map.insert(REVERSE_SPLITTER_NAME.to_string(), reverse_splitter_code_id);
     code_ids_map.insert(FORWARDER_NAME.to_string(), forwarder_code_id);
+    code_ids_map.insert(ASTROPORT_LPER.to_string(), astroport_lper_code_id);
+    code_ids_map.insert(
+        ASTROPORT_WITHDRAWER.to_string(),
+        astroport_withdrawer_code_id,
+    );
 
     gc.contracts
         .code_ids

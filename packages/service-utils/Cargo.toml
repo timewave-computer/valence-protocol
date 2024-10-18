@@ -13,7 +13,7 @@ testing = [
     "dep:cw20",
     "dep:cw20-base",
     "dep:sha2",
-    "dep:valence-base-account"
+    "dep:valence-base-account",
 ]
 
 [dependencies]
@@ -27,6 +27,7 @@ serde_json            = { workspace = true }
 thiserror             = { workspace = true }
 valence-account-utils = { workspace = true }
 valence-macros        = { workspace = true }
+cw-storage-plus       = { workspace = true }
 
 # Testing dependencies
 cw-multi-test        = { workspace = true, optional = true }
