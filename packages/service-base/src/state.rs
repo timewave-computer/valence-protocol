@@ -4,6 +4,7 @@ use cosmwasm_std::{from_json, to_json_vec, Addr, StdError, StdResult, Storage};
 use cw_ownable::Ownership;
 use cw_storage_plus::Item;
 use serde::{de::DeserializeOwned, Serialize};
+use valence_service_utils::raw_config::load_raw_service_config;
 
 pub const CONFIG_KEY: &[u8] = b"config";
 pub const PROCESSOR: Item<Addr> = Item::new("processor");
@@ -34,6 +35,13 @@ where
         let object_info = not_found_object_info::<T>(CONFIG_KEY);
         Err(StdError::not_found(object_info))
     }
+}
+
+pub fn load_raw_config<T>(store: &dyn Storage) -> StdResult<T>
+where
+    T: Serialize + DeserializeOwned,
+{
+    load_raw_service_config(store)
 }
 
 fn not_found_object_info<T>(key: &[u8]) -> String {

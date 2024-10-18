@@ -20,7 +20,7 @@ use valence_authorization_utils::{
     builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
     msg::ProcessorMessage,
 };
-use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
+use valence_service_utils::denoms::UncheckedDenom;
 use valence_splitter_service::msg::{ActionMsgs, UncheckedSplitAmount, UncheckedSplitConfig};
 use valence_workflow_manager::{
     account::{AccountInfo, AccountType},
@@ -134,7 +134,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 AtomicActionsConfigBuilder::new()
                     .with_action(
                         AtomicActionBuilder::new()
-                            .with_contract_address(ServiceAccountType::ServiceId(1))
+                            .with_contract_address(service_1)
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -151,7 +151,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     )
                     .with_action(
                         AtomicActionBuilder::new()
-                            .with_contract_address(ServiceAccountType::ServiceId(2))
+                            .with_contract_address(service_2)
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -178,11 +178,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Setup the contracts and update the global config
     info!("Setup manager...");
-    setup_manager(
-        &mut test_ctx,
-        "neutron_juno.json",
-        vec![SPLITTER_NAME.to_string()],
-    )?;
+    setup_manager(&mut test_ctx, "neutron_juno.json", vec![SPLITTER_NAME])?;
 
     // init the workflow
     info!("Start manager init...");

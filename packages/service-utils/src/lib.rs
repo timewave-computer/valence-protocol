@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{to_json_binary, Addr, CosmosMsg, StdError, StdResult, WasmMsg};
+use cosmwasm_std::{to_json_binary, Addr, CosmosMsg, StdError, StdResult, Storage, WasmMsg};
 
 pub mod denoms {
     pub use cw_denom::{CheckedDenom, DenomError, UncheckedDenom};
@@ -7,15 +7,23 @@ pub mod denoms {
 
 pub mod error;
 pub mod msg;
+pub mod raw_config;
 
 #[cfg(feature = "testing")]
 pub mod testing;
 
 pub type Id = u64;
 
-pub trait ServiceConfigInterface<T> {
-    /// T is the config type
-    fn is_diff(&self, other: &T) -> bool;
+pub trait ServiceConfigUpdateTrait {
+    fn update_raw(&self, storage: &mut dyn Storage) -> StdResult<()>;
+}
+
+#[cw_serde]
+#[derive(Default)]
+pub enum OptionUpdate<T> {
+    #[default]
+    None,
+    Set(Option<T>),
 }
 
 /// An account type that is used in the service configs

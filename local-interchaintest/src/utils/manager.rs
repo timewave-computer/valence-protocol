@@ -22,6 +22,8 @@ pub const REVERSE_SPLITTER_NAME: &str = "valence_reverse_splitter_service";
 pub const FORWARDER_NAME: &str = "valence_forwarder_service";
 pub const GENERIC_IBC_TRANSFER_NAME: &str = "valence-generic-ibc-transfer-service";
 pub const NEUTRON_IBC_TRANSFER_NAME: &str = "valence-neutron-ibc-transfer-service";
+pub const ASTROPORT_LPER_NAME: &str = "valence_astroport_lper";
+pub const ASTROPORT_WITHDRAWER_NAME: &str = "valence_astroport_withdrawer";
 
 /// Those contracts will always be uploaded because each workflow needs them
 const BASIC_CONTRACTS: [&str; 2] = [PROCESSOR_NAME, BASE_ACCOUNT_NAME];
@@ -33,7 +35,7 @@ const BASIC_CONTRACTS: [&str; 2] = [PROCESSOR_NAME, BASE_ACCOUNT_NAME];
 pub fn setup_manager(
     test_ctx: &mut TestContext,
     chains_file_path: &str,
-    mut contracts: Vec<String>,
+    mut contracts: Vec<&str>,
 ) -> Result<(), Box<dyn Error>> {
     let curr_path = env::current_dir()?;
     let artifacts_dir = format!("{}/artifacts", curr_path.to_str().unwrap());
@@ -46,8 +48,8 @@ pub fn setup_manager(
 
     // combine the basic contracts with the contracts passed
     BASIC_CONTRACTS.iter().for_each(|s| {
-        if !contracts.contains(&s.to_string()) {
-            contracts.push(s.to_string());
+        if !contracts.contains(&s) {
+            contracts.push(s);
         }
     });
 

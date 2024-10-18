@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     setup_manager(
         &mut test_ctx,
         "neutron_juno.json",
-        vec![SPLITTER_NAME.to_string()],
+        vec![SPLITTER_NAME],
     )?;
 
     let mut builder = WorkflowConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
