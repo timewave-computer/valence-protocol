@@ -3,6 +3,7 @@ use cosmwasm_std::{coin, Addr, Empty, Uint128, Uint64};
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
 use getset::{Getters, Setters};
+use valence_ibc_utils::types::PacketForwardMiddlewareConfig;
 use valence_service_utils::{
     denoms::CheckedDenom,
     msg::{ExecuteMsg, InstantiateMsg, ServiceConfigValidation},
@@ -269,6 +270,32 @@ fn instantiate_fails_for_invalid_ibc_transfer_timeout() {
         IbcTransferAmount::FixedAmount(Uint128::one()),
         "".to_string(),
         RemoteChainInfo::new("channel-1".to_string(), None, Some(Uint64::zero())),
+    );
+
+    // Instantiate IBC transfer contract
+    suite.ibc_transfer_init(&cfg);
+}
+
+#[test]
+#[should_panic(
+    expected = "Invalid IBC transfer config: specifying a denom_to_pfm_map on the Generic IBC transfer service is currently unsupported."
+)]
+fn instantiate_fails_for_denom_to_pfm_map_config() {
+    let mut suite = IbcTransferTestSuite::default();
+
+    let mut cfg = suite.ibc_transfer_config(
+        NTRN.to_string(),
+        IbcTransferAmount::FixedAmount(Uint128::one()),
+        "".to_string(),
+        RemoteChainInfo::new("channel-1".to_string(), None, Some(600u64.into())),
+    );
+    cfg.denom_to_pfm_map.insert(
+        "untrn".to_string(),
+        PacketForwardMiddlewareConfig {
+            local_to_hop_chain_channel_id: "channel-1".to_string(),
+            hop_to_destination_chain_channel_id: "channel-2".to_string(),
+            hop_chain_receiver_address: "receiver".to_string(),
+        },
     );
 
     // Instantiate IBC transfer contract
