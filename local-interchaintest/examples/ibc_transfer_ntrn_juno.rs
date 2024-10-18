@@ -19,7 +19,7 @@ use localic_utils::{
 };
 use log::info;
 
-use valence_generic_ibc_transfer_service::msg::{IbcTransferAmount, OptionalServiceConfig};
+use valence_generic_ibc_transfer_service::msg::{IbcTransferAmount, ServiceConfigUpdate};
 use valence_neutron_ibc_transfer_service::msg::{ActionMsgs, ServiceConfig};
 use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
 
@@ -239,7 +239,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Update config to transfer the input account's full remaining balance
     info!("Update service configuration...");
-    let new_config = valence_neutron_ibc_transfer_service::msg::OptionalServiceConfig {
+    let new_config = valence_neutron_ibc_transfer_service::msg::ServiceConfigUpdate {
         input_addr: None,
         output_addr: None,
         denom: None,
@@ -249,7 +249,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         denom_to_pfm_map: None,
     };
     let upd_cfg_msg =
-        valence_service_utils::msg::ExecuteMsg::<ActionMsgs, OptionalServiceConfig>::UpdateConfig {
+        valence_service_utils::msg::ExecuteMsg::<ActionMsgs, ServiceConfigUpdate>::UpdateConfig {
             new_config,
         };
     contract_execute(

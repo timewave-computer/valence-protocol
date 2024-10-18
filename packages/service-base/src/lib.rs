@@ -43,14 +43,18 @@ where
         .add_attribute("owner", format!("{:?}", msg.owner)))
 }
 
-pub fn execute<T, U, V, Q>(
-    mut deps: DepsMut<Q>,
+type ProcessAction<M, Q, T, U> =
+    fn(DepsMut<Q>, Env, MessageInfo, T, U) -> Result<Response<M>, ServiceError>;
+type UpdateConfig<Q, V> = fn(DepsMut<Q>, Env, MessageInfo, V) -> Result<(), ServiceError>;
+
+pub fn execute<M, Q, T, U, V>(
+    deps: DepsMut<Q>,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg<T, V>,
-    process_action: fn(DepsMut<Q>, Env, MessageInfo, T, U) -> Result<Response, ServiceError>,
-    update_config: fn(DepsMut<Q>, Env, MessageInfo, V) -> Result<(), ServiceError>,
-) -> Result<Response, ServiceError>
+    process_action: ProcessAction<M, Q, T, U>,
+    update_config: UpdateConfig<Q, V>,
+) -> Result<Response<M>, ServiceError>
 where
     Q: CustomQuery,
     U: Serialize + DeserializeOwned,
@@ -66,7 +70,7 @@ where
             cw_ownable::assert_owner(deps.as_ref().storage, &info.sender)?;
             // We update the raw storage
             new_config.update_raw(deps.storage)?;
-            update_config(deps.branch(), env, info, new_config)?;
+            update_config(deps, env, info, new_config)?;
             Ok(Response::new().add_attribute("method", "update_config"))
         }
         ExecuteMsg::UpdateProcessor { processor } => {

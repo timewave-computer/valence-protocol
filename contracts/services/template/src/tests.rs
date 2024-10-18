@@ -1,5 +1,5 @@
 use crate::msg::{ActionMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate};
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Empty};
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
 use getset::{Getters, Setters};

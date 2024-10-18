@@ -1,5 +1,5 @@
 use crate::msg::{ActionMsgs, Config, ForwardingConstraints, QueryMsg, ServiceConfig};
-use cosmwasm_std::{coin, Addr, Coin, Uint128};
+use cosmwasm_std::{coin, Addr, Coin, Empty, Uint128};
 use cw20::Cw20Coin;
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
