@@ -686,7 +686,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     setup_manager(
         &mut test_ctx,
         "neutron_juno.json",
-        vec!["gaia"],
+        vec!["gaia", "juno"],
         vec![
             SPLITTER_NAME,
             REVERSE_SPLITTER_NAME,
