@@ -118,7 +118,7 @@ pub fn store_and_instantiate_authorization_with_processor_contract(
     let salt = hex::encode("authorization");
     let predicted_address = extended_wasm
         .query_build_address(
-            hex::encode(&checksum),
+            hex::encode(checksum),
             signer.address().to_string(),
             salt.clone(),
         )
