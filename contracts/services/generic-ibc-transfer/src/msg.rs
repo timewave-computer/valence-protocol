@@ -142,12 +142,6 @@ impl ServiceConfig {
             }
         }
 
-        if !self.denom_to_pfm_map.is_empty() {
-            return Err(ServiceError::ConfigurationError(
-                "Invalid IBC transfer config: specifying a denom_to_pfm_map on the Generic IBC transfer service is currently unsupported.".to_string(),
-            ));
-        }
-
         Ok(input_addr)
     }
 }
