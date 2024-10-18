@@ -1,4 +1,4 @@
-use crate::msg::{ActionsMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig};
+use crate::msg::{ActionMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -39,7 +39,7 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg<ActionsMsgs, OptionalServiceConfig>,
+    msg: ExecuteMsg<ActionMsgs, OptionalServiceConfig>,
 ) -> Result<Response, ServiceError> {
     valence_service_base::execute(deps, env, info, msg, process_action, update_config)
 }
@@ -58,11 +58,11 @@ pub fn process_action(
     deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    msg: ActionsMsgs,
+    msg: ActionMsgs,
     cfg: Config,
 ) -> Result<Response, ServiceError> {
     match msg {
-        ActionsMsgs::ProvideDoubleSidedLiquidity {
+        ActionMsgs::ProvideDoubleSidedLiquidity {
             lower_tick,
             upper_tick,
             token_min_amount_0,
@@ -75,7 +75,7 @@ pub fn process_action(
             token_min_amount_0,
             token_min_amount_1,
         ),
-        ActionsMsgs::ProvideSingleSidedLiquidity {
+        ActionMsgs::ProvideSingleSidedLiquidity {
             asset,
             limit,
             lower_tick,

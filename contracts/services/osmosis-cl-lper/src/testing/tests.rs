@@ -1,13 +1,26 @@
 use cosmwasm_std::{coin, coins, Uint64};
-use valence_osmosis_utils::suite::OSMO_DENOM;
+use valence_osmosis_utils::suite::{OSMO_DENOM, TEST_DENOM};
 
 use crate::msg::LiquidityProviderConfig;
 
 use super::test_suite::LPerTestSuite;
 
 #[test]
+#[should_panic]
+fn test_provide_liquidity_fails_validation_pool_not_found() {
+    LPerTestSuite::new(
+        vec![coin(1_000_000u128, OSMO_DENOM)],
+        Some(LiquidityProviderConfig {
+            pool_id: Uint64::new(3),
+            pool_asset_1: OSMO_DENOM.to_string(),
+            pool_asset_2: TEST_DENOM.to_string(),
+        }),
+    );
+}
+
+#[test]
 #[should_panic(expected = "Pool does not contain expected assets")]
-fn test_provide_liquidity_fails_validation() {
+fn test_provide_liquidity_fails_validation_denom_mismatch() {
     LPerTestSuite::new(
         vec![coin(1_000_000u128, OSMO_DENOM)],
         Some(LiquidityProviderConfig {

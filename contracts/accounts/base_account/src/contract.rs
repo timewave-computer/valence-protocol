@@ -161,5 +161,5 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
     // we relay the response back to the initiating service
     let response_attr: Attribute = ValenceCallback::from(msg).try_into()?;
-    Ok(Response::default().add_attributes(vec![response_attr]))
+    Ok(Response::default().add_attributes([response_attr]))
 }

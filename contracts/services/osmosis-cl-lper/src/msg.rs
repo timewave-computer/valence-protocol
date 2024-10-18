@@ -10,7 +10,7 @@ use valence_service_utils::{
     error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType, ServiceConfigInterface,
 };
 #[cw_serde]
-pub enum ActionsMsgs {
+pub enum ActionMsgs {
     ProvideDoubleSidedLiquidity {
         lower_tick: Int64,
         upper_tick: Int64,
@@ -101,11 +101,14 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
 
         let pm_querier = PoolmanagerQuerier::new(&deps.querier);
         let pool_response = pm_querier.pool(pool_id.u64())?;
-        let pool: Pool = pool_response
+
+        let pool_proto = pool_response
             .pool
-            .ok_or_else(|| StdError::generic_err("failed to get pool"))?
+            .ok_or_else(|| StdError::generic_err("pool not found"))?;
+
+        let pool: Pool = pool_proto
             .try_into()
-            .map_err(|_| StdError::generic_err("failed to decode proto"))?;
+            .map_err(|_| StdError::generic_err("failed to decode CL pool proto"))?;
 
         // perform soft pool validation by asserting that the lp config assets
         // are all present in the pool

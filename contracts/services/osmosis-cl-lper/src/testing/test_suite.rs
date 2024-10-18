@@ -13,7 +13,7 @@ use valence_osmosis_utils::{
 };
 use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 
-use crate::msg::{ActionsMsgs, LiquidityProviderConfig, OptionalServiceConfig, ServiceConfig};
+use crate::msg::{ActionMsgs, LiquidityProviderConfig, OptionalServiceConfig, ServiceConfig};
 
 pub struct LPerTestSuite {
     pub inner: OsmosisTestAppSetup<ConcentratedLiquidityPool>,
@@ -108,9 +108,9 @@ impl LPerTestSuite {
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
-        wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
+        wasm.execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
             &self.lper_addr,
-            &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideDoubleSidedLiquidity {
+            &ExecuteMsg::ProcessAction(ActionMsgs::ProvideDoubleSidedLiquidity {
                 lower_tick: Int64::new(lower_tick),
                 upper_tick: Int64::new(upper_tick),
                 token_min_amount_0: min_amount_0.into(),
@@ -131,9 +131,9 @@ impl LPerTestSuite {
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
-        wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
+        wasm.execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
             &self.lper_addr,
-            &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideSingleSidedLiquidity {
+            &ExecuteMsg::ProcessAction(ActionMsgs::ProvideSingleSidedLiquidity {
                 asset: asset.to_string(),
                 limit: limit.into(),
                 lower_tick: Int64::new(lower_tick),
