@@ -77,7 +77,6 @@ mod actions {
                     deps,
                     env,
                     cfg.remote_chain_info().channel_id.clone(),
-                    cfg.remote_chain_info().port_id.clone(),
                     cfg.input_addr().to_string(),
                     cfg.output_addr().to_string(),
                     cfg.denom().to_string(),

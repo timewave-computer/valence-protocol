@@ -21,7 +21,6 @@ pub fn ibc_send_message(
     deps: DepsMut<NeutronQuery>,
     env: Env,
     channel: String,
-    port: Option<String>,
     sender: String,
     to: String,
     denom: String,
@@ -49,7 +48,7 @@ pub fn ibc_send_message(
 
     let msg = match denom_to_pfm_map.get(&denom) {
         None => neutron_sdk::proto_types::neutron::transfer::MsgTransfer {
-            source_port: port.unwrap_or("transfer".to_string()),
+            source_port: "transfer".to_string(),
             source_channel: channel.clone(),
             sender,
             receiver: to.clone(),
@@ -69,7 +68,7 @@ pub fn ibc_send_message(
         },
         Some(pfm_config) => {
             neutron_sdk::proto_types::neutron::transfer::MsgTransfer {
-                source_port: port.unwrap_or("transfer".to_string()),
+                source_port: "transfer".to_string(),
                 source_channel: pfm_config.local_to_hop_chain_channel_id.to_string(),
                 sender,
                 receiver: pfm_config.hop_chain_receiver_address.to_string(),
