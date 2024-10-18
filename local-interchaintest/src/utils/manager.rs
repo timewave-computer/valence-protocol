@@ -35,6 +35,7 @@ const BASIC_CONTRACTS: [&str; 2] = [PROCESSOR_NAME, BASE_ACCOUNT_NAME];
 pub fn setup_manager(
     test_ctx: &mut TestContext,
     chains_file_path: &str,
+    exclude_chains: Vec<&str>,
     mut contracts: Vec<&str>,
 ) -> Result<(), Box<dyn Error>> {
     let curr_path = env::current_dir()?;
@@ -77,6 +78,9 @@ pub fn setup_manager(
 
     // Upload all contracts
     for (chain_name, _) in chain_infos.iter() {
+        if exclude_chains.contains(&chain_name.as_str()) {
+            continue;
+        }
         let mut code_ids_map = HashMap::new();
         // if chain is neutron, we add authorization code id
         if chain_name == NEUTRON_CHAIN_NAME {
@@ -85,6 +89,7 @@ pub fn setup_manager(
 
         for contract_name in contracts.iter() {
             let mut uploader = test_ctx.build_tx_upload_contracts();
+            uploader.with_chain_name(chain_name);
             let (path, contrat_wasm_name, contract_name) =
                 get_contract_path(chain_name, contract_name, artifacts_dir.as_str());
 
@@ -249,6 +254,8 @@ fn get_chain_infos(chains_file_path: &str) -> HashMap<String, ChainInfo> {
             .as_u64()
             .expect("coin_type must be a u64");
 
+        let gas_price = parse_gas_price(gas_price);
+
         chain_infos.insert(
             chain_name.to_string(),
             ChainInfo {
@@ -264,6 +271,19 @@ fn get_chain_infos(chains_file_path: &str) -> HashMap<String, ChainInfo> {
     });
 
     chain_infos
+}
+
+fn parse_gas_price(input: &str) -> String {
+    // Split the input string by comma and take the first part
+    let first_part = input.split(',').next().unwrap_or(input);
+
+    // Find the position of the first non-digit character (excluding '.')
+    let end_pos = first_part
+        .find(|c: char| !c.is_ascii_digit() && c != '.')
+        .unwrap_or(first_part.len());
+
+    // Extract the fractional number part as a string
+    first_part[..end_pos].to_string()
 }
 
 /// Helper function to start manager init to hide the tokio block_on

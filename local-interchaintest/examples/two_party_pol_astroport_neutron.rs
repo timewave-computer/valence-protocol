@@ -3,7 +3,10 @@ use std::{env, error::Error};
 use cosmwasm_std::{Binary, Decimal, Uint128};
 use cosmwasm_std_old::Coin;
 use local_interchaintest::utils::{
-    manager::{setup_manager, use_manager_init, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME},
+    manager::{
+        setup_manager, use_manager_init, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME,
+        FORWARDER_NAME, REVERSE_SPLITTER_NAME, SPLITTER_NAME,
+    },
     processor::tick_processor,
     ASTROPORT_LP_SUBDENOM, ASTROPORT_PATH, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
     LOGS_FILE_PATH, NEUTRON_USER_ADDRESS_1, NTRN_DENOM, USER_KEY_1, VALENCE_ARTIFACTS_PATH,
@@ -682,8 +685,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     workflow_config.verify_new_config()?;
     setup_manager(
         &mut test_ctx,
-        "neutron_juno",
-        vec![ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME],
+        "neutron_juno.json",
+        vec!["gaia"],
+        vec![
+            SPLITTER_NAME,
+            REVERSE_SPLITTER_NAME,
+            FORWARDER_NAME,
+            ASTROPORT_LPER_NAME,
+            ASTROPORT_WITHDRAWER_NAME,
+        ],
     )?;
     use_manager_init(&mut workflow_config)?;
 

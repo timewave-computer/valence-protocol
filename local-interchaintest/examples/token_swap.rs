@@ -41,7 +41,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Create and mint tokens to perform the swap...");
     // We are going to create 2 tokenfactory tokens so that we can test the token swap, one will be given to first account and the second one will be given to the second account
-
     // We are going to use random subdenoms so that the test can be run multiple times
     let token1_subdenom: String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
@@ -178,7 +177,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Setup the contracts and update the global config
     info!("Setup manager...");
-    setup_manager(&mut test_ctx, "neutron_juno.json", vec![SPLITTER_NAME])?;
+    setup_manager(
+        &mut test_ctx,
+        "neutron_juno.json",
+        vec!["gaia"],
+        vec![SPLITTER_NAME],
+    )?;
 
     // init the workflow
     info!("Start manager init...");
