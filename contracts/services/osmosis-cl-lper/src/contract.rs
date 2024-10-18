@@ -7,8 +7,11 @@ use cosmwasm_std::{
 };
 use osmosis_std::{
     cosmwasm_to_proto_coins,
-    types::osmosis::concentratedliquidity::v1beta1::{
-        MsgCreatePosition, MsgCreatePositionResponse, MsgTransferPositions,
+    types::osmosis::{
+        concentratedliquidity::v1beta1::{
+            MsgCreatePosition, MsgCreatePositionResponse, MsgTransferPositions, Pool,
+        },
+        poolmanager::v1beta1::PoolmanagerQuerier,
     },
 };
 
@@ -92,6 +95,12 @@ pub fn provide_double_sided_liquidity(
     token_min_amount_0: Uint128,
     token_min_amount_1: Uint128,
 ) -> Result<Response, ServiceError> {
+    validate_tick_range(
+        &deps,
+        cfg.lp_config.pool_id.u64(),
+        (lower_tick.i64(), upper_tick.i64()),
+    )?;
+
     // first we assert the input account balances
     let bal_asset_1 = deps
         .querier
@@ -132,6 +141,12 @@ pub fn provide_single_sided_liquidity(
     lower_tick: Int64,
     upper_tick: Int64,
 ) -> Result<Response, ServiceError> {
+    validate_tick_range(
+        &deps,
+        cfg.lp_config.pool_id.u64(),
+        (lower_tick.i64(), upper_tick.i64()),
+    )?;
+
     // first we assert the input account balance
     let input_acc_asset_bal = deps.querier.query_balance(&cfg.input_addr, &asset)?;
 
@@ -167,6 +182,30 @@ pub fn provide_single_sided_liquidity(
 
     Ok(Response::default()
         .add_submessage(SubMsg::reply_on_success(delegated_input_acc_msgs, REPLY_ID)))
+}
+
+fn validate_tick_range(deps: &DepsMut, pool_id: u64, range: (i64, i64)) -> StdResult<i64> {
+    let querier = PoolmanagerQuerier::new(&deps.querier);
+    let proto_pool = querier
+        .pool(pool_id)?
+        .pool
+        .ok_or(StdError::generic_err("failed to query pool"))?;
+
+    let pool: Pool = proto_pool
+        .try_into()
+        .map_err(|_| StdError::generic_err("failed to decode proto pool"))?;
+
+    if pool.current_tick >= range.0 && pool.current_tick <= range.1 {
+        Ok(pool.current_tick)
+    } else {
+        Err(StdError::generic_err(
+            format!(
+                "current tick {} not in range ({}, {})",
+                pool.current_tick, range.0, range.1
+            )
+            .as_str(),
+        ))
+    }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

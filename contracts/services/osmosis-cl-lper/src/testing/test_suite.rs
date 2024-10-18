@@ -3,9 +3,12 @@ use cosmwasm_std::{coin, Coin, Int64};
 use osmosis_test_tube::{
     osmosis_std::types::{
         cosmwasm::wasm::v1::MsgExecuteContractResponse,
-        osmosis::concentratedliquidity::v1beta1::{UserPositionsRequest, UserPositionsResponse},
+        osmosis::{
+            concentratedliquidity::v1beta1::{Pool, UserPositionsRequest, UserPositionsResponse},
+            poolmanager::v1beta1::PoolRequest,
+        },
     },
-    Account, ConcentratedLiquidity, ExecuteResponse, Module, Wasm,
+    Account, ConcentratedLiquidity, ExecuteResponse, Module, PoolManager, Wasm,
 };
 use valence_osmosis_utils::{
     suite::{OsmosisTestAppBuilder, OsmosisTestAppSetup, OSMO_DENOM, TEST_DENOM},
@@ -97,6 +100,14 @@ impl LPerTestSuite {
         };
 
         cl.query_user_positions(&request).unwrap()
+    }
+
+    pub fn query_cl_pool(&self, id: u64) -> Pool {
+        let pm_querier = PoolManager::new(&self.inner.app);
+        let pool_response = pm_querier.query_pool(&PoolRequest { pool_id: id }).unwrap();
+        let cl_pool: Pool = pool_response.pool.unwrap().try_into().unwrap();
+
+        cl_pool
     }
 
     pub fn provide_two_sided_liquidity(

@@ -46,8 +46,12 @@ fn test_provide_liquidity_double_sided() {
     let input_balances = suite.inner.query_all_balances(suite.input_acc.as_str());
     println!("input balances pre-lp: {:?}", input_balances);
 
+    let pool = suite.query_cl_pool(suite.inner.pool_cfg.pool_id.u64());
+    println!("PRE-LP pool: {:?}", pool);
     suite.provide_two_sided_liquidity(-1000, 0, 0, 0);
 
+    let pool = suite.query_cl_pool(suite.inner.pool_cfg.pool_id.u64());
+    println!("POST-LP pool: {:?}", pool);
     let input_acc_positions = suite
         .query_cl_positions(suite.input_acc.to_string())
         .positions;
@@ -58,6 +62,14 @@ fn test_provide_liquidity_double_sided() {
     assert_eq!(output_acc_positions.len(), 1);
     let input_balances = suite.inner.query_all_balances(suite.input_acc.as_str());
     println!("input balances post-lp: {:?}", input_balances);
+}
+
+#[test]
+#[should_panic(expected = "current tick 0 not in range (-1001, -1)")]
+fn test_provide_liquidity_double_sided_validates_tick_range() {
+    let suite = LPerTestSuite::default();
+
+    suite.provide_two_sided_liquidity(-1001, -1, 0, 0);
 }
 
 #[test]
@@ -75,7 +87,13 @@ fn test_provide_liquidity_single_sided() {
     let input_balances = suite.inner.query_all_balances(suite.input_acc.as_str());
     println!("input balances pre-lp: {:?}", input_balances);
 
+    let pool = suite.query_cl_pool(suite.inner.pool_cfg.pool_id.u64());
+    println!("PRE-LP pool current tick: {:?}", pool.current_tick);
+
     suite.provide_single_sided_liquidity(OSMO_DENOM, 1000000, 0, 1000);
+
+    let pool = suite.query_cl_pool(suite.inner.pool_cfg.pool_id.u64());
+    println!("POST-LP pool current tick: {:?}", pool.current_tick);
 
     let input_acc_positions = suite
         .query_cl_positions(suite.input_acc.to_string())
@@ -87,4 +105,12 @@ fn test_provide_liquidity_single_sided() {
     assert_eq!(output_acc_positions.len(), 1);
     let input_balances = suite.inner.query_all_balances(suite.input_acc.as_str());
     println!("input balances post-lp: {:?}", input_balances);
+}
+
+#[test]
+#[should_panic(expected = "current tick 0 not in range (-1001, -1)")]
+fn test_provide_liquidity_single_sided_validates_tick_range() {
+    let suite = LPerTestSuite::default();
+
+    suite.provide_two_sided_liquidity(-1001, -1, 0, 0);
 }
