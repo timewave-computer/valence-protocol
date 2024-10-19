@@ -101,7 +101,7 @@ pub fn set_up_authorization_and_processor(
         .with_label("authorization")
         .with_code_id(authorization_code_id)
         .with_salt_hex_encoded(&salt)
-        .with_msg(serde_json::to_value(&authorization_instantiate_msg).unwrap())
+        .with_msg(serde_json::to_value(authorization_instantiate_msg).unwrap())
         .send()
         .unwrap();
 
