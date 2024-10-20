@@ -46,6 +46,17 @@ pub struct ServiceInfo {
     pub addr: Option<String>,
 }
 
+impl ServiceInfo {
+    pub fn new(name: String, domain: &Domain, config: ServiceConfig) -> Self {
+        Self {
+            name,
+            domain: domain.clone(),
+            config,
+            addr: None,
+        }
+    }
+}
+
 /// This is a list of all our services we support and their configs.
 #[derive(
     Debug, Clone, strum::Display, Serialize, Deserialize, VariantNames, PartialEq, Default,
