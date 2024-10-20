@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 use valence_authorization_utils::authorization::AuthorizationInfo;
 
-use valence_service_utils::Id;
+use valence_service_utils::{GetId, Id};
 
 use crate::{
     account::{AccountInfo, AccountType, InstantiateAccountData},
@@ -331,7 +331,9 @@ impl WorkflowConfig {
                 .authorization_data
                 .processor_addrs
                 .get(&account.domain.to_string())
-                .ok_or(ManagerError::ProcessorAddrNotFound(account.domain.clone()))?;
+                .ok_or(ManagerError::ProcessorAddrNotFound(
+                    account.domain.to_string(),
+                ))?;
 
             domain_connector
                 .instantiate_account(self.id, processor_addr.clone(), account_instantiate_data)
@@ -577,7 +579,7 @@ impl WorkflowConfig {
             .authorization_data
             .processor_addrs
             .get_key_value(&domain.to_string())
-            .ok_or(ManagerError::ProcessorAddrNotFound(domain.clone()))?
+            .ok_or(ManagerError::ProcessorAddrNotFound(domain.to_string()))?
             .1;
 
         Ok(processor_addr.clone())
@@ -594,22 +596,30 @@ impl WorkflowConfig {
         HashSet::from_iter(domains)
     }
 
-    fn get_account(&self, account_id: &u64) -> ManagerResult<&AccountInfo> {
+    pub fn get_account(&self, account_id: impl GetId) -> ManagerResult<&AccountInfo> {
         self.accounts
-            .get(account_id)
+            .get(&account_id.get_id())
             .ok_or(ManagerError::generic_err(format!(
                 "Account with id {} not found",
-                account_id
+                account_id.get_id()
             )))
     }
 
-    fn get_service(&mut self, service_id: u64) -> ManagerResult<ServiceInfo> {
+    pub fn get_service(&self, service_id: u64) -> ManagerResult<ServiceInfo> {
         self.services
             .get(&service_id)
             .ok_or(ManagerError::generic_err(format!(
                 "Service with id {} not found",
                 service_id
             )))
+            .cloned()
+    }
+
+    pub fn get_processor_addr(&self, domain: &str) -> ManagerResult<String> {
+        self.authorization_data
+            .processor_addrs
+            .get(domain)
+            .ok_or(ManagerError::ProcessorAddrNotFound(domain.to_string()))
             .cloned()
     }
 

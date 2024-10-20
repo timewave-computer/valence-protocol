@@ -39,13 +39,24 @@ pub enum ServiceError {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServiceInfo {
-    
     pub active: bool,
     pub name: String,
     pub domain: Domain,
     #[serde(skip)]
     pub config: ServiceConfig,
     pub addr: Option<String>,
+}
+
+impl ServiceInfo {
+    pub fn new(name: String, domain: &Domain, config: ServiceConfig) -> Self {
+        Self {
+            active: true,
+            name,
+            domain: domain.clone(),
+            config,
+            addr: None,
+        }
+    }
 }
 
 /// This is a list of all our services we support and their configs.

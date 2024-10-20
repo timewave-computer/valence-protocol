@@ -1,8 +1,10 @@
+use std::default;
+
 use serde::{Deserialize, Serialize};
 use strum::VariantNames;
 
-use crate::helpers::bool_true_default;
 use crate::domain::Domain;
+use crate::helpers::bool_true_default;
 
 /// What account type we talking about
 #[derive(Debug, PartialEq, Clone, strum::Display, VariantNames, Serialize, Deserialize)]
@@ -12,6 +14,22 @@ pub enum AccountType {
     /// This our base account implementation
     #[strum(to_string = "valence_base_account")]
     Base { admin: Option<String> },
+}
+
+impl default::Default for AccountType {
+    fn default() -> Self {
+        AccountType::Base { admin: None }
+    }
+}
+
+impl AccountType {
+    pub fn new_addr(addr: String) -> Self {
+        AccountType::Addr { addr }
+    }
+
+    pub fn new_base(admin: String) -> Self {
+        AccountType::Base { admin: Some(admin) }
+    }
 }
 
 /// The struct given to us by the user.
@@ -27,6 +45,18 @@ pub struct AccountInfo {
     pub ty: AccountType,
     pub domain: Domain,
     pub addr: Option<String>,
+}
+
+impl AccountInfo {
+    pub fn new(name: String, domain: &Domain, ty: AccountType) -> Self {
+        Self {
+            active: true,
+            name,
+            ty,
+            domain: domain.clone(),
+            addr: None,
+        }
+    }
 }
 
 #[derive(Debug)]
