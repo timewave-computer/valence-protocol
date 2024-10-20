@@ -93,16 +93,6 @@ impl GetId for u32 {
 }
 
 impl ServiceAccountType {
-    // pub fn get_id(&self) -> StdResult<Id> {
-    //     match self {
-    //         ServiceAccountType::Addr(_) => {
-    //             Err(StdError::generic_err("ServiceAccountType is an address"))
-    //         }
-    //         ServiceAccountType::AccountId(id) => Ok(*id),
-    //         ServiceAccountType::ServiceId(id) => Ok(*id),
-    //     }
-    // }
-
     pub fn to_string(&self) -> StdResult<String> {
         match self {
             ServiceAccountType::Addr(addr) => Ok(addr.to_string()),

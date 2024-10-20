@@ -28,9 +28,9 @@ pub const ASTROPORT_WITHDRAWER_NAME: &str = "valence_astroport_withdrawer";
 /// Those contracts will always be uploaded because each workflow needs them
 const BASIC_CONTRACTS: [&str; 2] = [PROCESSOR_NAME, BASE_ACCOUNT_NAME];
 
-/// Setup everything that is needed for the manager to run, including uploading of the contracts
+/// Setup everything that is needed for the manager to run, including uploading the services
 ///
-/// You can pass a list of contracts to upload, authorizaion, processor and base account are always updated,
+/// You can pass a list of contracts to upload, authorization, processor and base account are always uploaded,
 /// you need to specify the contracts you want to be uploaded for the given test
 pub fn setup_manager(
     test_ctx: &mut TestContext,
@@ -54,8 +54,6 @@ pub fn setup_manager(
         }
     });
 
-    // TODO: use a function to get the path of the correct contract based on the chain we are talking about
-    // Get all contract paths
     let authorization_contract_path = format!("{artifacts_dir}/{AUTHORIZATION_NAME}.wasm");
     let registry_contract_path = format!("{artifacts_dir}/{REGISTRY_NAME}.wasm");
 
@@ -130,9 +128,6 @@ pub fn setup_manager(
     .unwrap();
 
     gc.general.registry_addr = registry.address;
-
-    // let code_ids = GLOBAL_CONFIG.read().unwrap().contracts.code_ids.clone();
-    // println!("{:?}", code_ids);
 
     Ok(())
 }
