@@ -91,6 +91,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     workflow_config.accounts.insert(
         1,
         AccountInfo {
+            active: true,
             name: "base_account_1".to_string(),
             ty: AccountType::Base { admin: None },
             domain: neutron_domain.clone(),
@@ -100,6 +101,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     workflow_config.accounts.insert(
         2,
         AccountInfo {
+            active: true,
             name: "base_account_2".to_string(),
             ty: AccountType::Base { admin: None },
             domain: neutron_domain.clone(),
@@ -110,6 +112,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     workflow_config.services.insert(
         1,
         ServiceInfo {
+            active: true,
             name: "splitter_1".to_string(),
             domain: neutron_domain.clone(),
             config: ServiceConfig::ValenceSplitterService(
@@ -128,6 +131,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     workflow_config.services.insert(
         2,
         ServiceInfo {
+            active: true,
             name: "splitter_2".to_string(),
             domain: neutron_domain.clone(),
             config: ServiceConfig::ValenceSplitterService(

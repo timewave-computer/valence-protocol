@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use strum::VariantNames;
 
+use crate::helpers::bool_true_default;
 use crate::domain::Domain;
 
 /// What account type we talking about
@@ -19,6 +20,9 @@ pub enum AccountType {
 /// and what type of account we should work with.
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct AccountInfo {
+    /// Default is true if not provided on init
+    #[serde(default = "bool_true_default")]
+    pub active: bool,
     pub name: String,
     pub ty: AccountType,
     pub domain: Domain,

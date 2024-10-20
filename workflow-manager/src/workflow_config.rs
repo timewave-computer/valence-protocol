@@ -71,12 +71,12 @@ pub struct WorkflowConfig {
     pub owner: String,
     /// A list of links between an accounts and services
     pub links: BTreeMap<Id, Link>,
-    /// A list of authorizations
-    pub authorizations: Vec<AuthorizationInfo>,
     /// The list account data by id
     pub accounts: BTreeMap<Id, AccountInfo>,
     /// The list service data by id
     pub services: BTreeMap<Id, ServiceInfo>,
+    /// A list of authorizations
+    pub authorizations: Vec<AuthorizationInfo>,
     /// This is the info regarding authorization and processor contracts.
     /// Must be empty (Default) when a new workflow is instantiated.
     /// It gets populated when the workflow is instantiated.
@@ -248,6 +248,8 @@ impl WorkflowConfig {
                 InstantiateAccountData::new(*account_id, account.clone(), addr.clone(), salt),
             );
 
+            // Set active to be true just in case it was given false on init
+            account.active = true;
             account.ty = AccountType::Addr { addr: addr.clone() };
             account.addr = Some(addr);
         }
@@ -408,9 +410,6 @@ impl WorkflowConfig {
 
         Ok(())
     }
-
-    /// Modify an existing config with a new config
-    fn _modify(&mut self) {}
 
     /// Verify the config is correct and are not missing any data
     pub fn verify_new_config(&mut self) -> ManagerResult<()> {

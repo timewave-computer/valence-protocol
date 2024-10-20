@@ -252,6 +252,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         workflow_config.accounts.insert(
             i,
             AccountInfo {
+                active: true,
                 name: format!("base_account_{}", i),
                 ty: AccountType::Base { admin: None },
                 domain: neutron_domain.clone(),
@@ -268,6 +269,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     workflow_config.services.insert(
         1,
         ServiceInfo {
+            active: true,
             name: "reverse_splitter".to_string(),
             domain: neutron_domain.clone(),
             config: ServiceConfig::ValenceReverseSplitterService(
@@ -303,6 +305,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     workflow_config.services.insert(
         2,
         ServiceInfo {
+            active: true,
             name: "lp_forwarder".to_string(),
             domain: neutron_domain.clone(),
             config: ServiceConfig::ValenceForwarderService(
@@ -329,6 +332,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     workflow_config.services.insert(
         3,
         ServiceInfo {
+            active: true,
             name: "astroport_lper".to_string(),
             domain: neutron_domain.clone(),
             config: ServiceConfig::ValenceAstroportLper(
@@ -355,6 +359,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     workflow_config.services.insert(
         4,
         ServiceInfo {
+            active: true,
             name: "lp_position_forwarder".to_string(),
             domain: neutron_domain.clone(),
             config: ServiceConfig::ValenceForwarderService(
@@ -375,6 +380,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     workflow_config.services.insert(
         5,
         ServiceInfo {
+            active: true,
             name: "available_lp_tokens_forwarder".to_string(),
             domain: neutron_domain.clone(),
             config: ServiceConfig::ValenceForwarderService(
@@ -395,6 +401,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     workflow_config.services.insert(
         6,
         ServiceInfo {
+            active: true,
             name: "astroport_withdrawer".to_string(),
             domain: neutron_domain.clone(),
             config: ServiceConfig::ValenceAstroportWithdrawer(
@@ -415,6 +422,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     workflow_config.services.insert(
         7,
         ServiceInfo {
+            active: true,
             name: "splitter".to_string(),
             domain: neutron_domain.clone(),
             config: ServiceConfig::ValenceSplitterService(

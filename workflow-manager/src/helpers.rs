@@ -32,3 +32,8 @@ pub fn addr_humanize(prefix: &str, canonical: &CanonicalAddr) -> Result<String, 
     let prefix = Hrp::parse(prefix).map_err(|_| anyhow!("Invalid bech32 prefix"))?;
     encode::<Bech32>(prefix, canonical.as_slice()).map_err(|_| anyhow!("Bech32 encoding error"))
 }
+
+/// Helper for serde default for bool
+pub(crate) fn bool_true_default() -> bool {
+    true
+}
