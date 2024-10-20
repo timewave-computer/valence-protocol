@@ -54,7 +54,7 @@ impl fmt::Display for Domain {
 
 impl Domain {
     pub fn from_string(input: String) -> Result<Domain, anyhow::Error> {
-        let mut split = input.split(":");
+        let mut split = input.split(':');
 
         let domain = split.next().context("Domain is missing")?;
 

@@ -20,7 +20,7 @@ pub fn create_withdraw_liquidity_msgs(
     let token = query_liquidity_token(deps, cfg)?;
 
     // Query the balance of the account that is going to withdraw
-    let balance = deps.querier.query_balance(&cfg.input_addr, &token)?;
+    let balance = deps.querier.query_balance(&cfg.input_addr, token)?;
     if balance.amount.is_zero() {
         return Err(ServiceError::ExecutionError(
             "Nothing to withdraw".to_string(),

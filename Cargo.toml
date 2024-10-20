@@ -32,7 +32,7 @@ overflow-checks  = true
 
 [workspace.dependencies]
 anyhow          = "1.0.86"
-cosmwasm-std    = { version = "2.1.3", features = ["cosmwasm_1_4"] }
+cosmwasm-std    = { version = "2.1.3" }
 cosmwasm-schema = "2.1.3"
 cw-denom        = { package = "cw-denom", git = "https://github.com/DA0-DA0/dao-contracts", branch = "cw-std-2" }
 cw-ownable      = "2.0.0"
@@ -49,37 +49,46 @@ serde            = { version = "1.0.207", default-features = false, features = [
 serde_json       = "1.0.125"
 sha2             = "0.10.8"
 thiserror        = "1.0.63"
+osmosis-std      = "0.26.0"
 
 # our contracts
-valence-authorization            = { path = "contracts/authorization", features = ["library"] }
-valence-base-account             = { path = "contracts/accounts/base_account", features = ["library"] }
-valence-processor                = { path = "contracts/processor", features = ["library"] }
-valence-splitter-service         = { path = "contracts/services/splitter", features = ["library"] }
-valence-test-dynamic-ratio       = { path = "contracts/testing/test-dynamic-ratio", features = ["library"] }
-valence-test-service             = { path = "contracts/testing/test-service", features = ["library"] }
-valence-workflow-registry        = { path = "contracts/workflow-registry", features = ["library"] }
-valence-astroport-lper           = { path = "contracts/services/astroport-lper", features = ["library"] }
-valence-forwarder-service        = { path = "contracts/services/forwarder", features = ["library"] }
-valence-astroport-withdrawer     = { path = "contracts/services/astroport-withdrawer", features = ["library"] }
-valence-reverse-splitter-service = { path = "contracts/services/reverse-splitter", features = ["library"] }
+valence-authorization                = { path = "contracts/authorization", features = ["library"] }
+valence-base-account                 = { path = "contracts/accounts/base_account", features = ["library"] }
+valence-processor                    = { path = "contracts/processor", features = ["library"] }
+valence-splitter-service             = { path = "contracts/services/splitter", features = ["library"] }
+valence-test-dynamic-ratio           = { path = "contracts/testing/test-dynamic-ratio", features = ["library"] }
+valence-test-service                 = { path = "contracts/testing/test-service", features = ["library"] }
+valence-workflow-registry            = { path = "contracts/workflow-registry", features = ["library"] }
+valence-astroport-lper               = { path = "contracts/services/astroport-lper", features = ["library"] }
+valence-forwarder-service            = { path = "contracts/services/forwarder", features = ["library"] }
+valence-astroport-withdrawer         = { path = "contracts/services/astroport-withdrawer", features = ["library"] }
+valence-generic-ibc-transfer-service = { path = "contracts/services/generic-ibc-transfer", features = ["library"] }
+valence-neutron-ibc-transfer-service = { path = "contracts/services/neutron-ibc-transfer", features = ["library"] }
+valence-reverse-splitter-service     = { path = "contracts/services/reverse-splitter", features = ["library"] }
+valence-osmosis-gamm-lper        = { path = "contracts/services/osmosis-gamm-lper", features = ["library"] }
 
 # our packages
-valence-account-utils           = { path = "packages/account-utils" }
-valence-astroport-utils         = { path = "packages/astroport-utils" }
-valence-authorization-utils     = { path = "packages/authorization-utils" }
-valence-macros                  = { path = "packages/valence-macros" }
-valence-polytone-utils          = { path = "packages/polytone-utils" }
-valence-processor-utils         = { path = "packages/processor-utils" }
-valence-service-base            = { path = "packages/service-base" }
-valence-service-utils           = { path = "packages/service-utils" }
-valence-workflow-registry-utils = { path = "packages/workflow-registry-utils" }
-valence-workflow-manager        = { path = "workflow-manager" }
+valence-account-utils              = { path = "packages/account-utils" }
+valence-astroport-utils            = { path = "packages/astroport-utils" }
+valence-osmosis-utils           = { path = "packages/osmosis-utils" }
+valence-authorization-utils        = { path = "packages/authorization-utils" }
+valence-ibc-utils                  = { path = "packages/ibc-utils" }
+valence-local-interchaintest-utils = { path = "packages/local-interchaintest-utils" }
+valence-macros                     = { path = "packages/valence-macros" }
+valence-polytone-utils             = { path = "packages/polytone-utils" }
+valence-processor-utils            = { path = "packages/processor-utils" }
+valence-service-base               = { path = "packages/service-base" }
+valence-service-utils              = { path = "packages/service-utils" }
+valence-workflow-registry-utils    = { path = "packages/workflow-registry-utils" }
+valence-workflow-manager           = { path = "workflow-manager" }
 
 # dev-dependencies
 cw-multi-test        = { version = "2.1.1", features = ["cosmwasm_1_4"] }
 cw20                 = { version = "2.0.0" }
 cw20-base            = { version = "2.0.0" }
 hex                  = "0.4.3"
+localic-utils        = { git = "https://github.com/timewave-computer/localic-utils", branch = "main" }
 margined-neutron-std = "4.2.0"
 neutron-test-tube    = "4.2.0"
 tokio                = "1.40.0"
+osmosis-test-tube    = "25.0.0"

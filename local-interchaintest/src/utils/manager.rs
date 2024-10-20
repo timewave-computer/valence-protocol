@@ -42,7 +42,7 @@ pub fn setup_manager(
     let artifacts_dir = format!("{}/artifacts", curr_path.to_str().unwrap());
     let chain_infos = get_chain_infos(chains_file_path);
     let mut gc = get_global_config();
-    gc.chains = chain_infos.clone();
+    gc.chains.clone_from(&chain_infos);
 
     let mut uploader = test_ctx.build_tx_upload_contracts();
     uploader.with_chain_name(NEUTRON_CHAIN_NAME);
