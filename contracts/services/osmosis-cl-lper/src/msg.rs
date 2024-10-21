@@ -11,18 +11,15 @@ use valence_service_utils::{
 };
 #[cw_serde]
 pub enum ActionMsgs {
-    ProvideDoubleSidedLiquidity {
+    // provide liquidity at custom
+    ProvideLiquidityCustom {
         lower_tick: Int64,
         upper_tick: Int64,
-        token_min_amount_0: Uint128,
-        token_min_amount_1: Uint128,
+        // default to 0 `token_min_amount` if not provided
+        token_min_amount_0: Option<Uint128>,
+        token_min_amount_1: Option<Uint128>,
     },
-    ProvideSingleSidedLiquidity {
-        asset: String,
-        limit: Uint128,
-        lower_tick: Int64,
-        upper_tick: Int64,
-    },
+    ProvideLiquidityDefault {},
 }
 
 #[cw_ownable_query]
@@ -40,6 +37,8 @@ pub struct LiquidityProviderConfig {
     pub pool_id: Uint64,
     pub pool_asset_1: String,
     pub pool_asset_2: String,
+    pub global_tick_min: Int64,
+    pub global_tick_max: Int64,
 }
 
 #[cw_serde]

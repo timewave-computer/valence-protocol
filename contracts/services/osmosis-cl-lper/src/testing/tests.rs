@@ -1,4 +1,4 @@
-use cosmwasm_std::{coin, coins, Uint64};
+use cosmwasm_std::{coin, coins, Int64, Uint64};
 use valence_osmosis_utils::suite::{OSMO_DENOM, TEST_DENOM};
 
 use crate::msg::LiquidityProviderConfig;
@@ -14,6 +14,8 @@ fn test_provide_liquidity_fails_validation_pool_not_found() {
             pool_id: Uint64::new(3),
             pool_asset_1: OSMO_DENOM.to_string(),
             pool_asset_2: TEST_DENOM.to_string(),
+            global_tick_min: Int64::MIN,
+            global_tick_max: Int64::MAX,
         }),
     );
 }
@@ -27,6 +29,8 @@ fn test_provide_liquidity_fails_validation_denom_mismatch() {
             pool_id: Uint64::one(),
             pool_asset_1: OSMO_DENOM.to_string(),
             pool_asset_2: "random_denom".to_string(),
+            global_tick_min: Int64::MIN,
+            global_tick_max: Int64::MAX,
         }),
     );
 }

@@ -60,6 +60,8 @@ impl LPerTestSuite {
                     pool_id: inner.pool_cfg.pool_id,
                     pool_asset_1: inner.pool_cfg.pool_asset_1.to_string(),
                     pool_asset_2: inner.pool_cfg.pool_asset_2.to_string(),
+                    global_tick_min: Int64::MIN,
+                    global_tick_max: Int64::MAX,
                 }),
             ),
         };
@@ -121,11 +123,11 @@ impl LPerTestSuite {
 
         wasm.execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
             &self.lper_addr,
-            &ExecuteMsg::ProcessAction(ActionMsgs::ProvideDoubleSidedLiquidity {
+            &ExecuteMsg::ProcessAction(ActionMsgs::ProvideLiquidityCustom {
                 lower_tick: Int64::new(lower_tick),
                 upper_tick: Int64::new(upper_tick),
-                token_min_amount_0: min_amount_0.into(),
-                token_min_amount_1: min_amount_1.into(),
+                token_min_amount_0: Some(min_amount_0.into()),
+                token_min_amount_1: Some(min_amount_1.into()),
             }),
             &[],
             self.inner.processor_acc(),
@@ -144,12 +146,7 @@ impl LPerTestSuite {
 
         wasm.execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
             &self.lper_addr,
-            &ExecuteMsg::ProcessAction(ActionMsgs::ProvideSingleSidedLiquidity {
-                asset: asset.to_string(),
-                limit: limit.into(),
-                lower_tick: Int64::new(lower_tick),
-                upper_tick: Int64::new(upper_tick),
-            }),
+            &ExecuteMsg::ProcessAction(ActionMsgs::ProvideLiquidityDefault {}),
             &[],
             self.inner.processor_acc(),
         )
