@@ -1,5 +1,7 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{to_json_binary, Addr, CosmosMsg, StdError, StdResult, SubMsg, WasmMsg};
+use cosmwasm_std::{
+    to_json_binary, Addr, CosmosMsg, StdError, StdResult, Storage, SubMsg, WasmMsg,
+};
 
 pub mod denoms {
     pub use cw_denom::{CheckedDenom, DenomError, UncheckedDenom};
@@ -7,15 +9,23 @@ pub mod denoms {
 
 pub mod error;
 pub mod msg;
+pub mod raw_config;
 
 #[cfg(feature = "testing")]
 pub mod testing;
 
 pub type Id = u64;
 
-pub trait ServiceConfigInterface<T> {
-    /// T is the config type
-    fn is_diff(&self, other: &T) -> bool;
+pub trait ServiceConfigUpdateTrait {
+    fn update_raw(&self, storage: &mut dyn Storage) -> StdResult<()>;
+}
+
+#[cw_serde]
+#[derive(Default)]
+pub enum OptionUpdate<T> {
+    #[default]
+    None,
+    Set(Option<T>),
 }
 
 /// An account type that is used in the service configs
@@ -47,6 +57,40 @@ impl From<&str> for ServiceAccountType {
         } else {
             ServiceAccountType::Addr(addr.to_owned())
         }
+    }
+}
+
+pub trait GetId {
+    fn get_id(&self) -> Id;
+}
+
+impl GetId for ServiceAccountType {
+    fn get_id(&self) -> Id {
+        match self {
+            ServiceAccountType::Addr(_) => {
+                panic!("ServiceAccountType is an address")
+            }
+            ServiceAccountType::AccountId(id) => *id,
+            ServiceAccountType::ServiceId(id) => *id,
+        }
+    }
+}
+
+impl GetId for u64 {
+    fn get_id(&self) -> Id {
+        *self
+    }
+}
+
+impl GetId for &u64 {
+    fn get_id(&self) -> Id {
+        **self
+    }
+}
+
+impl GetId for u32 {
+    fn get_id(&self) -> Id {
+        *self as u64
     }
 }
 

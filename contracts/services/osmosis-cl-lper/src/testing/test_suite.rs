@@ -16,7 +16,7 @@ use valence_osmosis_utils::{
 };
 use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 
-use crate::msg::{ActionMsgs, LiquidityProviderConfig, OptionalServiceConfig, ServiceConfig};
+use crate::msg::{ActionMsgs, LiquidityProviderConfig, ServiceConfig, ServiceConfigUpdate};
 
 pub struct LPerTestSuite {
     pub inner: OsmosisTestAppSetup<ConcentratedLiquidityPool>,
@@ -121,7 +121,7 @@ impl LPerTestSuite {
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
-        wasm.execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
+        wasm.execute::<ExecuteMsg<ActionMsgs, ServiceConfigUpdate>>(
             &self.lper_addr,
             &ExecuteMsg::ProcessAction(ActionMsgs::ProvideLiquidityCustom {
                 lower_tick: Int64::new(lower_tick),
@@ -144,7 +144,7 @@ impl LPerTestSuite {
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
-        wasm.execute::<ExecuteMsg<ActionMsgs, OptionalServiceConfig>>(
+        wasm.execute::<ExecuteMsg<ActionMsgs, ServiceConfigUpdate>>(
             &self.lper_addr,
             &ExecuteMsg::ProcessAction(ActionMsgs::ProvideLiquidityDefault {}),
             &[],

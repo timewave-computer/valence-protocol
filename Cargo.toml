@@ -63,6 +63,8 @@ valence-workflow-registry        = { path = "contracts/workflow-registry", featu
 valence-astroport-lper           = { path = "contracts/services/astroport-lper", features = ["library"] }
 valence-forwarder-service        = { path = "contracts/services/forwarder", features = ["library"] }
 valence-astroport-withdrawer     = { path = "contracts/services/astroport-withdrawer", features = ["library"] }
+valence-generic-ibc-transfer-service = { path = "contracts/services/generic-ibc-transfer", features = ["library"] }
+valence-neutron-ibc-transfer-service = { path = "contracts/services/neutron-ibc-transfer", features = ["library"] }
 valence-reverse-splitter-service = { path = "contracts/services/reverse-splitter", features = ["library"] }
 valence-osmosis-gamm-lper        = { path = "contracts/services/osmosis-gamm-lper", features = ["library"] }
 valence-osmosis-cl-lper          = { path = "contracts/services/osmosis-cl-lper", features = ["library"] }
@@ -72,6 +74,7 @@ valence-account-utils           = { path = "packages/account-utils" }
 valence-astroport-utils         = { path = "packages/astroport-utils" }
 valence-osmosis-utils           = { path = "packages/osmosis-utils" }
 valence-authorization-utils     = { path = "packages/authorization-utils" }
+valence-ibc-utils               = { path = "packages/ibc-utils" }
 valence-macros                  = { path = "packages/valence-macros" }
 valence-polytone-utils          = { path = "packages/polytone-utils" }
 valence-processor-utils         = { path = "packages/processor-utils" }
@@ -85,6 +88,7 @@ cw-multi-test        = { version = "2.1.1", features = ["cosmwasm_1_4"] }
 cw20                 = { version = "2.0.0" }
 cw20-base            = { version = "2.0.0" }
 hex                  = "0.4.3"
+localic-utils        = { git = "https://github.com/timewave-computer/localic-utils", branch = "main" }
 margined-neutron-std = "4.2.0"
 neutron-test-tube    = "4.2.0"
 tokio                = "1.40.0"

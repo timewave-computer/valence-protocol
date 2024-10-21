@@ -1,7 +1,7 @@
 use crate::msg::{
     ActionMsgs, Config, QueryMsg, ServiceConfig, SplitAmount, SplitConfig, UncheckedSplitConfig,
 };
-use cosmwasm_std::{coin, Addr, Coin, Decimal};
+use cosmwasm_std::{coin, Addr, Coin, Decimal, Empty};
 use cw20::Cw20Coin;
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
@@ -143,7 +143,7 @@ impl SplitterTestSuite {
     }
 }
 
-impl ServiceTestSuite for SplitterTestSuite {
+impl ServiceTestSuite<Empty, Empty> for SplitterTestSuite {
     fn app(&self) -> &App {
         self.inner.app()
     }

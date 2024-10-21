@@ -6,7 +6,10 @@ use valence_service_utils::{
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
-use crate::msg::{ActionsMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig};
+use crate::{
+    msg::{ActionMsgs, Config, Config2, QueryMsg, ServiceConfig, ServiceConfigUpdate},
+    CONFIG2,
+};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -19,6 +22,12 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg<ServiceConfig>,
 ) -> Result<Response, ServiceError> {
+    CONFIG2.save(
+        deps.storage,
+        &Config2 {
+            optional2: msg.config.optional2.clone(),
+        },
+    )?;
     valence_service_base::instantiate(deps, CONTRACT_NAME, CONTRACT_VERSION, msg)
 }
 
@@ -27,7 +36,7 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg<ActionsMsgs, OptionalServiceConfig>,
+    msg: ExecuteMsg<ActionMsgs, ServiceConfigUpdate>,
 ) -> Result<Response, ServiceError> {
     valence_service_base::execute(
         deps,
@@ -43,17 +52,17 @@ mod actions {
     use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
     use valence_service_utils::error::ServiceError;
 
-    use crate::msg::{ActionsMsgs, Config};
+    use crate::msg::{ActionMsgs, Config};
 
     pub fn process_action(
         _deps: DepsMut,
         _env: Env,
         _info: MessageInfo,
-        msg: ActionsMsgs,
+        msg: ActionMsgs,
         _cfg: Config,
     ) -> Result<Response, ServiceError> {
         match msg {
-            ActionsMsgs::NoOp {} => Ok(Response::new().add_attribute("method", "noop")),
+            ActionMsgs::NoOp {} => Ok(Response::new().add_attribute("method", "noop")),
         }
     }
 }
@@ -62,16 +71,15 @@ mod execute {
     use cosmwasm_std::{DepsMut, Env, MessageInfo};
     use valence_service_utils::error::ServiceError;
 
-    use crate::msg::{Config, OptionalServiceConfig};
+    use crate::msg::ServiceConfigUpdate;
 
     pub fn update_config(
-        deps: &DepsMut,
+        deps: DepsMut,
         _env: Env,
         _info: MessageInfo,
-        config: &mut Config,
-        new_config: OptionalServiceConfig,
+        new_config: ServiceConfigUpdate,
     ) -> Result<(), ServiceError> {
-        new_config.update_config(deps, config)
+        new_config.update_config(deps)
     }
 }
 
@@ -87,6 +95,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetServiceConfig {} => {
             let config: Config = valence_service_base::load_config(deps.storage)?;
             to_json_binary(&config)
+        }
+        QueryMsg::GetRawServiceConfig {} => {
+            let raw_config: ServiceConfig = valence_service_base::load_raw_config(deps.storage)?;
+            to_json_binary(&raw_config)
         }
     }
 }

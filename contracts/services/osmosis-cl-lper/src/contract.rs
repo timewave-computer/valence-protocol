@@ -1,4 +1,4 @@
-use crate::msg::{ActionMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig};
+use crate::msg::{ActionMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -43,19 +43,18 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg<ActionMsgs, OptionalServiceConfig>,
+    msg: ExecuteMsg<ActionMsgs, ServiceConfigUpdate>,
 ) -> Result<Response, ServiceError> {
     valence_service_base::execute(deps, env, info, msg, process_action, update_config)
 }
 
 pub fn update_config(
-    deps: &DepsMut,
+    deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    config: &mut Config,
-    new_config: OptionalServiceConfig,
+    new_config: ServiceConfigUpdate,
 ) -> Result<(), ServiceError> {
-    new_config.update_config(deps, config)
+    new_config.update_config(deps)
 }
 
 pub fn process_action(

@@ -5,10 +5,11 @@ use cw_ownable::cw_ownable_query;
 use osmosis_std::types::osmosis::{
     concentratedliquidity::v1beta1::Pool, poolmanager::v1beta1::PoolmanagerQuerier,
 };
-use valence_macros::OptionalStruct;
+use valence_macros::ValenceServiceInterface;
 use valence_service_utils::{
-    error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType, ServiceConfigInterface,
+    error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType,
 };
+
 #[cw_serde]
 pub enum ActionMsgs {
     // provide liquidity at custom
@@ -42,7 +43,7 @@ pub struct LiquidityProviderConfig {
 }
 
 #[cw_serde]
-#[derive(OptionalStruct)]
+#[derive(ValenceServiceInterface)]
 pub struct ServiceConfig {
     pub input_addr: ServiceAccountType,
     pub output_addr: ServiceAccountType,
@@ -70,13 +71,6 @@ impl ServiceConfig {
         let output_addr = self.output_addr.to_addr(api)?;
 
         Ok((input_addr, output_addr, self.lp_config.pool_id))
-    }
-}
-
-impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
-    /// This function is used to see if 2 configs are different
-    fn is_diff(&self, other: &ServiceConfig) -> bool {
-        !self.eq(other)
     }
 }
 
@@ -134,8 +128,10 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
     }
 }
 
-impl OptionalServiceConfig {
-    pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
+impl ServiceConfigUpdate {
+    pub fn update_config(self, deps: DepsMut) -> Result<(), ServiceError> {
+        let mut config: Config = valence_service_base::load_config(deps.storage)?;
+
         if let Some(input_addr) = self.input_addr {
             config.input_addr = input_addr.to_addr(deps.api)?;
         }

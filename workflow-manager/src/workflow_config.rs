@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 use valence_authorization_utils::authorization::AuthorizationInfo;
 
-use valence_service_utils::Id;
+use valence_service_utils::{GetId, Id};
 
 use crate::{
     account::{AccountInfo, AccountType, InstantiateAccountData},
@@ -28,7 +28,6 @@ pub struct Link {
 /// This struct holds all the data regarding our authorization and processor
 /// contracts and bridge accounts
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'static"))]
 pub struct AuthorizationData {
     /// authorization contract address on neutron
     pub authorization_addr: String,
@@ -65,7 +64,6 @@ impl AuthorizationData {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'static"))]
 pub struct WorkflowConfig {
     // This is the id of the workflow
     #[serde(default)]
@@ -258,7 +256,7 @@ impl WorkflowConfig {
         // Then we update the service configs with the account predicted addresses
         // for all input accounts we add the service address to the approved services list
         // and then instantiate the services
-        for (link_id, link) in self.links.clone().iter() {
+        for (_, link) in self.links.clone().iter() {
             let mut service = self.get_service(link.service_id)?;
 
             let mut domain_connector = connectors.get_or_create_connector(&service.domain).await?;
@@ -266,7 +264,7 @@ impl WorkflowConfig {
                 .get_address(
                     self.id,
                     &service.config.to_string(),
-                    format!("service_{}", link_id).as_str(),
+                    format!("service_{}", link.service_id).as_str(),
                 )
                 .await?;
 
@@ -278,7 +276,7 @@ impl WorkflowConfig {
             // At this stage we should already have all addresses for all account ids
             for account_id in link.input_accounts_id.iter() {
                 let account_data = account_instantiate_datas.get_mut(account_id).ok_or(
-                    ManagerError::FailedToRetrieveAccountInitData(*account_id, *link_id),
+                    ManagerError::FailedToRetrieveAccountInitData(*account_id, link.service_id),
                 )?;
                 // We add the service address to the approved services list of the input account
                 account_data.add_service(service_addr.to_string());
@@ -292,7 +290,7 @@ impl WorkflowConfig {
 
             for account_id in link.output_accounts_id.iter() {
                 let account_data = account_instantiate_datas.get(account_id).ok_or(
-                    ManagerError::FailedToRetrieveAccountInitData(*account_id, *link_id),
+                    ManagerError::FailedToRetrieveAccountInitData(*account_id, link.service_id),
                 )?;
 
                 patterns.push(format!("|account_id|\":{account_id}"));
@@ -331,7 +329,9 @@ impl WorkflowConfig {
                 .authorization_data
                 .processor_addrs
                 .get(&account.domain.to_string())
-                .ok_or(ManagerError::ProcessorAddrNotFound(account.domain.clone()))?;
+                .ok_or(ManagerError::ProcessorAddrNotFound(
+                    account.domain.to_string(),
+                ))?;
 
             domain_connector
                 .instantiate_account(self.id, processor_addr.clone(), account_instantiate_data)
@@ -580,7 +580,7 @@ impl WorkflowConfig {
             .authorization_data
             .processor_addrs
             .get_key_value(&domain.to_string())
-            .ok_or(ManagerError::ProcessorAddrNotFound(domain.clone()))?
+            .ok_or(ManagerError::ProcessorAddrNotFound(domain.to_string()))?
             .1;
 
         Ok(processor_addr.clone())
@@ -597,22 +597,30 @@ impl WorkflowConfig {
         HashSet::from_iter(domains)
     }
 
-    fn get_account(&self, account_id: &u64) -> ManagerResult<&AccountInfo> {
+    pub fn get_account(&self, account_id: impl GetId) -> ManagerResult<&AccountInfo> {
         self.accounts
-            .get(account_id)
+            .get(&account_id.get_id())
             .ok_or(ManagerError::generic_err(format!(
                 "Account with id {} not found",
-                account_id
+                account_id.get_id()
             )))
     }
 
-    fn get_service(&mut self, service_id: u64) -> ManagerResult<ServiceInfo> {
+    pub fn get_service(&self, service_id: u64) -> ManagerResult<ServiceInfo> {
         self.services
             .get(&service_id)
             .ok_or(ManagerError::generic_err(format!(
                 "Service with id {} not found",
                 service_id
             )))
+            .cloned()
+    }
+
+    pub fn get_processor_addr(&self, domain: &str) -> ManagerResult<String> {
+        self.authorization_data
+            .processor_addrs
+            .get(domain)
+            .ok_or(ManagerError::ProcessorAddrNotFound(domain.to_string()))
             .cloned()
     }
 

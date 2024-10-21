@@ -1,20 +1,29 @@
 use cosmwasm_std::{coin, Coin, Uint128};
 
 use osmosis_test_tube::{
-    osmosis_std::types::cosmwasm::wasm::v1::MsgExecuteContractResponse, Account, ExecuteResponse,
-    Module, Wasm,
+    osmosis_std::{
+        try_proto_to_cosmwasm_coins,
+        types::{
+            cosmos::bank::v1beta1::{MsgSend, QueryAllBalancesRequest},
+            cosmwasm::wasm::v1::MsgExecuteContractResponse,
+        },
+    },
+    Account, Bank, ExecuteResponse, Module, Wasm,
 };
 use valence_osmosis_utils::{
     suite::{OsmosisTestAppBuilder, OsmosisTestAppSetup, OSMO_DENOM, TEST_DENOM},
     testing::balancer::BalancerPool,
-    utils::{DecimalRange, LiquidityProviderConfig},
+    utils::DecimalRange,
 };
 use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 
-use crate::msg::{ActionsMsgs, OptionalServiceConfig, ServiceConfig};
+use crate::msg::{ActionMsgs, LiquidityProviderConfig, ServiceConfig, ServiceConfigUpdate};
+
+const CONTRACT_PATH: &str = "../../../artifacts";
 
 pub struct LPerTestSuite {
     pub inner: OsmosisTestAppSetup<BalancerPool>,
+
     pub lper_addr: String,
     pub input_acc: String,
     pub output_acc: String,
@@ -37,12 +46,20 @@ impl LPerTestSuite {
         let inner: OsmosisTestAppSetup<BalancerPool> =
             OsmosisTestAppBuilder::new().build().unwrap();
 
+        // Create two base accounts
         let wasm = Wasm::new(&inner.app);
 
-        let account_code_id = inner.store_account_contract();
-        let input_acc = inner.instantiate_input_account(account_code_id);
-        let output_acc = inner.instantiate_input_account(account_code_id);
-        let code_id = inner.store_contract();
+        let wasm_byte_code =
+            std::fs::read(format!("{}/{}", CONTRACT_PATH, "valence_base_account.wasm")).unwrap();
+
+        let code_id = wasm
+            .store_code(&wasm_byte_code, None, inner.owner_acc())
+            .unwrap()
+            .data
+            .code_id;
+
+        let input_acc = inner.instantiate_input_account(code_id);
+        let output_acc = inner.instantiate_input_account(code_id);
 
         let instantiate_msg = InstantiateMsg {
             owner: inner.owner_acc().address(),
@@ -71,11 +88,28 @@ impl LPerTestSuite {
             .data
             .address;
 
-        // approve the service for the input account
+        // Approve the service for the input account
         inner.approve_service(input_acc.clone(), lper_addr.clone());
 
-        // give some tokens to the input account so that it can provide liquidity
-        inner.fund_input_acc(input_acc.to_string(), with_input_bals);
+        // Give some tokens to the input account so that it can provide liquidity
+        let bank = Bank::new(&inner.app);
+
+        for input_bal in with_input_bals {
+            bank.send(
+                MsgSend {
+                    from_address: inner.owner_acc().address(),
+                    to_address: input_acc.clone(),
+                    amount: vec![
+                        osmosis_test_tube::osmosis_std::types::cosmos::base::v1beta1::Coin {
+                            denom: input_bal.denom.clone(),
+                            amount: input_bal.amount.to_string(),
+                        },
+                    ],
+                },
+                inner.owner_acc(),
+            )
+            .unwrap();
+        }
 
         LPerTestSuite {
             inner,
@@ -85,15 +119,30 @@ impl LPerTestSuite {
         }
     }
 
+    pub fn query_all_balances(
+        &self,
+        addr: &str,
+    ) -> cosmwasm_std_old::StdResult<Vec<cosmwasm_std_old::Coin>> {
+        let bank = Bank::new(&self.inner.app);
+        let resp = bank
+            .query_all_balances(&QueryAllBalancesRequest {
+                address: addr.to_string(),
+                pagination: None,
+            })
+            .unwrap();
+        let bals = try_proto_to_cosmwasm_coins(resp.balances)?;
+        Ok(bals)
+    }
+
     pub fn provide_two_sided_liquidity(
         &self,
         expected_spot_price: Option<DecimalRange>,
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
-        wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
+        wasm.execute::<ExecuteMsg<ActionMsgs, ServiceConfigUpdate>>(
             &self.lper_addr,
-            &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideDoubleSidedLiquidity {
+            &ExecuteMsg::ProcessAction(ActionMsgs::ProvideDoubleSidedLiquidity {
                 expected_spot_price,
             }),
             &[],
@@ -110,9 +159,9 @@ impl LPerTestSuite {
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
-        wasm.execute::<ExecuteMsg<ActionsMsgs, OptionalServiceConfig>>(
+        wasm.execute::<ExecuteMsg<ActionMsgs, ServiceConfigUpdate>>(
             &self.lper_addr,
-            &ExecuteMsg::ProcessAction(ActionsMsgs::ProvideSingleSidedLiquidity {
+            &ExecuteMsg::ProcessAction(ActionMsgs::ProvideSingleSidedLiquidity {
                 expected_spot_price,
                 asset: asset.to_string(),
                 limit,

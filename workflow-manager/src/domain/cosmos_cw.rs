@@ -767,6 +767,16 @@ impl Connector for CosmosCosmwasmConnector {
             ))
             .into());
         }
+
+        for service in config.services.values() {
+            if service.addr.is_none() {
+                return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                    "Before saving workflow config each service must have an address"
+                ))
+                .into());
+            }
+        }
+
         let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();
 
         let workflow_binary =

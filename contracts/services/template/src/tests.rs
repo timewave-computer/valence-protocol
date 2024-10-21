@@ -1,12 +1,12 @@
-use crate::msg::{ActionsMsgs, Config, QueryMsg, ServiceConfig};
-use cosmwasm_std::Addr;
+use crate::msg::{ActionMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate};
+use cosmwasm_std::{Addr, Empty};
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
 use getset::{Getters, Setters};
 use valence_service_utils::{
-    msg::ExecuteMsg,
-    msg::InstantiateMsg,
+    msg::{ExecuteMsg, InstantiateMsg},
     testing::{ServiceTestSuite, ServiceTestSuiteBase},
+    OptionUpdate,
 };
 
 #[derive(Getters, Setters)]
@@ -52,14 +52,18 @@ impl TemplateTestSuite {
         self.contract_init(self.template_code_id, "template", &init_msg, &[])
     }
 
-    fn template_config(&self) -> ServiceConfig {
-        ServiceConfig {}
+    fn template_config(&self, admin: String) -> ServiceConfig {
+        ServiceConfig {
+            skip_update_admin: valence_service_utils::ServiceAccountType::Addr(admin),
+            optional: None,
+            optional2: "s".to_string(),
+        }
     }
 
     fn execute_noop(&mut self, addr: Addr) -> AnyResult<AppResponse> {
         self.contract_execute(
             addr,
-            &ExecuteMsg::<_, ServiceConfig>::ProcessAction(ActionsMsgs::NoOp {}),
+            &ExecuteMsg::<_, ServiceConfig>::ProcessAction(ActionMsgs::NoOp {}),
         )
     }
 
@@ -68,13 +72,13 @@ impl TemplateTestSuite {
         self.app_mut().execute_contract(
             owner,
             addr,
-            &ExecuteMsg::<ActionsMsgs, ServiceConfig>::UpdateConfig { new_config },
+            &ExecuteMsg::<ActionMsgs, ServiceConfig>::UpdateConfig { new_config },
             &[],
         )
     }
 }
 
-impl ServiceTestSuite for TemplateTestSuite {
+impl ServiceTestSuite<Empty, Empty> for TemplateTestSuite {
     fn app(&self) -> &App {
         self.inner.app()
     }
@@ -104,7 +108,8 @@ impl ServiceTestSuite for TemplateTestSuite {
 fn instantiate_with_valid_config() {
     let mut suite = TemplateTestSuite::default();
 
-    let cfg = suite.template_config();
+    let admin_addr = suite.owner().clone();
+    let cfg = suite.template_config(admin_addr.to_string());
 
     // Instantiate Template contract
     let svc = suite.template_init(&cfg);
@@ -119,14 +124,63 @@ fn instantiate_with_valid_config() {
 
     // Verify service config
     let svc_cfg: Config = suite.query_wasm(&svc, &QueryMsg::GetServiceConfig {});
-    assert_eq!(svc_cfg, Config {});
+    assert_eq!(
+        svc_cfg,
+        Config {
+            admin: admin_addr,
+            optional: None
+        }
+    );
+
+    let raw_svc_cfg: ServiceConfig = suite.query_wasm(&svc, &QueryMsg::GetRawServiceConfig {});
+    assert_eq!(
+        raw_svc_cfg,
+        ServiceConfig {
+            skip_update_admin: valence_service_utils::ServiceAccountType::Addr(
+                suite.owner().to_string()
+            ),
+            optional: None,
+            optional2: "s".to_string(),
+        }
+    );
+
+    // Here we just want to make sure that our ignore_optional actually works
+    // Because we ignore the only available field, ServiceConfigUpdate expected to have no fields
+    let _ = ServiceConfigUpdate {
+        optional: OptionUpdate::Set(None),
+        optional2: Some("s".to_string()),
+    };
+}
+
+#[test]
+fn get_diff_update() {
+    let suite = TemplateTestSuite::default();
+
+    let admin_addr = suite.owner().clone();
+    let old_cfg = suite.template_config(admin_addr.to_string());
+    let mut new_cfg = suite.template_config(admin_addr.to_string());
+
+    // We didn't change anything, so if we run get_diff_update, it should return None
+    assert!(old_cfg.get_diff_update(new_cfg.clone()).is_none());
+
+    new_cfg.optional = Some("optional".to_string());
+
+    // We changed the optional field, so if we run get_diff_update, it should return Some
+    let update = old_cfg.get_diff_update(new_cfg.clone());
+    assert_eq!(
+        update.unwrap(),
+        ServiceConfigUpdate {
+            optional: OptionUpdate::Set(Some("optional".to_string())),
+            optional2: None
+        }
+    );
 }
 
 #[test]
 fn execute_action() {
     let mut suite = TemplateTestSuite::default();
 
-    let cfg = suite.template_config();
+    let cfg = suite.template_config(suite.owner().to_string());
 
     // Instantiate Template contract
     let svc = suite.template_init(&cfg);

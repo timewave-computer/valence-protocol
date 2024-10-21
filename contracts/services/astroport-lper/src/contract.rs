@@ -6,7 +6,7 @@ use valence_service_utils::{
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
-use crate::msg::{ActionsMsgs, Config, OptionalServiceConfig, QueryMsg, ServiceConfig};
+use crate::msg::{ActionMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -27,7 +27,7 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg<ActionsMsgs, OptionalServiceConfig>,
+    msg: ExecuteMsg<ActionMsgs, ServiceConfigUpdate>,
 ) -> Result<Response, ServiceError> {
     valence_service_base::execute(
         deps,
@@ -43,16 +43,15 @@ mod execute {
     use cosmwasm_std::{DepsMut, Env, MessageInfo};
     use valence_service_utils::error::ServiceError;
 
-    use crate::msg::{Config, OptionalServiceConfig};
+    use crate::msg::ServiceConfigUpdate;
 
     pub fn update_config(
-        deps: &DepsMut,
+        deps: DepsMut,
         _env: Env,
         _info: MessageInfo,
-        config: &mut Config,
-        new_config: OptionalServiceConfig,
+        new_config: ServiceConfigUpdate,
     ) -> Result<(), ServiceError> {
-        new_config.update_config(deps, config)
+        new_config.update_config(deps)
     }
 }
 
@@ -63,21 +62,21 @@ mod actions {
 
     use crate::{
         astroport_cw20, astroport_native,
-        msg::{ActionsMsgs, Config, DecimalRange, PoolType},
+        msg::{ActionMsgs, Config, DecimalRange, PoolType},
     };
 
     pub fn process_action(
         deps: DepsMut,
         _env: Env,
         _info: MessageInfo,
-        msg: ActionsMsgs,
+        msg: ActionMsgs,
         cfg: Config,
     ) -> Result<Response, ServiceError> {
         match msg {
-            ActionsMsgs::ProvideDoubleSidedLiquidity {
+            ActionMsgs::ProvideDoubleSidedLiquidity {
                 expected_pool_ratio_range,
             } => provide_double_sided_liquidity(deps, cfg, expected_pool_ratio_range),
-            ActionsMsgs::ProvideSingleSidedLiquidity {
+            ActionMsgs::ProvideSingleSidedLiquidity {
                 asset,
                 limit,
                 expected_pool_ratio_range,
@@ -275,7 +274,7 @@ mod actions {
         )?;
 
         // Check which asset is being provided and get its balance
-        let (asset_balance, other_asset) = if asset == cfg.lp_config.asset_data.asset1 {
+        let (mut asset_balance, other_asset) = if asset == cfg.lp_config.asset_data.asset1 {
             (balance_asset1.clone(), balance_asset2.clone())
         } else if asset == cfg.lp_config.asset_data.asset2 {
             (balance_asset2.clone(), balance_asset1.clone())
@@ -295,9 +294,7 @@ mod actions {
         // Check limit if provided
         if let Some(limit) = limit {
             if limit < asset_balance.amount {
-                return Err(ServiceError::ExecutionError(
-                    "Asset amount is greater than the limit".to_string(),
-                ));
+                asset_balance.amount = limit;
             }
         }
 
@@ -338,6 +335,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetServiceConfig {} => {
             let config: Config = valence_service_base::load_config(deps.storage)?;
             to_json_binary(&config)
+        }
+        QueryMsg::GetRawServiceConfig {} => {
+            let raw_config: ServiceConfig =
+                valence_service_utils::raw_config::query_raw_service_config(deps.storage)?;
+            to_json_binary(&raw_config)
         }
     }
 }

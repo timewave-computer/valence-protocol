@@ -4,30 +4,24 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Decimal, Deps, DepsMut, Uint128};
 use cw_ownable::cw_ownable_query;
 use getset::{Getters, Setters};
-use valence_macros::OptionalStruct;
+use valence_macros::{valence_service_query, ValenceServiceInterface};
 use valence_service_utils::denoms::CheckedDenom;
+use valence_service_utils::ServiceAccountType;
 use valence_service_utils::{
     denoms::UncheckedDenom, error::ServiceError, msg::ServiceConfigValidation,
 };
-use valence_service_utils::{ServiceAccountType, ServiceConfigInterface};
 
 #[cw_serde]
 pub enum ActionMsgs {
     Split {},
 }
 
+#[valence_service_query]
 #[cw_ownable_query]
 #[cw_serde]
 #[derive(QueryResponses)]
 /// Enum representing the different query messages that can be sent.
-pub enum QueryMsg {
-    /// Query to get the processor address.
-    #[returns(Addr)]
-    GetProcessor {},
-    /// Query to get the service configuration.
-    #[returns(Config)]
-    GetServiceConfig {},
-}
+pub enum QueryMsg {}
 
 pub type SplitConfigs = Vec<SplitConfig>;
 
@@ -155,7 +149,7 @@ impl UncheckedSplitConfig {
 }
 
 #[cw_serde]
-#[derive(OptionalStruct)]
+#[derive(ValenceServiceInterface)]
 pub struct ServiceConfig {
     pub input_addr: ServiceAccountType,
     pub splits: Vec<UncheckedSplitConfig>,
@@ -235,15 +229,10 @@ fn convert_to_checked_split_amount(
     }
 }
 
-impl ServiceConfigInterface<ServiceConfig> for ServiceConfig {
-    /// This function is used to see if 2 configs are different
-    fn is_diff(&self, other: &ServiceConfig) -> bool {
-        !self.eq(other)
-    }
-}
+impl ServiceConfigUpdate {
+    pub fn update_config(self, deps: DepsMut) -> Result<(), ServiceError> {
+        let mut config: Config = valence_service_base::load_config(deps.storage)?;
 
-impl OptionalServiceConfig {
-    pub fn update_config(self, deps: &DepsMut, config: &mut Config) -> Result<(), ServiceError> {
         // First update input_addr (if needed)
         if let Some(input_addr) = self.input_addr {
             config.input_addr = input_addr.to_addr(deps.api)?;
@@ -255,6 +244,8 @@ impl OptionalServiceConfig {
 
             config.splits = convert_to_checked_configs(deps.as_ref(), &splits)?;
         }
+
+        valence_service_base::save_config(deps.storage, &config)?;
         Ok(())
     }
 }
