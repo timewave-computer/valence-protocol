@@ -9,7 +9,10 @@ use super::test_suite::LPerTestSuite;
 #[should_panic]
 fn test_provide_liquidity_fails_validation_pool_not_found() {
     LPerTestSuite::new(
-        vec![coin(1_000_000u128, OSMO_DENOM)],
+        vec![
+            coin(1_000_000u128, OSMO_DENOM),
+            coin(1_000_000u128, TEST_DENOM),
+        ],
         Some(LiquidityProviderConfig {
             pool_id: Uint64::new(3),
             pool_asset_1: OSMO_DENOM.to_string(),
@@ -24,7 +27,10 @@ fn test_provide_liquidity_fails_validation_pool_not_found() {
 #[should_panic(expected = "Pool does not contain expected assets")]
 fn test_provide_liquidity_fails_validation_denom_mismatch() {
     LPerTestSuite::new(
-        vec![coin(1_000_000u128, OSMO_DENOM)],
+        vec![
+            coin(1_000_000u128, OSMO_DENOM),
+            coin(1_000_000u128, TEST_DENOM),
+        ],
         Some(LiquidityProviderConfig {
             pool_id: Uint64::one(),
             pool_asset_1: OSMO_DENOM.to_string(),
@@ -52,7 +58,7 @@ fn test_provide_liquidity_double_sided() {
 
     let pool = suite.query_cl_pool(suite.inner.pool_cfg.pool_id.u64());
     println!("PRE-LP pool: {:?}", pool);
-    suite.provide_two_sided_liquidity(-1000, 0, 0, 0);
+    suite.provide_liquidity_custom(-1000, 0, 0, 0);
 
     let pool = suite.query_cl_pool(suite.inner.pool_cfg.pool_id.u64());
     println!("POST-LP pool: {:?}", pool);
@@ -77,8 +83,8 @@ fn test_provide_liquidity_double_sided() {
 // }
 
 #[test]
-fn test_provide_liquidity_single_sided() {
-    let suite = LPerTestSuite::new(coins(1_000_000, OSMO_DENOM), None);
+fn test_provide_liquidity_default() {
+    let suite = LPerTestSuite::default();
 
     // let input_acc_positions = suite
     //     .query_cl_positions(suite.input_acc.to_string())

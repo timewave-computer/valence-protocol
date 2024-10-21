@@ -112,7 +112,7 @@ impl LPerTestSuite {
         cl_pool
     }
 
-    pub fn provide_two_sided_liquidity(
+    pub fn provide_liquidity_custom(
         &self,
         lower_tick: i64,
         upper_tick: i64,
@@ -135,18 +135,17 @@ impl LPerTestSuite {
         .unwrap()
     }
 
-    pub fn provide_single_sided_liquidity(
+    pub fn _provide_liquidity_default(
         &self,
-        asset: &str,
-        limit: u128,
-        lower_tick: i64,
-        upper_tick: i64,
+        range: u64,
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
         wasm.execute::<ExecuteMsg<ActionMsgs, ServiceConfigUpdate>>(
             &self.lper_addr,
-            &ExecuteMsg::ProcessAction(ActionMsgs::ProvideLiquidityDefault {}),
+            &ExecuteMsg::ProcessAction(ActionMsgs::ProvideLiquidityDefault {
+                tick_range: range.into(),
+            }),
             &[],
             self.inner.processor_acc(),
         )

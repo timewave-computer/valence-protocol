@@ -78,7 +78,9 @@ pub fn process_action(
             token_min_amount_0.unwrap_or_default(),
             token_min_amount_1.unwrap_or_default(),
         ),
-        ActionMsgs::ProvideLiquidityDefault {} => provide_liquidity_default(deps, cfg),
+        ActionMsgs::ProvideLiquidityDefault { tick_range } => {
+            provide_liquidity_default(deps, cfg, tick_range.into())
+        }
     }
 }
 
@@ -108,9 +110,6 @@ pub fn provide_liquidity_custom(
         StdError::generic_err("tick range validation error")
     );
 
-    // let current_tick =
-    //     validate_tick_range(&deps, cfg.lp_config.pool_id.u64(), (global_min, global_max))?;
-
     let create_cl_position_msg: CosmosMsg = MsgCreatePosition {
         pool_id: cfg.lp_config.pool_id.u64(),
         sender: cfg.input_addr.to_string(),
@@ -135,7 +134,11 @@ pub fn provide_liquidity_custom(
     Ok(Response::default().add_submessage(service_submsg))
 }
 
-pub fn provide_liquidity_default(deps: DepsMut, cfg: Config) -> Result<Response, ServiceError> {
+pub fn provide_liquidity_default(
+    deps: DepsMut,
+    cfg: Config,
+    range: u64,
+) -> Result<Response, ServiceError> {
     // first we assert the input account balances
     let bal_asset_1 = deps
         .querier
@@ -177,7 +180,7 @@ pub fn provide_liquidity_default(deps: DepsMut, cfg: Config) -> Result<Response,
         .add_submessage(SubMsg::reply_on_success(delegated_input_acc_msgs, REPLY_ID)))
 }
 
-fn validate_global_min_max_ranges(
+fn _validate_global_min_max_ranges(
     deps: &DepsMut,
     min: Int64,
     max: Int64,

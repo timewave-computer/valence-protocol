@@ -12,7 +12,7 @@ use valence_service_utils::{
 
 #[cw_serde]
 pub enum ActionMsgs {
-    // provide liquidity at custom
+    // provide liquidity at custom range
     ProvideLiquidityCustom {
         lower_tick: Int64,
         upper_tick: Int64,
@@ -20,7 +20,11 @@ pub enum ActionMsgs {
         token_min_amount_0: Option<Uint128>,
         token_min_amount_1: Option<Uint128>,
     },
-    ProvideLiquidityDefault {},
+    // provide liquidity around the current tick
+    ProvideLiquidityDefault {
+        // how many ticks to cover on both sides of the current tick (-/+)
+        tick_range: Uint64,
+    },
 }
 
 #[cw_ownable_query]
