@@ -2,7 +2,7 @@ use crate::msg::{ActionMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdat
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    coin, ensure, to_json_binary, to_json_string, Binary, CosmosMsg, Deps, DepsMut, Env, Int64,
+    ensure, to_json_binary, to_json_string, Binary, CosmosMsg, Deps, DepsMut, Env, Int64,
     MessageInfo, Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128,
 };
 use osmosis_std::{
