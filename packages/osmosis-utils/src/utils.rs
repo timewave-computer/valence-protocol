@@ -7,6 +7,13 @@ use osmosis_std::{
 use valence_service_utils::error::ServiceError;
 
 #[cw_serde]
+pub struct LiquidityProviderConfig {
+    pub pool_id: u64,
+    pub pool_asset_1: String,
+    pub pool_asset_2: String,
+}
+
+#[cw_serde]
 pub struct DecimalRange {
     min: Decimal,
     max: Decimal,

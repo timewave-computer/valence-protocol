@@ -15,7 +15,7 @@ testing = [
 cosmwasm-std            = { workspace = true }
 cosmwasm-schema         = { workspace = true }
 osmosis-test-tube       = { workspace = true, optional = true }
-cosmwasm-std-polytone   = { package = "cosmwasm-std", version = "1.5.7" }
+cosmwasm-std-old        = { package = "cosmwasm-std", version = "1.5.7" }
 valence-account-utils   = { workspace = true }
 osmosis-std             = { workspace = true }
 valence-service-utils   = { workspace = true }
