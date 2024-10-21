@@ -97,6 +97,26 @@ pub fn provide_liquidity_custom(
         .querier
         .query_balance(&cfg.input_addr, cfg.lp_config.pool_asset_2.as_str())?;
 
+    // query the pool config
+    let pool_cfg = query_cl_pool(&deps, cfg.lp_config.pool_id.u64())?;
+
+    // we derive the tick range from the bucket count
+    let (current_bucket_min, current_bucket_max) =
+        get_bucket_range(pool_cfg.current_tick, pool_cfg.tick_spacing);
+
+    deps.api.debug(
+        format!(
+            "current bucket: [{}, {}]",
+            current_bucket_min, current_bucket_max
+        )
+        .as_str(),
+    );
+
+    ensure!(
+        tick_range.is_multiple_of(current_bucket_min, current_bucket_max),
+        StdError::generic_err("custom range does not respect bucket spacing")
+    );
+
     ensure!(
         cfg.lp_config.global_tick_range.contains(&tick_range),
         StdError::generic_err("tick range validation error")
@@ -228,8 +248,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ServiceError> {
-    deps.api.debug(format!("reply: {:?}", msg).as_str());
+pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ServiceError> {
     match msg.id {
         REPLY_ID => handle_liquidity_provision_reply_id(msg.result),
         _ => Err(ServiceError::Std(StdError::generic_err("unknown reply id"))),

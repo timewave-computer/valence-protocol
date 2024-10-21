@@ -120,3 +120,27 @@ fn test_provide_liquidity_default() {
     let input_balances = suite.inner.query_all_balances(suite.input_acc.as_str());
     println!("input balances post-lp: {:?}", input_balances);
 }
+
+#[test]
+#[should_panic(expected = "tick range validation error")]
+fn test_provide_liquidity_default_invalid_tick_range() {
+    unimplemented!()
+}
+
+#[test]
+#[should_panic(expected = "failed to get tick range delta (mul failed)")]
+fn test_provide_liquidity_default_failes_to_get_bucket_range_delta() {
+    unimplemented!()
+}
+
+#[test]
+#[should_panic(expected = "custom range does not respect bucket spacing")]
+fn test_provide_liquidity_custom_with_disrespectful_range() {
+    unimplemented!()
+}
+
+#[test]
+#[should_panic(expected = "tick range validation error")]
+fn test_provide_liquidity_custom_invalid_tick_range() {
+    unimplemented!()
+}

@@ -17,6 +17,10 @@ pub struct TickRange {
 }
 
 impl TickRange {
+    pub fn is_multiple_of(&self, min: i64, max: i64) -> bool {
+        self.lower_tick.i64() & min == 0 && self.upper_tick.i64() % max == 0
+    }
+
     pub fn contains(&self, other: &TickRange) -> bool {
         self.lower_tick <= other.lower_tick && self.upper_tick >= other.upper_tick
     }
