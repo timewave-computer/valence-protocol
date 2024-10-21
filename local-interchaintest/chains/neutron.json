@@ -16,7 +16,6 @@
       "gas_adjustment": 1.3,
       "number_vals": 1,
       "number_node": 0,
-      "ibc_paths": ["gaia-juno"],
       "debugging": true,
       "block_time": "1s",
       "genesis": {
