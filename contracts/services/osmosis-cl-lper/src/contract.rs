@@ -1,9 +1,9 @@
-use crate::msg::{ActionMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate};
+use crate::msg::{ActionMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate, TickRange};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, to_json_binary, to_json_string, Binary, CosmosMsg, Deps, DepsMut, Env, Int64,
-    MessageInfo, Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128,
+    ensure, to_json_binary, to_json_string, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
+    Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, Uint64,
 };
 use osmosis_std::{
     cosmwasm_to_proto_coins,
@@ -16,7 +16,7 @@ use osmosis_std::{
 };
 
 use valence_account_utils::msg::{parse_valence_payload, ValenceCallback};
-use valence_osmosis_utils::utils::LiquidityProviderConfig;
+
 use valence_service_utils::{
     error::ServiceError,
     execute_on_behalf_of, execute_submsgs_on_behalf_of,
@@ -66,20 +66,18 @@ pub fn process_action(
 ) -> Result<Response, ServiceError> {
     match msg {
         ActionMsgs::ProvideLiquidityCustom {
-            lower_tick,
-            upper_tick,
+            tick_range,
             token_min_amount_0,
             token_min_amount_1,
         } => provide_liquidity_custom(
             deps,
             cfg,
-            lower_tick.i64(),
-            upper_tick.i64(),
+            tick_range,
             token_min_amount_0.unwrap_or_default(),
             token_min_amount_1.unwrap_or_default(),
         ),
-        ActionMsgs::ProvideLiquidityDefault { tick_range } => {
-            provide_liquidity_default(deps, cfg, tick_range.into())
+        ActionMsgs::ProvideLiquidityDefault { bucket_amount } => {
+            provide_liquidity_default(deps, cfg, bucket_amount)
         }
     }
 }
@@ -87,8 +85,7 @@ pub fn process_action(
 pub fn provide_liquidity_custom(
     deps: DepsMut,
     cfg: Config,
-    lower_tick: i64,
-    upper_tick: i64,
+    tick_range: TickRange,
     token_min_amount_0: Uint128,
     token_min_amount_1: Uint128,
 ) -> Result<Response, ServiceError> {
@@ -100,21 +97,16 @@ pub fn provide_liquidity_custom(
         .querier
         .query_balance(&cfg.input_addr, cfg.lp_config.pool_asset_2.as_str())?;
 
-    let (global_min, global_max) = (
-        cfg.lp_config.global_tick_min.i64(),
-        cfg.lp_config.global_tick_max.i64(),
-    );
-
     ensure!(
-        lower_tick >= global_min && upper_tick <= global_max && lower_tick < upper_tick,
+        cfg.lp_config.global_tick_range.contains(&tick_range),
         StdError::generic_err("tick range validation error")
     );
 
     let create_cl_position_msg: CosmosMsg = MsgCreatePosition {
         pool_id: cfg.lp_config.pool_id.u64(),
         sender: cfg.input_addr.to_string(),
-        lower_tick,
-        upper_tick,
+        lower_tick: tick_range.lower_tick.i64(),
+        upper_tick: tick_range.upper_tick.i64(),
         tokens_provided: cosmwasm_to_proto_coins(vec![bal_asset_1, bal_asset_2]),
         token_min_amount0: token_min_amount_0.to_string(),
         token_min_amount1: token_min_amount_1.to_string(),
@@ -134,10 +126,18 @@ pub fn provide_liquidity_custom(
     Ok(Response::default().add_submessage(service_submsg))
 }
 
+fn get_bucket_range(current_tick: i64, tick_spacing: u64) -> (i64, i64) {
+    let tick_spacing_i64 = tick_spacing as i64;
+
+    let lower_bound = (current_tick / tick_spacing_i64) * tick_spacing_i64;
+
+    (lower_bound, lower_bound + tick_spacing_i64)
+}
+
 pub fn provide_liquidity_default(
     deps: DepsMut,
     cfg: Config,
-    range: u64,
+    bucket_count: Uint64,
 ) -> Result<Response, ServiceError> {
     // first we assert the input account balances
     let bal_asset_1 = deps
@@ -147,19 +147,34 @@ pub fn provide_liquidity_default(
         .querier
         .query_balance(&cfg.input_addr, cfg.lp_config.pool_asset_2.as_str())?;
 
-    let (global_min, global_max) = (
-        cfg.lp_config.global_tick_min.i64(),
-        cfg.lp_config.global_tick_max.i64(),
-    );
+    // query the pool config
+    let pool_cfg = query_cl_pool(&deps, cfg.lp_config.pool_id.u64())?;
 
-    let current_tick =
-        validate_tick_range(&deps, cfg.lp_config.pool_id.u64(), (global_min, global_max))?;
+    // we derive the tick range from the bucket count
+    let (current_bucket_min, current_bucket_max) =
+        get_bucket_range(pool_cfg.current_tick, pool_cfg.tick_spacing);
+
+    let range_delta = bucket_count
+        .checked_mul(pool_cfg.tick_spacing.into())
+        .map_err(|_| StdError::generic_err("failed to get tick range delta (mul failed)"))?;
+
+    let derived_tick_range = TickRange::try_from_wraparound(
+        (current_bucket_min.into(), current_bucket_max.into()),
+        range_delta,
+    )?;
+
+    ensure!(
+        cfg.lp_config
+            .global_tick_range
+            .contains(&derived_tick_range),
+        StdError::generic_err("tick range validation error")
+    );
 
     let create_cl_position_msg: CosmosMsg = MsgCreatePosition {
         pool_id: cfg.lp_config.pool_id.u64(),
         sender: cfg.input_addr.to_string(),
-        lower_tick: global_min,
-        upper_tick: global_max,
+        lower_tick: derived_tick_range.lower_tick.i64(),
+        upper_tick: derived_tick_range.upper_tick.i64(),
         tokens_provided: cosmwasm_to_proto_coins(vec![bal_asset_1, bal_asset_2]),
         token_min_amount0: "0".to_string(),
         token_min_amount1: "0".to_string(),
@@ -180,16 +195,7 @@ pub fn provide_liquidity_default(
         .add_submessage(SubMsg::reply_on_success(delegated_input_acc_msgs, REPLY_ID)))
 }
 
-fn _validate_global_min_max_ranges(
-    deps: &DepsMut,
-    min: Int64,
-    max: Int64,
-    lp_config: &LiquidityProviderConfig,
-) -> StdResult<()> {
-    Ok(())
-}
-
-fn validate_tick_range(deps: &DepsMut, pool_id: u64, range: (i64, i64)) -> StdResult<i64> {
+fn query_cl_pool(deps: &DepsMut, pool_id: u64) -> StdResult<Pool> {
     let querier = PoolmanagerQuerier::new(&deps.querier);
     let proto_pool = querier
         .pool(pool_id)?
@@ -202,17 +208,7 @@ fn validate_tick_range(deps: &DepsMut, pool_id: u64, range: (i64, i64)) -> StdRe
 
     deps.api.debug(format!("pool config: {:?}", pool).as_str());
 
-    if pool.current_tick >= range.0 && pool.current_tick <= range.1 {
-        Ok(pool.current_tick)
-    } else {
-        Err(StdError::generic_err(
-            format!(
-                "current tick {} not in range ({}, {})",
-                pool.current_tick, range.0, range.1
-            )
-            .as_str(),
-        ))
-    }
+    Ok(pool)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

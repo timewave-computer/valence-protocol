@@ -16,7 +16,9 @@ use valence_osmosis_utils::{
 };
 use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 
-use crate::msg::{ActionMsgs, LiquidityProviderConfig, ServiceConfig, ServiceConfigUpdate};
+use crate::msg::{
+    ActionMsgs, LiquidityProviderConfig, ServiceConfig, ServiceConfigUpdate, TickRange,
+};
 
 pub struct LPerTestSuite {
     pub inner: OsmosisTestAppSetup<ConcentratedLiquidityPool>,
@@ -60,8 +62,10 @@ impl LPerTestSuite {
                     pool_id: inner.pool_cfg.pool_id,
                     pool_asset_1: inner.pool_cfg.pool_asset_1.to_string(),
                     pool_asset_2: inner.pool_cfg.pool_asset_2.to_string(),
-                    global_tick_min: Int64::MIN,
-                    global_tick_max: Int64::MAX,
+                    global_tick_range: TickRange {
+                        lower_tick: Int64::MIN,
+                        upper_tick: Int64::MAX,
+                    },
                 }),
             ),
         };
@@ -124,8 +128,10 @@ impl LPerTestSuite {
         wasm.execute::<ExecuteMsg<ActionMsgs, ServiceConfigUpdate>>(
             &self.lper_addr,
             &ExecuteMsg::ProcessAction(ActionMsgs::ProvideLiquidityCustom {
-                lower_tick: Int64::new(lower_tick),
-                upper_tick: Int64::new(upper_tick),
+                tick_range: TickRange {
+                    lower_tick: Int64::new(lower_tick),
+                    upper_tick: Int64::new(upper_tick),
+                },
                 token_min_amount_0: Some(min_amount_0.into()),
                 token_min_amount_1: Some(min_amount_1.into()),
             }),
@@ -135,7 +141,7 @@ impl LPerTestSuite {
         .unwrap()
     }
 
-    pub fn _provide_liquidity_default(
+    pub fn provide_liquidity_default(
         &self,
         range: u64,
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
@@ -144,7 +150,7 @@ impl LPerTestSuite {
         wasm.execute::<ExecuteMsg<ActionMsgs, ServiceConfigUpdate>>(
             &self.lper_addr,
             &ExecuteMsg::ProcessAction(ActionMsgs::ProvideLiquidityDefault {
-                tick_range: range.into(),
+                bucket_amount: range.into(),
             }),
             &[],
             self.inner.processor_acc(),

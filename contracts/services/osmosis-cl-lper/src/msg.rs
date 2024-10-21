@@ -11,19 +11,47 @@ use valence_service_utils::{
 };
 
 #[cw_serde]
+pub struct TickRange {
+    pub lower_tick: Int64,
+    pub upper_tick: Int64,
+}
+
+impl TickRange {
+    pub fn contains(&self, other: &TickRange) -> bool {
+        self.lower_tick <= other.lower_tick && self.upper_tick >= other.upper_tick
+    }
+
+    pub fn try_from_wraparound(
+        current_bucket: (Int64, Int64),
+        delta: Uint64,
+    ) -> StdResult<TickRange> {
+        let delta_i64 = Int64::from(delta.u64() as i64);
+
+        let lower_tick = current_bucket.0.checked_sub(delta_i64)?;
+        let upper_tick = current_bucket.1.checked_add(delta_i64)?;
+
+        Ok(TickRange {
+            lower_tick,
+            upper_tick,
+        })
+    }
+}
+
+#[cw_serde]
 pub enum ActionMsgs {
     // provide liquidity at custom range
     ProvideLiquidityCustom {
-        lower_tick: Int64,
-        upper_tick: Int64,
+        tick_range: TickRange,
         // default to 0 `token_min_amount` if not provided
         token_min_amount_0: Option<Uint128>,
         token_min_amount_1: Option<Uint128>,
     },
     // provide liquidity around the current tick
     ProvideLiquidityDefault {
-        // how many ticks to cover on both sides of the current tick (-/+)
-        tick_range: Uint64,
+        // bucket is the distance between two ticks.
+        // this describes how many buckets around the current tick we want to cover
+        // to each side of the current tick (-/+).
+        bucket_amount: Uint64,
     },
 }
 
@@ -42,8 +70,7 @@ pub struct LiquidityProviderConfig {
     pub pool_id: Uint64,
     pub pool_asset_1: String,
     pub pool_asset_2: String,
-    pub global_tick_min: Int64,
-    pub global_tick_max: Int64,
+    pub global_tick_range: TickRange,
 }
 
 #[cw_serde]
