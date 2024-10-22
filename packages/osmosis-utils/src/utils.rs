@@ -152,7 +152,7 @@ pub mod cl_utils {
         // e.g. for a range of (100, 200) and a multiple of 2, it would obtain the
         // final range by taking [-100, 0], [0, 100], [100, 200], [200, 300], [300, 400]
         // which results in the final range of [-100, 400].
-        pub fn multiply_range(&self, multiple: Uint64) -> StdResult<TickRange> {
+        pub fn amplify_range_bidirectionally(&self, multiple: Uint64) -> StdResult<TickRange> {
             // todo: make this safe by either checking for overflow or just
             // accept u32 as input
             let multiple_i64 = Int64::from(multiple.u64() as i64);
@@ -257,7 +257,7 @@ pub mod cl_utils {
                 lower_tick: Int64::new(100),
                 upper_tick: Int64::new(200),
             };
-            let multiplied_range = range.multiply_range(Uint64::new(2)).unwrap();
+            let multiplied_range = range.amplify_range_bidirectionally(Uint64::new(2)).unwrap();
             assert_eq!(multiplied_range.lower_tick, Int64::new(-100));
             assert_eq!(multiplied_range.upper_tick, Int64::new(400));
         }

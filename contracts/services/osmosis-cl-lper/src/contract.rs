@@ -156,7 +156,7 @@ pub fn provide_liquidity_default(
     let active_bucket = TickRange::from(pool_cfg);
 
     // we extend the active bucket range to both sides by the bucket count
-    let derived_tick_range = active_bucket.multiply_range(bucket_count)?;
+    let derived_tick_range = active_bucket.amplify_range_bidirectionally(bucket_count)?;
 
     // the target range must be contained within the global tick range
     cfg.lp_config
