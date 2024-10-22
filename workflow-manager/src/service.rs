@@ -13,6 +13,7 @@ use valence_service_utils::{
 };
 
 use crate::domain::Domain;
+use crate::helpers::bool_true_default;
 
 pub type ServiceResult<T> = Result<T, ServiceError>;
 
@@ -39,6 +40,7 @@ pub enum ServiceError {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServiceInfo {
+    #[serde(default = "bool_true_default")]
     pub active: bool,
     pub name: String,
     pub domain: Domain,
@@ -59,6 +61,16 @@ impl ServiceInfo {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServiceInfoUpdate {
+    #[serde(default = "bool_true_default")]
+    pub active: bool,
+    pub name: String,
+    pub domain: Domain,
+    pub config: Option<ServiceConfigUpdate>,
+    pub addr: Option<String>,
+}
+
 /// This is a list of all our services we support and their configs.
 #[derive(
     Debug, Clone, strum::Display, Serialize, Deserialize, VariantNames, PartialEq, Default,
@@ -72,6 +84,20 @@ pub enum ServiceConfig {
     ValenceReverseSplitterService(valence_reverse_splitter_service::msg::ServiceConfig),
     ValenceAstroportLper(valence_astroport_lper::msg::ServiceConfig),
     ValenceAstroportWithdrawer(valence_astroport_withdrawer::msg::ServiceConfig),
+}
+
+#[derive(
+    Debug, Clone, strum::Display, Serialize, Deserialize, VariantNames, PartialEq, Default,
+)]
+#[strum(serialize_all = "snake_case")]
+pub enum ServiceConfigUpdate {
+    #[default]
+    None,
+    ValenceForwarderService(valence_forwarder_service::msg::ServiceConfigUpdate),
+    ValenceSplitterService(valence_splitter_service::msg::ServiceConfigUpdate),
+    ValenceReverseSplitterService(valence_reverse_splitter_service::msg::ServiceConfigUpdate),
+    ValenceAstroportLper(valence_astroport_lper::msg::ServiceConfigUpdate),
+    ValenceAstroportWithdrawer(valence_astroport_withdrawer::msg::ServiceConfigUpdate),
 }
 
 // TODO: create macro for the methods that work the same over all of the configs
@@ -208,9 +234,9 @@ impl ServiceConfig {
         let res = ac.find_iter(&json);
         let mut account_ids = vec![];
 
-        // LOist of all matches
+        // List of all matches
         for mat in res {
-            // we take a substring from our match to the next 5 characters
+            // we take a substring from our match to the end of the json
             // we loop over those characters and see if they are numbers
             // once we found a char that is not a number we stop
             // we get Vec<char> and convert it to a string and parse to Id (u64)

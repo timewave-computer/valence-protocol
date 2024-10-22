@@ -79,6 +79,21 @@ pub fn valence_service_interface_derive(input: TokenStream) -> TokenStream {
         }
     });
 
+    // New: Generate fields for into_update implementation
+    let into_update_fields = filtered_fields.iter().map(|f| {
+        let name = &f.ident;
+
+        if get_option_inner_type(&f.ty).is_some() {
+            quote! {
+                #name: OptionUpdate::Set(self.#name.clone()),
+            }
+        } else {
+            quote! {
+                #name: Some(self.#name.clone()),
+            }
+        }
+    });
+
     let expanded = quote! {
         use valence_service_utils::{ServiceConfigUpdateTrait, OptionUpdate, raw_config::{save_raw_service_config, load_raw_service_config}};
         use cosmwasm_std::StdResult;
@@ -110,6 +125,13 @@ pub fn valence_service_interface_derive(input: TokenStream) -> TokenStream {
                     Some(update)
                 } else {
                     None
+                }
+            }
+
+            // New: Added into_update implementation
+            pub fn into_update(&self) -> #filter_name {
+                #filter_name {
+                    #(#into_update_fields)*
                 }
             }
         }

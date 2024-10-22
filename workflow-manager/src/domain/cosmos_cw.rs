@@ -801,6 +801,41 @@ impl Connector for CosmosCosmwasmConnector {
 
         Ok(())
     }
+
+    async fn get_workflow_config(&mut self, id: u64) -> ConnectorResult<WorkflowConfig> {
+        if self.chain_name != *NEUTRON_CHAIN {
+            return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                "Should only be implemented on neutron connector"
+            ))
+            .into());
+        }
+
+        let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();
+
+        let query = QuerySmartContractStateRequest {
+            address: registry_addr,
+            query_data: to_vec(&valence_workflow_registry_utils::QueryMsg::GetConfig { id })
+                .map_err(CosmosCosmwasmError::SerdeJsonError)?,
+        };
+
+        let res = from_json::<valence_workflow_registry_utils::WorkflowResponse>(
+            &self
+                .wallet
+                .client
+                .clients
+                .wasm
+                .smart_contract_state(query)
+                .await
+                .context("Failed to query the workflow config from registry")
+                .map_err(CosmosCosmwasmError::Error)?
+                .into_inner()
+                .data,
+        )
+        .map_err(CosmosCosmwasmError::CosmwasmStdError)?;
+
+        Ok(from_json::<WorkflowConfig>(&res.workflow_config)
+            .map_err(CosmosCosmwasmError::CosmwasmStdError)?)
+    }
 }
 
 // Helpers

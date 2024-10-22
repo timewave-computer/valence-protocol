@@ -9,8 +9,8 @@ pub mod macros;
 pub mod service;
 pub mod tests;
 pub mod workflow_config;
-pub mod workflow_update;
 pub mod workflow_config_builder;
+pub mod workflow_update;
 
 use connectors::Connectors;
 use error::ManagerResult;
