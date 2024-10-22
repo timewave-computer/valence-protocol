@@ -7,6 +7,10 @@ pub mod polytone;
 pub mod processor;
 pub mod relayer;
 
+// Local-ic chain configs files
+pub const NEUTRON_CONFIG_FILE: &str = "neutron.json";
+pub const NEUTRON_JUNO_CONFIG_FILE: &str = "neutron_juno.json";
+
 // Path of all valence contracts
 pub const VALENCE_ARTIFACTS_PATH: &str = "artifacts";
 // We keep the polytone contracts here for our tests

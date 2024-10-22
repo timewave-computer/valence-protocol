@@ -3,17 +3,21 @@ use std::{env, error::Error};
 use cosmwasm_std::{Binary, Decimal, Uint128};
 use cosmwasm_std_old::Coin;
 use local_interchaintest::utils::{
-    manager::{setup_manager, use_manager_init},
+    manager::{
+        setup_manager, use_manager_init, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME,
+        FORWARDER_NAME, REVERSE_SPLITTER_NAME, SPLITTER_NAME,
+    },
     processor::tick_processor,
     ASTROPORT_LP_SUBDENOM, ASTROPORT_PATH, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
-    LOGS_FILE_PATH, NEUTRON_USER_ADDRESS_1, NTRN_DENOM, USER_KEY_1, VALENCE_ARTIFACTS_PATH,
+    LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, NEUTRON_USER_ADDRESS_1, NTRN_DENOM, USER_KEY_1,
+    VALENCE_ARTIFACTS_PATH,
 };
 use localic_std::modules::{
     bank,
     cosmwasm::{contract_execute, contract_instantiate, contract_query},
 };
 use localic_utils::{
-    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, LOCAL_IC_API_URL,
+    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
     NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
 };
 use log::info;
@@ -680,7 +684,18 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Creating the workflow...");
     workflow_config.verify_new_config()?;
-    setup_manager(&mut test_ctx)?;
+    setup_manager(
+        &mut test_ctx,
+        NEUTRON_CONFIG_FILE,
+        vec![GAIA_CHAIN_NAME],
+        vec![
+            SPLITTER_NAME,
+            REVERSE_SPLITTER_NAME,
+            FORWARDER_NAME,
+            ASTROPORT_LPER_NAME,
+            ASTROPORT_WITHDRAWER_NAME,
+        ],
+    )?;
     use_manager_init(&mut workflow_config)?;
 
     // Get addresses that we need to start

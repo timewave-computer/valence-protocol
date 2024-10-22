@@ -156,7 +156,7 @@ jobs:
       - name: Start local-ic and wait for it to be ready
         run: |
           cd local-interchaintest
-          /tmp/local-ic start neutron_juno --api-port 42069 &
+          /tmp/local-ic start neutron --api-port 42069 &
           curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
 
       - name: Run token_swap example
@@ -201,7 +201,7 @@ jobs:
       - name: Start local-ic and wait for it to be ready
         run: |
           cd local-interchaintest
-          /tmp/local-ic start neutron_juno --api-port 42069 &
+          /tmp/local-ic start neutron --api-port 42069 &
           curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
       
       - name: Run 2 party POL Astroport on Neutron example

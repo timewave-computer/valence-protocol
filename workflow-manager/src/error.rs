@@ -3,11 +3,7 @@ use std::collections::BTreeSet;
 use thiserror::Error;
 use valence_service_utils::Id;
 
-use crate::{
-    config::ConfigError,
-    domain::{ConnectorError, Domain},
-    service::ServiceError,
-};
+use crate::{config::ConfigError, domain::ConnectorError, service::ServiceError};
 
 pub type ManagerResult<T> = Result<T, ManagerError>;
 
@@ -65,7 +61,7 @@ pub enum ManagerError {
     WorkflowIdAlreadyExists(u64),
 
     #[error("Failed to get processor address for this domain: {0}")]
-    ProcessorAddrNotFound(Domain),
+    ProcessorAddrNotFound(String),
 }
 
 impl ManagerError {
