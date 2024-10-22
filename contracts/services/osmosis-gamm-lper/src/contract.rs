@@ -60,7 +60,6 @@ pub fn process_action(
     deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-
     msg: ActionMsgs,
     cfg: Config,
 ) -> Result<Response, ServiceError> {
@@ -201,7 +200,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             let config: Config = valence_service_base::load_config(deps.storage)?;
             to_json_binary(&config)
         }
-
         QueryMsg::GetRawServiceConfig {} => {
             let raw_config: ServiceConfig =
                 valence_service_utils::raw_config::query_raw_service_config(deps.storage)?;

@@ -92,8 +92,6 @@ pub mod cl_utils {
             .try_into()
             .map_err(|_| StdError::generic_err("failed to decode proto pool"))?;
 
-        deps.api.debug(format!("pool config: {:?}", pool).as_str());
-
         Ok(pool)
     }
 
