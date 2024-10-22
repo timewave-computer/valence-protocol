@@ -13,12 +13,11 @@ use osmosis_test_tube::{
 use valence_osmosis_utils::{
     suite::{OsmosisTestAppBuilder, OsmosisTestAppSetup, OSMO_DENOM, TEST_DENOM},
     testing::concentrated_liquidity::ConcentratedLiquidityPool,
+    utils::cl_utils::TickRange,
 };
 use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 
-use crate::msg::{
-    ActionMsgs, LiquidityProviderConfig, ServiceConfig, ServiceConfigUpdate, TickRange,
-};
+use crate::msg::{ActionMsgs, LiquidityProviderConfig, ServiceConfig, ServiceConfigUpdate};
 
 pub struct LPerTestSuite {
     pub inner: OsmosisTestAppSetup<ConcentratedLiquidityPool>,

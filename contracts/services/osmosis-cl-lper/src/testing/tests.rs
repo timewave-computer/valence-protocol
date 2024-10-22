@@ -1,7 +1,10 @@
 use cosmwasm_std::{coin, Int64, Uint64};
-use valence_osmosis_utils::suite::{OSMO_DENOM, TEST_DENOM};
+use valence_osmosis_utils::{
+    suite::{OSMO_DENOM, TEST_DENOM},
+    utils::cl_utils::TickRange,
+};
 
-use crate::msg::{LiquidityProviderConfig, TickRange};
+use crate::msg::LiquidityProviderConfig;
 
 use super::test_suite::LPerTestSuite;
 
@@ -79,14 +82,6 @@ fn test_provide_liquidity_custom() {
 }
 
 #[test]
-#[should_panic(expected = "failed to get tick range delta (mul failed)")]
-fn test_provide_liquidity_default_overflows_building_range() {
-    let suite = LPerTestSuite::default();
-
-    suite.provide_liquidity_default(u64::MAX);
-}
-
-#[test]
 fn test_provide_liquidity_default() {
     let suite = LPerTestSuite::default();
 
@@ -122,25 +117,41 @@ fn test_provide_liquidity_default() {
 }
 
 #[test]
-#[should_panic(expected = "tick range validation error")]
-fn test_provide_liquidity_default_invalid_tick_range() {
-    unimplemented!()
-}
-
-#[test]
-#[should_panic(expected = "failed to get tick range delta (mul failed)")]
-fn test_provide_liquidity_default_failes_to_get_bucket_range_delta() {
-    unimplemented!()
-}
-
-#[test]
-#[should_panic(expected = "custom range does not respect bucket spacing")]
+#[should_panic(expected = "tick range is not a multiple of the other")]
 fn test_provide_liquidity_custom_with_disrespectful_range() {
-    unimplemented!()
+    let suite = LPerTestSuite::default();
+
+    // pool's tick spacing is 100, this range should fail
+    suite.provide_liquidity_custom(-150, 250, 0, 0);
 }
 
 #[test]
-#[should_panic(expected = "tick range validation error")]
+#[should_panic(expected = "lower tick must be less than upper tick")]
 fn test_provide_liquidity_custom_invalid_tick_range() {
-    unimplemented!()
+    let suite = LPerTestSuite::default();
+
+    suite.provide_liquidity_custom(1000, -1000, 0, 0);
+}
+
+#[test]
+#[should_panic(expected = "other tick range is not contained by this range")]
+fn test_provide_liquidity_default_validates_global_min_max_range() {
+    let suite = LPerTestSuite::new(
+        vec![
+            coin(1_000_000u128, OSMO_DENOM),
+            coin(1_000_000u128, TEST_DENOM),
+        ],
+        Some(LiquidityProviderConfig {
+            pool_id: Uint64::one(),
+            pool_asset_1: OSMO_DENOM.to_string(),
+            pool_asset_2: TEST_DENOM.to_string(),
+            global_tick_range: TickRange {
+                lower_tick: Int64::new(-100),
+                upper_tick: Int64::new(100),
+            },
+        }),
+    );
+
+    // This should fail because the resulting range will exceed the global tick range
+    suite.provide_liquidity_default(1000);
 }

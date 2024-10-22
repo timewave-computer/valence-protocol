@@ -72,3 +72,194 @@ pub fn get_provide_ss_liquidity_msg(
 
     Ok(msg_join_pool_yes_swap)
 }
+
+pub mod cl_utils {
+    use cosmwasm_schema::cw_serde;
+    use cosmwasm_std::{ensure, DepsMut, Int64, StdError, StdResult, Uint64};
+    use osmosis_std::types::osmosis::{
+        concentratedliquidity::v1beta1::Pool, poolmanager::v1beta1::PoolmanagerQuerier,
+    };
+    use valence_service_utils::error::ServiceError;
+
+    pub fn query_cl_pool(deps: &DepsMut, pool_id: u64) -> StdResult<Pool> {
+        let querier = PoolmanagerQuerier::new(&deps.querier);
+        let proto_pool = querier
+            .pool(pool_id)?
+            .pool
+            .ok_or(StdError::generic_err("failed to query pool"))?;
+
+        let pool: Pool = proto_pool
+            .try_into()
+            .map_err(|_| StdError::generic_err("failed to decode proto pool"))?;
+
+        deps.api.debug(format!("pool config: {:?}", pool).as_str());
+
+        Ok(pool)
+    }
+
+    #[cw_serde]
+    pub struct TickRange {
+        pub lower_tick: Int64,
+        pub upper_tick: Int64,
+    }
+
+    impl From<Pool> for TickRange {
+        fn from(value: Pool) -> Self {
+            let tick_spacing = value.tick_spacing as i64;
+
+            let lower_bound = (value.current_tick / tick_spacing) * tick_spacing;
+
+            TickRange {
+                lower_tick: lower_bound.into(),
+                upper_tick: (lower_bound + tick_spacing).into(),
+            }
+        }
+    }
+
+    impl TickRange {
+        pub fn validate(&self) -> Result<(), ServiceError> {
+            ensure!(
+                self.lower_tick < self.upper_tick,
+                ServiceError::ExecutionError("lower tick must be less than upper tick".to_string())
+            );
+            Ok(())
+        }
+
+        pub fn ensure_multiple_of(&self, other: &TickRange) -> Result<(), ServiceError> {
+            let lower_range_multiple = self.lower_tick.i64() & other.lower_tick.i64() == 0;
+            let upper_range_multiple = self.upper_tick.i64() % other.upper_tick.i64() == 0;
+            ensure!(
+                lower_range_multiple && upper_range_multiple,
+                ServiceError::ExecutionError(
+                    "tick range is not a multiple of the other".to_string()
+                )
+            );
+            Ok(())
+        }
+
+        pub fn ensure_contains(&self, other: &TickRange) -> Result<(), ServiceError> {
+            ensure!(
+                self.lower_tick <= other.lower_tick && self.upper_tick >= other.upper_tick,
+                ServiceError::ExecutionError(
+                    "other tick range is not contained by this range".to_string()
+                )
+            );
+            Ok(())
+        }
+
+        // takes the current bucket and extends its range by wrapping the current
+        // range between `multiple` amount of mirrored buckets placed on both sides
+        // e.g. for a range of (100, 200) and a multiple of 2, it would obtain the
+        // final range by taking [-100, 0], [0, 100], [100, 200], [200, 300], [300, 400]
+        // which results in the final range of [-100, 400].
+        pub fn multiply_range(&self, multiple: Uint64) -> StdResult<TickRange> {
+            // todo: make this safe by either checking for overflow or just
+            // accept u32 as input
+            let multiple_i64 = Int64::from(multiple.u64() as i64);
+
+            let distance = self.upper_tick - self.lower_tick;
+            let extension = distance * multiple_i64;
+
+            let new_lower_tick = self.lower_tick - extension;
+            let new_upper_tick = self.upper_tick + extension;
+
+            Ok(TickRange {
+                lower_tick: new_lower_tick,
+                upper_tick: new_upper_tick,
+            })
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use cosmwasm_std::{Int64, Uint64};
+
+        fn default_pool() -> Pool {
+            Pool {
+                current_tick: 100,
+                tick_spacing: 10,
+                ..Default::default()
+            }
+        }
+
+        #[test]
+        fn test_tick_range_from_pool() {
+            let pool = default_pool();
+            let tick_range = TickRange::from(pool);
+            assert_eq!(tick_range.lower_tick, Int64::new(100));
+            assert_eq!(tick_range.upper_tick, Int64::new(110));
+        }
+
+        #[test]
+        fn test_tick_range_validate_happy() {
+            let valid_range = TickRange {
+                lower_tick: Int64::new(100),
+                upper_tick: Int64::new(200),
+            };
+            assert!(valid_range.validate().is_ok());
+        }
+
+        #[test]
+        #[should_panic(expected = "lower tick must be less than upper tick")]
+        fn test_tick_range_validation_panics() {
+            let invalid_range = TickRange {
+                lower_tick: Int64::new(200),
+                upper_tick: Int64::new(100),
+            };
+            assert!(invalid_range.validate().is_err());
+        }
+
+        #[test]
+        fn test_tick_range_ensure_multiple_of_happy() {
+            let range1 = TickRange {
+                lower_tick: Int64::new(100),
+                upper_tick: Int64::new(200),
+            };
+            let range2 = TickRange {
+                lower_tick: Int64::new(50),
+                upper_tick: Int64::new(100),
+            };
+            assert!(range1.ensure_multiple_of(&range2).is_ok());
+        }
+
+        #[test]
+        #[should_panic(expected = "tick range is not a multiple of the other")]
+        fn test_tick_range_ensure_multiple_of_errors() {
+            let range1 = TickRange {
+                lower_tick: Int64::new(100),
+                upper_tick: Int64::new(200),
+            };
+            let range2 = TickRange {
+                lower_tick: Int64::new(75),
+                upper_tick: Int64::new(150),
+            };
+            assert!(range1.ensure_multiple_of(&range2).is_err());
+        }
+
+        #[test]
+        fn test_tick_range_ensure_contains() {
+            let outer_range = TickRange {
+                lower_tick: Int64::new(0),
+                upper_tick: Int64::new(300),
+            };
+            let inner_range = TickRange {
+                lower_tick: Int64::new(100),
+                upper_tick: Int64::new(200),
+            };
+            assert!(outer_range.ensure_contains(&inner_range).is_ok());
+            assert!(inner_range.ensure_contains(&outer_range).is_err());
+        }
+
+        #[test]
+        fn test_tick_range_multiply_range() {
+            let range = TickRange {
+                lower_tick: Int64::new(100),
+                upper_tick: Int64::new(200),
+            };
+            let multiplied_range = range.multiply_range(Uint64::new(2)).unwrap();
+            assert_eq!(multiplied_range.lower_tick, Int64::new(-100));
+            assert_eq!(multiplied_range.upper_tick, Int64::new(400));
+        }
+    }
+}

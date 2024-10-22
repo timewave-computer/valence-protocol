@@ -1,45 +1,15 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{ensure, Addr, Deps, DepsMut, Int64, StdError, Uint128, Uint64};
+use cosmwasm_std::{ensure, Addr, Deps, DepsMut, StdError, Uint128, Uint64};
 use cw_ownable::cw_ownable_query;
 
 use osmosis_std::types::osmosis::{
     concentratedliquidity::v1beta1::Pool, poolmanager::v1beta1::PoolmanagerQuerier,
 };
 use valence_macros::ValenceServiceInterface;
+use valence_osmosis_utils::utils::cl_utils::TickRange;
 use valence_service_utils::{
     error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType,
 };
-
-#[cw_serde]
-pub struct TickRange {
-    pub lower_tick: Int64,
-    pub upper_tick: Int64,
-}
-
-impl TickRange {
-    pub fn is_multiple_of(&self, min: i64, max: i64) -> bool {
-        self.lower_tick.i64() & min == 0 && self.upper_tick.i64() % max == 0
-    }
-
-    pub fn contains(&self, other: &TickRange) -> bool {
-        self.lower_tick <= other.lower_tick && self.upper_tick >= other.upper_tick
-    }
-
-    pub fn try_from_wraparound(
-        current_bucket: (Int64, Int64),
-        delta: Uint64,
-    ) -> StdResult<TickRange> {
-        let delta_i64 = Int64::from(delta.u64() as i64);
-
-        let lower_tick = current_bucket.0.checked_sub(delta_i64)?;
-        let upper_tick = current_bucket.1.checked_add(delta_i64)?;
-
-        Ok(TickRange {
-            lower_tick,
-            upper_tick,
-        })
-    }
-}
 
 #[cw_serde]
 pub enum ActionMsgs {
