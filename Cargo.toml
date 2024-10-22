@@ -53,21 +53,21 @@ osmosis-std         = "0.26.0"
 osmosis-std-derive  = "0.26.0"
 
 # our contracts
-valence-authorization            = { path = "contracts/authorization", features = ["library"] }
-valence-base-account             = { path = "contracts/accounts/base_account", features = ["library"] }
-valence-processor                = { path = "contracts/processor", features = ["library"] }
-valence-splitter-service         = { path = "contracts/services/splitter", features = ["library"] }
-valence-test-dynamic-ratio       = { path = "contracts/testing/test-dynamic-ratio", features = ["library"] }
-valence-test-service             = { path = "contracts/testing/test-service", features = ["library"] }
-valence-workflow-registry        = { path = "contracts/workflow-registry", features = ["library"] }
-valence-astroport-lper           = { path = "contracts/services/astroport-lper", features = ["library"] }
-valence-forwarder-service        = { path = "contracts/services/forwarder", features = ["library"] }
-valence-astroport-withdrawer     = { path = "contracts/services/astroport-withdrawer", features = ["library"] }
-valence-generic-ibc-transfer-service = { path = "contracts/services/generic-ibc-transfer", features = ["library"] }
-valence-neutron-ibc-transfer-service = { path = "contracts/services/neutron-ibc-transfer", features = ["library"] }
-valence-reverse-splitter-service = { path = "contracts/services/reverse-splitter", features = ["library"] }
-valence-osmosis-gamm-lper        = { path = "contracts/services/osmosis-gamm-lper", features = ["library"] }
-valence-osmosis-cl-lper          = { path = "contracts/services/osmosis-cl-lper", features = ["library"] }
+valence-authorization                   = { path = "contracts/authorization", features = ["library"] }
+valence-base-account                    = { path = "contracts/accounts/base_account", features = ["library"] }
+valence-processor                       = { path = "contracts/processor", features = ["library"] }
+valence-splitter-service                = { path = "contracts/services/splitter", features = ["library"] }
+valence-test-dynamic-ratio              = { path = "contracts/testing/test-dynamic-ratio", features = ["library"] }
+valence-test-service                    = { path = "contracts/testing/test-service", features = ["library"] }
+valence-workflow-registry               = { path = "contracts/workflow-registry", features = ["library"] }
+valence-astroport-lper                  = { path = "contracts/services/astroport-lper", features = ["library"] }
+valence-forwarder-service               = { path = "contracts/services/forwarder", features = ["library"] }
+valence-astroport-withdrawer            = { path = "contracts/services/astroport-withdrawer", features = ["library"] }
+valence-generic-ibc-transfer-service    = { path = "contracts/services/generic-ibc-transfer", features = ["library"] }
+valence-neutron-ibc-transfer-service    = { path = "contracts/services/neutron-ibc-transfer", features = ["library"] }
+valence-reverse-splitter-service        = { path = "contracts/services/reverse-splitter", features = ["library"] }
+valence-osmosis-gamm-lper               = { path = "contracts/services/osmosis-gamm-lper", features = ["library"] }
+valence-osmosis-cl-lper                 = { path = "contracts/services/osmosis-cl-lper", features = ["library"] }
 
 # our packages
 valence-account-utils           = { path = "packages/account-utils" }
