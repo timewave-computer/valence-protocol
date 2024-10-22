@@ -153,19 +153,19 @@ pub mod cl_utils {
         // final range by taking [-100, 0], [0, 100], [100, 200], [200, 300], [300, 400]
         // which results in the final range of [-100, 400].
         pub fn amplify_range_bidirectionally(&self, multiple: Uint64) -> StdResult<TickRange> {
-            // todo: make this safe by either checking for overflow or just
-            // accept u32 as input
-            let multiple_i64 = Int64::from(multiple.u64() as i64);
+            ensure!(
+                !multiple.is_zero(),
+                StdError::generic_err("cannot have zero multiple")
+            );
 
-            let distance = self.upper_tick - self.lower_tick;
-            let extension = distance * multiple_i64;
+            let multiple_scaled = Int64::try_from(multiple)?;
 
-            let new_lower_tick = self.lower_tick - extension;
-            let new_upper_tick = self.upper_tick + extension;
+            let distance = self.upper_tick.checked_sub(self.lower_tick)?;
+            let extension = distance.checked_mul(multiple_scaled)?;
 
             Ok(TickRange {
-                lower_tick: new_lower_tick,
-                upper_tick: new_upper_tick,
+                lower_tick: self.lower_tick.checked_sub(extension)?,
+                upper_tick: self.upper_tick.checked_add(extension)?,
             })
         }
     }
