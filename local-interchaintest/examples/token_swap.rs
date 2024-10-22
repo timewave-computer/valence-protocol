@@ -6,11 +6,11 @@ use cosmwasm_std_old::Coin as BankCoin;
 use local_interchaintest::utils::{
     manager::{setup_manager, use_manager_init, SPLITTER_NAME},
     processor::tick_processor,
-    GAS_FLAGS, LOGS_FILE_PATH, NTRN_DENOM, VALENCE_ARTIFACTS_PATH,
+    GAS_FLAGS, LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, NTRN_DENOM, VALENCE_ARTIFACTS_PATH,
 };
 use localic_std::modules::{bank, cosmwasm::contract_execute};
 use localic_utils::{
-    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, LOCAL_IC_API_URL,
+    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
     NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
 };
 use log::info;
@@ -179,8 +179,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Setup manager...");
     setup_manager(
         &mut test_ctx,
-        "neutron_juno.json",
-        vec!["gaia", "juno"],
+        NEUTRON_CONFIG_FILE,
+        vec![GAIA_CHAIN_NAME],
         vec![SPLITTER_NAME],
     )?;
 
