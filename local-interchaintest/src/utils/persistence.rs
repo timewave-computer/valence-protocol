@@ -22,7 +22,7 @@ pub fn register_host_zone(
     from_key: &str,
 ) -> Result<Value, LocalError> {
     // Check that it's not registered yet
-    if query_host_zone(rb, chain_id) {
+    if is_host_zone_registered(rb, chain_id).is_some() {
         return Ok(Value::Null);
     }
 
@@ -115,7 +115,7 @@ async fn send_grpc_activation(
     Ok(())
 }
 
-pub fn query_host_zone(rb: &ChainRequestBuilder, target_chain_id: &str) -> bool {
+pub fn is_host_zone_registered(rb: &ChainRequestBuilder, target_chain_id: &str) -> Option<Value> {
     let query_cmd = "liquidstakeibc host-chains --output=json".to_string();
     let host_chains_response = rb.q(&query_cmd, false);
 
@@ -123,11 +123,11 @@ pub fn query_host_zone(rb: &ChainRequestBuilder, target_chain_id: &str) -> bool 
         for chain in host_chains {
             if let Some(chain_id) = chain["chain_id"].as_str() {
                 if chain_id == target_chain_id {
-                    return true;
+                    return Some(chain.clone());
                 }
             }
         }
     }
 
-    false
+    None
 }
