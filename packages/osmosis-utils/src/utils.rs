@@ -123,11 +123,26 @@ pub mod cl_utils {
             Ok(())
         }
 
-        pub fn ensure_multiple_of(&self, other: &TickRange) -> Result<(), ServiceError> {
-            let lower_range_multiple = self.lower_tick.i64() & other.lower_tick.i64() == 0;
-            let upper_range_multiple = self.upper_tick.i64() % other.upper_tick.i64() == 0;
+        pub fn ensure_pool_spacing_compatibility(&self, pool: &Pool) -> Result<(), ServiceError> {
+            let spacing_i64 = i64::try_from(pool.tick_spacing)
+                .map_err(|_| ServiceError::Std(StdError::generic_err("failed to cast")))?;
+
+            let lower_compatible = if self.lower_tick.is_zero() {
+                // 0 is always considered compatible
+                true
+            } else {
+                self.lower_tick.i64() % spacing_i64 == 0
+            };
+
+            let upper_compatible = if self.upper_tick.is_zero() {
+                // 0 is always considered compatible
+                true
+            } else {
+                self.upper_tick.i64() % spacing_i64 == 0
+            };
+
             ensure!(
-                lower_range_multiple && upper_range_multiple,
+                lower_compatible && upper_compatible,
                 ServiceError::ExecutionError(
                     "tick range is not a multiple of the other".to_string()
                 )
@@ -205,7 +220,7 @@ pub mod cl_utils {
                 lower_tick: Int64::new(200),
                 upper_tick: Int64::new(100),
             };
-            assert!(invalid_range.validate().is_err());
+            invalid_range.validate().unwrap();
         }
 
         #[test]
@@ -214,25 +229,23 @@ pub mod cl_utils {
                 lower_tick: Int64::new(100),
                 upper_tick: Int64::new(200),
             };
-            let range2 = TickRange {
-                lower_tick: Int64::new(50),
-                upper_tick: Int64::new(100),
-            };
-            assert!(range1.ensure_multiple_of(&range2).is_ok());
+
+            assert!(range1
+                .ensure_pool_spacing_compatibility(&default_pool())
+                .is_ok());
         }
 
         #[test]
         #[should_panic(expected = "tick range is not a multiple of the other")]
-        fn test_tick_range_ensure_multiple_of_errors() {
+        fn test_tick_range_ensure_compatibility_errors() {
             let range1 = TickRange {
-                lower_tick: Int64::new(100),
+                lower_tick: Int64::new(125),
                 upper_tick: Int64::new(200),
             };
-            let range2 = TickRange {
-                lower_tick: Int64::new(75),
-                upper_tick: Int64::new(150),
-            };
-            assert!(range1.ensure_multiple_of(&range2).is_err());
+
+            range1
+                .ensure_pool_spacing_compatibility(&default_pool())
+                .unwrap();
         }
 
         #[test]

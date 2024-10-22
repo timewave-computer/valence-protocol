@@ -4,7 +4,7 @@ use osmosis_test_tube::{
     osmosis_std::{
         try_proto_to_cosmwasm_coins,
         types::{
-            cosmos::bank::v1beta1::{MsgSend, QueryAllBalancesRequest},
+            cosmos::bank::v1beta1::QueryAllBalancesRequest,
             cosmwasm::wasm::v1::MsgExecuteContractResponse,
         },
     },
@@ -19,11 +19,8 @@ use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 
 use crate::msg::{ActionMsgs, LiquidityProviderConfig, ServiceConfig, ServiceConfigUpdate};
 
-const CONTRACT_PATH: &str = "../../../artifacts";
-
 pub struct LPerTestSuite {
     pub inner: OsmosisTestAppSetup<BalancerPool>,
-
     pub lper_addr: String,
     pub input_acc: String,
     pub output_acc: String,
@@ -46,20 +43,14 @@ impl LPerTestSuite {
         let inner: OsmosisTestAppSetup<BalancerPool> =
             OsmosisTestAppBuilder::new().build().unwrap();
 
-        // Create two base accounts
         let wasm = Wasm::new(&inner.app);
 
-        let wasm_byte_code =
-            std::fs::read(format!("{}/{}", CONTRACT_PATH, "valence_base_account.wasm")).unwrap();
+        // Create two base accounts
+        let account_code_id = inner.store_account_contract();
+        let input_acc = inner.instantiate_input_account(account_code_id);
+        let output_acc = inner.instantiate_input_account(account_code_id);
 
-        let code_id = wasm
-            .store_code(&wasm_byte_code, None, inner.owner_acc())
-            .unwrap()
-            .data
-            .code_id;
-
-        let input_acc = inner.instantiate_input_account(code_id);
-        let output_acc = inner.instantiate_input_account(code_id);
+        let code_id = inner.store_contract();
 
         let instantiate_msg = InstantiateMsg {
             owner: inner.owner_acc().address(),
@@ -92,24 +83,7 @@ impl LPerTestSuite {
         inner.approve_service(input_acc.clone(), lper_addr.clone());
 
         // Give some tokens to the input account so that it can provide liquidity
-        let bank = Bank::new(&inner.app);
-
-        for input_bal in with_input_bals {
-            bank.send(
-                MsgSend {
-                    from_address: inner.owner_acc().address(),
-                    to_address: input_acc.clone(),
-                    amount: vec![
-                        osmosis_test_tube::osmosis_std::types::cosmos::base::v1beta1::Coin {
-                            denom: input_bal.denom.clone(),
-                            amount: input_bal.amount.to_string(),
-                        },
-                    ],
-                },
-                inner.owner_acc(),
-            )
-            .unwrap();
-        }
+        inner.fund_input_acc(input_acc.to_string(), with_input_bals);
 
         LPerTestSuite {
             inner,

@@ -101,11 +101,8 @@ pub fn provide_liquidity_custom(
     // query the pool config
     let pool_cfg = query_cl_pool(&deps, cfg.lp_config.pool_id.u64())?;
 
-    // we derive the active tick bucket range from the pool config
-    let active_bucket = TickRange::from(pool_cfg);
-
     // the target range must respect the pool tick spacing configuration
-    tick_range.ensure_multiple_of(&active_bucket)?;
+    tick_range.ensure_pool_spacing_compatibility(&pool_cfg)?;
 
     // the target range must be contained within the global tick range
     cfg.lp_config
