@@ -46,19 +46,13 @@ pub enum IbcTransferAmount {
 #[cw_serde]
 pub struct RemoteChainInfo {
     pub channel_id: String,
-    pub port_id: Option<String>,
     pub ibc_transfer_timeout: Option<Uint64>,
 }
 
 impl RemoteChainInfo {
-    pub fn new(
-        channel_id: String,
-        port_id: Option<String>,
-        ibc_transfer_timeout: Option<Uint64>,
-    ) -> Self {
+    pub fn new(channel_id: String, ibc_transfer_timeout: Option<Uint64>) -> Self {
         Self {
             channel_id,
-            port_id,
             ibc_transfer_timeout,
         }
     }
@@ -125,27 +119,12 @@ impl ServiceConfig {
             ));
         }
 
-        if let Some(port_id) = &self.remote_chain_info.port_id {
-            if port_id.is_empty() {
-                return Err(ServiceError::ConfigurationError(
-                    "Invalid IBC transfer config: remote_chain_info's port_id cannot be empty (if specified)."
-                        .to_string(),
-                ));
-            }
-        }
-
         if let Some(timeout) = self.remote_chain_info.ibc_transfer_timeout {
             if timeout.is_zero() {
                 return Err(ServiceError::ConfigurationError(
                     "Invalid IBC transfer config: remote_chain_info's ibc_transfer_timeout cannot be zero.".to_string(),
                 ));
             }
-        }
-
-        if !self.denom_to_pfm_map.is_empty() {
-            return Err(ServiceError::ConfigurationError(
-                "Invalid IBC transfer config: specifying a denom_to_pfm_map on the Generic IBC transfer service is currently unsupported.".to_string(),
-            ));
         }
 
         Ok(input_addr)

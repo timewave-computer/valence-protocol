@@ -148,7 +148,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                     .src(JUNO_CHAIN_NAME)
                     .dest(NEUTRON_CHAIN_NAME)
                     .get(),
-                port_id: None,
                 ibc_transfer_timeout: Some(600u64.into()),
             },
         ),

@@ -485,6 +485,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "bindgen"
+version = "0.69.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "271383c67ccabffb7381723dea0672a673f292304fcb45c01cc648c7a8d58088"
+dependencies = [
+ "bitflags 2.6.0",
+ "cexpr",
+ "clang-sys",
+ "itertools 0.12.1",
+ "lazy_static",
+ "lazycell",
+ "log",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "rustc-hash",
+ "shlex",
+ "syn 2.0.79",
+ "which",
+]
+
+[[package]]
 name = "bip32"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2731,7 +2754,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "80526b0e02d9b8e6cc3790d0252161def3fb4d025975ec600e561bce315d8468"
 dependencies = [
  "base64 0.21.7",
- "bindgen",
+ "bindgen 0.60.1",
  "cosmrs 0.15.0",
  "cosmwasm-std 2.1.4",
  "hex",
@@ -2944,6 +2967,82 @@ name = "os_str_bytes"
 version = "6.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2355d85b9a3786f481747ced0e0ff2ba35213a1f9bd406ed906554d7af805a1"
+
+[[package]]
+name = "osmosis-std"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca66dca7e8c9b11b995cd41a44c038134ccca4469894d663d8a9452d6e716241"
+dependencies = [
+ "chrono",
+ "cosmwasm-std 1.5.8",
+ "osmosis-std-derive 0.20.1",
+ "prost 0.12.6",
+ "prost-types 0.12.6",
+ "schemars",
+ "serde",
+ "serde-cw-value",
+]
+
+[[package]]
+name = "osmosis-std"
+version = "0.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd621cc2f26474c6fb689ccc114dc0d8b53369a322f1fa5f24802f3de3d3def3"
+dependencies = [
+ "chrono",
+ "cosmwasm-std 2.1.4",
+ "osmosis-std-derive 0.26.0",
+ "prost 0.13.3",
+ "prost-types 0.13.3",
+ "schemars",
+ "serde",
+ "serde-cw-value",
+]
+
+[[package]]
+name = "osmosis-std-derive"
+version = "0.20.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c5ebdfd1bc8ed04db596e110c6baa9b174b04f6ed1ec22c666ddc5cb3fa91bd7"
+dependencies = [
+ "itertools 0.10.5",
+ "proc-macro2",
+ "prost-types 0.11.9",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "osmosis-std-derive"
+version = "0.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b0240fd030a4bbc79fa6cbea0b3eb0260a4b79075ebc039b93e2652bff8655b"
+dependencies = [
+ "itertools 0.10.5",
+ "proc-macro2",
+ "prost-types 0.11.9",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "osmosis-test-tube"
+version = "25.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5eb35dcc9adc1b39e23dfae07c9f04a60187fde57a52b7762434ea6548581a1a"
+dependencies = [
+ "base64 0.21.7",
+ "bindgen 0.69.5",
+ "cosmrs 0.15.0",
+ "cosmwasm-std 1.5.8",
+ "osmosis-std 0.25.0",
+ "prost 0.12.6",
+ "serde",
+ "serde_json",
+ "test-tube",
+ "thiserror",
+]
 
 [[package]]
 name = "overload"
@@ -3211,6 +3310,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "prettyplease"
+version = "0.2.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "479cf940fbbb3426c32c5d5176f62ad57549a0bb84773423ba8be9d089f5faba"
+dependencies = [
+ "proc-macro2",
+ "syn 2.0.79",
+]
+
+[[package]]
 name = "primeorder"
 version = "0.13.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3335,6 +3444,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9091c90b0a32608e984ff2fa4091273cbdd755d54935c51d520887f4a1dbd5b0"
 dependencies = [
  "prost 0.12.6",
+]
+
+[[package]]
+name = "prost-types"
+version = "0.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4759aa0d3a6232fb8dbdb97b61de2c20047c68aca932c7ed76da9d788508d670"
+dependencies = [
+ "prost 0.13.3",
 ]
 
 [[package]]
@@ -4407,6 +4525,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-tube"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "804bb9bda992b6cda6f883e7973cb999d4da90d21257fb918d6a693407148681"
+dependencies = [
+ "base64 0.21.7",
+ "cosmrs 0.15.0",
+ "cosmwasm-std 1.5.8",
+ "osmosis-std 0.25.0",
+ "prost 0.12.6",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "test-tube-ntrn"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5089,7 +5223,10 @@ name = "valence-ibc-utils"
 version = "0.1.0"
 dependencies = [
  "cosmos-sdk-proto 0.20.0",
+<<<<<<< HEAD
  "cosmos-sdk-proto 0.24.0",
+=======
+>>>>>>> main
  "cosmwasm-schema 2.1.4",
  "cosmwasm-std 2.1.4",
  "cw-storage-plus 2.0.0",
@@ -5135,6 +5272,40 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
+=======
+name = "valence-osmosis-gamm-lper"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 1.5.8",
+ "cosmwasm-std 2.1.4",
+ "cw-ownable",
+ "cw20 2.0.0",
+ "osmosis-std 0.26.0",
+ "osmosis-test-tube",
+ "valence-account-utils",
+ "valence-macros",
+ "valence-osmosis-utils",
+ "valence-service-base",
+ "valence-service-utils",
+]
+
+[[package]]
+name = "valence-osmosis-utils"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 1.5.8",
+ "cosmwasm-std 2.1.4",
+ "osmosis-std 0.26.0",
+ "osmosis-test-tube",
+ "valence-account-utils",
+ "valence-service-utils",
+]
+
+[[package]]
+>>>>>>> main
 name = "valence-polytone-utils"
 version = "0.1.0"
 dependencies = [

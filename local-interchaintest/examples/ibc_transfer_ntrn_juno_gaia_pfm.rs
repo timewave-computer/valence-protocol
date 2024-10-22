@@ -201,7 +201,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                     .get(ntrn_juno_path)
                     .unwrap()
                     .clone(),
-                port_id: None,
                 ibc_transfer_timeout: Some(600u64.into()),
             },
             BTreeMap::from([(

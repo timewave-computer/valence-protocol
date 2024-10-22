@@ -73,8 +73,6 @@ mod actions {
                 let ibc_send_msg = valence_ibc_utils::generic::ibc_send_message(
                     env,
                     cfg.remote_chain_info().channel_id.clone(),
-                    cfg.remote_chain_info().port_id.clone(),
-                    cfg.input_addr().to_string(),
                     cfg.output_addr().to_string(),
                     cfg.denom().to_string(),
                     amount.u128(),

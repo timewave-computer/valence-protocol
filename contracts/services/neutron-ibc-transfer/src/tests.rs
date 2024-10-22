@@ -161,7 +161,7 @@ fn instantiate_with_valid_config() {
         NTRN.to_string(),
         IbcTransferAmount::FullAmount,
         "".to_string(),
-        RemoteChainInfo::new("channel-1".to_string(), None, Some(600u64.into())),
+        RemoteChainInfo::new("channel-1".to_string(), Some(600u64.into())),
     );
 
     // Instantiate IBC transfer contract
@@ -198,7 +198,7 @@ fn pre_validate_config_works() {
         NTRN.to_string(),
         IbcTransferAmount::FullAmount,
         "".to_string(),
-        RemoteChainInfo::new("channel-1".to_string(), None, Some(600u64.into())),
+        RemoteChainInfo::new("channel-1".to_string(), Some(600u64.into())),
     );
 
     // Pre-validate config
@@ -214,7 +214,7 @@ fn instantiate_fails_for_zero_amount() {
         NTRN.to_string(),
         IbcTransferAmount::FixedAmount(Uint128::zero()),
         "".to_string(),
-        RemoteChainInfo::new("channel-1".to_string(), None, Some(600u64.into())),
+        RemoteChainInfo::new("channel-1".to_string(), Some(600u64.into())),
     );
 
     // Instantiate IBC transfer contract
@@ -232,29 +232,7 @@ fn instantiate_fails_for_invalid_channel_id() {
         NTRN.to_string(),
         IbcTransferAmount::FixedAmount(Uint128::one()),
         "".to_string(),
-        RemoteChainInfo::new("".to_string(), None, Some(600u64.into())),
-    );
-
-    // Instantiate IBC transfer contract
-    suite.ibc_transfer_init(&cfg);
-}
-
-#[test]
-#[should_panic(
-    expected = "Invalid IBC transfer config: remote_chain_info's port_id cannot be empty (if specified)."
-)]
-fn instantiate_fails_for_invalid_port_id() {
-    let mut suite = IbcTransferTestSuite::default();
-
-    let cfg = suite.ibc_transfer_config(
-        NTRN.to_string(),
-        IbcTransferAmount::FixedAmount(Uint128::one()),
-        "".to_string(),
-        RemoteChainInfo::new(
-            "channel-1".to_string(),
-            Some("".to_string()),
-            Some(600u64.into()),
-        ),
+        RemoteChainInfo::new("".to_string(), Some(600u64.into())),
     );
 
     // Instantiate IBC transfer contract
@@ -272,7 +250,7 @@ fn instantiate_fails_for_invalid_ibc_transfer_timeout() {
         NTRN.to_string(),
         IbcTransferAmount::FixedAmount(Uint128::one()),
         "".to_string(),
-        RemoteChainInfo::new("channel-1".to_string(), None, Some(Uint64::zero())),
+        RemoteChainInfo::new("channel-1".to_string(), Some(Uint64::zero())),
     );
 
     // Instantiate IBC transfer contract
@@ -290,7 +268,7 @@ fn update_config_validates_config() {
         NTRN.to_string(),
         IbcTransferAmount::FullAmount,
         "".to_string(),
-        RemoteChainInfo::new("channel-1".to_string(), None, Some(600u64.into())),
+        RemoteChainInfo::new("channel-1".to_string(), Some(600u64.into())),
     );
 
     // Instantiate IBC transfer contract
@@ -311,7 +289,7 @@ fn update_config_with_valid_config() {
         NTRN.to_string(),
         IbcTransferAmount::FullAmount,
         "".to_string(),
-        RemoteChainInfo::new("channel-1".to_string(), None, Some(600u64.into())),
+        RemoteChainInfo::new("channel-1".to_string(), Some(600u64.into())),
     );
 
     // Instantiate IBC transfer contract
@@ -336,7 +314,7 @@ fn update_config_with_valid_config() {
             CheckedDenom::Native(NTRN.into()),
             IbcTransferAmount::FixedAmount(ONE_MILLION.into()),
             "Chancellor on brink of second bailout for banks.".to_string(),
-            RemoteChainInfo::new("channel-1".to_string(), None, Some(600u64.into()))
+            RemoteChainInfo::new("channel-1".to_string(), Some(600u64.into()))
         )
     );
 }
@@ -354,7 +332,7 @@ fn ibc_transfer_fails_for_insufficient_balance() {
         NTRN.to_string(),
         IbcTransferAmount::FixedAmount(ONE_MILLION.into()),
         "".to_string(),
-        RemoteChainInfo::new("channel-1".to_string(), None, Some(600u64.into())),
+        RemoteChainInfo::new("channel-1".to_string(), Some(600u64.into())),
     );
 
     // Instantiate  contract
