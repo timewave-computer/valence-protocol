@@ -1,4 +1,4 @@
-use cosmwasm_std::{coin, Coin, Uint128};
+use cosmwasm_std::{coin, Coin, StdResult, Uint128};
 
 use osmosis_test_tube::{
     osmosis_std::{
@@ -93,19 +93,16 @@ impl LPerTestSuite {
         }
     }
 
-    pub fn query_all_balances(
-        &self,
-        addr: &str,
-    ) -> cosmwasm_std_old::StdResult<Vec<cosmwasm_std_old::Coin>> {
+    pub fn query_all_balances(&self, addr: &str) -> StdResult<Vec<Coin>> {
         let bank = Bank::new(&self.inner.app);
         let resp = bank
             .query_all_balances(&QueryAllBalancesRequest {
                 address: addr.to_string(),
                 pagination: None,
+                resolve_denom: false,
             })
             .unwrap();
-        let bals = try_proto_to_cosmwasm_coins(resp.balances)?;
-        Ok(bals)
+        try_proto_to_cosmwasm_coins(resp.balances)
     }
 
     pub fn provide_two_sided_liquidity(

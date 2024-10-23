@@ -123,7 +123,7 @@ pub fn provide_liquidity_custom(
     // we delegate the create position msg as a submsg as we will need to transfer
     // the position afterwards. reply_always so that the saved state is cleared on error.
     let delegated_input_acc_msgs = execute_submsgs_on_behalf_of(
-        vec![SubMsg::reply_always(create_cl_position_msg, REPLY_ID)],
+        vec![SubMsg::reply_on_success(create_cl_position_msg, REPLY_ID)],
         Some(to_json_string(&cfg)?),
         &cfg.input_addr.clone(),
     )?;
@@ -174,7 +174,7 @@ pub fn provide_liquidity_default(
     // we delegate the position creation message to the input account
     let delegated_input_acc_msgs = execute_submsgs_on_behalf_of(
         // we expect a reply from this submsg so we pass it as a submessage
-        vec![SubMsg::reply_always(create_cl_position_msg, REPLY_ID)],
+        vec![SubMsg::reply_on_success(create_cl_position_msg, REPLY_ID)],
         // associate this msg with a cfg payload which will be used in the reply
         // to restore the state used during this function
         Some(to_json_string(&cfg)?),

@@ -1,4 +1,4 @@
-use cosmwasm_std::{StdResult, Uint64};
+use cosmwasm_std::{Coin, StdResult, Uint64};
 use osmosis_test_tube::{
     osmosis_std::types::{
         cosmos::params::v1beta1::{ParamChange, ParameterChangeProposal},
@@ -78,8 +78,8 @@ impl OsmosisTestPoolConfig for ConcentratedLiquidityPool {
                     lower_tick: 1000,
                     upper_tick: 2000,
                     tokens_provided: vec![
-                        cosmwasm_std_old::Coin::new(10_000_000u128, OSMO_DENOM).into(),
-                        cosmwasm_std_old::Coin::new(10_000_000u128, TEST_DENOM).into(),
+                        Coin::new(10_000_000u128, OSMO_DENOM).into(),
+                        Coin::new(10_000_000u128, TEST_DENOM).into(),
                     ],
                     token_min_amount0: "0".to_string(),
                     token_min_amount1: "0".to_string(),

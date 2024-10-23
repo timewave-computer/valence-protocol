@@ -63,8 +63,8 @@ impl OsmosisTestAppBuilder {
         let accounts = app
             .init_accounts(
                 &[
-                    cosmwasm_std_old::Coin::new(self.initial_balance, self.fee_denom.as_str()),
-                    cosmwasm_std_old::Coin::new(self.initial_balance, TEST_DENOM),
+                    Coin::new(self.initial_balance, self.fee_denom.as_str()),
+                    Coin::new(self.initial_balance, TEST_DENOM),
                 ],
                 self.num_accounts,
             )
@@ -159,18 +159,15 @@ impl<T: OsmosisTestPoolConfig> OsmosisTestAppSetup<T> {
             .code_id
     }
 
-    pub fn query_all_balances(
-        &self,
-        addr: &str,
-    ) -> cosmwasm_std_old::StdResult<Vec<cosmwasm_std_old::Coin>> {
+    pub fn query_all_balances(&self, addr: &str) -> StdResult<Vec<Coin>> {
         let bank = Bank::new(&self.app);
         let resp = bank
             .query_all_balances(&QueryAllBalancesRequest {
                 address: addr.to_string(),
                 pagination: None,
+                resolve_denom: false,
             })
             .unwrap();
-        let bals = try_proto_to_cosmwasm_coins(resp.balances)?;
-        Ok(bals)
+        try_proto_to_cosmwasm_coins(resp.balances)
     }
 }
