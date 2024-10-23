@@ -28,6 +28,7 @@ jobs:
         run: mdbook build docs
 
       - name: Deploy
+        if: github.event_name == 'push'
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: docs/book
