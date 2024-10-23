@@ -1,0 +1,16 @@
+[book]
+authors      = ["Timewave Labs"]
+language     = "en"
+multilingual = false
+src          = "src"
+title        = "Valence Protocol Documentation"
+
+[output.html]
+git-repository-url    = "https://github.com/timewave-computer/valence-protocol"
+default-theme         = "navy"
+preferred-dark-theme  = "navy"
+preferred-light-theme = "light"
+additional-js         = ["mermaid.min.js", "mermaid-init.js"]
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
