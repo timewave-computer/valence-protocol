@@ -7,8 +7,7 @@ This folder contains the source code for the Valence Protocol documentation.
 1. Install mdbook and mdbook-mermaid:
 
 ```bash
-cargo install mdbook
-cargo install mdbook-mermaid
+cargo install mdbook mdbook-mermaid
 ```
 
 2. Build:
