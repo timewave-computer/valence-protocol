@@ -1,3 +1,7 @@
 # Summary
 
-- [Chapter 1](./chapter_1.md)
+- [Background](./background.md)
+- [Component Overview](./components/overview.md)
+    - [Accounts and Services](./components/accounts_and_services.md)
+    - [Authorizations and Execution](./components/authorizations_and_execution.md)
+    - [Workflows](./components/workflows.md)
