@@ -8,10 +8,12 @@ use cosmwasm_std::{Binary, Timestamp, Uint128};
 use cosmwasm_std_old::Uint64;
 use cw_utils::Expiration;
 use local_interchaintest::utils::{
-    authorization::set_up_authorization_and_processor, polytone::salt_for_proxy,
-    processor::tick_processor, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_JUNO,
-    LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, NEUTRON_USER_ADDRESS_1,
-    POLYTONE_ARTIFACTS_PATH, USER_KEY_1, VALENCE_ARTIFACTS_PATH,
+    authorization::set_up_authorization_and_processor,
+    polytone::salt_for_proxy,
+    processor::{get_processor_queue_items, tick_processor},
+    relayer::restart_relayer,
+    GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_JUNO, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
+    NEUTRON_USER_ADDRESS_1, POLYTONE_ARTIFACTS_PATH, USER_KEY_1, VALENCE_ARTIFACTS_PATH,
 };
 use localic_std::{
     modules::{
@@ -46,7 +48,7 @@ use valence_authorization_utils::{
 use valence_processor_utils::{
     callback::{PendingPolytoneCallbackInfo, PolytoneCallbackState},
     msg::PolytoneContracts,
-    processor::{Config, MessageBatch, ProcessorDomain},
+    processor::{Config, ProcessorDomain},
 };
 use valence_service_utils::ServiceAccountType;
 
@@ -841,6 +843,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         attempts += 1;
         batches = get_processor_queue_items(
             &mut test_ctx,
+            JUNO_CHAIN_NAME,
             &predicted_processor_on_juno_address,
             Priority::Medium,
         );
@@ -1085,29 +1088,6 @@ fn verify_authorization_execution_result(
     }
 }
 
-fn get_processor_queue_items(
-    test_ctx: &mut TestContext,
-    processor_address: &str,
-    priority: Priority,
-) -> Vec<MessageBatch> {
-    serde_json::from_value(
-        contract_query(
-            test_ctx
-                .get_request_builder()
-                .get_request_builder(JUNO_CHAIN_NAME),
-            processor_address,
-            &serde_json::to_string(&valence_processor_utils::msg::QueryMsg::GetQueue {
-                from: None,
-                to: None,
-                priority,
-            })
-            .unwrap(),
-        )["data"]
-            .clone(),
-    )
-    .unwrap()
-}
-
 fn get_processor_pending_polytone_callback(
     test_ctx: &mut TestContext,
     processor_address: &str,
@@ -1127,9 +1107,4 @@ fn get_processor_pending_polytone_callback(
             .clone(),
     )
     .unwrap()
-}
-
-fn restart_relayer(test_ctx: &mut TestContext) {
-    test_ctx.stop_relayer();
-    test_ctx.start_relayer();
 }

@@ -15,8 +15,8 @@ use localic_std::modules::{
 };
 use localic_utils::{
     types::ibc::get_multihop_ibc_denom, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
-    GAIA_CHAIN_ADMIN_ADDR, GAIA_CHAIN_NAME, JUNO_CHAIN_ADMIN_ADDR,
-    JUNO_CHAIN_NAME, LOCAL_IC_API_URL, NEUTRON_CHAIN_NAME,
+    GAIA_CHAIN_ADMIN_ADDR, GAIA_CHAIN_NAME, JUNO_CHAIN_ADMIN_ADDR, JUNO_CHAIN_NAME,
+    LOCAL_IC_API_URL, NEUTRON_CHAIN_NAME,
 };
 use log::info;
 

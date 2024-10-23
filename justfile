@@ -1,0 +1,2 @@
+optimize:
+    ./devtools/optimize.sh

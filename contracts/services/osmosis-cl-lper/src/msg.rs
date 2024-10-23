@@ -1,69 +1,48 @@
-use std::str::FromStr;
-
 use cosmwasm_schema::{cw_serde, QueryResponses};
-
-use cosmwasm_std::{ensure, Addr, Decimal, Deps, DepsMut, Empty, StdError, Uint128, Uint64};
+use cosmwasm_std::{ensure, Addr, Deps, DepsMut, Uint128, Uint64};
 use cw_ownable::cw_ownable_query;
-use osmosis_std::types::osmosis::{gamm::v1beta1::Pool, poolmanager::v1beta1::PoolmanagerQuerier};
-use valence_macros::{valence_service_query, ValenceServiceInterface};
-use valence_osmosis_utils::utils::DecimalRange;
+
+use valence_macros::ValenceServiceInterface;
+use valence_osmosis_utils::utils::cl_utils::{query_cl_pool, TickRange};
 use valence_service_utils::{
     error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType,
 };
 
 #[cw_serde]
 pub enum ActionMsgs {
-    ProvideDoubleSidedLiquidity {
-        expected_spot_price: Option<DecimalRange>,
+    // provide liquidity at custom range
+    ProvideLiquidityCustom {
+        tick_range: TickRange,
+        // default to 0 `token_min_amount` if not provided
+        token_min_amount_0: Option<Uint128>,
+        token_min_amount_1: Option<Uint128>,
     },
-    ProvideSingleSidedLiquidity {
-        expected_spot_price: Option<DecimalRange>,
-        asset: String,
-        limit: Uint128,
+    // provide liquidity around the current tick
+    ProvideLiquidityDefault {
+        // bucket describes a tick range that spans between two ticks in the
+        // interval that follows the configured tick spacing.
+        // `bucket_amount` describes how many buckets around the currently
+        // active bucket we want to cover (amplify the range) to each side.
+        bucket_amount: Uint64,
     },
 }
 
-#[valence_service_query]
 #[cw_ownable_query]
 #[cw_serde]
 #[derive(QueryResponses)]
-pub enum QueryMsg {}
+pub enum QueryMsg {
+    #[returns(Addr)]
+    GetProcessor {},
+    #[returns(Config)]
+    GetServiceConfig {},
+}
 
 #[cw_serde]
 pub struct LiquidityProviderConfig {
-    pub pool_id: u64,
+    pub pool_id: Uint64,
     pub pool_asset_1: String,
     pub pool_asset_2: String,
-}
-
-pub trait ValenceLiquidPooler {
-    fn query_spot_price(&self, lp_config: &LiquidityProviderConfig) -> StdResult<Decimal>;
-    fn query_pool_config(&self, lp_config: &LiquidityProviderConfig) -> StdResult<Pool>;
-}
-
-impl ValenceLiquidPooler for PoolmanagerQuerier<'_, Empty> {
-    fn query_spot_price(&self, lp_config: &LiquidityProviderConfig) -> StdResult<Decimal> {
-        let spot_price_response = self.spot_price(
-            lp_config.pool_id,
-            lp_config.pool_asset_1.to_string(),
-            lp_config.pool_asset_2.to_string(),
-        )?;
-
-        let pool_ratio = Decimal::from_str(&spot_price_response.spot_price)?;
-
-        Ok(pool_ratio)
-    }
-
-    fn query_pool_config(&self, lp_config: &LiquidityProviderConfig) -> StdResult<Pool> {
-        let pool_response = self.pool(lp_config.pool_id)?;
-        let pool: Pool = pool_response
-            .pool
-            .ok_or_else(|| StdError::generic_err("failed to get pool"))?
-            .try_into()
-            .map_err(|_| StdError::generic_err("failed to decode proto"))?;
-
-        Ok(pool)
-    }
+    pub global_tick_range: TickRange,
 }
 
 #[cw_serde]
@@ -93,13 +72,14 @@ impl ServiceConfig {
     ) -> Result<(Addr, Addr, Uint64), ServiceError> {
         let input_addr = self.input_addr.to_addr(api)?;
         let output_addr = self.output_addr.to_addr(api)?;
+        self.lp_config.global_tick_range.validate()?;
 
-        Ok((input_addr, output_addr, self.lp_config.pool_id.into()))
+        Ok((input_addr, output_addr, self.lp_config.pool_id))
     }
 }
 
-#[cw_serde]
 /// Validated service configuration
+#[cw_serde]
 pub struct Config {
     pub input_addr: Addr,
     pub output_addr: Addr,
@@ -114,24 +94,13 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
     }
 
     fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
-        let (input_addr, output_addr, _pool_id) = self.do_validate(deps.api)?;
+        let (input_addr, output_addr, pool_id) = self.do_validate(deps.api)?;
+        let pool = query_cl_pool(&deps, pool_id.u64())?;
 
-        let pm_querier = PoolmanagerQuerier::new(&deps.querier);
-        let pool = pm_querier.query_pool_config(&self.lp_config)?;
+        let pool_assets = [pool.token0, pool.token1];
 
-        // perform soft pool validation by asserting that the lp config assets
-        // are all present in the pool
-        let (mut asset_1_found, mut asset_2_found) = (false, false);
-        for pool_asset in pool.pool_assets {
-            if let Some(asset) = pool_asset.token {
-                if self.lp_config.pool_asset_1 == asset.denom {
-                    asset_1_found = true;
-                }
-                if self.lp_config.pool_asset_2 == asset.denom {
-                    asset_2_found = true;
-                }
-            }
-        }
+        let asset_1_found = pool_assets.contains(&self.lp_config.pool_asset_1);
+        let asset_2_found = pool_assets.contains(&self.lp_config.pool_asset_2);
 
         ensure!(
             asset_1_found && asset_2_found,
