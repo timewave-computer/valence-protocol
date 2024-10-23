@@ -85,7 +85,8 @@ fn create_xyk_liquidity_msg(
     let halved_coin = cosmwasm_std::Coin {
         denom: asset_balance.denom.clone(),
         amount: cosmwasm_std::Uint128::from(asset_balance.amount.u128())
-            / cosmwasm_std::Uint128::from(2u128),
+            .checked_div(cosmwasm_std::Uint128::from(2u128))
+            .expect("denominator is not zero; qed"),
     };
 
     let (offer_asset, mut ask_asset) = {

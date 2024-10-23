@@ -19,8 +19,10 @@ pub mod decimal_checked_ops {
             if self.is_zero() || other.is_zero() {
                 return Ok(Uint128::zero());
             }
-            let multiply_ratio =
-                other.full_mul(self.numerator()) / Uint256::from(self.denominator());
+            let multiply_ratio = other
+                .full_mul(self.numerator())
+                .checked_div(Uint256::from(self.denominator()))
+                .expect("self denominator is not zero; qed");
             if multiply_ratio > Uint256::from(Uint128::MAX) {
                 Err(OverflowError::new(cosmwasm_std::OverflowOperation::Mul))
             } else {
