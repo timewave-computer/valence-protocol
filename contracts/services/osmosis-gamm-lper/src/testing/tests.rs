@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{coin, Decimal};
+
 use valence_osmosis_utils::{suite::OSMO_DENOM, utils::DecimalRange};
 
 use crate::msg::LiquidityProviderConfig;

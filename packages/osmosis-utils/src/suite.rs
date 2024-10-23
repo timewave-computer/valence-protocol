@@ -1,24 +1,32 @@
-use cosmwasm_std::{StdResult, Uint64};
+use cosmwasm_std::{Coin, StdResult, Uint64};
 
-use osmosis_test_tube::{Account, Gamm, Module, OsmosisTestApp, SigningAccount, Wasm};
+use osmosis_test_tube::{
+    osmosis_std::{
+        try_proto_to_cosmwasm_coins,
+        types::cosmos::bank::v1beta1::{MsgSend, QueryAllBalancesRequest},
+    },
+    Account, Bank, Module, OsmosisTestApp, SigningAccount, Wasm,
+};
 
 pub const OSMO_DENOM: &str = "uosmo";
 pub const TEST_DENOM: &str = "utest";
+pub const CONTRACT_PATH: &str = "../../../artifacts";
 
-pub struct OsmosisTestAppSetup {
+pub struct OsmosisTestAppSetup<T: OsmosisTestPoolConfig> {
     pub app: OsmosisTestApp,
     pub accounts: Vec<SigningAccount>,
-    pub balancer_pool_cfg: BalancerPool,
+    pub pool_cfg: T,
 }
 
-pub struct BalancerPool {
-    pub pool_id: Uint64,
-    pub pool_liquidity_token: String,
-    pub pool_asset1: String,
-    pub pool_asset2: String,
+pub trait OsmosisTestPoolConfig: Sized {
+    fn pool_id(&self) -> Uint64;
+    fn pool_asset_1(&self) -> String;
+    fn pool_asset_2(&self) -> String;
+    fn setup_pool(app: &OsmosisTestApp, creator: &SigningAccount) -> StdResult<Self>;
+    fn get_contract_name() -> String;
 }
 
-impl OsmosisTestAppSetup {
+impl<T: OsmosisTestPoolConfig> OsmosisTestAppSetup<T> {
     pub fn owner_acc(&self) -> &SigningAccount {
         &self.accounts[0]
     }
@@ -49,84 +57,117 @@ impl OsmosisTestAppBuilder {
         }
     }
 
-    pub fn build(self) -> Result<OsmosisTestAppSetup, &'static str> {
+    pub fn build<T: OsmosisTestPoolConfig>(self) -> Result<OsmosisTestAppSetup<T>, &'static str> {
         let app = OsmosisTestApp::new();
 
         let accounts = app
             .init_accounts(
                 &[
-                    cosmwasm_std_polytone::Coin::new(self.initial_balance, self.fee_denom.as_str()),
-                    cosmwasm_std_polytone::Coin::new(self.initial_balance, TEST_DENOM),
+                    Coin::new(self.initial_balance, self.fee_denom.as_str()),
+                    Coin::new(self.initial_balance, TEST_DENOM),
                 ],
                 self.num_accounts,
             )
             .map_err(|_| "Failed to initialize accounts")?;
 
-        let balancer_pool = setup_balancer_pool(&app, &accounts[0]).unwrap();
+        let pool_cfg = T::setup_pool(&app, &accounts[0]).map_err(|_| "failed to set up pool")?;
 
         Ok(OsmosisTestAppSetup {
             app,
             accounts,
-            balancer_pool_cfg: balancer_pool,
+            pool_cfg,
         })
     }
 }
 
-fn setup_balancer_pool(app: &OsmosisTestApp, creator: &SigningAccount) -> StdResult<BalancerPool> {
-    let gamm = Gamm::new(app);
+impl<T: OsmosisTestPoolConfig> OsmosisTestAppSetup<T> {
+    pub fn approve_service(&self, account_addr: String, service_addr: String) {
+        let wasm = Wasm::new(&self.app);
+        wasm.execute::<valence_account_utils::msg::ExecuteMsg>(
+            &account_addr,
+            &valence_account_utils::msg::ExecuteMsg::ApproveService {
+                service: service_addr,
+            },
+            &[],
+            self.owner_acc(),
+        )
+        .unwrap();
+    }
 
-    // create balancer pool with basic configuration
-    let pool_liquidity = vec![
-        cosmwasm_std_polytone::Coin::new(100_000u128, OSMO_DENOM),
-        cosmwasm_std_polytone::Coin::new(100_000u128, TEST_DENOM),
-    ];
-    let pool_id = gamm
-        .create_basic_pool(&pool_liquidity, creator)
+    pub fn instantiate_input_account(&self, code_id: u64) -> String {
+        let wasm = Wasm::new(&self.app);
+        wasm.instantiate(
+            code_id,
+            &valence_account_utils::msg::InstantiateMsg {
+                admin: self.owner_acc().address(),
+                approved_services: vec![],
+            },
+            None,
+            Some("base_account"),
+            &[],
+            self.owner_acc(),
+        )
         .unwrap()
         .data
-        .pool_id;
+        .address
+    }
 
-    let pool = gamm.query_pool(pool_id).unwrap();
+    pub fn store_contract(&self) -> u64 {
+        let filename = T::get_contract_name();
+        let wasm = Wasm::new(&self.app);
+        let wasm_byte_code = std::fs::read(format!("{}/{}", CONTRACT_PATH, filename)).unwrap();
 
-    let pool_liquidity_token = pool.total_shares.unwrap().denom;
+        let code_id = wasm
+            .store_code(&wasm_byte_code, None, self.owner_acc())
+            .unwrap()
+            .data
+            .code_id;
 
-    let balancer_pool = BalancerPool {
-        pool_id: pool_id.into(),
-        pool_liquidity_token,
-        pool_asset1: OSMO_DENOM.to_string(),
-        pool_asset2: TEST_DENOM.to_string(),
-    };
+        code_id
+    }
 
-    Ok(balancer_pool)
-}
+    pub fn fund_input_acc(&self, input_acc: String, with_input_bals: Vec<Coin>) {
+        let bank = Bank::new(&self.app);
 
-pub fn approve_service(setup: &OsmosisTestAppSetup, account_addr: String, service_addr: String) {
-    let wasm = Wasm::new(&setup.app);
-    wasm.execute::<valence_account_utils::msg::ExecuteMsg>(
-        &account_addr,
-        &valence_account_utils::msg::ExecuteMsg::ApproveService {
-            service: service_addr,
-        },
-        &[],
-        setup.owner_acc(),
-    )
-    .unwrap();
-}
+        for input_bal in with_input_bals {
+            bank.send(
+                MsgSend {
+                    from_address: self.owner_acc().address(),
+                    to_address: input_acc.clone(),
+                    amount: vec![
+                        osmosis_test_tube::osmosis_std::types::cosmos::base::v1beta1::Coin {
+                            denom: input_bal.denom.clone(),
+                            amount: input_bal.amount.to_string(),
+                        },
+                    ],
+                },
+                self.owner_acc(),
+            )
+            .unwrap();
+        }
+    }
 
-pub fn instantiate_input_account(code_id: u64, setup: &OsmosisTestAppSetup) -> String {
-    let wasm = Wasm::new(&setup.app);
-    wasm.instantiate(
-        code_id,
-        &valence_account_utils::msg::InstantiateMsg {
-            admin: setup.owner_acc().address(),
-            approved_services: vec![],
-        },
-        None,
-        Some("base_account"),
-        &[],
-        setup.owner_acc(),
-    )
-    .unwrap()
-    .data
-    .address
+    pub fn store_account_contract(&self) -> u64 {
+        let wasm = Wasm::new(&self.app);
+
+        let wasm_byte_code =
+            std::fs::read(format!("{}/{}", CONTRACT_PATH, "valence_base_account.wasm")).unwrap();
+
+        wasm.store_code(&wasm_byte_code, None, self.owner_acc())
+            .unwrap()
+            .data
+            .code_id
+    }
+
+    pub fn query_all_balances(&self, addr: &str) -> StdResult<Vec<Coin>> {
+        let bank = Bank::new(&self.app);
+        let resp = bank
+            .query_all_balances(&QueryAllBalancesRequest {
+                address: addr.to_string(),
+                pagination: None,
+                resolve_denom: false,
+            })
+            .unwrap();
+        try_proto_to_cosmwasm_coins(resp.balances)
+    }
 }

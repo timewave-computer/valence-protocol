@@ -415,7 +415,7 @@ pub fn set_up_external_domain_with_polytone(
         .with_label("processor")
         .with_code_id(processor_code_id_on_external_domain)
         .with_salt_hex_encoded(&salt)
-        .with_msg(serde_json::to_value(&processor_instantiate_msg).unwrap())
+        .with_msg(serde_json::to_value(processor_instantiate_msg).unwrap())
         .with_flags(GAS_FLAGS)
         .send()
         .unwrap();

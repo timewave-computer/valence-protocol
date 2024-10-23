@@ -19,6 +19,9 @@ pub enum UnauthorizedReason {
     #[error("Unauthorized: Not the admin")]
     NotAdmin,
 
+    #[error("Unauthorized: Not an approved service")]
+    NotApprovedService,
+
     #[error("Unauthorized: Not the admin or an approved service")]
     NotAdminOrApprovedService,
 }
