@@ -37,7 +37,7 @@ Start-Process "chrome.exe" .\book\index.html  # Windows (PowerShell)
 start chrome.exe .\book\index.html            # Windows (Cmd)
 ```
 
-4. To apply docs changes automatically without requiring rebuild manually:
+4. To apply docs changes automatically without rebuilding manually, run:
 
 ```bash
 mdbook serve
