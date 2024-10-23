@@ -1,12 +1,9 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{ensure, Addr, Deps, DepsMut, StdError, Uint128, Uint64};
+use cosmwasm_std::{ensure, Addr, Deps, DepsMut, Uint128, Uint64};
 use cw_ownable::cw_ownable_query;
 
-use osmosis_std::types::osmosis::{
-    concentratedliquidity::v1beta1::Pool, poolmanager::v1beta1::PoolmanagerQuerier,
-};
 use valence_macros::ValenceServiceInterface;
-use valence_osmosis_utils::utils::cl_utils::TickRange;
+use valence_osmosis_utils::utils::cl_utils::{query_cl_pool, TickRange};
 use valence_service_utils::{
     error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType,
 };
@@ -22,9 +19,10 @@ pub enum ActionMsgs {
     },
     // provide liquidity around the current tick
     ProvideLiquidityDefault {
-        // bucket is the distance between two ticks.
-        // this describes how many buckets around the current tick we want to cover
-        // to each side of the current tick (-/+).
+        // bucket describes a tick range that spans between two ticks in the
+        // interval that follows the configured tick spacing.
+        // `bucket_amount` describes how many buckets around the currently
+        // active bucket we want to cover (amplify the range) to each side.
         bucket_amount: Uint64,
     },
 }
@@ -74,6 +72,7 @@ impl ServiceConfig {
     ) -> Result<(Addr, Addr, Uint64), ServiceError> {
         let input_addr = self.input_addr.to_addr(api)?;
         let output_addr = self.output_addr.to_addr(api)?;
+        self.lp_config.global_tick_range.validate()?;
 
         Ok((input_addr, output_addr, self.lp_config.pool_id))
     }
@@ -96,29 +95,12 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
 
     fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
         let (input_addr, output_addr, pool_id) = self.do_validate(deps.api)?;
+        let pool = query_cl_pool(&deps, pool_id.u64())?;
 
-        let pm_querier = PoolmanagerQuerier::new(&deps.querier);
-        let pool_response = pm_querier.pool(pool_id.u64())?;
+        let pool_assets = [pool.token0, pool.token1];
 
-        let pool_proto = pool_response
-            .pool
-            .ok_or_else(|| StdError::generic_err("pool not found"))?;
-
-        let pool: Pool = pool_proto
-            .try_into()
-            .map_err(|_| StdError::generic_err("failed to decode CL pool proto"))?;
-
-        // perform soft pool validation by asserting that the lp config assets
-        // are all present in the pool
-        let (mut asset_1_found, mut asset_2_found) = (false, false);
-        for pool_asset in [pool.token0, pool.token1] {
-            if self.lp_config.pool_asset_1 == pool_asset {
-                asset_1_found = true;
-            }
-            if self.lp_config.pool_asset_2 == pool_asset {
-                asset_2_found = true;
-            }
-        }
+        let asset_1_found = pool_assets.contains(&self.lp_config.pool_asset_1);
+        let asset_2_found = pool_assets.contains(&self.lp_config.pool_asset_2);
 
         ensure!(
             asset_1_found && asset_2_found,

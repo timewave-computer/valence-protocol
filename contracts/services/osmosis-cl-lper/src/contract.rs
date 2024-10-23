@@ -99,7 +99,7 @@ pub fn provide_liquidity_custom(
         .query_balance(&cfg.input_addr, cfg.lp_config.pool_asset_2.as_str())?;
 
     // query the pool config
-    let pool_cfg = query_cl_pool(&deps, cfg.lp_config.pool_id.u64())?;
+    let pool_cfg = query_cl_pool(&deps.as_ref(), cfg.lp_config.pool_id.u64())?;
 
     // the target range must respect the pool tick spacing configuration
     tick_range.ensure_pool_spacing_compatibility(&pool_cfg)?;
@@ -147,7 +147,7 @@ pub fn provide_liquidity_default(
         .query_balance(&cfg.input_addr, cfg.lp_config.pool_asset_2.as_str())?;
 
     // query the pool config
-    let pool_cfg = query_cl_pool(&deps, cfg.lp_config.pool_id.u64())?;
+    let pool_cfg = query_cl_pool(&deps.as_ref(), cfg.lp_config.pool_id.u64())?;
 
     // we derive the tick range from the bucket count
     let active_bucket = TickRange::try_from(pool_cfg)?;

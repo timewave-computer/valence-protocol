@@ -75,13 +75,13 @@ pub fn get_provide_ss_liquidity_msg(
 
 pub mod cl_utils {
     use cosmwasm_schema::cw_serde;
-    use cosmwasm_std::{ensure, DepsMut, Int64, StdError, StdResult, Uint64};
+    use cosmwasm_std::{ensure, Deps, Int64, StdError, StdResult, Uint64};
     use osmosis_std::types::osmosis::{
         concentratedliquidity::v1beta1::Pool, poolmanager::v1beta1::PoolmanagerQuerier,
     };
     use valence_service_utils::error::ServiceError;
 
-    pub fn query_cl_pool(deps: &DepsMut, pool_id: u64) -> StdResult<Pool> {
+    pub fn query_cl_pool(deps: &Deps, pool_id: u64) -> StdResult<Pool> {
         let querier = PoolmanagerQuerier::new(&deps.querier);
         let proto_pool = querier
             .pool(pool_id)?
