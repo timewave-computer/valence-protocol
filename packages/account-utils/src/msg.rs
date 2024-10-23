@@ -109,3 +109,97 @@ where
     }
     Err(StdError::generic_err("valence payload not found"))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cosmwasm_std::{Event, SubMsgResponse};
+
+    #[test]
+    fn test_valence_callback_from_reply() {
+        let reply = Reply {
+            id: 1,
+            result: SubMsgResult::Ok(SubMsgResponse {
+                events: vec![],
+                data: Some(
+                    b"CAISATAaBzEwMDAwMDAqHTE5OTk5NDk5OTg3NDk5NzM3NTUyMTg3MjczMzkzMJj4/////////wE="
+                        .into(),
+                ),
+                msg_responses: vec![],
+            }),
+            payload: Binary::from(vec![1, 2, 3]),
+            gas_used: 5555,
+        };
+
+        let callback: ValenceCallback = reply.into();
+
+        assert_eq!(callback.id, 1);
+        assert_eq!(callback.payload, Binary::from(vec![1, 2, 3]));
+        assert!(!callback.payload.is_empty());
+    }
+
+    #[test]
+    fn test_valence_callback_into_attribute() {
+        let callback = ValenceCallback {
+            id: 1,
+            result: SubMsgResult::Ok(SubMsgResponse {
+                events: vec![],
+                data: Some(
+                    b"CAISATAaBzEwMDAwMDAqHTE5OTk5NDk5OTg3NDk5NzM3NTUyMTg3MjczMzkzMJj4/////////wE="
+                        .into(),
+                ),
+                msg_responses: vec![],
+            }),
+            payload: Binary::from(vec![1, 2, 3]),
+        };
+
+        let attr: Attribute = callback.try_into().unwrap();
+
+        assert_eq!(attr.key, VALENCE_CALLBACK_KEY);
+        assert!(attr.value.contains("\"id\":1"));
+        assert!(attr.value.contains("\"payload\":\"AQID\""));
+    }
+
+    #[test]
+    fn test_valence_callback_try_from_submsg_result() {
+        let resp = "{\"id\":314,\"result\":{\"ok\":{\"events\":[],\"data\":\"CAISATAaBzEwMDAwMDAqHTE5OTk5NDk5OTg3NDk5NzM3NTUyMTg3MjczMzkzMJj4/////////wE=\",\"msg_responses\":[]}},\"payload\":\"\"}";
+        let event = Event::new(WASM_EVENT_TYPE).add_attribute(VALENCE_CALLBACK_KEY, resp);
+
+        let submsg_result = SubMsgResult::Ok(SubMsgResponse {
+            events: vec![event],
+            data: None,
+            msg_responses: vec![],
+        });
+
+        let callback: ValenceCallback = submsg_result.try_into().unwrap();
+
+        assert_eq!(callback.id, 314);
+        assert!(callback.payload.is_empty());
+    }
+
+    #[test]
+    fn test_parse_valence_payload() {
+        #[cw_serde]
+        struct TestPayload {
+            value: String,
+        }
+
+        let event =
+            Event::new(WASM_EVENT_TYPE).add_attribute(VALENCE_PAYLOAD_KEY, r#"{"value":"test"}"#);
+
+        let submsg_result = SubMsgResult::Ok(SubMsgResponse {
+            events: vec![event],
+            data: None,
+            msg_responses: vec![],
+        });
+
+        let payload: TestPayload = parse_valence_payload(&submsg_result).unwrap();
+
+        assert_eq!(
+            payload,
+            TestPayload {
+                value: "test".to_string()
+            }
+        );
+    }
+}
