@@ -14,8 +14,8 @@ permissions:
 jobs:
   build-and-deploy:
     concurrency:
-        group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-        cancel-in-progress: true
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -27,7 +27,7 @@ jobs:
       - name: Build book
         run: mdbook build docs
 
-      - name: Deploy 🚀
+      - name: Deploy
         if: github.event_name == 'push'
         uses: JamesIves/github-pages-deploy-action@v4
         with:
