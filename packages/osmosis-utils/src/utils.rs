@@ -101,16 +101,31 @@ pub mod cl_utils {
         pub upper_tick: Int64,
     }
 
-    impl From<Pool> for TickRange {
-        fn from(value: Pool) -> Self {
-            let tick_spacing = value.tick_spacing as i64;
+    impl TryFrom<Pool> for TickRange {
+        type Error = StdError;
 
-            let lower_bound = (value.current_tick / tick_spacing) * tick_spacing;
+        /// method to derive the currently active CL pool bucket from the pool config.
+        fn try_from(value: Pool) -> Result<Self, Self::Error> {
+            let current_tick = Int64::from(value.current_tick);
+            let tick_spacing: Int64 = i64::try_from(value.tick_spacing)
+                .map_err(|e| StdError::generic_err(e.to_string()))?
+                .into();
 
-            TickRange {
-                lower_tick: lower_bound.into(),
-                upper_tick: (lower_bound + tick_spacing).into(),
-            }
+            // calculating the lower bound of the current tick range works as follows:
+            // 1. Divide the current tick by the tick spacing (using euclidean division).
+            //  Euclidian division is used here to cover cases where the current tick is
+            //  negative. Regular integer division rounds towards 0, which would return an
+            //  off-by-one bucket (towards positive values).
+            // 2. Multiply the result by the tick spacing
+            let lower_bound = current_tick
+                .checked_div_euclid(tick_spacing)
+                .map_err(|e| StdError::generic_err(e.to_string()))?
+                .checked_mul(tick_spacing)?;
+
+            Ok(TickRange {
+                lower_tick: lower_bound,
+                upper_tick: lower_bound.checked_add(tick_spacing)?,
+            })
         }
     }
 
@@ -199,9 +214,47 @@ pub mod cl_utils {
         #[test]
         fn test_tick_range_from_pool() {
             let pool = default_pool();
-            let tick_range = TickRange::from(pool);
+            let tick_range = TickRange::try_from(pool).unwrap();
             assert_eq!(tick_range.lower_tick, Int64::new(100));
             assert_eq!(tick_range.upper_tick, Int64::new(110));
+        }
+
+        #[test]
+        fn test_tick_range_from_pool_negative_current_tick() {
+            let pool = Pool {
+                current_tick: -100,
+                tick_spacing: 10,
+                ..Default::default()
+            };
+            let tick_range = TickRange::try_from(pool).unwrap();
+            assert_eq!(tick_range.lower_tick, Int64::new(-100));
+            assert_eq!(tick_range.upper_tick, Int64::new(-90));
+        }
+
+        #[test]
+        fn test_tick_range_from_pool_positive_current_tick_mid_bucket() {
+            let pool = Pool {
+                current_tick: 105,
+                tick_spacing: 10,
+                ..Default::default()
+            };
+            let tick_range = TickRange::try_from(pool).unwrap();
+
+            assert_eq!(tick_range.lower_tick, Int64::new(100));
+            assert_eq!(tick_range.upper_tick, Int64::new(110));
+        }
+
+        #[test]
+        fn test_tick_range_from_pool_negative_current_tick_mid_bucket() {
+            let pool = Pool {
+                current_tick: -105,
+                tick_spacing: 10,
+                ..Default::default()
+            };
+            let tick_range = TickRange::try_from(pool).unwrap();
+
+            assert_eq!(tick_range.lower_tick, Int64::new(-110));
+            assert_eq!(tick_range.upper_tick, Int64::new(-100));
         }
 
         #[test]

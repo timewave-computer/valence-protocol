@@ -150,7 +150,7 @@ pub fn provide_liquidity_default(
     let pool_cfg = query_cl_pool(&deps, cfg.lp_config.pool_id.u64())?;
 
     // we derive the tick range from the bucket count
-    let active_bucket = TickRange::from(pool_cfg);
+    let active_bucket = TickRange::try_from(pool_cfg)?;
 
     // we extend the active bucket range to both sides by the bucket count
     let derived_tick_range = active_bucket.amplify_range_bidirectionally(bucket_count)?;
