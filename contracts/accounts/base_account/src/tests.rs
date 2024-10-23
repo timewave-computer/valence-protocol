@@ -1,4 +1,4 @@
-use cosmwasm_std::{coin, Addr, Coin, CosmosMsg, StdResult, Uint128};
+use cosmwasm_std::{coin, Addr, BankMsg, Coin, CosmosMsg, StdResult, SubMsg, Uint128};
 use cw20::Cw20Coin;
 use cw_denom::CheckedDenom;
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
@@ -8,7 +8,7 @@ use itertools::sorted;
 use std::string::ToString;
 use valence_account_utils::{
     error::{ContractError, UnauthorizedReason},
-    msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
+    msg::{ExecuteMsg, InstantiateMsg, QueryMsg, VALENCE_PAYLOAD_KEY},
     testing::{AccountTestSuite, AccountTestSuiteBase},
 };
 
@@ -220,6 +220,21 @@ impl BaseAccountTestSuite {
         msgs: Vec<cosmwasm_std::CosmosMsg>,
     ) -> AnyResult<AppResponse> {
         self.contract_execute(addr, &ExecuteMsg::ExecuteMsg { msgs })
+    }
+
+    fn execute_submsgs(
+        &mut self,
+        addr: Addr,
+        sender: Addr,
+        msgs: Vec<SubMsg>,
+        payload: Option<String>,
+    ) -> AnyResult<AppResponse> {
+        self.app_mut().execute_contract(
+            sender,
+            addr,
+            &ExecuteMsg::ExecuteSubmsgs { msgs, payload },
+            &[],
+        )
     }
 
     fn query_approved_services(&mut self, addr: &Addr) -> Vec<Addr> {
@@ -672,4 +687,129 @@ fn renounce_account_ownership_by_non_owner() {
         res.unwrap_err().downcast::<ContractError>().unwrap(),
         ContractError::OwnershipError(OwnershipError::NotOwner)
     );
+}
+
+#[test]
+fn execute_submessages_by_approved_service() {
+    let mut suite = BaseAccountTestSuite::new(Some(vec![(ONE_MILLION, NTRN.to_string())]));
+
+    let svc1 = suite.api().addr_make("service_1");
+    let recipient = suite.api().addr_make("recipient");
+
+    // instantiate base account contract
+    let acc = suite.account_init(vec![svc1.to_string()]);
+    suite.assert_balance(&acc, coin(ONE_MILLION, NTRN));
+
+    // create a submessage
+    let transfer_msg = SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
+        to_address: recipient.to_string(),
+        amount: vec![coin(ONE_THOUSAND, NTRN)],
+    }));
+
+    // approved service executes submessage
+    suite
+        .execute_submsgs(acc.clone(), svc1, vec![transfer_msg], None)
+        .unwrap();
+
+    // verify account & recipient balances
+    suite.assert_balance(&acc, coin(ONE_MILLION - ONE_THOUSAND, NTRN));
+    suite.assert_balance(&recipient, coin(ONE_THOUSAND, NTRN));
+}
+
+#[test]
+#[should_panic(expected = "Unauthorized: Not an approved service")]
+fn execute_submessages_by_owner_unauthorized_panics() {
+    let mut suite = BaseAccountTestSuite::new(Some(vec![(ONE_MILLION, NTRN.to_string())]));
+    let recipient = suite.api().addr_make("recipient");
+
+    // instantiate base account
+    let acc = suite.account_init(vec![]);
+
+    // create a submessage
+    let transfer_msg = SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
+        to_address: recipient.to_string(),
+        amount: vec![coin(ONE_THOUSAND, NTRN)],
+    }));
+
+    // owner executes submessage
+    suite
+        .execute_submsgs(acc.clone(), suite.owner().clone(), vec![transfer_msg], None)
+        .unwrap();
+}
+
+#[test]
+fn execute_submessages_with_payload() {
+    let mut suite = BaseAccountTestSuite::new(Some(vec![(ONE_MILLION, NTRN.to_string())]));
+
+    let svc1 = suite.api().addr_make("service_1");
+    let recipient = suite.api().addr_make("recipient");
+
+    // instantiate base account
+    let acc = suite.account_init(vec![svc1.to_string()]);
+
+    // assert account balance
+    suite.assert_balance(&acc, coin(ONE_MILLION, NTRN));
+
+    // create a submessage
+    let transfer_msg = SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
+        to_address: recipient.to_string(),
+        amount: vec![coin(ONE_THOUSAND, NTRN)],
+    }));
+
+    // create a payload, mocking the osmo-cl-lper Config
+    let payload = Some(
+        r#"{"input_addr":"neutron1input123456789abcdefghijklmnopqrstuvwxyz","output_addr":"neutron1output987654321zyxwvutsrqponmlkjihgfedcba","lp_config":{"pool_id": "42","pool_asset_1": "untrn","pool_asset_2": "umeme","global_tick_range": {"lower_tick": "-1000","upper_tick": "1000"}}}"#
+        .to_string(),
+    );
+
+    // approved service executes submessage with payload
+    let res = suite
+        .execute_submsgs(acc.clone(), svc1, vec![transfer_msg], payload.clone())
+        .unwrap();
+
+    // verify the payload is included in the response attributes
+    let mut found = false;
+    for event in res.events {
+        for attr in event.attributes {
+            if attr.key == VALENCE_PAYLOAD_KEY {
+                assert_eq!(attr.value, payload.clone().unwrap());
+                found = true;
+            }
+        }
+    }
+    assert!(found);
+}
+
+#[test]
+fn execute_submessages_without_payload() {
+    let mut suite = BaseAccountTestSuite::new(Some(vec![(ONE_MILLION, NTRN.to_string())]));
+
+    let svc1 = suite.api().addr_make("service_1");
+    let recipient = suite.api().addr_make("recipient");
+
+    // instantiate base account
+    let acc = suite.account_init(vec![svc1.to_string()]);
+
+    // assert account balance
+    suite.assert_balance(&acc, coin(ONE_MILLION, NTRN));
+
+    // create a submessage
+    let transfer_msg = SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
+        to_address: recipient.to_string(),
+        amount: vec![coin(ONE_THOUSAND, NTRN)],
+    }));
+
+    // approved service executes submessage with no payload
+    let res = suite
+        .execute_submsgs(acc.clone(), svc1, vec![transfer_msg], None)
+        .unwrap();
+
+    // verify that no payload is included in the response attributes
+    for event in res.events {
+        for attr in event.attributes {
+            if attr.key == VALENCE_PAYLOAD_KEY {
+                panic!();
+            }
+        }
+    }
 }

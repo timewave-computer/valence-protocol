@@ -117,6 +117,7 @@ mod tests {
 
     #[test]
     fn test_valence_callback_from_reply() {
+        #[allow(deprecated)]
         let reply = Reply {
             id: 1,
             result: SubMsgResult::Ok(SubMsgResponse {
@@ -140,6 +141,7 @@ mod tests {
 
     #[test]
     fn test_valence_callback_into_attribute() {
+        #[allow(deprecated)]
         let callback = ValenceCallback {
             id: 1,
             result: SubMsgResult::Ok(SubMsgResponse {
@@ -165,6 +167,7 @@ mod tests {
         let resp = "{\"id\":314,\"result\":{\"ok\":{\"events\":[],\"data\":\"CAISATAaBzEwMDAwMDAqHTE5OTk5NDk5OTg3NDk5NzM3NTUyMTg3MjczMzkzMJj4/////////wE=\",\"msg_responses\":[]}},\"payload\":\"\"}";
         let event = Event::new(WASM_EVENT_TYPE).add_attribute(VALENCE_CALLBACK_KEY, resp);
 
+        #[allow(deprecated)]
         let submsg_result = SubMsgResult::Ok(SubMsgResponse {
             events: vec![event],
             data: None,
@@ -187,6 +190,7 @@ mod tests {
         let event =
             Event::new(WASM_EVENT_TYPE).add_attribute(VALENCE_PAYLOAD_KEY, r#"{"value":"test"}"#);
 
+        #[allow(deprecated)]
         let submsg_result = SubMsgResult::Ok(SubMsgResponse {
             events: vec![event],
             data: None,

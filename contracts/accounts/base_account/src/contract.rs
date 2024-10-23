@@ -99,8 +99,8 @@ mod execute {
         payload: Option<String>,
     ) -> Result<Response, ContractError> {
         ensure!(
-            APPROVED_SERVICES.has(deps.storage, info.sender.clone()),
-            ContractError::Unauthorized(UnauthorizedReason::NotAdminOrApprovedService,)
+            APPROVED_SERVICES.has(deps.storage, info.sender),
+            ContractError::Unauthorized(UnauthorizedReason::NotApprovedService)
         );
 
         let mut resp = Response::new().add_submessages(msgs);
