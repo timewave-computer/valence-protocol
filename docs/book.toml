@@ -1,0 +1,6 @@
+[book]
+authors = ["Timewave Labs"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Valence Protocol Documentation"
