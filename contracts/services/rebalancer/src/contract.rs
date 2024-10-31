@@ -46,8 +46,7 @@ mod actions {
     use valence_service_utils::error::ServiceError;
 
     use crate::{
-        msg::{ActionMsgs, Config},
-        NTRN_DENOM,
+        msg::{ActionMsgs, Config}, rebalancer_custom::{RebalancerAccountType, RebalancerData, ServicesManagerExecuteMsg, Target, TargetOverrideStrategy, ValenceServices}, NTRN_DENOM
     };
 
     pub fn process_action(
@@ -67,34 +66,34 @@ mod actions {
                 let config: Config = valence_service_base::load_config(deps.storage)?;
 
                 // TODO: Change this to get the full list of targets the rebalancer supports
-                let mut targets: HashSet<rebalancer_package::services::rebalancer::Target> =
+                let mut targets: HashSet<Target> =
                     HashSet::new();
                 config.denoms.iter().for_each(|denom| {
-                    targets.insert(rebalancer_package::services::rebalancer::Target {
+                    targets.insert(Target {
                         denom: denom.to_string(),
                         bps: 1,
                         min_balance: None,
                     });
                 });
                 // main denom - USDC
-                targets.insert(rebalancer_package::services::rebalancer::Target {
+                targets.insert(Target {
                     denom: config.base_denom.clone(),
-                    bps: 10000 - (config.denoms.iter().count() as u64),
+                    bps: 10000 - (config.denoms.len() as u64),
                     min_balance: Some(min_balance.u128().into()),
                 });
 
-                let rebalancer_config = rebalancer_package::services::rebalancer::RebalancerData {
+                let rebalancer_config = RebalancerData {
                     trustee,
                     base_denom: config.base_denom,
                     targets,
                     pid,
                     max_limit_bps,
-                    target_override_strategy: rebalancer_package::services::rebalancer::TargetOverrideStrategy::Proportional,
-                    account_type: rebalancer_package::services::rebalancer::RebalancerAccountType::Workflow,
+                    target_override_strategy: TargetOverrideStrategy::Proportional,
+                    account_type: RebalancerAccountType::Workflow,
                 };
 
-                let register_msg = rebalancer_package::msgs::core_execute::ServicesManagerExecuteMsg::RegisterToService {
-                    service_name: rebalancer_package::services::ValenceServices::Rebalancer,
+                let register_msg = ServicesManagerExecuteMsg::RegisterToService {
+                    service_name: ValenceServices::Rebalancer,
                     data: Some(to_json_binary(&rebalancer_config)?.to_vec().into())
                 };
                 let rebalancer_wasm_msg = WasmMsg::Execute {

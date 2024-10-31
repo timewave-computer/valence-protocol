@@ -26,7 +26,6 @@ thiserror             = { workspace = true }
 valence-macros        = { workspace = true }
 valence-service-utils = { workspace = true }
 valence-service-base  = { workspace = true }
-rebalancer-package    = { git = "https://github.com/timewave-computer/valence-services", package = "valence-package", branch = "art3mix/workflow-comp" }
 
 [dev-dependencies]
 cw-multi-test         = { workspace = true }

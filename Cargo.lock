@@ -233,6 +233,21 @@ dependencies = [
 
 [[package]]
 name = "astroport"
+version = "2.9.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d102b618016b3c1f1ebb5750617a73dbd294a3c941e54b12deabc931d771bc6e"
+dependencies = [
+ "cosmwasm-schema 1.5.8",
+ "cosmwasm-std 1.5.8",
+ "cw-storage-plus 0.15.1",
+ "cw-utils 0.15.1",
+ "cw20 0.15.1",
+ "itertools 0.10.5",
+ "uint 0.9.5",
+]
+
+[[package]]
+name = "astroport"
 version = "5.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "079959b98988f2adcf8b884f8dd536d70c5306e231b1b047dc7c0f68800f6da3"
@@ -318,9 +333,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "auction"
+version = "0.1.5"
+source = "git+https://github.com/timewave-computer/valence-services?branch=art3mix/workflow-comp#8ef4d832e44e35af5e1e8c46bfb6fc8f22e8eb72"
+dependencies = [
+ "auction-package",
+ "cosmwasm-schema 1.5.8",
+ "cosmwasm-std 1.5.8",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "serde",
+ "thiserror",
+ "valence-package",
+]
+
+[[package]]
 name = "auction-package"
 version = "0.1.5"
-source = "git+https://github.com/timewave-computer/valence-services?branch=art3mix/workflow-comp#50f956265ea777c09377b75fa21db57814cd7c9a"
+source = "git+https://github.com/timewave-computer/valence-services?branch=art3mix/workflow-comp#8ef4d832e44e35af5e1e8c46bfb6fc8f22e8eb72"
 dependencies = [
  "cosmwasm-schema 1.5.8",
  "cosmwasm-std 1.5.8",
@@ -328,6 +359,24 @@ dependencies = [
  "cw-utils 1.0.3",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "auctions-manager"
+version = "0.1.5"
+source = "git+https://github.com/timewave-computer/valence-services?branch=art3mix/workflow-comp#8ef4d832e44e35af5e1e8c46bfb6fc8f22e8eb72"
+dependencies = [
+ "auction",
+ "auction-package",
+ "cosmwasm-schema 1.5.8",
+ "cosmwasm-std 1.5.8",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "price-oracle",
+ "serde",
+ "thiserror",
+ "valence-package",
 ]
 
 [[package]]
@@ -1275,6 +1324,21 @@ dependencies = [
 
 [[package]]
 name = "cw-utils"
+version = "0.15.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ae0b69fa7679de78825b4edeeec045066aa2b2c4b6e063d80042e565bb4da5c"
+dependencies = [
+ "cosmwasm-schema 1.5.8",
+ "cosmwasm-std 1.5.8",
+ "cw2 0.15.1",
+ "schemars",
+ "semver",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "cw-utils"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c4a657e5caacc3a0d00ee96ca8618745d050b8f757c709babafb81208d4239c"
@@ -1299,6 +1363,19 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "cw2"
+version = "0.15.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5abb8ecea72e09afff830252963cb60faf945ce6cef2c20a43814516082653da"
+dependencies = [
+ "cosmwasm-schema 1.5.8",
+ "cosmwasm-std 1.5.8",
+ "cw-storage-plus 0.15.1",
+ "schemars",
+ "serde",
 ]
 
 [[package]]
@@ -1329,6 +1406,19 @@ dependencies = [
  "semver",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "cw20"
+version = "0.15.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6025276fb6e603e974c21f3e4606982cdc646080e8fba3198816605505e1d9a"
+dependencies = [
+ "cosmwasm-schema 1.5.8",
+ "cosmwasm-std 1.5.8",
+ "cw-utils 0.15.1",
+ "schemars",
+ "serde",
 ]
 
 [[package]]
@@ -2445,6 +2535,9 @@ checksum = "78b3ae25bc7c8c38cec158d1f2757ee79e9b3740fbc7ccf0e59e4b08d793fa89"
 name = "local-interchaintest"
 version = "0.1.0"
 dependencies = [
+ "auction",
+ "auction-package",
+ "auctions-manager",
  "cosmos-grpc-client",
  "cosmwasm-std 1.5.8",
  "cosmwasm-std 2.1.4",
@@ -2457,8 +2550,11 @@ dependencies = [
  "persistence-std",
  "polytone-note",
  "polytone-voice",
+ "price-oracle",
  "rand 0.8.5",
+ "rebalancer",
  "serde_json",
+ "services-manager",
  "sha2 0.10.8",
  "tokio",
  "valence-account-utils",
@@ -2471,8 +2567,10 @@ dependencies = [
  "valence-generic-ibc-transfer-service",
  "valence-ibc-utils",
  "valence-neutron-ibc-transfer-service",
+ "valence-package",
  "valence-processor",
  "valence-processor-utils",
+ "valence-rebalancer-service",
  "valence-reverse-splitter-service",
  "valence-service-utils",
  "valence-splitter-service",
@@ -2497,7 +2595,7 @@ name = "localic-utils"
 version = "0.1.0"
 source = "git+https://github.com/timewave-computer/localic-utils?branch=main#e2801c6549a7e33599e6c8e5363a4f22942d37fd"
 dependencies = [
- "astroport",
+ "astroport 5.5.0",
  "cosmwasm-std 1.5.8",
  "derive_builder",
  "localic-std",
@@ -3205,6 +3303,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "price-oracle"
+version = "0.1.5"
+source = "git+https://github.com/timewave-computer/valence-services?branch=art3mix/workflow-comp#8ef4d832e44e35af5e1e8c46bfb6fc8f22e8eb72"
+dependencies = [
+ "astroport 2.9.5",
+ "auction-package",
+ "cosmwasm-schema 1.5.8",
+ "cosmwasm-std 1.5.8",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "serde",
+ "thiserror",
+ "valence-package",
+]
+
+[[package]]
 name = "primeorder"
 version = "0.13.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3479,6 +3594,25 @@ checksum = "1465873a3dfdaa8ae7cb14b4383657caab0b3e8a0aa9ae8e04b044854c8dfce2"
 dependencies = [
  "crossbeam-deque",
  "crossbeam-utils",
+]
+
+[[package]]
+name = "rebalancer"
+version = "0.1.5"
+source = "git+https://github.com/timewave-computer/valence-services?branch=art3mix/workflow-comp#8ef4d832e44e35af5e1e8c46bfb6fc8f22e8eb72"
+dependencies = [
+ "auction",
+ "auction-package",
+ "auctions-manager",
+ "cosmwasm-schema 1.5.8",
+ "cosmwasm-std 1.5.8",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "serde",
+ "thiserror",
+ "valence-macros 0.1.5",
+ "valence-package",
 ]
 
 [[package]]
@@ -3944,6 +4078,22 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "services-manager"
+version = "0.1.5"
+source = "git+https://github.com/timewave-computer/valence-services?branch=art3mix/workflow-comp#8ef4d832e44e35af5e1e8c46bfb6fc8f22e8eb72"
+dependencies = [
+ "cosmwasm-schema 1.5.8",
+ "cosmwasm-std 1.5.8",
+ "cw-storage-plus 1.2.0",
+ "cw2 1.1.2",
+ "rebalancer",
+ "serde",
+ "thiserror",
+ "valence-macros 0.1.5",
+ "valence-package",
 ]
 
 [[package]]
@@ -5156,7 +5306,7 @@ dependencies = [
 [[package]]
 name = "valence-macros"
 version = "0.1.5"
-source = "git+https://github.com/timewave-computer/valence-services?branch=art3mix/workflow-comp#50f956265ea777c09377b75fa21db57814cd7c9a"
+source = "git+https://github.com/timewave-computer/valence-services?branch=art3mix/workflow-comp#8ef4d832e44e35af5e1e8c46bfb6fc8f22e8eb72"
 dependencies = [
  "cosmwasm-schema 1.5.8",
  "cosmwasm-std 1.5.8",
@@ -5246,7 +5396,7 @@ dependencies = [
 [[package]]
 name = "valence-package"
 version = "0.1.5"
-source = "git+https://github.com/timewave-computer/valence-services?branch=art3mix/workflow-comp#50f956265ea777c09377b75fa21db57814cd7c9a"
+source = "git+https://github.com/timewave-computer/valence-services?branch=art3mix/workflow-comp#8ef4d832e44e35af5e1e8c46bfb6fc8f22e8eb72"
 dependencies = [
  "auction-package",
  "cosmwasm-schema 1.5.8",
@@ -5311,7 +5461,6 @@ dependencies = [
  "serde",
  "thiserror",
  "valence-macros 0.1.0",
- "valence-package",
  "valence-service-base",
  "valence-service-utils",
 ]

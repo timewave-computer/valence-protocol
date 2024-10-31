@@ -6,17 +6,19 @@ use valence_service_utils::{
     error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType,
 };
 
+use crate::rebalancer_custom::PID;
+
 #[cw_serde]
 pub enum ActionMsgs {
     StartRebalance {
         trustee: Option<String>,
-        pid: rebalancer_package::services::rebalancer::PID,
+        pid: PID,
         max_limit_bps: Option<u64>,
         min_balance: Uint128,
     },
     UpdateRebalancerConfig {
         trustee: Option<String>,
-        pid: Option<rebalancer_package::services::rebalancer::PID>,
+        pid: Option<PID>,
         max_limit_bps: Option<u64>,
     },
 }

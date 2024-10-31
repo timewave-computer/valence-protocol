@@ -38,4 +38,22 @@ valence-workflow-registry-utils      = { workspace = true }
 valence-ibc-utils                    = { workspace = true }
 valence-generic-ibc-transfer-service = { workspace = true }
 valence-neutron-ibc-transfer-service = { workspace = true }
+valence-rebalancer-service           = { workspace = true }
 tokio                                = { workspace = true }
+
+# Rebalancer
+rebalancer-package = { git = "https://github.com/timewave-computer/valence-services", package = "valence-package", branch = "art3mix/workflow-comp" }
+rebalancer-auction-package = { git = "https://github.com/timewave-computer/valence-services", package = "auction-package", branch = "art3mix/workflow-comp" }
+rebalancer-auction-manager = { git = "https://github.com/timewave-computer/valence-services", package = "auctions-manager", branch = "art3mix/workflow-comp" }
+rebalancer-auction = { git = "https://github.com/timewave-computer/valence-services", package = "auction", branch = "art3mix/workflow-comp", features = [
+    "library",
+] }
+rebalancer-oracle = { git = "https://github.com/timewave-computer/valence-services", package = "price-oracle", branch = "art3mix/workflow-comp", features = [
+    "library",
+] }
+rebalancer-rebalancer = { git = "https://github.com/timewave-computer/valence-services", package = "rebalancer", branch = "art3mix/workflow-comp", features = [
+    "library",
+] }
+rebalancer-services-manager = { git = "https://github.com/timewave-computer/valence-services", package = "services-manager", branch = "art3mix/workflow-comp", features = [
+    "library",
+] }

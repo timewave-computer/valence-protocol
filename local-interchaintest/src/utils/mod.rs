@@ -15,6 +15,8 @@ pub const NEUTRON_JUNO_CONFIG_FILE: &str = "neutron_juno.json";
 pub const VALENCE_ARTIFACTS_PATH: &str = "artifacts";
 // We keep the polytone contracts here for our tests
 pub const POLYTONE_ARTIFACTS_PATH: &str = "local-interchaintest/polytone_contracts";
+// We keep the polytone contracts here for our tests
+pub const REBALANCER_ARTIFACTS_PATH: &str = "local-interchaintest/rebalancer_contracts";
 // Where we are keeping the astroport contracts for all our tests
 pub const ASTROPORT_PATH: &str = "packages/astroport-utils/contracts";
 // When spinning up local-ic, this is where the logs files will be stored, we used this to cache code_ids for a specific local-ic instance
