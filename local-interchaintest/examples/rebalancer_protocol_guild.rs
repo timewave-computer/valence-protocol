@@ -1,13 +1,22 @@
 use std::{error::Error, vec};
 
+use cosmwasm_std_old::Coin as BankCoin;
 use cosmwasm_std_old::Uint128;
+use local_interchaintest::utils::manager::setup_manager;
+use local_interchaintest::utils::manager::REBALANCER_NAME;
+use local_interchaintest::utils::manager::SPLITTER_NAME;
+use local_interchaintest::utils::NEUTRON_CONFIG_FILE;
 use local_interchaintest::utils::{
-    LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, REBALANCER_ARTIFACTS_PATH,
-    VALENCE_ARTIFACTS_PATH,
+    LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, NEUTRON_USER_ADDRESS_1, NTRN_DENOM,
+    REBALANCER_ARTIFACTS_PATH, VALENCE_ARTIFACTS_PATH,
 };
+use localic_std::modules::bank;
+use localic_utils::GAIA_CHAIN_NAME;
 use localic_utils::{
-    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR,
+    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, LOCAL_IC_API_URL,
+    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
 };
+use log::info;
 use rand::{distributions::Alphanumeric, Rng};
 use rebalancer_auction_package::Pair;
 
@@ -71,7 +80,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         auction_code_id: auction.code_id.unwrap(),
         min_auction_amount: vec![
             (
-                "untrn".to_string(),
+                NTRN_DENOM.to_string(),
                 rebalancer_auction_package::states::MinAmount {
                     send: Uint128::one(),
                     start_auction: Uint128::one(),
@@ -98,13 +107,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     let auctions_manager_addr = auctions_manager.instantiate(
         DEFAULT_KEY,
         &serde_json::to_string(&auctions_manager_init_msg).unwrap(),
-        "auctions manager",
+        "auctions-manager",
         None,
         "",
     )?;
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
     // init oracle
-    let mut oracle = test_ctx.get_contract().contract("oracle").get_cw();
+    let mut oracle = test_ctx.get_contract().contract("price_oracle").get_cw();
     let oracle_msg = rebalancer_oracle::msg::InstantiateMsg {
         auctions_manager_addr: auctions_manager_addr.address.clone(),
         seconds_allow_manual_change: 5,
@@ -129,6 +139,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &serde_json::to_string(&add_oracle_msg).unwrap(),
         "",
     )?;
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
     // init auction for each pair (we have 3 tokens, untrn, "usdc", "newt")
     let base_auction_strategy = rebalancer_auction_package::AuctionStrategy {
@@ -137,10 +148,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     // pairs
-    let ntrn_usdc_pair = Pair("untrn".to_string(), usdc_denom.to_string());
-    let usdc_ntrn_pair = Pair(usdc_denom.to_string(), "untrn".to_string());
-    let ntrn_newt_pair = Pair("untrn".to_string(), newt_denom.to_string());
-    let newt_ntrn_pair = Pair(newt_denom.to_string(), "untrn".to_string());
+    let ntrn_usdc_pair = Pair(NTRN_DENOM.to_string(), usdc_denom.to_string());
+    let usdc_ntrn_pair = Pair(usdc_denom.to_string(), NTRN_DENOM.to_string());
+    let ntrn_newt_pair = Pair(NTRN_DENOM.to_string(), newt_denom.to_string());
+    let newt_ntrn_pair = Pair(newt_denom.to_string(), NTRN_DENOM.to_string());
     let usdc_newt_pair = Pair(usdc_denom.to_string(), newt_denom.to_string());
     let newt_usdc_pair = Pair(newt_denom.to_string(), usdc_denom.to_string());
 
@@ -163,6 +174,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap(),
         "",
     )?;
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
     // usdc - ntrn
     let usdc_ntrn_init_msg = rebalancer_auction::msg::InstantiateMsg {
@@ -183,6 +195,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap(),
         "",
     )?;
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
     // ntrn - newt
     let ntrn_newt_init_msg = rebalancer_auction::msg::InstantiateMsg {
@@ -203,6 +216,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap(),
         "",
     )?;
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
     // newt - ntrn
     let newt_ntrn_init_msg = rebalancer_auction::msg::InstantiateMsg {
@@ -223,6 +237,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap(),
         "",
     )?;
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
     // usdc - newt
     let usdc_newt_init_msg = rebalancer_auction::msg::InstantiateMsg {
@@ -243,6 +258,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap(),
         "",
     )?;
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
     // newt - usdc
     let newt_usdc_init_msg = rebalancer_auction::msg::InstantiateMsg {
@@ -281,6 +297,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             "",
         )
         .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
     // usdc_ntrn price
     let oracle_price_update_msg = rebalancer_oracle::msg::ExecuteMsg::ManualPriceUpdate {
@@ -294,6 +311,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             "",
         )
         .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
     // ntrn_newt price
     let oracle_price_update_msg = rebalancer_oracle::msg::ExecuteMsg::ManualPriceUpdate {
@@ -307,6 +325,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             "",
         )
         .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
     // newt_ntrn price
     let oracle_price_update_msg = rebalancer_oracle::msg::ExecuteMsg::ManualPriceUpdate {
@@ -320,6 +339,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             "",
         )
         .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
     // newt_usdc price
     let oracle_price_update_msg = rebalancer_oracle::msg::ExecuteMsg::ManualPriceUpdate {
@@ -333,6 +353,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             "",
         )
         .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
     // usdc_newt price
     let oracle_price_update_msg = rebalancer_oracle::msg::ExecuteMsg::ManualPriceUpdate {
@@ -346,6 +367,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             "",
         )
         .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
     // init services manager
     let mut services_manager = test_ctx
@@ -358,16 +380,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     let services_manager_addr = services_manager.instantiate(
         DEFAULT_KEY,
         &serde_json::to_string(&services_manager_init_msg).unwrap(),
-        "services manager",
+        "services-manager",
         None,
         "",
     )?;
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
     // init the rebalancer
     let mut rebalancer = test_ctx.get_contract().contract("rebalancer").get_cw();
     let rebalancer_init_msg = rebalancer_rebalancer::msg::InstantiateMsg {
         denom_whitelist: vec![
-            "untrn".to_string(),
+            NTRN_DENOM.to_string(),
             usdc_denom.to_string(),
             newt_denom.to_string(),
         ],
@@ -377,7 +400,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         auctions_manager_addr: auctions_manager_addr.address,
         cycle_period: Some(1),
         fees: rebalancer_package::services::rebalancer::ServiceFeeConfig {
-            denom: "untrn".to_string(),
+            denom: NTRN_DENOM.to_string(),
             register_fee: cosmwasm_std_old::Uint128::one(),
             resume_fee: cosmwasm_std_old::Uint128::zero(),
         },
@@ -389,6 +412,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         None,
         "",
     )?;
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
     // register the rebalancer to the manager
     let register_rebalancer_msg =
@@ -405,8 +429,95 @@ fn main() -> Result<(), Box<dyn Error>> {
             "",
         )
         .unwrap();
-    // init MM bidder accounts with all tokens to bid that will buy from the auctions
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
-    // TODO: update the account id whitelisted on the manager
+    // fund all accounts with tokens
+    // Mint some of each token and send it to the base accounts
+    test_ctx
+        .build_tx_mint_tokenfactory_token()
+        .with_amount(100_000_000_000_000)
+        .with_denom(&usdc_denom)
+        .send()
+        .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    test_ctx
+        .build_tx_mint_tokenfactory_token()
+        .with_amount(100_000_000_000_000)
+        .with_denom(&newt_denom)
+        .send()
+        .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    bank::send(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        &NEUTRON_USER_ADDRESS_1,
+        &[BankCoin {
+            denom: usdc_denom.clone(),
+            amount: 10_000_000_000_000_u128.into(),
+        }],
+        &BankCoin {
+            denom: NTRN_DENOM.to_string(),
+            amount: cosmwasm_std_old::Uint128::new(5000),
+        },
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    bank::send(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        &NEUTRON_USER_ADDRESS_1,
+        &[BankCoin {
+            denom: newt_denom.clone(),
+            amount: 10_000_000_000_000_u128.into(),
+        }],
+        &BankCoin {
+            denom: NTRN_DENOM.to_string(),
+            amount: cosmwasm_std_old::Uint128::new(5000),
+        },
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    info!("Setup manager...");
+    let mut test_ctx = setup_manager(
+        test_ctx,
+        NEUTRON_CONFIG_FILE,
+        vec![GAIA_CHAIN_NAME],
+        vec![REBALANCER_NAME, SPLITTER_NAME],
+    )?;
+
+    let account = test_ctx
+        .get_contract()
+        .contract("valence_base_account")
+        .get_cw();
+    let account_code_id = account.code_id.unwrap();
+
+    // update the account id whitelisted on the manager
+    let execute_msg = rebalancer_package::msgs::core_execute::ServicesManagerExecuteMsg::Admin(
+        rebalancer_package::msgs::core_execute::ServicesManagerAdminMsg::UpdateCodeIdWhitelist {
+            to_add: vec![account_code_id],
+            to_remove: vec![],
+        },
+    );
+
+    let auctions_manager = test_ctx
+        .get_contract()
+        .contract("auctions_manager")
+        .get_cw();
+    auctions_manager
+        .execute(
+            DEFAULT_KEY,
+            &serde_json::to_string(&execute_msg).unwrap(),
+            "",
+        )
+        .unwrap();
+
     Ok(())
 }

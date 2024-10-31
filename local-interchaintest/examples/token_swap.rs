@@ -177,8 +177,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Setup the contracts and update the global config
     info!("Setup manager...");
-    setup_manager(
-        &mut test_ctx,
+    let mut test_ctx = setup_manager(
+        test_ctx,
         NEUTRON_CONFIG_FILE,
         vec![GAIA_CHAIN_NAME],
         vec![SPLITTER_NAME],

@@ -24,6 +24,7 @@ pub const GENERIC_IBC_TRANSFER_NAME: &str = "valence-generic-ibc-transfer-servic
 pub const NEUTRON_IBC_TRANSFER_NAME: &str = "valence-neutron-ibc-transfer-service";
 pub const ASTROPORT_LPER_NAME: &str = "valence_astroport_lper";
 pub const ASTROPORT_WITHDRAWER_NAME: &str = "valence_astroport_withdrawer";
+pub const REBALANCER_NAME: &str = "valence_rebalancer_service";
 
 /// Those contracts will always be uploaded because each workflow needs them
 const BASIC_CONTRACTS: [&str; 2] = [PROCESSOR_NAME, BASE_ACCOUNT_NAME];
@@ -33,11 +34,11 @@ const BASIC_CONTRACTS: [&str; 2] = [PROCESSOR_NAME, BASE_ACCOUNT_NAME];
 /// You can pass a list of contracts to upload, authorization, processor and base account are always uploaded,
 /// you need to specify the contracts you want to be uploaded for the given test
 pub fn setup_manager(
-    test_ctx: &mut TestContext,
+    mut test_ctx: TestContext,
     chains_file_path: &str,
     exclude_chains: Vec<&str>,
     mut contracts: Vec<&str>,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<TestContext, Box<dyn Error>> {
     let curr_path = env::current_dir()?;
     let artifacts_dir = format!("{}/artifacts", curr_path.to_str().unwrap());
     let chain_infos = get_chain_infos(chains_file_path);
@@ -129,7 +130,7 @@ pub fn setup_manager(
 
     gc.general.registry_addr = registry.address;
 
-    Ok(())
+    Ok(test_ctx)
 }
 
 /// A way to get specific contract path based on what chains we upload contract on.

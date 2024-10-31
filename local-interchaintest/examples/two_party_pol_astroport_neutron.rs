@@ -684,8 +684,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Creating the workflow...");
     workflow_config.verify_new_config()?;
-    setup_manager(
-        &mut test_ctx,
+    let mut test_ctx = setup_manager(
+        test_ctx,
         NEUTRON_CONFIG_FILE,
         vec![GAIA_CHAIN_NAME],
         vec![
