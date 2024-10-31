@@ -1,4 +1,9 @@
-use std::{collections::BTreeMap, env, error::Error, time::SystemTime};
+use std::{
+    collections::{BTreeMap, HashSet},
+    env,
+    error::Error,
+    time::SystemTime,
+};
 
 use cosmwasm_std::{Decimal, Timestamp, Uint128};
 use cw_utils::Expiration;
@@ -307,11 +312,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         config: ServiceConfig::ValenceDetokenizer(
             valence_detokenizoooor_service::msg::ServiceConfig {
                 input_addr: account_5,
-                voucher_denom: "dumdum".to_string(), // Need to update it
                 detokenizoooor_config: DetokenizoooorConfig {
-                    input_addr: todo!(),
-                    voucher_denom: todo!(),
-                    redeemable_denoms: todo!(),
+                    input_addr: account_3.clone(),
+                    voucher_denom: "dumdum".to_string(), // Need to update it
+                    redeemable_denoms: HashSet::from_iter(vec![
+                        meme_coin.denom.clone(),
+                        NTRN_DENOM.to_string(),
+                    ]),
                 },
             },
         ),

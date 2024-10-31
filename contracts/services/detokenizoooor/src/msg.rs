@@ -21,14 +21,14 @@ pub enum QueryMsg {}
 
 #[cw_serde]
 pub struct DetokenizoooorConfig {
-    pub input_addr: String,
+    pub input_addr: ServiceAccountType,
     pub voucher_denom: String,
     pub redeemable_denoms: HashSet<String>,
 }
 
 impl DetokenizoooorConfig {
     pub fn new(
-        input_addr: String,
+        input_addr: ServiceAccountType,
         voucher_denom: String,
         redeemable_denoms: HashSet<String>,
     ) -> Self {
@@ -44,19 +44,16 @@ impl DetokenizoooorConfig {
 #[derive(ValenceServiceInterface)]
 pub struct ServiceConfig {
     pub input_addr: ServiceAccountType,
-    pub voucher_denom: String,
     pub detokenizoooor_config: DetokenizoooorConfig,
 }
 
 impl ServiceConfig {
     pub fn new(
         input_addr: impl Into<ServiceAccountType>,
-        voucher_denom: String,
         detokenizoooor_config: DetokenizoooorConfig,
     ) -> Self {
         ServiceConfig {
             input_addr: input_addr.into(),
-            voucher_denom,
             detokenizoooor_config,
         }
     }
@@ -79,7 +76,6 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
 
         Ok(Config {
             input_addr,
-            voucher_denom: self.voucher_denom.clone(),
             detokenizoooor_config: self.detokenizoooor_config.clone(),
         })
     }
@@ -101,6 +97,5 @@ impl ServiceConfigUpdate {
 #[cw_serde]
 pub struct Config {
     pub input_addr: Addr,
-    pub voucher_denom: String,
     pub detokenizoooor_config: DetokenizoooorConfig,
 }
