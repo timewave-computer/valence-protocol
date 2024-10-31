@@ -27,6 +27,9 @@ thiserror             = { workspace = true }
 valence-macros        = { workspace = true }
 valence-service-utils = { workspace = true }
 valence-service-base  = { workspace = true }
+neutron-sdk           = { workspace = true }
+cosmos-sdk-proto      = { workspace = true }
+
 
 [dev-dependencies]
 cw-multi-test              = { workspace = true }

@@ -9,12 +9,11 @@ use valence_service_utils::{error::ServiceError, msg::ServiceConfigValidation};
 
 #[cw_serde]
 pub enum ActionMsgs {
-    Tokenize {},
+    Tokenize { sender: String },
 }
 
 #[cw_serde]
 pub struct Config {
-    pub input_addr: Addr,
     pub output_addr: Addr,
     // map of denom to input ratio, e.g.
     // { "atom": 1, "usdc": 10 } would mean that
@@ -24,13 +23,8 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(
-        input_addr: Addr,
-        output_addr: Addr,
-        input_denoms: BTreeMap<String, Decimal>,
-    ) -> Self {
+    pub fn new(output_addr: Addr, input_denoms: BTreeMap<String, Decimal>) -> Self {
         Config {
-            input_addr,
             output_addr,
             input_denoms,
         }
@@ -67,11 +61,10 @@ impl ServiceConfig {
     fn do_validate(
         &self,
         api: &dyn cosmwasm_std::Api,
-    ) -> Result<(Addr, Addr, BTreeMap<String, Decimal>), ServiceError> {
-        let input_addr = self.input_addr.to_addr(api)?;
+    ) -> Result<(Addr, BTreeMap<String, Decimal>), ServiceError> {
         let output_addr = self.input_addr.to_addr(api)?;
 
-        Ok((input_addr, output_addr, self.input_denoms.clone()))
+        Ok((output_addr, self.input_denoms.clone()))
     }
 }
 
@@ -83,10 +76,9 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
     }
 
     fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
-        let (input_addr, output_addr, map) = self.do_validate(deps.api)?;
+        let (output_addr, map) = self.do_validate(deps.api)?;
 
         Ok(Config {
-            input_addr,
             output_addr,
             input_denoms: map,
         })
@@ -95,12 +87,7 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
 
 impl ServiceConfigUpdate {
     pub fn update_config(self, deps: DepsMut) -> Result<(), ServiceError> {
-        let mut config: Config = valence_service_base::load_config(deps.storage)?;
-
-        // First update input_addr (if needed)
-        if let Some(input_addr) = self.input_addr {
-            config.input_addr = input_addr.to_addr(deps.api)?;
-        }
+        let config: Config = valence_service_base::load_config(deps.storage)?;
 
         valence_service_base::save_config(deps.storage, &config)?;
         Ok(())
