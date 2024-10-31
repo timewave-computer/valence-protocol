@@ -42,40 +42,78 @@ pub fn execute(
 mod actions {
     use std::collections::{HashMap, HashSet};
 
-    use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Uint128};
+    use cosmwasm_std::{coins, BankMsg, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128};
     use valence_service_utils::error::ServiceError;
 
     use crate::msg::{ActionMsgs, Config};
 
     pub fn process_action(
         deps: DepsMut,
-        _env: Env,
+        env: Env,
         _info: MessageInfo,
         msg: ActionMsgs,
         cfg: Config,
     ) -> Result<Response, ServiceError> {
         match msg {
-            ActionMsgs::Detokenize { addresses } => detokenize(deps, cfg, addresses),
+            ActionMsgs::Detokenize { addresses } => detokenize(deps, env, cfg, addresses),
         }
     }
 
     fn detokenize(
         deps: DepsMut,
+        env: Env,
         cfg: Config,
         addresses: HashSet<String>,
     ) -> Result<Response, ServiceError> {
-        let balances: HashMap<String, Uint128> = HashMap::new();
+        let mut voucher_balances: HashMap<String, Uint128> = HashMap::new();
+        let mut total_vouchers = Uint128::zero();
         // Query asset balance for each address
         for address in addresses {
             // Validate it's a valid address
             deps.api.addr_validate(&address)?;
 
-            // Query balance
-            let balance = deps.querier.query_balance(address, cfg.detokenizoooor_config.denom.clone())?;
-            //balances.insert(address, balance);
+            // Query balance of voucher denom
+            let balance = deps.querier.query_balance(
+                address.clone(),
+                cfg.detokenizoooor_config.voucher_denom.clone(),
+            )?;
+            // Ignore addresses that don't have tokens
+            if balance.amount.is_zero() {
+                continue;
+            }
+            voucher_balances.insert(address, balance.amount);
+            // Add it to the total balance to know how much we are sending to the service (detokenizing)
+            total_vouchers += balance.amount;
         }
 
-        Ok(Response::new())
+        // How much has been detokenized already (balance of the token in the service)
+        let service_voucher_balance = deps.querier.query_balance(
+            env.contract.address.clone(),
+            cfg.detokenizoooor_config.voucher_denom.clone(),
+        )?;
+
+        // Substract this from the total supply to know exactly what are the amount of vouchers that have not been detokenized
+        let total_supply = deps
+            .querier
+            .query_supply(cfg.detokenizoooor_config.voucher_denom.clone())?;
+        let remaining_supply = total_supply
+            .amount
+            .saturating_sub(service_voucher_balance.amount);
+
+        let mut response = Response::new();
+        // Create the send message to the service to consider the tokens detokenized in the future
+        let bank_send = CosmosMsg::Bank(BankMsg::Send {
+            to_address: env.contract.address.to_string(),
+            amount: coins(
+                total_vouchers.u128(),
+                cfg.detokenizoooor_config.voucher_denom.clone(),
+            ),
+        });
+        response = response.add_message(bank_send);
+
+        // Get the redeemable denoms balance of the input address
+
+        Ok(response)
     }
 }
 

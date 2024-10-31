@@ -21,13 +21,22 @@ pub enum QueryMsg {}
 
 #[cw_serde]
 pub struct DetokenizoooorConfig {
-    pub denom: String,
-    pub ratios: HashMap<String, Decimal>,
+    pub input_addr: String,
+    pub voucher_denom: String,
+    pub redeemable_denoms: HashSet<String>,
 }
 
 impl DetokenizoooorConfig {
-    pub fn new(denom: String, ratios: HashMap<String, Decimal>) -> Self {
-        DetokenizoooorConfig { denom, ratios }
+    pub fn new(
+        input_addr: String,
+        voucher_denom: String,
+        redeemable_denoms: HashSet<String>,
+    ) -> Self {
+        DetokenizoooorConfig {
+            input_addr,
+            voucher_denom,
+            redeemable_denoms,
+        }
     }
 }
 
@@ -35,16 +44,19 @@ impl DetokenizoooorConfig {
 #[derive(ValenceServiceInterface)]
 pub struct ServiceConfig {
     pub input_addr: ServiceAccountType,
+    pub voucher_denom: String,
     pub detokenizoooor_config: DetokenizoooorConfig,
 }
 
 impl ServiceConfig {
     pub fn new(
         input_addr: impl Into<ServiceAccountType>,
+        voucher_denom: String,
         detokenizoooor_config: DetokenizoooorConfig,
     ) -> Self {
         ServiceConfig {
             input_addr: input_addr.into(),
+            voucher_denom,
             detokenizoooor_config,
         }
     }
@@ -62,8 +74,12 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
         Ok(())
     }
 
-    fn validate(&self, _deps: Deps) -> Result<Config, ServiceError> {
+    fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
+        let input_addr = self.do_validate(deps.api)?;
+
         Ok(Config {
+            input_addr,
+            voucher_denom: self.voucher_denom.clone(),
             detokenizoooor_config: self.detokenizoooor_config.clone(),
         })
     }
@@ -84,13 +100,7 @@ impl ServiceConfigUpdate {
 
 #[cw_serde]
 pub struct Config {
+    pub input_addr: Addr,
+    pub voucher_denom: String,
     pub detokenizoooor_config: DetokenizoooorConfig,
-}
-
-impl Config {
-    pub fn new(detokenizoooor_config: DetokenizoooorConfig) -> Self {
-        Config {
-            detokenizoooor_config,
-        }
-    }
 }
