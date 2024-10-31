@@ -9,8 +9,8 @@ use cosmwasm_std::{Decimal, Timestamp, Uint128};
 use cw_utils::Expiration;
 use local_interchaintest::utils::{
     manager::{
-        setup_manager, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME, DETOKENIZER_NAME,
-        FORWARDER_NAME, TOKENIZER_NAME,
+        setup_manager, use_manager_init, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME,
+        DETOKENIZER_NAME, FORWARDER_NAME, TOKENIZER_NAME,
     },
     ASTROPORT_PATH, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
     NEUTRON_CONFIG_FILE, NTRN_DENOM, VALENCE_ARTIFACTS_PATH,
@@ -469,6 +469,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         .build();
 
     builder.add_authorization(authorization_5);
+
+    use_manager_init(&mut builder.build())?;
 
     Ok(())
 }
