@@ -553,5 +553,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         sleep(Duration::from_secs(3));
     }
 
+    info!("SUCCESS!");
     Ok(())
 }
