@@ -41,7 +41,7 @@ use valence_authorization_utils::{
     builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
 };
 use valence_detokenizoooor_service::msg::DetokenizoooorConfig;
-use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
+use valence_service_utils::{denoms::UncheckedDenom, GetId, ServiceAccountType};
 use valence_splitter_service::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
 use valence_workflow_manager::{
     account::{AccountInfo, AccountType},
@@ -364,11 +364,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         addr: None,
     });
 
-    builder.add_link(
-        &detokenizer_service,
-        vec![&account_5.clone()],
-        vec![&account_5],
-    );
+    let dummy_vec: Vec<&ServiceAccountType> = vec![];
+    builder.add_link(&detokenizer_service, vec![&account_5.clone()], dummy_vec);
 
     let now = SystemTime::now();
     let time_now = now.duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
