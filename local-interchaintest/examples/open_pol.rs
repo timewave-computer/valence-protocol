@@ -1,13 +1,16 @@
+use cosmwasm_std_old::Coin as BankCoin;
 use std::{
     collections::{BTreeMap, HashSet},
     env,
     error::Error,
-    time::SystemTime,
+    thread::sleep,
+    time::{Duration, SystemTime},
 };
 
-use cosmwasm_std::{Decimal, Timestamp, Uint128};
+use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
 use cw_utils::Expiration;
 use local_interchaintest::utils::{
+    base_account::create_base_accounts,
     manager::{
         setup_manager, use_manager_init, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME,
         DETOKENIZER_NAME, FORWARDER_NAME, TOKENIZER_NAME,
@@ -20,8 +23,8 @@ use localic_std::modules::{
     cosmwasm::{contract_execute, contract_instantiate, contract_query},
 };
 use localic_utils::{
-    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
-    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
+    ConfigChainBuilder, TestContextBuilder, ADMIN_KEY, DEFAULT_KEY, GAIA_CHAIN_NAME,
+    LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
 };
 
 use log::info;
@@ -470,7 +473,57 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     builder.add_authorization(authorization_5);
 
-    use_manager_init(&mut builder.build())?;
+    let mut built_config = builder.build();
+    use_manager_init(&mut built_config)?;
+
+    // Now that we have the processor on persistence, let's create a base account and approve it
+    let current_dir: std::path::PathBuf = env::current_dir()?;
+    let base_account_contract_path = format!(
+        "{}/artifacts/valence_base_account.wasm",
+        current_dir.display()
+    );
+    let mut uploader = test_ctx.build_tx_upload_contracts();
+    uploader.send_single_contract(&base_account_contract_path)?;
+
+    let base_account_code_id = test_ctx
+        .get_contract()
+        .src(NEUTRON_CHAIN_ADMIN_ADDR)
+        .contract("valence_base_account")
+        .get_cw()
+        .code_id
+        .unwrap();
+
+    let base_accounts = create_base_accounts(
+        &mut test_ctx,
+        DEFAULT_KEY,
+        NEUTRON_CHAIN_NAME,
+        base_account_code_id,
+        NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        vec![built_config.get_service(1).unwrap().addr.unwrap()],
+        5,
+    );
+
+    // fund the base accounts
+    for acc in base_accounts {
+        bank::send(
+            test_ctx
+                .get_request_builder()
+                .get_request_builder(NEUTRON_CHAIN_NAME),
+            DEFAULT_KEY,
+            &acc,
+            &[BankCoin {
+                denom: NTRN_DENOM.to_string(),
+                amount: 1_000_000_000u128.into(),
+            }],
+            &BankCoin {
+                denom: NTRN_DENOM.to_string(),
+                amount: cosmwasm_std_old::Uint128::new(5000),
+            },
+        )
+        .unwrap();
+
+        sleep(Duration::from_secs(3));
+    }
 
     Ok(())
 }
