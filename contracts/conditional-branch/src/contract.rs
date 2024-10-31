@@ -43,8 +43,6 @@ pub fn execute(
             true_branch,
             false_branch,
         } => {
-            cw_ownable::assert_owner(deps.as_ref().storage, &info.sender)?;
-
             let lhs: Binary = match query {
                 QueryInstruction::BalanceQuery { address, denom } => {
                     let balance = deps.querier.query_balance(&address, &denom)?;
