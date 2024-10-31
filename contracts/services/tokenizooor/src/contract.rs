@@ -172,14 +172,13 @@ mod actions {
             tf_denom,
         );
 
-        let delegated_msgs = execute_on_behalf_of(
-            vec![transfer_msg.into(), mint_msg],
-            &Addr::unchecked(sender),
-        )?;
+        let delegated_msgs =
+            execute_on_behalf_of(vec![transfer_msg.into()], &Addr::unchecked(sender))?;
 
         Ok(Response::new()
             .add_attribute("method", "tokenize")
-            .add_message(delegated_msgs))
+            .add_message(delegated_msgs)
+            .add_message(mint_msg))
     }
 }
 
