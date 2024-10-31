@@ -7,22 +7,27 @@ use local_interchaintest::utils::{
         setup_manager, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME, DETOKENIZER_NAME,
         FORWARDER_NAME, TOKENIZER_NAME,
     },
-    ASTROPORT_PATH, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, NEUTRON_CONFIG_FILE,
-    VALENCE_ARTIFACTS_PATH,
+    ASTROPORT_PATH, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
+    NEUTRON_CONFIG_FILE, NTRN_DENOM, VALENCE_ARTIFACTS_PATH,
 };
-use localic_std::modules::cosmwasm::contract_instantiate;
+use localic_std::modules::{
+    bank,
+    cosmwasm::{contract_execute, contract_instantiate, contract_query},
+};
 use localic_utils::{
     ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
     NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
 };
 
 use log::info;
+use serde_json::Value;
+use valence_astroport_lper::msg::{AssetData, LiquidityProviderConfig};
 use valence_astroport_utils::astroport_native_lp_token::{
-    self, FactoryInstantiateMsg, PairConfig, PairType,
+    AssetInfo, FactoryInstantiateMsg, FactoryQueryMsg, PairConfig, PairType,
 };
 
 use valence_authorization_utils::{
-    authorization::AuthorizationDuration,
+    authorization::{AuthorizationDuration, AuthorizationModeInfo, PermissionTypeInfo},
     authorization_message::{Message, MessageDetails, MessageType},
     builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
 };
@@ -131,7 +136,69 @@ fn main() -> Result<(), Box<dyn Error>> {
         factory_contract.address.clone()
     );
 
-    // let token_denom =
+    // Find the Meme coin that we minted via the front end
+    let balance = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &NEUTRON_CHAIN_ADMIN_ADDR,
+    );
+    info!("Neutron chain admin balance: {:?}", balance);
+    let meme_coin = balance
+        .iter()
+        .find(|coin| coin.denom.contains("factory"))
+        .expect("Meme coin not found");
+    info!("Meme coin: {:?}", meme_coin);
+
+    // Create the pool
+    let pool_assets = vec![
+        AssetInfo::NativeToken {
+            denom: NTRN_DENOM.to_string(),
+        },
+        AssetInfo::NativeToken {
+            denom: meme_coin.denom.clone(),
+        },
+    ];
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &factory_contract.address,
+        DEFAULT_KEY,
+        &serde_json::to_string(
+            &valence_astroport_utils::astroport_native_lp_token::FactoryExecuteMsg::CreatePair {
+                pair_type: PairType::Xyk {},
+                asset_infos: pool_assets.clone(),
+                init_params: None,
+            },
+        )
+        .unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    let query_pool_response: Value = serde_json::from_value(
+        contract_query(
+            test_ctx
+                .get_request_builder()
+                .get_request_builder(NEUTRON_CHAIN_NAME),
+            &factory_contract.address.clone(),
+            &serde_json::to_string(&FactoryQueryMsg::Pair {
+                asset_infos: pool_assets.clone(),
+            })
+            .unwrap(),
+        )["data"]
+            .clone(),
+    )
+    .unwrap();
+
+    let pool_addr = query_pool_response["contract_addr"].as_str().unwrap();
+    let lp_token = query_pool_response["liquidity_token"].as_str().unwrap();
+    info!(
+        "Pool created successfully! Pool address: {}, LP token: {}",
+        pool_addr, lp_token
+    );
 
     let account_1 = builder.add_account(AccountInfo::new(
         "test_1".to_string(),
@@ -160,7 +227,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     ));
 
     let mut price_map = BTreeMap::new();
-    price_map.insert("untrn".to_string(), Uint128::one());
+    price_map.insert(NTRN_DENOM.to_string(), Uint128::one());
     let tokenizer_service = builder.add_service(ServiceInfo {
         name: "test_tokenizer".to_string(),
         domain: neutron_domain.clone(),
@@ -177,8 +244,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         config: ServiceConfig::ValenceAstroportLper(valence_astroport_lper::msg::ServiceConfig {
             input_addr: account_1,
             output_addr: account_2.clone(),
-            pool_addr: todo!(),
-            lp_config: todo!(),
+            pool_addr: pool_addr.to_string(),
+            lp_config: LiquidityProviderConfig {
+                pool_type: valence_astroport_lper::msg::PoolType::NativeLpToken(PairType::Xyk {}),
+                asset_data: AssetData {
+                    asset1: NTRN_DENOM.to_string(),
+                    asset2: meme_coin.denom.clone(),
+                },
+                slippage_tolerance: None,
+            },
         }),
         addr: None,
     });
@@ -190,8 +264,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             valence_astroport_withdrawer::msg::ServiceConfig {
                 input_addr: account_2,
                 output_addr: account_3.clone(),
-                pool_addr: todo!(),
-                withdrawer_config: todo!(),
+                pool_addr: pool_addr.to_string(),
+                withdrawer_config: valence_astroport_withdrawer::msg::LiquidityWithdrawerConfig {
+                    pool_type: valence_astroport_withdrawer::msg::PoolType::NativeLpToken,
+                },
             },
         ),
         addr: None,
@@ -205,17 +281,17 @@ fn main() -> Result<(), Box<dyn Error>> {
                 input_addr: account_3.clone(),
                 splits: vec![
                     UncheckedSplitConfig {
-                        denom: UncheckedDenom::Native("untrn".to_string()),
+                        denom: UncheckedDenom::Native(meme_coin.denom.clone()),
                         account: account_4.clone(),
                         amount: UncheckedSplitAmount::FixedRatio(Decimal::percent(95)),
                     },
                     UncheckedSplitConfig {
-                        denom: UncheckedDenom::Native("shitcoin".to_string()),
+                        denom: UncheckedDenom::Native(NTRN_DENOM.to_string()),
                         account: account_5.clone(),
                         amount: UncheckedSplitAmount::FixedRatio(Decimal::percent(100)),
                     },
                     UncheckedSplitConfig {
-                        denom: UncheckedDenom::Native("untrn".to_string()),
+                        denom: UncheckedDenom::Native(meme_coin.denom.clone()),
                         account: account_5.clone(),
                         amount: UncheckedSplitAmount::FixedRatio(Decimal::percent(5)),
                     },
@@ -231,7 +307,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         config: ServiceConfig::ValenceDetokenizer(
             valence_detokenizoooor_service::msg::ServiceConfig {
                 input_addr: account_5,
-                voucher_denom: "dumdum".to_string(),
+                voucher_denom: "dumdum".to_string(), // Need to update it
                 detokenizoooor_config: DetokenizoooorConfig {
                     input_addr: todo!(),
                     voucher_denom: todo!(),
@@ -347,6 +423,31 @@ fn main() -> Result<(), Box<dyn Error>> {
         .build();
 
     builder.add_authorization(authorization_4);
+
+    let authorization_5 = AuthorizationBuilder::new()
+        .with_label("update_config")
+        .with_mode(AuthorizationModeInfo::Permissioned(
+            PermissionTypeInfo::WithoutCallLimit(vec![NEUTRON_CHAIN_ADMIN_ADDR.to_string()]),
+        ))
+        .with_actions_config(
+            AtomicActionsConfigBuilder::new()
+                .with_action(
+                    AtomicActionBuilder::new()
+                        .with_contract_address(ServiceAccountType::ServiceId(5))
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "update_config".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .build(),
+        )
+        .build();
+
+    builder.add_authorization(authorization_5);
 
     Ok(())
 }
