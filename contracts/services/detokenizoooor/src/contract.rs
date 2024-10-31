@@ -45,7 +45,7 @@ mod actions {
     use cosmwasm_std::{
         coins, BankMsg, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError, Uint128,
     };
-    use valence_service_utils::error::ServiceError;
+    use valence_service_utils::{error::ServiceError, execute_on_behalf_of};
 
     use crate::msg::{ActionMsgs, Config};
 
@@ -68,11 +68,11 @@ mod actions {
         addresses: HashSet<String>,
     ) -> Result<Response, ServiceError> {
         let mut voucher_balances: HashMap<String, Uint128> = HashMap::new();
-        let mut total_vouchers = Uint128::zero();
+        let mut response = Response::default();
         // Query asset balance for each address
         for address in addresses {
             // Validate it's a valid address
-            deps.api.addr_validate(&address)?;
+            let validated_addr = deps.api.addr_validate(&address)?;
 
             // Query balance of voucher denom
             let balance = deps.querier.query_balance(
@@ -84,8 +84,17 @@ mod actions {
                 continue;
             }
             voucher_balances.insert(address, balance.amount);
-            // Add it to the total balance to know how much we are sending to the service (detokenizing)
-            total_vouchers += balance.amount;
+
+            // Each account has to send all their vouchers to the service to consider them detokenized
+            let bank_send = CosmosMsg::Bank(BankMsg::Send {
+                to_address: env.contract.address.to_string(),
+                amount: coins(
+                    balance.amount.u128(),
+                    cfg.detokenizoooor_config.voucher_denom.clone(),
+                ),
+            });
+            let msg = execute_on_behalf_of(vec![bank_send], &validated_addr)?;
+            response = response.add_message(msg);
         }
 
         // How much has been detokenized already (balance of the token in the service)
@@ -101,17 +110,6 @@ mod actions {
         let remaining_supply = total_supply
             .amount
             .saturating_sub(service_voucher_balance.amount);
-
-        let mut response = Response::new();
-        // Create the send message to the service to consider the tokens detokenized in the future
-        let bank_send = CosmosMsg::Bank(BankMsg::Send {
-            to_address: env.contract.address.to_string(),
-            amount: coins(
-                total_vouchers.u128(),
-                cfg.detokenizoooor_config.voucher_denom.clone(),
-            ),
-        });
-        response = response.add_message(bank_send);
 
         // Get the redeemable denoms balance of the input address
         let redeemable_denoms_balance = cfg
@@ -135,12 +133,16 @@ mod actions {
                 if amount.is_zero() {
                     continue;
                 }
-                messages.push(CosmosMsg::Bank(BankMsg::Send {
+
+                let bank_send = CosmosMsg::Bank(BankMsg::Send {
                     to_address: address.clone(),
                     amount: coins(amount.u128(), denom.clone()),
-                }));
+                });
+                messages.push(bank_send);
             }
-            response = response.add_messages(messages);
+            // This needs to be executed by input address
+            let msg = execute_on_behalf_of(messages, &cfg.input_addr)?;
+            response = response.add_message(msg);
         }
 
         Ok(response)
