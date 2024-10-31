@@ -1,4 +1,5 @@
 use cosmwasm_std_old::Coin as BankCoin;
+use rand::{distributions::Alphanumeric, Rng};
 use std::{
     collections::{BTreeMap, HashSet},
     env,
@@ -144,7 +145,32 @@ fn main() -> Result<(), Box<dyn Error>> {
         factory_contract.address.clone()
     );
 
-    //
+    // TODO(REMOVE): This is a temporary solution to mint a meme coin for testing purposes
+    let token1_subdenom: String = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(10)
+        .map(char::from)
+        .collect();
+
+    test_ctx
+        .build_tx_create_tokenfactory_token()
+        .with_subdenom(&token1_subdenom)
+        .send()?;
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    let token1 = test_ctx
+        .get_tokenfactory_denom()
+        .creator(NEUTRON_CHAIN_ADMIN_ADDR)
+        .subdenom(token1_subdenom)
+        .get();
+
+    test_ctx
+        .build_tx_mint_tokenfactory_token()
+        .with_amount(100000000)
+        .with_denom(&token1)
+        .send()
+        .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
     // Find the Meme coin that we minted via the front end
     let balance = bank::get_balance(
