@@ -38,4 +38,6 @@ valence-workflow-registry-utils      = { workspace = true }
 valence-ibc-utils                    = { workspace = true }
 valence-generic-ibc-transfer-service = { workspace = true }
 valence-neutron-ibc-transfer-service = { workspace = true }
+valence-tokenizooor-service                  = { workspace = true }
+valence-detokenizoooor-service               = { workspace = true }
 tokio                                = { workspace = true }

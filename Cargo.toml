@@ -68,7 +68,8 @@ valence-neutron-ibc-transfer-service    = { path = "contracts/services/neutron-i
 valence-reverse-splitter-service        = { path = "contracts/services/reverse-splitter", features = ["library"] }
 valence-osmosis-gamm-lper               = { path = "contracts/services/osmosis-gamm-lper", features = ["library"] }
 valence-osmosis-cl-lper                 = { path = "contracts/services/osmosis-cl-lper", features = ["library"] }
-valence-tokenizooor                      = { path = "contracts/services/tokenizooor", features = ["library"] }
+valence-tokenizooor-service                     = { path = "contracts/services/tokenizooor", features = ["library"] }
+valence-detokenizoooor-service                  = { path = "contracts/services/detokenizoooor", features = ["library"] }
 
 # our packages
 valence-account-utils           = { path = "packages/account-utils" }

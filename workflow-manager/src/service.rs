@@ -70,6 +70,8 @@ pub enum ServiceConfig {
     ValenceReverseSplitterService(valence_reverse_splitter_service::msg::ServiceConfig),
     ValenceAstroportLper(valence_astroport_lper::msg::ServiceConfig),
     ValenceAstroportWithdrawer(valence_astroport_withdrawer::msg::ServiceConfig),
+    ValenceTokenizer(valence_tokenizooor_service::msg::ServiceConfig),
+    ValenceDetokenizer(valence_detokenizoooor_service::msg::ServiceConfig),
 }
 
 // TODO: create macro for the methods that work the same over all of the configs
@@ -114,6 +116,18 @@ impl ServiceConfig {
 
                 *config = serde_json::from_str(&res)?;
             }
+            ServiceConfig::ValenceTokenizer(ref mut service_config) => {
+                let json = serde_json::to_string(&service_config)?;
+                let res = ac.replace_all(&json, &replace_with);
+
+                *service_config = serde_json::from_str(&res)?;
+            }
+            ServiceConfig::ValenceDetokenizer(ref mut service_config) => {
+                let json = serde_json::to_string(&service_config)?;
+                let res = ac.replace_all(&json, &replace_with);
+
+                *service_config = serde_json::from_str(&res)?;
+            }
         }
 
         Ok(())
@@ -147,6 +161,16 @@ impl ServiceConfig {
                 processor,
                 config: config.clone(),
             }),
+            ServiceConfig::ValenceTokenizer(service_config) => to_vec(&InstantiateMsg {
+                owner,
+                processor,
+                config: service_config.clone(),
+            }),
+            ServiceConfig::ValenceDetokenizer(service_config) => to_vec(&InstantiateMsg {
+                owner,
+                processor,
+                config: service_config.clone(),
+            }),
         }
         .map_err(ServiceError::SerdeJsonError)
     }
@@ -174,6 +198,14 @@ impl ServiceConfig {
                 config.pre_validate(api)?;
                 Ok(())
             }
+            ServiceConfig::ValenceTokenizer(service_config) => {
+                service_config.pre_validate(api)?;
+                Ok(())
+            }
+            ServiceConfig::ValenceDetokenizer(service_config) => {
+                service_config.pre_validate(api)?;
+                Ok(())
+            }
         }
     }
 
@@ -196,6 +228,12 @@ impl ServiceConfig {
             }
             ServiceConfig::ValenceAstroportWithdrawer(config) => {
                 Self::find_account_ids(ac, serde_json::to_string(&config)?)
+            }
+            ServiceConfig::ValenceTokenizer(service_config) => {
+                Self::find_account_ids(ac, serde_json::to_string(&service_config)?)
+            }
+            ServiceConfig::ValenceDetokenizer(service_config) => {
+                Self::find_account_ids(ac, serde_json::to_string(&service_config)?)
             }
         }
     }

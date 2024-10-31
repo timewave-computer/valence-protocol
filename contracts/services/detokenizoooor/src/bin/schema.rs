@@ -1,7 +1,9 @@
 use cosmwasm_schema::write_api;
 
+use valence_detokenizoooor_service::msg::{
+    ActionMsgs, QueryMsg, ServiceConfig, ServiceConfigUpdate,
+};
 use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
-use valence_detokenizoooor::msg::{ActionMsgs, QueryMsg, ServiceConfig, ServiceConfigUpdate};
 
 fn main() {
     write_api! {

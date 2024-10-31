@@ -40,19 +40,16 @@ pub enum QueryMsg {}
 #[cw_serde]
 #[derive(ValenceServiceInterface)]
 pub struct ServiceConfig {
-    pub input_addr: ServiceAccountType,
     pub output_addr: ServiceAccountType,
     pub input_denoms: BTreeMap<String, Uint128>,
 }
 
 impl ServiceConfig {
     pub fn new(
-        input_addr: impl Into<ServiceAccountType>,
         output_addr: impl Into<ServiceAccountType>,
         input_denoms: BTreeMap<String, Uint128>,
     ) -> Self {
         ServiceConfig {
-            input_addr: input_addr.into(),
             output_addr: output_addr.into(),
             input_denoms,
         }
@@ -62,7 +59,7 @@ impl ServiceConfig {
         &self,
         api: &dyn cosmwasm_std::Api,
     ) -> Result<(Addr, BTreeMap<String, Uint128>), ServiceError> {
-        let output_addr = self.input_addr.to_addr(api)?;
+        let output_addr = self.output_addr.to_addr(api)?;
 
         Ok((output_addr, self.input_denoms.clone()))
     }
