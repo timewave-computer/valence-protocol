@@ -24,6 +24,7 @@ cw-utils                             = { workspace = true }
 valence-authorization                = { workspace = true }
 valence-processor                    = { workspace = true }
 valence-authorization-utils          = { workspace = true }
+valence-conditional-branch           = { workspace = true }
 valence-processor-utils              = { workspace = true }
 valence-account-utils                = { workspace = true }
 valence-service-utils                = { workspace = true }

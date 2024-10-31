@@ -102,7 +102,7 @@ mod actions {
                     funds: vec![],
                 };
 
-                // query the balance of the rebalancer address for NTRN 
+                // query the balance of the rebalancer address for NTRN
                 let ntrn_balance = deps
                     .querier
                     .query_balance(config.rebalancer_account, NTRN_DENOM.to_string())?;
