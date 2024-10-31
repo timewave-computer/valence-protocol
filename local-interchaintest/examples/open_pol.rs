@@ -14,7 +14,7 @@ use local_interchaintest::utils::{
     base_account::create_base_accounts,
     manager::{
         setup_manager, use_manager_init, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME,
-        DETOKENIZER_NAME, FORWARDER_NAME, TOKENIZER_NAME,
+        DETOKENIZER_NAME, FORWARDER_NAME, SPLITTER_NAME, TOKENIZER_NAME,
     },
     ASTROPORT_PATH, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
     NEUTRON_CONFIG_FILE, NTRN_DENOM, VALENCE_ARTIFACTS_PATH,
@@ -40,8 +40,8 @@ use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType},
     builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
 };
-use valence_detokenizoooor_service::msg::DetokenizoooorConfig;
-use valence_service_utils::{denoms::UncheckedDenom, GetId, ServiceAccountType};
+use valence_detokenizer_service::msg::DetokenizoooorConfig;
+use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
 use valence_splitter_service::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
 use valence_workflow_manager::{
     account::{AccountInfo, AccountType},
@@ -67,6 +67,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         vec![
             TOKENIZER_NAME,
             DETOKENIZER_NAME,
+            SPLITTER_NAME,
             ASTROPORT_LPER_NAME,
             ASTROPORT_WITHDRAWER_NAME,
             FORWARDER_NAME,
@@ -264,13 +265,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut price_map = BTreeMap::new();
     price_map.insert(NTRN_DENOM.to_string(), Uint128::one());
-    builder.add_service(ServiceInfo {
+    let tokenizer_service = builder.add_service(ServiceInfo {
         name: "test_tokenizer".to_string(),
         domain: neutron_domain.clone(),
-        config: ServiceConfig::ValenceTokenizer(valence_tokenizooor_service::msg::ServiceConfig {
-            output_addr: account_1.clone(),
-            input_denoms: price_map,
-        }),
+        config: ServiceConfig::ValenceTokenizerService(
+            valence_tokenizer_service::msg::ServiceConfig {
+                output_addr: account_1.clone(),
+                input_denoms: price_map,
+            },
+        ),
         addr: None,
     });
 
@@ -348,8 +351,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let detokenizer_service = builder.add_service(ServiceInfo {
         name: "test_detokenizer".to_string(),
         domain: neutron_domain.clone(),
-        config: ServiceConfig::ValenceDetokenizer(
-            valence_detokenizoooor_service::msg::ServiceConfig {
+        config: ServiceConfig::ValenceDetokenizerService(
+            valence_detokenizer_service::msg::ServiceConfig {
                 input_addr: account_5.clone(),
                 detokenizoooor_config: DetokenizoooorConfig {
                     input_addr: account_3.clone(),
@@ -366,6 +369,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let dummy_vec: Vec<&ServiceAccountType> = vec![];
     builder.add_link(&detokenizer_service, vec![&account_5.clone()], dummy_vec);
+    let dummy_vec: Vec<&ServiceAccountType> = vec![];
+    builder.add_link(&tokenizer_service, dummy_vec, vec![&account_1.clone()]);
 
     let now = SystemTime::now();
     let time_now = now.duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
@@ -377,7 +382,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             AtomicActionsConfigBuilder::new()
                 .with_action(
                     AtomicActionBuilder::new()
-                        .with_contract_address(ServiceAccountType::ServiceId(1))
+                        .with_contract_address(ServiceAccountType::ServiceId(0))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -399,7 +404,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             AtomicActionsConfigBuilder::new()
                 .with_action(
                     AtomicActionBuilder::new()
-                        .with_contract_address(ServiceAccountType::ServiceId(2))
+                        .with_contract_address(ServiceAccountType::ServiceId(1))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -422,7 +427,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             AtomicActionsConfigBuilder::new()
                 .with_action(
                     AtomicActionBuilder::new()
-                        .with_contract_address(ServiceAccountType::ServiceId(3))
+                        .with_contract_address(ServiceAccountType::ServiceId(2))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -434,7 +439,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 )
                 .with_action(
                     AtomicActionBuilder::new()
-                        .with_contract_address(ServiceAccountType::ServiceId(4))
+                        .with_contract_address(ServiceAccountType::ServiceId(3))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -457,7 +462,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             AtomicActionsConfigBuilder::new()
                 .with_action(
                     AtomicActionBuilder::new()
-                        .with_contract_address(ServiceAccountType::ServiceId(5))
+                        .with_contract_address(ServiceAccountType::ServiceId(4))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -482,7 +487,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             AtomicActionsConfigBuilder::new()
                 .with_action(
                     AtomicActionBuilder::new()
-                        .with_contract_address(ServiceAccountType::ServiceId(5))
+                        .with_contract_address(ServiceAccountType::ServiceId(4))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -512,7 +517,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let base_account_code_id = test_ctx
         .get_contract()
-        .src(NEUTRON_CHAIN_ADMIN_ADDR)
+        .src(NEUTRON_CHAIN_NAME)
         .contract("valence_base_account")
         .get_cw()
         .code_id
@@ -524,7 +529,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         NEUTRON_CHAIN_NAME,
         base_account_code_id,
         NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        vec![built_config.get_service(1).unwrap().addr.unwrap()],
+        vec![built_config.get_service(0).unwrap().addr.unwrap()],
         5,
     );
 

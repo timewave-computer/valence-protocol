@@ -24,8 +24,8 @@ pub const GENERIC_IBC_TRANSFER_NAME: &str = "valence-generic-ibc-transfer-servic
 pub const NEUTRON_IBC_TRANSFER_NAME: &str = "valence-neutron-ibc-transfer-service";
 pub const ASTROPORT_LPER_NAME: &str = "valence_astroport_lper";
 pub const ASTROPORT_WITHDRAWER_NAME: &str = "valence_astroport_withdrawer";
-pub const TOKENIZER_NAME: &str = "valence_tokenizer";
-pub const DETOKENIZER_NAME: &str = "valence_detokenizer";
+pub const TOKENIZER_NAME: &str = "valence_tokenizer_service";
+pub const DETOKENIZER_NAME: &str = "valence_detokenizer_service";
 
 /// Those contracts will always be uploaded because each workflow needs them
 const BASIC_CONTRACTS: [&str; 2] = [PROCESSOR_NAME, BASE_ACCOUNT_NAME];

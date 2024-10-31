@@ -2443,7 +2443,7 @@ dependencies = [
  "valence-astroport-withdrawer",
  "valence-authorization",
  "valence-authorization-utils",
- "valence-detokenizoooor-service",
+ "valence-detokenizer-service",
  "valence-forwarder-service",
  "valence-generic-ibc-transfer-service",
  "valence-ibc-utils",
@@ -2453,7 +2453,7 @@ dependencies = [
  "valence-reverse-splitter-service",
  "valence-service-utils",
  "valence-splitter-service",
- "valence-tokenizooor-service",
+ "valence-tokenizer-service",
  "valence-workflow-manager",
  "valence-workflow-registry-utils",
 ]
@@ -5062,7 +5062,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "valence-detokenizoooor-service"
+name = "valence-detokenizer-service"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 2.1.4",
@@ -5401,7 +5401,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "valence-tokenizooor-service"
+name = "valence-tokenizer-service"
 version = "0.1.0"
 dependencies = [
  "cosmos-sdk-proto 0.20.0",
@@ -5460,7 +5460,7 @@ dependencies = [
  "valence-astroport-withdrawer",
  "valence-authorization",
  "valence-authorization-utils",
- "valence-detokenizoooor-service",
+ "valence-detokenizer-service",
  "valence-forwarder-service",
  "valence-macros",
  "valence-processor",
@@ -5469,7 +5469,7 @@ dependencies = [
  "valence-service-base",
  "valence-service-utils",
  "valence-splitter-service",
- "valence-tokenizooor-service",
+ "valence-tokenizer-service",
  "valence-workflow-registry",
  "valence-workflow-registry-utils",
 ]

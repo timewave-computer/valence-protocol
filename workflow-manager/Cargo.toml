@@ -31,8 +31,8 @@ valence-authorization            = { workspace = true }
 valence-processor                = { workspace = true }
 valence-workflow-registry        = { workspace = true }
 valence-forwarder-service        = { workspace = true }
-valence-tokenizooor-service       = { workspace = true }
-valence-detokenizoooor-service     = { workspace = true }
+valence-tokenizer-service        = { workspace = true }
+valence-detokenizer-service      = { workspace = true }
 
 tokio              = { workspace = true }
 aho-corasick       = "1.1"

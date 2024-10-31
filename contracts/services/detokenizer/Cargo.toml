@@ -1,5 +1,5 @@
 [package]
-name       = "valence-detokenizoooor-service"
+name       = "valence-detokenizer-service"
 authors    = { workspace = true }
 edition    = { workspace = true }
 license    = { workspace = true }
