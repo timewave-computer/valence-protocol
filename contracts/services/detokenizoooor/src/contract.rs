@@ -42,7 +42,9 @@ pub fn execute(
 mod actions {
     use std::collections::{HashMap, HashSet};
 
-    use cosmwasm_std::{coins, BankMsg, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128};
+    use cosmwasm_std::{
+        coins, BankMsg, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError, Uint128,
+    };
     use valence_service_utils::error::ServiceError;
 
     use crate::msg::{ActionMsgs, Config};
@@ -112,6 +114,34 @@ mod actions {
         response = response.add_message(bank_send);
 
         // Get the redeemable denoms balance of the input address
+        let redeemable_denoms_balance = cfg
+            .detokenizoooor_config
+            .redeemable_denoms
+            .iter()
+            .map(|redeemable_denom| {
+                let balance = deps
+                    .querier
+                    .query_balance(cfg.input_addr.to_string(), redeemable_denom.clone())?;
+                Ok((redeemable_denom.clone(), balance.amount))
+            })
+            .collect::<Result<HashMap<_, _>, StdError>>()?;
+
+        // For each address, check how much they should get and send it to them
+        for (address, balance) in voucher_balances {
+            let mut messages: Vec<CosmosMsg> = Vec::new();
+            // Send the redeemable denoms
+            for (denom, amount) in redeemable_denoms_balance.iter() {
+                let amount = balance.multiply_ratio(amount.clone(), remaining_supply);
+                if amount.is_zero() {
+                    continue;
+                }
+                messages.push(CosmosMsg::Bank(BankMsg::Send {
+                    to_address: address.clone(),
+                    amount: coins(amount.u128(), denom.clone()),
+                }));
+            }
+            response = response.add_messages(messages);
+        }
 
         Ok(response)
     }
