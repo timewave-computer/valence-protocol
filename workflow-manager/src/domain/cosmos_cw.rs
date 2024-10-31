@@ -33,6 +33,7 @@ use strum::VariantNames;
 use thiserror::Error;
 use tokio::time::sleep;
 use valence_authorization_utils::authorization::AuthorizationInfo;
+use async_recursion::async_recursion;
 
 use super::{Connector, ConnectorResult, POLYTONE_TIMEOUT};
 
@@ -863,6 +864,7 @@ impl CosmosCosmwasmConnector {
     /// Here we check if we should retry or not the bridge account creation
     /// It will error we have reached our maximum retry amount
     /// It will send a response otherwise
+    #[async_recursion]
     async fn should_retry_processor_bridge_account_creation(
         &mut self,
         processor_addr: String,
@@ -913,11 +915,11 @@ impl CosmosCosmwasmConnector {
                 }
                 // Still pending and have retries left to do, we sleep, and then retry the check
                 sleep(std::time::Duration::from_secs(sleep_duration)).await;
-                Box::pin(self.should_retry_processor_bridge_account_creation(
+                self.should_retry_processor_bridge_account_creation(
                     processor_addr,
                     retry_amount - 1,
                     sleep_duration,
-                ))
+                )
                 .await
             }
             valence_authorization_utils::domain::PolytoneProxyState::Created => {
@@ -934,6 +936,7 @@ impl CosmosCosmwasmConnector {
         }
     }
 
+    #[async_recursion]
     async fn should_retry_authorization_bridge_account_creation(
         &mut self,
         authorization_addr: String,
@@ -984,12 +987,12 @@ impl CosmosCosmwasmConnector {
                 }
                 // Still pending and have retries left to do, we sleep, and then retry the check
                 sleep(std::time::Duration::from_secs(sleep_duration)).await;
-                Box::pin(self.should_retry_authorization_bridge_account_creation(
+                self.should_retry_authorization_bridge_account_creation(
                     authorization_addr,
                     domain,
                     retry_amount - 1,
                     sleep_duration,
-                ))
+                )
                 .await
             }
             valence_authorization_utils::domain::PolytoneProxyState::Created => {
