@@ -7,7 +7,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
+use cosmwasm_std::{Decimal, Timestamp, Uint128};
 use cw_utils::Expiration;
 use local_interchaintest::utils::{
     base_account::create_base_accounts,
@@ -23,8 +23,8 @@ use localic_std::modules::{
     cosmwasm::{contract_execute, contract_instantiate, contract_query},
 };
 use localic_utils::{
-    ConfigChainBuilder, TestContextBuilder, ADMIN_KEY, DEFAULT_KEY, GAIA_CHAIN_NAME,
-    LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
+    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
+    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
 };
 
 use log::info;
@@ -40,7 +40,7 @@ use valence_authorization_utils::{
     builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
 };
 use valence_detokenizoooor_service::msg::DetokenizoooorConfig;
-use valence_service_utils::{denoms::UncheckedDenom, GetId, ServiceAccountType};
+use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
 use valence_splitter_service::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
 use valence_workflow_manager::{
     account::{AccountInfo, AccountType},
@@ -144,6 +144,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         factory_contract.address.clone()
     );
 
+    //
+
     // Find the Meme coin that we minted via the front end
     let balance = bank::get_balance(
         test_ctx
@@ -236,7 +238,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut price_map = BTreeMap::new();
     price_map.insert(NTRN_DENOM.to_string(), Uint128::one());
-    let tokenizer_service = builder.add_service(ServiceInfo {
+    builder.add_service(ServiceInfo {
         name: "test_tokenizer".to_string(),
         domain: neutron_domain.clone(),
         config: ServiceConfig::ValenceTokenizer(valence_tokenizooor_service::msg::ServiceConfig {
