@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, error::Error};
 
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{Decimal, Uint128};
 use local_interchaintest::utils::{
     manager::{
         setup_manager, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME, DETOKENIZER_NAME,
@@ -12,6 +12,9 @@ use localic_utils::{
     ConfigChainBuilder, TestContextBuilder, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
     NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
 };
+use valence_detokenizoooor_service::msg::DetokenizoooorConfig;
+use valence_service_utils::denoms::UncheckedDenom;
+use valence_splitter_service::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
 use valence_workflow_manager::{
     account::{AccountInfo, AccountType},
     service::{ServiceConfig, ServiceInfo},
@@ -56,6 +59,21 @@ fn main() -> Result<(), Box<dyn Error>> {
         &neutron_domain,
         AccountType::default(),
     ));
+    let account_3 = builder.add_account(AccountInfo::new(
+        "test_3".to_string(),
+        &neutron_domain,
+        AccountType::default(),
+    ));
+    let account_4 = builder.add_account(AccountInfo::new(
+        "test_4".to_string(),
+        &neutron_domain,
+        AccountType::default(),
+    ));
+    let account_5 = builder.add_account(AccountInfo::new(
+        "test_5".to_string(),
+        &neutron_domain,
+        AccountType::default(),
+    ));
 
     let mut price_map = BTreeMap::new();
     price_map.insert("untrn".to_string(), Uint128::one());
@@ -63,9 +81,63 @@ fn main() -> Result<(), Box<dyn Error>> {
         name: "test_tokenizer".to_string(),
         domain: neutron_domain.clone(),
         config: ServiceConfig::ValenceTokenizer(valence_tokenizooor_service::msg::ServiceConfig {
-            output_addr: account_1,
+            output_addr: account_1.clone(),
             input_denoms: price_map,
         }),
+        addr: None,
+    });
+
+    let lper_service = builder.add_service(ServiceInfo {
+        name: "test_lper".to_string(),
+        domain: neutron_domain.clone(),
+        config: ServiceConfig::ValenceAstroportLper(valence_astroport_lper::msg::ServiceConfig {
+            input_addr: account_1,
+            output_addr: account_2.clone(),
+            pool_addr: todo!(),
+            lp_config: todo!(),
+        }),
+        addr: None,
+    });
+
+    let withdrawer_service = builder.add_service(ServiceInfo {
+        name: "test_withdrawer".to_string(),
+        domain: neutron_domain.clone(),
+        config: ServiceConfig::ValenceAstroportWithdrawer(
+            valence_astroport_withdrawer::msg::ServiceConfig {
+                input_addr: account_2,
+                output_addr: account_3.clone(),
+                pool_addr: todo!(),
+                withdrawer_config: todo!(),
+            },
+        ),
+        addr: None,
+    });
+
+    let splitter_service = builder.add_service(ServiceInfo {
+        name: "test_splitter".to_string(),
+        domain: neutron_domain.clone(),
+        config: ServiceConfig::ValenceSplitterService(
+            valence_splitter_service::msg::ServiceConfig {
+                input_addr: account_3.clone(),
+                splits: vec![
+                    UncheckedSplitConfig {
+                        denom: UncheckedDenom::Native("untrn".to_string()),
+                        account: account_4.clone(),
+                        amount: UncheckedSplitAmount::FixedRatio(Decimal::percent(95)),
+                    },
+                    UncheckedSplitConfig {
+                        denom: UncheckedDenom::Native("shitcoin".to_string()),
+                        account: account_5.clone(),
+                        amount: UncheckedSplitAmount::FixedRatio(Decimal::percent(100)),
+                    },
+                    UncheckedSplitConfig {
+                        denom: UncheckedDenom::Native("untrn".to_string()),
+                        account: account_5.clone(),
+                        amount: UncheckedSplitAmount::FixedRatio(Decimal::percent(5)),
+                    },
+                ],
+            },
+        ),
         addr: None,
     });
 
@@ -74,16 +146,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         domain: neutron_domain.clone(),
         config: ServiceConfig::ValenceDetokenizer(
             valence_detokenizoooor_service::msg::ServiceConfig {
-                input_addr: account_2,
-                voucher_denom: todo!(),
-                detokenizoooor_config: todo!(),
+                input_addr: account_5,
+                voucher_denom: "dumdum".to_string(),
+                detokenizoooor_config: DetokenizoooorConfig {
+                    input_addr: todo!(),
+                    voucher_denom: todo!(),
+                    redeemable_denoms: todo!(),
+                },
             },
         ),
         addr: None,
     });
 
-    // let lper_service = todo!();
-    // let fwd_service = todo!();
-    // let withdrawer_service = todo!();
     Ok(())
 }
