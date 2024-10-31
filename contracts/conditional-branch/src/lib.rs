@@ -1,7 +1,7 @@
 #[allow(dead_code)]
 mod contract;
 mod error;
-mod msg;
+pub mod msg;
 
 #[cfg(test)]
 mod tests;

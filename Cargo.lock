@@ -320,7 +320,7 @@ dependencies = [
 [[package]]
 name = "auction-package"
 version = "0.1.5"
-source = "git+https://github.com/timewave-computer/valence-services?branch=art3mix/workflow-comp#50f956265ea777c09377b75fa21db57814cd7c9a"
+source = "git+https://github.com/timewave-computer/valence-services?branch=art3mix/workflow-comp#8ef4d832e44e35af5e1e8c46bfb6fc8f22e8eb72"
 dependencies = [
  "cosmwasm-schema 1.5.8",
  "cosmwasm-std 1.5.8",
@@ -2467,6 +2467,7 @@ dependencies = [
  "valence-astroport-withdrawer",
  "valence-authorization",
  "valence-authorization-utils",
+ "valence-conditional-branch",
  "valence-forwarder-service",
  "valence-generic-ibc-transfer-service",
  "valence-ibc-utils",
@@ -5174,7 +5175,7 @@ dependencies = [
 [[package]]
 name = "valence-macros"
 version = "0.1.5"
-source = "git+https://github.com/timewave-computer/valence-services?branch=art3mix/workflow-comp#50f956265ea777c09377b75fa21db57814cd7c9a"
+source = "git+https://github.com/timewave-computer/valence-services?branch=art3mix/workflow-comp#8ef4d832e44e35af5e1e8c46bfb6fc8f22e8eb72"
 dependencies = [
  "cosmwasm-schema 1.5.8",
  "cosmwasm-std 1.5.8",
@@ -5264,7 +5265,7 @@ dependencies = [
 [[package]]
 name = "valence-package"
 version = "0.1.5"
-source = "git+https://github.com/timewave-computer/valence-services?branch=art3mix/workflow-comp#50f956265ea777c09377b75fa21db57814cd7c9a"
+source = "git+https://github.com/timewave-computer/valence-services?branch=art3mix/workflow-comp#8ef4d832e44e35af5e1e8c46bfb6fc8f22e8eb72"
 dependencies = [
  "auction-package",
  "cosmwasm-schema 1.5.8",
