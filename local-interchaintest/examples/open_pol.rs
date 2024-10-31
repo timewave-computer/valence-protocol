@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, error::Error};
+use std::{collections::BTreeMap, env, error::Error};
 
 use cosmwasm_std::{Decimal, Uint128};
 use local_interchaintest::utils::{
@@ -6,11 +6,17 @@ use local_interchaintest::utils::{
         setup_manager, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME, DETOKENIZER_NAME,
         FORWARDER_NAME, TOKENIZER_NAME,
     },
-    LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
+    ASTROPORT_PATH, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, NEUTRON_CONFIG_FILE,
+    VALENCE_ARTIFACTS_PATH,
 };
+use localic_std::modules::cosmwasm::contract_instantiate;
 use localic_utils::{
-    ConfigChainBuilder, TestContextBuilder, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
+    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
     NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
+};
+use log::info;
+use valence_astroport_utils::astroport_native_lp_token::{
+    FactoryInstantiateMsg, PairConfig, PairType,
 };
 use valence_detokenizoooor_service::msg::DetokenizoooorConfig;
 use valence_service_utils::denoms::UncheckedDenom;
@@ -48,6 +54,76 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut builder = WorkflowConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
     let neutron_domain =
         valence_workflow_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
+    let mut uploader = test_ctx.build_tx_upload_contracts();
+
+    info!("Uploading astroport contracts...");
+    let current_dir = env::current_dir()?;
+    let astroport_contracts_path = format!("{}/{}", current_dir.display(), ASTROPORT_PATH);
+
+    uploader
+        .with_chain_name(NEUTRON_CHAIN_NAME)
+        .send_with_local_cache(&astroport_contracts_path, LOCAL_CODE_ID_CACHE_PATH_NEUTRON)?;
+
+    // Set up the astroport factory and the pool
+    let astroport_factory_code_id = test_ctx
+        .get_contract()
+        .contract("astroport_factory_native")
+        .get_cw()
+        .code_id
+        .unwrap();
+
+    let astroport_pair_native_code_id = test_ctx
+        .get_contract()
+        .contract("astroport_pair_native")
+        .get_cw()
+        .code_id
+        .unwrap();
+
+    let astroport_token_code_id = test_ctx
+        .get_contract()
+        .contract("astroport_token")
+        .get_cw()
+        .code_id
+        .unwrap();
+
+    info!("Instantiating astroport factory...");
+    let astroport_factory_instantiate_msg = FactoryInstantiateMsg {
+        pair_configs: vec![PairConfig {
+            code_id: astroport_pair_native_code_id,
+            pair_type: PairType::Xyk {},
+            total_fee_bps: 0,
+            maker_fee_bps: 0,
+            is_disabled: false,
+            is_generator_disabled: true,
+            permissioned: false,
+        }],
+        token_code_id: astroport_token_code_id,
+        fee_address: None,
+        generator_address: None,
+        owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        whitelist_code_id: 0, // This is not needed anymore but still part of API
+        coin_registry_address: NEUTRON_CHAIN_ADMIN_ADDR.to_string(), // Passing any address here is fine as long as it's a valid one
+        tracker_config: None,
+    };
+
+    let factory_contract = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        astroport_factory_code_id,
+        &serde_json::to_string(&astroport_factory_instantiate_msg).unwrap(),
+        "processor",
+        None,
+        "",
+    )
+    .unwrap();
+    info!(
+        "Astroport factory address: {}",
+        factory_contract.address.clone()
+    );
+
+    // let token_denom =
 
     let account_1 = builder.add_account(AccountInfo::new(
         "test_1".to_string(),
