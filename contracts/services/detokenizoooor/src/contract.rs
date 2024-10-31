@@ -40,7 +40,9 @@ pub fn execute(
 }
 
 mod actions {
-    use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
+    use std::collections::{HashMap, HashSet};
+
+    use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Uint128};
     use valence_service_utils::error::ServiceError;
 
     use crate::msg::{ActionMsgs, Config};
@@ -53,8 +55,27 @@ mod actions {
         cfg: Config,
     ) -> Result<Response, ServiceError> {
         match msg {
-            ActionMsgs::Detokenize { addresses } => todo!(),
+            ActionMsgs::Detokenize { addresses } => detokenize(deps, cfg, addresses),
         }
+    }
+
+    fn detokenize(
+        deps: DepsMut,
+        cfg: Config,
+        addresses: HashSet<String>,
+    ) -> Result<Response, ServiceError> {
+        let balances: HashMap<String, Uint128> = HashMap::new();
+        // Query asset balance for each address
+        for address in addresses {
+            // Validate it's a valid address
+            deps.api.addr_validate(&address)?;
+
+            // Query balance
+            let balance = deps.querier.query_balance(address, cfg.detokenizoooor_config.denom.clone())?;
+            //balances.insert(address, balance);
+        }
+
+        Ok(Response::new())
     }
 }
 

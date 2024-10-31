@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Decimal, Deps, DepsMut};
@@ -9,7 +9,7 @@ use valence_service_utils::{error::ServiceError, msg::ServiceConfigValidation};
 
 #[cw_serde]
 pub enum ActionMsgs {
-    Detokenize { addresses: Vec<String> },
+    Detokenize { addresses: HashSet<String> },
 }
 
 #[valence_service_query]
@@ -62,11 +62,8 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
         Ok(())
     }
 
-    fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
-        let input_addr = self.do_validate(deps.api)?;
-
+    fn validate(&self, _deps: Deps) -> Result<Config, ServiceError> {
         Ok(Config {
-            input_addr,
             detokenizoooor_config: self.detokenizoooor_config.clone(),
         })
     }
@@ -75,13 +72,7 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
 impl ServiceConfigUpdate {
     pub fn update_config(self, deps: DepsMut) -> Result<(), ServiceError> {
         let mut config: Config = valence_service_base::load_config(deps.storage)?;
-
-        // First update input_addr (if needed)
-        if let Some(input_addr) = self.input_addr {
-            config.input_addr = input_addr.to_addr(deps.api)?;
-        }
-
-        // Then update config if needed
+        // Update config if needed
         if let Some(detokenizoooor_config) = self.detokenizoooor_config {
             config.detokenizoooor_config = detokenizoooor_config;
         }
@@ -93,14 +84,12 @@ impl ServiceConfigUpdate {
 
 #[cw_serde]
 pub struct Config {
-    input_addr: Addr,
-    detokenizoooor_config: DetokenizoooorConfig,
+    pub detokenizoooor_config: DetokenizoooorConfig,
 }
 
 impl Config {
-    pub fn new(input_addr: Addr, detokenizoooor_config: DetokenizoooorConfig) -> Self {
+    pub fn new(detokenizoooor_config: DetokenizoooorConfig) -> Self {
         Config {
-            input_addr,
             detokenizoooor_config,
         }
     }
