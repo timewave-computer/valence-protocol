@@ -40,21 +40,110 @@ pub fn execute(
 }
 
 mod actions {
-    use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
+    use std::collections::{HashMap, HashSet};
+
+    use cosmwasm_std::{
+        coins, BankMsg, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError, Uint128,
+    };
     use valence_service_utils::error::ServiceError;
 
     use crate::msg::{ActionMsgs, Config};
 
     pub fn process_action(
         deps: DepsMut,
-        _env: Env,
+        env: Env,
         _info: MessageInfo,
         msg: ActionMsgs,
         cfg: Config,
     ) -> Result<Response, ServiceError> {
         match msg {
-            ActionMsgs::Detokenize { addresses } => todo!(),
+            ActionMsgs::Detokenize { addresses } => detokenize(deps, env, cfg, addresses),
         }
+    }
+
+    fn detokenize(
+        deps: DepsMut,
+        env: Env,
+        cfg: Config,
+        addresses: HashSet<String>,
+    ) -> Result<Response, ServiceError> {
+        let mut voucher_balances: HashMap<String, Uint128> = HashMap::new();
+        let mut total_vouchers = Uint128::zero();
+        // Query asset balance for each address
+        for address in addresses {
+            // Validate it's a valid address
+            deps.api.addr_validate(&address)?;
+
+            // Query balance of voucher denom
+            let balance = deps.querier.query_balance(
+                address.clone(),
+                cfg.detokenizoooor_config.voucher_denom.clone(),
+            )?;
+            // Ignore addresses that don't have tokens
+            if balance.amount.is_zero() {
+                continue;
+            }
+            voucher_balances.insert(address, balance.amount);
+            // Add it to the total balance to know how much we are sending to the service (detokenizing)
+            total_vouchers += balance.amount;
+        }
+
+        // How much has been detokenized already (balance of the token in the service)
+        let service_voucher_balance = deps.querier.query_balance(
+            env.contract.address.clone(),
+            cfg.detokenizoooor_config.voucher_denom.clone(),
+        )?;
+
+        // Substract this from the total supply to know exactly what are the amount of vouchers that have not been detokenized
+        let total_supply = deps
+            .querier
+            .query_supply(cfg.detokenizoooor_config.voucher_denom.clone())?;
+        let remaining_supply = total_supply
+            .amount
+            .saturating_sub(service_voucher_balance.amount);
+
+        let mut response = Response::new();
+        // Create the send message to the service to consider the tokens detokenized in the future
+        let bank_send = CosmosMsg::Bank(BankMsg::Send {
+            to_address: env.contract.address.to_string(),
+            amount: coins(
+                total_vouchers.u128(),
+                cfg.detokenizoooor_config.voucher_denom.clone(),
+            ),
+        });
+        response = response.add_message(bank_send);
+
+        // Get the redeemable denoms balance of the input address
+        let redeemable_denoms_balance = cfg
+            .detokenizoooor_config
+            .redeemable_denoms
+            .iter()
+            .map(|redeemable_denom| {
+                let balance = deps
+                    .querier
+                    .query_balance(cfg.input_addr.to_string(), redeemable_denom.clone())?;
+                Ok((redeemable_denom.clone(), balance.amount))
+            })
+            .collect::<Result<HashMap<_, _>, StdError>>()?;
+
+        // For each address, check how much they should get and send it to them
+        for (address, balance) in voucher_balances {
+            let mut messages: Vec<CosmosMsg> = Vec::new();
+            // Send the redeemable denoms
+            for (denom, amount) in redeemable_denoms_balance.iter() {
+                let amount = balance.multiply_ratio(amount.clone(), remaining_supply);
+                if amount.is_zero() {
+                    continue;
+                }
+                messages.push(CosmosMsg::Bank(BankMsg::Send {
+                    to_address: address.clone(),
+                    amount: coins(amount.u128(), denom.clone()),
+                }));
+            }
+            response = response.add_messages(messages);
+        }
+
+        Ok(response)
     }
 }
 
