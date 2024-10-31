@@ -1,0 +1,29 @@
+[package]
+name       = "valence-conditional-branch"
+authors    = ["Timewave Labs"]
+edition    = { workspace = true }
+license    = { workspace = true }
+version    = { workspace = true }
+repository = { workspace = true }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+library = []
+
+[dependencies]
+cosmwasm-schema = { workspace = true }
+cosmwasm-std    = { workspace = true }
+cw-ownable      = { workspace = true }
+cw-storage-plus = { workspace = true }
+cw2             = { workspace = true }
+getset          = { workspace = true }
+schemars        = { workspace = true }
+serde           = { workspace = true }
+thiserror       = { workspace = true }
+valence-macros  = { workspace = true }
+
+[dev-dependencies]
+cw-multi-test               = { workspace = true }
+valence-authorization-utils = { workspace = true }
