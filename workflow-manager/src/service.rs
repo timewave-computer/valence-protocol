@@ -70,6 +70,7 @@ pub enum ServiceConfig {
     ValenceReverseSplitterService(valence_reverse_splitter_service::msg::ServiceConfig),
     ValenceAstroportLper(valence_astroport_lper::msg::ServiceConfig),
     ValenceAstroportWithdrawer(valence_astroport_withdrawer::msg::ServiceConfig),
+    ValenceRebalancerService(valence_rebalancer_service::msg::ServiceConfig),
 }
 
 // TODO: create macro for the methods that work the same over all of the configs
@@ -114,6 +115,12 @@ impl ServiceConfig {
 
                 *config = serde_json::from_str(&res)?;
             }
+            ServiceConfig::ValenceRebalancerService(ref mut config) => {
+                let json = serde_json::to_string(&config)?;
+                let res = ac.replace_all(&json, &replace_with);
+
+                *config = serde_json::from_str(&res)?;
+            }
         }
 
         Ok(())
@@ -147,6 +154,11 @@ impl ServiceConfig {
                 processor,
                 config: config.clone(),
             }),
+            ServiceConfig::ValenceRebalancerService(config) => to_vec(&InstantiateMsg {
+                owner,
+                processor,
+                config: config.clone(),
+            }),
         }
         .map_err(ServiceError::SerdeJsonError)
     }
@@ -174,6 +186,10 @@ impl ServiceConfig {
                 config.pre_validate(api)?;
                 Ok(())
             }
+            ServiceConfig::ValenceRebalancerService(config) => {
+                config.pre_validate(api)?;
+                Ok(())
+            }
         }
     }
 
@@ -195,6 +211,9 @@ impl ServiceConfig {
                 Self::find_account_ids(ac, serde_json::to_string(&config)?)
             }
             ServiceConfig::ValenceAstroportWithdrawer(config) => {
+                Self::find_account_ids(ac, serde_json::to_string(&config)?)
+            }
+            ServiceConfig::ValenceRebalancerService(config) => {
                 Self::find_account_ids(ac, serde_json::to_string(&config)?)
             }
         }

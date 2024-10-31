@@ -14,6 +14,7 @@ use crate::{
     NEUTRON_CHAIN,
 };
 use anyhow::{anyhow, Context};
+use async_recursion::async_recursion;
 use async_trait::async_trait;
 use cosmos_grpc_client::{
     cosmos_sdk_proto::{
@@ -33,7 +34,6 @@ use strum::VariantNames;
 use thiserror::Error;
 use tokio::time::sleep;
 use valence_authorization_utils::authorization::AuthorizationInfo;
-use async_recursion::async_recursion;
 
 use super::{Connector, ConnectorResult, POLYTONE_TIMEOUT};
 
