@@ -37,7 +37,7 @@ use valence_authorization_utils::{
     builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
 };
 use valence_detokenizoooor_service::msg::DetokenizoooorConfig;
-use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
+use valence_service_utils::{denoms::UncheckedDenom, GetId, ServiceAccountType};
 use valence_splitter_service::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
 use valence_workflow_manager::{
     account::{AccountInfo, AccountType},
@@ -247,7 +247,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         name: "test_lper".to_string(),
         domain: neutron_domain.clone(),
         config: ServiceConfig::ValenceAstroportLper(valence_astroport_lper::msg::ServiceConfig {
-            input_addr: account_1,
+            input_addr: account_1.clone(),
             output_addr: account_2.clone(),
             pool_addr: pool_addr.to_string(),
             lp_config: LiquidityProviderConfig {
@@ -262,12 +262,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         addr: None,
     });
 
+    builder.add_link(&lper_service, vec![&account_1], vec![&account_2]);
+
     let withdrawer_service = builder.add_service(ServiceInfo {
         name: "test_withdrawer".to_string(),
         domain: neutron_domain.clone(),
         config: ServiceConfig::ValenceAstroportWithdrawer(
             valence_astroport_withdrawer::msg::ServiceConfig {
-                input_addr: account_2,
+                input_addr: account_2.clone(),
                 output_addr: account_3.clone(),
                 pool_addr: pool_addr.to_string(),
                 withdrawer_config: valence_astroport_withdrawer::msg::LiquidityWithdrawerConfig {
@@ -277,6 +279,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ),
         addr: None,
     });
+    builder.add_link(&withdrawer_service, vec![&account_2], vec![&account_3]);
 
     let splitter_service = builder.add_service(ServiceInfo {
         name: "test_splitter".to_string(),
@@ -305,13 +308,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         ),
         addr: None,
     });
+    builder.add_link(
+        &splitter_service,
+        vec![&account_3],
+        vec![&account_4, &account_5],
+    );
 
     let detokenizer_service = builder.add_service(ServiceInfo {
         name: "test_detokenizer".to_string(),
         domain: neutron_domain.clone(),
         config: ServiceConfig::ValenceDetokenizer(
             valence_detokenizoooor_service::msg::ServiceConfig {
-                input_addr: account_5,
+                input_addr: account_5.clone(),
                 detokenizoooor_config: DetokenizoooorConfig {
                     input_addr: account_3.clone(),
                     voucher_denom: "dumdum".to_string(), // Need to update it
@@ -324,6 +332,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         ),
         addr: None,
     });
+
+    builder.add_link(
+        &detokenizer_service,
+        vec![&account_5.clone()],
+        vec![&account_5],
+    );
 
     let now = SystemTime::now();
     let time_now = now.duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
