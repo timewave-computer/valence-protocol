@@ -42,15 +42,12 @@ pub fn execute(
 mod actions {
     use std::collections::HashSet;
 
-    use cosmwasm_std::{
-        to_json_binary, BankMsg, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128, WasmMsg,
-    };
+    use cosmwasm_std::{to_json_binary, DepsMut, Env, MessageInfo, Response, Uint128, WasmMsg};
     use valence_service_utils::error::ServiceError;
 
     use crate::{
-        helpers::get_balances,
         msg::{ActionMsgs, Config},
-        ATOM_DENOM, NEWT_DENOM, NTRN_DENOM, USDC_DENOM,
+        NTRN_DENOM,
     };
 
     pub fn process_action(
@@ -72,34 +69,23 @@ mod actions {
                 // TODO: Change this to get the full list of targets the rebalancer supports
                 let mut targets: HashSet<rebalancer_package::services::rebalancer::Target> =
                     HashSet::new();
-                // ATOM
-                targets.insert(rebalancer_package::services::rebalancer::Target {
-                    denom: ATOM_DENOM.to_string(),
-                    bps: 1,
-                    min_balance: None,
+                config.denoms.iter().for_each(|denom| {
+                    targets.insert(rebalancer_package::services::rebalancer::Target {
+                        denom: denom.to_string(),
+                        bps: 1,
+                        min_balance: None,
+                    });
                 });
-                // NTRN
+                // main denom - USDC
                 targets.insert(rebalancer_package::services::rebalancer::Target {
-                    denom: NTRN_DENOM.to_string(),
-                    bps: 1,
-                    min_balance: None,
-                });
-                // NEWT
-                targets.insert(rebalancer_package::services::rebalancer::Target {
-                    denom: NEWT_DENOM.to_string(),
-                    bps: 1,
-                    min_balance: None,
-                });
-                // USDC
-                targets.insert(rebalancer_package::services::rebalancer::Target {
-                    denom: USDC_DENOM.to_string(),
-                    bps: 9997,
+                    denom: config.base_denom.clone(),
+                    bps: 10000 - (config.denoms.iter().count() as u64),
                     min_balance: Some(min_balance.u128().into()),
                 });
 
                 let rebalancer_config = rebalancer_package::services::rebalancer::RebalancerData {
                     trustee,
-                    base_denom: USDC_DENOM.to_string(),
+                    base_denom: config.base_denom,
                     targets,
                     pid,
                     max_limit_bps,
@@ -107,9 +93,9 @@ mod actions {
                     account_type: rebalancer_package::services::rebalancer::RebalancerAccountType::Workflow,
                 };
 
-                let register_msg = rebalancer_package::msgs::core_execute::ServicesManagerExecuteMsg::RegisterToService { 
-                    service_name: rebalancer_package::services::ValenceServices::Rebalancer, 
-                    data: Some(to_json_binary(&rebalancer_config)?.to_vec().into()) 
+                let register_msg = rebalancer_package::msgs::core_execute::ServicesManagerExecuteMsg::RegisterToService {
+                    service_name: rebalancer_package::services::ValenceServices::Rebalancer,
+                    data: Some(to_json_binary(&rebalancer_config)?.to_vec().into())
                 };
                 let rebalancer_wasm_msg = WasmMsg::Execute {
                     contract_addr: config.rebalancer_manager_addr.to_string(),
@@ -117,35 +103,19 @@ mod actions {
                     funds: vec![],
                 };
 
-                // query the balance of the input address
-                let balances = get_balances(deps.as_ref(), config.input_addr.to_string())?;
-                // input addr must have 1 ntrn for rebalancer fee
-                balances
-                    .iter()
-                    .find(|b| b.denom == NTRN_DENOM && b.amount > Uint128::from(1000000_u128))
-                    .ok_or_else(|| {
-                        ServiceError::ExecutionError(
-                            "Input address must have at least 1 NTRN".to_string(),
-                        )
-                    })?;
+                // query the balance of the rebalancer address for NTRN 
+                let ntrn_balance = deps
+                    .querier
+                    .query_balance(config.rebalancer_account, NTRN_DENOM.to_string())?;
 
-                // send all the funds from the input addr to the rebalancer account
-                let send_msgs: Vec<CosmosMsg> = balances
-                    .iter()
-                    .map(|b| {
-                        BankMsg::Send {
-                            to_address: config.rebalancer_account.to_string(),
-                            amount: vec![b.clone()],
-                        }
-                        .into()
-                    })
-                    .collect();
+                // rebalancer addr must have 1 ntrn for rebalancer fee
+                if ntrn_balance.amount < Uint128::from(1000000_u128) {
+                    return Err(ServiceError::ExecutionError(
+                        "Input address must have at least 1 NTRN".to_string(),
+                    ));
+                }
 
-                // register the account to the rebalancer
-
-                Ok(Response::default()
-                    .add_messages(send_msgs)
-                    .add_message(rebalancer_wasm_msg))
+                Ok(Response::default().add_message(rebalancer_wasm_msg))
             }
             ActionMsgs::UpdateRebalancerConfig {
                 trustee: _,
