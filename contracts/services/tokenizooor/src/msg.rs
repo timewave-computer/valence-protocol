@@ -2,86 +2,74 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut};
 use cw_ownable::cw_ownable_query;
 use valence_macros::{valence_service_query, ValenceServiceInterface};
-use valence_service_utils::{
-    error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType,
-};
-
-use crate::CONFIG2;
+use valence_service_utils::ServiceAccountType;
+use valence_service_utils::{error::ServiceError, msg::ServiceConfigValidation};
 
 #[cw_serde]
 pub enum ActionMsgs {
-    NoOp {},
+    Tokenize {},
+}
+
+#[cw_serde]
+pub struct Config {
+    pub input_addr: Addr,
+}
+
+impl Config {
+    pub fn new(input_addr: Addr) -> Self {
+        Config { input_addr }
+    }
 }
 
 #[valence_service_query]
 #[cw_ownable_query]
 #[cw_serde]
 #[derive(QueryResponses)]
-/// Enum representing the different query messages that can be sent.
 pub enum QueryMsg {}
 
-/// Everything a service needs as a parameter to be instantiated goes into `ServiceConfig`
-/// `ValenceServiceInterface` generates `ServiceConfigUpdate` is used in update method that allows to update the service configuration
-/// `ServiceConfigUpdate` turns all fields <T> from `ServiceConfig` into Option<T>
-///  
-/// Fields that are Option<T>, will be generated as OptionUpdate<T>
-/// If a field cannot or should not be updated, it should be annotated with #[skip_update]
 #[cw_serde]
 #[derive(ValenceServiceInterface)]
 pub struct ServiceConfig {
-    /// We ignore this field when generating the ValenceServiceInterface
-    /// This means this field is not updatable
-    #[skip_update]
-    pub skip_update_admin: ServiceAccountType,
-    pub optional: Option<String>,
-    pub optional2: String,
+    pub input_addr: ServiceAccountType,
+}
+
+impl ServiceConfig {
+    pub fn new(input_addr: impl Into<ServiceAccountType>) -> Self {
+        ServiceConfig {
+            input_addr: input_addr.into(),
+        }
+    }
+
+    fn do_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<Addr, ServiceError> {
+        let input_addr = self.input_addr.to_addr(api)?;
+        Ok(input_addr)
+    }
 }
 
 impl ServiceConfigValidation<Config> for ServiceConfig {
     #[cfg(not(target_arch = "wasm32"))]
-    fn pre_validate(&self, _api: &dyn cosmwasm_std::Api) -> Result<(), ServiceError> {
+    fn pre_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<(), ServiceError> {
+        self.do_validate(api)?;
         Ok(())
     }
 
     fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
-        Ok(Config {
-            admin: self.skip_update_admin.to_addr(deps.api)?,
-            optional: self.optional.clone(),
-        })
+        let input_addr = self.do_validate(deps.api)?;
+
+        Ok(Config { input_addr })
     }
 }
 
 impl ServiceConfigUpdate {
-    /// Service developer must not forget to update config storage needed
     pub fn update_config(self, deps: DepsMut) -> Result<(), ServiceError> {
         let mut config: Config = valence_service_base::load_config(deps.storage)?;
 
-        if let OptionUpdate::Set(optional) = self.optional {
-            config.optional = optional;
-        }
-
-        // While we get &mut Config, we can execute regular storage operations
-        let mut config2 = CONFIG2.load(deps.storage)?;
-        if let Some(optional2) = self.optional2 {
-            config2.optional2 = optional2;
+        // First update input_addr (if needed)
+        if let Some(input_addr) = self.input_addr {
+            config.input_addr = input_addr.to_addr(deps.api)?;
         }
 
         valence_service_base::save_config(deps.storage, &config)?;
-        CONFIG2.save(deps.storage, &config2)?;
-
         Ok(())
     }
-}
-
-#[cw_serde]
-pub struct Config {
-    pub admin: Addr,
-    pub optional: Option<String>,
-}
-
-/// While we can save everything in ServiceConfig into Config
-/// The service is free to define its own storage struct
-#[cw_serde]
-pub struct Config2 {
-    pub optional2: String,
 }

@@ -6,10 +6,7 @@ use valence_service_utils::{
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
-use crate::{
-    msg::{ActionMsgs, Config, Config2, QueryMsg, ServiceConfig, ServiceConfigUpdate},
-    CONFIG2,
-};
+use crate::msg::{ActionMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -22,12 +19,6 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg<ServiceConfig>,
 ) -> Result<Response, ServiceError> {
-    CONFIG2.save(
-        deps.storage,
-        &Config2 {
-            optional2: msg.config.optional2.clone(),
-        },
-    )?;
     valence_service_base::instantiate(deps, CONTRACT_NAME, CONTRACT_VERSION, msg)
 }
 
@@ -55,15 +46,24 @@ mod actions {
     use crate::msg::{ActionMsgs, Config};
 
     pub fn process_action(
+        deps: DepsMut,
+        env: Env,
+        info: MessageInfo,
+        msg: ActionMsgs,
+        cfg: Config,
+    ) -> Result<Response, ServiceError> {
+        match msg {
+            ActionMsgs::Tokenize {} => try_tokenize(deps, env, info, cfg),
+        }
+    }
+
+    fn try_tokenize(
         _deps: DepsMut,
         _env: Env,
         _info: MessageInfo,
-        msg: ActionMsgs,
         _cfg: Config,
     ) -> Result<Response, ServiceError> {
-        match msg {
-            ActionMsgs::NoOp {} => Ok(Response::new().add_attribute("method", "noop")),
-        }
+        Ok(Response::new().add_attribute("method", "noop"))
     }
 }
 
