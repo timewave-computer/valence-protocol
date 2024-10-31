@@ -1,6 +1,7 @@
-use std::{collections::BTreeMap, error::Error};
+use std::{collections::BTreeMap, error::Error, time::SystemTime};
 
-use cosmwasm_std::{Decimal, Uint128};
+use cosmwasm_std::{Decimal, Timestamp, Uint128};
+use cw_utils::Expiration;
 use local_interchaintest::utils::{
     manager::{
         setup_manager, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME, DETOKENIZER_NAME,
@@ -12,8 +13,13 @@ use localic_utils::{
     ConfigChainBuilder, TestContextBuilder, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
     NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
 };
+use valence_authorization_utils::{
+    authorization::AuthorizationDuration,
+    authorization_message::{Message, MessageDetails, MessageType},
+    builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
+};
 use valence_detokenizoooor_service::msg::DetokenizoooorConfig;
-use valence_service_utils::denoms::UncheckedDenom;
+use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
 use valence_splitter_service::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
 use valence_workflow_manager::{
     account::{AccountInfo, AccountType},
@@ -157,6 +163,112 @@ fn main() -> Result<(), Box<dyn Error>> {
         ),
         addr: None,
     });
+
+    let now = SystemTime::now();
+    let time_now = now.duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
+
+    let authorization_1 = AuthorizationBuilder::new()
+        .with_label("tokenize")
+        .with_duration(AuthorizationDuration::Seconds(30))
+        .with_actions_config(
+            AtomicActionsConfigBuilder::new()
+                .with_action(
+                    AtomicActionBuilder::new()
+                        .with_contract_address(ServiceAccountType::ServiceId(1))
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "process_action".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .build(),
+        )
+        .build();
+    builder.add_authorization(authorization_1);
+
+    let authorization_2 = AuthorizationBuilder::new()
+        .with_label("provide_liquidity")
+        .with_not_before(Expiration::AtTime(Timestamp::from_seconds(time_now + 30)))
+        .with_actions_config(
+            AtomicActionsConfigBuilder::new()
+                .with_action(
+                    AtomicActionBuilder::new()
+                        .with_contract_address(ServiceAccountType::ServiceId(2))
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "process_action".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .build(),
+        )
+        .build();
+
+    builder.add_authorization(authorization_2);
+
+    let authorization_3 = AuthorizationBuilder::new()
+        .with_label("withdraw_and_split")
+        .with_not_before(Expiration::AtTime(Timestamp::from_seconds(time_now + 60)))
+        .with_actions_config(
+            AtomicActionsConfigBuilder::new()
+                .with_action(
+                    AtomicActionBuilder::new()
+                        .with_contract_address(ServiceAccountType::ServiceId(3))
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "process_action".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .with_action(
+                    AtomicActionBuilder::new()
+                        .with_contract_address(ServiceAccountType::ServiceId(4))
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "process_action".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .build(),
+        )
+        .build();
+
+    builder.add_authorization(authorization_3);
+
+    let authorization_4 = AuthorizationBuilder::new()
+        .with_label("detokenize")
+        .with_not_before(Expiration::AtTime(Timestamp::from_seconds(time_now + 60)))
+        .with_actions_config(
+            AtomicActionsConfigBuilder::new()
+                .with_action(
+                    AtomicActionBuilder::new()
+                        .with_contract_address(ServiceAccountType::ServiceId(5))
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "process_action".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .build(),
+        )
+        .build();
+
+    builder.add_authorization(authorization_4);
 
     Ok(())
 }
