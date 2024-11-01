@@ -506,7 +506,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let authorization_4 = AuthorizationBuilder::new()
         .with_label("detokenize")
-        .with_not_before(Expiration::AtTime(Timestamp::from_seconds(time_now + 180)))
         .with_actions_config(
             AtomicActionsConfigBuilder::new()
                 .with_action(
@@ -791,7 +790,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Wait until time_now + 120
     let now = SystemTime::now();
     let current_time = now.duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
-    let time_to_wait = 121 - (current_time - time_now);
+    let time_to_wait = 125u64.saturating_sub(current_time - time_now);
     std::thread::sleep(std::time::Duration::from_secs(time_to_wait));
 
     contract_execute(
@@ -867,7 +866,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Wait until time_now + 150
     let now = SystemTime::now();
     let current_time = now.duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
-    let time_to_wait = 151 - (current_time - time_now);
+    let time_to_wait = 155u64.saturating_sub(current_time - time_now);
     std::thread::sleep(std::time::Duration::from_secs(time_to_wait));
 
     contract_execute(
@@ -883,7 +882,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     std::thread::sleep(std::time::Duration::from_secs(3));
 
-    info!("Ticking processor and executing withdraw n sp,it...");
+    info!("Ticking processor and executing withdraw n split...");
     tick_processor(
         &mut test_ctx,
         NEUTRON_CHAIN_NAME,
@@ -922,6 +921,60 @@ fn main() -> Result<(), Box<dyn Error>> {
         &address_account_5,
     );
     info!("balance of acc 5 : {:?}", balance);
+
+    // DETOKENIZE
+    info!("Send the messages to the authorization contract...");
+    let binary = Binary::from(
+        serde_json::to_vec(
+            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
+                valence_detokenizer_service::msg::ActionMsgs::Detokenize {
+                    addresses: HashSet::from_iter(base_accounts.clone()),
+                },
+            ),
+        )
+        .unwrap(),
+    );
+    let detokenize_message = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
+
+    let detokenize_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+            label: "detokenize".to_string(),
+            messages: vec![detokenize_message],
+            ttl: None,
+        },
+    );
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&detokenize_msg).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    info!("Ticking processor and executing detokenize...");
+    tick_processor(
+        &mut test_ctx,
+        NEUTRON_CHAIN_NAME,
+        DEFAULT_KEY,
+        &processor_contract_address,
+    );
+
+    info!("checking balances of all base accounts");
+    for base_account in base_accounts {
+        let balance = bank::get_balance(
+            test_ctx
+                .get_request_builder()
+                .get_request_builder(NEUTRON_CHAIN_NAME),
+            &base_account,
+        );
+        info!("balance of acc : {:?} : {:?}", base_account, balance);
+    }
 
     info!("SUCCESS!");
     Ok(())
