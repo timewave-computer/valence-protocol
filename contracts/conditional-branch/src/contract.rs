@@ -2,7 +2,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     from_json, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
-    WasmMsg,
+    WasmMsg, WasmQuery,
 };
 
 use crate::{
@@ -43,15 +43,23 @@ pub fn execute(
             true_branch,
             false_branch,
         } => {
-            cw_ownable::assert_owner(deps.as_ref().storage, &info.sender)?;
-
             let lhs: Binary = match query {
                 QueryInstruction::BalanceQuery { address, denom } => {
                     let balance = deps.querier.query_balance(&address, &denom)?;
                     to_json_binary(&balance.amount)?
                 }
-                QueryInstruction::WasmQuery { contract, msg } => {
-                    deps.querier.query_wasm_smart(&contract, &msg)?
+                QueryInstruction::WasmQuery {
+                    contract_addr,
+                    msg,
+                    value_path,
+                } => {
+                    let response: serde_json::Value = deps
+                        .querier
+                        .query(&WasmQuery::Smart { contract_addr, msg }.into())?;
+                    let result = value_path.iter().fold(&response, |acc, path| {
+                        acc.get(path).expect("path not found")
+                    });
+                    to_json_binary(&result)?
                 }
             };
 
@@ -100,4 +108,26 @@ pub fn execute(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(_deps: Deps, _env: Env, _msg: QueryMsg) -> StdResult<Binary> {
     unimplemented!()
+}
+
+#[cfg(test)]
+mod test {
+    use cosmwasm_std::{to_json_binary, Decimal};
+
+    #[test]
+    pub fn test_wasm_query_response_value_extraction() {
+        let query_response: serde_json::Value = serde_json::json!({
+            "denom_ratios": {
+                "untrn": Decimal::percent(42)
+            }
+        });
+
+        let value_path = ["denom_ratios".to_string(), "untrn".to_string()];
+        let result = to_json_binary(value_path.iter().fold(&query_response, |acc, path| {
+            acc.get(path).expect("path not found")
+        }))
+        .unwrap();
+
+        assert_eq!(result, to_json_binary(&Decimal::percent(42)).unwrap());
+    }
 }

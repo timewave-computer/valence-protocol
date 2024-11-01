@@ -9,8 +9,15 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub enum QueryInstruction {
-    BalanceQuery { address: String, denom: String },
-    WasmQuery { contract: String, msg: Binary },
+    BalanceQuery {
+        address: String,
+        denom: String,
+    },
+    WasmQuery {
+        contract_addr: String,
+        msg: Binary,
+        value_path: Vec<String>,
+    },
 }
 
 #[cw_serde]

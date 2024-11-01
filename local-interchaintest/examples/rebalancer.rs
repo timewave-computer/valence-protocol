@@ -30,7 +30,7 @@ use valence_workflow_manager::{
     workflow_config_builder::WorkflowConfigBuilder,
 };
 
-const ONE_HUNDRED: u128 = 100u128;
+const ONE_THOUSAND: u128 = 1_000_000_000_u128;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -78,12 +78,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                 UncheckedSplitConfig {
                     denom: UncheckedDenom::Native(NTRN_DENOM.to_string()),
                     account: output_account_1.clone(),
-                    amount: UncheckedSplitAmount::FixedAmount(ONE_HUNDRED.into()),
+                    amount: UncheckedSplitAmount::FixedAmount(ONE_THOUSAND.into()),
                 },
                 UncheckedSplitConfig {
                     denom: UncheckedDenom::Native(NTRN_DENOM.to_string()),
                     account: output_account_2.clone(),
-                    amount: UncheckedSplitAmount::FixedAmount(ONE_HUNDRED.into()),
+                    amount: UncheckedSplitAmount::FixedAmount(ONE_THOUSAND.into()),
                 },
             ],
         }),
@@ -109,11 +109,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
                                     name: "compare_and_branch".to_string(),
-                                    params_restrictions: Some(vec![
-                                        ParamRestriction::MustBeIncluded(vec![
-                                            "compare_and_branch".to_string(),
-                                        ]),
-                                    ]),
+                                    params_restrictions: None,
                                 },
                             })
                             .build(),
@@ -194,7 +190,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &rebalancer_account,
         &[BankCoin {
             denom: NTRN_DENOM.to_string(),
-            amount: (ONE_HUNDRED * 2).into(),
+            amount: (ONE_THOUSAND * 2).into(),
         }],
         &BankCoin {
             denom: NTRN_DENOM.to_string(),
@@ -214,7 +210,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 },
                 operator: valence_conditional_branch::msg::ComparisonOperator::GreaterThanOrEqual,
                 rhs_operand: Binary::from(
-                    serde_json::to_vec(&Uint128::from(ONE_HUNDRED * 2)).unwrap(),
+                    serde_json::to_vec(&Uint128::from(ONE_THOUSAND * 2)).unwrap(),
                 ),
                 true_branch: None,
                 false_branch: None,
@@ -265,27 +261,27 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     info!("Verifying balances...");
-    let token_balances = bank::get_balance(
+    let output_account_1_balance = bank::get_balance(
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
         &output_account_1,
-    );
-    println!("{:?}", token_balances);
-    // assert!(token_balances
-    //     .iter()
-    //     .any(|balance| balance.denom == NTRN_DENOM && balance.amount.u128() == ONE_HUNDRED));
+    )
+    .iter()
+    .find(|bal| bal.denom == NTRN_DENOM)
+    .map_or(0, |bal| bal.amount.u128());
+    assert_eq!(output_account_1_balance, ONE_THOUSAND);
 
-    let token_balances = bank::get_balance(
+    let output_account_2_balance = bank::get_balance(
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
         &output_account_2,
-    );
-    println!("{:?}", token_balances);
-    // assert!(token_balances
-    //     .iter()
-    //     .any(|balance| balance.denom == NTRN_DENOM && balance.amount.u128() == ONE_HUNDRED));
+    )
+    .iter()
+    .find(|bal| bal.denom == NTRN_DENOM)
+    .map_or(0, |bal| bal.amount.u128());
+    assert_eq!(output_account_2_balance, ONE_THOUSAND);
 
     info!("Rebalancer workflow successful!");
     Ok(())

@@ -5255,9 +5255,12 @@ dependencies = [
  "getset",
  "schemars",
  "serde",
+ "serde_json",
  "thiserror",
  "valence-authorization-utils",
  "valence-macros 0.1.0",
+ "valence-service-utils",
+ "valence-test-dynamic-ratio",
 ]
 
 [[package]]
