@@ -40,7 +40,7 @@ use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType},
     builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
 };
-use valence_detokenizer_service::msg::DetokenizoooorConfig;
+use valence_detokenizer_service::msg::DetokenizerConfig;
 use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
 use valence_splitter_service::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
 use valence_workflow_manager::{
@@ -354,7 +354,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         config: ServiceConfig::ValenceDetokenizerService(
             valence_detokenizer_service::msg::ServiceConfig {
                 input_addr: account_5.clone(),
-                detokenizoooor_config: DetokenizoooorConfig {
+                detokenizoooor_config: DetokenizerConfig {
                     input_addr: account_3.clone(),
                     voucher_denom: "dumdum".to_string(), // Need to update it
                     redeemable_denoms: HashSet::from_iter(vec![
