@@ -21,9 +21,10 @@ pub enum QueryInstruction {
     #[cfg(feature = "icq_queries")]
     IcqBalanceQuery {
         execution_id: u64,
+        callback_address: String,
         connection_id: String,
         address: String,
-        denoms: Vec<String>,
+        denom: String,
         update_period: u64,
     },
 }

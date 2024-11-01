@@ -10,11 +10,14 @@ repository = { workspace = true }
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["library", "icq_queries"]
+default = ["library"]
 library = []
 icq_queries = [
     "dep:neutron-sdk",
-    "dep:cosmos-sdk-proto"
+    "dep:cosmos-sdk-proto",
+    "dep:hex",
+    "dep:sha2",
+    "dep:valence-authorization-utils"
 ]
 
 [dependencies]
@@ -32,6 +35,9 @@ valence-macros   = { workspace = true }
 # Optional dependencies
 neutron-sdk      = { workspace = true, optional = true }
 cosmos-sdk-proto = { workspace = true, optional = true }
+hex              = { workspace = true, optional = true }
+sha2             = { workspace = true, optional = true }
+valence-authorization-utils = { workspace = true, optional = true }
 
 [dev-dependencies]
 cw-multi-test               = { workspace = true }
