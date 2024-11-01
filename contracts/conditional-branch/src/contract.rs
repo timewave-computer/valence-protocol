@@ -8,6 +8,7 @@ use cosmwasm_std::{
 use crate::{
     error::ContractError,
     msg::{ComparisonOperator, ExecuteMsg, InstantiateMsg, QueryInstruction, QueryMsg},
+    state::ICQ_QUERIES,
 };
 
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -28,13 +29,13 @@ pub fn instantiate(
         .add_attribute("owner", format!("{:?}", msg.owner)))
 }
 
+#[cfg(not(feature = "icq_queries"))]
+type ExecuteResponse = Result<Response, ContractError>;
+#[cfg(feature = "icq_queries")]
+type ExecuteResponse = Result<Response<neutron_sdk::bindings::msg::NeutronMsg>, ContractError>;
+
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    msg: ExecuteMsg,
-) -> Result<Response, ContractError> {
+pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> ExecuteResponse {
     match msg {
         ExecuteMsg::CompareAndBranch {
             query,
@@ -60,6 +61,26 @@ pub fn execute(
                         acc.get(path).expect("path not found")
                     });
                     to_json_binary(&result)?
+                }
+                #[cfg(feature = "icq_queries")]
+                QueryInstruction::IcqBalanceQuery {
+                    execution_id,
+                    connection_id,
+                    address,
+                    denoms,
+                    update_period,
+                } => {
+                    let res = crate::icq::register_balances_query(
+                        connection_id,
+                        address,
+                        denoms,
+                        update_period,
+                    )
+                    .map_err(|err| {
+                        ContractError::ExecutionError(format!("ICQ query failed: {}", err))
+                    })?;
+                    ICQ_QUERIES.save(deps.storage, execution_id, &None)?;
+                    return Ok(res);
                 }
             };
 
@@ -108,6 +129,29 @@ pub fn execute(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(_deps: Deps, _env: Env, _msg: QueryMsg) -> StdResult<Binary> {
     unimplemented!()
+}
+
+// neutron uses the `sudo` entry point in their ICA/ICQ related logic
+#[cfg(feature = "icq_queries")]
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn sudo(
+    deps: DepsMut<neutron_sdk::bindings::query::NeutronQuery>,
+    env: Env,
+    msg: neutron_sdk::sudo::msg::SudoMsg,
+) -> StdResult<Response<neutron_sdk::bindings::msg::NeutronMsg>> {
+    match msg {
+        // For handling kv query result
+        neutron_sdk::sudo::msg::SudoMsg::KVQueryResult { query_id } => {
+            let response = neutron_sdk::interchain_queries::v047::queries::query_balance(
+                deps.as_ref(),
+                env,
+                query_id,
+            ).map_err(|err| cosmwasm_std::StdError::generic_err(err.to_string()))?;
+            
+            Ok(Response::default())
+        }
+        _ => Ok(Response::default()),
+    }
 }
 
 #[cfg(test)]

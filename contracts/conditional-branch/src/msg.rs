@@ -18,6 +18,14 @@ pub enum QueryInstruction {
         msg: Binary,
         value_path: Vec<String>,
     },
+    #[cfg(feature = "icq_queries")]
+    IcqBalanceQuery {
+        execution_id: u64,
+        connection_id: String,
+        address: String,
+        denoms: Vec<String>,
+        update_period: u64,
+    },
 }
 
 #[cw_serde]

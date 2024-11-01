@@ -10,20 +10,28 @@ repository = { workspace = true }
 crate-type = ["cdylib", "rlib"]
 
 [features]
+default = ["library", "icq_queries"]
 library = []
+icq_queries = [
+    "dep:neutron-sdk",
+    "dep:cosmos-sdk-proto"
+]
 
 [dependencies]
-cosmwasm-schema = { workspace = true }
-cosmwasm-std    = { workspace = true }
-cw-ownable      = { workspace = true }
-cw-storage-plus = { workspace = true }
-cw2             = { workspace = true }
-getset          = { workspace = true }
-schemars        = { workspace = true }
-serde           = { workspace = true }
-serde_json      = { workspace = true }
-thiserror       = { workspace = true }
-valence-macros  = { workspace = true }
+cosmwasm-schema  = { workspace = true }
+cosmwasm-std     = { workspace = true }
+cw-ownable       = { workspace = true }
+cw-storage-plus  = { workspace = true }
+cw2              = { workspace = true }
+getset           = { workspace = true }
+schemars         = { workspace = true }
+serde            = { workspace = true }
+serde_json       = { workspace = true }
+thiserror        = { workspace = true }
+valence-macros   = { workspace = true }
+# Optional dependencies
+neutron-sdk      = { workspace = true, optional = true }
+cosmos-sdk-proto = { workspace = true, optional = true }
 
 [dev-dependencies]
 cw-multi-test               = { workspace = true }
