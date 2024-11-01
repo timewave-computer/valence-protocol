@@ -21,7 +21,7 @@ use valence_workflow_manager::{
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let mut test_ctx = TestContextBuilder::default()
+    let test_ctx = TestContextBuilder::default()
         .with_unwrap_raw_logs(true)
         .with_api_url(LOCAL_IC_API_URL)
         .with_artifacts_dir(VALENCE_ARTIFACTS_PATH)
@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_log_file_path(LOGS_FILE_PATH)
         .build()?;
 
-    test_ctx = setup_manager(
+    setup_manager(
         test_ctx,
         NEUTRON_CONFIG_FILE,
         vec![GAIA_CHAIN_NAME],

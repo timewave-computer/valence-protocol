@@ -40,14 +40,14 @@ pub enum QueryMsg {}
 #[derive(ValenceServiceInterface)]
 pub struct ServiceConfig {
     /// The "output" address of the account that will be registered to the rebalancer
-    rebalancer_account: ServiceAccountType,
+    pub rebalancer_account: ServiceAccountType,
     /// The services manager in the reblaancer address
     /// this is used to send the register message to the rebalancer
-    rebalancer_manager_addr: ServiceAccountType,
+    pub rebalancer_manager_addr: ServiceAccountType,
     /// List of denoms to add as targets
-    denoms: Vec<String>,
+    pub denoms: Vec<String>,
     /// The main denom we rebalance into
-    base_denom: String,
+    pub base_denom: String,
 }
 
 impl ServiceConfigValidation<Config> for ServiceConfig {

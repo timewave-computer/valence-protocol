@@ -42,11 +42,18 @@ pub fn execute(
 mod actions {
     use std::collections::HashSet;
 
-    use cosmwasm_std::{to_json_binary, DepsMut, Env, MessageInfo, Response, Uint128, WasmMsg};
+    use cosmwasm_std::{
+        coins, to_json_binary, DepsMut, Env, MessageInfo, Response, Uint128, WasmMsg,
+    };
     use valence_service_utils::error::ServiceError;
 
     use crate::{
-        msg::{ActionMsgs, Config}, rebalancer_custom::{RebalancerAccountType, RebalancerData, ServicesManagerExecuteMsg, Target, TargetOverrideStrategy, ValenceServices}, NTRN_DENOM
+        msg::{ActionMsgs, Config},
+        rebalancer_custom::{
+            RebalancerAccountType, RebalancerData, ServicesManagerExecuteMsg, Target,
+            TargetOverrideStrategy, ValenceServices,
+        },
+        NTRN_DENOM,
     };
 
     pub fn process_action(
@@ -66,8 +73,7 @@ mod actions {
                 let config: Config = valence_service_base::load_config(deps.storage)?;
 
                 // TODO: Change this to get the full list of targets the rebalancer supports
-                let mut targets: HashSet<Target> =
-                    HashSet::new();
+                let mut targets: HashSet<Target> = HashSet::new();
                 config.denoms.iter().for_each(|denom| {
                     targets.insert(Target {
                         denom: denom.to_string(),
@@ -94,15 +100,15 @@ mod actions {
 
                 let register_msg = ServicesManagerExecuteMsg::RegisterToService {
                     service_name: ValenceServices::Rebalancer,
-                    data: Some(to_json_binary(&rebalancer_config)?.to_vec().into())
+                    data: Some(to_json_binary(&rebalancer_config)?.to_vec().into()),
                 };
                 let rebalancer_wasm_msg = WasmMsg::Execute {
                     contract_addr: config.rebalancer_manager_addr.to_string(),
                     msg: to_json_binary(&register_msg)?,
-                    funds: vec![],
+                    funds: coins(1_000_000_u128, NTRN_DENOM),
                 };
 
-                // query the balance of the rebalancer address for NTRN 
+                // query the balance of the rebalancer address for NTRN
                 let ntrn_balance = deps
                     .querier
                     .query_balance(config.rebalancer_account, NTRN_DENOM.to_string())?;
@@ -158,5 +164,75 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             let raw_config: ServiceConfig = valence_service_base::load_raw_config(deps.storage)?;
             to_json_binary(&raw_config)
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use cosmwasm_std::{
+        coin,
+        testing::{message_info, mock_dependencies, mock_dependencies_with_balances, mock_env},
+        Uint128,
+    };
+    use valence_service_utils::{msg::InstantiateMsg, ServiceAccountType};
+
+    use crate::{msg::ServiceConfig, rebalancer_custom::PID, NTRN_DENOM};
+
+    use super::{execute, instantiate};
+
+    #[test]
+    fn test() {
+        let deps = mock_dependencies();
+        let env = mock_env();
+
+        let addr = deps.api.addr_make("sender");
+        let owner = deps.api.addr_make("owner");
+        let processor = deps.api.addr_make("processor");
+        let reb_acc = deps.api.addr_make("reb_acc");
+        let reb_manager = deps.api.addr_make("reb_manager");
+        let info_processor = message_info(&processor.clone(), &[]);
+        let info = message_info(&addr.clone(), &[]);
+
+        let mut deps = mock_dependencies_with_balances(&[(
+            reb_acc.as_str(),
+            &[coin(1_000_000_u128, NTRN_DENOM.to_string())],
+        )]);
+
+        instantiate(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            InstantiateMsg {
+                owner: owner.to_string(),
+                processor: processor.to_string(),
+                config: ServiceConfig {
+                    rebalancer_account: ServiceAccountType::Addr(reb_acc.to_string()),
+                    rebalancer_manager_addr: ServiceAccountType::Addr(reb_manager.to_string()),
+                    denoms: vec![NTRN_DENOM.to_string(), "denom2".to_string()],
+                    base_denom: NTRN_DENOM.to_string(),
+                },
+            },
+        )
+        .unwrap();
+
+        let res = execute(
+            deps.as_mut(),
+            env,
+            info_processor,
+            valence_service_utils::msg::ExecuteMsg::ProcessAction(
+                crate::msg::ActionMsgs::StartRebalance {
+                    trustee: None,
+                    pid: PID {
+                        p: "0.1".to_string(),
+                        i: "0".to_string(),
+                        d: "0".to_string(),
+                    },
+                    max_limit_bps: None,
+                    min_balance: Uint128::from(1_000_000_u128),
+                },
+            ),
+        )
+        .unwrap();
+        println!("{:?}", res);
     }
 }

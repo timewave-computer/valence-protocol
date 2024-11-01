@@ -30,7 +30,6 @@ use valence_workflow_manager::{
     workflow_config_builder::WorkflowConfigBuilder,
 };
 
-const USDC: &str = "usdc";
 const ONE_HUNDRED: u128 = 100u128;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -148,8 +147,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Setup the contracts and update the global config
     info!("Setup manager...");
-    setup_manager(
-        &mut test_ctx,
+    let mut test_ctx = setup_manager(
+        test_ctx,
         NEUTRON_CONFIG_FILE,
         vec![GAIA_CHAIN_NAME],
         vec![SPLITTER_NAME],
@@ -214,7 +213,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                     denom: NTRN_DENOM.to_string(),
                 },
                 operator: valence_conditional_branch::msg::ComparisonOperator::GreaterThanOrEqual,
-                rhs_operand: Binary::from(serde_json::to_vec(&Uint128::from(ONE_HUNDRED * 2)).unwrap()),
+                rhs_operand: Binary::from(
+                    serde_json::to_vec(&Uint128::from(ONE_HUNDRED * 2)).unwrap(),
+                ),
                 true_branch: None,
                 false_branch: None,
             },

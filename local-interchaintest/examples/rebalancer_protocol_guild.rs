@@ -1,16 +1,24 @@
 use std::{error::Error, vec};
 
+use cosmwasm_std::to_json_binary;
+use cosmwasm_std::Binary;
+use cosmwasm_std::Empty;
 use cosmwasm_std_old::Coin as BankCoin;
 use cosmwasm_std_old::Uint128;
 use local_interchaintest::utils::manager::setup_manager;
+use local_interchaintest::utils::manager::use_manager_init;
 use local_interchaintest::utils::manager::REBALANCER_NAME;
 use local_interchaintest::utils::manager::SPLITTER_NAME;
+use local_interchaintest::utils::processor::tick_processor;
+use local_interchaintest::utils::GAS_FLAGS;
 use local_interchaintest::utils::NEUTRON_CONFIG_FILE;
 use local_interchaintest::utils::{
     LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, NEUTRON_USER_ADDRESS_1, NTRN_DENOM,
     REBALANCER_ARTIFACTS_PATH, VALENCE_ARTIFACTS_PATH,
 };
 use localic_std::modules::bank;
+use localic_std::modules::cosmwasm::contract_execute;
+use localic_std::modules::cosmwasm::contract_query;
 use localic_utils::GAIA_CHAIN_NAME;
 use localic_utils::{
     ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, LOCAL_IC_API_URL,
@@ -19,6 +27,21 @@ use localic_utils::{
 use log::info;
 use rand::{distributions::Alphanumeric, Rng};
 use rebalancer_auction_package::Pair;
+use valence_authorization_utils::authorization_message::Message;
+use valence_authorization_utils::authorization_message::MessageDetails;
+use valence_authorization_utils::authorization_message::MessageType;
+use valence_authorization_utils::authorization_message::ParamRestriction;
+use valence_authorization_utils::builders::AtomicActionBuilder;
+use valence_authorization_utils::builders::AtomicActionsConfigBuilder;
+use valence_authorization_utils::builders::AuthorizationBuilder;
+use valence_authorization_utils::msg::ProcessorMessage;
+use valence_rebalancer_service::rebalancer_custom::PID;
+use valence_service_utils::ServiceAccountType;
+use valence_workflow_manager::account::AccountInfo;
+use valence_workflow_manager::account::AccountType;
+use valence_workflow_manager::service::ServiceConfig;
+use valence_workflow_manager::service::ServiceInfo;
+use valence_workflow_manager::workflow_config_builder::WorkflowConfigBuilder;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -395,7 +418,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             newt_denom.to_string(),
         ],
         base_denom_whitelist: vec![],
-        services_manager_addr: services_manager_addr.address,
+        services_manager_addr: services_manager_addr.address.clone(),
         cycle_start: cosmwasm_std_old::Timestamp::from_seconds(0),
         auctions_manager_addr: auctions_manager_addr.address,
         cycle_period: Some(1),
@@ -419,7 +442,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         rebalancer_package::msgs::core_execute::ServicesManagerExecuteMsg::Admin(
             rebalancer_package::msgs::core_execute::ServicesManagerAdminMsg::AddService {
                 name: rebalancer_package::services::ValenceServices::Rebalancer,
-                addr: rebalancer_addr.address,
+                addr: rebalancer_addr.address.clone(),
             },
         );
     services_manager
@@ -493,6 +516,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         vec![REBALANCER_NAME, SPLITTER_NAME],
     )?;
 
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
     let account = test_ctx
         .get_contract()
         .contract("valence_base_account")
@@ -507,17 +532,214 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
 
-    let auctions_manager = test_ctx
-        .get_contract()
-        .contract("auctions_manager")
-        .get_cw();
-    auctions_manager
-        .execute(
-            DEFAULT_KEY,
-            &serde_json::to_string(&execute_msg).unwrap(),
-            "",
-        )
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &services_manager_addr.address.clone(),
+        DEFAULT_KEY,
+        &serde_json::to_string(&execute_msg).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    let mut workflow_config_builder =
+        WorkflowConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
+    let neutron_domain =
+        valence_workflow_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
+
+    let account_1 = workflow_config_builder.add_account(AccountInfo::new(
+        "rebalancer".to_string(),
+        &neutron_domain,
+        AccountType::default(),
+    ));
+
+    let rebalancer_service = workflow_config_builder.add_service(ServiceInfo {
+        name: "rebalancer".to_string(),
+        domain: neutron_domain.clone(),
+        config: ServiceConfig::ValenceRebalancerService(
+            valence_rebalancer_service::msg::ServiceConfig {
+                rebalancer_account: account_1.clone(),
+                rebalancer_manager_addr: ServiceAccountType::Addr(
+                    services_manager_addr.address.clone(),
+                ),
+                denoms: vec![
+                    NTRN_DENOM.to_string(),
+                    usdc_denom.to_string(),
+                    newt_denom.to_string(),
+                ],
+                base_denom: usdc_denom.to_string(),
+            },
+        ),
+        addr: None,
+    });
+
+    let empty_accounts: Vec<&ServiceAccountType> = vec![];
+    workflow_config_builder.add_link(&rebalancer_service, vec![&account_1], empty_accounts);
+
+    workflow_config_builder.add_authorization(
+        AuthorizationBuilder::new()
+            .with_label("start_rebalance")
+            .with_actions_config(
+                AtomicActionsConfigBuilder::new()
+                    .with_action(
+                        AtomicActionBuilder::new()
+                            .with_contract_address(rebalancer_service.clone())
+                            .with_message_details(MessageDetails {
+                                message_type: MessageType::CosmwasmExecuteMsg,
+                                message: Message {
+                                    name: "process_action".to_string(),
+                                    params_restrictions: Some(vec![
+                                        ParamRestriction::MustBeValue(
+                                            vec![
+                                                "process_action".to_string(),
+                                                "start_rebalance".to_string(),
+                                                "pid".to_string(),
+                                            ],
+                                            to_json_binary(&PID {
+                                                p: "0.1".to_string(),
+                                                i: "0".to_string(),
+                                                d: "0".to_string(),
+                                            })
+                                            .unwrap(),
+                                        ),
+                                        ParamRestriction::MustBeValue(
+                                            vec![
+                                                "process_action".to_string(),
+                                                "start_rebalance".to_string(),
+                                                "min_balance".to_string(),
+                                            ],
+                                            to_json_binary(&cosmwasm_std::Uint128::from(
+                                                1_000_000_u128,
+                                            ))
+                                            .unwrap(),
+                                        ),
+                                    ]),
+                                },
+                            })
+                            .build(),
+                    )
+                    .build(),
+            )
+            .build(),
+    );
+
+    let mut workflow_config = workflow_config_builder.build();
+
+    use_manager_init(&mut workflow_config)?;
+
+    // Get all the addresses we need to interact with
+    let authorization_contract_address = workflow_config
+        .authorization_data
+        .authorization_addr
+        .clone();
+    let processor_contract_address = workflow_config
+        .get_processor_addr(&neutron_domain.to_string())
+        .unwrap();
+    let rebalancer_account = workflow_config
+        .get_account(rebalancer_service)
+        .unwrap()
+        .addr
+        .clone()
         .unwrap();
 
-    Ok(())
+    // Provision Rebalancer account with USDC
+    bank::send(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        &rebalancer_account,
+        &[BankCoin {
+            denom: NTRN_DENOM.to_string(),
+            amount: 2_000_000_u128.into(),
+        }],
+        &BankCoin {
+            denom: NTRN_DENOM.to_string(),
+            amount: cosmwasm_std_old::Uint128::new(5000),
+        },
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    info!("Send the messages to the authorization contract...");
+    let rebalance_bin = Binary::from(
+        serde_json::to_vec(&valence_service_utils::msg::ExecuteMsg::<
+            valence_rebalancer_service::msg::ActionMsgs,
+            Empty,
+        >::ProcessAction(
+            valence_rebalancer_service::msg::ActionMsgs::StartRebalance {
+                trustee: None,
+                pid: PID {
+                    p: "0.1".to_string(),
+                    i: "0".to_string(),
+                    d: "0".to_string(),
+                },
+                max_limit_bps: None,
+                min_balance: cosmwasm_std::Uint128::new(1_000_000_u128),
+            },
+        ))
+        .unwrap(),
+    );
+    let rebalancer_msg = ProcessorMessage::CosmwasmExecuteMsg { msg: rebalance_bin };
+
+    let send_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+            label: "start_rebalance".to_string(),
+            messages: vec![rebalancer_msg],
+            ttl: None,
+        },
+    );
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&send_msg).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+
+    info!("Messages sent to the authorization contract!");
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    info!("Ticking processor and executing rebalance...");
+    tick_processor(
+        &mut test_ctx,
+        NEUTRON_CHAIN_NAME,
+        DEFAULT_KEY,
+        &processor_contract_address,
+    );
+
+    // query rebalancer to see if the account is working
+    let query_rebalancer_config: Vec<(
+        String,
+        rebalancer_package::services::rebalancer::RebalancerConfig,
+    )> = serde_json::from_value(
+        contract_query(
+            test_ctx
+                .get_request_builder()
+                .get_request_builder(NEUTRON_CHAIN_NAME),
+            &rebalancer_addr.address.clone(),
+            &serde_json::to_string(&rebalancer_rebalancer::msg::QueryMsg::GetAllConfigs {
+                start_after: None,
+                limit: None,
+            })
+            .unwrap(),
+        )["data"]
+            .clone(),
+    )
+    .unwrap();
+
+    let rebalancer_config = query_rebalancer_config
+        .iter()
+        .find(|(addr, _)| addr == &rebalancer_addr.address)
+        .unwrap()
+        .clone()
+        .1;
+
+        Ok(())
 }
