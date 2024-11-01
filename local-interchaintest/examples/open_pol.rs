@@ -8,7 +8,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use cosmwasm_std::{Binary, Decimal, Timestamp, Uint128, WasmMsg};
+use cosmwasm_std::{Binary, Decimal, Timestamp, Uint128};
 use cw_utils::Expiration;
 use local_interchaintest::utils::{
     base_account::create_base_accounts,
@@ -33,7 +33,7 @@ use log::info;
 use serde_json::Value;
 use valence_astroport_lper::msg::{AssetData, LiquidityProviderConfig};
 use valence_astroport_utils::astroport_native_lp_token::{
-    AssetInfo, FactoryInstantiateMsg, FactoryQueryMsg, PairConfig, PairType,
+    Asset, AssetInfo, FactoryInstantiateMsg, FactoryQueryMsg, PairConfig, PairType,
 };
 
 use valence_authorization_utils::{
@@ -164,12 +164,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let token1 = test_ctx
         .get_tokenfactory_denom()
         .creator(NEUTRON_CHAIN_ADMIN_ADDR)
-        .subdenom(token1_subdenom)
+        .subdenom(token1_subdenom.clone())
         .get();
 
     test_ctx
         .build_tx_mint_tokenfactory_token()
-        .with_amount(1_000_000_000_000)
+        .with_amount(1_000_000_000_000_000)
         .with_denom(&token1)
         .send()
         .unwrap();
@@ -185,7 +185,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Neutron chain admin balance: {:?}", balance);
     let meme_coin = balance
         .iter()
-        .find(|coin| coin.denom.contains("factory"))
+        .find(|coin| {
+            coin.denom.contains("factory") && coin.denom.contains(token1_subdenom.as_str())
+        })
         .expect("Meme coin not found");
     info!("Meme coin: {:?}", meme_coin);
 
@@ -238,6 +240,50 @@ fn main() -> Result<(), Box<dyn Error>> {
         "Pool created successfully! Pool address: {}, LP token: {}",
         pool_addr, lp_token
     );
+
+    info!("Provide some initial liquidity to the pool...");
+    // We'll provide with ratio 1:2
+    let ntrn_deposit = 250000000;
+    let token_deposit = 500000000;
+    let provide_liquidity_msg =
+        valence_astroport_utils::astroport_native_lp_token::ExecuteMsg::ProvideLiquidity {
+            assets: vec![
+                Asset {
+                    info: AssetInfo::NativeToken {
+                        denom: NTRN_DENOM.to_string(),
+                    },
+                    amount: Uint128::new(ntrn_deposit),
+                },
+                Asset {
+                    info: AssetInfo::NativeToken {
+                        denom: meme_coin.denom.clone(),
+                    },
+                    amount: Uint128::new(token_deposit),
+                },
+            ],
+            slippage_tolerance: None,
+            auto_stake: None,
+            receiver: None,
+            min_lp_to_receive: None,
+        };
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        pool_addr,
+        DEFAULT_KEY,
+        &serde_json::to_string(&provide_liquidity_msg).unwrap(),
+        &format!(
+            "--amount {}{},{}{} {}",
+            token_deposit,
+            meme_coin.denom.clone(),
+            ntrn_deposit,
+            NTRN_DENOM,
+            GAS_FLAGS
+        ),
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
     let account_1 = builder.add_account(AccountInfo::new(
         "test_1".to_string(),
@@ -379,7 +425,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let authorization_1 = AuthorizationBuilder::new()
         .with_label("tokenize")
-        .with_duration(AuthorizationDuration::Seconds(60))
+        .with_duration(AuthorizationDuration::Seconds(120))
         .with_max_concurrent_executions(10)
         .with_actions_config(
             AtomicActionsConfigBuilder::new()
@@ -402,7 +448,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let authorization_2 = AuthorizationBuilder::new()
         .with_label("provide_liquidity")
-        .with_not_before(Expiration::AtTime(Timestamp::from_seconds(time_now + 60)))
+        .with_not_before(Expiration::AtTime(Timestamp::from_seconds(time_now + 120)))
         .with_actions_config(
             AtomicActionsConfigBuilder::new()
                 .with_action(
@@ -425,7 +471,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let authorization_3 = AuthorizationBuilder::new()
         .with_label("withdraw_and_split")
-        .with_not_before(Expiration::AtTime(Timestamp::from_seconds(time_now + 90)))
+        .with_not_before(Expiration::AtTime(Timestamp::from_seconds(time_now + 150)))
         .with_actions_config(
             AtomicActionsConfigBuilder::new()
                 .with_action(
@@ -460,7 +506,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let authorization_4 = AuthorizationBuilder::new()
         .with_label("detokenize")
-        .with_not_before(Expiration::AtTime(Timestamp::from_seconds(time_now + 60)))
+        .with_not_before(Expiration::AtTime(Timestamp::from_seconds(time_now + 180)))
         .with_actions_config(
             AtomicActionsConfigBuilder::new()
                 .with_action(
@@ -670,7 +716,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         base_accounts
             .clone()
             .into_iter()
-            .map(|acc| valence_tokenizer_service::msg::ActionMsgs::Tokenize { sender: acc })
+            .map(|acc| {
+                valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
+                    valence_tokenizer_service::msg::ActionMsgs::Tokenize { sender: acc },
+                )
+            })
             .map(|msg| Binary::from(serde_json::to_vec(&msg).unwrap()))
             .map(|binary| ProcessorMessage::CosmwasmExecuteMsg { msg: binary })
             .map(|processor_msg| {
@@ -715,8 +765,73 @@ fn main() -> Result<(), Box<dyn Error>> {
             .get_request_builder(NEUTRON_CHAIN_NAME),
         &address_account_1,
     );
-
     info!("balance of acc 1 : {:?}", balance);
+
+    info!("Send the messages to the authorization contract...");
+    let binary = Binary::from(
+        serde_json::to_vec(
+            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
+                valence_astroport_lper::msg::ActionMsgs::ProvideDoubleSidedLiquidity {
+                    expected_pool_ratio_range: None,
+                },
+            ),
+        )
+        .unwrap(),
+    );
+    let message = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
+
+    let send_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+            label: "provide_liquidity".to_string(),
+            messages: vec![message],
+            ttl: None,
+        },
+    );
+
+    // Wait until time_now + 120
+    let now = SystemTime::now();
+    let current_time = now.duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
+    let time_to_wait = 121 - (current_time - time_now);
+    std::thread::sleep(std::time::Duration::from_secs(time_to_wait));
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&send_msg).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+
+    info!("Messages sent to the authorization contract!");
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    info!("Ticking processor and executing swap...");
+    tick_processor(
+        &mut test_ctx,
+        NEUTRON_CHAIN_NAME,
+        DEFAULT_KEY,
+        &processor_contract_address,
+    );
+
+    let address_account_2 = built_config
+        .get_account(account_2)
+        .unwrap()
+        .addr
+        .clone()
+        .unwrap()
+        .clone();
+
+    info!("checking balance");
+    let balance = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &address_account_2,
+    );
+    info!("balance of acc 2 : {:?}", balance);
 
     info!("SUCCESS!");
     Ok(())
