@@ -576,7 +576,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         NEUTRON_CHAIN_NAME,
         base_account_code_id,
         NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        vec![built_config.get_service(0).unwrap().addr.unwrap()],
+        vec![
+            built_config.get_service(0).unwrap().addr.unwrap(),
+            built_config.get_service(4).unwrap().addr.unwrap(),
+        ],
         5,
     );
 
