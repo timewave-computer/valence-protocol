@@ -160,7 +160,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .send()?;
     std::thread::sleep(std::time::Duration::from_secs(3));
 
-    let token1 = test_ctx
+    let mut token1 = test_ctx
         .get_tokenfactory_denom()
         .creator(NEUTRON_CHAIN_ADMIN_ADDR)
         .subdenom(token1_subdenom.clone())
@@ -183,8 +183,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
     info!("Neutron chain admin balance: {:?}", balance);
 
-    // IF USING FRONT END, ADD THE SUBDENOM HERE
-    let memecoin_subdenom = token1_subdenom.clone();
+    // IF USING FRONT END, ADD THE SUBDENOM HERE AND MODIFY THE TOKEN1 VARIABLE
+    // let memecoin_subdenom = token1_subdenom.clone();
+    let memecoin_subdenom = "uzzlena".to_string();
+    token1 = format!("factory/{}/{}", NEUTRON_CHAIN_ADMIN_ADDR, memecoin_subdenom);
+
     let meme_coin = balance
         .iter()
         .find(|coin| {
