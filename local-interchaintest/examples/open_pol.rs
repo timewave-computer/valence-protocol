@@ -169,7 +169,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     test_ctx
         .build_tx_mint_tokenfactory_token()
-        .with_amount(100000000)
+        .with_amount(1_000_000_000_000)
         .with_denom(&token1)
         .send()
         .unwrap();
@@ -636,8 +636,33 @@ fn main() -> Result<(), Box<dyn Error>> {
         &detokenizer_addr,
         &serde_json::to_string(&ValenceServiceQuery::GetServiceConfig {}).unwrap(),
     );
-
     info!("Detokenizer config: {:?}", data);
+
+    // Get the account 1 to deposit the meme coin there
+    let address_account_1 = built_config
+        .get_account(account_1)
+        .unwrap()
+        .addr
+        .clone()
+        .unwrap()
+        .clone();
+
+    bank::send(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        &address_account_1,
+        &[BankCoin {
+            denom: token1.to_string(),
+            amount: 1_000_000_000u128.into(),
+        }],
+        &BankCoin {
+            denom: NTRN_DENOM.to_string(),
+            amount: cosmwasm_std_old::Uint128::new(5000),
+        },
+    )
+    .unwrap();
 
     info!("SUCCESS!");
     Ok(())
