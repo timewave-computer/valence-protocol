@@ -379,7 +379,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let authorization_1 = AuthorizationBuilder::new()
         .with_label("tokenize")
-        .with_duration(AuthorizationDuration::Seconds(30))
+        .with_duration(AuthorizationDuration::Seconds(60))
         .with_max_concurrent_executions(10)
         .with_actions_config(
             AtomicActionsConfigBuilder::new()
@@ -402,7 +402,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let authorization_2 = AuthorizationBuilder::new()
         .with_label("provide_liquidity")
-        .with_not_before(Expiration::AtTime(Timestamp::from_seconds(time_now + 30)))
+        .with_not_before(Expiration::AtTime(Timestamp::from_seconds(time_now + 60)))
         .with_actions_config(
             AtomicActionsConfigBuilder::new()
                 .with_action(
@@ -425,7 +425,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let authorization_3 = AuthorizationBuilder::new()
         .with_label("withdraw_and_split")
-        .with_not_before(Expiration::AtTime(Timestamp::from_seconds(time_now + 60)))
+        .with_not_before(Expiration::AtTime(Timestamp::from_seconds(time_now + 90)))
         .with_actions_config(
             AtomicActionsConfigBuilder::new()
                 .with_action(
