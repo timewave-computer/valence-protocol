@@ -146,8 +146,9 @@ pub fn sudo(
                 deps.as_ref(),
                 env,
                 query_id,
-            ).map_err(|err| cosmwasm_std::StdError::generic_err(err.to_string()))?;
-            
+            )
+            .map_err(|err| cosmwasm_std::StdError::generic_err(err.to_string()))?;
+
             Ok(Response::default())
         }
         _ => Ok(Response::default()),
