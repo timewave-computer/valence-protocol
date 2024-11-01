@@ -46,7 +46,12 @@ mod actions {
     use valence_service_utils::error::ServiceError;
 
     use crate::{
-        msg::{ActionMsgs, Config}, rebalancer_custom::{RebalancerAccountType, RebalancerData, ServicesManagerExecuteMsg, Target, TargetOverrideStrategy, ValenceServices}, NTRN_DENOM
+        msg::{ActionMsgs, Config},
+        rebalancer_custom::{
+            RebalancerAccountType, RebalancerData, ServicesManagerExecuteMsg, Target,
+            TargetOverrideStrategy, ValenceServices,
+        },
+        NTRN_DENOM,
     };
 
     pub fn process_action(
@@ -66,8 +71,7 @@ mod actions {
                 let config: Config = valence_service_base::load_config(deps.storage)?;
 
                 // TODO: Change this to get the full list of targets the rebalancer supports
-                let mut targets: HashSet<Target> =
-                    HashSet::new();
+                let mut targets: HashSet<Target> = HashSet::new();
                 config.denoms.iter().for_each(|denom| {
                     targets.insert(Target {
                         denom: denom.to_string(),
@@ -94,7 +98,7 @@ mod actions {
 
                 let register_msg = ServicesManagerExecuteMsg::RegisterToService {
                     service_name: ValenceServices::Rebalancer,
-                    data: Some(to_json_binary(&rebalancer_config)?.to_vec().into())
+                    data: Some(to_json_binary(&rebalancer_config)?.to_vec().into()),
                 };
                 let rebalancer_wasm_msg = WasmMsg::Execute {
                     contract_addr: config.rebalancer_manager_addr.to_string(),
@@ -102,7 +106,7 @@ mod actions {
                     funds: vec![],
                 };
 
-                // query the balance of the rebalancer address for NTRN 
+                // query the balance of the rebalancer address for NTRN
                 let ntrn_balance = deps
                     .querier
                     .query_balance(config.rebalancer_account, NTRN_DENOM.to_string())?;
