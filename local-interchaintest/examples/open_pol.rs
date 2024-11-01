@@ -148,7 +148,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         factory_contract.address.clone()
     );
 
-    // TODO(REMOVE): This is a temporary solution to mint a meme coin for testing purposes
     let token1_subdenom: String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
         .take(10)
@@ -183,10 +182,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         &NEUTRON_CHAIN_ADMIN_ADDR,
     );
     info!("Neutron chain admin balance: {:?}", balance);
+
+    // IF USING FRONT END, ADD THE SUBDENOM HERE
+    let memecoin_subdenom = token1_subdenom.clone();
     let meme_coin = balance
         .iter()
         .find(|coin| {
-            coin.denom.contains("factory") && coin.denom.contains(token1_subdenom.as_str())
+            coin.denom.contains("factory") && coin.denom.contains(memecoin_subdenom.as_str())
         })
         .expect("Meme coin not found");
     info!("Meme coin: {:?}", meme_coin);
