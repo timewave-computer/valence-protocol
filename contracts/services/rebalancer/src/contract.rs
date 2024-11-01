@@ -105,7 +105,7 @@ mod actions {
                 let rebalancer_wasm_msg = WasmMsg::Execute {
                     contract_addr: config.rebalancer_manager_addr.to_string(),
                     msg: to_json_binary(&register_msg)?,
-                    funds: coins(1_000_000_u128, NTRN_DENOM),
+                    funds: coins(1_u128, NTRN_DENOM),
                 };
 
                 // query the balance of the rebalancer address for NTRN
@@ -170,9 +170,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 #[cfg(test)]
 mod test {
     use cosmwasm_std::{
-        coin,
-        testing::{message_info, mock_dependencies, mock_dependencies_with_balances, mock_env},
-        Uint128,
+        coin, testing::{message_info, mock_dependencies, mock_dependencies_with_balances, mock_env}, CosmosMsg, Uint128
     };
     use valence_service_utils::{msg::InstantiateMsg, ServiceAccountType};
 
@@ -234,5 +232,6 @@ mod test {
         )
         .unwrap();
         println!("{:?}", res);
+
     }
 }

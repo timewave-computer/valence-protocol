@@ -27,6 +27,7 @@ use localic_utils::{
 use log::info;
 use rand::{distributions::Alphanumeric, Rng};
 use rebalancer_auction_package::Pair;
+use rebalancer_package::services::rebalancer::BaseDenom;
 use valence_authorization_utils::authorization_message::Message;
 use valence_authorization_utils::authorization_message::MessageDetails;
 use valence_authorization_utils::authorization_message::MessageType;
@@ -417,7 +418,16 @@ fn main() -> Result<(), Box<dyn Error>> {
             usdc_denom.to_string(),
             newt_denom.to_string(),
         ],
-        base_denom_whitelist: vec![],
+        base_denom_whitelist: vec![
+            BaseDenom {
+                denom: NTRN_DENOM.to_string(),
+                min_balance_limit: 1_u128.into(),
+            },
+            BaseDenom {
+                denom: usdc_denom.to_string(),
+                min_balance_limit: 1_u128.into(),
+            },
+        ],
         services_manager_addr: services_manager_addr.address.clone(),
         cycle_start: cosmwasm_std_old::Timestamp::from_seconds(0),
         auctions_manager_addr: auctions_manager_addr.address,
@@ -566,7 +576,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 ),
                 denoms: vec![
                     NTRN_DENOM.to_string(),
-                    usdc_denom.to_string(),
                     newt_denom.to_string(),
                 ],
                 base_denom: usdc_denom.to_string(),
@@ -741,5 +750,5 @@ fn main() -> Result<(), Box<dyn Error>> {
         .clone()
         .1;
 
-        Ok(())
+    Ok(())
 }
