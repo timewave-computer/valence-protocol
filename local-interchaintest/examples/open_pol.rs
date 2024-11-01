@@ -8,7 +8,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use cosmwasm_std::{Binary, Decimal, Timestamp, Uint128};
+use cosmwasm_std::{Binary, Decimal, Timestamp, Uint128, WasmMsg};
 use cw_utils::Expiration;
 use local_interchaintest::utils::{
     base_account::create_base_accounts,
@@ -380,6 +380,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let authorization_1 = AuthorizationBuilder::new()
         .with_label("tokenize")
         .with_duration(AuthorizationDuration::Seconds(30))
+        .with_max_concurrent_executions(10)
         .with_actions_config(
             AtomicActionsConfigBuilder::new()
                 .with_action(
@@ -535,7 +536,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     // Fund the base accounts
-    for acc in base_accounts {
+    for acc in base_accounts.clone() {
         bank::send(
             test_ctx
                 .get_request_builder()
@@ -663,6 +664,59 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     )
     .unwrap();
+
+    info!("tokenize for users");
+    let tokenize_execute_messages: Vec<valence_authorization_utils::msg::ExecuteMsg> =
+        base_accounts
+            .clone()
+            .into_iter()
+            .map(|acc| valence_tokenizer_service::msg::ActionMsgs::Tokenize { sender: acc })
+            .map(|msg| Binary::from(serde_json::to_vec(&msg).unwrap()))
+            .map(|binary| ProcessorMessage::CosmwasmExecuteMsg { msg: binary })
+            .map(|processor_msg| {
+                valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+                    valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+                        label: "tokenize".to_string(),
+                        messages: vec![processor_msg],
+                        ttl: None,
+                    },
+                )
+            })
+            .collect();
+
+    for msg in tokenize_execute_messages {
+        info!("queuing the tokenize msg");
+        contract_execute(
+            test_ctx
+                .get_request_builder()
+                .get_request_builder(NEUTRON_CHAIN_NAME),
+            &authorization_contract_address,
+            DEFAULT_KEY,
+            &serde_json::to_string(&msg).unwrap(),
+            GAS_FLAGS,
+        )
+        .unwrap();
+        std::thread::sleep(std::time::Duration::from_secs(2));
+
+        info!("start the tickin");
+        tick_processor(
+            &mut test_ctx,
+            NEUTRON_CHAIN_NAME,
+            DEFAULT_KEY,
+            &processor_contract_address,
+        );
+        std::thread::sleep(std::time::Duration::from_secs(2));
+    }
+
+    info!("checking balance");
+    let balance = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &address_account_1,
+    );
+
+    info!("balance of acc 1 : {:?}", balance);
 
     info!("SUCCESS!");
     Ok(())
