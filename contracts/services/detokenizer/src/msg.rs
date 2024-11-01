@@ -44,17 +44,17 @@ impl DetokenizerConfig {
 #[derive(ValenceServiceInterface)]
 pub struct ServiceConfig {
     pub input_addr: ServiceAccountType,
-    pub detokenizoooor_config: DetokenizerConfig,
+    pub detokenizer_config: DetokenizerConfig,
 }
 
 impl ServiceConfig {
     pub fn new(
         input_addr: impl Into<ServiceAccountType>,
-        detokenizoooor_config: DetokenizerConfig,
+        detokenizer_config: DetokenizerConfig,
     ) -> Self {
         ServiceConfig {
             input_addr: input_addr.into(),
-            detokenizoooor_config,
+            detokenizer_config,
         }
     }
 
@@ -76,7 +76,7 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
 
         Ok(Config {
             input_addr,
-            detokenizoooor_config: self.detokenizoooor_config.clone(),
+            detokenizer_config: self.detokenizer_config.clone(),
         })
     }
 }
@@ -85,8 +85,8 @@ impl ServiceConfigUpdate {
     pub fn update_config(self, deps: DepsMut) -> Result<(), ServiceError> {
         let mut config: Config = valence_service_base::load_config(deps.storage)?;
         // Update config if needed
-        if let Some(detokenizoooor_config) = self.detokenizoooor_config {
-            config.detokenizoooor_config = detokenizoooor_config;
+        if let Some(detokenizer_config) = self.detokenizer_config {
+            config.detokenizer_config = detokenizer_config;
         }
 
         valence_service_base::save_config(deps.storage, &config)?;
@@ -97,5 +97,5 @@ impl ServiceConfigUpdate {
 #[cw_serde]
 pub struct Config {
     pub input_addr: Addr,
-    pub detokenizoooor_config: DetokenizerConfig,
+    pub detokenizer_config: DetokenizerConfig,
 }

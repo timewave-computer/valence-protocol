@@ -8,7 +8,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use cosmwasm_std::{Decimal, Timestamp, Uint128};
+use cosmwasm_std::{Binary, Decimal, Timestamp, Uint128};
 use cw_utils::Expiration;
 use local_interchaintest::utils::{
     base_account::create_base_accounts,
@@ -16,6 +16,7 @@ use local_interchaintest::utils::{
         setup_manager, use_manager_init, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME,
         DETOKENIZER_NAME, FORWARDER_NAME, SPLITTER_NAME, TOKENIZER_NAME,
     },
+    processor::tick_processor,
     ASTROPORT_PATH, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
     NEUTRON_CONFIG_FILE, NTRN_DENOM, VALENCE_ARTIFACTS_PATH,
 };
@@ -39,9 +40,10 @@ use valence_authorization_utils::{
     authorization::{AuthorizationDuration, AuthorizationModeInfo, PermissionTypeInfo},
     authorization_message::{Message, MessageDetails, MessageType},
     builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
+    msg::ProcessorMessage,
 };
 use valence_detokenizer_service::msg::DetokenizerConfig;
-use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
+use valence_service_utils::{denoms::UncheckedDenom, msg::ValenceServiceQuery, ServiceAccountType};
 use valence_splitter_service::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
 use valence_workflow_manager::{
     account::{AccountInfo, AccountType},
@@ -354,7 +356,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         config: ServiceConfig::ValenceDetokenizerService(
             valence_detokenizer_service::msg::ServiceConfig {
                 input_addr: account_5.clone(),
-                detokenizoooor_config: DetokenizerConfig {
+                detokenizer_config: DetokenizerConfig {
                     input_addr: account_3.clone(),
                     voucher_denom: "dumdum".to_string(), // Need to update it
                     redeemable_denoms: HashSet::from_iter(vec![
@@ -554,6 +556,88 @@ fn main() -> Result<(), Box<dyn Error>> {
         sleep(Duration::from_secs(3));
     }
 
+    // Get authorization and processor contract
+    let authorization_contract_address = built_config.authorization_data.authorization_addr.clone();
+    let processor_contract_address = built_config
+        .get_processor_addr(&neutron_domain.to_string())
+        .unwrap();
+
+    // Update the config to use the voucher denom
+    let address_account_3 = built_config
+        .get_account(account_3)
+        .unwrap()
+        .addr
+        .clone()
+        .unwrap()
+        .clone();
+
+    // Need to get the tokenizer contract because the voucher denom uses that
+    let tokenizer_contract_address = built_config.get_service(0).unwrap().addr.unwrap().clone();
+    let voucher_denom = format!("factory/{}/tokenizer", tokenizer_contract_address,);
+
+    let binary = Binary::from(
+        serde_json::to_vec(&valence_service_utils::msg::ExecuteMsg::<
+            (),
+            valence_detokenizer_service::msg::ServiceConfigUpdate,
+        >::UpdateConfig {
+            new_config: valence_detokenizer_service::msg::ServiceConfigUpdate {
+                input_addr: None,
+                detokenizer_config: Some(DetokenizerConfig {
+                    input_addr: ServiceAccountType::Addr(address_account_3),
+                    voucher_denom,
+                    redeemable_denoms: HashSet::from_iter(vec![
+                        meme_coin.denom.clone(),
+                        NTRN_DENOM.to_string(),
+                    ]),
+                }),
+            },
+        })
+        .unwrap(),
+    );
+    let message = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
+
+    let send_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+            label: "update_config".to_string(),
+            messages: vec![message],
+            ttl: None,
+        },
+    );
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&send_msg).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+
+    info!("Messages sent to the authorization contract!");
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    info!("Ticking processor and executing config update...");
+    tick_processor(
+        &mut test_ctx,
+        NEUTRON_CHAIN_NAME,
+        DEFAULT_KEY,
+        &processor_contract_address,
+    );
+
+    // Get detokenizer address
+    let detokenizer_addr = built_config.get_service(4).unwrap().addr.unwrap().clone();
+    // Query to check that it has been updated
+    let data = contract_query(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &detokenizer_addr,
+        &serde_json::to_string(&ValenceServiceQuery::GetServiceConfig {}).unwrap(),
+    );
+
+    info!("Detokenizer config: {:?}", data);
 
     info!("SUCCESS!");
     Ok(())

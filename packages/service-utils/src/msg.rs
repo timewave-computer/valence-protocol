@@ -39,3 +39,18 @@ pub enum DynamicRatioQueryMsg {
 pub struct DynamicRatioResponse {
     pub denom_ratios: HashMap<String, Decimal>,
 }
+
+#[cw_serde]
+pub enum ValenceServiceQuery {
+    /// Query to get the processor address.
+    /// Returns: `Addr`
+    GetProcessor {},
+
+    /// Query to get the service configuration.
+    /// Returns: `Config`
+    GetServiceConfig {},
+
+    /// Query to get the raw service configuration.
+    /// Returns: `ServiceConfig`
+    GetRawServiceConfig {},
+}

@@ -77,7 +77,7 @@ mod actions {
             // Query balance of voucher denom
             let balance = deps.querier.query_balance(
                 address.clone(),
-                cfg.detokenizoooor_config.voucher_denom.clone(),
+                cfg.detokenizer_config.voucher_denom.clone(),
             )?;
             // Ignore addresses that don't have tokens
             if balance.amount.is_zero() {
@@ -90,7 +90,7 @@ mod actions {
                 to_address: env.contract.address.to_string(),
                 amount: coins(
                     balance.amount.u128(),
-                    cfg.detokenizoooor_config.voucher_denom.clone(),
+                    cfg.detokenizer_config.voucher_denom.clone(),
                 ),
             });
             let msg = execute_on_behalf_of(vec![bank_send], &validated_addr)?;
@@ -100,20 +100,20 @@ mod actions {
         // How much has been detokenized already (balance of the token in the service)
         let service_voucher_balance = deps.querier.query_balance(
             env.contract.address.clone(),
-            cfg.detokenizoooor_config.voucher_denom.clone(),
+            cfg.detokenizer_config.voucher_denom.clone(),
         )?;
 
         // Substract this from the total supply to know exactly what are the amount of vouchers that have not been detokenized
         let total_supply = deps
             .querier
-            .query_supply(cfg.detokenizoooor_config.voucher_denom.clone())?;
+            .query_supply(cfg.detokenizer_config.voucher_denom.clone())?;
         let remaining_supply = total_supply
             .amount
             .saturating_sub(service_voucher_balance.amount);
 
         // Get the redeemable denoms balance of the input address
         let redeemable_denoms_balance = cfg
-            .detokenizoooor_config
+            .detokenizer_config
             .redeemable_denoms
             .iter()
             .map(|redeemable_denom| {
