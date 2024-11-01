@@ -506,7 +506,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut built_config = builder.build();
     use_manager_init(&mut built_config)?;
 
-    // Now that we have the processor on persistence, let's create a base account and approve it
     let current_dir: std::path::PathBuf = env::current_dir()?;
     let base_account_contract_path = format!(
         "{}/artifacts/valence_base_account.wasm",
@@ -533,7 +532,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         5,
     );
 
-    // fund the base accounts
+    // Fund the base accounts
     for acc in base_accounts {
         bank::send(
             test_ctx
@@ -554,6 +553,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         sleep(Duration::from_secs(3));
     }
+
 
     info!("SUCCESS!");
     Ok(())
