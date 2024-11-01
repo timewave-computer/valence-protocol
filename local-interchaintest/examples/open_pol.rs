@@ -808,7 +808,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Messages sent to the authorization contract!");
     std::thread::sleep(std::time::Duration::from_secs(3));
 
-    info!("Ticking processor and executing swap...");
+    info!("Ticking processor and executing LP...");
     tick_processor(
         &mut test_ctx,
         NEUTRON_CHAIN_NAME,
@@ -832,6 +832,96 @@ fn main() -> Result<(), Box<dyn Error>> {
         &address_account_2,
     );
     info!("balance of acc 2 : {:?}", balance);
+
+    // WITHDRAW LIQUIDITY & SPLIT
+
+    info!("Send the messages to the authorization contract...");
+    let binary = Binary::from(
+        serde_json::to_vec(
+            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
+                valence_astroport_withdrawer::msg::ActionMsgs::WithdrawLiquidity {},
+            ),
+        )
+        .unwrap(),
+    );
+    let withdraw_message = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
+
+    let binary = Binary::from(
+        serde_json::to_vec(
+            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
+                valence_splitter_service::msg::ActionMsgs::Split {},
+            ),
+        )
+        .unwrap(),
+    );
+    let split_message = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
+
+    let withdraw_n_split_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+            label: "withdraw_and_split".to_string(),
+            messages: vec![withdraw_message, split_message],
+            ttl: None,
+        },
+    );
+
+    // Wait until time_now + 150
+    let now = SystemTime::now();
+    let current_time = now.duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
+    let time_to_wait = 151 - (current_time - time_now);
+    std::thread::sleep(std::time::Duration::from_secs(time_to_wait));
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&withdraw_n_split_msg).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    info!("Ticking processor and executing withdraw n sp,it...");
+    tick_processor(
+        &mut test_ctx,
+        NEUTRON_CHAIN_NAME,
+        DEFAULT_KEY,
+        &processor_contract_address,
+    );
+
+    let address_account_4 = built_config
+        .get_account(account_4)
+        .unwrap()
+        .addr
+        .clone()
+        .unwrap()
+        .clone();
+
+    let address_account_5 = built_config
+        .get_account(account_5)
+        .unwrap()
+        .addr
+        .clone()
+        .unwrap()
+        .clone();
+
+    info!("checking balances");
+    let balance = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &address_account_4,
+    );
+    info!("balance of acc 4 : {:?}", balance);
+    let balance = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &address_account_5,
+    );
+    info!("balance of acc 5 : {:?}", balance);
 
     info!("SUCCESS!");
     Ok(())
