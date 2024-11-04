@@ -1,6 +1,6 @@
-# Valence Protocol Documentation
+# Valence Workflows Documentation
 
-This folder contains the source code for the Valence Protocol documentation.
+This folder contains the source code for the Valence Workflows documentation.
 
 ## Building
 
