@@ -30,8 +30,8 @@ impl OsmosisTestPoolConfig for BalancerPool {
 
         // create balancer pool with basic configuration
         let pool_liquidity = vec![
-            Coin::new(100_000u128, OSMO_DENOM),
-            Coin::new(100_000u128, TEST_DENOM),
+            Coin::new(100_000_000u128, OSMO_DENOM),
+            Coin::new(100_000_000u128, TEST_DENOM),
         ];
         let pool_id = gamm
             .create_basic_pool(&pool_liquidity, creator)

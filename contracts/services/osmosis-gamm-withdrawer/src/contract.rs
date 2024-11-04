@@ -69,14 +69,19 @@ pub fn process_action(
 }
 
 fn try_withdraw_liquidity(deps: DepsMut, cfg: Config) -> Result<Response, ServiceError> {
+    deps.api.debug("try_withdraw_liquidity");
+
     let pm_querier = PoolmanagerQuerier::new(&deps.querier);
     let pool = pm_querier.query_pool_config(cfg.lp_config.pool_id)?;
+    deps.api.debug(format!("pool: {:?}", pool).as_str());
 
     // get the LP token balance of configured input account
     let lp_token_bal = match pool.total_shares {
-        Some(c) => deps.querier.query_balance(&cfg.input_addr, c.denom)?,
+        Some(c) => deps.querier.query_balance(&cfg.input_addr, c.denom)?.amount,
         None => return Err(StdError::generic_err("failed to get LP token of given pool").into()),
     };
+    deps.api
+        .debug(format!("lp token bal: {:?}", lp_token_bal).as_str());
 
     // simulate the withdrawal to get the expected coins out
     let calc_exit_query_response: QueryCalcExitPoolCoinsFromSharesResponse = deps.querier.query(
@@ -86,12 +91,19 @@ fn try_withdraw_liquidity(deps: DepsMut, cfg: Config) -> Result<Response, Servic
         }
         .into(),
     )?;
+    deps.api.debug(
+        format!(
+            "share out simulation response: {:?}",
+            calc_exit_query_response
+        )
+        .as_str(),
+    );
 
     // get the liquidity withdrawal message
     let remove_liquidity_msg = get_withdraw_liquidity_msg(
         cfg.input_addr.as_str(),
         cfg.lp_config.pool_id,
-        lp_token_bal.amount,
+        lp_token_bal,
         calc_exit_query_response.tokens_out.clone(),
     )?;
 

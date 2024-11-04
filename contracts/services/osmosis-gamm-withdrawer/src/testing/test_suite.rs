@@ -1,6 +1,8 @@
-use cosmwasm_std::{Coin, StdResult};
+use std::str::FromStr;
 
-use osmosis_std::types::cosmos::bank::v1beta1::MsgSend;
+use cosmwasm_std::{Coin, StdResult, Uint128};
+
+use osmosis_std::types::cosmos::bank::v1beta1::{MsgSend, QueryBalanceRequest};
 use osmosis_test_tube::{
     osmosis_std::{
         try_proto_to_cosmwasm_coins,
@@ -38,7 +40,6 @@ impl LPerTestSuite {
             OsmosisTestAppBuilder::new().build().unwrap();
 
         let wasm = Wasm::new(&inner.app);
-
         // Create two base accounts
         let account_code_id = inner.store_account_contract();
         let input_acc = inner.instantiate_input_account(account_code_id);
@@ -74,8 +75,19 @@ impl LPerTestSuite {
         // Approve the service for the input account
         inner.approve_service(input_acc.clone(), lp_withdrawer_addr.clone());
 
-        // transfer some lp tokens to the input account so that it can withdraw
+        // transfer all lp tokens to the input account so that it can withdraw
         let bank = Bank::new(&inner.app);
+        let lp_token_total_supply_str = bank
+            .query_balance(&QueryBalanceRequest {
+                address: inner.accounts[0].address(),
+                denom: inner.pool_cfg.pool_liquidity_token.to_string(),
+            })
+            .unwrap()
+            .balance
+            .unwrap()
+            .amount;
+        let token_supply = Uint128::from_str(&lp_token_total_supply_str).unwrap();
+
         bank.send(
             MsgSend {
                 from_address: inner.accounts[0].address(),
@@ -83,7 +95,10 @@ impl LPerTestSuite {
                 amount: vec![
                     osmosis_test_tube::osmosis_std::types::cosmos::base::v1beta1::Coin {
                         denom: inner.pool_cfg.pool_liquidity_token.clone(),
-                        amount: "100000".to_string(),
+                        amount: token_supply
+                            .checked_div(Uint128::new(2))
+                            .unwrap()
+                            .to_string(),
                     },
                 ],
             },
