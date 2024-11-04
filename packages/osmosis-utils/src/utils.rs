@@ -54,6 +54,10 @@ pub fn get_provide_liquidity_msg(
     Ok(msg_join_pool_no_swap)
 }
 
+pub fn get_withdraw_liquidity_msg() -> StdResult<CosmosMsg> {
+    unimplemented!()
+}
+
 pub fn get_provide_ss_liquidity_msg(
     input_addr: &str,
     pool_id: u64,

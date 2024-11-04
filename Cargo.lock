@@ -5196,6 +5196,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-osmosis-gamm-withdrawer"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 2.1.4",
+ "cw-ownable",
+ "cw20 2.0.0",
+ "osmosis-std",
+ "osmosis-test-tube",
+ "valence-account-utils",
+ "valence-macros",
+ "valence-osmosis-utils",
+ "valence-service-base",
+ "valence-service-utils",
+]
+
+[[package]]
 name = "valence-osmosis-utils"
 version = "0.1.0"
 dependencies = [
