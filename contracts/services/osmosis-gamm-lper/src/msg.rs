@@ -1,12 +1,10 @@
-use std::str::FromStr;
-
 use cosmwasm_schema::{cw_serde, QueryResponses};
 
-use cosmwasm_std::{ensure, Addr, Decimal, Deps, DepsMut, Empty, StdError, Uint128, Uint64};
+use cosmwasm_std::{ensure, Addr, Deps, DepsMut, Uint128, Uint64};
 use cw_ownable::cw_ownable_query;
-use osmosis_std::types::osmosis::{gamm::v1beta1::Pool, poolmanager::v1beta1::PoolmanagerQuerier};
+use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
 use valence_macros::{valence_service_query, ValenceServiceInterface};
-use valence_osmosis_utils::utils::DecimalRange;
+use valence_osmosis_utils::utils::{gamm_utils::ValenceLiquidPooler, DecimalRange};
 use valence_service_utils::{
     error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType,
 };
@@ -34,36 +32,6 @@ pub struct LiquidityProviderConfig {
     pub pool_id: u64,
     pub pool_asset_1: String,
     pub pool_asset_2: String,
-}
-
-pub trait ValenceLiquidPooler {
-    fn query_spot_price(&self, lp_config: &LiquidityProviderConfig) -> StdResult<Decimal>;
-    fn query_pool_config(&self, lp_config: &LiquidityProviderConfig) -> StdResult<Pool>;
-}
-
-impl ValenceLiquidPooler for PoolmanagerQuerier<'_, Empty> {
-    fn query_spot_price(&self, lp_config: &LiquidityProviderConfig) -> StdResult<Decimal> {
-        let spot_price_response = self.spot_price(
-            lp_config.pool_id,
-            lp_config.pool_asset_1.to_string(),
-            lp_config.pool_asset_2.to_string(),
-        )?;
-
-        let pool_ratio = Decimal::from_str(&spot_price_response.spot_price)?;
-
-        Ok(pool_ratio)
-    }
-
-    fn query_pool_config(&self, lp_config: &LiquidityProviderConfig) -> StdResult<Pool> {
-        let pool_response = self.pool(lp_config.pool_id)?;
-        let pool: Pool = pool_response
-            .pool
-            .ok_or_else(|| StdError::generic_err("failed to get pool"))?
-            .try_into()
-            .map_err(|_| StdError::generic_err("failed to decode proto"))?;
-
-        Ok(pool)
-    }
 }
 
 #[cw_serde]
@@ -117,7 +85,7 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
         let (input_addr, output_addr, _pool_id) = self.do_validate(deps.api)?;
 
         let pm_querier = PoolmanagerQuerier::new(&deps.querier);
-        let pool = pm_querier.query_pool_config(&self.lp_config)?;
+        let pool = pm_querier.query_pool_config(self.lp_config.pool_id)?;
 
         // perform soft pool validation by asserting that the lp config assets
         // are all present in the pool

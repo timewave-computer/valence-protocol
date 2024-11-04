@@ -1,9 +1,8 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 
-use cosmwasm_std::{Addr, Deps, DepsMut, Empty, StdError, Uint64};
+use cosmwasm_std::{Addr, Deps, DepsMut, Uint64};
 use cw_ownable::cw_ownable_query;
 
-use osmosis_std::types::osmosis::{gamm::v1beta1::Pool, poolmanager::v1beta1::PoolmanagerQuerier};
 use valence_macros::{valence_service_query, ValenceServiceInterface};
 use valence_service_utils::{
     error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType,
@@ -23,35 +22,6 @@ pub enum QueryMsg {}
 #[cw_serde]
 pub struct LiquidityWithdrawerConfig {
     pub pool_id: u64,
-}
-
-pub trait ValenceLiquidPooler {
-    fn query_pool_config(&self, pool_id: u64) -> StdResult<Pool>;
-    fn query_pool_liquidity_token(&self, pool_id: u64) -> StdResult<String>;
-}
-
-impl ValenceLiquidPooler for PoolmanagerQuerier<'_, Empty> {
-    fn query_pool_config(&self, pool_id: u64) -> StdResult<Pool> {
-        let pool_response = self.pool(pool_id)?;
-        let pool: Pool = pool_response
-            .pool
-            .ok_or_else(|| StdError::generic_err("failed to get pool"))?
-            .try_into()
-            .map_err(|_| StdError::generic_err("failed to decode proto"))?;
-
-        Ok(pool)
-    }
-
-    fn query_pool_liquidity_token(&self, pool_id: u64) -> StdResult<String> {
-        let pool = self.query_pool_config(pool_id)?;
-
-        match pool.total_shares {
-            Some(c) => Ok(c.denom),
-            None => Err(StdError::generic_err(
-                "failed to get LP token of given pool",
-            )),
-        }
-    }
 }
 
 #[cw_serde]
@@ -103,28 +73,6 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
 
     fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
         let (input_addr, output_addr, _pool_id) = self.do_validate(deps.api)?;
-
-        // let pm_querier = PoolmanagerQuerier::new(&deps.querier);
-        // let pool = pm_querier.query_pool_config(&self.lp_config)?;
-
-        // // perform soft pool validation by asserting that the lp config assets
-        // // are all present in the pool
-        // let (mut asset_1_found, mut asset_2_found) = (false, false);
-        // for pool_asset in pool.pool_assets {
-        //     if let Some(asset) = pool_asset.token {
-        //         if self.lp_config.pool_asset_1 == asset.denom {
-        //             asset_1_found = true;
-        //         }
-        //         if self.lp_config.pool_asset_2 == asset.denom {
-        //             asset_2_found = true;
-        //         }
-        //     }
-        // }
-
-        // ensure!(
-        //     asset_1_found && asset_2_found,
-        //     ServiceError::ExecutionError("Pool does not contain expected assets".to_string())
-        // );
 
         Ok(Config {
             input_addr,

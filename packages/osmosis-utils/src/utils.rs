@@ -344,3 +344,61 @@ pub mod cl_utils {
         }
     }
 }
+
+pub mod gamm_utils {
+    use std::str::FromStr;
+
+    use cosmwasm_std::{Decimal, Empty, StdError, StdResult};
+    use osmosis_std::types::osmosis::{
+        gamm::v1beta1::Pool, poolmanager::v1beta1::PoolmanagerQuerier,
+    };
+
+    pub trait ValenceLiquidPooler {
+        fn query_spot_price(
+            &self,
+            pool_id: u64,
+            pool_asset_1: String,
+            pool_asset_2: String,
+        ) -> StdResult<Decimal>;
+        fn query_pool_config(&self, pool_id: u64) -> StdResult<Pool>;
+        fn query_pool_liquidity_token(&self, pool_id: u64) -> StdResult<String>;
+    }
+
+    impl ValenceLiquidPooler for PoolmanagerQuerier<'_, Empty> {
+        fn query_spot_price(
+            &self,
+            pool_id: u64,
+            pool_asset_1: String,
+            pool_asset_2: String,
+        ) -> StdResult<Decimal> {
+            let spot_price_response =
+                self.spot_price(pool_id, pool_asset_1.to_string(), pool_asset_2.to_string())?;
+
+            let pool_ratio = Decimal::from_str(&spot_price_response.spot_price)?;
+
+            Ok(pool_ratio)
+        }
+
+        fn query_pool_config(&self, pool_id: u64) -> StdResult<Pool> {
+            let pool_response = self.pool(pool_id)?;
+            let pool: Pool = pool_response
+                .pool
+                .ok_or_else(|| StdError::generic_err("failed to get pool"))?
+                .try_into()
+                .map_err(|_| StdError::generic_err("failed to decode proto"))?;
+
+            Ok(pool)
+        }
+
+        fn query_pool_liquidity_token(&self, pool_id: u64) -> StdResult<String> {
+            let pool = self.query_pool_config(pool_id)?;
+
+            match pool.total_shares {
+                Some(c) => Ok(c.denom),
+                None => Err(StdError::generic_err(
+                    "failed to get LP token of given pool",
+                )),
+            }
+        }
+    }
+}

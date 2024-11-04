@@ -11,7 +11,8 @@ use osmosis_std::{
     types::osmosis::{gamm::v1beta1::GammQuerier, poolmanager::v1beta1::PoolmanagerQuerier},
 };
 use valence_osmosis_utils::utils::{
-    get_provide_liquidity_msg, get_provide_ss_liquidity_msg, DecimalRange,
+    gamm_utils::ValenceLiquidPooler, get_provide_liquidity_msg, get_provide_ss_liquidity_msg,
+    DecimalRange,
 };
 use valence_service_utils::{
     error::ServiceError,
@@ -19,9 +20,7 @@ use valence_service_utils::{
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
-use crate::msg::{
-    ActionMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate, ValenceLiquidPooler,
-};
+use crate::msg::{ActionMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -85,8 +84,12 @@ fn provide_single_sided_liquidity(
     // first we assert the input account balance
     let input_acc_asset_bal = deps.querier.query_balance(&cfg.input_addr, &asset)?;
     let pm_querier = PoolmanagerQuerier::new(&deps.querier);
-    let pool = pm_querier.query_pool_config(&cfg.lp_config)?;
-    let pool_ratio = pm_querier.query_spot_price(&cfg.lp_config)?;
+    let pool = pm_querier.query_pool_config(cfg.lp_config.pool_id)?;
+    let pool_ratio = pm_querier.query_spot_price(
+        cfg.lp_config.pool_id,
+        cfg.lp_config.pool_asset_1,
+        cfg.lp_config.pool_asset_2,
+    )?;
 
     // assert the spot price to be within our expectations,
     // if expectations are set.
@@ -148,8 +151,12 @@ pub fn provide_double_sided_liquidity(
 
     let pm_querier = PoolmanagerQuerier::new(&deps.querier);
 
-    let pool_ratio = pm_querier.query_spot_price(&cfg.lp_config)?;
-    let pool = pm_querier.query_pool_config(&cfg.lp_config)?;
+    let pool_ratio = pm_querier.query_spot_price(
+        cfg.lp_config.pool_id,
+        cfg.lp_config.pool_asset_1,
+        cfg.lp_config.pool_asset_2,
+    )?;
+    let pool = pm_querier.query_pool_config(cfg.lp_config.pool_id)?;
 
     // assert the spot price to be within our expectations,
     // if expectations are set.

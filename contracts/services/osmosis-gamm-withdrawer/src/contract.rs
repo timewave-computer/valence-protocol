@@ -13,16 +13,14 @@ use osmosis_std::{
         poolmanager::v1beta1::PoolmanagerQuerier,
     },
 };
-use valence_osmosis_utils::utils::get_withdraw_liquidity_msg;
+use valence_osmosis_utils::utils::{gamm_utils::ValenceLiquidPooler, get_withdraw_liquidity_msg};
 use valence_service_utils::{
     error::ServiceError,
     execute_on_behalf_of,
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
-use crate::msg::{
-    ActionMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate, ValenceLiquidPooler,
-};
+use crate::msg::{ActionMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
