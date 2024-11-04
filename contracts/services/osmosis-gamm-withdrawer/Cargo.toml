@@ -28,3 +28,4 @@ valence-osmosis-utils = { workspace = true }
 cw20 = { workspace = true }
 osmosis-test-tube = { workspace = true }
 valence-osmosis-utils = { workspace = true, features = ["testing"] }
+valence-osmosis-gamm-lper = { workspace = true }

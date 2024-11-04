@@ -53,7 +53,11 @@ impl OsmosisTestPoolConfig for BalancerPool {
         Ok(balancer_pool)
     }
 
-    fn get_contract_name() -> String {
+    fn get_provider_contract_name() -> String {
         "valence_osmosis_gamm_lper.wasm".to_string()
+    }
+
+    fn get_withdrawer_contract_name() -> String {
+        "valence_osmosis_gamm_withdrawer.wasm".to_string()
     }
 }

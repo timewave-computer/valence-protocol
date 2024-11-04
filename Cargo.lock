@@ -5207,6 +5207,7 @@ dependencies = [
  "osmosis-test-tube",
  "valence-account-utils",
  "valence-macros",
+ "valence-osmosis-gamm-lper",
  "valence-osmosis-utils",
  "valence-service-base",
  "valence-service-utils",

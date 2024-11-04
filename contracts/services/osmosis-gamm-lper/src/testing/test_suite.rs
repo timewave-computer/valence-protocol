@@ -50,7 +50,7 @@ impl LPerTestSuite {
         let input_acc = inner.instantiate_input_account(account_code_id);
         let output_acc = inner.instantiate_input_account(account_code_id);
 
-        let code_id = inner.store_contract();
+        let code_id = inner.store_provider_contract();
 
         let instantiate_msg = InstantiateMsg {
             owner: inner.owner_acc().address(),

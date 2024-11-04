@@ -21,8 +21,12 @@ pub struct ConcentratedLiquidityPool {
 }
 
 impl OsmosisTestPoolConfig for ConcentratedLiquidityPool {
-    fn get_contract_name() -> String {
+    fn get_provider_contract_name() -> String {
         "valence_osmosis_cl_lper.wasm".to_string()
+    }
+
+    fn get_withdrawer_contract_name() -> String {
+        "valence_osmosis_cl_withdrawer.wasm".to_string()
     }
 
     fn pool_id(&self) -> Uint64 {

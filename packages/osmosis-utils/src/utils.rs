@@ -1,8 +1,8 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{ensure, Coin, CosmosMsg, Decimal, StdResult};
+use cosmwasm_std::{ensure, Coin, CosmosMsg, Decimal, StdResult, Uint128};
 use osmosis_std::{
     cosmwasm_to_proto_coins,
-    types::osmosis::gamm::v1beta1::{MsgJoinPool, MsgJoinSwapExternAmountIn},
+    types::osmosis::gamm::v1beta1::{MsgExitPool, MsgJoinPool, MsgJoinSwapExternAmountIn},
 };
 use valence_service_utils::error::ServiceError;
 
@@ -54,8 +54,21 @@ pub fn get_provide_liquidity_msg(
     Ok(msg_join_pool_no_swap)
 }
 
-pub fn get_withdraw_liquidity_msg() -> StdResult<CosmosMsg> {
-    unimplemented!()
+pub fn get_withdraw_liquidity_msg(
+    input_addr: &str,
+    pool_id: u64,
+    share_in_amount: Uint128,
+    token_out_mins: Vec<osmosis_std::types::cosmos::base::v1beta1::Coin>,
+) -> StdResult<CosmosMsg> {
+    let exit_pool_request: CosmosMsg = MsgExitPool {
+        sender: input_addr.to_string(),
+        pool_id,
+        share_in_amount: share_in_amount.to_string(),
+        token_out_mins,
+    }
+    .into();
+
+    Ok(exit_pool_request)
 }
 
 pub fn get_provide_ss_liquidity_msg(

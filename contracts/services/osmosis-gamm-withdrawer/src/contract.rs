@@ -1,16 +1,18 @@
-use std::str::FromStr;
-
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    coin, coins, to_json_binary, BankMsg, Binary, Coin, Decimal, Deps, DepsMut, Env, Fraction,
-    MessageInfo, Response, StdError, StdResult, Uint128,
+    to_json_binary, BankMsg, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
 };
 use osmosis_std::{
-    cosmwasm_to_proto_coins,
-    types::osmosis::{gamm::v1beta1::GammQuerier, poolmanager::v1beta1::PoolmanagerQuerier},
+    try_proto_to_cosmwasm_coins,
+    types::osmosis::{
+        gamm::v1beta1::{
+            QueryCalcExitPoolCoinsFromSharesRequest, QueryCalcExitPoolCoinsFromSharesResponse,
+        },
+        poolmanager::v1beta1::PoolmanagerQuerier,
+    },
 };
-use valence_osmosis_utils::utils::{get_provide_ss_liquidity_msg, get_withdraw_liquidity_msg};
+use valence_osmosis_utils::utils::get_withdraw_liquidity_msg;
 use valence_service_utils::{
     error::ServiceError,
     execute_on_behalf_of,
@@ -67,25 +69,40 @@ pub fn process_action(
 }
 
 fn try_withdraw_liquidity(deps: DepsMut, cfg: Config) -> Result<Response, ServiceError> {
-    // first we assert the input account balance
-    // let input_acc_asset_bal = deps.querier.query_balance(&cfg.input_addr, &asset)?;
     let pm_querier = PoolmanagerQuerier::new(&deps.querier);
     let pool = pm_querier.query_pool_config(cfg.lp_config.pool_id)?;
 
-    let liquidity_provision_msg = get_withdraw_liquidity_msg()?;
+    // get the LP token balance of configured input account
+    let lp_token_bal = match pool.total_shares {
+        Some(c) => deps.querier.query_balance(&cfg.input_addr, c.denom)?,
+        None => return Err(StdError::generic_err("failed to get LP token of given pool").into()),
+    };
 
-    let transfer_lp_tokens_msg = BankMsg::Send {
+    // simulate the withdrawal to get the expected coins out
+    let calc_exit_query_response: QueryCalcExitPoolCoinsFromSharesResponse = deps.querier.query(
+        &QueryCalcExitPoolCoinsFromSharesRequest {
+            pool_id: cfg.lp_config.pool_id,
+            share_in_amount: lp_token_bal.to_string(),
+        }
+        .into(),
+    )?;
+
+    // get the liquidity withdrawal message
+    let remove_liquidity_msg = get_withdraw_liquidity_msg(
+        cfg.input_addr.as_str(),
+        cfg.lp_config.pool_id,
+        lp_token_bal.amount,
+        calc_exit_query_response.tokens_out.clone(),
+    )?;
+
+    // get the transfer message for underlying assets withdrawn
+    let transfer_underlying_coins_msg = BankMsg::Send {
         to_address: cfg.output_addr.to_string(),
-        amount: coins(
-            share_out_amt.u128(),
-            pool.total_shares
-                .ok_or_else(|| StdError::generic_err("failed to get shares"))?
-                .denom,
-        ),
+        amount: try_proto_to_cosmwasm_coins(calc_exit_query_response.tokens_out)?,
     };
 
     let delegated_input_acc_msgs = execute_on_behalf_of(
-        vec![liquidity_provision_msg, transfer_lp_tokens_msg.into()],
+        vec![remove_liquidity_msg, transfer_underlying_coins_msg.into()],
         &cfg.input_addr.clone(),
     )?;
 
@@ -111,61 +128,4 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             to_json_binary(&raw_config)
         }
     }
-}
-
-pub fn calculate_share_out_amt_no_swap(
-    deps: &DepsMut,
-    pool_id: u64,
-    coins_in: Vec<Coin>,
-) -> StdResult<Uint128> {
-    let gamm_querier = GammQuerier::new(&deps.querier);
-    let shares_out = gamm_querier
-        .calc_join_pool_no_swap_shares(pool_id, cosmwasm_to_proto_coins(coins_in))?
-        .shares_out;
-
-    let shares_u128 = Uint128::from_str(&shares_out)?;
-
-    Ok(shares_u128)
-}
-
-pub fn calculate_share_out_amt_swap(
-    deps: &DepsMut,
-    pool_id: u64,
-    coin_in: Vec<Coin>,
-) -> StdResult<Uint128> {
-    let gamm_querier = GammQuerier::new(&deps.querier);
-    let shares_out = gamm_querier
-        .calc_join_pool_shares(pool_id, cosmwasm_to_proto_coins(coin_in))?
-        .share_out_amount;
-
-    let shares_u128 = Uint128::from_str(&shares_out)?;
-
-    Ok(shares_u128)
-}
-
-pub fn calculate_provision_amounts(
-    mut asset_1_bal: Coin,
-    mut asset_2_bal: Coin,
-    pool_ratio: Decimal,
-) -> StdResult<Vec<Coin>> {
-    // first we assume that we are going to provide all of asset_1 and up to all of asset_2
-    // then we get the expected amount of asset_2 tokens to provide
-    let expected_asset_2_provision_amt = asset_1_bal
-        .amount
-        .checked_multiply_ratio(pool_ratio.numerator(), pool_ratio.denominator())
-        .map_err(|e| StdError::generic_err(e.to_string()))?;
-
-    // then we check if the expected amount of asset_2 tokens is greater than the available balance
-    if expected_asset_2_provision_amt > asset_2_bal.amount {
-        // if it is, we calculate the amount of asset_1 tokens to provide
-        asset_1_bal.amount = asset_2_bal
-            .amount
-            .checked_multiply_ratio(pool_ratio.denominator(), pool_ratio.numerator())
-            .map_err(|e| StdError::generic_err(e.to_string()))?;
-    } else {
-        // if it is not, we provide all of asset_1 and the expected amount of asset_2
-        asset_2_bal.amount = expected_asset_2_provision_amt;
-    }
-
-    Ok(vec![asset_1_bal, asset_2_bal])
 }
