@@ -71,7 +71,7 @@ fn try_withdraw_liquidity(deps: DepsMut, cfg: Config) -> Result<Response, Servic
     let pm_querier = PoolmanagerQuerier::new(&deps.querier);
 
     // get the LP token balance of configured input account
-    let lp_token = pm_querier.query_pool_liquidity_token(cfg.lp_config.pool_id)?;
+    let lp_token = pm_querier.query_pool_liquidity_token(cfg.lw_config.pool_id)?;
     let input_acc_lp_token_bal = deps
         .querier
         .query_balance(&cfg.input_addr, lp_token)?
@@ -86,7 +86,7 @@ fn try_withdraw_liquidity(deps: DepsMut, cfg: Config) -> Result<Response, Servic
     // simulate the withdrawal to get the expected coins out
     let calc_exit_query_response: QueryCalcExitPoolCoinsFromSharesResponse = deps.querier.query(
         &QueryCalcExitPoolCoinsFromSharesRequest {
-            pool_id: cfg.lp_config.pool_id,
+            pool_id: cfg.lw_config.pool_id,
             share_in_amount: input_acc_lp_token_bal.to_string(),
         }
         .into(),
@@ -95,7 +95,7 @@ fn try_withdraw_liquidity(deps: DepsMut, cfg: Config) -> Result<Response, Servic
     // get the liquidity withdrawal message
     let remove_liquidity_msg = get_withdraw_liquidity_msg(
         cfg.input_addr.as_str(),
-        cfg.lp_config.pool_id,
+        cfg.lw_config.pool_id,
         input_acc_lp_token_bal,
         calc_exit_query_response.tokens_out.clone(),
     )?;

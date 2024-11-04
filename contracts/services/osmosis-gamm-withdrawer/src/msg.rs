@@ -3,6 +3,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut, Uint64};
 use cw_ownable::cw_ownable_query;
 
+use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
 use valence_macros::{valence_service_query, ValenceServiceInterface};
 use valence_service_utils::{
     error::ServiceError, msg::ServiceConfigValidation, ServiceAccountType,
@@ -29,19 +30,19 @@ pub struct LiquidityWithdrawerConfig {
 pub struct ServiceConfig {
     pub input_addr: ServiceAccountType,
     pub output_addr: ServiceAccountType,
-    pub lp_config: LiquidityWithdrawerConfig,
+    pub lw_config: LiquidityWithdrawerConfig,
 }
 
 impl ServiceConfig {
     pub fn new(
         input_addr: impl Into<ServiceAccountType>,
         output_addr: impl Into<ServiceAccountType>,
-        lp_config: LiquidityWithdrawerConfig,
+        lw_config: LiquidityWithdrawerConfig,
     ) -> Self {
         ServiceConfig {
             input_addr: input_addr.into(),
             output_addr: output_addr.into(),
-            lp_config,
+            lw_config,
         }
     }
 
@@ -52,7 +53,7 @@ impl ServiceConfig {
         let input_addr = self.input_addr.to_addr(api)?;
         let output_addr = self.output_addr.to_addr(api)?;
 
-        Ok((input_addr, output_addr, self.lp_config.pool_id.into()))
+        Ok((input_addr, output_addr, self.lw_config.pool_id.into()))
     }
 }
 
@@ -61,7 +62,7 @@ impl ServiceConfig {
 pub struct Config {
     pub input_addr: Addr,
     pub output_addr: Addr,
-    pub lp_config: LiquidityWithdrawerConfig,
+    pub lw_config: LiquidityWithdrawerConfig,
 }
 
 impl ServiceConfigValidation<Config> for ServiceConfig {
@@ -72,12 +73,15 @@ impl ServiceConfigValidation<Config> for ServiceConfig {
     }
 
     fn validate(&self, deps: Deps) -> Result<Config, ServiceError> {
-        let (input_addr, output_addr, _pool_id) = self.do_validate(deps.api)?;
+        let (input_addr, output_addr, pool_id) = self.do_validate(deps.api)?;
+
+        // just a sanity check to ensure the pool exists
+        PoolmanagerQuerier::new(&deps.querier).pool(pool_id.u64())?;
 
         Ok(Config {
             input_addr,
             output_addr,
-            lp_config: self.lp_config.clone(),
+            lw_config: self.lw_config.clone(),
         })
     }
 }
@@ -94,8 +98,8 @@ impl ServiceConfigUpdate {
             config.output_addr = output_addr.to_addr(deps.api)?;
         }
 
-        if let Some(cfg) = self.lp_config {
-            config.lp_config = cfg;
+        if let Some(cfg) = self.lw_config {
+            config.lw_config = cfg;
         }
 
         Ok(())
