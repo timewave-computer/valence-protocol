@@ -26,23 +26,11 @@ pub struct LiquidityWithdrawerConfig {
 }
 
 pub trait ValenceLiquidPooler {
-    // fn query_spot_price(&self, lp_config: LiquidityWithdrawerConfig) -> StdResult<Decimal>;
     fn query_pool_config(&self, pool_id: u64) -> StdResult<Pool>;
+    fn query_pool_liquidity_token(&self, pool_id: u64) -> StdResult<String>;
 }
 
 impl ValenceLiquidPooler for PoolmanagerQuerier<'_, Empty> {
-    //     fn query_spot_price(&self, lp_config: &LiquidityWithdrawerConfig) -> StdResult<Decimal> {
-    //         let spot_price_response = self.spot_price(
-    //             lp_config.pool_id,
-    //             lp_config.pool_asset_1.to_string(),
-    //             lp_config.pool_asset_2.to_string(),
-    //         )?;
-
-    //         let pool_ratio = Decimal::from_str(&spot_price_response.spot_price)?;
-
-    //         Ok(pool_ratio)
-    //     }
-
     fn query_pool_config(&self, pool_id: u64) -> StdResult<Pool> {
         let pool_response = self.pool(pool_id)?;
         let pool: Pool = pool_response
@@ -52,6 +40,17 @@ impl ValenceLiquidPooler for PoolmanagerQuerier<'_, Empty> {
             .map_err(|_| StdError::generic_err("failed to decode proto"))?;
 
         Ok(pool)
+    }
+
+    fn query_pool_liquidity_token(&self, pool_id: u64) -> StdResult<String> {
+        let pool = self.query_pool_config(pool_id)?;
+
+        match pool.total_shares {
+            Some(c) => Ok(c.denom),
+            None => Err(StdError::generic_err(
+                "failed to get LP token of given pool",
+            )),
+        }
     }
 }
 

@@ -1,7 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, BankMsg, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
+    ensure, to_json_binary, BankMsg, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult, Uint128,
 };
 use osmosis_std::{
     try_proto_to_cosmwasm_coins,
@@ -69,41 +70,35 @@ pub fn process_action(
 }
 
 fn try_withdraw_liquidity(deps: DepsMut, cfg: Config) -> Result<Response, ServiceError> {
-    deps.api.debug("try_withdraw_liquidity");
-
     let pm_querier = PoolmanagerQuerier::new(&deps.querier);
-    let pool = pm_querier.query_pool_config(cfg.lp_config.pool_id)?;
-    deps.api.debug(format!("pool: {:?}", pool).as_str());
 
     // get the LP token balance of configured input account
-    let lp_token_bal = match pool.total_shares {
-        Some(c) => deps.querier.query_balance(&cfg.input_addr, c.denom)?.amount,
-        None => return Err(StdError::generic_err("failed to get LP token of given pool").into()),
-    };
-    deps.api
-        .debug(format!("lp token bal: {:?}", lp_token_bal).as_str());
+    let lp_token = pm_querier.query_pool_liquidity_token(cfg.lp_config.pool_id)?;
+    let input_acc_lp_token_bal = deps
+        .querier
+        .query_balance(&cfg.input_addr, lp_token)?
+        .amount;
+
+    // liquidity can be withdrawn iff lp token balance is gt zero
+    ensure!(
+        input_acc_lp_token_bal > Uint128::zero(),
+        StdError::generic_err("input account must have LP tokens to withdraw")
+    );
 
     // simulate the withdrawal to get the expected coins out
     let calc_exit_query_response: QueryCalcExitPoolCoinsFromSharesResponse = deps.querier.query(
         &QueryCalcExitPoolCoinsFromSharesRequest {
             pool_id: cfg.lp_config.pool_id,
-            share_in_amount: lp_token_bal.to_string(),
+            share_in_amount: input_acc_lp_token_bal.to_string(),
         }
         .into(),
     )?;
-    deps.api.debug(
-        format!(
-            "share out simulation response: {:?}",
-            calc_exit_query_response
-        )
-        .as_str(),
-    );
 
     // get the liquidity withdrawal message
     let remove_liquidity_msg = get_withdraw_liquidity_msg(
         cfg.input_addr.as_str(),
         cfg.lp_config.pool_id,
-        lp_token_bal,
+        input_acc_lp_token_bal,
         calc_exit_query_response.tokens_out.clone(),
     )?;
 

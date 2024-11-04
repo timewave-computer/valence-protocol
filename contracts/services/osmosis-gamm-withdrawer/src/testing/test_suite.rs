@@ -1,8 +1,6 @@
-use std::str::FromStr;
+use cosmwasm_std::{Coin, StdResult};
 
-use cosmwasm_std::{Coin, StdResult, Uint128};
-
-use osmosis_std::types::cosmos::bank::v1beta1::{MsgSend, QueryBalanceRequest};
+use osmosis_std::types::cosmos::bank::v1beta1::MsgSend;
 use osmosis_test_tube::{
     osmosis_std::{
         try_proto_to_cosmwasm_coins,
@@ -30,12 +28,12 @@ pub struct LPerTestSuite {
 
 impl Default for LPerTestSuite {
     fn default() -> Self {
-        Self::new(None)
+        Self::new(50000000000000000000, None)
     }
 }
 
 impl LPerTestSuite {
-    pub fn new(lp_config: Option<LiquidityWithdrawerConfig>) -> Self {
+    pub fn new(with_lp_token_amount: u128, lp_config: Option<LiquidityWithdrawerConfig>) -> Self {
         let inner: OsmosisTestAppSetup<BalancerPool> =
             OsmosisTestAppBuilder::new().build().unwrap();
 
@@ -76,35 +74,24 @@ impl LPerTestSuite {
         inner.approve_service(input_acc.clone(), lp_withdrawer_addr.clone());
 
         // transfer all lp tokens to the input account so that it can withdraw
-        let bank = Bank::new(&inner.app);
-        let lp_token_total_supply_str = bank
-            .query_balance(&QueryBalanceRequest {
-                address: inner.accounts[0].address(),
-                denom: inner.pool_cfg.pool_liquidity_token.to_string(),
-            })
-            .unwrap()
-            .balance
-            .unwrap()
-            .amount;
-        let token_supply = Uint128::from_str(&lp_token_total_supply_str).unwrap();
+        if with_lp_token_amount > 0 {
+            let bank = Bank::new(&inner.app);
 
-        bank.send(
-            MsgSend {
-                from_address: inner.accounts[0].address(),
-                to_address: input_acc.clone(),
-                amount: vec![
-                    osmosis_test_tube::osmosis_std::types::cosmos::base::v1beta1::Coin {
-                        denom: inner.pool_cfg.pool_liquidity_token.clone(),
-                        amount: token_supply
-                            .checked_div(Uint128::new(2))
-                            .unwrap()
-                            .to_string(),
-                    },
-                ],
-            },
-            &inner.accounts[0],
-        )
-        .unwrap();
+            bank.send(
+                MsgSend {
+                    from_address: inner.accounts[0].address(),
+                    to_address: input_acc.clone(),
+                    amount: vec![
+                        osmosis_test_tube::osmosis_std::types::cosmos::base::v1beta1::Coin {
+                            denom: inner.pool_cfg.pool_liquidity_token.clone(),
+                            amount: with_lp_token_amount.to_string(),
+                        },
+                    ],
+                },
+                &inner.accounts[0],
+            )
+            .unwrap();
+        }
 
         LPerTestSuite {
             inner,
