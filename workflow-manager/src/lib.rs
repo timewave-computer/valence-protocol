@@ -15,6 +15,7 @@ pub mod workflow_update;
 use connectors::Connectors;
 use error::ManagerResult;
 use workflow_config::WorkflowConfig;
+use workflow_update::WorkflowConfigUpdate;
 
 // Main chain name
 const NEUTRON_CHAIN: &str = "neutron";
@@ -30,10 +31,8 @@ pub async fn init_workflow(workflow_config: &mut WorkflowConfig) -> ManagerResul
     workflow_config.init(&connectors).await
 }
 
-// pub fn update_workflow(mut workflow_config: WorkflowConfig, mut old_workflow_config: WorkflowConfig) {
-//     let ctx = None;
+pub async fn update_workflow(mut workflow_config: WorkflowConfigUpdate) -> ManagerResult<()> {
+    let connectors = Connectors::default();
 
-//     workflow_config.update(ctx);
-
-//     println!("{:#?}", workflow_config);
-// }
+    workflow_config.update(&connectors).await
+}

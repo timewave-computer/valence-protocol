@@ -62,6 +62,15 @@ pub enum ManagerError {
 
     #[error("Failed to get processor address for this domain: {0}")]
     ProcessorAddrNotFound(String),
+
+    #[error("Id must not be zero")]
+    IdIsZero,
+    
+    #[error("Account was removed: {0}")]
+    AccountWasRemoved(String),
+    
+    #[error("Service id is missing from the list of services: {0}")]
+    ServiceIdIsMissing(String),
 }
 
 impl ManagerError {
