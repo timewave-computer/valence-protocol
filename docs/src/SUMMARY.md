@@ -13,3 +13,4 @@
     - [Owner Actions](./authorizations_processors/authorization_owner_actions.md)
     - [User Actions](./authorizations_processors/authorization_user_actions.md)
   - [Callbacks](./authorizations_processors/callbacks.md)
+- [Examples](./examples.md)
