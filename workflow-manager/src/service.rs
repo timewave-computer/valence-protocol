@@ -14,7 +14,6 @@ use valence_service_utils::{
 };
 
 use crate::domain::Domain;
-use crate::helpers::bool_true_default;
 
 pub type ServiceResult<T> = Result<T, ServiceError>;
 
@@ -47,8 +46,6 @@ pub enum ServiceError {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServiceInfo {
-    #[serde(default = "bool_true_default")]
-    pub active: bool,
     pub name: String,
     pub domain: Domain,
     #[serde(skip)]
@@ -59,7 +56,6 @@ pub struct ServiceInfo {
 impl ServiceInfo {
     pub fn new(name: String, domain: &Domain, config: ServiceConfig) -> Self {
         Self {
-            active: true,
             name,
             domain: domain.clone(),
             config,

@@ -180,7 +180,6 @@ mod test {
         config.accounts.insert(
             0,
             AccountInfo {
-                active: true,
                 name: "test_1".to_string(),
                 ty: AccountType::Base { admin: None },
                 domain: neutron_domain.clone(),
@@ -190,7 +189,6 @@ mod test {
         config.accounts.insert(
             1,
             AccountInfo {
-                active: true,
                 name: "test_2".to_string(),
                 ty: AccountType::Base { admin: None },
                 domain: neutron_domain.clone(),
@@ -201,7 +199,6 @@ mod test {
         config.services.insert(
             0,
             ServiceInfo {
-                active: true,
                 name: "test_forwarder".to_string(),
                 domain: neutron_domain.clone(),
                 config: ServiceConfig::ValenceForwarderService(

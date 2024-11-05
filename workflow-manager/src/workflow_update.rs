@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use anyhow::Context;
 use cosmwasm_std::{to_json_binary, CosmosMsg, WasmMsg};
-use cw_ownable::{Expiration, Ownership};
+use cw_ownable::{Expiration, };
 use serde::{Deserialize, Serialize};
 use valence_authorization_utils::{
     authorization::{AuthorizationInfo, AuthorizationModeInfo, Priority},

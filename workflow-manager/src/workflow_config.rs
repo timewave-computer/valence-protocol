@@ -249,7 +249,6 @@ impl WorkflowConfig {
             );
 
             // Set active to be true just in case it was given false on init
-            account.active = true;
             account.ty = AccountType::Addr { addr: addr.clone() };
             account.addr = Some(addr);
         }

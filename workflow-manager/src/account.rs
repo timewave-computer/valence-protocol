@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use strum::VariantNames;
 
 use crate::domain::Domain;
-use crate::helpers::bool_true_default;
 
 /// What account type we talking about
 #[derive(Debug, PartialEq, Clone, strum::Display, VariantNames, Serialize, Deserialize)]
@@ -32,21 +31,12 @@ impl AccountType {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, strum::Display, VariantNames, Serialize, Deserialize)]
-pub enum AccountTypeUpdate {
-    #[strum(to_string = "valence_base_account")]
-    Base { admin: String },
-}
-
 /// The struct given to us by the user.
 ///
 /// We need to know what domain we are talking with
 /// and what type of account we should work with.
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct AccountInfo {
-    /// Default is true if not provided on init
-    #[serde(default = "bool_true_default")]
-    pub active: bool,
     pub name: String,
     pub ty: AccountType,
     pub domain: Domain,
@@ -56,47 +46,10 @@ pub struct AccountInfo {
 impl AccountInfo {
     pub fn new(name: String, domain: &Domain, ty: AccountType) -> Self {
         Self {
-            active: true,
             name,
             ty,
             domain: domain.clone(),
             addr: None,
-        }
-    }
-
-    pub fn into_update(&self, update: Option<AccountTypeUpdate>) -> AccountInfoUpdate {
-        AccountInfoUpdate {
-            active: self.active,
-            name: self.name.clone(),
-            ty: self.ty.clone(),
-            domain: self.domain.clone(),
-            addr: self.addr.clone(),
-            update,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct AccountInfoUpdate {
-    /// Default is true if not provided on init
-    #[serde(default = "bool_true_default")]
-    pub active: bool,
-    pub name: String,
-    pub ty: AccountType,
-    pub domain: Domain,
-    pub addr: Option<String>,
-    pub update: Option<AccountTypeUpdate>,
-}
-
-impl From<AccountInfo> for AccountInfoUpdate {
-    fn from(account: AccountInfo) -> Self {
-        Self {
-            active: account.active,
-            name: account.name,
-            ty: account.ty,
-            domain: account.domain,
-            addr: account.addr,
-            update: None,
         }
     }
 }

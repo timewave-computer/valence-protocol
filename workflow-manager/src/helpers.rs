@@ -33,7 +33,7 @@ pub fn addr_humanize(prefix: &str, canonical: &CanonicalAddr) -> Result<String, 
     encode::<Bech32>(prefix, canonical.as_slice()).map_err(|_| anyhow!("Bech32 encoding error"))
 }
 
-/// Helper for serde default for bool
-pub(crate) fn bool_true_default() -> bool {
-    true
-}
+// /// Helper for serde default for bool
+// pub(crate) fn bool_true_default() -> bool {
+//     true
+// }
