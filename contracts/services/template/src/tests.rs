@@ -1,4 +1,4 @@
-use crate::msg::{ActionMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate};
+use crate::msg::{Config, FunctionMsgs, QueryMsg, ServiceConfig, ServiceConfigUpdate};
 use cosmwasm_std::{Addr, Empty};
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
@@ -63,7 +63,7 @@ impl TemplateTestSuite {
     fn execute_noop(&mut self, addr: Addr) -> AnyResult<AppResponse> {
         self.contract_execute(
             addr,
-            &ExecuteMsg::<_, ServiceConfig>::ProcessAction(ActionMsgs::NoOp {}),
+            &ExecuteMsg::<_, ServiceConfig>::ProcessFunction(FunctionMsgs::NoOp {}),
         )
     }
 
@@ -72,7 +72,7 @@ impl TemplateTestSuite {
         self.app_mut().execute_contract(
             owner,
             addr,
-            &ExecuteMsg::<ActionMsgs, ServiceConfig>::UpdateConfig { new_config },
+            &ExecuteMsg::<FunctionMsgs, ServiceConfig>::UpdateConfig { new_config },
             &[],
         )
     }
@@ -177,7 +177,7 @@ fn get_diff_update() {
 }
 
 #[test]
-fn execute_action() {
+fn execute_function() {
     let mut suite = TemplateTestSuite::default();
 
     let cfg = suite.template_config(suite.owner().to_string());
@@ -185,6 +185,6 @@ fn execute_action() {
     // Instantiate Template contract
     let svc = suite.template_init(&cfg);
 
-    // Execute action
+    // Execute function
     suite.execute_noop(svc).unwrap();
 }

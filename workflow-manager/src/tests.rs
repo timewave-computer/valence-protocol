@@ -13,12 +13,12 @@ mod test {
     };
     use serde_json_any_key::MapIterToJson;
     use valence_authorization_utils::{
-        action::AtomicAction,
         authorization::{
-            ActionsConfig, AtomicActionsConfig, AuthorizationDuration, AuthorizationInfo,
-            AuthorizationModeInfo,
+            AtomicSubroutine, AuthorizationDuration, AuthorizationInfo, AuthorizationModeInfo,
+            Subroutine,
         },
         authorization_message::{Message, MessageDetails, MessageType},
+        function::AtomicFunction,
     };
     use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
 
@@ -236,8 +236,8 @@ mod test {
                 not_before: Expiration::Never {},
                 duration: AuthorizationDuration::Forever,
                 max_concurrent_executions: None,
-                actions_config: ActionsConfig::Atomic(AtomicActionsConfig {
-                    actions: vec![AtomicAction {
+                subroutine: Subroutine::Atomic(AtomicSubroutine {
+                    functions: vec![AtomicFunction {
                         domain: valence_authorization_utils::domain::Domain::Main,
                         message_details: MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,

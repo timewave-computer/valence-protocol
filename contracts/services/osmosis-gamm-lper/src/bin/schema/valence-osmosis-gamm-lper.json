@@ -120,11 +120,11 @@
       {
         "type": "object",
         "required": [
-          "process_action"
+          "process_function"
         ],
         "properties": {
-          "process_action": {
-            "$ref": "#/definitions/ActionMsgs"
+          "process_function": {
+            "$ref": "#/definitions/FunctionMsgs"
           }
         },
         "additionalProperties": false
@@ -237,7 +237,7 @@
           }
         ]
       },
-      "ActionMsgs": {
+      "FunctionMsgs": {
         "oneOf": [
           {
             "type": "object",

@@ -10,7 +10,7 @@ use localic_utils::{
 };
 use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
-    builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
+    builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
 };
 use valence_service_utils::denoms::UncheckedDenom;
 use valence_splitter_service::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
@@ -73,18 +73,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     builder.add_authorization(
         AuthorizationBuilder::new()
             .with_label("swap")
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(
-                        AtomicActionBuilder::new()
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(service_1)
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "split".to_string(),
                                         ]),
                                     ]),

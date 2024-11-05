@@ -20,7 +20,7 @@ use valence_service_utils::{
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
-use crate::msg::{ActionMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate};
+use crate::msg::{Config, FunctionMsgs, QueryMsg, ServiceConfig, ServiceConfigUpdate};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -41,9 +41,9 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg<ActionMsgs, ServiceConfigUpdate>,
+    msg: ExecuteMsg<FunctionMsgs, ServiceConfigUpdate>,
 ) -> Result<Response, ServiceError> {
-    valence_service_base::execute(deps, env, info, msg, process_action, update_config)
+    valence_service_base::execute(deps, env, info, msg, process_function, update_config)
 }
 
 pub fn update_config(
@@ -55,18 +55,18 @@ pub fn update_config(
     new_config.update_config(deps)
 }
 
-pub fn process_action(
+pub fn process_function(
     deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    msg: ActionMsgs,
+    msg: FunctionMsgs,
     cfg: Config,
 ) -> Result<Response, ServiceError> {
     match msg {
-        ActionMsgs::ProvideDoubleSidedLiquidity {
+        FunctionMsgs::ProvideDoubleSidedLiquidity {
             expected_spot_price,
         } => provide_double_sided_liquidity(deps, cfg, expected_spot_price),
-        ActionMsgs::ProvideSingleSidedLiquidity {
+        FunctionMsgs::ProvideSingleSidedLiquidity {
             asset,
             limit,
             expected_spot_price,

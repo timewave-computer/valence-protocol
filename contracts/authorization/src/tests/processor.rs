@@ -5,17 +5,17 @@ use margined_neutron_std::types::cosmos::{
 };
 use neutron_test_tube::{Account, Bank, Module, Wasm};
 use valence_authorization_utils::{
-    action::{ActionCallback, RetryLogic, RetryTimes},
     authorization::{
-        ActionsConfig, AtomicActionsConfig, AuthorizationModeInfo, PermissionTypeInfo, Priority,
+        AtomicSubroutine, AuthorizationModeInfo, PermissionTypeInfo, Priority, Subroutine,
     },
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
     builders::{
-        AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder, JsonBuilder,
-        NonAtomicActionBuilder, NonAtomicActionsConfigBuilder,
+        AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder, JsonBuilder,
+        NonAtomicFunctionBuilder, NonAtomicSubroutineBuilder,
     },
     callback::{ExecutionResult, ProcessorCallbackInfo},
     domain::Domain,
+    function::{FunctionCallback, RetryLogic, RetryTimes},
     msg::{ExecuteMsg, PermissionedMsg, PermissionlessMsg, ProcessorMessage, QueryMsg},
 };
 use valence_processor_utils::{msg::InternalProcessorMsg, processor::MessageBatch};
@@ -64,9 +64,9 @@ fn user_enqueing_messages() {
         AuthorizationBuilder::new()
             .with_label("permissionless")
             .with_max_concurrent_executions(10)
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(AtomicActionBuilder::new().build())
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(AtomicFunctionBuilder::new().build())
                     .build(),
             )
             .build(),
@@ -79,9 +79,9 @@ fn user_enqueing_messages() {
                     setup.user_accounts[0].address().to_string(),
                 ]),
             ))
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(AtomicActionBuilder::new().build())
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(AtomicFunctionBuilder::new().build())
                     .build(),
             )
             .with_priority(Priority::High)
@@ -311,9 +311,9 @@ fn max_concurrent_execution_limit() {
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
         .with_max_concurrent_executions(3)
-        .with_actions_config(
-            AtomicActionsConfigBuilder::new()
-                .with_action(AtomicActionBuilder::new().build())
+        .with_subroutine(
+            AtomicSubroutineBuilder::new()
+                .with_function(AtomicFunctionBuilder::new().build())
                 .build(),
         )
         .build()];
@@ -420,9 +420,9 @@ fn owner_adding_and_removing_messages() {
         AuthorizationBuilder::new()
             .with_label("permissionless")
             .with_max_concurrent_executions(10)
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(AtomicActionBuilder::new().build())
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(AtomicFunctionBuilder::new().build())
                     .build(),
             )
             .build(),
@@ -435,9 +435,9 @@ fn owner_adding_and_removing_messages() {
                     setup.user_accounts[0].address().to_string(),
                 ]),
             ))
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(AtomicActionBuilder::new().build())
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(AtomicFunctionBuilder::new().build())
                     .build(),
             )
             .with_priority(Priority::High)
@@ -897,10 +897,10 @@ fn invalid_msg_rejected() {
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
         .with_max_concurrent_executions(10)
-        .with_actions_config(
-            AtomicActionsConfigBuilder::new()
-                .with_action(
-                    AtomicActionBuilder::new()
+        .with_subroutine(
+            AtomicSubroutineBuilder::new()
+                .with_function(
+                    AtomicFunctionBuilder::new()
                         .with_contract_address(ServiceAccountType::Addr(test_service_contract))
                         .build(),
                 )
@@ -1012,10 +1012,10 @@ fn queue_shifting_when_not_retriable() {
         AuthorizationBuilder::new()
             .with_label("permissionless-atomic")
             .with_max_concurrent_executions(2)
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(
-                        AtomicActionBuilder::new()
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(ServiceAccountType::Addr(
                                 test_service_contract.clone(),
                             ))
@@ -1038,10 +1038,10 @@ fn queue_shifting_when_not_retriable() {
         AuthorizationBuilder::new()
             .with_label("permissionless-non-atomic")
             .with_max_concurrent_executions(2)
-            .with_actions_config(
-                NonAtomicActionsConfigBuilder::new()
-                    .with_action(
-                        NonAtomicActionBuilder::new()
+            .with_subroutine(
+                NonAtomicSubroutineBuilder::new()
+                    .with_function(
+                        NonAtomicFunctionBuilder::new()
                             .with_contract_address(&test_service_contract.clone())
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
@@ -1196,9 +1196,9 @@ fn queue_shifting_when_not_retriable() {
     assert!(response.events.iter().any(|e| e.ty == "wasm"
         && e.attributes
             .iter()
-            .any(|a| a.key == "action" && a.value == "pushed_action_back_to_queue")));
+            .any(|a| a.key == "action" && a.value == "pushed_function_back_to_queue")));
 
-    // Let's tick again to check that the same happens with the non atomic action
+    // Let's tick again to check that the same happens with the non atomic function
     let response = wasm
         .execute::<ProcessorExecuteMsg>(
             &processor_contract,
@@ -1211,9 +1211,9 @@ fn queue_shifting_when_not_retriable() {
     assert!(response.events.iter().any(|e| e.ty == "wasm"
         && e.attributes
             .iter()
-            .any(|a| a.key == "action" && a.value == "pushed_action_back_to_queue")));
+            .any(|a| a.key == "action" && a.value == "pushed_function_back_to_queue")));
 
-    // Let's increase the block height enouch to trigger the retry and double check that the action is tried again
+    // Let's increase the block height enouch to trigger the retry and double check that the function is tried again
     let current_height = setup.app.get_block_height() as u64;
     wait_for_height(&setup.app, current_height + 50);
 
@@ -1230,9 +1230,9 @@ fn queue_shifting_when_not_retriable() {
     assert!(!response.events.iter().any(|e| e.ty == "wasm"
         && e.attributes
             .iter()
-            .any(|a| a.key == "action" && a.value == "pushed_action_back_to_queue")));
+            .any(|a| a.key == "action" && a.value == "pushed_function_back_to_queue")));
 
-    // Same for non atomic action
+    // Same for non atomic function
     let response = wasm
         .execute::<ProcessorExecuteMsg>(
             &processor_contract,
@@ -1245,7 +1245,7 @@ fn queue_shifting_when_not_retriable() {
     assert!(!response.events.iter().any(|e| e.ty == "wasm"
         && e.attributes
             .iter()
-            .any(|a| a.key == "action" && a.value == "pushed_action_back_to_queue")));
+            .any(|a| a.key == "action" && a.value == "pushed_function_back_to_queue")));
 }
 
 #[test]
@@ -1269,10 +1269,10 @@ fn higher_priority_queue_is_processed_first() {
         AuthorizationBuilder::new()
             .with_label("permissionless")
             .with_max_concurrent_executions(10)
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(
-                        AtomicActionBuilder::new()
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(ServiceAccountType::Addr(
                                 test_service_contract.clone(),
                             ))
@@ -1296,10 +1296,10 @@ fn higher_priority_queue_is_processed_first() {
                     .address()
                     .to_string()]),
             ))
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(
-                        AtomicActionBuilder::new()
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(ServiceAccountType::Addr(
                                 test_service_contract.clone(),
                             ))
@@ -1495,7 +1495,7 @@ fn higher_priority_queue_is_processed_first() {
 }
 
 #[test]
-fn retry_multi_action_atomic_batch_until_success() {
+fn retry_multi_function_atomic_batch_until_success() {
     let setup = NeutronTestAppBuilder::new().build().unwrap();
 
     let wasm = Wasm::new(&setup.app);
@@ -1510,17 +1510,17 @@ fn retry_multi_action_atomic_batch_until_success() {
     let test_service_contract =
         store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
 
-    // We'll create an authorization with 3 actions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
+    // We'll create an authorization with 3 functions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
-        .with_actions_config(
-            AtomicActionsConfigBuilder::new()
+        .with_subroutine(
+            AtomicSubroutineBuilder::new()
                 .with_retry_logic(RetryLogic {
                     times: RetryTimes::Indefinitely,
                     interval: Duration::Time(2),
                 })
-                .with_action(
-                    AtomicActionBuilder::new()
+                .with_function(
+                    AtomicFunctionBuilder::new()
                         .with_contract_address(ServiceAccountType::Addr(
                             test_service_contract.clone(),
                         ))
@@ -1533,8 +1533,8 @@ fn retry_multi_action_atomic_batch_until_success() {
                         })
                         .build(),
                 )
-                .with_action(
-                    AtomicActionBuilder::new()
+                .with_function(
+                    AtomicFunctionBuilder::new()
                         .with_contract_address(ServiceAccountType::Addr(
                             test_service_contract.clone(),
                         ))
@@ -1547,8 +1547,8 @@ fn retry_multi_action_atomic_batch_until_success() {
                         })
                         .build(),
                 )
-                .with_action(
-                    AtomicActionBuilder::new()
+                .with_function(
+                    AtomicFunctionBuilder::new()
                         .with_contract_address(ServiceAccountType::Addr(
                             test_service_contract.clone(),
                         ))
@@ -1687,7 +1687,7 @@ fn retry_multi_action_atomic_batch_until_success() {
 }
 
 #[test]
-fn retry_multi_action_non_atomic_batch_until_success() {
+fn retry_multi_function_non_atomic_batch_until_success() {
     let setup = NeutronTestAppBuilder::new().build().unwrap();
 
     let wasm = Wasm::new(&setup.app);
@@ -1702,13 +1702,13 @@ fn retry_multi_action_non_atomic_batch_until_success() {
     let test_service_contract =
         store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
 
-    // We'll create an authorization with 3 actions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
+    // We'll create an authorization with 3 functions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
-        .with_actions_config(
-            NonAtomicActionsConfigBuilder::new()
-                .with_action(
-                    NonAtomicActionBuilder::new()
+        .with_subroutine(
+            NonAtomicSubroutineBuilder::new()
+                .with_function(
+                    NonAtomicFunctionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
@@ -1719,8 +1719,8 @@ fn retry_multi_action_non_atomic_batch_until_success() {
                         })
                         .build(),
                 )
-                .with_action(
-                    NonAtomicActionBuilder::new()
+                .with_function(
+                    NonAtomicFunctionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .with_retry_logic(RetryLogic {
                             times: RetryTimes::Indefinitely,
@@ -1735,8 +1735,8 @@ fn retry_multi_action_non_atomic_batch_until_success() {
                         })
                         .build(),
                 )
-                .with_action(
-                    NonAtomicActionBuilder::new()
+                .with_function(
+                    NonAtomicFunctionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
@@ -1858,7 +1858,7 @@ fn retry_multi_action_non_atomic_batch_until_success() {
     )
     .unwrap();
 
-    // Tick again will move now to the 3rd action but not process it, just re-add it to the queue
+    // Tick again will move now to the 3rd function but not process it, just re-add it to the queue
     wasm.execute::<ProcessorExecuteMsg>(
         &processor_contract,
         &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
@@ -1880,7 +1880,7 @@ fn retry_multi_action_non_atomic_batch_until_success() {
         .unwrap();
 
     assert_eq!(query_med_prio_queue.len(), 1);
-    // Verify that after moving to the next action, the current retries has been reset
+    // Verify that after moving to the next function, the current retries has been reset
     assert_eq!(query_med_prio_queue[0].retry, None);
 
     // Last tick will process the last message and send the callback
@@ -1937,17 +1937,17 @@ fn failed_atomic_batch_after_retries() {
     let test_service_contract =
         store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
 
-    // We'll create an authorization with 3 actions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
+    // We'll create an authorization with 3 functions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
-        .with_actions_config(
-            AtomicActionsConfigBuilder::new()
+        .with_subroutine(
+            AtomicSubroutineBuilder::new()
                 .with_retry_logic(RetryLogic {
                     times: RetryTimes::Amount(5),
                     interval: Duration::Time(2),
                 })
-                .with_action(
-                    AtomicActionBuilder::new()
+                .with_function(
+                    AtomicFunctionBuilder::new()
                         .with_contract_address(ServiceAccountType::Addr(
                             test_service_contract.clone(),
                         ))
@@ -1960,8 +1960,8 @@ fn failed_atomic_batch_after_retries() {
                         })
                         .build(),
                 )
-                .with_action(
-                    AtomicActionBuilder::new()
+                .with_function(
+                    AtomicFunctionBuilder::new()
                         .with_contract_address(ServiceAccountType::Addr(
                             test_service_contract.clone(),
                         ))
@@ -2019,8 +2019,8 @@ fn failed_atomic_batch_after_retries() {
                 batch: MessageBatch {
                     id: 0,
                     msgs: vec![],
-                    actions_config: ActionsConfig::Atomic(AtomicActionsConfig {
-                        actions: vec![],
+                    subroutine: Subroutine::Atomic(AtomicSubroutine {
+                        functions: vec![],
                         retry_logic: None,
                     }),
                     priority: Priority::Medium,
@@ -2099,13 +2099,13 @@ fn failed_non_atomic_batch_after_retries() {
     let test_service_contract =
         store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
 
-    // We'll create an authorization with 3 actions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
+    // We'll create an authorization with 3 functions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
-        .with_actions_config(
-            NonAtomicActionsConfigBuilder::new()
-                .with_action(
-                    NonAtomicActionBuilder::new()
+        .with_subroutine(
+            NonAtomicSubroutineBuilder::new()
+                .with_function(
+                    NonAtomicFunctionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
@@ -2116,8 +2116,8 @@ fn failed_non_atomic_batch_after_retries() {
                         })
                         .build(),
                 )
-                .with_action(
-                    NonAtomicActionBuilder::new()
+                .with_function(
+                    NonAtomicFunctionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .with_retry_logic(RetryLogic {
                             times: RetryTimes::Amount(5),
@@ -2169,7 +2169,7 @@ fn failed_non_atomic_batch_after_retries() {
     )
     .unwrap();
 
-    // Ticking 7 times (first acction successfull + first time second action + retry amount for second action) will send the callback with the error to the authorization contract
+    // Ticking 7 times (first function successfull + first time second function + retry amount for second function) will send the callback with the error to the authorization contract
     for _ in 0..7 {
         wasm.execute::<ProcessorExecuteMsg>(
             &processor_contract,
@@ -2208,7 +2208,7 @@ fn failed_non_atomic_batch_after_retries() {
         .unwrap();
 
     assert_eq!(query_callbacks.len(), 1);
-    // In this case the the first action was successful so we will receive a partially executed result with the amount actions that were successfully executed
+    // In this case the the first function was successful so we will receive a partially executed result with the amount functions that were successfully executed
     assert!(matches!(
         query_callbacks[0].execution_result,
         ExecutionResult::PartiallyExecuted(1, _)
@@ -2231,14 +2231,14 @@ fn successful_non_atomic_and_atomic_batches_together() {
     let test_service_contract =
         store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
 
-    // We'll create two authorizations, one atomic and one non-atomic, with 2 actions each where both of them will succeed
+    // We'll create two authorizations, one atomic and one non-atomic, with 2 functions each where both of them will succeed
     let authorizations = vec![
         AuthorizationBuilder::new()
             .with_label("permissionless-atomic")
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(
-                        AtomicActionBuilder::new()
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(ServiceAccountType::Addr(
                                 test_service_contract.clone(),
                             ))
@@ -2251,8 +2251,8 @@ fn successful_non_atomic_and_atomic_batches_together() {
                             })
                             .build(),
                     )
-                    .with_action(
-                        AtomicActionBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(ServiceAccountType::Addr(
                                 test_service_contract.clone(),
                             ))
@@ -2270,10 +2270,10 @@ fn successful_non_atomic_and_atomic_batches_together() {
             .build(),
         AuthorizationBuilder::new()
             .with_label("permissionless-non-atomic")
-            .with_actions_config(
-                NonAtomicActionsConfigBuilder::new()
-                    .with_action(
-                        NonAtomicActionBuilder::new()
+            .with_subroutine(
+                NonAtomicSubroutineBuilder::new()
+                    .with_function(
+                        NonAtomicFunctionBuilder::new()
                             .with_contract_address(&test_service_contract.clone())
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
@@ -2284,8 +2284,8 @@ fn successful_non_atomic_and_atomic_batches_together() {
                             })
                             .build(),
                     )
-                    .with_action(
-                        NonAtomicActionBuilder::new()
+                    .with_function(
+                        NonAtomicFunctionBuilder::new()
                             .with_contract_address(&test_service_contract)
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
@@ -2429,7 +2429,7 @@ fn successful_non_atomic_and_atomic_batches_together() {
 }
 
 #[test]
-fn reject_and_confirm_non_atomic_action_with_callback() {
+fn reject_and_confirm_non_atomic_function_with_callback() {
     let setup = NeutronTestAppBuilder::new().build().unwrap();
 
     let wasm = Wasm::new(&setup.app);
@@ -2444,13 +2444,13 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
     let test_service_contract =
         store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
 
-    // We'll create an authorization with 2 actions, where both will succeed but second one needs to confirmed with a callback
+    // We'll create an authorization with 2 functions, where both will succeed but second one needs to confirmed with a callback
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
-        .with_actions_config(
-            NonAtomicActionsConfigBuilder::new()
-                .with_action(
-                    NonAtomicActionBuilder::new()
+        .with_subroutine(
+            NonAtomicSubroutineBuilder::new()
+                .with_function(
+                    NonAtomicFunctionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
@@ -2461,8 +2461,8 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
                         })
                         .build(),
                 )
-                .with_action(
-                    NonAtomicActionBuilder::new()
+                .with_function(
+                    NonAtomicFunctionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .with_retry_logic(RetryLogic {
                             times: RetryTimes::Indefinitely,
@@ -2475,7 +2475,7 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
                                 params_restrictions: None,
                             },
                         })
-                        .with_callback_confirmation(ActionCallback {
+                        .with_callback_confirmation(FunctionCallback {
                             contract_address: Addr::unchecked(test_service_contract.to_string()),
                             callback_message: Binary::from("Confirmed".as_bytes()),
                         })
@@ -2511,7 +2511,7 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
     )
     .unwrap();
 
-    // Ticking the first time will make the first action succeed and re-add the batch to the queue
+    // Ticking the first time will make the first function succeed and re-add the batch to the queue
     wasm.execute::<ProcessorExecuteMsg>(
         &processor_contract,
         &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
@@ -2534,7 +2534,7 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
 
     assert_eq!(query_med_prio_queue.len(), 1);
 
-    // Ticking a second time will put the action in a pending callback confirmation state, removing it from the queue
+    // Ticking a second time will put the function in a pending callback confirmation state, removing it from the queue
     wasm.execute::<ProcessorExecuteMsg>(
         &processor_contract,
         &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
@@ -2557,7 +2557,7 @@ fn reject_and_confirm_non_atomic_action_with_callback() {
 
     assert_eq!(query_med_prio_queue.len(), 0);
 
-    // Sending the wrong callback will re-add the batch to the queue to retry the action
+    // Sending the wrong callback will re-add the batch to the queue to retry the function
     let callback = Binary::from("Wrong".as_bytes());
 
     wasm.execute::<TestServiceExecuteMsg>(
@@ -2683,10 +2683,10 @@ fn refund_and_burn_tokens_after_callback() {
                 Uint128::new(2),
             )]),
         ))
-        .with_actions_config(
-            NonAtomicActionsConfigBuilder::new()
-                .with_action(
-                    NonAtomicActionBuilder::new()
+        .with_subroutine(
+            NonAtomicSubroutineBuilder::new()
+                .with_function(
+                    NonAtomicFunctionBuilder::new()
                         .with_contract_address(&test_service_contract)
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
@@ -2870,13 +2870,13 @@ fn migration() {
         .data
         .code_id;
 
-    // Create an authorization with 1 action to migrate
+    // Create an authorization with 1 function to migrate
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
-        .with_actions_config(
-            AtomicActionsConfigBuilder::new()
-                .with_action(
-                    AtomicActionBuilder::new()
+        .with_subroutine(
+            AtomicSubroutineBuilder::new()
+                .with_function(
+                    AtomicFunctionBuilder::new()
                         .with_contract_address(ServiceAccountType::Addr(
                             test_service_contract.clone(),
                         ))

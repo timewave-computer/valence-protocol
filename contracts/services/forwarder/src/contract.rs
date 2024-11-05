@@ -6,7 +6,7 @@ use valence_service_utils::{
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
-use crate::msg::{ActionMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate};
+use crate::msg::{Config, FunctionMsgs, QueryMsg, ServiceConfig, ServiceConfigUpdate};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -27,38 +27,38 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg<ActionMsgs, ServiceConfigUpdate>,
+    msg: ExecuteMsg<FunctionMsgs, ServiceConfigUpdate>,
 ) -> Result<Response, ServiceError> {
     valence_service_base::execute(
         deps,
         env,
         info,
         msg,
-        actions::process_action,
+        functions::process_function,
         execute::update_config,
     )
 }
 
-mod actions {
+mod functions {
     use cosmwasm_std::{
         Addr, CosmosMsg, DepsMut, Env, MessageInfo, QuerierWrapper, Response, StdResult,
     };
     use valence_service_utils::{error::ServiceError, execute_on_behalf_of};
 
     use crate::{
-        msg::{ActionMsgs, Config},
+        msg::{Config, FunctionMsgs},
         state::LAST_SUCCESSFUL_FORWARD,
     };
 
-    pub fn process_action(
+    pub fn process_function(
         deps: DepsMut,
         env: Env,
         _info: MessageInfo,
-        msg: ActionMsgs,
+        msg: FunctionMsgs,
         cfg: Config,
     ) -> Result<Response, ServiceError> {
         match msg {
-            ActionMsgs::Forward {} => {
+            FunctionMsgs::Forward {} => {
                 ensure_forwarding_interval(&cfg, &deps, &env)?;
 
                 // Determine the amount to transfer for each denom
