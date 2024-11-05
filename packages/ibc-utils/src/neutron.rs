@@ -2,7 +2,10 @@ use std::collections::BTreeMap;
 
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::traits::MessageExt;
-use cosmwasm_std::{to_json_string, Binary, CosmosMsg, DepsMut, Env, StdError, StdResult, Uint128};
+use cosmwasm_std::{
+    to_json_string, Addr, Binary, CosmosMsg, DepsMut, Env, StdError, StdResult, Uint128,
+};
+use cw_denom::CheckedDenom;
 use neutron_sdk::{
     bindings::{msg::IbcFee, query::NeutronQuery},
     query::min_ibc_fee::query_min_ibc_fee,
@@ -21,9 +24,9 @@ pub fn ibc_send_message(
     deps: DepsMut<NeutronQuery>,
     env: Env,
     channel: String,
-    sender: String,
+    sender: &Addr,
     to: String,
-    denom: String,
+    denom: &CheckedDenom,
     amount: u128,
     memo: String,
     timeout_height: Option<u64>,
@@ -38,19 +41,32 @@ pub fn ibc_send_message(
             .min_fee,
     );
     let total_fee = flatten_ntrn_ibc_fee(&ibc_fee);
-    let amount_minus_fee = amount
-        .checked_sub(total_fee.u128())
-        .ok_or_else(|| StdError::generic_err("Amount too low to pay for IBC transfer fees."))?;
-    let coin = Coin {
-        denom: denom.clone(),
-        amount: amount_minus_fee.to_string(),
+
+    let transfer_amount = if denom.to_string() == NTRN_DENOM {
+        amount
+            .checked_sub(total_fee.u128())
+            .ok_or_else(|| StdError::generic_err("Amount too low to pay for IBC transfer fees."))?
+    } else {
+        let sender_fee_denom_balance = deps.querier.query_balance(sender, NTRN_DENOM)?;
+        if sender_fee_denom_balance.amount < total_fee {
+            return Err(StdError::generic_err(format!(
+                "Insufficient balance for IBC fees '{}' in sender account (required: {}, available: {}).",
+                NTRN_DENOM, total_fee, sender_fee_denom_balance.amount,
+            )));
+        }
+        amount
     };
 
-    let msg = match denom_to_pfm_map.get(&denom) {
+    let coin = Coin {
+        denom: denom.to_string(),
+        amount: transfer_amount.to_string(),
+    };
+
+    let msg = match denom_to_pfm_map.get(&denom.to_string()) {
         None => neutron_sdk::proto_types::neutron::transfer::MsgTransfer {
             source_port: "transfer".to_string(),
             source_channel: channel.clone(),
-            sender,
+            sender: sender.to_string(),
             receiver: to.clone(),
             token: Some(coin),
             timeout_height: Some(cosmos_sdk_proto::ibc::core::client::v1::Height {
@@ -70,7 +86,7 @@ pub fn ibc_send_message(
             neutron_sdk::proto_types::neutron::transfer::MsgTransfer {
                 source_port: "transfer".to_string(),
                 source_channel: pfm_config.local_to_hop_chain_channel_id.to_string(),
-                sender,
+                sender: sender.to_string(),
                 receiver: pfm_config.hop_chain_receiver_address.to_string(),
                 token: Some(coin),
                 timeout_height: Some(cosmos_sdk_proto::ibc::core::client::v1::Height {
