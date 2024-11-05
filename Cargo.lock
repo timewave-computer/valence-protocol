@@ -5179,6 +5179,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-osmosis-cl-withdrawer"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 2.1.4",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "cw-utils 2.0.0",
+ "cw20 2.0.0",
+ "osmosis-std",
+ "osmosis-std-derive",
+ "osmosis-test-tube",
+ "schemars",
+ "serde",
+ "serde_json",
+ "valence-account-utils",
+ "valence-macros",
+ "valence-osmosis-utils",
+ "valence-service-base",
+ "valence-service-utils",
+]
+
+[[package]]
 name = "valence-osmosis-gamm-lper"
 version = "0.1.0"
 dependencies = [
