@@ -65,12 +65,18 @@ pub enum ManagerError {
 
     #[error("Id must not be zero")]
     IdIsZero,
-    
+
     #[error("Account was removed: {0}")]
     AccountWasRemoved(String),
-    
+
     #[error("Service id is missing from the list of services: {0}")]
-    ServiceIdIsMissing(String),
+    ServiceIdIsMissing(u64),
+
+    #[error("Authorization label was not found: {0}")]
+    AuthorizationLabelNotFound(String),
+
+    #[error("Authorization label already exists: {0}")]
+    AuthorizationLabelExists(String),
 }
 
 impl ManagerError {

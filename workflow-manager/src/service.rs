@@ -61,16 +61,6 @@ impl ServiceInfo {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ServiceInfoUpdate {
-    #[serde(default = "bool_true_default")]
-    pub active: bool,
-    pub name: String,
-    pub domain: Domain,
-    pub config: Option<ServiceConfigUpdate>,
-    pub addr: Option<String>,
-}
-
 /// This is a list of all our services we support and their configs.
 #[derive(
     Debug, Clone, strum::Display, Serialize, Deserialize, VariantNames, PartialEq, Default,
