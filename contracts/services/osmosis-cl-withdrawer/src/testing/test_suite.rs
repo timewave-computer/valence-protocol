@@ -1,4 +1,4 @@
-use cosmwasm_std::{coin, Coin};
+use cosmwasm_std::{coin, Coin, Decimal};
 
 use osmosis_test_tube::{
     osmosis_std::types::{
@@ -50,7 +50,11 @@ impl LPerTestSuite {
         let instantiate_msg = InstantiateMsg {
             owner: inner.owner_acc().address(),
             processor: inner.processor_acc().address(),
-            config: ServiceConfig::new(input_acc.as_str(), output_acc.as_str()),
+            config: ServiceConfig::new(
+                input_acc.as_str(),
+                output_acc.as_str(),
+                inner.pool_cfg.pool_id,
+            ),
         };
 
         let lw_addr = wasm
@@ -102,6 +106,7 @@ impl LPerTestSuite {
     pub fn liquidate_position(
         &self,
         position_id: u64,
+        liquidity_amount: Decimal,
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
@@ -109,6 +114,7 @@ impl LPerTestSuite {
             &self.lw_addr,
             &ExecuteMsg::ProcessAction(ActionMsgs::WithdrawLiquidity {
                 position_id: position_id.into(),
+                liquidity_amount,
             }),
             &[],
             self.inner.processor_acc(),
