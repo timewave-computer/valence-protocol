@@ -2,10 +2,15 @@ use std::collections::BTreeMap;
 
 use anyhow::Context;
 use cosmwasm_std::{to_json_binary, CosmosMsg, WasmMsg};
-use cw_ownable::Expiration;
+use cw_ownable::{Expiration, Ownership};
 use serde::{Deserialize, Serialize};
-use valence_authorization_utils::authorization::{AuthorizationInfo, Priority};
-use valence_service_utils::Id;
+use valence_authorization_utils::{
+    authorization::{AuthorizationInfo, AuthorizationModeInfo, Priority},
+    authorization_message::{Message, MessageDetails, MessageType},
+    builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
+    msg::ProcessorMessage,
+};
+use valence_service_utils::{Id, ServiceAccountType};
 
 use crate::{
     connectors::Connectors,
@@ -68,14 +73,91 @@ impl WorkflowConfigUpdate {
         let mut instructions: Vec<CosmosMsg> = vec![];
         let mut new_authorizations: Vec<AuthorizationInfo> = vec![];
 
-        for (id, _service_update) in self.services.iter() {
+        if let Some(new_owner) = self.owner.clone() {
+            config.owner = new_owner.clone();
+
+            // Create instruction to change owner
+            instructions.push(
+                WasmMsg::Execute {
+                    contract_addr: config.authorization_data.authorization_addr.clone(),
+                    msg: to_json_binary(&cw_ownable::Action::TransferOwnership {
+                        new_owner,
+                        expiry: None,
+                    })
+                    .context("Failed binary parsing TransferOwnership")?,
+                    funds: vec![],
+                }
+                .into(),
+            );
+        }
+
+        for (id, service_update) in self.services.iter() {
             // Verify that the service id exists in the config and get it
-            let _service = config
+            let service = config
                 .services
                 .get(id)
                 .context(ManagerError::ServiceIdIsMissing(*id).to_string())?;
 
-            // TODO: Generate service config update instructions
+            // Add authorization to update the service
+            let label = format!("update_service_{}_{}", service.name, id);
+            let actions_config = AtomicActionsConfigBuilder::new()
+                .with_action(
+                    AtomicActionBuilder::new()
+                        .with_domain(valence_authorization_utils::domain::Domain::External(
+                            service.domain.to_string(),
+                        ))
+                        .with_contract_address(ServiceAccountType::Addr(
+                            service.addr.clone().unwrap(),
+                        ))
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "update_config".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .build();
+            let authorization_builder = AuthorizationBuilder::new()
+                .with_label(&label)
+                .with_mode(AuthorizationModeInfo::Permissioned(
+                    valence_authorization_utils::authorization::PermissionTypeInfo::WithoutCallLimit(vec![config.owner.clone()]),
+                ))
+                .with_priority(Priority::High)
+                .with_actions_config(actions_config);
+
+            new_authorizations.push(authorization_builder.build());
+
+            // execute insert message on the authorization
+            let update_config_msg = to_json_binary(
+                &service_update
+                    .clone()
+                    .get_update_msg()
+                    .context("Failed binary parsing get_update_msg")?,
+            )
+            .context("Failed binary parsing service_update")?;
+
+            instructions.push(
+                WasmMsg::Execute {
+                    contract_addr: config.authorization_data.authorization_addr.clone(),
+                    msg: to_json_binary(
+                        &valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
+                            valence_authorization_utils::msg::PermissionedMsg::InsertMsgs {
+                                label,
+                                queue_position: 0,
+                                priority: Priority::High,
+                                messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
+                                    msg: update_config_msg,
+                                }],
+                            },
+                        ),
+                    )
+                    .context("Failed binary parsing InsertMsgs")?,
+                    funds: vec![],
+                }
+                .into(),
+            );
         }
 
         // Generate authorization update instructions

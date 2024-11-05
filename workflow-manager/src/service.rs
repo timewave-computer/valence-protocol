@@ -2,6 +2,7 @@ use std::num::ParseIntError;
 
 use aho_corasick::AhoCorasick;
 
+use cosmwasm_std::{to_json_binary, Binary, Empty, StdError};
 use serde::{Deserialize, Serialize};
 use serde_json::to_vec;
 use strum::VariantNames;
@@ -25,6 +26,9 @@ pub enum ServiceError {
     #[error("serde_json Error: {0}")]
     SerdeJsonError(#[from] serde_json::Error),
 
+    #[error("cosmwasm_std Error: {0}")]
+    CosmwasmStdError(#[from] StdError),
+
     #[error("ParseIntError Error: {0}")]
     ParseIntError(#[from] ParseIntError),
 
@@ -36,6 +40,9 @@ pub enum ServiceError {
 
     #[error("No service config")]
     NoServiceConfig,
+
+    #[error("No service config update")]
+    NoServiceConfigUpdate,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -92,6 +99,56 @@ pub enum ServiceConfigUpdate {
 
 // TODO: create macro for the methods that work the same over all of the configs
 // We are delegating a lot of the methods to the specific config, so most of the methods can be under the macro
+
+impl ServiceConfigUpdate {
+    pub fn get_update_msg(self) -> ServiceResult<Binary> {
+        match self {
+            ServiceConfigUpdate::None => return Err(ServiceError::NoServiceConfigUpdate),
+            ServiceConfigUpdate::ValenceForwarderService(service_config_update) => {
+                to_json_binary(&valence_service_utils::msg::ExecuteMsg::<
+                    Empty,
+                    valence_forwarder_service::msg::ServiceConfigUpdate,
+                >::UpdateConfig {
+                    new_config: service_config_update,
+                })
+            }
+            ServiceConfigUpdate::ValenceSplitterService(service_config_update) => {
+                to_json_binary(&valence_service_utils::msg::ExecuteMsg::<
+                    Empty,
+                    valence_splitter_service::msg::ServiceConfigUpdate,
+                >::UpdateConfig {
+                    new_config: service_config_update,
+                })
+            }
+            ServiceConfigUpdate::ValenceReverseSplitterService(service_config_update) => {
+                to_json_binary(&valence_service_utils::msg::ExecuteMsg::<
+                    Empty,
+                    valence_reverse_splitter_service::msg::ServiceConfigUpdate,
+                >::UpdateConfig {
+                    new_config: service_config_update,
+                })
+            }
+            ServiceConfigUpdate::ValenceAstroportLper(service_config_update) => {
+                to_json_binary(&valence_service_utils::msg::ExecuteMsg::<
+                    Empty,
+                    valence_astroport_lper::msg::ServiceConfigUpdate,
+                >::UpdateConfig {
+                    new_config: service_config_update,
+                })
+            }
+            ServiceConfigUpdate::ValenceAstroportWithdrawer(service_config_update) => {
+                to_json_binary(&valence_service_utils::msg::ExecuteMsg::<
+                    Empty,
+                    valence_astroport_withdrawer::msg::ServiceConfigUpdate,
+                >::UpdateConfig {
+                    new_config: service_config_update,
+                })
+            }
+        }
+        .map_err(ServiceError::CosmwasmStdError)
+    }
+}
+
 impl ServiceConfig {
     pub fn replace_config(
         &mut self,
