@@ -824,10 +824,12 @@ impl Connector for CosmosCosmwasmConnector {
         let workflow_binary =
             to_json_binary(&config).map_err(CosmosCosmwasmError::CosmwasmStdError)?;
 
-        let msg = to_vec(&valence_workflow_registry_utils::ExecuteMsg::UpdateWorkflow {
-            id: config.id,
-            workflow_config: workflow_binary,
-        })
+        let msg = to_vec(
+            &valence_workflow_registry_utils::ExecuteMsg::UpdateWorkflow {
+                id: config.id,
+                workflow_config: workflow_binary,
+            },
+        )
         .map_err(CosmosCosmwasmError::SerdeJsonError)?;
 
         let m = MsgExecuteContract {

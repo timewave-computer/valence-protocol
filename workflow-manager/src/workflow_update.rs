@@ -104,9 +104,7 @@ impl WorkflowConfigUpdate {
             let service_domain = if service.domain == neutron_domain {
                 valence_authorization_utils::domain::Domain::Main
             } else {
-                valence_authorization_utils::domain::Domain::External(
-                    service.domain.to_string(),
-                )
+                valence_authorization_utils::domain::Domain::External(service.domain.to_string())
             };
             let actions_config = AtomicActionsConfigBuilder::new()
                 .with_action(
@@ -136,11 +134,10 @@ impl WorkflowConfigUpdate {
             new_authorizations.push(authorization_builder.build());
 
             // execute insert message on the authorization
-            let update_config_msg = 
-                service_update
-                    .clone()
-                    .get_update_msg()
-                    .context("Failed binary parsing get_update_msg")?;
+            let update_config_msg = service_update
+                .clone()
+                .get_update_msg()
+                .context("Failed binary parsing get_update_msg")?;
 
             instructions.push_back(
                 WasmMsg::Execute {

@@ -142,16 +142,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     // change authorizations
-    let mut authorizations_changes: Vec<AuthorizationInfoUpdate> = vec![];
-
-    // modify existing authorizations
-    authorizations_changes.push(AuthorizationInfoUpdate::Modify {
+    let mut authorizations_changes = vec![AuthorizationInfoUpdate::Modify {
         label: action_label.to_string(),
         not_before: None,
         expiration: None,
         max_concurrent_executions: Some(10),
         priority: None,
-    });
+    }];
 
     // add new authorization
     authorizations_changes.push(AuthorizationInfoUpdate::Add(
@@ -205,7 +202,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .get_request_builder(NEUTRON_CHAIN_NAME),
             contract_addr,
             DEFAULT_KEY,
-            &msg,
+            msg,
             GAS_FLAGS,
         )
         .unwrap();
@@ -260,7 +257,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .clone(),
     )
     .unwrap();
-    
+
     let split_denom = query_splitter_config_response["splits"][0]["denom"]
         .as_object()
         .unwrap()
