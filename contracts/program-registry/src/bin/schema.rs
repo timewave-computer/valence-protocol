@@ -1,6 +1,6 @@
 use cosmwasm_schema::write_api;
 
-use valence_workflow_registry_utils::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use valence_program_registry_utils::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 fn main() {
     write_api! {

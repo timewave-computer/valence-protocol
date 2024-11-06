@@ -1,6 +1,6 @@
 # Valence Neutron IBC Transfer service
 
-The **Valence Neutron IBC Transfer** service allows to transfer funds over IBC from an **input account** on Neutron to an **output account** on a destination chain. It is typically used as part of a **Valence Workflow**. In that context, a **Processor** contract will be the main contract interacting with the Forwarder service.
+The **Valence Neutron IBC Transfer** service allows to transfer funds over IBC from an **input account** on Neutron to an **output account** on a destination chain. It is typically used as part of a **Valence Program**. In that context, a **Processor** contract will be the main contract interacting with the Forwarder service.
 
 Note: this service should not be used on another CosmWasm chain than Neutron, which requires some fees to be paid to relayers for IBC transfers. For other CosmWasm chains, prefer using the **Generic IBC Transfer service** instead.
 
