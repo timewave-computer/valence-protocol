@@ -2,9 +2,7 @@ use cosmwasm_std::{coin, Coin, Int64};
 
 use osmosis_std::{
     cosmwasm_to_proto_coins,
-    types::osmosis::concentratedliquidity::v1beta1::{
-        MsgCreatePosition, MsgTransferPositions, MsgTransferPositionsResponse,
-    },
+    types::osmosis::concentratedliquidity::v1beta1::{MsgCreatePosition, MsgTransferPositions},
 };
 use osmosis_test_tube::{
     osmosis_std::types::{
@@ -14,7 +12,7 @@ use osmosis_test_tube::{
             poolmanager::v1beta1::PoolRequest,
         },
     },
-    Account, ExecuteResponse, Module, PoolManager, SigningAccount, Wasm,
+    Account, ConcentratedLiquidity, ExecuteResponse, Module, PoolManager, Runner, Wasm,
 };
 use valence_osmosis_utils::{
     suite::{OsmosisTestAppBuilder, OsmosisTestAppSetup, OSMO_DENOM, TEST_DENOM},
@@ -24,7 +22,9 @@ use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 
 use crate::msg::{ActionMsgs, ServiceConfig, ServiceConfigUpdate};
 
-use super::ConcentratedLiquidityExt;
+use super::ConcentratedLiquidityExts;
+
+// use super::ConcentratedLiquidityExt;
 
 pub struct LPerTestSuite {
     pub inner: OsmosisTestAppSetup<ConcentratedLiquidityPool>,
@@ -65,8 +65,6 @@ impl LPerTestSuite {
             ),
         };
 
-        let cl = ConcentratedLiquidityExt::new(&inner.app);
-
         let lw_addr = wasm
             .instantiate(
                 lw_code_id,
@@ -82,6 +80,7 @@ impl LPerTestSuite {
 
         // Approve the service for the input account
         inner.approve_service(input_acc.clone(), lw_addr.clone());
+        let cl = ConcentratedLiquidity::new(&inner.app);
 
         // create a CL position and transfer it to the input acc
         cl.create_position(
@@ -97,15 +96,17 @@ impl LPerTestSuite {
             &inner.accounts[0],
         )
         .unwrap();
-        cl.transfer_positions(
-            MsgTransferPositions {
-                position_ids: vec![2],
-                sender: inner.accounts[0].address(),
-                new_owner: input_acc.to_string(),
-            },
-            &inner.accounts[0],
-        )
-        .unwrap();
+
+        ConcentratedLiquidityExts::new(&inner.app)
+            .transfer_positions(
+                MsgTransferPositions {
+                    position_ids: vec![2],
+                    sender: inner.accounts[0].address(),
+                    new_owner: input_acc.to_string(),
+                },
+                &inner.accounts[0],
+            )
+            .unwrap();
 
         LPerTestSuite {
             inner,
@@ -116,7 +117,7 @@ impl LPerTestSuite {
     }
 
     pub fn query_cl_positions(&self, addr: String) -> UserPositionsResponse {
-        let cl = ConcentratedLiquidityExt::new(&self.inner.app);
+        let cl = ConcentratedLiquidity::new(&self.inner.app);
         let request = UserPositionsRequest {
             address: addr,
             pool_id: self.inner.pool_cfg.pool_id.u64(),
@@ -132,26 +133,6 @@ impl LPerTestSuite {
         let cl_pool: Pool = pool_response.pool.unwrap().try_into().unwrap();
 
         cl_pool
-    }
-
-    pub fn transfer_cl_position(
-        &self,
-        id: u64,
-        from: String,
-        to: String,
-        signer: &SigningAccount,
-    ) -> ExecuteResponse<MsgTransferPositionsResponse> {
-        let cl_ext = ConcentratedLiquidityExt::new(&self.inner.app);
-        cl_ext
-            .transfer_positions(
-                MsgTransferPositions {
-                    position_ids: vec![id],
-                    sender: from,
-                    new_owner: to,
-                },
-                signer,
-            )
-            .unwrap()
     }
 
     pub fn liquidate_position(
@@ -173,21 +154,3 @@ impl LPerTestSuite {
         .unwrap()
     }
 }
-
-// pub struct ConcentratedLiquidityExt<'a, R: Runner<'a>> {
-//     runner: &'a R,
-// }
-
-// impl<'a, R: Runner<'a>> Module<'a, R> for ConcentratedLiquidityExt<'a, R> {
-//     fn new(runner: &'a R) -> Self {
-//         Self { runner }
-//     }
-// }
-
-// impl<'a, R> ConcentratedLiquidityExt<'a, R>
-// where
-//     R: Runner<'a>,
-// {
-//     // transfer CL position
-//     fn_execute! { pub transfer_positions: MsgTransferPositions => MsgTransferPositionsResponse }
-// }

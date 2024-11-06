@@ -10,36 +10,42 @@ fn test_liquidate_position_basic() {
         coin(1_000_000u128, TEST_DENOM),
     ]);
 
-    println!(
-        "pre liquidation input acc balances: {:?}",
-        suite.inner.query_all_balances(suite.input_acc.as_str())
-    );
-    println!(
-        "pre liquidation output acc balances: {:?}",
-        suite.inner.query_all_balances(suite.output_acc.as_str())
-    );
-
-    let pre_liq_position = suite
+    let pre_liq_input_acc_bals = suite
+        .inner
+        .query_all_balances(suite.input_acc.as_str())
+        .unwrap();
+    let pre_liq_output_acc_bals = suite
+        .inner
+        .query_all_balances(suite.output_acc.as_str())
+        .unwrap();
+    let pre_liq_input_acc_position = suite
         .query_cl_positions(suite.input_acc.to_string())
         .positions[0]
         .position
         .clone()
         .unwrap();
 
-    println!("pre_liq_position: {:?}", pre_liq_position);
+    assert_eq!(pre_liq_input_acc_bals, vec![]);
+    assert_eq!(pre_liq_output_acc_bals, vec![]);
+    assert_eq!(pre_liq_input_acc_position.pool_id, 1);
+    assert_eq!(pre_liq_input_acc_position.position_id, 2);
 
-    let resp = suite.liquidate_position(2, pre_liq_position.liquidity);
-    println!("liquidation response: {:?}", resp.data);
+    // liquidate the position
+    suite.liquidate_position(2, pre_liq_input_acc_position.liquidity);
 
-    let post_liq_positions = suite.query_cl_positions(suite.input_acc.to_string());
-    println!("post liquidation positions: {:?}", post_liq_positions);
+    let post_liq_input_acc_bals = suite
+        .inner
+        .query_all_balances(suite.input_acc.as_str())
+        .unwrap();
+    let post_liq_output_acc_bals = suite
+        .inner
+        .query_all_balances(suite.output_acc.as_str())
+        .unwrap();
+    let post_liq_input_acc_positions = suite.query_cl_positions(suite.input_acc.to_string());
 
-    println!(
-        "post liquidation input acc balances: {:?}",
-        suite.inner.query_all_balances(suite.input_acc.as_str())
-    );
-    println!(
-        "post liquidation output acc balances: {:?}",
-        suite.inner.query_all_balances(suite.output_acc.as_str())
-    );
+    // assert that there are no more positions and that the output account received the
+    // underlying funds
+    assert_eq!(post_liq_input_acc_bals, vec![]);
+    assert_eq!(post_liq_output_acc_bals.len(), 2);
+    assert!(post_liq_input_acc_positions.positions.is_empty());
 }
