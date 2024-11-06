@@ -1,5 +1,11 @@
-use cosmwasm_std::{coin, Coin, Decimal};
+use cosmwasm_std::{coin, Coin, Int64};
 
+use osmosis_std::{
+    cosmwasm_to_proto_coins,
+    types::osmosis::concentratedliquidity::v1beta1::{
+        MsgCreatePosition, MsgTransferPositions, MsgTransferPositionsResponse,
+    },
+};
 use osmosis_test_tube::{
     osmosis_std::types::{
         cosmwasm::wasm::v1::MsgExecuteContractResponse,
@@ -8,7 +14,7 @@ use osmosis_test_tube::{
             poolmanager::v1beta1::PoolRequest,
         },
     },
-    Account, ConcentratedLiquidity, ExecuteResponse, Module, PoolManager, Wasm,
+    Account, ExecuteResponse, Module, PoolManager, SigningAccount, Wasm,
 };
 use valence_osmosis_utils::{
     suite::{OsmosisTestAppBuilder, OsmosisTestAppSetup, OSMO_DENOM, TEST_DENOM},
@@ -17,6 +23,8 @@ use valence_osmosis_utils::{
 use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 
 use crate::msg::{ActionMsgs, ServiceConfig, ServiceConfigUpdate};
+
+use super::ConcentratedLiquidityExt;
 
 pub struct LPerTestSuite {
     pub inner: OsmosisTestAppSetup<ConcentratedLiquidityPool>,
@@ -45,7 +53,7 @@ impl LPerTestSuite {
         let account_code_id = inner.store_account_contract();
         let input_acc = inner.instantiate_input_account(account_code_id);
         let output_acc = inner.instantiate_input_account(account_code_id);
-        let code_id = inner.store_withdrawer_contract();
+        let lw_code_id = inner.store_withdrawer_contract();
 
         let instantiate_msg = InstantiateMsg {
             owner: inner.owner_acc().address(),
@@ -57,9 +65,11 @@ impl LPerTestSuite {
             ),
         };
 
+        let cl = ConcentratedLiquidityExt::new(&inner.app);
+
         let lw_addr = wasm
             .instantiate(
-                code_id,
+                lw_code_id,
                 &instantiate_msg,
                 None,
                 Some("lwer"),
@@ -73,8 +83,29 @@ impl LPerTestSuite {
         // Approve the service for the input account
         inner.approve_service(input_acc.clone(), lw_addr.clone());
 
-        // give some tokens to the input account so that it can provide liquidity
-        inner.fund_input_acc(input_acc.to_string(), with_input_bals);
+        // create a CL position and transfer it to the input acc
+        cl.create_position(
+            MsgCreatePosition {
+                pool_id: inner.pool_cfg.pool_id.u64(),
+                sender: inner.accounts[0].address(),
+                lower_tick: Int64::from(-1000).i64(),
+                upper_tick: Int64::from(1000).i64(),
+                tokens_provided: cosmwasm_to_proto_coins(with_input_bals),
+                token_min_amount0: "0".to_string(),
+                token_min_amount1: "0".to_string(),
+            },
+            &inner.accounts[0],
+        )
+        .unwrap();
+        cl.transfer_positions(
+            MsgTransferPositions {
+                position_ids: vec![2],
+                sender: inner.accounts[0].address(),
+                new_owner: input_acc.to_string(),
+            },
+            &inner.accounts[0],
+        )
+        .unwrap();
 
         LPerTestSuite {
             inner,
@@ -85,7 +116,7 @@ impl LPerTestSuite {
     }
 
     pub fn query_cl_positions(&self, addr: String) -> UserPositionsResponse {
-        let cl = ConcentratedLiquidity::new(&self.inner.app);
+        let cl = ConcentratedLiquidityExt::new(&self.inner.app);
         let request = UserPositionsRequest {
             address: addr,
             pool_id: self.inner.pool_cfg.pool_id.u64(),
@@ -103,10 +134,30 @@ impl LPerTestSuite {
         cl_pool
     }
 
+    pub fn transfer_cl_position(
+        &self,
+        id: u64,
+        from: String,
+        to: String,
+        signer: &SigningAccount,
+    ) -> ExecuteResponse<MsgTransferPositionsResponse> {
+        let cl_ext = ConcentratedLiquidityExt::new(&self.inner.app);
+        cl_ext
+            .transfer_positions(
+                MsgTransferPositions {
+                    position_ids: vec![id],
+                    sender: from,
+                    new_owner: to,
+                },
+                signer,
+            )
+            .unwrap()
+    }
+
     pub fn liquidate_position(
         &self,
         position_id: u64,
-        liquidity_amount: Decimal,
+        liquidity_amount: String,
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
@@ -122,3 +173,21 @@ impl LPerTestSuite {
         .unwrap()
     }
 }
+
+// pub struct ConcentratedLiquidityExt<'a, R: Runner<'a>> {
+//     runner: &'a R,
+// }
+
+// impl<'a, R: Runner<'a>> Module<'a, R> for ConcentratedLiquidityExt<'a, R> {
+//     fn new(runner: &'a R) -> Self {
+//         Self { runner }
+//     }
+// }
+
+// impl<'a, R> ConcentratedLiquidityExt<'a, R>
+// where
+//     R: Runner<'a>,
+// {
+//     // transfer CL position
+//     fn_execute! { pub transfer_positions: MsgTransferPositions => MsgTransferPositionsResponse }
+// }

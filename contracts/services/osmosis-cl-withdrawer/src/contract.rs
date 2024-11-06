@@ -4,8 +4,8 @@ use crate::msg::{ActionMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdat
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, to_json_string, BankMsg, Binary, Coin, Decimal, Deps, DepsMut, Env,
-    MessageInfo, Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, Uint64,
+    to_json_binary, to_json_string, BankMsg, Binary, Coin, Deps, DepsMut, Env, MessageInfo, Reply,
+    Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, Uint64,
 };
 
 use osmosis_std::types::osmosis::concentratedliquidity::v1beta1::{
@@ -71,12 +71,12 @@ pub fn process_action(
 pub fn try_liquidate_cl_position(
     cfg: Config,
     position_id: Uint64,
-    liquidity_amount: Decimal,
+    liquidity_amount: String,
 ) -> Result<Response, ServiceError> {
     let liquidate_position_msg = MsgWithdrawPosition {
         position_id: position_id.u64(),
         sender: cfg.input_addr.to_string(),
-        liquidity_amount: liquidity_amount.to_string(),
+        liquidity_amount,
     };
 
     // we delegate the position liquidation msg as a submsg because we
@@ -128,13 +128,18 @@ fn handle_liquidity_withdrawal_reply(
     // load the config that was used during the initiating message
     // which triggered this reply
     let cfg: Config = parse_valence_payload(&result)?;
+
     // decode the response from the submsg result
     let valence_callback = ValenceCallback::try_from(result)?;
 
     // decode the underlying position withdrawal response
     // and query the pool to match the denoms
     let decoded_resp: MsgWithdrawPositionResponse = valence_callback.result.try_into()?;
+
     let pool = query_cl_pool(&deps, cfg.pool_id.u64())?;
+    let input_acc_bals = deps
+        .querier
+        .query_all_balances(cfg.input_addr.to_string())?;
 
     let transfer_msg = BankMsg::Send {
         to_address: cfg.output_addr.to_string(),

@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, Deps, DepsMut, Uint64};
+use cosmwasm_std::{Addr, Deps, DepsMut, Uint64};
 use cw_ownable::cw_ownable_query;
 
 use valence_macros::{valence_service_query, ValenceServiceInterface};
@@ -13,7 +13,7 @@ pub enum ActionMsgs {
     // liquidiate CL position by its id
     WithdrawLiquidity {
         position_id: Uint64,
-        liquidity_amount: Decimal,
+        liquidity_amount: String,
     },
 }
 
