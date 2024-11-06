@@ -16,7 +16,7 @@ use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
     builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
 };
-use valence_service_utils::{denoms::UncheckedDenom, GetId, Id};
+use valence_service_utils::{denoms::UncheckedDenom, GetId, Id, ServiceAccountType};
 use valence_splitter_service::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
 use valence_workflow_manager::{
     account::{AccountInfo, AccountType},
@@ -114,15 +114,31 @@ fn main() -> Result<(), Box<dyn Error>> {
         .processor_addrs
         .get(&neutron_domain.to_string())
         .unwrap();
-    let authorization_addr = workflow_config.authorization_data.authorization_addr;
+    let authorization_addr = workflow_config
+        .authorization_data
+        .authorization_addr
+        .clone();
 
     // modify the service config to change the denom of the split
     service_config.splits[0].denom = UncheckedDenom::Native("test2".to_string());
+    service_config.splits[0].account = ServiceAccountType::Addr(
+        workflow_config
+            .get_account(account_2.get_id())
+            .unwrap()
+            .clone()
+            .addr
+            .unwrap(),
+    );
 
     let mut services_changes: BTreeMap<Id, ServiceConfigUpdate> = BTreeMap::new();
     services_changes.insert(
         service_1.get_id(),
-        ServiceConfigUpdate::ValenceSplitterService(service_config.into_update()),
+        ServiceConfigUpdate::ValenceSplitterService(
+            valence_splitter_service::msg::ServiceConfigUpdate {
+                input_addr: None,
+                splits: Some(service_config.splits),
+            },
+        ),
     );
 
     // change authorizations
@@ -193,10 +209,11 @@ fn main() -> Result<(), Box<dyn Error>> {
             GAS_FLAGS,
         )
         .unwrap();
+
+        std::thread::sleep(std::time::Duration::from_secs(3));
     }
 
     // tick processor
-    
     let tick_denom = build_tokenfactory_denom(
         &authorization_addr,
         format!(
@@ -209,7 +226,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Ticking processor with denom: {}", tick_denom);
     println!("auth addr {}", authorization_addr);
 
-    return Ok(());
+    // return Ok(());
     contract_execute(
         test_ctx
             .get_request_builder()
@@ -243,7 +260,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             .clone(),
     )
     .unwrap();
-    println!("{:?}", query_splitter_config_response);
+    
+    let split_denom = query_splitter_config_response["splits"][0]["denom"]
+        .as_object()
+        .unwrap()
+        .get("native")
+        .unwrap()
+        .as_str()
+        .unwrap();
+    assert!(split_denom == "test2");
 
     // asserts authorizations changed and added
     let query_authorizations_response: Value = serde_json::from_value(

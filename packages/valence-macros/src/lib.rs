@@ -128,7 +128,6 @@ pub fn valence_service_interface_derive(input: TokenStream) -> TokenStream {
                 }
             }
 
-            // New: Added into_update implementation
             pub fn into_update(&self) -> #filter_name {
                 #filter_name {
                     #(#into_update_fields)*
