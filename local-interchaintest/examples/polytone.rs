@@ -45,12 +45,12 @@ use valence_authorization_utils::{
     },
 };
 
+use valence_library_utils::LibraryAccountType;
 use valence_processor_utils::{
     callback::{PendingPolytoneCallbackInfo, PolytoneCallbackState},
     msg::PolytoneContracts,
     processor::{Config, ProcessorDomain},
 };
-use valence_service_utils::ServiceAccountType;
 
 const TIMEOUT_SECONDS: u64 = 15;
 const MAX_ATTEMPTS: u64 = 50;
@@ -509,7 +509,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             },
         },
         // We don't care about the execution result so we will just make it fail when ticking the processor
-        contract_address: ServiceAccountType::Addr("any".to_string()),
+        contract_address: LibraryAccountType::Addr("any".to_string()),
     };
     let mut authorization = AuthorizationInfo {
         label: "label".to_string(),

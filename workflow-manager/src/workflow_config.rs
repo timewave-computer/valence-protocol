@@ -3,15 +3,15 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 use valence_authorization_utils::authorization::AuthorizationInfo;
 
-use valence_service_utils::{GetId, Id};
+use valence_library_utils::{GetId, Id};
 
 use crate::{
     account::{AccountInfo, AccountType, InstantiateAccountData},
     connectors::Connectors,
     domain::Domain,
     error::{ManagerError, ManagerResult},
+    library::LibraryInfo,
     macros::ensure,
-    service::ServiceInfo,
     NEUTRON_CHAIN,
 };
 
@@ -21,8 +21,8 @@ pub struct Link {
     pub input_accounts_id: Vec<Id>,
     /// List of output accounts by id
     pub output_accounts_id: Vec<Id>,
-    /// The service id
-    pub service_id: Id,
+    /// The library id
+    pub library_id: Id,
 }
 
 /// This struct holds all the data regarding our authorization and processor
@@ -69,14 +69,14 @@ pub struct WorkflowConfig {
     #[serde(default)]
     pub id: u64,
     pub owner: String,
-    /// A list of links between an accounts and services
+    /// A list of links between an accounts and libraries
     pub links: BTreeMap<Id, Link>,
     /// A list of authorizations
     pub authorizations: Vec<AuthorizationInfo>,
     /// The list account data by id
     pub accounts: BTreeMap<Id, AccountInfo>,
-    /// The list service data by id
-    pub services: BTreeMap<Id, ServiceInfo>,
+    /// The list library data by id
+    pub libraries: BTreeMap<Id, LibraryInfo>,
     /// This is the info regarding authorization and processor contracts.
     /// Must be empty (Default) when a new workflow is instantiated.
     /// It gets populated when the workflow is instantiated.
@@ -226,7 +226,7 @@ impl WorkflowConfig {
             if let AccountType::Addr { .. } = account.ty {
                 // TODO: Probably should error? we are trying to instantiate a new workflow with existing account
                 // this is problematic because we don't know who the admin of the account is
-                // and how we can update its approved services list.
+                // and how we can update its approved libraries list.
                 // We can also assume the initier knows what he is doing, and will adjust those accounts manually.
                 // We can also output what the needed operations to adjust it,
                 // similar to what we will do on workflow update
@@ -252,19 +252,19 @@ impl WorkflowConfig {
             account.addr = Some(addr);
         }
 
-        // We first predict the service addresses
-        // Then we update the service configs with the account predicted addresses
-        // for all input accounts we add the service address to the approved services list
-        // and then instantiate the services
+        // We first predict the library addresses
+        // Then we update the library configs with the account predicted addresses
+        // for all input accounts we add the library address to the approved libraries list
+        // and then instantiate the libraries
         for (_, link) in self.links.clone().iter() {
-            let mut service = self.get_service(link.service_id)?;
+            let mut library = self.get_library(link.library_id)?;
 
-            let mut domain_connector = connectors.get_or_create_connector(&service.domain).await?;
-            let (service_addr, salt) = domain_connector
+            let mut domain_connector = connectors.get_or_create_connector(&library.domain).await?;
+            let (library_addr, salt) = domain_connector
                 .get_address(
                     self.id,
-                    &service.config.to_string(),
-                    format!("service_{}", link.service_id).as_str(),
+                    &library.config.to_string(),
+                    format!("library_{}", link.library_id).as_str(),
                 )
                 .await?;
 
@@ -276,52 +276,52 @@ impl WorkflowConfig {
             // At this stage we should already have all addresses for all account ids
             for account_id in link.input_accounts_id.iter() {
                 let account_data = account_instantiate_datas.get_mut(account_id).ok_or(
-                    ManagerError::FailedToRetrieveAccountInitData(*account_id, link.service_id),
+                    ManagerError::FailedToRetrieveAccountInitData(*account_id, link.library_id),
                 )?;
-                // We add the service address to the approved services list of the input account
-                account_data.add_service(service_addr.to_string());
+                // We add the library address to the approved libraries list of the input account
+                account_data.add_library(library_addr.to_string());
 
                 patterns.push(format!("|account_id|\":{account_id}"));
                 replace_with.push(format!(
-                    "service_account_addr\":\"{}\"",
+                    "library_account_addr\":\"{}\"",
                     account_data.addr.clone()
                 ))
             }
 
             for account_id in link.output_accounts_id.iter() {
                 let account_data = account_instantiate_datas.get(account_id).ok_or(
-                    ManagerError::FailedToRetrieveAccountInitData(*account_id, link.service_id),
+                    ManagerError::FailedToRetrieveAccountInitData(*account_id, link.library_id),
                 )?;
 
                 patterns.push(format!("|account_id|\":{account_id}"));
                 replace_with.push(format!(
-                    "service_account_addr\":\"{}\"",
+                    "library_account_addr\":\"{}\"",
                     account_data.addr.clone()
                 ))
             }
 
-            service.config.replace_config(patterns, replace_with)?;
-            service.addr = Some(service_addr);
+            library.config.replace_config(patterns, replace_with)?;
+            library.addr = Some(library_addr);
 
-            self.save_service(link.service_id, &service);
+            self.save_library(link.library_id, &library);
 
             // Get processor address for this domain
-            let processor_addr = self.get_processor_account_on_domain(service.domain.clone())?;
+            let processor_addr = self.get_processor_account_on_domain(library.domain.clone())?;
 
-            // init the service
+            // init the library
             domain_connector
-                .instantiate_service(
+                .instantiate_library(
                     self.id,
                     authorization_addr.clone(),
                     processor_addr,
-                    link.service_id,
-                    service.config,
+                    link.library_id,
+                    library.config,
                     salt,
                 )
                 .await?
         }
 
-        // Instantiate accounts after we added all services addresses to the approved services list for each account
+        // Instantiate accounts after we added all libraries addresses to the approved libraries list for each account
         for (account_id, account_instantiate_data) in account_instantiate_datas.iter() {
             let account = self.get_account(account_id)?;
             let mut domain_connector = connectors.get_or_create_connector(&account.domain).await?;
@@ -346,20 +346,25 @@ impl WorkflowConfig {
                 ) => {
                     atomic_actions_config.actions.iter_mut().for_each(|action| {
                         let addr = match &action.contract_address {
-                            valence_service_utils::ServiceAccountType::Addr(a) => a.to_string(),
-                            valence_service_utils::ServiceAccountType::AccountId(account_id) => {
+                            valence_library_utils::LibraryAccountType::Addr(a) => a.to_string(),
+                            valence_library_utils::LibraryAccountType::AccountId(account_id) => {
                                 account_instantiate_datas
                                     .get(account_id)
                                     .unwrap()
                                     .addr
                                     .clone()
                             }
-                            valence_service_utils::ServiceAccountType::ServiceId(service_id) => {
-                                self.services.get(service_id).unwrap().addr.clone().unwrap()
+                            valence_library_utils::LibraryAccountType::LibraryId(library_id) => {
+                                self.libraries
+                                    .get(library_id)
+                                    .unwrap()
+                                    .addr
+                                    .clone()
+                                    .unwrap()
                             }
                         };
                         action.contract_address =
-                            valence_service_utils::ServiceAccountType::Addr(addr);
+                            valence_library_utils::LibraryAccountType::Addr(addr);
                     });
                 }
                 valence_authorization_utils::authorization::ActionsConfig::NonAtomic(
@@ -370,20 +375,26 @@ impl WorkflowConfig {
                         .iter_mut()
                         .for_each(|action| {
                             let addr = match &action.contract_address {
-                                valence_service_utils::ServiceAccountType::Addr(a) => a.to_string(),
-                                valence_service_utils::ServiceAccountType::AccountId(
+                                valence_library_utils::LibraryAccountType::Addr(a) => a.to_string(),
+                                valence_library_utils::LibraryAccountType::AccountId(
                                     account_id,
                                 ) => account_instantiate_datas
                                     .get(account_id)
                                     .unwrap()
                                     .addr
                                     .clone(),
-                                valence_service_utils::ServiceAccountType::ServiceId(
-                                    service_id,
-                                ) => self.services.get(service_id).unwrap().addr.clone().unwrap(),
+                                valence_library_utils::LibraryAccountType::LibraryId(
+                                    library_id,
+                                ) => self
+                                    .libraries
+                                    .get(library_id)
+                                    .unwrap()
+                                    .addr
+                                    .clone()
+                                    .unwrap(),
                             };
                             action.contract_address =
-                                valence_service_utils::ServiceAccountType::Addr(addr);
+                                valence_library_utils::LibraryAccountType::Addr(addr);
                         });
                 }
             }
@@ -436,8 +447,8 @@ impl WorkflowConfig {
             ManagerError::NoAuthorizations
         );
 
-        // Get all services and accounts ids that exists in links
-        let mut services: BTreeSet<Id> = BTreeSet::new();
+        // Get all libraries and accounts ids that exists in links
+        let mut libraries: BTreeSet<Id> = BTreeSet::new();
         let mut accounts: BTreeSet<Id> = BTreeSet::new();
 
         for (_, link) in self.links.iter() {
@@ -449,7 +460,7 @@ impl WorkflowConfig {
                 accounts.insert(*account_id);
             }
 
-            services.insert(link.service_id);
+            libraries.insert(link.library_id);
         }
 
         // Verify all accounts are referenced in links at least once
@@ -465,42 +476,42 @@ impl WorkflowConfig {
             ManagerError::AccountIdNotFoundLink(accounts)
         );
 
-        // Verify all services are referenced in links at least once
-        for service_id in self.services.keys() {
-            if !services.remove(service_id) {
-                return Err(ManagerError::ServiceIdNotFoundInLinks(*service_id));
+        // Verify all libraries are referenced in links at least once
+        for library_id in self.libraries.keys() {
+            if !libraries.remove(library_id) {
+                return Err(ManagerError::LibraryIdNotFoundInLinks(*library_id));
             }
         }
 
-        // Verify services is empty, if its not, it means we have a link with a service id that doesn't exists
+        // Verify libraries is empty, if its not, it means we have a link with a library id that doesn't exists
         ensure!(
-            services.is_empty(),
-            ManagerError::ServiceIdNotFoundLink(services)
+            libraries.is_empty(),
+            ManagerError::LibraryIdNotFoundLink(libraries)
         );
 
-        // Verify all accounts are referenced in service config at least once (or else we have unused account)
+        // Verify all accounts are referenced in library config at least once (or else we have unused account)
         // accounts should be empty here
-        for service in self.services.values() {
-            accounts.extend(service.config.get_account_ids()?);
+        for library in self.libraries.values() {
+            accounts.extend(library.config.get_account_ids()?);
         }
 
         // We remove each account if we found
-        // if account id was not removed, it means we didn't find it in any service config
+        // if account id was not removed, it means we didn't find it in any library config
         for account_id in self.accounts.keys() {
             if !accounts.remove(account_id) {
-                return Err(ManagerError::AccountIdNotFoundInServices(*account_id));
+                return Err(ManagerError::AccountIdNotFoundInLibraries(*account_id));
             }
         }
 
         ensure!(
             accounts.is_empty(),
-            ManagerError::AccountIdNotFoundServiceConfig(accounts)
+            ManagerError::AccountIdNotFoundLibraryConfig(accounts)
         );
 
-        // Run the soft_validate method on each service config
-        for _service in self.services.values() {
+        // Run the soft_validate method on each library config
+        for _library in self.libraries.values() {
             // TODO: mock api for the connector
-            // service.config.soft_validate_config()?;
+            // library.config.soft_validate_config()?;
         }
 
         Ok(())
@@ -540,11 +551,11 @@ impl WorkflowConfig {
             connector.verify_account(account_data.addr.clone()).await?;
         }
 
-        // verify services have an address and query on-chain contract to make sure its correct
-        for (_, service) in self.services.iter() {
-            let mut connector = connectors.get_or_create_connector(&service.domain).await?;
+        // verify libraries have an address and query on-chain contract to make sure its correct
+        for (_, library) in self.libraries.iter() {
+            let mut connector = connectors.get_or_create_connector(&library.domain).await?;
 
-            connector.verify_service(service.addr.clone()).await?;
+            connector.verify_library(library.addr.clone()).await?;
         }
 
         // Veryify each processor was instantiated correctly
@@ -593,7 +604,11 @@ impl WorkflowConfig {
             .values()
             .map(|account| account.domain.clone())
             .collect::<Vec<_>>();
-        domains.extend(self.services.values().map(|service| service.domain.clone()));
+        domains.extend(
+            self.libraries
+                .values()
+                .map(|library| library.domain.clone()),
+        );
         HashSet::from_iter(domains)
     }
 
@@ -606,12 +621,12 @@ impl WorkflowConfig {
             )))
     }
 
-    pub fn get_service(&self, service_id: u64) -> ManagerResult<ServiceInfo> {
-        self.services
-            .get(&service_id)
+    pub fn get_library(&self, library_id: u64) -> ManagerResult<LibraryInfo> {
+        self.libraries
+            .get(&library_id)
             .ok_or(ManagerError::generic_err(format!(
-                "Service with id {} not found",
-                service_id
+                "Library with id {} not found",
+                library_id
             )))
             .cloned()
     }
@@ -624,7 +639,7 @@ impl WorkflowConfig {
             .cloned()
     }
 
-    fn save_service(&mut self, service_id: u64, service: &ServiceInfo) {
-        self.services.insert(service_id, service.clone());
+    fn save_library(&mut self, library_id: u64, library: &LibraryInfo) {
+        self.libraries.insert(library_id, library.clone());
     }
 }

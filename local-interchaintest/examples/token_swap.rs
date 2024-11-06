@@ -20,11 +20,11 @@ use valence_authorization_utils::{
     builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
     msg::ProcessorMessage,
 };
-use valence_service_utils::denoms::UncheckedDenom;
-use valence_splitter_service::msg::{ActionMsgs, UncheckedSplitAmount, UncheckedSplitConfig};
+use valence_library_utils::denoms::UncheckedDenom;
+use valence_splitter_library::msg::{ActionMsgs, UncheckedSplitAmount, UncheckedSplitConfig};
 use valence_workflow_manager::{
     account::{AccountInfo, AccountType},
-    service::{ServiceConfig, ServiceInfo},
+    library::{LibraryConfig, LibraryInfo},
     workflow_config_builder::WorkflowConfigBuilder,
 };
 
@@ -97,10 +97,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         AccountType::default(),
     ));
 
-    let service_1 = workflow_config_builder.add_service(ServiceInfo::new(
+    let library_1 = workflow_config_builder.add_library(LibraryInfo::new(
         "splitter_1".to_string(),
         &neutron_domain,
-        ServiceConfig::ValenceSplitterService(valence_splitter_service::msg::ServiceConfig {
+        LibraryConfig::ValenceSplitterLibrary(valence_splitter_library::msg::LibraryConfig {
             input_addr: account_1.clone(),
             splits: vec![UncheckedSplitConfig {
                 denom: UncheckedDenom::Native(token1.to_string()),
@@ -110,10 +110,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         }),
     ));
 
-    let service_2 = workflow_config_builder.add_service(ServiceInfo::new(
+    let library_2 = workflow_config_builder.add_library(LibraryInfo::new(
         "splitter_2".to_string(),
         &neutron_domain,
-        ServiceConfig::ValenceSplitterService(valence_splitter_service::msg::ServiceConfig {
+        LibraryConfig::ValenceSplitterLibrary(valence_splitter_library::msg::LibraryConfig {
             input_addr: account_2.clone(),
             splits: vec![UncheckedSplitConfig {
                 denom: UncheckedDenom::Native(token2.to_string()),
@@ -123,8 +123,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         }),
     ));
 
-    workflow_config_builder.add_link(&service_1, vec![&account_1], vec![&account_2]);
-    workflow_config_builder.add_link(&service_2, vec![&account_2], vec![&account_1]);
+    workflow_config_builder.add_link(&library_1, vec![&account_1], vec![&account_2]);
+    workflow_config_builder.add_link(&library_2, vec![&account_2], vec![&account_1]);
 
     workflow_config_builder.add_authorization(
         AuthorizationBuilder::new()
@@ -133,7 +133,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 AtomicActionsConfigBuilder::new()
                     .with_action(
                         AtomicActionBuilder::new()
-                            .with_contract_address(service_1)
+                            .with_contract_address(library_1)
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -150,7 +150,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     )
                     .with_action(
                         AtomicActionBuilder::new()
-                            .with_contract_address(service_2)
+                            .with_contract_address(library_2)
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -264,7 +264,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Send the messages to the authorization contract...");
     let binary = Binary::from(
         serde_json::to_vec(
-            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(ActionMsgs::Split {}),
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(ActionMsgs::Split {}),
         )
         .unwrap(),
     );

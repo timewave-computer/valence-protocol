@@ -1,6 +1,6 @@
 use cw_utils::Expiration;
 use serde_json::{json, Map, Value};
-use valence_service_utils::ServiceAccountType;
+use valence_library_utils::LibraryAccountType;
 
 use crate::{
     action::{ActionCallback, AtomicAction, NonAtomicAction, RetryLogic},
@@ -159,7 +159,7 @@ impl NonAtomicActionsConfigBuilder {
 pub struct AtomicActionBuilder {
     domain: Domain,
     message_details: MessageDetails,
-    contract_address: ServiceAccountType,
+    contract_address: LibraryAccountType,
 }
 
 impl Default for AtomicActionBuilder {
@@ -179,7 +179,7 @@ impl AtomicActionBuilder {
                     params_restrictions: None,
                 },
             },
-            contract_address: ServiceAccountType::Addr("address".to_string()),
+            contract_address: LibraryAccountType::Addr("address".to_string()),
         }
     }
     pub fn with_domain(mut self, domain: Domain) -> Self {
@@ -192,7 +192,7 @@ impl AtomicActionBuilder {
         self
     }
 
-    pub fn with_contract_address(mut self, contract_address: ServiceAccountType) -> Self {
+    pub fn with_contract_address(mut self, contract_address: LibraryAccountType) -> Self {
         self.contract_address = contract_address;
         self
     }

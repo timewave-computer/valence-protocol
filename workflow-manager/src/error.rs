@@ -1,9 +1,9 @@
 use std::collections::BTreeSet;
 
 use thiserror::Error;
-use valence_service_utils::Id;
+use valence_library_utils::Id;
 
-use crate::{config::ConfigError, domain::ConnectorError, service::ServiceError};
+use crate::{config::ConfigError, domain::ConnectorError, library::LibraryError};
 
 pub type ManagerResult<T> = Result<T, ManagerError>;
 
@@ -22,7 +22,7 @@ pub enum ManagerError {
     ConfigError(#[from] ConfigError),
 
     #[error(transparent)]
-    ServiceError(#[from] ServiceError),
+    LibraryError(#[from] LibraryError),
 
     #[error("Config authorization data is not empty")]
     AuthorizationDataNotDefault,
@@ -36,23 +36,23 @@ pub enum ManagerError {
     #[error("Config has no authorizations")]
     NoAuthorizations,
 
-    #[error("Account id: {0} is not linked to any service")]
+    #[error("Account id: {0} is not linked to any library")]
     AccountIdNotFoundInLinks(Id),
 
-    #[error("Account id: {0} is not found in any service config")]
-    AccountIdNotFoundInServices(Id),
+    #[error("Account id: {0} is not found in any library config")]
+    AccountIdNotFoundInLibraries(Id),
 
-    #[error("Service id: {0} is not linked to any service")]
-    ServiceIdNotFoundInLinks(Id),
+    #[error("Library id: {0} is not linked to any library")]
+    LibraryIdNotFoundInLinks(Id),
 
     #[error("Account ids: {:#?} is linked but not found in list", {0})]
     AccountIdNotFoundLink(BTreeSet<Id>),
 
     #[error("Account ids: {:#?} is found in config but not found in list", {0})]
-    AccountIdNotFoundServiceConfig(BTreeSet<Id>),
+    AccountIdNotFoundLibraryConfig(BTreeSet<Id>),
 
-    #[error("Service ids: {:#?} is linked but not found in list", {0})]
-    ServiceIdNotFoundLink(BTreeSet<Id>),
+    #[error("Library ids: {:#?} is linked but not found in list", {0})]
+    LibraryIdNotFoundLink(BTreeSet<Id>),
 
     #[error("No instantiate data for account id: {0} | link id: {1}")]
     FailedToRetrieveAccountInitData(u64, u64),

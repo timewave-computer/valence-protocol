@@ -68,7 +68,7 @@ pub enum PermissionlessMsg {
 
 #[cw_serde]
 pub enum InternalProcessorMsg {
-    ServiceCallback { execution_id: u64, msg: Binary },
+    LibraryCallback { execution_id: u64, msg: Binary },
     // Entry point for the processor to execute batches atomically, this will only be able to be called by the processor itself
     ExecuteAtomic { batch: MessageBatch },
 }

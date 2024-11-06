@@ -1,7 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Binary};
 use cw_utils::Duration;
-use valence_service_utils::ServiceAccountType;
+use valence_library_utils::LibraryAccountType;
 
 use crate::{authorization_message::MessageDetails, domain::Domain};
 
@@ -11,7 +11,7 @@ pub struct AtomicAction {
     pub domain: Domain,
     pub message_details: MessageDetails,
     // We use String instead of Addr because it can be a contract address in other execution environments
-    pub contract_address: ServiceAccountType,
+    pub contract_address: LibraryAccountType,
 }
 
 #[cw_serde]
@@ -20,7 +20,7 @@ pub struct NonAtomicAction {
     pub domain: Domain,
     pub message_details: MessageDetails,
     // We use String instead of Addr because it can be a contract address in other execution environments
-    pub contract_address: ServiceAccountType,
+    pub contract_address: LibraryAccountType,
     // A non atomic action might need to be retried, in that case we will include the retry logic.
     pub retry_logic: Option<RetryLogic>,
     // An action might need to receive a callback to be confirmed, in that case we will include the callback confirmation.

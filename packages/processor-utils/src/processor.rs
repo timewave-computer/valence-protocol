@@ -98,7 +98,7 @@ impl MessageBatch {
     }
 
     /// Very similar to create_message_by_index, but we append an execution id to the message
-    /// so that the service can know to which ID it has to reply to
+    /// so that the library can know to which ID it has to reply to
     pub fn create_message_by_index_with_execution_id(
         &self,
         index: usize,
