@@ -49,3 +49,25 @@ fn test_liquidate_position_basic() {
     assert_eq!(post_liq_output_acc_bals.len(), 2);
     assert!(post_liq_input_acc_positions.positions.is_empty());
 }
+
+#[test]
+#[should_panic(expected = "not the owner of position ID (1)")]
+fn test_liquidate_not_owned_position() {
+    // position 1 is owned by the admin, not the input acc
+    LPerTestSuite::new(vec![
+        coin(1_000_000u128, OSMO_DENOM),
+        coin(1_000_000u128, TEST_DENOM),
+    ])
+    .liquidate_position(1, "123".to_string());
+}
+
+#[test]
+#[should_panic(expected = "no such position")]
+fn test_liquidate_non_existing_position() {
+    // position 3 does not exist yet
+    LPerTestSuite::new(vec![
+        coin(1_000_000u128, OSMO_DENOM),
+        coin(1_000_000u128, TEST_DENOM),
+    ])
+    .liquidate_position(3, "123".to_string());
+}

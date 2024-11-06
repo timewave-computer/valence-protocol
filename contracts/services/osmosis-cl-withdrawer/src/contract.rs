@@ -5,11 +5,11 @@ use crate::msg::{ActionMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdat
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_json_binary, to_json_string, BankMsg, Binary, Coin, Deps, DepsMut, Env, MessageInfo, Reply,
-    Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, Uint64,
+    Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128,
 };
 
 use osmosis_std::types::osmosis::concentratedliquidity::v1beta1::{
-    MsgWithdrawPosition, MsgWithdrawPositionResponse,
+    MsgWithdrawPosition, MsgWithdrawPositionResponse, PositionByIdRequest, PositionByIdResponse,
 };
 use valence_account_utils::msg::{parse_valence_payload, ValenceCallback};
 use valence_osmosis_utils::utils::cl_utils::query_cl_pool;
@@ -54,7 +54,7 @@ pub fn update_config(
 }
 
 pub fn process_action(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
     msg: ActionMsgs,
@@ -64,17 +64,26 @@ pub fn process_action(
         ActionMsgs::WithdrawLiquidity {
             position_id,
             liquidity_amount,
-        } => try_liquidate_cl_position(cfg, position_id, liquidity_amount),
+        } => try_liquidate_cl_position(deps, cfg, position_id.into(), liquidity_amount),
     }
 }
 
 pub fn try_liquidate_cl_position(
+    deps: DepsMut,
     cfg: Config,
-    position_id: Uint64,
+    position_id: u64,
     liquidity_amount: String,
 ) -> Result<Response, ServiceError> {
+    // here we just assert that the position exists.
+    // any validations beyond this (like position ownership, etc.)
+    // will propagate on execution.
+    let _position_query_response: PositionByIdResponse = deps
+        .querier
+        .query(&PositionByIdRequest { position_id }.into())
+        .map_err(|_| StdError::generic_err("no such position"))?;
+
     let liquidate_position_msg = MsgWithdrawPosition {
-        position_id: position_id.u64(),
+        position_id,
         sender: cfg.input_addr.to_string(),
         liquidity_amount,
     };
@@ -135,23 +144,13 @@ fn handle_liquidity_withdrawal_reply(
     // decode the underlying position withdrawal response
     // and query the pool to match the denoms
     let decoded_resp: MsgWithdrawPositionResponse = valence_callback.result.try_into()?;
-
     let pool = query_cl_pool(&deps, cfg.pool_id.u64())?;
-    let input_acc_bals = deps
-        .querier
-        .query_all_balances(cfg.input_addr.to_string())?;
 
     let transfer_msg = BankMsg::Send {
         to_address: cfg.output_addr.to_string(),
         amount: vec![
-            Coin {
-                denom: pool.token0,
-                amount: Uint128::from_str(&decoded_resp.amount0)?,
-            },
-            Coin {
-                denom: pool.token1,
-                amount: Uint128::from_str(&decoded_resp.amount1)?,
-            },
+            Coin::new(Uint128::from_str(&decoded_resp.amount0)?, pool.token0),
+            Coin::new(Uint128::from_str(&decoded_resp.amount1)?, pool.token1),
         ],
     };
 
