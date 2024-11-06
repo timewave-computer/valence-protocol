@@ -1,8 +1,8 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 
 use anyhow::Context;
 use cosmwasm_std::{to_json_binary, CosmosMsg, WasmMsg};
-use cw_ownable::{Expiration, };
+use cw_ownable::Expiration;
 use serde::{Deserialize, Serialize};
 use valence_authorization_utils::{
     authorization::{AuthorizationInfo, AuthorizationModeInfo, Priority},
@@ -52,6 +52,7 @@ pub enum AuthorizationInfoUpdate {
     Enable(String),
 }
 
+#[derive(Clone, Debug)]
 pub struct UpdateResponse {
     pub instructions: Vec<CosmosMsg>,
 }
@@ -70,14 +71,14 @@ impl WorkflowConfigUpdate {
 
         let mut config = neutron_connector.get_workflow_config(self.id).await?;
 
-        let mut instructions: Vec<CosmosMsg> = vec![];
+        let mut instructions: VecDeque<CosmosMsg> = VecDeque::new();
         let mut new_authorizations: Vec<AuthorizationInfo> = vec![];
 
         if let Some(new_owner) = self.owner.clone() {
             config.owner = new_owner.clone();
 
             // Create instruction to change owner
-            instructions.push(
+            instructions.push_back(
                 WasmMsg::Execute {
                     contract_addr: config.authorization_data.authorization_addr.clone(),
                     msg: to_json_binary(&cw_ownable::Action::TransferOwnership {
@@ -100,12 +101,17 @@ impl WorkflowConfigUpdate {
 
             // Add authorization to update the service
             let label = format!("update_service_{}_{}", service.name, id);
+            let service_domain = if service.domain == neutron_domain {
+                valence_authorization_utils::domain::Domain::Main
+            } else {
+                valence_authorization_utils::domain::Domain::External(
+                    service.domain.to_string(),
+                )
+            };
             let actions_config = AtomicActionsConfigBuilder::new()
                 .with_action(
                     AtomicActionBuilder::new()
-                        .with_domain(valence_authorization_utils::domain::Domain::External(
-                            service.domain.to_string(),
-                        ))
+                        .with_domain(service_domain)
                         .with_contract_address(ServiceAccountType::Addr(
                             service.addr.clone().unwrap(),
                         ))
@@ -130,15 +136,13 @@ impl WorkflowConfigUpdate {
             new_authorizations.push(authorization_builder.build());
 
             // execute insert message on the authorization
-            let update_config_msg = to_json_binary(
-                &service_update
+            let update_config_msg = 
+                service_update
                     .clone()
                     .get_update_msg()
-                    .context("Failed binary parsing get_update_msg")?,
-            )
-            .context("Failed binary parsing service_update")?;
+                    .context("Failed binary parsing get_update_msg")?;
 
-            instructions.push(
+            instructions.push_back(
                 WasmMsg::Execute {
                     contract_addr: config.authorization_data.authorization_addr.clone(),
                     msg: to_json_binary(
@@ -185,7 +189,7 @@ impl WorkflowConfigUpdate {
                     verify_authorization_exists(&config.authorizations, label.clone())?;
 
                     // Create instruction for modifying authorization
-                    instructions.push(WasmMsg::Execute {
+                    instructions.push_back(WasmMsg::Execute {
                         contract_addr: config.authorization_data.authorization_addr.clone(),
                         msg: to_json_binary(&valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
                             valence_authorization_utils::msg::PermissionedMsg::ModifyAuthorization { label: label.clone(), not_before, expiration, max_concurrent_executions, priority: priority.clone() }
@@ -211,7 +215,7 @@ impl WorkflowConfigUpdate {
                     verify_authorization_exists(&config.authorizations, label.clone())?;
 
                     // Create instruction for disabling authorization
-                    instructions.push(WasmMsg::Execute {
+                    instructions.push_back(WasmMsg::Execute {
                         contract_addr: config.authorization_data.authorization_addr.clone(),
                         msg: to_json_binary(&valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
                             valence_authorization_utils::msg::PermissionedMsg::DisableAuthorization { label }
@@ -223,7 +227,7 @@ impl WorkflowConfigUpdate {
                     verify_authorization_exists(&config.authorizations, label.clone())?;
 
                     // Create instruction for enabling authorization
-                    instructions.push(WasmMsg::Execute {
+                    instructions.push_back(WasmMsg::Execute {
                         contract_addr: config.authorization_data.authorization_addr.clone(),
                         msg: to_json_binary(&valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
                             valence_authorization_utils::msg::PermissionedMsg::EnableAuthorization { label }
@@ -235,7 +239,7 @@ impl WorkflowConfigUpdate {
         }
 
         // Add all new authorizations
-        instructions.push(
+        instructions.push_front(
             WasmMsg::Execute {
                 contract_addr: config.authorization_data.authorization_addr.clone(),
                 msg: to_json_binary(
@@ -252,9 +256,11 @@ impl WorkflowConfigUpdate {
         );
 
         // Save the new config to the registry
-        neutron_connector.save_workflow_config(config).await?;
+        neutron_connector.update_workflow_config(config).await?;
 
-        Ok(UpdateResponse { instructions })
+        Ok(UpdateResponse {
+            instructions: instructions.into(),
+        })
     }
 }
 
@@ -262,8 +268,8 @@ fn verify_authorization_not_exists(
     authorizations: &[AuthorizationInfo],
     label: String,
 ) -> ManagerResult<()> {
-    if !authorizations.iter().any(|auth| auth.label == label) {
-        return Err(ManagerError::AuthorizationLabelNotFound(label));
+    if authorizations.iter().any(|auth| auth.label == label) {
+        return Err(ManagerError::AuthorizationLabelExists(label));
     }
 
     Ok(())
@@ -273,8 +279,8 @@ fn verify_authorization_exists(
     authorizations: &[AuthorizationInfo],
     label: String,
 ) -> ManagerResult<()> {
-    if authorizations.iter().any(|auth| auth.label == label) {
-        return Err(ManagerError::AuthorizationLabelExists(label));
+    if !authorizations.iter().any(|auth| auth.label == label) {
+        return Err(ManagerError::AuthorizationLabelNotFound(label));
     }
 
     Ok(())

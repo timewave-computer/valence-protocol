@@ -7,8 +7,9 @@ use localic_utils::{
 use valence_workflow_manager::{
     config::{ChainInfo, GLOBAL_CONFIG},
     error::ManagerResult,
-    init_workflow,
+    init_workflow, update_workflow,
     workflow_config::WorkflowConfig,
+    workflow_update::{UpdateResponse, WorkflowConfigUpdate},
 };
 
 const LOG_FILE_PATH: &str = "local-interchaintest/configs/logs.json";
@@ -288,6 +289,17 @@ pub fn use_manager_init(workflow_config: &mut WorkflowConfig) -> ManagerResult<(
         .build()
         .unwrap();
     rt.block_on(init_workflow(workflow_config))
+}
+
+/// Helper function to update manager config to hide the tokio block_on
+pub fn use_manager_update(
+    workflow_config_update: WorkflowConfigUpdate,
+) -> ManagerResult<UpdateResponse> {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    rt.block_on(update_workflow(workflow_config_update))
 }
 
 pub fn get_global_config(

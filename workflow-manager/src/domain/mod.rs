@@ -271,6 +271,11 @@ pub trait Connector: fmt::Debug + Send + Sync {
     }
 
     #[allow(unused_variables)]
+    async fn update_workflow_config(&mut self, config: WorkflowConfig) -> ConnectorResult<()> {
+        unimplemented!("'update_workflow_config' should only be implemented on neutron domain");
+    }
+
+    #[allow(unused_variables)]
     async fn get_workflow_config(&mut self, id: u64) -> ConnectorResult<WorkflowConfig> {
         unimplemented!("'get_workflow_config' should only be implemented on neutron domain");
     }

@@ -802,6 +802,48 @@ impl Connector for CosmosCosmwasmConnector {
         Ok(())
     }
 
+    async fn update_workflow_config(&mut self, config: WorkflowConfig) -> ConnectorResult<()> {
+        if self.chain_name != *NEUTRON_CHAIN {
+            return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                "Should only be implemented on neutron connector"
+            ))
+            .into());
+        }
+
+        for service in config.services.values() {
+            if service.addr.is_none() {
+                return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                    "Before saving workflow config each service must have an address"
+                ))
+                .into());
+            }
+        }
+
+        let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();
+
+        let workflow_binary =
+            to_json_binary(&config).map_err(CosmosCosmwasmError::CosmwasmStdError)?;
+
+        let msg = to_vec(&valence_workflow_registry_utils::ExecuteMsg::UpdateWorkflow {
+            id: config.id,
+            workflow_config: workflow_binary,
+        })
+        .map_err(CosmosCosmwasmError::SerdeJsonError)?;
+
+        let m = MsgExecuteContract {
+            sender: self.wallet.account_address.clone(),
+            contract: registry_addr,
+            msg,
+            funds: vec![],
+        }
+        .build_any();
+
+        // Broadcast the tx and wait for it to finalize (or error)
+        self.broadcast_tx(m, "update_workflow_config").await?;
+
+        Ok(())
+    }
+
     async fn get_workflow_config(&mut self, id: u64) -> ConnectorResult<WorkflowConfig> {
         if self.chain_name != *NEUTRON_CHAIN {
             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
