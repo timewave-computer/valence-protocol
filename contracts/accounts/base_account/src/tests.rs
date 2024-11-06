@@ -300,7 +300,10 @@ fn instantiate_with_approved_libraries() {
 
     // Verify approved libraries
     let approved_libraries: Vec<Addr> = suite.query_approved_libraries(&acc);
-    assert_eq!(approved_libraries, vec![svc1, svc2]);
+    assert_eq!(
+        approved_libraries,
+        sorted(vec![svc1, svc2]).collect::<Vec<Addr>>()
+    );
 }
 
 #[test]
