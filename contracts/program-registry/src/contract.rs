@@ -3,7 +3,7 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
 
-use crate::state::{WORKFLOWS, WORKFLOWS_BACKUP};
+use crate::state::{PROGRAMS, PROGRAMS_BACKUP};
 use crate::{error::ContractError, state::LAST_ID};
 use valence_program_registry_utils::{ExecuteMsg, InstantiateMsg, ProgramResponse, QueryMsg};
 
@@ -57,7 +57,7 @@ mod execute {
     use cw_ownable::assert_owner;
 
     use crate::{
-        state::{LAST_ID, WORKFLOWS, WORKFLOWS_BACKUP},
+        state::{LAST_ID, PROGRAMS, PROGRAMS_BACKUP},
         ContractError,
     };
 
@@ -80,10 +80,10 @@ mod execute {
     ) -> Result<Response, ContractError> {
         assert_owner(deps.storage, &info.sender)?;
 
-        if WORKFLOWS.has(deps.storage, id) {
+        if PROGRAMS.has(deps.storage, id) {
             return Err(ContractError::ProgramAlreadyExists(id));
         } else {
-            WORKFLOWS.save(deps.storage, id, &program_config)?;
+            PROGRAMS.save(deps.storage, id, &program_config)?;
         }
 
         Ok(Response::new()
@@ -99,10 +99,10 @@ mod execute {
     ) -> Result<Response, ContractError> {
         assert_owner(deps.storage, &info.sender)?;
 
-        match WORKFLOWS.may_load(deps.storage, id)? {
+        match PROGRAMS.may_load(deps.storage, id)? {
             Some(previous_program) => {
-                WORKFLOWS_BACKUP.save(deps.storage, id, &previous_program)?;
-                WORKFLOWS.save(deps.storage, id, &program_config)?;
+                PROGRAMS_BACKUP.save(deps.storage, id, &previous_program)?;
+                PROGRAMS.save(deps.storage, id, &program_config)?;
             }
             None => return Err(ContractError::ProgramDoesntExists(id)),
         };
@@ -117,7 +117,7 @@ mod execute {
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetConfig { id } => {
-            let config = WORKFLOWS.load(deps.storage, id)?;
+            let config = PROGRAMS.load(deps.storage, id)?;
             let program = ProgramResponse {
                 id,
                 program_config: config,
@@ -125,7 +125,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             to_json_binary(&program)
         }
         QueryMsg::GetConfigBackup { id } => {
-            let config = WORKFLOWS_BACKUP.may_load(deps.storage, id)?;
+            let config = PROGRAMS_BACKUP.may_load(deps.storage, id)?;
             let program = config.map(|config| ProgramResponse {
                 id,
                 program_config: config,
