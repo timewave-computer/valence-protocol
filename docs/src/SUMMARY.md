@@ -2,9 +2,9 @@
 
 - [Background](./background.md)
 - [Component Overview](./components/overview.md)
-  - [Accounts and Services](./components/accounts_and_services.md)
+  - [Accounts and Libraries](./components/accounts_and_libraries.md)
   - [Authorizations and Execution](./components/authorizations_and_execution.md)
-  - [Workflows](./components/workflows.md)
+  - [Programs](./components/programs.md)
 - [Authorizations & Processors](./authorizations_processors/overview.md)
   - [Assumptions](./authorizations_processors/assumptions.md)
   - [Processor Contract](./authorizations_processors/processor.md)

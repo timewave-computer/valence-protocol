@@ -1,6 +1,6 @@
 # Authorizations & Processors
 
-- To have a general purpose set of smart contracts that will provide the users (anyone if the authorization is permissionless or authorization token owners if it’s permissioned) with a single point of entry to interact with the Valence workflow, which can have services and accounts deployed on multiple chains.
+- To have a general purpose set of smart contracts that will provide the users (anyone if the authorization is permissionless or authorization token owners if it’s permissioned) with a single point of entry to interact with the Valence program, which can have libraries and accounts deployed on multiple chains.
 
 - To have all the user authorizations for multiple domains in a single place, making it very easy to control the application.
 

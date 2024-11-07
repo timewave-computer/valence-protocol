@@ -2,11 +2,11 @@
 
 There are different types of callbacks in our application. Each of them have a specific function and are used in different parts of the application.
 
-## Action Callbacks
+## Function Callbacks
 
-For the execution of `NonAtomic` batches, each action in the batch can optionally be confirmed with a callback from a specific address. When the processor reaches an action that requires a callback, it will inject the execution_id of the batch into the message that is going to executed on the service, which means that the service needs to be ready to receive that execution_id and know what what the expected callback is and from where it has to come from to confirm that action, otherwise that action will stay unconfirmed and the batch will not move to the next action. The callback will be sent to the processor with the execution_id so that the processor can know what action is being confirmed. The processor will then validate that the correct callback was received from the correct address.
+For the execution of `NonAtomic` batches, each function in the batch can optionally be confirmed with a callback from a specific address. When the processor reaches a function that requires a callback, it will inject the execution_id of the batch into the message that is going to executed on the library, which means that the library needs to be ready to receive that execution_id and know what what the expected callback is and from where it has to come from to confirm that function, otherwise that function will stay unconfirmed and the batch will not move to the next function. The callback will be sent to the processor with the execution_id so that the processor can know what function is being confirmed. The processor will then validate that the correct callback was received from the correct address.
 
-If the processor receives the expected callback from the correct address, the batch will move to the next action. If it receives a different callback than expected from that address, the execution of that action will be considered failed and it will be retried (if applicable). In any case, a callback must be received to determine if the action was successful or not.
+If the processor receives the expected callback from the correct address, the batch will move to the next function. If it receives a different callback than expected from that address, the execution of that function will be considered failed and it will be retried (if applicable). In any case, a callback must be received to determine if the function was successful or not.
 
 ## Processor Callbacks
 
@@ -40,8 +40,8 @@ pub enum ExecutionResult {
     Success,
     // Execution was rejected, and the reason
     Rejected(String),
-    // Partially executed, for non-atomic action batches
-    // Indicates how many actions were executed and the reason the next action was not executed
+    // Partially executed, for non-atomic function batches
+    // Indicates how many functions were executed and the reason the next function was not executed
     PartiallyExecuted(usize, String),
     // Removed by Owner - happens when, from the authorization contract, a remove item from queue is sent
     RemovedByOwner,
