@@ -59,7 +59,11 @@ valence-processor                    = { path = "contracts/processor", features 
 valence-splitter-service             = { path = "contracts/services/splitter", features = ["library"] }
 valence-test-dynamic-ratio           = { path = "contracts/testing/test-dynamic-ratio", features = ["library"] }
 valence-test-service                 = { path = "contracts/testing/test-service", features = ["library"] }
+<<<<<<< HEAD
 valence-program-registry             = { path = "contracts/program-registry", features = ["library"] }
+=======
+valence-workflow-registry            = { path = "contracts/workflow-registry", features = ["library"] }
+>>>>>>> main
 valence-astroport-lper               = { path = "contracts/services/astroport-lper", features = ["library"] }
 valence-forwarder-service            = { path = "contracts/services/forwarder", features = ["library"] }
 valence-astroport-withdrawer         = { path = "contracts/services/astroport-withdrawer", features = ["library"] }
@@ -90,7 +94,7 @@ cw20                 = { version = "2.0.0" }
 cw20-base            = { version = "2.0.0" }
 hex                  = "0.4.3"
 localic-utils        = { git = "https://github.com/timewave-computer/localic-utils", branch = "main" }
-margined-neutron-std = "4.2.0"
-neutron-test-tube    = "4.2.0"
+margined-neutron-std = "5.0.0"
+neutron-test-tube    = "5.0.0"
 tokio                = "1.40.0"
 osmosis-test-tube    = "26.0.1"
