@@ -1,8 +1,8 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{ensure, Coin, CosmosMsg, Decimal, StdResult};
+use cosmwasm_std::{ensure, Coin, CosmosMsg, Decimal, StdResult, Uint128};
 use osmosis_std::{
     cosmwasm_to_proto_coins,
-    types::osmosis::gamm::v1beta1::{MsgJoinPool, MsgJoinSwapExternAmountIn},
+    types::osmosis::gamm::v1beta1::{MsgExitPool, MsgJoinPool, MsgJoinSwapExternAmountIn},
 };
 use valence_service_utils::error::ServiceError;
 
@@ -52,6 +52,23 @@ pub fn get_provide_liquidity_msg(
     .into();
 
     Ok(msg_join_pool_no_swap)
+}
+
+pub fn get_withdraw_liquidity_msg(
+    input_addr: &str,
+    pool_id: u64,
+    share_in_amount: Uint128,
+    token_out_mins: Vec<osmosis_std::types::cosmos::base::v1beta1::Coin>,
+) -> StdResult<CosmosMsg> {
+    let exit_pool_request: CosmosMsg = MsgExitPool {
+        sender: input_addr.to_string(),
+        pool_id,
+        share_in_amount: share_in_amount.to_string(),
+        token_out_mins,
+    }
+    .into();
+
+    Ok(exit_pool_request)
 }
 
 pub fn get_provide_ss_liquidity_msg(
@@ -324,6 +341,64 @@ pub mod cl_utils {
             let multiplied_range = range.amplify_range_bidirectionally(Uint64::new(2)).unwrap();
             assert_eq!(multiplied_range.lower_tick, Int64::new(-100));
             assert_eq!(multiplied_range.upper_tick, Int64::new(400));
+        }
+    }
+}
+
+pub mod gamm_utils {
+    use std::str::FromStr;
+
+    use cosmwasm_std::{Decimal, Empty, StdError, StdResult};
+    use osmosis_std::types::osmosis::{
+        gamm::v1beta1::Pool, poolmanager::v1beta1::PoolmanagerQuerier,
+    };
+
+    pub trait ValenceLiquidPooler {
+        fn query_spot_price(
+            &self,
+            pool_id: u64,
+            pool_asset_1: String,
+            pool_asset_2: String,
+        ) -> StdResult<Decimal>;
+        fn query_pool_config(&self, pool_id: u64) -> StdResult<Pool>;
+        fn query_pool_liquidity_token(&self, pool_id: u64) -> StdResult<String>;
+    }
+
+    impl ValenceLiquidPooler for PoolmanagerQuerier<'_, Empty> {
+        fn query_spot_price(
+            &self,
+            pool_id: u64,
+            pool_asset_1: String,
+            pool_asset_2: String,
+        ) -> StdResult<Decimal> {
+            let spot_price_response =
+                self.spot_price(pool_id, pool_asset_1.to_string(), pool_asset_2.to_string())?;
+
+            let pool_ratio = Decimal::from_str(&spot_price_response.spot_price)?;
+
+            Ok(pool_ratio)
+        }
+
+        fn query_pool_config(&self, pool_id: u64) -> StdResult<Pool> {
+            let pool_response = self.pool(pool_id)?;
+            let pool: Pool = pool_response
+                .pool
+                .ok_or_else(|| StdError::generic_err("failed to get pool"))?
+                .try_into()
+                .map_err(|_| StdError::generic_err("failed to decode proto"))?;
+
+            Ok(pool)
+        }
+
+        fn query_pool_liquidity_token(&self, pool_id: u64) -> StdResult<String> {
+            let pool = self.query_pool_config(pool_id)?;
+
+            match pool.total_shares {
+                Some(c) => Ok(c.denom),
+                None => Err(StdError::generic_err(
+                    "failed to get LP token of given pool",
+                )),
+            }
         }
     }
 }

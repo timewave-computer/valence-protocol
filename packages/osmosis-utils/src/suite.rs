@@ -23,7 +23,8 @@ pub trait OsmosisTestPoolConfig: Sized {
     fn pool_asset_1(&self) -> String;
     fn pool_asset_2(&self) -> String;
     fn setup_pool(app: &OsmosisTestApp, creator: &SigningAccount) -> StdResult<Self>;
-    fn get_contract_name() -> String;
+    fn get_provider_contract_name() -> String;
+    fn get_withdrawer_contract_name() -> String;
 }
 
 impl<T: OsmosisTestPoolConfig> OsmosisTestAppSetup<T> {
@@ -112,8 +113,23 @@ impl<T: OsmosisTestPoolConfig> OsmosisTestAppSetup<T> {
         .address
     }
 
-    pub fn store_contract(&self) -> u64 {
-        let filename = T::get_contract_name();
+    pub fn store_provider_contract(&self) -> u64 {
+        let filename = T::get_provider_contract_name();
+        println!("filename: {}", filename);
+        let wasm = Wasm::new(&self.app);
+        let wasm_byte_code = std::fs::read(format!("{}/{}", CONTRACT_PATH, filename)).unwrap();
+
+        let code_id = wasm
+            .store_code(&wasm_byte_code, None, self.owner_acc())
+            .unwrap()
+            .data
+            .code_id;
+
+        code_id
+    }
+
+    pub fn store_withdrawer_contract(&self) -> u64 {
+        let filename = T::get_withdrawer_contract_name();
         let wasm = Wasm::new(&self.app);
         let wasm_byte_code = std::fs::read(format!("{}/{}", CONTRACT_PATH, filename)).unwrap();
 

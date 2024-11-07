@@ -67,6 +67,7 @@ valence-generic-ibc-transfer-service    = { path = "contracts/services/generic-i
 valence-neutron-ibc-transfer-service    = { path = "contracts/services/neutron-ibc-transfer", features = ["library"] }
 valence-reverse-splitter-service        = { path = "contracts/services/reverse-splitter", features = ["library"] }
 valence-osmosis-gamm-lper               = { path = "contracts/services/osmosis-gamm-lper", features = ["library"] }
+valence-osmosis-gamm-withdrawer         = { path = "contracts/services/osmosis-gamm-withdrawer", features = ["library"] }
 valence-osmosis-cl-lper                 = { path = "contracts/services/osmosis-cl-lper", features = ["library"] }
 
 # our packages
