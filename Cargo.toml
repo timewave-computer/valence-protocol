@@ -59,11 +59,7 @@ valence-processor                    = { path = "contracts/processor", features 
 valence-splitter-service             = { path = "contracts/services/splitter", features = ["library"] }
 valence-test-dynamic-ratio           = { path = "contracts/testing/test-dynamic-ratio", features = ["library"] }
 valence-test-service                 = { path = "contracts/testing/test-service", features = ["library"] }
-<<<<<<< HEAD
 valence-program-registry             = { path = "contracts/program-registry", features = ["library"] }
-=======
-valence-workflow-registry            = { path = "contracts/workflow-registry", features = ["library"] }
->>>>>>> main
 valence-astroport-lper               = { path = "contracts/services/astroport-lper", features = ["library"] }
 valence-forwarder-service            = { path = "contracts/services/forwarder", features = ["library"] }
 valence-astroport-withdrawer         = { path = "contracts/services/astroport-withdrawer", features = ["library"] }
