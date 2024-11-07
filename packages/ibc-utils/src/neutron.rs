@@ -42,19 +42,32 @@ pub fn ibc_send_message(
     );
     let total_fee = flatten_ntrn_ibc_fee(&ibc_fee);
 
+    // Sender's account balance for fee denom (NTRN)
+    let sender_ntrn_balance = deps.querier.query_balance(sender, NTRN_DENOM)?.amount;
+
     let transfer_amount = if denom.to_string() == NTRN_DENOM {
-        amount
-            .checked_sub(total_fee.u128())
-            .ok_or_else(|| StdError::generic_err("Amount too low to pay for IBC transfer fees."))?
+        if Uint128::from(amount) == sender_ntrn_balance {
+            // The full balance is being transferred .. deduct the fee from the transfer amount
+            Uint128::from(amount).checked_sub(total_fee)?
+        } else {
+            // Check that the balance is sufficient to cover the fees
+            let amount_plus_fee = total_fee.checked_add(amount.into())?;
+            if sender_ntrn_balance < amount_plus_fee {
+                return Err(StdError::generic_err(format!(
+                    "Insufficient balance to cover for IBC fees '{}' in sender account (required: {}, available: {}).",
+                    NTRN_DENOM, amount_plus_fee, sender_ntrn_balance,
+                )));
+            }
+            Uint128::from(amount)
+        }
     } else {
-        let sender_fee_denom_balance = deps.querier.query_balance(sender, NTRN_DENOM)?;
-        if sender_fee_denom_balance.amount < total_fee {
+        if sender_ntrn_balance < total_fee {
             return Err(StdError::generic_err(format!(
-                "Insufficient balance for IBC fees '{}' in sender account (required: {}, available: {}).",
-                NTRN_DENOM, total_fee, sender_fee_denom_balance.amount,
+                "Insufficient balance to cover for IBC fees '{}' in sender account (required: {}, available: {}).",
+                NTRN_DENOM, total_fee, sender_ntrn_balance,
             )));
         }
-        amount
+        amount.into()
     };
 
     let coin = Coin {

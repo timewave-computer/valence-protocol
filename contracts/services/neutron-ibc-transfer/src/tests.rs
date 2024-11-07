@@ -435,7 +435,7 @@ fn ibc_transfer_fails_for_insufficient_balance() {
 
 #[test]
 #[should_panic(
-    expected = "Execution error: Insufficient balance for IBC fees 'untrn' in sender account (required: 20000, available: 0)."
+    expected = "Execution error: Insufficient balance to cover for IBC fees 'untrn' in sender account (required: 20000, available: 0)."
 )]
 fn ibc_transfer_fails_for_insufficient_fee_balance() {
     let mut suite = IbcTransferTestSuite::default();
