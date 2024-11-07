@@ -114,7 +114,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Start output balance: {:?}", start_output_balance);
 
     info!("Prepare the IBC transfer library contract");
-    let ibc_transfer_svc_contract_path = format!(
+    let ibc_transfer_lib_contract_path = format!(
         "{}/artifacts/valence_generic_ibc_transfer_library.wasm",
         current_dir.display()
     );
@@ -122,10 +122,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut uploader = test_ctx.build_tx_upload_contracts();
     uploader
         .with_chain_name(JUNO_CHAIN_NAME)
-        .send_single_contract(&ibc_transfer_svc_contract_path)?;
+        .send_single_contract(&ibc_transfer_lib_contract_path)?;
 
     // Get the code id
-    let code_id_ibc_transfer_svc = *test_ctx
+    let code_id_ibc_transfer_lib = *test_ctx
         .get_chain(JUNO_CHAIN_NAME)
         .contract_codes
         .get("valence_generic_ibc_transfer_library")
@@ -162,7 +162,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .get_request_builder()
             .get_request_builder(JUNO_CHAIN_NAME),
         DEFAULT_KEY,
-        code_id_ibc_transfer_svc,
+        code_id_ibc_transfer_lib,
         &serde_json::to_string(&ibc_transfer_instantiate_msg).unwrap(),
         "ibc_transfer",
         None,

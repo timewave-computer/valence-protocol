@@ -120,16 +120,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Start output balance: {:?}", start_output_balance);
 
     info!("Prepare the IBC transfer library contract");
-    let ibc_transfer_svc_contract_path = format!(
+    let ibc_transfer_lib_contract_path = format!(
         "{}/artifacts/valence_neutron_ibc_transfer_library.wasm",
         current_dir.display()
     );
 
     let mut uploader = test_ctx.build_tx_upload_contracts();
-    uploader.send_single_contract(&ibc_transfer_svc_contract_path)?;
+    uploader.send_single_contract(&ibc_transfer_lib_contract_path)?;
 
     // Get the code id
-    let code_id_ibc_transfer_svc = test_ctx
+    let code_id_ibc_transfer_lib = test_ctx
         .get_contract()
         .contract("valence_neutron_ibc_transfer_library")
         .get_cw()
@@ -168,7 +168,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
         DEFAULT_KEY,
-        code_id_ibc_transfer_svc,
+        code_id_ibc_transfer_lib,
         &serde_json::to_string(&ibc_transfer_instantiate_msg).unwrap(),
         "ibc_transfer",
         None,

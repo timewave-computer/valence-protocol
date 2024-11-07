@@ -184,20 +184,20 @@ fn instantiate_with_valid_single_split() {
     )]);
 
     // Instantiate Splitter contract
-    let svc = suite.splitter_init(&cfg);
+    let lib = suite.splitter_init(&cfg);
 
     // Verify owner
-    let owner_res: Ownership<Addr> = suite.query_wasm(&svc, &QueryMsg::Ownership {});
+    let owner_res: Ownership<Addr> = suite.query_wasm(&lib, &QueryMsg::Ownership {});
     assert_eq!(owner_res.owner, Some(suite.owner().clone()));
 
     // Verify processor
-    let processor_addr: Addr = suite.query_wasm(&svc, &QueryMsg::GetProcessor {});
+    let processor_addr: Addr = suite.query_wasm(&lib, &QueryMsg::GetProcessor {});
     assert_eq!(processor_addr, suite.processor().clone());
 
     // Verify library config
-    let svc_cfg: Config = suite.query_wasm(&svc, &QueryMsg::GetLibraryConfig {});
+    let lib_cfg: Config = suite.query_wasm(&lib, &QueryMsg::GetLibraryConfig {});
     assert_eq!(
-        svc_cfg,
+        lib_cfg,
         Config::new(
             suite.input_addr().clone(),
             vec![SplitConfig::new(
@@ -325,13 +325,13 @@ fn update_config_validates_config() {
     )]);
 
     // Instantiate Splitter contract
-    let svc = suite.splitter_init(&cfg);
+    let lib = suite.splitter_init(&cfg);
 
     // Update config to clear all split configs
     cfg.splits.clear();
 
     // Execute update config action
-    suite.update_config(svc.clone(), cfg).unwrap();
+    suite.update_config(lib.clone(), cfg).unwrap();
 }
 
 #[test]
@@ -348,7 +348,7 @@ fn update_config_with_valid_config() {
     )]);
 
     // Instantiate Splitter contract
-    let svc = suite.splitter_init(&cfg);
+    let lib = suite.splitter_init(&cfg);
 
     // Update config to a split config for STARS based on ratio,
     // and swap input and output addresses.
@@ -361,12 +361,12 @@ fn update_config_with_valid_config() {
     cfg.input_addr = (&output_addr).into();
 
     // Execute update config action
-    suite.update_config(svc.clone(), cfg).unwrap();
+    suite.update_config(lib.clone(), cfg).unwrap();
 
     // Verify library config
-    let svc_cfg: Config = suite.query_wasm(&svc, &QueryMsg::GetLibraryConfig {});
+    let lib_cfg: Config = suite.query_wasm(&lib, &QueryMsg::GetLibraryConfig {});
     assert_eq!(
-        svc_cfg,
+        lib_cfg,
         Config::new(
             output_addr.clone(),
             vec![
@@ -400,10 +400,10 @@ fn split_native_single_token_amount_single_output() {
     )]);
 
     // Instantiate Splitter contract
-    let svc = suite.splitter_init(&cfg);
+    let lib = suite.splitter_init(&cfg);
 
     // Execute split
-    suite.execute_split(svc).unwrap();
+    suite.execute_split(lib).unwrap();
 
     // Verify input account's balance: should be zero
     suite.assert_balance(suite.input_addr(), ZERO, NTRN);
@@ -425,10 +425,10 @@ fn split_native_single_token_amount_two_outputs() {
     ]);
 
     // Instantiate Splitter contract
-    let svc = suite.splitter_init(&cfg);
+    let lib = suite.splitter_init(&cfg);
 
     // Execute split
-    suite.execute_split(svc).unwrap();
+    suite.execute_split(lib).unwrap();
 
     // Verify input account's balance: should be zero
     suite.assert_balance(suite.input_addr(), ZERO, NTRN);
@@ -456,14 +456,14 @@ fn split_native_two_token_amounts_two_outputs() {
     ]);
 
     // Instantiate Splitter contract
-    let svc = suite.splitter_init(&cfg);
+    let lib = suite.splitter_init(&cfg);
 
     // Assert initial balances
     suite.assert_balance(suite.input_addr(), ONE_MILLION, NTRN);
     suite.assert_balance(suite.input_addr(), TEN_MILLION, STARS);
 
     // Execute split
-    suite.execute_split(svc).unwrap();
+    suite.execute_split(lib).unwrap();
 
     // Verify input account's balance: should be zero
     suite.assert_balance(suite.input_addr(), ZERO, NTRN);
@@ -491,10 +491,10 @@ fn split_cw20_single_token_amount_single_output() {
     )]);
 
     // Instantiate Splitter contract
-    let svc = suite.splitter_init(&cfg);
+    let lib = suite.splitter_init(&cfg);
 
     // Execute split
-    suite.execute_split(svc).unwrap();
+    suite.execute_split(lib).unwrap();
 
     // Verify input account's balance: should be zero
     suite.assert_cw20_balance(suite.input_addr(), ZERO, &cw20_addr);
@@ -519,10 +519,10 @@ fn split_cw20_single_token_amount_two_outputs() {
     ]);
 
     // Instantiate Splitter contract
-    let svc = suite.splitter_init(&cfg);
+    let lib = suite.splitter_init(&cfg);
 
     // Execute split
-    suite.execute_split(svc).unwrap();
+    suite.execute_split(lib).unwrap();
 
     // Verify input account's balance: should be zero
     suite.assert_cw20_balance(suite.input_addr(), ZERO, &cw20_addr);
@@ -552,14 +552,14 @@ fn split_cw20_two_token_amounts_two_outputs() {
     ]);
 
     // Instantiate Splitter contract
-    let svc = suite.splitter_init(&cfg);
+    let lib = suite.splitter_init(&cfg);
 
     // Assert initial balances
     suite.assert_cw20_balance(suite.input_addr(), ONE_MILLION, &cw20_1_addr);
     suite.assert_cw20_balance(suite.input_addr(), TEN_MILLION, &cw20_2_addr);
 
     // Execute split
-    suite.execute_split(svc).unwrap();
+    suite.execute_split(lib).unwrap();
 
     // Verify input account's balance: should be zero
     suite.assert_cw20_balance(suite.input_addr(), ZERO, &cw20_1_addr);
@@ -588,14 +588,14 @@ fn split_mix_two_token_amounts_two_outputs() {
     ]);
 
     // Instantiate Splitter contract
-    let svc = suite.splitter_init(&cfg);
+    let lib = suite.splitter_init(&cfg);
 
     // Assert initial balances
     suite.assert_balance(suite.input_addr(), ONE_MILLION, NTRN);
     suite.assert_cw20_balance(suite.input_addr(), TEN_MILLION, &cw20_addr);
 
     // Execute split
-    suite.execute_split(svc).unwrap();
+    suite.execute_split(lib).unwrap();
 
     // Verify input account's balance: should be zero
     suite.assert_balance(suite.input_addr(), ZERO, NTRN);
@@ -626,14 +626,14 @@ fn split_native_two_token_partial_amounts_two_outputs() {
     ]);
 
     // Instantiate Splitter contract
-    let svc = suite.splitter_init(&cfg);
+    let lib = suite.splitter_init(&cfg);
 
     // Assert initial balances
     suite.assert_balance(suite.input_addr(), TEN_MILLION, NTRN);
     suite.assert_balance(suite.input_addr(), ONE_MILLION, STARS);
 
     // Execute split
-    suite.execute_split(svc).unwrap();
+    suite.execute_split(lib).unwrap();
 
     // Verify input account's balance: should be zero
     suite.assert_balance(suite.input_addr(), ZERO, NTRN);
@@ -666,10 +666,10 @@ fn split_native_single_token_amount_fails_for_insufficient_balance() {
     )]);
 
     // Instantiate Splitter contract
-    let svc = suite.splitter_init(&cfg);
+    let lib = suite.splitter_init(&cfg);
 
     // Execute split
-    suite.execute_split(svc).unwrap();
+    suite.execute_split(lib).unwrap();
 }
 
 #[test]
@@ -690,10 +690,10 @@ fn split_cw20_single_token_amount_fails_for_insufficient_balance() {
     )]);
 
     // Instantiate Splitter contract
-    let svc = suite.splitter_init(&cfg);
+    let lib = suite.splitter_init(&cfg);
 
     // Execute split
-    suite.execute_split(svc).unwrap();
+    suite.execute_split(lib).unwrap();
 }
 
 #[test]
@@ -714,10 +714,10 @@ fn split_native_single_token_amount_two_outputs_fails_for_insufficient_balance()
     ]);
 
     // Instantiate Splitter contract
-    let svc = suite.splitter_init(&cfg);
+    let lib = suite.splitter_init(&cfg);
 
     // Execute split => should fail: combined split amounts exceeds input account's balance
-    suite.execute_split(svc).unwrap();
+    suite.execute_split(lib).unwrap();
 }
 
 // Native & CW20 token ratio splits
@@ -738,10 +738,10 @@ fn split_native_two_token_ratios_two_outputs() {
     ]);
 
     // Instantiate Splitter contract
-    let svc = suite.splitter_init(&cfg);
+    let lib = suite.splitter_init(&cfg);
 
     // Execute split
-    suite.execute_split(svc).unwrap();
+    suite.execute_split(lib).unwrap();
 
     // Verify input account's balance: should be zero
     suite.assert_balance(suite.input_addr(), ZERO, NTRN);
@@ -789,10 +789,10 @@ fn split_mix_three_token_ratios_three_outputs() {
     ]);
 
     // Instantiate Splitter contract
-    let svc = suite.splitter_init(&cfg);
+    let lib = suite.splitter_init(&cfg);
 
     // Execute split
-    suite.execute_split(svc).unwrap();
+    suite.execute_split(lib).unwrap();
 
     // The expected splits are based on the fact that the Splitter
     // will transfer as big an amount as possible in the base denom.
@@ -854,10 +854,10 @@ fn split_native_one_token_ratios_and_factors_two_outputs() {
     ]);
 
     // Instantiate Splitter contract
-    let svc = suite.splitter_init(&cfg);
+    let lib = suite.splitter_init(&cfg);
 
     // Execute split
-    suite.execute_split(svc).unwrap();
+    suite.execute_split(lib).unwrap();
 
     // Verify input account's balance: there is a remainder of 1 untrn (0.000_001 NTRN)
     suite.assert_balance(suite.input_addr(), ONE, NTRN);
@@ -903,10 +903,10 @@ fn split_native_two_token_ratios_and_factors_two_outputs() {
     ]);
 
     // Instantiate Splitter contract
-    let svc = suite.splitter_init(&cfg);
+    let lib = suite.splitter_init(&cfg);
 
     // Execute split
-    suite.execute_split(svc).unwrap();
+    suite.execute_split(lib).unwrap();
 
     // Verify input account's balance: there is a remainder of 1 untrn (0.000_001 NTRN)
     suite.assert_balance(suite.input_addr(), ONE, NTRN);
@@ -938,10 +938,10 @@ fn split_native_single_token_dyn_ratio_single_output() {
     )]);
 
     // Instantiate Splitter contract
-    let svc = suite.splitter_init(&cfg);
+    let lib = suite.splitter_init(&cfg);
 
     // Execute split
-    suite.execute_split(svc).unwrap();
+    suite.execute_split(lib).unwrap();
 
     // Verify input account's balance: should be zero
     suite.assert_balance(suite.input_addr(), ZERO, NTRN);
@@ -968,10 +968,10 @@ fn split_cw20_single_token_dyn_ratio_single_output() {
     )]);
 
     // Instantiate Splitter contract
-    let svc = suite.splitter_init(&cfg);
+    let lib = suite.splitter_init(&cfg);
 
     // Execute split
-    suite.execute_split(svc).unwrap();
+    suite.execute_split(lib).unwrap();
 
     // Verify input account's balance: should be zero
     suite.assert_cw20_balance(suite.input_addr(), ZERO, &cw20_addr);

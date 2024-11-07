@@ -165,20 +165,20 @@ fn instantiate_with_valid_config() {
     );
 
     // Instantiate IBC transfer contract
-    let svc = suite.ibc_transfer_init(&cfg);
+    let lib = suite.ibc_transfer_init(&cfg);
 
     // Verify owner
-    let owner_res: Ownership<Addr> = suite.query_wasm(&svc, &QueryMsg::Ownership {});
+    let owner_res: Ownership<Addr> = suite.query_wasm(&lib, &QueryMsg::Ownership {});
     assert_eq!(owner_res.owner, Some(suite.owner().clone()));
 
     // Verify processor
-    let processor_addr: Addr = suite.query_wasm(&svc, &QueryMsg::GetProcessor {});
+    let processor_addr: Addr = suite.query_wasm(&lib, &QueryMsg::GetProcessor {});
     assert_eq!(processor_addr, suite.processor().clone());
 
     // Verify library config
-    let svc_cfg: Config = suite.query_wasm(&svc, &QueryMsg::GetLibraryConfig {});
+    let lib_cfg: Config = suite.query_wasm(&lib, &QueryMsg::GetLibraryConfig {});
     assert_eq!(
-        svc_cfg,
+        lib_cfg,
         Config::new(
             suite.input_addr().clone(),
             suite.output_addr().clone(),
@@ -272,13 +272,13 @@ fn update_config_validates_config() {
     );
 
     // Instantiate IBC transfer contract
-    let svc = suite.ibc_transfer_init(&cfg);
+    let lib = suite.ibc_transfer_init(&cfg);
 
     // Update config and set amount to zero
     cfg.amount = IbcTransferAmount::FixedAmount(Uint128::zero());
 
     // Execute update config action
-    suite.update_config(svc.clone(), cfg).unwrap();
+    suite.update_config(lib.clone(), cfg).unwrap();
 }
 
 #[test]
@@ -293,7 +293,7 @@ fn update_config_with_valid_config() {
     );
 
     // Instantiate IBC transfer contract
-    let svc = suite.ibc_transfer_init(&cfg);
+    let lib = suite.ibc_transfer_init(&cfg);
 
     // Update config: swap input and output addresses
     cfg.input_addr = LibraryAccountType::Addr(suite.output_addr().to_string());
@@ -302,12 +302,12 @@ fn update_config_with_valid_config() {
     cfg.memo = "Chancellor on brink of second bailout for banks.".to_string();
 
     // Execute update config action
-    suite.update_config(svc.clone(), cfg).unwrap();
+    suite.update_config(lib.clone(), cfg).unwrap();
 
     // Verify library config
-    let svc_cfg: Config = suite.query_wasm(&svc, &QueryMsg::GetLibraryConfig {});
+    let lib_cfg: Config = suite.query_wasm(&lib, &QueryMsg::GetLibraryConfig {});
     assert_eq!(
-        svc_cfg,
+        lib_cfg,
         Config::new(
             suite.output_addr().clone(),
             suite.input_addr().clone(),
@@ -336,8 +336,8 @@ fn ibc_transfer_fails_for_insufficient_balance() {
     );
 
     // Instantiate  contract
-    let svc = suite.ibc_transfer_init(&cfg);
+    let lib = suite.ibc_transfer_init(&cfg);
 
     // Execute IBC transfer
-    suite.execute_ibc_transfer(svc).unwrap();
+    suite.execute_ibc_transfer(lib).unwrap();
 }

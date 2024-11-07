@@ -262,21 +262,21 @@ mod test {
         // init_workflow(&mut config).await.unwrap();
 
         // Make sure we have a config in place
-        let svc = config.libraries.first_key_value().unwrap().1.config.clone();
-        assert_ne!(svc, LibraryConfig::None);
+        let lib = config.libraries.first_key_value().unwrap().1.config.clone();
+        assert_ne!(lib, LibraryConfig::None);
 
         let binary = to_json_binary(&config).unwrap();
         let workflow_config = from_json::<WorkflowConfig>(&binary).unwrap();
 
         // After parsing, workflow config should have no library config
-        let svc = workflow_config
+        let lib = workflow_config
             .libraries
             .first_key_value()
             .unwrap()
             .1
             .config
             .clone();
-        assert_eq!(svc, LibraryConfig::None);
+        assert_eq!(lib, LibraryConfig::None);
 
         // match timeout(Duration::from_secs(60), ).await {
         //     Ok(_) => println!("Workflow initialization completed successfully"),

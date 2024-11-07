@@ -112,29 +112,29 @@ fn instantiate_with_valid_config() {
     let cfg = suite.template_config(admin_addr.to_string());
 
     // Instantiate Template contract
-    let svc = suite.template_init(&cfg);
+    let lib = suite.template_init(&cfg);
 
     // Verify owner
-    let owner_res: Ownership<Addr> = suite.query_wasm(&svc, &QueryMsg::Ownership {});
+    let owner_res: Ownership<Addr> = suite.query_wasm(&lib, &QueryMsg::Ownership {});
     assert_eq!(owner_res.owner, Some(suite.owner().clone()));
 
     // Verify processor
-    let processor_addr: Addr = suite.query_wasm(&svc, &QueryMsg::GetProcessor {});
+    let processor_addr: Addr = suite.query_wasm(&lib, &QueryMsg::GetProcessor {});
     assert_eq!(processor_addr, suite.processor().clone());
 
     // Verify library config
-    let svc_cfg: Config = suite.query_wasm(&svc, &QueryMsg::GetLibraryConfig {});
+    let lib_cfg: Config = suite.query_wasm(&lib, &QueryMsg::GetLibraryConfig {});
     assert_eq!(
-        svc_cfg,
+        lib_cfg,
         Config {
             admin: admin_addr,
             optional: None
         }
     );
 
-    let raw_svc_cfg: LibraryConfig = suite.query_wasm(&svc, &QueryMsg::GetRawLibraryConfig {});
+    let raw_lib_cfg: LibraryConfig = suite.query_wasm(&lib, &QueryMsg::GetRawLibraryConfig {});
     assert_eq!(
-        raw_svc_cfg,
+        raw_lib_cfg,
         LibraryConfig {
             skip_update_admin: valence_library_utils::LibraryAccountType::Addr(
                 suite.owner().to_string()
@@ -183,8 +183,8 @@ fn execute_action() {
     let cfg = suite.template_config(suite.owner().to_string());
 
     // Instantiate Template contract
-    let svc = suite.template_init(&cfg);
+    let lib = suite.template_init(&cfg);
 
     // Execute action
-    suite.execute_noop(svc).unwrap();
+    suite.execute_noop(lib).unwrap();
 }

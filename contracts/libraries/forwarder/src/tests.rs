@@ -152,20 +152,20 @@ fn instantiate_with_valid_config() {
     );
 
     // Instantiate Forwarder contract
-    let svc = suite.forwarder_init(&cfg);
+    let lib = suite.forwarder_init(&cfg);
 
     // Verify owner
-    let owner_res: Ownership<Addr> = suite.query_wasm(&svc, &QueryMsg::Ownership {});
+    let owner_res: Ownership<Addr> = suite.query_wasm(&lib, &QueryMsg::Ownership {});
     assert_eq!(owner_res.owner, Some(suite.owner().clone()));
 
     // Verify processor
-    let processor_addr: Addr = suite.query_wasm(&svc, &QueryMsg::GetProcessor {});
+    let processor_addr: Addr = suite.query_wasm(&lib, &QueryMsg::GetProcessor {});
     assert_eq!(processor_addr, suite.processor().clone());
 
     // Verify library config
-    let svc_cfg: Config = suite.query_wasm(&svc, &QueryMsg::GetLibraryConfig {});
+    let lib_cfg: Config = suite.query_wasm(&lib, &QueryMsg::GetLibraryConfig {});
     assert_eq!(
-        svc_cfg,
+        lib_cfg,
         Config::new(
             suite.input_addr().clone(),
             suite.output_addr().clone(),
@@ -245,10 +245,10 @@ fn forward_native_token_full_amount() {
     );
 
     // Instantiate Forwarder contract
-    let svc = suite.forwarder_init(&cfg);
+    let lib = suite.forwarder_init(&cfg);
 
     // Execute forward action
-    suite.execute_forward(svc).unwrap();
+    suite.execute_forward(lib).unwrap();
 
     // Verify input account's balance: should be zero
     let input_balance = suite.query_balance(&suite.input_addr, NTRN);
@@ -271,10 +271,10 @@ fn forward_native_token_partial_amount() {
     );
 
     // Instantiate Forwarder contract
-    let svc = suite.forwarder_init(&cfg);
+    let lib = suite.forwarder_init(&cfg);
 
     // Execute forward action
-    suite.execute_forward(svc).unwrap();
+    suite.execute_forward(lib).unwrap();
 
     // Verify input account's balance: should be 999_000 NTR
     let input_balance = suite.query_balance(&suite.input_addr, NTRN);
@@ -297,10 +297,10 @@ fn forward_native_token_zero_balance() {
     );
 
     // Instantiate Forwarder contract
-    let svc = suite.forwarder_init(&cfg);
+    let lib = suite.forwarder_init(&cfg);
 
     // Execute forward action
-    suite.execute_forward(svc).unwrap();
+    suite.execute_forward(lib).unwrap();
 
     // Verify input account's balance: should be zero
     let input_balance = suite.query_balance(&suite.input_addr, NTRN);
@@ -336,10 +336,10 @@ fn forward_cw20_full_amount() {
     );
 
     // Instantiate Forwarder contract
-    let svc = suite.forwarder_init(&cfg);
+    let lib = suite.forwarder_init(&cfg);
 
     // Execute forward action
-    suite.execute_forward(svc).unwrap();
+    suite.execute_forward(lib).unwrap();
 
     // Verify input account's balance: should be zero
     let input_balance = suite.cw20_query_balance(&suite.input_addr, &cw20_addr);
@@ -375,10 +375,10 @@ fn forward_cw20_partial_amount() {
     );
 
     // Instantiate Forwarder contract
-    let svc = suite.forwarder_init(&cfg);
+    let lib = suite.forwarder_init(&cfg);
 
     // Execute forward action
-    suite.execute_forward(svc).unwrap();
+    suite.execute_forward(lib).unwrap();
 
     // Verify input account's balance: should be 999_000 MEME
     let input_balance = suite.cw20_query_balance(&suite.input_addr, &cw20_addr);
@@ -402,16 +402,16 @@ fn forward_with_height_interval_constraint() {
     );
 
     // Instantiate Forwarder contract
-    let svc = suite.forwarder_init(&cfg);
+    let lib = suite.forwarder_init(&cfg);
 
     // BLOCK N
     // Execute forward action shoud succeed
-    suite.execute_forward(svc.clone()).unwrap();
+    suite.execute_forward(lib.clone()).unwrap();
 
     // BLOCK N+1
     suite.next_block();
     // Execute forward action shoud fail
-    let mut res = suite.execute_forward(svc.clone());
+    let mut res = suite.execute_forward(lib.clone());
     assert!(res.is_err());
 
     assert_eq!(
@@ -422,13 +422,13 @@ fn forward_with_height_interval_constraint() {
     // BLOCK N+2
     suite.next_block();
     // Execute forward action shoud fail
-    res = suite.execute_forward(svc.clone());
+    res = suite.execute_forward(lib.clone());
     assert!(res.is_err());
 
     // BLOCK N+3
     suite.next_block();
     // Execute forward action shoud succeed
-    suite.execute_forward(svc.clone()).unwrap();
+    suite.execute_forward(lib.clone()).unwrap();
 
     // Verify input account's balance: should be 998_000 NTR because of 2 successful forwards
     let input_balance = suite.query_balance(&suite.input_addr, NTRN);
@@ -452,7 +452,7 @@ fn forward_with_time_interval_constraint() {
     );
 
     // Instantiate Forwarder contract
-    let svc = suite.forwarder_init(&cfg);
+    let lib = suite.forwarder_init(&cfg);
 
     // NOTE: This test verifies the time interval constraint by simulating the passage of time.
     // => cw-multi-test 'next_block' function uses 5 seconds per block.
@@ -461,30 +461,30 @@ fn forward_with_time_interval_constraint() {
 
     // BLOCK N
     // Execute forward action shoud succeed
-    suite.execute_forward(svc.clone()).unwrap();
+    suite.execute_forward(lib.clone()).unwrap();
 
     // BLOCK N+1
     suite.next_block();
     // Execute forward action shoud fail
-    let mut res = suite.execute_forward(svc.clone());
+    let mut res = suite.execute_forward(lib.clone());
     assert!(res.is_err());
 
     // BLOCK N+2
     suite.next_block();
     // Execute forward action shoud fail
-    res = suite.execute_forward(svc.clone());
+    res = suite.execute_forward(lib.clone());
     assert!(res.is_err());
 
     // BLOCK N+3
     suite.next_block();
     // Execute forward action shoud fail
-    res = suite.execute_forward(svc.clone());
+    res = suite.execute_forward(lib.clone());
     assert!(res.is_err());
 
     // BLOCK N+4
     suite.next_block();
     // Execute forward action shoud succeed
-    suite.execute_forward(svc.clone()).unwrap();
+    suite.execute_forward(lib.clone()).unwrap();
 
     // Verify input account's balance: should be 998_000 NTR because of 2 successful forwards
     let input_balance = suite.query_balance(&suite.input_addr, NTRN);
@@ -532,30 +532,30 @@ fn forward_multiple_tokens_continuously() {
     );
 
     // Instantiate Forwarder contract
-    let svc = suite.forwarder_init(&cfg);
+    let lib = suite.forwarder_init(&cfg);
 
     // Initialize owner account with 1_000_000 NTRN
     suite.init_balance(&owner_addr, vec![coin(1_000_000_000_000_u128, NTRN)]);
 
     // BLOCK N
     // Forward successful: 1_000 NTRN & 10 MEME
-    suite.execute_forward(svc.clone()).unwrap();
+    suite.execute_forward(lib.clone()).unwrap();
 
     // BLOCK N+1
     suite.next_block();
     // Execute forward action shoud fail
-    let mut res = suite.execute_forward(svc.clone());
+    let mut res = suite.execute_forward(lib.clone());
     assert!(res.is_err());
 
     // BLOCK N+2
     suite.next_block();
     // Forward successful: 1_000 NTRN & 10 MEME
-    suite.execute_forward(svc.clone()).unwrap();
+    suite.execute_forward(lib.clone()).unwrap();
 
     // BLOCK N+3
     suite.next_block();
     // Execute forward action shoud fail
-    res = suite.execute_forward(svc.clone());
+    res = suite.execute_forward(lib.clone());
     assert!(res.is_err());
 
     // Transfer 6_000 NTRN to input account (should be zero at this point)
@@ -564,12 +564,12 @@ fn forward_multiple_tokens_continuously() {
     // BLOCK N+4
     suite.next_block();
     // Forward successful: 1_000 NTRN & 10 MEME
-    suite.execute_forward(svc.clone()).unwrap();
+    suite.execute_forward(lib.clone()).unwrap();
 
     // BLOCK N+5
     suite.next_block();
     // Execute forward action shoud fail
-    res = suite.execute_forward(svc.clone());
+    res = suite.execute_forward(lib.clone());
     assert!(res.is_err());
 
     // Transfer 40 MEME to input account (should be zero at this point)
@@ -578,29 +578,29 @@ fn forward_multiple_tokens_continuously() {
     // BLOCK N+6
     suite.next_block();
     // Forward successful: 1_000 NTRN & 10 MEME
-    suite.execute_forward(svc.clone()).unwrap();
+    suite.execute_forward(lib.clone()).unwrap();
 
     // BLOCK N+7
     suite.next_block();
     // Execute forward action shoud fail
-    res = suite.execute_forward(svc.clone());
+    res = suite.execute_forward(lib.clone());
     assert!(res.is_err());
 
     // BLOCK N+8
     suite.next_block();
     // Forward successful: 1_000 NTRN & 10 MEME
-    suite.execute_forward(svc.clone()).unwrap();
+    suite.execute_forward(lib.clone()).unwrap();
 
     // BLOCK N+9
     suite.next_block();
     // Execute forward action shoud fail
-    res = suite.execute_forward(svc.clone());
+    res = suite.execute_forward(lib.clone());
     assert!(res.is_err());
 
     // BLOCK N+10
     suite.next_block();
     // Forward successful: 1_000 NTRN & 10 MEME
-    suite.execute_forward(svc.clone()).unwrap();
+    suite.execute_forward(lib.clone()).unwrap();
 
     // Verify input account's NTRN balance: should be 2_000 NTRN
     let input_balance = suite.query_balance(&suite.input_addr, NTRN);
@@ -631,7 +631,7 @@ fn update_config() {
     );
 
     // Instantiate Forwarder contract
-    let svc = suite.forwarder_init(&cfg);
+    let lib = suite.forwarder_init(&cfg);
 
     // Update config to forward 2_000 NTRN, add constraint,
     // and swap input and output addresses.
@@ -643,10 +643,10 @@ fn update_config() {
     new_config.output_addr = suite.input_addr().into();
 
     // Execute update config action
-    suite.update_config(svc.clone(), new_config).unwrap();
+    suite.update_config(lib.clone(), new_config).unwrap();
 
     // Verify library config
-    let cfg = suite.query_wasm::<_, Config>(&svc, &QueryMsg::GetLibraryConfig {});
+    let cfg = suite.query_wasm::<_, Config>(&lib, &QueryMsg::GetLibraryConfig {});
     assert_eq!(
         cfg,
         Config::new(

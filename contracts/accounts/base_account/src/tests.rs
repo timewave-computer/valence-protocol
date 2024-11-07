@@ -288,11 +288,11 @@ fn instantiate_with_no_approved_libraries() {
 fn instantiate_with_approved_libraries() {
     let mut suite = BaseAccountTestSuite::default();
 
-    let svc1 = suite.api().addr_make("library_1");
-    let svc2 = suite.api().addr_make("library_2");
+    let lib1 = suite.api().addr_make("library_1");
+    let lib2 = suite.api().addr_make("library_2");
 
     // Instantiate Base account contract with approved libraries
-    let acc = suite.account_init(vec![svc1.to_string(), svc2.to_string()]);
+    let acc = suite.account_init(vec![lib1.to_string(), lib2.to_string()]);
 
     // Verify owner
     let owner_res: Ownership<Addr> = suite.query_owership(&acc);
@@ -302,7 +302,7 @@ fn instantiate_with_approved_libraries() {
     let approved_libraries: Vec<Addr> = suite.query_approved_libraries(&acc);
     assert_eq!(
         approved_libraries,
-        sorted(vec![svc1, svc2]).collect::<Vec<Addr>>()
+        sorted(vec![lib1, lib2]).collect::<Vec<Addr>>()
     );
 }
 
@@ -310,21 +310,21 @@ fn instantiate_with_approved_libraries() {
 fn approve_library_by_owner() {
     let mut suite = BaseAccountTestSuite::default();
 
-    let svc1 = suite.api().addr_make("library_1");
-    let svc2 = suite.api().addr_make("library_2");
-    let svc3 = suite.api().addr_make("library_3");
+    let lib1 = suite.api().addr_make("library_1");
+    let lib2 = suite.api().addr_make("library_2");
+    let lib3 = suite.api().addr_make("library_3");
 
     // Instantiate Base account contract with approved libraries
-    let acc = suite.account_init(vec![svc1.to_string(), svc2.to_string()]);
+    let acc = suite.account_init(vec![lib1.to_string(), lib2.to_string()]);
 
     // Owner approves new library on account
-    suite.approve_library(acc.clone(), svc3.clone()).unwrap();
+    suite.approve_library(acc.clone(), lib3.clone()).unwrap();
 
     // Verify approved libraries
     let approved_libraries = sorted(suite.query_approved_libraries(&acc)).collect::<Vec<Addr>>();
     assert_eq!(
         approved_libraries,
-        sorted(vec![svc1, svc2, svc3]).collect::<Vec<Addr>>()
+        sorted(vec![lib1, lib2, lib3]).collect::<Vec<Addr>>()
     );
 }
 
@@ -332,15 +332,15 @@ fn approve_library_by_owner() {
 fn approve_library_by_non_owner() {
     let mut suite = BaseAccountTestSuite::default();
 
-    let svc1 = suite.api().addr_make("library_1");
-    let svc2 = suite.api().addr_make("library_2");
-    let svc3 = suite.api().addr_make("library_3");
+    let lib1 = suite.api().addr_make("library_1");
+    let lib2 = suite.api().addr_make("library_2");
+    let lib3 = suite.api().addr_make("library_3");
 
     // Instantiate Base account contract with approved libraries
-    let acc = suite.account_init(vec![svc1.to_string(), svc2.to_string()]);
+    let acc = suite.account_init(vec![lib1.to_string(), lib2.to_string()]);
 
     // Owner approves new library on account
-    let res = suite.approve_library_non_owner(acc.clone(), svc3.clone());
+    let res = suite.approve_library_non_owner(acc.clone(), lib3.clone());
     assert!(res.is_err());
 
     assert_eq!(
@@ -353,21 +353,21 @@ fn approve_library_by_non_owner() {
 fn remove_library_by_owner() {
     let mut suite = BaseAccountTestSuite::default();
 
-    let svc1 = suite.api().addr_make("library_1");
-    let svc2 = suite.api().addr_make("library_2");
-    let svc3 = suite.api().addr_make("library_3");
+    let lib1 = suite.api().addr_make("library_1");
+    let lib2 = suite.api().addr_make("library_2");
+    let lib3 = suite.api().addr_make("library_3");
 
     // Instantiate Base account contract with approved libraries
-    let acc = suite.account_init(vec![svc1.to_string(), svc2.to_string(), svc3.to_string()]);
+    let acc = suite.account_init(vec![lib1.to_string(), lib2.to_string(), lib3.to_string()]);
 
     // Owner approves new library on account
-    suite.remove_library(acc.clone(), svc2.clone()).unwrap();
+    suite.remove_library(acc.clone(), lib2.clone()).unwrap();
 
     // Verify approved libraries
     let approved_libraries = sorted(suite.query_approved_libraries(&acc)).collect::<Vec<Addr>>();
     assert_eq!(
         approved_libraries,
-        sorted(vec![svc1, svc3]).collect::<Vec<Addr>>()
+        sorted(vec![lib1, lib3]).collect::<Vec<Addr>>()
     );
 }
 
@@ -375,15 +375,15 @@ fn remove_library_by_owner() {
 fn remove_library_by_non_owner() {
     let mut suite = BaseAccountTestSuite::default();
 
-    let svc1 = suite.api().addr_make("library_1");
-    let svc2 = suite.api().addr_make("library_2");
-    let svc3 = suite.api().addr_make("library_3");
+    let lib1 = suite.api().addr_make("library_1");
+    let lib2 = suite.api().addr_make("library_2");
+    let lib3 = suite.api().addr_make("library_3");
 
     // Instantiate Base account contract with approved libraries
-    let acc = suite.account_init(vec![svc1.to_string(), svc2.to_string(), svc3.to_string()]);
+    let acc = suite.account_init(vec![lib1.to_string(), lib2.to_string(), lib3.to_string()]);
 
     // Owner approves new library on account
-    let res = suite.remove_library_non_owner(acc.clone(), svc3.clone());
+    let res = suite.remove_library_non_owner(acc.clone(), lib3.clone());
     assert!(res.is_err());
 
     assert_eq!(
@@ -422,10 +422,10 @@ fn transfer_native_tokens_by_owner() {
 fn transfer_native_tokens_by_approved_library() {
     let mut suite = BaseAccountTestSuite::new(Some(vec![(ONE_MILLION, NTRN.to_string())]));
 
-    let svc1 = suite.api().addr_make("library_1");
+    let lib1 = suite.api().addr_make("library_1");
 
     // Instantiate Base account contract
-    let acc = suite.account_init(vec![svc1.to_string()]);
+    let acc = suite.account_init(vec![lib1.to_string()]);
 
     // Assert account balance
     suite.assert_balance(&acc, coin(ONE_MILLION, NTRN));
@@ -435,7 +435,7 @@ fn transfer_native_tokens_by_approved_library() {
     suite
         .transfer_tokens(
             acc.clone(),
-            svc1,
+            lib1,
             recipient.clone(),
             vec![coin(ONE_THOUSAND, NTRN)],
         )
@@ -450,10 +450,10 @@ fn transfer_native_tokens_by_approved_library() {
 fn transfer_native_tokens_by_unknown_account() {
     let mut suite = BaseAccountTestSuite::new(Some(vec![(ONE_MILLION, NTRN.to_string())]));
 
-    let svc1 = suite.api().addr_make("library_1");
+    let lib1 = suite.api().addr_make("library_1");
 
     // Instantiate Base account contract
-    let acc = suite.account_init(vec![svc1.to_string()]);
+    let acc = suite.account_init(vec![lib1.to_string()]);
 
     // Assert account balance
     suite.assert_balance(&acc, coin(ONE_MILLION, NTRN));
@@ -519,10 +519,10 @@ fn transfer_cw20_tokens_by_owner() {
 fn transfer_cw20_tokens_by_approved_library() {
     let mut suite = BaseAccountTestSuite::default();
 
-    let svc1 = suite.api().addr_make("library_1");
+    let lib1 = suite.api().addr_make("library_1");
 
     // Instantiate Base account contract
-    let acc = suite.account_init(vec![svc1.to_string()]);
+    let acc = suite.account_init(vec![lib1.to_string()]);
 
     // Instantiate CW20 token contract, and initialize input account with 1_000_000 MEME
     let cw20_addr = suite.cw20_token_init(MEME, "MEME", ONE_MILLION, acc.to_string());
@@ -539,7 +539,7 @@ fn transfer_cw20_tokens_by_approved_library() {
         .cw20_transfer_tokens(
             acc.clone(),
             cw20_addr.clone(),
-            svc1,
+            lib1,
             recipient.clone(),
             ONE_THOUSAND,
         )
@@ -560,10 +560,10 @@ fn transfer_cw20_tokens_by_approved_library() {
 fn transfer_cw20_tokens_by_unknown_account() {
     let mut suite = BaseAccountTestSuite::default();
 
-    let svc1 = suite.api().addr_make("library_1");
+    let lib1 = suite.api().addr_make("library_1");
 
     // Instantiate Base account contract
-    let acc = suite.account_init(vec![svc1.to_string()]);
+    let acc = suite.account_init(vec![lib1.to_string()]);
 
     // Instantiate CW20 token contract, and initialize input account with 1_000_000 MEME
     let cw20_addr = suite.cw20_token_init(MEME, "MEME", ONE_MILLION, acc.to_string());
@@ -696,11 +696,11 @@ fn renounce_account_ownership_by_non_owner() {
 fn execute_submessages_by_approved_library() {
     let mut suite = BaseAccountTestSuite::new(Some(vec![(ONE_MILLION, NTRN.to_string())]));
 
-    let svc1 = suite.api().addr_make("library_1");
+    let lib1 = suite.api().addr_make("library_1");
     let recipient = suite.api().addr_make("recipient");
 
     // instantiate base account contract
-    let acc = suite.account_init(vec![svc1.to_string()]);
+    let acc = suite.account_init(vec![lib1.to_string()]);
     suite.assert_balance(&acc, coin(ONE_MILLION, NTRN));
 
     // create a submessage
@@ -711,7 +711,7 @@ fn execute_submessages_by_approved_library() {
 
     // approved library executes submessage
     suite
-        .execute_submsgs(acc.clone(), svc1, vec![transfer_msg], None)
+        .execute_submsgs(acc.clone(), lib1, vec![transfer_msg], None)
         .unwrap();
 
     // verify account & recipient balances
@@ -744,11 +744,11 @@ fn execute_submessages_by_owner_unauthorized_panics() {
 fn execute_submessages_with_payload() {
     let mut suite = BaseAccountTestSuite::new(Some(vec![(ONE_MILLION, NTRN.to_string())]));
 
-    let svc1 = suite.api().addr_make("library_1");
+    let lib1 = suite.api().addr_make("library_1");
     let recipient = suite.api().addr_make("recipient");
 
     // instantiate base account
-    let acc = suite.account_init(vec![svc1.to_string()]);
+    let acc = suite.account_init(vec![lib1.to_string()]);
 
     // assert account balance
     suite.assert_balance(&acc, coin(ONE_MILLION, NTRN));
@@ -767,7 +767,7 @@ fn execute_submessages_with_payload() {
 
     // approved library executes submessage with payload
     let res = suite
-        .execute_submsgs(acc.clone(), svc1, vec![transfer_msg], payload.clone())
+        .execute_submsgs(acc.clone(), lib1, vec![transfer_msg], payload.clone())
         .unwrap();
 
     // verify the payload is included in the response attributes
@@ -787,11 +787,11 @@ fn execute_submessages_with_payload() {
 fn execute_submessages_without_payload() {
     let mut suite = BaseAccountTestSuite::new(Some(vec![(ONE_MILLION, NTRN.to_string())]));
 
-    let svc1 = suite.api().addr_make("library_1");
+    let lib1 = suite.api().addr_make("library_1");
     let recipient = suite.api().addr_make("recipient");
 
     // instantiate base account
-    let acc = suite.account_init(vec![svc1.to_string()]);
+    let acc = suite.account_init(vec![lib1.to_string()]);
 
     // assert account balance
     suite.assert_balance(&acc, coin(ONE_MILLION, NTRN));
@@ -804,7 +804,7 @@ fn execute_submessages_without_payload() {
 
     // approved library executes submessage with no payload
     let res = suite
-        .execute_submsgs(acc.clone(), svc1, vec![transfer_msg], None)
+        .execute_submsgs(acc.clone(), lib1, vec![transfer_msg], None)
         .unwrap();
 
     // verify that no payload is included in the response attributes
