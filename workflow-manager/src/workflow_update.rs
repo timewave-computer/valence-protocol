@@ -52,7 +52,7 @@ pub enum AuthorizationInfoUpdate {
     Enable(String),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UpdateResponse {
     pub instructions: Vec<CosmosMsg>,
 }

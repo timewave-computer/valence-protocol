@@ -243,13 +243,12 @@ impl WorkflowConfig {
                 )
                 .await?;
 
+            // TODO: We only need the salt, can simplify here
             account_instantiate_datas.insert(
                 *account_id,
                 InstantiateAccountData::new(*account_id, account.clone(), addr.clone(), salt),
             );
 
-            // Set active to be true just in case it was given false on init
-            account.ty = AccountType::Addr { addr: addr.clone() };
             account.addr = Some(addr);
         }
 
