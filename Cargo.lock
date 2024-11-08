@@ -675,7 +675,7 @@ dependencies = [
  "rust-ini",
  "serde",
  "serde_json",
- "toml 0.8.19",
+ "toml",
  "yaml-rust2",
 ]
 
@@ -802,27 +802,6 @@ dependencies = [
 
 [[package]]
 name = "cosmrs"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47126f5364df9387b9d8559dcef62e99010e1d4098f39eb3f7ee4b5c254e40ea"
-dependencies = [
- "bip32",
- "cosmos-sdk-proto 0.20.0",
- "ecdsa",
- "eyre",
- "k256",
- "rand_core 0.6.4",
- "serde",
- "serde_json",
- "signature",
- "subtle-encoding",
- "tendermint 0.34.1",
- "tendermint-rpc 0.34.1",
- "thiserror 1.0.68",
-]
-
-[[package]]
-name = "cosmrs"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d184abb7b0039cc64f282dfa5b34165e4c5a7410ab46804636d53f4d09aee44"
@@ -858,7 +837,7 @@ dependencies = [
  "signature",
  "subtle-encoding",
  "tendermint 0.39.1",
- "tendermint-rpc 0.39.1",
+ "tendermint-rpc",
  "thiserror 1.0.68",
 ]
 
@@ -2657,15 +2636,15 @@ checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
 
 [[package]]
 name = "margined-neutron-std"
-version = "4.2.3"
+version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5240db561faabe0918d01d517758786955075e18d4095bef5fbe91db79faf663"
+checksum = "7e8989a0fb4d28e0364cb65fa0666f37d6d97f6ae77808f29e4c7d39f0687252"
 dependencies = [
  "chrono",
  "cosmwasm-std 2.1.4",
  "injective-std-derive",
- "prost 0.12.6",
- "prost-types 0.12.6",
+ "prost 0.13.3",
+ "prost-types 0.13.3",
  "schemars",
  "serde",
  "serde-cw-value",
@@ -2763,17 +2742,17 @@ dependencies = [
 
 [[package]]
 name = "neutron-test-tube"
-version = "4.2.3"
+version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80526b0e02d9b8e6cc3790d0252161def3fb4d025975ec600e561bce315d8468"
+checksum = "1387b50cf3aa0a988bd342dca0eda489ba0f03c3b44bf306fa0882d7e211496e"
 dependencies = [
  "base64 0.21.7",
  "bindgen 0.60.1",
- "cosmrs 0.15.0",
+ "cosmrs 0.20.0",
  "cosmwasm-std 2.1.4",
  "hex",
  "margined-neutron-std",
- "prost 0.12.6",
+ "prost 0.13.3",
  "serde",
  "serde_json",
  "test-tube-ntrn",
@@ -4365,37 +4344,6 @@ dependencies = [
 
 [[package]]
 name = "tendermint"
-version = "0.34.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15ab8f0a25d0d2ad49ac615da054d6a76aa6603ff95f7d18bafdd34450a1a04b"
-dependencies = [
- "bytes",
- "digest 0.10.7",
- "ed25519",
- "ed25519-consensus",
- "flex-error",
- "futures",
- "k256",
- "num-traits",
- "once_cell",
- "prost 0.12.6",
- "prost-types 0.12.6",
- "ripemd",
- "serde",
- "serde_bytes",
- "serde_json",
- "serde_repr",
- "sha2 0.10.8",
- "signature",
- "subtle",
- "subtle-encoding",
- "tendermint-proto 0.34.1",
- "time",
- "zeroize",
-]
-
-[[package]]
-name = "tendermint"
 version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43f8a10105d0a7c4af0a242e23ed5a12519afe5cc0e68419da441bb5981a6802"
@@ -4457,20 +4405,6 @@ dependencies = [
 
 [[package]]
 name = "tendermint-config"
-version = "0.34.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1a02da769166e2052cd537b1a97c78017632c2d9e19266367b27e73910434fc"
-dependencies = [
- "flex-error",
- "serde",
- "serde_json",
- "tendermint 0.34.1",
- "toml 0.5.11",
- "url",
-]
-
-[[package]]
-name = "tendermint-config"
 version = "0.39.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8add7b85b0282e5901521f78fe441956ac1e2752452f4e1f2c0ce7e1f10d485"
@@ -4479,7 +4413,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tendermint 0.39.1",
- "toml 0.8.19",
+ "toml",
  "url",
 ]
 
@@ -4554,39 +4488,6 @@ dependencies = [
 
 [[package]]
 name = "tendermint-rpc"
-version = "0.34.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71afae8bb5f6b14ed48d4e1316a643b6c2c3cbad114f510be77b4ed20b7b3e42"
-dependencies = [
- "async-trait",
- "bytes",
- "flex-error",
- "futures",
- "getrandom",
- "peg",
- "pin-project",
- "rand 0.8.5",
- "reqwest",
- "semver",
- "serde",
- "serde_bytes",
- "serde_json",
- "subtle",
- "subtle-encoding",
- "tendermint 0.34.1",
- "tendermint-config 0.34.1",
- "tendermint-proto 0.34.1",
- "thiserror 1.0.68",
- "time",
- "tokio",
- "tracing",
- "url",
- "uuid",
- "walkdir",
-]
-
-[[package]]
-name = "tendermint-rpc"
 version = "0.39.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9693f42544bf3b41be3cbbfa418650c86e137fb8f5a57981659a84b677721ecf"
@@ -4607,7 +4508,7 @@ dependencies = [
  "subtle",
  "subtle-encoding",
  "tendermint 0.39.1",
- "tendermint-config 0.39.1",
+ "tendermint-config",
  "tendermint-proto 0.39.1",
  "thiserror 1.0.68",
  "time",
@@ -4874,15 +4775,6 @@ dependencies = [
  "futures-sink",
  "pin-project-lite",
  "tokio",
-]
-
-[[package]]
-name = "toml"
-version = "0.5.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4f7f0dd8d50a853a531c426359045b1998f04219d88799810762cd4ad314234"
-dependencies = [
- "serde",
 ]
 
 [[package]]
@@ -5396,6 +5288,24 @@ dependencies = [
  "osmosis-test-tube",
  "valence-account-utils",
  "valence-macros",
+ "valence-osmosis-utils",
+ "valence-service-base",
+ "valence-service-utils",
+]
+
+[[package]]
+name = "valence-osmosis-gamm-withdrawer"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 2.1.4",
+ "cw-ownable",
+ "cw20 2.0.0",
+ "osmosis-std",
+ "osmosis-test-tube",
+ "valence-account-utils",
+ "valence-macros",
+ "valence-osmosis-gamm-lper",
  "valence-osmosis-utils",
  "valence-service-base",
  "valence-service-utils",
