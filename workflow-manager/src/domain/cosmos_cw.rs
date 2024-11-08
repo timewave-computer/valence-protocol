@@ -760,7 +760,7 @@ impl Connector for CosmosCosmwasmConnector {
         Ok(())
     }
 
-    async fn save_workflow_config(&mut self, config: WorkflowConfig) -> ConnectorResult<()> {
+    async fn save_workflow_config(&mut self, mut config: WorkflowConfig) -> ConnectorResult<()> {
         if self.chain_name != *NEUTRON_CHAIN {
             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                 "Should only be implemented on neutron connector"
@@ -768,13 +768,15 @@ impl Connector for CosmosCosmwasmConnector {
             .into());
         }
 
-        for service in config.services.values() {
+        for service in config.services.values_mut() {
             if service.addr.is_none() {
                 return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                     "Before saving workflow config each service must have an address"
                 ))
                 .into());
             }
+
+            service.config = ServiceConfig::None;
         }
 
         let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();

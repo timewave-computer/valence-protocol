@@ -37,3 +37,4 @@ valence-splitter-service             = { workspace = true }
 valence-workflow-manager             = { workspace = true }
 valence-workflow-registry-utils      = { workspace = true }
 tokio                                = { workspace = true }
+toml                                 = "0.8"

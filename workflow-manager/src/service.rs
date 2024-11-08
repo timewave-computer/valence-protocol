@@ -48,7 +48,6 @@ pub enum ServiceError {
 pub struct ServiceInfo {
     pub name: String,
     pub domain: Domain,
-    #[serde(skip)]
     pub config: ServiceConfig,
     pub addr: Option<String>,
 }

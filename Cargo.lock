@@ -2407,6 +2407,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "tokio",
+ "toml 0.8.19",
  "valence-account-utils",
  "valence-astroport-lper",
  "valence-astroport-utils",

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use once_cell::sync::Lazy;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::Mutex;
 
@@ -26,7 +26,7 @@ pub enum ConfigError {
     ChainBridgeNotFound(String),
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Config {
     pub chains: HashMap<String, ChainInfo>,
     pub contracts: Contracts,
@@ -34,47 +34,7 @@ pub struct Config {
     pub general: GeneralConfig,
 }
 
-// impl Default for Config {
-//     fn default() -> Self {
-//         println!("Checkk");
-//         ConfigHelper::builder()
-//             .add_source(
-//                 glob::glob("conf/*")
-//                     .unwrap()
-//                     .filter_map(|path| {
-
-//                         let p = path.unwrap();
-//                         println!("Path: {:?}", p);
-
-//                         if p.is_dir() {
-//                             None
-//                         } else {
-//                             Some(File::from(p))
-//                         }
-//                     })
-//                     .collect::<Vec<_>>(),
-//             )
-//             .add_source(
-//                 glob::glob("conf/**/*")
-//                     .unwrap()
-//                     .filter_map(|path| {
-//                         let p = path.unwrap();
-//                         if p.is_dir() {
-//                             None
-//                         } else {
-//                             Some(File::from(p))
-//                         }
-//                     })
-//                     .collect::<Vec<_>>(),
-//             )
-//             .build()
-//             .unwrap()
-//             .try_deserialize()
-//             .unwrap()
-//     }
-// }
-
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChainInfo {
     pub name: String,
     pub rpc: String,
@@ -85,12 +45,12 @@ pub struct ChainInfo {
     pub coin_type: u64,
 }
 
-#[derive(Debug, Clone, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GeneralConfig {
     pub registry_addr: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Contracts {
     pub code_ids: HashMap<String, HashMap<String, u64>>,
 }
