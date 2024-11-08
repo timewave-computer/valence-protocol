@@ -80,7 +80,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .build_tx_transfer()
         .with_chain_name(GAIA_CHAIN_NAME)
         .with_amount(1_000_000_000_000u128)
-        .with_recipient(JUNO_CHAIN_NAME)
+        .with_recipient(JUNO_CHAIN_ADMIN_ADDR)
         .with_denom(GAIA_CHAIN_DENOM)
         .send()
         .unwrap();
