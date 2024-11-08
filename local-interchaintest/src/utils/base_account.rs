@@ -1,9 +1,11 @@
+use cosmwasm_std::Coin;
 use localic_std::modules::cosmwasm::{contract_execute, contract_instantiate};
 use localic_utils::utils::test_context::TestContext;
 use log::info;
 
 use crate::utils::GAS_FLAGS;
 
+#[allow(clippy::too_many_arguments)]
 /// Creates valence base accounts on a specific chain for our services and returns their contract address
 pub fn create_base_accounts(
     test_ctx: &mut TestContext,
@@ -13,6 +15,7 @@ pub fn create_base_accounts(
     admin: String,
     approved_services: Vec<String>,
     num_accounts: u64,
+    fees: Option<Coin>,
 ) -> Vec<String> {
     info!(
         "Creating {} base accounts on {}...",
@@ -21,6 +24,11 @@ pub fn create_base_accounts(
     let instantiate_msg = valence_account_utils::msg::InstantiateMsg {
         admin,
         approved_services,
+    };
+    let flags = if let Some(fees) = fees {
+        format!("--fees {}{}", fees.amount, fees.denom)
+    } else {
+        "".to_string()
     };
     let mut accounts = Vec::new();
     for _ in 0..num_accounts {
@@ -33,7 +41,7 @@ pub fn create_base_accounts(
             &serde_json::to_string(&instantiate_msg).unwrap(),
             "valence_base_account",
             None,
-            "",
+            &flags,
         )
         .unwrap();
 
@@ -50,6 +58,7 @@ pub fn approve_service(
     key: &str,
     base_account: &str,
     service: String,
+    flags: Option<String>,
 ) {
     let approve_msg = valence_account_utils::msg::ExecuteMsg::ApproveService {
         service: service.clone(),
@@ -61,7 +70,7 @@ pub fn approve_service(
         base_account,
         key,
         &serde_json::to_string(&approve_msg).unwrap(),
-        GAS_FLAGS,
+        &format!("{} {}", GAS_FLAGS, flags.unwrap_or_default()),
     )
     .unwrap();
 

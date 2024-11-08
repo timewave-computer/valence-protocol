@@ -72,6 +72,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         JUNO_CHAIN_ADMIN_ADDR.to_string(),
         vec![],
         1,
+        None,
     );
     let input_account = base_accounts[0].clone();
     info!("Input account: {:?}", input_account);
@@ -179,6 +180,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         DEFAULT_KEY,
         &input_account,
         ibc_transfer.address.clone(),
+        None,
     );
 
     info!("Initiate IBC transfer");
