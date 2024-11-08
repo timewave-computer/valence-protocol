@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_chain(ConfigChainBuilder::default_osmosis().build()?)
         .with_log_file_path(LOGS_FILE_PATH)
         .with_transfer_channels(GAIA_CHAIN_NAME, JUNO_CHAIN_NAME)
-        .with_transfer_channels( JUNO_CHAIN_NAME, OSMOSIS_CHAIN_NAME)
+        .with_transfer_channels(JUNO_CHAIN_NAME, OSMOSIS_CHAIN_NAME)
         .with_transfer_channels(OSMOSIS_CHAIN_NAME, GAIA_CHAIN_NAME)
         .build()?;
 
