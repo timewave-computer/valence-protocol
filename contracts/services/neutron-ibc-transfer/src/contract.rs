@@ -41,7 +41,7 @@ pub fn execute(
 }
 
 mod actions {
-    use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
+    use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, StdError};
     use neutron_sdk::bindings::query::NeutronQuery;
     use valence_service_utils::{error::ServiceError, execute_on_behalf_of};
 
@@ -72,23 +72,25 @@ mod actions {
                 };
 
                 // IBC Transfer funds from input account to output account on the remote chain
-                let block_time = env.block.time;
                 let ibc_send_msg = valence_ibc_utils::neutron::ibc_send_message(
                     deps,
                     env,
                     cfg.remote_chain_info().channel_id.clone(),
-                    cfg.input_addr().to_string(),
+                    cfg.input_addr(),
                     cfg.output_addr().to_string(),
-                    cfg.denom().to_string(),
+                    cfg.denom(),
                     amount.u128(),
                     cfg.memo().clone(),
-                    None,
-                    cfg.remote_chain_info()
-                        .ibc_transfer_timeout
-                        .map(|timeout| block_time.plus_seconds(timeout.u64()).nanos()),
+                    cfg.remote_chain_info().ibc_transfer_timeout.map(Into::into),
                     cfg.denom_to_pfm_map().clone(),
                 )
-                .map_err(|err| ServiceError::ExecutionError(err.to_string()))?;
+                .map_err(|err| {
+                    if let StdError::GenericErr { msg, .. } = err {
+                        ServiceError::ExecutionError(msg)
+                    } else {
+                        ServiceError::ExecutionError(err.to_string())
+                    }
+                })?;
 
                 let input_account_msgs =
                     execute_on_behalf_of(vec![ibc_send_msg], cfg.input_addr())?;
