@@ -157,7 +157,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="background"><a class="header" href="#background">Background</a></h1>
-<p>Valence is a liquidity management protocol targeted at crypto-native institutions. Specifically, it aims to become a platform for crypto-native institutions to form multilateral liquidity lending and borrowing relationships. Our workflow system provides a base set of primitives that enable cross-chain orchestration, where actions can be triggered by multiple authorized parties.</p>
+<p>Valence is a liquidity management protocol targeted at crypto-native institutions. Specifically, it aims to become a platform for crypto-native institutions to form multilateral liquidity lending and borrowing relationships. Our program system provides a base set of primitives that enable cross-chain orchestration, where actions can be triggered by multiple authorized parties.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="component-overview"><a class="header" href="#component-overview">Component Overview</a></h1>
 <p>This section provides a high-level breakdown of the various architectural elements that enable cross-chain protocol-to-protocol relationships.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="accounts-and-services"><a class="header" href="#accounts-and-services">Accounts and Services</a></h1>
@@ -199,10 +199,10 @@
 	P --&gt; |Action 2| S2[Service 2]
 	P --&gt; |Action N| S3[Service N]
 </pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="workflows"><a class="header" href="#workflows">Workflows</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="programs"><a class="header" href="#programs">Programs</a></h1>
 <ul>
 <li>
-<p><strong>Valence Workflow:</strong> A workflow is an instance of the Valence Protocol. It is a particular arrangement and configuration of <em>ValenceAccounts</em> and <em>Services</em> across multiple <em>domains</em>. Workflows are also associated with a set of <em>ActionBundles</em> that can be executed on the Workflow. For example, a POL lending relationship between two parties may be set up as a workflow.</p>
+<p><strong>Valence Program:</strong> A program is an instance of the Valence Protocol. It is a particular arrangement and configuration of <em>ValenceAccounts</em> and <em>Services</em> across multiple <em>domains</em>. Programs are also associated with a set of <em>ActionBundles</em> that can be executed on the Program. For example, a POL lending relationship between two parties may be set up as a program.</p>
 </li>
 <li>
 <p><strong>Domain:</strong> Environments where Valence Accounts or Services can be instantiated. Domains are defined by three properties:</p>
@@ -213,10 +213,10 @@
 </ol>
 </li>
 <li>
-<p><strong>Main Domain:</strong> Every workflow has a main domain where the <em>Authorizations</em> module is instantiated.</p>
+<p><strong>Main Domain:</strong> Every program has a main domain where the <em>Authorizations</em> module is instantiated.</p>
 </li>
 <li>
-<p><strong>Workflow Manager:</strong> Off-chain service that manages the configuration, instantiation, and update management for workflows.</p>
+<p><strong>Program Manager:</strong> Off-chain service that manages the configuration, instantiation, and update management for programs.</p>
 </li>
 </ul>
 
