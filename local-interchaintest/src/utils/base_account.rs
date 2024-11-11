@@ -70,7 +70,18 @@ pub fn approve_service(
         base_account,
         key,
         &serde_json::to_string(&approve_msg).unwrap(),
-        &format!("{} {}", GAS_FLAGS, flags.unwrap_or_default()),
+        &format!(
+            "{}{}",
+            GAS_FLAGS,
+            flags
+                .map(|mut s| {
+                    if !s.starts_with(" ") {
+                        s.insert_str(0, " ");
+                    }
+                    s
+                })
+                .unwrap_or_default()
+        ),
     )
     .unwrap();
 
