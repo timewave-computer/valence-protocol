@@ -1,4 +1,6 @@
-use crate::msg::{ActionMsgs, Config, IbcTransferAmount, LibraryConfig, QueryMsg, RemoteChainInfo};
+use crate::msg::{
+    Config, FunctionMsgs, IbcTransferAmount, LibraryConfig, QueryMsg, RemoteChainInfo,
+};
 use cosmwasm_std::{coin, Addr, Empty, Uint128, Uint64};
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
@@ -105,7 +107,7 @@ impl IbcTransferTestSuite {
     fn execute_ibc_transfer(&mut self, addr: Addr) -> AnyResult<AppResponse> {
         self.contract_execute(
             addr,
-            &ExecuteMsg::<_, LibraryConfig>::ProcessAction(ActionMsgs::IbcTransfer {}),
+            &ExecuteMsg::<_, LibraryConfig>::ProcessFunction(FunctionMsgs::IbcTransfer {}),
         )
     }
 
@@ -114,7 +116,7 @@ impl IbcTransferTestSuite {
         self.app_mut().execute_contract(
             owner,
             addr,
-            &ExecuteMsg::<ActionMsgs, LibraryConfig>::UpdateConfig { new_config },
+            &ExecuteMsg::<FunctionMsgs, LibraryConfig>::UpdateConfig { new_config },
             &[],
         )
     }

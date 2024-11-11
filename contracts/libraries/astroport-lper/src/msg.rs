@@ -7,7 +7,7 @@ use valence_library_utils::{
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
 
 #[cw_serde]
-pub enum ActionMsgs {
+pub enum FunctionMsgs {
     ProvideDoubleSidedLiquidity {
         expected_pool_ratio_range: Option<DecimalRange>,
     },

@@ -1,15 +1,19 @@
-use crate::msg::{ActionMsgs, Config, IbcTransferAmount, LibraryConfig, QueryMsg, RemoteChainInfo};
+use crate::msg::{
+    Config, FunctionMsgs, IbcTransferAmount, LibraryConfig, QueryMsg, RemoteChainInfo,
+};
 use cosmwasm_std::{
     coin, to_json_binary, Addr, Api, BlockInfo, CustomMsg, CustomQuery, Empty, Storage, Uint128,
     Uint64,
 };
 use cw_multi_test::{
     error::AnyResult, no_init, AppBuilder, AppResponse, ContractWrapper, CosmosRouter, Executor,
-    Module, SudoMsg,
+    Module,
 };
 use cw_ownable::Ownership;
 use getset::{Getters, Setters};
-use neutron_sdk::{bindings::query::NeutronQuery, query::min_ibc_fee::MinIbcFeeResponse};
+use neutron_sdk::{
+    bindings::query::NeutronQuery, query::min_ibc_fee::MinIbcFeeResponse, sudo::msg::SudoMsg,
+};
 use serde::de::DeserializeOwned;
 use valence_library_utils::{
     denoms::CheckedDenom,
@@ -118,7 +122,7 @@ impl IbcTransferTestSuite {
     fn execute_ibc_transfer(&mut self, addr: Addr) -> AnyResult<AppResponse> {
         self.contract_execute(
             addr,
-            &ExecuteMsg::<_, LibraryConfig>::ProcessAction(ActionMsgs::IbcTransfer {}),
+            &ExecuteMsg::<_, LibraryConfig>::ProcessFunction(FunctionMsgs::IbcTransfer {}),
         )
     }
 
@@ -127,7 +131,7 @@ impl IbcTransferTestSuite {
         self.app_mut().execute_contract(
             owner,
             addr,
-            &ExecuteMsg::<ActionMsgs, LibraryConfig>::UpdateConfig { new_config },
+            &ExecuteMsg::<FunctionMsgs, LibraryConfig>::UpdateConfig { new_config },
             &[],
         )
     }
@@ -449,8 +453,8 @@ fn ibc_transfer_fails_for_insufficient_fee_balance() {
     );
 
     // Instantiate  contract
-    let lib = suite.ibc_transfer_init(&cfg);
+    let svc = suite.ibc_transfer_init(&cfg);
 
     // Execute IBC transfer
-    suite.execute_ibc_transfer(lib).unwrap();
+    suite.execute_ibc_transfer(svc).unwrap();
 }

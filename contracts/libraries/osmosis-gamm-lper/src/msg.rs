@@ -10,7 +10,7 @@ use valence_macros::{valence_library_query, ValenceLibraryInterface};
 use valence_osmosis_utils::utils::{gamm_utils::ValenceLiquidPooler, DecimalRange};
 
 #[cw_serde]
-pub enum ActionMsgs {
+pub enum FunctionMsgs {
     ProvideDoubleSidedLiquidity {
         expected_spot_price: Option<DecimalRange>,
     },

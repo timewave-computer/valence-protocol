@@ -17,7 +17,7 @@ use valence_osmosis_utils::{
     testing::balancer::BalancerPool,
 };
 
-use crate::msg::{ActionMsgs, LibraryConfig, LibraryConfigUpdate, LiquidityWithdrawerConfig};
+use crate::msg::{FunctionMsgs, LibraryConfig, LibraryConfigUpdate, LiquidityWithdrawerConfig};
 
 pub struct LPerTestSuite {
     pub inner: OsmosisTestAppSetup<BalancerPool>,
@@ -115,9 +115,9 @@ impl LPerTestSuite {
     pub fn withdraw_liquidity(&self) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
-        wasm.execute::<ExecuteMsg<ActionMsgs, LibraryConfigUpdate>>(
+        wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
             &self.lp_withdrawer_addr,
-            &ExecuteMsg::ProcessAction(ActionMsgs::WithdrawLiquidity {}),
+            &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {}),
             &[],
             self.inner.processor_acc(),
         )

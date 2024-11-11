@@ -7,7 +7,7 @@ use valence_library_utils::{
 };
 
 use crate::{
-    msg::{ActionMsgs, Config, Config2, LibraryConfig, LibraryConfigUpdate, QueryMsg},
+    msg::{Config, Config2, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, QueryMsg},
     CONFIG2,
 };
 
@@ -36,33 +36,33 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg<ActionMsgs, LibraryConfigUpdate>,
+    msg: ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>,
 ) -> Result<Response, LibraryError> {
     valence_library_base::execute(
         deps,
         env,
         info,
         msg,
-        actions::process_action,
+        functions::process_function,
         execute::update_config,
     )
 }
 
-mod actions {
+mod functions {
     use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
     use valence_library_utils::error::LibraryError;
 
-    use crate::msg::{ActionMsgs, Config};
+    use crate::msg::{Config, FunctionMsgs};
 
-    pub fn process_action(
+    pub fn process_function(
         _deps: DepsMut,
         _env: Env,
         _info: MessageInfo,
-        msg: ActionMsgs,
+        msg: FunctionMsgs,
         _cfg: Config,
     ) -> Result<Response, LibraryError> {
         match msg {
-            ActionMsgs::NoOp {} => Ok(Response::new().add_attribute("method", "noop")),
+            FunctionMsgs::NoOp {} => Ok(Response::new().add_attribute("method", "noop")),
         }
     }
 }

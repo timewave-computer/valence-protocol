@@ -1,5 +1,5 @@
 use crate::msg::{
-    ActionMsgs, Config, LibraryConfig, QueryMsg, SplitAmount, SplitConfig, UncheckedSplitConfig,
+    Config, FunctionMsgs, LibraryConfig, QueryMsg, SplitAmount, SplitConfig, UncheckedSplitConfig,
 };
 use cosmwasm_std::{coin, Addr, Coin, Decimal, Empty};
 use cw20::Cw20Coin;
@@ -128,7 +128,7 @@ impl SplitterTestSuite {
     fn execute_split(&mut self, addr: Addr) -> AnyResult<AppResponse> {
         self.contract_execute(
             addr,
-            &ExecuteMsg::<_, LibraryConfig>::ProcessAction(ActionMsgs::Split {}),
+            &ExecuteMsg::<_, LibraryConfig>::ProcessFunction(FunctionMsgs::Split {}),
         )
     }
 
@@ -137,7 +137,7 @@ impl SplitterTestSuite {
         self.app_mut().execute_contract(
             owner,
             addr,
-            &ExecuteMsg::<ActionMsgs, LibraryConfig>::UpdateConfig { new_config },
+            &ExecuteMsg::<FunctionMsgs, LibraryConfig>::UpdateConfig { new_config },
             &[],
         )
     }

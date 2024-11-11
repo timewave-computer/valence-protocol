@@ -5,17 +5,17 @@ use neutron_test_tube::{
     Account, Bank, Module, Wasm,
 };
 use valence_authorization_utils::{
-    action::{ActionCallback, RetryLogic, RetryTimes},
     authorization::{
         Authorization, AuthorizationDuration, AuthorizationModeInfo, AuthorizationState,
         PermissionTypeInfo, Priority,
     },
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
     builders::{
-        AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder,
-        NonAtomicActionBuilder, NonAtomicActionsConfigBuilder,
+        AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder,
+        NonAtomicFunctionBuilder, NonAtomicSubroutineBuilder,
     },
     domain::Domain,
+    function::{FunctionCallback, RetryLogic, RetryTimes},
     msg::{ExecuteMsg, Mint, OwnerMsg, PermissionedMsg, QueryMsg},
 };
 use valence_processor::error::ContractError as ProcessorContractError;
@@ -275,11 +275,11 @@ fn create_valid_authorizations() {
     let valid_authorizations = vec![
         AuthorizationBuilder::new()
             .with_label("permissionless-authorization")
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(AtomicActionBuilder::new().build())
-                    .with_action(
-                        AtomicActionBuilder::new()
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(AtomicFunctionBuilder::new().build())
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -308,10 +308,10 @@ fn create_valid_authorizations() {
             ))
             .with_duration(AuthorizationDuration::Blocks(100))
             .with_max_concurrent_executions(4)
-            .with_actions_config(
-                NonAtomicActionsConfigBuilder::new()
-                    .with_action(
-                        NonAtomicActionBuilder::new()
+            .with_subroutine(
+                NonAtomicSubroutineBuilder::new()
+                    .with_function(
+                        NonAtomicFunctionBuilder::new()
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -330,8 +330,8 @@ fn create_valid_authorizations() {
                             })
                             .build(),
                     )
-                    .with_action(
-                        NonAtomicActionBuilder::new()
+                    .with_function(
+                        NonAtomicFunctionBuilder::new()
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -346,7 +346,7 @@ fn create_valid_authorizations() {
                                 times: RetryTimes::Amount(10),
                                 interval: Duration::Height(5),
                             })
-                            .with_callback_confirmation(ActionCallback {
+                            .with_callback_confirmation(FunctionCallback {
                                 contract_address: Addr::unchecked("address"),
                                 callback_message: Binary::from_base64("aGVsbG8=").unwrap(),
                             })
@@ -366,14 +366,14 @@ fn create_valid_authorizations() {
                 ]),
             ))
             .with_duration(AuthorizationDuration::Seconds(50000000))
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
                     .with_retry_logic(RetryLogic {
                         times: RetryTimes::Amount(5),
                         interval: Duration::Time(10),
                     })
-                    .with_action(
-                        AtomicActionBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -388,8 +388,8 @@ fn create_valid_authorizations() {
                             })
                             .build(),
                     )
-                    .with_action(
-                        AtomicActionBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -557,14 +557,14 @@ fn create_invalid_authorizations() {
     let invalid_authorizations = vec![
         (
             AuthorizationBuilder::new().build(),
-            ContractError::Authorization(AuthorizationErrorReason::NoActions {}),
+            ContractError::Authorization(AuthorizationErrorReason::NoFunctions {}),
         ),
         (
             AuthorizationBuilder::new()
                 .with_label("")
-                .with_actions_config(
-                    AtomicActionsConfigBuilder::new()
-                        .with_action(AtomicActionBuilder::new().build())
+                .with_subroutine(
+                    AtomicSubroutineBuilder::new()
+                        .with_function(AtomicFunctionBuilder::new().build())
                         .build(),
                 )
                 .build(),
@@ -573,10 +573,10 @@ fn create_invalid_authorizations() {
         (
             AuthorizationBuilder::new()
                 .with_label("label")
-                .with_actions_config(
-                    AtomicActionsConfigBuilder::new()
-                        .with_action(
-                            AtomicActionBuilder::new()
+                .with_subroutine(
+                    AtomicSubroutineBuilder::new()
+                        .with_function(
+                            AtomicFunctionBuilder::new()
                                 .with_domain(Domain::External("ethereum".to_string()))
                                 .build(),
                         )
@@ -587,9 +587,9 @@ fn create_invalid_authorizations() {
         ),
         (
             AuthorizationBuilder::new()
-                .with_actions_config(
-                    AtomicActionsConfigBuilder::new()
-                        .with_action(AtomicActionBuilder::new().build())
+                .with_subroutine(
+                    AtomicSubroutineBuilder::new()
+                        .with_function(AtomicFunctionBuilder::new().build())
                         .build(),
                 )
                 .with_priority(Priority::High)
@@ -635,9 +635,9 @@ fn modify_authorization() {
         .with_mode(AuthorizationModeInfo::Permissioned(
             PermissionTypeInfo::WithoutCallLimit(vec![setup.user_accounts[0].address()]),
         ))
-        .with_actions_config(
-            AtomicActionsConfigBuilder::new()
-                .with_action(AtomicActionBuilder::new().build())
+        .with_subroutine(
+            AtomicSubroutineBuilder::new()
+                .with_function(AtomicFunctionBuilder::new().build())
                 .build(),
         )
         .build();
@@ -846,9 +846,9 @@ fn mint_authorizations() {
     let authorizations = vec![
         AuthorizationBuilder::new()
             .with_label("permissionless")
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(AtomicActionBuilder::new().build())
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(AtomicFunctionBuilder::new().build())
                     .build(),
             )
             .build(),
@@ -862,9 +862,9 @@ fn mint_authorizations() {
             ))
             .with_duration(AuthorizationDuration::Blocks(50000))
             .with_max_concurrent_executions(4)
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(AtomicActionBuilder::new().build())
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(AtomicFunctionBuilder::new().build())
                     .build(),
             )
             .build(),

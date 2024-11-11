@@ -30,7 +30,7 @@ use valence_astroport_utils::astroport_native_lp_token::{
 use valence_authorization_utils::{
     authorization::{AuthorizationModeInfo, PermissionTypeInfo},
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
-    builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
+    builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
     msg::ProcessorMessage,
 };
 use valence_forwarder_library::msg::{ForwardingConstraints, UncheckedForwardingConfig};
@@ -515,18 +515,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     program_config.authorizations = vec![
         AuthorizationBuilder::new()
             .with_label("split_deposit")
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(
-                        AtomicActionBuilder::new()
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(LibraryAccountType::LibraryId(1))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "split".to_string(),
                                         ]),
                                     ]),
@@ -539,18 +539,18 @@ fn main() -> Result<(), Box<dyn Error>> {
             .build(),
         AuthorizationBuilder::new()
             .with_label("provide_liquidity")
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(
-                        AtomicActionBuilder::new()
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(LibraryAccountType::LibraryId(2))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "forward".to_string(),
                                         ]),
                                     ]),
@@ -558,16 +558,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                             })
                             .build(),
                     )
-                    .with_action(
-                        AtomicActionBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(LibraryAccountType::LibraryId(3))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "provide_double_sided_liquidity".to_string(),
                                         ]),
                                     ]),
@@ -575,16 +575,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                             })
                             .build(),
                     )
-                    .with_action(
-                        AtomicActionBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(LibraryAccountType::LibraryId(3))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "provide_single_sided_liquidity".to_string(),
                                         ]),
                                     ]),
@@ -600,18 +600,18 @@ fn main() -> Result<(), Box<dyn Error>> {
             .with_mode(AuthorizationModeInfo::Permissioned(
                 PermissionTypeInfo::WithoutCallLimit(vec![NEUTRON_USER_ADDRESS_1.to_string()]),
             ))
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(
-                        AtomicActionBuilder::new()
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(LibraryAccountType::LibraryId(4))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "forward".to_string(),
                                         ]),
                                     ]),
@@ -624,18 +624,18 @@ fn main() -> Result<(), Box<dyn Error>> {
             .build(),
         AuthorizationBuilder::new()
             .with_label("withdraw_liquidity")
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(
-                        AtomicActionBuilder::new()
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(LibraryAccountType::LibraryId(5))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "forward".to_string(),
                                         ]),
                                     ]),
@@ -643,16 +643,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                             })
                             .build(),
                     )
-                    .with_action(
-                        AtomicActionBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(LibraryAccountType::LibraryId(6))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "withdraw_liquidity".to_string(),
                                         ]),
                                     ]),
@@ -660,16 +660,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                             })
                             .build(),
                     )
-                    .with_action(
-                        AtomicActionBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(LibraryAccountType::LibraryId(7))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "split".to_string(),
                                         ]),
                                     ]),
@@ -762,8 +762,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Sending message to reverse split to authorization contract...");
     let binary = Binary::from(
         serde_json::to_vec(
-            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
-                valence_reverse_splitter_library::msg::ActionMsgs::Split {},
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_reverse_splitter_library::msg::FunctionMsgs::Split {},
             ),
         )
         .unwrap(),
@@ -825,8 +825,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Sending messages to provide liquidity...");
     let binary1 = Binary::from(
         serde_json::to_vec(
-            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
-                valence_forwarder_library::msg::ActionMsgs::Forward {},
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_forwarder_library::msg::FunctionMsgs::Forward {},
             ),
         )
         .unwrap(),
@@ -835,8 +835,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let binary2 = Binary::from(
         serde_json::to_vec(
-            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
-                valence_astroport_lper::msg::ActionMsgs::ProvideDoubleSidedLiquidity {
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_astroport_lper::msg::FunctionMsgs::ProvideDoubleSidedLiquidity {
                     expected_pool_ratio_range: None,
                 },
             ),
@@ -847,8 +847,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let binary3 = Binary::from(
         serde_json::to_vec(
-            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
-                valence_astroport_lper::msg::ActionMsgs::ProvideSingleSidedLiquidity {
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_astroport_lper::msg::FunctionMsgs::ProvideSingleSidedLiquidity {
                     asset: NTRN_DENOM.to_string(),
                     limit: None,
                     expected_pool_ratio_range: None,
@@ -911,8 +911,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Sending message to forward LP position...");
     let binary = Binary::from(
         serde_json::to_vec(
-            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
-                valence_forwarder_library::msg::ActionMsgs::Forward {},
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_forwarder_library::msg::FunctionMsgs::Forward {},
             ),
         )
         .unwrap(),
@@ -970,8 +970,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Sending message to withdraw liquidity...");
     let binary1 = Binary::from(
         serde_json::to_vec(
-            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
-                valence_forwarder_library::msg::ActionMsgs::Forward {},
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_forwarder_library::msg::FunctionMsgs::Forward {},
             ),
         )
         .unwrap(),
@@ -980,8 +980,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let binary2 = Binary::from(
         serde_json::to_vec(
-            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
-                valence_astroport_withdrawer::msg::ActionMsgs::WithdrawLiquidity {},
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_astroport_withdrawer::msg::FunctionMsgs::WithdrawLiquidity {},
             ),
         )
         .unwrap(),
@@ -990,8 +990,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let binary3 = Binary::from(
         serde_json::to_vec(
-            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
-                valence_splitter_library::msg::ActionMsgs::Split {},
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_splitter_library::msg::FunctionMsgs::Split {},
             ),
         )
         .unwrap(),

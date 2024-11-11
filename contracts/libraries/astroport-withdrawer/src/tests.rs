@@ -14,7 +14,7 @@ use valence_library_utils::{
 };
 
 use crate::msg::{
-    ActionMsgs, LibraryConfig, LibraryConfigUpdate, LiquidityWithdrawerConfig, PoolType,
+    FunctionMsgs, LibraryConfig, LibraryConfigUpdate, LiquidityWithdrawerConfig, PoolType,
 };
 
 const CONTRACT_PATH: &str = "../../../artifacts";
@@ -188,7 +188,7 @@ pub fn only_owner_can_update_config() {
     };
 
     let error = wasm
-        .execute::<ExecuteMsg<ActionMsgs, LibraryConfigUpdate>>(
+        .execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
             &setup.withdrawer_addr,
             &ExecuteMsg::UpdateConfig {
                 new_config: new_config.clone(),
@@ -204,7 +204,7 @@ pub fn only_owner_can_update_config() {
             .as_str(),
     ),);
 
-    wasm.execute::<ExecuteMsg<ActionMsgs, LibraryConfigUpdate>>(
+    wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
         &setup.withdrawer_addr,
         &ExecuteMsg::UpdateConfig { new_config },
         &[],
@@ -219,7 +219,7 @@ fn only_owner_can_update_processor() {
     let wasm = Wasm::new(&setup.inner.app);
 
     let error = wasm
-        .execute::<ExecuteMsg<ActionMsgs, LibraryConfigUpdate>>(
+        .execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
             &setup.withdrawer_addr,
             &ExecuteMsg::UpdateProcessor {
                 processor: setup.inner.owner_acc().address(),
@@ -235,7 +235,7 @@ fn only_owner_can_update_processor() {
             .as_str(),
     ),);
 
-    wasm.execute::<ExecuteMsg<ActionMsgs, LibraryConfigUpdate>>(
+    wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
         &setup.withdrawer_addr,
         &ExecuteMsg::UpdateProcessor {
             processor: setup.inner.owner_acc().address(),
@@ -252,7 +252,7 @@ fn only_owner_can_transfer_ownership() {
     let wasm = Wasm::new(&setup.inner.app);
 
     let error = wasm
-        .execute::<ExecuteMsg<ActionMsgs, LibraryConfigUpdate>>(
+        .execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
             &setup.withdrawer_addr,
             &ExecuteMsg::UpdateOwnership(cw_ownable::Action::TransferOwnership {
                 new_owner: setup.inner.processor_acc().address(),
@@ -269,7 +269,7 @@ fn only_owner_can_transfer_ownership() {
             .as_str(),
     ),);
 
-    wasm.execute::<ExecuteMsg<ActionMsgs, LibraryConfigUpdate>>(
+    wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
         &setup.withdrawer_addr,
         &ExecuteMsg::UpdateOwnership(cw_ownable::Action::TransferOwnership {
             new_owner: setup.inner.processor_acc().address(),
@@ -282,14 +282,14 @@ fn only_owner_can_transfer_ownership() {
 }
 
 #[test]
-fn only_processor_can_execute_actions() {
+fn only_processor_can_execute_functions() {
     let setup = WithdrawerTestSuite::default();
     let wasm = Wasm::new(&setup.inner.app);
 
     let error = wasm
-        .execute::<ExecuteMsg<ActionMsgs, LibraryConfigUpdate>>(
+        .execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
             &setup.withdrawer_addr,
-            &ExecuteMsg::ProcessAction(ActionMsgs::WithdrawLiquidity {}),
+            &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {}),
             &[],
             setup.inner.owner_acc(),
         )
@@ -301,9 +301,9 @@ fn only_processor_can_execute_actions() {
             .as_str(),
     ),);
 
-    wasm.execute::<ExecuteMsg<ActionMsgs, LibraryConfigUpdate>>(
+    wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
         &setup.withdrawer_addr,
-        &ExecuteMsg::ProcessAction(ActionMsgs::WithdrawLiquidity {}),
+        &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {}),
         &[],
         setup.inner.processor_acc(),
     )
@@ -316,9 +316,9 @@ fn withdraw_liquidity_native_lp_token() {
     let wasm = Wasm::new(&setup.inner.app);
     let bank = Bank::new(&setup.inner.app);
 
-    wasm.execute::<ExecuteMsg<ActionMsgs, LibraryConfigUpdate>>(
+    wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
         &setup.withdrawer_addr,
-        &ExecuteMsg::ProcessAction(ActionMsgs::WithdrawLiquidity {}),
+        &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {}),
         &[],
         setup.inner.processor_acc(),
     )
@@ -350,9 +350,9 @@ fn withdraw_liquidity_cw20_lp_token() {
     let wasm = Wasm::new(&setup.inner.app);
     let bank = Bank::new(&setup.inner.app);
 
-    wasm.execute::<ExecuteMsg<ActionMsgs, LibraryConfigUpdate>>(
+    wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
         &setup.withdrawer_addr,
-        &ExecuteMsg::ProcessAction(ActionMsgs::WithdrawLiquidity {}),
+        &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {}),
         &[],
         setup.inner.processor_acc(),
     )

@@ -2,13 +2,12 @@ use cosmwasm_std::{BlockInfo, MessageInfo, QuerierWrapper, Storage, Uint128};
 use cw_utils::{must_pay, Expiration};
 use serde_json::Value;
 use valence_authorization_utils::{
-    action::Action,
     authorization::{
-        ActionsConfig, Authorization, AuthorizationMode, AuthorizationState, PermissionType,
-        Priority,
+        Authorization, AuthorizationMode, AuthorizationState, PermissionType, Priority, Subroutine,
     },
     authorization_message::ParamRestriction,
     domain::{Domain, ExecutionEnvironment},
+    function::Function,
     msg::ProcessorMessage,
 };
 
@@ -20,10 +19,10 @@ use crate::{
 
 pub trait Validate {
     fn validate(&self, store: &dyn Storage) -> Result<(), ContractError>;
-    fn validate_actions<T: Action>(
+    fn validate_functions<T: Function>(
         &self,
         store: &dyn Storage,
-        actions: &[T],
+        functions: &[T],
     ) -> Result<(), ContractError>;
     fn ensure_enabled(&self) -> Result<(), ContractError>;
     fn ensure_active(&self, block: &BlockInfo) -> Result<(), ContractError>;
@@ -39,10 +38,10 @@ pub trait Validate {
         store: &dyn Storage,
         messages: &[ProcessorMessage],
     ) -> Result<(), ContractError>;
-    fn validate_messages_generic<T: Action>(
+    fn validate_messages_generic<T: Function>(
         store: &dyn Storage,
         messages: &[ProcessorMessage],
-        actions: &[T],
+        functions: &[T],
     ) -> Result<(), ContractError>;
     fn validate_executable(
         &self,
@@ -64,9 +63,9 @@ impl Validate for Authorization {
             ));
         }
 
-        match &self.actions_config {
-            ActionsConfig::Atomic(config) => self.validate_actions(store, &config.actions)?,
-            ActionsConfig::NonAtomic(config) => self.validate_actions(store, &config.actions)?,
+        match &self.subroutine {
+            Subroutine::Atomic(config) => self.validate_functions(store, &config.functions)?,
+            Subroutine::NonAtomic(config) => self.validate_functions(store, &config.functions)?,
         }
 
         // If an authorization is permissionless, it can't have high priority
@@ -81,18 +80,18 @@ impl Validate for Authorization {
         Ok(())
     }
 
-    fn validate_actions<T: Action>(
+    fn validate_functions<T: Function>(
         &self,
         store: &dyn Storage,
-        actions: &[T],
+        functions: &[T],
     ) -> Result<(), ContractError> {
-        // An authorization must have actions
-        let first_action = actions.first().ok_or(ContractError::Authorization(
-            AuthorizationErrorReason::NoActions {},
+        // An authorization must have functions
+        let first_function = functions.first().ok_or(ContractError::Authorization(
+            AuthorizationErrorReason::NoFunctions {},
         ))?;
 
-        // The domain of the actions must be registered
-        match &first_action.domain() {
+        // The domain of the functions must be registered
+        match &first_function.domain() {
             Domain::Main => (),
             Domain::External(domain_name) => {
                 if !EXTERNAL_DOMAINS.has(store, domain_name.clone()) {
@@ -101,11 +100,11 @@ impl Validate for Authorization {
             }
         }
 
-        // All actions in an authorization must be executed in the same domain (for v1)
-        for each_action in actions.iter().skip(1) {
-            if !each_action.domain().eq(first_action.domain()) {
+        // All functions in an authorization must be executed in the same domain (for v1)
+        for each_function in functions.iter().skip(1) {
+            if !each_function.domain().eq(first_function.domain()) {
                 return Err(ContractError::Authorization(
-                    AuthorizationErrorReason::DifferentActionDomains {},
+                    AuthorizationErrorReason::DifferentFunctionDomains {},
                 ));
             }
         }
@@ -184,28 +183,28 @@ impl Validate for Authorization {
         store: &dyn Storage,
         messages: &[ProcessorMessage],
     ) -> Result<(), ContractError> {
-        match &self.actions_config {
-            ActionsConfig::Atomic(config) => {
-                Self::validate_messages_generic(store, messages, &config.actions)?
+        match &self.subroutine {
+            Subroutine::Atomic(config) => {
+                Self::validate_messages_generic(store, messages, &config.functions)?
             }
-            ActionsConfig::NonAtomic(config) => {
-                Self::validate_messages_generic(store, messages, &config.actions)?
+            Subroutine::NonAtomic(config) => {
+                Self::validate_messages_generic(store, messages, &config.functions)?
             }
         }
         Ok(())
     }
 
-    fn validate_messages_generic<T: Action>(
+    fn validate_messages_generic<T: Function>(
         store: &dyn Storage,
         messages: &[ProcessorMessage],
-        actions: &[T],
+        functions: &[T],
     ) -> Result<(), ContractError> {
-        if messages.len() != actions.len() {
+        if messages.len() != functions.len() {
             return Err(ContractError::Message(MessageErrorReason::InvalidAmount {}));
         }
 
-        for (each_message, each_action) in messages.iter().zip(actions.iter()) {
-            let execution_environment = match each_action.domain() {
+        for (each_message, each_function) in messages.iter().zip(functions.iter()) {
+            let execution_environment = match each_function.domain() {
                 Domain::Main => ExecutionEnvironment::CosmWasm,
                 Domain::External(name) => {
                     let domain = EXTERNAL_DOMAINS.load(store, name.clone())?;
@@ -215,8 +214,9 @@ impl Validate for Authorization {
 
             match &execution_environment {
                 ExecutionEnvironment::CosmWasm => {
-                    // Check that the message type matches the action type
-                    if each_message.get_message_type() != each_action.message_details().message_type
+                    // Check that the message type matches the function type
+                    if each_message.get_message_type()
+                        != each_function.message_details().message_type
                     {
                         return Err(ContractError::Message(MessageErrorReason::InvalidType {}));
                     }
@@ -240,7 +240,7 @@ impl Validate for Authorization {
 
                     // Check that top level key matches the message name
                     if json
-                        .get(each_action.message_details().message.name.as_str())
+                        .get(each_function.message_details().message.name.as_str())
                         .is_none()
                     {
                         return Err(ContractError::Message(MessageErrorReason::DoesNotMatch {}));
@@ -248,7 +248,7 @@ impl Validate for Authorization {
 
                     // Check that all the Parameter restrictions are met
                     if let Some(param_restrictions) =
-                        &each_action.message_details().message.params_restrictions
+                        &each_function.message_details().message.params_restrictions
                     {
                         for each_restriction in param_restrictions {
                             check_restriction(&json, each_restriction)?;

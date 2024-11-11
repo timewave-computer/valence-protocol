@@ -440,7 +440,7 @@ fn insert_messages(
             id,
             queue_position,
             msgs: messages.clone(),
-            actions_config: authorization.actions_config,
+            subroutine: authorization.subroutine,
             priority,
         },
     ))?;
@@ -540,7 +540,7 @@ fn send_msgs(
         AuthorizationMsg::EnqueueMsgs {
             id,
             msgs: messages.clone(),
-            actions_config: authorization.actions_config,
+            subroutine: authorization.subroutine,
             priority: authorization.priority,
         },
     ))?;
@@ -607,7 +607,7 @@ fn retry_msgs(deps: DepsMut, env: Env, execution_id: u64) -> Result<Response, Co
                 &ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::EnqueueMsgs {
                     id: execution_id,
                     msgs: callback_info.messages.clone(),
-                    actions_config: authorization.actions_config,
+                    subroutine: authorization.subroutine,
                     priority: authorization.priority,
                 }),
             )?;

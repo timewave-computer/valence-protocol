@@ -24,7 +24,7 @@ use log::info;
 use valence_generic_ibc_transfer_library::msg::IbcTransferAmount;
 use valence_ibc_utils::types::PacketForwardMiddlewareConfig;
 use valence_library_utils::{denoms::UncheckedDenom, LibraryAccountType};
-use valence_neutron_ibc_transfer_library::msg::{ActionMsgs, LibraryConfig};
+use valence_neutron_ibc_transfer_library::msg::{FunctionMsgs, LibraryConfig};
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -251,8 +251,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     info!("Initiate IBC transfer");
-    let ibc_transfer_msg =
-        &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(ActionMsgs::IbcTransfer {});
+    let ibc_transfer_msg = &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+        FunctionMsgs::IbcTransfer {},
+    );
 
     contract_execute(
         test_ctx

@@ -17,7 +17,7 @@ use valence_osmosis_utils::{
     utils::DecimalRange,
 };
 
-use crate::msg::{ActionMsgs, LibraryConfig, LibraryConfigUpdate, LiquidityProviderConfig};
+use crate::msg::{FunctionMsgs, LibraryConfig, LibraryConfigUpdate, LiquidityProviderConfig};
 
 pub struct LPerTestSuite {
     pub inner: OsmosisTestAppSetup<BalancerPool>,
@@ -111,9 +111,9 @@ impl LPerTestSuite {
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
-        wasm.execute::<ExecuteMsg<ActionMsgs, LibraryConfigUpdate>>(
+        wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
             &self.lper_addr,
-            &ExecuteMsg::ProcessAction(ActionMsgs::ProvideDoubleSidedLiquidity {
+            &ExecuteMsg::ProcessFunction(FunctionMsgs::ProvideDoubleSidedLiquidity {
                 expected_spot_price,
             }),
             &[],
@@ -130,9 +130,9 @@ impl LPerTestSuite {
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
-        wasm.execute::<ExecuteMsg<ActionMsgs, LibraryConfigUpdate>>(
+        wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
             &self.lper_addr,
-            &ExecuteMsg::ProcessAction(ActionMsgs::ProvideSingleSidedLiquidity {
+            &ExecuteMsg::ProcessFunction(FunctionMsgs::ProvideSingleSidedLiquidity {
                 expected_spot_price,
                 asset: asset.to_string(),
                 limit,

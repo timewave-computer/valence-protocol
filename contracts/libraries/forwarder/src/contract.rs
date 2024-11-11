@@ -6,7 +6,7 @@ use valence_library_utils::{
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
-use crate::msg::{ActionMsgs, Config, LibraryConfig, LibraryConfigUpdate, QueryMsg};
+use crate::msg::{Config, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, QueryMsg};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -27,38 +27,38 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg<ActionMsgs, LibraryConfigUpdate>,
+    msg: ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>,
 ) -> Result<Response, LibraryError> {
     valence_library_base::execute(
         deps,
         env,
         info,
         msg,
-        actions::process_action,
+        functions::process_function,
         execute::update_config,
     )
 }
 
-mod actions {
+mod functions {
     use cosmwasm_std::{
         Addr, CosmosMsg, DepsMut, Env, MessageInfo, QuerierWrapper, Response, StdResult,
     };
     use valence_library_utils::{error::LibraryError, execute_on_behalf_of};
 
     use crate::{
-        msg::{ActionMsgs, Config},
+        msg::{Config, FunctionMsgs},
         state::LAST_SUCCESSFUL_FORWARD,
     };
 
-    pub fn process_action(
+    pub fn process_function(
         deps: DepsMut,
         env: Env,
         _info: MessageInfo,
-        msg: ActionMsgs,
+        msg: FunctionMsgs,
         cfg: Config,
     ) -> Result<Response, LibraryError> {
         match msg {
-            ActionMsgs::Forward {} => {
+            FunctionMsgs::Forward {} => {
                 ensure_forwarding_interval(&cfg, &deps, &env)?;
 
                 // Determine the amount to transfer for each denom

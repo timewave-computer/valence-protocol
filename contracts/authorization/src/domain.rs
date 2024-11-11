@@ -1,6 +1,6 @@
 use cosmwasm_std::{to_json_binary, Binary, CosmosMsg, DepsMut, Storage, Uint64, WasmMsg};
 use valence_authorization_utils::{
-    authorization::{ActionsConfig, Authorization},
+    authorization::{Authorization, Subroutine},
     callback::PolytoneCallbackMsg,
     domain::{Connector, Domain},
     msg::ExternalDomainInfo,
@@ -54,20 +54,20 @@ pub fn add_domain(
 }
 
 pub fn get_domain(authorization: &Authorization) -> Result<Domain, ContractError> {
-    match &authorization.actions_config {
-        ActionsConfig::Atomic(config) => config
-            .actions
+    match &authorization.subroutine {
+        Subroutine::Atomic(config) => config
+            .functions
             .first()
-            .map(|action| action.domain.clone())
+            .map(|function| function.domain.clone())
             .ok_or(ContractError::Authorization(
-                AuthorizationErrorReason::NoActions {},
+                AuthorizationErrorReason::NoFunctions {},
             )),
-        ActionsConfig::NonAtomic(config) => config
-            .actions
+        Subroutine::NonAtomic(config) => config
+            .functions
             .first()
-            .map(|action| action.domain.clone())
+            .map(|function| function.domain.clone())
             .ok_or(ContractError::Authorization(
-                AuthorizationErrorReason::NoActions {},
+                AuthorizationErrorReason::NoFunctions {},
             )),
     }
 }

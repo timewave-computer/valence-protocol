@@ -340,12 +340,12 @@ impl ProgramConfig {
 
         // Loop over authorizations, and change ids to their addresses
         for authorization in self.authorizations.iter_mut() {
-            match &mut authorization.actions_config {
-                valence_authorization_utils::authorization::ActionsConfig::Atomic(
-                    atomic_actions_config,
+            match &mut authorization.subroutine {
+                valence_authorization_utils::authorization::Subroutine::Atomic(
+                    atomic_subroutine,
                 ) => {
-                    atomic_actions_config.actions.iter_mut().for_each(|action| {
-                        let addr = match &action.contract_address {
+                    atomic_subroutine.functions.iter_mut().for_each(|function| {
+                        let addr = match &function.contract_address {
                             valence_library_utils::LibraryAccountType::Addr(a) => a.to_string(),
                             valence_library_utils::LibraryAccountType::AccountId(account_id) => {
                                 account_instantiate_datas
@@ -363,18 +363,18 @@ impl ProgramConfig {
                                     .unwrap()
                             }
                         };
-                        action.contract_address =
+                        function.contract_address =
                             valence_library_utils::LibraryAccountType::Addr(addr);
                     });
                 }
-                valence_authorization_utils::authorization::ActionsConfig::NonAtomic(
-                    non_atomic_actions_config,
+                valence_authorization_utils::authorization::Subroutine::NonAtomic(
+                    non_atomic_subroutine,
                 ) => {
-                    non_atomic_actions_config
-                        .actions
+                    non_atomic_subroutine
+                        .functions
                         .iter_mut()
-                        .for_each(|action| {
-                            let addr = match &action.contract_address {
+                        .for_each(|function| {
+                            let addr = match &function.contract_address {
                                 valence_library_utils::LibraryAccountType::Addr(a) => a.to_string(),
                                 valence_library_utils::LibraryAccountType::AccountId(
                                     account_id,
@@ -393,7 +393,7 @@ impl ProgramConfig {
                                     .clone()
                                     .unwrap(),
                             };
-                            action.contract_address =
+                            function.contract_address =
                                 valence_library_utils::LibraryAccountType::Addr(addr);
                         });
                 }

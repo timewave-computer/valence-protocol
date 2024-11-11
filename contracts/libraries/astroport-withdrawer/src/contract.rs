@@ -6,7 +6,7 @@ use valence_library_utils::{
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
-use crate::msg::{ActionMsgs, Config, LibraryConfig, LibraryConfigUpdate, QueryMsg};
+use crate::msg::{Config, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, QueryMsg};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -27,14 +27,14 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg<ActionMsgs, LibraryConfigUpdate>,
+    msg: ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>,
 ) -> Result<Response, LibraryError> {
     valence_library_base::execute(
         deps,
         env,
         info,
         msg,
-        actions::process_action,
+        functions::process_function,
         execute::update_config,
     )
 }
@@ -55,24 +55,24 @@ mod execute {
     }
 }
 
-mod actions {
+mod functions {
     use cosmwasm_std::{CosmosMsg, DepsMut, Env, MessageInfo, Response};
     use valence_library_utils::{error::LibraryError, execute_on_behalf_of};
 
     use crate::{
         astroport_cw20, astroport_native,
-        msg::{ActionMsgs, Config, PoolType},
+        msg::{Config, FunctionMsgs, PoolType},
     };
 
-    pub fn process_action(
+    pub fn process_function(
         deps: DepsMut,
         _env: Env,
         _info: MessageInfo,
-        msg: ActionMsgs,
+        msg: FunctionMsgs,
         cfg: Config,
     ) -> Result<Response, LibraryError> {
         match msg {
-            ActionMsgs::WithdrawLiquidity {} => withdraw_liquidity(deps, cfg),
+            FunctionMsgs::WithdrawLiquidity {} => withdraw_liquidity(deps, cfg),
         }
     }
 

@@ -9,7 +9,7 @@ use valence_macros::{valence_library_query, ValenceLibraryInterface};
 use crate::CONFIG2;
 
 #[cw_serde]
-pub enum ActionMsgs {
+pub enum FunctionMsgs {
     NoOp {},
 }
 

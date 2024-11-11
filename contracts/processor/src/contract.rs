@@ -8,7 +8,7 @@ use cosmwasm_std::{
 
 use cw_storage_plus::Bound;
 use valence_authorization_utils::{
-    authorization::{ActionsConfig, Priority},
+    authorization::{Priority, Subroutine},
     callback::ExecutionResult,
     domain::PolytoneProxyState,
     msg::ProcessorMessage,
@@ -35,7 +35,7 @@ use crate::{
     error::{CallbackErrorReason, ContractError, UnauthorizedReason},
     queue::get_queue_map,
     state::{
-        CONFIG, EXECUTION_ID_TO_BATCH, NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX, PENDING_CALLBACK,
+        CONFIG, EXECUTION_ID_TO_BATCH, NON_ATOMIC_BATCH_CURRENT_FUNCTION_INDEX, PENDING_CALLBACK,
         PENDING_POLYTONE_CALLBACKS,
     },
 };
@@ -122,9 +122,9 @@ pub fn execute(
                 AuthorizationMsg::EnqueueMsgs {
                     id,
                     msgs,
-                    actions_config,
+                    subroutine,
                     priority,
-                } => enqueue_messages(deps, id, msgs, actions_config, priority),
+                } => enqueue_messages(deps, id, msgs, subroutine, priority),
                 AuthorizationMsg::EvictMsgs {
                     queue_position,
                     priority,
@@ -133,9 +133,9 @@ pub fn execute(
                     id,
                     queue_position,
                     msgs,
-                    actions_config,
+                    subroutine,
                     priority,
-                } => insert_messages(deps, queue_position, id, msgs, actions_config, priority),
+                } => insert_messages(deps, queue_position, id, msgs, subroutine, priority),
                 AuthorizationMsg::Pause {} => pause_processor(deps),
                 AuthorizationMsg::Resume {} => resume_processor(deps),
             }
@@ -185,7 +185,7 @@ fn enqueue_messages(
     deps: DepsMut,
     id: u64,
     msgs: Vec<ProcessorMessage>,
-    actions_config: ActionsConfig,
+    subroutine: Subroutine,
     priority: Priority,
 ) -> Result<Response, ContractError> {
     let queue = get_queue_map(&priority);
@@ -193,7 +193,7 @@ fn enqueue_messages(
     let message_batch = MessageBatch {
         id,
         msgs,
-        actions_config,
+        subroutine,
         priority,
         retry: None,
     };
@@ -217,7 +217,7 @@ fn evict_messages(
             let config = CONFIG.load(deps.storage)?;
             // Do the clean up and send the callback
             EXECUTION_ID_TO_BATCH.remove(deps.storage, batch.id);
-            NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.remove(deps.storage, batch.id);
+            NON_ATOMIC_BATCH_CURRENT_FUNCTION_INDEX.remove(deps.storage, batch.id);
             PENDING_CALLBACK.remove(deps.storage, batch.id);
             let callback_msg = create_callback_message(
                 deps.storage,
@@ -244,7 +244,7 @@ fn insert_messages(
     queue_position: u64,
     id: u64,
     msgs: Vec<ProcessorMessage>,
-    actions_config: ActionsConfig,
+    subroutine: Subroutine,
     priority: Priority,
 ) -> Result<Response, ContractError> {
     let mut queue = get_queue_map(&priority);
@@ -252,7 +252,7 @@ fn insert_messages(
     let message_batch = MessageBatch {
         id,
         msgs,
-        actions_config,
+        subroutine,
         priority,
         retry: None,
     };
@@ -282,19 +282,19 @@ fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let messages;
     match message_batch {
         Some(batch) => {
-            // First we check if the current batch or action to be executed is retriable, if it isn't we'll just push it back to the end of the queue
+            // First we check if the current batch or function to be executed is retriable, if it isn't we'll just push it back to the end of the queue
             // If the retry_cooldown has not passed yet, we'll push the batch back to the queue and wait for the next tick
             if let Some(current_retry) = batch.retry.clone() {
                 if !current_retry.retry_cooldown.is_expired(&env.block) {
                     queue.push_back(deps.storage, &batch)?;
                     return Ok(Response::new()
                         .add_attribute("method", "tick")
-                        .add_attribute("action", "pushed_action_back_to_queue"));
+                        .add_attribute("action", "pushed_function_back_to_queue"));
                 }
             }
-            // First we check if the action batch is atomic or not, as the way of processing them is different
-            match batch.actions_config {
-                ActionsConfig::Atomic(_) => {
+            // First we check if the function batch is atomic or not, as the way of processing them is different
+            match batch.subroutine {
+                Subroutine::Atomic(_) => {
                     let id = batch.id;
                     // We'll trigger the processor to execute the batch atomically by calling himself
                     // Otherwise we can't execute it atomically
@@ -309,17 +309,17 @@ fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
                         id,
                     )]
                 }
-                ActionsConfig::NonAtomic(ref actions_config) => {
+                Subroutine::NonAtomic(ref subroutine) => {
                     // If the batch is non-atomic, we have to execute the message we are currently on
-                    // If we never executed this batch before, we'll start from the first action (default - 0)
+                    // If we never executed this batch before, we'll start from the first function (default - 0)
                     let index_stored =
-                        NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.may_load(deps.storage, batch.id)?;
+                        NON_ATOMIC_BATCH_CURRENT_FUNCTION_INDEX.may_load(deps.storage, batch.id)?;
 
-                    // If it's the first execution we'll start from the first action
+                    // If it's the first execution we'll start from the first function
                     let current_index = match index_stored {
                         Some(index) => index,
                         None => {
-                            NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.save(
+                            NON_ATOMIC_BATCH_CURRENT_FUNCTION_INDEX.save(
                                 deps.storage,
                                 batch.id,
                                 &0,
@@ -328,9 +328,9 @@ fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
                         }
                     };
 
-                    // If the action is confirmed by a callback, let's create it and append the execution_id to the message
+                    // If the function is confirmed by a callback, let's create it and append the execution_id to the message
                     // If not, we don't need to append anything and just send it like it is
-                    if let Some(callback) = actions_config.actions[current_index]
+                    if let Some(callback) = subroutine.functions[current_index]
                         .callback_confirmation
                         .clone()
                     {
@@ -452,12 +452,12 @@ fn process_callback(
         ));
     }
 
-    // Get the current index we are at for this non atomic action
-    let index = NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.load(deps.storage, execution_id)?;
+    // Get the current index we are at for this non atomic function
+    let index = NON_ATOMIC_BATCH_CURRENT_FUNCTION_INDEX.load(deps.storage, execution_id)?;
     let mut messages = vec![];
     // Check if the message sent is the one we are expecting
-    // If it is, we'll proceed to next action or provide the callback to the authorization module (if we finished with all actions)
-    // If it isn't, we need to see if we can retry the action or provide the error to the authorization module
+    // If it is, we'll proceed to next function or provide the callback to the authorization module (if we finished with all functions)
+    // If it isn't, we need to see if we can retry the function or provide the error to the authorization module
     if msg != pending_callback.callback_msg {
         let config = CONFIG.load(deps.storage)?;
         handle_unsuccessful_callback(
@@ -622,7 +622,7 @@ fn process_polytone_callback(
     // We need to save the changes of the polytone state which is part of the config
     CONFIG.save(deps.storage, &config)?;
 
-    Ok(Response::new().add_attribute("action", "process_polytone_callback"))
+    Ok(Response::new().add_attribute("function", "process_polytone_callback"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -633,13 +633,13 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
     let mut batch = EXECUTION_ID_TO_BATCH.load(deps.storage, msg.id)?;
     let mut messages = vec![];
 
-    match NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.may_load(deps.storage, msg.id)? {
+    match NON_ATOMIC_BATCH_CURRENT_FUNCTION_INDEX.may_load(deps.storage, msg.id)? {
         Some(index) => {
             // Non Atomic
             // Check if it replied because of error or success
             match msg.result {
                 SubMsgResult::Ok(_) => {
-                    // If the action is only successful on a callback, we won't do anything because we'll wait for the callback instead
+                    // If the function is only successful on a callback, we won't do anything because we'll wait for the callback instead
                     if !PENDING_CALLBACK.has(deps.storage, msg.id) {
                         handle_successful_non_atomic_callback(
                             deps.storage,

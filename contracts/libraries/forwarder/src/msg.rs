@@ -13,8 +13,8 @@ use valence_library_utils::{
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
 
 #[cw_serde]
-/// Enum representing the different action messages that can be sent.
-pub enum ActionMsgs {
+/// Enum representing the different function messages that can be sent.
+pub enum FunctionMsgs {
     /// Message to forward tokens.
     Forward {},
 }

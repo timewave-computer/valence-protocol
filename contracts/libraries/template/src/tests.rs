@@ -1,4 +1,4 @@
-use crate::msg::{ActionMsgs, Config, LibraryConfig, LibraryConfigUpdate, QueryMsg};
+use crate::msg::{Config, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, QueryMsg};
 use cosmwasm_std::{Addr, Empty};
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
@@ -63,7 +63,7 @@ impl TemplateTestSuite {
     fn execute_noop(&mut self, addr: Addr) -> AnyResult<AppResponse> {
         self.contract_execute(
             addr,
-            &ExecuteMsg::<_, LibraryConfig>::ProcessAction(ActionMsgs::NoOp {}),
+            &ExecuteMsg::<_, LibraryConfig>::ProcessFunction(FunctionMsgs::NoOp {}),
         )
     }
 
@@ -72,7 +72,7 @@ impl TemplateTestSuite {
         self.app_mut().execute_contract(
             owner,
             addr,
-            &ExecuteMsg::<ActionMsgs, LibraryConfig>::UpdateConfig { new_config },
+            &ExecuteMsg::<FunctionMsgs, LibraryConfig>::UpdateConfig { new_config },
             &[],
         )
     }
@@ -177,7 +177,7 @@ fn get_diff_update() {
 }
 
 #[test]
-fn execute_action() {
+fn execute_function() {
     let mut suite = TemplateTestSuite::default();
 
     let cfg = suite.template_config(suite.owner().to_string());
@@ -185,6 +185,6 @@ fn execute_action() {
     // Instantiate Template contract
     let lib = suite.template_init(&cfg);
 
-    // Execute action
+    // Execute function
     suite.execute_noop(lib).unwrap();
 }

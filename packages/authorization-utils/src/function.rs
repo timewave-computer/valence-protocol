@@ -6,8 +6,8 @@ use valence_library_utils::LibraryAccountType;
 use crate::{authorization_message::MessageDetails, domain::Domain};
 
 #[cw_serde]
-pub struct AtomicAction {
-    // Note: for V1, all actions will be executed in the same domain
+pub struct AtomicFunction {
+    // Note: for V1, all functions will be executed in the same domain
     pub domain: Domain,
     pub message_details: MessageDetails,
     // We use String instead of Addr because it can be a contract address in other execution environments
@@ -15,27 +15,27 @@ pub struct AtomicAction {
 }
 
 #[cw_serde]
-pub struct NonAtomicAction {
-    // Note: for V1, all actions will be executed in the same domain
+pub struct NonAtomicFunction {
+    // Note: for V1, all functions will be executed in the same domain
     pub domain: Domain,
     pub message_details: MessageDetails,
     // We use String instead of Addr because it can be a contract address in other execution environments
     pub contract_address: LibraryAccountType,
     // A non atomic action might need to be retried, in that case we will include the retry logic.
     pub retry_logic: Option<RetryLogic>,
-    // An action might need to receive a callback to be confirmed, in that case we will include the callback confirmation.
+    // An function might need to receive a callback to be confirmed, in that case we will include the callback confirmation.
     // If not provided, we assume that correct execution of the message implies confirmation.
-    pub callback_confirmation: Option<ActionCallback>,
+    pub callback_confirmation: Option<FunctionCallback>,
 }
 
-pub trait Action {
+pub trait Function {
     fn domain(&self) -> &Domain;
     fn message_details(&self) -> &MessageDetails;
     fn get_contract_address(&self) -> String;
 }
 
-// Implement this trait for both AtomicAction and NonAtomicAction
-impl Action for AtomicAction {
+// Implement this trait for both AtomicFunction and NonAtomicFunction
+impl Function for AtomicFunction {
     fn domain(&self) -> &Domain {
         &self.domain
     }
@@ -49,7 +49,7 @@ impl Action for AtomicAction {
     }
 }
 
-impl Action for NonAtomicAction {
+impl Function for NonAtomicFunction {
     fn domain(&self) -> &Domain {
         &self.domain
     }
@@ -76,9 +76,9 @@ pub enum RetryTimes {
 }
 
 #[cw_serde]
-pub struct ActionCallback {
+pub struct FunctionCallback {
     // Address of contract we should receive the Callback from
     pub contract_address: Addr,
-    // What we should receive from the callback to consider the action completed
+    // What we should receive from the callback to consider the function completed
     pub callback_message: Binary,
 }

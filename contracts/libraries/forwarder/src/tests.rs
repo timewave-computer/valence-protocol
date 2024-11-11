@@ -1,4 +1,4 @@
-use crate::msg::{ActionMsgs, Config, ForwardingConstraints, LibraryConfig, QueryMsg};
+use crate::msg::{Config, ForwardingConstraints, FunctionMsgs, LibraryConfig, QueryMsg};
 use cosmwasm_std::{coin, Addr, Coin, Empty, Uint128};
 use cw20::Cw20Coin;
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
@@ -100,7 +100,7 @@ impl ForwarderTestSuite {
     fn execute_forward(&mut self, addr: Addr) -> AnyResult<AppResponse> {
         self.contract_execute(
             addr,
-            &ExecuteMsg::<_, LibraryConfig>::ProcessAction(ActionMsgs::Forward {}),
+            &ExecuteMsg::<_, LibraryConfig>::ProcessFunction(FunctionMsgs::Forward {}),
         )
     }
 
@@ -109,7 +109,7 @@ impl ForwarderTestSuite {
         self.app_mut().execute_contract(
             owner,
             addr,
-            &ExecuteMsg::<ActionMsgs, LibraryConfig>::UpdateConfig { new_config },
+            &ExecuteMsg::<FunctionMsgs, LibraryConfig>::UpdateConfig { new_config },
             &[],
         )
     }
@@ -405,12 +405,12 @@ fn forward_with_height_interval_constraint() {
     let lib = suite.forwarder_init(&cfg);
 
     // BLOCK N
-    // Execute forward action shoud succeed
+    // Execute forward function shoud succeed
     suite.execute_forward(lib.clone()).unwrap();
 
     // BLOCK N+1
     suite.next_block();
-    // Execute forward action shoud fail
+    // Execute forward function shoud fail
     let mut res = suite.execute_forward(lib.clone());
     assert!(res.is_err());
 
@@ -421,13 +421,13 @@ fn forward_with_height_interval_constraint() {
 
     // BLOCK N+2
     suite.next_block();
-    // Execute forward action shoud fail
+    // Execute forward function shoud fail
     res = suite.execute_forward(lib.clone());
     assert!(res.is_err());
 
     // BLOCK N+3
     suite.next_block();
-    // Execute forward action shoud succeed
+    // Execute forward function shoud succeed
     suite.execute_forward(lib.clone()).unwrap();
 
     // Verify input account's balance: should be 998_000 NTR because of 2 successful forwards
@@ -460,30 +460,30 @@ fn forward_with_time_interval_constraint() {
     // While unrealistic, this is a simple way to test the time interval constraint.
 
     // BLOCK N
-    // Execute forward action shoud succeed
+    // Execute forward function shoud succeed
     suite.execute_forward(lib.clone()).unwrap();
 
     // BLOCK N+1
     suite.next_block();
-    // Execute forward action shoud fail
+    // Execute forward function shoud fail
     let mut res = suite.execute_forward(lib.clone());
     assert!(res.is_err());
 
     // BLOCK N+2
     suite.next_block();
-    // Execute forward action shoud fail
+    // Execute forward function shoud fail
     res = suite.execute_forward(lib.clone());
     assert!(res.is_err());
 
     // BLOCK N+3
     suite.next_block();
-    // Execute forward action shoud fail
+    // Execute forward function shoud fail
     res = suite.execute_forward(lib.clone());
     assert!(res.is_err());
 
     // BLOCK N+4
     suite.next_block();
-    // Execute forward action shoud succeed
+    // Execute forward function shoud succeed
     suite.execute_forward(lib.clone()).unwrap();
 
     // Verify input account's balance: should be 998_000 NTR because of 2 successful forwards
@@ -543,7 +543,7 @@ fn forward_multiple_tokens_continuously() {
 
     // BLOCK N+1
     suite.next_block();
-    // Execute forward action shoud fail
+    // Execute forward function shoud fail
     let mut res = suite.execute_forward(lib.clone());
     assert!(res.is_err());
 
@@ -554,7 +554,7 @@ fn forward_multiple_tokens_continuously() {
 
     // BLOCK N+3
     suite.next_block();
-    // Execute forward action shoud fail
+    // Execute forward function shoud fail
     res = suite.execute_forward(lib.clone());
     assert!(res.is_err());
 
@@ -568,7 +568,7 @@ fn forward_multiple_tokens_continuously() {
 
     // BLOCK N+5
     suite.next_block();
-    // Execute forward action shoud fail
+    // Execute forward function shoud fail
     res = suite.execute_forward(lib.clone());
     assert!(res.is_err());
 
@@ -582,7 +582,7 @@ fn forward_multiple_tokens_continuously() {
 
     // BLOCK N+7
     suite.next_block();
-    // Execute forward action shoud fail
+    // Execute forward function shoud fail
     res = suite.execute_forward(lib.clone());
     assert!(res.is_err());
 
@@ -593,7 +593,7 @@ fn forward_multiple_tokens_continuously() {
 
     // BLOCK N+9
     suite.next_block();
-    // Execute forward action shoud fail
+    // Execute forward function shoud fail
     res = suite.execute_forward(lib.clone());
     assert!(res.is_err());
 

@@ -9,7 +9,7 @@ use valence_macros::ValenceLibraryInterface;
 use valence_osmosis_utils::utils::cl_utils::{query_cl_pool, TickRange};
 
 #[cw_serde]
-pub enum ActionMsgs {
+pub enum FunctionMsgs {
     // provide liquidity at custom range
     ProvideLiquidityCustom {
         tick_range: TickRange,
