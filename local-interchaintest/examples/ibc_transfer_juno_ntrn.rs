@@ -20,7 +20,7 @@ use localic_utils::{
 use log::info;
 
 use valence_generic_ibc_transfer_service::msg::{
-    ActionMsgs, IbcTransferAmount, ServiceConfig, ServiceConfigUpdate,
+    FunctionMsgs, IbcTransferAmount, ServiceConfig, ServiceConfigUpdate,
 };
 use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
 
@@ -182,8 +182,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     info!("Initiate IBC transfer");
-    let ibc_transfer_msg =
-        &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(ActionMsgs::IbcTransfer {});
+    let ibc_transfer_msg = &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+        FunctionMsgs::IbcTransfer {},
+    );
 
     contract_execute(
         test_ctx
@@ -237,7 +238,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         denom_to_pfm_map: None,
     };
     let upd_cfg_msg =
-        valence_service_utils::msg::ExecuteMsg::<ActionMsgs, ServiceConfigUpdate>::UpdateConfig {
+        valence_service_utils::msg::ExecuteMsg::<FunctionMsgs, ServiceConfigUpdate>::UpdateConfig {
             new_config,
         };
     contract_execute(
@@ -253,8 +254,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(std::time::Duration::from_secs(10));
 
     info!("Initiate IBC transfer");
-    let ibc_transfer_msg =
-        &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(ActionMsgs::IbcTransfer {});
+    let ibc_transfer_msg = &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+        FunctionMsgs::IbcTransfer {},
+    );
 
     contract_execute(
         test_ctx

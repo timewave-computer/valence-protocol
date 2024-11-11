@@ -17,7 +17,7 @@ use log::info;
 use rand::{distributions::Alphanumeric, Rng};
 use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
-    builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
+    builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
     msg::ProcessorMessage,
 };
 use valence_program_manager::{
@@ -26,7 +26,7 @@ use valence_program_manager::{
     service::{ServiceConfig, ServiceInfo},
 };
 use valence_service_utils::denoms::UncheckedDenom;
-use valence_splitter_service::msg::{ActionMsgs, UncheckedSplitAmount, UncheckedSplitConfig};
+use valence_splitter_service::msg::{FunctionMsgs, UncheckedSplitAmount, UncheckedSplitConfig};
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -129,18 +129,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     program_config_builder.add_authorization(
         AuthorizationBuilder::new()
             .with_label("swap")
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(
-                        AtomicActionBuilder::new()
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(service_1)
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "split".to_string(),
                                         ]),
                                     ]),
@@ -148,16 +148,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                             })
                             .build(),
                     )
-                    .with_action(
-                        AtomicActionBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(service_2)
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "split".to_string(),
                                         ]),
                                     ]),
@@ -262,7 +262,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Send the messages to the authorization contract...");
     let binary = Binary::from(
         serde_json::to_vec(
-            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(ActionMsgs::Split {}),
+            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                FunctionMsgs::Split {},
+            ),
         )
         .unwrap(),
     );

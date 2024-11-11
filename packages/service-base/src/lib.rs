@@ -43,7 +43,7 @@ where
         .add_attribute("owner", format!("{:?}", msg.owner)))
 }
 
-type ProcessAction<M, Q, T, U> =
+type ProcessFunction<M, Q, T, U> =
     fn(DepsMut<Q>, Env, MessageInfo, T, U) -> Result<Response<M>, ServiceError>;
 type UpdateConfig<Q, V> = fn(DepsMut<Q>, Env, MessageInfo, V) -> Result<(), ServiceError>;
 
@@ -52,7 +52,7 @@ pub fn execute<M, Q, T, U, V>(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg<T, V>,
-    process_action: ProcessAction<M, Q, T, U>,
+    process_function: ProcessFunction<M, Q, T, U>,
     update_config: UpdateConfig<Q, V>,
 ) -> Result<Response<M>, ServiceError>
 where
@@ -61,10 +61,10 @@ where
     V: ServiceConfigUpdateTrait + Serialize + DeserializeOwned,
 {
     match msg {
-        ExecuteMsg::ProcessAction(action) => {
+        ExecuteMsg::ProcessFunction(function) => {
             assert_processor(deps.as_ref().storage, &info.sender)?;
             let config = load_config(deps.storage)?;
-            process_action(deps, env, info, action, config)
+            process_function(deps, env, info, function, config)
         }
         ExecuteMsg::UpdateConfig { new_config } => {
             cw_ownable::assert_owner(deps.as_ref().storage, &info.sender)?;

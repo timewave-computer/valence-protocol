@@ -40,8 +40,8 @@ pub enum ExecutionResult {
     Success,
     // Execution was rejected, and the reason
     Rejected(String),
-    // Partially executed, for non-atomic action batches
-    // Indicates how many actions were executed and the reason the next action was not executed
+    // Partially executed, for non-atomic function batches
+    // Indicates how many functions were executed and the reason the next function was not executed
     PartiallyExecuted(usize, String),
     // Removed by Owner - happens when, from the authorization contract, a remove item from queue is sent
     RemovedByOwner,

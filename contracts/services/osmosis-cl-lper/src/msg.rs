@@ -9,7 +9,7 @@ use valence_service_utils::{
 };
 
 #[cw_serde]
-pub enum ActionMsgs {
+pub enum FunctionMsgs {
     // provide liquidity at custom range
     ProvideLiquidityCustom {
         tick_range: TickRange,

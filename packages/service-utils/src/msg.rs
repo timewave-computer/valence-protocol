@@ -22,7 +22,7 @@ pub trait ServiceConfigValidation<T> {
 #[cw_ownable_execute]
 #[cw_serde]
 pub enum ExecuteMsg<T, U> {
-    ProcessAction(T),
+    ProcessFunction(T),
     UpdateConfig { new_config: U },
     UpdateProcessor { processor: String },
 }

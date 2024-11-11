@@ -6,7 +6,7 @@ use valence_service_utils::{
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
-use crate::msg::{ActionMsgs, Config, QueryMsg, ServiceConfig, ServiceConfigUpdate};
+use crate::msg::{Config, FunctionMsgs, QueryMsg, ServiceConfig, ServiceConfigUpdate};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -27,14 +27,14 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg<ActionMsgs, ServiceConfigUpdate>,
+    msg: ExecuteMsg<FunctionMsgs, ServiceConfigUpdate>,
 ) -> Result<Response, ServiceError> {
     valence_service_base::execute(
         deps,
         env,
         info,
         msg,
-        actions::process_action,
+        functions::process_function,
         execute::update_config,
     )
 }
@@ -55,28 +55,28 @@ mod execute {
     }
 }
 
-mod actions {
+mod functions {
     use cosmwasm_std::{Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128};
     use valence_astroport_utils::decimal_checked_ops::DecimalCheckedOps;
     use valence_service_utils::{error::ServiceError, execute_on_behalf_of};
 
     use crate::{
         astroport_cw20, astroport_native,
-        msg::{ActionMsgs, Config, DecimalRange, PoolType},
+        msg::{Config, DecimalRange, FunctionMsgs, PoolType},
     };
 
-    pub fn process_action(
+    pub fn process_function(
         deps: DepsMut,
         _env: Env,
         _info: MessageInfo,
-        msg: ActionMsgs,
+        msg: FunctionMsgs,
         cfg: Config,
     ) -> Result<Response, ServiceError> {
         match msg {
-            ActionMsgs::ProvideDoubleSidedLiquidity {
+            FunctionMsgs::ProvideDoubleSidedLiquidity {
                 expected_pool_ratio_range,
             } => provide_double_sided_liquidity(deps, cfg, expected_pool_ratio_range),
-            ActionMsgs::ProvideSingleSidedLiquidity {
+            FunctionMsgs::ProvideSingleSidedLiquidity {
                 asset,
                 limit,
                 expected_pool_ratio_range,

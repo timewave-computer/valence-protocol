@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Binary;
 use valence_authorization_utils::{
-    authorization::{ActionsConfig, Priority},
+    authorization::{Priority, Subroutine},
     msg::ProcessorMessage,
 };
 use valence_polytone_utils::polytone::CallbackMessage;
@@ -41,7 +41,7 @@ pub enum AuthorizationMsg {
         // Used for the callback or to remove the messages
         id: u64,
         msgs: Vec<ProcessorMessage>,
-        actions_config: ActionsConfig,
+        subroutine: Subroutine,
         priority: Priority,
     },
     EvictMsgs {
@@ -52,7 +52,7 @@ pub enum AuthorizationMsg {
         queue_position: u64,
         id: u64,
         msgs: Vec<ProcessorMessage>,
-        actions_config: ActionsConfig,
+        subroutine: Subroutine,
         priority: Priority,
     },
     Pause {},
