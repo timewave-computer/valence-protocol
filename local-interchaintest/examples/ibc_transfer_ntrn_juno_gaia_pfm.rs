@@ -268,8 +268,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Messages sent to the IBC Transfer service!");
     std::thread::sleep(std::time::Duration::from_secs(10));
 
-    let ibc_fee = 2000u128;
-
     info!("Verifying balances...");
     let end_input_balance = bank::get_balance(
         test_ctx
@@ -280,10 +278,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     .iter()
     .find(|bal| bal.denom == atom_on_neutron_via_juno)
     .map_or(0, |bal| bal.amount.u128());
-    assert_eq!(
-        end_input_balance,
-        start_input_balance.sub(transfer_amount).add(ibc_fee)
-    );
+    assert_eq!(end_input_balance, start_input_balance.sub(transfer_amount));
 
     let end_output_balance = bank::get_balance(
         test_ctx
@@ -296,7 +291,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     .map_or(0, |bal| bal.amount.u128());
     assert_eq!(
         end_output_balance,
-        start_output_balance.add(transfer_amount).sub(ibc_fee)
+        start_output_balance.add(transfer_amount)
     );
 
     info!("IBC transfer successful!");
