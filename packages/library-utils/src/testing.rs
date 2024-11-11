@@ -1,14 +1,29 @@
 use cosmwasm_std::{
-    coin, instantiate2_address, testing::MockApi, Addr, Api, CodeInfoResponse, Coin, CustomMsg,
-    CustomQuery, Empty, Uint128,
+    coin, instantiate2_address,
+    testing::{MockApi, MockStorage},
+    Addr, Api, CodeInfoResponse, Coin, CustomMsg, CustomQuery, Empty, Uint128,
 };
 use cw20::Cw20Coin;
 use cw_multi_test::{
-    error::AnyResult, next_block, App, AppResponse, BasicApp, ContractWrapper, Executor,
+    error::AnyResult, next_block, App, AppResponse, BankKeeper, ContractWrapper, Executor,
+    FailingModule, GovFailingModule, IbcFailingModule, Module, StargateFailing, WasmKeeper,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use sha2::{Digest, Sha256};
 use std::fmt::Debug;
+
+pub type TestApp<ExecC, QueryC, TCustom = FailingModule<ExecC, QueryC, Empty>> = App<
+    BankKeeper,
+    MockApi,
+    MockStorage,
+    TCustom,
+    WasmKeeper<ExecC, QueryC>,
+    FailingModule<Empty, Empty, Empty>,
+    FailingModule<Empty, Empty, Empty>,
+    IbcFailingModule,
+    GovFailingModule,
+    StargateFailing,
+>;
 
 pub struct LibraryTestSuiteBase {
     app: App,
@@ -58,19 +73,32 @@ impl LibraryTestSuiteBase {
     }
 }
 
-pub trait LibraryTestSuite<ExecC, QueryC>
+pub trait LibraryTestSuiteApp<ExecC, QueryC>
 where
     ExecC: CustomMsg + Debug + DeserializeOwned + 'static,
     QueryC: CustomQuery + Debug + DeserializeOwned + 'static,
 {
-    fn app(&self) -> &BasicApp<ExecC, QueryC>;
-    fn app_mut(&mut self) -> &mut BasicApp<ExecC, QueryC>;
+}
+
+pub trait LibraryTestSuite<
+    ExecC,
+    QueryC,
+    TCustom: Module<ExecT = ExecC, QueryT = QueryC> = FailingModule<ExecC, QueryC, Empty>,
+> where
+    ExecC: CustomMsg + Debug + DeserializeOwned + 'static,
+    QueryC: CustomQuery + Debug + DeserializeOwned + 'static,
+{
+    fn app(&self) -> &TestApp<ExecC, QueryC, TCustom>;
+    fn app_mut(&mut self) -> &mut TestApp<ExecC, QueryC, TCustom>;
     fn owner(&self) -> &Addr;
     fn processor(&self) -> &Addr;
     fn account_code_id(&self) -> u64;
     fn cw20_code_id(&self) -> u64;
 
-    fn api(&self) -> &MockApi {
+    fn api<'b>(&'b self) -> &'b MockApi
+    where
+        TCustom: 'b,
+    {
         self.app().api()
     }
 
@@ -308,24 +336,28 @@ impl LibraryTestSuite<Empty, Empty> for LibraryTestSuiteBase {
     }
 }
 
-pub struct CustomLibraryTestSuiteBase<ExecC, QueryC>
-where
+pub struct CustomLibraryTestSuiteBase<
+    ExecC,
+    QueryC,
+    TCustom: Module<ExecT = ExecC, QueryT = QueryC>,
+> where
     ExecC: CustomMsg + Debug + DeserializeOwned,
     QueryC: CustomQuery + Debug + DeserializeOwned,
 {
-    app: BasicApp<ExecC, QueryC>,
+    app: TestApp<ExecC, QueryC, TCustom>,
     owner: Addr,
     processor: Addr,
     account_code_id: u64,
     cw20_code_id: u64,
 }
 
-impl<ExecC, QueryC> CustomLibraryTestSuiteBase<ExecC, QueryC>
+impl<ExecC, QueryC, TCustom: Module<ExecT = ExecC, QueryT = QueryC>>
+    CustomLibraryTestSuiteBase<ExecC, QueryC, TCustom>
 where
     ExecC: CustomMsg + Debug + DeserializeOwned + 'static,
     QueryC: CustomQuery + Debug + DeserializeOwned + 'static,
 {
-    pub fn new(mut app: BasicApp<ExecC, QueryC>) -> Self {
+    pub fn new(mut app: TestApp<ExecC, QueryC, TCustom>) -> Self {
         let owner = app.api().addr_make("owner");
         let processor = app.api().addr_make("processor");
 
@@ -355,16 +387,17 @@ where
     }
 }
 
-impl<ExecC, QueryC> LibraryTestSuite<ExecC, QueryC> for CustomLibraryTestSuiteBase<ExecC, QueryC>
+impl<ExecC, QueryC, TCustom: Module<ExecT = ExecC, QueryT = QueryC>>
+    LibraryTestSuite<ExecC, QueryC, TCustom> for CustomLibraryTestSuiteBase<ExecC, QueryC, TCustom>
 where
     ExecC: CustomMsg + Debug + DeserializeOwned + 'static,
     QueryC: CustomQuery + Debug + DeserializeOwned + 'static,
 {
-    fn app(&self) -> &BasicApp<ExecC, QueryC> {
+    fn app(&self) -> &TestApp<ExecC, QueryC, TCustom> {
         &self.app
     }
 
-    fn app_mut(&mut self) -> &mut BasicApp<ExecC, QueryC> {
+    fn app_mut(&mut self) -> &mut TestApp<ExecC, QueryC, TCustom> {
         &mut self.app
     }
 

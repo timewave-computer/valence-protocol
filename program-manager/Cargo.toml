@@ -1,5 +1,5 @@
 [package]
-name       = "valence-workflow-manager"
+name       = "valence-program-manager"
 edition    = { workspace = true }
 license    = { workspace = true }
 version    = { workspace = true }
@@ -15,12 +15,12 @@ thiserror    = { workspace = true }
 anyhow       = { workspace = true }
 cw-ownable   = { workspace = true }
 
-valence-library-utils           = { workspace = true }
-valence-macros                  = { workspace = true }
-valence-authorization-utils     = { workspace = true }
-valence-processor-utils         = { workspace = true }
-valence-workflow-registry-utils = { workspace = true }
-valence-library-base            = { workspace = true }
+valence-library-utils          = { workspace = true }
+valence-macros                 = { workspace = true }
+valence-authorization-utils    = { workspace = true }
+valence-processor-utils        = { workspace = true }
+valence-program-registry-utils = { workspace = true }
+valence-library-base           = { workspace = true }
 
 valence-splitter-library         = { workspace = true }
 valence-reverse-splitter-library = { workspace = true }
@@ -29,7 +29,7 @@ valence-astroport-withdrawer     = { workspace = true }
 valence-account-utils            = { workspace = true }
 valence-authorization            = { workspace = true }
 valence-processor                = { workspace = true }
-valence-workflow-registry        = { workspace = true }
+valence-program-registry         = { workspace = true }
 valence-forwarder-library        = { workspace = true }
 
 tokio              = { workspace = true }

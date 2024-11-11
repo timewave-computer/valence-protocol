@@ -1,25 +1,32 @@
 use crate::msg::{ActionMsgs, Config, IbcTransferAmount, LibraryConfig, QueryMsg, RemoteChainInfo};
-use cosmwasm_std::{coin, Addr, Empty, Uint128, Uint64};
+use cosmwasm_std::{
+    coin, to_json_binary, Addr, Api, BlockInfo, CustomMsg, CustomQuery, Empty, Storage, Uint128,
+    Uint64,
+};
 use cw_multi_test::{
-    custom_app, error::AnyResult, no_init, AppResponse, BasicApp, ContractWrapper, Executor,
+    error::AnyResult, no_init, AppBuilder, AppResponse, ContractWrapper, CosmosRouter, Executor,
+    Module, SudoMsg,
 };
 use cw_ownable::Ownership;
 use getset::{Getters, Setters};
-use neutron_sdk::bindings::query::NeutronQuery;
+use neutron_sdk::{bindings::query::NeutronQuery, query::min_ibc_fee::MinIbcFeeResponse};
+use serde::de::DeserializeOwned;
 use valence_library_utils::{
     denoms::CheckedDenom,
     msg::{ExecuteMsg, InstantiateMsg, LibraryConfigValidation},
-    testing::{CustomLibraryTestSuiteBase, LibraryTestSuite},
+    testing::{CustomLibraryTestSuiteBase, LibraryTestSuite, TestApp},
     LibraryAccountType,
 };
 
 const NTRN: &str = "untrn";
+const ATOM: &str = "uatom";
+const ONE_HUNDRED: u128 = 100_000_000_u128;
 const ONE_MILLION: u128 = 1_000_000_000_000_u128;
 
 #[derive(Getters, Setters)]
 struct IbcTransferTestSuite {
     #[getset(get)]
-    inner: CustomLibraryTestSuiteBase<Empty, NeutronQuery>,
+    inner: CustomLibraryTestSuiteBase<Empty, NeutronQuery, NeutronKeeper>,
     #[getset(get)]
     ibc_transfer_code_id: u64,
     #[getset(get)]
@@ -39,7 +46,9 @@ impl Default for IbcTransferTestSuite {
 #[allow(dead_code)]
 impl IbcTransferTestSuite {
     pub fn new(input_balance: Option<(u128, String)>) -> Self {
-        let app = custom_app::<Empty, NeutronQuery, _>(no_init);
+        let app = AppBuilder::new_custom()
+            .with_custom(NeutronKeeper::new())
+            .build(no_init);
         let mut inner = CustomLibraryTestSuiteBase::new(app);
 
         let input_addr = inner.get_contract_addr(inner.account_code_id(), "input_account");
@@ -124,12 +133,12 @@ impl IbcTransferTestSuite {
     }
 }
 
-impl LibraryTestSuite<Empty, NeutronQuery> for IbcTransferTestSuite {
-    fn app(&self) -> &BasicApp<Empty, NeutronQuery> {
+impl LibraryTestSuite<Empty, NeutronQuery, NeutronKeeper> for IbcTransferTestSuite {
+    fn app(&self) -> &TestApp<Empty, NeutronQuery, NeutronKeeper> {
         self.inner.app()
     }
 
-    fn app_mut(&mut self) -> &mut BasicApp<Empty, NeutronQuery> {
+    fn app_mut(&mut self) -> &mut TestApp<Empty, NeutronQuery, NeutronKeeper> {
         self.inner.app_mut()
     }
 
@@ -150,8 +159,86 @@ impl LibraryTestSuite<Empty, NeutronQuery> for IbcTransferTestSuite {
     }
 }
 
-// Note: all tests below are replicated from the Generic IBC transfer library
-// Any change in the tests below should be reflected in the Generic IBC transfer library.
+#[allow(dead_code)]
+pub trait Neutron: Module<ExecT = Empty, QueryT = NeutronQuery, SudoT = SudoMsg> {}
+
+pub struct NeutronKeeper {}
+
+impl Neutron for NeutronKeeper {}
+
+impl NeutronKeeper {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Module for NeutronKeeper {
+    type ExecT = Empty;
+    type QueryT = NeutronQuery;
+    type SudoT = SudoMsg;
+
+    fn execute<ExecC, QueryC>(
+        &self,
+        _api: &dyn Api,
+        _storage: &mut dyn Storage,
+        _router: &dyn CosmosRouter<ExecC = ExecC, QueryC = QueryC>,
+        _block: &BlockInfo,
+        _sender: Addr,
+        _msg: Self::ExecT,
+    ) -> AnyResult<AppResponse>
+    where
+        ExecC: CustomMsg + DeserializeOwned + 'static,
+        QueryC: CustomQuery + DeserializeOwned + 'static,
+    {
+        unimplemented!()
+    }
+
+    fn query(
+        &self,
+        _api: &dyn cosmwasm_std::Api,
+        _storage: &dyn cosmwasm_std::Storage,
+        _querier: &dyn cosmwasm_std::Querier,
+        _block: &cosmwasm_std::BlockInfo,
+        request: Self::QueryT,
+    ) -> cw_multi_test::error::AnyResult<cosmwasm_std::Binary> {
+        match request {
+            NeutronQuery::MinIbcFee {} => Ok(to_json_binary(&MinIbcFeeResponse {
+                min_fee: neutron_sdk::bindings::msg::IbcFee {
+                    recv_fee: vec![],
+                    ack_fee: vec![coin(10_000, NTRN)],
+                    timeout_fee: vec![coin(10_000, NTRN)],
+                },
+            })
+            .unwrap()),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+
+    fn sudo<ExecC, QueryC>(
+        &self,
+        _api: &dyn cosmwasm_std::Api,
+        _storage: &mut dyn cosmwasm_std::Storage,
+        _router: &dyn cw_multi_test::CosmosRouter<ExecC = ExecC, QueryC = QueryC>,
+        _block: &cosmwasm_std::BlockInfo,
+        _msg: Self::SudoT,
+    ) -> cw_multi_test::error::AnyResult<cw_multi_test::AppResponse>
+    where
+        ExecC: std::fmt::Debug
+            + Clone
+            + PartialEq
+            + cosmwasm_schema::schemars::JsonSchema
+            + cosmwasm_schema::serde::de::DeserializeOwned
+            + 'static,
+        QueryC: cosmwasm_std::CustomQuery + cosmwasm_schema::serde::de::DeserializeOwned + 'static,
+    {
+        unimplemented!()
+    }
+}
+
+// Note: all tests below are replicated from the Generic IBC transfer service
+// Any change in the tests below should be reflected in the Generic IBC transfer service.
 
 #[test]
 fn instantiate_with_valid_config() {
@@ -331,6 +418,32 @@ fn ibc_transfer_fails_for_insufficient_balance() {
     let cfg = suite.ibc_transfer_config(
         NTRN.to_string(),
         IbcTransferAmount::FixedAmount(ONE_MILLION.into()),
+        "".to_string(),
+        RemoteChainInfo::new("channel-1".to_string(), Some(600u64.into())),
+    );
+
+    // Instantiate  contract
+    let lib = suite.ibc_transfer_init(&cfg);
+
+    // Execute IBC transfer
+    suite.execute_ibc_transfer(lib).unwrap();
+}
+
+#[test]
+#[should_panic(
+    expected = "Execution error: Insufficient balance to cover for IBC fees 'untrn' in sender account (required: 20000, available: 0)."
+)]
+fn ibc_transfer_fails_for_insufficient_fee_balance() {
+    let mut suite = IbcTransferTestSuite::default();
+
+    suite.init_balance(
+        &suite.input_addr().clone(),
+        vec![coin(ONE_HUNDRED, ATOM.to_string())],
+    );
+
+    let cfg: LibraryConfig = suite.ibc_transfer_config(
+        ATOM.to_string(),
+        IbcTransferAmount::FixedAmount(ONE_HUNDRED.into()),
         "".to_string(),
         RemoteChainInfo::new("channel-1".to_string(), Some(600u64.into())),
     );

@@ -1,5 +1,5 @@
 [package]
-name    = "valence-workflow-registry"
+name    = "valence-program-registry"
 version = "0.1.0"
 authors = ["Timewave Labs"]
 edition = "2021"
@@ -21,16 +21,15 @@ optimize = """docker run --rm -v "$(pwd)":/code \
 """
 
 [dependencies]
-cosmwasm-schema = { workspace = true }
-cosmwasm-std    = { workspace = true }
-cw-storage-plus = { workspace = true }
-cw2             = { workspace = true }
-schemars        = { workspace = true }
-serde           = { workspace = true }
-thiserror       = { workspace = true }
-cw-ownable      = { workspace = true }
-
-valence-workflow-registry-utils = { workspace = true }
+cosmwasm-schema                = { workspace = true }
+cosmwasm-std                   = { workspace = true }
+cw-storage-plus                = { workspace = true }
+cw2                            = { workspace = true }
+schemars                       = { workspace = true }
+serde                          = { workspace = true }
+thiserror                      = { workspace = true }
+cw-ownable                     = { workspace = true }
+valence-program-registry-utils = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }

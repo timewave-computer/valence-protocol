@@ -57,7 +57,7 @@ impl Connector for CosmosEvmConnector {
 
     async fn instantiate_authorization(
         &mut self,
-        _workflow_id: u64,
+        _program_id: u64,
         _salt: Vec<u8>,
         _processor_addr: String,
         _external_domains: Vec<ExternalDomain>,
@@ -67,7 +67,7 @@ impl Connector for CosmosEvmConnector {
 
     async fn instantiate_processor(
         &mut self,
-        _workflow_id: u64,
+        _program_id: u64,
         _salt: Vec<u8>,
         _admin: String,
         _polytone_addr: Option<PolytoneContracts>,

@@ -4,16 +4,16 @@ use localic_std::modules::cosmwasm::contract_instantiate;
 use localic_utils::{
     utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
 };
-use valence_workflow_manager::{
+use valence_program_manager::{
     config::{ChainInfo, GLOBAL_CONFIG},
     error::ManagerResult,
-    init_workflow,
-    workflow_config::WorkflowConfig,
+    init_program,
+    program_config::ProgramConfig,
 };
 
 const LOG_FILE_PATH: &str = "local-interchaintest/configs/logs.json";
 
-pub const REGISTRY_NAME: &str = "valence_workflow_registry";
+pub const REGISTRY_NAME: &str = "valence_program_registry";
 pub const AUTHORIZATION_NAME: &str = "valence_authorization";
 pub const PROCESSOR_NAME: &str = "valence_processor";
 pub const BASE_ACCOUNT_NAME: &str = "valence_base_account";
@@ -25,7 +25,7 @@ pub const NEUTRON_IBC_TRANSFER_NAME: &str = "valence-neutron-ibc-transfer-librar
 pub const ASTROPORT_LPER_NAME: &str = "valence_astroport_lper";
 pub const ASTROPORT_WITHDRAWER_NAME: &str = "valence_astroport_withdrawer";
 
-/// Those contracts will always be uploaded because each workflow needs them
+/// Those contracts will always be uploaded because each program needs them
 const BASIC_CONTRACTS: [&str; 2] = [PROCESSOR_NAME, BASE_ACCOUNT_NAME];
 
 /// Setup everything that is needed for the manager to run, including uploading the libraries
@@ -117,11 +117,11 @@ pub fn setup_manager(
             .get_request_builder(NEUTRON_CHAIN_NAME),
         DEFAULT_KEY,
         registry_code_id,
-        &serde_json::to_string(&valence_workflow_registry_utils::InstantiateMsg {
+        &serde_json::to_string(&valence_program_registry_utils::InstantiateMsg {
             admin: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         })
         .unwrap(),
-        "workflow-registry",
+        "program-registry",
         None,
         "",
     )
@@ -282,16 +282,16 @@ fn parse_gas_price(input: &str) -> String {
 }
 
 /// Helper function to start manager init to hide the tokio block_on
-pub fn use_manager_init(workflow_config: &mut WorkflowConfig) -> ManagerResult<()> {
+pub fn use_manager_init(program_config: &mut ProgramConfig) -> ManagerResult<()> {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
         .unwrap();
-    rt.block_on(init_workflow(workflow_config))
+    rt.block_on(init_program(program_config))
 }
 
 pub fn get_global_config(
-) -> tokio::sync::MutexGuard<'static, valence_workflow_manager::config::Config> {
+) -> tokio::sync::MutexGuard<'static, valence_program_manager::config::Config> {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()

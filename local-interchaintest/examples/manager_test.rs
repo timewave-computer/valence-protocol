@@ -13,12 +13,12 @@ use valence_authorization_utils::{
     builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
 };
 use valence_library_utils::denoms::UncheckedDenom;
-use valence_splitter_library::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
-use valence_workflow_manager::{
+use valence_program_manager::{
     account::{AccountInfo, AccountType},
     library::{LibraryConfig, LibraryInfo},
-    workflow_config_builder::WorkflowConfigBuilder,
+    program_config_builder::ProgramConfigBuilder,
 };
+use valence_splitter_library::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut test_ctx = TestContextBuilder::default()
@@ -36,9 +36,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         vec![SPLITTER_NAME],
     )?;
 
-    let mut builder = WorkflowConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
+    let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
     let neutron_domain =
-        valence_workflow_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
+        valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
 
     let account_1 = builder.add_account(AccountInfo::new(
         "test_1".to_string(),
@@ -97,9 +97,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             .build(),
     );
 
-    let mut workflow_config = builder.build();
+    let mut program_config = builder.build();
 
-    use_manager_init(&mut workflow_config)?;
+    use_manager_init(&mut program_config)?;
 
     Ok(())
 }

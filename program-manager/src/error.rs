@@ -57,8 +57,8 @@ pub enum ManagerError {
     #[error("No instantiate data for account id: {0} | link id: {1}")]
     FailedToRetrieveAccountInitData(u64, u64),
 
-    #[error("Trying to instantiate a new workflow with an existing id: {0}")]
-    WorkflowIdAlreadyExists(u64),
+    #[error("Trying to instantiate a new program with an existing id: {0}")]
+    ProgramIdAlreadyExists(u64),
 
     #[error("Failed to get processor address for this domain: {0}")]
     ProcessorAddrNotFound(String),

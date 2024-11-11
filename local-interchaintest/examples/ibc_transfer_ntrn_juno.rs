@@ -219,7 +219,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     .map_or(0, |bal| bal.amount.u128());
     assert_eq!(
         end_input_balance,
-        start_input_balance.sub(transfer_amount).add(ibc_fee / 2)
+        start_input_balance.sub(transfer_amount).sub(ibc_fee / 2)
     );
 
     let end_output_balance = bank::get_balance(
@@ -233,7 +233,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     .map_or(0, |bal| bal.amount.u128());
     assert_eq!(
         end_output_balance,
-        start_output_balance.add(transfer_amount).sub(ibc_fee)
+        start_output_balance.add(transfer_amount)
     );
 
     // Update config to transfer the input account's full remaining balance

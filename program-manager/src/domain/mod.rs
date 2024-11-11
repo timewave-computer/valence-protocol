@@ -15,7 +15,7 @@ use valence_authorization_utils::authorization::AuthorizationInfo;
 
 use crate::{
     account::InstantiateAccountData, config::ConfigError, library::LibraryConfig,
-    workflow_config::WorkflowConfig,
+    program_config::ProgramConfig,
 };
 
 pub type ConnectorResult<T> = Result<T, ConnectorError>;
@@ -104,7 +104,7 @@ pub trait Connector: fmt::Debug + Send + Sync {
     /// returns the address and the salt that should be used.
     async fn get_address(
         &mut self,
-        workflow_id: u64,
+        program_id: u64,
         contract_name: &str,
         extra_salt: &str,
     ) -> ConnectorResult<(String, Vec<u8>)>;
@@ -121,7 +121,7 @@ pub trait Connector: fmt::Debug + Send + Sync {
     /// Instantiate an account based on the provided data
     async fn instantiate_account(
         &mut self,
-        workflow_id: u64,
+        program_id: u64,
         processor_addr: String,
         data: &InstantiateAccountData,
     ) -> ConnectorResult<()>;
@@ -129,7 +129,7 @@ pub trait Connector: fmt::Debug + Send + Sync {
     /// Instantiate a library contract based on the given data
     async fn instantiate_library(
         &mut self,
-        workflow_id: u64,
+        program_id: u64,
         auth_addr: String,
         processor_addr: String,
         library_id: u64,
@@ -140,7 +140,7 @@ pub trait Connector: fmt::Debug + Send + Sync {
     /// Instantiate a processor contract
     async fn instantiate_processor(
         &mut self,
-        workflow_id: u64,
+        program_id: u64,
         salt: Vec<u8>,
         admin: String,
         polytone_addr: Option<valence_processor_utils::msg::PolytoneContracts>,
@@ -178,11 +178,11 @@ pub trait Connector: fmt::Debug + Send + Sync {
     /// We want this function to only be implemented on neutron connector
     /// We provide a defualt implemention that errors out if it is used on a different connector.
     #[allow(unused_variables)]
-    async fn reserve_workflow_id(&mut self) -> ConnectorResult<u64> {
-        unimplemented!("'reserve_workflow_id' should only be implemented on neutron domain");
+    async fn reserve_program_id(&mut self) -> ConnectorResult<u64> {
+        unimplemented!("'reserve_program_id' should only be implemented on neutron domain");
     }
 
-    /// Instantiate the authorization contract, only on the main domain for a workflow
+    /// Instantiate the authorization contract, only on the main domain for a program
     /// Currently Neutron is the only main domain we use, this might change in the future.
     /// CosmosCosmwasmConnector is the only connector that should implement it fully,
     /// while checking that this operation only happens on the main domain.
@@ -191,7 +191,7 @@ pub trait Connector: fmt::Debug + Send + Sync {
     #[allow(unused_variables)]
     async fn instantiate_authorization(
         &mut self,
-        workflow_id: u64,
+        program_id: u64,
         salt: Vec<u8>,
         processor_addr: String,
     ) -> ConnectorResult<()> {
@@ -253,11 +253,11 @@ pub trait Connector: fmt::Debug + Send + Sync {
     }
 
     #[allow(unused_variables)]
-    async fn query_workflow_registry(
+    async fn query_program_registry(
         &mut self,
         id: u64,
-    ) -> ConnectorResult<valence_workflow_registry_utils::WorkflowResponse> {
-        unimplemented!("'query_workflow_registry' should only be implemented on neutron domain");
+    ) -> ConnectorResult<valence_program_registry_utils::ProgramResponse> {
+        unimplemented!("'query_program_registry' should only be implemented on neutron domain");
     }
 
     #[allow(unused_variables)]
@@ -266,7 +266,7 @@ pub trait Connector: fmt::Debug + Send + Sync {
     }
 
     #[allow(unused_variables)]
-    async fn save_workflow_config(&mut self, config: WorkflowConfig) -> ConnectorResult<()> {
-        unimplemented!("'save_workflow_config' should only be implemented on neutron domain");
+    async fn save_program_config(&mut self, config: ProgramConfig) -> ConnectorResult<()> {
+        unimplemented!("'save_program_config' should only be implemented on neutron domain");
     }
 }

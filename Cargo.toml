@@ -5,9 +5,9 @@ members = [
     "contracts/authorization",
     "contracts/processor",
     "contracts/testing/*",
-    "contracts/workflow-registry",
+    "contracts/program-registry",
     "packages/*",
-    "workflow-manager",
+    "program-manager",
     "local-interchaintest",
 ]
 resolver = "2"
@@ -71,18 +71,19 @@ valence-osmosis-gamm-withdrawer      = { path = "contracts/libraries/osmosis-gam
 valence-osmosis-cl-lper              = { path = "contracts/libraries/osmosis-cl-lper", features = ["library"] }
 
 # our packages
-valence-account-utils           = { path = "packages/account-utils" }
-valence-astroport-utils         = { path = "packages/astroport-utils" }
-valence-osmosis-utils           = { path = "packages/osmosis-utils" }
-valence-authorization-utils     = { path = "packages/authorization-utils" }
-valence-ibc-utils               = { path = "packages/ibc-utils" }
-valence-macros                  = { path = "packages/valence-macros" }
-valence-polytone-utils          = { path = "packages/polytone-utils" }
-valence-processor-utils         = { path = "packages/processor-utils" }
-valence-library-base            = { path = "packages/library-base" }
-valence-library-utils           = { path = "packages/library-utils" }
-valence-workflow-registry-utils = { path = "packages/workflow-registry-utils" }
-valence-workflow-manager        = { path = "workflow-manager" }
+valence-account-utils          = { path = "packages/account-utils" }
+valence-astroport-utils        = { path = "packages/astroport-utils" }
+valence-osmosis-utils          = { path = "packages/osmosis-utils" }
+valence-authorization-utils    = { path = "packages/authorization-utils" }
+valence-ibc-utils              = { path = "packages/ibc-utils" }
+valence-macros                 = { path = "packages/valence-macros" }
+valence-polytone-utils         = { path = "packages/polytone-utils" }
+valence-processor-utils        = { path = "packages/processor-utils" }
+valence-library-base           = { path = "packages/library-base" }
+valence-library-utils          = { path = "packages/library-utils" }
+valence-program-registry-utils = { path = "packages/program-registry-utils" }
+valence-program-manager        = { path = "program-manager" }
+valence-program-registry       = { path = "contracts/program-registry", features = ["library"] }
 
 # dev-dependencies
 cw-multi-test        = { version = "2.1.1", features = ["cosmwasm_1_4"] }
