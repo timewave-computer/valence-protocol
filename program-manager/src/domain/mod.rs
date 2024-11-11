@@ -14,8 +14,8 @@ use thiserror::Error;
 use valence_authorization_utils::authorization::AuthorizationInfo;
 
 use crate::{
-    account::InstantiateAccountData, config::ConfigError, program_config::ProgramConfig,
-    service::ServiceConfig,
+    account::InstantiateAccountData, config::ConfigError, library::LibraryConfig,
+    program_config::ProgramConfig,
 };
 
 pub type ConnectorResult<T> = Result<T, ConnectorError>;
@@ -126,14 +126,14 @@ pub trait Connector: fmt::Debug + Send + Sync {
         data: &InstantiateAccountData,
     ) -> ConnectorResult<()>;
 
-    /// Instantiate a service contract based on the given data
-    async fn instantiate_service(
+    /// Instantiate a library contract based on the given data
+    async fn instantiate_library(
         &mut self,
         program_id: u64,
         auth_addr: String,
         processor_addr: String,
-        service_id: u64,
-        service_config: ServiceConfig,
+        library_id: u64,
+        library_config: LibraryConfig,
         salt: Vec<u8>,
     ) -> ConnectorResult<()>;
 
@@ -161,8 +161,8 @@ pub trait Connector: fmt::Debug + Send + Sync {
     /// Verify the account was instantiated correct and its one of our accounts
     async fn verify_account(&mut self, account_addr: String) -> ConnectorResult<()>;
 
-    // Verify the service has an address and it was instantiated
-    async fn verify_service(&mut self, service_addr: Option<String>) -> ConnectorResult<()>;
+    // Verify the library has an address and it was instantiated
+    async fn verify_library(&mut self, library_addr: Option<String>) -> ConnectorResult<()>;
 
     // Verify the processor was instantiated
     async fn verify_processor(&mut self, processor_addr: String) -> ConnectorResult<()>;

@@ -82,12 +82,12 @@ impl OsmosisTestAppBuilder {
 }
 
 impl<T: OsmosisTestPoolConfig> OsmosisTestAppSetup<T> {
-    pub fn approve_service(&self, account_addr: String, service_addr: String) {
+    pub fn approve_library(&self, account_addr: String, library_addr: String) {
         let wasm = Wasm::new(&self.app);
         wasm.execute::<valence_account_utils::msg::ExecuteMsg>(
             &account_addr,
-            &valence_account_utils::msg::ExecuteMsg::ApproveService {
-                service: service_addr,
+            &valence_account_utils::msg::ExecuteMsg::ApproveLibrary {
+                library: library_addr,
             },
             &[],
             self.owner_acc(),
@@ -101,7 +101,7 @@ impl<T: OsmosisTestPoolConfig> OsmosisTestAppSetup<T> {
             code_id,
             &valence_account_utils::msg::InstantiateMsg {
                 admin: self.owner_acc().address(),
-                approved_services: vec![],
+                approved_libraries: vec![],
             },
             None,
             Some("base_account"),

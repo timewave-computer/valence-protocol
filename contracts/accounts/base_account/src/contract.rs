@@ -10,7 +10,7 @@ use valence_account_utils::{
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg, ValenceCallback},
 };
 
-use crate::state::APPROVED_SERVICES;
+use crate::state::APPROVED_LIBRARIES;
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -26,8 +26,8 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     cw_ownable::initialize_owner(deps.storage, deps.api, Some(&msg.admin))?;
 
-    msg.approved_services.iter().try_for_each(|service| {
-        APPROVED_SERVICES.save(deps.storage, deps.api.addr_validate(service)?, &Empty {})
+    msg.approved_libraries.iter().try_for_each(|library| {
+        APPROVED_LIBRARIES.save(deps.storage, deps.api.addr_validate(library)?, &Empty {})
     })?;
 
     Ok(Response::new()
@@ -43,8 +43,8 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::ApproveService { service } => execute::approve_service(deps, info, service),
-        ExecuteMsg::RemoveService { service } => execute::remove_service(deps, info, service),
+        ExecuteMsg::ApproveLibrary { library } => execute::approve_library(deps, info, library),
+        ExecuteMsg::RemoveLibrary { library } => execute::remove_library(deps, info, library),
         ExecuteMsg::ExecuteMsg { msgs } => execute::execute_msg(deps, info, msgs),
         ExecuteMsg::UpdateOwnership(action) => execute::update_ownership(deps, env, info, action),
         ExecuteMsg::ExecuteSubmsgs { msgs, payload } => {
@@ -60,36 +60,36 @@ mod execute {
         msg::VALENCE_PAYLOAD_KEY,
     };
 
-    use crate::state::APPROVED_SERVICES;
+    use crate::state::APPROVED_LIBRARIES;
 
-    pub fn approve_service(
+    pub fn approve_library(
         deps: DepsMut,
         info: MessageInfo,
-        service: String,
+        library: String,
     ) -> Result<Response, ContractError> {
         cw_ownable::assert_owner(deps.storage, &info.sender)?;
 
-        let service_addr = deps.api.addr_validate(&service)?;
-        APPROVED_SERVICES.save(deps.storage, service_addr.clone(), &Empty {})?;
+        let library_addr = deps.api.addr_validate(&library)?;
+        APPROVED_LIBRARIES.save(deps.storage, library_addr.clone(), &Empty {})?;
 
         Ok(Response::new()
-            .add_attribute("method", "approve_service")
-            .add_attribute("service", service_addr))
+            .add_attribute("method", "approve_library")
+            .add_attribute("library", library_addr))
     }
 
-    pub fn remove_service(
+    pub fn remove_library(
         deps: DepsMut,
         info: MessageInfo,
-        service: String,
+        library: String,
     ) -> Result<Response, ContractError> {
         cw_ownable::assert_owner(deps.storage, &info.sender)?;
 
-        let service_addr = deps.api.addr_validate(&service)?;
-        APPROVED_SERVICES.remove(deps.storage, service_addr.clone());
+        let library_addr = deps.api.addr_validate(&library)?;
+        APPROVED_LIBRARIES.remove(deps.storage, library_addr.clone());
 
         Ok(Response::new()
-            .add_attribute("method", "remove_service")
-            .add_attribute("service", service_addr))
+            .add_attribute("method", "remove_library")
+            .add_attribute("library", library_addr))
     }
 
     pub fn execute_submsgs(
@@ -99,8 +99,8 @@ mod execute {
         payload: Option<String>,
     ) -> Result<Response, ContractError> {
         ensure!(
-            APPROVED_SERVICES.has(deps.storage, info.sender),
-            ContractError::Unauthorized(UnauthorizedReason::NotApprovedService)
+            APPROVED_LIBRARIES.has(deps.storage, info.sender),
+            ContractError::Unauthorized(UnauthorizedReason::NotApprovedLibrary)
         );
 
         let mut resp = Response::new().add_submessages(msgs);
@@ -116,11 +116,11 @@ mod execute {
         info: MessageInfo,
         msgs: Vec<CosmosMsg>,
     ) -> Result<Response, ContractError> {
-        // If not admin, check if it's an approved service
+        // If not admin, check if it's an approved library
         ensure!(
             cw_ownable::is_owner(deps.storage, &info.sender)?
-                || APPROVED_SERVICES.has(deps.storage, info.sender.clone()),
-            ContractError::Unauthorized(UnauthorizedReason::NotAdminOrApprovedService)
+                || APPROVED_LIBRARIES.has(deps.storage, info.sender.clone()),
+            ContractError::Unauthorized(UnauthorizedReason::NotAdminOrApprovedLibrary)
         );
 
         // Execute the message
@@ -148,18 +148,18 @@ mod execute {
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Ownership {} => to_json_binary(&cw_ownable::get_ownership(deps.storage)?),
-        QueryMsg::ListApprovedServices {} => {
-            let services = APPROVED_SERVICES
+        QueryMsg::ListApprovedLibraries {} => {
+            let libraries = APPROVED_LIBRARIES
                 .keys(deps.storage, None, None, Order::Ascending)
                 .collect::<StdResult<Vec<_>>>()?;
-            to_json_binary(&services)
+            to_json_binary(&libraries)
         }
     }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
-    // we relay the response back to the initiating service
+    // we relay the response back to the initiating library
     let response_attr: Attribute = ValenceCallback::from(msg).try_into()?;
     Ok(Response::default().add_attributes([response_attr]))
 }

@@ -8,8 +8,8 @@ mod test {
         account::{AccountInfo, AccountType},
         config::GLOBAL_CONFIG,
         domain::Domain,
+        library::{LibraryConfig, LibraryInfo},
         program_config::{Link, ProgramConfig},
-        service::{ServiceConfig, ServiceInfo},
     };
     use serde_json_any_key::MapIterToJson;
     use valence_authorization_utils::{
@@ -20,7 +20,7 @@ mod test {
         authorization_message::{Message, MessageDetails, MessageType},
         function::AtomicFunction,
     };
-    use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
+    use valence_library_utils::{denoms::UncheckedDenom, LibraryAccountType};
 
     /// test to make sure on config is parsed correctlly.
     /// MUST fix this test before handling other tests, config is part of the context we use, if we can't generate it successfully
@@ -57,16 +57,16 @@ mod test {
     #[test]
     fn test_config_find_accounts_ids() {
         let config =
-            ServiceConfig::ValenceForwarderService(valence_forwarder_service::msg::ServiceConfig {
+            LibraryConfig::ValenceForwarderLibrary(valence_forwarder_library::msg::LibraryConfig {
                 input_addr: "|account_id|:1".into(),
                 output_addr: "|account_id|:2".into(),
                 forwarding_configs: vec![
-                    valence_forwarder_service::msg::UncheckedForwardingConfig {
+                    valence_forwarder_library::msg::UncheckedForwardingConfig {
                         denom: UncheckedDenom::Native("untrn".to_string()),
                         max_amount: Uint128::new(100),
                     },
                 ],
-                forwarding_constraints: valence_forwarder_service::msg::ForwardingConstraints::new(
+                forwarding_constraints: valence_forwarder_library::msg::ForwardingConstraints::new(
                     None,
                 ),
             });
@@ -85,26 +85,26 @@ mod test {
 
         #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
         struct Test {
-            test: ServiceAccountType,
+            test: LibraryAccountType,
         }
 
         let t = Test {
-            test: ServiceAccountType::AccountId(1),
+            test: LibraryAccountType::AccountId(1),
         };
 
         // let mut json = serde_json::to_string(&t).unwrap();
         let mut json = serde_json::to_string(&t).unwrap();
         println!("{json:?}");
 
-        json = json.replace("|account_id|\":1", "service_account_addr\":\"cosmos1\"");
+        json = json.replace("|account_id|\":1", "library_account_addr\":\"cosmos1\"");
         println!("{json:?}");
 
         let back_struct = serde_json::from_str::<Test>(&json).unwrap();
         println!("{back_struct:?}");
 
-        let mut splits: BTreeMap<ServiceAccountType, Uint128> = BTreeMap::new();
-        splits.insert(ServiceAccountType::AccountId(2), 100_u128.into());
-        splits.insert(ServiceAccountType::AccountId(3), 200_u128.into());
+        let mut splits: BTreeMap<LibraryAccountType, Uint128> = BTreeMap::new();
+        splits.insert(LibraryAccountType::AccountId(2), 100_u128.into());
+        splits.insert(LibraryAccountType::AccountId(3), 200_u128.into());
         // let to_vec = splits;
         let json = splits.to_json_map().unwrap();
         // let json = serde_json::to_string(&splits).unwrap();
@@ -116,7 +116,7 @@ mod test {
     async fn test_parsing() {
         let json_string =
             "{\"input_addr\": {\"|account_id|\": 1}, \"output_addr\": {\"|account_id|\": 2}}";
-        let config = serde_json::from_str::<valence_forwarder_service::msg::ServiceConfigUpdate>(
+        let config = serde_json::from_str::<valence_forwarder_library::msg::LibraryConfigUpdate>(
             json_string,
         )
         .unwrap();
@@ -196,23 +196,23 @@ mod test {
             },
         );
 
-        config.services.insert(
+        config.libraries.insert(
             0,
-            ServiceInfo {
+            LibraryInfo {
                 name: "test_forwarder".to_string(),
                 domain: neutron_domain.clone(),
-                config: ServiceConfig::ValenceForwarderService(
-                    valence_forwarder_service::msg::ServiceConfig {
-                        input_addr: ServiceAccountType::AccountId(1),
-                        output_addr: ServiceAccountType::AccountId(2),
+                config: LibraryConfig::ValenceForwarderLibrary(
+                    valence_forwarder_library::msg::LibraryConfig {
+                        input_addr: LibraryAccountType::AccountId(1),
+                        output_addr: LibraryAccountType::AccountId(2),
                         forwarding_configs: vec![
-                            valence_forwarder_service::msg::UncheckedForwardingConfig {
+                            valence_forwarder_library::msg::UncheckedForwardingConfig {
                                 denom: UncheckedDenom::Native("untrn".to_string()),
                                 max_amount: Uint128::new(100),
                             },
                         ],
                         forwarding_constraints:
-                            valence_forwarder_service::msg::ForwardingConstraints::new(None),
+                            valence_forwarder_library::msg::ForwardingConstraints::new(None),
                     },
                 ),
                 addr: None,
@@ -224,7 +224,7 @@ mod test {
             Link {
                 input_accounts_id: vec![0],
                 output_accounts_id: vec![1],
-                service_id: 1,
+                library_id: 1,
             },
         );
 
@@ -246,7 +246,7 @@ mod test {
                                 params_restrictions: None,
                             },
                         },
-                        contract_address: ServiceAccountType::ServiceId(1),
+                        contract_address: LibraryAccountType::LibraryId(1),
                     }],
                     retry_logic: None,
                 }),
@@ -262,21 +262,21 @@ mod test {
         // init_program(&mut config).await.unwrap();
 
         // Make sure we have a config in place
-        let svc = config.services.first_key_value().unwrap().1.config.clone();
-        assert_ne!(svc, ServiceConfig::None);
+        let lib = config.libraries.first_key_value().unwrap().1.config.clone();
+        assert_ne!(lib, LibraryConfig::None);
 
         let binary = to_json_binary(&config).unwrap();
         let program_config = from_json::<ProgramConfig>(&binary).unwrap();
 
-        // After parsing, program config should have no service config
-        let svc = program_config
-            .services
+        // After parsing, workflow config should have no library config
+        let lib = program_config
+            .libraries
             .first_key_value()
             .unwrap()
             .1
             .config
             .clone();
-        assert_eq!(svc, ServiceConfig::None);
+        assert_eq!(lib, LibraryConfig::None);
 
         // match timeout(Duration::from_secs(60), ).await {
         //     Ok(_) => println!("Program initialization completed successfully"),

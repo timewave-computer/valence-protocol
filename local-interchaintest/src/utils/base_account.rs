@@ -6,14 +6,14 @@ use log::info;
 use crate::utils::GAS_FLAGS;
 
 #[allow(clippy::too_many_arguments)]
-/// Creates valence base accounts on a specific chain for our services and returns their contract address
+/// Creates valence base accounts on a specific chain for our libraries and returns their contract address
 pub fn create_base_accounts(
     test_ctx: &mut TestContext,
     key: &str,
     chain_name: &str,
     code_id: u64,
     admin: String,
-    approved_services: Vec<String>,
+    approved_libraries: Vec<String>,
     num_accounts: u64,
     fees: Option<Coin>,
 ) -> Vec<String> {
@@ -23,7 +23,7 @@ pub fn create_base_accounts(
     );
     let instantiate_msg = valence_account_utils::msg::InstantiateMsg {
         admin,
-        approved_services,
+        approved_libraries,
     };
     let flags = if let Some(fees) = fees {
         format!("--fees {}{}", fees.amount, fees.denom)
@@ -51,17 +51,17 @@ pub fn create_base_accounts(
     accounts
 }
 
-/// Approve a service for a base account
-pub fn approve_service(
+/// Approve a library for a base account
+pub fn approve_library(
     test_ctx: &mut TestContext,
     chain_name: &str,
     key: &str,
     base_account: &str,
-    service: String,
+    library: String,
     flags: Option<String>,
 ) {
-    let approve_msg = valence_account_utils::msg::ExecuteMsg::ApproveService {
-        service: service.clone(),
+    let approve_msg = valence_account_utils::msg::ExecuteMsg::ApproveLibrary {
+        library: library.clone(),
     };
     contract_execute(
         test_ctx
@@ -86,8 +86,8 @@ pub fn approve_service(
     .unwrap();
 
     info!(
-        "Approved service {} for base account {}",
-        service, base_account
+        "Approved library {} for base account {}",
+        library, base_account
     );
     std::thread::sleep(std::time::Duration::from_secs(2));
 }

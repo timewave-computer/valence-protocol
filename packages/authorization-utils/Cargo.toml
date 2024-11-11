@@ -11,5 +11,5 @@ cw-utils               = { workspace = true }
 cosmwasm-schema        = { workspace = true }
 cw-ownable             = { workspace = true }
 valence-polytone-utils = { workspace = true }
-valence-service-utils  = { workspace = true }
+valence-library-utils  = { workspace = true }
 serde_json             = { workspace = true }

@@ -3,7 +3,7 @@ name        = "valence-processor"
 version     = { workspace = true }
 edition     = { workspace = true }
 authors     = ["Timewave Labs"]
-description = "CosmWasm Smart Contract that executes the messages on each service/account of the program by iterating over queues when ticked"
+description = "CosmWasm Smart Contract that executes the messages on each library/account of the program by iterating over queues when ticked"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

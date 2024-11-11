@@ -12,21 +12,21 @@ pub const WASM_EVENT_TYPE: &str = "wasm";
 #[cw_serde]
 pub struct InstantiateMsg {
     pub admin: String, // Initial owner of the contract
-    pub approved_services: Vec<String>,
+    pub approved_libraries: Vec<String>,
 }
 
 #[cw_ownable_execute]
 #[cw_serde]
 pub enum ExecuteMsg {
-    ApproveService {
-        service: String,
-    }, // Add service to approved list (only admin)
-    RemoveService {
-        service: String,
-    }, // Remove service from approved list (only admin)
+    ApproveLibrary {
+        library: String,
+    }, // Add library to approved list (only admin)
+    RemoveLibrary {
+        library: String,
+    }, // Remove library from approved list (only admin)
     ExecuteMsg {
         msgs: Vec<CosmosMsg>,
-    }, // Execute any CosmosMsg (approved services or admin)
+    }, // Execute any CosmosMsg (approved libraries or admin)
     ExecuteSubmsgs {
         msgs: Vec<SubMsg>,
         // json encoded
@@ -39,7 +39,7 @@ pub enum ExecuteMsg {
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     #[returns(Vec<String>)]
-    ListApprovedServices {}, // Get list of approved services
+    ListApprovedLibraries {}, // Get list of approved libraries
 }
 
 #[cw_serde]

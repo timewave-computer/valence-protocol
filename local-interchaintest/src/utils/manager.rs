@@ -17,18 +17,18 @@ pub const REGISTRY_NAME: &str = "valence_program_registry";
 pub const AUTHORIZATION_NAME: &str = "valence_authorization";
 pub const PROCESSOR_NAME: &str = "valence_processor";
 pub const BASE_ACCOUNT_NAME: &str = "valence_base_account";
-pub const SPLITTER_NAME: &str = "valence_splitter_service";
-pub const REVERSE_SPLITTER_NAME: &str = "valence_reverse_splitter_service";
-pub const FORWARDER_NAME: &str = "valence_forwarder_service";
-pub const GENERIC_IBC_TRANSFER_NAME: &str = "valence-generic-ibc-transfer-service";
-pub const NEUTRON_IBC_TRANSFER_NAME: &str = "valence-neutron-ibc-transfer-service";
+pub const SPLITTER_NAME: &str = "valence_splitter_library";
+pub const REVERSE_SPLITTER_NAME: &str = "valence_reverse_splitter_library";
+pub const FORWARDER_NAME: &str = "valence_forwarder_library";
+pub const GENERIC_IBC_TRANSFER_NAME: &str = "valence-generic-ibc-transfer-library";
+pub const NEUTRON_IBC_TRANSFER_NAME: &str = "valence-neutron-ibc-transfer-library";
 pub const ASTROPORT_LPER_NAME: &str = "valence_astroport_lper";
 pub const ASTROPORT_WITHDRAWER_NAME: &str = "valence_astroport_withdrawer";
 
 /// Those contracts will always be uploaded because each program needs them
 const BASIC_CONTRACTS: [&str; 2] = [PROCESSOR_NAME, BASE_ACCOUNT_NAME];
 
-/// Setup everything that is needed for the manager to run, including uploading the services
+/// Setup everything that is needed for the manager to run, including uploading the libraries
 ///
 /// You can pass a list of contracts to upload, authorization, processor and base account are always uploaded,
 /// you need to specify the contracts you want to be uploaded for the given test

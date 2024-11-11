@@ -2576,23 +2576,27 @@ dependencies = [
  "valence-astroport-withdrawer",
  "valence-authorization",
  "valence-authorization-utils",
- "valence-forwarder-service",
- "valence-generic-ibc-transfer-service",
+ "valence-forwarder-library",
+ "valence-generic-ibc-transfer-library",
  "valence-ibc-utils",
- "valence-neutron-ibc-transfer-service",
+ "valence-library-utils",
+ "valence-neutron-ibc-transfer-library",
  "valence-processor",
  "valence-processor-utils",
  "valence-program-manager",
  "valence-program-registry-utils",
- "valence-reverse-splitter-service",
- "valence-service-utils",
- "valence-splitter-service",
+ "valence-reverse-splitter-library",
+ "valence-splitter-library",
 ]
 
 [[package]]
 name = "localic-std"
 version = "0.0.1"
+<<<<<<< HEAD
 source = "git+https://github.com/strangelove-ventures/interchaintest?branch=main#dca99ed2bb106d2530a106a6b224cf7db71cb7a4"
+=======
+source = "git+https://github.com/strangelove-ventures/interchaintest?branch=main#b7219e743880beff1420f4dae6f389de1496ad3b"
+>>>>>>> main
 dependencies = [
  "cosmwasm-std 1.5.8",
  "reqwest",
@@ -3936,9 +3940,15 @@ checksum = "61697e0a1c7e512e84a621326239844a24d8207b4669b41bc18b32ea5cbf988b"
 
 [[package]]
 name = "serde"
+<<<<<<< HEAD
 version = "1.0.215"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6513c1ad0b11a9376da888e3e0baa0077f1aed55c17f50e7b2397136129fb88f"
+=======
+version = "1.0.214"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f55c3193aca71c12ad7890f1785d2b73e1b9f63a0bbc353c08ef26fe03fc56b5"
+>>>>>>> main
 dependencies = [
  "serde_derive",
 ]
@@ -3981,9 +3991,15 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
+<<<<<<< HEAD
 version = "1.0.215"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ad1e866f866923f252f05c889987993144fb74e722403468a4ebd70c3cd756c0"
+=======
+version = "1.0.214"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de523f781f095e28fa605cdce0f8307e451cc0fd14e2eb4cd2e98a355b147766"
+>>>>>>> main
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5066,9 +5082,9 @@ dependencies = [
  "neutron-test-tube",
  "valence-account-utils",
  "valence-astroport-utils",
+ "valence-library-base",
+ "valence-library-utils",
  "valence-macros",
- "valence-service-base",
- "valence-service-utils",
 ]
 
 [[package]]
@@ -5091,9 +5107,9 @@ dependencies = [
  "neutron-test-tube",
  "valence-account-utils",
  "valence-astroport-utils",
+ "valence-library-base",
+ "valence-library-utils",
  "valence-macros",
- "valence-service-base",
- "valence-service-utils",
 ]
 
 [[package]]
@@ -5115,11 +5131,11 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "valence-authorization-utils",
+ "valence-library-utils",
  "valence-polytone-utils",
  "valence-processor",
  "valence-processor-utils",
- "valence-service-utils",
- "valence-test-service",
+ "valence-test-library",
 ]
 
 [[package]]
@@ -5131,8 +5147,8 @@ dependencies = [
  "cw-ownable",
  "cw-utils 2.0.0",
  "serde_json",
+ "valence-library-utils",
  "valence-polytone-utils",
- "valence-service-utils",
 ]
 
 [[package]]
@@ -5158,7 +5174,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "valence-forwarder-service"
+name = "valence-forwarder-library"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 2.1.4",
@@ -5175,13 +5191,13 @@ dependencies = [
  "sha2 0.10.8",
  "thiserror 1.0.69",
  "valence-account-utils",
+ "valence-library-base",
+ "valence-library-utils",
  "valence-macros",
- "valence-service-base",
- "valence-service-utils",
 ]
 
 [[package]]
-name = "valence-generic-ibc-transfer-service"
+name = "valence-generic-ibc-transfer-library"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 2.1.4",
@@ -5199,9 +5215,9 @@ dependencies = [
  "thiserror 1.0.69",
  "valence-account-utils",
  "valence-ibc-utils",
+ "valence-library-base",
+ "valence-library-utils",
  "valence-macros",
- "valence-service-base",
- "valence-service-utils",
 ]
 
 [[package]]
@@ -5218,6 +5234,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-library-base"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 2.1.4",
+ "cw-multi-test",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "cw2 2.0.0",
+ "schemars",
+ "serde",
+ "thiserror 1.0.69",
+ "valence-library-utils",
+ "valence-macros",
+]
+
+[[package]]
+name = "valence-library-utils"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 2.1.4",
+ "cw-denom",
+ "cw-multi-test",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "cw-utils 2.0.0",
+ "cw20 2.0.0",
+ "cw20-base",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "thiserror 1.0.69",
+ "valence-account-utils",
+ "valence-base-account",
+ "valence-macros",
+]
+
+[[package]]
 name = "valence-macros"
 version = "0.1.0"
 dependencies = [
@@ -5229,7 +5284,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "valence-neutron-ibc-transfer-service"
+name = "valence-neutron-ibc-transfer-library"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 2.1.4",
@@ -5247,11 +5302,11 @@ dependencies = [
  "sha2 0.10.8",
  "thiserror 1.0.69",
  "valence-account-utils",
- "valence-generic-ibc-transfer-service",
+ "valence-generic-ibc-transfer-library",
  "valence-ibc-utils",
+ "valence-library-base",
+ "valence-library-utils",
  "valence-macros",
- "valence-service-base",
- "valence-service-utils",
 ]
 
 [[package]]
@@ -5271,10 +5326,10 @@ dependencies = [
  "serde",
  "serde_json",
  "valence-account-utils",
+ "valence-library-base",
+ "valence-library-utils",
  "valence-macros",
  "valence-osmosis-utils",
- "valence-service-base",
- "valence-service-utils",
 ]
 
 [[package]]
@@ -5288,10 +5343,10 @@ dependencies = [
  "osmosis-std",
  "osmosis-test-tube",
  "valence-account-utils",
+ "valence-library-base",
+ "valence-library-utils",
  "valence-macros",
  "valence-osmosis-utils",
- "valence-service-base",
- "valence-service-utils",
 ]
 
 [[package]]
@@ -5305,11 +5360,11 @@ dependencies = [
  "osmosis-std",
  "osmosis-test-tube",
  "valence-account-utils",
+ "valence-library-base",
+ "valence-library-utils",
  "valence-macros",
  "valence-osmosis-gamm-lper",
  "valence-osmosis-utils",
- "valence-service-base",
- "valence-service-utils",
 ]
 
 [[package]]
@@ -5321,7 +5376,7 @@ dependencies = [
  "osmosis-std",
  "osmosis-test-tube",
  "valence-account-utils",
- "valence-service-utils",
+ "valence-library-utils",
 ]
 
 [[package]]
@@ -5395,16 +5450,16 @@ dependencies = [
  "valence-astroport-withdrawer",
  "valence-authorization",
  "valence-authorization-utils",
- "valence-forwarder-service",
+ "valence-forwarder-library",
+ "valence-library-base",
+ "valence-library-utils",
  "valence-macros",
  "valence-processor",
  "valence-processor-utils",
  "valence-program-registry",
  "valence-program-registry-utils",
- "valence-reverse-splitter-service",
- "valence-service-base",
- "valence-service-utils",
- "valence-splitter-service",
+ "valence-reverse-splitter-library",
+ "valence-splitter-library",
 ]
 
 [[package]]
@@ -5435,7 +5490,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "valence-reverse-splitter-service"
+name = "valence-reverse-splitter-library"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 2.1.4",
@@ -5451,13 +5506,17 @@ dependencies = [
  "serde",
  "sha2 0.10.8",
  "thiserror 1.0.69",
+<<<<<<< HEAD
+=======
+ "valence-library-base",
+ "valence-library-utils",
+>>>>>>> main
  "valence-macros",
- "valence-service-base",
- "valence-service-utils",
  "valence-test-dynamic-ratio",
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "valence-service-base"
 version = "0.1.0"
 dependencies = [
@@ -5498,6 +5557,9 @@ dependencies = [
 
 [[package]]
 name = "valence-splitter-service"
+=======
+name = "valence-splitter-library"
+>>>>>>> main
 version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 2.1.4",
@@ -5515,14 +5577,14 @@ dependencies = [
  "sha2 0.10.8",
  "thiserror 1.0.69",
  "valence-account-utils",
+ "valence-library-base",
+ "valence-library-utils",
  "valence-macros",
- "valence-service-base",
- "valence-service-utils",
  "valence-test-dynamic-ratio",
 ]
 
 [[package]]
-name = "valence-template-service"
+name = "valence-template-library"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 2.1.4",
@@ -5535,9 +5597,12 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror 1.0.69",
+<<<<<<< HEAD
+=======
+ "valence-library-base",
+ "valence-library-utils",
+>>>>>>> main
  "valence-macros",
- "valence-service-base",
- "valence-service-utils",
 ]
 
 [[package]]
@@ -5557,13 +5622,16 @@ dependencies = [
  "serde",
  "sha2 0.10.8",
  "thiserror 1.0.69",
+<<<<<<< HEAD
+=======
+ "valence-library-base",
+ "valence-library-utils",
+>>>>>>> main
  "valence-macros",
- "valence-service-base",
- "valence-service-utils",
 ]
 
 [[package]]
-name = "valence-test-service"
+name = "valence-test-library"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 2.1.4",
