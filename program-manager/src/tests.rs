@@ -8,8 +8,8 @@ mod test {
         account::{AccountInfo, AccountType},
         config::GLOBAL_CONFIG,
         domain::Domain,
+        program_config::{Link, ProgramConfig},
         service::{ServiceConfig, ServiceInfo},
-        workflow_config::{Link, WorkflowConfig},
     };
     use serde_json_any_key::MapIterToJson;
     use valence_authorization_utils::{
@@ -77,7 +77,7 @@ mod test {
 
     #[ignore = "internal test"]
     #[test]
-    fn test_serialize_workflow() {}
+    fn test_serialize_program() {}
 
     #[test]
     fn test_serialize() {
@@ -125,7 +125,7 @@ mod test {
 
     #[ignore = "internal test"]
     #[tokio::test]
-    async fn test_full_workflow() {
+    async fn test_full_program() {
         // let subscriber = tracing_subscriber::fmt()
         //     .with_max_level(tracing::Level::DEBUG)
         //     .with_test_writer()
@@ -172,7 +172,7 @@ mod test {
 
         let neutron_domain = Domain::CosmosCosmwasm("neutron".to_string());
 
-        let mut config = WorkflowConfig {
+        let mut config = ProgramConfig {
             owner: "neutron1tl0w0djc5y53aqfr60a794f02drwktpujm5xxe".to_string(),
             ..Default::default()
         };
@@ -259,17 +259,17 @@ mod test {
         // let b = to_json_binary(&config).unwrap();
         // println!("{:#?}", b);
 
-        // init_workflow(&mut config).await.unwrap();
+        // init_program(&mut config).await.unwrap();
 
         // Make sure we have a config in place
         let svc = config.services.first_key_value().unwrap().1.config.clone();
         assert_ne!(svc, ServiceConfig::None);
 
         let binary = to_json_binary(&config).unwrap();
-        let workflow_config = from_json::<WorkflowConfig>(&binary).unwrap();
+        let program_config = from_json::<ProgramConfig>(&binary).unwrap();
 
-        // After parsing, workflow config should have no service config
-        let svc = workflow_config
+        // After parsing, program config should have no service config
+        let svc = program_config
             .services
             .first_key_value()
             .unwrap()
@@ -279,8 +279,8 @@ mod test {
         assert_eq!(svc, ServiceConfig::None);
 
         // match timeout(Duration::from_secs(60), ).await {
-        //     Ok(_) => println!("Workflow initialization completed successfully"),
-        //     Err(_) => println!("Workflow initialization timed out after 60 seconds"),
+        //     Ok(_) => println!("Program initialization completed successfully"),
+        //     Err(_) => println!("Program initialization timed out after 60 seconds"),
         // }
     }
 }

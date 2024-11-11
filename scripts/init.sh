@@ -33,7 +33,7 @@ if [[ "$COMMAND" == 'registry' ]]; then
       admin: $admin
     }')
 
-  $BINARY tx wasm init $CODE_ID_REGISTRY "$init_msg" --label "Valence workflow registry" \
+  $BINARY tx wasm init $CODE_ID_REGISTRY "$init_msg" --label "Valence program registry" \
     --admin $OWNER_ADDR --from $OWNER_ADDR $TESTNET_EXECUTE_FLAGS
 
 else

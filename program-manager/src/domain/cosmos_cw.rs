@@ -9,8 +9,8 @@ use crate::{
     bridge::PolytoneSingleChainInfo,
     config::{ChainInfo, ConfigError, GLOBAL_CONFIG},
     helpers::{addr_canonicalize, addr_humanize},
+    program_config::ProgramConfig,
     service::{ServiceConfig, ServiceError},
-    workflow_config::WorkflowConfig,
     NEUTRON_CHAIN,
 };
 use anyhow::{anyhow, Context};
@@ -136,7 +136,7 @@ impl CosmosCosmwasmConnector {
 
 #[async_trait]
 impl Connector for CosmosCosmwasmConnector {
-    async fn reserve_workflow_id(&mut self) -> ConnectorResult<u64> {
+    async fn reserve_program_id(&mut self) -> ConnectorResult<u64> {
         if self.chain_name != *NEUTRON_CHAIN {
             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                 "Should only be implemented on neutron connector"
@@ -145,8 +145,8 @@ impl Connector for CosmosCosmwasmConnector {
         }
         let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();
 
-        // Execute a message to reserve the workflow id
-        let msg = to_vec(&valence_workflow_registry_utils::ExecuteMsg::ReserveId {})
+        // Execute a message to reserve the program id
+        let msg = to_vec(&valence_program_registry_utils::ExecuteMsg::ReserveId {})
             .map_err(CosmosCosmwasmError::SerdeJsonError)?;
 
         let m = MsgExecuteContract {
@@ -158,11 +158,11 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         // We rely on the tx hash above to be on chain before we can query to get its events.
-        let res = self.broadcast_tx(m, "reserve_workflow_id").await?;
+        let res = self.broadcast_tx(m, "reserve_program_id").await?;
 
         let res = res
             .tx_response
-            .context("'reserve_workflow_id' Failed to get `tx_response`")
+            .context("'reserve_program_id' Failed to get `tx_response`")
             .map_err(CosmosCosmwasmError::Error)?
             .events
             .iter()
@@ -178,14 +178,14 @@ impl Connector for CosmosCosmwasmConnector {
                     None
                 }
             })
-            .context("'reserve_workflow_id' Failed to find the event with the id")
+            .context("'reserve_program_id' Failed to find the event with the id")
             .map_err(CosmosCosmwasmError::Error)?;
 
         Ok(from_utf8(&res)
-            .context("'reserve_workflow_id' Failed to convert bytes to string")
+            .context("'reserve_program_id' Failed to convert bytes to string")
             .map_err(CosmosCosmwasmError::Error)?
             .parse::<u64>()
-            .context("'reserve_workflow_id' Failed to parse string to u64")
+            .context("'reserve_program_id' Failed to parse string to u64")
             .map_err(CosmosCosmwasmError::Error)?)
     }
 
@@ -276,7 +276,7 @@ impl Connector for CosmosCosmwasmConnector {
 
     async fn instantiate_account(
         &mut self,
-        workflow_id: u64,
+        program_id: u64,
         processor_addr: String,
         data: &InstantiateAccountData,
     ) -> ConnectorResult<()> {
@@ -299,7 +299,7 @@ impl Connector for CosmosCosmwasmConnector {
             sender: self.wallet.account_address.clone(),
             admin: processor_addr,
             code_id,
-            label: format!("workflow-{}|account-{}", workflow_id, data.id),
+            label: format!("program-{}|account-{}", program_id, data.id),
             msg,
             funds: vec![],
             salt: data.salt.clone(),
@@ -315,7 +315,7 @@ impl Connector for CosmosCosmwasmConnector {
 
     async fn instantiate_service(
         &mut self,
-        workflow_id: u64,
+        program_id: u64,
         auth_addr: String,
         processor_addr: String,
         service_id: u64,
@@ -337,8 +337,8 @@ impl Connector for CosmosCosmwasmConnector {
             admin: auth_addr,
             code_id,
             label: format!(
-                "workflow-{}|service-{}-{}",
-                workflow_id, service_config, service_id
+                "program-{}|service-{}-{}",
+                program_id, service_config, service_id
             ),
             msg,
             funds: vec![],
@@ -355,7 +355,7 @@ impl Connector for CosmosCosmwasmConnector {
 
     async fn instantiate_authorization(
         &mut self,
-        workflow_id: u64,
+        program_id: u64,
         salt: Vec<u8>,
         processor_addr: String,
     ) -> ConnectorResult<()> {
@@ -384,7 +384,7 @@ impl Connector for CosmosCosmwasmConnector {
             sender: self.wallet.account_address.clone(),
             admin: self.wallet.account_address.clone(),
             code_id,
-            label: format!("valence-authorization-{}", workflow_id),
+            label: format!("valence-authorization-{}", program_id),
             msg,
             funds: vec![],
             salt: salt.clone(),
@@ -429,7 +429,7 @@ impl Connector for CosmosCosmwasmConnector {
 
     async fn instantiate_processor(
         &mut self,
-        workflow_id: u64,
+        program_id: u64,
         salt: Vec<u8>,
         admin: String,
         polytone_addr: Option<valence_processor_utils::msg::PolytoneContracts>,
@@ -450,7 +450,7 @@ impl Connector for CosmosCosmwasmConnector {
             sender: self.wallet.account_address.clone(),
             admin,
             code_id,
-            label: format!("valence-processor-{}", workflow_id),
+            label: format!("valence-processor-{}", program_id),
             msg,
             funds: vec![],
             salt: salt.clone(),
@@ -655,33 +655,33 @@ impl Connector for CosmosCosmwasmConnector {
         Ok(())
     }
 
-    async fn query_workflow_registry(
+    async fn query_program_registry(
         &mut self,
         id: u64,
-    ) -> ConnectorResult<valence_workflow_registry_utils::WorkflowResponse> {
+    ) -> ConnectorResult<valence_program_registry_utils::ProgramResponse> {
         if self.chain_name != NEUTRON_CHAIN {
             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
-                "workflow registry only exists on neutron chain"
+                "program registry only exists on neutron chain"
             ))
             .into());
         }
 
-        // Query for workflow config for an idea
-        let query_data = to_vec(&valence_workflow_registry_utils::QueryMsg::GetConfig { id })
+        // Query for program config for an idea
+        let query_data = to_vec(&valence_program_registry_utils::QueryMsg::GetConfig { id })
             .map_err(CosmosCosmwasmError::SerdeJsonError)?;
         let config_req = QuerySmartContractStateRequest {
             address: GLOBAL_CONFIG.lock().await.get_registry_addr().clone(),
             query_data,
         };
 
-        let config_res = from_json::<valence_workflow_registry_utils::WorkflowResponse>(
+        let config_res = from_json::<valence_program_registry_utils::ProgramResponse>(
             self.wallet
                 .client
                 .clients
                 .wasm
                 .smart_contract_state(config_req)
                 .await
-                .context("'query_workflow_registry' Failed to query workflow registry")
+                .context("'query_program_registry' Failed to query program registry")
                 .map_err(CosmosCosmwasmError::Error)?
                 .into_inner()
                 .data,
@@ -760,7 +760,7 @@ impl Connector for CosmosCosmwasmConnector {
         Ok(())
     }
 
-    async fn save_workflow_config(&mut self, config: WorkflowConfig) -> ConnectorResult<()> {
+    async fn save_program_config(&mut self, config: ProgramConfig) -> ConnectorResult<()> {
         if self.chain_name != *NEUTRON_CHAIN {
             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                 "Should only be implemented on neutron connector"
@@ -771,7 +771,7 @@ impl Connector for CosmosCosmwasmConnector {
         for service in config.services.values() {
             if service.addr.is_none() {
                 return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
-                    "Before saving workflow config each service must have an address"
+                    "Before saving program config each service must have an address"
                 ))
                 .into());
             }
@@ -779,12 +779,12 @@ impl Connector for CosmosCosmwasmConnector {
 
         let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();
 
-        let workflow_binary =
+        let program_binary =
             to_json_binary(&config).map_err(CosmosCosmwasmError::CosmwasmStdError)?;
 
-        let msg = to_vec(&valence_workflow_registry_utils::ExecuteMsg::SaveWorkflow {
+        let msg = to_vec(&valence_program_registry_utils::ExecuteMsg::SaveProgram {
             id: config.id,
-            workflow_config: workflow_binary,
+            program_config: program_binary,
         })
         .map_err(CosmosCosmwasmError::SerdeJsonError)?;
 
@@ -797,7 +797,7 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         // Broadcast the tx and wait for it to finalize (or error)
-        self.broadcast_tx(m, "save_workflow_config").await?;
+        self.broadcast_tx(m, "save_program_config").await?;
 
         Ok(())
     }

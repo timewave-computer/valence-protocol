@@ -2428,11 +2428,11 @@ dependencies = [
  "valence-neutron-ibc-transfer-service",
  "valence-processor",
  "valence-processor-utils",
+ "valence-program-manager",
+ "valence-program-registry-utils",
  "valence-reverse-splitter-service",
  "valence-service-utils",
  "valence-splitter-service",
- "valence-workflow-manager",
- "valence-workflow-registry-utils",
 ]
 
 [[package]]
@@ -5004,6 +5004,7 @@ dependencies = [
  "cosmos-sdk-proto 0.20.0",
  "cosmwasm-schema 2.1.4",
  "cosmwasm-std 2.1.4",
+ "cw-denom",
  "cw-storage-plus 2.0.0",
  "neutron-sdk",
  "serde",
@@ -5155,6 +5156,78 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-program-manager"
+version = "0.1.0"
+dependencies = [
+ "aho-corasick",
+ "anyhow",
+ "async-trait",
+ "bech32 0.11.0",
+ "config",
+ "cosmos-grpc-client",
+ "cosmwasm-std 2.1.4",
+ "cw-ownable",
+ "dashmap",
+ "dhat",
+ "futures",
+ "glob",
+ "hex",
+ "once_cell",
+ "prost 0.12.6",
+ "prost-types 0.12.6",
+ "serde",
+ "serde_json",
+ "serde_json_any_key",
+ "strum 0.26.3",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "valence-account-utils",
+ "valence-astroport-lper",
+ "valence-astroport-withdrawer",
+ "valence-authorization",
+ "valence-authorization-utils",
+ "valence-forwarder-service",
+ "valence-macros",
+ "valence-processor",
+ "valence-processor-utils",
+ "valence-program-registry",
+ "valence-program-registry-utils",
+ "valence-reverse-splitter-service",
+ "valence-service-base",
+ "valence-service-utils",
+ "valence-splitter-service",
+]
+
+[[package]]
+name = "valence-program-registry"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 2.1.4",
+ "cw-multi-test",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "cw2 2.0.0",
+ "schemars",
+ "serde",
+ "thiserror",
+ "valence-program-registry-utils",
+]
+
+[[package]]
+name = "valence-program-registry-utils"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 2.1.4",
+ "cw-ownable",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "valence-reverse-splitter-service"
 version = "0.1.0"
 dependencies = [
@@ -5291,78 +5364,6 @@ dependencies = [
  "cw-storage-plus 2.0.0",
  "thiserror",
  "valence-processor-utils",
-]
-
-[[package]]
-name = "valence-workflow-manager"
-version = "0.1.0"
-dependencies = [
- "aho-corasick",
- "anyhow",
- "async-trait",
- "bech32 0.11.0",
- "config",
- "cosmos-grpc-client",
- "cosmwasm-std 2.1.4",
- "cw-ownable",
- "dashmap",
- "dhat",
- "futures",
- "glob",
- "hex",
- "once_cell",
- "prost 0.12.6",
- "prost-types 0.12.6",
- "serde",
- "serde_json",
- "serde_json_any_key",
- "strum 0.26.3",
- "thiserror",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "valence-account-utils",
- "valence-astroport-lper",
- "valence-astroport-withdrawer",
- "valence-authorization",
- "valence-authorization-utils",
- "valence-forwarder-service",
- "valence-macros",
- "valence-processor",
- "valence-processor-utils",
- "valence-reverse-splitter-service",
- "valence-service-base",
- "valence-service-utils",
- "valence-splitter-service",
- "valence-workflow-registry",
- "valence-workflow-registry-utils",
-]
-
-[[package]]
-name = "valence-workflow-registry"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema 2.1.4",
- "cosmwasm-std 2.1.4",
- "cw-multi-test",
- "cw-ownable",
- "cw-storage-plus 2.0.0",
- "cw2 2.0.0",
- "schemars",
- "serde",
- "thiserror",
- "valence-workflow-registry-utils",
-]
-
-[[package]]
-name = "valence-workflow-registry-utils"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema 2.1.4",
- "cosmwasm-std 2.1.4",
- "cw-ownable",
- "serde",
- "serde_json",
 ]
 
 [[package]]
