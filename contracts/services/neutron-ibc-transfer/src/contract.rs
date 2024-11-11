@@ -72,7 +72,6 @@ mod actions {
                 };
 
                 // IBC Transfer funds from input account to output account on the remote chain
-                let block_time = env.block.time;
                 let ibc_send_msg = valence_ibc_utils::neutron::ibc_send_message(
                     deps,
                     env,
@@ -82,9 +81,7 @@ mod actions {
                     cfg.denom(),
                     amount.u128(),
                     cfg.memo().clone(),
-                    cfg.remote_chain_info()
-                        .ibc_transfer_timeout
-                        .map(|timeout| block_time.plus_seconds(timeout.u64()).nanos()),
+                    cfg.remote_chain_info().ibc_transfer_timeout.map(Into::into),
                     cfg.denom_to_pfm_map().clone(),
                 )
                 .map_err(|err| {

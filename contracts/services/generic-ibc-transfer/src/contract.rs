@@ -69,7 +69,6 @@ mod actions {
                     }
                 };
 
-                let block_time = env.block.time;
                 let ibc_send_msg = valence_ibc_utils::generic::ibc_send_message(
                     env,
                     cfg.remote_chain_info().channel_id.clone(),
@@ -77,9 +76,7 @@ mod actions {
                     cfg.denom().to_string(),
                     amount.u128(),
                     cfg.memo().clone(),
-                    cfg.remote_chain_info()
-                        .ibc_transfer_timeout
-                        .map(|timeout| block_time.plus_seconds(timeout.u64()).nanos()),
+                    cfg.remote_chain_info().ibc_transfer_timeout.map(Into::into),
                     cfg.denom_to_pfm_map().clone(),
                 )
                 .map_err(|err| ServiceError::ExecutionError(err.to_string()))?;
