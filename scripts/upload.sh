@@ -36,7 +36,7 @@ LOCAL_IC_EXECUTE_FLAGS="--gas-prices $GAS_PRICES --gas auto --gas-adjustment 1.5
 ARTIFACTS_PATH="../artifacts"
 
 # File names
-REGISTRY_FILE_NAME="$ARTIFACTS_PATH/valence_workflow_registry.wasm"
+REGISTRY_FILE_NAME="$ARTIFACTS_PATH/valence_program_registry.wasm"
 AUTH_FILE_NAME="$ARTIFACTS_PATH/valence_authorization.wasm"
 PROCESSOR_FILE_NAME="$ARTIFACTS_PATH/valence_processor.wasm"
 BASE_ACCOUNT_FILE_NAME="$ARTIFACTS_PATH/valence_base_account.wasm"

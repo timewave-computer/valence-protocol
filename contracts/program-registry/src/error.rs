@@ -10,8 +10,8 @@ pub enum ContractError {
     #[error(transparent)]
     OwnershipError(#[from] OwnershipError),
 
-    #[error("Workflow already exists with id {0}")]
-    WorkflowAlreadyExists(u64),
-    #[error("Workflow doesn't exists with id {0}")]
-    WorkflowDoesntExists(u64),
+    #[error("Program already exists with id {0}")]
+    ProgramAlreadyExists(u64),
+    #[error("Program doesn't exists with id {0}")]
+    ProgramDoesntExists(u64),
 }

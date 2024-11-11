@@ -1,6 +1,6 @@
 # Valence Forwarder service
 
-The **Valence Forwarder** service allows to **continuously forward funds** from an **input account** to an **output account**, following some time **constraints**. It is typically used as part of a **Valence Workflow**. In that context, a **Processor** contract will be the main contract interacting with the Forwarder service.
+The **Valence Forwarder** service allows to **continuously forward funds** from an **input account** to an **output account**, following some time **constraints**. It is typically used as part of a **Valence Program**. In that context, a **Processor** contract will be the main contract interacting with the Forwarder service.
 
 ## High-level flow
 

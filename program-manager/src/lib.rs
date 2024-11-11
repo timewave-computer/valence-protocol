@@ -6,14 +6,14 @@ pub mod domain;
 pub mod error;
 pub mod helpers;
 pub mod macros;
+pub mod program_config;
+pub mod program_config_builder;
 pub mod service;
 pub mod tests;
-pub mod workflow_config;
-pub mod workflow_config_builder;
 
 use connectors::Connectors;
 use error::ManagerResult;
-use workflow_config::WorkflowConfig;
+use program_config::ProgramConfig;
 
 // Main chain name
 const NEUTRON_CHAIN: &str = "neutron";
@@ -22,17 +22,17 @@ const NEUTRON_CHAIN: &str = "neutron";
 // // Neutron domain
 // const NEUTRON_DOMAIN: Domain = Domain::CosmosCosmwasm("neutron");
 
-pub async fn init_workflow(workflow_config: &mut WorkflowConfig) -> ManagerResult<()> {
+pub async fn init_program(program_config: &mut ProgramConfig) -> ManagerResult<()> {
     let connectors = Connectors::default();
 
     // TODO: We probably want to register the error we got, with the config in question so we can know when it failed and why
-    workflow_config.init(&connectors).await
+    program_config.init(&connectors).await
 }
 
-// pub fn update_workflow(mut workflow_config: WorkflowConfig, mut old_workflow_config: WorkflowConfig) {
+// pub fn update_program(mut program_config: ProgramConfig, mut old_program_config: ProgramConfig) {
 //     let ctx = None;
 
-//     workflow_config.update(ctx);
+//     program_config.update(ctx);
 
-//     println!("{:#?}", workflow_config);
+//     println!("{:#?}", program_config);
 // }

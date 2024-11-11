@@ -1,6 +1,6 @@
 # Valence Reverse Splitter service
 
-The **Reverse Splitter** service allows to **route funds** from **one or more input account(s)** to a **single output account**, for **one or more token denom(s)** according to the configured **ratio(s)**. It is typically used as part of a **Valence Workflow**. In that context, a **Processor** contract will be the main contract interacting with the Forwarder service.
+The **Reverse Splitter** service allows to **route funds** from **one or more input account(s)** to a **single output account**, for **one or more token denom(s)** according to the configured **ratio(s)**. It is typically used as part of a **Valence Program**. In that context, a **Processor** contract will be the main contract interacting with the Forwarder service.
 
 ## High-level flow
 
