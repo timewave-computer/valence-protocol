@@ -77,7 +77,6 @@ mod actions {
                     cfg.denom().to_string(),
                     amount.u128(),
                     cfg.memo().clone(),
-                    None,
                     cfg.remote_chain_info()
                         .ibc_transfer_timeout
                         .map(|timeout| block_time.plus_seconds(timeout.u64()).nanos()),

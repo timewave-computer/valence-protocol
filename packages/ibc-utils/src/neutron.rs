@@ -13,8 +13,6 @@ use neutron_sdk::{
 
 use crate::types::{ForwardMetadata, PacketForwardMiddlewareConfig, PacketMetadata};
 
-// Default timeout for IbcTransfer is 300 blocks
-const DEFAULT_TIMEOUT_HEIGHT: u64 = 300;
 // Default timeout for IbcTransfer is 600 seconds
 const DEFAULT_TIMEOUT_TIMESTAMP: u64 = 600;
 const NTRN_DENOM: &str = "untrn";
@@ -29,7 +27,6 @@ pub fn ibc_send_message(
     denom: &CheckedDenom,
     amount: u128,
     memo: String,
-    timeout_height: Option<u64>,
     timeout_timestamp: Option<u64>,
     denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
 ) -> StdResult<CosmosMsg> {
@@ -82,10 +79,7 @@ pub fn ibc_send_message(
             sender: sender.to_string(),
             receiver: to.clone(),
             token: Some(coin),
-            timeout_height: Some(cosmos_sdk_proto::ibc::core::client::v1::Height {
-                revision_number: 2,
-                revision_height: timeout_height.unwrap_or(DEFAULT_TIMEOUT_HEIGHT),
-            }),
+            timeout_height: None,
             timeout_timestamp: timeout_timestamp.unwrap_or(
                 env.block
                     .time
@@ -102,10 +96,7 @@ pub fn ibc_send_message(
                 sender: sender.to_string(),
                 receiver: pfm_config.hop_chain_receiver_address.to_string(),
                 token: Some(coin),
-                timeout_height: Some(cosmos_sdk_proto::ibc::core::client::v1::Height {
-                    revision_number: 2,
-                    revision_height: timeout_height.unwrap_or(DEFAULT_TIMEOUT_HEIGHT),
-                }),
+                timeout_height: None,
                 timeout_timestamp: timeout_timestamp.unwrap_or(
                     env.block
                         .time
