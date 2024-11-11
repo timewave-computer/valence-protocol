@@ -17,8 +17,8 @@
 *.iml
 **/.editorconfig
 
-# raw schemas
-contracts/**/schema/raw
+# schemas
+contracts/**/schema
 
 # local-interchaintest
 local-interchaintest/configs
