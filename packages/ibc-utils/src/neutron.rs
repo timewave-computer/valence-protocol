@@ -27,7 +27,7 @@ pub fn ibc_send_message(
     denom: &CheckedDenom,
     amount: u128,
     memo: String,
-    timeout_timestamp: Option<u64>,
+    timeout_seconds: Option<u64>,
     denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
 ) -> StdResult<CosmosMsg> {
     // contract must pay for relaying of acknowledgements
@@ -80,12 +80,11 @@ pub fn ibc_send_message(
             receiver: to.clone(),
             token: Some(coin),
             timeout_height: None,
-            timeout_timestamp: timeout_timestamp.unwrap_or(
-                env.block
-                    .time
-                    .plus_seconds(DEFAULT_TIMEOUT_TIMESTAMP)
-                    .nanos(),
-            ),
+            timeout_timestamp: env
+                .block
+                .time
+                .plus_seconds(timeout_seconds.unwrap_or(DEFAULT_TIMEOUT_TIMESTAMP))
+                .nanos(),
             memo,
             fee: Some(get_transfer_fee(ibc_fee)),
         },
@@ -97,12 +96,11 @@ pub fn ibc_send_message(
                 receiver: pfm_config.hop_chain_receiver_address.to_string(),
                 token: Some(coin),
                 timeout_height: None,
-                timeout_timestamp: timeout_timestamp.unwrap_or(
-                    env.block
-                        .time
-                        .plus_seconds(DEFAULT_TIMEOUT_TIMESTAMP)
-                        .nanos(),
-                ),
+                timeout_timestamp: env
+                    .block
+                    .time
+                    .plus_seconds(timeout_seconds.unwrap_or(DEFAULT_TIMEOUT_TIMESTAMP))
+                    .nanos(),
                 memo: to_json_string(&PacketMetadata {
                     forward: Some(ForwardMetadata {
                         receiver: to.clone(),

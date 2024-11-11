@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use cosmwasm_std::{coin, CosmosMsg, Env, IbcTimeout, StdResult, Timestamp};
+use cosmwasm_std::{coin, CosmosMsg, Env, IbcTimeout, StdResult};
 
 use crate::types::PacketForwardMiddlewareConfig;
 
@@ -15,19 +15,18 @@ pub fn ibc_send_message(
     denom: String,
     amount: u128,
     memo: String,
-    timeout_timestamp: Option<u64>,
+    timeout_seconds: Option<u64>,
     _denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
 ) -> StdResult<CosmosMsg> {
     Ok(CosmosMsg::Ibc(cosmwasm_std::IbcMsg::Transfer {
         channel_id: channel,
         to_address: to,
         amount: coin(amount, denom),
-        timeout: match timeout_timestamp {
-            Some(timestamp) => IbcTimeout::with_timestamp(Timestamp::from_nanos(timestamp)),
-            None => {
-                IbcTimeout::with_timestamp(env.block.time.plus_seconds(DEFAULT_TIMEOUT_TIMESTAMP))
-            }
-        },
+        timeout: IbcTimeout::with_timestamp(
+            env.block
+                .time
+                .plus_seconds(timeout_seconds.unwrap_or(DEFAULT_TIMEOUT_TIMESTAMP)),
+        ),
         memo: Some(memo),
     }))
 }
