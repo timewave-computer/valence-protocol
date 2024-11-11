@@ -241,7 +241,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("IBC Transfer library: {}", ibc_transfer.address.clone());
 
-    // Approve the librarys for the base account
+    // Approve the library for the base account
     approve_library(
         &mut test_ctx,
         NEUTRON_CHAIN_NAME,
