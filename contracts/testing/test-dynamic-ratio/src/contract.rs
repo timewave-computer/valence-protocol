@@ -3,7 +3,7 @@ use std::collections::HashMap;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
-use valence_service_utils::msg::{DynamicRatioQueryMsg, DynamicRatioResponse};
+use valence_library_utils::msg::{DynamicRatioQueryMsg, DynamicRatioResponse};
 
 use crate::{
     msg::{ExecuteMsg, InstantiateMsg},

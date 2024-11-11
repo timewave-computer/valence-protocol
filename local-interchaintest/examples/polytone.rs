@@ -31,26 +31,26 @@ use log::info;
 use serde_json::json;
 use valence_authorization::error::ContractError;
 use valence_authorization_utils::{
-    action::AtomicAction,
     authorization::{
-        ActionsConfig, AtomicActionsConfig, AuthorizationDuration, AuthorizationInfo,
-        AuthorizationModeInfo, PermissionTypeInfo, Priority,
+        AtomicSubroutine, AuthorizationDuration, AuthorizationInfo, AuthorizationModeInfo,
+        PermissionTypeInfo, Priority, Subroutine,
     },
     authorization_message::{Message, MessageDetails, MessageType},
     callback::{ExecutionResult, ProcessorCallbackInfo},
     domain::{Connector, Domain, ExternalDomain, PolytoneProxyState},
+    function::AtomicFunction,
     msg::{
         CallbackProxy, Connector as AuthorizationConnector, ExternalDomainInfo, PermissionedMsg,
         ProcessorMessage,
     },
 };
 
+use valence_library_utils::LibraryAccountType;
 use valence_processor_utils::{
     callback::{PendingPolytoneCallbackInfo, PolytoneCallbackState},
     msg::PolytoneContracts,
     processor::{Config, ProcessorDomain},
 };
-use valence_service_utils::ServiceAccountType;
 
 const TIMEOUT_SECONDS: u64 = 15;
 const MAX_ATTEMPTS: u64 = 50;
@@ -496,10 +496,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     assert_eq!(remote_address, predicted_proxy_address_on_neutron);
     info!("Predicted and created addresses match!");
 
-    // Let's test the action creation and execution / retrying
+    // Let's test the function creation and execution / retrying
 
-    // First we are going to try to add an authorization with an action for an invalid domain, which should fail
-    let mut action = AtomicAction {
+    // First we are going to try to add an authorization with an function for an invalid domain, which should fail
+    let mut function = AtomicFunction {
         domain: Domain::External("osmosis".to_string()),
         message_details: MessageDetails {
             message_type: MessageType::CosmwasmExecuteMsg,
@@ -509,7 +509,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             },
         },
         // We don't care about the execution result so we will just make it fail when ticking the processor
-        contract_address: ServiceAccountType::Addr("any".to_string()),
+        contract_address: LibraryAccountType::Addr("any".to_string()),
     };
     let mut authorization = AuthorizationInfo {
         label: "label".to_string(),
@@ -520,8 +520,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         not_before: Expiration::Never {},
         duration: AuthorizationDuration::Forever,
         max_concurrent_executions: Some(3),
-        actions_config: ActionsConfig::Atomic(AtomicActionsConfig {
-            actions: vec![action.clone()],
+        subroutine: Subroutine::Atomic(AtomicSubroutine {
+            functions: vec![function.clone()],
             retry_logic: None,
         }),
         priority: None,
@@ -559,9 +559,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Creating a valid authorization...");
 
-    action.domain = Domain::External("juno".to_string());
-    authorization.actions_config = ActionsConfig::Atomic(AtomicActionsConfig {
-        actions: vec![action.clone()],
+    function.domain = Domain::External("juno".to_string());
+    authorization.subroutine = Subroutine::Atomic(AtomicSubroutine {
+        functions: vec![function.clone()],
         retry_logic: None,
     });
 

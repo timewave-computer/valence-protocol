@@ -5,8 +5,8 @@ use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::{parse_macro_input, Data, DeriveInput, Fields};
 
-#[proc_macro_derive(ValenceServiceInterface, attributes(skip_update))]
-pub fn valence_service_interface_derive(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(ValenceLibraryInterface, attributes(skip_update))]
+pub fn valence_library_interface_derive(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
     let name = &ast.ident;
     let filter_name = format_ident!("{}Update", name);
@@ -15,9 +15,9 @@ pub fn valence_service_interface_derive(input: TokenStream) -> TokenStream {
     let fields = match &ast.data {
         Data::Struct(data) => match &data.fields {
             Fields::Named(fields) => fields,
-            _ => panic!("ValenceServiceUpdate only works on structs with named fields"),
+            _ => panic!("ValenceLibraryUpdate only works on structs with named fields"),
         },
-        _ => panic!("ValenceServiceUpdate only works on structs"),
+        _ => panic!("ValenceLibraryUpdate only works on structs"),
     };
 
     let filtered_fields: Vec<_> = fields
@@ -80,7 +80,7 @@ pub fn valence_service_interface_derive(input: TokenStream) -> TokenStream {
     });
 
     let expanded = quote! {
-        use valence_service_utils::{ServiceConfigUpdateTrait, OptionUpdate, raw_config::{save_raw_service_config, load_raw_service_config}};
+        use valence_library_utils::{LibraryConfigUpdateTrait, OptionUpdate, raw_config::{save_raw_library_config, load_raw_library_config}};
         use cosmwasm_std::StdResult;
 
         #[cw_serde]
@@ -89,13 +89,13 @@ pub fn valence_service_interface_derive(input: TokenStream) -> TokenStream {
             #(#filter_fields)*
         }
 
-        impl ServiceConfigUpdateTrait for #filter_name {
+        impl LibraryConfigUpdateTrait for #filter_name {
             fn update_raw(&self, storage: &mut dyn cosmwasm_std::Storage) -> StdResult<()> {
-                let mut raw_config = load_raw_service_config::<#name>(storage)?;
+                let mut raw_config = load_raw_library_config::<#name>(storage)?;
 
                 #(#update_fields)*
 
-                save_raw_service_config(storage, &raw_config)
+                save_raw_library_config(storage, &raw_config)
             }
         }
 
@@ -119,20 +119,20 @@ pub fn valence_service_interface_derive(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn valence_service_query(metadata: TokenStream, input: TokenStream) -> TokenStream {
+pub fn valence_library_query(metadata: TokenStream, input: TokenStream) -> TokenStream {
     merge_variants(
         metadata,
         input,
         quote!(
-            enum ValenceServiceQuery {
+            enum ValenceLibraryQuery {
                 /// Query to get the processor address.
                 #[returns(Addr)]
                 GetProcessor {},
-                /// Query to get the service configuration.
+                /// Query to get the library configuration.
                 #[returns(Config)]
-                GetServiceConfig {},
-                #[returns(ServiceConfig)]
-                GetRawServiceConfig {},
+                GetLibraryConfig {},
+                #[returns(LibraryConfig)]
+                GetRawLibraryConfig {},
             }
         )
         .into(),

@@ -1,15 +1,15 @@
 use cw_utils::Expiration;
 use serde_json::{json, Map, Value};
-use valence_service_utils::ServiceAccountType;
+use valence_library_utils::LibraryAccountType;
 
 use crate::{
-    action::{ActionCallback, AtomicAction, NonAtomicAction, RetryLogic},
     authorization::{
-        ActionsConfig, AtomicActionsConfig, AuthorizationDuration, AuthorizationInfo,
-        AuthorizationModeInfo, NonAtomicActionsConfig, Priority,
+        AtomicSubroutine, AuthorizationDuration, AuthorizationInfo, AuthorizationModeInfo,
+        NonAtomicSubroutine, Priority, Subroutine,
     },
     authorization_message::{Message, MessageDetails, MessageType},
     domain::Domain,
+    function::{AtomicFunction, FunctionCallback, NonAtomicFunction, RetryLogic},
 };
 
 pub struct AuthorizationBuilder {
@@ -18,7 +18,7 @@ pub struct AuthorizationBuilder {
     not_before: Expiration,
     duration: AuthorizationDuration,
     max_concurrent_executions: Option<u64>,
-    actions_config: ActionsConfig,
+    subroutine: Subroutine,
     priority: Option<Priority>,
 }
 
@@ -36,8 +36,8 @@ impl AuthorizationBuilder {
             not_before: Expiration::Never {},
             duration: AuthorizationDuration::Forever,
             max_concurrent_executions: None,
-            actions_config: ActionsConfig::Atomic(AtomicActionsConfig {
-                actions: vec![],
+            subroutine: Subroutine::Atomic(AtomicSubroutine {
+                functions: vec![],
                 retry_logic: None,
             }),
             priority: None,
@@ -69,8 +69,8 @@ impl AuthorizationBuilder {
         self
     }
 
-    pub fn with_actions_config(mut self, actions_config: ActionsConfig) -> Self {
-        self.actions_config = actions_config;
+    pub fn with_subroutine(mut self, subroutine: Subroutine) -> Self {
+        self.subroutine = subroutine;
         self
     }
 
@@ -86,33 +86,33 @@ impl AuthorizationBuilder {
             not_before: self.not_before,
             duration: self.duration,
             max_concurrent_executions: self.max_concurrent_executions,
-            actions_config: self.actions_config,
+            subroutine: self.subroutine,
             priority: self.priority,
         }
     }
 }
 
-pub struct AtomicActionsConfigBuilder {
-    actions: Vec<AtomicAction>,
+pub struct AtomicSubroutineBuilder {
+    functions: Vec<AtomicFunction>,
     retry_logic: Option<RetryLogic>,
 }
 
-impl Default for AtomicActionsConfigBuilder {
+impl Default for AtomicSubroutineBuilder {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl AtomicActionsConfigBuilder {
+impl AtomicSubroutineBuilder {
     pub fn new() -> Self {
-        AtomicActionsConfigBuilder {
-            actions: vec![],
+        AtomicSubroutineBuilder {
+            functions: vec![],
             retry_logic: None,
         }
     }
 
-    pub fn with_action(mut self, action: AtomicAction) -> Self {
-        self.actions.push(action);
+    pub fn with_function(mut self, function: AtomicFunction) -> Self {
+        self.functions.push(function);
         self
     }
 
@@ -121,56 +121,56 @@ impl AtomicActionsConfigBuilder {
         self
     }
 
-    pub fn build(self) -> ActionsConfig {
-        ActionsConfig::Atomic(AtomicActionsConfig {
-            actions: self.actions,
+    pub fn build(self) -> Subroutine {
+        Subroutine::Atomic(AtomicSubroutine {
+            functions: self.functions,
             retry_logic: self.retry_logic,
         })
     }
 }
 
-pub struct NonAtomicActionsConfigBuilder {
-    actions: Vec<NonAtomicAction>,
+pub struct NonAtomicSubroutineBuilder {
+    functions: Vec<NonAtomicFunction>,
 }
 
-impl Default for NonAtomicActionsConfigBuilder {
+impl Default for NonAtomicSubroutineBuilder {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl NonAtomicActionsConfigBuilder {
+impl NonAtomicSubroutineBuilder {
     pub fn new() -> Self {
-        NonAtomicActionsConfigBuilder { actions: vec![] }
+        NonAtomicSubroutineBuilder { functions: vec![] }
     }
 
-    pub fn with_action(mut self, action: NonAtomicAction) -> Self {
-        self.actions.push(action);
+    pub fn with_function(mut self, function: NonAtomicFunction) -> Self {
+        self.functions.push(function);
         self
     }
 
-    pub fn build(self) -> ActionsConfig {
-        ActionsConfig::NonAtomic(NonAtomicActionsConfig {
-            actions: self.actions,
+    pub fn build(self) -> Subroutine {
+        Subroutine::NonAtomic(NonAtomicSubroutine {
+            functions: self.functions,
         })
     }
 }
 
-pub struct AtomicActionBuilder {
+pub struct AtomicFunctionBuilder {
     domain: Domain,
     message_details: MessageDetails,
-    contract_address: ServiceAccountType,
+    contract_address: LibraryAccountType,
 }
 
-impl Default for AtomicActionBuilder {
+impl Default for AtomicFunctionBuilder {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl AtomicActionBuilder {
+impl AtomicFunctionBuilder {
     pub fn new() -> Self {
-        AtomicActionBuilder {
+        AtomicFunctionBuilder {
             domain: Domain::Main,
             message_details: MessageDetails {
                 message_type: MessageType::CosmwasmExecuteMsg,
@@ -179,7 +179,7 @@ impl AtomicActionBuilder {
                     params_restrictions: None,
                 },
             },
-            contract_address: ServiceAccountType::Addr("address".to_string()),
+            contract_address: LibraryAccountType::Addr("address".to_string()),
         }
     }
     pub fn with_domain(mut self, domain: Domain) -> Self {
@@ -192,13 +192,13 @@ impl AtomicActionBuilder {
         self
     }
 
-    pub fn with_contract_address(mut self, contract_address: ServiceAccountType) -> Self {
+    pub fn with_contract_address(mut self, contract_address: LibraryAccountType) -> Self {
         self.contract_address = contract_address;
         self
     }
 
-    pub fn build(self) -> AtomicAction {
-        AtomicAction {
+    pub fn build(self) -> AtomicFunction {
+        AtomicFunction {
             domain: self.domain,
             message_details: self.message_details,
             contract_address: self.contract_address,
@@ -206,23 +206,23 @@ impl AtomicActionBuilder {
     }
 }
 
-pub struct NonAtomicActionBuilder {
+pub struct NonAtomicFunctionBuilder {
     domain: Domain,
     message_details: MessageDetails,
     contract_address: String,
     retry_logic: Option<RetryLogic>,
-    callback_confirmation: Option<ActionCallback>,
+    callback_confirmation: Option<FunctionCallback>,
 }
 
-impl Default for NonAtomicActionBuilder {
+impl Default for NonAtomicFunctionBuilder {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl NonAtomicActionBuilder {
+impl NonAtomicFunctionBuilder {
     pub fn new() -> Self {
-        NonAtomicActionBuilder {
+        NonAtomicFunctionBuilder {
             domain: Domain::Main,
             message_details: MessageDetails {
                 message_type: MessageType::CosmwasmExecuteMsg,
@@ -252,13 +252,13 @@ impl NonAtomicActionBuilder {
         self
     }
 
-    pub fn with_callback_confirmation(mut self, callback_confirmation: ActionCallback) -> Self {
+    pub fn with_callback_confirmation(mut self, callback_confirmation: FunctionCallback) -> Self {
         self.callback_confirmation = Some(callback_confirmation);
         self
     }
 
-    pub fn build(self) -> NonAtomicAction {
-        NonAtomicAction {
+    pub fn build(self) -> NonAtomicFunction {
+        NonAtomicFunction {
             domain: self.domain,
             message_details: self.message_details,
             contract_address: self.contract_address.as_str().into(),

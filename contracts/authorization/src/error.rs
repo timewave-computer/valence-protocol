@@ -48,11 +48,11 @@ pub enum AuthorizationErrorReason {
     #[error("Authorization with label {0} already exists")]
     LabelAlreadyExists(String),
 
-    #[error("Authorization must have at least one action")]
-    NoActions {},
+    #[error("Authorization must have at least one function")]
+    NoFunctions {},
 
-    #[error("All actions in an authorization must be executed in the same domain")]
-    DifferentActionDomains {},
+    #[error("All functions in an authorization must be executed in the same domain")]
+    DifferentFunctionDomains {},
 
     #[error("Permissionless authorizations can't have high priority")]
     PermissionlessWithHighPriority {},
@@ -78,7 +78,7 @@ pub enum UnauthorizedReason {
     #[error("The authorization is expired")]
     Expired {},
 
-    #[error("The authorization actions cant be executed yet")]
+    #[error("The authorization functions cant be executed yet")]
     NotActiveYet {},
 
     #[error("To proceed with this action, you must send exactly one token of this authorization")]
@@ -99,13 +99,13 @@ pub enum UnauthorizedReason {
 
 #[derive(Error, Debug, PartialEq)]
 pub enum MessageErrorReason {
-    #[error("The amount of messages you send must match the amount of actions in the list")]
+    #[error("The amount of messages you send must match the amount of functions in the list")]
     InvalidAmount {},
 
     #[error("The message sent has a different type than expected")]
     InvalidType {},
 
-    #[error("The message doesn't match the action")]
+    #[error("The message doesn't match the function")]
     DoesNotMatch {},
 
     #[error("The message doesn't pass all the parameter restrictions")]

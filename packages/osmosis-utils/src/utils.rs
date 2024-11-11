@@ -4,7 +4,7 @@ use osmosis_std::{
     cosmwasm_to_proto_coins,
     types::osmosis::gamm::v1beta1::{MsgExitPool, MsgJoinPool, MsgJoinSwapExternAmountIn},
 };
-use valence_service_utils::error::ServiceError;
+use valence_library_utils::error::LibraryError;
 
 #[cw_serde]
 pub struct LiquidityProviderConfig {
@@ -26,10 +26,10 @@ impl From<(Decimal, Decimal)> for DecimalRange {
 }
 
 impl DecimalRange {
-    pub fn contains(&self, value: Decimal) -> Result<(), ServiceError> {
+    pub fn contains(&self, value: Decimal) -> Result<(), LibraryError> {
         ensure!(
             value >= self.min && value <= self.max,
-            ServiceError::ExecutionError("Value is not within the expected range".to_string())
+            LibraryError::ExecutionError("Value is not within the expected range".to_string())
         );
         Ok(())
     }
@@ -96,7 +96,7 @@ pub mod cl_utils {
     use osmosis_std::types::osmosis::{
         concentratedliquidity::v1beta1::Pool, poolmanager::v1beta1::PoolmanagerQuerier,
     };
-    use valence_service_utils::error::ServiceError;
+    use valence_library_utils::error::LibraryError;
 
     pub fn query_cl_pool(deps: &Deps, pool_id: u64) -> StdResult<Pool> {
         let querier = PoolmanagerQuerier::new(&deps.querier);
@@ -147,17 +147,17 @@ pub mod cl_utils {
     }
 
     impl TickRange {
-        pub fn validate(&self) -> Result<(), ServiceError> {
+        pub fn validate(&self) -> Result<(), LibraryError> {
             ensure!(
                 self.lower_tick < self.upper_tick,
-                ServiceError::ExecutionError("lower tick must be less than upper tick".to_string())
+                LibraryError::ExecutionError("lower tick must be less than upper tick".to_string())
             );
             Ok(())
         }
 
-        pub fn ensure_pool_spacing_compatibility(&self, pool: &Pool) -> Result<(), ServiceError> {
+        pub fn ensure_pool_spacing_compatibility(&self, pool: &Pool) -> Result<(), LibraryError> {
             let spacing_i64 = i64::try_from(pool.tick_spacing)
-                .map_err(|_| ServiceError::Std(StdError::generic_err("failed to cast")))?;
+                .map_err(|_| LibraryError::Std(StdError::generic_err("failed to cast")))?;
 
             let lower_compatible = if self.lower_tick.is_zero() {
                 // 0 is always considered compatible
@@ -175,17 +175,17 @@ pub mod cl_utils {
 
             ensure!(
                 lower_compatible && upper_compatible,
-                ServiceError::ExecutionError(
+                LibraryError::ExecutionError(
                     "tick range is not a multiple of the other".to_string()
                 )
             );
             Ok(())
         }
 
-        pub fn ensure_contains(&self, other: &TickRange) -> Result<(), ServiceError> {
+        pub fn ensure_contains(&self, other: &TickRange) -> Result<(), LibraryError> {
             ensure!(
                 self.lower_tick <= other.lower_tick && self.upper_tick >= other.upper_tick,
-                ServiceError::ExecutionError(
+                LibraryError::ExecutionError(
                     "other tick range is not contained by this range".to_string()
                 )
             );

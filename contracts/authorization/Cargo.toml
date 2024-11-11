@@ -3,7 +3,7 @@ name        = "valence-authorization"
 version     = { workspace = true }
 edition     = { workspace = true }
 authors     = ["Timewave Labs"]
-description = "CosmWasm Smart Contract that will contain the authorization table that defines execution permissions in the workflow"
+description = "CosmWasm Smart Contract that will contain the authorization table that defines execution permissions in the program"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -31,6 +31,6 @@ neutron-test-tube     = { workspace = true }
 margined-neutron-std  = { workspace = true }
 serde                 = { workspace = true }
 hex                   = { workspace = true }
-valence-test-service  = { workspace = true }
+valence-test-library  = { workspace = true }
 valence-processor     = { workspace = true }
-valence-service-utils = { workspace = true }
+valence-library-utils = { workspace = true }
