@@ -247,7 +247,7 @@ fn forward_native_token_full_amount() {
     // Instantiate Forwarder contract
     let lib = suite.forwarder_init(&cfg);
 
-    // Execute forward action
+    // Execute forward function
     suite.execute_forward(lib).unwrap();
 
     // Verify input account's balance: should be zero
@@ -273,7 +273,7 @@ fn forward_native_token_partial_amount() {
     // Instantiate Forwarder contract
     let lib = suite.forwarder_init(&cfg);
 
-    // Execute forward action
+    // Execute forward function
     suite.execute_forward(lib).unwrap();
 
     // Verify input account's balance: should be 999_000 NTR
@@ -299,7 +299,7 @@ fn forward_native_token_zero_balance() {
     // Instantiate Forwarder contract
     let lib = suite.forwarder_init(&cfg);
 
-    // Execute forward action
+    // Execute forward function
     suite.execute_forward(lib).unwrap();
 
     // Verify input account's balance: should be zero
@@ -338,7 +338,7 @@ fn forward_cw20_full_amount() {
     // Instantiate Forwarder contract
     let lib = suite.forwarder_init(&cfg);
 
-    // Execute forward action
+    // Execute forward function
     suite.execute_forward(lib).unwrap();
 
     // Verify input account's balance: should be zero
@@ -377,7 +377,7 @@ fn forward_cw20_partial_amount() {
     // Instantiate Forwarder contract
     let lib = suite.forwarder_init(&cfg);
 
-    // Execute forward action
+    // Execute forward function
     suite.execute_forward(lib).unwrap();
 
     // Verify input account's balance: should be 999_000 MEME
@@ -642,7 +642,7 @@ fn update_config() {
     new_config.input_addr = suite.output_addr().into();
     new_config.output_addr = suite.input_addr().into();
 
-    // Execute update config action
+    // Execute update config function
     suite.update_config(lib.clone(), new_config).unwrap();
 
     // Verify library config
