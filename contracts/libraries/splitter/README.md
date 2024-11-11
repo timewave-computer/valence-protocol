@@ -1,6 +1,6 @@
 # Valence Splitter library
 
-The **Valence Splitter** service allows to **split funds** from **one input account** to **one or more output account(s)**, for **one or more token denom(s)** according to the configured **ratio(s)**. It is typically used as part of a **Valence Program**. In that context, a **Processor** contract will be the main contract interacting with the Forwarder service.
+The **Valence Splitter** library allows to **split funds** from **one input account** to **one or more output account(s)**, for **one or more token denom(s)** according to the configured **ratio(s)**. It is typically used as part of a **Valence Program**. In that context, a **Processor** contract will be the main contract interacting with the Forwarder library.
 
 ## High-level flow
 

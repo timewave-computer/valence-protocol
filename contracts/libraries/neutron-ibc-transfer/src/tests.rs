@@ -237,8 +237,8 @@ impl Module for NeutronKeeper {
     }
 }
 
-// Note: all tests below are replicated from the Generic IBC transfer service
-// Any change in the tests below should be reflected in the Generic IBC transfer service.
+// Note: all tests below are replicated from the Generic IBC transfer library
+// Any change in the tests below should be reflected in the Generic IBC transfer library.
 
 #[test]
 fn instantiate_with_valid_config() {

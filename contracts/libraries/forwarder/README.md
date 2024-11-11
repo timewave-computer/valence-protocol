@@ -1,6 +1,6 @@
 # Valence Forwarder library
 
-The **Valence Forwarder** service allows to **continuously forward funds** from an **input account** to an **output account**, following some time **constraints**. It is typically used as part of a **Valence Program**. In that context, a **Processor** contract will be the main contract interacting with the Forwarder service.
+The **Valence Forwarder** library allows to **continuously forward funds** from an **input account** to an **output account**, following some time **constraints**. It is typically used as part of a **Valence Program**. In that context, a **Processor** contract will be the main contract interacting with the Forwarder library.
 
 ## High-level flow
 
