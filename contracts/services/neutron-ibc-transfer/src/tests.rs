@@ -179,8 +179,6 @@ impl Module for NeutronKeeper {
     type QueryT = NeutronQuery;
     type SudoT = SudoMsg;
 
-    /// Currently we only implement register ICA and ibcTransfer and SubmitTx,
-    /// maybe we should implement other stuff as well?
     fn execute<ExecC, QueryC>(
         &self,
         _api: &dyn Api,
