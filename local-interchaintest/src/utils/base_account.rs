@@ -76,7 +76,7 @@ pub fn approve_service(
             flags
                 .map(|mut s| {
                     if !s.starts_with(" ") {
-                        s.insert_str(0, " ");
+                        s.insert(0, ' ');
                     }
                     s
                 })
