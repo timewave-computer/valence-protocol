@@ -30,16 +30,16 @@ use valence_astroport_utils::astroport_native_lp_token::{
 use valence_authorization_utils::{
     authorization::{AuthorizationModeInfo, PermissionTypeInfo},
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
-    builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
+    builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
     msg::ProcessorMessage,
 };
 use valence_forwarder_service::msg::{ForwardingConstraints, UncheckedForwardingConfig};
-use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
-use valence_workflow_manager::{
+use valence_program_manager::{
     account::{AccountInfo, AccountType},
+    program_config::{Link, ProgramConfig},
     service::{ServiceConfig, ServiceInfo},
-    workflow_config::{Link, WorkflowConfig},
 };
+use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -243,17 +243,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     .unwrap();
     std::thread::sleep(std::time::Duration::from_secs(3));
 
-    info!("Set up the workflow manager...");
-    let mut workflow_config = WorkflowConfig {
+    info!("Set up the program manager...");
+    let mut program_config = ProgramConfig {
         owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         ..Default::default()
     };
     let neutron_domain =
-        valence_workflow_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
+        valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
 
     // We will need 10 base accounts
     for i in 1..11 {
-        workflow_config.accounts.insert(
+        program_config.accounts.insert(
             i,
             AccountInfo {
                 name: format!("base_account_{}", i),
@@ -269,7 +269,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Inserting all services...");
     // Reverse splitter will take tokenfactory token from account 1 and NTRN from account 2 and send it to account 3
-    workflow_config.services.insert(
+    program_config.services.insert(
         1,
         ServiceInfo {
             name: "reverse_splitter".to_string(),
@@ -304,7 +304,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
     // LP forwarder will forward the joint deposit to an LP account
-    workflow_config.services.insert(
+    program_config.services.insert(
         2,
         ServiceInfo {
             name: "lp_forwarder".to_string(),
@@ -330,7 +330,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
     // The Astroport LPer will LP the tokens and deposit them in the LP deposit account
-    workflow_config.services.insert(
+    program_config.services.insert(
         3,
         ServiceInfo {
             name: "astroport_lper".to_string(),
@@ -356,7 +356,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
     // The LP position forwarder will forward the LP position to the Available LP tokens account
-    workflow_config.services.insert(
+    program_config.services.insert(
         4,
         ServiceInfo {
             name: "lp_position_forwarder".to_string(),
@@ -376,7 +376,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
     // The available LP tokens forwarder will forward the available LP tokens to the LP withdrawer account
-    workflow_config.services.insert(
+    program_config.services.insert(
         5,
         ServiceInfo {
             name: "available_lp_tokens_forwarder".to_string(),
@@ -396,7 +396,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
     // The Astroport withdrawer will withdraw the liquidity and send it to the withdrawal account
-    workflow_config.services.insert(
+    program_config.services.insert(
         6,
         ServiceInfo {
             name: "astroport_withdrawer".to_string(),
@@ -416,7 +416,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
     // The splitter will split the liquidity for the Tokenfactory Token and NTRN receiver accounts
-    workflow_config.services.insert(
+    program_config.services.insert(
         7,
         ServiceInfo {
             name: "splitter".to_string(),
@@ -448,7 +448,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Inserting links...");
     // The depositors will deposit into the joint account
-    workflow_config.links.insert(
+    program_config.links.insert(
         1,
         Link {
             input_accounts_id: vec![1, 2],
@@ -457,7 +457,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
     // The LP forwarder will forward the joint deposit to the LP account
-    workflow_config.links.insert(
+    program_config.links.insert(
         2,
         Link {
             input_accounts_id: vec![3],
@@ -466,7 +466,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
     // The joint account will forward the tokens to the LP account
-    workflow_config.links.insert(
+    program_config.links.insert(
         3,
         Link {
             input_accounts_id: vec![4],
@@ -475,7 +475,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
     // The LP position account will forward the LP position to the available LP tokens account
-    workflow_config.links.insert(
+    program_config.links.insert(
         4,
         Link {
             input_accounts_id: vec![5],
@@ -484,7 +484,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
     // The available LP tokens account will forward the available LP tokens to the LP withdrawer account
-    workflow_config.links.insert(
+    program_config.links.insert(
         5,
         Link {
             input_accounts_id: vec![6],
@@ -493,7 +493,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
     // The LP withdrawer account will withdraw the liquidity and send it to the withdrawal account
-    workflow_config.links.insert(
+    program_config.links.insert(
         6,
         Link {
             input_accounts_id: vec![7],
@@ -502,7 +502,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
     // The splitter will split the liquidity for the Tokenfactory Token and NTRN receiver accounts
-    workflow_config.links.insert(
+    program_config.links.insert(
         7,
         Link {
             input_accounts_id: vec![8],
@@ -512,21 +512,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     info!("Adding authorizations...");
-    workflow_config.authorizations = vec![
+    program_config.authorizations = vec![
         AuthorizationBuilder::new()
             .with_label("split_deposit")
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(
-                        AtomicActionBuilder::new()
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(ServiceAccountType::ServiceId(1))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "split".to_string(),
                                         ]),
                                     ]),
@@ -539,18 +539,18 @@ fn main() -> Result<(), Box<dyn Error>> {
             .build(),
         AuthorizationBuilder::new()
             .with_label("provide_liquidity")
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(
-                        AtomicActionBuilder::new()
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(ServiceAccountType::ServiceId(2))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "forward".to_string(),
                                         ]),
                                     ]),
@@ -558,16 +558,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                             })
                             .build(),
                     )
-                    .with_action(
-                        AtomicActionBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(ServiceAccountType::ServiceId(3))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "provide_double_sided_liquidity".to_string(),
                                         ]),
                                     ]),
@@ -575,16 +575,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                             })
                             .build(),
                     )
-                    .with_action(
-                        AtomicActionBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(ServiceAccountType::ServiceId(3))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "provide_single_sided_liquidity".to_string(),
                                         ]),
                                     ]),
@@ -600,18 +600,18 @@ fn main() -> Result<(), Box<dyn Error>> {
             .with_mode(AuthorizationModeInfo::Permissioned(
                 PermissionTypeInfo::WithoutCallLimit(vec![NEUTRON_USER_ADDRESS_1.to_string()]),
             ))
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(
-                        AtomicActionBuilder::new()
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(ServiceAccountType::ServiceId(4))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "forward".to_string(),
                                         ]),
                                     ]),
@@ -624,18 +624,18 @@ fn main() -> Result<(), Box<dyn Error>> {
             .build(),
         AuthorizationBuilder::new()
             .with_label("withdraw_liquidity")
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(
-                        AtomicActionBuilder::new()
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(ServiceAccountType::ServiceId(5))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "forward".to_string(),
                                         ]),
                                     ]),
@@ -643,16 +643,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                             })
                             .build(),
                     )
-                    .with_action(
-                        AtomicActionBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(ServiceAccountType::ServiceId(6))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "withdraw_liquidity".to_string(),
                                         ]),
                                     ]),
@@ -660,16 +660,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                             })
                             .build(),
                     )
-                    .with_action(
-                        AtomicActionBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(ServiceAccountType::ServiceId(7))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "split".to_string(),
                                         ]),
                                     ]),
@@ -682,8 +682,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             .build(),
     ];
 
-    info!("Creating the workflow...");
-    workflow_config.verify_new_config()?;
+    info!("Creating the program...");
+    program_config.verify_new_config()?;
     setup_manager(
         &mut test_ctx,
         NEUTRON_CONFIG_FILE,
@@ -696,24 +696,24 @@ fn main() -> Result<(), Box<dyn Error>> {
             ASTROPORT_WITHDRAWER_NAME,
         ],
     )?;
-    use_manager_init(&mut workflow_config)?;
+    use_manager_init(&mut program_config)?;
 
     // Get addresses that we need to start
-    let authorization_contract_address = workflow_config.authorization_data.authorization_addr;
-    let processor_contract_address = workflow_config
+    let authorization_contract_address = program_config.authorization_data.authorization_addr;
+    let processor_contract_address = program_config
         .authorization_data
         .processor_addrs
         .get(&neutron_domain.to_string())
         .unwrap()
         .clone();
-    let tokenfactory_depositor = workflow_config
+    let tokenfactory_depositor = program_config
         .accounts
         .get(&1)
         .unwrap()
         .addr
         .clone()
         .unwrap();
-    let neutron_depositor = workflow_config
+    let neutron_depositor = program_config
         .accounts
         .get(&2)
         .unwrap()
@@ -762,8 +762,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Sending message to reverse split to authorization contract...");
     let binary = Binary::from(
         serde_json::to_vec(
-            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
-                valence_reverse_splitter_service::msg::ActionMsgs::Split {},
+            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_reverse_splitter_service::msg::FunctionMsgs::Split {},
             ),
         )
         .unwrap(),
@@ -800,7 +800,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(std::time::Duration::from_secs(2));
 
     info!("Verifying joint deposit balance...");
-    let joint_deposit_address = workflow_config
+    let joint_deposit_address = program_config
         .accounts
         .get(&3)
         .unwrap()
@@ -825,8 +825,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Sending messages to provide liquidity...");
     let binary1 = Binary::from(
         serde_json::to_vec(
-            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
-                valence_forwarder_service::msg::ActionMsgs::Forward {},
+            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_forwarder_service::msg::FunctionMsgs::Forward {},
             ),
         )
         .unwrap(),
@@ -835,8 +835,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let binary2 = Binary::from(
         serde_json::to_vec(
-            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
-                valence_astroport_lper::msg::ActionMsgs::ProvideDoubleSidedLiquidity {
+            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_astroport_lper::msg::FunctionMsgs::ProvideDoubleSidedLiquidity {
                     expected_pool_ratio_range: None,
                 },
             ),
@@ -847,8 +847,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let binary3 = Binary::from(
         serde_json::to_vec(
-            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
-                valence_astroport_lper::msg::ActionMsgs::ProvideSingleSidedLiquidity {
+            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_astroport_lper::msg::FunctionMsgs::ProvideSingleSidedLiquidity {
                     asset: NTRN_DENOM.to_string(),
                     limit: None,
                     expected_pool_ratio_range: None,
@@ -889,7 +889,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(std::time::Duration::from_secs(2));
 
     info!("Verifying LP position account...");
-    let lp_position_account_address = workflow_config
+    let lp_position_account_address = program_config
         .accounts
         .get(&5)
         .unwrap()
@@ -911,8 +911,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Sending message to forward LP position...");
     let binary = Binary::from(
         serde_json::to_vec(
-            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
-                valence_forwarder_service::msg::ActionMsgs::Forward {},
+            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_forwarder_service::msg::FunctionMsgs::Forward {},
             ),
         )
         .unwrap(),
@@ -948,7 +948,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     info!("Verifying available LP tokens account...");
-    let available_lp_tokens_account_address = workflow_config
+    let available_lp_tokens_account_address = program_config
         .accounts
         .get(&6)
         .unwrap()
@@ -970,8 +970,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Sending message to withdraw liquidity...");
     let binary1 = Binary::from(
         serde_json::to_vec(
-            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
-                valence_forwarder_service::msg::ActionMsgs::Forward {},
+            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_forwarder_service::msg::FunctionMsgs::Forward {},
             ),
         )
         .unwrap(),
@@ -980,8 +980,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let binary2 = Binary::from(
         serde_json::to_vec(
-            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
-                valence_astroport_withdrawer::msg::ActionMsgs::WithdrawLiquidity {},
+            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_astroport_withdrawer::msg::FunctionMsgs::WithdrawLiquidity {},
             ),
         )
         .unwrap(),
@@ -990,8 +990,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let binary3 = Binary::from(
         serde_json::to_vec(
-            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(
-                valence_splitter_service::msg::ActionMsgs::Split {},
+            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_splitter_service::msg::FunctionMsgs::Split {},
             ),
         )
         .unwrap(),
@@ -1027,14 +1027,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     info!("Verifying final balances...");
-    let tokenfactory_token_receiver = workflow_config
+    let tokenfactory_token_receiver = program_config
         .accounts
         .get(&9)
         .unwrap()
         .addr
         .clone()
         .unwrap();
-    let neutron_receiver = workflow_config
+    let neutron_receiver = program_config
         .accounts
         .get(&10)
         .unwrap()

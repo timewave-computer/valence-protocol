@@ -64,8 +64,8 @@ impl AuthorizationData {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct WorkflowConfig {
-    // This is the id of the workflow
+pub struct ProgramConfig {
+    // This is the id of the program
     #[serde(default)]
     pub id: u64,
     pub owner: String,
@@ -78,25 +78,25 @@ pub struct WorkflowConfig {
     /// The list service data by id
     pub services: BTreeMap<Id, ServiceInfo>,
     /// This is the info regarding authorization and processor contracts.
-    /// Must be empty (Default) when a new workflow is instantiated.
-    /// It gets populated when the workflow is instantiated.
+    /// Must be empty (Default) when a new program is instantiated.
+    /// It gets populated when the program is instantiated.
     #[serde(default)]
     pub authorization_data: AuthorizationData,
 }
 
-impl WorkflowConfig {
-    /// Instantiate a workflow on all domains.
+impl ProgramConfig {
+    /// Instantiate a program on all domains.
     pub async fn init(&mut self, connectors: &Connectors) -> ManagerResult<()> {
         let neutron_domain = Domain::CosmosCosmwasm(NEUTRON_CHAIN.to_string());
-        // Verify the whole workflow config
+        // Verify the whole program config
         self.verify_new_config()?;
 
         // We create the neutron connector specifically because our registry is on neutron.
         let mut neutron_connector = connectors.get_or_create_connector(&neutron_domain).await?;
 
-        // Get workflow next id from on chain workflow registry
-        let workflow_id = neutron_connector.reserve_workflow_id().await?;
-        self.id = workflow_id;
+        // Get program next id from on chain program registry
+        let program_id = neutron_connector.reserve_program_id().await?;
+        self.id = program_id;
 
         // Instantiate the authorization module contracts.
         let all_domains = self.get_all_domains();
@@ -217,19 +217,19 @@ impl WorkflowConfig {
 
         // TODO: Discuss if we want to separate the bridge account instantiation from contract creation.
         // The main benefit of this is that it will give some time for the async operation to complete
-        // but if the creation fails, it means we continued the workflow instantiatoin for no reason.
+        // but if the creation fails, it means we continued the program instantiatoin for no reason.
 
         // Predict account addresses and get the instantiate datas for each account
         let mut account_instantiate_datas: HashMap<u64, InstantiateAccountData> = HashMap::new();
 
         for (account_id, account) in self.accounts.iter_mut() {
             if let AccountType::Addr { .. } = account.ty {
-                // TODO: Probably should error? we are trying to instantiate a new workflow with existing account
+                // TODO: Probably should error? we are trying to instantiate a new program with existing account
                 // this is problematic because we don't know who the admin of the account is
                 // and how we can update its approved services list.
                 // We can also assume the initier knows what he is doing, and will adjust those accounts manually.
                 // We can also output what the needed operations to adjust it,
-                // similar to what we will do on workflow update
+                // similar to what we will do on program update
                 continue;
             }
 
@@ -340,12 +340,12 @@ impl WorkflowConfig {
 
         // Loop over authorizations, and change ids to their addresses
         for authorization in self.authorizations.iter_mut() {
-            match &mut authorization.actions_config {
-                valence_authorization_utils::authorization::ActionsConfig::Atomic(
-                    atomic_actions_config,
+            match &mut authorization.subroutine {
+                valence_authorization_utils::authorization::Subroutine::Atomic(
+                    atomic_subroutine,
                 ) => {
-                    atomic_actions_config.actions.iter_mut().for_each(|action| {
-                        let addr = match &action.contract_address {
+                    atomic_subroutine.functions.iter_mut().for_each(|function| {
+                        let addr = match &function.contract_address {
                             valence_service_utils::ServiceAccountType::Addr(a) => a.to_string(),
                             valence_service_utils::ServiceAccountType::AccountId(account_id) => {
                                 account_instantiate_datas
@@ -358,18 +358,18 @@ impl WorkflowConfig {
                                 self.services.get(service_id).unwrap().addr.clone().unwrap()
                             }
                         };
-                        action.contract_address =
+                        function.contract_address =
                             valence_service_utils::ServiceAccountType::Addr(addr);
                     });
                 }
-                valence_authorization_utils::authorization::ActionsConfig::NonAtomic(
-                    non_atomic_actions_config,
+                valence_authorization_utils::authorization::Subroutine::NonAtomic(
+                    non_atomic_subroutine,
                 ) => {
-                    non_atomic_actions_config
-                        .actions
+                    non_atomic_subroutine
+                        .functions
                         .iter_mut()
-                        .for_each(|action| {
-                            let addr = match &action.contract_address {
+                        .for_each(|function| {
+                            let addr = match &function.contract_address {
                                 valence_service_utils::ServiceAccountType::Addr(a) => a.to_string(),
                                 valence_service_utils::ServiceAccountType::AccountId(
                                     account_id,
@@ -382,14 +382,14 @@ impl WorkflowConfig {
                                     service_id,
                                 ) => self.services.get(service_id).unwrap().addr.clone().unwrap(),
                             };
-                            action.contract_address =
+                            function.contract_address =
                                 valence_service_utils::ServiceAccountType::Addr(addr);
                         });
                 }
             }
         }
 
-        // Verify the workflow was instantiated successfully
+        // Verify the program was instantiated successfully
         self.verify_init_was_successful(connectors, account_instantiate_datas)
             .await?;
 
@@ -400,13 +400,13 @@ impl WorkflowConfig {
             .add_authorizations(authorization_addr.clone(), self.authorizations.clone())
             .await?;
 
-        // Change the admin of the authorization contract to the owner of the workflow
+        // Change the admin of the authorization contract to the owner of the program
         neutron_connector
             .change_authorization_owner(authorization_addr.clone(), self.owner.clone())
             .await?;
 
-        // Save the workflow config to registry
-        neutron_connector.save_workflow_config(self.clone()).await?;
+        // Save the program config to registry
+        neutron_connector.save_program_config(self.clone()).await?;
 
         Ok(())
     }
@@ -506,7 +506,7 @@ impl WorkflowConfig {
         Ok(())
     }
 
-    /// Verify our workflow was instantiated successfully
+    /// Verify our program was instantiated successfully
     async fn verify_init_was_successful(
         &mut self,
         connectors: &Connectors,
@@ -517,10 +517,10 @@ impl WorkflowConfig {
         // verify id is not taken (have no config in registry)
         ensure!(
             neutron_connector
-                .query_workflow_registry(self.id)
+                .query_program_registry(self.id)
                 .await
                 .is_err(),
-            ManagerError::WorkflowIdAlreadyExists(self.id)
+            ManagerError::ProgramIdAlreadyExists(self.id)
         );
 
         // Verify authorization contract is correct on neutron chain
@@ -573,7 +573,7 @@ impl WorkflowConfig {
     }
 }
 
-impl WorkflowConfig {
+impl ProgramConfig {
     fn get_processor_account_on_domain(&mut self, domain: Domain) -> ManagerResult<String> {
         // Find either a processor bridge account or
         let processor_addr = self

@@ -23,7 +23,7 @@ use persistence_std::types::{
 use valence_authorization_utils::{
     authorization::Priority,
     authorization_message::{Message, MessageDetails, MessageType},
-    builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
+    builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
     domain::Domain,
     msg::ProcessorMessage,
 };
@@ -135,10 +135,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Now that everything is set up, let's create the authorization that will be used to liquid stake from the base account
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("execute")
-        .with_actions_config(
-            AtomicActionsConfigBuilder::new()
-                .with_action(
-                    AtomicActionBuilder::new()
+        .with_subroutine(
+            AtomicSubroutineBuilder::new()
+                .with_function(
+                    AtomicFunctionBuilder::new()
                         .with_domain(Domain::External(PERSISTENCE_CHAIN_NAME.to_string()))
                         .with_contract_address(ServiceAccountType::Addr(
                             persistence_base_account.clone(),

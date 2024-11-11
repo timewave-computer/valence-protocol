@@ -13,8 +13,8 @@ use valence_service_utils::{
 };
 
 #[cw_serde]
-/// Enum representing the different action messages that can be sent.
-pub enum ActionMsgs {
+/// Enum representing the different function messages that can be sent.
+pub enum FunctionMsgs {
     /// Message to forward tokens.
     Forward {},
 }

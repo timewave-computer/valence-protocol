@@ -3,22 +3,22 @@ use valence_service_utils::{GetId, ServiceAccountType};
 
 use crate::{
     account::AccountInfo,
+    program_config::{Link, ProgramConfig},
     service::ServiceInfo,
-    workflow_config::{Link, WorkflowConfig},
 };
 
 #[derive(Default)]
-pub struct WorkflowConfigBuilder {
+pub struct ProgramConfigBuilder {
     account_id: u64,
     service_id: u64,
     link_id: u64,
-    workflow_config: WorkflowConfig,
+    program_config: ProgramConfig,
 }
 
-impl WorkflowConfigBuilder {
+impl ProgramConfigBuilder {
     pub fn new(owner: String) -> Self {
-        WorkflowConfigBuilder {
-            workflow_config: WorkflowConfig {
+        ProgramConfigBuilder {
+            program_config: ProgramConfig {
                 owner,
                 ..Default::default()
             },
@@ -27,14 +27,14 @@ impl WorkflowConfigBuilder {
     }
 
     pub fn set_owner(&mut self, owner: String) {
-        self.workflow_config.owner = owner;
+        self.program_config.owner = owner;
     }
 
     pub fn add_account(&mut self, info: AccountInfo) -> ServiceAccountType {
         let id = self.account_id;
         self.account_id += 1;
 
-        if self.workflow_config.accounts.insert(id, info).is_some() {
+        if self.program_config.accounts.insert(id, info).is_some() {
             panic!("Account with id {} already exists", id);
         }
 
@@ -45,7 +45,7 @@ impl WorkflowConfigBuilder {
         let id = self.service_id;
         self.service_id += 1;
 
-        if self.workflow_config.services.insert(id, info).is_some() {
+        if self.program_config.services.insert(id, info).is_some() {
             panic!("Service with id {} already exists", id);
         }
 
@@ -61,7 +61,7 @@ impl WorkflowConfigBuilder {
         let id = self.link_id;
         self.link_id += 1;
 
-        self.workflow_config.links.insert(
+        self.program_config.links.insert(
             id,
             Link {
                 input_accounts_id: inputs.into_iter().map(|id| id.get_id()).collect(),
@@ -72,10 +72,10 @@ impl WorkflowConfigBuilder {
     }
 
     pub fn add_authorization(&mut self, authorization: AuthorizationInfo) {
-        self.workflow_config.authorizations.push(authorization);
+        self.program_config.authorizations.push(authorization);
     }
 
-    pub fn build(self) -> WorkflowConfig {
-        self.workflow_config
+    pub fn build(self) -> ProgramConfig {
+        self.program_config
     }
 }

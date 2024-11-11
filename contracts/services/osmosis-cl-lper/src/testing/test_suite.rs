@@ -17,7 +17,7 @@ use valence_osmosis_utils::{
 };
 use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 
-use crate::msg::{ActionMsgs, LiquidityProviderConfig, ServiceConfig, ServiceConfigUpdate};
+use crate::msg::{FunctionMsgs, LiquidityProviderConfig, ServiceConfig, ServiceConfigUpdate};
 
 pub struct LPerTestSuite {
     pub inner: OsmosisTestAppSetup<ConcentratedLiquidityPool>,
@@ -124,9 +124,9 @@ impl LPerTestSuite {
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
-        wasm.execute::<ExecuteMsg<ActionMsgs, ServiceConfigUpdate>>(
+        wasm.execute::<ExecuteMsg<FunctionMsgs, ServiceConfigUpdate>>(
             &self.lper_addr,
-            &ExecuteMsg::ProcessAction(ActionMsgs::ProvideLiquidityCustom {
+            &ExecuteMsg::ProcessFunction(FunctionMsgs::ProvideLiquidityCustom {
                 tick_range: TickRange {
                     lower_tick: Int64::new(lower_tick),
                     upper_tick: Int64::new(upper_tick),
@@ -146,9 +146,9 @@ impl LPerTestSuite {
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
-        wasm.execute::<ExecuteMsg<ActionMsgs, ServiceConfigUpdate>>(
+        wasm.execute::<ExecuteMsg<FunctionMsgs, ServiceConfigUpdate>>(
             &self.lper_addr,
-            &ExecuteMsg::ProcessAction(ActionMsgs::ProvideLiquidityDefault {
+            &ExecuteMsg::ProcessFunction(FunctionMsgs::ProvideLiquidityDefault {
                 bucket_amount: range.into(),
             }),
             &[],

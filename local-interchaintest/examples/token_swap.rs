@@ -17,16 +17,16 @@ use log::info;
 use rand::{distributions::Alphanumeric, Rng};
 use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
-    builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
+    builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
     msg::ProcessorMessage,
 };
-use valence_service_utils::denoms::UncheckedDenom;
-use valence_splitter_service::msg::{ActionMsgs, UncheckedSplitAmount, UncheckedSplitConfig};
-use valence_workflow_manager::{
+use valence_program_manager::{
     account::{AccountInfo, AccountType},
+    program_config_builder::ProgramConfigBuilder,
     service::{ServiceConfig, ServiceInfo},
-    workflow_config_builder::WorkflowConfigBuilder,
 };
+use valence_service_utils::denoms::UncheckedDenom;
+use valence_splitter_service::msg::{FunctionMsgs, UncheckedSplitAmount, UncheckedSplitConfig};
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -80,24 +80,24 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let swap_amount = 1_000_000_000;
 
-    let mut workflow_config_builder =
-        WorkflowConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
+    let mut program_config_builder =
+        ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
     let neutron_domain =
-        valence_workflow_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
+        valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
 
-    let account_1 = workflow_config_builder.add_account(AccountInfo::new(
+    let account_1 = program_config_builder.add_account(AccountInfo::new(
         "base_account_1".to_string(),
         &neutron_domain,
         AccountType::default(),
     ));
 
-    let account_2 = workflow_config_builder.add_account(AccountInfo::new(
+    let account_2 = program_config_builder.add_account(AccountInfo::new(
         "base_account_2".to_string(),
         &neutron_domain,
         AccountType::default(),
     ));
 
-    let service_1 = workflow_config_builder.add_service(ServiceInfo::new(
+    let service_1 = program_config_builder.add_service(ServiceInfo::new(
         "splitter_1".to_string(),
         &neutron_domain,
         ServiceConfig::ValenceSplitterService(valence_splitter_service::msg::ServiceConfig {
@@ -110,7 +110,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }),
     ));
 
-    let service_2 = workflow_config_builder.add_service(ServiceInfo::new(
+    let service_2 = program_config_builder.add_service(ServiceInfo::new(
         "splitter_2".to_string(),
         &neutron_domain,
         ServiceConfig::ValenceSplitterService(valence_splitter_service::msg::ServiceConfig {
@@ -123,24 +123,24 @@ fn main() -> Result<(), Box<dyn Error>> {
         }),
     ));
 
-    workflow_config_builder.add_link(&service_1, vec![&account_1], vec![&account_2]);
-    workflow_config_builder.add_link(&service_2, vec![&account_2], vec![&account_1]);
+    program_config_builder.add_link(&service_1, vec![&account_1], vec![&account_2]);
+    program_config_builder.add_link(&service_2, vec![&account_2], vec![&account_1]);
 
-    workflow_config_builder.add_authorization(
+    program_config_builder.add_authorization(
         AuthorizationBuilder::new()
             .with_label("swap")
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(
-                        AtomicActionBuilder::new()
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(service_1)
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "split".to_string(),
                                         ]),
                                     ]),
@@ -148,16 +148,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                             })
                             .build(),
                     )
-                    .with_action(
-                        AtomicActionBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_contract_address(service_2)
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "split".to_string(),
                                         ]),
                                     ]),
@@ -170,10 +170,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             .build(),
     );
 
-    let mut workflow_config = workflow_config_builder.build();
+    let mut program_config = program_config_builder.build();
 
     // Verify config is ok before we upload all contracts
-    workflow_config.verify_new_config()?;
+    program_config.verify_new_config()?;
 
     // Setup the contracts and update the global config
     info!("Setup manager...");
@@ -184,25 +184,23 @@ fn main() -> Result<(), Box<dyn Error>> {
         vec![SPLITTER_NAME],
     )?;
 
-    // init the workflow
+    // init the program
     info!("Start manager init...");
-    use_manager_init(&mut workflow_config)?;
+    use_manager_init(&mut program_config)?;
 
     // Get all the addresses we need to interact with
-    let authorization_contract_address = workflow_config
-        .authorization_data
-        .authorization_addr
-        .clone();
-    let processor_contract_address = workflow_config
+    let authorization_contract_address =
+        program_config.authorization_data.authorization_addr.clone();
+    let processor_contract_address = program_config
         .get_processor_addr(&neutron_domain.to_string())
         .unwrap();
-    let base_account_1 = workflow_config
+    let base_account_1 = program_config
         .get_account(account_1)
         .unwrap()
         .addr
         .clone()
         .unwrap();
-    let base_account_2 = workflow_config
+    let base_account_2 = program_config
         .get_account(account_2)
         .unwrap()
         .addr
@@ -264,7 +262,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Send the messages to the authorization contract...");
     let binary = Binary::from(
         serde_json::to_vec(
-            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(ActionMsgs::Split {}),
+            &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                FunctionMsgs::Split {},
+            ),
         )
         .unwrap(),
     );

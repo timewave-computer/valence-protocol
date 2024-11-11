@@ -5,9 +5,9 @@ members = [
     "contracts/authorization",
     "contracts/processor",
     "contracts/testing/*",
-    "contracts/workflow-registry",
+    "contracts/program-registry",
     "packages/*",
-    "workflow-manager",
+    "program-manager",
     "local-interchaintest",
 ]
 resolver = "2"
@@ -59,7 +59,7 @@ valence-processor                    = { path = "contracts/processor", features 
 valence-splitter-service             = { path = "contracts/services/splitter", features = ["library"] }
 valence-test-dynamic-ratio           = { path = "contracts/testing/test-dynamic-ratio", features = ["library"] }
 valence-test-service                 = { path = "contracts/testing/test-service", features = ["library"] }
-valence-workflow-registry            = { path = "contracts/workflow-registry", features = ["library"] }
+valence-program-registry             = { path = "contracts/program-registry", features = ["library"] }
 valence-astroport-lper               = { path = "contracts/services/astroport-lper", features = ["library"] }
 valence-forwarder-service            = { path = "contracts/services/forwarder", features = ["library"] }
 valence-astroport-withdrawer         = { path = "contracts/services/astroport-withdrawer", features = ["library"] }
@@ -71,18 +71,18 @@ valence-osmosis-gamm-withdrawer      = { path = "contracts/services/osmosis-gamm
 valence-osmosis-cl-lper              = { path = "contracts/services/osmosis-cl-lper", features = ["library"] }
 
 # our packages
-valence-account-utils           = { path = "packages/account-utils" }
-valence-astroport-utils         = { path = "packages/astroport-utils" }
-valence-osmosis-utils           = { path = "packages/osmosis-utils" }
-valence-authorization-utils     = { path = "packages/authorization-utils" }
-valence-ibc-utils               = { path = "packages/ibc-utils" }
-valence-macros                  = { path = "packages/valence-macros" }
-valence-polytone-utils          = { path = "packages/polytone-utils" }
-valence-processor-utils         = { path = "packages/processor-utils" }
-valence-service-base            = { path = "packages/service-base" }
-valence-service-utils           = { path = "packages/service-utils" }
-valence-workflow-registry-utils = { path = "packages/workflow-registry-utils" }
-valence-workflow-manager        = { path = "workflow-manager" }
+valence-account-utils          = { path = "packages/account-utils" }
+valence-astroport-utils        = { path = "packages/astroport-utils" }
+valence-osmosis-utils          = { path = "packages/osmosis-utils" }
+valence-authorization-utils    = { path = "packages/authorization-utils" }
+valence-ibc-utils              = { path = "packages/ibc-utils" }
+valence-macros                 = { path = "packages/valence-macros" }
+valence-polytone-utils         = { path = "packages/polytone-utils" }
+valence-processor-utils        = { path = "packages/processor-utils" }
+valence-service-base           = { path = "packages/service-base" }
+valence-service-utils          = { path = "packages/service-utils" }
+valence-program-registry-utils = { path = "packages/program-registry-utils" }
+valence-program-manager        = { path = "program-manager" }
 
 # dev-dependencies
 cw-multi-test        = { version = "2.1.1", features = ["cosmwasm_1_4"] }

@@ -1,5 +1,5 @@
 [package]
-name       = "valence-workflow-registry-utils"
+name       = "valence-program-registry-utils"
 edition    = { workspace = true }
 license    = { workspace = true }
 version    = { workspace = true }
