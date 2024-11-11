@@ -5,7 +5,7 @@ use thiserror::Error;
 use valence_authorization_utils::domain::ExternalDomain;
 use valence_processor::msg::PolytoneContracts;
 
-use crate::{account::InstantiateAccountData, service::ServiceConfig};
+use crate::{account::InstantiateAccountData, library::LibraryConfig};
 
 use super::{Connector, ConnectorResult};
 
@@ -46,13 +46,13 @@ impl Connector for CosmosEvmConnector {
         unimplemented!("instantiate_account")
     }
 
-    async fn instantiate_service(
+    async fn instantiate_library(
         &mut self,
-        _service_id: u64,
-        _service_config: &ServiceConfig,
+        _library_id: u64,
+        _library_config: &LibraryConfig,
         _salt: Vec<u8>,
     ) -> ConnectorResult<()> {
-        unimplemented!("instantiate_service")
+        unimplemented!("instantiate_library")
     }
 
     async fn instantiate_authorization(

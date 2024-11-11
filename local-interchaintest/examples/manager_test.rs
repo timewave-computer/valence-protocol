@@ -12,13 +12,13 @@ use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
 };
+use valence_library_utils::denoms::UncheckedDenom;
 use valence_program_manager::{
     account::{AccountInfo, AccountType},
+    library::{LibraryConfig, LibraryInfo},
     program_config_builder::ProgramConfigBuilder,
-    service::{ServiceConfig, ServiceInfo},
 };
-use valence_service_utils::denoms::UncheckedDenom;
-use valence_splitter_service::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
+use valence_splitter_library::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut test_ctx = TestContextBuilder::default()
@@ -52,11 +52,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     ));
 
     let swap_amount: u128 = 1_000_000_000;
-    let service_1 = builder.add_service(ServiceInfo {
+    let library_1 = builder.add_library(LibraryInfo {
         name: "test_splitter".to_string(),
         domain: neutron_domain.clone(),
-        config: ServiceConfig::ValenceSplitterService(
-            valence_splitter_service::msg::ServiceConfig {
+        config: LibraryConfig::ValenceSplitterLibrary(
+            valence_splitter_library::msg::LibraryConfig {
                 input_addr: account_1.clone(),
                 splits: vec![UncheckedSplitConfig {
                     denom: UncheckedDenom::Native("test".to_string()),
@@ -68,7 +68,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         addr: None,
     });
 
-    builder.add_link(&service_1, vec![&account_1], vec![&account_2]);
+    builder.add_link(&library_1, vec![&account_1], vec![&account_2]);
 
     builder.add_authorization(
         AuthorizationBuilder::new()
@@ -77,7 +77,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 AtomicSubroutineBuilder::new()
                     .with_function(
                         AtomicFunctionBuilder::new()
-                            .with_contract_address(service_1)
+                            .with_contract_address(library_1)
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {

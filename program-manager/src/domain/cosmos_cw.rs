@@ -9,8 +9,8 @@ use crate::{
     bridge::PolytoneSingleChainInfo,
     config::{ChainInfo, ConfigError, GLOBAL_CONFIG},
     helpers::{addr_canonicalize, addr_humanize},
+    library::{LibraryConfig, LibraryError},
     program_config::ProgramConfig,
-    service::{ServiceConfig, ServiceError},
     NEUTRON_CHAIN,
 };
 use anyhow::{anyhow, Context};
@@ -72,7 +72,7 @@ pub enum CosmosCosmwasmError {
     ConfigError(#[from] ConfigError),
 
     #[error(transparent)]
-    ServiceError(#[from] ServiceError),
+    LibraryError(#[from] LibraryError),
 
     #[error(transparent)]
     CosmwasmStdError(#[from] cosmwasm_std::StdError),
@@ -289,7 +289,7 @@ impl Connector for CosmosCosmwasmConnector {
         let msg: Vec<u8> = match &data.info.ty {
             AccountType::Base { admin } => to_vec(&valence_account_utils::msg::InstantiateMsg {
                 admin: admin.clone().unwrap_or_else(|| processor_addr.clone()),
-                approved_services: data.approved_services.clone(),
+                approved_libraries: data.approved_libraries.clone(),
             })
             .map_err(CosmosCosmwasmError::SerdeJsonError)?,
             AccountType::Addr { .. } => return Ok(()),
@@ -313,32 +313,32 @@ impl Connector for CosmosCosmwasmConnector {
         Ok(())
     }
 
-    async fn instantiate_service(
+    async fn instantiate_library(
         &mut self,
         program_id: u64,
         auth_addr: String,
         processor_addr: String,
-        service_id: u64,
-        service_config: ServiceConfig,
+        library_id: u64,
+        library_config: LibraryConfig,
         salt: Vec<u8>,
     ) -> ConnectorResult<()> {
         let code_id = *self
             .code_ids
-            .get(&service_config.to_string())
-            .context(format!("Code id not found for: {}", service_config))
+            .get(&library_config.to_string())
+            .context(format!("Code id not found for: {}", library_config))
             .map_err(CosmosCosmwasmError::Error)?;
 
-        let msg = service_config
+        let msg = library_config
             .get_instantiate_msg(processor_addr.clone(), processor_addr.clone())
-            .map_err(CosmosCosmwasmError::ServiceError)?;
+            .map_err(CosmosCosmwasmError::LibraryError)?;
 
         let m = MsgInstantiateContract2 {
             sender: self.wallet.account_address.clone(),
             admin: auth_addr,
             code_id,
             label: format!(
-                "program-{}|service-{}-{}",
-                program_id, service_config, service_id
+                "program-{}|library-{}-{}",
+                program_id, library_config, library_id
             ),
             msg,
             funds: vec![],
@@ -348,7 +348,7 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         // Broadcast the tx and wait for it to finalize (or error)
-        self.broadcast_tx(m, "instantiate_service").await?;
+        self.broadcast_tx(m, "instantiate_library").await?;
 
         Ok(())
     }
@@ -704,14 +704,14 @@ impl Connector for CosmosCosmwasmConnector {
             .map_err(CosmosCosmwasmError::Error)?)
     }
 
-    async fn verify_service(&mut self, service_addr: Option<String>) -> ConnectorResult<()> {
-        let service_addr = service_addr
-            .context("'verify_service' Service address is empty")
+    async fn verify_library(&mut self, library_addr: Option<String>) -> ConnectorResult<()> {
+        let library_addr = library_addr
+            .context("'verify_library' Library address is empty")
             .map_err(CosmosCosmwasmError::Error)?;
 
-        let contract_name = self.get_contract_name_by_address(service_addr).await?;
+        let contract_name = self.get_contract_name_by_address(library_addr).await?;
 
-        Ok(ServiceConfig::VARIANTS
+        Ok(LibraryConfig::VARIANTS
             .iter()
             .find(|x| x.to_string() == contract_name)
             .context("'verify_account' Code id doesn't match any account type")
@@ -768,10 +768,10 @@ impl Connector for CosmosCosmwasmConnector {
             .into());
         }
 
-        for service in config.services.values() {
-            if service.addr.is_none() {
+        for library in config.libraries.values() {
+            if library.addr.is_none() {
                 return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
-                    "Before saving program config each service must have an address"
+                    "Before saving program config each library must have an address"
                 ))
                 .into());
             }

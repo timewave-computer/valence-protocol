@@ -27,7 +27,7 @@ use valence_authorization_utils::{
     domain::Domain,
     msg::ProcessorMessage,
 };
-use valence_service_utils::ServiceAccountType;
+use valence_library_utils::LibraryAccountType;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -139,7 +139,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .with_function(
                     AtomicFunctionBuilder::new()
                         .with_domain(Domain::External(PERSISTENCE_CHAIN_NAME.to_string()))
-                        .with_contract_address(ServiceAccountType::Addr(
+                        .with_contract_address(LibraryAccountType::Addr(
                             persistence_base_account.clone(),
                         ))
                         .with_message_details(MessageDetails {

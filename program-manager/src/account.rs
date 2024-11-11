@@ -60,7 +60,7 @@ pub struct InstantiateAccountData {
     pub info: AccountInfo,
     pub addr: String,
     pub salt: Vec<u8>,
-    pub approved_services: Vec<String>,
+    pub approved_libraries: Vec<String>,
 }
 
 impl InstantiateAccountData {
@@ -70,11 +70,11 @@ impl InstantiateAccountData {
             info,
             addr,
             salt,
-            approved_services: vec![],
+            approved_libraries: vec![],
         }
     }
 
-    pub fn add_service(&mut self, service_addr: String) {
-        self.approved_services.push(service_addr);
+    pub fn add_library(&mut self, library_addr: String) {
+        self.approved_libraries.push(library_addr);
     }
 }

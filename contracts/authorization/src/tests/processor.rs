@@ -18,8 +18,8 @@ use valence_authorization_utils::{
     function::{FunctionCallback, RetryLogic, RetryTimes},
     msg::{ExecuteMsg, PermissionedMsg, PermissionlessMsg, ProcessorMessage, QueryMsg},
 };
+use valence_library_utils::LibraryAccountType;
 use valence_processor_utils::{msg::InternalProcessorMsg, processor::MessageBatch};
-use valence_service_utils::ServiceAccountType;
 
 use crate::{
     contract::build_tokenfactory_denom,
@@ -33,15 +33,15 @@ use valence_processor_utils::msg::{
 
 use valence_processor::error::{ContractError as ProcessorContractError, UnauthorizedReason};
 
-use valence_test_service::msg::{
-    ExecuteMsg as TestServiceExecuteMsg, QueryMsg as TestServiceQueryMsg,
+use valence_test_library::msg::{
+    ExecuteMsg as TestLibraryExecuteMsg, QueryMsg as TestLibraryQueryMsg,
 };
 
 use super::{
     builders::NeutronTestAppBuilder,
     helpers::{
         store_and_instantiate_authorization_with_processor_contract,
-        store_and_instantiate_test_service,
+        store_and_instantiate_test_library,
     },
 };
 
@@ -890,10 +890,10 @@ fn invalid_msg_rejected() {
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
         );
-    let test_service_contract =
-        store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
+    let test_library_contract =
+        store_and_instantiate_test_library(&wasm, &setup.owner_accounts[0], None);
 
-    // Let's create an authorization for sending a message to the test service that doesn't even exist on the contract
+    // Let's create an authorization for sending a message to the test library that doesn't even exist on the contract
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
         .with_max_concurrent_executions(10)
@@ -901,7 +901,7 @@ fn invalid_msg_rejected() {
             AtomicSubroutineBuilder::new()
                 .with_function(
                     AtomicFunctionBuilder::new()
-                        .with_contract_address(ServiceAccountType::Addr(test_service_contract))
+                        .with_contract_address(LibraryAccountType::Addr(test_library_contract))
                         .build(),
                 )
                 .build(),
@@ -917,7 +917,7 @@ fn invalid_msg_rejected() {
     )
     .unwrap();
 
-    // Let's try to send an invalid message to the test service
+    // Let's try to send an invalid message to the test library
     let binary =
         Binary::from(serde_json::to_vec(&JsonBuilder::new().main("method").build()).unwrap());
     let message = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
@@ -1003,8 +1003,8 @@ fn queue_shifting_when_not_retriable() {
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
         );
-    let test_service_contract =
-        store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
+    let test_library_contract =
+        store_and_instantiate_test_library(&wasm, &setup.owner_accounts[0], None);
 
     // Let's create two authorizations (one atomic and one non atomic) that will always fail and see that when they fail, they are put back on the back in the queue
     // and when the retrying cooldown is not reached, they are shifted to the back of the queue
@@ -1016,8 +1016,8 @@ fn queue_shifting_when_not_retriable() {
                 AtomicSubroutineBuilder::new()
                     .with_function(
                         AtomicFunctionBuilder::new()
-                            .with_contract_address(ServiceAccountType::Addr(
-                                test_service_contract.clone(),
+                            .with_contract_address(LibraryAccountType::Addr(
+                                test_library_contract.clone(),
                             ))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
@@ -1042,7 +1042,7 @@ fn queue_shifting_when_not_retriable() {
                 NonAtomicSubroutineBuilder::new()
                     .with_function(
                         NonAtomicFunctionBuilder::new()
-                            .with_contract_address(&test_service_contract.clone())
+                            .with_contract_address(&test_library_contract.clone())
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -1076,7 +1076,7 @@ fn queue_shifting_when_not_retriable() {
 
     // Let's send 2 messages to the queue
     let binary = Binary::from(
-        serde_json::to_vec(&TestServiceExecuteMsg::WillError {
+        serde_json::to_vec(&TestLibraryExecuteMsg::WillError {
             error: "fails".to_string(),
         })
         .unwrap(),
@@ -1261,8 +1261,8 @@ fn higher_priority_queue_is_processed_first() {
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
         );
-    let test_service_contract =
-        store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
+    let test_library_contract =
+        store_and_instantiate_test_library(&wasm, &setup.owner_accounts[0], None);
 
     // We'll create two authorizations, one with high priority and one without, and we'll enqueue two messages for both
     let authorizations = vec![
@@ -1273,8 +1273,8 @@ fn higher_priority_queue_is_processed_first() {
                 AtomicSubroutineBuilder::new()
                     .with_function(
                         AtomicFunctionBuilder::new()
-                            .with_contract_address(ServiceAccountType::Addr(
-                                test_service_contract.clone(),
+                            .with_contract_address(LibraryAccountType::Addr(
+                                test_library_contract.clone(),
                             ))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
@@ -1300,8 +1300,8 @@ fn higher_priority_queue_is_processed_first() {
                 AtomicSubroutineBuilder::new()
                     .with_function(
                         AtomicFunctionBuilder::new()
-                            .with_contract_address(ServiceAccountType::Addr(
-                                test_service_contract.clone(),
+                            .with_contract_address(LibraryAccountType::Addr(
+                                test_library_contract.clone(),
                             ))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
@@ -1327,7 +1327,7 @@ fn higher_priority_queue_is_processed_first() {
     .unwrap();
 
     let binary = Binary::from(
-        serde_json::to_vec(&TestServiceExecuteMsg::WillSucceed { execution_id: None }).unwrap(),
+        serde_json::to_vec(&TestLibraryExecuteMsg::WillSucceed { execution_id: None }).unwrap(),
     );
     let message = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
 
@@ -1507,8 +1507,8 @@ fn retry_multi_function_atomic_batch_until_success() {
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
         );
-    let test_service_contract =
-        store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
+    let test_library_contract =
+        store_and_instantiate_test_library(&wasm, &setup.owner_accounts[0], None);
 
     // We'll create an authorization with 3 functions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
     let authorizations = vec![AuthorizationBuilder::new()
@@ -1521,8 +1521,8 @@ fn retry_multi_function_atomic_batch_until_success() {
                 })
                 .with_function(
                     AtomicFunctionBuilder::new()
-                        .with_contract_address(ServiceAccountType::Addr(
-                            test_service_contract.clone(),
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
                         ))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
@@ -1535,8 +1535,8 @@ fn retry_multi_function_atomic_batch_until_success() {
                 )
                 .with_function(
                     AtomicFunctionBuilder::new()
-                        .with_contract_address(ServiceAccountType::Addr(
-                            test_service_contract.clone(),
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
                         ))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
@@ -1549,8 +1549,8 @@ fn retry_multi_function_atomic_batch_until_success() {
                 )
                 .with_function(
                     AtomicFunctionBuilder::new()
-                        .with_contract_address(ServiceAccountType::Addr(
-                            test_service_contract.clone(),
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
                         ))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
@@ -1574,11 +1574,11 @@ fn retry_multi_function_atomic_batch_until_success() {
     .unwrap();
 
     let binary = Binary::from(
-        serde_json::to_vec(&TestServiceExecuteMsg::WillSucceed { execution_id: None }).unwrap(),
+        serde_json::to_vec(&TestLibraryExecuteMsg::WillSucceed { execution_id: None }).unwrap(),
     );
     let message1 = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
     let binary =
-        Binary::from(serde_json::to_vec(&TestServiceExecuteMsg::WillSucceedIfTrue {}).unwrap());
+        Binary::from(serde_json::to_vec(&TestLibraryExecuteMsg::WillSucceedIfTrue {}).unwrap());
     let message2 = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
 
     // Send the messages
@@ -1636,9 +1636,9 @@ fn retry_multi_function_atomic_batch_until_success() {
     }
 
     // Set the condition to true to make it succeed
-    wasm.execute::<TestServiceExecuteMsg>(
-        &test_service_contract.clone(),
-        &TestServiceExecuteMsg::SetCondition { condition: true },
+    wasm.execute::<TestLibraryExecuteMsg>(
+        &test_library_contract.clone(),
+        &TestLibraryExecuteMsg::SetCondition { condition: true },
         &[],
         &setup.owner_accounts[0],
     )
@@ -1699,8 +1699,8 @@ fn retry_multi_function_non_atomic_batch_until_success() {
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
         );
-    let test_service_contract =
-        store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
+    let test_library_contract =
+        store_and_instantiate_test_library(&wasm, &setup.owner_accounts[0], None);
 
     // We'll create an authorization with 3 functions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
     let authorizations = vec![AuthorizationBuilder::new()
@@ -1709,7 +1709,7 @@ fn retry_multi_function_non_atomic_batch_until_success() {
             NonAtomicSubroutineBuilder::new()
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_service_contract)
+                        .with_contract_address(&test_library_contract)
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -1721,7 +1721,7 @@ fn retry_multi_function_non_atomic_batch_until_success() {
                 )
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_service_contract)
+                        .with_contract_address(&test_library_contract)
                         .with_retry_logic(RetryLogic {
                             times: RetryTimes::Indefinitely,
                             interval: Duration::Time(2),
@@ -1737,7 +1737,7 @@ fn retry_multi_function_non_atomic_batch_until_success() {
                 )
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_service_contract)
+                        .with_contract_address(&test_library_contract)
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -1760,11 +1760,11 @@ fn retry_multi_function_non_atomic_batch_until_success() {
     .unwrap();
 
     let binary = Binary::from(
-        serde_json::to_vec(&TestServiceExecuteMsg::WillSucceed { execution_id: None }).unwrap(),
+        serde_json::to_vec(&TestLibraryExecuteMsg::WillSucceed { execution_id: None }).unwrap(),
     );
     let message1 = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
     let binary =
-        Binary::from(serde_json::to_vec(&TestServiceExecuteMsg::WillSucceedIfTrue {}).unwrap());
+        Binary::from(serde_json::to_vec(&TestLibraryExecuteMsg::WillSucceedIfTrue {}).unwrap());
     let message2 = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
 
     // Send the messages
@@ -1850,9 +1850,9 @@ fn retry_multi_function_non_atomic_batch_until_success() {
     }
 
     // Change the condition to true to make it succeed
-    wasm.execute::<TestServiceExecuteMsg>(
-        &test_service_contract,
-        &TestServiceExecuteMsg::SetCondition { condition: true },
+    wasm.execute::<TestLibraryExecuteMsg>(
+        &test_library_contract,
+        &TestLibraryExecuteMsg::SetCondition { condition: true },
         &[],
         &setup.owner_accounts[0],
     )
@@ -1934,8 +1934,8 @@ fn failed_atomic_batch_after_retries() {
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
         );
-    let test_service_contract =
-        store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
+    let test_library_contract =
+        store_and_instantiate_test_library(&wasm, &setup.owner_accounts[0], None);
 
     // We'll create an authorization with 3 functions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
     let authorizations = vec![AuthorizationBuilder::new()
@@ -1948,8 +1948,8 @@ fn failed_atomic_batch_after_retries() {
                 })
                 .with_function(
                     AtomicFunctionBuilder::new()
-                        .with_contract_address(ServiceAccountType::Addr(
-                            test_service_contract.clone(),
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
                         ))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
@@ -1962,8 +1962,8 @@ fn failed_atomic_batch_after_retries() {
                 )
                 .with_function(
                     AtomicFunctionBuilder::new()
-                        .with_contract_address(ServiceAccountType::Addr(
-                            test_service_contract.clone(),
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
                         ))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
@@ -1987,11 +1987,11 @@ fn failed_atomic_batch_after_retries() {
     .unwrap();
 
     let binary = Binary::from(
-        serde_json::to_vec(&TestServiceExecuteMsg::WillSucceed { execution_id: None }).unwrap(),
+        serde_json::to_vec(&TestLibraryExecuteMsg::WillSucceed { execution_id: None }).unwrap(),
     );
     let message1 = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
     let binary = Binary::from(
-        serde_json::to_vec(&TestServiceExecuteMsg::WillError {
+        serde_json::to_vec(&TestLibraryExecuteMsg::WillError {
             error: "failed".to_string(),
         })
         .unwrap(),
@@ -2096,8 +2096,8 @@ fn failed_non_atomic_batch_after_retries() {
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
         );
-    let test_service_contract =
-        store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
+    let test_library_contract =
+        store_and_instantiate_test_library(&wasm, &setup.owner_accounts[0], None);
 
     // We'll create an authorization with 3 functions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
     let authorizations = vec![AuthorizationBuilder::new()
@@ -2106,7 +2106,7 @@ fn failed_non_atomic_batch_after_retries() {
             NonAtomicSubroutineBuilder::new()
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_service_contract)
+                        .with_contract_address(&test_library_contract)
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -2118,7 +2118,7 @@ fn failed_non_atomic_batch_after_retries() {
                 )
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_service_contract)
+                        .with_contract_address(&test_library_contract)
                         .with_retry_logic(RetryLogic {
                             times: RetryTimes::Amount(5),
                             interval: Duration::Time(2),
@@ -2145,11 +2145,11 @@ fn failed_non_atomic_batch_after_retries() {
     .unwrap();
 
     let binary = Binary::from(
-        serde_json::to_vec(&TestServiceExecuteMsg::WillSucceed { execution_id: None }).unwrap(),
+        serde_json::to_vec(&TestLibraryExecuteMsg::WillSucceed { execution_id: None }).unwrap(),
     );
     let message1 = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
     let binary = Binary::from(
-        serde_json::to_vec(&TestServiceExecuteMsg::WillError {
+        serde_json::to_vec(&TestLibraryExecuteMsg::WillError {
             error: "failed".to_string(),
         })
         .unwrap(),
@@ -2228,8 +2228,8 @@ fn successful_non_atomic_and_atomic_batches_together() {
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
         );
-    let test_service_contract =
-        store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
+    let test_library_contract =
+        store_and_instantiate_test_library(&wasm, &setup.owner_accounts[0], None);
 
     // We'll create two authorizations, one atomic and one non-atomic, with 2 functions each where both of them will succeed
     let authorizations = vec![
@@ -2239,8 +2239,8 @@ fn successful_non_atomic_and_atomic_batches_together() {
                 AtomicSubroutineBuilder::new()
                     .with_function(
                         AtomicFunctionBuilder::new()
-                            .with_contract_address(ServiceAccountType::Addr(
-                                test_service_contract.clone(),
+                            .with_contract_address(LibraryAccountType::Addr(
+                                test_library_contract.clone(),
                             ))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
@@ -2253,8 +2253,8 @@ fn successful_non_atomic_and_atomic_batches_together() {
                     )
                     .with_function(
                         AtomicFunctionBuilder::new()
-                            .with_contract_address(ServiceAccountType::Addr(
-                                test_service_contract.clone(),
+                            .with_contract_address(LibraryAccountType::Addr(
+                                test_library_contract.clone(),
                             ))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
@@ -2274,7 +2274,7 @@ fn successful_non_atomic_and_atomic_batches_together() {
                 NonAtomicSubroutineBuilder::new()
                     .with_function(
                         NonAtomicFunctionBuilder::new()
-                            .with_contract_address(&test_service_contract.clone())
+                            .with_contract_address(&test_library_contract.clone())
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -2286,7 +2286,7 @@ fn successful_non_atomic_and_atomic_batches_together() {
                     )
                     .with_function(
                         NonAtomicFunctionBuilder::new()
-                            .with_contract_address(&test_service_contract)
+                            .with_contract_address(&test_library_contract)
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -2311,7 +2311,7 @@ fn successful_non_atomic_and_atomic_batches_together() {
     .unwrap();
 
     let binary = Binary::from(
-        serde_json::to_vec(&TestServiceExecuteMsg::WillSucceed { execution_id: None }).unwrap(),
+        serde_json::to_vec(&TestLibraryExecuteMsg::WillSucceed { execution_id: None }).unwrap(),
     );
     let message1 = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
 
@@ -2441,8 +2441,8 @@ fn reject_and_confirm_non_atomic_function_with_callback() {
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
         );
-    let test_service_contract =
-        store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
+    let test_library_contract =
+        store_and_instantiate_test_library(&wasm, &setup.owner_accounts[0], None);
 
     // We'll create an authorization with 2 functions, where both will succeed but second one needs to confirmed with a callback
     let authorizations = vec![AuthorizationBuilder::new()
@@ -2451,7 +2451,7 @@ fn reject_and_confirm_non_atomic_function_with_callback() {
             NonAtomicSubroutineBuilder::new()
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_service_contract)
+                        .with_contract_address(&test_library_contract)
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -2463,7 +2463,7 @@ fn reject_and_confirm_non_atomic_function_with_callback() {
                 )
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_service_contract)
+                        .with_contract_address(&test_library_contract)
                         .with_retry_logic(RetryLogic {
                             times: RetryTimes::Indefinitely,
                             interval: Duration::Time(2),
@@ -2476,7 +2476,7 @@ fn reject_and_confirm_non_atomic_function_with_callback() {
                             },
                         })
                         .with_callback_confirmation(FunctionCallback {
-                            contract_address: Addr::unchecked(test_service_contract.to_string()),
+                            contract_address: Addr::unchecked(test_library_contract.to_string()),
                             callback_message: Binary::from("Confirmed".as_bytes()),
                         })
                         .build(),
@@ -2495,7 +2495,7 @@ fn reject_and_confirm_non_atomic_function_with_callback() {
     .unwrap();
 
     let binary = Binary::from(
-        serde_json::to_vec(&TestServiceExecuteMsg::WillSucceed { execution_id: None }).unwrap(),
+        serde_json::to_vec(&TestLibraryExecuteMsg::WillSucceed { execution_id: None }).unwrap(),
     );
     let message1 = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
 
@@ -2560,9 +2560,9 @@ fn reject_and_confirm_non_atomic_function_with_callback() {
     // Sending the wrong callback will re-add the batch to the queue to retry the function
     let callback = Binary::from("Wrong".as_bytes());
 
-    wasm.execute::<TestServiceExecuteMsg>(
-        &test_service_contract,
-        &TestServiceExecuteMsg::SendCallback {
+    wasm.execute::<TestLibraryExecuteMsg>(
+        &test_library_contract,
+        &TestLibraryExecuteMsg::SendCallback {
             to: processor_contract.to_string(),
             callback,
         },
@@ -2613,9 +2613,9 @@ fn reject_and_confirm_non_atomic_function_with_callback() {
     // Send the right callback to confirm
     let callback = Binary::from("Confirmed".as_bytes());
 
-    wasm.execute::<TestServiceExecuteMsg>(
-        &test_service_contract,
-        &TestServiceExecuteMsg::SendCallback {
+    wasm.execute::<TestLibraryExecuteMsg>(
+        &test_library_contract,
+        &TestLibraryExecuteMsg::SendCallback {
             to: processor_contract.to_string(),
             callback,
         },
@@ -2670,8 +2670,8 @@ fn refund_and_burn_tokens_after_callback() {
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
         );
-    let test_service_contract =
-        store_and_instantiate_test_service(&wasm, &setup.owner_accounts[0], None);
+    let test_library_contract =
+        store_and_instantiate_test_library(&wasm, &setup.owner_accounts[0], None);
 
     // We'll create an authorization that we'll force to fail and succeed once to check that refund and burning works
     let authorizations = vec![AuthorizationBuilder::new()
@@ -2687,7 +2687,7 @@ fn refund_and_burn_tokens_after_callback() {
             NonAtomicSubroutineBuilder::new()
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_service_contract)
+                        .with_contract_address(&test_library_contract)
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -2711,7 +2711,7 @@ fn refund_and_burn_tokens_after_callback() {
     .unwrap();
 
     let binary =
-        Binary::from(serde_json::to_vec(&TestServiceExecuteMsg::WillSucceedIfTrue {}).unwrap());
+        Binary::from(serde_json::to_vec(&TestLibraryExecuteMsg::WillSucceedIfTrue {}).unwrap());
 
     let message1 = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
 
@@ -2803,10 +2803,10 @@ fn refund_and_burn_tokens_after_callback() {
     )
     .unwrap();
 
-    // Modify the test service to make the message succeed when it eventually executes
-    wasm.execute::<TestServiceExecuteMsg>(
-        &test_service_contract,
-        &TestServiceExecuteMsg::SetCondition { condition: true },
+    // Modify the test library to make the message succeed when it eventually executes
+    wasm.execute::<TestLibraryExecuteMsg>(
+        &test_library_contract,
+        &TestLibraryExecuteMsg::SetCondition { condition: true },
         &[],
         &setup.owner_accounts[0],
     )
@@ -2854,7 +2854,7 @@ fn migration() {
             setup.owner_addr.to_string(),
             vec![setup.subowner_addr.to_string()],
         );
-    let test_service_contract = store_and_instantiate_test_service(
+    let test_library_contract = store_and_instantiate_test_library(
         &wasm,
         &setup.owner_accounts[0],
         Some(&processor_contract),
@@ -2862,7 +2862,7 @@ fn migration() {
 
     // Store it again to get a new code id
     let wasm_byte_code =
-        std::fs::read(format!("{}/valence_test_service.wasm", ARTIFACTS_DIR)).unwrap();
+        std::fs::read(format!("{}/valence_test_library.wasm", ARTIFACTS_DIR)).unwrap();
 
     let code_id = wasm
         .store_code(&wasm_byte_code, None, &setup.owner_accounts[0])
@@ -2877,8 +2877,8 @@ fn migration() {
             AtomicSubroutineBuilder::new()
                 .with_function(
                     AtomicFunctionBuilder::new()
-                        .with_contract_address(ServiceAccountType::Addr(
-                            test_service_contract.clone(),
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
                         ))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmMigrateMsg,
@@ -2903,7 +2903,7 @@ fn migration() {
     .unwrap();
 
     let binary = Binary::from(
-        serde_json::to_vec(&valence_test_service::msg::MigrateMsg::Migrate {
+        serde_json::to_vec(&valence_test_library::msg::MigrateMsg::Migrate {
             new_condition: true,
         })
         .unwrap(),
@@ -2968,9 +2968,9 @@ fn migration() {
 
     // Check that indeed it was migrated by querying the contract
     let query_condition = wasm
-        .query::<TestServiceQueryMsg, bool>(
-            &test_service_contract,
-            &TestServiceQueryMsg::Condition {},
+        .query::<TestLibraryQueryMsg, bool>(
+            &test_library_contract,
+            &TestLibraryQueryMsg::Condition {},
         )
         .unwrap();
 

@@ -5,10 +5,10 @@ pub mod connectors;
 pub mod domain;
 pub mod error;
 pub mod helpers;
+pub mod library;
 pub mod macros;
 pub mod program_config;
 pub mod program_config_builder;
-pub mod service;
 pub mod tests;
 
 use connectors::Connectors;

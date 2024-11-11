@@ -1,0 +1,33 @@
+[package]
+name    = "valence-template-library"
+version = "0.1.0"
+authors = ["Timewave Labs"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# use library feature to disable all instantiate/execute/query exports
+library = []
+
+[dependencies]
+cosmwasm-schema       = { workspace = true }
+cosmwasm-std          = { workspace = true }
+cw-ownable            = { workspace = true }
+cw-storage-plus       = { workspace = true }
+cw-utils              = { workspace = true }
+getset                = { workspace = true }
+schemars              = { workspace = true }
+serde                 = { workspace = true }
+thiserror             = { workspace = true }
+valence-macros        = { workspace = true }
+valence-library-utils = { workspace = true }
+valence-library-base  = { workspace = true }
+
+[dev-dependencies]
+cw-multi-test         = { workspace = true }
+cw-ownable            = { workspace = true }
+valence-library-utils = { workspace = true, features = ["testing"] }
