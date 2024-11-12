@@ -74,7 +74,7 @@ impl ProgramConfigUpdate {
 
         // 0 is not a valid id of a program
         if self.id == 0 {
-            return Err(ManagerError::IdIsZero);
+            return Err(ManagerError::InvalidWorkflowId );
         }
 
         let mut config = neutron_connector.get_program_config(self.id).await?;
