@@ -18,8 +18,8 @@ cosmwasm-std            = { workspace = true }
 cosmwasm-schema         = { workspace = true }
 cw-ownable              = { workspace = true }
 valence-macros          = { workspace = true }
-valence-library-utils = { workspace = true }
-valence-library-base  = { workspace = true }
+valence-library-utils   = { workspace = true }
+valence-library-base    = { workspace = true }
 osmosis-std             = { workspace = true }
 osmosis-std-derive      = { workspace = true }
 valence-account-utils   = { workspace = true }

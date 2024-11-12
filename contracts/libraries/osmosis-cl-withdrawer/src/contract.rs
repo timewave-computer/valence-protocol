@@ -78,9 +78,8 @@ pub fn try_liquidate_cl_position(
     // here we just assert that the position exists.
     // any validations beyond this (like position ownership, etc.)
     // will propagate on execution.
-    let _position_query_response: PositionByIdResponse = deps
-        .querier
-        .query(&PositionByIdRequest { position_id }.into())
+    deps.querier
+        .query::<PositionByIdResponse>(&PositionByIdRequest { position_id }.into())
         .map_err(|_| StdError::generic_err("no such position"))?;
 
     let liquidate_position_msg = MsgWithdrawPosition {

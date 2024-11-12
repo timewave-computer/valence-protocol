@@ -100,6 +100,8 @@ impl LibraryConfigUpdate {
             config.pool_id = pool;
         }
 
+        valence_library_base::save_config(deps.storage, &config)?;
+
         Ok(())
     }
 }

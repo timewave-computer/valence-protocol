@@ -102,6 +102,8 @@ impl LibraryConfigUpdate {
             config.lw_config = cfg;
         }
 
+        valence_library_base::save_config(deps.storage, &config)?;
+
         Ok(())
     }
 }
