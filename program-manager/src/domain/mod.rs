@@ -36,7 +36,9 @@ pub enum ConnectorError {
 
 /// We need some way of knowing which domain we are talking with
 /// chain connection, execution, bridges for authorization.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize, JsonSchema,
+)]
 #[schemars(crate = "cosmwasm_schema::schemars")]
 pub enum Domain {
     CosmosCosmwasm(String),

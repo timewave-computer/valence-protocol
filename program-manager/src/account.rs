@@ -7,7 +7,9 @@ use strum::VariantNames;
 use crate::domain::Domain;
 
 /// What account type we talking about
-#[derive(Debug, PartialEq, Clone, strum::Display, VariantNames, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, PartialEq, Clone, strum::Display, VariantNames, Serialize, Deserialize, JsonSchema,
+)]
 #[schemars(crate = "cosmwasm_schema::schemars")]
 pub enum AccountType {
     /// This means the account is already instantiated

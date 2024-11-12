@@ -82,7 +82,15 @@ pub enum LibraryConfig {
 }
 
 #[derive(
-    Debug, Clone, strum::Display, Serialize, Deserialize, VariantNames, PartialEq, Default, JsonSchema
+    Debug,
+    Clone,
+    strum::Display,
+    Serialize,
+    Deserialize,
+    VariantNames,
+    PartialEq,
+    Default,
+    JsonSchema,
 )]
 #[strum(serialize_all = "snake_case")]
 #[schemars(crate = "cosmwasm_schema::schemars")]

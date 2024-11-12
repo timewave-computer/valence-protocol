@@ -1,7 +1,6 @@
 use cosmwasm_schema::{cw_serde, write_api, QueryResponses};
 use valence_program_manager::{program_config::ProgramConfig, program_update::ProgramConfigUpdate};
 
-
 #[cw_serde]
 pub enum DemoExecute {}
 
