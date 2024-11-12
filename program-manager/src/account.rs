@@ -1,12 +1,14 @@
 use std::default;
 
+use cosmwasm_schema::schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use strum::VariantNames;
 
 use crate::domain::Domain;
 
 /// What account type we talking about
-#[derive(Debug, PartialEq, Clone, strum::Display, VariantNames, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, strum::Display, VariantNames, Serialize, Deserialize, JsonSchema)]
+#[schemars(crate = "cosmwasm_schema::schemars")]
 pub enum AccountType {
     /// This means the account is already instantiated
     Addr { addr: String },
@@ -35,7 +37,8 @@ impl AccountType {
 ///
 /// We need to know what domain we are talking with
 /// and what type of account we should work with.
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(crate = "cosmwasm_schema::schemars")]
 pub struct AccountInfo {
     pub name: String,
     pub ty: AccountType,

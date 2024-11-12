@@ -24,3 +24,6 @@ for d in contracts/*; do
         process_directory "$d"
     fi
 done
+
+# Process schema for program-manager
+process_directory "program-manager"

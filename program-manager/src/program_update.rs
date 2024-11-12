@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, VecDeque};
 
 use anyhow::Context;
+use cosmwasm_schema::schemars::JsonSchema;
 use cosmwasm_std::{to_json_binary, CosmosMsg, WasmMsg};
 use cw_ownable::Expiration;
 use serde::{Deserialize, Serialize};
@@ -21,22 +22,24 @@ use crate::{
 };
 
 /// The job of the update, is to output a set of instructions to the user to update the program configuration.  
-/// The user can only update service configs and authorizations.
+/// The user can only update library configs and authorizations.
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[schemars(crate = "cosmwasm_schema::schemars")]
 pub struct ProgramConfigUpdate {
     /// This is the id of the program
     /// Required for update
     pub id: u64,
     /// New owner, if the owner is to be updated
     pub owner: Option<String>,
-    /// The list service data by id
-    pub services: BTreeMap<Id, LibraryConfigUpdate>,
+    /// The list library data by id
+    pub libraries: BTreeMap<Id, LibraryConfigUpdate>,
     /// A list of authorizations
     pub authorizations: Vec<AuthorizationInfoUpdate>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[schemars(crate = "cosmwasm_schema::schemars")]
 pub enum AuthorizationInfoUpdate {
     Add(AuthorizationInfo),
     Modify {
@@ -92,31 +95,31 @@ impl ProgramConfigUpdate {
             );
         }
 
-        for (id, service_update) in self.services.iter() {
-            // Verify that the service id exists in the config and get it
-            let service = config
+        for (id, library_update) in self.libraries.iter() {
+            // Verify that the library id exists in the config and get it
+            let library = config
                 .libraries
                 .get(id)
-                .context(ManagerError::ServiceIdIsMissing(*id).to_string())?;
+                .context(ManagerError::LibraryIdIsMissing(*id).to_string())?;
 
-            // Add authorization to update the service
-            let label = format!("update_service_{}_{}", service.name, id);
+            // Add authorization to update the library
+            let label = format!("update_library_{}_{}", library.name, id);
 
             // Create authorization if we don't already have one
             if !config.authorizations.iter().any(|auth| auth.label == label) {
-                let service_domain = if service.domain == neutron_domain {
+                let library_domain = if library.domain == neutron_domain {
                     valence_authorization_utils::domain::Domain::Main
                 } else {
                     valence_authorization_utils::domain::Domain::External(
-                        service.domain.to_string(),
+                        library.domain.to_string(),
                     )
                 };
                 let actions_config = AtomicSubroutineBuilder::new()
                     .with_function(
                         AtomicFunctionBuilder::new()
-                            .with_domain(service_domain)
+                            .with_domain(library_domain)
                             .with_contract_address(LibraryAccountType::Addr(
-                                service.addr.clone().unwrap(),
+                                library.addr.clone().unwrap(),
                             ))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
@@ -140,7 +143,7 @@ impl ProgramConfigUpdate {
             }
 
             // execute insert message on the authorization
-            let update_config_msg = service_update
+            let update_config_msg = library_update
                 .clone()
                 .get_update_msg()
                 .context("Failed binary parsing get_update_msg")?;

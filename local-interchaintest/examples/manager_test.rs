@@ -126,8 +126,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             .unwrap(),
     );
 
-    let mut services_changes: BTreeMap<Id, LibraryConfigUpdate> = BTreeMap::new();
-    services_changes.insert(
+    let mut libraries_changes: BTreeMap<Id, LibraryConfigUpdate> = BTreeMap::new();
+    libraries_changes.insert(
         library_1.get_id(),
         LibraryConfigUpdate::ValenceSplitterLibrary(
             valence_splitter_library::msg::LibraryConfigUpdate {
@@ -177,7 +177,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let update_config = ProgramConfigUpdate {
         id: program_config.id,
         owner: None,
-        services: services_changes,
+        libraries: libraries_changes,
         authorizations: authorizations_changes,
     };
 

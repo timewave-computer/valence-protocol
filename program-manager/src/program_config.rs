@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
+use cosmwasm_schema::schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use valence_authorization_utils::authorization::AuthorizationInfo;
 
@@ -15,7 +16,8 @@ use crate::{
     NEUTRON_CHAIN,
 };
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[schemars(crate = "cosmwasm_schema::schemars")]
 pub struct Link {
     /// List of input accounts by id
     pub input_accounts_id: Vec<Id>,
@@ -27,7 +29,8 @@ pub struct Link {
 
 /// This struct holds all the data regarding our authorization and processor
 /// contracts and bridge accounts
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, JsonSchema)]
+#[schemars(crate = "cosmwasm_schema::schemars")]
 pub struct AuthorizationData {
     /// authorization contract address on neutron
     pub authorization_addr: String,
@@ -63,7 +66,8 @@ impl AuthorizationData {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[schemars(crate = "cosmwasm_schema::schemars")]
 pub struct ProgramConfig {
     // This is the id of the program
     #[serde(default)]

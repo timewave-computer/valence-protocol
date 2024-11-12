@@ -69,8 +69,8 @@ pub enum ManagerError {
     #[error("Account was removed: {0}")]
     AccountWasRemoved(String),
 
-    #[error("Service id is missing from the list of services: {0}")]
-    ServiceIdIsMissing(u64),
+    #[error("Library id is missing from the list of libraries: {0}")]
+    LibraryIdIsMissing(u64),
 
     #[error("Authorization label was not found: {0}")]
     AuthorizationLabelNotFound(String),
