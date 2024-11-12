@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
-use cosmwasm_std::{coin, CosmosMsg, Env, IbcTimeout, StdResult};
+use cosmwasm_std::{coin, to_json_string, CosmosMsg, Env, IbcTimeout, StdResult};
 
-use crate::types::PacketForwardMiddlewareConfig;
+use crate::types::{ForwardMetadata, PacketForwardMiddlewareConfig, PacketMetadata};
 
 // Default timeout for IbcTransfer is 600 seconds
 const DEFAULT_TIMEOUT_TIMESTAMP: u64 = 600;
@@ -16,17 +16,39 @@ pub fn ibc_send_message(
     amount: u128,
     memo: String,
     timeout_seconds: Option<u64>,
-    _denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
+    denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
 ) -> StdResult<CosmosMsg> {
-    Ok(CosmosMsg::Ibc(cosmwasm_std::IbcMsg::Transfer {
-        channel_id: channel,
-        to_address: to,
-        amount: coin(amount, denom),
-        timeout: IbcTimeout::with_timestamp(
-            env.block
-                .time
-                .plus_seconds(timeout_seconds.unwrap_or(DEFAULT_TIMEOUT_TIMESTAMP)),
-        ),
-        memo: Some(memo),
-    }))
+    let msg = match denom_to_pfm_map.get(&denom) {
+        None => CosmosMsg::Ibc(cosmwasm_std::IbcMsg::Transfer {
+            channel_id: channel,
+            to_address: to,
+            amount: coin(amount, denom),
+            timeout: IbcTimeout::with_timestamp(
+                env.block
+                    .time
+                    .plus_seconds(timeout_seconds.unwrap_or(DEFAULT_TIMEOUT_TIMESTAMP)),
+            ),
+            memo: Some(memo),
+        }),
+        Some(pfm_config) => CosmosMsg::Ibc(cosmwasm_std::IbcMsg::Transfer {
+            channel_id: pfm_config.local_to_hop_chain_channel_id.to_string(),
+            to_address: pfm_config.hop_chain_receiver_address.to_string(),
+            amount: coin(amount, denom),
+            timeout: IbcTimeout::with_timestamp(
+                env.block
+                    .time
+                    .plus_seconds(timeout_seconds.unwrap_or(DEFAULT_TIMEOUT_TIMESTAMP)),
+            ),
+            memo: Some(to_json_string(&PacketMetadata {
+                forward: Some(ForwardMetadata {
+                    receiver: to.clone(),
+                    port: "transfer".to_string(),
+                    // hop chain to final receiver chain channel
+                    channel: pfm_config.hop_to_destination_chain_channel_id.to_string(),
+                }),
+            })?),
+        }),
+    };
+
+    Ok(msg)
 }

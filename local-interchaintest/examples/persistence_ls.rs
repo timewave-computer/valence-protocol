@@ -128,6 +128,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         PERSISTENCE_CHAIN_ADMIN_ADDR.to_string(),
         vec![processor_on_persistence.clone()],
         1,
+        None,
     );
     let persistence_base_account = base_accounts.first().unwrap();
 
