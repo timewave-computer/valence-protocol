@@ -46,8 +46,8 @@ impl WithdrawerTestSuite {
             .data
             .code_id;
 
-        let input_acc = instantiate_input_account(code_id, &inner);
-        let output_acc = instantiate_input_account(code_id, &inner);
+        let input_acc = instantiate_base_account(code_id, &inner);
+        let output_acc = instantiate_base_account(code_id, &inner);
         let withdrawer_addr = instantiate_withdrawer_contract(
             &inner,
             native_lp_token,
@@ -95,7 +95,7 @@ impl WithdrawerTestSuite {
     }
 }
 
-fn instantiate_input_account(code_id: u64, setup: &AstroportTestAppSetup) -> String {
+fn instantiate_base_account(code_id: u64, setup: &AstroportTestAppSetup) -> String {
     let wasm = Wasm::new(&setup.app);
     wasm.instantiate(
         code_id,

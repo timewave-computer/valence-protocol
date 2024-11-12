@@ -42,7 +42,7 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>,
 ) -> Result<Response, LibraryError> {
-    valence_library_base::execute(deps, env, info, msg, process_action, update_config)
+    valence_library_base::execute(deps, env, info, msg, process_function, update_config)
 }
 
 pub fn update_config(
@@ -54,7 +54,7 @@ pub fn update_config(
     new_config.update_config(deps)
 }
 
-pub fn process_action(
+pub fn process_function(
     deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
