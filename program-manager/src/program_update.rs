@@ -23,7 +23,9 @@ use crate::{
 
 /// The job of the update, is to output a set of instructions to the user to update the program configuration.  
 /// The user can only update library configs and authorizations.
-
+/// You can set the owner to change the owner of the program
+/// You can provide a list of library updates to perform
+/// You can provide a list of authorizations to update
 #[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[schemars(crate = "cosmwasm_schema::schemars")]
 pub struct ProgramConfigUpdate {
@@ -38,6 +40,7 @@ pub struct ProgramConfigUpdate {
     pub authorizations: Vec<AuthorizationInfoUpdate>,
 }
 
+/// The enum that represent all possible changes that can be done on an authorization
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[schemars(crate = "cosmwasm_schema::schemars")]
 pub enum AuthorizationInfoUpdate {
@@ -55,6 +58,7 @@ pub enum AuthorizationInfoUpdate {
     Enable(String),
 }
 
+/// The reason our update method is returning
 #[derive(Clone, Debug)]
 pub struct UpdateResponse {
     pub instructions: Vec<CosmosMsg>,
@@ -68,6 +72,7 @@ impl ProgramConfigUpdate {
         // get the old program config from registry
         let mut neutron_connector = connectors.get_or_create_connector(&neutron_domain).await?;
 
+        // 0 is not a valid id of a program
         if self.id == 0 {
             return Err(ManagerError::IdIsZero);
         }
@@ -77,6 +82,7 @@ impl ProgramConfigUpdate {
         let mut instructions: VecDeque<CosmosMsg> = VecDeque::new();
         let mut new_authorizations: Vec<AuthorizationInfo> = vec![];
 
+        // If we have an owner set, we add the update owner instruction
         if let Some(new_owner) = self.owner.clone() {
             config.owner = new_owner.clone();
 
@@ -95,6 +101,7 @@ impl ProgramConfigUpdate {
             );
         }
 
+        // Generate library update instructions
         for (id, library_update) in self.libraries.iter() {
             // Verify that the library id exists in the config and get it
             let library = config
@@ -142,7 +149,7 @@ impl ProgramConfigUpdate {
                 new_authorizations.push(authorization_builder.build());
             }
 
-            // execute insert message on the authorization
+            // execute insert message on the authorization to push this message to processor
             let update_config_msg = library_update
                 .clone()
                 .get_update_msg()
@@ -174,6 +181,7 @@ impl ProgramConfigUpdate {
         for authorization in self.authorizations.clone().into_iter() {
             match authorization {
                 AuthorizationInfoUpdate::Add(authorization_info) => {
+                    // Verify the new authorization doesn't exists yet
                     verify_authorization_not_exists(
                         &config.authorizations,
                         authorization_info.label.clone(),
@@ -192,6 +200,7 @@ impl ProgramConfigUpdate {
                     max_concurrent_executions,
                     priority,
                 } => {
+                    // Verify the authorization exists
                     verify_authorization_exists(&config.authorizations, label.clone())?;
 
                     // Create instruction for modifying authorization
@@ -244,7 +253,8 @@ impl ProgramConfigUpdate {
             }
         }
 
-        // Add all new authorizations
+        // Add all new authorizations in a single message to be executed on the authorization contract
+        // We add it first because we want to update and add new authorizations before calling them
         instructions.push_front(
             WasmMsg::Execute {
                 contract_addr: config.authorization_data.authorization_addr.clone(),
