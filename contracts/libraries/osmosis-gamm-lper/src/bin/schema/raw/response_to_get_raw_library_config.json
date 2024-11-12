@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LibraryConfig",
+  "type": "object",
+  "required": [
+    "input_addr",
+    "lp_config",
+    "output_addr"
+  ],
+  "properties": {
+    "input_addr": {
+      "$ref": "#/definitions/LibraryAccountType"
+    },
+    "lp_config": {
+      "$ref": "#/definitions/LiquidityProviderConfig"
+    },
+    "output_addr": {
+      "$ref": "#/definitions/LibraryAccountType"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "LibraryAccountType": {
+      "description": "An account type that is used in the library configs It can either be an Id or Addr The config that will be passed to the library must be of Addr veriant",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "|library_account_addr|"
+          ],
+          "properties": {
+            "|library_account_addr|": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "|account_id|"
+          ],
+          "properties": {
+            "|account_id|": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "|library_id|"
+          ],
+          "properties": {
+            "|library_id|": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "LiquidityProviderConfig": {
+      "type": "object",
+      "required": [
+        "pool_asset_1",
+        "pool_asset_2",
+        "pool_id"
+      ],
+      "properties": {
+        "pool_asset_1": {
+          "type": "string"
+        },
+        "pool_asset_2": {
+          "type": "string"
+        },
+        "pool_id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
