@@ -191,8 +191,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     info!("Initiate IBC transfer");
-    let ibc_transfer_msg =
-        &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(FunctionMsgs::IbcTransfer {});
+    let ibc_transfer_msg = &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+        FunctionMsgs::IbcTransfer {},
+    );
 
     contract_execute(
         test_ctx
