@@ -101,37 +101,43 @@ impl WorkflowConfigUpdate {
 
             // Add authorization to update the service
             let label = format!("update_service_{}_{}", service.name, id);
-            let service_domain = if service.domain == neutron_domain {
-                valence_authorization_utils::domain::Domain::Main
-            } else {
-                valence_authorization_utils::domain::Domain::External(service.domain.to_string())
-            };
-            let actions_config = AtomicActionsConfigBuilder::new()
-                .with_action(
-                    AtomicActionBuilder::new()
-                        .with_domain(service_domain)
-                        .with_contract_address(ServiceAccountType::Addr(
-                            service.addr.clone().unwrap(),
-                        ))
-                        .with_message_details(MessageDetails {
-                            message_type: MessageType::CosmwasmExecuteMsg,
-                            message: Message {
-                                name: "update_config".to_string(),
-                                params_restrictions: None,
-                            },
-                        })
-                        .build(),
-                )
-                .build();
-            let authorization_builder = AuthorizationBuilder::new()
-                .with_label(&label)
-                .with_mode(AuthorizationModeInfo::Permissioned(
-                    valence_authorization_utils::authorization::PermissionTypeInfo::WithoutCallLimit(vec![config.owner.clone()]),
-                ))
-                .with_priority(Priority::High)
-                .with_actions_config(actions_config);
 
-            new_authorizations.push(authorization_builder.build());
+            // Create authorization if we don't already have one
+            if !config.authorizations.iter().any(|auth| auth.label == label) {
+                let service_domain = if service.domain == neutron_domain {
+                    valence_authorization_utils::domain::Domain::Main
+                } else {
+                    valence_authorization_utils::domain::Domain::External(
+                        service.domain.to_string(),
+                    )
+                };
+                let actions_config = AtomicActionsConfigBuilder::new()
+                    .with_action(
+                        AtomicActionBuilder::new()
+                            .with_domain(service_domain)
+                            .with_contract_address(ServiceAccountType::Addr(
+                                service.addr.clone().unwrap(),
+                            ))
+                            .with_message_details(MessageDetails {
+                                message_type: MessageType::CosmwasmExecuteMsg,
+                                message: Message {
+                                    name: "update_config".to_string(),
+                                    params_restrictions: None,
+                                },
+                            })
+                            .build(),
+                    )
+                    .build();
+                let authorization_builder = AuthorizationBuilder::new()
+                    .with_label(&label)
+                    .with_mode(AuthorizationModeInfo::Permissioned(
+                        valence_authorization_utils::authorization::PermissionTypeInfo::WithoutCallLimit(vec![config.owner.clone()]),
+                    ))
+                    .with_priority(Priority::High)
+                    .with_actions_config(actions_config);
+
+                new_authorizations.push(authorization_builder.build());
+            }
 
             // execute insert message on the authorization
             let update_config_msg = service_update
@@ -252,7 +258,7 @@ impl WorkflowConfigUpdate {
             .into(),
         );
 
-        // Save the new config to the registry
+        // Save the updated config to the registry
         neutron_connector.update_workflow_config(config).await?;
 
         Ok(UpdateResponse {
