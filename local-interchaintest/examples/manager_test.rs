@@ -14,16 +14,16 @@ use serde_json::Value;
 use valence_authorization::contract::build_tokenfactory_denom;
 use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
-    builders::{AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder},
+    builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
 };
-use valence_service_utils::{denoms::UncheckedDenom, GetId, Id, ServiceAccountType};
-use valence_splitter_service::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
-use valence_workflow_manager::{
+use valence_library_utils::{denoms::UncheckedDenom, GetId, Id, LibraryAccountType};
+use valence_program_manager::{
     account::{AccountInfo, AccountType},
-    service::{ServiceConfig, ServiceConfigUpdate, ServiceInfo},
-    workflow_config_builder::WorkflowConfigBuilder,
-    workflow_update::{AuthorizationInfoUpdate, WorkflowConfigUpdate},
+    library::{LibraryConfig, LibraryConfigUpdate, LibraryInfo},
+    program_config_builder::ProgramConfigBuilder,
+    program_update::{AuthorizationInfoUpdate, ProgramConfigUpdate},
 };
+use valence_splitter_library::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut test_ctx = TestContextBuilder::default()
@@ -41,9 +41,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         vec![SPLITTER_NAME],
     )?;
 
-    let mut builder = WorkflowConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
+    let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
     let neutron_domain =
-        valence_workflow_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
+        valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
 
     let account_1 = builder.add_account(AccountInfo::new(
         "test_1".to_string(),
@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     ));
 
     let swap_amount: u128 = 1_000_000_000;
-    let mut service_config = valence_splitter_service::msg::ServiceConfig {
+    let mut library_config = valence_splitter_library::msg::LibraryConfig {
         input_addr: account_1.clone(),
         splits: vec![UncheckedSplitConfig {
             denom: UncheckedDenom::Native("test".to_string()),
@@ -66,30 +66,29 @@ fn main() -> Result<(), Box<dyn Error>> {
         }],
     };
 
-    let service_1 = builder.add_service(ServiceInfo::new(
+    let library_1 = builder.add_library(LibraryInfo::new(
         "test_splitter".to_string(),
         &neutron_domain,
-        ServiceConfig::ValenceSplitterService(service_config.clone()),
+        LibraryConfig::ValenceSplitterLibrary(library_config.clone()),
     ));
 
-    builder.add_link(&service_1, vec![&account_1], vec![&account_2]);
+    builder.add_link(&library_1, vec![&account_1], vec![&account_2]);
 
     let action_label = "swap";
     builder.add_authorization(
         AuthorizationBuilder::new()
-            .with_label(action_label)
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(
-                        AtomicActionBuilder::new()
-                            .with_contract_address(service_1.clone())
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
+                            .with_contract_address(library_1.clone())
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
-                                    name: "process_action".to_string(),
+                                    name: "process_function".to_string(),
                                     params_restrictions: Some(vec![
                                         ParamRestriction::MustBeIncluded(vec![
-                                            "process_action".to_string(),
+                                            "process_function".to_string(),
                                             "split".to_string(),
                                         ]),
                                     ]),
@@ -102,27 +101,24 @@ fn main() -> Result<(), Box<dyn Error>> {
             .build(),
     );
 
-    let mut workflow_config = builder.build();
+    let mut program_config = builder.build();
 
-    use_manager_init(&mut workflow_config)?;
+    use_manager_init(&mut program_config)?;
 
     // Do the updates
 
-    let splitter_data = workflow_config.get_service(service_1.get_id()).unwrap();
-    let neutron_processor_addr = workflow_config
+    let splitter_data = program_config.get_library(library_1.get_id()).unwrap();
+    let neutron_processor_addr = program_config
         .authorization_data
         .processor_addrs
         .get(&neutron_domain.to_string())
         .unwrap();
-    let authorization_addr = workflow_config
-        .authorization_data
-        .authorization_addr
-        .clone();
+    let authorization_addr = program_config.authorization_data.authorization_addr.clone();
 
     // modify the service config to change the denom of the split
-    service_config.splits[0].denom = UncheckedDenom::Native("test2".to_string());
-    service_config.splits[0].account = ServiceAccountType::Addr(
-        workflow_config
+    library_config.splits[0].denom = UncheckedDenom::Native("test2".to_string());
+    library_config.splits[0].account = LibraryAccountType::Addr(
+        program_config
             .get_account(account_2.get_id())
             .unwrap()
             .clone()
@@ -130,13 +126,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             .unwrap(),
     );
 
-    let mut services_changes: BTreeMap<Id, ServiceConfigUpdate> = BTreeMap::new();
+    let mut services_changes: BTreeMap<Id, LibraryConfigUpdate> = BTreeMap::new();
     services_changes.insert(
-        service_1.get_id(),
-        ServiceConfigUpdate::ValenceSplitterService(
-            valence_splitter_service::msg::ServiceConfigUpdate {
+        library_1.get_id(),
+        LibraryConfigUpdate::ValenceSplitterLibrary(
+            valence_splitter_library::msg::LibraryConfigUpdate {
                 input_addr: None,
-                splits: Some(service_config.splits),
+                splits: Some(library_config.splits),
             },
         ),
     );
@@ -154,11 +150,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     authorizations_changes.push(AuthorizationInfoUpdate::Add(
         AuthorizationBuilder::new()
             .with_label("swap2")
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(
-                        AtomicActionBuilder::new()
-                            .with_contract_address(service_1.clone())
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
+                            .with_contract_address(library_1.clone())
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -178,8 +174,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             .build(),
     ));
 
-    let update_config = WorkflowConfigUpdate {
-        id: workflow_config.id,
+    let update_config = ProgramConfigUpdate {
+        id: program_config.id,
         owner: None,
         services: services_changes,
         authorizations: authorizations_changes,
@@ -216,7 +212,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         format!(
             "update_service_{}_{}",
             splitter_data.name,
-            service_1.get_id()
+            library_1.get_id()
         )
         .as_str(),
     );
@@ -250,7 +246,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .get_request_builder(NEUTRON_CHAIN_NAME),
             &splitter_data.addr.unwrap(),
             &serde_json::to_string(
-                &valence_splitter_service::msg::QueryMsg::GetRawServiceConfig {},
+                &valence_splitter_library::msg::QueryMsg::GetRawLibraryConfig {},
             )
             .unwrap(),
         )["data"]

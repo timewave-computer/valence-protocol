@@ -14,6 +14,8 @@ serde_json                           = { workspace = true }
 env_logger                           = "0.11.5"
 log                                  = "0.4.22"
 rand                                 = "0.8.5"
+cosmos-grpc-client                   = "3.0.1"
+persistence-std                      = "1.2.0"
 polytone-note                        = { git = "https://github.com/DA0-DA0/polytone", rev = "f70440a" }
 polytone-voice                       = { git = "https://github.com/DA0-DA0/polytone", rev = "f70440a" }
 cosmwasm-std                         = { workspace = true }
@@ -24,16 +26,16 @@ valence-processor                    = { workspace = true }
 valence-authorization-utils          = { workspace = true }
 valence-processor-utils              = { workspace = true }
 valence-account-utils                = { workspace = true }
-valence-ibc-utils                    = { workspace = true }
+valence-library-utils                = { workspace = true }
+valence-splitter-library             = { workspace = true }
+valence-reverse-splitter-library     = { workspace = true }
+valence-forwarder-library            = { workspace = true }
 valence-astroport-lper               = { workspace = true }
 valence-astroport-withdrawer         = { workspace = true }
 valence-astroport-utils              = { workspace = true }
-valence-forwarder-service            = { workspace = true }
-valence-generic-ibc-transfer-service = { workspace = true }
-valence-neutron-ibc-transfer-service = { workspace = true }
-valence-reverse-splitter-service     = { workspace = true }
-valence-service-utils                = { workspace = true }
-valence-splitter-service             = { workspace = true }
-valence-workflow-manager             = { workspace = true }
-valence-workflow-registry-utils      = { workspace = true }
+valence-program-manager             = { workspace = true }
+valence-program-registry-utils      = { workspace = true }
+valence-ibc-utils                    = { workspace = true }
+valence-generic-ibc-transfer-library = { workspace = true }
+valence-neutron-ibc-transfer-library = { workspace = true }
 tokio                                = { workspace = true }

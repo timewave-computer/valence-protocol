@@ -11,6 +11,7 @@ generic = []
 neutron = ["dep:neutron-sdk"]
 
 [dependencies]
+cw-denom         = { workspace = true }
 cw-storage-plus  = { workspace = true }
 cosmos-sdk-proto = { workspace = true }
 cosmwasm-std     = { workspace = true }

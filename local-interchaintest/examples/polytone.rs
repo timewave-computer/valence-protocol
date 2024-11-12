@@ -8,10 +8,12 @@ use cosmwasm_std::{Binary, Timestamp, Uint128};
 use cosmwasm_std_old::Uint64;
 use cw_utils::Expiration;
 use local_interchaintest::utils::{
-    authorization::set_up_authorization_and_processor, polytone::salt_for_proxy,
-    processor::tick_processor, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_JUNO,
-    LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, NEUTRON_USER_ADDRESS_1,
-    POLYTONE_ARTIFACTS_PATH, USER_KEY_1, VALENCE_ARTIFACTS_PATH,
+    authorization::set_up_authorization_and_processor,
+    polytone::salt_for_proxy,
+    processor::{get_processor_queue_items, tick_processor},
+    relayer::restart_relayer,
+    GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_JUNO, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
+    NEUTRON_USER_ADDRESS_1, POLYTONE_ARTIFACTS_PATH, USER_KEY_1, VALENCE_ARTIFACTS_PATH,
 };
 use localic_std::{
     modules::{
@@ -29,26 +31,26 @@ use log::info;
 use serde_json::json;
 use valence_authorization::error::ContractError;
 use valence_authorization_utils::{
-    action::AtomicAction,
     authorization::{
-        ActionsConfig, AtomicActionsConfig, AuthorizationDuration, AuthorizationInfo,
-        AuthorizationModeInfo, PermissionTypeInfo, Priority,
+        AtomicSubroutine, AuthorizationDuration, AuthorizationInfo, AuthorizationModeInfo,
+        PermissionTypeInfo, Priority, Subroutine,
     },
     authorization_message::{Message, MessageDetails, MessageType},
     callback::{ExecutionResult, ProcessorCallbackInfo},
     domain::{Connector, Domain, ExternalDomain, PolytoneProxyState},
+    function::AtomicFunction,
     msg::{
         CallbackProxy, Connector as AuthorizationConnector, ExternalDomainInfo, PermissionedMsg,
         ProcessorMessage,
     },
 };
 
+use valence_library_utils::LibraryAccountType;
 use valence_processor_utils::{
     callback::{PendingPolytoneCallbackInfo, PolytoneCallbackState},
     msg::PolytoneContracts,
-    processor::{Config, MessageBatch, ProcessorDomain},
+    processor::{Config, ProcessorDomain},
 };
-use valence_service_utils::ServiceAccountType;
 
 const TIMEOUT_SECONDS: u64 = 15;
 const MAX_ATTEMPTS: u64 = 50;
@@ -494,10 +496,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     assert_eq!(remote_address, predicted_proxy_address_on_neutron);
     info!("Predicted and created addresses match!");
 
-    // Let's test the action creation and execution / retrying
+    // Let's test the function creation and execution / retrying
 
-    // First we are going to try to add an authorization with an action for an invalid domain, which should fail
-    let mut action = AtomicAction {
+    // First we are going to try to add an authorization with an function for an invalid domain, which should fail
+    let mut function = AtomicFunction {
         domain: Domain::External("osmosis".to_string()),
         message_details: MessageDetails {
             message_type: MessageType::CosmwasmExecuteMsg,
@@ -507,7 +509,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             },
         },
         // We don't care about the execution result so we will just make it fail when ticking the processor
-        contract_address: ServiceAccountType::Addr("any".to_string()),
+        contract_address: LibraryAccountType::Addr("any".to_string()),
     };
     let mut authorization = AuthorizationInfo {
         label: "label".to_string(),
@@ -518,8 +520,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         not_before: Expiration::Never {},
         duration: AuthorizationDuration::Forever,
         max_concurrent_executions: Some(3),
-        actions_config: ActionsConfig::Atomic(AtomicActionsConfig {
-            actions: vec![action.clone()],
+        subroutine: Subroutine::Atomic(AtomicSubroutine {
+            functions: vec![function.clone()],
             retry_logic: None,
         }),
         priority: None,
@@ -557,9 +559,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Creating a valid authorization...");
 
-    action.domain = Domain::External("juno".to_string());
-    authorization.actions_config = ActionsConfig::Atomic(AtomicActionsConfig {
-        actions: vec![action.clone()],
+    function.domain = Domain::External("juno".to_string());
+    authorization.subroutine = Subroutine::Atomic(AtomicSubroutine {
+        functions: vec![function.clone()],
         retry_logic: None,
     });
 
@@ -841,6 +843,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         attempts += 1;
         batches = get_processor_queue_items(
             &mut test_ctx,
+            JUNO_CHAIN_NAME,
             &predicted_processor_on_juno_address,
             Priority::Medium,
         );
@@ -1085,29 +1088,6 @@ fn verify_authorization_execution_result(
     }
 }
 
-fn get_processor_queue_items(
-    test_ctx: &mut TestContext,
-    processor_address: &str,
-    priority: Priority,
-) -> Vec<MessageBatch> {
-    serde_json::from_value(
-        contract_query(
-            test_ctx
-                .get_request_builder()
-                .get_request_builder(JUNO_CHAIN_NAME),
-            processor_address,
-            &serde_json::to_string(&valence_processor_utils::msg::QueryMsg::GetQueue {
-                from: None,
-                to: None,
-                priority,
-            })
-            .unwrap(),
-        )["data"]
-            .clone(),
-    )
-    .unwrap()
-}
-
 fn get_processor_pending_polytone_callback(
     test_ctx: &mut TestContext,
     processor_address: &str,
@@ -1127,9 +1107,4 @@ fn get_processor_pending_polytone_callback(
             .clone(),
     )
     .unwrap()
-}
-
-fn restart_relayer(test_ctx: &mut TestContext) {
-    test_ctx.stop_relayer();
-    test_ctx.start_relayer();
 }
