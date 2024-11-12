@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::VecDeque;
 
 use anyhow::Context;
 use cosmwasm_schema::schemars::JsonSchema;
@@ -14,10 +14,15 @@ use valence_authorization_utils::{
 use valence_library_utils::{Id, LibraryAccountType};
 
 use crate::{
-    connectors::Connectors, domain::Domain, error::{ManagerError, ManagerResult}, library::LibraryConfigUpdate, program_config::ProgramConfig, NEUTRON_CHAIN
+    connectors::Connectors,
+    domain::Domain,
+    error::{ManagerError, ManagerResult},
+    program_config::ProgramConfig,
+    NEUTRON_CHAIN,
 };
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[schemars(crate = "cosmwasm_schema::schemars")]
 struct FundsTransfer {
     from: String,
     to: String,
@@ -26,18 +31,18 @@ struct FundsTransfer {
 
 /// We allow to migrate an existing program to a new one
 /// This is done by creating a new program and transfering funds from the old program accounts to the new accounts
-/// Because the new program can be any configuration, we can the user to tell us 
+/// Because the new program can be any configuration, we can the user to tell us
 /// what funds to move from where to what accounts
 /// Note: We assume funds are moved FROM accounts to another contract, on the same domain
 /// At least for V1
 #[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[schemars(crate = "cosmwasm_schema::schemars")]
 pub struct ProgramConfigMigrate {
+    pub old_id: Id,
     /// The new program we instantiate
     pub new_program: ProgramConfig,
     /// Transfer funds details
     pub transfer_funds: Vec<FundsTransfer>,
-    pub authorizations: Vec<AuthorizationInfoUpdate>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
@@ -62,9 +67,9 @@ pub struct UpdateResponse {
     pub instructions: Vec<CosmosMsg>,
 }
 
-impl ProgramConfigUpdate {
+impl ProgramConfigMigrate {
     /// Modify an existing config with a new config
-    pub async fn update(&mut self, connectors: &Connectors) -> ManagerResult<UpdateResponse> {
+    pub async fn migrate(&mut self, connectors: &Connectors) -> ManagerResult<UpdateResponse> {
         let neutron_domain = Domain::CosmosCosmwasm(NEUTRON_CHAIN.to_string());
 
         // get the old program config from registry

@@ -1,5 +1,8 @@
 use cosmwasm_schema::{cw_serde, write_api, QueryResponses};
-use valence_program_manager::{program_config::ProgramConfig, program_update::ProgramConfigUpdate};
+use valence_program_manager::{
+    program_config::ProgramConfig, program_migration::ProgramConfigMigrate,
+    program_update::ProgramConfigUpdate,
+};
 
 #[cw_serde]
 pub enum DemoExecute {}
@@ -12,6 +15,7 @@ pub enum DemoQuery {}
 struct Types {
     program_config: ProgramConfig,
     program_config_update: ProgramConfigUpdate,
+    program_config_migration: ProgramConfigMigrate,
 }
 
 fn main() {
