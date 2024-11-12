@@ -11,13 +11,13 @@ use osmosis_test_tube::{
     },
     Account, ConcentratedLiquidity, ExecuteResponse, Module, Wasm,
 };
+use valence_library_utils::msg::{ExecuteMsg, InstantiateMsg};
 use valence_osmosis_utils::{
     suite::{OsmosisTestAppBuilder, OsmosisTestAppSetup, OSMO_DENOM, TEST_DENOM},
     testing::concentrated_liquidity::ConcentratedLiquidityPool,
 };
-use valence_service_utils::msg::{ExecuteMsg, InstantiateMsg};
 
-use crate::msg::{ActionMsgs, ServiceConfig, ServiceConfigUpdate};
+use crate::msg::{FunctionMsgs, LibraryConfig, LibraryConfigUpdate};
 
 use super::ConcentratedLiquidityExts;
 
@@ -55,7 +55,7 @@ impl LPerTestSuite {
         let instantiate_msg = InstantiateMsg {
             owner: inner.owner_acc().address(),
             processor: inner.processor_acc().address(),
-            config: ServiceConfig::new(
+            config: LibraryConfig::new(
                 input_acc.as_str(),
                 output_acc.as_str(),
                 inner.pool_cfg.pool_id,
@@ -76,7 +76,7 @@ impl LPerTestSuite {
             .address;
 
         // Approve the service for the input account
-        inner.approve_service(input_acc.clone(), lw_addr.clone());
+        inner.approve_library(input_acc.clone(), lw_addr.clone());
         let cl = ConcentratedLiquidity::new(&inner.app);
 
         // create a CL position and transfer it to the input acc
@@ -131,9 +131,9 @@ impl LPerTestSuite {
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
-        wasm.execute::<ExecuteMsg<ActionMsgs, ServiceConfigUpdate>>(
+        wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
             &self.lw_addr,
-            &ExecuteMsg::ProcessAction(ActionMsgs::WithdrawLiquidity {
+            &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {
                 position_id: position_id.into(),
                 liquidity_amount,
             }),
