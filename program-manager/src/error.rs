@@ -64,7 +64,7 @@ pub enum ManagerError {
     ProcessorAddrNotFound(String),
 
     #[error("Id must not be zero")]
-    InvalidWorkflowId ,
+    InvalidWorkflowId,
 
     #[error("Account was removed: {0}")]
     AccountWasRemoved(String),
