@@ -2,8 +2,8 @@
 name        = "valence-macros"
 version     = { workspace = true }
 edition     = { workspace = true }
-authors     = ["Art3miX <r3mix.il@gmail.com>"]
-description = "Macros for Valence services and accounts"
+authors     = ["Timewave Labs"]
+description = "Macros for Valence libraries and accounts"
 license     = { workspace = true }
 
 [lib]

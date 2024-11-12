@@ -12,7 +12,7 @@ use neutron_test_tube::{
 use serde::Serialize;
 use valence_authorization_utils::msg::InstantiateMsg;
 use valence_processor_utils::msg::InstantiateMsg as ProcessorInstantiateMsg;
-use valence_test_service::msg::InstantiateMsg as TestServiceInstantiateMsg;
+use valence_test_library::msg::InstantiateMsg as TestLibraryInstantiateMsg;
 
 pub const ARTIFACTS_DIR: &str = "../../artifacts";
 
@@ -163,13 +163,13 @@ pub fn store_and_instantiate_authorization_with_processor_contract(
     (authorization_address, processor_address)
 }
 
-pub fn store_and_instantiate_test_service(
+pub fn store_and_instantiate_test_library(
     wasm: &Wasm<'_, NeutronTestApp>,
     signer: &SigningAccount,
     admin: Option<&str>,
 ) -> String {
     let wasm_byte_code =
-        std::fs::read(format!("{}/valence_test_service.wasm", ARTIFACTS_DIR)).unwrap();
+        std::fs::read(format!("{}/valence_test_library.wasm", ARTIFACTS_DIR)).unwrap();
 
     let code_id = wasm
         .store_code(&wasm_byte_code, None, signer)
@@ -179,9 +179,9 @@ pub fn store_and_instantiate_test_service(
 
     wasm.instantiate(
         code_id,
-        &TestServiceInstantiateMsg {},
+        &TestLibraryInstantiateMsg {},
         admin,
-        "test_service".into(),
+        "test_library".into(),
         &[],
         signer,
     )

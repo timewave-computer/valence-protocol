@@ -19,10 +19,10 @@ pub const HIGH_PRIORITY_QUEUE: QueueMap<MessageBatch> = QueueMap::new(
 // We'll use this map to store the execution ID and the batch itself. This way we can retrieve the batch by ID to process retries
 pub const EXECUTION_ID_TO_BATCH: Map<u64, MessageBatch> = Map::new("id_to_batch");
 
-// For Non atomic batches, we need to know what action we are currently on. The Map key is the Batch Execution ID and the value is the current action index
-// This way we can know what RetryLogic to use since each action has a different one
-pub const NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX: Map<u64, usize> =
-    Map::new("non_atomic_batch_current_action");
+// For Non atomic batches, we need to know what function we are currently on. The Map key is the Batch Execution ID and the value is the current function index
+// This way we can know what RetryLogic to use since each function has a different one
+pub const NON_ATOMIC_BATCH_CURRENT_FUNCTION_INDEX: Map<u64, usize> =
+    Map::new("non_atomic_batch_current_function_index");
 
 // Here we keep all the Non atomic batches that are currently waiting for a callback to continue. When we receive a callback
 // we will verify if the callback comes from the right address and that the message sent is the one we are expecting, if it is
