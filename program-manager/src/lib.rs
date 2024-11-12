@@ -10,6 +10,7 @@ pub mod macros;
 pub mod program_config;
 pub mod program_config_builder;
 pub mod program_update;
+pub mod program_migration;
 pub mod tests;
 
 use connectors::Connectors;
