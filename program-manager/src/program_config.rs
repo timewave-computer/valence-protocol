@@ -616,10 +616,10 @@ impl ProgramConfig {
 
     pub fn get_account(&self, account_id: impl GetId) -> ManagerResult<&AccountInfo> {
         self.accounts
-            .get(&account_id.get_account_id())
+            .get(&account_id.get_id())
             .ok_or(ManagerError::generic_err(format!(
                 "Account with id {} not found",
-                account_id.get_account_id()
+                account_id.get_id()
             )))
     }
 
