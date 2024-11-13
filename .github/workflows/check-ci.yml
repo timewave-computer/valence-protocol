@@ -21,6 +21,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache Build artefacts
+        uses: Swatinem/rust-cache@v2.7.5
+        with:
+          cache-on-failure: true
+          shared-key: ${{ github.event.pull_request.number || github.ref }}
+
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
 
@@ -37,7 +43,7 @@ jobs:
         run: ls -l ./artifacts
 
       - name: Upload wasm artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: optimized-contracts
           path: ./artifacts/*.wasm
@@ -47,7 +53,7 @@ jobs:
         run: git clone https://github.com/strangelove-ventures/interchaintest && cd interchaintest/local-interchain && make install
 
       - name: Upload local-ic artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: local-ic
           path: ~/go/bin/local-ic
@@ -64,7 +70,7 @@ jobs:
           toolchain: stable
 
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: optimized-contracts
           path: ./artifacts

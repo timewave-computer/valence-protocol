@@ -22,7 +22,6 @@ env:
 
 jobs:
   local-ic-polytone:
-    needs: build
     name: authorization & processor polytone integration test
     if: ${{ github.event.label.name == 'e2e-tests-polytone' || github.event.label.name == 'e2e-tests-all' }}
     runs-on: ubuntu-latest
