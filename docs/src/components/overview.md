@@ -1,3 +1,3 @@
-# Component Overview
+# High-level overview
 
-This section provides a high-level breakdown of the various architectural elements that enable cross-chain protocol-to-protocol relationships.
+This section provides a high-level breakdown of the components that enable Valence cross-chain programs.

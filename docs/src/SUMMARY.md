@@ -1,7 +1,7 @@
 # Summary
 
-- [Background](./background.md)
-- [Component Overview](./components/overview.md)
+- [Introduction](./introduction.md)
+- [High-level overview](./components/overview.md)
   - [Accounts and Libraries](./components/accounts_and_libraries.md)
   - [Authorizations and Execution](./components/authorizations_and_execution.md)
   - [Programs](./components/programs.md)
