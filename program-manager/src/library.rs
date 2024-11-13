@@ -2,6 +2,8 @@ use std::num::ParseIntError;
 
 use aho_corasick::AhoCorasick;
 
+use cosmwasm_schema::schemars::JsonSchema;
+use cosmwasm_std::{to_json_binary, Binary, Empty, StdError};
 use serde::{Deserialize, Serialize};
 use serde_json::to_vec;
 use strum::VariantNames;
@@ -24,6 +26,9 @@ pub enum LibraryError {
     #[error("serde_json Error: {0}")]
     SerdeJsonError(#[from] serde_json::Error),
 
+    #[error("cosmwasm_std Error: {0}")]
+    CosmwasmStdError(#[from] StdError),
+
     #[error("ParseIntError Error: {0}")]
     ParseIntError(#[from] ParseIntError),
 
@@ -35,9 +40,13 @@ pub enum LibraryError {
 
     #[error("No library config")]
     NoLibraryConfig,
+
+    #[error("No library config update")]
+    NoLibraryConfigUpdate,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[schemars(crate = "cosmwasm_schema::schemars")]
 pub struct LibraryInfo {
     pub name: String,
     pub domain: Domain,
@@ -70,6 +79,78 @@ pub enum LibraryConfig {
     ValenceReverseSplitterLibrary(valence_reverse_splitter_library::msg::LibraryConfig),
     ValenceAstroportLper(valence_astroport_lper::msg::LibraryConfig),
     ValenceAstroportWithdrawer(valence_astroport_withdrawer::msg::LibraryConfig),
+}
+
+#[derive(
+    Debug,
+    Clone,
+    strum::Display,
+    Serialize,
+    Deserialize,
+    VariantNames,
+    PartialEq,
+    Default,
+    JsonSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[schemars(crate = "cosmwasm_schema::schemars")]
+pub enum LibraryConfigUpdate {
+    #[default]
+    None,
+    ValenceForwarderLibrary(valence_forwarder_library::msg::LibraryConfigUpdate),
+    ValenceSplitterLibrary(valence_splitter_library::msg::LibraryConfigUpdate),
+    ValenceReverseSplitterLibrary(valence_reverse_splitter_library::msg::LibraryConfigUpdate),
+    ValenceAstroportLper(valence_astroport_lper::msg::LibraryConfigUpdate),
+    ValenceAstroportWithdrawer(valence_astroport_withdrawer::msg::LibraryConfigUpdate),
+}
+
+impl LibraryConfigUpdate {
+    pub fn get_update_msg(self) -> LibraryResult<Binary> {
+        match self {
+            LibraryConfigUpdate::None => return Err(LibraryError::NoLibraryConfigUpdate),
+            LibraryConfigUpdate::ValenceForwarderLibrary(service_config_update) => {
+                to_json_binary(&valence_library_utils::msg::ExecuteMsg::<
+                    Empty,
+                    valence_forwarder_library::msg::LibraryConfigUpdate,
+                >::UpdateConfig {
+                    new_config: service_config_update,
+                })
+            }
+            LibraryConfigUpdate::ValenceSplitterLibrary(service_config_update) => {
+                to_json_binary(&valence_library_utils::msg::ExecuteMsg::<
+                    Empty,
+                    valence_splitter_library::msg::LibraryConfigUpdate,
+                >::UpdateConfig {
+                    new_config: service_config_update,
+                })
+            }
+            LibraryConfigUpdate::ValenceReverseSplitterLibrary(service_config_update) => {
+                to_json_binary(&valence_library_utils::msg::ExecuteMsg::<
+                    Empty,
+                    valence_reverse_splitter_library::msg::LibraryConfigUpdate,
+                >::UpdateConfig {
+                    new_config: service_config_update,
+                })
+            }
+            LibraryConfigUpdate::ValenceAstroportLper(service_config_update) => {
+                to_json_binary(&valence_library_utils::msg::ExecuteMsg::<
+                    Empty,
+                    valence_astroport_lper::msg::LibraryConfigUpdate,
+                >::UpdateConfig {
+                    new_config: service_config_update,
+                })
+            }
+            LibraryConfigUpdate::ValenceAstroportWithdrawer(service_config_update) => {
+                to_json_binary(&valence_library_utils::msg::ExecuteMsg::<
+                    Empty,
+                    valence_astroport_withdrawer::msg::LibraryConfigUpdate,
+                >::UpdateConfig {
+                    new_config: service_config_update,
+                })
+            }
+        }
+        .map_err(LibraryError::CosmwasmStdError)
+    }
 }
 
 // TODO: create macro for the methods that work the same over all of the configs

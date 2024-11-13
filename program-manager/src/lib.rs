@@ -9,11 +9,13 @@ pub mod library;
 pub mod macros;
 pub mod program_config;
 pub mod program_config_builder;
+pub mod program_update;
 pub mod tests;
 
 use connectors::Connectors;
 use error::ManagerResult;
 use program_config::ProgramConfig;
+use program_update::{ProgramConfigUpdate, UpdateResponse};
 
 // Main chain name
 const NEUTRON_CHAIN: &str = "neutron";
@@ -29,10 +31,10 @@ pub async fn init_program(program_config: &mut ProgramConfig) -> ManagerResult<(
     program_config.init(&connectors).await
 }
 
-// pub fn update_program(mut program_config: ProgramConfig, mut old_program_config: ProgramConfig) {
-//     let ctx = None;
+pub async fn update_program(
+    mut program_config: ProgramConfigUpdate,
+) -> ManagerResult<UpdateResponse> {
+    let connectors = Connectors::default();
 
-//     program_config.update(ctx);
-
-//     println!("{:#?}", program_config);
-// }
+    program_config.update(&connectors).await
+}
