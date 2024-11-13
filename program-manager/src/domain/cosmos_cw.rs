@@ -801,6 +801,83 @@ impl Connector for CosmosCosmwasmConnector {
 
         Ok(())
     }
+
+    async fn update_program_config(&mut self, config: ProgramConfig) -> ConnectorResult<()> {
+        if self.chain_name != *NEUTRON_CHAIN {
+            return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                "Should only be implemented on neutron connector"
+            ))
+            .into());
+        }
+
+        for library in config.libraries.values() {
+            if library.addr.is_none() {
+                return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                    "Before saving program config each library must have an address"
+                ))
+                .into());
+            }
+        }
+
+        let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();
+
+        let program_binary =
+            to_json_binary(&config).map_err(CosmosCosmwasmError::CosmwasmStdError)?;
+
+        let msg = to_vec(&valence_program_registry_utils::ExecuteMsg::UpdateProgram {
+            id: config.id,
+            program_config: program_binary,
+        })
+        .map_err(CosmosCosmwasmError::SerdeJsonError)?;
+
+        let m = MsgExecuteContract {
+            sender: self.wallet.account_address.clone(),
+            contract: registry_addr,
+            msg,
+            funds: vec![],
+        }
+        .build_any();
+
+        // Broadcast the tx and wait for it to finalize (or error)
+        self.broadcast_tx(m, "update_workflow_config").await?;
+
+        Ok(())
+    }
+
+    async fn get_program_config(&mut self, id: u64) -> ConnectorResult<ProgramConfig> {
+        if self.chain_name != *NEUTRON_CHAIN {
+            return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
+                "Should only be implemented on neutron connector"
+            ))
+            .into());
+        }
+
+        let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();
+
+        let query = QuerySmartContractStateRequest {
+            address: registry_addr,
+            query_data: to_vec(&valence_program_registry_utils::QueryMsg::GetConfig { id })
+                .map_err(CosmosCosmwasmError::SerdeJsonError)?,
+        };
+
+        let res = from_json::<valence_program_registry_utils::ProgramResponse>(
+            &self
+                .wallet
+                .client
+                .clients
+                .wasm
+                .smart_contract_state(query)
+                .await
+                .context("Failed to query the workflow config from registry")
+                .map_err(CosmosCosmwasmError::Error)?
+                .into_inner()
+                .data,
+        )
+        .map_err(CosmosCosmwasmError::CosmwasmStdError)?;
+
+        Ok(from_json::<ProgramConfig>(&res.program_config)
+            .map_err(CosmosCosmwasmError::CosmwasmStdError)?)
+    }
 }
 
 // Helpers

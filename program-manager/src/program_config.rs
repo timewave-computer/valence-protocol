@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
+use cosmwasm_schema::schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use valence_authorization_utils::authorization::AuthorizationInfo;
 
@@ -15,7 +16,8 @@ use crate::{
     NEUTRON_CHAIN,
 };
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[schemars(crate = "cosmwasm_schema::schemars")]
 pub struct Link {
     /// List of input accounts by id
     pub input_accounts_id: Vec<Id>,
@@ -27,7 +29,8 @@ pub struct Link {
 
 /// This struct holds all the data regarding our authorization and processor
 /// contracts and bridge accounts
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, JsonSchema)]
+#[schemars(crate = "cosmwasm_schema::schemars")]
 pub struct AuthorizationData {
     /// authorization contract address on neutron
     pub authorization_addr: String,
@@ -63,7 +66,8 @@ impl AuthorizationData {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[schemars(crate = "cosmwasm_schema::schemars")]
 pub struct ProgramConfig {
     // This is the id of the program
     #[serde(default)]
@@ -71,12 +75,12 @@ pub struct ProgramConfig {
     pub owner: String,
     /// A list of links between an accounts and libraries
     pub links: BTreeMap<Id, Link>,
-    /// A list of authorizations
-    pub authorizations: Vec<AuthorizationInfo>,
     /// The list account data by id
     pub accounts: BTreeMap<Id, AccountInfo>,
-    /// The list library data by id
+    /// The list service data by id
     pub libraries: BTreeMap<Id, LibraryInfo>,
+    /// A list of authorizations
+    pub authorizations: Vec<AuthorizationInfo>,
     /// This is the info regarding authorization and processor contracts.
     /// Must be empty (Default) when a new program is instantiated.
     /// It gets populated when the program is instantiated.
@@ -248,6 +252,7 @@ impl ProgramConfig {
                 InstantiateAccountData::new(*account_id, account.clone(), addr.clone(), salt),
             );
 
+            // Set active to be true just in case it was given false on init
             account.ty = AccountType::Addr { addr: addr.clone() };
             account.addr = Some(addr);
         }
@@ -421,9 +426,6 @@ impl ProgramConfig {
 
         Ok(())
     }
-
-    /// Modify an existing config with a new config
-    fn _modify(&mut self) {}
 
     /// Verify the config is correct and are not missing any data
     pub fn verify_new_config(&mut self) -> ManagerResult<()> {

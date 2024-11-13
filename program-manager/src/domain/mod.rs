@@ -7,6 +7,7 @@ use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 use cosmos_cw::{CosmosCosmwasmConnector, CosmosCosmwasmError};
 
+use cosmwasm_schema::schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 // use cosmos_evm::CosmosEvmError;
@@ -35,7 +36,10 @@ pub enum ConnectorError {
 
 /// We need some way of knowing which domain we are talking with
 /// chain connection, execution, bridges for authorization.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize, JsonSchema,
+)]
+#[schemars(crate = "cosmwasm_schema::schemars")]
 pub enum Domain {
     CosmosCosmwasm(String),
     // CosmosEvm(String),
@@ -268,5 +272,15 @@ pub trait Connector: fmt::Debug + Send + Sync {
     #[allow(unused_variables)]
     async fn save_program_config(&mut self, config: ProgramConfig) -> ConnectorResult<()> {
         unimplemented!("'save_program_config' should only be implemented on neutron domain");
+    }
+
+    #[allow(unused_variables)]
+    async fn update_program_config(&mut self, config: ProgramConfig) -> ConnectorResult<()> {
+        unimplemented!("'update_program_config' should only be implemented on neutron domain");
+    }
+
+    #[allow(unused_variables)]
+    async fn get_program_config(&mut self, id: u64) -> ConnectorResult<ProgramConfig> {
+        unimplemented!("'get_program_config' should only be implemented on neutron domain");
     }
 }
