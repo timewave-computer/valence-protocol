@@ -121,6 +121,7 @@ impl ProgramConfigUpdate {
                         library.domain.to_string(),
                     )
                 };
+
                 let subroutine = AtomicSubroutineBuilder::new()
                     .with_function(
                         AtomicFunctionBuilder::new()
