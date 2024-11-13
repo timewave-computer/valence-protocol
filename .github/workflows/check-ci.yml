@@ -49,20 +49,17 @@ jobs:
           path: ./artifacts/*.wasm
           if-no-files-found: error
 
-      - name: Install local-ic
-        run: git clone https://github.com/strangelove-ventures/interchaintest && cd interchaintest/local-interchain && make install
-
-      - name: Upload local-ic artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: local-ic
-          path: ~/go/bin/local-ic
-
   tests:
     needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Cache Build artefacts
+        uses: Swatinem/rust-cache@v2.7.5
+        with:
+          cache-on-failure: true
+          shared-key: ${{ github.event.pull_request.number || github.ref }}
 
       - name: Get cargo
         uses: actions-rs/toolchain@v1
