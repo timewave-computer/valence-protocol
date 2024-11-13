@@ -10,9 +10,12 @@ use valence_osmosis_utils::utils::cl_utils::query_cl_pool;
 
 #[cw_serde]
 pub enum FunctionMsgs {
-    // liquidiate CL position by its id
+    /// liquidiate CL position by its id. follows the logic of
+    /// osmosis `osmosis.concentratedliquidity.v1beta1.MsgWithdrawPosition`.
     WithdrawLiquidity {
+        // ID of the position to be liquidated
         position_id: Uint64,
+        // in sdk this is a `Dec`, which prost translates to a `String`
         liquidity_amount: String,
     },
 }
