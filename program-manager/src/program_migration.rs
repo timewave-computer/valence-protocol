@@ -50,7 +50,7 @@ pub struct ProgramConfigMigrate {
 #[derive(Clone, Debug)]
 pub struct MigrateResponse {
     pub instructions: Vec<CosmosMsg>,
-    pub processor_halt_messages: Vec<CosmosMsg>,
+    pub pause_processor_messages: Vec<CosmosMsg>,
     pub new_config: ProgramConfig,
 }
 
@@ -210,7 +210,7 @@ impl ProgramConfigMigrate {
         );
 
         // Add all processor halt messages
-        let mut processor_halt_messages: Vec<CosmosMsg> = vec![];
+        let mut pause_processor_messages: Vec<CosmosMsg> = vec![];
 
         for (domain, _) in old_config.authorization_data.processor_addrs.clone() {
             let domain = if Domain::from_string(domain.clone())? == neutron_domain {
@@ -219,7 +219,7 @@ impl ProgramConfigMigrate {
                 valence_authorization_utils::domain::Domain::External(domain.clone())
             };
 
-            processor_halt_messages.push(
+            pause_processor_messages.push(
                 WasmMsg::Execute {
                     contract_addr: old_config.authorization_data.authorization_addr.clone(),
                     msg: to_json_binary(
@@ -244,7 +244,7 @@ impl ProgramConfigMigrate {
         Ok(MigrateResponse {
             instructions: instructions.into(),
             new_config: self.new_program.clone(),
-            processor_halt_messages,
+            pause_processor_messages,
         })
     }
 
