@@ -110,7 +110,7 @@ impl ProgramConfigUpdate {
                 .context(ManagerError::LibraryIdIsMissing(*id).to_string())?;
 
             // Add authorization to update the library
-            let label = format!("update_library_{}_{}", library.name, id);
+            let label = format!("update_library_{}", id);
 
             // Create authorization if we don't already have one
             if !config.authorizations.iter().any(|auth| auth.label == label) {
@@ -147,7 +147,10 @@ impl ProgramConfigUpdate {
                     .with_priority(Priority::High)
                     .with_subroutine(subroutine);
 
-                new_authorizations.push(authorization_builder.build());
+                let authorization_info = authorization_builder.build();
+                new_authorizations.push(authorization_info.clone());
+
+                config.authorizations.push(authorization_info);
             }
 
             // execute insert message on the authorization to push this message to processor

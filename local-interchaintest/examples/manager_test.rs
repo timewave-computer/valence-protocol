@@ -107,7 +107,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Do the updates
 
-    let splitter_data = program_config.get_library(library_1.get_id()).unwrap();
+    let splitter_data = program_config
+        .get_library(library_1.get_library_id())
+        .unwrap();
     let neutron_processor_addr = program_config
         .authorization_data
         .processor_addrs
@@ -119,7 +121,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     library_config.splits[0].denom = UncheckedDenom::Native("test2".to_string());
     library_config.splits[0].account = LibraryAccountType::Addr(
         program_config
-            .get_account(account_2.get_id())
+            .get_account(account_2.get_account_id())
             .unwrap()
             .clone()
             .addr
@@ -128,7 +130,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut libraries_changes: BTreeMap<Id, LibraryConfigUpdate> = BTreeMap::new();
     libraries_changes.insert(
-        library_1.get_id(),
+        library_1.get_library_id(),
         LibraryConfigUpdate::ValenceSplitterLibrary(
             valence_splitter_library::msg::LibraryConfigUpdate {
                 input_addr: None,
@@ -212,7 +214,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         format!(
             "update_service_{}_{}",
             splitter_data.name,
-            library_1.get_id()
+            library_1.get_library_id()
         )
         .as_str(),
     );
