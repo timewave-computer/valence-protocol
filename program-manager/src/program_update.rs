@@ -74,7 +74,7 @@ impl ProgramConfigUpdate {
 
         // 0 is not a valid id of a program
         if self.id == 0 {
-            return Err(ManagerError::InvalidWorkflowId);
+            return Err(ManagerError::InvalidProgramId);
         }
 
         let mut config = neutron_connector.get_program_config(self.id).await?;
@@ -121,7 +121,7 @@ impl ProgramConfigUpdate {
                         library.domain.to_string(),
                     )
                 };
-                let actions_config = AtomicSubroutineBuilder::new()
+                let subroutine = AtomicSubroutineBuilder::new()
                     .with_function(
                         AtomicFunctionBuilder::new()
                             .with_domain(library_domain)
@@ -144,7 +144,7 @@ impl ProgramConfigUpdate {
                         valence_authorization_utils::authorization::PermissionTypeInfo::WithoutCallLimit(vec![config.owner.clone()]),
                     ))
                     .with_priority(Priority::High)
-                    .with_subroutine(actions_config);
+                    .with_subroutine(subroutine);
 
                 new_authorizations.push(authorization_builder.build());
             }

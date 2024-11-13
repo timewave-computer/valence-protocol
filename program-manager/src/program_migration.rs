@@ -1,31 +1,27 @@
 use std::collections::VecDeque;
 
-use anyhow::Context;
 use cosmwasm_schema::schemars::JsonSchema;
 use cosmwasm_std::{to_json_binary, Coin, CosmosMsg, WasmMsg};
-use cw_ownable::Expiration;
+
 use serde::{Deserialize, Serialize};
-use valence_authorization_utils::{
-    authorization::{AuthorizationInfo, AuthorizationModeInfo, Priority},
-    authorization_message::{Message, MessageDetails, MessageType},
-    builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
-    msg::ProcessorMessage,
-};
-use valence_library_utils::{Id, LibraryAccountType};
+use valence_authorization_utils::authorization::AuthorizationInfo;
+use valence_library_utils::{GetId, Id, LibraryAccountType};
 
 use crate::{
     connectors::Connectors,
     domain::Domain,
     error::{ManagerError, ManagerResult},
+    init_program,
     program_config::ProgramConfig,
     NEUTRON_CHAIN,
 };
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[schemars(crate = "cosmwasm_schema::schemars")]
-struct FundsTransfer {
+pub struct FundsTransfer {
     from: String,
-    to: String,
+    to: LibraryAccountType,
+    domain: Domain,
     funds: Coin,
 }
 
@@ -45,216 +41,66 @@ pub struct ProgramConfigMigrate {
     pub transfer_funds: Vec<FundsTransfer>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
-#[schemars(crate = "cosmwasm_schema::schemars")]
-pub enum AuthorizationInfoUpdate {
-    Add(AuthorizationInfo),
-    Modify {
-        label: String,
-        not_before: Option<Expiration>,
-        expiration: Option<Expiration>,
-        max_concurrent_executions: Option<u64>,
-        priority: Option<Priority>,
-    },
-    /// Disable by label
-    Disable(String),
-    /// Disable by label
-    Enable(String),
-}
-
 #[derive(Clone, Debug)]
-pub struct UpdateResponse {
+pub struct MigrateResponse {
     pub instructions: Vec<CosmosMsg>,
+    pub new_config: ProgramConfig,
 }
 
 impl ProgramConfigMigrate {
-    /// Modify an existing config with a new config
-    pub async fn migrate(&mut self, connectors: &Connectors) -> ManagerResult<UpdateResponse> {
+    /// Migrate old program to new program
+    /// We first verify the migration data is correct
+    /// We then create a new program
+    /// We then create authorizations to transfer funds and insert the messages
+    /// Then we build the messages to stop all processors.
+    /// NOTE: stopping all processor must happen after transfer of funds was completed, else
+    /// the transfer message will be stuck in the processor.
+    pub async fn migrate(&mut self, connectors: &Connectors) -> ManagerResult<MigrateResponse> {
         let neutron_domain = Domain::CosmosCosmwasm(NEUTRON_CHAIN.to_string());
 
-        // get the old program config from registry
+        // Get the old program config from registry
         let mut neutron_connector = connectors.get_or_create_connector(&neutron_domain).await?;
 
-        if self.id == 0 {
-            return Err(ManagerError::IdIsZero);
-        }
+        let old_config = neutron_connector.get_program_config(self.old_id).await?;
 
-        let mut config = neutron_connector.get_program_config(self.id).await?;
+        // Verify the migration config
+        self.verify_config_migration(&old_config)?;
+
+        // After we verified the migration config is correct, we can start the migration
+
+        // Create the new program
+        init_program(&mut self.new_program).await?;
 
         let mut instructions: VecDeque<CosmosMsg> = VecDeque::new();
         let mut new_authorizations: Vec<AuthorizationInfo> = vec![];
 
-        if let Some(new_owner) = self.owner.clone() {
-            config.owner = new_owner.clone();
-
-            // Create instruction to change owner
-            instructions.push_back(
+        for (i, transfer_funds) in self.transfer_funds.iter().enumerate() {
+            // Transfer funds from old program to new program
+            instructions.push_front(
                 WasmMsg::Execute {
-                    contract_addr: config.authorization_data.authorization_addr.clone(),
-                    msg: to_json_binary(&cw_ownable::Action::TransferOwnership {
-                        new_owner,
-                        expiry: None,
-                    })
-                    .context("Failed binary parsing TransferOwnership")?,
-                    funds: vec![],
-                }
-                .into(),
-            );
-        }
-
-        for (id, library_update) in self.libraries.iter() {
-            // Verify that the library id exists in the config and get it
-            let library = config
-                .libraries
-                .get(id)
-                .context(ManagerError::LibraryIdIsMissing(*id).to_string())?;
-
-            // Add authorization to update the library
-            let label = format!("update_library_{}_{}", library.name, id);
-
-            // Create authorization if we don't already have one
-            if !config.authorizations.iter().any(|auth| auth.label == label) {
-                let library_domain = if library.domain == neutron_domain {
-                    valence_authorization_utils::domain::Domain::Main
-                } else {
-                    valence_authorization_utils::domain::Domain::External(
-                        library.domain.to_string(),
-                    )
-                };
-                let actions_config = AtomicSubroutineBuilder::new()
-                    .with_function(
-                        AtomicFunctionBuilder::new()
-                            .with_domain(library_domain)
-                            .with_contract_address(LibraryAccountType::Addr(
-                                library.addr.clone().unwrap(),
-                            ))
-                            .with_message_details(MessageDetails {
-                                message_type: MessageType::CosmwasmExecuteMsg,
-                                message: Message {
-                                    name: "update_config".to_string(),
-                                    params_restrictions: None,
-                                },
-                            })
-                            .build(),
-                    )
-                    .build();
-                let authorization_builder = AuthorizationBuilder::new()
-                    .with_label(&label)
-                    .with_mode(AuthorizationModeInfo::Permissioned(
-                        valence_authorization_utils::authorization::PermissionTypeInfo::WithoutCallLimit(vec![config.owner.clone()]),
-                    ))
-                    .with_priority(Priority::High)
-                    .with_subroutine(actions_config);
-
-                new_authorizations.push(authorization_builder.build());
-            }
-
-            // execute insert message on the authorization
-            let update_config_msg = library_update
-                .clone()
-                .get_update_msg()
-                .context("Failed binary parsing get_update_msg")?;
-
-            instructions.push_back(
-                WasmMsg::Execute {
-                    contract_addr: config.authorization_data.authorization_addr.clone(),
+                    contract_addr: transfer_funds.from.clone(),
                     msg: to_json_binary(
                         &valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
-                            valence_authorization_utils::msg::PermissionedMsg::InsertMsgs {
-                                label,
-                                queue_position: 0,
-                                priority: Priority::High,
-                                messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
-                                    msg: update_config_msg,
-                                }],
+                            valence_authorization_utils::msg::PermissionedMsg::TransferFunds {
+                                to: transfer_funds
+                                    .to
+                                    .to_string()
+                                    .map_err(|e| ManagerError::generic_err(e.to_string()))?,
+                                amount: transfer_funds.funds.clone(),
                             },
                         ),
                     )
-                    .context("Failed binary parsing InsertMsgs")?,
-                    funds: vec![],
+                    .unwrap(),
+                    funds: vec![transfer_funds.funds.clone()],
                 }
                 .into(),
             );
-        }
-
-        // Generate authorization update instructions
-        for authorization in self.authorizations.clone().into_iter() {
-            match authorization {
-                AuthorizationInfoUpdate::Add(authorization_info) => {
-                    verify_authorization_not_exists(
-                        &config.authorizations,
-                        authorization_info.label.clone(),
-                    )?;
-
-                    // Create instruction for adding authorization
-                    new_authorizations.push(authorization_info.clone());
-
-                    // Add new authorizations to our config saved in registry
-                    config.authorizations.push(authorization_info);
-                }
-                AuthorizationInfoUpdate::Modify {
-                    label,
-                    not_before,
-                    expiration,
-                    max_concurrent_executions,
-                    priority,
-                } => {
-                    verify_authorization_exists(&config.authorizations, label.clone())?;
-
-                    // Create instruction for modifying authorization
-                    instructions.push_back(WasmMsg::Execute {
-                        contract_addr: config.authorization_data.authorization_addr.clone(),
-                        msg: to_json_binary(&valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
-                            valence_authorization_utils::msg::PermissionedMsg::ModifyAuthorization { label: label.clone(), not_before, expiration, max_concurrent_executions, priority: priority.clone() }
-                        )).context("Failed binary parsing AuthorizationInfoUpdate::Modify")?,
-                        funds: vec![]
-                    }.into());
-
-                    // Modify saved config with the new modified authorizations
-                    let auth = config
-                        .authorizations
-                        .iter_mut()
-                        .find(|a| a.label == label)
-                        .context(format!("Failed to find authorization {}", label))?;
-
-                    if let Some(not_before) = not_before {
-                        auth.not_before = not_before;
-                    }
-
-                    auth.priority = priority;
-                    auth.max_concurrent_executions = max_concurrent_executions;
-                }
-                AuthorizationInfoUpdate::Disable(label) => {
-                    verify_authorization_exists(&config.authorizations, label.clone())?;
-
-                    // Create instruction for disabling authorization
-                    instructions.push_back(WasmMsg::Execute {
-                        contract_addr: config.authorization_data.authorization_addr.clone(),
-                        msg: to_json_binary(&valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
-                            valence_authorization_utils::msg::PermissionedMsg::DisableAuthorization { label }
-                        )).unwrap(),
-                        funds: vec![]
-                    }.into());
-                }
-                AuthorizationInfoUpdate::Enable(label) => {
-                    verify_authorization_exists(&config.authorizations, label.clone())?;
-
-                    // Create instruction for enabling authorization
-                    instructions.push_back(WasmMsg::Execute {
-                        contract_addr: config.authorization_data.authorization_addr.clone(),
-                        msg: to_json_binary(&valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
-                            valence_authorization_utils::msg::PermissionedMsg::EnableAuthorization { label }
-                        )).unwrap(),
-                        funds: vec![]
-                    }.into());
-                }
-            }
         }
 
         // Add all new authorizations
         instructions.push_front(
             WasmMsg::Execute {
-                contract_addr: config.authorization_data.authorization_addr.clone(),
+                contract_addr: old_config.authorization_data.authorization_addr.clone(),
                 msg: to_json_binary(
                     &valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
                         valence_authorization_utils::msg::PermissionedMsg::CreateAuthorizations {
@@ -269,11 +115,62 @@ impl ProgramConfigMigrate {
         );
 
         // Save the updated config to the registry
-        neutron_connector.update_program_config(config).await?;
+        neutron_connector
+            .save_program_config(self.new_program.clone())
+            .await?;
 
-        Ok(UpdateResponse {
+        Ok(MigrateResponse {
             instructions: instructions.into(),
+            new_config: self.new_program.clone(),
         })
+    }
+
+    /// Verify that the migration data is correct
+    /// Make sure old program id is not 0
+    /// For each funds transfer make sure the amount is not zero, the account we send funds from
+    /// exists on the old program and that id we send funds to exists in the new program config
+    fn verify_config_migration(&self, old_config: &ProgramConfig) -> ManagerResult<()> {
+        if self.old_id == 0 {
+            return Err(ManagerError::InvalidProgramId);
+        }
+
+        for funds_transfer in self.transfer_funds.iter() {
+            // We make sure the amount is not zero
+            if funds_transfer.funds.amount.is_zero() {
+                return Err(ManagerError::FundsTransferAmountZero(
+                    funds_transfer.from.clone(),
+                    funds_transfer
+                        .to
+                        .to_string()
+                        .map_err(|e| ManagerError::generic_err(e.to_string()))?,
+                ));
+            }
+
+            // We make sure the account to send funds from exists in the old config
+            if !old_config
+                .accounts
+                .iter()
+                .any(|(_, acc_info)| acc_info.addr.clone().unwrap() == funds_transfer.from)
+            {
+                return Err(ManagerError::AccountNotFoundInOldProgram(
+                    funds_transfer.from.clone(),
+                ));
+            }
+
+            // Make sure the account we sent to exists in the new program config
+            let funds_transfer_to_id = funds_transfer.to.get_id();
+
+            if !self
+                .new_program
+                .accounts
+                .iter()
+                .any(|(id, _)| *id == funds_transfer_to_id)
+            {
+                return Err(ManagerError::AccountIdWasNotFound(funds_transfer_to_id));
+            }
+        }
+
+        Ok(())
     }
 }
 
