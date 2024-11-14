@@ -54,7 +54,7 @@ jobs:
           toolchain: stable
 
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: optimized-contracts
           path: ./artifacts
@@ -63,7 +63,7 @@ jobs:
         run: ls -l ./artifacts
 
       - name: Download local-ic artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: local-ic
           path: /tmp
