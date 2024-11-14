@@ -30,7 +30,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           workflow_name="check-ci.yml"
-          branch="${{ github.event.pull_request.head.ref }}""
+          branch="${{ github.event.pull_request.head.ref }}"
 
           # Fetch the list of workflow runs for the specified workflow file on the PR branch
           response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
