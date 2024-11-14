@@ -69,14 +69,14 @@ jobs:
         with:
           toolchain: stable
 
-      # - name: Download artifacts
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: optimized-contracts
-      #     path: ./artifacts
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: optimized-contracts
+          path: ./artifacts
 
-      # - name: List downloaded files
-      #   run: ls -l ./artifacts
+      - name: List downloaded files
+        run: ls -l ./artifacts
 
       - name: Run tests
         run: cargo test --verbose
