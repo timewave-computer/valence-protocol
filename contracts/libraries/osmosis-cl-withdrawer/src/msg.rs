@@ -1,17 +1,23 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-
 use cosmwasm_std::{Addr, Deps, DepsMut, Uint64};
 use cw_ownable::cw_ownable_query;
 
-use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
 use valence_library_utils::{
     error::LibraryError, msg::LibraryConfigValidation, LibraryAccountType,
 };
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
+use valence_osmosis_utils::utils::cl_utils::query_cl_pool;
 
 #[cw_serde]
 pub enum FunctionMsgs {
-    WithdrawLiquidity {},
+    /// liquidiate CL position by its id. follows the logic of
+    /// osmosis `osmosis.concentratedliquidity.v1beta1.MsgWithdrawPosition`.
+    WithdrawLiquidity {
+        // ID of the position to be liquidated
+        position_id: Uint64,
+        // in sdk this is a `Dec`, which prost translates to a `String`
+        liquidity_amount: String,
+    },
 }
 
 #[valence_library_query]
@@ -21,28 +27,23 @@ pub enum FunctionMsgs {
 pub enum QueryMsg {}
 
 #[cw_serde]
-pub struct LiquidityWithdrawerConfig {
-    pub pool_id: u64,
-}
-
-#[cw_serde]
 #[derive(ValenceLibraryInterface)]
 pub struct LibraryConfig {
     pub input_addr: LibraryAccountType,
     pub output_addr: LibraryAccountType,
-    pub lw_config: LiquidityWithdrawerConfig,
+    pub pool_id: Uint64,
 }
 
 impl LibraryConfig {
     pub fn new(
         input_addr: impl Into<LibraryAccountType>,
         output_addr: impl Into<LibraryAccountType>,
-        lw_config: LiquidityWithdrawerConfig,
+        pool_id: Uint64,
     ) -> Self {
         LibraryConfig {
             input_addr: input_addr.into(),
             output_addr: output_addr.into(),
-            lw_config,
+            pool_id,
         }
     }
 
@@ -53,16 +54,16 @@ impl LibraryConfig {
         let input_addr = self.input_addr.to_addr(api)?;
         let output_addr = self.output_addr.to_addr(api)?;
 
-        Ok((input_addr, output_addr, self.lw_config.pool_id.into()))
+        Ok((input_addr, output_addr, self.pool_id))
     }
 }
 
-#[cw_serde]
 /// Validated library configuration
+#[cw_serde]
 pub struct Config {
     pub input_addr: Addr,
     pub output_addr: Addr,
-    pub lw_config: LiquidityWithdrawerConfig,
+    pub pool_id: Uint64,
 }
 
 impl LibraryConfigValidation<Config> for LibraryConfig {
@@ -74,14 +75,13 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
 
     fn validate(&self, deps: Deps) -> Result<Config, LibraryError> {
         let (input_addr, output_addr, pool_id) = self.do_validate(deps.api)?;
-
-        // just a sanity check to ensure the pool exists
-        PoolmanagerQuerier::new(&deps.querier).pool(pool_id.u64())?;
+        // sanity check
+        query_cl_pool(&deps, pool_id.u64())?;
 
         Ok(Config {
             input_addr,
             output_addr,
-            lw_config: self.lw_config.clone(),
+            pool_id,
         })
     }
 }
@@ -98,8 +98,9 @@ impl LibraryConfigUpdate {
             config.output_addr = output_addr.to_addr(deps.api)?;
         }
 
-        if let Some(cfg) = self.lw_config {
-            config.lw_config = cfg;
+        if let Some(pool) = self.pool_id {
+            query_cl_pool(&deps.as_ref(), pool.u64())?;
+            config.pool_id = pool;
         }
 
         valence_library_base::save_config(deps.storage, &config)?;
