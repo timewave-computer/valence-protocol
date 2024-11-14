@@ -34,7 +34,7 @@ jobs:
           path: ~/go/bin/local-ic
 
   local-ic-polytone:
-    depends-on: setup-local-ic
+    needs: setup-local-ic
     name: authorization & processor polytone integration test
     if: ${{ github.event.label.name == 'e2e-tests-polytone' || github.event.label.name == 'e2e-tests-all' }}
     runs-on: ubuntu-latest
