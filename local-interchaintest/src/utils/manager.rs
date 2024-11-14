@@ -26,6 +26,8 @@ pub const GENERIC_IBC_TRANSFER_NAME: &str = "valence-generic-ibc-transfer-librar
 pub const NEUTRON_IBC_TRANSFER_NAME: &str = "valence-neutron-ibc-transfer-library";
 pub const ASTROPORT_LPER_NAME: &str = "valence_astroport_lper";
 pub const ASTROPORT_WITHDRAWER_NAME: &str = "valence_astroport_withdrawer";
+pub const OSMOSIS_GAMM_LPER_NAME: &str = "valence_osmosis_gamm_lper";
+pub const OSMOSIS_GAMM_LWER_NAME: &str = "valence_osmosis_gamm_withdrawer";
 
 /// Those contracts will always be uploaded because each program needs them
 const BASIC_CONTRACTS: [&str; 2] = [PROCESSOR_NAME, BASE_ACCOUNT_NAME];
