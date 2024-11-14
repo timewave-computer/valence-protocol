@@ -79,7 +79,7 @@ jobs:
         with:
           name: optimized-contracts
           path: ./artifacts
-          run_id: ${{ needs.get-ci-workflow-run-id.outputs.ci_workflow_run_id }}
+          run-id: ${{ needs.get-ci-workflow-run-id.outputs.ci_workflow_run_id }}
 
       - name: List downloaded files
         run: ls -l ./artifacts
@@ -89,7 +89,7 @@ jobs:
         with:
           name: local-ic
           path: /tmp
-          run_id: ${{ needs.get-ci-workflow-run-id.outputs.ci_workflow_run_id }}
+          run-id: ${{ needs.get-ci-workflow-run-id.outputs.ci_workflow_run_id }}
 
       - name: Make local-ic executable
         run: chmod +x /tmp/local-ic
