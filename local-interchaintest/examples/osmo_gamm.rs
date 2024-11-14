@@ -5,10 +5,13 @@ use local_interchaintest::utils::{
     LOGS_FILE_PATH, NEUTRON_OSMO_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
 };
 
+use localic_std::modules::bank;
 use localic_utils::{
     ConfigChainBuilder, TestContextBuilder, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
-    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_NAME,
+    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_ADMIN_ADDR,
+    OSMOSIS_CHAIN_NAME,
 };
+use log::info;
 use valence_program_manager::program_config_builder::ProgramConfigBuilder;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -37,7 +40,47 @@ fn main() -> Result<(), Box<dyn Error>> {
     let osmo_domain =
         valence_program_manager::domain::Domain::CosmosCosmwasm(OSMOSIS_CHAIN_NAME.to_string());
 
-    // TODO: set up the GAMM pool
+    let ntrn_on_osmo_denom = test_ctx
+        .get_ibc_denom()
+        .base_denom(NEUTRON_CHAIN_DENOM.to_owned())
+        .src(NEUTRON_CHAIN_NAME)
+        .dest(OSMOSIS_CHAIN_NAME)
+        .get();
+
+    info!("transferring 1000 neutron tokens to osmo admin addr for pool creation...");
+    test_ctx
+        .build_tx_transfer()
+        .with_chain_name(NEUTRON_CHAIN_NAME)
+        .with_amount(1_000_000_000u128)
+        .with_recipient(OSMOSIS_CHAIN_ADMIN_ADDR)
+        .with_denom(NEUTRON_CHAIN_DENOM)
+        .send()
+        .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    let token_balances = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        OSMOSIS_CHAIN_ADMIN_ADDR,
+    );
+    info!("osmosis chain admin addr balances: {:?}", token_balances);
+
+    test_ctx
+        .build_tx_create_osmo_pool()
+        .with_weight("uosmo", 1)
+        .with_weight(&ntrn_on_osmo_denom, 1)
+        .with_initial_deposit("uosmo", 1)
+        .with_initial_deposit(&ntrn_on_osmo_denom, 1)
+        .send()?;
+
+    // Get its id
+    let pool_id = test_ctx
+        .get_osmo_pool()
+        .denoms("uosmo".into(), ntrn_on_osmo_denom)
+        .get_u64();
+
+    info!("Gamm pool id: {:?}", pool_id);
 
     Ok(())
 }
