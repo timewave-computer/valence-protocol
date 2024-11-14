@@ -55,6 +55,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Free Disk Space
+        uses: "./.github/actions/free-disk-space"
+
       - name: Cache Build artefacts
         uses: Swatinem/rust-cache@v2.7.5
         with:
@@ -66,14 +69,14 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: optimized-contracts
-          path: ./artifacts
+      # - name: Download artifacts
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: optimized-contracts
+      #     path: ./artifacts
 
-      - name: List downloaded files
-        run: ls -l ./artifacts
+      # - name: List downloaded files
+      #   run: ls -l ./artifacts
 
       - name: Run tests
         run: cargo test --verbose
