@@ -21,6 +21,27 @@ env:
   GO_VERSION: 1.21
 
 jobs:
+  get-ci-workflow-run-id:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get CI Workflow Run ID
+        id: get_last_run
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          workflow_name="check-ci.yml"
+          branch="${{ github.event.pull_request.head.ref }}""
+
+          # Fetch the list of workflow runs for the specified workflow file on the PR branch
+          response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/$workflow_name/runs?branch=$branch&event=pull_request&status=completed")
+
+          # Get the ID of the most recent workflow run
+          ci_workflow_run_id=$(echo "$response" | jq '.workflow_runs[0].id')
+
+          echo "Last CI workflow run ID for $workflow_name on branch $branch: $ci_workflow_run_id"
+          echo "::set-output name=ci_workflow_run_id::$ci_workflow_run_id"
+
   setup-local-ic:
     runs-on: ubuntu-latest
     steps:
@@ -34,7 +55,7 @@ jobs:
           path: ~/go/bin/local-ic
 
   local-ic-polytone:
-    needs: setup-local-ic
+    needs: [setup-local-ic, get-ci-workflow-run-id]
     name: authorization & processor polytone integration test
     if: ${{ github.event.label.name == 'e2e-tests-polytone' || github.event.label.name == 'e2e-tests-all' }}
     runs-on: ubuntu-latest
@@ -58,6 +79,7 @@ jobs:
         with:
           name: optimized-contracts
           path: ./artifacts
+          run_id: ${{ needs.get-ci-workflow-run-id.outputs.ci_workflow_run_id }}
 
       - name: List downloaded files
         run: ls -l ./artifacts
@@ -67,6 +89,7 @@ jobs:
         with:
           name: local-ic
           path: /tmp
+          run_id: ${{ needs.get-ci-workflow-run-id.outputs.ci_workflow_run_id }}
 
       - name: Make local-ic executable
         run: chmod +x /tmp/local-ic
