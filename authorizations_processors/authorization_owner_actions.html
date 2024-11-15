@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Authorizations and Execution - Valence Protocol Documentation</title>
+        <title>Owner Actions - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -155,44 +155,118 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="authorizations-and-execution"><a class="header" href="#authorizations-and-execution">Authorizations and Execution</a></h1>
-<p>Each Library exposes <strong><code>Functions</code></strong> to the Program. For example an IBC bridge library has the <strong><code>Transfer{..}</code></strong> function, which takes arguments including the amount and denom to transfer.</p>
-<p>Programs allow you to configure subroutines of functions across multiple libraries and multiple chains. A <strong><code>Subroutine</code></strong> can be:</p>
+                        <h1 id="owner-functions"><a class="header" href="#owner-functions">Owner Functions</a></h1>
 <ul>
-<li><strong>Sequential</strong>, i.e., execute function one, if it succeeds execute function two, and if that succeeds do function three, and so on.</li>
-<li>or <strong>Atomic</strong>, i.e., execution function one, function two, and function three, and if any of them fail then revert all steps. Atomic functions must be limited to one execution domain.</li>
-</ul>
-<p>You have the ability to specify fine-grained controls over who initiates execution of a <strong><code>Subroutine</code></strong> using the <strong><code>Authorizations</code></strong> module. For example, you can configure it so that:</p>
+<li>
+<p><code>create_authorizations(vec[Authorization])</code>: provides an authorization list which is the core information of the authorization contract, it will include all the possible set of functions that can be executed. It will contain the following information:</p>
 <ul>
-<li>Anyone can initiate execution of a <strong><code>Subroutine</code></strong></li>
-<li>Only permissioned actors can initiate execution of a <strong><code>Subroutine</code></strong></li>
-<li>Execution can only be initiated after a starting timestamp/block height</li>
-<li>Execution can only be initiated up to a certain timestamp/block height</li>
-<li>Authorizations are tokenized. Which means they can be transferred by the holder or used in more sophisticated DeFi</li>
-<li>Authorizations can expire</li>
-<li>Authorizations can be enabled/disabled</li>
-<li>Authorizations can tightly constrain parameters. For example, you want to authorize to execute a token transfer message but you want to limit them so they can only supply the amount argument and not the denom or receiver in the transfer message</li>
+<li>
+<p>Label: unique name of the authorization. This label will be used to identify the authorization and will be used as subdenom of the tokenfactory token in case it is permissioned. Due to tokenfactory module restrictions, the max length of this field is 44 characters.
+Example: If the label is <code>withdraw</code> and only address <code>neutron123</code> is allowed to execute this authorization, we will create the token <code>factory/&lt;contract_addr&gt;/withdraw</code> and mint one to that address. If <code>withdraw</code> was permissionless, there is no need for any token, so it's not created.</p>
+</li>
+<li>
+<p>Mode: can either be <code>Permissioned</code> or <code>Permissionless</code>. If <code>Permissionless</code> is chosen, any address can execute this function list. In case of <code>Permissioned</code>, we will also say what type of permissioned type we want (with <code>CallLimit</code> or without), a list of addresses will be provided for both cases. In case there is a <code>CallLimit</code> we will mint a certain amount of tokens for each address that is passed, in case there isn’t we will only mint one token and that token will be used all the time.</p>
+</li>
+<li>
+<p>NotBefore: from what time the authorization can be executed. We can specify a block height or a timestamp.</p>
+</li>
+<li>
+<p>Expiration: until when (what block or timestamp) this authorization is valid.</p>
+</li>
+<li>
+<p>MaxConcurrentExecutions (default 1): to avoid DDoS attacks and to clog the execution queues, we will allow certain authorizations subroutines to be present a maximum amount of times (default 1 unless overwritten) in the execution queue.</p>
+</li>
+<li>
+<p>Subroutine: set of functions in a specific order to be executed. Subroutines can be of two types: <code>Atomic</code> or <code>NonAtomic</code>. For the <code>Atomic</code> subroutines, we will provide an array of <code>Atomic</code> functions and an optional <code>RetryLogic</code> for the entire subroutine. For the <code>NonAtomic</code> subroutines we will just provide an array of <code>NonAtomic</code> functions.</p>
+<ul>
+<li>
+<p><code>AtomicFunction</code>: each Atomic function has the following parameters:</p>
+<ul>
+<li>
+<p>Domain of execution (must be the same for all functions in v1).</p>
+</li>
+<li>
+<p>MessageDetails: type (e.g. CosmWasmExecuteMsg) and message (name of the message in the ExecuteMsg json that can be executed with, if applied, three list of parameters: one for <code>MustBeIncluded</code>, one for <code>CannotBeIncluded</code> and one for <code>MustBeValue</code>. (This gives more control over the authorizations. Example: we want one authorization to provide the message with parameters (admin function for that service) but another authorization for the message without any Parameters (user function for that service).</p>
+</li>
+<li>
+<p>Contract address that will execute it.</p>
+</li>
 </ul>
-<p><strong>Authorizations Contract:</strong> The Authorization contract is the entry point for users. The user sends a set of messages to the Authorizations contract and the label (id) of the authorization he wants to execute. The Authorizations contract then verifies that the sender is authorized, that the messages are valid, constructs a <em>MessageBatch</em> based on the subroutine and passes this batch to the Processor for execution. The authority to execute any <em>Subroutine</em> is tokenized so that these tokens can be transferred on-chain.</p>
-<p><strong>Processor:</strong> The processor receives a <em>MessageBatch</em> and executes the contained <em>Messages</em> in sequence. It does this by maintaining execution queues, where the queue items are <em>Subroutines.</em> The processor exposes a <code>Tick</code> message that allows anyone to trigger the processor, whereby the first item of the queue is executed or moved to the back of the queue if it's not executable yet (e.g. retry period has not passed).</p>
-<p><strong>Subroutine:</strong> A Subroutine is a vector of <em>Functions.</em> A <em>Function</em> is a message that can be executed on a <em>Library</em>. A <em>Subroutine</em> can contain <em>Functions</em> across multiple <em>Libraries</em> within the same <em>Domain</em>. When a user sends messages to the Authorization contract, they will be checked against the <em>Subroutine</em> and it will construct a <em>MessageBatch</em> to forward to the corresponding Processor.</p>
-<pre class="mermaid">graph LR;
-	User --&gt; |Subroutine| Auth(Authorizations)
-	Auth --&gt; |Message Batch| P(Processor)
-	P --&gt; |Function 1| S1[Library 1]
-	P --&gt; |Function 2| S2[Library 2]
-	P --&gt; |Function N| S3[Library N]
-</pre>
+</li>
+<li>
+<p><code>NonAtomicFunction</code>: each NonAtomic function has the following parameters:</p>
+<ul>
+<li>
+<p>Domain of execution</p>
+</li>
+<li>
+<p>MessageDetails (like above).</p>
+</li>
+<li>
+<p>Contract address that will execute it.</p>
+</li>
+<li>
+<p>RetryLogic (optional, self-explanatory).</p>
+</li>
+<li>
+<p>CallbackConfirmation (optional): This defines if a <code>NonAtomicFunction</code> is completed after receiving a callback (Binary) from a specific address instead of after a correct execution. This is used in case of the correct message execution not being enough to consider the message completed, so it will define what callback we should receive from a specific address to flag that message as completed. For this, the processor will append an <code>execution_id</code> to the message which will be also passed in the callback by the service to identify what function this callback is for.</p>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p>Priority (default Med): priority of a set of functions can be set to High. If this is the case, they will go into a preferential execution queue. Messages in the <code>High</code> priority queue will be taken over messages in the <code>Med</code> priority queue.
+All authorizations will have an initial state of <code>Enabled</code> .</p>
+</li>
+</ul>
+<p>Here is an example of an Authorization table after its creation:</p>
+<p><img src="../img/authorization_table.png" alt="Authorization Table" /></p>
+</li>
+<li>
+<p><code>add_external_domains([external_domains])</code>: if we want to add external domains after instantiation.</p>
+</li>
+<li>
+<p><code>modify_authorization(label, updated_values)</code>: can modify certain updatable fields of the authorization: start_time, expiration, max_concurrent_executions and priority.</p>
+</li>
+<li>
+<p><code>disable_authorization(label)</code>: puts an Authorization to state <code>Disabled</code>. These authorizations can not be run anymore.</p>
+</li>
+<li>
+<p><code>enable_authorization(label)</code>: puts an Authorization to state <code>Enabled</code> so that they can be run again.</p>
+</li>
+<li>
+<p><code>mint_authorization(label, vec[(addresses, Optional: amounts)])</code>: if the authorization is <code>Permissioned</code> with <code>CallLimit: true</code>, this function will mint the corresponding token amounts of that authorization to the addresses provided. If <code>CallLimit: false</code> it will mint 1 token to the new addresses provided.</p>
+</li>
+<li>
+<p><code>pause_processor(domain)</code>: pause the processor of the domain.</p>
+</li>
+<li>
+<p><code>resume_processor(domain)</code>: resume the processor of the domain.</p>
+</li>
+<li>
+<p><code>insert_messages(label, queue_position, queue_type, vec[ProcessorMessage])</code>: adds these set of messages to the queue at a specific position in the queue.</p>
+</li>
+<li>
+<p><code>evict_messages(label, queue_position, queue_type)</code>: remove the set of messages from the specific position in a queue.</p>
+</li>
+<li>
+<p><code>add_sub_owners(vec[addresses])</code>: add the current addresses as 2nd tier owners. These sub_owners can do everything except adding/removing admins.</p>
+</li>
+<li>
+<p><code>remove_sub_owners(vec[addresses])</code>: remove these addresses from the sub_owner list.</p>
+</li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../components/accounts_and_libraries.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../authorizations_processors/authorization_instantiation.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../components/programs.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../authorizations_processors/authorization_user_actions.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -202,11 +276,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../components/accounts_and_libraries.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../authorizations_processors/authorization_instantiation.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../components/programs.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../authorizations_processors/authorization_user_actions.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

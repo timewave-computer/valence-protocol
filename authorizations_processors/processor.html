@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Authorizations and Execution - Valence Protocol Documentation</title>
+        <title>Processor Contract - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -155,44 +155,52 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="authorizations-and-execution"><a class="header" href="#authorizations-and-execution">Authorizations and Execution</a></h1>
-<p>Each Library exposes <strong><code>Functions</code></strong> to the Program. For example an IBC bridge library has the <strong><code>Transfer{..}</code></strong> function, which takes arguments including the amount and denom to transfer.</p>
-<p>Programs allow you to configure subroutines of functions across multiple libraries and multiple chains. A <strong><code>Subroutine</code></strong> can be:</p>
+                        <h1 id="processor"><a class="header" href="#processor">Processor</a></h1>
+<p>The <code>Processor</code> will be a contract on each domain of our workflow. It handles the execution queues which contain <code>Message Batches</code>. The <code>Processor</code> can be <code>ticked</code> permissionlessly, which will execute the next <code>Message Batch</code> in the queue if this one is executable or rotate it to the back of the queue if it isn't executable yet. The processor will also handle the <code>Retry</code> logic for each batch (if the batch is atomic) or function (if the batch is non atomic). After a <code>Message Batch</code> has been executed successfully or it reached the maximum amount of retries, it will be removed from the execution queue and the <code>Processor</code> will send a callback with the execution information to the <code>Authorization</code> contract.</p>
+<p>The processors will be instantiated in advanced with the correct address that can send messages to it according to the <em>InstantiationFlow</em> described in the <a href="assumptions.html">Assumptions</a> section.</p>
+<p>The <code>Authorization</code> contract will be the only address allowed to add list of functions to the execution queues. It will also be allowed to Pause/Resume the <code>Processor</code> or to arbitrarily remove functions from the queues or add certain messages at a specific position.</p>
+<p>There will be two execution queues: one <code>High</code> and one <code>Med</code>. This will allow giving different priorities to <code>Message</code>.</p>
+<h3 id="execution"><a class="header" href="#execution">Execution</a></h3>
+<p>When a processor is <code>Ticked</code> we will take the first <code>MessageBatch</code> from the queue (<code>High</code> if there are batches there or <code>Med</code> if there aren’t).
+After taking them, we will execute them in different ways depending if the batch is <code>Atomic</code> or <code>NonAtomic</code>.</p>
 <ul>
-<li><strong>Sequential</strong>, i.e., execute function one, if it succeeds execute function two, and if that succeeds do function three, and so on.</li>
-<li>or <strong>Atomic</strong>, i.e., execution function one, function two, and function three, and if any of them fail then revert all steps. Atomic functions must be limited to one execution domain.</li>
+<li>For <code>Atomic</code> batches the <code>Processor</code> will execute them by sending them to itself and trying to execute them in a <code>Fire and Forget</code> manner. If this execution fails, we will check the <code>RetryLogic</code> of the batch to decide if they are to be re-queued or not (if not, we will send a callback with <code>Rejected</code> status to the authorization contract).
+If they succeeded we will send a callback with <code>Executed</code> status to the Authorization contract.</li>
+<li>For <code>NonAtomic</code> batches we will execute the functions one by one and applying the RetryLogic individually to each function if they fail. <code>NonAtomic</code> functions might also be confirmed via <code>CallbackConfirmations</code> in which case we will keep them in a separate Map until we receive that specific callback.
+Each time an function is confirmed, we will re-queue the batch and keep track of what function we have to execute next.
+If at some point an function uses up all its retries, we will send a callback to the Authorization contract with a <code>PartiallyExecuted(num_of_functions_executed)</code> status. If all of them succeed it will be <code>Executed</code> and if none of them were it will be <code>Rejected</code>.
+For <code>NonAtomic</code> batches, we need to tick the processor each time the batch is at the top of the queue to continue, so we will need at least as many ticks as number of functions we have in the batch, and each function has to wait for its turn.</li>
 </ul>
-<p>You have the ability to specify fine-grained controls over who initiates execution of a <strong><code>Subroutine</code></strong> using the <strong><code>Authorizations</code></strong> module. For example, you can configure it so that:</p>
+<h3 id="storage"><a class="header" href="#storage">Storage</a></h3>
+<p>The <code>Processor</code> will receive batches of messages from the authorization contract and will enqueue them in a custom storage structure we designed for this purpose, called a <code>QueueMap</code>. This structure is a FIFO queue with owner privileges (allows the owner to insert or remove from any position in the queue).
+Each “item” stored in the queue is an object <code>MessageBatch</code> that looks like this:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct MessageBatch {
+    pub id: u64,
+    pub msgs: Vec&lt;ProcessorMessage&gt;,
+    pub subroutine: Subroutine,
+    pub priority: Priority,
+    pub retry: Option&lt;CurrentRetry&gt;,
+}
+<span class="boring">}</span></code></pre></pre>
 <ul>
-<li>Anyone can initiate execution of a <strong><code>Subroutine</code></strong></li>
-<li>Only permissioned actors can initiate execution of a <strong><code>Subroutine</code></strong></li>
-<li>Execution can only be initiated after a starting timestamp/block height</li>
-<li>Execution can only be initiated up to a certain timestamp/block height</li>
-<li>Authorizations are tokenized. Which means they can be transferred by the holder or used in more sophisticated DeFi</li>
-<li>Authorizations can expire</li>
-<li>Authorizations can be enabled/disabled</li>
-<li>Authorizations can tightly constrain parameters. For example, you want to authorize to execute a token transfer message but you want to limit them so they can only supply the amount argument and not the denom or receiver in the transfer message</li>
+<li>id: represents the global id of the batch. The <code>Authorization</code> contract, to understand the callbacks that it will receive from each processor, identifies each batch with an id. This id is unique for the entire application.</li>
+<li>msgs: the messages the processor needs to execute for this batch (e.g. a CosmWasm ExecuteMsg or MigrateMsg).</li>
+<li>subroutine: This is the config that the authorization table defines for the execution of these functions. With this field we can know if the functions need to be executed atomically or not atomically, for example, and the retry logic for each batch/function depending on the config type.</li>
+<li>priority (for internal use): batches will be queued in different priority queues when they are received from the authorization contract. We also keep this priority here because they might need to be re-queued after a failed execution and we need to know where to re-queue them</li>
+<li>retry (for internal use): we are keeping the current retry we are at (if the execution previously failed) to know when to abort if we exceed the max retry amounts.</li>
 </ul>
-<p><strong>Authorizations Contract:</strong> The Authorization contract is the entry point for users. The user sends a set of messages to the Authorizations contract and the label (id) of the authorization he wants to execute. The Authorizations contract then verifies that the sender is authorized, that the messages are valid, constructs a <em>MessageBatch</em> based on the subroutine and passes this batch to the Processor for execution. The authority to execute any <em>Subroutine</em> is tokenized so that these tokens can be transferred on-chain.</p>
-<p><strong>Processor:</strong> The processor receives a <em>MessageBatch</em> and executes the contained <em>Messages</em> in sequence. It does this by maintaining execution queues, where the queue items are <em>Subroutines.</em> The processor exposes a <code>Tick</code> message that allows anyone to trigger the processor, whereby the first item of the queue is executed or moved to the back of the queue if it's not executable yet (e.g. retry period has not passed).</p>
-<p><strong>Subroutine:</strong> A Subroutine is a vector of <em>Functions.</em> A <em>Function</em> is a message that can be executed on a <em>Library</em>. A <em>Subroutine</em> can contain <em>Functions</em> across multiple <em>Libraries</em> within the same <em>Domain</em>. When a user sends messages to the Authorization contract, they will be checked against the <em>Subroutine</em> and it will construct a <em>MessageBatch</em> to forward to the corresponding Processor.</p>
-<pre class="mermaid">graph LR;
-	User --&gt; |Subroutine| Auth(Authorizations)
-	Auth --&gt; |Message Batch| P(Processor)
-	P --&gt; |Function 1| S1[Library 1]
-	P --&gt; |Function 2| S2[Library 2]
-	P --&gt; |Function N| S3[Library N]
-</pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../components/accounts_and_libraries.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../authorizations_processors/assumptions.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../components/programs.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../authorizations_processors/authorization.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -202,11 +210,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../components/accounts_and_libraries.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../authorizations_processors/assumptions.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../components/programs.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../authorizations_processors/authorization.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

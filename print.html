@@ -156,56 +156,76 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="background"><a class="header" href="#background">Background</a></h1>
-<p>Valence is a liquidity management protocol targeted at crypto-native institutions. Specifically, it aims to become a platform for crypto-native institutions to form multilateral liquidity lending and borrowing relationships. Our program system provides a base set of primitives that enable cross-chain orchestration, where actions can be triggered by multiple authorized parties.</p>
+                        <blockquote>
+<p>🚧 This in-progress document contains information about the design of a cross-chain automation system that powers the Valence programs. Lending applications can be implemented as specific "program".</p>
+</blockquote>
+<h1 id="background"><a class="header" href="#background">Background</a></h1>
+<p>Programs are a framework to help you develop trust-minimized applications which require sequential execution across many chains. They are easy to understand and quick to deploy. A Program can be set up with a configuration file and no code. Programs are also extensible. If we don't support a DeFi integration out of the box, you can write one yourself in a matter of hours!</p>
+<blockquote>
+<p>👉 <strong>Example Use-case</strong>:<br />
+A DAO wants to bridge tokens to another chain and then deposit the tokens into a vault. After a certain date, it wants to allow a governance proposal to trigger unwinding of the position. While the position is active, It may also want to delegate the right to change vault parameters to a specific committee as long as the parameters are within a certain range.</p>
+<p>Without Programs, the DAO would have two choices:<br />
+<strong>Choice 1:</strong> Give the tokens to a multisig to execute actions on the DAO's behalf<br />
+<strong>Choice 2:</strong> Write highly custom smart contracts across multiple chains that handle the token operations across multiple chains.</p>
+<p>Programs offer a third choice: the DAO does not need to trust a multisig, nor does it need to spend resources writing complex cross-chain logic. Programs allow the DAO to rapidly configure and deploy a solution that meets its needs.</p>
+</blockquote>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="component-overview"><a class="header" href="#component-overview">Component Overview</a></h1>
 <p>This section provides a high-level breakdown of the various architectural elements that enable cross-chain protocol-to-protocol relationships.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="accounts-and-services"><a class="header" href="#accounts-and-services">Accounts and Services</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="accounts-and-libraries"><a class="header" href="#accounts-and-libraries">Accounts and Libraries</a></h1>
 <ul>
 <li>
-<p><strong>Valence Account:</strong> An escrow contract that can hold balances for various supported token-types (e.g., in Cosmos <code>ics-20</code> or <code>cw-20</code>) . Accounts register valence services that can perform token operations on the account.</p>
+<p><strong>Valence Account:</strong> An escrow contract that can hold balances for various supported token-types (e.g., in Cosmos <code>ics-20</code> or <code>cw-20</code>) . Accounts register valence libraries that can perform token operations on the account.</p>
 </li>
 <li>
-<p><strong>Valence Services:</strong> Valence services are registered with Valence accounts. Accounts are either registered as input accounts or output accounts. Services perform token operations on the input accounts, such as splitting, routing, or providing liquidity on a DEX, and depending on the business logic in the Service, they route the resulting tokens to the output accounts. Services expose <em>Actions</em> that can be performed on them.</p>
+<p><strong>Valence Libraries:</strong> Valence libraries are registered with Valence accounts. Accounts are either registered as input accounts or output accounts. Libraries perform token operations on the input accounts, such as splitting, routing, or providing liquidity on a DEX, and depending on the business logic in the Library, they route the resulting tokens to the output accounts. Libraries expose <em>Functions</em> that can be performed on them.</p>
 </li>
 </ul>
 <p><strong>Example</strong></p>
-<p>In the following example, Service 1 is registered such that Account 1 is an input account and Account 2 is an output account. It can send a message to Account 1 which executes the message:</p>
+<p>In the following example, Library 1 is registered such that Account 1 is an input account and Account 2 is an output account. It can send a message to Account 1 which executes the message:</p>
 <pre class="mermaid">graph LR;
 	A1((Account 1)) --&gt; |Tokens| A2((Account 2))
-	S1[Service 1] --&gt; |Message| A1
+	S1[Library 1] --&gt; |Message| A1
 </pre>
-<p>The following diagram represents the same relationships more intuitively, but is less technically accurate. Here, just as above, Service 1 is registered with Account 1. It takes the funds in Account 1 as an input, applies its logic, and sends the output funds to Account 2.</p>
+<p>The following diagram represents the same relationships more intuitively, but is less technically accurate. Here, just as above, Library 1 is registered with Account 1. It takes the funds in Account 1 as an input, applies its logic, and sends the output funds to Account 2.</p>
 <pre class="mermaid">graph LR;
-	A1((Account 1)) --&gt; |Pull Tokens| S1[Service 1]
+	A1((Account 1)) --&gt; |Pull Tokens| S1[Library 1]
 	S1 --&gt; |Send Tokens| A2((Account 2))
 </pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="authorizations-and-execution"><a class="header" href="#authorizations-and-execution">Authorizations and Execution</a></h1>
+<p>Each Library exposes <strong><code>Functions</code></strong> to the Program. For example an IBC bridge library has the <strong><code>Transfer{..}</code></strong> function, which takes arguments including the amount and denom to transfer.</p>
+<p>Programs allow you to configure subroutines of functions across multiple libraries and multiple chains. A <strong><code>Subroutine</code></strong> can be:</p>
 <ul>
-<li>
-<p><strong>Authorizations Module:</strong> The Authorization module is the entry point for users. The user sends an <em>ActionsBundle</em> to the Authorizations module. The Authorizations module then verifies that the sender is authorized and passes the bundle to the Processor for execution. The authority to execute any <em>ActionBundle</em> is tokenized so that these tokens can be transferred on chain.</p>
-</li>
-<li>
-<p><strong>Processor:</strong> The processor receives an <em>ActionBundle</em> and executes the contained <em>Actions</em> in sequence. It does this by maintaining an execution queue, where the queue items are <em>ActionBundles.</em> The processor exposes a <code>Tick</code> message that anyone that allows anyone to trigger the processor, whereby the first item of the queue is executed.</p>
-</li>
-<li>
-<p><strong>ActionBundle:</strong> An ActionBundle is a vector of <em>Actions.</em> An Action is a message that can be executed on a <em>Service</em>. An <em>ActionBundle</em> can contain <em>Actions</em> across multiple <em>Services</em> within the same <em>Domain</em>.</p>
-</li>
+<li><strong>Sequential</strong>, i.e., execute function one, if it succeeds execute function two, and if that succeeds do function three, and so on.</li>
+<li>or <strong>Atomic</strong>, i.e., execution function one, function two, and function three, and if any of them fail then revert all steps. Atomic functions must be limited to one execution domain.</li>
 </ul>
+<p>You have the ability to specify fine-grained controls over who initiates execution of a <strong><code>Subroutine</code></strong> using the <strong><code>Authorizations</code></strong> module. For example, you can configure it so that:</p>
+<ul>
+<li>Anyone can initiate execution of a <strong><code>Subroutine</code></strong></li>
+<li>Only permissioned actors can initiate execution of a <strong><code>Subroutine</code></strong></li>
+<li>Execution can only be initiated after a starting timestamp/block height</li>
+<li>Execution can only be initiated up to a certain timestamp/block height</li>
+<li>Authorizations are tokenized. Which means they can be transferred by the holder or used in more sophisticated DeFi</li>
+<li>Authorizations can expire</li>
+<li>Authorizations can be enabled/disabled</li>
+<li>Authorizations can tightly constrain parameters. For example, you want to authorize to execute a token transfer message but you want to limit them so they can only supply the amount argument and not the denom or receiver in the transfer message</li>
+</ul>
+<p><strong>Authorizations Contract:</strong> The Authorization contract is the entry point for users. The user sends a set of messages to the Authorizations contract and the label (id) of the authorization he wants to execute. The Authorizations contract then verifies that the sender is authorized, that the messages are valid, constructs a <em>MessageBatch</em> based on the subroutine and passes this batch to the Processor for execution. The authority to execute any <em>Subroutine</em> is tokenized so that these tokens can be transferred on-chain.</p>
+<p><strong>Processor:</strong> The processor receives a <em>MessageBatch</em> and executes the contained <em>Messages</em> in sequence. It does this by maintaining execution queues, where the queue items are <em>Subroutines.</em> The processor exposes a <code>Tick</code> message that allows anyone to trigger the processor, whereby the first item of the queue is executed or moved to the back of the queue if it's not executable yet (e.g. retry period has not passed).</p>
+<p><strong>Subroutine:</strong> A Subroutine is a vector of <em>Functions.</em> A <em>Function</em> is a message that can be executed on a <em>Library</em>. A <em>Subroutine</em> can contain <em>Functions</em> across multiple <em>Libraries</em> within the same <em>Domain</em>. When a user sends messages to the Authorization contract, they will be checked against the <em>Subroutine</em> and it will construct a <em>MessageBatch</em> to forward to the corresponding Processor.</p>
 <pre class="mermaid">graph LR;
-	User --&gt; |ActionBundle| Auth(Authorizations)
-	Auth --&gt; |Authorized ActionBundle| P(Processor)
-	P --&gt; |Action 1| S1[Service 1]
-	P --&gt; |Action 2| S2[Service 2]
-	P --&gt; |Action N| S3[Service N]
+	User --&gt; |Subroutine| Auth(Authorizations)
+	Auth --&gt; |Message Batch| P(Processor)
+	P --&gt; |Function 1| S1[Library 1]
+	P --&gt; |Function 2| S2[Library 2]
+	P --&gt; |Function N| S3[Library N]
 </pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="programs"><a class="header" href="#programs">Programs</a></h1>
 <ul>
 <li>
-<p><strong>Valence Program:</strong> A program is an instance of the Valence Protocol. It is a particular arrangement and configuration of <em>ValenceAccounts</em> and <em>Services</em> across multiple <em>domains</em>. Programs are also associated with a set of <em>ActionBundles</em> that can be executed on the Program. For example, a POL lending relationship between two parties may be set up as a program.</p>
+<p><strong>Valence Program:</strong> A program is an instance of the Valence Protocol. It is a particular arrangement and configuration of <em>ValenceAccounts</em> and <em>Libraries</em> across multiple <em>domains</em>. Programs are also associated with a set of <em>Subroutines</em> that can be executed on the <em>Program</em>. For example, a POL lending relationship between two parties may be set up as a program.</p>
 </li>
 <li>
-<p><strong>Domain:</strong> Environments where Valence Accounts or Services can be instantiated. Domains are defined by three properties:</p>
+<p><strong>Domain:</strong> Environments where <em>ValenceAccounts</em> or <em>Libraries</em> can be instantiated. Domains are defined by three properties:</p>
 <ol>
 <li>Chain <em>(e.g., Neutron, Osmosis, Ethereum mainnet)</em></li>
 <li>Execution environment <em>(e.g., CosmWasm, EVM, SVM)</em></li>
@@ -219,6 +239,284 @@
 <p><strong>Program Manager:</strong> Off-chain service that manages the configuration, instantiation, and update management for programs.</p>
 </li>
 </ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="authorizations--processors"><a class="header" href="#authorizations--processors">Authorizations &amp; Processors</a></h1>
+<ul>
+<li>
+<p>To have a general purpose set of smart contracts that will provide the users (anyone if the authorization is permissionless or authorization token owners if it’s permissioned) with a single point of entry to interact with the Valence program, which can have libraries and accounts deployed on multiple chains.</p>
+</li>
+<li>
+<p>To have all the user authorizations for multiple domains in a single place, making it very easy to control the application.</p>
+</li>
+<li>
+<p>To have a single address (<code>Processor</code>) that will execute the messages for all the contracts in a domain using execution queues.</p>
+</li>
+<li>
+<p>To only tick a single contract (<code>Processor</code>) which will go through the queues to route and execute the messages.</p>
+</li>
+<li>
+<p>Be able to create, edit or remove different application permissions with ease.</p>
+</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="assumptions"><a class="header" href="#assumptions">Assumptions</a></h1>
+<ul>
+<li>
+<p><strong>Funds</strong>: You cannot send funds with the messages.</p>
+</li>
+<li>
+<p><strong>Bridging</strong>: We are assuming that messages can be sent and confirmed bidirectionally between domains. From the authorization contract on the main domain to the processor in a different domain in one direction and the callback confirming the correct or failed execution in the other direction.</p>
+</li>
+<li>
+<p><strong>Instantiation</strong>: All these contracts can be instantiated beforehand and off-chain having predictable addresses. Here is an example instantiation flow using Polytone:</p>
+<ul>
+<li>Predict <code>authorization</code> contract address</li>
+<li>Instantiate polytone contracts &amp; set up relayers.</li>
+<li>Predict <code>proxy</code> contract address for the <code>authorization</code> contract on each external domain.</li>
+<li>Predict <code>proxy</code> contract address on the main domain for each processor on external domains.</li>
+<li>Instantiate all <code>processors</code>. The sender on external domains will be the predicted <code>proxy</code> and on the main domain it will be the authorization contract iself.</li>
+<li>Instantiate authorization contract with all the processors and their predicted proxies for external domains and the processor on the main domain.</li>
+</ul>
+</li>
+<li>
+<p><strong>Relaying</strong>: relayers will be running once everything is instantiated.</p>
+</li>
+<li>
+<p><strong>Tokenfactory</strong>: the main domain has the token factory module with no token creation fee so that we can create and mint these non fungible tokens with no additional cost.</p>
+</li>
+<li>
+<p><strong>Domains</strong>: in the current version, actions in each authorization will be limited to a single domain.</p>
+</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="processor"><a class="header" href="#processor">Processor</a></h1>
+<p>The <code>Processor</code> will be a contract on each domain of our workflow. It handles the execution queues which contain <code>Message Batches</code>. The <code>Processor</code> can be <code>ticked</code> permissionlessly, which will execute the next <code>Message Batch</code> in the queue if this one is executable or rotate it to the back of the queue if it isn't executable yet. The processor will also handle the <code>Retry</code> logic for each batch (if the batch is atomic) or function (if the batch is non atomic). After a <code>Message Batch</code> has been executed successfully or it reached the maximum amount of retries, it will be removed from the execution queue and the <code>Processor</code> will send a callback with the execution information to the <code>Authorization</code> contract.</p>
+<p>The processors will be instantiated in advanced with the correct address that can send messages to it according to the <em>InstantiationFlow</em> described in the <a href="authorizations_processors/assumptions.html">Assumptions</a> section.</p>
+<p>The <code>Authorization</code> contract will be the only address allowed to add list of functions to the execution queues. It will also be allowed to Pause/Resume the <code>Processor</code> or to arbitrarily remove functions from the queues or add certain messages at a specific position.</p>
+<p>There will be two execution queues: one <code>High</code> and one <code>Med</code>. This will allow giving different priorities to <code>Message</code>.</p>
+<h3 id="execution"><a class="header" href="#execution">Execution</a></h3>
+<p>When a processor is <code>Ticked</code> we will take the first <code>MessageBatch</code> from the queue (<code>High</code> if there are batches there or <code>Med</code> if there aren’t).
+After taking them, we will execute them in different ways depending if the batch is <code>Atomic</code> or <code>NonAtomic</code>.</p>
+<ul>
+<li>For <code>Atomic</code> batches the <code>Processor</code> will execute them by sending them to itself and trying to execute them in a <code>Fire and Forget</code> manner. If this execution fails, we will check the <code>RetryLogic</code> of the batch to decide if they are to be re-queued or not (if not, we will send a callback with <code>Rejected</code> status to the authorization contract).
+If they succeeded we will send a callback with <code>Executed</code> status to the Authorization contract.</li>
+<li>For <code>NonAtomic</code> batches we will execute the functions one by one and applying the RetryLogic individually to each function if they fail. <code>NonAtomic</code> functions might also be confirmed via <code>CallbackConfirmations</code> in which case we will keep them in a separate Map until we receive that specific callback.
+Each time an function is confirmed, we will re-queue the batch and keep track of what function we have to execute next.
+If at some point an function uses up all its retries, we will send a callback to the Authorization contract with a <code>PartiallyExecuted(num_of_functions_executed)</code> status. If all of them succeed it will be <code>Executed</code> and if none of them were it will be <code>Rejected</code>.
+For <code>NonAtomic</code> batches, we need to tick the processor each time the batch is at the top of the queue to continue, so we will need at least as many ticks as number of functions we have in the batch, and each function has to wait for its turn.</li>
+</ul>
+<h3 id="storage"><a class="header" href="#storage">Storage</a></h3>
+<p>The <code>Processor</code> will receive batches of messages from the authorization contract and will enqueue them in a custom storage structure we designed for this purpose, called a <code>QueueMap</code>. This structure is a FIFO queue with owner privileges (allows the owner to insert or remove from any position in the queue).
+Each “item” stored in the queue is an object <code>MessageBatch</code> that looks like this:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct MessageBatch {
+    pub id: u64,
+    pub msgs: Vec&lt;ProcessorMessage&gt;,
+    pub subroutine: Subroutine,
+    pub priority: Priority,
+    pub retry: Option&lt;CurrentRetry&gt;,
+}
+<span class="boring">}</span></code></pre></pre>
+<ul>
+<li>id: represents the global id of the batch. The <code>Authorization</code> contract, to understand the callbacks that it will receive from each processor, identifies each batch with an id. This id is unique for the entire application.</li>
+<li>msgs: the messages the processor needs to execute for this batch (e.g. a CosmWasm ExecuteMsg or MigrateMsg).</li>
+<li>subroutine: This is the config that the authorization table defines for the execution of these functions. With this field we can know if the functions need to be executed atomically or not atomically, for example, and the retry logic for each batch/function depending on the config type.</li>
+<li>priority (for internal use): batches will be queued in different priority queues when they are received from the authorization contract. We also keep this priority here because they might need to be re-queued after a failed execution and we need to know where to re-queue them</li>
+<li>retry (for internal use): we are keeping the current retry we are at (if the execution previously failed) to know when to abort if we exceed the max retry amounts.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="authorization"><a class="header" href="#authorization">Authorization</a></h1>
+<p>The authorization contract will be a single contract deployed on the main domain and that will define the authorizations of the top-level application, which can include libraries in different domains (chains). For each domain there will be one Processor (with its corresponding execution queues). The <code>Authorization</code> contract will connect to all of the <code>Processors</code> using a connector (e.g. Polytone, Hyperlane…) and will route the <code>Message Batches</code> to be executed to the right domain. At the same time, for each external domain, we will have a proxy contract in the main domain which will receive the callbacks sent from the processor on the external domain with the <code>ExecutionResult</code> of the <code>Message Batch</code>.</p>
+<p>The contract will be instantiated once at the very beginning and will be used during the entire top-level application lifetime. Users will never interact with the individual Smart Contracts of each workflow, but with the Authorization contract directly.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="instantiation"><a class="header" href="#instantiation">Instantiation</a></h1>
+<p>When the contract is instantiated, it will be provided the following information:</p>
+<ul>
+<li>
+<p>Processor contract on main domain.</p>
+</li>
+<li>
+<p>[(Domain, Connector(Polytone_note_contract), Processor_contract_on_domain, callback_proxy, IBC_Timeout_settings)]: If it's a cross domain application, an array will be passed with each external domain label and its corresponding connector contracts and proxies that will be instantiated before hand. For each connector, there will be also a proxy corresponding to that external domain because it’s a two-way communication flow and we need to receive callbacks. Additionally, we need a set of <code>Timeout</code> settings for the bridge, to know for how long the messages sent through the connector are going to be valid.</p>
+</li>
+<li>
+<p>Admin of the contract (if different to sender).</p>
+</li>
+</ul>
+<p>The instantiation will set up all the processors on each domain so that we can start instantiating the services afterwards and providing the correct <code>Processor</code> addresses to each of them depending on which domain they are in.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="owner-functions"><a class="header" href="#owner-functions">Owner Functions</a></h1>
+<ul>
+<li>
+<p><code>create_authorizations(vec[Authorization])</code>: provides an authorization list which is the core information of the authorization contract, it will include all the possible set of functions that can be executed. It will contain the following information:</p>
+<ul>
+<li>
+<p>Label: unique name of the authorization. This label will be used to identify the authorization and will be used as subdenom of the tokenfactory token in case it is permissioned. Due to tokenfactory module restrictions, the max length of this field is 44 characters.
+Example: If the label is <code>withdraw</code> and only address <code>neutron123</code> is allowed to execute this authorization, we will create the token <code>factory/&lt;contract_addr&gt;/withdraw</code> and mint one to that address. If <code>withdraw</code> was permissionless, there is no need for any token, so it's not created.</p>
+</li>
+<li>
+<p>Mode: can either be <code>Permissioned</code> or <code>Permissionless</code>. If <code>Permissionless</code> is chosen, any address can execute this function list. In case of <code>Permissioned</code>, we will also say what type of permissioned type we want (with <code>CallLimit</code> or without), a list of addresses will be provided for both cases. In case there is a <code>CallLimit</code> we will mint a certain amount of tokens for each address that is passed, in case there isn’t we will only mint one token and that token will be used all the time.</p>
+</li>
+<li>
+<p>NotBefore: from what time the authorization can be executed. We can specify a block height or a timestamp.</p>
+</li>
+<li>
+<p>Expiration: until when (what block or timestamp) this authorization is valid.</p>
+</li>
+<li>
+<p>MaxConcurrentExecutions (default 1): to avoid DDoS attacks and to clog the execution queues, we will allow certain authorizations subroutines to be present a maximum amount of times (default 1 unless overwritten) in the execution queue.</p>
+</li>
+<li>
+<p>Subroutine: set of functions in a specific order to be executed. Subroutines can be of two types: <code>Atomic</code> or <code>NonAtomic</code>. For the <code>Atomic</code> subroutines, we will provide an array of <code>Atomic</code> functions and an optional <code>RetryLogic</code> for the entire subroutine. For the <code>NonAtomic</code> subroutines we will just provide an array of <code>NonAtomic</code> functions.</p>
+<ul>
+<li>
+<p><code>AtomicFunction</code>: each Atomic function has the following parameters:</p>
+<ul>
+<li>
+<p>Domain of execution (must be the same for all functions in v1).</p>
+</li>
+<li>
+<p>MessageDetails: type (e.g. CosmWasmExecuteMsg) and message (name of the message in the ExecuteMsg json that can be executed with, if applied, three list of parameters: one for <code>MustBeIncluded</code>, one for <code>CannotBeIncluded</code> and one for <code>MustBeValue</code>. (This gives more control over the authorizations. Example: we want one authorization to provide the message with parameters (admin function for that service) but another authorization for the message without any Parameters (user function for that service).</p>
+</li>
+<li>
+<p>Contract address that will execute it.</p>
+</li>
+</ul>
+</li>
+<li>
+<p><code>NonAtomicFunction</code>: each NonAtomic function has the following parameters:</p>
+<ul>
+<li>
+<p>Domain of execution</p>
+</li>
+<li>
+<p>MessageDetails (like above).</p>
+</li>
+<li>
+<p>Contract address that will execute it.</p>
+</li>
+<li>
+<p>RetryLogic (optional, self-explanatory).</p>
+</li>
+<li>
+<p>CallbackConfirmation (optional): This defines if a <code>NonAtomicFunction</code> is completed after receiving a callback (Binary) from a specific address instead of after a correct execution. This is used in case of the correct message execution not being enough to consider the message completed, so it will define what callback we should receive from a specific address to flag that message as completed. For this, the processor will append an <code>execution_id</code> to the message which will be also passed in the callback by the service to identify what function this callback is for.</p>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p>Priority (default Med): priority of a set of functions can be set to High. If this is the case, they will go into a preferential execution queue. Messages in the <code>High</code> priority queue will be taken over messages in the <code>Med</code> priority queue.
+All authorizations will have an initial state of <code>Enabled</code> .</p>
+</li>
+</ul>
+<p>Here is an example of an Authorization table after its creation:</p>
+<p><img src="authorizations_processors/../img/authorization_table.png" alt="Authorization Table" /></p>
+</li>
+<li>
+<p><code>add_external_domains([external_domains])</code>: if we want to add external domains after instantiation.</p>
+</li>
+<li>
+<p><code>modify_authorization(label, updated_values)</code>: can modify certain updatable fields of the authorization: start_time, expiration, max_concurrent_executions and priority.</p>
+</li>
+<li>
+<p><code>disable_authorization(label)</code>: puts an Authorization to state <code>Disabled</code>. These authorizations can not be run anymore.</p>
+</li>
+<li>
+<p><code>enable_authorization(label)</code>: puts an Authorization to state <code>Enabled</code> so that they can be run again.</p>
+</li>
+<li>
+<p><code>mint_authorization(label, vec[(addresses, Optional: amounts)])</code>: if the authorization is <code>Permissioned</code> with <code>CallLimit: true</code>, this function will mint the corresponding token amounts of that authorization to the addresses provided. If <code>CallLimit: false</code> it will mint 1 token to the new addresses provided.</p>
+</li>
+<li>
+<p><code>pause_processor(domain)</code>: pause the processor of the domain.</p>
+</li>
+<li>
+<p><code>resume_processor(domain)</code>: resume the processor of the domain.</p>
+</li>
+<li>
+<p><code>insert_messages(label, queue_position, queue_type, vec[ProcessorMessage])</code>: adds these set of messages to the queue at a specific position in the queue.</p>
+</li>
+<li>
+<p><code>evict_messages(label, queue_position, queue_type)</code>: remove the set of messages from the specific position in a queue.</p>
+</li>
+<li>
+<p><code>add_sub_owners(vec[addresses])</code>: add the current addresses as 2nd tier owners. These sub_owners can do everything except adding/removing admins.</p>
+</li>
+<li>
+<p><code>remove_sub_owners(vec[addresses])</code>: remove these addresses from the sub_owner list.</p>
+</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="user-actions"><a class="header" href="#user-actions">User Actions</a></h1>
+<ul>
+<li>
+<p><code>send_msgs(label, vec[ProcessorMessage])</code>: users can run an authorization with a specific label. If the authorization is <code>Permissioned</code>, the authorization contract will check if they are allowed to execute it by checking that the user has the token in its wallet if it's <code>Permissioned (without limit)</code> or that the user sent the token along with the messages if it's <code>Permissioned (with limit)</code>. Along with the authorization label, the user will provide an array of encoded messages, together with the message type (e.g. <code>CosmwasmExecuteMsg</code>) and any other parameters for that specific ProcessorMessage (e.g. for a <code>CosmwasmMigrateMsg</code> we need to also pass a code_id). The contract will then check that the messages match the ones defined in the authorization (and in the correct order) and that all Parameters restrictions, if applied, are correct.</p>
+<p>If all checks are correct, the contract will route the messages to the correct <code>Processor</code> with an <code>execution_id</code> for the processor to callback with. This <code>execution_id</code> is unique for the entire application.
+If the execution of all the actions are confirmed via a callback, we will burn the token and if they fail, we will send the token back.
+Here is an example flowchart of how a user interacts with the authorization contract to execute messages in a service sitting on a domain:</p>
+</li>
+</ul>
+<p><img src="authorizations_processors/../img/user_flowchart.png" alt="User flowchart" /></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="callbacks"><a class="header" href="#callbacks">Callbacks</a></h1>
+<p>There are different types of callbacks in our application. Each of them have a specific function and are used in different parts of the application.</p>
+<h2 id="function-callbacks"><a class="header" href="#function-callbacks">Function Callbacks</a></h2>
+<p>For the execution of <code>NonAtomic</code> batches, each function in the batch can optionally be confirmed with a callback from a specific address. When the processor reaches a function that requires a callback, it will inject the execution_id of the batch into the message that is going to executed on the library, which means that the library needs to be ready to receive that execution_id and know what what the expected callback is and from where it has to come from to confirm that function, otherwise that function will stay unconfirmed and the batch will not move to the next function. The callback will be sent to the processor with the execution_id so that the processor can know what function is being confirmed. The processor will then validate that the correct callback was received from the correct address.</p>
+<p>If the processor receives the expected callback from the correct address, the batch will move to the next function. If it receives a different callback than expected from that address, the execution of that function will be considered failed and it will be retried (if applicable). In any case, a callback must be received to determine if the function was successful or not.</p>
+<h2 id="processor-callbacks"><a class="header" href="#processor-callbacks">Processor Callbacks</a></h2>
+<p>Once a Processor batch is executed or it fails and there are no more retries available, the Processor will send a callback to the Authorizations contract with the execution_id of the batch and the result of the execution. All this information will be stored in the <code>Authorization</code> contract state so the history of all executions can be queried from it. This is how a <code>ProcessorCallback</code> looks like:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct ProcessorCallbackInfo {
+    // Execution ID that the callback was for
+    pub execution_id: u64,
+    // Who started this operation, used for tokenfactory actions
+    pub initiator: OperationInitiator,
+    // Address that can send a bridge timeout or success for the message (if applied)
+    pub bridge_callback_address: Option&lt;Addr&gt;,
+    // Address that will send the callback for the processor
+    pub processor_callback_address: Addr,
+    // Domain that the callback came from
+    pub domain: Domain,
+    // Label of the authorization
+    pub label: String,
+    // Messages that were sent to the processor
+    pub messages: Vec&lt;ProcessorMessage&gt;,
+    // Optional ttl for re-sending in case of bridged timeouts
+    pub ttl: Option&lt;Expiration&gt;,
+    // Result of the execution
+    pub execution_result: ExecutionResult,
+}
+
+pub enum ExecutionResult {
+    InProcess,
+    // Everthing executed successfully
+    Success,
+    // Execution was rejected, and the reason
+    Rejected(String),
+    // Partially executed, for non-atomic function batches
+    // Indicates how many functions were executed and the reason the next function was not executed
+    PartiallyExecuted(usize, String),
+    // Removed by Owner - happens when, from the authorization contract, a remove item from queue is sent
+    RemovedByOwner,
+    // Timeout - happens when the bridged message times out
+    // We'll use a flag to indicate if the timeout is retriable or not
+    // true - retriable
+    // false - not retriable
+    Timeout(bool),
+    // Unexpected error that should never happen but we'll store it here if it ever does
+    UnexpectedError(String),
+}
+<span class="boring">}</span></code></pre></pre>
+<p>The key information from here is the <code>label</code>, to identify the authorization that was executed; the <code>messages</code>, to identify what the user sent; and the <code>execution_result</code>, to know if the execution was successful, partially successful or rejected.</p>
+<h2 id="bridge-callbacks"><a class="header" href="#bridge-callbacks">Bridge Callbacks</a></h2>
+<p>When messages need to be sent through bridges because we are executing batches on external domains, we need to know if, for example, a timeout happened and keep track of it. For this reason we have callbacks per bridge that we support and specific logic that will be executed if they are received. For <code>Polytone</code> timeouts, we will check if the <code>ttl</code> field has not expired and allow permissionless retries if it's still valid. In case the <code>ttl</code> has expired we will set the ExecutionResult to timeout and not retriable and send the authorization token back to the user if the user sent it to execute the authorization.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="examples"><a class="header" href="#examples">Examples</a></h1>
+<p>Here are some examples of Valence Programs that you can use to get started.</p>
+<h2 id="token-swap-program"><a class="header" href="#token-swap-program">Token Swap Program</a></h2>
+<pre class="mermaid">graph LR
+	InA((Party A Deposit))
+	InB((Party B Deposit))
+	OutA((Party A Withdraw))
+	OutB((Party B Withdraw))
+	SSA[Splitter A]
+	SSB[Splitter B]
+	InA --&gt; SSA --&gt; OutB
+	InB --&gt; SSB --&gt; OutA
+</pre>
 
                     </main>
 

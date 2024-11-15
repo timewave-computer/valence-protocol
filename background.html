@@ -155,8 +155,19 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="background"><a class="header" href="#background">Background</a></h1>
-<p>Valence is a liquidity management protocol targeted at crypto-native institutions. Specifically, it aims to become a platform for crypto-native institutions to form multilateral liquidity lending and borrowing relationships. Our program system provides a base set of primitives that enable cross-chain orchestration, where actions can be triggered by multiple authorized parties.</p>
+                        <blockquote>
+<p>🚧 This in-progress document contains information about the design of a cross-chain automation system that powers the Valence programs. Lending applications can be implemented as specific "program".</p>
+</blockquote>
+<h1 id="background"><a class="header" href="#background">Background</a></h1>
+<p>Programs are a framework to help you develop trust-minimized applications which require sequential execution across many chains. They are easy to understand and quick to deploy. A Program can be set up with a configuration file and no code. Programs are also extensible. If we don't support a DeFi integration out of the box, you can write one yourself in a matter of hours!</p>
+<blockquote>
+<p>👉 <strong>Example Use-case</strong>:<br />
+A DAO wants to bridge tokens to another chain and then deposit the tokens into a vault. After a certain date, it wants to allow a governance proposal to trigger unwinding of the position. While the position is active, It may also want to delegate the right to change vault parameters to a specific committee as long as the parameters are within a certain range.</p>
+<p>Without Programs, the DAO would have two choices:<br />
+<strong>Choice 1:</strong> Give the tokens to a multisig to execute actions on the DAO's behalf<br />
+<strong>Choice 2:</strong> Write highly custom smart contracts across multiple chains that handle the token operations across multiple chains.</p>
+<p>Programs offer a third choice: the DAO does not need to trust a multisig, nor does it need to spend resources writing complex cross-chain logic. Programs allow the DAO to rapidly configure and deploy a solution that meets its needs.</p>
+</blockquote>
 
                     </main>
 

@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Accounts and Services - Valence Protocol Documentation</title>
+        <title>Accounts and Libraries - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -155,24 +155,24 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="accounts-and-services"><a class="header" href="#accounts-and-services">Accounts and Services</a></h1>
+                        <h1 id="accounts-and-libraries"><a class="header" href="#accounts-and-libraries">Accounts and Libraries</a></h1>
 <ul>
 <li>
-<p><strong>Valence Account:</strong> An escrow contract that can hold balances for various supported token-types (e.g., in Cosmos <code>ics-20</code> or <code>cw-20</code>) . Accounts register valence services that can perform token operations on the account.</p>
+<p><strong>Valence Account:</strong> An escrow contract that can hold balances for various supported token-types (e.g., in Cosmos <code>ics-20</code> or <code>cw-20</code>) . Accounts register valence libraries that can perform token operations on the account.</p>
 </li>
 <li>
-<p><strong>Valence Services:</strong> Valence services are registered with Valence accounts. Accounts are either registered as input accounts or output accounts. Services perform token operations on the input accounts, such as splitting, routing, or providing liquidity on a DEX, and depending on the business logic in the Service, they route the resulting tokens to the output accounts. Services expose <em>Actions</em> that can be performed on them.</p>
+<p><strong>Valence Libraries:</strong> Valence libraries are registered with Valence accounts. Accounts are either registered as input accounts or output accounts. Libraries perform token operations on the input accounts, such as splitting, routing, or providing liquidity on a DEX, and depending on the business logic in the Library, they route the resulting tokens to the output accounts. Libraries expose <em>Functions</em> that can be performed on them.</p>
 </li>
 </ul>
 <p><strong>Example</strong></p>
-<p>In the following example, Service 1 is registered such that Account 1 is an input account and Account 2 is an output account. It can send a message to Account 1 which executes the message:</p>
+<p>In the following example, Library 1 is registered such that Account 1 is an input account and Account 2 is an output account. It can send a message to Account 1 which executes the message:</p>
 <pre class="mermaid">graph LR;
 	A1((Account 1)) --&gt; |Tokens| A2((Account 2))
-	S1[Service 1] --&gt; |Message| A1
+	S1[Library 1] --&gt; |Message| A1
 </pre>
-<p>The following diagram represents the same relationships more intuitively, but is less technically accurate. Here, just as above, Service 1 is registered with Account 1. It takes the funds in Account 1 as an input, applies its logic, and sends the output funds to Account 2.</p>
+<p>The following diagram represents the same relationships more intuitively, but is less technically accurate. Here, just as above, Library 1 is registered with Account 1. It takes the funds in Account 1 as an input, applies its logic, and sends the output funds to Account 2.</p>
 <pre class="mermaid">graph LR;
-	A1((Account 1)) --&gt; |Pull Tokens| S1[Service 1]
+	A1((Account 1)) --&gt; |Pull Tokens| S1[Library 1]
 	S1 --&gt; |Send Tokens| A2((Account 2))
 </pre>
 
