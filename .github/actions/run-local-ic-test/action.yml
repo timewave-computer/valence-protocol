@@ -1,0 +1,60 @@
+name: Run a local-ic test
+
+inputs:
+   chain-config:  # id of input
+    description: 'Chain config to use for the test'
+    required: true
+  test-name:
+    description: 'Name of the test to run'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Build artefacts
+        uses: Swatinem/rust-cache@v2.7.5
+        with:
+          cache-on-failure: true
+          shared-key: ${{ github.event.pull_request.number || github.ref }}
+
+      - name: Get cargo
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: optimized-contracts
+          path: ./artifacts
+
+      - name: List downloaded files
+        run: ls -l ./artifacts
+
+      - name: Download local-ic artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: local-ic
+          path: /tmp
+
+      - name: Make local-ic executable
+        run: chmod +x /tmp/local-ic
+
+      - name: Start local-ic and wait for it to be ready
+        run: |
+          cd local-interchaintest
+          /tmp/local-ic start ${{ inputs.chain-config }} --api-port 42069 &
+          curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
+
+      - name: Run local-ic test
+        env:
+          RUST_LOG: debug
+        run: cargo run --package local-interchaintest --example ${{ inputs.test-name }}
+
+      - name: Cleanup
+        run: killall local-ic && exit 0
