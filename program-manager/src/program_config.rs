@@ -1,13 +1,17 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use cosmwasm_schema::schemars::JsonSchema;
+use cosmwasm_std::Uint64;
 use serde::{Deserialize, Serialize};
+use tokio::runtime::Runtime;
 use valence_authorization_utils::authorization::AuthorizationInfo;
 
 use valence_library_utils::{GetId, Id};
 
 use crate::{
     account::{AccountInfo, AccountType, InstantiateAccountData},
+    bridge::Bridge,
+    config::GLOBAL_CONFIG,
     connectors::Connectors,
     domain::Domain,
     error::{ManagerError, ManagerResult},
@@ -155,6 +159,31 @@ impl ProgramConfig {
                     .get_address(self.id, "valence_processor", "valence_processor")
                     .await?;
 
+                // load the global config to access the bridge information
+                let rt = Runtime::new().unwrap();
+                let gc = rt.block_on(GLOBAL_CONFIG.lock());
+
+                // get the polytone bridge info from currently observed domain to neutron
+                println!("observing domain: {:?}", domain);
+
+                let polytone_bridge_info = gc
+                    .get_bridge_info(NEUTRON_CHAIN, domain.get_chain_name())?
+                    .get_polytone_info();
+
+                let polytone_config = match polytone_bridge_info.get(NEUTRON_CHAIN) {
+                    Some(chain_info) => {
+                        // TODO: predict this address correctly
+                        let polytone_proxy_address = chain_info.voice_addr.to_string();
+
+                        Some(valence_processor_utils::msg::PolytoneContracts {
+                            polytone_proxy_address,
+                            polytone_note_address: chain_info.note_addr.to_string(),
+                            timeout_seconds: 3_010_000,
+                        })
+                    }
+                    None => None,
+                };
+
                 // Instantiate the processor on the other domain, the admin is
                 // the bridge account address of the authorization contract
                 connector
@@ -162,7 +191,7 @@ impl ProgramConfig {
                         self.id,
                         salt,
                         authorization_bridge_account_addr.clone(),
-                        None,
+                        polytone_config,
                     )
                     .await?;
 

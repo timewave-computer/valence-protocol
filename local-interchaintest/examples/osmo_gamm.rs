@@ -178,14 +178,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut program_config = builder.build();
 
-    setup_polytone(&mut test_ctx);
+    setup_polytone(&mut test_ctx)?;
 
     use_manager_init(&mut program_config)?;
 
     Ok(())
 }
 
-fn setup_polytone(test_ctx: &mut TestContext) {
+fn setup_polytone(test_ctx: &mut TestContext) -> Result<(), Box<dyn Error>> {
     // Before setting up the external domains and the processor on the external domain, we are going to set up polytone and predict the proxy addresses on both sides
     let mut polytone_note_on_neutron = test_ctx
         .get_contract()
@@ -414,4 +414,6 @@ fn setup_polytone(test_ctx: &mut TestContext) {
         .insert(OSMOSIS_CHAIN_NAME.to_string(), osmo_bridge_map);
     gc.bridges
         .insert(NEUTRON_CHAIN_NAME.to_string(), neutron_bridge_map);
+
+    Ok(())
 }
