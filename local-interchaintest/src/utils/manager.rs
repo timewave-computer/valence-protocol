@@ -28,6 +28,9 @@ pub const ASTROPORT_LPER_NAME: &str = "valence_astroport_lper";
 pub const ASTROPORT_WITHDRAWER_NAME: &str = "valence_astroport_withdrawer";
 pub const OSMOSIS_GAMM_LPER_NAME: &str = "valence_osmosis_gamm_lper";
 pub const OSMOSIS_GAMM_LWER_NAME: &str = "valence_osmosis_gamm_withdrawer";
+pub const POLYTONE_NOTE_NAME: &str = "polytone_note";
+pub const POLYTONE_VOICE_NAME: &str = "polytone_voice";
+pub const POLYTONE_PROXY_NAME: &str = "polytone_proxy";
 
 /// Those contracts will always be uploaded because each program needs them
 const BASIC_CONTRACTS: [&str; 2] = [PROCESSOR_NAME, BASE_ACCOUNT_NAME];
