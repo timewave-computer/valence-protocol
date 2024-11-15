@@ -100,6 +100,9 @@ jobs:
     name: authorization & processor polytone integration test
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
       - name: Run polytone example
         uses: "./.github/actions/run-local-ic-test"
         with:
@@ -111,6 +114,9 @@ jobs:
     name: token swap e2e test
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Run token_swap example
         uses: "./.github/actions/run-local-ic-test"
         with:
@@ -122,6 +128,9 @@ jobs:
     name: 2 party POL Astroport on Neutron e2e test
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Run 2 party POL Astroport on Neutron example
         uses: "./.github/actions/run-local-ic-test"
         with:
@@ -133,6 +142,9 @@ jobs:
     name: IBC transfer NTRN->JUNO e2e test
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Run IBC transfer NTRN->JUNO example
         uses: "./.github/actions/run-local-ic-test"
         with:
@@ -144,6 +156,9 @@ jobs:
     name: IBC transfer JUNO->NTRN e2e test
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Run IBC transfer JUNO->NTRN example
         uses: "./.github/actions/run-local-ic-test"
         with:
@@ -155,6 +170,9 @@ jobs:
     name: IBC transfer NTRN->JUNO->GAIA PFM e2e test
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Run IBC transfer NTRN->JUNO->GAIA PFM example
         uses: "./.github/actions/run-local-ic-test"
         with:
@@ -166,6 +184,9 @@ jobs:
     name: IBC transfer OSMO->NTRN e2e test
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Run IBC transfer OSMO->NTRN example
         uses: "./.github/actions/run-local-ic-test"
         with:
@@ -177,6 +198,9 @@ jobs:
     name: IBC transfer OSMO->JUNO->GAIA PFM e2e test
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Run IBC transfer OSMO->JUNO->GAIA PFM example
         uses: "./.github/actions/run-local-ic-test"
         with:

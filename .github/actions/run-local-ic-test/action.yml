@@ -13,9 +13,6 @@ runs:
   steps:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Cache Build artefacts
         uses: Swatinem/rust-cache@v2.7.5
         with:
