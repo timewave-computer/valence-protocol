@@ -29,7 +29,8 @@ runs:
         path: ./artifacts
 
     - name: List downloaded files
-      run: ls -l ./artifacts
+      shell: bash
+      run: ls -l ./artifacts      
 
     - name: Download local-ic artifact
       uses: actions/download-artifact@v4
@@ -38,18 +39,22 @@ runs:
         path: /tmp
 
     - name: Make local-ic executable
+      shell: bash
       run: chmod +x /tmp/local-ic
 
     - name: Start local-ic and wait for it to be ready
+      shell: bash
       run: |
         cd local-interchaintest
         /tmp/local-ic start ${{ inputs.chain-config }} --api-port 42069 &
         curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
 
     - name: Run local-ic test
+      shell: bash
       env:
         RUST_LOG: debug
       run: cargo run --package local-interchaintest --example ${{ inputs.test-name }}
 
     - name: Cleanup
+      shell: bash
       run: killall local-ic && exit 0
