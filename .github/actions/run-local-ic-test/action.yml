@@ -1,7 +1,7 @@
 name: Run a local-ic test
 
 inputs:
-   chain-config:  # id of input
+  chain-config:  # id of input
     description: 'Chain config to use for the test'
     required: true
   test-name:
