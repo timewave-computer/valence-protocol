@@ -99,7 +99,7 @@ impl CosmosCosmwasmConnector {
         let gc = GLOBAL_CONFIG.lock().await;
         let chain_info: &ChainInfo = gc.get_chain_info(chain_name)?;
         let code_ids: &HashMap<String, u64> = gc.get_code_ids(chain_name)?;
-
+        println!("code ids of chain {chain_name}: {:?}", code_ids);
         let grpc = GrpcClient::new(&chain_info.grpc).await.context(format!(
             "Failed to create new client for: {}",
             chain_info.name
@@ -1099,7 +1099,7 @@ impl CosmosCosmwasmConnector {
                 .get_polytone_info()
         } else {
             return Err(anyhow!(
-                "Failed to get brdige info, none of the provded chains is the main chain"
+                "Failed to get bridge info, none of the provided chains is the main chain"
             )
             .into());
         };

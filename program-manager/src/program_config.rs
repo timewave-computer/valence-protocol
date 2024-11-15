@@ -131,13 +131,16 @@ impl ProgramConfig {
             .set_processor_addr(neutron_domain.clone(), main_processor_addr);
 
         // init processors and bridge accounts on all other domains
-        // For mainnet we need to instantiate a bridge account for each processor instantiated on other domains
-        // For other domains, we need to instantiate a bridge account on the main domain for the authorization contract
+        // For mainnet we need to instantiate a bridge account for each
+        // processor instantiated on other domains
+        // For other domains, we need to instantiate a bridge account
+        // on the main domain for the authorization contract
         for domain in all_domains.iter() {
             if domain != &neutron_domain {
                 let mut connector = connectors.get_or_create_connector(domain).await?;
 
-                // get the authorization bridge account address on the other domain (to be the admon of the processor)
+                // get the authorization bridge account address on the
+                // other domain (to be the admin of the processor)
                 let authorization_bridge_account_addr = connector
                     .get_address_bridge(
                         authorization_addr.as_str(),
@@ -152,7 +155,8 @@ impl ProgramConfig {
                     .get_address(self.id, "valence_processor", "valence_processor")
                     .await?;
 
-                // Instantiate the processor on the other domain, the admin is the bridge account address of the authorization contract
+                // Instantiate the processor on the other domain, the admin is
+                // the bridge account address of the authorization contract
                 connector
                     .instantiate_processor(
                         self.id,
@@ -213,7 +217,7 @@ impl ProgramConfig {
                 // Add processor bridge account info by domain
                 self.authorization_data
                     .set_processor_bridge_addr(domain.clone(), processor_bridge_account_addr);
-            };
+            }
         }
 
         // We need to manually drop neutron connector here because we finished with it for now.

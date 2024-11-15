@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     error::Error,
     time::{Duration, SystemTime},
 };
@@ -6,8 +7,8 @@ use std::{
 use cosmwasm_std_old::Uint64;
 use local_interchaintest::utils::{
     manager::{
-        setup_manager, use_manager_init, OSMOSIS_GAMM_LPER_NAME, OSMOSIS_GAMM_LWER_NAME,
-        POLYTONE_NOTE_NAME, POLYTONE_PROXY_NAME, POLYTONE_VOICE_NAME,
+        get_global_config, setup_manager, use_manager_init, OSMOSIS_GAMM_LPER_NAME,
+        OSMOSIS_GAMM_LWER_NAME, POLYTONE_NOTE_NAME, POLYTONE_PROXY_NAME, POLYTONE_VOICE_NAME,
     },
     LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOCAL_CODE_ID_CACHE_PATH_OSMOSIS, LOGS_FILE_PATH,
     NEUTRON_OSMO_CONFIG_FILE, POLYTONE_ARTIFACTS_PATH, VALENCE_ARTIFACTS_PATH,
@@ -24,12 +25,15 @@ use localic_utils::{
     OSMOSIS_CHAIN_ID, OSMOSIS_CHAIN_NAME,
 };
 use log::info;
+use tokio::runtime::Runtime;
 use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType},
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
 };
 use valence_program_manager::{
     account::{AccountInfo, AccountType},
+    bridge::{Bridge, PolytoneBridgeInfo, PolytoneSingleChainInfo},
+    config::GLOBAL_CONFIG,
     library::{LibraryConfig, LibraryInfo},
     program_config_builder::ProgramConfigBuilder,
 };
@@ -94,7 +98,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         &mut test_ctx,
         NEUTRON_OSMO_CONFIG_FILE,
         vec![GAIA_CHAIN_NAME],
-        vec![OSMOSIS_GAMM_LPER_NAME, OSMOSIS_GAMM_LWER_NAME],
+        vec![
+            OSMOSIS_GAMM_LPER_NAME,
+            OSMOSIS_GAMM_LWER_NAME,
+            POLYTONE_NOTE_NAME,
+            POLYTONE_VOICE_NAME,
+            POLYTONE_PROXY_NAME,
+        ],
     )?;
 
     let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
@@ -168,25 +178,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut program_config = builder.build();
 
-    let (ntrn_note, osmo_note) = setup_polytone(&mut test_ctx);
+    setup_polytone(&mut test_ctx);
 
     use_manager_init(&mut program_config)?;
 
     Ok(())
 }
 
-fn setup_polytone(test_ctx: &mut TestContext) -> (String, String) {
-    // Upload all Polytone contracts to both Neutron and Osmosis
-    let mut uploader = test_ctx.build_tx_upload_contracts();
-    uploader
-        .send_with_local_cache(POLYTONE_ARTIFACTS_PATH, LOCAL_CODE_ID_CACHE_PATH_NEUTRON)
-        .unwrap();
-
-    uploader
-        .with_chain_name(OSMOSIS_CHAIN_NAME)
-        .send_with_local_cache(POLYTONE_ARTIFACTS_PATH, LOCAL_CODE_ID_CACHE_PATH_OSMOSIS)
-        .unwrap();
-
+fn setup_polytone(test_ctx: &mut TestContext) {
     // Before setting up the external domains and the processor on the external domain, we are going to set up polytone and predict the proxy addresses on both sides
     let mut polytone_note_on_neutron = test_ctx
         .get_contract()
@@ -342,34 +341,77 @@ fn setup_polytone(test_ctx: &mut TestContext) -> (String, String) {
     // Get the connection ids so that we can predict the proxy addresses
     let neutron_channels = relayer.get_channels(NEUTRON_CHAIN_ID).unwrap();
 
-    let connection_id_neutron_to_osmo = neutron_channels.iter().find_map(|neutron_channel| {
-        if neutron_channel.port_id == format!("wasm.{}", polytone_note_on_neutron_address.clone()) {
-            neutron_channel.connection_hops.first().cloned()
-        } else {
-            None
-        }
-    });
-    info!(
-        "Connection ID of Wasm connection neutron to osmo: {:?}",
-        connection_id_neutron_to_osmo
-    );
+    let neutron_to_osmo_polytone_channel = neutron_channels
+        .iter()
+        .find_map(|neutron_channel| {
+            if neutron_channel.port_id
+                == format!("wasm.{}", polytone_note_on_neutron_address.clone())
+            {
+                Some(neutron_channel.clone())
+            } else {
+                None
+            }
+        })
+        .unwrap();
 
     let osmo_channels = relayer.get_channels(OSMOSIS_CHAIN_ID).unwrap();
 
-    let connection_id_osmo_to_neutron = osmo_channels.iter().find_map(|osmo_channel| {
-        if osmo_channel.port_id == format!("wasm.{}", polytone_note_on_osmo_address.clone()) {
-            osmo_channel.connection_hops.first().cloned()
-        } else {
-            None
-        }
-    });
-    info!(
-        "Connection ID of Wasm connection osmo to neutron: {:?}",
-        connection_id_osmo_to_neutron
+    let osmo_to_neutron_polytone_channel = osmo_channels
+        .iter()
+        .find_map(|osmo_channel| {
+            if osmo_channel.port_id == format!("wasm.{}", polytone_note_on_osmo_address.clone()) {
+                Some(osmo_channel.clone())
+            } else {
+                None
+            }
+        })
+        .unwrap();
+
+    let osmo_polytone_info = PolytoneSingleChainInfo {
+        voice_addr: polytone_voice_on_osmo_address,
+        note_addr: polytone_note_on_osmo_address,
+        other_note_port: neutron_to_osmo_polytone_channel.port_id,
+        connection_id: osmo_to_neutron_polytone_channel
+            .connection_hops
+            .first()
+            .cloned()
+            .unwrap(),
+        channel_id: osmo_to_neutron_polytone_channel.channel_id,
+    };
+    let neutron_polytone_info = PolytoneSingleChainInfo {
+        voice_addr: polytone_voice_on_neutron_address,
+        note_addr: polytone_note_on_neutron_address,
+        other_note_port: osmo_to_neutron_polytone_channel.port_id,
+        connection_id: neutron_to_osmo_polytone_channel
+            .connection_hops
+            .first()
+            .cloned()
+            .unwrap(),
+        channel_id: neutron_to_osmo_polytone_channel.channel_id,
+    };
+
+    let osmo_to_neutron_polytone_bridge_info: HashMap<String, PolytoneSingleChainInfo> =
+        HashMap::from([(NEUTRON_CHAIN_NAME.to_string(), neutron_polytone_info)]);
+
+    let neutron_to_osmo_polytone_bridge_info: HashMap<String, PolytoneSingleChainInfo> =
+        HashMap::from([(OSMOSIS_CHAIN_NAME.to_string(), osmo_polytone_info)]);
+
+    let mut osmo_bridge_map: HashMap<String, Bridge> = HashMap::new();
+    osmo_bridge_map.insert(
+        NEUTRON_CHAIN_NAME.to_string(),
+        Bridge::Polytone(neutron_to_osmo_polytone_bridge_info),
     );
 
-    (
-        polytone_note_on_neutron_address,
-        polytone_note_on_osmo_address,
-    )
+    let mut neutron_bridge_map: HashMap<String, Bridge> = HashMap::new();
+    neutron_bridge_map.insert(
+        OSMOSIS_CHAIN_NAME.to_string(),
+        Bridge::Polytone(osmo_to_neutron_polytone_bridge_info),
+    );
+
+    let mut gc = get_global_config();
+
+    gc.bridges
+        .insert(OSMOSIS_CHAIN_NAME.to_string(), osmo_bridge_map);
+    gc.bridges
+        .insert(NEUTRON_CHAIN_NAME.to_string(), neutron_bridge_map);
 }
