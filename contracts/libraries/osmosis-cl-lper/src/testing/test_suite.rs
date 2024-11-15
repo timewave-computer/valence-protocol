@@ -47,8 +47,8 @@ impl LPerTestSuite {
         let wasm = Wasm::new(&inner.app);
 
         let account_code_id = inner.store_account_contract();
-        let input_acc = inner.instantiate_input_account(account_code_id);
-        let output_acc = inner.instantiate_input_account(account_code_id);
+        let input_acc = inner.instantiate_base_account(account_code_id);
+        let output_acc = inner.instantiate_base_account(account_code_id);
         let code_id = inner.store_provider_contract();
 
         let instantiate_msg = InstantiateMsg {

@@ -62,6 +62,21 @@ pub enum ManagerError {
 
     #[error("Failed to get processor address for this domain: {0}")]
     ProcessorAddrNotFound(String),
+
+    #[error("Id must not be zero")]
+    InvalidWorkflowId,
+
+    #[error("Account was removed: {0}")]
+    AccountWasRemoved(String),
+
+    #[error("Library id is missing from the list of libraries: {0}")]
+    LibraryIdIsMissing(u64),
+
+    #[error("Authorization label was not found: {0}")]
+    AuthorizationLabelNotFound(String),
+
+    #[error("Authorization label already exists: {0}")]
+    AuthorizationLabelExists(String),
 }
 
 impl ManagerError {

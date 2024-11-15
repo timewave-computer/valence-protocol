@@ -9,6 +9,8 @@ use valence_program_manager::{
     error::ManagerResult,
     init_program,
     program_config::ProgramConfig,
+    program_update::{ProgramConfigUpdate, UpdateResponse},
+    update_program,
 };
 
 const LOG_FILE_PATH: &str = "local-interchaintest/configs/logs.json";
@@ -288,6 +290,17 @@ pub fn use_manager_init(program_config: &mut ProgramConfig) -> ManagerResult<()>
         .build()
         .unwrap();
     rt.block_on(init_program(program_config))
+}
+
+/// Helper function to update manager config to hide the tokio block_on
+pub fn use_manager_update(
+    workflow_config_update: ProgramConfigUpdate,
+) -> ManagerResult<UpdateResponse> {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    rt.block_on(update_program(workflow_config_update))
 }
 
 pub fn get_global_config(
