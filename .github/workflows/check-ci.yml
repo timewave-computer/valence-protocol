@@ -21,6 +21,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache Build artefacts
+        uses: Swatinem/rust-cache@v2.7.5
+        with:
+          cache-on-failure: true
+          shared-key: ${{ github.event.pull_request.number || github.ref }}
+
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
 
@@ -37,20 +43,11 @@ jobs:
         run: ls -l ./artifacts
 
       - name: Upload wasm artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: optimized-contracts
           path: ./artifacts/*.wasm
           if-no-files-found: error
-
-      - name: Install local-ic
-        run: git clone https://github.com/strangelove-ventures/interchaintest && cd interchaintest/local-interchain && make install
-
-      - name: Upload local-ic artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: local-ic
-          path: ~/go/bin/local-ic
 
   tests:
     needs: build
@@ -58,13 +55,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Free Disk Space
+        uses: "./.github/actions/free-disk-space"
+
+      - name: Cache Build artefacts
+        uses: Swatinem/rust-cache@v2.7.5
+        with:
+          cache-on-failure: true
+          shared-key: ${{ github.event.pull_request.number || github.ref }}
+
       - name: Get cargo
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
 
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: optimized-contracts
           path: ./artifacts
@@ -77,13 +83,31 @@ jobs:
         env:
           RUST_BACKTRACE: 1
 
+  setup-local-ic:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install local-ic
+        run: git clone https://github.com/strangelove-ventures/interchaintest && cd interchaintest/local-interchain && make install
+
+      - name: Upload local-ic artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-ic
+          path: ~/go/bin/local-ic
+
   local-ic-polytone:
-    needs: build
+    needs: [build,setup-local-ic]
     name: authorization & processor polytone integration test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Cache Build artefacts
+        uses: Swatinem/rust-cache@v2.7.5
+        with:
+          cache-on-failure: true
+          shared-key: ${{ github.event.pull_request.number || github.ref }}
 
       - name: Get cargo
         uses: actions-rs/toolchain@v1
@@ -91,7 +115,7 @@ jobs:
           toolchain: stable
 
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: optimized-contracts
           path: ./artifacts
@@ -100,7 +124,7 @@ jobs:
         run: ls -l ./artifacts
 
       - name: Download local-ic artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: local-ic
           path: /tmp
@@ -123,12 +147,18 @@ jobs:
         run: killall local-ic && exit 0
 
   local-ic-token-swap:
-    needs: build
+    needs: [build,setup-local-ic]
     name: token swap e2e test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Cache Build artefacts
+        uses: Swatinem/rust-cache@v2.7.5
+        with:
+          cache-on-failure: true
+          shared-key: ${{ github.event.pull_request.number || github.ref }}
 
       - name: Get cargo
         uses: actions-rs/toolchain@v1
@@ -136,7 +166,7 @@ jobs:
           toolchain: stable
 
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: optimized-contracts
           path: ./artifacts
@@ -145,7 +175,7 @@ jobs:
         run: ls -l ./artifacts
 
       - name: Download local-ic artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: local-ic
           path: /tmp
@@ -168,12 +198,18 @@ jobs:
         run: killall local-ic && exit 0
 
   local-ic-2-party-pol-astroport-neutron:
-    needs: build
+    needs: [build,setup-local-ic]
     name: 2 party POL Astroport on Neutron e2e test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Cache Build artefacts
+        uses: Swatinem/rust-cache@v2.7.5
+        with:
+          cache-on-failure: true
+          shared-key: ${{ github.event.pull_request.number || github.ref }}
 
       - name: Get cargo
         uses: actions-rs/toolchain@v1
@@ -181,7 +217,7 @@ jobs:
           toolchain: stable
 
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: optimized-contracts
           path: ./artifacts
@@ -190,7 +226,7 @@ jobs:
         run: ls -l ./artifacts
 
       - name: Download local-ic artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: local-ic
           path: /tmp
@@ -213,12 +249,18 @@ jobs:
         run: killall local-ic && exit 0
 
   local-ic-ibc-transfer-ntrn-juno:
-    needs: build
+    needs: [build,setup-local-ic]
     name: IBC transfer NTRN->JUNO e2e test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Cache Build artefacts
+        uses: Swatinem/rust-cache@v2.7.5
+        with:
+          cache-on-failure: true
+          shared-key: ${{ github.event.pull_request.number || github.ref }}
 
       - name: Get cargo
         uses: actions-rs/toolchain@v1
@@ -226,7 +268,7 @@ jobs:
           toolchain: stable
 
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: optimized-contracts
           path: ./artifacts
@@ -235,7 +277,7 @@ jobs:
         run: ls -l ./artifacts
 
       - name: Download local-ic artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: local-ic
           path: /tmp
@@ -258,12 +300,18 @@ jobs:
         run: killall local-ic && exit 0
 
   local-ic-ibc-transfer-juno-ntrn:
-    needs: build
+    needs: [build,setup-local-ic]
     name: IBC transfer JUNO->NTRN e2e test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Cache Build artefacts
+        uses: Swatinem/rust-cache@v2.7.5
+        with:
+          cache-on-failure: true
+          shared-key: ${{ github.event.pull_request.number || github.ref }}
 
       - name: Get cargo
         uses: actions-rs/toolchain@v1
@@ -271,7 +319,7 @@ jobs:
           toolchain: stable
 
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: optimized-contracts
           path: ./artifacts
@@ -280,7 +328,7 @@ jobs:
         run: ls -l ./artifacts
 
       - name: Download local-ic artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: local-ic
           path: /tmp
@@ -303,12 +351,18 @@ jobs:
         run: killall local-ic && exit 0
 
   local-ic-ibc-transfer-ntrn-juno-gaia-pfm:
-    needs: build
+    needs: [build,setup-local-ic]
     name: IBC transfer NTRN->JUNO->GAIA PFM e2e test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Cache Build artefacts
+        uses: Swatinem/rust-cache@v2.7.5
+        with:
+          cache-on-failure: true
+          shared-key: ${{ github.event.pull_request.number || github.ref }}
 
       - name: Get cargo
         uses: actions-rs/toolchain@v1
@@ -316,7 +370,7 @@ jobs:
           toolchain: stable
 
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: optimized-contracts
           path: ./artifacts
@@ -325,7 +379,7 @@ jobs:
         run: ls -l ./artifacts
 
       - name: Download local-ic artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: local-ic
           path: /tmp
@@ -348,12 +402,18 @@ jobs:
         run: killall local-ic && exit 0
 
   local-ic-ibc-transfer-osmo-ntrn:
-    needs: build
+    needs: [build,setup-local-ic]
     name: IBC transfer OSMO->NTRN e2e test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Cache Build artefacts
+        uses: Swatinem/rust-cache@v2.7.5
+        with:
+          cache-on-failure: true
+          shared-key: ${{ github.event.pull_request.number || github.ref }}
 
       - name: Get cargo
         uses: actions-rs/toolchain@v1
@@ -361,7 +421,7 @@ jobs:
           toolchain: stable
 
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: optimized-contracts
           path: ./artifacts
@@ -370,7 +430,7 @@ jobs:
         run: ls -l ./artifacts
 
       - name: Download local-ic artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: local-ic
           path: /tmp
@@ -393,20 +453,26 @@ jobs:
         run: killall local-ic && exit 0
 
   local-ic-ibc-transfer-osmo-juno-gaia-pfm:
-    needs: build
+    needs: [build,setup-local-ic]
     name: IBC transfer OSMO->JUNO->GAIA PFM e2e test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Cache Build artefacts
+        uses: Swatinem/rust-cache@v2.7.5
+        with:
+          cache-on-failure: true
+          shared-key: ${{ github.event.pull_request.number || github.ref }}
+        
       - name: Get cargo
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
 
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: optimized-contracts
           path: ./artifacts
@@ -415,7 +481,7 @@ jobs:
         run: ls -l ./artifacts
 
       - name: Download local-ic artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: local-ic
           path: /tmp
