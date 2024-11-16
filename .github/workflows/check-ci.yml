@@ -33,6 +33,16 @@ jobs:
       - name: Run clippy
         run: cargo clippy --all-targets --verbose -- -D warnings
 
+      - name: Generate contract schemas
+        run: ./devtools/schema.sh
+
+      - name: Show schema changes
+        run: git status --porcelain
+
+      - name: Validate committed schemas
+        # should fail if any diffs are present
+        run: test -z "$(git status --porcelain)"
+
       - name: Optimize contracts
         run: |
           docker run --user $(id -u):$(id -g) --rm \
@@ -102,7 +112,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Run polytone example
         uses: "./.github/actions/run-local-ic-test"
         with:
