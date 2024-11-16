@@ -280,6 +280,7 @@
         "additionalProperties": false
       },
       "AuthorizationInfoUpdate": {
+        "description": "The enum that represent all possible changes that can be done on an authorization",
         "oneOf": [
           {
             "type": "object",
@@ -1372,7 +1373,7 @@
         "additionalProperties": false
       },
       "ProgramConfigUpdate": {
-        "description": "The job of the update, is to output a set of instructions to the user to update the program configuration. The user can only update library configs and authorizations.",
+        "description": "The job of the update, is to output a set of instructions to the user to update the program configuration. The user can only update library configs and authorizations. You can set the owner to change the owner of the program You can provide a list of library updates to perform You can provide a list of authorizations to update",
         "type": "object",
         "required": [
           "authorizations",
