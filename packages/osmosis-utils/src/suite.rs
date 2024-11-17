@@ -95,7 +95,7 @@ impl<T: OsmosisTestPoolConfig> OsmosisTestAppSetup<T> {
         .unwrap();
     }
 
-    pub fn instantiate_input_account(&self, code_id: u64) -> String {
+    pub fn instantiate_base_account(&self, code_id: u64) -> String {
         let wasm = Wasm::new(&self.app);
         wasm.instantiate(
             code_id,

@@ -21,6 +21,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache Build artefacts
+        uses: Swatinem/rust-cache@v2.7.5
+        with:
+          cache-on-failure: true
+          shared-key: ${{ github.event.pull_request.number || github.ref }}
+
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
 
@@ -37,20 +43,11 @@ jobs:
         run: ls -l ./artifacts
 
       - name: Upload wasm artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: optimized-contracts
           path: ./artifacts/*.wasm
           if-no-files-found: error
-
-      - name: Install local-ic
-        run: git clone https://github.com/strangelove-ventures/interchaintest && cd interchaintest/local-interchain && make install
-
-      - name: Upload local-ic artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: local-ic
-          path: ~/go/bin/local-ic
 
   tests:
     needs: build
@@ -58,13 +55,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Free Disk Space
+        uses: "./.github/actions/free-disk-space"
+
+      - name: Cache Build artefacts
+        uses: Swatinem/rust-cache@v2.7.5
+        with:
+          cache-on-failure: true
+          shared-key: ${{ github.event.pull_request.number || github.ref }}
+
       - name: Get cargo
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
 
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: optimized-contracts
           path: ./artifacts
@@ -77,362 +83,126 @@ jobs:
         env:
           RUST_BACKTRACE: 1
 
+  setup-local-ic:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install local-ic
+        run: git clone https://github.com/strangelove-ventures/interchaintest && cd interchaintest/local-interchain && make install
+
+      - name: Upload local-ic artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-ic
+          path: ~/go/bin/local-ic
+
   local-ic-polytone:
-    needs: build
+    needs: [build,setup-local-ic]
     name: authorization & processor polytone integration test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Get cargo
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: optimized-contracts
-          path: ./artifacts
-
-      - name: List downloaded files
-        run: ls -l ./artifacts
-
-      - name: Download local-ic artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: local-ic
-          path: /tmp
-
-      - name: Make local-ic executable
-        run: chmod +x /tmp/local-ic
-
-      - name: Start local-ic and wait for it to be ready
-        run: |
-          cd local-interchaintest
-          /tmp/local-ic start neutron_juno --api-port 42069 &
-          curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
-
+      
       - name: Run polytone example
-        env:
-          RUST_LOG: debug
-        run: cargo run --package local-interchaintest --example polytone
-
-      - name: Cleanup
-        run: killall local-ic && exit 0
+        uses: "./.github/actions/run-local-ic-test"
+        with:
+          chain-config: 'neutron_juno'
+          test-name: 'polytone'
 
   local-ic-token-swap:
-    needs: build
+    needs: [build,setup-local-ic]
     name: token swap e2e test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get cargo
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: optimized-contracts
-          path: ./artifacts
-
-      - name: List downloaded files
-        run: ls -l ./artifacts
-
-      - name: Download local-ic artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: local-ic
-          path: /tmp
-
-      - name: Make local-ic executable
-        run: chmod +x /tmp/local-ic
-
-      - name: Start local-ic and wait for it to be ready
-        run: |
-          cd local-interchaintest
-          /tmp/local-ic start neutron --api-port 42069 &
-          curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
-
       - name: Run token_swap example
-        env:
-          RUST_LOG: debug
-        run: cargo run --package local-interchaintest --example token_swap
-
-      - name: Cleanup
-        run: killall local-ic && exit 0
+        uses: "./.github/actions/run-local-ic-test"
+        with:
+          chain-config: 'neutron'
+          test-name: 'token_swap'
 
   local-ic-2-party-pol-astroport-neutron:
-    needs: build
+    needs: [build,setup-local-ic]
     name: 2 party POL Astroport on Neutron e2e test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get cargo
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: optimized-contracts
-          path: ./artifacts
-
-      - name: List downloaded files
-        run: ls -l ./artifacts
-
-      - name: Download local-ic artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: local-ic
-          path: /tmp
-
-      - name: Make local-ic executable
-        run: chmod +x /tmp/local-ic
-
-      - name: Start local-ic and wait for it to be ready
-        run: |
-          cd local-interchaintest
-          /tmp/local-ic start neutron --api-port 42069 &
-          curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
-      
       - name: Run 2 party POL Astroport on Neutron example
-        env:
-          RUST_LOG: debug
-        run: cargo run --package local-interchaintest --example two_party_pol_astroport_neutron
-
-      - name: Cleanup
-        run: killall local-ic && exit 0
+        uses: "./.github/actions/run-local-ic-test"
+        with:
+          chain-config: 'neutron'
+          test-name: 'two_party_pol_astroport_neutron'
 
   local-ic-ibc-transfer-ntrn-juno:
-    needs: build
+    needs: [build,setup-local-ic]
     name: IBC transfer NTRN->JUNO e2e test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get cargo
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: optimized-contracts
-          path: ./artifacts
-
-      - name: List downloaded files
-        run: ls -l ./artifacts
-
-      - name: Download local-ic artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: local-ic
-          path: /tmp
-
-      - name: Make local-ic executable
-        run: chmod +x /tmp/local-ic
-
-      - name: Start local-ic and wait for it to be ready
-        run: |
-          cd local-interchaintest
-          /tmp/local-ic start neutron_juno --api-port 42069 &
-          curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
-
       - name: Run IBC transfer NTRN->JUNO example
-        env:
-          RUST_LOG: debug
-        run: cargo run --package local-interchaintest --example ibc_transfer_ntrn_juno
-
-      - name: Cleanup
-        run: killall local-ic && exit 0
+        uses: "./.github/actions/run-local-ic-test"
+        with:
+          chain-config: 'neutron_juno'
+          test-name: 'ibc_transfer_ntrn_juno'
 
   local-ic-ibc-transfer-juno-ntrn:
-    needs: build
+    needs: [build,setup-local-ic]
     name: IBC transfer JUNO->NTRN e2e test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get cargo
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: optimized-contracts
-          path: ./artifacts
-
-      - name: List downloaded files
-        run: ls -l ./artifacts
-
-      - name: Download local-ic artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: local-ic
-          path: /tmp
-
-      - name: Make local-ic executable
-        run: chmod +x /tmp/local-ic
-
-      - name: Start local-ic and wait for it to be ready
-        run: |
-          cd local-interchaintest
-          /tmp/local-ic start neutron_juno --api-port 42069 &
-          curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
-
       - name: Run IBC transfer JUNO->NTRN example
-        env:
-          RUST_LOG: debug
-        run: cargo run --package local-interchaintest --example ibc_transfer_juno_ntrn
-
-      - name: Cleanup
-        run: killall local-ic && exit 0
+        uses: "./.github/actions/run-local-ic-test"
+        with:
+          chain-config: 'neutron_juno'
+          test-name: 'ibc_transfer_juno_ntrn'
 
   local-ic-ibc-transfer-ntrn-juno-gaia-pfm:
-    needs: build
+    needs: [build,setup-local-ic]
     name: IBC transfer NTRN->JUNO->GAIA PFM e2e test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get cargo
-        uses: actions-rs/toolchain@v1
+      - name: Run IBC transfer NTRN->JUNO->GAIA PFM example
+        uses: "./.github/actions/run-local-ic-test"
         with:
-          toolchain: stable
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: optimized-contracts
-          path: ./artifacts
-
-      - name: List downloaded files
-        run: ls -l ./artifacts
-
-      - name: Download local-ic artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: local-ic
-          path: /tmp
-
-      - name: Make local-ic executable
-        run: chmod +x /tmp/local-ic
-
-      - name: Start local-ic and wait for it to be ready
-        run: |
-          cd local-interchaintest
-          /tmp/local-ic start neutron_juno --api-port 42069 &
-          curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
-
-      - name: Run IBC transfer NTRN->JUNO example
-        env:
-          RUST_LOG: debug
-        run: cargo run --package local-interchaintest --example ibc_transfer_ntrn_juno_gaia_pfm
-
-      - name: Cleanup
-        run: killall local-ic && exit 0
+          chain-config: 'neutron_juno'
+          test-name: 'ibc_transfer_ntrn_juno_gaia_pfm'
 
   local-ic-ibc-transfer-osmo-ntrn:
-    needs: build
+    needs: [build,setup-local-ic]
     name: IBC transfer OSMO->NTRN e2e test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get cargo
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: optimized-contracts
-          path: ./artifacts
-
-      - name: List downloaded files
-        run: ls -l ./artifacts
-
-      - name: Download local-ic artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: local-ic
-          path: /tmp
-
-      - name: Make local-ic executable
-        run: chmod +x /tmp/local-ic
-
-      - name: Start local-ic and wait for it to be ready
-        run: |
-          cd local-interchaintest
-          /tmp/local-ic start neutron_osmosis --api-port 42069 &
-          curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
-
       - name: Run IBC transfer OSMO->NTRN example
-        env:
-          RUST_LOG: debug
-        run: cargo run --package local-interchaintest --example ibc_transfer_osmo_ntrn
-
-      - name: Cleanup
-        run: killall local-ic && exit 0
+        uses: "./.github/actions/run-local-ic-test"
+        with:
+          chain-config: 'neutron_osmosis'
+          test-name: 'ibc_transfer_osmo_ntrn'
 
   local-ic-ibc-transfer-osmo-juno-gaia-pfm:
-    needs: build
+    needs: [build,setup-local-ic]
     name: IBC transfer OSMO->JUNO->GAIA PFM e2e test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get cargo
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: optimized-contracts
-          path: ./artifacts
-
-      - name: List downloaded files
-        run: ls -l ./artifacts
-
-      - name: Download local-ic artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: local-ic
-          path: /tmp
-
-      - name: Make local-ic executable
-        run: chmod +x /tmp/local-ic
-
-      - name: Start local-ic and wait for it to be ready
-        run: |
-          cd local-interchaintest
-          /tmp/local-ic start juno_osmosis --api-port 42069 &
-          curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
-
       - name: Run IBC transfer OSMO->JUNO->GAIA PFM example
-        env:
-          RUST_LOG: debug
-        run: cargo run --package local-interchaintest --example ibc_transfer_osmo_juno_gaia_pfm
-
-      - name: Cleanup
-        run: killall local-ic && exit 0
+        uses: "./.github/actions/run-local-ic-test"
+        with:
+          chain-config: 'juno_osmosis'
+          test-name: 'ibc_transfer_osmo_juno_gaia_pfm'

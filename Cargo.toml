@@ -69,6 +69,7 @@ valence-reverse-splitter-library     = { path = "contracts/libraries/reverse-spl
 valence-osmosis-gamm-lper            = { path = "contracts/libraries/osmosis-gamm-lper", features = ["library"] }
 valence-osmosis-gamm-withdrawer      = { path = "contracts/libraries/osmosis-gamm-withdrawer", features = ["library"] }
 valence-osmosis-cl-lper              = { path = "contracts/libraries/osmosis-cl-lper", features = ["library"] }
+valence-osmosis-cl-withdrawer        = { path = "contracts/libraries/osmosis-cl-withdrawer", features = ["library"] }
 
 # our packages
 valence-account-utils          = { path = "packages/account-utils" }
