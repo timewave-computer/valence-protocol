@@ -287,6 +287,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let authorizations = query_authorizations_response.as_array().unwrap();
 
     assert!(authorizations.len() == 3);
+    // TODO: Add more assertions that update was successful
+
+    // Do migration
 
     Ok(())
 }

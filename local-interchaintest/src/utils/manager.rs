@@ -5,12 +5,7 @@ use localic_utils::{
     utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
 };
 use valence_program_manager::{
-    config::{ChainInfo, GLOBAL_CONFIG},
-    error::ManagerResult,
-    init_program,
-    program_config::ProgramConfig,
-    program_update::{ProgramConfigUpdate, UpdateResponse},
-    update_program,
+    config::{ChainInfo, GLOBAL_CONFIG}, error::ManagerResult, init_program, migrate_program, program_config::ProgramConfig, program_migration::{MigrateResponse, ProgramConfigMigrate}, program_update::{ProgramConfigUpdate, UpdateResponse}, update_program
 };
 
 const LOG_FILE_PATH: &str = "local-interchaintest/configs/logs.json";
@@ -294,13 +289,23 @@ pub fn use_manager_init(program_config: &mut ProgramConfig) -> ManagerResult<()>
 
 /// Helper function to update manager config to hide the tokio block_on
 pub fn use_manager_update(
-    workflow_config_update: ProgramConfigUpdate,
+    program_config_update: ProgramConfigUpdate,
 ) -> ManagerResult<UpdateResponse> {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
         .unwrap();
-    rt.block_on(update_program(workflow_config_update))
+    rt.block_on(update_program(program_config_update))
+}
+
+pub fn use_manager_migrate(
+    program_config_migrate: ProgramConfigMigrate,
+) -> ManagerResult<MigrateResponse> {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    rt.block_on(migrate_program(program_config_migrate))
 }
 
 pub fn get_global_config(
