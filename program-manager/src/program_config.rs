@@ -149,7 +149,7 @@ impl ProgramConfig {
                     .get_address_bridge(
                         authorization_addr.as_str(),
                         NEUTRON_CHAIN,
-                        domain.get_chain_name(),
+                        NEUTRON_CHAIN,
                         domain.get_chain_name(),
                     )
                     .await?;
@@ -170,19 +170,23 @@ impl ProgramConfig {
                     .get_bridge_info(NEUTRON_CHAIN, domain.get_chain_name())?
                     .get_polytone_info();
 
-                let polytone_config = match polytone_bridge_info.get(NEUTRON_CHAIN) {
-                    Some(chain_info) => {
-                        // TODO: predict this address correctly
-                        let polytone_proxy_address = chain_info.voice_addr.to_string();
+                // Get the processor bridge account address on main domain
+                let processor_bridge_account_addr = neutron_connector
+                    .get_address_bridge(
+                        processor_addr.as_str(),
+                        NEUTRON_CHAIN,
+                        domain.get_chain_name(),
+                        NEUTRON_CHAIN,
+                    )
+                    .await?;
 
-                        Some(valence_processor_utils::msg::PolytoneContracts {
-                            polytone_proxy_address,
-                            polytone_note_address: chain_info.note_addr.to_string(),
-                            timeout_seconds: 3_010_000,
-                        })
+                let polytone_config = polytone_bridge_info.get(NEUTRON_CHAIN).map(|chain_info| {
+                    valence_processor_utils::msg::PolytoneContracts {
+                        polytone_proxy_address: processor_bridge_account_addr.to_string(),
+                        polytone_note_address: chain_info.note_addr.to_string(),
+                        timeout_seconds: 3_010_000,
                     }
-                    None => None,
-                };
+                });
 
                 // Instantiate the processor on the other domain, the admin is
                 // the bridge account address of the authorization contract
@@ -192,16 +196,6 @@ impl ProgramConfig {
                         salt,
                         authorization_bridge_account_addr.clone(),
                         polytone_config,
-                    )
-                    .await?;
-
-                // Get the processor bridge account address on main domain
-                let processor_bridge_account_addr = neutron_connector
-                    .get_address_bridge(
-                        processor_addr.as_str(),
-                        NEUTRON_CHAIN,
-                        domain.get_chain_name(),
-                        NEUTRON_CHAIN,
                     )
                     .await?;
 

@@ -1090,21 +1090,14 @@ impl CosmosCosmwasmConnector {
         receive_chain: &str,
     ) -> Result<PolytoneSingleChainInfo, CosmosCosmwasmError> {
         let gc = GLOBAL_CONFIG.lock().await;
-
-        let info = if main_chain == sender_chain {
-            gc.get_bridge_info(sender_chain, receive_chain)?
-                .get_polytone_info()
-        } else if main_chain == receive_chain {
-            gc.get_bridge_info(receive_chain, sender_chain)?
-                .get_polytone_info()
+        let (sender_chain, other_chain) = if main_chain == sender_chain {
+            (sender_chain, receive_chain)
         } else {
-            return Err(anyhow!(
-                "Failed to get bridge info, none of the provided chains is the main chain"
-            )
-            .into());
+            (receive_chain, sender_chain)
         };
-
-        info.get(receive_chain)
+        gc.get_bridge_info(sender_chain, other_chain)?
+            .get_polytone_info()
+            .get(receive_chain)
             .context(format!("Bridge info not found for: {}", receive_chain))
             .map_err(CosmosCosmwasmError::Error)
             .cloned()
