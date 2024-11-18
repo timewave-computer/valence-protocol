@@ -2,13 +2,20 @@ use std::{collections::HashMap, env, error::Error, fs};
 
 use localic_std::modules::cosmwasm::contract_instantiate;
 use localic_utils::{
-    utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
+    utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_NAME,
 };
 use valence_program_manager::{
-    config::{ChainInfo, GLOBAL_CONFIG}, error::ManagerResult, init_program, migrate_program, program_config::ProgramConfig, program_migration::{MigrateResponse, ProgramConfigMigrate}, program_update::{ProgramConfigUpdate, UpdateResponse}, update_program
+    config::{ChainInfo, GLOBAL_CONFIG},
+    error::ManagerResult,
+    init_program, migrate_program,
+    program_config::ProgramConfig,
+    program_migration::{MigrateResponse, ProgramConfigMigrate},
+    program_update::{ProgramConfigUpdate, UpdateResponse},
+    update_program,
 };
 
 const LOG_FILE_PATH: &str = "local-interchaintest/configs/logs.json";
+pub const MANAGER_ADMIN_ADDR: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
 
 pub const REGISTRY_NAME: &str = "valence_program_registry";
 pub const AUTHORIZATION_NAME: &str = "valence_authorization";
@@ -115,7 +122,7 @@ pub fn setup_manager(
         DEFAULT_KEY,
         registry_code_id,
         &serde_json::to_string(&valence_program_registry_utils::InstantiateMsg {
-            admin: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+            admin: MANAGER_ADMIN_ADDR.to_string(),
         })
         .unwrap(),
         "program-registry",

@@ -17,7 +17,6 @@ use crate::{
     connectors::Connectors,
     domain::Domain,
     error::{ManagerError, ManagerResult},
-    init_program,
     program_config::ProgramConfig,
     NEUTRON_CHAIN,
 };
@@ -25,10 +24,10 @@ use crate::{
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[schemars(crate = "cosmwasm_schema::schemars")]
 pub struct FundsTransfer {
-    from: String,
-    to: LibraryAccountType,
-    domain: Domain,
-    funds: Coin,
+    pub from: String,
+    pub to: LibraryAccountType,
+    pub domain: Domain,
+    pub funds: Coin,
 }
 
 /// We allow to migrate an existing program to a new one
@@ -75,13 +74,11 @@ impl ProgramConfigMigrate {
 
         // After we verified the migration config is correct, we can start the migration
 
-        // Create the new program
-        init_program(&mut self.new_program).await?;
+        // We drop the connector here to free it for the init functionlity.
+        drop(neutron_connector);
 
-        // Save the new program into the registry
-        neutron_connector
-            .save_program_config(self.new_program.clone())
-            .await?;
+        // Create the new program
+        self.new_program.init(connectors).await?;
 
         let mut instructions: VecDeque<CosmosMsg> = VecDeque::new();
         let mut new_authorizations: Vec<AuthorizationInfo> = vec![];
@@ -99,7 +96,7 @@ impl ProgramConfigMigrate {
             // We set no restrictions on this authorization, so we can have a generic "open" authorization on the account
             // This authorization can be only executed by the owner, so its fine.
             let label = format!("account_id_{}", account_id);
-
+            
             // We skip creating this authorization because we already have it
             if !old_config
                 .authorizations
@@ -150,7 +147,7 @@ impl ProgramConfigMigrate {
 
             // Build the messages of the funds transfer
             // execute insert message on the authorization to push this message to processor
-            let send_to_addr = old_config
+            let send_to_addr = self.new_program
                 .get_account(transfer_funds.to.get_account_id())?
                 .addr
                 .clone()
@@ -237,6 +234,8 @@ impl ProgramConfigMigrate {
         }
 
         // Save the updated config to the registry
+        let mut neutron_connector = connectors.get_or_create_connector(&neutron_domain).await?;
+        
         neutron_connector
             .update_program_config(old_config.clone())
             .await?;
