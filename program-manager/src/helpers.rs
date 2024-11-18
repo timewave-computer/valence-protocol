@@ -1,6 +1,10 @@
+use std::collections::HashMap;
+
 use anyhow::anyhow;
 use bech32::{encode, primitives::decode::CheckedHrpstring, Bech32, Hrp};
 use cosmwasm_std::CanonicalAddr;
+
+use crate::config::{ConfigResult, GLOBAL_CONFIG};
 
 fn validate_length(bytes: &[u8]) -> Result<(), anyhow::Error> {
     match bytes.len() {
@@ -31,4 +35,16 @@ pub fn addr_humanize(prefix: &str, canonical: &CanonicalAddr) -> Result<String, 
 
     let prefix = Hrp::parse(prefix).map_err(|_| anyhow!("Invalid bech32 prefix"))?;
     encode::<Bech32>(prefix, canonical.as_slice()).map_err(|_| anyhow!("Bech32 encoding error"))
+}
+
+pub async fn get_polytone_info(
+    main_chain: &str,
+    other_chain: &str,
+) -> ConfigResult<HashMap<String, crate::bridge::PolytoneSingleChainInfo>> {
+    let gc = GLOBAL_CONFIG.lock().await;
+
+    // get from neutron to current domain bridge info
+    Ok(gc.get_bridge_info(main_chain, other_chain)?
+        .get_polytone_info()
+        .clone())
 }

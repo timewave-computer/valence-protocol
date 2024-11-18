@@ -134,7 +134,6 @@ pub trait Connector: fmt::Debug + Send + Sync {
     async fn instantiate_library(
         &mut self,
         program_id: u64,
-        auth_addr: String,
         processor_addr: String,
         library_id: u64,
         library_config: LibraryConfig,
