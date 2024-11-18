@@ -160,7 +160,7 @@ impl ProgramConfig {
                     .await?;
 
                 // load the global config to access the bridge information
-                let gc = Runtime::new().unwrap().block_on(GLOBAL_CONFIG.lock());
+                let gc = GLOBAL_CONFIG.lock().await;
 
                 // get the polytone bridge info from currently observed domain to neutron
                 println!("observing domain: {:?}", domain);
