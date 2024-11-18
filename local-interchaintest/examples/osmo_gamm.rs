@@ -10,8 +10,7 @@ use local_interchaintest::utils::{
         get_global_config, setup_manager, use_manager_init, OSMOSIS_GAMM_LPER_NAME,
         OSMOSIS_GAMM_LWER_NAME, POLYTONE_NOTE_NAME, POLYTONE_PROXY_NAME, POLYTONE_VOICE_NAME,
     },
-    LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOCAL_CODE_ID_CACHE_PATH_OSMOSIS, LOGS_FILE_PATH,
-    NEUTRON_OSMO_CONFIG_FILE, POLYTONE_ARTIFACTS_PATH, VALENCE_ARTIFACTS_PATH,
+    LOGS_FILE_PATH, NEUTRON_OSMO_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
 };
 
 use localic_std::{
@@ -25,15 +24,13 @@ use localic_utils::{
     OSMOSIS_CHAIN_ID, OSMOSIS_CHAIN_NAME,
 };
 use log::info;
-use tokio::runtime::Runtime;
 use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType},
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
 };
 use valence_program_manager::{
     account::{AccountInfo, AccountType},
-    bridge::{Bridge, PolytoneBridgeInfo, PolytoneSingleChainInfo},
-    config::GLOBAL_CONFIG,
+    bridge::{Bridge, PolytoneSingleChainInfo},
     library::{LibraryConfig, LibraryInfo},
     program_config_builder::ProgramConfigBuilder,
 };
@@ -396,22 +393,18 @@ fn setup_polytone(test_ctx: &mut TestContext) -> Result<(), Box<dyn Error>> {
     let neutron_to_osmo_polytone_bridge_info: HashMap<String, PolytoneSingleChainInfo> =
         HashMap::from([(OSMOSIS_CHAIN_NAME.to_string(), osmo_polytone_info)]);
 
-    let mut osmo_bridge_map: HashMap<String, Bridge> = HashMap::new();
-    osmo_bridge_map.insert(
-        NEUTRON_CHAIN_NAME.to_string(),
-        Bridge::Polytone(neutron_to_osmo_polytone_bridge_info),
-    );
-
     let mut neutron_bridge_map: HashMap<String, Bridge> = HashMap::new();
     neutron_bridge_map.insert(
         OSMOSIS_CHAIN_NAME.to_string(),
         Bridge::Polytone(osmo_to_neutron_polytone_bridge_info),
     );
+    neutron_bridge_map.insert(
+        NEUTRON_CHAIN_NAME.to_string(),
+        Bridge::Polytone(neutron_to_osmo_polytone_bridge_info),
+    );
 
     let mut gc = get_global_config();
 
-    gc.bridges
-        .insert(OSMOSIS_CHAIN_NAME.to_string(), osmo_bridge_map);
     gc.bridges
         .insert(NEUTRON_CHAIN_NAME.to_string(), neutron_bridge_map);
 
