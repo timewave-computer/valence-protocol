@@ -1,16 +1,21 @@
 use std::{collections::HashMap, error::Error, time::Duration};
 
+use cosmwasm_std::Binary;
 use cosmwasm_std_old::Uint64;
 use local_interchaintest::utils::{
     manager::{
         get_global_config, setup_manager, use_manager_init, OSMOSIS_GAMM_LPER_NAME,
         OSMOSIS_GAMM_LWER_NAME, POLYTONE_NOTE_NAME, POLYTONE_PROXY_NAME, POLYTONE_VOICE_NAME,
     },
-    LOGS_FILE_PATH, NEUTRON_OSMO_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
+    processor::tick_processor,
+    GAS_FLAGS, LOGS_FILE_PATH, NEUTRON_OSMO_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
 };
 
 use localic_std::{
-    modules::{bank, cosmwasm::CosmWasm},
+    modules::{
+        bank,
+        cosmwasm::{contract_execute, CosmWasm},
+    },
     relayer::Relayer,
 };
 use localic_utils::{
@@ -23,6 +28,8 @@ use log::info;
 use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType},
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
+    domain::Domain,
+    msg::ProcessorMessage,
 };
 use valence_program_manager::{
     account::{AccountInfo, AccountType},
@@ -87,6 +94,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_transfer_channels(NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_NAME)
         .build()?;
 
+    let ntrn_on_osmo_denom = test_ctx
+        .get_ibc_denom()
+        .base_denom(NEUTRON_CHAIN_DENOM.to_owned())
+        .src(NEUTRON_CHAIN_NAME)
+        .dest(OSMOSIS_CHAIN_NAME)
+        .get();
+
+    let pool_id = setup_gamm_pool(&mut test_ctx, OSMOSIS_CHAIN_DENOM, &ntrn_on_osmo_denom)?;
+
     setup_manager(
         &mut test_ctx,
         NEUTRON_OSMO_CONFIG_FILE,
@@ -101,30 +117,22 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
 
     let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
-    let _neutron_domain =
-        valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
     let osmo_domain =
         valence_program_manager::domain::Domain::CosmosCosmwasm(OSMOSIS_CHAIN_NAME.to_string());
 
-    let gamm_input_acc = builder.add_account(AccountInfo::new(
+    let gamm_input_acc_info = AccountInfo::new(
         "gamm_input".to_string(),
         &osmo_domain,
         AccountType::default(),
-    ));
-    let gamm_output_acc = builder.add_account(AccountInfo::new(
+    );
+    let gamm_output_acc_info = AccountInfo::new(
         "gamm_output".to_string(),
         &osmo_domain,
         AccountType::default(),
-    ));
+    );
 
-    let ntrn_on_osmo_denom = test_ctx
-        .get_ibc_denom()
-        .base_denom(NEUTRON_CHAIN_DENOM.to_owned())
-        .src(NEUTRON_CHAIN_NAME)
-        .dest(OSMOSIS_CHAIN_NAME)
-        .get();
-
-    let pool_id = setup_gamm_pool(&mut test_ctx, OSMOSIS_CHAIN_DENOM, &ntrn_on_osmo_denom)?;
+    let gamm_input_acc = builder.add_account(gamm_input_acc_info);
+    let gamm_output_acc = builder.add_account(gamm_output_acc_info);
 
     let gamm_lper_config = valence_osmosis_gamm_lper::msg::LibraryConfig {
         input_addr: gamm_input_acc.clone(),
@@ -142,6 +150,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         LibraryConfig::ValenceOsmosisGammLper(gamm_lper_config.clone()),
     ));
 
+    // establish the input_acc -> lper_lib -> output_acc link
     builder.add_link(
         &gamm_lper_library,
         vec![&gamm_input_acc],
@@ -149,6 +158,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let gamm_lper_function = AtomicFunctionBuilder::new()
+        .with_domain(Domain::External(osmo_domain.to_string()))
         .with_contract_address(gamm_lper_library.clone())
         .with_message_details(MessageDetails {
             message_type: MessageType::CosmwasmExecuteMsg,
@@ -159,12 +169,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         })
         .build();
 
-    let gamm_lper_subroutine = AtomicSubroutineBuilder::new()
-        .with_function(gamm_lper_function)
-        .build();
-
     let provide_liquidity_authorization = AuthorizationBuilder::new()
-        .with_subroutine(gamm_lper_subroutine)
+        .with_label("provide_liquidity")
+        .with_subroutine(
+            AtomicSubroutineBuilder::new()
+                .with_function(gamm_lper_function)
+                .build(),
+        )
         .build();
 
     builder.add_authorization(provide_liquidity_authorization);
@@ -174,7 +185,121 @@ fn main() -> Result<(), Box<dyn Error>> {
     setup_polytone(&mut test_ctx)?;
 
     use_manager_init(&mut program_config)?;
+    info!("manager initialized successfully!");
 
+    let input_acc_addr = program_config
+        .get_account(gamm_input_acc)?
+        .addr
+        .clone()
+        .unwrap();
+    let output_acc_addr = program_config
+        .get_account(gamm_output_acc)?
+        .addr
+        .clone()
+        .unwrap();
+    info!("input_acc_addr: {input_acc_addr}");
+    info!("output_acc_addr: {output_acc_addr}");
+
+    let input_acc_balances = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        &input_acc_addr,
+    );
+    let output_acc_balances = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        &output_acc_addr,
+    );
+    info!("input_acc_balances: {:?}", input_acc_balances);
+    info!("output_acc_balances: {:?}", output_acc_balances);
+
+    info!("funding the input account...");
+    bank::send(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        DEFAULT_KEY,
+        &input_acc_addr,
+        &[
+            cosmwasm_std_old::Coin {
+                denom: ntrn_on_osmo_denom.to_string(),
+                amount: 1_000_000u128.into(),
+            },
+            cosmwasm_std_old::Coin {
+                denom: OSMOSIS_CHAIN_DENOM.to_string(),
+                amount: 1_000_000u128.into(),
+            },
+        ],
+        &cosmwasm_std_old::Coin {
+            denom: OSMOSIS_CHAIN_DENOM.to_string(),
+            amount: 1_000_000u128.into(),
+        },
+    )
+    .unwrap();
+
+    std::thread::sleep(Duration::from_secs(3));
+
+    let input_acc_balances = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        &input_acc_addr,
+    );
+    info!("input_acc_balances: {:?}", input_acc_balances);
+
+    // Get authorization and processor contract addresses
+    let authorization_contract_address =
+        program_config.authorization_data.authorization_addr.clone();
+    let processor_contract_address = program_config
+        .get_processor_addr(&osmo_domain.to_string())
+        .unwrap();
+
+    info!("authorization contract address: {authorization_contract_address}");
+    info!("processor contract address: {processor_contract_address}");
+
+    let lp_message = ProcessorMessage::CosmwasmExecuteMsg {
+        msg: Binary::from(
+            serde_json::to_vec(
+                &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                    valence_osmosis_gamm_lper::msg::FunctionMsgs::ProvideDoubleSidedLiquidity {
+                        expected_spot_price: None,
+                    },
+                ),
+            )
+            .unwrap(),
+        ),
+    };
+    let provide_liquidity_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+            label: "provide_liquidity".to_string(),
+            messages: vec![lp_message],
+            ttl: None,
+        },
+    );
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&provide_liquidity_msg).unwrap(),
+        "--fees=2000000untrn",
+    )
+    .unwrap();
+
+    info!("Messages sent to the authorization contract!");
+    std::thread::sleep(std::time::Duration::from_secs(5));
+
+    info!("Ticking processor and executing config update...");
+    tick_processor(
+        &mut test_ctx,
+        OSMOSIS_CHAIN_NAME,
+        DEFAULT_KEY,
+        &processor_contract_address,
+    );
     Ok(())
 }
 
