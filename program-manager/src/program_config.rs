@@ -8,7 +8,6 @@ use valence_library_utils::{GetId, Id};
 
 use crate::{
     account::{AccountInfo, AccountType, InstantiateAccountData},
-    config::GLOBAL_CONFIG,
     connectors::Connectors,
     domain::Domain,
     error::{ManagerError, ManagerResult},
@@ -46,7 +45,7 @@ pub struct AuthorizationData {
     /// List of processor bridge addresses by domain
     /// All addresses are on nuetron, mapping to what domain this bridge account is for
     /// Key: domain name | Value: processor bridge address on that domain
-    pub processor_bridge_addrs: BTreeMap<String, String>,
+    pub processor_bridge_addrs: Vec<String>,
 }
 
 impl AuthorizationData {
@@ -63,8 +62,8 @@ impl AuthorizationData {
             .insert(domain.to_string(), addr);
     }
 
-    pub fn set_processor_bridge_addr(&mut self, domain: Domain, addr: String) {
-        self.processor_bridge_addrs.insert(domain.to_string(), addr);
+    pub fn set_processor_bridge_addr(&mut self, addr: String) {
+        self.processor_bridge_addrs.push(addr);
     }
 }
 
@@ -232,7 +231,7 @@ impl ProgramConfig {
 
                 // Add processor bridge account info by domain
                 self.authorization_data
-                    .set_processor_bridge_addr(domain.clone(), processor_bridge_account_addr);
+                    .set_processor_bridge_addr(processor_bridge_account_addr);
             }
         }
 
@@ -424,6 +423,8 @@ impl ProgramConfig {
             }
         }
 
+        println!("config: {:#?}", self);
+
         // Verify the program was instantiated successfully
         self.verify_init_was_successful(connectors, account_instantiate_datas)
             .await?;
@@ -589,17 +590,25 @@ impl ProgramConfig {
         }
 
         // Verify authorization and processor bridge accounts were created correctly
-        // for (domain, authorization_bridge_addr) in
-        //     self.authorization_data.authorization_bridge_addrs.iter()
-        // {
-        //     let mut connector = connectors
-        //         .get_or_create_connector(&Domain::from_string(domain.to_string())?)
-        //         .await?;
+        for (domain, authorization_bridge_addr) in
+            self.authorization_data.authorization_bridge_addrs.iter()
+        {
+            let mut connector = connectors
+                .get_or_create_connector(&Domain::from_string(domain.to_string())?)
+                .await?;
 
-        //     connector
-        //         .verify_bridge_account(authorization_bridge_addr.clone())
-        //         .await?;
-        // }
+            connector
+                .verify_bridge_account(authorization_bridge_addr.clone())
+                .await?;
+        }
+
+        for processor_bridge_addr in self.authorization_data.processor_bridge_addrs.iter() {
+            let mut neutron_connector = connectors.get_or_create_connector(&neutron_domain).await?;
+
+            neutron_connector
+                .verify_bridge_account(processor_bridge_addr.clone())
+                .await?;
+        }
 
         Ok(())
     }

@@ -23,7 +23,7 @@ use cosmos_grpc_client::{
             QueryContractInfoRequest, QuerySmartContractStateRequest,
         },
     },
-    cosmrs::bip32::secp256k1::sha2::{digest::Update, Digest, Sha256},
+    cosmrs::bip32::secp256k1::sha2::{digest::Update, Digest, Sha256, Sha512},
     BroadcastMode, Decimal, GrpcClient, ProstMsgNameToAny, Wallet,
 };
 use cosmwasm_std::{from_json, instantiate2_address, to_json_binary};
@@ -245,16 +245,22 @@ impl Connector for CosmosCosmwasmConnector {
 
         let checksum = self.get_checksum(code_id).await?;
 
-        let salt = Sha256::new()
-            .chain(receiving_chain_bridge_info.connection_id)
-            .chain(receiving_chain_bridge_info.other_note_port)
-            .chain(sender_addr)
+        println!("checksum: {:?}", checksum);
+        println!("receiving_chain_bridge_info.connection_id: {:?}", receiving_chain_bridge_info.connection_id);
+        println!("receiving_chain_bridge_info.other_note_port: {:?}", receiving_chain_bridge_info.other_note_port);
+        println!("sender_addr: {:?}", sender_addr);
+        println!("self.wallet.account_address: {:?}", self.wallet.account_address);
+
+        let salt = Sha512::new()
+            .chain_update(receiving_chain_bridge_info.connection_id.as_bytes())
+            .chain_update(receiving_chain_bridge_info.other_note_port.as_bytes())
+            .chain_update(sender_addr.as_bytes())
             .finalize()
             .to_vec();
 
         let addr_canonical = instantiate2_address(
             &checksum,
-            &addr_canonicalize(&self.prefix, self.wallet.account_address.as_str()).unwrap(),
+            &addr_canonicalize(&self.prefix, receiving_chain_bridge_info.voice_addr.as_str()).unwrap(),
             &salt,
         )
         .context("Failed to instantiate2 address")
