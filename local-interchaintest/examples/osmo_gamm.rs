@@ -5,7 +5,8 @@ use local_interchaintest::utils::{
     manager::{
         get_global_config, setup_manager, use_manager_init, OSMOSIS_GAMM_LPER_NAME,
         OSMOSIS_GAMM_LWER_NAME, POLYTONE_NOTE_NAME, POLYTONE_PROXY_NAME, POLYTONE_VOICE_NAME,
-    }, LOGS_FILE_PATH, NEUTRON_OSMO_CONFIG_FILE, VALENCE_ARTIFACTS_PATH
+    },
+    LOGS_FILE_PATH, NEUTRON_OSMO_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
 };
 
 use localic_std::{
@@ -75,7 +76,7 @@ fn setup_gamm_pool(
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
-    
+
     let mut test_ctx = TestContextBuilder::default()
         .with_unwrap_raw_logs(true)
         .with_api_url(LOCAL_IC_API_URL)

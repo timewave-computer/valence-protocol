@@ -423,8 +423,6 @@ impl ProgramConfig {
             }
         }
 
-        println!("config: {:#?}", self);
-
         // Verify the program was instantiated successfully
         self.verify_init_was_successful(connectors, account_instantiate_datas)
             .await?;

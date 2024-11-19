@@ -44,7 +44,8 @@ pub async fn get_polytone_info(
     let gc = GLOBAL_CONFIG.lock().await;
 
     // get from neutron to current domain bridge info
-    Ok(gc.get_bridge_info(main_chain, other_chain)?
+    Ok(gc
+        .get_bridge_info(main_chain, other_chain)?
         .get_polytone_info()
         .clone())
 }
