@@ -122,6 +122,7 @@ impl ProgramConfig {
                 self.id,
                 main_processor_salt,
                 authorization_addr.clone(),
+                authorization_addr.clone(),
                 None,
             )
             .await?;
@@ -188,6 +189,7 @@ impl ProgramConfig {
                         salt,
                         // TODO: should this really be authorization addr?
                         authorization_bridge_account_addr.clone(),
+                        authorization_addr.clone(),
                         polytone_config,
                     )
                     .await?;

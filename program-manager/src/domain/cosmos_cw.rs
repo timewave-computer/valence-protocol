@@ -431,6 +431,7 @@ impl Connector for CosmosCosmwasmConnector {
         program_id: u64,
         salt: Vec<u8>,
         admin: String,
+        authorization: String,
         polytone_addr: Option<valence_processor_utils::msg::PolytoneContracts>,
     ) -> ConnectorResult<()> {
         let code_id = *self
@@ -440,7 +441,7 @@ impl Connector for CosmosCosmwasmConnector {
             .map_err(CosmosCosmwasmError::Error)?;
 
         let msg = to_vec(&valence_processor_utils::msg::InstantiateMsg {
-            authorization_contract: admin.clone(),
+            authorization_contract: authorization,
             polytone_contracts: polytone_addr,
         })
         .map_err(CosmosCosmwasmError::SerdeJsonError)?;
