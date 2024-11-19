@@ -540,6 +540,75 @@ fn main() -> Result<(), Box<dyn Error>> {
     assert_eq!(output_acc_bal.len(), 0);
     assert_eq!(final_acc_bal.len(), 2);
 
+    info!("asserting authorizations callbacks state sync...");
+    let mut tries = 0;
+    loop {
+        let query_processor_callbacks_response: Value = serde_json::from_value(
+            contract_query(
+                test_ctx
+                    .get_request_builder()
+                    .get_request_builder(NEUTRON_CHAIN_NAME),
+                &authorization_contract_address,
+                &serde_json::to_string(
+                    &valence_authorization_utils::msg::QueryMsg::ProcessorCallbacks {
+                        start_after: None,
+                        limit: None,
+                    },
+                )
+                .unwrap(),
+            )["data"]
+                .clone(),
+        )
+        .unwrap();
+
+        info!(
+            "neutron processor callbacks response: {:?}",
+            query_processor_callbacks_response
+        );
+
+        if query_processor_callbacks_response.is_null() {
+            info!("No authorization callbacks not found yet...");
+        } else {
+            info!("Callbacks found!");
+            let processor_callback_info: Vec<ProcessorCallbackInfo> =
+                serde_json::from_value(query_processor_callbacks_response).unwrap();
+            info!(
+                "processor callback info on authorizations: {:?}",
+                processor_callback_info
+            );
+
+            match processor_callback_info.len() {
+                2 => {
+                    match processor_callback_info[1].execution_result {
+                        valence_authorization_utils::callback::ExecutionResult::Success => {
+                            info!("authorizations module callback result is success!");
+                            break;
+                        }
+                        _ => {
+                            info!(
+                                "Callback state: {:?}",
+                                processor_callback_info[1].execution_result
+                            );
+                        }
+                    };
+                }
+                _ => {
+                    info!(
+                        "Callback state: {:?}",
+                        processor_callback_info[1].execution_result
+                    );
+                }
+            }
+        }
+
+        tries += 1;
+        if tries == 10 {
+            panic!("Batch not found after 10 tries");
+        } else {
+            std::thread::sleep(std::time::Duration::from_secs(5));
+        }
+    }
+
     Ok(())
 }
 
