@@ -7,7 +7,7 @@ use local_interchaintest::utils::{
         get_global_config, setup_manager, use_manager_init, OSMOSIS_GAMM_LPER_NAME,
         OSMOSIS_GAMM_LWER_NAME, POLYTONE_NOTE_NAME, POLYTONE_PROXY_NAME, POLYTONE_VOICE_NAME,
     },
-    processor::{get_processor_queue_items, tick_processor},
+    processor::get_processor_queue_items,
     GAS_FLAGS, LOGS_FILE_PATH, NEUTRON_OSMO_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
 };
 
@@ -90,12 +90,19 @@ fn main() -> Result<(), Box<dyn Error>> {
         &osmo_domain,
         AccountType::default(),
     );
+    let final_output_acc_info = AccountInfo::new(
+        "final_output".to_string(),
+        &osmo_domain,
+        AccountType::default(),
+    );
 
     let gamm_input_acc = builder.add_account(gamm_input_acc_info);
     let gamm_output_acc = builder.add_account(gamm_output_acc_info);
+    let final_output_acc = builder.add_account(final_output_acc_info);
 
     info!("gamm input acc: {:?}", gamm_input_acc);
     info!("gamm output acc: {:?}", gamm_output_acc);
+    info!("final output acc: {:?}", final_output_acc);
 
     let gamm_lper_config = valence_osmosis_gamm_lper::msg::LibraryConfig {
         input_addr: gamm_input_acc.clone(),
@@ -107,10 +114,22 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     };
 
+    let gamm_lwer_config = valence_osmosis_gamm_withdrawer::msg::LibraryConfig {
+        input_addr: gamm_output_acc.clone(),
+        output_addr: final_output_acc.clone(),
+        lw_config: valence_osmosis_gamm_withdrawer::msg::LiquidityWithdrawerConfig { pool_id },
+    };
+
     let gamm_lper_library = builder.add_library(LibraryInfo::new(
         "test_gamm_lp".to_string(),
         &osmo_domain,
         LibraryConfig::ValenceOsmosisGammLper(gamm_lper_config.clone()),
+    ));
+
+    let gamm_lwer_library = builder.add_library(LibraryInfo::new(
+        "test_gamm_lw".to_string(),
+        &osmo_domain,
+        LibraryConfig::ValenceOsmosisGammWithdrawer(gamm_lwer_config.clone()),
     ));
 
     // establish the input_acc -> lper_lib -> output_acc link
@@ -119,10 +138,28 @@ fn main() -> Result<(), Box<dyn Error>> {
         vec![&gamm_input_acc],
         vec![&gamm_output_acc],
     );
+    // establish the output_acc -> lwer_lib -> final_output_acc link
+    builder.add_link(
+        &gamm_lwer_library,
+        vec![&gamm_output_acc],
+        vec![&final_output_acc],
+    );
 
     let gamm_lper_function = AtomicFunctionBuilder::new()
         .with_domain(Domain::External(OSMOSIS_CHAIN_NAME.to_string()))
         .with_contract_address(gamm_lper_library.clone())
+        .with_message_details(MessageDetails {
+            message_type: MessageType::CosmwasmExecuteMsg,
+            message: Message {
+                name: "process_function".to_string(),
+                params_restrictions: None,
+            },
+        })
+        .build();
+
+    let gamm_lwer_function = AtomicFunctionBuilder::new()
+        .with_domain(Domain::External(OSMOSIS_CHAIN_NAME.to_string()))
+        .with_contract_address(gamm_lwer_library.clone())
         .with_message_details(MessageDetails {
             message_type: MessageType::CosmwasmExecuteMsg,
             message: Message {
@@ -138,6 +175,16 @@ fn main() -> Result<(), Box<dyn Error>> {
             .with_subroutine(
                 AtomicSubroutineBuilder::new()
                     .with_function(gamm_lper_function)
+                    .build(),
+            )
+            .build(),
+    );
+    builder.add_authorization(
+        AuthorizationBuilder::new()
+            .with_label("withdraw_liquidity")
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(gamm_lwer_function)
                     .build(),
             )
             .build(),
@@ -160,8 +207,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         .addr
         .clone()
         .unwrap();
+    let final_output_acc_addr = program_config
+        .get_account(final_output_acc)?
+        .addr
+        .clone()
+        .unwrap();
+
     info!("input_acc_addr: {input_acc_addr}");
     info!("output_acc_addr: {output_acc_addr}");
+    info!("final_output_acc_addr: {final_output_acc_addr}");
 
     let input_acc_balances = bank::get_balance(
         test_ctx
@@ -175,8 +229,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             .get_request_builder(OSMOSIS_CHAIN_NAME),
         &output_acc_addr,
     );
+    let final_output_acc_balances = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        &final_output_acc_addr,
+    );
     info!("input_acc_balances: {:?}", input_acc_balances);
     info!("output_acc_balances: {:?}", output_acc_balances);
+    info!("final_output_acc_balances: {:?}", final_output_acc_balances);
 
     info!("funding the input account...");
     bank::send(
@@ -302,6 +363,122 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("osmo processor tick response: {:?}", resp);
 
     std::thread::sleep(std::time::Duration::from_secs(3));
+
+    info!("asserting that providing liquidity worked...");
+    let input_acc_bal = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        &input_acc_addr,
+    );
+    let output_acc_bal = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        &output_acc_addr,
+    );
+    info!("input acc bal: {:?}", input_acc_bal);
+    info!("output acc bal: {:?}", output_acc_bal);
+
+    assert_eq!(input_acc_bal.len(), 0);
+    assert_eq!(output_acc_bal.len(), 1);
+    assert_eq!(output_acc_bal[0].denom, "gamm/pool/1".to_string());
+
+    info!("confirmed liquidity provision; starting liquidity withdrawal");
+
+    let lw_message = ProcessorMessage::CosmwasmExecuteMsg {
+        msg: Binary::from(
+            serde_json::to_vec(
+                &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                    valence_osmosis_gamm_withdrawer::msg::FunctionMsgs::WithdrawLiquidity {},
+                ),
+            )
+            .unwrap(),
+        ),
+    };
+    let withdraw_liquidity_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+            label: "withdraw_liquidity".to_string(),
+            messages: vec![lw_message],
+            ttl: None,
+        },
+    );
+
+    let enqueue_resp = contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&withdraw_liquidity_msg).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+    info!("enqueue authorizations response: {:?}", enqueue_resp);
+
+    info!("withdraw_liquidity_msg sent to the authorization contract!");
+    let mut tries = 0;
+    loop {
+        let items = get_processor_queue_items(
+            &mut test_ctx,
+            OSMOSIS_CHAIN_NAME,
+            &osmo_processor_contract_address,
+            Priority::Medium,
+        );
+        println!("Items on osmosis: {:?}", items);
+        tries += 1;
+        if !items.is_empty() {
+            info!("Batch found!");
+            break;
+        }
+        if tries > 10 {
+            panic!("Batch not found after 10 tries");
+        }
+
+        std::thread::sleep(std::time::Duration::from_secs(5));
+    }
+
+    info!("Ticking osmo processor...");
+    let resp = contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        &osmo_processor_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(
+            &valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+                valence_processor_utils::msg::PermissionlessMsg::Tick {},
+            ),
+        )
+        .unwrap(),
+        &format!(
+            "--gas=auto --gas-adjustment=3.0 --fees {}{}",
+            5_000_000, OSMOSIS_CHAIN_DENOM
+        ),
+    )
+    .unwrap();
+    info!("osmo processor tick response: {:?}", resp);
+
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    info!("asserting that withdrawing liquidity worked...");
+    let output_acc_bal = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        &output_acc_addr,
+    );
+    let final_acc_bal = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        &final_output_acc_addr,
+    );
+    info!("output acc bal: {:?}", output_acc_bal);
+    info!("final acc bal: {:?}", final_acc_bal);
+
+    assert_eq!(output_acc_bal.len(), 0);
+    assert_eq!(final_acc_bal.len(), 2);
 
     Ok(())
 }
