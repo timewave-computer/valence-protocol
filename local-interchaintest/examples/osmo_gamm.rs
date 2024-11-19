@@ -375,63 +375,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("confirmed liquidity provision!");
     info!("asserting authorizations callbacks state sync...");
-    let mut tries = 0;
-    loop {
-        let query_processor_callbacks_response: Value = serde_json::from_value(
-            contract_query(
-                test_ctx
-                    .get_request_builder()
-                    .get_request_builder(NEUTRON_CHAIN_NAME),
-                &authorization_contract_address,
-                &serde_json::to_string(
-                    &valence_authorization_utils::msg::QueryMsg::ProcessorCallbacks {
-                        start_after: None,
-                        limit: None,
-                    },
-                )
-                .unwrap(),
-            )["data"]
-                .clone(),
-        )
-        .unwrap();
 
-        info!(
-            "neutron processor callbacks response: {:?}",
-            query_processor_callbacks_response
-        );
-
-        if query_processor_callbacks_response.is_null() {
-            info!("No authorization callbacks not found yet...");
-        } else {
-            info!("Callbacks found!");
-            let processor_callback_info: Vec<ProcessorCallbackInfo> =
-                serde_json::from_value(query_processor_callbacks_response).unwrap();
-            info!(
-                "processor callback info on authorizations: {:?}",
-                processor_callback_info
-            );
-
-            match processor_callback_info[0].execution_result {
-                valence_authorization_utils::callback::ExecutionResult::Success => {
-                    info!("authorizations module callback result is success!");
-                    break;
-                }
-                _ => {
-                    info!(
-                        "Callback state: {:?}",
-                        processor_callback_info[0].execution_result
-                    );
-                }
-            };
-        }
-
-        tries += 1;
-        if tries == 10 {
-            panic!("Batch not found after 10 tries");
-        } else {
-            std::thread::sleep(std::time::Duration::from_secs(5));
-        }
-    }
+    confirm_authorizations_callback_state(
+        &mut test_ctx,
+        NEUTRON_CHAIN_NAME,
+        &authorization_contract_address,
+        0,
+    );
 
     let lw_message = ProcessorMessage::CosmwasmExecuteMsg {
         msg: Binary::from(
@@ -451,7 +401,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
 
-    let enqueue_resp = contract_execute(
+    contract_execute(
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
@@ -461,7 +411,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         GAS_FLAGS,
     )
     .unwrap();
-    info!("enqueue authorizations response: {:?}", enqueue_resp);
 
     info!("withdraw_liquidity_msg sent to the authorization contract!");
 
@@ -515,73 +464,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     assert_eq!(final_acc_bal.len(), 2);
 
     info!("asserting authorizations callbacks state sync...");
-    let mut tries = 0;
-    loop {
-        let query_processor_callbacks_response: Value = serde_json::from_value(
-            contract_query(
-                test_ctx
-                    .get_request_builder()
-                    .get_request_builder(NEUTRON_CHAIN_NAME),
-                &authorization_contract_address,
-                &serde_json::to_string(
-                    &valence_authorization_utils::msg::QueryMsg::ProcessorCallbacks {
-                        start_after: None,
-                        limit: None,
-                    },
-                )
-                .unwrap(),
-            )["data"]
-                .clone(),
-        )
-        .unwrap();
 
-        info!(
-            "neutron processor callbacks response: {:?}",
-            query_processor_callbacks_response
-        );
-
-        if query_processor_callbacks_response.is_null() {
-            info!("No authorization callbacks not found yet...");
-        } else {
-            info!("Callbacks found!");
-            let processor_callback_info: Vec<ProcessorCallbackInfo> =
-                serde_json::from_value(query_processor_callbacks_response).unwrap();
-            info!(
-                "processor callback info on authorizations: {:?}",
-                processor_callback_info
-            );
-
-            match processor_callback_info.len() {
-                2 => {
-                    match processor_callback_info[1].execution_result {
-                        valence_authorization_utils::callback::ExecutionResult::Success => {
-                            info!("authorizations module callback result is success!");
-                            break;
-                        }
-                        _ => {
-                            info!(
-                                "Callback state: {:?}",
-                                processor_callback_info[1].execution_result
-                            );
-                        }
-                    };
-                }
-                _ => {
-                    info!(
-                        "Callback state: {:?}",
-                        processor_callback_info[1].execution_result
-                    );
-                }
-            }
-        }
-
-        tries += 1;
-        if tries == 10 {
-            panic!("Batch not found after 10 tries");
-        } else {
-            std::thread::sleep(std::time::Duration::from_secs(5));
-        }
-    }
+    confirm_authorizations_callback_state(
+        &mut test_ctx,
+        NEUTRON_CHAIN_NAME,
+        &authorization_contract_address,
+        1,
+    );
 
     Ok(())
 }
@@ -864,9 +753,11 @@ fn confirm_remote_domain_processor_queue_length(
     loop {
         let items =
             get_processor_queue_items(test_ctx, processor_domain, processor_addr, Priority::Medium);
-        println!("Items on {processor_domain}: {:?}", items);
-
-        info!("processor queue length: {len}");
+        info!(
+            "{processor_domain} processor queue (len {:?}): {:?}",
+            items.len(),
+            items
+        );
 
         if items.len() == len {
             break;
@@ -876,5 +767,76 @@ fn confirm_remote_domain_processor_queue_length(
 
         tries += 1;
         std::thread::sleep(std::time::Duration::from_secs(5));
+    }
+}
+
+fn confirm_authorizations_callback_state(
+    test_ctx: &mut TestContext,
+    authorization_domain: &str,
+    authorization_addr: &str,
+    execution_id: u64,
+) {
+    let mut tries = 0;
+    loop {
+        let query_processor_callbacks_response: Value = serde_json::from_value(
+            contract_query(
+                test_ctx
+                    .get_request_builder()
+                    .get_request_builder(authorization_domain),
+                authorization_addr,
+                &serde_json::to_string(
+                    &valence_authorization_utils::msg::QueryMsg::ProcessorCallbacks {
+                        start_after: None,
+                        limit: None,
+                    },
+                )
+                .unwrap(),
+            )["data"]
+                .clone(),
+        )
+        .unwrap();
+
+        info!(
+            "{authorization_domain} authorization mod processor callbacks: {:?}",
+            query_processor_callbacks_response
+        );
+
+        if query_processor_callbacks_response.is_null() {
+            info!("No authorization callbacks not found yet...");
+        } else {
+            let processor_callback_infos: Vec<ProcessorCallbackInfo> =
+                serde_json::from_value(query_processor_callbacks_response).unwrap();
+
+            let callback_by_id = processor_callback_infos
+                .iter()
+                .find(|x| x.execution_id == execution_id);
+
+            info!(
+                "processor callback #{execution_id} info: {:?}",
+                callback_by_id
+            );
+
+            if let Some(cb) = callback_by_id {
+                match cb.execution_result {
+                    valence_authorization_utils::callback::ExecutionResult::Success => {
+                        info!("callback #{execution_id} execution = success!");
+                        break;
+                    }
+                    _ => {
+                        info!(
+                            "callback #{execution_id} execution result: {:?}",
+                            cb.execution_result
+                        );
+                    }
+                }
+            }
+        }
+
+        tries += 1;
+        if tries == 10 {
+            panic!("Batch not found after 10 tries");
+        } else {
+            std::thread::sleep(std::time::Duration::from_secs(5));
+        }
     }
 }
