@@ -322,26 +322,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("enqueue authorizations response: {:?}", enqueue_resp);
 
     info!("provide_liquidity_msg sent to the authorization contract!");
-    let mut tries = 0;
-    loop {
-        let items = get_processor_queue_items(
-            &mut test_ctx,
-            OSMOSIS_CHAIN_NAME,
-            &osmo_processor_contract_address,
-            Priority::Medium,
-        );
-        println!("Items on osmosis: {:?}", items);
-        tries += 1;
-        if !items.is_empty() {
-            info!("Batch found!");
-            break;
-        }
-        if tries > 10 {
-            panic!("Batch not found after 10 tries");
-        }
 
-        std::thread::sleep(std::time::Duration::from_secs(5));
-    }
+    confirm_remote_domain_processor_queue_length(
+        &mut test_ctx,
+        OSMOSIS_CHAIN_NAME,
+        &osmo_processor_contract_address,
+        1,
+    );
 
     info!("Ticking osmo processor...");
     let resp = contract_execute(
@@ -477,26 +464,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("enqueue authorizations response: {:?}", enqueue_resp);
 
     info!("withdraw_liquidity_msg sent to the authorization contract!");
-    let mut tries = 0;
-    loop {
-        let items = get_processor_queue_items(
-            &mut test_ctx,
-            OSMOSIS_CHAIN_NAME,
-            &osmo_processor_contract_address,
-            Priority::Medium,
-        );
-        println!("Items on osmosis: {:?}", items);
-        tries += 1;
-        if !items.is_empty() {
-            info!("Batch found!");
-            break;
-        }
-        if tries > 10 {
-            panic!("Batch not found after 10 tries");
-        }
 
-        std::thread::sleep(std::time::Duration::from_secs(5));
-    }
+    confirm_remote_domain_processor_queue_length(
+        &mut test_ctx,
+        OSMOSIS_CHAIN_NAME,
+        &osmo_processor_contract_address,
+        1,
+    );
 
     info!("Ticking osmo processor...");
     let resp = contract_execute(
@@ -878,4 +852,29 @@ fn setup_gamm_pool(
     info!("Gamm pool id: {:?}", pool_id);
 
     Ok(pool_id)
+}
+
+fn confirm_remote_domain_processor_queue_length(
+    test_ctx: &mut TestContext,
+    processor_domain: &str,
+    processor_addr: &str,
+    len: usize,
+) {
+    let mut tries = 0;
+    loop {
+        let items =
+            get_processor_queue_items(test_ctx, processor_domain, processor_addr, Priority::Medium);
+        println!("Items on {processor_domain}: {:?}", items);
+
+        info!("processor queue length: {len}");
+
+        if items.len() == len {
+            break;
+        } else if tries > 10 {
+            panic!("Batch not found after 10 tries");
+        }
+
+        tries += 1;
+        std::thread::sleep(std::time::Duration::from_secs(5));
+    }
 }
