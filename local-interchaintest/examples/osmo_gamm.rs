@@ -94,13 +94,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     let gamm_input_acc = builder.add_account(gamm_input_acc_info);
     let gamm_output_acc = builder.add_account(gamm_output_acc_info);
 
+    info!("gamm input acc: {:?}", gamm_input_acc);
+    info!("gamm output acc: {:?}", gamm_output_acc);
+
     let gamm_lper_config = valence_osmosis_gamm_lper::msg::LibraryConfig {
         input_addr: gamm_input_acc.clone(),
         output_addr: gamm_output_acc.clone(),
         lp_config: valence_osmosis_gamm_lper::msg::LiquidityProviderConfig {
             pool_id,
-            pool_asset_1: OSMOSIS_CHAIN_DENOM.to_string(),
-            pool_asset_2: ntrn_on_osmo_denom.to_string(),
+            pool_asset_2: OSMOSIS_CHAIN_DENOM.to_string(),
+            pool_asset_1: ntrn_on_osmo_denom.to_string(),
         },
     };
 
