@@ -96,7 +96,7 @@ impl ProgramConfigMigrate {
             // We set no restrictions on this authorization, so we can have a generic "open" authorization on the account
             // This authorization can be only executed by the owner, so its fine.
             let label = format!("account_id_{}", account_id);
-            
+
             // We skip creating this authorization because we already have it
             if !old_config
                 .authorizations
@@ -147,7 +147,8 @@ impl ProgramConfigMigrate {
 
             // Build the messages of the funds transfer
             // execute insert message on the authorization to push this message to processor
-            let send_to_addr = self.new_program
+            let send_to_addr = self
+                .new_program
                 .get_account(transfer_funds.to.get_account_id())?
                 .addr
                 .clone()
@@ -235,7 +236,7 @@ impl ProgramConfigMigrate {
 
         // Save the updated config to the registry
         let mut neutron_connector = connectors.get_or_create_connector(&neutron_domain).await?;
-        
+
         neutron_connector
             .update_program_config(old_config.clone())
             .await?;

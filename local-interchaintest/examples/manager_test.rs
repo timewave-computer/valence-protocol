@@ -499,7 +499,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .iter()
         .any(|b| b.denom == token1.clone() && b.amount.u128() == swap_amount));
 
-    // Do the pause processors messages, after we transfered all of the funds 
+    // Do the pause processors messages, after we transfered all of the funds
     for pause_processor in res.pause_processor_messages.iter() {
         let (contract_addr, msg) = match pause_processor {
             CosmosMsg::Wasm(WasmMsg::Execute {
@@ -528,20 +528,17 @@ fn main() -> Result<(), Box<dyn Error>> {
             test_ctx
                 .get_request_builder()
                 .get_request_builder(NEUTRON_CHAIN_NAME),
-            &neutron_processor_addr,
-            &serde_json::to_string(
-                &valence_processor_utils::msg::QueryMsg::Config {},
-            )
-            .unwrap(),
+            neutron_processor_addr,
+            &serde_json::to_string(&valence_processor_utils::msg::QueryMsg::Config {}).unwrap(),
         )["data"]
             .clone(),
-    ).unwrap();
-    println!("Processor config: {:?}", query_processor_response);
+    )
+    .unwrap();
 
     let processor_status = query_processor_response["state"].as_str().unwrap();
 
     // assert!(processor_status == valence_processor_utils::processor::State::Paused.to_string());
-    assert!(processor_status == "paused".to_string());
-    
+    assert!(processor_status == "paused");
+
     Ok(())
 }
