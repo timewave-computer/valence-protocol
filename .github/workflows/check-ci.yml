@@ -203,7 +203,7 @@ jobs:
           cd local-interchaintest
           /tmp/local-ic start neutron --api-port 42069 &
           curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
-      
+
       - name: Run 2 party POL Astroport on Neutron example
         env:
           RUST_LOG: debug
@@ -433,6 +433,51 @@ jobs:
         env:
           RUST_LOG: debug
         run: cargo run --package local-interchaintest --example ibc_transfer_osmo_juno_gaia_pfm
+
+      - name: Cleanup
+        run: killall local-ic && exit 0
+
+  local-ic-osmo-gamm-tests:
+    needs: build
+    name: Osmosis GAMM e2e lp -> lw run
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get cargo
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: optimized-contracts
+          path: ./artifacts
+
+      - name: List downloaded files
+        run: ls -l ./artifacts
+
+      - name: Download local-ic artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: local-ic
+          path: /tmp
+
+      - name: Make local-ic executable
+        run: chmod +x /tmp/local-ic
+
+      - name: Start local-ic and wait for it to be ready
+        run: |
+          cd local-interchaintest
+          /tmp/local-ic start neutron_osmosis --api-port 42069 &
+          curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
+
+      - name: Run osmo gamm lp & lw tests
+        env:
+          RUST_LOG: debug
+        run: cargo run --package local-interchaintest --example osmo_gamm
 
       - name: Cleanup
         run: killall local-ic && exit 0
