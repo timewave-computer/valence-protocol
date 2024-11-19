@@ -18,7 +18,7 @@
 **/.editorconfig
 
 # schemas
-contracts/**/schema
+contracts/**/schema/raw
 
 # local-interchaintest
 local-interchaintest/configs
