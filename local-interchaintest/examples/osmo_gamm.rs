@@ -14,7 +14,7 @@ use local_interchaintest::utils::{
 use localic_std::{
     modules::{
         bank,
-        cosmwasm::{contract_execute, CosmWasm},
+        cosmwasm::{contract_execute, contract_query, CosmWasm},
     },
     relayer::Relayer,
 };
@@ -25,10 +25,12 @@ use localic_utils::{
     OSMOSIS_CHAIN_ID, OSMOSIS_CHAIN_NAME,
 };
 use log::info;
+use serde_json::Value;
 use valence_authorization_utils::{
     authorization::Priority,
     authorization_message::{Message, MessageDetails, MessageType},
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
+    callback::ProcessorCallbackInfo,
     domain::Domain,
     msg::ProcessorMessage,
 };
@@ -384,7 +386,65 @@ fn main() -> Result<(), Box<dyn Error>> {
     assert_eq!(output_acc_bal.len(), 1);
     assert_eq!(output_acc_bal[0].denom, "gamm/pool/1".to_string());
 
-    info!("confirmed liquidity provision; starting liquidity withdrawal");
+    info!("confirmed liquidity provision!");
+    info!("asserting authorizations callbacks state sync...");
+    let mut tries = 0;
+    loop {
+        let query_processor_callbacks_response: Value = serde_json::from_value(
+            contract_query(
+                test_ctx
+                    .get_request_builder()
+                    .get_request_builder(NEUTRON_CHAIN_NAME),
+                &authorization_contract_address,
+                &serde_json::to_string(
+                    &valence_authorization_utils::msg::QueryMsg::ProcessorCallbacks {
+                        start_after: None,
+                        limit: None,
+                    },
+                )
+                .unwrap(),
+            )["data"]
+                .clone(),
+        )
+        .unwrap();
+
+        info!(
+            "neutron processor callbacks response: {:?}",
+            query_processor_callbacks_response
+        );
+
+        if query_processor_callbacks_response.is_null() {
+            info!("No authorization callbacks not found yet...");
+        } else {
+            info!("Callbacks found!");
+            let processor_callback_info: Vec<ProcessorCallbackInfo> =
+                serde_json::from_value(query_processor_callbacks_response).unwrap();
+            info!(
+                "processor callback info on authorizations: {:?}",
+                processor_callback_info
+            );
+
+            match processor_callback_info[0].execution_result {
+                valence_authorization_utils::callback::ExecutionResult::Success => {
+                    info!("authorizations module callback result is success!");
+                    break;
+                }
+                _ => {
+                    info!(
+                        "Callback state: {:?}",
+                        processor_callback_info[0].execution_result
+                    );
+                }
+            };
+        }
+
+        tries += 1;
+        if tries == 10 {
+            panic!("Batch not found after 10 tries");
+        } else {
+            std::thread::sleep(std::time::Duration::from_secs(5));
+        }
+    }
 
     let lw_message = ProcessorMessage::CosmwasmExecuteMsg {
         msg: Binary::from(
