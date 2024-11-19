@@ -147,7 +147,7 @@ pub trait Connector: fmt::Debug + Send + Sync {
         salt: Vec<u8>,
         admin: String,
         authorization: String,
-        polytone_addr: Option<valence_processor_utils::msg::PolytoneContracts>,
+        polytone_config: Option<valence_processor_utils::msg::PolytoneContracts>,
     ) -> ConnectorResult<()>;
 
     /// We need to do 2 things here:
