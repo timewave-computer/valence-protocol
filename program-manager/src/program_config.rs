@@ -1,20 +1,18 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use cosmwasm_schema::schemars::JsonSchema;
-use cosmwasm_std::Uint64;
 use serde::{Deserialize, Serialize};
-use tokio::runtime::Runtime;
 use valence_authorization_utils::authorization::AuthorizationInfo;
 
 use valence_library_utils::{GetId, Id};
 
 use crate::{
     account::{AccountInfo, AccountType, InstantiateAccountData},
-    bridge::Bridge,
     config::GLOBAL_CONFIG,
     connectors::Connectors,
     domain::Domain,
     error::{ManagerError, ManagerResult},
+    helpers::get_polytone_info,
     library::LibraryInfo,
     macros::ensure,
     NEUTRON_CHAIN,
@@ -159,16 +157,19 @@ impl ProgramConfig {
                     .get_address(self.id, "valence_processor", "valence_processor")
                     .await?;
 
-                // load the global config to access the bridge information
-                let gc = GLOBAL_CONFIG.lock().await;
+                let polytone_bridge_info =
+                    get_polytone_info(NEUTRON_CHAIN, domain.get_chain_name()).await?;
 
-                // get the polytone bridge info from currently observed domain to neutron
-                println!("observing domain: {:?}", domain);
-
-                // get from neutron to current domain bridge info
-                let polytone_bridge_info = gc
-                    .get_bridge_info(NEUTRON_CHAIN, domain.get_chain_name())?
-                    .get_polytone_info();
+                let polytone_config =
+                    polytone_bridge_info
+                        .get(domain.get_chain_name())
+                        .map(
+                            |chain_info| valence_processor_utils::msg::PolytoneContracts {
+                                polytone_proxy_address: authorization_bridge_account_addr.clone(),
+                                polytone_note_address: chain_info.note_addr.to_string(),
+                                timeout_seconds: 3_010_000,
+                            },
+                        );
 
                 // Get the processor bridge account address on main domain
                 let processor_bridge_account_addr = neutron_connector
@@ -179,14 +180,6 @@ impl ProgramConfig {
                         NEUTRON_CHAIN,
                     )
                     .await?;
-
-                let polytone_config = polytone_bridge_info.get(NEUTRON_CHAIN).map(|chain_info| {
-                    valence_processor_utils::msg::PolytoneContracts {
-                        polytone_proxy_address: processor_bridge_account_addr.to_string(),
-                        polytone_note_address: chain_info.note_addr.to_string(),
-                        timeout_seconds: 3_010_000,
-                    }
-                });
 
                 // Instantiate the processor on the other domain, the admin is
                 // the bridge account address of the authorization contract
@@ -344,7 +337,6 @@ impl ProgramConfig {
             domain_connector
                 .instantiate_library(
                     self.id,
-                    authorization_addr.clone(),
                     processor_addr,
                     link.library_id,
                     library.config,
@@ -597,17 +589,17 @@ impl ProgramConfig {
         }
 
         // Verify authorization and processor bridge accounts were created correctly
-        for (domain, authorization_bridge_addr) in
-            self.authorization_data.authorization_bridge_addrs.iter()
-        {
-            let mut connector = connectors
-                .get_or_create_connector(&Domain::from_string(domain.to_string())?)
-                .await?;
+        // for (domain, authorization_bridge_addr) in
+        //     self.authorization_data.authorization_bridge_addrs.iter()
+        // {
+        //     let mut connector = connectors
+        //         .get_or_create_connector(&Domain::from_string(domain.to_string())?)
+        //         .await?;
 
-            connector
-                .verify_bridge_account(authorization_bridge_addr.clone())
-                .await?;
-        }
+        //     connector
+        //         .verify_bridge_account(authorization_bridge_addr.clone())
+        //         .await?;
+        // }
 
         Ok(())
     }

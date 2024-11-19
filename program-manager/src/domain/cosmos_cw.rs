@@ -234,11 +234,15 @@ impl Connector for CosmosCosmwasmConnector {
         receiving_chain: &str,
     ) -> ConnectorResult<String> {
         // Get the checksum of the code id
+        println!("get_address_bridge scope code ids: {:?}", self.code_ids);
         let code_id = *self
             .code_ids
             .get("polytone_proxy")
             .context(format!("Code id not found for: {}", "polytone_proxy"))
             .map_err(CosmosCosmwasmError::Error)?;
+
+        println!("polytone proxy code id: {:?}", code_id);
+
         let receiving_chain_bridge_info = self
             .get_bridge_info(main_chain, sender_chain, receiving_chain)
             .await?;
@@ -252,24 +256,16 @@ impl Connector for CosmosCosmwasmConnector {
             .finalize()
             .to_vec();
 
-        let addr = self
-            .wallet
-            .client
-            .proto_query::<QueryBuildAddressRequest, QueryBuildAddressResponse>(
-                QueryBuildAddressRequest {
-                    code_hash: hex::encode(checksum.clone()),
-                    creator_address: receiving_chain_bridge_info.voice_addr,
-                    salt: hex::encode(salt.clone()),
-                },
-                "/cosmwasm.wasm.v1.Query/BuildAddress",
-            )
-            .await
-            .context(format!(
-                "Failed to query the instantiate2 address: {:?}",
-                checksum
-            ))
-            .map_err(CosmosCosmwasmError::Error)?
-            .address;
+        let addr_canonical = instantiate2_address(
+            &checksum,
+            &addr_canonicalize(&self.prefix, self.wallet.account_address.as_str()).unwrap(),
+            &salt,
+        )
+        .context("Failed to instantiate2 address")
+        .map_err(CosmosCosmwasmError::Error)?;
+
+        let addr =
+            addr_humanize(&self.prefix, &addr_canonical).map_err(CosmosCosmwasmError::Error)?;
 
         Ok(addr)
     }
@@ -316,7 +312,6 @@ impl Connector for CosmosCosmwasmConnector {
     async fn instantiate_library(
         &mut self,
         program_id: u64,
-        auth_addr: String,
         processor_addr: String,
         library_id: u64,
         library_config: LibraryConfig,
@@ -334,7 +329,7 @@ impl Connector for CosmosCosmwasmConnector {
 
         let m = MsgInstantiateContract2 {
             sender: self.wallet.account_address.clone(),
-            admin: auth_addr,
+            admin: processor_addr,
             code_id,
             label: format!(
                 "program-{}|library-{}-{}",
@@ -481,7 +476,7 @@ impl Connector for CosmosCosmwasmConnector {
         }
 
         let bridge = self
-            .get_bridge_info(main_domain, main_domain, domain)
+            .get_bridge_info(main_domain, domain, main_domain)
             .await?;
 
         let external_domain = valence_authorization_utils::msg::ExternalDomainInfo {
@@ -1090,15 +1085,17 @@ impl CosmosCosmwasmConnector {
         receive_chain: &str,
     ) -> Result<PolytoneSingleChainInfo, CosmosCosmwasmError> {
         let gc = GLOBAL_CONFIG.lock().await;
+
         let (sender_chain, other_chain) = if main_chain == sender_chain {
             (sender_chain, receive_chain)
         } else {
             (receive_chain, sender_chain)
         };
+
         gc.get_bridge_info(sender_chain, other_chain)?
             .get_polytone_info()
             .get(receive_chain)
-            .context(format!("Bridge info not found for: {}", receive_chain))
+            .context(format!("Bridge info not found for: {}", other_chain))
             .map_err(CosmosCosmwasmError::Error)
             .cloned()
     }

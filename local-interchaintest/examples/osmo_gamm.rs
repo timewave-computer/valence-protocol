@@ -105,7 +105,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
 
     let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
-    let neutron_domain =
+    let _neutron_domain =
         valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
     let osmo_domain =
         valence_program_manager::domain::Domain::CosmosCosmwasm(OSMOSIS_CHAIN_NAME.to_string());
@@ -388,19 +388,15 @@ fn setup_polytone(test_ctx: &mut TestContext) -> Result<(), Box<dyn Error>> {
     };
 
     let osmo_to_neutron_polytone_bridge_info: HashMap<String, PolytoneSingleChainInfo> =
-        HashMap::from([(NEUTRON_CHAIN_NAME.to_string(), neutron_polytone_info)]);
-
-    let neutron_to_osmo_polytone_bridge_info: HashMap<String, PolytoneSingleChainInfo> =
-        HashMap::from([(OSMOSIS_CHAIN_NAME.to_string(), osmo_polytone_info)]);
+        HashMap::from([
+            (NEUTRON_CHAIN_NAME.to_string(), neutron_polytone_info),
+            (OSMOSIS_CHAIN_NAME.to_string(), osmo_polytone_info),
+        ]);
 
     let mut neutron_bridge_map: HashMap<String, Bridge> = HashMap::new();
     neutron_bridge_map.insert(
         OSMOSIS_CHAIN_NAME.to_string(),
         Bridge::Polytone(osmo_to_neutron_polytone_bridge_info),
-    );
-    neutron_bridge_map.insert(
-        NEUTRON_CHAIN_NAME.to_string(),
-        Bridge::Polytone(neutron_to_osmo_polytone_bridge_info),
     );
 
     let mut gc = get_global_config();

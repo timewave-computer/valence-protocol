@@ -98,7 +98,7 @@ pub fn setup_manager(
             let mut uploader = test_ctx.build_tx_upload_contracts();
             uploader.with_chain_name(chain_name);
 
-            let (path, contract_wasm_name, contract_name) = match contract_name.as_ref() {
+            let (path, contract_wasm_name, contract_name) = match *contract_name {
                 POLYTONE_NOTE_NAME => (
                     format!("{}/{}.wasm", POLYTONE_ARTIFACTS_PATH, POLYTONE_NOTE_NAME),
                     POLYTONE_NOTE_NAME,
@@ -123,6 +123,7 @@ pub fn setup_manager(
             // get its code id
             let code_id = test_ctx
                 .get_contract()
+                .src(chain_name)
                 .contract(contract_wasm_name)
                 .get_cw()
                 .code_id
