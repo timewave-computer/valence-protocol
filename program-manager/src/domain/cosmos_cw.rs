@@ -99,7 +99,7 @@ impl CosmosCosmwasmConnector {
         let gc = GLOBAL_CONFIG.lock().await;
         let chain_info: &ChainInfo = gc.get_chain_info(chain_name)?;
         let code_ids: &HashMap<String, u64> = gc.get_code_ids(chain_name)?;
-        println!("code ids of chain {chain_name}: {:?}", code_ids);
+
         let grpc = GrpcClient::new(&chain_info.grpc).await.context(format!(
             "Failed to create new client for: {}",
             chain_info.name
@@ -234,14 +234,11 @@ impl Connector for CosmosCosmwasmConnector {
         receiving_chain: &str,
     ) -> ConnectorResult<String> {
         // Get the checksum of the code id
-        println!("get_address_bridge scope code ids: {:?}", self.code_ids);
         let code_id = *self
             .code_ids
             .get("polytone_proxy")
             .context(format!("Code id not found for: {}", "polytone_proxy"))
             .map_err(CosmosCosmwasmError::Error)?;
-
-        println!("polytone proxy code id: {:?}", code_id);
 
         let receiving_chain_bridge_info = self
             .get_bridge_info(main_chain, sender_chain, receiving_chain)
