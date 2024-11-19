@@ -9,7 +9,7 @@
   - Instantiate polytone contracts & set up relayers.
   - Predict `proxy` contract address for the `authorization` contract on each external domain.
   - Predict `proxy` contract address on the main domain for each processor on external domains.
-  - Instantiate all `processors`. The sender on external domains will be the predicted `proxy` and on the main domain it will be the authorization contract iself.
+  - Instantiate all `processors`. The `authorization_contract` on external domains will be the predicted `proxy` and on the main domain it will be the authorization contract iself.
   - Instantiate authorization contract with all the processors and their predicted proxies for external domains and the processor on the main domain.
 
 - **Relaying**: relayers will be running once everything is instantiated.
