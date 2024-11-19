@@ -7,7 +7,7 @@ use local_interchaintest::utils::{
         get_global_config, setup_manager, use_manager_init, OSMOSIS_GAMM_LPER_NAME,
         OSMOSIS_GAMM_LWER_NAME, POLYTONE_NOTE_NAME, POLYTONE_PROXY_NAME, POLYTONE_VOICE_NAME,
     },
-    processor::tick_processor,
+    processor::{get_processor_queue_items, tick_processor},
     GAS_FLAGS, LOGS_FILE_PATH, NEUTRON_OSMO_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
 };
 
@@ -26,6 +26,7 @@ use localic_utils::{
 };
 use log::info;
 use valence_authorization_utils::{
+    authorization::Priority,
     authorization_message::{Message, MessageDetails, MessageType},
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
     domain::Domain,
@@ -37,49 +38,6 @@ use valence_program_manager::{
     library::{LibraryConfig, LibraryInfo},
     program_config_builder::ProgramConfigBuilder,
 };
-
-fn setup_gamm_pool(
-    test_ctx: &mut TestContext,
-    denom_1: &str,
-    denom_2: &str,
-) -> Result<u64, Box<dyn Error>> {
-    info!("transferring 1000 neutron tokens to osmo admin addr for pool creation...");
-    test_ctx
-        .build_tx_transfer()
-        .with_chain_name(NEUTRON_CHAIN_NAME)
-        .with_amount(1_000_000_000u128)
-        .with_recipient(OSMOSIS_CHAIN_ADMIN_ADDR)
-        .with_denom(NEUTRON_CHAIN_DENOM)
-        .send()
-        .unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
-    let token_balances = bank::get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(OSMOSIS_CHAIN_NAME),
-        OSMOSIS_CHAIN_ADMIN_ADDR,
-    );
-    info!("osmosis chain admin addr balances: {:?}", token_balances);
-
-    test_ctx
-        .build_tx_create_osmo_pool()
-        .with_weight(denom_1, 1)
-        .with_weight(denom_2, 1)
-        .with_initial_deposit(denom_1, 100_000_000)
-        .with_initial_deposit(denom_2, 100_000_000)
-        .send()?;
-
-    // Get its id
-    let pool_id = test_ctx
-        .get_osmo_pool()
-        .denoms(denom_1.into(), denom_2.to_string())
-        .get_u64();
-
-    info!("Gamm pool id: {:?}", pool_id);
-
-    Ok(pool_id)
-}
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -119,6 +77,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
     let osmo_domain =
         valence_program_manager::domain::Domain::CosmosCosmwasm(OSMOSIS_CHAIN_NAME.to_string());
+    let ntrn_domain =
+        valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
 
     let gamm_input_acc_info = AccountInfo::new(
         "gamm_input".to_string(),
@@ -158,27 +118,27 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let gamm_lper_function = AtomicFunctionBuilder::new()
-        .with_domain(Domain::External(osmo_domain.to_string()))
+        .with_domain(Domain::External(OSMOSIS_CHAIN_NAME.to_string()))
         .with_contract_address(gamm_lper_library.clone())
         .with_message_details(MessageDetails {
             message_type: MessageType::CosmwasmExecuteMsg,
             message: Message {
-                name: "provide_liquidity".to_string(),
+                name: "process_function".to_string(),
                 params_restrictions: None,
             },
         })
         .build();
 
-    let provide_liquidity_authorization = AuthorizationBuilder::new()
-        .with_label("provide_liquidity")
-        .with_subroutine(
-            AtomicSubroutineBuilder::new()
-                .with_function(gamm_lper_function)
-                .build(),
-        )
-        .build();
-
-    builder.add_authorization(provide_liquidity_authorization);
+    builder.add_authorization(
+        AuthorizationBuilder::new()
+            .with_label("provide_liquidity")
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(gamm_lper_function)
+                    .build(),
+            )
+            .build(),
+    );
 
     let mut program_config = builder.build();
 
@@ -252,12 +212,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Get authorization and processor contract addresses
     let authorization_contract_address =
         program_config.authorization_data.authorization_addr.clone();
-    let processor_contract_address = program_config
+    let osmo_processor_contract_address = program_config
         .get_processor_addr(&osmo_domain.to_string())
+        .unwrap();
+    let ntrn_processor_contract_address = program_config
+        .get_processor_addr(&ntrn_domain.to_string())
         .unwrap();
 
     info!("authorization contract address: {authorization_contract_address}");
-    info!("processor contract address: {processor_contract_address}");
+    info!("osmo processor contract address: {osmo_processor_contract_address}");
+    info!("ntrn processor contract address: {ntrn_processor_contract_address}");
 
     let lp_message = ProcessorMessage::CosmwasmExecuteMsg {
         msg: Binary::from(
@@ -279,27 +243,63 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
 
-    contract_execute(
+    let enqueue_resp = contract_execute(
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
         &authorization_contract_address,
         DEFAULT_KEY,
         &serde_json::to_string(&provide_liquidity_msg).unwrap(),
-        "--fees=2000000untrn",
+        GAS_FLAGS,
     )
     .unwrap();
+    info!("enqueue authorizations response: {:?}", enqueue_resp);
 
-    info!("Messages sent to the authorization contract!");
-    std::thread::sleep(std::time::Duration::from_secs(5));
+    info!("provide_liquidity_msg sent to the authorization contract!");
+    let mut tries = 0;
+    loop {
+        let items = get_processor_queue_items(
+            &mut test_ctx,
+            OSMOSIS_CHAIN_NAME,
+            &osmo_processor_contract_address,
+            Priority::Medium,
+        );
+        println!("Items on osmosis: {:?}", items);
+        tries += 1;
+        if !items.is_empty() {
+            info!("Batch found!");
+            break;
+        }
+        if tries > 10 {
+            panic!("Batch not found after 10 tries");
+        }
 
-    info!("Ticking processor and executing config update...");
-    tick_processor(
-        &mut test_ctx,
-        OSMOSIS_CHAIN_NAME,
+        std::thread::sleep(std::time::Duration::from_secs(5));
+    }
+
+    info!("Ticking osmo processor...");
+    let resp = contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        &osmo_processor_contract_address,
         DEFAULT_KEY,
-        &processor_contract_address,
-    );
+        &serde_json::to_string(
+            &valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+                valence_processor_utils::msg::PermissionlessMsg::Tick {},
+            ),
+        )
+        .unwrap(),
+        &format!(
+            "--gas=auto --gas-adjustment=3.0 --fees {}{}",
+            5_000_000, OSMOSIS_CHAIN_DENOM
+        ),
+    )
+    .unwrap();
+    info!("osmo processor tick response: {:?}", resp);
+
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
     Ok(())
 }
 
@@ -526,4 +526,47 @@ fn setup_polytone(test_ctx: &mut TestContext) -> Result<(), Box<dyn Error>> {
         .insert(NEUTRON_CHAIN_NAME.to_string(), neutron_bridge_map);
 
     Ok(())
+}
+
+fn setup_gamm_pool(
+    test_ctx: &mut TestContext,
+    denom_1: &str,
+    denom_2: &str,
+) -> Result<u64, Box<dyn Error>> {
+    info!("transferring 1000 neutron tokens to osmo admin addr for pool creation...");
+    test_ctx
+        .build_tx_transfer()
+        .with_chain_name(NEUTRON_CHAIN_NAME)
+        .with_amount(1_000_000_000u128)
+        .with_recipient(OSMOSIS_CHAIN_ADMIN_ADDR)
+        .with_denom(NEUTRON_CHAIN_DENOM)
+        .send()
+        .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    let token_balances = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        OSMOSIS_CHAIN_ADMIN_ADDR,
+    );
+    info!("osmosis chain admin addr balances: {:?}", token_balances);
+
+    test_ctx
+        .build_tx_create_osmo_pool()
+        .with_weight(denom_1, 1)
+        .with_weight(denom_2, 1)
+        .with_initial_deposit(denom_1, 100_000_000)
+        .with_initial_deposit(denom_2, 100_000_000)
+        .send()?;
+
+    // Get its id
+    let pool_id = test_ctx
+        .get_osmo_pool()
+        .denoms(denom_1.into(), denom_2.to_string())
+        .get_u64();
+
+    info!("Gamm pool id: {:?}", pool_id);
+
+    Ok(pool_id)
 }
