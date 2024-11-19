@@ -8,7 +8,6 @@ use valence_library_utils::{GetId, Id};
 
 use crate::{
     account::{AccountInfo, AccountType, InstantiateAccountData},
-    config::GLOBAL_CONFIG,
     connectors::Connectors,
     domain::Domain,
     error::{ManagerError, ManagerResult},

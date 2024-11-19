@@ -75,7 +75,7 @@ pub fn approve_library(
             GAS_FLAGS,
             flags
                 .map(|mut s| {
-                    if !s.starts_with(" ") {
+                    if !s.starts_with(' ') {
                         s.insert(0, ' ');
                     }
                     s

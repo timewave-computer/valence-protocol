@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    error::Error,
-    time::{Duration, SystemTime},
-};
+use std::{collections::HashMap, error::Error, time::Duration};
 
 use cosmwasm_std_old::Uint64;
 use local_interchaintest::utils::{
