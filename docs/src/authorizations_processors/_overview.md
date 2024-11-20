@@ -9,3 +9,14 @@
 - To only tick a single contract (`Processor`) which will go through the queues to route and execute the messages.
 
 - Be able to create, edit or remove different application permissions with ease.
+
+
+ESGFSDGSDFGSDF
+
+- [Assumptions](./assumptions.md)
+- [Processor Contract](./processor.md)
+- [Authorization Contract](./authorization.md)
+  - [Instantiation](./authorization_instantiation.md)
+  - [Owner Actions](./authorization_owner_actions.md)
+  - [User Actions](./authorization_user_actions.md)
+- [Callbacks](./callbacks.md)

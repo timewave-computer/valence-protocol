@@ -1,8 +1,4 @@
-# Examples
-
-Here are some examples of Valence Programs that you can use to get started.
-
-## Token Swap Program
+# Token Swap Program
 
 ```mermaid
 graph LR
