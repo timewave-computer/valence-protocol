@@ -60,7 +60,28 @@ pub mod concentrated_liquidity {
         OSMOSIS_CHAIN_ADMIN_ADDR, OSMOSIS_CHAIN_NAME,
     };
     use log::info;
-    use serde_json::Value;
+    use osmosis_std::types::osmosis::concentratedliquidity::v1beta1::UserPositionsResponse;
+
+    pub fn query_cl_position(
+        test_ctx: &mut TestContext,
+        addr: &str,
+    ) -> Result<UserPositionsResponse, Box<dyn Error>> {
+        info!("querying {addr} cl positions...");
+
+        let cmd = format!("concentratedliquidity user-positions {addr} --output=json");
+
+        let rb = test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME);
+
+        let resp = rb.q(&cmd, false);
+
+        let user_positions: UserPositionsResponse = serde_json::from_value(resp).unwrap();
+
+        info!("{addr} CL positions: {:?}", user_positions.positions);
+
+        Ok(user_positions)
+    }
 
     pub fn setup_cl_pool(
         test_ctx: &mut TestContext,
@@ -120,6 +141,23 @@ pub mod concentrated_liquidity {
         let pool_id: u64 = pool_id_str.parse().unwrap();
 
         info!("CL pool id: {:?}", pool_id);
+        // Usage:
+        //   osmosisd tx concentratedliquidity create-position [pool-id] [lower-tick] [upper-tick] [tokens-provided] [token-min-amount0] [token-min-amount1] [flags]
+
+        // Examples:
+        // osmosisd tx concentratedliquidity create-position 1 "[-69082]" 69082 10000uosmo,10000uion 0 0 --from val --chain-id osmosis-1 -b block --keyring-backend test --fees 1000uosmo
+
+        let lp_cmd = format!(
+            "tx concentratedliquidity create-position {pool_id} 1000 2000 10000000uosmo,10000000{denom_2} 0 0 --from={} --fees=5000uosmo --gas auto --gas-adjustment 1.3 --output=json",
+            DEFAULT_KEY
+        );
+
+        let lp_response = test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME)
+            .tx(&lp_cmd, false)?;
+
+        info!("initial LP response: {:?}", lp_response);
 
         Ok(pool_id)
     }
