@@ -43,8 +43,6 @@ pub struct AuthorizationData {
     /// Key: domain name | Value: authorization bridge address on that domain
     pub authorization_bridge_addrs: BTreeMap<String, String>,
     /// List of processor bridge addresses by domain
-    /// All addresses are on nuetron, mapping to what domain this bridge account is for
-    /// Key: domain name | Value: processor bridge address on that domain
     pub processor_bridge_addrs: Vec<String>,
 }
 
@@ -165,7 +163,8 @@ impl ProgramConfig {
                         .get(domain.get_chain_name())
                         .map(
                             |chain_info| valence_processor_utils::msg::PolytoneContracts {
-                                polytone_proxy_address: authorization_bridge_account_addr.clone(),
+                                polytone_proxy_address: authorization_bridge_account_addr
+                                    .to_string(),
                                 polytone_note_address: chain_info.note_addr.to_string(),
                                 timeout_seconds: 3_010_000,
                             },
@@ -187,19 +186,14 @@ impl ProgramConfig {
                     .instantiate_processor(
                         self.id,
                         salt,
-                        // TODO: should this really be authorization addr?
-                        authorization_bridge_account_addr.clone(),
-                        authorization_addr.clone(),
+                        authorization_bridge_account_addr.to_string(),
+                        authorization_addr.to_string(),
                         polytone_config,
                     )
                     .await?;
 
                 // construct and add the `ExternalDomain` info to the authorization contract
                 // Adding external domain to the authorization contract will create the bridge account on that domain
-                println!(
-                    "adding external domain chain name: {:?}",
-                    domain.get_chain_name()
-                );
                 neutron_connector
                     .add_external_domain(
                         neutron_domain.get_chain_name(),
