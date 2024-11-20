@@ -104,11 +104,11 @@ impl GetId for u64 {
     }
 
     fn get_account_id(&self) -> Id {
-        panic!("u64 has not account")
+        panic!("u64 is not an account")
     }
 
     fn get_library_id(&self) -> Id {
-        panic!("u64 has not library")
+        panic!("u64 is not a library")
     }
 }
 
@@ -118,11 +118,11 @@ impl GetId for &u64 {
     }
 
     fn get_account_id(&self) -> Id {
-        panic!("&u64 has not account")
+        panic!("&u64 is not an account")
     }
 
     fn get_library_id(&self) -> Id {
-        panic!("&u64 has not library")
+        panic!("&u64 is not a library")
     }
 }
 
@@ -131,11 +131,11 @@ impl GetId for u32 {
         *self as u64
     }
     fn get_account_id(&self) -> Id {
-        panic!("u32 has not account")
+        panic!("u32 is not an account")
     }
 
     fn get_library_id(&self) -> Id {
-        panic!("u32 has not library")
+        panic!("u32 is not a library")
     }
 }
 

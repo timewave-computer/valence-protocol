@@ -419,8 +419,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     })
     .unwrap();
 
-    println!("Migrate res: {:?}", res);
-
     for instruction in res.instructions.iter() {
         let (contract_addr, msg) = match instruction {
             CosmosMsg::Wasm(WasmMsg::Execute {
@@ -481,19 +479,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             .get_request_builder(NEUTRON_CHAIN_NAME),
         &new_account_1_addr,
     );
-
-    let old_account_1_balance = bank::get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        &account_1_addr,
-    );
-
-    println!("old Account 1 balance: {:?}", old_account_1_balance);
-    println!("new Account 1 balance: {:?}", new_account_1_balance);
-    println!("Authorization contract: {:?}", authorization_addr);
-    println!("old account contract: {:?}", account_1_addr);
-    println!("New account contract: {:?}", new_account_1_addr);
 
     assert!(new_account_1_balance
         .iter()
