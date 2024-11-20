@@ -1,34 +1,24 @@
-use std::{error::Error, time::Duration};
+use std::error::Error;
 
-use cosmwasm_std::{Binary, Int64};
+use cosmwasm_std::Int64;
 use local_interchaintest::utils::{
-    authorization::confirm_authorizations_callback_state,
     manager::{
-        setup_manager, use_manager_init, OSMOSIS_CL_LPER_NAME, OSMOSIS_CL_LWER_NAME,
-        POLYTONE_NOTE_NAME, POLYTONE_PROXY_NAME, POLYTONE_VOICE_NAME,
+        setup_manager, OSMOSIS_CL_LPER_NAME, OSMOSIS_CL_LWER_NAME, POLYTONE_NOTE_NAME,
+        POLYTONE_PROXY_NAME, POLYTONE_VOICE_NAME,
     },
-    polytone::setup_polytone,
-    processor::confirm_remote_domain_processor_queue_length,
-    GAS_FLAGS, LOGS_FILE_PATH, NEUTRON_OSMO_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
+    osmosis::concentrated_liquidity::setup_cl_pool,
+    LOGS_FILE_PATH, NEUTRON_OSMO_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
 };
 
-use localic_std::modules::{bank, cosmwasm::contract_execute};
 use localic_utils::{
-    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
-    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
-    OSMOSIS_CHAIN_DENOM, OSMOSIS_CHAIN_ID, OSMOSIS_CHAIN_NAME,
+    ConfigChainBuilder, TestContextBuilder, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
+    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_DENOM,
+    OSMOSIS_CHAIN_NAME,
 };
 use log::info;
-use valence_authorization_utils::{
-    authorization_message::{Message, MessageDetails, MessageType},
-    builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
-    domain::Domain,
-    msg::ProcessorMessage,
-};
 use valence_osmosis_utils::utils::cl_utils::TickRange;
 use valence_program_manager::{
     account::{AccountInfo, AccountType},
-    library::{LibraryConfig, LibraryInfo},
     program_config_builder::ProgramConfigBuilder,
 };
 
@@ -52,8 +42,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .dest(OSMOSIS_CHAIN_NAME)
         .get();
 
-    // TODO
-    let pool_id = 1u64;
+    let pool_id = setup_cl_pool(&mut test_ctx, OSMOSIS_CHAIN_DENOM, &ntrn_on_osmo_denom)?;
 
     setup_manager(
         &mut test_ctx,

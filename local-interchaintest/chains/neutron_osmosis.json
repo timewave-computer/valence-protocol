@@ -217,6 +217,10 @@
           {
             "key": "app_state.gov.params.min_deposit.0.denom",
             "value": "uosmo"
+          },
+          {
+            "key": "app_state.concentratedliquidity.params.is_permissionless_pool_creation_enabled",
+            "value": true
           }
         ],
         "accounts": [

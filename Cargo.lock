@@ -2563,6 +2563,7 @@ dependencies = [
  "localic-std",
  "localic-utils",
  "log",
+ "osmosis-std",
  "persistence-std",
  "polytone-note",
  "polytone-voice",
