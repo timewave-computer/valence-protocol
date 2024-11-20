@@ -2585,6 +2585,7 @@ dependencies = [
  "valence-osmosis-cl-withdrawer",
  "valence-osmosis-gamm-lper",
  "valence-osmosis-gamm-withdrawer",
+ "valence-osmosis-utils",
  "valence-processor",
  "valence-processor-utils",
  "valence-program-manager",

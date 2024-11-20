@@ -42,4 +42,5 @@ valence-osmosis-gamm-lper            = { workspace = true }
 valence-osmosis-gamm-withdrawer      = { workspace = true }
 valence-osmosis-cl-lper              = { workspace = true }
 valence-osmosis-cl-withdrawer        = { workspace = true }
+valence-osmosis-utils                = { workspace = true }
 tokio                                = { workspace = true }
