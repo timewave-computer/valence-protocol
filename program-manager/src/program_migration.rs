@@ -46,7 +46,7 @@ pub struct ProgramConfigMigrate {
     pub transfer_funds: Vec<FundsTransfer>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MigrateResponse {
     pub instructions: Vec<CosmosMsg>,
     pub pause_processor_messages: Vec<CosmosMsg>,

@@ -59,7 +59,7 @@ pub enum AuthorizationInfoUpdate {
 }
 
 /// The reason our update method is returning
-#[derive(Clone, Debug, Serialize, Deserialize,)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UpdateResponse {
     pub instructions: Vec<CosmosMsg>,
 }
