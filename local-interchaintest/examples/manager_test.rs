@@ -539,6 +539,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // assert!(processor_status == valence_processor_utils::processor::State::Paused.to_string());
     assert!(processor_status == "paused");
-    
+
     Ok(())
 }
