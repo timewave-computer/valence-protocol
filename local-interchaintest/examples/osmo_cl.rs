@@ -1,7 +1,8 @@
 use std::{error::Error, time::Duration};
 
-use cosmwasm_std::{Binary, Int64, Uint64};
+use cosmwasm_std::{Binary, Int64, Uint128, Uint64};
 use local_interchaintest::utils::{
+    authorization::confirm_authorizations_callback_state,
     manager::{
         setup_manager, use_manager_init, OSMOSIS_CL_LPER_NAME, OSMOSIS_CL_LWER_NAME,
         POLYTONE_NOTE_NAME, POLYTONE_PROXY_NAME, POLYTONE_VOICE_NAME,
@@ -23,6 +24,7 @@ use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType},
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
     domain::Domain,
+    function::{RetryLogic, RetryTimes},
     msg::ProcessorMessage,
 };
 use valence_osmosis_utils::utils::cl_utils::TickRange;
@@ -52,7 +54,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .dest(OSMOSIS_CHAIN_NAME)
         .get();
 
-    let pool_id = setup_cl_pool(&mut test_ctx, OSMOSIS_CHAIN_DENOM, &ntrn_on_osmo_denom)?;
+    let pool_id = setup_cl_pool(&mut test_ctx, &ntrn_on_osmo_denom, OSMOSIS_CHAIN_DENOM)?;
 
     setup_manager(
         &mut test_ctx,
@@ -90,10 +92,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let cl_output_acc = builder.add_account(cl_output_acc_info);
     let final_output_acc = builder.add_account(final_output_acc_info);
 
-    info!("cl input acc: {:?}", cl_input_acc);
-    info!("cl output acc: {:?}", cl_output_acc);
-    info!("final output acc: {:?}", final_output_acc);
-
     let cl_lper_config = valence_osmosis_cl_lper::msg::LibraryConfig {
         input_addr: cl_input_acc.clone(),
         output_addr: cl_output_acc.clone(),
@@ -102,8 +100,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             pool_asset_1: ntrn_on_osmo_denom.to_string(),
             pool_asset_2: OSMOSIS_CHAIN_DENOM.to_string(),
             global_tick_range: TickRange {
-                lower_tick: Int64::from(-10_000),
-                upper_tick: Int64::from(10_000),
+                lower_tick: Int64::from(-1_000_000),
+                upper_tick: Int64::from(1_000_000),
             },
         },
     };
@@ -175,6 +173,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             .with_subroutine(
                 AtomicSubroutineBuilder::new()
                     .with_function(cl_lwer_function)
+                    // .with_retry_logic(RetryLogic {
+                    //     times: RetryTimes::Indefinitely,
+                    //     interval: cw_utils::Duration::Time(1),
+                    // })
                     .build(),
             )
             .build(),
@@ -216,27 +218,27 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("output_acc_addr: {output_acc_addr}");
     info!("final_output_acc_addr: {final_output_acc_addr}");
 
-    let input_acc_balances = bank::get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(OSMOSIS_CHAIN_NAME),
-        &input_acc_addr,
-    );
-    let output_acc_balances = bank::get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(OSMOSIS_CHAIN_NAME),
-        &output_acc_addr,
-    );
-    let final_output_acc_balances = bank::get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(OSMOSIS_CHAIN_NAME),
-        &final_output_acc_addr,
-    );
-    info!("input_acc_balances: {:?}", input_acc_balances);
-    info!("output_acc_balances: {:?}", output_acc_balances);
-    info!("final_output_acc_balances: {:?}", final_output_acc_balances);
+    // let input_acc_balances = bank::get_balance(
+    //     test_ctx
+    //         .get_request_builder()
+    //         .get_request_builder(OSMOSIS_CHAIN_NAME),
+    //     &input_acc_addr,
+    // );
+    // let output_acc_balances = bank::get_balance(
+    //     test_ctx
+    //         .get_request_builder()
+    //         .get_request_builder(OSMOSIS_CHAIN_NAME),
+    //     &output_acc_addr,
+    // );
+    // let final_output_acc_balances = bank::get_balance(
+    //     test_ctx
+    //         .get_request_builder()
+    //         .get_request_builder(OSMOSIS_CHAIN_NAME),
+    //     &final_output_acc_addr,
+    // );
+    // info!("input_acc_balances: {:?}", input_acc_balances);
+    // info!("output_acc_balances: {:?}", output_acc_balances);
+    // info!("final_output_acc_balances: {:?}", final_output_acc_balances);
 
     info!("funding the input account...");
     bank::send(
@@ -257,7 +259,24 @@ fn main() -> Result<(), Box<dyn Error>> {
         ],
         &cosmwasm_std_old::Coin {
             denom: OSMOSIS_CHAIN_DENOM.to_string(),
-            amount: 1_000_000u128.into(),
+            amount: 5_000u128.into(),
+        },
+    )?;
+    std::thread::sleep(Duration::from_secs(3));
+
+    bank::send(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        DEFAULT_KEY,
+        &output_acc_addr,
+        &[cosmwasm_std_old::Coin {
+            denom: OSMOSIS_CHAIN_DENOM.to_string(),
+            amount: 10_000u128.into(),
+        }],
+        &cosmwasm_std_old::Coin {
+            denom: OSMOSIS_CHAIN_DENOM.to_string(),
+            amount: 5_000u128.into(),
         },
     )?;
 
@@ -288,8 +307,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     let lp_message = ProcessorMessage::CosmwasmExecuteMsg {
         msg: Binary::from(serde_json::to_vec(
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                // valence_osmosis_cl_lper::msg::FunctionMsgs::ProvideLiquidityCustom {
+                //     tick_range: TickRange {
+                //         lower_tick: Int64::new(1000),
+                //         upper_tick: Int64::new(2000),
+                //     },
+                //     token_min_amount_0: Some(Uint128::zero()),
+                //     token_min_amount_1: Some(Uint128::zero()),
+                // },
                 valence_osmosis_cl_lper::msg::FunctionMsgs::ProvideLiquidityDefault {
-                    bucket_amount: Uint64::new(1),
+                    bucket_amount: Uint64::new(10),
                 },
             ),
         )?),
@@ -350,14 +377,129 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let output_acc_cl_positions = query_cl_position(&mut test_ctx, &output_acc_addr)?;
 
-    info!("input acc bal: {:?}", input_acc_bal);
-    info!("output acc cl positions: {:?}", output_acc_cl_positions);
+    info!("[POST-LP] input acc bal: {:?}", input_acc_bal);
+    info!(
+        "[POST-LP] output acc cl positions: {:?}",
+        output_acc_cl_positions
+    );
 
     // input acc started with 2 denoms. we provided liquidity with two denoms,
     // so we should either be left with 1 or 0 denoms (1 in case of leftover).
     assert_ne!(input_acc_bal.len(), 2);
     // output acc should now own one CL position
     assert_eq!(output_acc_cl_positions.positions.len(), 1);
+
+    let output_acc_cl_position = output_acc_cl_positions
+        .positions
+        .first()
+        .unwrap()
+        .position
+        .clone()
+        .unwrap();
+
+    info!("confirmed liquidity provision! asserting authorizations callbacks state sync...");
+    confirm_authorizations_callback_state(
+        &mut test_ctx,
+        NEUTRON_CHAIN_NAME,
+        &authorization_contract_address,
+        0,
+    )?;
+
+    let lw_message = ProcessorMessage::CosmwasmExecuteMsg {
+        msg: Binary::from(serde_json::to_vec(
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_osmosis_cl_withdrawer::msg::FunctionMsgs::WithdrawLiquidity {
+                    position_id: output_acc_cl_position.position_id.into(),
+                    liquidity_amount: output_acc_cl_position.liquidity,
+                },
+            ),
+        )?),
+    };
+    let withdraw_liquidity_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+            label: "withdraw_liquidity".to_string(),
+            messages: vec![lw_message],
+            ttl: None,
+        },
+    );
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&withdraw_liquidity_msg)?,
+        GAS_FLAGS,
+    )?;
+
+    std::thread::sleep(std::time::Duration::from_secs(5));
+
+    info!("confirming that osmosis processor enqueued the withdraw_liquidity_msg...");
+    confirm_remote_domain_processor_queue_length(
+        &mut test_ctx,
+        OSMOSIS_CHAIN_NAME,
+        &osmo_processor_contract_address,
+        1,
+    );
+
+    info!(
+        "PRE-TICK OUTPUT ACC CL POSITIONS: {:?}",
+        query_cl_position(&mut test_ctx, &output_acc_addr)?.positions
+    );
+
+    info!("Ticking osmo processor to withdraw liquidity...");
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        &osmo_processor_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(
+            &valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+                valence_processor_utils::msg::PermissionlessMsg::Tick {},
+            ),
+        )?,
+        &format!(
+            "--gas=auto --gas-adjustment=5.0 --fees {}{}",
+            5_000_000, OSMOSIS_CHAIN_DENOM
+        ),
+    )?;
+
+    std::thread::sleep(std::time::Duration::from_secs(5));
+
+    info!("asserting that withdrawing liquidity worked...");
+
+    let output_acc_cl_positions = query_cl_position(&mut test_ctx, &output_acc_addr)?;
+    let final_acc_bal = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        &final_output_acc_addr,
+    );
+    let output_acc_bal = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        &output_acc_addr,
+    );
+    info!(
+        "POST-TICK OUTPUT ACC CL POSITIONS: {:?}",
+        output_acc_cl_positions.positions
+    );
+    info!("final acc bal: {:?}", final_acc_bal);
+    info!("output acc bal: {:?}", output_acc_bal);
+
+    // assert_eq!(output_acc_cl_positions.positions.len(), 0);
+    // assert_eq!(final_acc_bal.len(), 2);
+
+    info!("asserting authorizations callbacks state sync...");
+    confirm_authorizations_callback_state(
+        &mut test_ctx,
+        NEUTRON_CHAIN_NAME,
+        &authorization_contract_address,
+        1,
+    )?;
 
     Ok(())
 }

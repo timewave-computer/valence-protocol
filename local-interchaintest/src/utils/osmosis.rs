@@ -111,13 +111,13 @@ pub mod concentrated_liquidity {
             .get_request_builder(OSMOSIS_CHAIN_NAME);
 
         let tick_spacing = 1000;
-        let spread_factor = 0.0005;
+        let spread_factor = 0.005;
 
+        // denoms here are reversed because second denom is the quote denom which needs to be authorized (uosmo)
         let cmd = format!(
-            "tx concentratedliquidity create-pool {denom_2} {denom_1} {tick_spacing} {spread_factor} --fees=5000uosmo --from={} --gas auto --gas-adjustment 1.3 --output=json",
+            "tx concentratedliquidity create-pool {denom_1} {denom_2} {tick_spacing} {spread_factor} --from={} --fees=5000uosmo --gas auto --gas-adjustment 1.3 --output=json",
             DEFAULT_KEY
         );
-        info!("CL creation cmd: {cmd}");
 
         let cl_creation_response_events = osmo_rb.tx(&cmd, true)?["events"].clone();
 
@@ -141,14 +141,10 @@ pub mod concentrated_liquidity {
         let pool_id: u64 = pool_id_str.parse().unwrap();
 
         info!("CL pool id: {:?}", pool_id);
-        // Usage:
-        //   osmosisd tx concentratedliquidity create-position [pool-id] [lower-tick] [upper-tick] [tokens-provided] [token-min-amount0] [token-min-amount1] [flags]
 
-        // Examples:
-        // osmosisd tx concentratedliquidity create-position 1 "[-69082]" 69082 10000uosmo,10000uion 0 0 --from val --chain-id osmosis-1 -b block --keyring-backend test --fees 1000uosmo
-
+        // osmosisd tx concentratedliquidity create-position [pool-id] [lower-tick] [upper-tick] [tokens-provided] [token-min-amount0] [token-min-amount1] [flags]
         let lp_cmd = format!(
-            "tx concentratedliquidity create-position {pool_id} 1000 2000 10000000uosmo,10000000{denom_2} 0 0 --from={} --fees=5000uosmo --gas auto --gas-adjustment 1.3 --output=json",
+            "tx concentratedliquidity create-position {pool_id} [-10000] 10000 1500000{denom_1},1500000{denom_2} 0 0 --from={} --fees=5000uosmo --gas auto --gas-adjustment 1.3 --output=json",
             DEFAULT_KEY
         );
 
