@@ -70,6 +70,7 @@ impl Connector for CosmosEvmConnector {
         _program_id: u64,
         _salt: Vec<u8>,
         _admin: String,
+        _authorization: String,
         _polytone_addr: Option<PolytoneContracts>,
     ) -> ConnectorResult<()> {
         unimplemented!("instantiate_processor")

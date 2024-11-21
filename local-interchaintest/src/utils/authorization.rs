@@ -2,7 +2,7 @@ use std::{env, error::Error, time::Duration};
 
 use cosmwasm_std_old::Uint64;
 use localic_std::{
-    modules::cosmwasm::{contract_execute, contract_instantiate, CosmWasm},
+    modules::cosmwasm::{contract_execute, contract_instantiate, contract_query, CosmWasm},
     relayer::Relayer,
 };
 use localic_utils::{
@@ -10,8 +10,10 @@ use localic_utils::{
     NEUTRON_CHAIN_NAME,
 };
 use log::info;
-use valence_authorization_utils::msg::{
-    CallbackProxy, Connector, ExternalDomainInfo, PermissionedMsg,
+use serde_json::Value;
+use valence_authorization_utils::{
+    callback::ProcessorCallbackInfo,
+    msg::{CallbackProxy, Connector, ExternalDomainInfo, PermissionedMsg},
 };
 use valence_processor_utils::msg::PolytoneContracts;
 
@@ -458,4 +460,76 @@ pub fn set_up_external_domain_with_polytone(
     std::thread::sleep(Duration::from_secs(5));
 
     Ok(predicted_processor_on_external_domain_address)
+}
+
+/// queries the authorization contract processor callbacks and tries to confirm that
+/// the processor callback with `execution_id` execution_result is `Success`.
+/// retries for 10 times with a 5 second sleep in between. fails after 10 retries.
+pub fn confirm_authorizations_callback_state(
+    test_ctx: &mut TestContext,
+    authorization_domain: &str,
+    authorization_addr: &str,
+    execution_id: u64,
+) -> Result<(), Box<dyn Error>> {
+    let mut tries = 0;
+    loop {
+        let query_processor_callbacks_response: Value = serde_json::from_value(
+            contract_query(
+                test_ctx
+                    .get_request_builder()
+                    .get_request_builder(authorization_domain),
+                authorization_addr,
+                &serde_json::to_string(
+                    &valence_authorization_utils::msg::QueryMsg::ProcessorCallbacks {
+                        start_after: None,
+                        limit: None,
+                    },
+                )?,
+            )["data"]
+                .clone(),
+        )?;
+
+        info!(
+            "{authorization_domain} authorization mod processor callbacks: {:?}",
+            query_processor_callbacks_response
+        );
+
+        if query_processor_callbacks_response.is_null() {
+            info!("No authorization callbacks not found yet...");
+        } else {
+            let processor_callback_infos: Vec<ProcessorCallbackInfo> =
+                serde_json::from_value(query_processor_callbacks_response)?;
+
+            let callback_by_id = processor_callback_infos
+                .iter()
+                .find(|x| x.execution_id == execution_id);
+
+            info!(
+                "processor callback #{execution_id} info: {:?}",
+                callback_by_id
+            );
+
+            if let Some(cb) = callback_by_id {
+                match cb.execution_result {
+                    valence_authorization_utils::callback::ExecutionResult::Success => {
+                        info!("callback #{execution_id} execution = success!");
+                        return Ok(());
+                    }
+                    _ => {
+                        info!(
+                            "callback #{execution_id} execution result: {:?}",
+                            cb.execution_result
+                        );
+                    }
+                }
+            }
+        }
+
+        tries += 1;
+        if tries == 10 {
+            return Err("Batch not found after 10 tries".into());
+        } else {
+            std::thread::sleep(std::time::Duration::from_secs(5));
+        }
+    }
 }

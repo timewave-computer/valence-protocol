@@ -32,6 +32,10 @@ valence-authorization            = { workspace = true }
 valence-processor                = { workspace = true }
 valence-program-registry         = { workspace = true }
 valence-forwarder-library        = { workspace = true }
+valence-osmosis-gamm-lper        = { workspace = true }
+valence-osmosis-gamm-withdrawer  = { workspace = true }
+valence-osmosis-cl-lper          = { workspace = true }
+valence-osmosis-cl-withdrawer    = { workspace = true }
 
 tokio              = { workspace = true }
 aho-corasick       = "1.1"

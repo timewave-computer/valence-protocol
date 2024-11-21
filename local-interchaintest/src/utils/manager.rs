@@ -13,6 +13,8 @@ use valence_program_manager::{
     update_program,
 };
 
+use crate::utils::POLYTONE_ARTIFACTS_PATH;
+
 const LOG_FILE_PATH: &str = "local-interchaintest/configs/logs.json";
 
 pub const REGISTRY_NAME: &str = "valence_program_registry";
@@ -26,6 +28,11 @@ pub const GENERIC_IBC_TRANSFER_NAME: &str = "valence-generic-ibc-transfer-librar
 pub const NEUTRON_IBC_TRANSFER_NAME: &str = "valence-neutron-ibc-transfer-library";
 pub const ASTROPORT_LPER_NAME: &str = "valence_astroport_lper";
 pub const ASTROPORT_WITHDRAWER_NAME: &str = "valence_astroport_withdrawer";
+pub const OSMOSIS_GAMM_LPER_NAME: &str = "valence_osmosis_gamm_lper";
+pub const OSMOSIS_GAMM_LWER_NAME: &str = "valence_osmosis_gamm_withdrawer";
+pub const POLYTONE_NOTE_NAME: &str = "polytone_note";
+pub const POLYTONE_VOICE_NAME: &str = "polytone_voice";
+pub const POLYTONE_PROXY_NAME: &str = "polytone_proxy";
 
 /// Those contracts will always be uploaded because each program needs them
 const BASIC_CONTRACTS: [&str; 2] = [PROCESSOR_NAME, BASE_ACCOUNT_NAME];
@@ -90,8 +97,25 @@ pub fn setup_manager(
         for contract_name in contracts.iter() {
             let mut uploader = test_ctx.build_tx_upload_contracts();
             uploader.with_chain_name(chain_name);
-            let (path, contrat_wasm_name, contract_name) =
-                get_contract_path(chain_name, contract_name, artifacts_dir.as_str());
+
+            let (path, contract_wasm_name, contract_name) = match *contract_name {
+                POLYTONE_NOTE_NAME => (
+                    format!("{}/{}.wasm", POLYTONE_ARTIFACTS_PATH, POLYTONE_NOTE_NAME),
+                    POLYTONE_NOTE_NAME,
+                    POLYTONE_NOTE_NAME,
+                ),
+                POLYTONE_VOICE_NAME => (
+                    format!("{}/{}.wasm", POLYTONE_ARTIFACTS_PATH, POLYTONE_VOICE_NAME),
+                    POLYTONE_VOICE_NAME,
+                    POLYTONE_VOICE_NAME,
+                ),
+                POLYTONE_PROXY_NAME => (
+                    format!("{}/{}.wasm", POLYTONE_ARTIFACTS_PATH, POLYTONE_PROXY_NAME),
+                    POLYTONE_PROXY_NAME,
+                    POLYTONE_PROXY_NAME,
+                ),
+                _ => get_contract_path(chain_name, contract_name, artifacts_dir.as_str()),
+            };
 
             // Upload contract
             uploader.send_single_contract(path.as_str()).unwrap();
@@ -99,7 +123,8 @@ pub fn setup_manager(
             // get its code id
             let code_id = test_ctx
                 .get_contract()
-                .contract(contrat_wasm_name)
+                .src(chain_name)
+                .contract(contract_wasm_name)
                 .get_cw()
                 .code_id
                 .unwrap();

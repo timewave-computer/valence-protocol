@@ -33,9 +33,13 @@ valence-forwarder-library            = { workspace = true }
 valence-astroport-lper               = { workspace = true }
 valence-astroport-withdrawer         = { workspace = true }
 valence-astroport-utils              = { workspace = true }
-valence-program-manager             = { workspace = true }
-valence-program-registry-utils      = { workspace = true }
+valence-program-manager              = { workspace = true }
+valence-program-registry-utils       = { workspace = true }
 valence-ibc-utils                    = { workspace = true }
 valence-generic-ibc-transfer-library = { workspace = true }
 valence-neutron-ibc-transfer-library = { workspace = true }
+valence-osmosis-gamm-lper            = { workspace = true }
+valence-osmosis-gamm-withdrawer      = { workspace = true }
+valence-osmosis-cl-lper              = { workspace = true }
+valence-osmosis-cl-withdrawer        = { workspace = true }
 tokio                                = { workspace = true }
