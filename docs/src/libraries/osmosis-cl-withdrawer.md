@@ -1,33 +1,51 @@
 # Osmosis CL liquidity withdrawer library
 
-This contract provides the ability to liquidate concentrated liquidity
-positions on Osmosis.
+The **Valence Osmosis CL Withdrawer library** library allows to **withdraw a concentrated liquidity
+positions** off an **Osmosis** pool from an **input account**, and transfer the resulting tokens to an **output account**.
 
-A single function is exposed - `withdraw_liquidity`. It takes in two
-parameters:
-- `position_id`, specifying the ID of the position to be liquidated
-- `liquidity_amount`, specifying the amount of liquidity to be withdrawn
+## High-level flow
 
-## Validations
+```mermaid
+---
+title: Osmosis CL Liquidity Withdrawal
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+		  Account))
+  P[Processor]
+  S[Osmosis
+      Liquidity
+      Withdrawal]
+  AP[Osmosis CL
+     Pool]
+  P -- 1/Withdraw Liquidity --> S
+  S -- 2/Query balances --> IA
+  S -- 3/Compute amount --> S
+  S -- 4/Do Withdraw Liquidity --> IA
+  IA -- 5/Withdraw Liquidity
+				  [LP Position] --> AP
+  AP -- 5'/Transfer assets --> OA
+```
 
-During the library validation, both input and output addresses are validated.
-In addition, a sanity check is performed on the specified pool id to ensure
-that the pool indeed exists.
+## Functions
 
-## Function
+| Function    | Parameters | Description |
+|-------------|------------|-------------|
+| **WithdrawLiquidity** | `position_id: Uint64`<br>`liquidity_amount: String` |  Withdraw liquidity from the configured **Osmosis Pool** from the **input account**, according to the given parameters, and transfer the withdrawned tokens to the configured **output account** |
 
-On function execution, the only explicit validation performed is that of ensuring
-that the position exists.
-Any errors beyond that are propagated from the cl module. These may involve:
-- position ownership error
-- insufficient liquidity error
-- other errors related to the osmosis concentrated liquidity module
+## Configuration
 
-After that, `MsgWithdrawPosition` is executed as a submessage on behalf of
-the input account.
+The library is configured on instantiation via the `LibraryConfig` type.
 
-On reply, valence callback is used to extract the `MsgWithdrawPositionResponse`
-which contains the amount of tokens that were successfully withdrawn.
-
-With that, the final (bank send) message is fired to the input account.
-This message transfers the withdrawn tokens to the output account.
+```rust
+pub struct LibraryConfig {
+    // Account from which the funds are LPed
+    pub input_addr: LibraryAccountType,
+    // Account to which the LP tokens are forwarded
+    pub output_addr: LibraryAccountType,
+    // ID of the pool
+    pub pool_id: Uint64,
+}
+```
