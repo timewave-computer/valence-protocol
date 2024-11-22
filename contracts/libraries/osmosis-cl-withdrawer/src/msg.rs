@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Deps, DepsMut, Uint64};
+use cosmwasm_std::{Addr, Decimal256, Deps, DepsMut, Uint64};
 use cw_ownable::cw_ownable_query;
 
 use valence_library_utils::{
@@ -16,7 +16,7 @@ pub enum FunctionMsgs {
         // ID of the position to be liquidated
         position_id: Uint64,
         // in sdk this is a `Dec`, which prost translates to a `String`
-        liquidity_amount: String,
+        liquidity_amount: Option<Decimal256>,
     },
 }
 

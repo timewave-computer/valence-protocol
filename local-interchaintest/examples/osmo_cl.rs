@@ -1,6 +1,6 @@
-use std::{error::Error, time::Duration};
+use std::{error::Error, str::FromStr, time::Duration};
 
-use cosmwasm_std::{Binary, Int64, Uint128, Uint64};
+use cosmwasm_std::{Binary, Decimal256, Int64, Uint64};
 use local_interchaintest::utils::{
     authorization::confirm_authorizations_callback_state,
     manager::{
@@ -173,10 +173,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             .with_subroutine(
                 AtomicSubroutineBuilder::new()
                     .with_function(cl_lwer_function)
-                    // .with_retry_logic(RetryLogic {
-                    //     times: RetryTimes::Indefinitely,
-                    //     interval: cw_utils::Duration::Time(1),
-                    // })
+                    .with_retry_logic(RetryLogic {
+                        times: RetryTimes::Amount(3),
+                        interval: cw_utils::Duration::Time(1),
+                    })
                     .build(),
             )
             .build(),
@@ -405,12 +405,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         0,
     )?;
 
+    let liquidity_amount = Decimal256::from_str(&output_acc_cl_position.liquidity)?;
+
     let lw_message = ProcessorMessage::CosmwasmExecuteMsg {
         msg: Binary::from(serde_json::to_vec(
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
                 valence_osmosis_cl_withdrawer::msg::FunctionMsgs::WithdrawLiquidity {
                     position_id: output_acc_cl_position.position_id.into(),
-                    liquidity_amount: output_acc_cl_position.liquidity,
+                    liquidity_amount: Some(liquidity_amount),
                 },
             ),
         )?),

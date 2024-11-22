@@ -1,4 +1,6 @@
-use cosmwasm_std::{coin, Coin, Int64};
+use std::str::FromStr;
+
+use cosmwasm_std::{coin, Coin, Decimal256, Int64};
 
 use osmosis_std::{
     cosmwasm_to_proto_coins,
@@ -125,15 +127,17 @@ impl LPerTestSuite {
     pub fn liquidate_position(
         &self,
         position_id: u64,
-        liquidity_amount: String,
+        liquidity_amount: Option<String>,
     ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
+
+        let liquidity_to_withdraw = liquidity_amount.map(|amt| Decimal256::from_str(&amt).unwrap());
 
         wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
             &self.lw_addr,
             &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {
                 position_id: position_id.into(),
-                liquidity_amount,
+                liquidity_amount: liquidity_to_withdraw,
             }),
             &[],
             self.inner.processor_acc(),

@@ -3,14 +3,14 @@ use std::str::FromStr;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, to_json_string, BankMsg, Binary, Coin, Deps, DepsMut, Env, MessageInfo, Reply,
-    Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128,
+    ensure, to_json_binary, to_json_string, BankMsg, Binary, CosmosMsg, Decimal256, Deps, DepsMut,
+    Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsg, SubMsgResult,
 };
 
 use osmosis_std::types::osmosis::concentratedliquidity::v1beta1::{
-    MsgWithdrawPosition, MsgWithdrawPositionResponse, PositionByIdRequest, PositionByIdResponse,
+    ConcentratedliquidityQuerier, MsgWithdrawPosition,
 };
-use valence_account_utils::msg::{parse_valence_payload, ValenceCallback};
+use valence_account_utils::msg::parse_valence_payload;
 use valence_library_utils::{
     error::LibraryError,
     execute_on_behalf_of, execute_submsgs_on_behalf_of,
@@ -73,27 +73,49 @@ pub fn try_liquidate_cl_position(
     deps: DepsMut,
     cfg: Config,
     position_id: u64,
-    liquidity_amount: String,
+    liquidity_amount: Option<Decimal256>,
 ) -> Result<Response, LibraryError> {
-    // here we just assert that the position exists.
-    // any validations beyond this (like position ownership, etc.)
-    // will propagate on execution.
-    deps.querier
-        .query::<PositionByIdResponse>(&PositionByIdRequest { position_id }.into())
-        .map_err(|_| StdError::generic_err("no such position"))?;
+    // first we query the position
+    let position_query_response =
+        ConcentratedliquidityQuerier::new(&deps.querier).position_by_id(position_id)?;
+    let position = position_query_response
+        .position
+        .and_then(|pos| pos.position)
+        .ok_or_else(|| StdError::generic_err("failed to get cl position"))?;
 
-    let liquidate_position_msg = MsgWithdrawPosition {
+    // convert the string-based liquidity field to Decimal256
+    let total_position_liquidity = Decimal256::from_str(position.liquidity.as_str())?;
+
+    let liquidity_to_withdraw = match liquidity_amount {
+        // if liquidity amount to be liquidated is specified,
+        // we ensure that the amount is less than or equal to
+        // the total liquidity in the position
+        Some(amt) => {
+            ensure!(
+                amt <= total_position_liquidity,
+                StdError::generic_err(format!(
+                    "Insufficient liquidity: {amt} > {total_position_liquidity}",
+                ))
+            );
+            amt
+        }
+        // if no liquidity amount is specified, we withdraw the entire position
+        None => total_position_liquidity,
+    };
+
+    let liquidate_position_msg: CosmosMsg = MsgWithdrawPosition {
         position_id,
         sender: cfg.input_addr.to_string(),
-        liquidity_amount,
-    };
+        liquidity_amount: liquidity_to_withdraw.atomics().to_string(),
+    }
+    .into();
 
     // we delegate the position liquidation msg as a submsg because we
     // will need to transfer the underlying tokens we liquidate afterwards.
     let delegated_input_acc_msgs = execute_submsgs_on_behalf_of(
         vec![SubMsg::reply_on_success(liquidate_position_msg, REPLY_ID)],
         Some(to_json_string(&cfg)?),
-        &cfg.input_addr.clone(),
+        &cfg.input_addr,
     )?;
 
     let lib_submsg = SubMsg::reply_on_success(delegated_input_acc_msgs, REPLY_ID);
@@ -139,19 +161,40 @@ fn handle_liquidity_withdrawal_reply(
     let cfg: Config = parse_valence_payload(&result)?;
 
     // decode the response from the submsg result
-    let valence_callback = ValenceCallback::try_from(result)?;
+    // let valence_callback = ValenceCallback::try_from(result)?;
 
     // decode the underlying position withdrawal response
     // and query the pool to match the denoms
-    let decoded_resp: MsgWithdrawPositionResponse = valence_callback.result.try_into()?;
+    // let decoded_resp: MsgWithdrawPositionResponse = valence_callback.clone().result.try_into()?;
     let pool = query_cl_pool(&deps, cfg.pool_id.u64())?;
+
+    // let mut transfer_coins = vec![];
+
+    // let amt_1 = Uint128::from_str(&decoded_resp.amount0)?;
+    // let amt_2 = Uint128::from_str(&decoded_resp.amount1)?;
+
+    // if !amt_1.is_zero() {
+    //     transfer_coins.push(Coin::new(amt_1, pool.token0.to_string()));
+    // }
+    // if !amt_2.is_zero() {
+    //     transfer_coins.push(Coin::new(amt_2, pool.token1.to_string()));
+    // }
+    // let transfer_msg = BankMsg::Send {
+    //     to_address: cfg.output_addr.to_string(),
+    //     amount: transfer_coins,
+    // };
+
+    let post_withdraw_balance_t0 = deps
+        .querier
+        .query_balance(cfg.input_addr.to_string(), &pool.token0)?;
+
+    let post_withdraw_balance_t1 = deps
+        .querier
+        .query_balance(cfg.input_addr.to_string(), &pool.token1)?;
 
     let transfer_msg = BankMsg::Send {
         to_address: cfg.output_addr.to_string(),
-        amount: vec![
-            Coin::new(Uint128::from_str(&decoded_resp.amount0)?, pool.token0),
-            Coin::new(Uint128::from_str(&decoded_resp.amount1)?, pool.token1),
-        ],
+        amount: vec![post_withdraw_balance_t0, post_withdraw_balance_t1],
     };
 
     Ok(Response::default().add_message(execute_on_behalf_of(

@@ -1,4 +1,6 @@
-use cosmwasm_std::coin;
+use std::str::FromStr;
+
+use cosmwasm_std::{coin, Decimal256};
 use valence_osmosis_utils::suite::{OSMO_DENOM, TEST_DENOM};
 
 use super::test_suite::LPerTestSuite;
@@ -31,7 +33,7 @@ fn test_liquidate_position_basic() {
     assert_eq!(pre_liq_input_acc_position.position_id, 2);
 
     // liquidate the position
-    suite.liquidate_position(2, pre_liq_input_acc_position.liquidity);
+    suite.liquidate_position(2, Some(pre_liq_input_acc_position.liquidity));
 
     let post_liq_input_acc_bals = suite
         .inner
@@ -58,7 +60,7 @@ fn test_liquidate_not_owned_position() {
         coin(1_000_000u128, OSMO_DENOM),
         coin(1_000_000u128, TEST_DENOM),
     ])
-    .liquidate_position(1, "123".to_string());
+    .liquidate_position(1, Some("123".to_string()));
 }
 
 #[test]
@@ -69,5 +71,5 @@ fn test_liquidate_non_existing_position() {
         coin(1_000_000u128, OSMO_DENOM),
         coin(1_000_000u128, TEST_DENOM),
     ])
-    .liquidate_position(3, "123".to_string());
+    .liquidate_position(3, Some("123".to_string()));
 }

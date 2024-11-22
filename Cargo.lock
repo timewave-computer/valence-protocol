@@ -5326,6 +5326,7 @@ dependencies = [
 name = "valence-osmosis-cl-withdrawer"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "cosmwasm-schema 2.1.4",
  "cosmwasm-std 2.1.4",
  "cw-ownable",
