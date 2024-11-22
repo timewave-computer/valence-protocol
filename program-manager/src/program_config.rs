@@ -11,6 +11,7 @@ use crate::{
     connectors::Connectors,
     domain::Domain,
     error::{ManagerError, ManagerResult},
+    helpers::get_polytone_info,
     library::LibraryInfo,
     macros::ensure,
     NEUTRON_CHAIN,
@@ -42,9 +43,7 @@ pub struct AuthorizationData {
     /// Key: domain name | Value: authorization bridge address on that domain
     pub authorization_bridge_addrs: BTreeMap<String, String>,
     /// List of processor bridge addresses by domain
-    /// All addresses are on nuetron, mapping to what domain this bridge account is for
-    /// Key: domain name | Value: processor bridge address on that domain
-    pub processor_bridge_addrs: BTreeMap<String, String>,
+    pub processor_bridge_addrs: Vec<String>,
 }
 
 impl AuthorizationData {
@@ -61,8 +60,8 @@ impl AuthorizationData {
             .insert(domain.to_string(), addr);
     }
 
-    pub fn set_processor_bridge_addr(&mut self, domain: Domain, addr: String) {
-        self.processor_bridge_addrs.insert(domain.to_string(), addr);
+    pub fn set_processor_bridge_addr(&mut self, addr: String) {
+        self.processor_bridge_addrs.push(addr);
     }
 }
 
@@ -121,6 +120,7 @@ impl ProgramConfig {
                 self.id,
                 main_processor_salt,
                 authorization_addr.clone(),
+                authorization_addr.clone(),
                 None,
             )
             .await?;
@@ -131,18 +131,21 @@ impl ProgramConfig {
             .set_processor_addr(neutron_domain.clone(), main_processor_addr);
 
         // init processors and bridge accounts on all other domains
-        // For mainnet we need to instantiate a bridge account for each processor instantiated on other domains
-        // For other domains, we need to instantiate a bridge account on the main domain for the authorization contract
+        // For mainnet we need to instantiate a bridge account for each
+        // processor instantiated on other domains
+        // For other domains, we need to instantiate a bridge account
+        // on the main domain for the authorization contract
         for domain in all_domains.iter() {
             if domain != &neutron_domain {
                 let mut connector = connectors.get_or_create_connector(domain).await?;
 
-                // get the authorization bridge account address on the other domain (to be the admon of the processor)
+                // get the authorization bridge account address on the
+                // other domain (to be the admin of the processor)
                 let authorization_bridge_account_addr = connector
                     .get_address_bridge(
                         authorization_addr.as_str(),
                         NEUTRON_CHAIN,
-                        domain.get_chain_name(),
+                        NEUTRON_CHAIN,
                         domain.get_chain_name(),
                     )
                     .await?;
@@ -152,15 +155,20 @@ impl ProgramConfig {
                     .get_address(self.id, "valence_processor", "valence_processor")
                     .await?;
 
-                // Instantiate the processor on the other domain, the admin is the bridge account address of the authorization contract
-                connector
-                    .instantiate_processor(
-                        self.id,
-                        salt,
-                        authorization_bridge_account_addr.clone(),
-                        None,
-                    )
-                    .await?;
+                let polytone_bridge_info =
+                    get_polytone_info(NEUTRON_CHAIN, domain.get_chain_name()).await?;
+
+                let polytone_config =
+                    polytone_bridge_info
+                        .get(domain.get_chain_name())
+                        .map(
+                            |chain_info| valence_processor_utils::msg::PolytoneContracts {
+                                polytone_proxy_address: authorization_bridge_account_addr
+                                    .to_string(),
+                                polytone_note_address: chain_info.note_addr.to_string(),
+                                timeout_seconds: 3_010_000,
+                            },
+                        );
 
                 // Get the processor bridge account address on main domain
                 let processor_bridge_account_addr = neutron_connector
@@ -169,6 +177,18 @@ impl ProgramConfig {
                         NEUTRON_CHAIN,
                         domain.get_chain_name(),
                         NEUTRON_CHAIN,
+                    )
+                    .await?;
+
+                // Instantiate the processor on the other domain, the admin is
+                // the bridge account address of the authorization contract
+                connector
+                    .instantiate_processor(
+                        self.id,
+                        salt,
+                        authorization_bridge_account_addr.to_string(),
+                        authorization_addr.to_string(),
+                        polytone_config,
                     )
                     .await?;
 
@@ -212,8 +232,8 @@ impl ProgramConfig {
 
                 // Add processor bridge account info by domain
                 self.authorization_data
-                    .set_processor_bridge_addr(domain.clone(), processor_bridge_account_addr);
-            };
+                    .set_processor_bridge_addr(processor_bridge_account_addr);
+            }
         }
 
         // We need to manually drop neutron connector here because we finished with it for now.
@@ -317,7 +337,6 @@ impl ProgramConfig {
             domain_connector
                 .instantiate_library(
                     self.id,
-                    authorization_addr.clone(),
                     processor_addr,
                     link.library_id,
                     library.config,
@@ -569,16 +588,21 @@ impl ProgramConfig {
             connector.verify_processor(processor_addr.clone()).await?;
         }
 
-        // Verify authorization and processor bridge accounts were created correctly
         for (domain, authorization_bridge_addr) in
             self.authorization_data.authorization_bridge_addrs.iter()
         {
             let mut connector = connectors
                 .get_or_create_connector(&Domain::from_string(domain.to_string())?)
                 .await?;
-
             connector
                 .verify_bridge_account(authorization_bridge_addr.clone())
+                .await?;
+        }
+
+        for processor_bridge_addr in self.authorization_data.processor_bridge_addrs.iter() {
+            let mut neutron_connector = connectors.get_or_create_connector(&neutron_domain).await?;
+            neutron_connector
+                .verify_bridge_account(processor_bridge_addr.clone())
                 .await?;
         }
 

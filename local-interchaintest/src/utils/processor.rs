@@ -6,6 +6,36 @@ use valence_processor_utils::processor::MessageBatch;
 
 use super::GAS_FLAGS;
 
+/// queries the remote domain processor queue and tries to confirm that the queue length
+/// matches `len`.
+/// retries for 10 times with a 5 second sleep in between. fails after 10 retries.
+pub fn confirm_remote_domain_processor_queue_length(
+    test_ctx: &mut TestContext,
+    processor_domain: &str,
+    processor_addr: &str,
+    len: usize,
+) {
+    let mut tries = 0;
+    loop {
+        let items =
+            get_processor_queue_items(test_ctx, processor_domain, processor_addr, Priority::Medium);
+        info!(
+            "{processor_domain} processor queue (len {:?}): {:?}",
+            items.len(),
+            items
+        );
+
+        if items.len() == len {
+            break;
+        } else if tries > 10 {
+            panic!("Batch not found after 10 tries");
+        }
+
+        tries += 1;
+        std::thread::sleep(std::time::Duration::from_secs(5));
+    }
+}
+
 pub fn tick_processor(
     test_ctx: &mut TestContext,
     chain_name: &str,
