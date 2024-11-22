@@ -3,14 +3,14 @@ use std::str::FromStr;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, to_json_binary, to_json_string, BankMsg, Binary, CosmosMsg, Decimal256, Deps, DepsMut,
-    Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsg, SubMsgResult,
+    ensure, to_json_binary, to_json_string, BankMsg, Binary, Coin, CosmosMsg, Decimal256, Deps,
+    DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128,
 };
 
 use osmosis_std::types::osmosis::concentratedliquidity::v1beta1::{
-    ConcentratedliquidityQuerier, MsgWithdrawPosition,
+    ConcentratedliquidityQuerier, MsgWithdrawPosition, MsgWithdrawPositionResponse,
 };
-use valence_account_utils::msg::parse_valence_payload;
+use valence_account_utils::msg::{parse_valence_payload, ValenceCallback};
 use valence_library_utils::{
     error::LibraryError,
     execute_on_behalf_of, execute_submsgs_on_behalf_of,
@@ -84,7 +84,7 @@ pub fn try_liquidate_cl_position(
         .ok_or_else(|| StdError::generic_err("failed to get cl position"))?;
 
     // convert the string-based liquidity field to Decimal256
-    let total_position_liquidity = Decimal256::from_str(position.liquidity.as_str())?;
+    let total_position_liquidity = Decimal256::from_str(&position.liquidity)?;
 
     let liquidity_to_withdraw = match liquidity_amount {
         // if liquidity amount to be liquidated is specified,
@@ -161,40 +161,33 @@ fn handle_liquidity_withdrawal_reply(
     let cfg: Config = parse_valence_payload(&result)?;
 
     // decode the response from the submsg result
-    // let valence_callback = ValenceCallback::try_from(result)?;
+    let valence_callback = ValenceCallback::try_from(result)?;
 
     // decode the underlying position withdrawal response
-    // and query the pool to match the denoms
-    // let decoded_resp: MsgWithdrawPositionResponse = valence_callback.clone().result.try_into()?;
+    // and query the pool to ensure denom ordering
+    let decoded_resp: MsgWithdrawPositionResponse = valence_callback.result.try_into()?;
     let pool = query_cl_pool(&deps, cfg.pool_id.u64())?;
 
-    // let mut transfer_coins = vec![];
+    let mut transfer_coins = vec![];
 
-    // let amt_1 = Uint128::from_str(&decoded_resp.amount0)?;
-    // let amt_2 = Uint128::from_str(&decoded_resp.amount1)?;
+    let amt_0 = Uint128::from_str(&decoded_resp.amount0)?;
+    let amt_1 = Uint128::from_str(&decoded_resp.amount1)?;
 
-    // if !amt_1.is_zero() {
-    //     transfer_coins.push(Coin::new(amt_1, pool.token0.to_string()));
-    // }
-    // if !amt_2.is_zero() {
-    //     transfer_coins.push(Coin::new(amt_2, pool.token1.to_string()));
-    // }
-    // let transfer_msg = BankMsg::Send {
-    //     to_address: cfg.output_addr.to_string(),
-    //     amount: transfer_coins,
-    // };
+    // there may be situations where only one coin was withdrawn.
+    // to avoid sending empty coins, we only include non-0-bal coins
+    if !amt_0.is_zero() {
+        transfer_coins.push(Coin::new(amt_0, pool.token0));
+    }
+    if !amt_1.is_zero() {
+        transfer_coins.push(Coin::new(amt_1, pool.token1));
+    }
 
-    let post_withdraw_balance_t0 = deps
-        .querier
-        .query_balance(cfg.input_addr.to_string(), &pool.token0)?;
-
-    let post_withdraw_balance_t1 = deps
-        .querier
-        .query_balance(cfg.input_addr.to_string(), &pool.token1)?;
-
+    // both coins cannot be zero because that would mean the position
+    // had no underlying liquidity to withdraw, so we skip the empty
+    // array check here and just fire the banksend
     let transfer_msg = BankMsg::Send {
         to_address: cfg.output_addr.to_string(),
-        amount: vec![post_withdraw_balance_t0, post_withdraw_balance_t1],
+        amount: transfer_coins,
     };
 
     Ok(Response::default().add_message(execute_on_behalf_of(

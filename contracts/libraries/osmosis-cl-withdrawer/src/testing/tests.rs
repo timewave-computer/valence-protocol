@@ -1,6 +1,5 @@
-use std::str::FromStr;
 
-use cosmwasm_std::{coin, Decimal256};
+use cosmwasm_std::{coin};
 use valence_osmosis_utils::suite::{OSMO_DENOM, TEST_DENOM};
 
 use super::test_suite::LPerTestSuite;
