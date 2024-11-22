@@ -24,7 +24,6 @@ use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType},
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
     domain::Domain,
-    function::{RetryLogic, RetryTimes},
     msg::ProcessorMessage,
 };
 use valence_osmosis_utils::utils::cl_utils::TickRange;

@@ -1,8 +1,6 @@
-use cosmwasm_std::{Addr, Binary, Uint128};
+use cosmwasm_std::{Addr, Binary, Coin, Uint128};
 use cw_utils::Duration;
-use margined_neutron_std::types::cosmos::{
-    bank::v1beta1::QueryBalanceRequest, base::v1beta1::Coin,
-};
+use margined_neutron_std::types::cosmos::bank::v1beta1::QueryBalanceRequest;
 use neutron_test_tube::{Account, Bank, Module, Wasm};
 use valence_authorization_utils::{
     authorization::{
@@ -2727,10 +2725,7 @@ fn refund_and_burn_tokens_after_callback() {
             messages: vec![message1.clone()],
             ttl: None,
         }),
-        &[Coin {
-            denom: permission_token.clone(),
-            amount: "1".to_string(),
-        }],
+        &[Coin::new(Uint128::one(), permission_token.to_string())],
         &setup.user_accounts[0],
     )
     .unwrap();
@@ -2744,10 +2739,7 @@ fn refund_and_burn_tokens_after_callback() {
                 messages: vec![message1.clone()],
                 ttl: None,
             }),
-            &[Coin {
-                denom: permission_token.clone(),
-                amount: "1".to_string(),
-            }],
+            &[Coin::new(Uint128::one(), permission_token.to_string())],
             &setup.user_accounts[0],
         )
         .unwrap_err();
@@ -2795,10 +2787,7 @@ fn refund_and_burn_tokens_after_callback() {
             messages: vec![message1],
             ttl: None,
         }),
-        &[Coin {
-            denom: permission_token.clone(),
-            amount: "1".to_string(),
-        }],
+        &[Coin::new(Uint128::one(), permission_token.to_string())],
         &setup.user_accounts[0],
     )
     .unwrap();

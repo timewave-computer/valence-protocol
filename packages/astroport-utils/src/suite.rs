@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use cosmwasm_std::{coins, Uint128};
+use cosmwasm_std::{coin, coins, Uint128};
 use neutron_test_tube::{
     neutron_std::types::{
         cosmos::base::v1beta1::Coin,
@@ -199,14 +199,8 @@ impl AstroportTestAppBuilder {
                 min_lp_to_receive: None,
             },
             &[
-                Coin {
-                    denom: denom.clone(),
-                    amount: 1_000_000_000u128.to_string(),
-                },
-                Coin {
-                    denom: FEE_DENOM.to_string(),
-                    amount: 1_000_000_000u128.to_string(),
-                },
+                coin(1_000_000_000u128, denom.clone()),
+                coin(1_000_000_000u128, FEE_DENOM.to_string()),
             ],
             &accounts[0],
         )
@@ -298,14 +292,8 @@ impl AstroportTestAppBuilder {
                 receiver: None,
             },
             &[
-                Coin {
-                    denom: denom.clone(),
-                    amount: 1_000_000_000u128.to_string(),
-                },
-                Coin {
-                    denom: FEE_DENOM.to_string(),
-                    amount: 1_000_000_000u128.to_string(),
-                },
+                coin(1_000_000_000u128, denom.clone()),
+                coin(1_000_000_000u128, FEE_DENOM.to_string()),
             ],
             &accounts[0],
         )
