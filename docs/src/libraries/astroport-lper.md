@@ -1,6 +1,6 @@
 # Astroport LPer library
 
-The **Valence Astroport LPer library** library allows to **provide liquidity** into an Astroport Liquidity Pool from an **input account** an deposit the LP token into an **output account**.
+The **Valence Astroport LPer library** library allows to **provide liquidity** into an **Astroport Liquidity Pool** from an **input account** and deposit the **LP tokens** into an **output account**.
 
 ## High-level flow
 
@@ -28,6 +28,13 @@ graph LR
   AP -- 5'/Mint LP Tokens --> OA
 
 ```
+
+## Functions
+
+| Function    | Parameters | Description |
+|-------------|------------|-------------|
+| **ProvideDoubleSidedLiquidity** | `expected_pool_ratio_range: Option<DecimalRange>` | Provide double-sided liquidity to the pre-configured **Astroport Pool** from the **input account**, and deposit the **LP tokens** into the **output account**. Abort it the pool ratio is not within the `expected_pool_ratio` range (if specified). |
+| **ProvideSingleSidedLiquidity** | `asset: String`<br>`limit: Option<Uint128>`<br>`expected_pool_ratio_range: Option<DecimalRange>` | Provide single-sided liquidity for the specified `asset` to the pre-configured **Astroport Pool** from the **input account**, and deposit the **LP tokens** into the **output account**. Abort it the pool ratio is not within the `expected_pool_ratio` range (if specified). |
 
 ## Configuration
 

@@ -28,6 +28,12 @@ graph LR
   AP -- 5'/Transfer assets --> OA
 ```
 
+## Functions
+
+| Function    | Parameters | Description |
+|-------------|------------|-------------|
+| **WithdrawLiquidity** | - |  Withdraw liquidity from the configured **Astroport Pool** from the **input account** and deposit the withdrawed tokens into the configured **output account** |
+
 ## Configuration
 
 The library is configured on instantiation via the `LibraryConfig` type.

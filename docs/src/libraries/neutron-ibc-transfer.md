@@ -1,8 +1,8 @@
 # Valence Neutron IBC Transfer library
 
-The **Valence Neutron IBC Transfer** library allows to transfer funds over IBC from an **input account** on Neutron to an **output account** on a destination chain. It is typically used as part of a **Valence Program**. In that context, a **Processor** contract will be the main contract interacting with the Forwarder library.
+The **Valence Neutron IBC Transfer** library allows to transfer funds over IBC from an **input account** on **Neutron** to an **output account** on a destination chain. It is typically used as part of a **Valence Program**. In that context, a **Processor** contract will be the main contract interacting with the Forwarder library.
 
-Note: this library should not be used on another CosmWasm chain than Neutron, which requires some fees to be paid to relayers for IBC transfers. For other CosmWasm chains, prefer using the **Generic IBC Transfer library** instead.
+Note: this library should not be used on another CosmWasm chain than **Neutron**, which requires some fees to be paid to relayers for IBC transfers. For other CosmWasm chains, prefer using the **[Generic IBC Transfer library](./generic-ibc-transfer.md)** instead.
 
 ## High-level flow
 
@@ -27,6 +27,12 @@ graph LR
   IA -- 4/IBC Transfer --> OA
   end
 ```
+
+## Functions
+
+| Function    | Parameters | Description |
+|-------------|------------|-------------|
+| **IbcTransfer** | -          | Transfer funds over IBC from an **input account** on **Neutron** to an **output account** on a destination chain. |
 
 ## Configuration
 

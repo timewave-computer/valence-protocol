@@ -27,6 +27,12 @@ graph LR
   IA -- 5'/Send funds --> OA2
 ```
 
+## Functions
+
+| Function    | Parameters | Description |
+|-------------|------------|-------------|
+| **Split** | -          | Split funds from the configured **input account** to the **output account(s)**, according to the configured **token denom(s)** and **ratio(s)**. |
+
 ## Configuration
 
 The library is configured on instantiation via the `LibraryConfig` type.

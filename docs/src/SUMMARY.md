@@ -23,6 +23,8 @@
   - [Neutron IBC Transfer](./libraries/neutron-ibc-transfer.md)
   - [Osmosis CL LPer](./libraries/osmosis-cl-lper.md)
   - [Osmosis CL Withdrawer](./libraries/osmosis-cl-withdrawer.md)
+  - [Osmosis GAMM LPer](./libraries/osmosis-gamm-lper.md)
+  - [Osmosis GAMM Withdrawer](./libraries/osmosis-gamm-withdrawer.md)
   - [Reverse Splitter](./libraries/reverse-splitter.md)
   - [Splitter](./libraries/splitter.md)
 - [Examples](./examples/_overview.md)

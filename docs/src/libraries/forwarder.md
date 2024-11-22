@@ -22,6 +22,12 @@ graph LR
   IA -- 4/Send funds --> OA
 ```
 
+## Functions
+
+| Function    | Parameters | Description |
+|-------------|------------|-------------|
+| **Forward** | -          | Forward funds from the configured **input account** to the **output account**, according to the **forwarding configs** & **constraints**. |
+
 ## Configuration
 
 The library is configured on instantiation via the `LibraryConfig` type.
@@ -39,7 +45,7 @@ pub struct LibraryConfig {
 }
 
 pub struct UncheckedForwardingConfig {
-    // Unverified denom (either native or CW20)
+    // Denom to be forwarded (either native or CW20)
     pub denom: UncheckedDenom,
     // Max amount of tokens to be transferred per Forward operation
     pub max_amount: Uint128,

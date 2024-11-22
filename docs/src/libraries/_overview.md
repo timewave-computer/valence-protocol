@@ -11,5 +11,7 @@ This section contains a detailed description of the various libraries that can b
 - [Neutron IBC Transfer](./neutron-ibc-transfer.md)
 - [Osmosis CL LPer](./osmosis-cl-lper.md)
 - [Osmosis CL Withdrawer](./osmosis-cl-withdrawer.md)
+- [Osmosis GAMM LPer](./osmosis-gamm-lper.md)
+- [Osmosis GAMM Withdrawer](./osmosis-gamm-withdrawer.md)
 - [Reverse Splitter](./reverse-splitter.md)
 - [Splitter](./splitter.md)
