@@ -34,4 +34,3 @@ serde_json              = { workspace = true }
 cw20                    = { workspace = true }
 osmosis-test-tube       = { workspace = true }
 valence-osmosis-utils   = { workspace = true, features = ["testing"] }
-base64 = "0.22.1"
