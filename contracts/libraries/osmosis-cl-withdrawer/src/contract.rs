@@ -94,7 +94,7 @@ pub fn try_liquidate_cl_position(
             ensure!(
                 amt <= total_position_liquidity,
                 StdError::generic_err(format!(
-                    "Insufficient liquidity: {amt} > {total_position_liquidity}",
+                    "insufficient liquidity: {amt} > {total_position_liquidity}",
                 ))
             );
             amt
