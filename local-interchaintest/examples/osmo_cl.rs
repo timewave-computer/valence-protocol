@@ -173,10 +173,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             .with_subroutine(
                 AtomicSubroutineBuilder::new()
                     .with_function(cl_lwer_function)
-                    .with_retry_logic(RetryLogic {
-                        times: RetryTimes::Amount(3),
-                        interval: cw_utils::Duration::Time(1),
-                    })
                     .build(),
             )
             .build(),
@@ -217,28 +213,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("input_acc_addr: {input_acc_addr}");
     info!("output_acc_addr: {output_acc_addr}");
     info!("final_output_acc_addr: {final_output_acc_addr}");
-
-    // let input_acc_balances = bank::get_balance(
-    //     test_ctx
-    //         .get_request_builder()
-    //         .get_request_builder(OSMOSIS_CHAIN_NAME),
-    //     &input_acc_addr,
-    // );
-    // let output_acc_balances = bank::get_balance(
-    //     test_ctx
-    //         .get_request_builder()
-    //         .get_request_builder(OSMOSIS_CHAIN_NAME),
-    //     &output_acc_addr,
-    // );
-    // let final_output_acc_balances = bank::get_balance(
-    //     test_ctx
-    //         .get_request_builder()
-    //         .get_request_builder(OSMOSIS_CHAIN_NAME),
-    //     &final_output_acc_addr,
-    // );
-    // info!("input_acc_balances: {:?}", input_acc_balances);
-    // info!("output_acc_balances: {:?}", output_acc_balances);
-    // info!("final_output_acc_balances: {:?}", final_output_acc_balances);
 
     info!("funding the input account...");
     bank::send(
@@ -307,14 +281,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let lp_message = ProcessorMessage::CosmwasmExecuteMsg {
         msg: Binary::from(serde_json::to_vec(
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
-                // valence_osmosis_cl_lper::msg::FunctionMsgs::ProvideLiquidityCustom {
-                //     tick_range: TickRange {
-                //         lower_tick: Int64::new(1000),
-                //         upper_tick: Int64::new(2000),
-                //     },
-                //     token_min_amount_0: Some(Uint128::zero()),
-                //     token_min_amount_1: Some(Uint128::zero()),
-                // },
                 valence_osmosis_cl_lper::msg::FunctionMsgs::ProvideLiquidityDefault {
                     bucket_amount: Uint64::new(10),
                 },
@@ -492,8 +458,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("final acc bal: {:?}", final_acc_bal);
     info!("output acc bal: {:?}", output_acc_bal);
 
-    // assert_eq!(output_acc_cl_positions.positions.len(), 0);
-    // assert_eq!(final_acc_bal.len(), 2);
+    assert_eq!(output_acc_cl_positions.positions.len(), 0);
+    assert_eq!(final_acc_bal.len(), 2);
 
     info!("asserting authorizations callbacks state sync...");
     confirm_authorizations_callback_state(
