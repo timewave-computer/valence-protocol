@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache Build artefacts
+      - name: Cache Build artifacts
         uses: Swatinem/rust-cache@v2.7.5
         with:
           cache-on-failure: true
@@ -49,6 +49,28 @@ jobs:
           path: ./artifacts/*.wasm
           if-no-files-found: error
 
+  schema-checks:
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Build artifacts
+        uses: Swatinem/rust-cache@v2.7.5
+        with:
+          cache-on-failure: true
+          shared-key: ${{ github.event.pull_request.number || github.ref }}
+
+      - name: Generate contract schemas
+        run: ./devtools/schema.sh
+
+      - name: Show schema changes
+        run: git status --porcelain
+
+      - name: Validate committed schemas
+        # should fail if any diffs are present
+        run: test -z "$(git status --porcelain)"
+
   tests:
     needs: build
     runs-on: ubuntu-latest
@@ -58,7 +80,7 @@ jobs:
       - name: Free Disk Space
         uses: "./.github/actions/free-disk-space"
 
-      - name: Cache Build artefacts
+      - name: Cache Build artifacts
         uses: Swatinem/rust-cache@v2.7.5
         with:
           cache-on-failure: true
@@ -102,7 +124,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Run polytone example
         uses: "./.github/actions/run-local-ic-test"
         with:
@@ -206,3 +228,17 @@ jobs:
         with:
           chain-config: 'juno_osmosis'
           test-name: 'ibc_transfer_osmo_juno_gaia_pfm'
+
+  local-ic-osmo-gamm-tests:
+    needs: [build,setup-local-ic]
+    name: Osmosis GAMM e2e lp -> lw run
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run osmo gamm lp & lw tests
+        uses: "./.github/actions/run-local-ic-test"
+        with:
+          chain-config: 'neutron_osmosis'
+          test-name: 'osmo_gamm'

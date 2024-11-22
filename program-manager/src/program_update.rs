@@ -21,7 +21,7 @@ use crate::{
     NEUTRON_CHAIN,
 };
 
-/// The job of the update, is to output a set of instructions to the user to update the program configuration.  
+/// The job of the update, is to output a set of instructions to the user to update the program configuration.
 /// The user can only update library configs and authorizations.
 /// You can set the owner to change the owner of the program
 /// You can provide a list of library updates to perform
@@ -84,7 +84,7 @@ impl ProgramConfigUpdate {
 
         // If we have an owner set, we add the update owner instruction
         if let Some(new_owner) = self.owner.clone() {
-            config.owner = new_owner.clone();
+            config.owner = new_owner.to_string();
 
             // Create instruction to change owner
             instructions.push_back(

@@ -2,6 +2,7 @@ pub mod authorization;
 pub mod base_account;
 pub mod ibc;
 pub mod manager;
+pub mod osmosis;
 pub mod persistence;
 pub mod polytone;
 pub mod processor;
@@ -10,6 +11,7 @@ pub mod relayer;
 // Local-ic chain configs files
 pub const NEUTRON_CONFIG_FILE: &str = "neutron.json";
 pub const NEUTRON_JUNO_CONFIG_FILE: &str = "neutron_juno.json";
+pub const NEUTRON_OSMO_CONFIG_FILE: &str = "neutron_osmosis.json";
 
 // Path of all valence contracts
 pub const VALENCE_ARTIFACTS_PATH: &str = "artifacts";
@@ -25,6 +27,8 @@ pub const LOCAL_CODE_ID_CACHE_PATH_NEUTRON: &str =
 pub const LOCAL_CODE_ID_CACHE_PATH_JUNO: &str = "local-interchaintest/code_id_cache_juno.json";
 pub const LOCAL_CODE_ID_CACHE_PATH_PERSISTENCE: &str =
     "local-interchaintest/code_id_cache_persistence.json";
+pub const LOCAL_CODE_ID_CACHE_PATH_OSMOSIS: &str =
+    "local-interchaintest/code_id_cache_osmosis.json";
 
 pub const GAS_FLAGS: &str = "--gas=auto --gas-adjustment=3.0";
 pub const NTRN_DENOM: &str = "untrn";
