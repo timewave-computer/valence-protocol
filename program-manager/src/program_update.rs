@@ -81,7 +81,7 @@ impl ProgramConfigUpdate {
 
         let mut config = neutron_connector.get_program_config(self.id).await?;
         debug!("Old config: {:#?}", config);
-        
+
         let mut instructions: VecDeque<CosmosMsg> = VecDeque::new();
         let mut new_authorizations: Vec<AuthorizationInfo> = vec![];
 
