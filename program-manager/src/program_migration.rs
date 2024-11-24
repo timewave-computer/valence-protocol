@@ -4,6 +4,7 @@ use anyhow::Context;
 use cosmwasm_schema::schemars::JsonSchema;
 use cosmwasm_std::{to_json_binary, Coin, CosmosMsg, WasmMsg};
 
+use log::{debug, info};
 use serde::{Deserialize, Serialize};
 use valence_authorization_utils::{
     authorization::{AuthorizationInfo, AuthorizationModeInfo, Priority},
@@ -62,6 +63,7 @@ impl ProgramConfigMigrate {
     /// NOTE: stopping all processor must happen after transfer of funds was completed, else
     /// the transfer message will be stuck in the processor.
     pub async fn migrate(&mut self, connectors: &Connectors) -> ManagerResult<MigrateResponse> {
+        info!("Start program migration");
         let neutron_domain = Domain::CosmosCosmwasm(NEUTRON_CHAIN.to_string());
 
         // Get the old program config from registry
@@ -70,6 +72,7 @@ impl ProgramConfigMigrate {
         let mut old_config = neutron_connector.get_program_config(self.old_id).await?;
 
         // Verify the migration config
+        info!("Verify migration config");
         self.verify_config_migration(&old_config)?;
 
         // After we verified the migration config is correct, we can start the migration
@@ -83,6 +86,7 @@ impl ProgramConfigMigrate {
         let mut instructions: VecDeque<CosmosMsg> = VecDeque::new();
         let mut new_authorizations: Vec<AuthorizationInfo> = vec![];
 
+        info!("Generate transfer funds authorizations and messages");
         for transfer_funds in self.transfer_funds.iter() {
             // Get the account id we are sending funds from
             // We unwrap because we already verified this account exists
@@ -141,6 +145,8 @@ impl ProgramConfigMigrate {
 
                 let authorization_info = authorization_builder.build();
 
+                debug!("Authorization info: {:?}", authorization_info);
+
                 new_authorizations.push(authorization_info.clone());
                 old_config.authorizations.push(authorization_info);
             }
@@ -167,6 +173,8 @@ impl ProgramConfigMigrate {
                     msgs: vec![transfer_msg.into()],
                 })
                 .context("Migrate: failed to parse to binary Account::ExecuteMsg")?;
+
+            debug!("Account execute msg: {:?}", account_execute_msg);
 
             instructions.push_back(
                 WasmMsg::Execute {
@@ -210,6 +218,7 @@ impl ProgramConfigMigrate {
         // Add all processor halt messages
         let mut pause_processor_messages: Vec<CosmosMsg> = vec![];
 
+        info!("Generate pause processor messages");
         for (domain, _) in old_config.authorization_data.processor_addrs.clone() {
             let domain = if Domain::from_string(domain.clone())? == neutron_domain {
                 valence_authorization_utils::domain::Domain::Main

@@ -35,7 +35,7 @@ use valence_splitter_library::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
-
+    
     let mut test_ctx = TestContextBuilder::default()
         .with_unwrap_raw_logs(true)
         .with_api_url(LOCAL_IC_API_URL)
