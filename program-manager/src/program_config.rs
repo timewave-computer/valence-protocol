@@ -614,21 +614,21 @@ impl ProgramConfig {
         HashSet::from_iter(domains)
     }
 
-    pub fn get_account(&self, account_id: impl GetId) -> ManagerResult<&AccountInfo> {
+    pub fn get_account(&self, id: impl GetId) -> ManagerResult<&AccountInfo> {
         self.accounts
-            .get(&account_id.get_id())
+            .get(&id.get_account_id())
             .ok_or(ManagerError::generic_err(format!(
                 "Account with id {} not found",
-                account_id.get_id()
+                id.get_account_id()
             )))
     }
 
-    pub fn get_library(&self, library_id: u64) -> ManagerResult<LibraryInfo> {
+    pub fn get_library(&self, id: impl GetId) -> ManagerResult<LibraryInfo> {
         self.libraries
-            .get(&library_id)
+            .get(&id.get_library_id())
             .ok_or(ManagerError::generic_err(format!(
                 "Library with id {} not found",
-                library_id
+                id.get_library_id()
             )))
             .cloned()
     }

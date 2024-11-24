@@ -153,7 +153,7 @@ impl ProgramConfigMigrate {
                 .addr
                 .clone()
                 .context(format!(
-                    "Account id: {} doesn't have address in old config",
+                    "Account id: {} doesn't have address in new config",
                     transfer_funds.to.get_account_id()
                 ))?;
 
