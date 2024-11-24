@@ -174,6 +174,12 @@ pub trait Connector: fmt::Debug + Send + Sync {
     // Verify the bridge account was instantiated
     async fn verify_bridge_account(&mut self, bridge_addr: String) -> ConnectorResult<()>;
 
+    // This returns us the api we use to validate library configs.
+    // With more domains we support, we might need to wrap the api in a more generic type
+    // because the api is specific to cosmwasm.
+    // We might even want to mock a Querier that will allow us to access on-chain data.
+    fn get_api(&self) -> ConnectorResult<Box<dyn cosmwasm_std::Api>>;
+
     // ---------------------------------------------------------------------------------------
     // Below are functions that sohuld only be implemented on a specific domain
     // For example authorization contract methods should only be implemented on the main domain

@@ -274,7 +274,7 @@ impl LibraryConfig {
         .map_err(LibraryError::SerdeJsonError)
     }
 
-    pub fn soft_validate_config(&self, api: &dyn cosmwasm_std::Api) -> LibraryResult<()> {
+    pub fn pre_validate_config(&self, api: &dyn cosmwasm_std::Api) -> LibraryResult<()> {
         match self {
             LibraryConfig::None => Err(LibraryError::NoLibraryConfig),
             LibraryConfig::ValenceForwarderLibrary(config) => {

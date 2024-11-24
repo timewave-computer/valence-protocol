@@ -77,6 +77,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let action_label = "swap";
     builder.add_authorization(
         AuthorizationBuilder::new()
+            .with_label(action_label)
             .with_subroutine(
                 AtomicSubroutineBuilder::new()
                     .with_function(
@@ -209,13 +210,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     // tick processor
     let tick_denom = build_tokenfactory_denom(
         &authorization_addr,
-        format!(
-            "update_service_{}_{}",
-            splitter_data.name,
-            library_1.get_id()
-        )
-        .as_str(),
+        format!("update_library_{}", library_1.get_id()).as_str(),
     );
+
     println!("Ticking processor with denom: {}", tick_denom);
     println!("auth addr {}", authorization_addr);
 

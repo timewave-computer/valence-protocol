@@ -83,7 +83,7 @@ pub struct CosmosCosmwasmConnector {
     wallet: Wallet,
     code_ids: HashMap<String, u64>,
     chain_name: String,
-    prefix: String,
+    prefix: &'static str,
 }
 
 impl fmt::Debug for CosmosCosmwasmConnector {
@@ -129,7 +129,7 @@ impl CosmosCosmwasmConnector {
             wallet,
             code_ids: code_ids.clone(),
             chain_name: chain_info.name.clone(),
-            prefix: chain_info.prefix.clone(),
+            prefix: chain_info.prefix.clone().leak(),
         })
     }
 }
@@ -214,14 +214,14 @@ impl Connector for CosmosCosmwasmConnector {
 
         let addr_canonical = instantiate2_address(
             &checksum,
-            &addr_canonicalize(&self.prefix, self.wallet.account_address.as_str()).unwrap(),
+            &addr_canonicalize(self.prefix, self.wallet.account_address.as_str()).unwrap(),
             &salt,
         )
         .context("Failed to instantiate2 address")
         .map_err(CosmosCosmwasmError::Error)?;
 
         let addr =
-            addr_humanize(&self.prefix, &addr_canonical).map_err(CosmosCosmwasmError::Error)?;
+            addr_humanize(self.prefix, &addr_canonical).map_err(CosmosCosmwasmError::Error)?;
 
         Ok((addr, salt.to_vec()))
     }
@@ -255,18 +255,15 @@ impl Connector for CosmosCosmwasmConnector {
 
         let addr_canonical = instantiate2_address(
             &checksum,
-            &addr_canonicalize(
-                &self.prefix,
-                receiving_chain_bridge_info.voice_addr.as_str(),
-            )
-            .unwrap(),
+            &addr_canonicalize(self.prefix, receiving_chain_bridge_info.voice_addr.as_str())
+                .unwrap(),
             &salt,
         )
         .context("Failed to instantiate2 address")
         .map_err(CosmosCosmwasmError::Error)?;
 
         let addr =
-            addr_humanize(&self.prefix, &addr_canonical).map_err(CosmosCosmwasmError::Error)?;
+            addr_humanize(self.prefix, &addr_canonical).map_err(CosmosCosmwasmError::Error)?;
 
         Ok(addr)
     }
@@ -874,6 +871,12 @@ impl Connector for CosmosCosmwasmConnector {
 
         Ok(from_json::<ProgramConfig>(&res.program_config)
             .map_err(CosmosCosmwasmError::CosmwasmStdError)?)
+    }
+
+    fn get_api(&self) -> ConnectorResult<Box<dyn cosmwasm_std::Api>> {
+        Ok(Box::new(
+            cosmwasm_std::testing::MockApi::default().with_prefix(self.prefix),
+        ))
     }
 }
 

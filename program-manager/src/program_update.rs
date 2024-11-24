@@ -110,7 +110,7 @@ impl ProgramConfigUpdate {
                 .context(ManagerError::LibraryIdIsMissing(*id).to_string())?;
 
             // Add authorization to update the library
-            let label = format!("update_library_{}_{}", library.name, id);
+            let label = format!("update_library_{}", id);
 
             // Create authorization if we don't already have one
             if !config.authorizations.iter().any(|auth| auth.label == label) {
