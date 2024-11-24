@@ -228,3 +228,17 @@ jobs:
         with:
           chain-config: 'juno_osmosis'
           test-name: 'ibc_transfer_osmo_juno_gaia_pfm'
+
+  local-ic-osmo-gamm-tests:
+    needs: [build,setup-local-ic]
+    name: Osmosis GAMM e2e lp -> lw run
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run osmo gamm lp & lw tests
+        uses: "./.github/actions/run-local-ic-test"
+        with:
+          chain-config: 'neutron_osmosis'
+          test-name: 'osmo_gamm'

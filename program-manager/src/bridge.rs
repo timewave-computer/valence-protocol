@@ -7,13 +7,14 @@ pub enum Bridge {
     /// This is the details we need for the bridge to predict the address of the proxy
     /// https://github.com/DA0-DA0/polytone/blob/main/contracts/main/voice/src/contract.rs#L186
     ///
-    /// Polytone is 1-to-1 bridge (1 note <> 1 voice), so we need this information for every chain that we are connected to.
+    /// Polytone is 1-to-1 bridge (1 note <> 1 voice), so we need this
+    /// information for every chain that we are connected to.
     Polytone(PolytoneBridgeInfo),
 }
 
 /// This type represents the bridge info between 2 chains.
-/// should always and only hold 2 elements, where the key is the chain name and the value is the bridge info
-/// between those 2 chains.
+/// should always and only hold 2 elements, where the key is the
+/// chain name and the value is the bridge info between those 2 chains.
 pub type PolytoneBridgeInfo = HashMap<String, PolytoneSingleChainInfo>;
 
 /// This struct represent the data that we need for polytone in a single chain
