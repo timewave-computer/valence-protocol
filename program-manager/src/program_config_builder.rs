@@ -64,9 +64,9 @@ impl ProgramConfigBuilder {
         self.program_config.links.insert(
             id,
             Link {
-                input_accounts_id: inputs.into_iter().map(|id| id.get_id()).collect(),
-                output_accounts_id: outputs.into_iter().map(|id| id.get_id()).collect(),
-                library_id: library_id.get_id(),
+                input_accounts_id: inputs.into_iter().map(|id| id.get_account_id()).collect(),
+                output_accounts_id: outputs.into_iter().map(|id| id.get_account_id()).collect(),
+                library_id: library_id.get_library_id(),
             },
         );
     }
