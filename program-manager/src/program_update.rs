@@ -59,7 +59,7 @@ pub enum AuthorizationInfoUpdate {
 }
 
 /// The reason our update method is returning
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UpdateResponse {
     pub instructions: Vec<CosmosMsg>,
 }
@@ -74,7 +74,7 @@ impl ProgramConfigUpdate {
 
         // 0 is not a valid id of a program
         if self.id == 0 {
-            return Err(ManagerError::InvalidWorkflowId);
+            return Err(ManagerError::InvalidProgramId);
         }
 
         let mut config = neutron_connector.get_program_config(self.id).await?;
@@ -110,7 +110,7 @@ impl ProgramConfigUpdate {
                 .context(ManagerError::LibraryIdIsMissing(*id).to_string())?;
 
             // Add authorization to update the library
-            let label = format!("update_library_{}_{}", library.name, id);
+            let label = format!("update_library_{}", id);
 
             // Create authorization if we don't already have one
             if !config.authorizations.iter().any(|auth| auth.label == label) {
@@ -121,7 +121,8 @@ impl ProgramConfigUpdate {
                         library.domain.to_string(),
                     )
                 };
-                let actions_config = AtomicSubroutineBuilder::new()
+
+                let subroutine = AtomicSubroutineBuilder::new()
                     .with_function(
                         AtomicFunctionBuilder::new()
                             .with_domain(library_domain)
@@ -144,9 +145,12 @@ impl ProgramConfigUpdate {
                         valence_authorization_utils::authorization::PermissionTypeInfo::WithoutCallLimit(vec![config.owner.clone()]),
                     ))
                     .with_priority(Priority::High)
-                    .with_subroutine(actions_config);
+                    .with_subroutine(subroutine);
 
-                new_authorizations.push(authorization_builder.build());
+                let authorization_info = authorization_builder.build();
+                new_authorizations.push(authorization_info.clone());
+
+                config.authorizations.push(authorization_info);
             }
 
             // execute insert message on the authorization to push this message to processor

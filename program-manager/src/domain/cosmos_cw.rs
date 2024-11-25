@@ -37,7 +37,10 @@ use valence_authorization_utils::authorization::AuthorizationInfo;
 use super::{Connector, ConnectorResult, POLYTONE_TIMEOUT};
 
 // const MNEMONIC: &str = "margin moon alcohol assume tube bullet long cook edit delay boat camp stone coyote gather design aisle comfort width sound innocent long dumb jungle";
-const MNEMONIC: &str = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry";
+// acc0 in local-ic
+// const MNEMONIC: &str = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry";
+// acc1 in local-ic
+const MNEMONIC: &str = "across army acoustic hurt help sad turkey switch popular fade purse obvious session tuition file asset cover agree number motor pupil slim hundred busy";
 
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryBuildAddressRequest {

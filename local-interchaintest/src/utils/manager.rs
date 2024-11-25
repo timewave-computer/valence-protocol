@@ -1,14 +1,13 @@
 use std::{collections::HashMap, env, error::Error, fs};
 
 use localic_std::modules::cosmwasm::contract_instantiate;
-use localic_utils::{
-    utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
-};
+use localic_utils::{utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_NAME};
 use valence_program_manager::{
     config::{ChainInfo, GLOBAL_CONFIG},
     error::ManagerResult,
-    init_program,
+    init_program, migrate_program,
     program_config::ProgramConfig,
+    program_migration::{MigrateResponse, ProgramConfigMigrate},
     program_update::{ProgramConfigUpdate, UpdateResponse},
     update_program,
 };
@@ -16,6 +15,7 @@ use valence_program_manager::{
 use crate::utils::POLYTONE_ARTIFACTS_PATH;
 
 const LOG_FILE_PATH: &str = "local-interchaintest/configs/logs.json";
+pub const MANAGER_ADMIN_ADDR: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
 
 pub const REGISTRY_NAME: &str = "valence_program_registry";
 pub const AUTHORIZATION_NAME: &str = "valence_authorization";
@@ -145,7 +145,7 @@ pub fn setup_manager(
         DEFAULT_KEY,
         registry_code_id,
         &serde_json::to_string(&valence_program_registry_utils::InstantiateMsg {
-            admin: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+            admin: MANAGER_ADMIN_ADDR.to_string(),
         })
         .unwrap(),
         "program-registry",
@@ -319,13 +319,23 @@ pub fn use_manager_init(program_config: &mut ProgramConfig) -> ManagerResult<()>
 
 /// Helper function to update manager config to hide the tokio block_on
 pub fn use_manager_update(
-    workflow_config_update: ProgramConfigUpdate,
+    program_config_update: ProgramConfigUpdate,
 ) -> ManagerResult<UpdateResponse> {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
         .unwrap();
-    rt.block_on(update_program(workflow_config_update))
+    rt.block_on(update_program(program_config_update))
+}
+
+pub fn use_manager_migrate(
+    program_config_migrate: ProgramConfigMigrate,
+) -> ManagerResult<MigrateResponse> {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    rt.block_on(migrate_program(program_config_migrate))
 }
 
 pub fn get_global_config(

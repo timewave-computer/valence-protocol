@@ -9,12 +9,14 @@ pub mod library;
 pub mod macros;
 pub mod program_config;
 pub mod program_config_builder;
+pub mod program_migration;
 pub mod program_update;
 pub mod tests;
 
 use connectors::Connectors;
 use error::ManagerResult;
 use program_config::ProgramConfig;
+use program_migration::{MigrateResponse, ProgramConfigMigrate};
 use program_update::{ProgramConfigUpdate, UpdateResponse};
 
 // Main chain name
@@ -37,4 +39,12 @@ pub async fn update_program(
     let connectors = Connectors::default();
 
     program_config.update(&connectors).await
+}
+
+pub async fn migrate_program(
+    mut program_config: ProgramConfigMigrate,
+) -> ManagerResult<MigrateResponse> {
+    let connectors = Connectors::default();
+
+    program_config.migrate(&connectors).await
 }

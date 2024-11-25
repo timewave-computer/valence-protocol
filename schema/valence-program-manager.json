@@ -192,11 +192,9 @@
             "additionalProperties": false
           },
           "processor_bridge_addrs": {
-            "description": "List of processor bridge addresses by domain",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "description": "List of processor bridge addresses by domain All addresses are on nuetron, mapping to what domain this bridge account is for Key: domain name | Value: processor bridge address on that domain",
+            "type": "object",
+            "additionalProperties": false
           }
         },
         "additionalProperties": false
@@ -723,30 +721,6 @@
               }
             },
             "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "required": [
-              "ValenceOsmosisGammLper"
-            ],
-            "properties": {
-              "ValenceOsmosisGammLper": {
-                "$ref": "#/definitions/LibraryConfigUpdate7"
-              }
-            },
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "required": [
-              "ValenceOsmosisGammWithdrawer"
-            ],
-            "properties": {
-              "ValenceOsmosisGammWithdrawer": {
-                "$ref": "#/definitions/LibraryConfigUpdate8"
-              }
-            },
-            "additionalProperties": false
           }
         ]
       },
@@ -939,78 +913,6 @@
         },
         "additionalProperties": false
       },
-      "LibraryConfigUpdate7": {
-        "type": "object",
-        "properties": {
-          "input_addr": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/LibraryAccountType"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "lp_config": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/LiquidityProviderConfig2"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "output_addr": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/LibraryAccountType"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "additionalProperties": false
-      },
-      "LibraryConfigUpdate8": {
-        "type": "object",
-        "properties": {
-          "input_addr": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/LibraryAccountType"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "lw_config": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/LiquidityWithdrawerConfig2"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "output_addr": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/LibraryAccountType"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "additionalProperties": false
-      },
       "LibraryInfo": {
         "type": "object",
         "required": [
@@ -1105,28 +1007,6 @@
         },
         "additionalProperties": false
       },
-      "LiquidityProviderConfig2": {
-        "type": "object",
-        "required": [
-          "pool_asset_1",
-          "pool_asset_2",
-          "pool_id"
-        ],
-        "properties": {
-          "pool_asset_1": {
-            "type": "string"
-          },
-          "pool_asset_2": {
-            "type": "string"
-          },
-          "pool_id": {
-            "type": "integer",
-            "format": "uint64",
-            "minimum": 0.0
-          }
-        },
-        "additionalProperties": false
-      },
       "LiquidityWithdrawerConfig": {
         "type": "object",
         "required": [
@@ -1140,20 +1020,6 @@
                 "$ref": "#/definitions/PoolType2"
               }
             ]
-          }
-        },
-        "additionalProperties": false
-      },
-      "LiquidityWithdrawerConfig2": {
-        "type": "object",
-        "required": [
-          "pool_id"
-        ],
-        "properties": {
-          "pool_id": {
-            "type": "integer",
-            "format": "uint64",
-            "minimum": 0.0
           }
         },
         "additionalProperties": false
@@ -1513,7 +1379,7 @@
               "authorization_addr": "",
               "authorization_bridge_addrs": {},
               "processor_addrs": {},
-              "processor_bridge_addrs": []
+              "processor_bridge_addrs": {}
             },
             "allOf": [
               {

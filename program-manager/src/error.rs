@@ -64,7 +64,7 @@ pub enum ManagerError {
     ProcessorAddrNotFound(String),
 
     #[error("Id must not be zero")]
-    InvalidWorkflowId,
+    InvalidProgramId,
 
     #[error("Account was removed: {0}")]
     AccountWasRemoved(String),
@@ -77,6 +77,15 @@ pub enum ManagerError {
 
     #[error("Authorization label already exists: {0}")]
     AuthorizationLabelExists(String),
+
+    #[error("Funds transfer amount is zero - from: {0}, to: {1}")]
+    FundsTransferAmountZero(String, String),
+
+    #[error("Account address was not found in old program: {0}")]
+    AccountNotFoundInOldProgram(String),
+
+    #[error("Account id was not found in new program config: {0}")]
+    AccountIdWasNotFound(u64),
 }
 
 impl ManagerError {
