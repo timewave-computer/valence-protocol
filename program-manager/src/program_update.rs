@@ -4,6 +4,7 @@ use anyhow::Context;
 use cosmwasm_schema::schemars::JsonSchema;
 use cosmwasm_std::{to_json_binary, CosmosMsg, WasmMsg};
 use cw_ownable::Expiration;
+use log::{debug, info};
 use serde::{Deserialize, Serialize};
 use valence_authorization_utils::{
     authorization::{AuthorizationInfo, AuthorizationModeInfo, Priority},
@@ -59,7 +60,7 @@ pub enum AuthorizationInfoUpdate {
 }
 
 /// The reason our update method is returning
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UpdateResponse {
     pub instructions: Vec<CosmosMsg>,
 }
@@ -67,6 +68,7 @@ pub struct UpdateResponse {
 impl ProgramConfigUpdate {
     /// Modify an existing config with a new config
     pub async fn update(&mut self, connectors: &Connectors) -> ManagerResult<UpdateResponse> {
+        info!("Start program update");
         let neutron_domain = Domain::CosmosCosmwasm(NEUTRON_CHAIN.to_string());
 
         // get the old program config from registry
@@ -74,16 +76,18 @@ impl ProgramConfigUpdate {
 
         // 0 is not a valid id of a program
         if self.id == 0 {
-            return Err(ManagerError::InvalidWorkflowId);
+            return Err(ManagerError::InvalidProgramId);
         }
 
         let mut config = neutron_connector.get_program_config(self.id).await?;
+        debug!("Old config: {:#?}", config);
 
         let mut instructions: VecDeque<CosmosMsg> = VecDeque::new();
         let mut new_authorizations: Vec<AuthorizationInfo> = vec![];
 
         // If we have an owner set, we add the update owner instruction
         if let Some(new_owner) = self.owner.clone() {
+            info!("Updating owner");
             config.owner = new_owner.to_string();
 
             // Create instruction to change owner
@@ -102,6 +106,7 @@ impl ProgramConfigUpdate {
         }
 
         // Generate library update instructions
+        info!("Generate authorization to update libraries");
         for (id, library_update) in self.libraries.iter() {
             // Verify that the library id exists in the config and get it
             let library = config
@@ -110,7 +115,7 @@ impl ProgramConfigUpdate {
                 .context(ManagerError::LibraryIdIsMissing(*id).to_string())?;
 
             // Add authorization to update the library
-            let label = format!("update_library_{}_{}", library.name, id);
+            let label = format!("update_library_{}", id);
 
             // Create authorization if we don't already have one
             if !config.authorizations.iter().any(|auth| auth.label == label) {
@@ -121,7 +126,8 @@ impl ProgramConfigUpdate {
                         library.domain.to_string(),
                     )
                 };
-                let actions_config = AtomicSubroutineBuilder::new()
+
+                let subroutine = AtomicSubroutineBuilder::new()
                     .with_function(
                         AtomicFunctionBuilder::new()
                             .with_domain(library_domain)
@@ -144,9 +150,14 @@ impl ProgramConfigUpdate {
                         valence_authorization_utils::authorization::PermissionTypeInfo::WithoutCallLimit(vec![config.owner.clone()]),
                     ))
                     .with_priority(Priority::High)
-                    .with_subroutine(actions_config);
+                    .with_subroutine(subroutine);
 
-                new_authorizations.push(authorization_builder.build());
+                let authorization_info = authorization_builder.build();
+                new_authorizations.push(authorization_info.clone());
+
+                debug!("library id {} authorization {:?}", id, authorization_info);
+
+                config.authorizations.push(authorization_info);
             }
 
             // execute insert message on the authorization to push this message to processor
@@ -154,6 +165,8 @@ impl ProgramConfigUpdate {
                 .clone()
                 .get_update_msg()
                 .context("Failed binary parsing get_update_msg")?;
+
+            debug!("library id {} update message {:#?}", id, update_config_msg);
 
             instructions.push_back(
                 WasmMsg::Execute {
@@ -178,6 +191,7 @@ impl ProgramConfigUpdate {
         }
 
         // Generate authorization update instructions
+        info!("Generate authorization update instructions");
         for authorization in self.authorizations.clone().into_iter() {
             match authorization {
                 AuthorizationInfoUpdate::Add(authorization_info) => {
