@@ -26,7 +26,7 @@ use cosmos_grpc_client::{
     cosmrs::bip32::secp256k1::sha2::{digest::Update, Digest, Sha256, Sha512},
     BroadcastMode, Decimal, GrpcClient, ProstMsgNameToAny, Wallet,
 };
-use cosmwasm_std::{from_json, instantiate2_address, to_json_binary};
+use cosmwasm_std::{from_json, instantiate2_address, testing::MockApi, to_json_binary};
 use futures::future::BoxFuture;
 use serde_json::to_vec;
 use strum::VariantNames;
@@ -83,7 +83,8 @@ pub struct CosmosCosmwasmConnector {
     wallet: Wallet,
     code_ids: HashMap<String, u64>,
     chain_name: String,
-    prefix: &'static str,
+    prefix: String,
+    api: MockApi,
 }
 
 impl fmt::Debug for CosmosCosmwasmConnector {
@@ -129,7 +130,9 @@ impl CosmosCosmwasmConnector {
             wallet,
             code_ids: code_ids.clone(),
             chain_name: chain_info.name.clone(),
-            prefix: chain_info.prefix.clone().leak(),
+            prefix: chain_info.prefix.clone(),
+            api: cosmwasm_std::testing::MockApi::default()
+                .with_prefix(Box::leak(Box::new(chain_info.prefix.clone()))),
         })
     }
 }
@@ -214,14 +217,14 @@ impl Connector for CosmosCosmwasmConnector {
 
         let addr_canonical = instantiate2_address(
             &checksum,
-            &addr_canonicalize(self.prefix, self.wallet.account_address.as_str()).unwrap(),
+            &addr_canonicalize(&self.prefix, self.wallet.account_address.as_str()).unwrap(),
             &salt,
         )
         .context("Failed to instantiate2 address")
         .map_err(CosmosCosmwasmError::Error)?;
 
         let addr =
-            addr_humanize(self.prefix, &addr_canonical).map_err(CosmosCosmwasmError::Error)?;
+            addr_humanize(&self.prefix, &addr_canonical).map_err(CosmosCosmwasmError::Error)?;
 
         Ok((addr, salt.to_vec()))
     }
@@ -255,15 +258,18 @@ impl Connector for CosmosCosmwasmConnector {
 
         let addr_canonical = instantiate2_address(
             &checksum,
-            &addr_canonicalize(self.prefix, receiving_chain_bridge_info.voice_addr.as_str())
-                .unwrap(),
+            &addr_canonicalize(
+                &self.prefix,
+                receiving_chain_bridge_info.voice_addr.as_str(),
+            )
+            .unwrap(),
             &salt,
         )
         .context("Failed to instantiate2 address")
         .map_err(CosmosCosmwasmError::Error)?;
 
         let addr =
-            addr_humanize(self.prefix, &addr_canonical).map_err(CosmosCosmwasmError::Error)?;
+            addr_humanize(&self.prefix, &addr_canonical).map_err(CosmosCosmwasmError::Error)?;
 
         Ok(addr)
     }
@@ -873,10 +879,8 @@ impl Connector for CosmosCosmwasmConnector {
             .map_err(CosmosCosmwasmError::CosmwasmStdError)?)
     }
 
-    fn get_api(&self) -> ConnectorResult<Box<dyn cosmwasm_std::Api>> {
-        Ok(Box::new(
-            cosmwasm_std::testing::MockApi::default().with_prefix(self.prefix),
-        ))
+    fn get_api(&self) -> &MockApi{
+        &self.api
     }
 }
 

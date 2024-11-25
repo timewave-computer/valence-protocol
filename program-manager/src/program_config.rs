@@ -332,7 +332,7 @@ impl ProgramConfig {
             library.config.replace_config(patterns, replace_with)?;
             library
                 .config
-                .pre_validate_config(&*domain_connector.get_api()?)?;
+                .pre_validate_config(domain_connector.get_api())?;
             library.addr = Some(library_addr);
 
             self.save_library(link.library_id, &library);
