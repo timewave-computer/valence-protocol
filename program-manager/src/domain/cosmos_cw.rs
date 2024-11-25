@@ -879,7 +879,7 @@ impl Connector for CosmosCosmwasmConnector {
             .map_err(CosmosCosmwasmError::CosmwasmStdError)?)
     }
 
-    fn get_api(&self) -> &MockApi{
+    fn get_api(&self) -> &MockApi {
         &self.api
     }
 }
