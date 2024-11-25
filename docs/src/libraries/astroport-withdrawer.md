@@ -40,9 +40,9 @@ The library is configured on instantiation via the `LibraryConfig` type.
 
 ```rust
 pub struct LibraryConfig {
-    // Account from which the funds are LPed
+    // Account holding the LP position
     pub input_addr: LibraryAccountType,
-    // Account to which the LP tokens are forwarded
+    // Account to which the withdrawn assets are forwarded
     pub output_addr: LibraryAccountType,
     // Pool address
     pub pool_addr: String,

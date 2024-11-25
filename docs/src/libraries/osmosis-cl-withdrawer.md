@@ -15,14 +15,14 @@ graph LR
   OA((Output
 		  Account))
   P[Processor]
-  S[Osmosis
+  S[Osmosis CL
       Liquidity
       Withdrawal]
   AP[Osmosis CL
      Pool]
   P -- 1/Withdraw Liquidity --> S
   S -- 2/Query balances --> IA
-  S -- 3/Compute amount --> S
+  S -- 3/Compute amounts --> S
   S -- 4/Do Withdraw Liquidity --> IA
   IA -- 5/Withdraw Liquidity
 				  [LP Position] --> AP
@@ -41,9 +41,9 @@ The library is configured on instantiation via the `LibraryConfig` type.
 
 ```rust
 pub struct LibraryConfig {
-    // Account from which the funds are LPed
+    // Account holding the LP position
     pub input_addr: LibraryAccountType,
-    // Account to which the LP tokens are forwarded
+    // Account to which the withdrawn assets are forwarded
     pub output_addr: LibraryAccountType,
     // ID of the pool
     pub pool_id: Uint64,

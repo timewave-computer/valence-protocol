@@ -15,7 +15,7 @@ graph LR
   OA((Output
 		  Account))
   P[Processor]
-  S[Osmosis
+  S[Osmosis CL
       Liquidity
       Provider]
   AP[Osmosis CL
