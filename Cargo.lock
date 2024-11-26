@@ -5257,7 +5257,7 @@ dependencies = [
  "cosmwasm-std 2.1.4",
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "syn 2.0.89",
 ]
 
 [[package]]
