@@ -1,4 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
+use neutron_sdk::interchain_queries::v047::queries::BalanceResponse;
 
 #[cw_serde]
 pub struct InstantiateMsg {}
@@ -16,7 +17,7 @@ pub enum ExecuteMsg {
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
-    #[returns(neutron_sdk::interchain_queries::v047::queries::BalanceResponse)]
+    #[returns(BalanceResponse)]
     Balance { query_id: u64 },
 }
 

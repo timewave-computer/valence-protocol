@@ -1,7 +1,6 @@
 use crate::icq;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::state::OpenAckVersion;
-use crate::state::{RECIPIENT_TXS, TRANSFERS};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -15,13 +14,13 @@ use neutron_sdk::{
     NeutronResult,
 };
 
-pub const CONTRACT_NAME: &str = "orbital-core";
+pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 pub const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub type QueryDeps<'a> = Deps<'a, NeutronQuery>;
 pub type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 
-#[entry_point]
+#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: ExecuteDeps,
     _env: Env,
@@ -32,7 +31,7 @@ pub fn instantiate(
     Ok(Response::new())
 }
 
-#[entry_point]
+#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: ExecuteDeps,
     env: Env,
@@ -49,7 +48,7 @@ pub fn execute(
     }
 }
 
-#[entry_point]
+#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Balance { query_id } => to_json_binary(&query_icq_balance(deps, env, query_id)?),
@@ -60,18 +59,18 @@ fn query_icq_balance(deps: QueryDeps, env: Env, query_id: u64) -> StdResult<Bala
     query_balance(deps, env, query_id).map_err(|e| StdError::generic_err(e.to_string()))
 }
 
-#[entry_point]
+#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(_deps: ExecuteDeps, _env: Env, _msg: Reply) -> StdResult<Response<NeutronMsg>> {
-    unimplemented!()
+    Ok(Response::default())
 }
 
-#[entry_point]
+#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(_deps: ExecuteDeps, _env: Env, _msg: MigrateMsg) -> StdResult<Response<NeutronMsg>> {
-    unimplemented!()
+    Ok(Response::default())
 }
 
 // neutron uses the `sudo` entry point in their ICA/ICQ related logic
-#[entry_point]
+#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response<NeutronMsg>> {
     match msg {
         // For handling successful registering of ICA
@@ -114,17 +113,6 @@ fn sudo_open_ack(
     let parsed_version: OpenAckVersion =
         serde_json_wasm::from_str(counterparty_version.as_str())
             .map_err(|_| StdError::generic_err("Can't parse counterparty_version"))?;
-
-    // // extract the ICA identifier from the port
-    // let ica_identifier = extract_ica_identifier_from_port(port_id)?;
-
-    // let clearing_account_config = ClearingAccountConfig {
-    //     addr: parsed_version.address,
-    //     controller_connection_id: parsed_version.controller_connection_id,
-    // };
-
-    // // Update the storage record associated with the interchain account.
-    // CLEARING_ACCOUNTS.save(deps.storage, ica_identifier, &Some(clearing_account_config))?;
 
     Ok(Response::default())
 }

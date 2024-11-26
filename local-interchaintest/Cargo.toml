@@ -45,3 +45,4 @@ valence-osmosis-cl-withdrawer        = { workspace = true }
 valence-osmosis-utils                = { workspace = true }
 tokio                                = { workspace = true }
 osmosis-std                          = { workspace = true }
+valence-test-icq-lib                 = { workspace = true }
