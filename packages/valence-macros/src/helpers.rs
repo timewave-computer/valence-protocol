@@ -1,7 +1,8 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
-    parse::Parse, parse_macro_input, Attribute, DataEnum, DeriveInput, GenericArgument, PathArguments, Type, TypePath
+    parse::Parse, parse_macro_input, Attribute, DataEnum, DeriveInput, GenericArgument,
+    PathArguments, Type, TypePath,
 };
 
 // Check if theres `skip_update` attribute on the field.

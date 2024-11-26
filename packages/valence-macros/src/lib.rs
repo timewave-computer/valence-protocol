@@ -146,7 +146,7 @@ pub fn manager_impl_library_configs(_attr: TokenStream, input: TokenStream) -> T
     let enum_ident = &input_enum.ident;
     // Create the new enum name by adding "Update" suffix
     let update_enum_ident = format_ident!("{}Update", enum_ident);
-    
+
     // Extract variants from the original enum
     let variants = match &input_enum.data {
         Data::Enum(data_enum) => &data_enum.variants,
@@ -163,14 +163,14 @@ pub fn manager_impl_library_configs(_attr: TokenStream, input: TokenStream) -> T
 
     for variant in variants {
         let variant_ident = &variant.ident;
-        
+
         if variant_ident == "None" {
             // Add None variant
             update_variants.push(quote! {
                 #[default]
                 None
             });
-            
+
             // Add None matches for all methods
             update_msg_matches.push(quote! {
                 #update_enum_ident::None => return Err(LibraryError::NoLibraryConfigUpdate)
@@ -255,7 +255,7 @@ pub fn manager_impl_library_configs(_attr: TokenStream, input: TokenStream) -> T
                 } else {
                     panic!("Expected Path type");
                 }
-            },
+            }
             _ => panic!("Expected unnamed fields"),
         }
     }
