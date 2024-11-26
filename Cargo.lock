@@ -5584,6 +5584,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-test-icq-lib"
+version = "0.1.0"
+dependencies = [
+ "cosmos-sdk-proto 0.20.0",
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 2.1.4",
+ "cw-storage-plus 2.0.0",
+ "cw2 2.0.0",
+ "neutron-sdk",
+ "serde-json-wasm 1.0.1",
+ "thiserror 1.0.69",
+ "valence-processor-utils",
+]
+
+[[package]]
 name = "valence-test-library"
 version = "0.1.0"
 dependencies = [
