@@ -1,13 +1,12 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
-    parse_macro_input, Attribute, AttributeArgs, DataEnum, DeriveInput, GenericArgument,
-    PathArguments, Type, TypePath,
+    parse::Parse, parse_macro_input, Attribute, DataEnum, DeriveInput, GenericArgument, PathArguments, Type, TypePath
 };
 
 // Check if theres `skip_update` attribute on the field.
 pub(crate) fn has_skip_update_attr(attrs: &[Attribute]) -> bool {
-    attrs.iter().any(|attr| attr.path.is_ident("skip_update"))
+    attrs.iter().any(|attr| attr.path().is_ident("skip_update"))
 }
 
 pub(crate) fn get_option_inner_type(ty: &Type) -> Option<&Type> {
@@ -25,6 +24,21 @@ pub(crate) fn get_option_inner_type(ty: &Type) -> Option<&Type> {
     None
 }
 
+// Define a custom struct to parse macro attributes
+#[derive(Default)]
+struct MacroArgs;
+
+impl Parse for MacroArgs {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        // Ensure the input is empty (no arguments allowed)
+        if input.is_empty() {
+            Ok(MacroArgs)
+        } else {
+            Err(syn::Error::new(input.span(), "macro takes no arguments"))
+        }
+    }
+}
+
 // Merges the variants of two enums.
 pub(crate) fn merge_variants(
     metadata: TokenStream,
@@ -33,12 +47,8 @@ pub(crate) fn merge_variants(
 ) -> TokenStream {
     use syn::Data::Enum;
 
-    let args = parse_macro_input!(metadata as AttributeArgs);
-    if let Some(first_arg) = args.first() {
-        return syn::Error::new_spanned(first_arg, "macro takes no arguments")
-            .to_compile_error()
-            .into();
-    }
+    // Parse the metadata using our custom parser
+    let _args = parse_macro_input!(metadata as MacroArgs);
 
     let mut left: DeriveInput = parse_macro_input!(left);
     let right: DeriveInput = parse_macro_input!(right);
