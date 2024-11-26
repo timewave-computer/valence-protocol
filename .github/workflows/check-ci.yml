@@ -242,3 +242,17 @@ jobs:
         with:
           chain-config: 'neutron_osmosis'
           test-name: 'osmo_gamm'
+
+  local-ic-osmo-cl-tests:
+    needs: [build,setup-local-ic]
+    name: Osmosis concentrated liquidity e2e lp -> lw run
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run osmo cl lp & lw tests
+        uses: "./.github/actions/run-local-ic-test"
+        with:
+          chain-config: 'neutron_osmosis'
+          test-name: 'osmo_cl'

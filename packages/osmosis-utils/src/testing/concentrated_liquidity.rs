@@ -67,7 +67,7 @@ impl OsmosisTestPoolConfig for ConcentratedLiquidityPool {
                     denom0: OSMO_DENOM.to_string(),
                     denom1: TEST_DENOM.to_string(),
                     tick_spacing: 1000,
-                    spread_factor: "500000000000000000".to_string(),
+                    spread_factor: "500000000000000".to_string(),
                 },
                 creator,
             )
@@ -97,6 +97,18 @@ impl OsmosisTestPoolConfig for ConcentratedLiquidityPool {
             pool_asset_1: OSMO_DENOM.to_string(),
             pool_asset_2: TEST_DENOM.to_string(),
         };
+
+        let pool = cl
+            .query_pools(
+                &osmosis_std::types::osmosis::concentratedliquidity::v1beta1::PoolsRequest {
+                    pagination: None,
+                },
+            )
+            .unwrap();
+
+        let scl_pool: osmosis_std::types::osmosis::concentratedliquidity::v1beta1::Pool =
+            pool.pools[0].clone().try_into().unwrap();
+        println!("pools: {:?}", scl_pool);
 
         Ok(cl_pool)
     }
