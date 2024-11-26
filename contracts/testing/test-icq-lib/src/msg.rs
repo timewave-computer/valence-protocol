@@ -18,7 +18,8 @@ pub enum ExecuteMsg {
     RegisterKeyValueQuery {
         connection_id: String,
         update_period: u64,
-        key: String,
+        path: String,
+        key: Vec<u8>,
     },
 }
 

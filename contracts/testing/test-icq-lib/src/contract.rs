@@ -57,8 +57,9 @@ pub fn execute(
         ExecuteMsg::RegisterKeyValueQuery {
             connection_id,
             update_period,
+            path,
             key,
-        } => icq::register_kv_query(connection_id, update_period, key),
+        } => icq::register_kv_query(connection_id, update_period, path, key),
     }
 }
 

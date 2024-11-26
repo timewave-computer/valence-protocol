@@ -1,7 +1,15 @@
 use std::{fs::File, io::Write, path::PathBuf};
 
-use localic_utils::{utils::test_context::TestContext, NEUTRON_CHAIN_NAME};
+use localic_std::{
+    errors::LocalError,
+    modules::cosmwasm::{contract_execute, contract_query},
+    types::TransactionResponse,
+};
+use localic_utils::{utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_NAME};
 use log::info;
+use neutron_sdk::bindings::types::{InterchainQueryResult, StorageValue};
+use serde_json::Value;
+use valence_test_icq_lib::msg::{ExecuteMsg, QueryMsg};
 
 pub fn generate_icq_relayer_config(
     test_ctx: &TestContext,
@@ -146,4 +154,172 @@ pub fn start_icq_relayer() -> Result<(), Box<dyn std::error::Error>> {
         let error = String::from_utf8_lossy(&start_icq_relayer_cmd.stderr);
         Err(format!("Failed to start ICQ relayer: {error}").into())
     }
+}
+
+pub fn try_parse_storage_value(storage_value: &StorageValue) -> Value {
+    let mut map = serde_json::Map::new();
+
+    // Add storage prefix
+    map.insert(
+        "storage_prefix".to_string(),
+        Value::String(storage_value.storage_prefix.clone()),
+    );
+
+    // Try UTF-8 string interpretation
+    if let Ok(key_str) = String::from_utf8(storage_value.key.to_vec()) {
+        map.insert("key_utf8".to_string(), Value::String(key_str));
+    }
+
+    if let Ok(value_str) = String::from_utf8(storage_value.value.to_vec()) {
+        map.insert("value_utf8".to_string(), Value::String(value_str));
+    }
+
+    // Try JSON interpretation
+    if let Ok(value_str) = String::from_utf8(storage_value.value.to_vec()) {
+        if let Ok(json_value) = serde_json::from_str(&value_str) {
+            map.insert("value_json".to_string(), json_value);
+        }
+    }
+
+    if let Ok(value_str) = String::from_utf8(storage_value.key.to_vec()) {
+        if let Ok(json_value) = serde_json::from_str(&value_str) {
+            map.insert("key_json".to_string(), json_value);
+        }
+    }
+
+    // Convert raw bytes to base64
+    map.insert(
+        "key".to_string(),
+        Value::String(storage_value.key.to_string()),
+    );
+
+    Value::Object(map)
+}
+
+pub fn register_kvq_balances_query(
+    test_ctx: &TestContext,
+    icq_lib: String,
+    domain: String,
+    path: String,
+    key: Vec<u8>,
+) -> Result<TransactionResponse, LocalError> {
+    info!("registering ICQ KV query on domain {domain}...");
+
+    let register_kvq_msg = ExecuteMsg::RegisterKeyValueQuery {
+        connection_id: test_ctx
+            .get_connections()
+            .src(NEUTRON_CHAIN_NAME)
+            .dest(&domain)
+            .get(),
+        update_period: 5,
+        path,
+        key,
+    };
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &icq_lib,
+        DEFAULT_KEY,
+        &serde_json::to_string(&register_kvq_msg)
+            .map_err(|e| LocalError::Custom { msg: e.to_string() })?,
+        "--amount 1000000untrn --gas 50000000",
+    )
+}
+
+pub fn register_icq_balances_query(
+    test_ctx: &TestContext,
+    icq_lib: String,
+    domain: String,
+    addr: String,
+    denoms: Vec<String>,
+) -> Result<TransactionResponse, LocalError> {
+    info!("registering ICQ balances query on domain {domain} for {addr}...");
+
+    let register_icq_msg = ExecuteMsg::RegisterBalancesQuery {
+        connection_id: test_ctx
+            .get_connections()
+            .src(NEUTRON_CHAIN_NAME)
+            .dest(&domain)
+            .get(),
+        update_period: 5,
+        addr,
+        denoms,
+    };
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &icq_lib,
+        DEFAULT_KEY,
+        &serde_json::to_string(&register_icq_msg)
+            .map_err(|e| LocalError::Custom { msg: e.to_string() })?,
+        "--amount 1000000untrn --gas 50000000",
+    )
+}
+
+pub fn query_balance_query_id(
+    test_ctx: &TestContext,
+    icq_lib: String,
+    query_id: u64,
+) -> Result<neutron_sdk::interchain_queries::v047::queries::BalanceResponse, LocalError> {
+    let query_response = contract_query(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &icq_lib,
+        &serde_json::to_string(&QueryMsg::Balance { query_id })
+            .map_err(|e| LocalError::Custom { msg: e.to_string() })?,
+    )["data"]
+        .clone();
+
+    let balance_response: neutron_sdk::interchain_queries::v047::queries::BalanceResponse =
+        serde_json::from_value(query_response).unwrap();
+
+    info!("balance query response: {:?}", balance_response);
+
+    Ok(balance_response)
+}
+
+pub fn query_raw_result(
+    test_ctx: &TestContext,
+    icq_lib: String,
+    query_id: u64,
+) -> Result<InterchainQueryResult, LocalError> {
+    let query_response = contract_query(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &icq_lib,
+        &serde_json::to_string(&QueryMsg::RawIcqResult { id: query_id })
+            .map_err(|e| LocalError::Custom { msg: e.to_string() })?,
+    )["data"]
+        .clone();
+
+    let icq_result: InterchainQueryResult = serde_json::from_value(query_response).unwrap();
+
+    info!("raw icq result: {:?}", icq_result);
+
+    Ok(icq_result)
+}
+
+pub fn query_catchall_logs(
+    test_ctx: &TestContext,
+    icq_lib: String,
+) -> Result<Vec<(String, String)>, LocalError> {
+    let query_response = contract_query(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &icq_lib,
+        &serde_json::to_string(&QueryMsg::Catchall {})
+            .map_err(|e| LocalError::Custom { msg: e.to_string() })?,
+    )["data"]
+        .clone();
+
+    let resp: Vec<(String, String)> = serde_json::from_value(query_response).unwrap();
+
+    Ok(resp)
 }

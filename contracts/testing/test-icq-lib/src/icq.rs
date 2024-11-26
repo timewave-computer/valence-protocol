@@ -185,17 +185,12 @@ pub fn register_transfers_query(
 pub fn register_kv_query(
     connection_id: String,
     update_period: u64,
-    key: String,
+    path: String,
+    key: Vec<u8>,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    let addr = "osmo1hj5fveer5cjtn4wd6wstzugjfdxzl0xpwhpz63";
-
-    let converted_addr_bytes = decode_and_convert(&addr)?;
-
-    let balance_key = create_account_denom_balance_key(converted_addr_bytes, "uosmo")?;
-
     let kv_key = KVKey {
-        path: BANK_STORE_KEY.to_string(),
-        key: Binary::new(balance_key),
+        path,
+        key: Binary::new(key),
     };
 
     let msg = NeutronMsg::register_interchain_query(
