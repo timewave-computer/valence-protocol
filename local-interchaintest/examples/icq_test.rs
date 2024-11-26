@@ -1,8 +1,11 @@
+use cosmos_grpc_client::cosmrs::bip32::secp256k1::pkcs8::der::Encode;
 use local_interchaintest::utils::{
     icq::{
-        generate_icq_relayer_config, query_catchall_logs, query_raw_result,
-        register_kvq_balances_query, start_icq_relayer, try_parse_storage_value,
+        generate_icq_relayer_config, query_balance_query_id, query_catchall_logs, query_raw_result,
+        register_icq_balances_query, register_kvq_balances_query, start_icq_relayer,
+        try_parse_storage_value,
     },
+    osmosis::gamm::setup_gamm_pool,
     GAS_FLAGS, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
 };
 use localic_std::{
@@ -24,8 +27,8 @@ use valence_test_icq_lib::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 use localic_utils::{
     utils::test_context::TestContext, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
-    LOCAL_IC_API_URL, NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_ADMIN_ADDR, OSMOSIS_CHAIN_DENOM,
-    OSMOSIS_CHAIN_NAME,
+    LOCAL_IC_API_URL, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_ADMIN_ADDR,
+    OSMOSIS_CHAIN_DENOM, OSMOSIS_CHAIN_NAME,
 };
 
 // KeyNextGlobalPoolId defines key to store the next Pool ID to be used.
@@ -48,6 +51,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_log_file_path(LOGS_FILE_PATH)
         .with_transfer_channels(NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_NAME)
         .build()?;
+
+    let ntrn_on_osmo_denom = test_ctx
+        .get_ibc_denom()
+        .base_denom(NEUTRON_CHAIN_DENOM.to_owned())
+        .src(NEUTRON_CHAIN_NAME)
+        .dest(OSMOSIS_CHAIN_NAME)
+        .get();
+
+    let pool_id = setup_gamm_pool(&mut test_ctx, OSMOSIS_CHAIN_DENOM, &ntrn_on_osmo_denom)?;
 
     let current_dir = env::current_dir()?;
 
@@ -99,30 +111,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("icq test lib: {}", icq_test_lib.address);
 
-    // let icq_registration_response = register_icq_balances_query(
-    //     &test_ctx,
-    //     icq_test_lib.address.to_string(),
-    //     OSMOSIS_CHAIN_NAME.to_string(),
-    //     OSMOSIS_CHAIN_ADMIN_ADDR.to_string(),
-    //     vec![OSMOSIS_CHAIN_DENOM.to_string()],
-    // )?;
+    let last_query_id = 20;
 
-    // info!("icq registration response: {:?}", icq_registration_response);
-
-    // for _ in 0..10 {
-    //     let response_value =
-    //         query_balance_query_id(&test_ctx, icq_test_lib.address.to_string(), 1)?;
-
-    //     info!("response value: {:?}", response_value);
-
-    //     if !response_value.balances.coins.is_empty() {
-    //         break;
-    //     } else {
-    //         std::thread::sleep(Duration::from_secs(5));
-    //     }
-    // }
-
-    std::thread::sleep(Duration::from_secs(3));
     let addr = "osmo1hj5fveer5cjtn4wd6wstzugjfdxzl0xpwhpz63";
 
     let converted_addr_bytes = decode_and_convert(&addr).unwrap();
@@ -142,28 +132,64 @@ fn main() -> Result<(), Box<dyn Error>> {
         kvq_registration_response
     );
 
-    for _ in 0..2 {
-        let response_value = query_catchall_logs(&test_ctx, icq_test_lib.address.to_string())?;
-        info!("catchall logs: {:?}", response_value);
+    std::thread::sleep(Duration::from_secs(5));
 
-        let raw_query_resp = query_raw_result(&test_ctx, icq_test_lib.address.to_string(), 1)?;
-        info!("raw query response: {:?}", raw_query_resp);
+    let raw_query_resp = query_raw_result(
+        &test_ctx,
+        icq_test_lib.address.to_string(),
+        last_query_id + 1,
+    )?;
+    info!("raw query response: {:?}", raw_query_resp);
 
-        for kv_result in raw_query_resp.kv_results {
-            // let key = kv_result.key;
-            // let value = kv_result.value;
+    for kv_result in raw_query_resp.kv_results {
+        let parse_attempt = try_parse_storage_value(&kv_result);
 
-            let parse_attempt = try_parse_storage_value(&kv_result);
-
-            info!("\nPARSE ATTEMPT: {:?}", parse_attempt);
-        }
-
-        if !response_value.is_empty() {
-            break;
-        } else {
-            std::thread::sleep(Duration::from_secs(5));
-        }
+        info!("\nPARSE ATTEMPT: {:?}", parse_attempt);
     }
+
+    std::thread::sleep(Duration::from_secs(5));
+
+    info!("attempting GAMM total liquidity query");
+
+    let mut total_liquidity_key = vec![PREFIX_POOLS_KEY];
+    total_liquidity_key.extend_from_slice(&pool_id.to_be_bytes());
+
+    info!("base64 liquidity key: {:?}", total_liquidity_key);
+
+    let kvq_registration_response = register_kvq_balances_query(
+        &test_ctx,
+        icq_test_lib.address.to_string(),
+        OSMOSIS_CHAIN_NAME.to_string(),
+        GAMM_STORE_KEY.to_string(),
+        total_liquidity_key,
+    )?;
+
+    info!(
+        "kv query registration response: {:?}",
+        kvq_registration_response
+    );
+
+    std::thread::sleep(Duration::from_secs(5));
+
+    match query_raw_result(
+        &test_ctx,
+        icq_test_lib.address.to_string(),
+        last_query_id + 2,
+    ) {
+        Ok(val) => {
+            info!("\nquery raw response: {:?}", val);
+            for kv_result in val.kv_results {
+                let parse_attempt = try_parse_storage_value(&kv_result);
+
+                info!("\nPARSE ATTEMPT: {:?}", parse_attempt);
+                // osmosis_std::types::osmosis::concentratedliquidity::v1beta1::Pool
+                // osmosis_std::types::osmosis::gamm::v1beta1::Pool
+            }
+        }
+        Err(e) => {
+            info!("error querying raw tx: {:?}", e);
+        }
+    };
 
     Ok(())
 }

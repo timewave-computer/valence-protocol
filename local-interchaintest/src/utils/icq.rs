@@ -1,5 +1,7 @@
 use std::{fs::File, io::Write, path::PathBuf};
 
+use cosmos_sdk_proto::prost::Message;
+use cosmwasm_std_old::from_json;
 use localic_std::{
     errors::LocalError,
     modules::cosmwasm::{contract_execute, contract_query},
@@ -8,6 +10,7 @@ use localic_std::{
 use localic_utils::{utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_NAME};
 use log::info;
 use neutron_sdk::bindings::types::{InterchainQueryResult, StorageValue};
+use osmosis_std::shim::Any;
 use serde_json::Value;
 use valence_test_icq_lib::msg::{ExecuteMsg, QueryMsg};
 
@@ -159,6 +162,48 @@ pub fn start_icq_relayer() -> Result<(), Box<dyn std::error::Error>> {
 pub fn try_parse_storage_value(storage_value: &StorageValue) -> Value {
     let mut map = serde_json::Map::new();
 
+    let storage_value_string = storage_value.value.to_string();
+    let storage_value_b64 = storage_value.value.to_base64();
+    // from_json(&serialized.as_slice()).unwrap();
+
+    let try_get_pool: cosmwasm_std_old::StdResult<
+        osmosis_std::types::osmosis::gamm::v1beta1::Pool,
+    > = from_json(storage_value.value.clone());
+
+    let res: Option<osmosis_std::types::osmosis::gamm::v1beta1::Pool> =
+        storage_value.value.clone().try_into().ok();
+
+    // let opt_any: Option<Any> = storage_value.value.clone().try_into().ok();
+
+    match res {
+        Some(val) => {
+            info!("decoded value: {:?}", val);
+        }
+        None => {
+            info!("error decoding value: {:?}", "nothing");
+        }
+    };
+    // let slice_val = storage_value.value.as_();
+    // let prost_bytes = prost::bytes::Bytes::from(storage_value.value.try_into().unwrap());
+    // let prost_msg = prost::Message::decode(prost_bytes).unwrap();
+    // let jsonval_decoded: Value = from_base64(storage_value_b64).unwrap();
+    // Value::from_str(s)
+    // let jsonval = Value::from(storage_value.value);
+    // let pool: osmosis_std::types::osmosis::gamm::v1beta1::Pool =
+    //     base64::de(storage_value.value.as_slice()).unwrap();
+    //
+    map.insert(
+        "storage_value_string".to_string(),
+        Value::String(storage_value_string),
+    );
+    map.insert(
+        "storage_value_b64".to_string(),
+        Value::String(storage_value_b64),
+    );
+
+    // let pool =
+
+    // match from_json(&storage_value.)
     // Add storage prefix
     map.insert(
         "storage_prefix".to_string(),
