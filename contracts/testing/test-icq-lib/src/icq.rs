@@ -7,10 +7,24 @@ use cosmos_sdk_proto::{
 };
 use cosmwasm_std::{Binary, DepsMut, Env, Response};
 use neutron_sdk::{
-    bindings::{msg::NeutronMsg, query::NeutronQuery, types::Height},
+    bindings::{
+        msg::NeutronMsg,
+        query::NeutronQuery,
+        types::{Height, KVKey},
+    },
     interchain_queries::{
         get_registered_query,
-        v045::{new_register_balances_query_msg, new_register_transfers_query_msg},
+        helpers::decode_and_convert,
+        types::QueryPayload,
+        v045::{
+            new_register_balances_query_msg, new_register_distribution_fee_pool_query_msg,
+            new_register_transfers_query_msg,
+        },
+        v047::{
+            helpers::create_account_denom_balance_key,
+            register_queries::new_register_delegator_delegations_query_msg,
+            types::{BANK_STORE_KEY, DISTRIBUTION_STORE_KEY, SUPPLY_PREFIX},
+        },
     },
     NeutronResult,
 };
@@ -164,6 +178,31 @@ pub fn register_transfers_query(
 ) -> NeutronResult<Response<NeutronMsg>> {
     let msg =
         new_register_transfers_query_msg(connection_id, recipient, update_period, min_height)?;
+
+    Ok(Response::new().add_message(msg))
+}
+
+pub fn register_kv_query(
+    connection_id: String,
+    update_period: u64,
+    key: String,
+) -> NeutronResult<Response<NeutronMsg>> {
+    let addr = "osmo1hj5fveer5cjtn4wd6wstzugjfdxzl0xpwhpz63";
+
+    let converted_addr_bytes = decode_and_convert(&addr)?;
+
+    let balance_key = create_account_denom_balance_key(converted_addr_bytes, "uosmo")?;
+
+    let kv_key = KVKey {
+        path: BANK_STORE_KEY.to_string(),
+        key: Binary::new(balance_key),
+    };
+
+    let msg = NeutronMsg::register_interchain_query(
+        QueryPayload::KV(vec![kv_key]),
+        connection_id,
+        update_period,
+    )?;
 
     Ok(Response::new().add_message(msg))
 }

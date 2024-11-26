@@ -1,5 +1,8 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use neutron_sdk::interchain_queries::v047::queries::BalanceResponse;
+use neutron_sdk::{
+    bindings::types::InterchainQueryResult, interchain_queries::v047::queries::BalanceResponse,
+    proto_types::neutron::interchainqueries::QueryResult,
+};
 
 #[cw_serde]
 pub struct InstantiateMsg {}
@@ -12,6 +15,11 @@ pub enum ExecuteMsg {
         addr: String,
         denoms: Vec<String>,
     },
+    RegisterKeyValueQuery {
+        connection_id: String,
+        update_period: u64,
+        key: String,
+    },
 }
 
 #[cw_serde]
@@ -19,6 +27,10 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     #[returns(BalanceResponse)]
     Balance { query_id: u64 },
+    #[returns(Vec<(String, String)>)]
+    Catchall {},
+    #[returns(InterchainQueryResult)]
+    RawIcqResult { id: u64 },
 }
 
 #[cw_serde]
