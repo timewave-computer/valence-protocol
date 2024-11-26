@@ -192,11 +192,9 @@
             "additionalProperties": false
           },
           "processor_bridge_addrs": {
-            "description": "List of processor bridge addresses by domain",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "description": "List of processor bridge addresses by domain All addresses are on nuetron, mapping to what domain this bridge account is for Key: domain name | Value: processor bridge address on that domain",
+            "type": "object",
+            "additionalProperties": false
           }
         },
         "additionalProperties": false
@@ -611,10 +609,6 @@
         },
         "additionalProperties": false
       },
-      "Int64": {
-        "description": "An implementation of i64 that is using strings for JSON encoding/decoding, such that the full i64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `i64` to get the value out:\n\n``` # use cosmwasm_std::Int64; let a = Int64::from(258i64); assert_eq!(a.i64(), 258); ```",
-        "type": "string"
-      },
       "LibraryAccountType": {
         "description": "An account type that is used in the library configs It can either be an Id or Addr The config that will be passed to the library must be of Addr veriant",
         "oneOf": [
@@ -727,92 +721,8 @@
               }
             },
             "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "required": [
-              "ValenceOsmosisGammLper"
-            ],
-            "properties": {
-              "ValenceOsmosisGammLper": {
-                "$ref": "#/definitions/LibraryConfigUpdate7"
-              }
-            },
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "required": [
-              "ValenceOsmosisGammWithdrawer"
-            ],
-            "properties": {
-              "ValenceOsmosisGammWithdrawer": {
-                "$ref": "#/definitions/LibraryConfigUpdate8"
-              }
-            },
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "required": [
-              "ValenceOsmosisClLper"
-            ],
-            "properties": {
-              "ValenceOsmosisClLper": {
-                "$ref": "#/definitions/LibraryConfigUpdate9"
-              }
-            },
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "required": [
-              "ValenceOsmosisClWithdrawer"
-            ],
-            "properties": {
-              "ValenceOsmosisClWithdrawer": {
-                "$ref": "#/definitions/LibraryConfigUpdate10"
-              }
-            },
-            "additionalProperties": false
           }
         ]
-      },
-      "LibraryConfigUpdate10": {
-        "type": "object",
-        "properties": {
-          "input_addr": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/LibraryAccountType"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "output_addr": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/LibraryAccountType"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "pool_id": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/Uint64"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "additionalProperties": false
       },
       "LibraryConfigUpdate2": {
         "type": "object",
@@ -1003,114 +913,6 @@
         },
         "additionalProperties": false
       },
-      "LibraryConfigUpdate7": {
-        "type": "object",
-        "properties": {
-          "input_addr": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/LibraryAccountType"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "lp_config": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/LiquidityProviderConfig2"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "output_addr": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/LibraryAccountType"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "additionalProperties": false
-      },
-      "LibraryConfigUpdate8": {
-        "type": "object",
-        "properties": {
-          "input_addr": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/LibraryAccountType"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "lw_config": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/LiquidityWithdrawerConfig2"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "output_addr": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/LibraryAccountType"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "additionalProperties": false
-      },
-      "LibraryConfigUpdate9": {
-        "type": "object",
-        "properties": {
-          "input_addr": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/LibraryAccountType"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "lp_config": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/LiquidityProviderConfig3"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "output_addr": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/LibraryAccountType"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "additionalProperties": false
-      },
       "LibraryInfo": {
         "type": "object",
         "required": [
@@ -1205,52 +1007,6 @@
         },
         "additionalProperties": false
       },
-      "LiquidityProviderConfig2": {
-        "type": "object",
-        "required": [
-          "pool_asset_1",
-          "pool_asset_2",
-          "pool_id"
-        ],
-        "properties": {
-          "pool_asset_1": {
-            "type": "string"
-          },
-          "pool_asset_2": {
-            "type": "string"
-          },
-          "pool_id": {
-            "type": "integer",
-            "format": "uint64",
-            "minimum": 0.0
-          }
-        },
-        "additionalProperties": false
-      },
-      "LiquidityProviderConfig3": {
-        "type": "object",
-        "required": [
-          "global_tick_range",
-          "pool_asset_1",
-          "pool_asset_2",
-          "pool_id"
-        ],
-        "properties": {
-          "global_tick_range": {
-            "$ref": "#/definitions/TickRange"
-          },
-          "pool_asset_1": {
-            "type": "string"
-          },
-          "pool_asset_2": {
-            "type": "string"
-          },
-          "pool_id": {
-            "$ref": "#/definitions/Uint64"
-          }
-        },
-        "additionalProperties": false
-      },
       "LiquidityWithdrawerConfig": {
         "type": "object",
         "required": [
@@ -1264,20 +1020,6 @@
                 "$ref": "#/definitions/PoolType2"
               }
             ]
-          }
-        },
-        "additionalProperties": false
-      },
-      "LiquidityWithdrawerConfig2": {
-        "type": "object",
-        "required": [
-          "pool_id"
-        ],
-        "properties": {
-          "pool_id": {
-            "type": "integer",
-            "format": "uint64",
-            "minimum": 0.0
           }
         },
         "additionalProperties": false
@@ -1637,7 +1379,7 @@
               "authorization_addr": "",
               "authorization_bridge_addrs": {},
               "processor_addrs": {},
-              "processor_bridge_addrs": []
+              "processor_bridge_addrs": {}
             },
             "allOf": [
               {
@@ -1810,22 +1552,6 @@
             "additionalProperties": false
           }
         ]
-      },
-      "TickRange": {
-        "type": "object",
-        "required": [
-          "lower_tick",
-          "upper_tick"
-        ],
-        "properties": {
-          "lower_tick": {
-            "$ref": "#/definitions/Int64"
-          },
-          "upper_tick": {
-            "$ref": "#/definitions/Int64"
-          }
-        },
-        "additionalProperties": false
       },
       "Timestamp": {
         "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",

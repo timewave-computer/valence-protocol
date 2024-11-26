@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use cosmwasm_schema::schemars::JsonSchema;
+use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
 use valence_authorization_utils::authorization::AuthorizationInfo;
 
@@ -90,26 +91,34 @@ pub struct ProgramConfig {
 impl ProgramConfig {
     /// Instantiate a program on all domains.
     pub async fn init(&mut self, connectors: &Connectors) -> ManagerResult<()> {
+        info!("Start program init");
+
         let neutron_domain = Domain::CosmosCosmwasm(NEUTRON_CHAIN.to_string());
         // Verify the whole program config
+        info!("Verify new program config");
         self.verify_new_config()?;
 
         // We create the neutron connector specifically because our registry is on neutron.
         let mut neutron_connector = connectors.get_or_create_connector(&neutron_domain).await?;
 
         // Get program next id from on chain program registry
+        info!("Reserve program id");
         let program_id = neutron_connector.reserve_program_id().await?;
         self.id = program_id;
+        info!("Program id: {}", self.id);
 
         // Instantiate the authorization module contracts.
         let all_domains = self.get_all_domains();
 
+        info!("Get authorization and processor addresses on main domain");
         let (authorization_addr, authorization_salt) = neutron_connector
             .get_address(self.id, "valence_authorization", "valence_authorization")
             .await?;
         let (main_processor_addr, main_processor_salt) = neutron_connector
             .get_address(self.id, "valence_processor", "valence_processor")
             .await?;
+        info!("Authorization address: {}", authorization_addr);
+        info!("Processor address: {}", main_processor_addr);
 
         neutron_connector
             .instantiate_authorization(self.id, authorization_salt, main_processor_addr.clone())
@@ -137,6 +146,7 @@ impl ProgramConfig {
         // on the main domain for the authorization contract
         for domain in all_domains.iter() {
             if domain != &neutron_domain {
+                info!("Init processors and bridge accounts on domain: {}", domain);
                 let mut connector = connectors.get_or_create_connector(domain).await?;
 
                 // get the authorization bridge account address on the
@@ -149,11 +159,16 @@ impl ProgramConfig {
                         domain.get_chain_name(),
                     )
                     .await?;
+                info!(
+                    "Authorization bridge account address: {}",
+                    authorization_bridge_account_addr
+                );
 
                 // Get the processor address on the other domain
                 let (processor_addr, salt) = connector
                     .get_address(self.id, "valence_processor", "valence_processor")
                     .await?;
+                info!("Processor address: {}", processor_addr);
 
                 let polytone_bridge_info =
                     get_polytone_info(NEUTRON_CHAIN, domain.get_chain_name()).await?;
@@ -179,6 +194,10 @@ impl ProgramConfig {
                         NEUTRON_CHAIN,
                     )
                     .await?;
+                info!(
+                    "Processor bridge account address: {}",
+                    processor_bridge_account_addr
+                );
 
                 // Instantiate the processor on the other domain, the admin is
                 // the bridge account address of the authorization contract
@@ -194,6 +213,7 @@ impl ProgramConfig {
 
                 // construct and add the `ExternalDomain` info to the authorization contract
                 // Adding external domain to the authorization contract will create the bridge account on that domain
+                info!("Add external domain to authorization contract");
                 neutron_connector
                     .add_external_domain(
                         neutron_domain.get_chain_name(),
@@ -246,8 +266,12 @@ impl ProgramConfig {
         // Predict account addresses and get the instantiate datas for each account
         let mut account_instantiate_datas: HashMap<u64, InstantiateAccountData> = HashMap::new();
 
+        // Loop over all accounts and get the address for each account
+        info!("Get account addresses");
         for (account_id, account) in self.accounts.iter_mut() {
             if let AccountType::Addr { .. } = account.ty {
+                warn!("Account with id {} already has an address", account_id);
+
                 // TODO: Probably should error? we are trying to instantiate a new program with existing account
                 // this is problematic because we don't know who the admin of the account is
                 // and how we can update its approved libraries list.
@@ -266,6 +290,10 @@ impl ProgramConfig {
                     format!("account_{}", account_id).as_str(),
                 )
                 .await?;
+            info!(
+                "Account id {} with address {} on {}",
+                account_id, addr, account.domain
+            );
 
             account_instantiate_datas.insert(
                 *account_id,
@@ -281,6 +309,7 @@ impl ProgramConfig {
         // Then we update the library configs with the account predicted addresses
         // for all input accounts we add the library address to the approved libraries list
         // and then instantiate the libraries
+        info!("Start libraries instantiation");
         for (_, link) in self.links.clone().iter() {
             let mut library = self.get_library(link.library_id)?;
 
@@ -292,6 +321,10 @@ impl ProgramConfig {
                     format!("library_{}", link.library_id).as_str(),
                 )
                 .await?;
+            info!(
+                "Library id {} with address {} on {}",
+                link.library_id, library_addr, library.domain
+            );
 
             let mut patterns =
                 Vec::with_capacity(link.input_accounts_id.len() + link.output_accounts_id.len());
@@ -299,6 +332,7 @@ impl ProgramConfig {
                 Vec::with_capacity(link.input_accounts_id.len() + link.output_accounts_id.len());
 
             // At this stage we should already have all addresses for all account ids
+            info!("Replace account ids with addresses in library config and add library address to approved libraries list on accounts");
             for account_id in link.input_accounts_id.iter() {
                 let account_data = account_instantiate_datas.get_mut(account_id).ok_or(
                     ManagerError::FailedToRetrieveAccountInitData(*account_id, link.library_id),
@@ -327,6 +361,11 @@ impl ProgramConfig {
 
             library.config.replace_config(patterns, replace_with)?;
             library.addr = Some(library_addr);
+
+            debug!(
+                "Library id {} config: {:#?}",
+                link.library_id, library.config
+            );
 
             self.save_library(link.library_id, &library);
 
@@ -357,12 +396,17 @@ impl ProgramConfig {
                     account.domain.to_string(),
                 ))?;
 
+            debug!(
+                "Account id {} with approved libraries {:?}",
+                account_id, account_instantiate_data.approved_libraries
+            );
             domain_connector
                 .instantiate_account(self.id, processor_addr.clone(), account_instantiate_data)
                 .await?;
         }
 
         // Loop over authorizations, and change ids to their addresses
+        info!("Change ids to addresses in authorizations");
         for authorization in self.authorizations.iter_mut() {
             match &mut authorization.subroutine {
                 valence_authorization_utils::authorization::Subroutine::Atomic(
@@ -424,23 +468,30 @@ impl ProgramConfig {
             }
         }
 
+        // Log the program config
+        debug!("Program config: {:#?}", self);
+
         // Verify the program was instantiated successfully
+        info!("Verify program was instantiated successfully");
         self.verify_init_was_successful(connectors, account_instantiate_datas)
             .await?;
 
         // Get neutron connector again because we need it to change admin of the authorization contract
         let mut neutron_connector = connectors.get_or_create_connector(&neutron_domain).await?;
 
+        info!("Add authorizations to authorization contract");
         neutron_connector
             .add_authorizations(authorization_addr.clone(), self.authorizations.clone())
             .await?;
 
         // Change the admin of the authorization contract to the owner of the program
+        info!("Change authorization contract owner to program owner");
         neutron_connector
             .change_authorization_owner(authorization_addr.clone(), self.owner.clone())
             .await?;
 
         // Save the program config to registry
+        info!("Save program config to registry");
         neutron_connector.save_program_config(self.clone()).await?;
 
         Ok(())
@@ -638,21 +689,21 @@ impl ProgramConfig {
         HashSet::from_iter(domains)
     }
 
-    pub fn get_account(&self, account_id: impl GetId) -> ManagerResult<&AccountInfo> {
+    pub fn get_account(&self, id: impl GetId) -> ManagerResult<&AccountInfo> {
         self.accounts
-            .get(&account_id.get_id())
+            .get(&id.get_account_id())
             .ok_or(ManagerError::generic_err(format!(
                 "Account with id {} not found",
-                account_id.get_id()
+                id.get_account_id()
             )))
     }
 
-    pub fn get_library(&self, library_id: u64) -> ManagerResult<LibraryInfo> {
+    pub fn get_library(&self, id: impl GetId) -> ManagerResult<LibraryInfo> {
         self.libraries
-            .get(&library_id)
+            .get(&id.get_library_id())
             .ok_or(ManagerError::generic_err(format!(
                 "Library with id {} not found",
-                library_id
+                id.get_library_id()
             )))
             .cloned()
     }

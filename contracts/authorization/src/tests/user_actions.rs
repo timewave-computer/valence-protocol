@@ -1,6 +1,6 @@
-use cosmwasm_std::{Binary, Timestamp, Uint128};
+use cosmwasm_std::{Binary, Coin, Timestamp, Uint128};
 use cw_utils::Expiration;
-use neutron_test_tube::{neutron_std::types::cosmos::base::v1beta1::Coin, Account, Module, Wasm};
+use neutron_test_tube::{Account, Module, Wasm};
 use serde_json::json;
 use valence_authorization_utils::{
     authorization::{AuthorizationDuration, AuthorizationModeInfo, PermissionTypeInfo},
@@ -426,10 +426,7 @@ fn invalid_permission() {
                 }],
                 ttl: None,
             }),
-            &[Coin {
-                denom: permission_token.clone(),
-                amount: "2".to_string(),
-            }],
+            &[Coin::new(Uint128::new(2), permission_token.clone())],
             &setup.user_accounts[0],
         )
         .unwrap_err();

@@ -81,6 +81,8 @@ pub enum LibraryConfig {
     ValenceAstroportWithdrawer(valence_astroport_withdrawer::msg::LibraryConfig),
     ValenceOsmosisGammLper(valence_osmosis_gamm_lper::msg::LibraryConfig),
     ValenceOsmosisGammWithdrawer(valence_osmosis_gamm_withdrawer::msg::LibraryConfig),
+    ValenceOsmosisClLper(valence_osmosis_cl_lper::msg::LibraryConfig),
+    ValenceOsmosisClWithdrawer(valence_osmosis_cl_withdrawer::msg::LibraryConfig),
 }
 
 #[derive(
@@ -106,6 +108,8 @@ pub enum LibraryConfigUpdate {
     ValenceAstroportWithdrawer(valence_astroport_withdrawer::msg::LibraryConfigUpdate),
     ValenceOsmosisGammLper(valence_osmosis_gamm_lper::msg::LibraryConfigUpdate),
     ValenceOsmosisGammWithdrawer(valence_osmosis_gamm_withdrawer::msg::LibraryConfigUpdate),
+    ValenceOsmosisClLper(valence_osmosis_cl_lper::msg::LibraryConfigUpdate),
+    ValenceOsmosisClWithdrawer(valence_osmosis_cl_withdrawer::msg::LibraryConfigUpdate),
 }
 
 impl LibraryConfigUpdate {
@@ -164,6 +168,22 @@ impl LibraryConfigUpdate {
                 to_json_binary(&valence_library_utils::msg::ExecuteMsg::<
                     Empty,
                     valence_osmosis_gamm_withdrawer::msg::LibraryConfigUpdate,
+                >::UpdateConfig {
+                    new_config: library_config_update,
+                })
+            }
+            LibraryConfigUpdate::ValenceOsmosisClLper(library_config_update) => {
+                to_json_binary(&valence_library_utils::msg::ExecuteMsg::<
+                    Empty,
+                    valence_osmosis_cl_lper::msg::LibraryConfigUpdate,
+                >::UpdateConfig {
+                    new_config: library_config_update,
+                })
+            }
+            LibraryConfigUpdate::ValenceOsmosisClWithdrawer(library_config_update) => {
+                to_json_binary(&valence_library_utils::msg::ExecuteMsg::<
+                    Empty,
+                    valence_osmosis_cl_withdrawer::msg::LibraryConfigUpdate,
                 >::UpdateConfig {
                     new_config: library_config_update,
                 })
@@ -227,6 +247,18 @@ impl LibraryConfig {
 
                 *config = serde_json::from_str(&res)?;
             }
+            LibraryConfig::ValenceOsmosisClLper(ref mut config) => {
+                let json = serde_json::to_string(&config)?;
+                let res = ac.replace_all(&json, &replace_with);
+
+                *config = serde_json::from_str(&res)?;
+            }
+            LibraryConfig::ValenceOsmosisClWithdrawer(ref mut config) => {
+                let json = serde_json::to_string(&config)?;
+                let res = ac.replace_all(&json, &replace_with);
+
+                *config = serde_json::from_str(&res)?;
+            }
         }
 
         Ok(())
@@ -270,6 +302,16 @@ impl LibraryConfig {
                 processor,
                 config: config.clone(),
             }),
+            LibraryConfig::ValenceOsmosisClLper(config) => to_vec(&InstantiateMsg {
+                owner,
+                processor,
+                config: config.clone(),
+            }),
+            LibraryConfig::ValenceOsmosisClWithdrawer(config) => to_vec(&InstantiateMsg {
+                owner,
+                processor,
+                config: config.clone(),
+            }),
         }
         .map_err(LibraryError::SerdeJsonError)
     }
@@ -305,6 +347,14 @@ impl LibraryConfig {
                 config.pre_validate(api)?;
                 Ok(())
             }
+            LibraryConfig::ValenceOsmosisClLper(config) => {
+                config.pre_validate(api)?;
+                Ok(())
+            }
+            LibraryConfig::ValenceOsmosisClWithdrawer(config) => {
+                config.pre_validate(api)?;
+                Ok(())
+            }
         }
     }
 
@@ -332,6 +382,12 @@ impl LibraryConfig {
                 Self::find_account_ids(ac, serde_json::to_string(&config)?)
             }
             LibraryConfig::ValenceOsmosisGammWithdrawer(config) => {
+                Self::find_account_ids(ac, serde_json::to_string(&config)?)
+            }
+            LibraryConfig::ValenceOsmosisClLper(config) => {
+                Self::find_account_ids(ac, serde_json::to_string(&config)?)
+            }
+            LibraryConfig::ValenceOsmosisClWithdrawer(config) => {
                 Self::find_account_ids(ac, serde_json::to_string(&config)?)
             }
         }

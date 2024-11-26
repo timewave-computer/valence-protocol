@@ -11,8 +11,8 @@ localic-utils                        = { git = "https://github.com/timewave-comp
 sha2                                 = { workspace = true }
 hex                                  = { workspace = true }
 serde_json                           = { workspace = true }
-env_logger                           = "0.11.5"
-log                                  = "0.4.22"
+env_logger                           = { workspace = true }
+log                                  = { workspace = true }
 rand                                 = "0.8.5"
 cosmos-grpc-client                   = "3.0.1"
 persistence-std                      = "1.2.0"
@@ -42,4 +42,6 @@ valence-osmosis-gamm-lper            = { workspace = true }
 valence-osmosis-gamm-withdrawer      = { workspace = true }
 valence-osmosis-cl-lper              = { workspace = true }
 valence-osmosis-cl-withdrawer        = { workspace = true }
+valence-osmosis-utils                = { workspace = true }
 tokio                                = { workspace = true }
+osmosis-std                          = { workspace = true }
