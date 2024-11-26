@@ -25,7 +25,7 @@ pub fn instantiate(
     deps: ExecuteDeps,
     _env: Env,
     _info: MessageInfo,
-    msg: InstantiateMsg,
+    _msg: InstantiateMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     Ok(Response::new())
@@ -33,9 +33,9 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: ExecuteDeps,
-    env: Env,
-    info: MessageInfo,
+    _deps: ExecuteDeps,
+    _env: Env,
+    _info: MessageInfo,
     msg: ExecuteMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
     match msg {
@@ -102,9 +102,9 @@ pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response<Neu
 
 // handler
 fn sudo_open_ack(
-    deps: ExecuteDeps,
+    _deps: ExecuteDeps,
     _env: Env,
-    port_id: String,
+    _port_id: String,
     _channel_id: String,
     _counterparty_channel_id: String,
     counterparty_version: String,

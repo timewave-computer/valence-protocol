@@ -2550,6 +2550,7 @@ dependencies = [
  "localic-std",
  "localic-utils",
  "log",
+ "neutron-sdk",
  "osmosis-std",
  "persistence-std",
  "polytone-note",
