@@ -25,7 +25,7 @@ graph LR
   S -- 4/Do Provide Liquidity --> IA
   IA -- 5/Provide Liquidity
 				  [Tokens] --> AP
-  AP -- 5'/Mint LP Tokens --> OA
+  AP -- 5'/Transfer LP Tokens --> OA
 
 ```
 

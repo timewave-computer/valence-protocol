@@ -1,6 +1,6 @@
 # Osmosis GAMM LPer library
 
-The **Valence Osmosis GAMM LPer library** library allows to **join a pool** on **Osmosis**, using the **GAMM module** (Generalized Automated Market Maker), from an **input account**, and transfer the **position** to an **output account**.
+The **Valence Osmosis GAMM LPer library** library allows to **join a pool** on **Osmosis**, using the **GAMM module** (Generalized Automated Market Maker), from an **input account**, and deposit the **LP tokens** into an **output account**.
 
 ## High-level flow
 

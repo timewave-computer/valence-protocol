@@ -1,7 +1,7 @@
 # Osmosis CL LPer library
 
 The **Valence Osmosis CL LPer library** library allows to **create concentrated liquidity
-positions** on **Osmosis** from an **input account**, and transfer the **position** to an **output account**.
+positions** on **Osmosis** from an **input account**, and deposit the **LP tokens** into an **output account**.
 
 ## High-level flow
 
@@ -20,14 +20,14 @@ graph LR
       Provider]
   AP[Osmosis CL
      Pool]
-  P -- 1/Create Position --> S
+  P -- 1/Provide Liquidity --> S
   S -- 2/Query balances --> IA
   S -- 3/Configure target
     range --> S
-  S -- 4/Do Create Position --> IA
-  IA -- 5/Create Position
+  S -- 4/Do Provide Liquidity --> IA
+  IA -- 5/Provide Liquidity
 				  [Tokens] --> AP
-  AP -- 5'/Transfer Position --> OA
+  AP -- 5'/Transfer LP Tokens --> OA
 
 ```
 
@@ -73,8 +73,8 @@ those that are entirely single-sided.
 
 | Function    | Parameters | Description |
 |-------------|------------|-------------|
-| **ProvideLiquidityDefault** | `bucket_amount: Uint64` | Create a position on the pre-configured **Osmosis Pool** from the **input account**, following the [Default approach](#default) described above, and transfer the **position** to the **output account**. |
-| **ProvideLiquidityCustom** | `tick_range: TickRange`<br>`token_min_amount_0: Option<Uint128>`<br>`token_min_amount_1: Option<Uint128>` | Create a position on the pre-configured **Osmosis Pool** from the **input account**, following the [Custom approach](#custom) described above, and transfer the **position** to the **output account**. |
+| **ProvideLiquidityDefault** | `bucket_amount: Uint64` | Create a position on the pre-configured **Osmosis Pool** from the **input account**, following the [Default approach](#default) described above, and deposit the **LP tokens** into the **output account**. |
+| **ProvideLiquidityCustom** | `tick_range: TickRange`<br>`token_min_amount_0: Option<Uint128>`<br>`token_min_amount_1: Option<Uint128>` | Create a position on the pre-configured **Osmosis Pool** from the **input account**, following the [Custom approach](#custom) described above, and deposit the **LP tokens** into the **output account**. |
 
 ## Configuration
 

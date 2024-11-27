@@ -47,4 +47,4 @@ graph LR
 
 This example highlights the crucial role that **Valence Libraries** play for integrating **Valence Programs** with pre-existing decentralized apps and services.
 
-One thing remains unclear in this example though ... how are **Functions** called ? This is where [Authorizations and Execution](./authorizations_and_execution.md) come into the picture. 
+One thing remains unclear in this example though ... how are **Functions** called? This is where [Authorizations and Execution](./authorizations_and_execution.md) come into the picture. 
