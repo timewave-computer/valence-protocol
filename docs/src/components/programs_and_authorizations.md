@@ -2,12 +2,12 @@
 
 A **Valence Program** is an instance of the **Valence Protocol**. It is a particular arrangement and configuration of [accounts](./accounts.md) and [libraries](./libraries_and_functions.md) across multiple [domains](./domains.md) e.g. a POL (protocol-owned liquidity) lending relationship between two parties. Similarly to how a _library_ exposes executable _functions_, programs are associated with a set of executable **Subroutines**.
 
-A **Subroutine** is a vector of **Functions**. A **Subroutine** can call out to one or more **function(s)** (from a single library, or from different libraries), on one or more (execution) domain(s). 
+A **Subroutine** is a vector of **Functions**. A **Subroutine** can call out to one or more **function(s)** from a single library, or from different ones. A **Subroutine** is limited to **one execution domain** (i.e. it cannot use functions from libraries instantiated on multiple domains).
 
 A **Subroutine** can be:
 
-- **Sequential**, i.e., execute function one, if it succeeds execute function two, and if that succeeds do function three, and so on.
-- or **Atomic**, i.e., execution function one, function two, and function three, and if any of them fail then revert all steps. Atomic functions must be limited to one execution domain.
+- **Non Atomic**, i.e., execute function one, if it succeeds execute function two, and if that succeeds do function three, and so on.
+- or **Atomic**, i.e., execution function one, function two, and function three, and if any of them fail then revert all steps.
 
 **Valence programs** are typically used to implement complex, cross-chain workflows performing financial operations, in a trust-minimized way, on funds provided by various third-parties. Therefore, it goes without saying that a program's subroutines should not (all and/or always) be allowed to be executed by just anout anyone.
 
