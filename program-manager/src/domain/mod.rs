@@ -8,7 +8,6 @@ use async_trait::async_trait;
 use cosmos_cw::{CosmosCosmwasmConnector, CosmosCosmwasmError};
 
 use cosmwasm_schema::schemars::JsonSchema;
-use cosmwasm_std::testing::MockApi;
 use serde::{Deserialize, Serialize};
 
 // use cosmos_evm::CosmosEvmError;
@@ -17,7 +16,7 @@ use valence_authorization_utils::authorization::AuthorizationInfo;
 
 use crate::{
     account::InstantiateAccountData, config::ConfigError, library::LibraryConfig,
-    program_config::ProgramConfig,
+    mock_api::MockApi, program_config::ProgramConfig,
 };
 
 pub type ConnectorResult<T> = Result<T, ConnectorError>;
