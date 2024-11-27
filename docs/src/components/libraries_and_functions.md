@@ -1,6 +1,6 @@
 # Libraries and Functions
 
-**Valence Libraries** contain the business logic that can be applied to the funds held by **Valence accounts**. Most often, this logic is about _performing operations on tokens_, such as splitting, routing, or providing liquidity on a DEX. A **Valence library** has to be registered with a **Valence account** to be authorized to perform operations on that account's balances. **Valence Libraries** expose **Functions** that it supports. **Valence Programs** can be composed of a more or less complex graph of **Valence Accounts** and **Valence Libraries** to form a more or less sophisticated cross-chain workflow. During the course of a **Valence program**'s execution, **Functions** are called by external parties, and trigger the library's operations on the linked accounts.
+**Valence Libraries** contain the business logic that can be applied to the funds held by **Valence accounts**. Most often, this logic is about _performing operations on tokens_, such as splitting, routing, or providing liquidity on a DEX. A **Valence account** has to first approve (authorize) a **Valence library** for it to perform operations on that account's balances. **Valence Libraries** expose **Functions** that it supports. **Valence Programs** can be composed of a more or less complex graph of **Valence Accounts** and **Valence Libraries** to form a more or less sophisticated cross-chain workflow. During the course of a **Valence program**'s execution, **Functions** are called by external parties, and trigger the library's operations on the linked accounts.
 
 A typical pattern for a **Valence Library** is to have one (or more) **input account(s)** and one (or more) **output account(s)**. While many libraries implement this pattern, it is by no means a requirement.
 
@@ -11,8 +11,8 @@ Now that we know that accounts cannot perform any operation by themselves, we ne
 The program is then composed of the following accounts & libraries:
 - A **Valence Account** is created on the **Neutron domain** to act as the **Input account**.
 - A **Valence Account** is created on the **Neutron domain** to act as the **Transfer account**.
-- A **Token swap Valence Library** is created on the **Neutron domain**, _registered_ with the **Input Account** (to be able to act on the held Token A balance), and _configured_ with the **Input account** and **Transfer account** as the respective input and output for the swap operation.
-- A **Token Transfer Valence Library** is created on the **Neutron domain**, _registered_ with the **Transfer Account** (to be able to act on the held Token B balance), and _configured_ with the **Transfer account** and **Output account** as the respective input and output for the swap operation.
+- A **Token swap Valence Library** is created on the **Neutron domain**, _authorized_ by the **Input Account** (to be able to act on the held Token A balance), and _configured_ with the **Input account** and **Transfer account** as the respective input and output for the swap operation.
+- A **Token Transfer Valence Library** is created on the **Neutron domain**, _authorized_ by the **Transfer Account** (to be able to act on the held Token B balance), and _configured_ with the **Transfer account** and **Output account** as the respective input and output for the swap operation.
 - A **Valence Account** is created on the **Osmosis domain** to act as the **Output account**.
 
 ```mermaid
