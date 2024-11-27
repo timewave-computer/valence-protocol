@@ -61,36 +61,59 @@ impl From<&str> for LibraryAccountType {
 }
 
 pub trait GetId {
-    fn get_id(&self) -> Id;
+    fn get_account_id(&self) -> Id;
+    fn get_library_id(&self) -> Id;
 }
 
 impl GetId for LibraryAccountType {
-    fn get_id(&self) -> Id {
+    fn get_account_id(&self) -> Id {
         match self {
             LibraryAccountType::Addr(_) => {
                 panic!("LibraryAccountType is an address")
             }
             LibraryAccountType::AccountId(id) => *id,
+            LibraryAccountType::LibraryId(_) => panic!("LibraryAccountType is a library id"),
+        }
+    }
+
+    fn get_library_id(&self) -> Id {
+        match self {
+            LibraryAccountType::Addr(_) => {
+                panic!("LibraryAccountType is an address")
+            }
+            LibraryAccountType::AccountId(_) => panic!("LibraryAccountType is a account id"),
             LibraryAccountType::LibraryId(id) => *id,
         }
     }
 }
 
 impl GetId for u64 {
-    fn get_id(&self) -> Id {
+    fn get_account_id(&self) -> Id {
+        *self
+    }
+
+    fn get_library_id(&self) -> Id {
         *self
     }
 }
 
 impl GetId for &u64 {
-    fn get_id(&self) -> Id {
+    fn get_account_id(&self) -> Id {
+        **self
+    }
+
+    fn get_library_id(&self) -> Id {
         **self
     }
 }
 
 impl GetId for u32 {
-    fn get_id(&self) -> Id {
-        *self as u64
+    fn get_account_id(&self) -> Id {
+        (*self).into()
+    }
+
+    fn get_library_id(&self) -> Id {
+        (*self).into()
     }
 }
 

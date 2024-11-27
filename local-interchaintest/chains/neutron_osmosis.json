@@ -229,6 +229,12 @@
             "address": "osmo1hj5fveer5cjtn4wd6wstzugjfdxzl0xpwhpz63",
             "amount": "10000000000000%DENOM%",
             "mnemonic": "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry"
+          },
+          {
+            "name": "acc1",
+            "address": "osmo1kljf09rj77uxeu5lye7muejx6ajsu55cs2sfz9",
+            "amount": "10000000000000%DENOM%",
+            "mnemonic": "across army acoustic hurt help sad turkey switch popular fade purse obvious session tuition file asset cover agree number motor pupil slim hundred busy"
           }
         ]
       }
