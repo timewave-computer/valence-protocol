@@ -1,12 +1,12 @@
 # Osmosis GAMM liquidity withdrawer library
 
-The **Valence Osmosis GAAM Withdrawer library** library allows to **exit a pool** on **Osmosis**, using the **GAAM module** (Generalized Automated Market Maker), from an **input account**, an deposit the withdrawed tokens into an **output account**.
+The **Valence Osmosis GAMM Withdrawer library** library allows to **exit a pool** on **Osmosis**, using the **GAMM module** (Generalized Automated Market Maker), from an **input account**, an deposit the withdrawed tokens into an **output account**.
 
 ## High-level flow
 
 ```mermaid
 ---
-title: Osmosis GAAM Liquidity Withdrawal
+title: Osmosis GAMM Liquidity Withdrawal
 ---
 graph LR
   IA((Input
@@ -14,7 +14,7 @@ graph LR
   OA((Output
 		  Account))
   P[Processor]
-  S[Osmosis GAAM
+  S[Osmosis GAMM
       Liquidity
       Withdrawal]
   AP[Osmosis

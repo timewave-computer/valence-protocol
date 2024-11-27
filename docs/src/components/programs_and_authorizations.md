@@ -19,7 +19,7 @@ The **Authorizations** module is a very powerful and flexible system that suppor
 - Only **permissioned actors** can initiate execution of a **Subroutine**
 - Execution can only be initiated **after a starting timestamp/block height**
 - Execution can only be initiated **up to a certain timestamp/block height**
-- Authorizations are **tokenized**, which means they can be transferred by the holder or used in more sophisticated DeFi scenarii
+- Authorizations are **tokenized**, which means they can be transferred by the holder or used in more sophisticated DeFi scenarios
 - Authorizations can **expire**
 - Authorizations can be **enabled/disabled**
 - Authorizations can tightly **constrain parameters**. For example, an authorization to execute a token transfer message can limit the execution to only supply the amount argument, and not the denom or receiver in the transfer message
@@ -28,7 +28,7 @@ To support the on-chain execution of **Valence Programs**, the **Valence Protoco
 
 The **Authorizations contract** is the entry point for users. The user sends a set of messages to the Authorizations contract and the label (id) of the authorization they want to execute. The Authorizations contract then verifies that the sender is authorized, that the messages are valid, constructs a _MessageBatch_ based on the subroutine and passes this batch to the **Processor contract** for execution. The authority to execute any _Subroutine_ is tokenized so that these tokens can be transferred on-chain.
 
-The **Processor contract** receives a _MessageBatch_ and executes the contained _Messages_ in sequence. It does this by maintaining execution queues, where the queue items are _Subroutines._ The processor exposes a `Tick` message that allows anyone to trigger the processor, whereby the first item of the queue is executed or moved to the back of the queue if it's not executable yet (e.g. retry period has not passed).
+The **Processor contract** receives a _MessageBatch_ and executes the contained _Messages_ in sequence. It does this by maintaining execution queues, where the queue items are _Subroutines._ The processor exposes a `Tick` message that allows anyone to trigger the processor, whereby the first batch of the queue is executed or moved to the back of the queue if it's not executable yet (e.g. retry period has not passed).
 
 ```mermaid
 graph LR;

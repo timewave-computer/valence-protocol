@@ -1,7 +1,7 @@
 # Osmosis CL liquidity withdrawer library
 
 The **Valence Osmosis CL Withdrawer library** library allows to **withdraw a concentrated liquidity
-positions** off an **Osmosis** pool from an **input account**, and transfer the resulting tokens to an **output account**.
+position** off an **Osmosis** pool from an **input account**, and transfer the resulting tokens to an **output account**.
 
 ## High-level flow
 

@@ -6,7 +6,7 @@ A **Domain** is environment which the components that form a program (more on th
 
 **Domains** are defined by **three properties**:
   1. The **Chain**: the Blockchain's name _e.g. Neutron, Osmosis, Ethereum mainnet_.
-  2. The **Execution environment**: the environment under which programs (typically smart conrtacts) can be executed on that particular chain _e.g. CosmWasm, EVM, SVM_.
+  2. The **Execution environment**: the environment under which programs (typically smart contracts) can be executed on that particular chain _e.g. CosmWasm, EVM, SVM_.
   3. The type of **Bridge** used from the **Main Domain** to other domains _e.g. Polytone over IBC, Hyperlane_.
 
 Within a particular ecosystem of Blockchains (e.g. Cosmos), the Valence Protocol usually defines one specific domain as the **Main Domain**, on which some supporting infrastructure components are deployed. Think of it as the _home base_ supporting the execution and operations of a Valence programs. This will be further clarified in the [Authorizations & Processors](./authorizations_processors/_overview.md) section.
