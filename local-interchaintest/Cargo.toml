@@ -47,6 +47,3 @@ tokio                                = { workspace = true }
 osmosis-std                          = { workspace = true }
 valence-test-icq-lib                 = { workspace = true }
 neutron-sdk                          = { workspace = true }
-base64 = "0.13.0"
-prost = "0.7.0"
-cosmos-sdk-proto   = { version = "0.20.0" }
