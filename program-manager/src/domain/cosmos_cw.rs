@@ -2,12 +2,13 @@ use std::{
     collections::HashMap,
     fmt,
     str::{from_utf8, FromStr},
+    time::Instant,
 };
 
 use crate::{
     account::{AccountType, InstantiateAccountData},
     bridge::PolytoneSingleChainInfo,
-    config::{ChainInfo, ConfigError, GLOBAL_CONFIG},
+    config::{ChainInfo, Config, ConfigError, GLOBAL_CONFIG},
     helpers::{addr_canonicalize, addr_humanize},
     library::{LibraryConfig, LibraryError},
     program_config::ProgramConfig,
@@ -28,6 +29,7 @@ use cosmos_grpc_client::{
 };
 use cosmwasm_std::{from_json, instantiate2_address, to_json_binary};
 use futures::future::BoxFuture;
+use log::debug;
 use serde_json::to_vec;
 use strum::VariantNames;
 use thiserror::Error;
@@ -99,7 +101,12 @@ impl fmt::Debug for CosmosCosmwasmConnector {
 
 impl CosmosCosmwasmConnector {
     pub async fn new(chain_name: &str) -> Result<Self, CosmosCosmwasmError> {
+        let start = Instant::now();
+        debug!("\n[ACQUIRING LOCK]");
         let gc = GLOBAL_CONFIG.lock().await;
+        let duration = start.elapsed();
+        debug!("\n[ACQUIRING LOCK] took: {}msec", duration.as_millis());
+
         let chain_info: &ChainInfo = gc.get_chain_info(chain_name)?;
         let code_ids: &HashMap<String, u64> = gc.get_code_ids(chain_name)?;
 
@@ -146,7 +153,13 @@ impl Connector for CosmosCosmwasmConnector {
             ))
             .into());
         }
-        let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();
+        let start = Instant::now();
+        debug!("\n[ACQUIRING LOCK]");
+        let gc = GLOBAL_CONFIG.lock().await;
+        let duration = start.elapsed();
+        debug!("\n[ACQUIRING LOCK] took: {}msec", duration.as_millis());
+
+        let registry_addr = gc.get_registry_addr();
 
         // Execute a message to reserve the program id
         let msg = to_vec(&valence_program_registry_utils::ExecuteMsg::ReserveId {})
@@ -207,11 +220,17 @@ impl Connector for CosmosCosmwasmConnector {
 
         let checksum = self.get_checksum(code_id).await?;
 
+        let start = Instant::now();
+        debug!("\n[ACQUIRING LOCK]");
+        let gc = GLOBAL_CONFIG.lock().await;
+        let duration = start.elapsed();
+        debug!("\n[ACQUIRING LOCK] took: {}msec", duration.as_millis());
+
         let salt = Sha256::new()
             .chain(contract_name)
             .chain(id.to_string())
             .chain(extra_salt)
-            .chain(GLOBAL_CONFIG.lock().await.get_registry_addr())
+            .chain(gc.get_registry_addr())
             .finalize()
             .to_vec();
 
@@ -669,8 +688,14 @@ impl Connector for CosmosCosmwasmConnector {
         // Query for program config for an idea
         let query_data = to_vec(&valence_program_registry_utils::QueryMsg::GetConfig { id })
             .map_err(CosmosCosmwasmError::SerdeJsonError)?;
+        let start = Instant::now();
+        debug!("\n[ACQUIRING LOCK]");
+        let gc = GLOBAL_CONFIG.lock().await;
+        let duration = start.elapsed();
+        debug!("\n[ACQUIRING LOCK] took: {}msec", duration.as_millis());
+
         let config_req = QuerySmartContractStateRequest {
-            address: GLOBAL_CONFIG.lock().await.get_registry_addr().clone(),
+            address: gc.get_registry_addr().clone(),
             query_data,
         };
 
@@ -776,8 +801,13 @@ impl Connector for CosmosCosmwasmConnector {
                 .into());
             }
         }
+        let start = Instant::now();
+        debug!("\n[ACQUIRING LOCK]");
+        let gc = GLOBAL_CONFIG.lock().await;
+        let duration = start.elapsed();
+        debug!("\n[ACQUIRING LOCK] took: {}msec", duration.as_millis());
 
-        let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();
+        let registry_addr = gc.get_registry_addr();
 
         let program_binary =
             to_json_binary(&config).map_err(CosmosCosmwasmError::CosmwasmStdError)?;
@@ -818,8 +848,13 @@ impl Connector for CosmosCosmwasmConnector {
                 .into());
             }
         }
+        let start = Instant::now();
+        debug!("\n[ACQUIRING LOCK]");
+        let gc = GLOBAL_CONFIG.lock().await;
+        let duration = start.elapsed();
+        debug!("\n[ACQUIRING LOCK] took: {}msec", duration.as_millis());
 
-        let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();
+        let registry_addr = gc.get_registry_addr();
 
         let program_binary =
             to_json_binary(&config).map_err(CosmosCosmwasmError::CosmwasmStdError)?;
@@ -851,8 +886,13 @@ impl Connector for CosmosCosmwasmConnector {
             ))
             .into());
         }
+        let start = Instant::now();
+        debug!("\n[ACQUIRING LOCK]");
+        let gc = GLOBAL_CONFIG.lock().await;
+        let duration = start.elapsed();
+        debug!("\n[ACQUIRING LOCK] took: {}msec", duration.as_millis());
 
-        let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();
+        let registry_addr = gc.get_registry_addr();
 
         let query = QuerySmartContractStateRequest {
             address: registry_addr,
@@ -1089,7 +1129,11 @@ impl CosmosCosmwasmConnector {
         sender_chain: &str,
         receive_chain: &str,
     ) -> Result<PolytoneSingleChainInfo, CosmosCosmwasmError> {
+        let start = Instant::now();
+        debug!("\n[ACQUIRING LOCK]");
         let gc = GLOBAL_CONFIG.lock().await;
+        let duration = start.elapsed();
+        debug!("\n[ACQUIRING LOCK] took: {}msec", duration.as_millis());
 
         let (sender_chain, other_chain) = if main_chain == sender_chain {
             (sender_chain, receive_chain)

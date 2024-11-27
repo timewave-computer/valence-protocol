@@ -1,7 +1,8 @@
-use std::{collections::HashMap, env, error::Error, fs};
+use std::{collections::HashMap, env, error::Error, fs, time::Instant};
 
 use localic_std::modules::cosmwasm::contract_instantiate;
 use localic_utils::{utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_NAME};
+use log::debug;
 use valence_program_manager::{
     config::{ChainInfo, GLOBAL_CONFIG},
     error::ManagerResult,

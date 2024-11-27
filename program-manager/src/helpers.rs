@@ -1,8 +1,9 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Instant};
 
 use anyhow::anyhow;
 use bech32::{encode, primitives::decode::CheckedHrpstring, Bech32, Hrp};
 use cosmwasm_std::CanonicalAddr;
+use log::debug;
 
 use crate::config::{ConfigResult, GLOBAL_CONFIG};
 
@@ -41,7 +42,15 @@ pub async fn get_polytone_info(
     main_chain: &str,
     other_chain: &str,
 ) -> ConfigResult<HashMap<String, crate::bridge::PolytoneSingleChainInfo>> {
+    let start = Instant::now();
+    debug!("\n[ACQUIRING LOCK get_polytone_info]");
     let gc = GLOBAL_CONFIG.lock().await;
+    let duration = start.elapsed();
+    debug!(
+        "\n[ACQUIRING LOCK get_polytone_info] took: {}msec",
+        duration.as_millis()
+    );
+
     // get from neutron to current domain bridge info
     Ok(gc
         .get_bridge_info(main_chain, other_chain)?
