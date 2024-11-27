@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Examples - Valence Protocol Documentation</title>
+        <title>Libraries and Functions - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -12,32 +12,32 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon.svg">
-        <link rel="shortcut icon" href="favicon.png">
-        <link rel="stylesheet" href="css/variables.css">
-        <link rel="stylesheet" href="css/general.css">
-        <link rel="stylesheet" href="css/chrome.css">
-        <link rel="stylesheet" href="css/print.css" media="print">
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
-        <link rel="stylesheet" href="fonts/fonts.css">
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" href="highlight.css">
-        <link rel="stylesheet" href="tomorrow-night.css">
-        <link rel="stylesheet" href="ayu-highlight.css">
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root to javascript -->
         <script>
-            var path_to_root = "";
+            var path_to_root = "../";
             var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "navy";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc.js"></script>
+        <script src="../toc.js"></script>
     </head>
     <body>
     <div id="body-container">
@@ -89,7 +89,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -123,7 +123,7 @@
                     <h1 class="menu-title">Valence Protocol Documentation</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
                         <a href="https://github.com/timewave-computer/valence-protocol" title="Git repository" aria-label="Git repository">
@@ -155,28 +155,61 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="examples"><a class="header" href="#examples">Examples</a></h1>
-<p>Here are some examples of Valence Programs that you can use to get started.</p>
-<h2 id="token-swap-program"><a class="header" href="#token-swap-program">Token Swap Program</a></h2>
-<pre class="mermaid">graph LR
-	InA((Party A Deposit))
-	InB((Party B Deposit))
-	OutA((Party A Withdraw))
-	OutB((Party B Withdraw))
-	SSA[Splitter A]
-	SSB[Splitter B]
-	InA --&gt; SSA --&gt; OutB
-	InB --&gt; SSB --&gt; OutA
+                        <h1 id="libraries-and-functions"><a class="header" href="#libraries-and-functions">Libraries and Functions</a></h1>
+<p><strong>Valence Libraries</strong> contain the business logic that can be applied to the funds held by <strong>Valence accounts</strong>. Most often, this logic is about <em>performing operations on tokens</em>, such as splitting, routing, or providing liquidity on a DEX. A <strong>Valence account</strong> has to first approve (authorize) a <strong>Valence library</strong> for it to perform operations on that account's balances. <strong>Valence Libraries</strong> expose <strong>Functions</strong> that it supports. <strong>Valence Programs</strong> can be composed of a more or less complex graph of <strong>Valence Accounts</strong> and <strong>Valence Libraries</strong> to form a more or less sophisticated cross-chain workflow. During the course of a <strong>Valence program</strong>'s execution, <strong>Functions</strong> are called by external parties, and trigger the library's operations on the linked accounts.</p>
+<p>A typical pattern for a <strong>Valence Library</strong> is to have one (or more) <strong>input account(s)</strong> and one (or more) <strong>output account(s)</strong>. While many libraries implement this pattern, it is by no means a requirement.</p>
+<p><strong>Valence Libraries</strong> play a critical role in integrating <strong>Valence Programs</strong> with existing decentralized apps and services that can be found in many Blockchain ecosystems e.g. DEXes, liquid staking, etc</p>
+<p>Now that we know that accounts cannot perform any operation by themselves, we need to revisit the <em>token swap program</em> example (mentioned on the <a href="./accounts.html">Accounts</a> page), and bring <strong>Valence Libraries</strong> into the picture: the program receives an amount of <strong>Token A</strong> in an <strong>input account</strong>, and a <strong>Token Swap</strong> library exposes a <strong>swap</strong> function that, when called, will perform a swap operation of <strong>Token A</strong> held by the <strong>input account</strong> for <strong>Token B</strong> using a <strong>DEX</strong> on the <strong>same domain</strong> (e.g. Neutron), and transfer them to the <strong>transfer account</strong>. A <strong>Token Transfer</strong> library, that exposes a <strong>transfer</strong> function, will transfer the <strong>Token B</strong> amount (when the function is called) to a final <strong>output account</strong> on another domain (e.g. Osmosis). In this scenario, the <strong>DEX</strong> is an existing service found on the hosting domain (e.g. <strong>Astroport</strong> on <strong>Neutron</strong>), so it is not part of the <strong>Valence Protocol</strong>.</p>
+<p>The program is then composed of the following accounts &amp; libraries:</p>
+<ul>
+<li>A <strong>Valence Account</strong> is created on the <strong>Neutron domain</strong> to act as the <strong>Input account</strong>.</li>
+<li>A <strong>Valence Account</strong> is created on the <strong>Neutron domain</strong> to act as the <strong>Transfer account</strong>.</li>
+<li>A <strong>Token swap Valence Library</strong> is created on the <strong>Neutron domain</strong>, <em>authorized</em> by the <strong>Input Account</strong> (to be able to act on the held Token A balance), and <em>configured</em> with the <strong>Input account</strong> and <strong>Transfer account</strong> as the respective input and output for the swap operation.</li>
+<li>A <strong>Token Transfer Valence Library</strong> is created on the <strong>Neutron domain</strong>, <em>authorized</em> by the <strong>Transfer Account</strong> (to be able to act on the held Token B balance), and <em>configured</em> with the <strong>Transfer account</strong> and <strong>Output account</strong> as the respective input and output for the swap operation.</li>
+<li>A <strong>Valence Account</strong> is created on the <strong>Osmosis domain</strong> to act as the <strong>Output account</strong>.</li>
+</ul>
+<pre class="mermaid">---
+title: Valence token swap program
+---
+graph LR
+  FC[[Function call]]
+  IA((Input
+	Account))
+  TA((Transfer
+	Account))
+  OA((Output
+	Account))
+  TS((Token
+  	Swap Library))
+  TT((Token
+  	Transfer Library))
+  DEX
+  subgraph Neutron
+  FC -- 1/Swap --&gt; TS
+  TS -- Swap Token A --&gt; IA
+  IA -- Token A --&gt; DEX
+  DEX -- Token B --&gt; TA
+  FC -- 2/Transfer --&gt; TT
+  TT -- Transfer Token B --&gt; TA
+  end
+  subgraph Osmosis
+  TA -- Token B --&gt; OA
+  end
 </pre>
+<p>This example highlights the crucial role that <strong>Valence Libraries</strong> play for integrating <strong>Valence Programs</strong> with pre-existing decentralized apps and services.</p>
+<p>One thing remains unclear in this example though ... how are <strong>Functions</strong> called? This is where <a href="./authorizations_and_execution.html">Authorizations and Execution</a> come into the picture.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="authorizations_processors/callbacks.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../components/accounts.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
+                            <a rel="next prefetch" href="../components/programs_and_authorizations.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -184,10 +217,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="authorizations_processors/callbacks.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../components/accounts.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
+                    <a rel="next prefetch" href="../components/programs_and_authorizations.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
             </nav>
 
         </div>
@@ -200,17 +236,17 @@
         </script>
 
 
-        <script src="elasticlunr.min.js"></script>
-        <script src="mark.min.js"></script>
-        <script src="searcher.js"></script>
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
 
-        <script src="clipboard.min.js"></script>
-        <script src="highlight.js"></script>
-        <script src="book.js"></script>
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
 
         <!-- Custom JS scripts -->
-        <script src="mermaid.min.js"></script>
-        <script src="mermaid-init.js"></script>
+        <script src="../mermaid.min.js"></script>
+        <script src="../mermaid-init.js"></script>
 
 
     </div>

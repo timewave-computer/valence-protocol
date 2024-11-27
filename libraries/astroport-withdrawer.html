@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Background - Valence Protocol Documentation</title>
+        <title>Astroport Withdrawer - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -12,32 +12,32 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon.svg">
-        <link rel="shortcut icon" href="favicon.png">
-        <link rel="stylesheet" href="css/variables.css">
-        <link rel="stylesheet" href="css/general.css">
-        <link rel="stylesheet" href="css/chrome.css">
-        <link rel="stylesheet" href="css/print.css" media="print">
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
-        <link rel="stylesheet" href="fonts/fonts.css">
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" href="highlight.css">
-        <link rel="stylesheet" href="tomorrow-night.css">
-        <link rel="stylesheet" href="ayu-highlight.css">
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root to javascript -->
         <script>
-            var path_to_root = "";
+            var path_to_root = "../";
             var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "navy";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc.js"></script>
+        <script src="../toc.js"></script>
     </head>
     <body>
     <div id="body-container">
@@ -89,7 +89,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -123,7 +123,7 @@
                     <h1 class="menu-title">Valence Protocol Documentation</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
                         <a href="https://github.com/timewave-computer/valence-protocol" title="Git repository" aria-label="Git repository">
@@ -155,26 +155,72 @@
 
                 <div id="content" class="content">
                     <main>
-                        <blockquote>
-<p>🚧 This in-progress document contains information about the design of a cross-chain automation system that powers the Valence programs. Lending applications can be implemented as specific "program".</p>
-</blockquote>
-<h1 id="background"><a class="header" href="#background">Background</a></h1>
-<p>Programs are a framework to help you develop trust-minimized applications which require sequential execution across many chains. They are easy to understand and quick to deploy. A Program can be set up with a configuration file and no code. Programs are also extensible. If we don't support a DeFi integration out of the box, you can write one yourself in a matter of hours!</p>
-<blockquote>
-<p>👉 <strong>Example Use-case</strong>:<br />
-A DAO wants to bridge tokens to another chain and then deposit the tokens into a vault. After a certain date, it wants to allow a governance proposal to trigger unwinding of the position. While the position is active, It may also want to delegate the right to change vault parameters to a specific committee as long as the parameters are within a certain range.</p>
-<p>Without Programs, the DAO would have two choices:<br />
-<strong>Choice 1:</strong> Give the tokens to a multisig to execute actions on the DAO's behalf<br />
-<strong>Choice 2:</strong> Write highly custom smart contracts across multiple chains that handle the token operations across multiple chains.</p>
-<p>Programs offer a third choice: the DAO does not need to trust a multisig, nor does it need to spend resources writing complex cross-chain logic. Programs allow the DAO to rapidly configure and deploy a solution that meets its needs.</p>
-</blockquote>
+                        <h1 id="astroport-withdrawer-library"><a class="header" href="#astroport-withdrawer-library">Astroport Withdrawer library</a></h1>
+<p>The <strong>Valence Astroport Withdrawer library</strong> library allows to <strong>withdraw liquidity</strong> from an Astroport Liquidity Pool from an <strong>input account</strong> an deposit the withdrawed tokens into an <strong>output account</strong>.</p>
+<h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Astroport Liquidity Withdrawal
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+		  Account))
+  P[Processor]
+  S[Astroport
+      Liquidity
+      Withdrawal]
+  AP[Astroport
+     Pool]
+  P -- 1/Withdraw Liquidity --&gt; S
+  S -- 2/Query balances --&gt; IA
+  S -- 3/Compute amounts --&gt; S
+  S -- 4/Do Withdraw Liquidity --&gt; IA
+  IA -- 5/Withdraw Liquidity
+				  [LP Tokens] --&gt; AP
+  AP -- 5'/Transfer assets --&gt; OA
+</pre>
+<h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>WithdrawLiquidity</strong></td><td>-</td><td>Withdraw liquidity from the configured <strong>Astroport Pool</strong> from the <strong>input account</strong> and deposit the withdrawed tokens into the configured <strong>output account</strong></td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LibraryConfig {
+    // Account holding the LP position
+    pub input_addr: LibraryAccountType,
+    // Account to which the withdrawn assets are forwarded
+    pub output_addr: LibraryAccountType,
+    // Pool address
+    pub pool_addr: String,
+    // Liquidity withdrawer configuration
+    pub withdrawer_config: LiquidityWithdrawerConfig,
+}
+
+pub struct LiquidityWithdrawerConfig {
+    // Pool type, old Astroport pools use Cw20 lp tokens and new pools use native tokens, so we specify here what kind of token we are will use.
+    // We also provide the PairType structure of the right Astroport version that we are going to use for each scenario
+    pub pool_type: PoolType,
+}
+
+pub enum PoolType {
+    NativeLpToken,
+    Cw20LpToken,
+}
+<span class="boring">}</span></code></pre></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../libraries/astroport-lper.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
 
-                            <a rel="next prefetch" href="components/overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../libraries/forwarder.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -184,8 +230,11 @@ A DAO wants to bridge tokens to another chain and then deposit the tokens into a
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../libraries/astroport-lper.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
 
-                    <a rel="next prefetch" href="components/overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../libraries/forwarder.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
@@ -200,17 +249,17 @@ A DAO wants to bridge tokens to another chain and then deposit the tokens into a
         </script>
 
 
-        <script src="elasticlunr.min.js"></script>
-        <script src="mark.min.js"></script>
-        <script src="searcher.js"></script>
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
 
-        <script src="clipboard.min.js"></script>
-        <script src="highlight.js"></script>
-        <script src="book.js"></script>
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
 
         <!-- Custom JS scripts -->
-        <script src="mermaid.min.js"></script>
-        <script src="mermaid-init.js"></script>
+        <script src="../mermaid.min.js"></script>
+        <script src="../mermaid-init.js"></script>
 
 
     </div>

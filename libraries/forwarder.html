@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Authorizations &amp; Processors - Valence Protocol Documentation</title>
+        <title>Forwarder - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -155,34 +155,69 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="authorizations--processors"><a class="header" href="#authorizations--processors">Authorizations &amp; Processors</a></h1>
-<ul>
-<li>
-<p>To have a general purpose set of smart contracts that will provide the users (anyone if the authorization is permissionless or authorization token owners if it’s permissioned) with a single point of entry to interact with the Valence program, which can have libraries and accounts deployed on multiple chains.</p>
-</li>
-<li>
-<p>To have all the user authorizations for multiple domains in a single place, making it very easy to control the application.</p>
-</li>
-<li>
-<p>To have a single address (<code>Processor</code>) that will execute the messages for all the contracts in a domain using execution queues.</p>
-</li>
-<li>
-<p>To only tick a single contract (<code>Processor</code>) which will go through the queues to route and execute the messages.</p>
-</li>
-<li>
-<p>Be able to create, edit or remove different application permissions with ease.</p>
-</li>
-</ul>
+                        <h1 id="valence-forwarder-library"><a class="header" href="#valence-forwarder-library">Valence Forwarder library</a></h1>
+<p>The <strong>Valence Forwarder</strong> library allows to <strong>continuously forward funds</strong> from an <strong>input account</strong> to an <strong>output account</strong>, following some time <strong>constraints</strong>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
+<h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Forwarder Library
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+		  Account))
+  P[Processor]
+  S[Forwarder
+    Library]
+  P -- 1/Forward --&gt; S
+  S -- 2/Query balances --&gt; IA
+  S -- 3/Do Send funds --&gt; IA
+  IA -- 4/Send funds --&gt; OA
+</pre>
+<h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>Forward</strong></td><td>-</td><td>Forward funds from the configured <strong>input account</strong> to the <strong>output account</strong>, according to the <strong>forwarding configs</strong> &amp; <strong>constraints</strong>.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LibraryConfig {
+    // Account from which the funds are pulled
+    pub input_addr: LibraryAccountType,
+    // Account to which the funds are sent
+    pub output_addr: LibraryAccountType,
+    // Forwarding configuration per denom
+    pub forwarding_configs: Vec&lt;UncheckedForwardingConfig&gt;,
+    // Constraints on forwarding operations
+    pub forwarding_constraints: ForwardingConstraints,
+}
+
+pub struct UncheckedForwardingConfig {
+    // Denom to be forwarded (either native or CW20)
+    pub denom: UncheckedDenom,
+    // Max amount of tokens to be transferred per Forward operation
+    pub max_amount: Uint128,
+}
+
+// Time constraints on forwarding operations
+pub struct ForwardingConstraints {
+    // Minimum interval between 2 successive forward operations,
+    // specified either as a number of blocks, or as a time delta.
+    min_interval: Option&lt;Duration&gt;,
+}
+<span class="boring">}</span></code></pre></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../components/programs.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../libraries/astroport-withdrawer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../authorizations_processors/assumptions.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../libraries/generic-ibc-transfer.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -192,11 +227,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../components/programs.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../libraries/astroport-withdrawer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../authorizations_processors/assumptions.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../libraries/generic-ibc-transfer.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

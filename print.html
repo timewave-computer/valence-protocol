@@ -157,61 +157,157 @@
                 <div id="content" class="content">
                     <main>
                         <blockquote>
-<p>🚧 This in-progress document contains information about the design of a cross-chain automation system that powers the Valence programs. Lending applications can be implemented as specific "program".</p>
+<p>🚧 This in-progress document contains information about the design of a cross-chain automation system.</p>
 </blockquote>
-<h1 id="background"><a class="header" href="#background">Background</a></h1>
-<p>Programs are a framework to help you develop trust-minimized applications which require sequential execution across many chains. They are easy to understand and quick to deploy. A Program can be set up with a configuration file and no code. Programs are also extensible. If we don't support a DeFi integration out of the box, you can write one yourself in a matter of hours!</p>
+<h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
+<p>The <strong>Valence Protocol</strong> is a framework designed to help you build <em>trust-minimized applications</em>, called <strong>Valence programs</strong>, executing across multiple chains.
+Valence programs are:</p>
+<ul>
+<li><strong>Easy to understand</strong> and <strong>quick to deploy</strong>: a program can be set up with a configuration file and no code.</li>
+<li><strong>Extensible</strong>: if we don't support a DeFi integration out of the box, you can write one yourself in a matter of hours!</li>
+</ul>
 <blockquote>
-<p>👉 <strong>Example Use-case</strong>:<br />
-A DAO wants to bridge tokens to another chain and then deposit the tokens into a vault. After a certain date, it wants to allow a governance proposal to trigger unwinding of the position. While the position is active, It may also want to delegate the right to change vault parameters to a specific committee as long as the parameters are within a certain range.</p>
-<p>Without Programs, the DAO would have two choices:<br />
-<strong>Choice 1:</strong> Give the tokens to a multisig to execute actions on the DAO's behalf<br />
-<strong>Choice 2:</strong> Write highly custom smart contracts across multiple chains that handle the token operations across multiple chains.</p>
-<p>Programs offer a third choice: the DAO does not need to trust a multisig, nor does it need to spend resources writing complex cross-chain logic. Programs allow the DAO to rapidly configure and deploy a solution that meets its needs.</p>
+<p>👉 <strong>Example Use-case</strong>:</p>
+<p>A DAO wants to bridge tokens to another chain and then deposit the tokens into a vault. After a certain date, it wants to allow a governance proposal to trigger unwinding of the position. While the position is active, It may also want to delegate the right to change vault parameters to a specific committee as long as the parameters are within a certain range.</p>
+<p>Without Valence Programs, the DAO would have two choices:<br />
+<strong>Choice 1:</strong> Give the tokens to a <strong>multisig</strong> to execute actions on the DAO's behalf<br />
+<strong>Choice 2:</strong> Write <strong>custom smart contracts</strong>, and deployed them across multiple chains, to handle the cross-chain token operations.</p>
+<p><strong>Valence programs</strong> offer a third choice: the DAO does not need to trust a multisig, nor does it need to spend resources writing complex cross-chain logic.</p>
+<p><strong>Leveraging the Valence Protocol allows the DAO to rapidly configure and deploy a solution that meets its needs.</strong></p>
 </blockquote>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="component-overview"><a class="header" href="#component-overview">Component Overview</a></h1>
-<p>This section provides a high-level breakdown of the various architectural elements that enable cross-chain protocol-to-protocol relationships.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="accounts-and-libraries"><a class="header" href="#accounts-and-libraries">Accounts and Libraries</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="high-level-overview"><a class="header" href="#high-level-overview">High-level overview</a></h1>
+<p>This section provides a high-level breakdown of the components that compose a Valence cross-chain program.</p>
 <ul>
-<li>
-<p><strong>Valence Account:</strong> An escrow contract that can hold balances for various supported token-types (e.g., in Cosmos <code>ics-20</code> or <code>cw-20</code>) . Accounts register valence libraries that can perform token operations on the account.</p>
-</li>
-<li>
-<p><strong>Valence Libraries:</strong> Valence libraries are registered with Valence accounts. Accounts are either registered as input accounts or output accounts. Libraries perform token operations on the input accounts, such as splitting, routing, or providing liquidity on a DEX, and depending on the business logic in the Library, they route the resulting tokens to the output accounts. Libraries expose <em>Functions</em> that can be performed on them.</p>
-</li>
+<li><a href="components/./domains.html">Domains</a></li>
+<li><a href="components/./accounts.html">Accounts</a></li>
+<li><a href="components/./libraries_and_functions.html">Libraries and Functions</a></li>
+<li><a href="components/./programs_and_authorizations.html">Programs and Authorizations</a></li>
 </ul>
-<p><strong>Example</strong></p>
-<p>In the following example, Library 1 is registered such that Account 1 is an input account and Account 2 is an output account. It can send a message to Account 1 which executes the message:</p>
-<pre class="mermaid">graph LR;
-	A1((Account 1)) --&gt; |Tokens| A2((Account 2))
-	S1[Library 1] --&gt; |Message| A1
+<div style="break-before: page; page-break-before: always;"></div><h1 id="domains"><a class="header" href="#domains">Domains</a></h1>
+<p>A <strong>Valence Program</strong> is an instance of the <strong>Valence Protocol</strong>. A Valence program's execution can typically <em>span multiple Blockchains</em>. In the Valence Protocol, we refer to the various Blockchains that are supported as <strong>domains</strong>.</p>
+<p>A <strong>Domain</strong> is environment which the components that form a program (more on these later) can be instantiated (deployed) on.</p>
+<p><strong>Domains</strong> are defined by <strong>three properties</strong>:</p>
+<ol>
+<li>The <strong>Chain</strong>: the Blockchain's name <em>e.g. Neutron, Osmosis, Ethereum mainnet</em>.</li>
+<li>The <strong>Execution environment</strong>: the environment under which programs (typically smart contracts) can be executed on that particular chain <em>e.g. CosmWasm, EVM, SVM</em>.</li>
+<li>The type of <strong>Bridge</strong> used from the <strong>Main Domain</strong> to other domains <em>e.g. Polytone over IBC, Hyperlane</em>.</li>
+</ol>
+<p>Within a particular ecosystem of Blockchains (e.g. Cosmos), the Valence Protocol usually defines one specific domain as the <strong>Main Domain</strong>, on which some supporting infrastructure components are deployed. Think of it as the <em>home base</em> supporting the execution and operations of a Valence programs. This will be further clarified in the <a href="components/./authorizations_processors/_overview.html">Authorizations &amp; Processors</a> section.</p>
+<p>Below is a simplified representation of a <em>program transferring tokens</em> from a given <strong>input account</strong> on the <strong>Neutron domain</strong>, a CosmWasm-enabled smart contract platform secured by the Cosmos Hub, to a specified <strong>output account</strong> on the <strong>Osmosis domain</strong>, a well-known DeFi platform in the Cosmos ecosystem.</p>
+<pre class="mermaid">---
+title: Valence cross-domain program
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+		  Account))
+  subgraph Neutron
+  IA
+  end
+  subgraph Osmosis
+  IA -- 4/Transfer tokens --&gt; OA
+  end
 </pre>
-<p>The following diagram represents the same relationships more intuitively, but is less technically accurate. Here, just as above, Library 1 is registered with Account 1. It takes the funds in Account 1 as an input, applies its logic, and sends the output funds to Account 2.</p>
-<pre class="mermaid">graph LR;
-	A1((Account 1)) --&gt; |Pull Tokens| S1[Library 1]
-	S1 --&gt; |Send Tokens| A2((Account 2))
+<div style="break-before: page; page-break-before: always;"></div><h1 id="accounts"><a class="header" href="#accounts">Accounts</a></h1>
+<p><strong>Valence Programs</strong> usually perform operations on tokens, accross multiple domains, and to ensure that the funds remain safe throughout a program's execution, they rely on a primitive called <strong>Valence Accounts</strong>.</p>
+<p>A <strong>Valence Account</strong> is an escrow contract that can hold balances for various supported token-types (e.g., in Cosmos <code>ics-20</code> or <code>cw-20</code>), and that ensures that only a restricted set of operations can be performed on the held tokens.
+A <strong>Valence Account</strong> is created (instantiated) on a specific <strong>domain</strong>, and bound to a specific <strong>Valence Program</strong>. <strong>Valence Programs</strong> will typically use multiple accounts, during the program's lifecycle, for different purposes. <strong>Valence Accounts</strong> are generic in nature, how they are used to form a program is entirely up to the program's creator.</p>
+<p>Using a simple <em>token swap program</em> as an example: the program receives an amount of <strong>Token A</strong> in an <strong>input account</strong>, and will <strong>swap</strong> these <strong>Token A</strong> for <strong>Token B</strong> using a <strong>DEX</strong> on the <strong>same domain</strong> (e.g. Neutron). After the swap operation, the received amount of <strong>Token B</strong> will be temporarily held in a <strong>transfer account</strong>, before being transfered to a final <strong>output account</strong> on another domain (e.g. Osmosis).</p>
+<p>For this, the program will create the following accounts:</p>
+<ul>
+<li>A <strong>Valence Account</strong> is created on the <strong>Neutron domain</strong> to act as the <strong>Input account</strong>.</li>
+<li>A <strong>Valence Account</strong> is created on the <strong>Neutron domain</strong> to act as the <strong>Transfer account</strong>.</li>
+<li>A <strong>Valence Account</strong> is created on the <strong>Osmosis domain</strong> to act as the <strong>Output account</strong>.</li>
+</ul>
+<pre class="mermaid">---
+title: Valence token swap program
+---
+graph LR
+  IA((Input
+    Account))
+  TA((Transfer
+    Account))
+  OA((Output
+	Account))
+  DEX
+  subgraph Neutron
+  IA -- Swap Token A --&gt; DEX
+  DEX -- Token B --&gt; TA
+  end
+  subgraph Osmosis
+  TA -- 4/Transfer token B --&gt; OA
+  end
 </pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="authorizations-and-execution"><a class="header" href="#authorizations-and-execution">Authorizations and Execution</a></h1>
-<p>Each Library exposes <strong><code>Functions</code></strong> to the Program. For example an IBC bridge library has the <strong><code>Transfer{..}</code></strong> function, which takes arguments including the amount and denom to transfer.</p>
-<p>Programs allow you to configure subroutines of functions across multiple libraries and multiple chains. A <strong><code>Subroutine</code></strong> can be:</p>
+<p>Note: this is a simplified representation.</p>
+<p><strong>Valence Accounts</strong> do not perform any operation by themselves on the held funds, the operations are performed by <strong><a href="components/./libraries_and_functions.html">Valence Libraries</a></strong>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="libraries-and-functions"><a class="header" href="#libraries-and-functions">Libraries and Functions</a></h1>
+<p><strong>Valence Libraries</strong> contain the business logic that can be applied to the funds held by <strong>Valence accounts</strong>. Most often, this logic is about <em>performing operations on tokens</em>, such as splitting, routing, or providing liquidity on a DEX. A <strong>Valence account</strong> has to first approve (authorize) a <strong>Valence library</strong> for it to perform operations on that account's balances. <strong>Valence Libraries</strong> expose <strong>Functions</strong> that it supports. <strong>Valence Programs</strong> can be composed of a more or less complex graph of <strong>Valence Accounts</strong> and <strong>Valence Libraries</strong> to form a more or less sophisticated cross-chain workflow. During the course of a <strong>Valence program</strong>'s execution, <strong>Functions</strong> are called by external parties, and trigger the library's operations on the linked accounts.</p>
+<p>A typical pattern for a <strong>Valence Library</strong> is to have one (or more) <strong>input account(s)</strong> and one (or more) <strong>output account(s)</strong>. While many libraries implement this pattern, it is by no means a requirement.</p>
+<p><strong>Valence Libraries</strong> play a critical role in integrating <strong>Valence Programs</strong> with existing decentralized apps and services that can be found in many Blockchain ecosystems e.g. DEXes, liquid staking, etc</p>
+<p>Now that we know that accounts cannot perform any operation by themselves, we need to revisit the <em>token swap program</em> example (mentioned on the <a href="components/./accounts.html">Accounts</a> page), and bring <strong>Valence Libraries</strong> into the picture: the program receives an amount of <strong>Token A</strong> in an <strong>input account</strong>, and a <strong>Token Swap</strong> library exposes a <strong>swap</strong> function that, when called, will perform a swap operation of <strong>Token A</strong> held by the <strong>input account</strong> for <strong>Token B</strong> using a <strong>DEX</strong> on the <strong>same domain</strong> (e.g. Neutron), and transfer them to the <strong>transfer account</strong>. A <strong>Token Transfer</strong> library, that exposes a <strong>transfer</strong> function, will transfer the <strong>Token B</strong> amount (when the function is called) to a final <strong>output account</strong> on another domain (e.g. Osmosis). In this scenario, the <strong>DEX</strong> is an existing service found on the hosting domain (e.g. <strong>Astroport</strong> on <strong>Neutron</strong>), so it is not part of the <strong>Valence Protocol</strong>.</p>
+<p>The program is then composed of the following accounts &amp; libraries:</p>
 <ul>
-<li><strong>Sequential</strong>, i.e., execute function one, if it succeeds execute function two, and if that succeeds do function three, and so on.</li>
-<li>or <strong>Atomic</strong>, i.e., execution function one, function two, and function three, and if any of them fail then revert all steps. Atomic functions must be limited to one execution domain.</li>
+<li>A <strong>Valence Account</strong> is created on the <strong>Neutron domain</strong> to act as the <strong>Input account</strong>.</li>
+<li>A <strong>Valence Account</strong> is created on the <strong>Neutron domain</strong> to act as the <strong>Transfer account</strong>.</li>
+<li>A <strong>Token swap Valence Library</strong> is created on the <strong>Neutron domain</strong>, <em>authorized</em> by the <strong>Input Account</strong> (to be able to act on the held Token A balance), and <em>configured</em> with the <strong>Input account</strong> and <strong>Transfer account</strong> as the respective input and output for the swap operation.</li>
+<li>A <strong>Token Transfer Valence Library</strong> is created on the <strong>Neutron domain</strong>, <em>authorized</em> by the <strong>Transfer Account</strong> (to be able to act on the held Token B balance), and <em>configured</em> with the <strong>Transfer account</strong> and <strong>Output account</strong> as the respective input and output for the swap operation.</li>
+<li>A <strong>Valence Account</strong> is created on the <strong>Osmosis domain</strong> to act as the <strong>Output account</strong>.</li>
 </ul>
-<p>You have the ability to specify fine-grained controls over who initiates execution of a <strong><code>Subroutine</code></strong> using the <strong><code>Authorizations</code></strong> module. For example, you can configure it so that:</p>
+<pre class="mermaid">---
+title: Valence token swap program
+---
+graph LR
+  FC[[Function call]]
+  IA((Input
+	Account))
+  TA((Transfer
+	Account))
+  OA((Output
+	Account))
+  TS((Token
+  	Swap Library))
+  TT((Token
+  	Transfer Library))
+  DEX
+  subgraph Neutron
+  FC -- 1/Swap --&gt; TS
+  TS -- Swap Token A --&gt; IA
+  IA -- Token A --&gt; DEX
+  DEX -- Token B --&gt; TA
+  FC -- 2/Transfer --&gt; TT
+  TT -- Transfer Token B --&gt; TA
+  end
+  subgraph Osmosis
+  TA -- Token B --&gt; OA
+  end
+</pre>
+<p>This example highlights the crucial role that <strong>Valence Libraries</strong> play for integrating <strong>Valence Programs</strong> with pre-existing decentralized apps and services.</p>
+<p>One thing remains unclear in this example though ... how are <strong>Functions</strong> called? This is where <a href="components/./authorizations_and_execution.html">Authorizations and Execution</a> come into the picture.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="programs-and-authorizations"><a class="header" href="#programs-and-authorizations">Programs and Authorizations</a></h1>
+<p>A <strong>Valence Program</strong> is an instance of the <strong>Valence Protocol</strong>. It is a particular arrangement and configuration of <a href="components/./accounts.html">accounts</a> and <a href="components/./libraries_and_functions.html">libraries</a> across multiple <a href="components/./domains.html">domains</a> e.g. a POL (protocol-owned liquidity) lending relationship between two parties. Similarly to how a <em>library</em> exposes executable <em>functions</em>, programs are associated with a set of executable <strong>Subroutines</strong>.</p>
+<p>A <strong>Subroutine</strong> is a vector of <strong>Functions</strong>. A <strong>Subroutine</strong> can call out to one or more <strong>function(s)</strong> from a single library, or from different ones. A <strong>Subroutine</strong> is limited to <strong>one execution domain</strong> (i.e. it cannot use functions from libraries instantiated on multiple domains).</p>
+<p>A <strong>Subroutine</strong> can be:</p>
 <ul>
-<li>Anyone can initiate execution of a <strong><code>Subroutine</code></strong></li>
-<li>Only permissioned actors can initiate execution of a <strong><code>Subroutine</code></strong></li>
-<li>Execution can only be initiated after a starting timestamp/block height</li>
-<li>Execution can only be initiated up to a certain timestamp/block height</li>
-<li>Authorizations are tokenized. Which means they can be transferred by the holder or used in more sophisticated DeFi</li>
-<li>Authorizations can expire</li>
-<li>Authorizations can be enabled/disabled</li>
-<li>Authorizations can tightly constrain parameters. For example, you want to authorize to execute a token transfer message but you want to limit them so they can only supply the amount argument and not the denom or receiver in the transfer message</li>
+<li><strong>Non Atomic</strong>, i.e., execute function one, if it succeeds execute function two, and if that succeeds do function three, and so on.</li>
+<li>or <strong>Atomic</strong>, i.e., execution function one, function two, and function three, and if any of them fail then revert all steps.</li>
 </ul>
-<p><strong>Authorizations Contract:</strong> The Authorization contract is the entry point for users. The user sends a set of messages to the Authorizations contract and the label (id) of the authorization he wants to execute. The Authorizations contract then verifies that the sender is authorized, that the messages are valid, constructs a <em>MessageBatch</em> based on the subroutine and passes this batch to the Processor for execution. The authority to execute any <em>Subroutine</em> is tokenized so that these tokens can be transferred on-chain.</p>
-<p><strong>Processor:</strong> The processor receives a <em>MessageBatch</em> and executes the contained <em>Messages</em> in sequence. It does this by maintaining execution queues, where the queue items are <em>Subroutines.</em> The processor exposes a <code>Tick</code> message that allows anyone to trigger the processor, whereby the first item of the queue is executed or moved to the back of the queue if it's not executable yet (e.g. retry period has not passed).</p>
-<p><strong>Subroutine:</strong> A Subroutine is a vector of <em>Functions.</em> A <em>Function</em> is a message that can be executed on a <em>Library</em>. A <em>Subroutine</em> can contain <em>Functions</em> across multiple <em>Libraries</em> within the same <em>Domain</em>. When a user sends messages to the Authorization contract, they will be checked against the <em>Subroutine</em> and it will construct a <em>MessageBatch</em> to forward to the corresponding Processor.</p>
+<p><strong>Valence programs</strong> are typically used to implement complex, cross-chain workflows performing financial operations, in a trust-minimized way, on funds provided by various third-parties. Therefore, it goes without saying that a program's subroutines should not (all and/or always) be allowed to be executed by just anout anyone.</p>
+<p>To specify fine-grained controls over who can initiate the execution of a <strong>Subroutine</strong>, program creators use the <strong>Authorizations</strong> module.</p>
+<p>The <strong>Authorizations</strong> module is a very powerful and flexible system that supports simple to more advanced access-control configuration schemes, such as:</p>
+<ul>
+<li><strong>Anyone</strong> can initiate execution of a <strong>Subroutine</strong></li>
+<li>Only <strong>permissioned actors</strong> can initiate execution of a <strong>Subroutine</strong></li>
+<li>Execution can only be initiated <strong>after a starting timestamp/block height</strong></li>
+<li>Execution can only be initiated <strong>up to a certain timestamp/block height</strong></li>
+<li>Authorizations are <strong>tokenized</strong>, which means they can be transferred by the holder or used in more sophisticated DeFi scenarios</li>
+<li>Authorizations can <strong>expire</strong></li>
+<li>Authorizations can be <strong>enabled/disabled</strong></li>
+<li>Authorizations can tightly <strong>constrain parameters</strong>. For example, an authorization to execute a token transfer message can limit the execution to only supply the amount argument, and not the denom or receiver in the transfer message</li>
+</ul>
+<p>To support the on-chain execution of <strong>Valence Programs</strong>, the <strong>Valence Protocol</strong> provides 2 important contracts: the <strong>Authorizations contract</strong> and the <strong>Processor contract</strong>.</p>
+<p>The <strong>Authorizations contract</strong> is the entry point for users. The user sends a set of messages to the Authorizations contract and the label (id) of the authorization they want to execute. The Authorizations contract then verifies that the sender is authorized, that the messages are valid, constructs a <em>MessageBatch</em> based on the subroutine and passes this batch to the <strong>Processor contract</strong> for execution. The authority to execute any <em>Subroutine</em> is tokenized so that these tokens can be transferred on-chain.</p>
+<p>The <strong>Processor contract</strong> receives a <em>MessageBatch</em> and executes the contained <em>Messages</em> in sequence. It does this by maintaining execution queues, where the queue items are <em>Subroutines.</em> The processor exposes a <code>Tick</code> message that allows anyone to trigger the processor, whereby the first batch of the queue is executed or moved to the back of the queue if it's not executable yet (e.g. retry period has not passed).</p>
 <pre class="mermaid">graph LR;
 	User --&gt; |Subroutine| Auth(Authorizations)
 	Auth --&gt; |Message Batch| P(Processor)
@@ -219,43 +315,29 @@ A DAO wants to bridge tokens to another chain and then deposit the tokens into a
 	P --&gt; |Function 2| S2[Library 2]
 	P --&gt; |Function N| S3[Library N]
 </pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="programs"><a class="header" href="#programs">Programs</a></h1>
-<ul>
-<li>
-<p><strong>Valence Program:</strong> A program is an instance of the Valence Protocol. It is a particular arrangement and configuration of <em>ValenceAccounts</em> and <em>Libraries</em> across multiple <em>domains</em>. Programs are also associated with a set of <em>Subroutines</em> that can be executed on the <em>Program</em>. For example, a POL lending relationship between two parties may be set up as a program.</p>
-</li>
-<li>
-<p><strong>Domain:</strong> Environments where <em>ValenceAccounts</em> or <em>Libraries</em> can be instantiated. Domains are defined by three properties:</p>
-<ol>
-<li>Chain <em>(e.g., Neutron, Osmosis, Ethereum mainnet)</em></li>
-<li>Execution environment <em>(e.g., CosmWasm, EVM, SVM)</em></li>
-<li>Bridge from main domain <em>(e.g., Polytone over IBC, Hyperlane)</em></li>
-</ol>
-</li>
-<li>
-<p><strong>Main Domain:</strong> Every program has a main domain where the <em>Authorizations</em> module is instantiated.</p>
-</li>
-<li>
-<p><strong>Program Manager:</strong> Off-chain service that manages the configuration, instantiation, and update management for programs.</p>
-</li>
-</ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="authorizations--processors"><a class="header" href="#authorizations--processors">Authorizations &amp; Processors</a></h1>
+<p>The <strong>Authorizations</strong> and <strong>Processor</strong> contracts are foundational pieces of the <strong>Valence Protocol</strong>, as they enable on-chain (and cross-chain) execution of <strong>Valence Programs</strong>, and enforce access control to the programs's <strong>subroutines</strong> via <strong>authorizations</strong>.</p>
+<p>This section goes into more details in explaining the rationale for these contracts, and shares insights about their technical implementation as well as how end-users can interact with <strong>Valence programs</strong> via authorizations.</p>
+<h2 id="rationale"><a class="header" href="#rationale">Rationale</a></h2>
 <ul>
-<li>
-<p>To have a general purpose set of smart contracts that will provide the users (anyone if the authorization is permissionless or authorization token owners if it’s permissioned) with a single point of entry to interact with the Valence program, which can have libraries and accounts deployed on multiple chains.</p>
+<li>To have a general purpose set of smart contracts that will provide the users (anyone if the authorization is permissionless or authorization token owners if it’s permissioned) with a single point of entry to interact with the Valence program, which can have libraries and accounts deployed on multiple chains.</li>
+<li>To have all the user authorizations for multiple domains in a single place, making it very easy to control the application.</li>
+<li>To have a single address (<code>Processor</code>) that will execute the messages for all the contracts in a domain using execution queues.</li>
+<li>To only tick a single contract (<code>Processor</code>) which will go through the queues to route and execute the messages.</li>
+<li>Be able to create, edit or remove different application permissions with ease.</li>
+</ul>
+<h2 id="technical-deep-dive"><a class="header" href="#technical-deep-dive">Technical deep-dive:</a></h2>
+<ul>
+<li><a href="authorizations_processors/./assumptions.html">Assumptions</a></li>
+<li><a href="authorizations_processors/./processor.html">Processor Contract</a></li>
+<li><a href="authorizations_processors/./authorization.html">Authorization Contract</a>
+<ul>
+<li><a href="authorizations_processors/./authorization_instantiation.html">Instantiation</a></li>
+<li><a href="authorizations_processors/./authorization_owner_actions.html">Owner Actions</a></li>
+<li><a href="authorizations_processors/./authorization_user_actions.html">User Actions</a></li>
+</ul>
 </li>
-<li>
-<p>To have all the user authorizations for multiple domains in a single place, making it very easy to control the application.</p>
-</li>
-<li>
-<p>To have a single address (<code>Processor</code>) that will execute the messages for all the contracts in a domain using execution queues.</p>
-</li>
-<li>
-<p>To only tick a single contract (<code>Processor</code>) which will go through the queues to route and execute the messages.</p>
-</li>
-<li>
-<p>Be able to create, edit or remove different application permissions with ease.</p>
-</li>
+<li><a href="authorizations_processors/./callbacks.html">Callbacks</a></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="assumptions"><a class="header" href="#assumptions">Assumptions</a></h1>
 <ul>
@@ -504,9 +586,745 @@ pub enum ExecutionResult {
 <p>The key information from here is the <code>label</code>, to identify the authorization that was executed; the <code>messages</code>, to identify what the user sent; and the <code>execution_result</code>, to know if the execution was successful, partially successful or rejected.</p>
 <h2 id="bridge-callbacks"><a class="header" href="#bridge-callbacks">Bridge Callbacks</a></h2>
 <p>When messages need to be sent through bridges because we are executing batches on external domains, we need to know if, for example, a timeout happened and keep track of it. For this reason we have callbacks per bridge that we support and specific logic that will be executed if they are received. For <code>Polytone</code> timeouts, we will check if the <code>ttl</code> field has not expired and allow permissionless retries if it's still valid. In case the <code>ttl</code> has expired we will set the ExecutionResult to timeout and not retriable and send the authorization token back to the user if the user sent it to execute the authorization.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="libraries"><a class="header" href="#libraries">Libraries</a></h1>
+<p>This section contains a detailed description of the various libraries that can be used to rapidly build Valence cross-chain programs.</p>
+<p><strong>Valence Protocol libraries</strong>:</p>
+<ul>
+<li><a href="libraries/./astroport-lper.html">Astroport LPer</a></li>
+<li><a href="libraries/./astroport-withdrawer.html">Astroport Withdrawer</a></li>
+<li><a href="libraries/./forwarder.html">Forwarder</a></li>
+<li><a href="libraries/./generic-ibc-transfer.html">Generic IBC Transfer</a></li>
+<li><a href="libraries/./neutron-ibc-transfer.html">Neutron IBC Transfer</a></li>
+<li><a href="libraries/./osmosis-cl-lper.html">Osmosis CL LPer</a></li>
+<li><a href="libraries/./osmosis-cl-withdrawer.html">Osmosis CL Withdrawer</a></li>
+<li><a href="libraries/./osmosis-gamm-lper.html">Osmosis GAMM LPer</a></li>
+<li><a href="libraries/./osmosis-gamm-withdrawer.html">Osmosis GAMM Withdrawer</a></li>
+<li><a href="libraries/./reverse-splitter.html">Reverse Splitter</a></li>
+<li><a href="libraries/./splitter.html">Splitter</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="astroport-lper-library"><a class="header" href="#astroport-lper-library">Astroport LPer library</a></h1>
+<p>The <strong>Valence Astroport LPer library</strong> library allows to <strong>provide liquidity</strong> into an <strong>Astroport Liquidity Pool</strong> from an <strong>input account</strong> and deposit the <strong>LP tokens</strong> into an <strong>output account</strong>.</p>
+<h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Astroport Liquidity Provider
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+		  Account))
+  P[Processor]
+  S[Astroport
+      Liquidity
+      Provider]
+  AP[Astroport
+     Pool]
+  P -- 1/Provide Liquidity --&gt; S
+  S -- 2/Query balances --&gt; IA
+  S -- 3/Compute amounts --&gt; S
+  S -- 4/Do Provide Liquidity --&gt; IA
+  IA -- 5/Provide Liquidity
+				  [Tokens] --&gt; AP
+  AP -- 5'/Transfer LP Tokens --&gt; OA
+
+</pre>
+<h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>ProvideDoubleSidedLiquidity</strong></td><td><code>expected_pool_ratio_range: Option&lt;DecimalRange&gt;</code></td><td>Provide double-sided liquidity to the pre-configured <strong>Astroport Pool</strong> from the <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>. Abort it the pool ratio is not within the <code>expected_pool_ratio</code> range (if specified).</td></tr>
+<tr><td><strong>ProvideSingleSidedLiquidity</strong></td><td><code>asset: String</code><br><code>limit: Option&lt;Uint128&gt;</code><br><code>expected_pool_ratio_range: Option&lt;DecimalRange&gt;</code></td><td>Provide single-sided liquidity for the specified <code>asset</code> to the pre-configured <strong>Astroport Pool</strong> from the <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>. Abort it the pool ratio is not within the <code>expected_pool_ratio</code> range (if specified).</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LibraryConfig {
+    // Account from which the funds are LPed
+    pub input_addr: LibraryAccountType,
+    // Account to which the LP tokens are forwarded
+    pub output_addr: LibraryAccountType,
+    // Pool address
+    pub pool_addr: String,
+    // LP configuration
+    pub lp_config: LiquidityProviderConfig,
+}
+
+pub struct LiquidityProviderConfig {
+    // Pool type, old Astroport pools use Cw20 lp tokens and new pools use native tokens, so we specify here what kind of token we are going to get.
+    // We also provide the PairType structure of the right Astroport version that we are going to use for each scenario
+    pub pool_type: PoolType,
+    // Denoms of both native assets we are going to provide liquidity for
+    pub asset_data: AssetData,
+    // Slippage tolerance
+    pub slippage_tolerance: Option&lt;Decimal&gt;,
+}
+
+#[cw_serde]
+pub enum PoolType {
+    NativeLpToken(valence_astroport_utils::astroport_native_lp_token::PairType),
+    Cw20LpToken(valence_astroport_utils::astroport_cw20_lp_token::PairType),
+}
+
+
+pub struct AssetData {
+    pub asset1: String,
+    pub asset2: String,
+}
+<span class="boring">}</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="astroport-withdrawer-library"><a class="header" href="#astroport-withdrawer-library">Astroport Withdrawer library</a></h1>
+<p>The <strong>Valence Astroport Withdrawer library</strong> library allows to <strong>withdraw liquidity</strong> from an Astroport Liquidity Pool from an <strong>input account</strong> an deposit the withdrawed tokens into an <strong>output account</strong>.</p>
+<h2 id="high-level-flow-1"><a class="header" href="#high-level-flow-1">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Astroport Liquidity Withdrawal
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+		  Account))
+  P[Processor]
+  S[Astroport
+      Liquidity
+      Withdrawal]
+  AP[Astroport
+     Pool]
+  P -- 1/Withdraw Liquidity --&gt; S
+  S -- 2/Query balances --&gt; IA
+  S -- 3/Compute amounts --&gt; S
+  S -- 4/Do Withdraw Liquidity --&gt; IA
+  IA -- 5/Withdraw Liquidity
+				  [LP Tokens] --&gt; AP
+  AP -- 5'/Transfer assets --&gt; OA
+</pre>
+<h2 id="functions-1"><a class="header" href="#functions-1">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>WithdrawLiquidity</strong></td><td>-</td><td>Withdraw liquidity from the configured <strong>Astroport Pool</strong> from the <strong>input account</strong> and deposit the withdrawed tokens into the configured <strong>output account</strong></td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration-1"><a class="header" href="#configuration-1">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LibraryConfig {
+    // Account holding the LP position
+    pub input_addr: LibraryAccountType,
+    // Account to which the withdrawn assets are forwarded
+    pub output_addr: LibraryAccountType,
+    // Pool address
+    pub pool_addr: String,
+    // Liquidity withdrawer configuration
+    pub withdrawer_config: LiquidityWithdrawerConfig,
+}
+
+pub struct LiquidityWithdrawerConfig {
+    // Pool type, old Astroport pools use Cw20 lp tokens and new pools use native tokens, so we specify here what kind of token we are will use.
+    // We also provide the PairType structure of the right Astroport version that we are going to use for each scenario
+    pub pool_type: PoolType,
+}
+
+pub enum PoolType {
+    NativeLpToken,
+    Cw20LpToken,
+}
+<span class="boring">}</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-forwarder-library"><a class="header" href="#valence-forwarder-library">Valence Forwarder library</a></h1>
+<p>The <strong>Valence Forwarder</strong> library allows to <strong>continuously forward funds</strong> from an <strong>input account</strong> to an <strong>output account</strong>, following some time <strong>constraints</strong>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
+<h2 id="high-level-flow-2"><a class="header" href="#high-level-flow-2">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Forwarder Library
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+		  Account))
+  P[Processor]
+  S[Forwarder
+    Library]
+  P -- 1/Forward --&gt; S
+  S -- 2/Query balances --&gt; IA
+  S -- 3/Do Send funds --&gt; IA
+  IA -- 4/Send funds --&gt; OA
+</pre>
+<h2 id="functions-2"><a class="header" href="#functions-2">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>Forward</strong></td><td>-</td><td>Forward funds from the configured <strong>input account</strong> to the <strong>output account</strong>, according to the <strong>forwarding configs</strong> &amp; <strong>constraints</strong>.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration-2"><a class="header" href="#configuration-2">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LibraryConfig {
+    // Account from which the funds are pulled
+    pub input_addr: LibraryAccountType,
+    // Account to which the funds are sent
+    pub output_addr: LibraryAccountType,
+    // Forwarding configuration per denom
+    pub forwarding_configs: Vec&lt;UncheckedForwardingConfig&gt;,
+    // Constraints on forwarding operations
+    pub forwarding_constraints: ForwardingConstraints,
+}
+
+pub struct UncheckedForwardingConfig {
+    // Denom to be forwarded (either native or CW20)
+    pub denom: UncheckedDenom,
+    // Max amount of tokens to be transferred per Forward operation
+    pub max_amount: Uint128,
+}
+
+// Time constraints on forwarding operations
+pub struct ForwardingConstraints {
+    // Minimum interval between 2 successive forward operations,
+    // specified either as a number of blocks, or as a time delta.
+    min_interval: Option&lt;Duration&gt;,
+}
+<span class="boring">}</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-generic-ibc-transfer-library"><a class="header" href="#valence-generic-ibc-transfer-library">Valence Generic IBC Transfer library</a></h1>
+<p>The <strong>Valence Generic IBC Transfer</strong> library allows to transfer funds over IBC from an <strong>input account</strong> on a source chain to an <strong>output account</strong> on a destination chain. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
+<p><strong>Note</strong>: this library should not be used on <strong>Neutron</strong>, which requires some fees to be paid to relayers for IBC transfers. For Neutron, prefer using the dedicated (and optimized) <strong><a href="libraries/./neutron-ibc-transfer.html">Neutron IBC Transfer library</a></strong> instead.</p>
+<h2 id="high-level-flow-3"><a class="header" href="#high-level-flow-3">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Generic IBC Transfer Library
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+		  Account))
+  P[Processor]
+  S[Gen IBC Transfer
+    Library]
+  subgraph Chain 1
+  P -- 1/IbcTransfer --&gt; S
+  S -- 2/Query balances --&gt; IA
+  S -- 3/Do Send funds --&gt; IA
+  end
+  subgraph Chain 2
+  IA -- 4/IBC Transfer --&gt; OA
+  end
+</pre>
+<h2 id="functions-3"><a class="header" href="#functions-3">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>IbcTransfer</strong></td><td>-</td><td>Transfer funds over IBC from an <strong>input account</strong> on a source chain to an <strong>output account</strong> on a destination chain.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration-3"><a class="header" href="#configuration-3">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct LibraryConfig {
+  // Account from which the funds are pulled (on the source chain)
+  input_addr: LibraryAccountType,
+  // Account to which the funds are sent (on the destination chain)
+  output_addr: String,
+  // Denom of the token to transfer
+  denom: UncheckedDenom,
+  // Amount to be transferred, either a fixed amount or the whole available balance.
+  amount: IbcTransferAmount,
+  // Memo to be passed in the IBC transfer message.
+  memo: String,
+  // Information about the destination chain.
+  remote_chain_info: RemoteChainInfo,
+  // Denom map for the Packet-Forwarding Middleware, to perform a multi-hop transfer.
+  denom_to_pfm_map: BTreeMap&lt;String, PacketForwardMiddlewareConfig&gt;,
+}
+
+// Defines the amount to be transferred, either a fixed amount or the whole available balance.
+enum IbcTransferAmount {
+  // Transfer the full available balance of the input account.
+  FullAmount,
+  // Transfer the specified amount of tokens.
+  FixedAmount(Uint128),
+}
+
+pub struct RemoteChainInfo {
+  // Channel of the IBC connection to be used.
+  channel_id: String,
+  // Port of  the IBC connection to be used.
+  port_id: Option&lt;String&gt;,
+  // Timeout for the IBC transfer.
+  ibc_transfer_timeout: Option&lt;Uint64&gt;,
+}
+
+// Configuration for a multi-hop transfer using the Packet Forwarding Middleware
+struct PacketForwardMiddlewareConfig {
+  // Channel ID from the source chain to the intermediate chain
+  local_to_hop_chain_channel_id: String,
+  // Channel ID from the intermediate to the destination chain
+  hop_to_destination_chain_channel_id: String,
+  // Temporary receiver address on the intermediate chain
+  hop_chain_receiver_address: String,
+}
+<span class="boring">}</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-neutron-ibc-transfer-library"><a class="header" href="#valence-neutron-ibc-transfer-library">Valence Neutron IBC Transfer library</a></h1>
+<p>The <strong>Valence Neutron IBC Transfer</strong> library allows to transfer funds over IBC from an <strong>input account</strong> on <strong>Neutron</strong> to an <strong>output account</strong> on a destination chain. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
+<p>Note: this library should not be used on another CosmWasm chain than <strong>Neutron</strong>, which requires some fees to be paid to relayers for IBC transfers. For other CosmWasm chains, prefer using the <strong><a href="libraries/./generic-ibc-transfer.html">Generic IBC Transfer library</a></strong> instead.</p>
+<h2 id="high-level-flow-4"><a class="header" href="#high-level-flow-4">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Neutron IBC Transfer Library
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+		  Account))
+  P[Processor]
+  S[Neutron IBC Transfer
+    Library]
+  subgraph Neutron
+  P -- 1/IbcTransfer --&gt; S
+  S -- 2/Query balances --&gt; IA
+  S -- 3/Do Send funds --&gt; IA
+  end
+  subgraph Chain 2
+  IA -- 4/IBC Transfer --&gt; OA
+  end
+</pre>
+<h2 id="functions-4"><a class="header" href="#functions-4">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>IbcTransfer</strong></td><td>-</td><td>Transfer funds over IBC from an <strong>input account</strong> on <strong>Neutron</strong> to an <strong>output account</strong> on a destination chain.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration-4"><a class="header" href="#configuration-4">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct LibraryConfig {
+  // Account from which the funds are pulled (on the source chain)
+  input_addr: LibraryAccountType,
+  // Account to which the funds are sent (on the destination chain)
+  output_addr: String,
+  // Denom of the token to transfer
+  denom: UncheckedDenom,
+  // Amount to be transferred, either a fixed amount or the whole available balance.
+  amount: IbcTransferAmount,
+  // Memo to be passed in the IBC transfer message.
+  memo: String,
+  // Information about the destination chain.
+  remote_chain_info: RemoteChainInfo,
+  // Denom map for the Packet-Forwarding Middleware, to perform a multi-hop transfer.
+  denom_to_pfm_map: BTreeMap&lt;String, PacketForwardMiddlewareConfig&gt;,
+}
+
+// Defines the amount to be transferred, either a fixed amount or the whole available balance.
+enum IbcTransferAmount {
+  // Transfer the full available balance of the input account.
+  FullAmount,
+  // Transfer the specified amount of tokens.
+  FixedAmount(Uint128),
+}
+
+pub struct RemoteChainInfo {
+  // Channel of the IBC connection to be used.
+  channel_id: String,
+  // Port of  the IBC connection to be used.
+  port_id: Option&lt;String&gt;,
+  // Timeout for the IBC transfer.
+  ibc_transfer_timeout: Option&lt;Uint64&gt;,
+}
+
+// Configuration for a multi-hop transfer using the Packet Forwarding Middleware
+struct PacketForwardMiddlewareConfig {
+  // Channel ID from the source chain to the intermediate chain
+  local_to_hop_chain_channel_id: String,
+  // Channel ID from the intermediate to the destination chain
+  hop_to_destination_chain_channel_id: String,
+  // Temporary receiver address on the intermediate chain
+  hop_chain_receiver_address: String,
+}
+<span class="boring">}</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="osmosis-cl-lper-library"><a class="header" href="#osmosis-cl-lper-library">Osmosis CL LPer library</a></h1>
+<p>The <strong>Valence Osmosis CL LPer library</strong> library allows to <strong>create concentrated liquidity
+positions</strong> on <strong>Osmosis</strong> from an <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into an <strong>output account</strong>.</p>
+<h2 id="high-level-flow-5"><a class="header" href="#high-level-flow-5">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Osmosis CL Liquidity Provider
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+		  Account))
+  P[Processor]
+  S[Osmosis CL
+      Liquidity
+      Provider]
+  AP[Osmosis CL
+     Pool]
+  P -- 1/Provide Liquidity --&gt; S
+  S -- 2/Query balances --&gt; IA
+  S -- 3/Configure target
+    range --&gt; S
+  S -- 4/Do Provide Liquidity --&gt; IA
+  IA -- 5/Provide Liquidity
+				  [Tokens] --&gt; AP
+  AP -- 5'/Transfer LP Tokens --&gt; OA
+
+</pre>
+<h2 id="concentrated-liquidity-position-creation"><a class="header" href="#concentrated-liquidity-position-creation">Concentrated Liquidity Position creation</a></h2>
+<p>Because of the way CL positions are created, there are two ways to achieve it:</p>
+<h3 id="default"><a class="header" href="#default">Default</a></h3>
+<p>Default position creation centers around the idea of creating a position
+with respect to the currently active tick of the pool.</p>
+<p>This method expects a single parameter, <code>bucket_amount</code>, which describes
+how many <em>buckets</em> of the pool should be taken into account to both sides
+of the price curve.</p>
+<p>Consider a situation where the current tick is 125, and the configured
+tick spacing is 10.</p>
+<p>If this method is called with <code>bucket_amount</code> set to 5, the following logic
+will be performed:</p>
+<ul>
+<li>find the current bucket range, which is 120 to 130</li>
+<li>extend the current bucket ranges by 5 buckets to both sides, meaning
+that the range "to the left" will be extended by 5 * 10 = 50, and the
+range "to the right" will be extended by 5 * 10 = 50, resulting in the covered
+range from 120 - 50 = 70 to 130 + 50 = 180, giving the position tick range of (70, 180).</li>
+</ul>
+<h3 id="custom"><a class="header" href="#custom">Custom</a></h3>
+<p>Custom position creation allows for more fine-grained control over the
+way the position is created.</p>
+<p>This approach expects users to specify the following parameters:</p>
+<ul>
+<li><code>tick_range</code>, which describes the price range to be covered</li>
+<li><code>token_min_amount_0</code> and <code>token_min_amount_1</code> which are optional
+parameters that describe the minimum amount of tokens that should be
+provided to the pool.</li>
+</ul>
+<p>With this flexibility a wide variety of positions can be created, such as
+those that are entirely single-sided.</p>
+<h2 id="functions-5"><a class="header" href="#functions-5">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>ProvideLiquidityDefault</strong></td><td><code>bucket_amount: Uint64</code></td><td>Create a position on the pre-configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, following the <a href="libraries/osmosis-cl-lper.html#default">Default approach</a> described above, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>.</td></tr>
+<tr><td><strong>ProvideLiquidityCustom</strong></td><td><code>tick_range: TickRange</code><br><code>token_min_amount_0: Option&lt;Uint128&gt;</code><br><code>token_min_amount_1: Option&lt;Uint128&gt;</code></td><td>Create a position on the pre-configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, following the <a href="libraries/osmosis-cl-lper.html#custom">Custom approach</a> described above, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration-5"><a class="header" href="#configuration-5">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LibraryConfig {
+    // Account from which the funds are LPed
+    pub input_addr: LibraryAccountType,
+    // Account to which the LP position is forwarded
+    pub output_addr: LibraryAccountType,
+    // LP configuration
+    pub lp_config: LiquidityProviderConfig,
+}
+
+pub struct LiquidityProviderConfig {
+    // ID of the Osmosis CL pool
+    pub pool_id: Uint64,
+    // Pool asset 1 
+    pub pool_asset_1: String,
+    // Pool asset 2
+    pub pool_asset_2: String,
+    // Pool global price range
+    pub global_tick_range: TickRange,
+}
+<span class="boring">}</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="osmosis-cl-liquidity-withdrawer-library"><a class="header" href="#osmosis-cl-liquidity-withdrawer-library">Osmosis CL liquidity withdrawer library</a></h1>
+<p>The <strong>Valence Osmosis CL Withdrawer library</strong> library allows to <strong>withdraw a concentrated liquidity
+position</strong> off an <strong>Osmosis</strong> pool from an <strong>input account</strong>, and transfer the resulting tokens to an <strong>output account</strong>.</p>
+<h2 id="high-level-flow-6"><a class="header" href="#high-level-flow-6">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Osmosis CL Liquidity Withdrawal
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+		  Account))
+  P[Processor]
+  S[Osmosis CL
+      Liquidity
+      Withdrawal]
+  AP[Osmosis CL
+     Pool]
+  P -- 1/Withdraw Liquidity --&gt; S
+  S -- 2/Query balances --&gt; IA
+  S -- 3/Compute amounts --&gt; S
+  S -- 4/Do Withdraw Liquidity --&gt; IA
+  IA -- 5/Withdraw Liquidity
+				  [LP Position] --&gt; AP
+  AP -- 5'/Transfer assets --&gt; OA
+</pre>
+<h2 id="functions-6"><a class="header" href="#functions-6">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>WithdrawLiquidity</strong></td><td><code>position_id: Uint64</code><br><code>liquidity_amount: String</code></td><td>Withdraw liquidity from the configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, according to the given parameters, and transfer the withdrawned tokens to the configured <strong>output account</strong></td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration-6"><a class="header" href="#configuration-6">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LibraryConfig {
+    // Account holding the LP position
+    pub input_addr: LibraryAccountType,
+    // Account to which the withdrawn assets are forwarded
+    pub output_addr: LibraryAccountType,
+    // ID of the pool
+    pub pool_id: Uint64,
+}
+<span class="boring">}</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="osmosis-gamm-lper-library"><a class="header" href="#osmosis-gamm-lper-library">Osmosis GAMM LPer library</a></h1>
+<p>The <strong>Valence Osmosis GAMM LPer library</strong> library allows to <strong>join a pool</strong> on <strong>Osmosis</strong>, using the <strong>GAMM module</strong> (Generalized Automated Market Maker), from an <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into an <strong>output account</strong>.</p>
+<h2 id="high-level-flow-7"><a class="header" href="#high-level-flow-7">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Osmosis GAMM Liquidity Provider
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+          Account))
+  P[Processor]
+  S[Osmosis GAMM
+      Liquidity
+      Provider]
+  AP[Osmosis
+     Pool]
+  P -- 1/Join Pool --&gt; S
+  S -- 2/Query balances --&gt; IA
+  S -- 3/Compute amounts --&gt; S
+  S -- 4/Do Join Pool --&gt; IA
+  IA -- 5/Join Pool
+                  [Tokens] --&gt; AP
+  AP -- 5'/Transfer LP tokens --&gt; OA
+
+</pre>
+<h2 id="functions-7"><a class="header" href="#functions-7">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>ProvideDoubleSidedLiquidity</strong></td><td><code>expected_spot_price: Option&lt;DecimalRange&gt;</code></td><td>Provide double-sided liquidity to the pre-configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>. Abort it the spot price is not within the <code>expected_spot_price</code> range (if specified).</td></tr>
+<tr><td><strong>ProvideSingleSidedLiquidity</strong></td><td><code>asset: String</code><br><code>limit: Option&lt;Uint128&gt;</code><br><code>expected_spot_price: Option&lt;DecimalRange&gt;</code></td><td>Provide single-sided liquidity for the specified <code>asset</code> to the pre-configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>. Abort it the spot price is not within the <code>expected_spot_price</code> range (if specified).</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration-7"><a class="header" href="#configuration-7">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LibraryConfig {
+    // Account from which the funds are LPed
+    pub input_addr: LibraryAccountType,
+    // Account to which the LP position is forwarded
+    pub output_addr: LibraryAccountType,
+    // LP configuration
+    pub lp_config: LiquidityProviderConfig,
+}
+
+pub struct LiquidityProviderConfig {
+    // ID of the Osmosis pool
+    pub pool_id: Uint64,
+    // Pool asset 1 
+    pub pool_asset_1: String,
+    // Pool asset 2
+    pub pool_asset_2: String,
+}
+<span class="boring">}</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="osmosis-gamm-liquidity-withdrawer-library"><a class="header" href="#osmosis-gamm-liquidity-withdrawer-library">Osmosis GAMM liquidity withdrawer library</a></h1>
+<p>The <strong>Valence Osmosis GAMM Withdrawer library</strong> library allows to <strong>exit a pool</strong> on <strong>Osmosis</strong>, using the <strong>GAMM module</strong> (Generalized Automated Market Maker), from an <strong>input account</strong>, an deposit the withdrawed tokens into an <strong>output account</strong>.</p>
+<h2 id="high-level-flow-8"><a class="header" href="#high-level-flow-8">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Osmosis GAMM Liquidity Withdrawal
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+		  Account))
+  P[Processor]
+  S[Osmosis GAMM
+      Liquidity
+      Withdrawal]
+  AP[Osmosis
+     Pool]
+  P -- 1/Withdraw Liquidity --&gt; S
+  S -- 2/Query balances --&gt; IA
+  S -- 3/Compute amounts --&gt; S
+  S -- 4/Do Withdraw Liquidity --&gt; IA
+  IA -- 5/Withdraw Liquidity
+				  [LP Tokens] --&gt; AP
+  AP -- 5'/Transfer assets --&gt; OA
+</pre>
+<h2 id="functions-8"><a class="header" href="#functions-8">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>WithdrawLiquidity</strong></td><td>-</td><td>Withdraw liquidity from the configured <strong>Osmosis Pool</strong> from the <strong>input account</strong> and deposit the withdrawed tokens into the configured <strong>output account</strong></td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration-8"><a class="header" href="#configuration-8">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LibraryConfig {
+    // Account from which the funds are LPed
+    pub input_addr: LibraryAccountType,
+    // Account to which the LP tokens are forwarded
+    pub output_addr: LibraryAccountType,
+    // Liquidity withdrawer configuration
+    pub withdrawer_config: LiquidityWithdrawerConfig,
+}
+
+pub struct LiquidityWithdrawerConfig {
+    // ID of the pool
+    pub pool_id: Uint64,
+}
+<span class="boring">}</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-reverse-splitter-library"><a class="header" href="#valence-reverse-splitter-library">Valence Reverse Splitter library</a></h1>
+<p>The <strong>Reverse Splitter</strong> library allows to <strong>route funds</strong> from <strong>one or more input account(s)</strong> to a <strong>single output account</strong>, for <strong>one or more token denom(s)</strong> according to the configured <strong>ratio(s)</strong>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
+<h2 id="high-level-flow-9"><a class="header" href="#high-level-flow-9">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Reverse Splitter Library
+---
+graph LR
+  IA1((Input
+      Account1))
+  IA2((Input
+       Account2))
+  OA((Output
+		  Account))
+  P[Processor]
+  S[Reverse Splitter
+    Library]
+  C[Contract]
+  P -- 1/Split --&gt; S
+  S -- 2/Query balances --&gt; IA1
+  S -- 2'/Query balances --&gt; IA2
+  S -. 3/Query split ratio .-&gt; C
+  S -- 4/Do Send funds --&gt; IA1
+  S -- 4'/Do Send funds --&gt; IA2
+  IA1 -- 5/Send funds --&gt; OA
+  IA2 -- 5'/Send funds --&gt; OA
+</pre>
+<h2 id="functions-9"><a class="header" href="#functions-9">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>Split</strong></td><td>-</td><td>Split and route funds from the configured <strong>input account(s)</strong> to the <strong>output account</strong>, according to the configured <strong>token denom(s)</strong> and <strong>ratio(s)</strong>.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration-9"><a class="header" href="#configuration-9">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct LibraryConfig {
+    output_addr: LibraryAccountType,   // Account to which the funds are sent.
+    splits: Vec&lt;UncheckedSplitConfig&gt;, // Split configuration per denom.
+    base_denom: UncheckedDenom         // Base denom, used with ratios.
+}
+
+// Split config for specified account
+struct UncheckedSplitConfig {
+  denom: UncheckedDenom,                // Denom for this split configuration (either native or CW20).
+  account: LibraryAccountType,          // Address of the input account for this split config.
+  amount: UncheckedSplitAmount,         // Fixed amount of tokens or an amount defined based on a ratio.
+  factor: Option&lt;u64&gt;                   // Multiplier relative to other denoms (only used if a ratio is specified).
+}
+
+// Ratio configuration, either fixed &amp; dynamically calculated
+enum UncheckedRatioConfig {
+  FixedAmount(Uint128), // Fixed amount of tokens
+  FixedRatio(Decimal),  // Fixed ratio e.g. 0.0262 for NTRN/STARS (or could be another arbitrary ratio)
+  DynamicRatio {        // Dynamic ratio calculation (delegated to external contract)
+	contract_addr: "&lt;TWAP Oracle wrapper contract address&gt;",
+    params: "base64-encoded arbitrary payload to send in addition to the denoms"
+  }
+}
+
+// Standard query &amp; response for contract computing a dynamic ratio
+// for the Splitter &amp; Reverse Splitter libraries.
+#[cw_serde]
+#[derive(QueryResponses)]
+pub enum DynamicRatioQueryMsg {
+    #[returns(DynamicRatioResponse)]
+    DynamicRatio {
+        denoms: Vec&lt;String&gt;,
+        params: String,
+    }
+}
+
+#[cw_serde]
+// Response returned by the external contract for a dynamic ratio
+struct DynamicRatioResponse {
+    pub denom_ratios: HashMap&lt;String, Decimal&gt;,
+}
+<span class="boring">}</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-splitter-library"><a class="header" href="#valence-splitter-library">Valence Splitter library</a></h1>
+<p>The <strong>Valence Splitter</strong> library allows to <strong>split funds</strong> from <strong>one input account</strong> to <strong>one or more output account(s)</strong>, for <strong>one or more token denom(s)</strong> according to the configured <strong>ratio(s)</strong>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
+<h2 id="high-level-flow-10"><a class="header" href="#high-level-flow-10">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Splitter Library
+---
+graph LR
+  IA((Input
+      Account))
+  OA1((Output
+		  Account 1))
+	OA2((Output
+		  Account 2))
+  P[Processor]
+  S[Splitter
+    Library]
+  C[Contract]
+  P -- 1/Split --&gt; S
+  S -- 2/Query balances --&gt; IA
+  S -. 3/Query split ratio .-&gt; C
+  S -- 4/Do Send funds --&gt; IA
+  IA -- 5/Send funds --&gt; OA1
+  IA -- 5'/Send funds --&gt; OA2
+</pre>
+<h2 id="functions-10"><a class="header" href="#functions-10">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>Split</strong></td><td>-</td><td>Split funds from the configured <strong>input account</strong> to the <strong>output account(s)</strong>, according to the configured <strong>token denom(s)</strong> and <strong>ratio(s)</strong>.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration-10"><a class="header" href="#configuration-10">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct LibraryConfig {
+    input_addr: LibraryAccountType,    // Address of the input account
+    splits: Vec&lt;UncheckedSplitConfig&gt;, // Split configuration per denom
+}
+
+// Split config for specified account
+struct UncheckedSplitConfig {
+  denom: UncheckedDenom,          // Denom for this split configuration (either native or CW20)
+  account: LibraryAccountType,    // Address of the output account for this split config
+  amount: UncheckedSplitAmount,   // Fixed amount of tokens or an amount defined based on a ratio
+}
+
+// Split amount configuration, either a fixed amount of tokens or an amount defined based on a ratio
+enum UncheckedSplitAmount {
+  FixedAmount(Uint128),       // Fixed amount of tokens
+  FixedRatio(Decimal),        // Fixed ratio e.g. 0.0262 for NTRN/STARS (or could be another arbitrary ratio)
+  DynamicRatio {              // Dynamic ratio calculation (delegated to external contract)
+    contract_addr: "&lt;TWAP Oracle wrapper contract address&gt;",
+    params: "base64-encoded arbitrary payload to send in addition to the denoms"
+  }
+}
+
+// Standard query &amp; response for contract computing a dynamic ratio
+// for the Splitter &amp; Reverse Splitter libraries.
+#[cw_serde]
+#[derive(QueryResponses)]
+pub enum DynamicRatioQueryMsg {
+    #[returns(DynamicRatioResponse)]
+    DynamicRatio {
+        denoms: Vec&lt;String&gt;,
+        params: String,
+    }
+}
+
+#[cw_serde]
+// Response returned by the external contract for a dynamic ratio
+struct DynamicRatioResponse {
+    pub denom_ratios: HashMap&lt;String, Decimal&gt;,
+}
+<span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="examples"><a class="header" href="#examples">Examples</a></h1>
 <p>Here are some examples of Valence Programs that you can use to get started.</p>
-<h2 id="token-swap-program"><a class="header" href="#token-swap-program">Token Swap Program</a></h2>
+<ul>
+<li><a href="examples/./token_swap.html">Token Swap</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="token-swap-program"><a class="header" href="#token-swap-program">Token Swap Program</a></h1>
 <pre class="mermaid">graph LR
 	InA((Party A Deposit))
 	InB((Party B Deposit))

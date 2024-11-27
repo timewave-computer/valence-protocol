@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Authorizations and Execution - Valence Protocol Documentation</title>
+        <title>Neutron IBC Transfer - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -155,44 +155,93 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="authorizations-and-execution"><a class="header" href="#authorizations-and-execution">Authorizations and Execution</a></h1>
-<p>Each Library exposes <strong><code>Functions</code></strong> to the Program. For example an IBC bridge library has the <strong><code>Transfer{..}</code></strong> function, which takes arguments including the amount and denom to transfer.</p>
-<p>Programs allow you to configure subroutines of functions across multiple libraries and multiple chains. A <strong><code>Subroutine</code></strong> can be:</p>
-<ul>
-<li><strong>Sequential</strong>, i.e., execute function one, if it succeeds execute function two, and if that succeeds do function three, and so on.</li>
-<li>or <strong>Atomic</strong>, i.e., execution function one, function two, and function three, and if any of them fail then revert all steps. Atomic functions must be limited to one execution domain.</li>
-</ul>
-<p>You have the ability to specify fine-grained controls over who initiates execution of a <strong><code>Subroutine</code></strong> using the <strong><code>Authorizations</code></strong> module. For example, you can configure it so that:</p>
-<ul>
-<li>Anyone can initiate execution of a <strong><code>Subroutine</code></strong></li>
-<li>Only permissioned actors can initiate execution of a <strong><code>Subroutine</code></strong></li>
-<li>Execution can only be initiated after a starting timestamp/block height</li>
-<li>Execution can only be initiated up to a certain timestamp/block height</li>
-<li>Authorizations are tokenized. Which means they can be transferred by the holder or used in more sophisticated DeFi</li>
-<li>Authorizations can expire</li>
-<li>Authorizations can be enabled/disabled</li>
-<li>Authorizations can tightly constrain parameters. For example, you want to authorize to execute a token transfer message but you want to limit them so they can only supply the amount argument and not the denom or receiver in the transfer message</li>
-</ul>
-<p><strong>Authorizations Contract:</strong> The Authorization contract is the entry point for users. The user sends a set of messages to the Authorizations contract and the label (id) of the authorization he wants to execute. The Authorizations contract then verifies that the sender is authorized, that the messages are valid, constructs a <em>MessageBatch</em> based on the subroutine and passes this batch to the Processor for execution. The authority to execute any <em>Subroutine</em> is tokenized so that these tokens can be transferred on-chain.</p>
-<p><strong>Processor:</strong> The processor receives a <em>MessageBatch</em> and executes the contained <em>Messages</em> in sequence. It does this by maintaining execution queues, where the queue items are <em>Subroutines.</em> The processor exposes a <code>Tick</code> message that allows anyone to trigger the processor, whereby the first item of the queue is executed or moved to the back of the queue if it's not executable yet (e.g. retry period has not passed).</p>
-<p><strong>Subroutine:</strong> A Subroutine is a vector of <em>Functions.</em> A <em>Function</em> is a message that can be executed on a <em>Library</em>. A <em>Subroutine</em> can contain <em>Functions</em> across multiple <em>Libraries</em> within the same <em>Domain</em>. When a user sends messages to the Authorization contract, they will be checked against the <em>Subroutine</em> and it will construct a <em>MessageBatch</em> to forward to the corresponding Processor.</p>
-<pre class="mermaid">graph LR;
-	User --&gt; |Subroutine| Auth(Authorizations)
-	Auth --&gt; |Message Batch| P(Processor)
-	P --&gt; |Function 1| S1[Library 1]
-	P --&gt; |Function 2| S2[Library 2]
-	P --&gt; |Function N| S3[Library N]
+                        <h1 id="valence-neutron-ibc-transfer-library"><a class="header" href="#valence-neutron-ibc-transfer-library">Valence Neutron IBC Transfer library</a></h1>
+<p>The <strong>Valence Neutron IBC Transfer</strong> library allows to transfer funds over IBC from an <strong>input account</strong> on <strong>Neutron</strong> to an <strong>output account</strong> on a destination chain. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
+<p>Note: this library should not be used on another CosmWasm chain than <strong>Neutron</strong>, which requires some fees to be paid to relayers for IBC transfers. For other CosmWasm chains, prefer using the <strong><a href="./generic-ibc-transfer.html">Generic IBC Transfer library</a></strong> instead.</p>
+<h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Neutron IBC Transfer Library
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+		  Account))
+  P[Processor]
+  S[Neutron IBC Transfer
+    Library]
+  subgraph Neutron
+  P -- 1/IbcTransfer --&gt; S
+  S -- 2/Query balances --&gt; IA
+  S -- 3/Do Send funds --&gt; IA
+  end
+  subgraph Chain 2
+  IA -- 4/IBC Transfer --&gt; OA
+  end
 </pre>
+<h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>IbcTransfer</strong></td><td>-</td><td>Transfer funds over IBC from an <strong>input account</strong> on <strong>Neutron</strong> to an <strong>output account</strong> on a destination chain.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct LibraryConfig {
+  // Account from which the funds are pulled (on the source chain)
+  input_addr: LibraryAccountType,
+  // Account to which the funds are sent (on the destination chain)
+  output_addr: String,
+  // Denom of the token to transfer
+  denom: UncheckedDenom,
+  // Amount to be transferred, either a fixed amount or the whole available balance.
+  amount: IbcTransferAmount,
+  // Memo to be passed in the IBC transfer message.
+  memo: String,
+  // Information about the destination chain.
+  remote_chain_info: RemoteChainInfo,
+  // Denom map for the Packet-Forwarding Middleware, to perform a multi-hop transfer.
+  denom_to_pfm_map: BTreeMap&lt;String, PacketForwardMiddlewareConfig&gt;,
+}
+
+// Defines the amount to be transferred, either a fixed amount or the whole available balance.
+enum IbcTransferAmount {
+  // Transfer the full available balance of the input account.
+  FullAmount,
+  // Transfer the specified amount of tokens.
+  FixedAmount(Uint128),
+}
+
+pub struct RemoteChainInfo {
+  // Channel of the IBC connection to be used.
+  channel_id: String,
+  // Port of  the IBC connection to be used.
+  port_id: Option&lt;String&gt;,
+  // Timeout for the IBC transfer.
+  ibc_transfer_timeout: Option&lt;Uint64&gt;,
+}
+
+// Configuration for a multi-hop transfer using the Packet Forwarding Middleware
+struct PacketForwardMiddlewareConfig {
+  // Channel ID from the source chain to the intermediate chain
+  local_to_hop_chain_channel_id: String,
+  // Channel ID from the intermediate to the destination chain
+  hop_to_destination_chain_channel_id: String,
+  // Temporary receiver address on the intermediate chain
+  hop_chain_receiver_address: String,
+}
+<span class="boring">}</span></code></pre></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../components/accounts_and_libraries.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../libraries/generic-ibc-transfer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../components/programs.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../libraries/osmosis-cl-lper.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -202,11 +251,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../components/accounts_and_libraries.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../libraries/generic-ibc-transfer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../components/programs.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../libraries/osmosis-cl-lper.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

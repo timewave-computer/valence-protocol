@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Assumptions - Valence Protocol Documentation</title>
+        <title>Accounts - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -155,45 +155,48 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="assumptions"><a class="header" href="#assumptions">Assumptions</a></h1>
+                        <h1 id="accounts"><a class="header" href="#accounts">Accounts</a></h1>
+<p><strong>Valence Programs</strong> usually perform operations on tokens, accross multiple domains, and to ensure that the funds remain safe throughout a program's execution, they rely on a primitive called <strong>Valence Accounts</strong>.</p>
+<p>A <strong>Valence Account</strong> is an escrow contract that can hold balances for various supported token-types (e.g., in Cosmos <code>ics-20</code> or <code>cw-20</code>), and that ensures that only a restricted set of operations can be performed on the held tokens.
+A <strong>Valence Account</strong> is created (instantiated) on a specific <strong>domain</strong>, and bound to a specific <strong>Valence Program</strong>. <strong>Valence Programs</strong> will typically use multiple accounts, during the program's lifecycle, for different purposes. <strong>Valence Accounts</strong> are generic in nature, how they are used to form a program is entirely up to the program's creator.</p>
+<p>Using a simple <em>token swap program</em> as an example: the program receives an amount of <strong>Token A</strong> in an <strong>input account</strong>, and will <strong>swap</strong> these <strong>Token A</strong> for <strong>Token B</strong> using a <strong>DEX</strong> on the <strong>same domain</strong> (e.g. Neutron). After the swap operation, the received amount of <strong>Token B</strong> will be temporarily held in a <strong>transfer account</strong>, before being transfered to a final <strong>output account</strong> on another domain (e.g. Osmosis).</p>
+<p>For this, the program will create the following accounts:</p>
 <ul>
-<li>
-<p><strong>Funds</strong>: You cannot send funds with the messages.</p>
-</li>
-<li>
-<p><strong>Bridging</strong>: We are assuming that messages can be sent and confirmed bidirectionally between domains. From the authorization contract on the main domain to the processor in a different domain in one direction and the callback confirming the correct or failed execution in the other direction.</p>
-</li>
-<li>
-<p><strong>Instantiation</strong>: All these contracts can be instantiated beforehand and off-chain having predictable addresses. Here is an example instantiation flow using Polytone:</p>
-<ul>
-<li>Predict <code>authorization</code> contract address</li>
-<li>Instantiate polytone contracts &amp; set up relayers.</li>
-<li>Predict <code>proxy</code> contract address for the <code>authorization</code> contract on each external domain.</li>
-<li>Predict <code>proxy</code> contract address on the main domain for each processor on external domains.</li>
-<li>Instantiate all <code>processors</code>. The sender on external domains will be the predicted <code>proxy</code> and on the main domain it will be the authorization contract iself.</li>
-<li>Instantiate authorization contract with all the processors and their predicted proxies for external domains and the processor on the main domain.</li>
+<li>A <strong>Valence Account</strong> is created on the <strong>Neutron domain</strong> to act as the <strong>Input account</strong>.</li>
+<li>A <strong>Valence Account</strong> is created on the <strong>Neutron domain</strong> to act as the <strong>Transfer account</strong>.</li>
+<li>A <strong>Valence Account</strong> is created on the <strong>Osmosis domain</strong> to act as the <strong>Output account</strong>.</li>
 </ul>
-</li>
-<li>
-<p><strong>Relaying</strong>: relayers will be running once everything is instantiated.</p>
-</li>
-<li>
-<p><strong>Tokenfactory</strong>: the main domain has the token factory module with no token creation fee so that we can create and mint these non fungible tokens with no additional cost.</p>
-</li>
-<li>
-<p><strong>Domains</strong>: in the current version, actions in each authorization will be limited to a single domain.</p>
-</li>
-</ul>
+<pre class="mermaid">---
+title: Valence token swap program
+---
+graph LR
+  IA((Input
+    Account))
+  TA((Transfer
+    Account))
+  OA((Output
+	Account))
+  DEX
+  subgraph Neutron
+  IA -- Swap Token A --&gt; DEX
+  DEX -- Token B --&gt; TA
+  end
+  subgraph Osmosis
+  TA -- 4/Transfer token B --&gt; OA
+  end
+</pre>
+<p>Note: this is a simplified representation.</p>
+<p><strong>Valence Accounts</strong> do not perform any operation by themselves on the held funds, the operations are performed by <strong><a href="./libraries_and_functions.html">Valence Libraries</a></strong>.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../authorizations_processors/_overview.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../components/domains.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../authorizations_processors/processor.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../components/libraries_and_functions.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -203,11 +206,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../authorizations_processors/_overview.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../components/domains.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../authorizations_processors/processor.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../components/libraries_and_functions.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

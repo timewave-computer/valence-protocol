@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Assumptions - Valence Protocol Documentation</title>
+        <title>Astroport LPer - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -155,45 +155,85 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="assumptions"><a class="header" href="#assumptions">Assumptions</a></h1>
-<ul>
-<li>
-<p><strong>Funds</strong>: You cannot send funds with the messages.</p>
-</li>
-<li>
-<p><strong>Bridging</strong>: We are assuming that messages can be sent and confirmed bidirectionally between domains. From the authorization contract on the main domain to the processor in a different domain in one direction and the callback confirming the correct or failed execution in the other direction.</p>
-</li>
-<li>
-<p><strong>Instantiation</strong>: All these contracts can be instantiated beforehand and off-chain having predictable addresses. Here is an example instantiation flow using Polytone:</p>
-<ul>
-<li>Predict <code>authorization</code> contract address</li>
-<li>Instantiate polytone contracts &amp; set up relayers.</li>
-<li>Predict <code>proxy</code> contract address for the <code>authorization</code> contract on each external domain.</li>
-<li>Predict <code>proxy</code> contract address on the main domain for each processor on external domains.</li>
-<li>Instantiate all <code>processors</code>. The sender on external domains will be the predicted <code>proxy</code> and on the main domain it will be the authorization contract iself.</li>
-<li>Instantiate authorization contract with all the processors and their predicted proxies for external domains and the processor on the main domain.</li>
-</ul>
-</li>
-<li>
-<p><strong>Relaying</strong>: relayers will be running once everything is instantiated.</p>
-</li>
-<li>
-<p><strong>Tokenfactory</strong>: the main domain has the token factory module with no token creation fee so that we can create and mint these non fungible tokens with no additional cost.</p>
-</li>
-<li>
-<p><strong>Domains</strong>: in the current version, actions in each authorization will be limited to a single domain.</p>
-</li>
-</ul>
+                        <h1 id="astroport-lper-library"><a class="header" href="#astroport-lper-library">Astroport LPer library</a></h1>
+<p>The <strong>Valence Astroport LPer library</strong> library allows to <strong>provide liquidity</strong> into an <strong>Astroport Liquidity Pool</strong> from an <strong>input account</strong> and deposit the <strong>LP tokens</strong> into an <strong>output account</strong>.</p>
+<h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Astroport Liquidity Provider
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+		  Account))
+  P[Processor]
+  S[Astroport
+      Liquidity
+      Provider]
+  AP[Astroport
+     Pool]
+  P -- 1/Provide Liquidity --&gt; S
+  S -- 2/Query balances --&gt; IA
+  S -- 3/Compute amounts --&gt; S
+  S -- 4/Do Provide Liquidity --&gt; IA
+  IA -- 5/Provide Liquidity
+				  [Tokens] --&gt; AP
+  AP -- 5'/Transfer LP Tokens --&gt; OA
+
+</pre>
+<h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>ProvideDoubleSidedLiquidity</strong></td><td><code>expected_pool_ratio_range: Option&lt;DecimalRange&gt;</code></td><td>Provide double-sided liquidity to the pre-configured <strong>Astroport Pool</strong> from the <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>. Abort it the pool ratio is not within the <code>expected_pool_ratio</code> range (if specified).</td></tr>
+<tr><td><strong>ProvideSingleSidedLiquidity</strong></td><td><code>asset: String</code><br><code>limit: Option&lt;Uint128&gt;</code><br><code>expected_pool_ratio_range: Option&lt;DecimalRange&gt;</code></td><td>Provide single-sided liquidity for the specified <code>asset</code> to the pre-configured <strong>Astroport Pool</strong> from the <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>. Abort it the pool ratio is not within the <code>expected_pool_ratio</code> range (if specified).</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LibraryConfig {
+    // Account from which the funds are LPed
+    pub input_addr: LibraryAccountType,
+    // Account to which the LP tokens are forwarded
+    pub output_addr: LibraryAccountType,
+    // Pool address
+    pub pool_addr: String,
+    // LP configuration
+    pub lp_config: LiquidityProviderConfig,
+}
+
+pub struct LiquidityProviderConfig {
+    // Pool type, old Astroport pools use Cw20 lp tokens and new pools use native tokens, so we specify here what kind of token we are going to get.
+    // We also provide the PairType structure of the right Astroport version that we are going to use for each scenario
+    pub pool_type: PoolType,
+    // Denoms of both native assets we are going to provide liquidity for
+    pub asset_data: AssetData,
+    // Slippage tolerance
+    pub slippage_tolerance: Option&lt;Decimal&gt;,
+}
+
+#[cw_serde]
+pub enum PoolType {
+    NativeLpToken(valence_astroport_utils::astroport_native_lp_token::PairType),
+    Cw20LpToken(valence_astroport_utils::astroport_cw20_lp_token::PairType),
+}
+
+
+pub struct AssetData {
+    pub asset1: String,
+    pub asset2: String,
+}
+<span class="boring">}</span></code></pre></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../authorizations_processors/_overview.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../libraries/_overview.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../authorizations_processors/processor.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../libraries/astroport-withdrawer.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -203,11 +243,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../authorizations_processors/_overview.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../libraries/_overview.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../authorizations_processors/processor.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../libraries/astroport-withdrawer.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
