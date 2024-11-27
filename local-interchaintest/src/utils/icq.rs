@@ -1,7 +1,5 @@
 use std::{fs::File, io::Write, path::PathBuf};
 
-use cosmos_sdk_proto::prost::Message;
-use cosmwasm_std_old::from_json;
 use localic_std::{
     errors::LocalError,
     modules::cosmwasm::{contract_execute, contract_query},
@@ -9,9 +7,7 @@ use localic_std::{
 };
 use localic_utils::{utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_NAME};
 use log::info;
-use neutron_sdk::bindings::types::{InterchainQueryResult, StorageValue};
-use osmosis_std::shim::Any;
-use serde_json::Value;
+use neutron_sdk::bindings::types::InterchainQueryResult;
 use valence_test_icq_lib::msg::{ExecuteMsg, QueryMsg};
 
 pub fn generate_icq_relayer_config(
@@ -83,18 +79,7 @@ RELAYER_IGNORE_ERRORS_REGEX=(execute wasm contract failed|failed to build tx que
 }
 
 pub fn start_icq_relayer() -> Result<(), Box<dyn std::error::Error>> {
-    // match std::process::Command::new("docker")
-    //     .arg("inspect")
-    //     .arg("icq-relayer")
-    //     .output()
-    // {
-    //     Ok(r) => {
-    //         info!("ICQ relayer already running: {:?}", r);
-    //         return Ok(());
-    //     }
-    //     Err(e) => info!("inspect icq relayer error: {:?}", e),
-    // };
-    // First try to stop and remove any existing icq-relayer container
+    // try to stop and remove any existing icq-relayer container from host
     let _ = std::process::Command::new("docker")
         .arg("stop")
         .arg("icq-relayer")
@@ -157,88 +142,6 @@ pub fn start_icq_relayer() -> Result<(), Box<dyn std::error::Error>> {
         let error = String::from_utf8_lossy(&start_icq_relayer_cmd.stderr);
         Err(format!("Failed to start ICQ relayer: {error}").into())
     }
-}
-
-pub fn try_parse_storage_value(storage_value: &StorageValue) -> Value {
-    let mut map = serde_json::Map::new();
-
-    let storage_value_string = storage_value.value.to_string();
-    let storage_value_b64 = storage_value.value.to_base64();
-    // from_json(&serialized.as_slice()).unwrap();
-
-    let try_get_pool: cosmwasm_std_old::StdResult<
-        osmosis_std::types::osmosis::gamm::v1beta1::Pool,
-    > = from_json(storage_value.value.clone());
-
-    let res: Option<osmosis_std::types::osmosis::gamm::v1beta1::Pool> =
-        storage_value.value.clone().try_into().ok();
-
-    // let opt_any: Option<Any> = storage_value.value.clone().try_into().ok();
-
-    match res {
-        Some(val) => {
-            info!("decoded value: {:?}", val);
-        }
-        None => {
-            info!("error decoding value: {:?}", "nothing");
-        }
-    };
-    // let slice_val = storage_value.value.as_();
-    // let prost_bytes = prost::bytes::Bytes::from(storage_value.value.try_into().unwrap());
-    // let prost_msg = prost::Message::decode(prost_bytes).unwrap();
-    // let jsonval_decoded: Value = from_base64(storage_value_b64).unwrap();
-    // Value::from_str(s)
-    // let jsonval = Value::from(storage_value.value);
-    // let pool: osmosis_std::types::osmosis::gamm::v1beta1::Pool =
-    //     base64::de(storage_value.value.as_slice()).unwrap();
-    //
-    map.insert(
-        "storage_value_string".to_string(),
-        Value::String(storage_value_string),
-    );
-    map.insert(
-        "storage_value_b64".to_string(),
-        Value::String(storage_value_b64),
-    );
-
-    // let pool =
-
-    // match from_json(&storage_value.)
-    // Add storage prefix
-    map.insert(
-        "storage_prefix".to_string(),
-        Value::String(storage_value.storage_prefix.clone()),
-    );
-
-    // Try UTF-8 string interpretation
-    if let Ok(key_str) = String::from_utf8(storage_value.key.to_vec()) {
-        map.insert("key_utf8".to_string(), Value::String(key_str));
-    }
-
-    if let Ok(value_str) = String::from_utf8(storage_value.value.to_vec()) {
-        map.insert("value_utf8".to_string(), Value::String(value_str));
-    }
-
-    // Try JSON interpretation
-    if let Ok(value_str) = String::from_utf8(storage_value.value.to_vec()) {
-        if let Ok(json_value) = serde_json::from_str(&value_str) {
-            map.insert("value_json".to_string(), json_value);
-        }
-    }
-
-    if let Ok(value_str) = String::from_utf8(storage_value.key.to_vec()) {
-        if let Ok(json_value) = serde_json::from_str(&value_str) {
-            map.insert("key_json".to_string(), json_value);
-        }
-    }
-
-    // Convert raw bytes to base64
-    map.insert(
-        "key".to_string(),
-        Value::String(storage_value.key.to_string()),
-    );
-
-    Value::Object(map)
 }
 
 pub fn register_kvq_balances_query(

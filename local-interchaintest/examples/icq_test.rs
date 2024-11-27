@@ -1,34 +1,19 @@
-use cosmos_grpc_client::cosmrs::bip32::secp256k1::pkcs8::der::Encode;
 use local_interchaintest::utils::{
     icq::{
-        generate_icq_relayer_config, query_balance_query_id, query_catchall_logs, query_raw_result,
-        register_icq_balances_query, register_kvq_balances_query, start_icq_relayer,
-        try_parse_storage_value,
+        generate_icq_relayer_config, query_catchall_logs, register_kvq_balances_query,
+        start_icq_relayer,
     },
     osmosis::gamm::setup_gamm_pool,
-    GAS_FLAGS, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
+    LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
 };
-use localic_std::{
-    errors::LocalError,
-    modules::cosmwasm::{contract_execute, contract_instantiate, contract_query},
-    types::TransactionResponse,
-};
+use localic_std::modules::cosmwasm::contract_instantiate;
 use log::info;
-use neutron_sdk::{
-    bindings::types::{InterchainQueryResult, StorageValue},
-    interchain_queries::{
-        helpers::decode_and_convert,
-        v047::{helpers::create_account_denom_balance_key, types::BANK_STORE_KEY},
-    },
-};
-use serde_json::Value;
 use std::{env, error::Error, time::Duration};
-use valence_test_icq_lib::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use valence_test_icq_lib::msg::InstantiateMsg;
 
 use localic_utils::{
-    utils::test_context::TestContext, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
-    LOCAL_IC_API_URL, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_ADMIN_ADDR,
-    OSMOSIS_CHAIN_DENOM, OSMOSIS_CHAIN_NAME,
+    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, LOCAL_IC_API_URL, NEUTRON_CHAIN_DENOM,
+    NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_DENOM, OSMOSIS_CHAIN_NAME,
 };
 
 // KeyNextGlobalPoolId defines key to store the next Pool ID to be used.
@@ -111,44 +96,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("icq test lib: {}", icq_test_lib.address);
 
-    let last_query_id = 4;
-
-    // let addr = "osmo1hj5fveer5cjtn4wd6wstzugjfdxzl0xpwhpz63";
-
-    // let converted_addr_bytes = decode_and_convert(&addr).unwrap();
-
-    // let balance_key = create_account_denom_balance_key(converted_addr_bytes, "uosmo").unwrap();
-
-    // let kvq_registration_response = register_kvq_balances_query(
-    //     &test_ctx,
-    //     icq_test_lib.address.to_string(),
-    //     OSMOSIS_CHAIN_NAME.to_string(),
-    //     BANK_STORE_KEY.to_string(),
-    //     balance_key,
-    // )?;
-
-    // info!(
-    //     "kv query registration response: {:?}",
-    //     kvq_registration_response
-    // );
-
-    // std::thread::sleep(Duration::from_secs(5));
-
-    // let raw_query_resp = query_raw_result(
-    //     &test_ctx,
-    //     icq_test_lib.address.to_string(),
-    //     last_query_id + 1,
-    // )?;
-    // info!("raw query response: {:?}", raw_query_resp);
-
-    // for kv_result in raw_query_resp.kv_results {
-    //     let parse_attempt = try_parse_storage_value(&kv_result);
-
-    //     info!("\nPARSE ATTEMPT: {:?}", parse_attempt);
-    // }
-
-    // std::thread::sleep(Duration::from_secs(5));
-
     info!("attempting GAMM total liquidity query");
 
     let mut total_liquidity_key = vec![PREFIX_POOLS_KEY];
@@ -173,25 +120,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let catchall_logs = query_catchall_logs(&test_ctx, icq_test_lib.address.to_string())?;
     info!("catchall logs: {:?}", catchall_logs);
-    // match query_raw_result(
-    //     &test_ctx,
-    //     icq_test_lib.address.to_string(),
-    //     last_query_id + 1,
-    // ) {
-    //     Ok(val) => {
-    //         info!("\nquery raw response: {:?}", val);
-    //         for kv_result in val.kv_results {
-    //             let parse_attempt = try_parse_storage_value(&kv_result);
-
-    //             info!("\nPARSE ATTEMPT: {:?}", parse_attempt);
-    //             // osmosis_std::types::osmosis::concentratedliquidity::v1beta1::Pool
-    //             // osmosis_std::types::osmosis::gamm::v1beta1::Pool
-    //         }
-    //     }
-    //     Err(e) => {
-    //         info!("error querying raw tx: {:?}", e);
-    //     }
-    // };
 
     Ok(())
 }

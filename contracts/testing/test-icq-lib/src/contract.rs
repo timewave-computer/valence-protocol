@@ -173,9 +173,8 @@ fn sudo_open_ack(
     counterparty_version: String,
 ) -> StdResult<Response<NeutronMsg>> {
     // parse the response
-    let parsed_version: OpenAckVersion =
-        serde_json_wasm::from_str(counterparty_version.as_str())
-            .map_err(|_| StdError::generic_err("Can't parse counterparty_version"))?;
+    let _parsed_version: OpenAckVersion = serde_json_wasm::from_str(counterparty_version.as_str())
+        .map_err(|_| StdError::generic_err("Can't parse counterparty_version"))?;
 
     CATCHALL.save(deps.storage, "sudo_open_ack".to_string(), &port_id)?;
 

@@ -14,18 +14,9 @@ use neutron_sdk::{
     },
     interchain_queries::{
         get_registered_query,
-        helpers::decode_and_convert,
-        query_kv_result,
+        queries::get_raw_interchain_query_result,
         types::{KVReconstruct, QueryPayload},
-        v045::{
-            new_register_balances_query_msg, new_register_distribution_fee_pool_query_msg,
-            new_register_transfers_query_msg,
-        },
-        v047::{
-            helpers::create_account_denom_balance_key,
-            register_queries::new_register_delegator_delegations_query_msg,
-            types::{BANK_STORE_KEY, DISTRIBUTION_STORE_KEY, SUPPLY_PREFIX},
-        },
+        v045::{new_register_balances_query_msg, new_register_transfers_query_msg},
     },
     NeutronResult,
 };
@@ -174,26 +165,15 @@ pub fn sudo_kv_query_result(
         .as_str(),
     );
 
-    let reconstruct_result: NeutronResult<PoolWrapper> = query_kv_result(deps.as_ref(), query_id);
+    let registered_query_result = get_raw_interchain_query_result(deps.as_ref(), query_id)
+        .map_err(|_| StdError::generic_err("failed to get the raw icq result"))?;
 
-    match reconstruct_result {
-        Ok(val) => {
-            let json_str_pool = to_json_string(&val.0)?;
-
-            CATCHALL.save(
-                deps.storage,
-                "json_deserialize_pool".to_string(),
-                &json_str_pool,
-            )?;
-        }
-        Err(e) => {
-            CATCHALL.save(
-                deps.storage,
-                "json_deserialize_pool_error".to_string(),
-                &e.to_string(),
-            )?;
-        }
-    };
+    let query_result_str = to_json_string(&registered_query_result.result)?;
+    CATCHALL.save(
+        deps.storage,
+        registered_query_result.result.height.to_string(),
+        &query_result_str,
+    )?;
 
     Ok(Response::default())
 }

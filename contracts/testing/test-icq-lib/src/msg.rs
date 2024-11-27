@@ -1,7 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use neutron_sdk::{
     bindings::types::InterchainQueryResult, interchain_queries::v047::queries::BalanceResponse,
-    proto_types::neutron::interchainqueries::QueryResult,
 };
 
 #[cw_serde]
