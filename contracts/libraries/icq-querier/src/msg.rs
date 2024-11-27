@@ -6,7 +6,15 @@ use valence_library_utils::{error::LibraryError, msg::LibraryConfigValidation};
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
 
 #[cw_serde]
-pub enum FunctionMsgs {}
+pub enum FunctionMsgs {
+    RegisterKvQuery {
+        connection_id: String,
+        update_period: u64,
+        // TODO: enum
+        module: String,
+        //
+    },
+}
 
 #[valence_library_query]
 #[cw_ownable_query]

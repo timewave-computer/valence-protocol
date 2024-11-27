@@ -5222,6 +5222,8 @@ dependencies = [
  "cw20 2.0.0",
  "osmosis-std",
  "osmosis-test-tube",
+ "prost 0.13.3",
+ "prost-types 0.13.3",
  "valence-account-utils",
  "valence-library-base",
  "valence-library-utils",
