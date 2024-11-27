@@ -5,17 +5,18 @@ use cosmos_sdk_proto::{
     },
     prost::Message,
 };
-use cosmwasm_std::{Binary, DepsMut, Env, Response};
+use cosmwasm_std::{to_json_string, Binary, DepsMut, Env, Response};
 use neutron_sdk::{
     bindings::{
         msg::NeutronMsg,
         query::NeutronQuery,
-        types::{Height, KVKey},
+        types::{Height, KVKey, StorageValue},
     },
     interchain_queries::{
         get_registered_query,
         helpers::decode_and_convert,
-        types::QueryPayload,
+        query_kv_result,
+        types::{KVReconstruct, QueryPayload},
         v045::{
             new_register_balances_query_msg, new_register_distribution_fee_pool_query_msg,
             new_register_transfers_query_msg,
@@ -29,6 +30,8 @@ use neutron_sdk::{
     NeutronResult,
 };
 
+use osmosis_std::{shim::Any, types::osmosis::gamm::v1beta1::Pool as GammPool};
+
 use cosmwasm_std::{StdError, StdResult};
 
 use neutron_sdk::bindings::query::QueryRegisteredQueryResponse;
@@ -37,9 +40,12 @@ use neutron_sdk::interchain_queries::v047::types::{COSMOS_SDK_TRANSFER_MSG_URL, 
 use neutron_sdk::interchain_queries::types::{
     TransactionFilterItem, TransactionFilterOp, TransactionFilterValue,
 };
+use prost::Message as _;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use serde_json_wasm;
 
-use crate::state::{Transfer, RECIPIENT_TXS, TRANSFERS};
+use crate::state::{Transfer, CATCHALL, RECIPIENT_TXS, TRANSFERS};
 
 const MAX_ALLOWED_MESSAGES: usize = 20;
 
@@ -167,7 +173,48 @@ pub fn sudo_kv_query_result(
         )
         .as_str(),
     );
+
+    let reconstruct_result: NeutronResult<PoolWrapper> = query_kv_result(deps.as_ref(), query_id);
+
+    match reconstruct_result {
+        Ok(val) => {
+            let json_str_pool = to_json_string(&val.0)?;
+
+            CATCHALL.save(
+                deps.storage,
+                "json_deserialize_pool".to_string(),
+                &json_str_pool,
+            )?;
+        }
+        Err(e) => {
+            CATCHALL.save(
+                deps.storage,
+                "json_deserialize_pool_error".to_string(),
+                &e.to_string(),
+            )?;
+        }
+    };
+
     Ok(Response::default())
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+pub struct PoolWrapper(GammPool);
+
+impl KVReconstruct for PoolWrapper {
+    fn reconstruct(kvs: &[StorageValue]) -> NeutronResult<PoolWrapper> {
+        if let Some(kv) = kvs.first() {
+            // need to go to Any first and then to type:
+            let any_msg: Any = Any::decode(kv.value.as_slice()).unwrap();
+
+            let osmo_pool: osmosis_std::types::osmosis::gamm::v1beta1::Pool =
+                any_msg.try_into().unwrap();
+
+            return Ok(PoolWrapper(osmo_pool));
+        }
+
+        Err(StdError::generic_err("failed to reconstruct pool".to_string()).into())
+    }
 }
 
 pub fn register_transfers_query(
@@ -200,4 +247,40 @@ pub fn register_kv_query(
     )?;
 
     Ok(Response::new().add_message(msg))
+}
+
+#[cfg(test)]
+mod test {
+    use cosmwasm_std::{to_json_string, Binary};
+    use neutron_sdk::bindings::types::StorageValue;
+    use osmosis_std::{shim::Any, types::osmosis::gamm::v1beta1::Pool};
+    use prost::Message;
+    use serde_json::Value;
+
+    #[test]
+    fn try_decode_osmo_pool_from_binary() {
+        let key_utf8 = "\u{2}\0\0\0\0\0\0\0\u{1}";
+        let binary_key = Binary::from(key_utf8.as_bytes());
+
+        let b64_value = "Chovb3Ntb3Npcy5nYW1tLnYxYmV0YTEuUG9vbBKGAgo/b3NtbzE5ZTJtZjdjeXdrdjd6YXVnNm5rNWY4N2QwN2Z4cmRncmxhZHZ5bWgyZ3d2NWNydm0zdm5zdWV3aGg3EAEaBgoBMBIBMCIEMTI4aCokCgtnYW1tL3Bvb2wvMRIVMTAwMDAwMDAwMDAwMDAwMDAwMDAwMl8KUQpEaWJjLzRFNDFFRDhGM0RDQUVBMTVGNEQ2QURDNkVERDdDMDRBNjc2MTYwNzM1Qzk3MTBCOTA0QjdCRjUzNTI1QjU2RDYSCTEwMDAwMDAwMBIKMTA3Mzc0MTgyNDIgChIKBXVvc21vEgkxMDAwMDAwMDASCjEwNzM3NDE4MjQ6CjIxNDc0ODM2NDg=";
+        let binary_value = Binary::from_base64(b64_value).unwrap();
+
+        let storage_value = StorageValue {
+            storage_prefix: "gamm".to_string(),
+            key: binary_key,
+            value: binary_value,
+        };
+
+        // need to go to Any first and then to type:
+        let any_msg: Any = Any::decode(storage_value.value.as_slice()).unwrap();
+        assert_eq!(any_msg.type_url, "/osmosis.gamm.v1beta1.Pool");
+
+        let osmo_pool: Pool = any_msg.try_into().unwrap();
+
+        println!("osmo pool : {:?}", osmo_pool);
+
+        let json_str: String = to_json_string(&osmo_pool).unwrap();
+        let json_value: Value = serde_json::from_str(&json_str).unwrap();
+        println!("json value: {:?}", json_value);
+    }
 }

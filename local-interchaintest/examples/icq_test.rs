@@ -111,43 +111,43 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("icq test lib: {}", icq_test_lib.address);
 
-    let last_query_id = 20;
+    let last_query_id = 4;
 
-    let addr = "osmo1hj5fveer5cjtn4wd6wstzugjfdxzl0xpwhpz63";
+    // let addr = "osmo1hj5fveer5cjtn4wd6wstzugjfdxzl0xpwhpz63";
 
-    let converted_addr_bytes = decode_and_convert(&addr).unwrap();
+    // let converted_addr_bytes = decode_and_convert(&addr).unwrap();
 
-    let balance_key = create_account_denom_balance_key(converted_addr_bytes, "uosmo").unwrap();
+    // let balance_key = create_account_denom_balance_key(converted_addr_bytes, "uosmo").unwrap();
 
-    let kvq_registration_response = register_kvq_balances_query(
-        &test_ctx,
-        icq_test_lib.address.to_string(),
-        OSMOSIS_CHAIN_NAME.to_string(),
-        BANK_STORE_KEY.to_string(),
-        balance_key,
-    )?;
+    // let kvq_registration_response = register_kvq_balances_query(
+    //     &test_ctx,
+    //     icq_test_lib.address.to_string(),
+    //     OSMOSIS_CHAIN_NAME.to_string(),
+    //     BANK_STORE_KEY.to_string(),
+    //     balance_key,
+    // )?;
 
-    info!(
-        "kv query registration response: {:?}",
-        kvq_registration_response
-    );
+    // info!(
+    //     "kv query registration response: {:?}",
+    //     kvq_registration_response
+    // );
 
-    std::thread::sleep(Duration::from_secs(5));
+    // std::thread::sleep(Duration::from_secs(5));
 
-    let raw_query_resp = query_raw_result(
-        &test_ctx,
-        icq_test_lib.address.to_string(),
-        last_query_id + 1,
-    )?;
-    info!("raw query response: {:?}", raw_query_resp);
+    // let raw_query_resp = query_raw_result(
+    //     &test_ctx,
+    //     icq_test_lib.address.to_string(),
+    //     last_query_id + 1,
+    // )?;
+    // info!("raw query response: {:?}", raw_query_resp);
 
-    for kv_result in raw_query_resp.kv_results {
-        let parse_attempt = try_parse_storage_value(&kv_result);
+    // for kv_result in raw_query_resp.kv_results {
+    //     let parse_attempt = try_parse_storage_value(&kv_result);
 
-        info!("\nPARSE ATTEMPT: {:?}", parse_attempt);
-    }
+    //     info!("\nPARSE ATTEMPT: {:?}", parse_attempt);
+    // }
 
-    std::thread::sleep(Duration::from_secs(5));
+    // std::thread::sleep(Duration::from_secs(5));
 
     info!("attempting GAMM total liquidity query");
 
@@ -171,25 +171,27 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     std::thread::sleep(Duration::from_secs(5));
 
-    match query_raw_result(
-        &test_ctx,
-        icq_test_lib.address.to_string(),
-        last_query_id + 2,
-    ) {
-        Ok(val) => {
-            info!("\nquery raw response: {:?}", val);
-            for kv_result in val.kv_results {
-                let parse_attempt = try_parse_storage_value(&kv_result);
+    let catchall_logs = query_catchall_logs(&test_ctx, icq_test_lib.address.to_string())?;
+    info!("catchall logs: {:?}", catchall_logs);
+    // match query_raw_result(
+    //     &test_ctx,
+    //     icq_test_lib.address.to_string(),
+    //     last_query_id + 1,
+    // ) {
+    //     Ok(val) => {
+    //         info!("\nquery raw response: {:?}", val);
+    //         for kv_result in val.kv_results {
+    //             let parse_attempt = try_parse_storage_value(&kv_result);
 
-                info!("\nPARSE ATTEMPT: {:?}", parse_attempt);
-                // osmosis_std::types::osmosis::concentratedliquidity::v1beta1::Pool
-                // osmosis_std::types::osmosis::gamm::v1beta1::Pool
-            }
-        }
-        Err(e) => {
-            info!("error querying raw tx: {:?}", e);
-        }
-    };
+    //             info!("\nPARSE ATTEMPT: {:?}", parse_attempt);
+    //             // osmosis_std::types::osmosis::concentratedliquidity::v1beta1::Pool
+    //             // osmosis_std::types::osmosis::gamm::v1beta1::Pool
+    //         }
+    //     }
+    //     Err(e) => {
+    //         info!("error querying raw tx: {:?}", e);
+    //     }
+    // };
 
     Ok(())
 }

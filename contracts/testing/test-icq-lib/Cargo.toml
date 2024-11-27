@@ -27,6 +27,12 @@ neutron-sdk             = { workspace = true }
 serde-json-wasm         = "1.0.0"
 cw2                     = { workspace = true }
 cosmos-sdk-proto        = { workspace = true }
-schemars        = { workspace = true }
-serde_json      = { workspace = true }
-serde          = { workspace = true }
+schemars                = { workspace = true }
+serde_json              = { workspace = true }
+serde                   = { workspace = true }
+osmosis-std             = { workspace = true }
+prost = {version = "0.13.3", default-features = false, features = [
+  "prost-derive",
+]}
+prost-types = {version = "0.13.3", default-features = false}
+jsonpath = "0.1.1"
