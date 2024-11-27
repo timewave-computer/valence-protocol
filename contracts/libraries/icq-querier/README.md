@@ -1,0 +1,1 @@
+# ICQ-querier library

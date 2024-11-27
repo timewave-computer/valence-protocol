@@ -5213,6 +5213,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-icq-querier"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 2.1.4",
+ "cw-ownable",
+ "cw20 2.0.0",
+ "osmosis-std",
+ "osmosis-test-tube",
+ "valence-account-utils",
+ "valence-library-base",
+ "valence-library-utils",
+ "valence-macros",
+ "valence-osmosis-utils",
+]
+
+[[package]]
 name = "valence-library-base"
 version = "0.1.0"
 dependencies = [
