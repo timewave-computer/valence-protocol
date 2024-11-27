@@ -8,7 +8,7 @@ use std::{
 use crate::{
     account::{AccountType, InstantiateAccountData},
     bridge::PolytoneSingleChainInfo,
-    config::{ChainInfo, Config, ConfigError, GLOBAL_CONFIG},
+    config::{ChainInfo, ConfigError, GLOBAL_CONFIG},
     helpers::{addr_canonicalize, addr_humanize},
     library::{LibraryConfig, LibraryError},
     program_config::ProgramConfig,
