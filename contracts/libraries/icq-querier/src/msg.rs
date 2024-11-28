@@ -6,6 +6,9 @@ use valence_library_utils::{error::LibraryError, msg::LibraryConfigValidation};
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
 
 #[cw_serde]
+pub struct InstantiateMsg {}
+
+#[cw_serde]
 pub enum FunctionMsgs {
     RegisterKvQuery {
         connection_id: String,
@@ -20,7 +23,16 @@ pub enum FunctionMsgs {
 #[cw_ownable_query]
 #[cw_serde]
 #[derive(QueryResponses)]
-pub enum QueryMsg {}
+pub enum QueryMsg {
+    #[returns(Vec<(String, String)>)]
+    Logs {},
+
+    #[returns(Vec<(u64, String)>)]
+    RegisteredQueries {},
+
+    #[returns(Vec<(u64, String)>)]
+    QueryResults {},
+}
 
 #[cw_serde]
 pub struct QuerierConfig {}
