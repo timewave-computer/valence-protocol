@@ -2,6 +2,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 
 use cosmwasm_std::{Addr, Deps, DepsMut};
 use cw_ownable::cw_ownable_query;
+use serde_json::Value;
 use valence_library_utils::{error::LibraryError, msg::LibraryConfigValidation};
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
 
@@ -46,8 +47,15 @@ pub enum QueryMsg {
     #[returns(Vec<(u64, String)>)]
     RegisteredQueries {},
 
-    #[returns(Vec<(u64, String)>)]
+    #[returns(Vec<(u64, Value)>)]
     QueryResults {},
+    // #[returns(bool)]
+    // AssertResultCondition {
+    //     query_id: u64,
+    //     path: String,
+    //     operator: String,
+    //     assertion_value: String,
+    // },
 }
 
 #[cw_serde]

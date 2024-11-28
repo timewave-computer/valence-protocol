@@ -19,6 +19,7 @@ use neutron_sdk::{
     sudo::msg::SudoMsg,
 };
 use prost::Message;
+use serde_json::Value;
 use valence_library_utils::error::LibraryError;
 
 use crate::{
@@ -176,7 +177,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 resp.push(entry?);
             }
             to_json_binary(&resp)
-        }
+        } // QueryMsg::AssertResultCondition {
+          //     query_id,
+          //     condition,
+          // } => assert_result_condition(deps, query_id, condition),
     }
 }
 
@@ -230,9 +234,11 @@ fn handle_sudo_kv_query_result(
         },
     };
 
-    QUERY_RESULTS.save(deps.storage, query_id, &query_result_str)?;
+    let json_response: serde_json::Value = serde_json::from_str(&query_result_str).unwrap();
 
-    Ok(Response::new().add_attribute("query_result", query_result_str))
+    QUERY_RESULTS.save(deps.storage, query_id, &json_response)?;
+
+    Ok(Response::new().add_attribute("query_result", json_response.to_string()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

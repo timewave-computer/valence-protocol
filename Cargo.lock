@@ -5228,6 +5228,7 @@ dependencies = [
  "prost 0.13.3",
  "prost-types 0.13.3",
  "serde-json-wasm 1.0.1",
+ "serde_json",
  "thiserror 1.0.69",
  "valence-account-utils",
  "valence-library-base",

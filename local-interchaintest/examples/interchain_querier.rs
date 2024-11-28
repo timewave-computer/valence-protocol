@@ -9,6 +9,7 @@ use localic_std::{
     types::TransactionResponse,
 };
 use log::info;
+use serde_json::Value;
 use std::{env, error::Error, time::Duration};
 use valence_icq_querier::msg::{FunctionMsgs, InstantiateMsg, QueryMsg};
 
@@ -189,7 +190,7 @@ pub fn query_logs(
 pub fn query_results(
     test_ctx: &TestContext,
     icq_lib: String,
-) -> Result<Vec<(u64, String)>, LocalError> {
+) -> Result<Vec<(u64, Value)>, LocalError> {
     let query_response = contract_query(
         test_ctx
             .get_request_builder()
@@ -200,7 +201,7 @@ pub fn query_results(
     )["data"]
         .clone();
 
-    let resp: Vec<(u64, String)> = serde_json::from_value(query_response).unwrap();
+    let resp: Vec<(u64, Value)> = serde_json::from_value(query_response).unwrap();
 
     Ok(resp)
 }

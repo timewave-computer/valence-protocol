@@ -29,6 +29,7 @@ neutron-sdk           = { workspace = true }
 serde-json-wasm       = { version = "1.0.0", default-features = false }
 cw-storage-plus       = { workspace = true }
 thiserror             = { workspace = true }
+serde_json            = { workspace = true }
 
 [dev-dependencies]
 cw20                  = { workspace = true }
