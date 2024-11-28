@@ -46,7 +46,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .dest(OSMOSIS_CHAIN_NAME)
         .get();
 
-    let pool_id = setup_gamm_pool(&mut test_ctx, OSMOSIS_CHAIN_DENOM, &ntrn_on_osmo_denom)?;
+    let _pool_id = setup_gamm_pool(&mut test_ctx, OSMOSIS_CHAIN_DENOM, &ntrn_on_osmo_denom)?;
 
     let current_dir = env::current_dir()?;
 
@@ -104,6 +104,21 @@ fn main() -> Result<(), Box<dyn Error>> {
         &test_ctx,
         icq_test_lib.address.to_string(),
         OSMOSIS_CHAIN_NAME.to_string(),
+        "gamm".to_string(),
+    )?;
+
+    info!(
+        "kv query registration response: {:?}",
+        kvq_registration_response
+    );
+
+    std::thread::sleep(Duration::from_secs(5));
+
+    let kvq_registration_response = register_kvq(
+        &test_ctx,
+        icq_test_lib.address.to_string(),
+        OSMOSIS_CHAIN_NAME.to_string(),
+        "bank".to_string(),
     )?;
 
     info!(
@@ -126,8 +141,9 @@ pub fn register_kvq(
     test_ctx: &TestContext,
     icq_lib: String,
     domain: String,
+    module: String,
 ) -> Result<TransactionResponse, LocalError> {
-    info!("registering ICQ KV query on domain {domain}...");
+    info!("registering ICQ KV query on domain {domain} for mod {module}...");
 
     let register_kvq_msg = FunctionMsgs::RegisterKvQuery {
         connection_id: test_ctx
@@ -136,7 +152,7 @@ pub fn register_kvq(
             .dest(&domain)
             .get(),
         update_period: 5,
-        module: "gamm".to_string(),
+        module,
     };
 
     contract_execute(

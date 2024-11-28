@@ -9,6 +9,9 @@ pub enum ContractError {
 
     #[error("Unknown reply id: {0}")]
     UnknownReplyId(u64),
+
+    #[error("Unsupported module: {0}")]
+    UnsupportedModule(String),
 }
 
 impl From<ContractError> for StdError {
