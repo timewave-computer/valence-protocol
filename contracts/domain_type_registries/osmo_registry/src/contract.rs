@@ -1,14 +1,20 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{to_json_string, StdError};
 use neutron_sdk::bindings::msg::NeutronMsg;
 use neutron_sdk::bindings::types::KVKey;
 use neutron_sdk::interchain_queries::helpers::decode_and_convert;
-use neutron_sdk::interchain_queries::types::QueryType;
+use neutron_sdk::interchain_queries::types::{KVReconstruct, QueryType};
 use neutron_sdk::interchain_queries::v047::helpers::create_account_denom_balance_key;
 use neutron_sdk::interchain_queries::v047::types::BANK_STORE_KEY;
+use prost::Message;
+use valence_icq_lib_utils::GammResultTypes;
+use valence_icq_lib_utils::QueryReconstructionRequest;
 use valence_icq_lib_utils::QueryRegistrationInfoRequest;
 use valence_icq_lib_utils::QueryRegistrationInfoResponse;
+use valence_icq_lib_utils::QueryResult;
+use valence_icq_lib_utils::{BankResultTypes, QueryReconstructionResponse};
 
 use crate::error::ContractError;
 use crate::state::CONNECTION_ID;
@@ -52,11 +58,47 @@ pub fn query(deps: Deps, _env: Env, msg: DomainRegistryQueryMsg) -> StdResult<Bi
         DomainRegistryQueryMsg::GetRegistrationConfig(request) => {
             get_registration_config(deps, request)
         }
+        DomainRegistryQueryMsg::ReconstructQuery(query_reconstruction_request) => {
+            reconstruct_icq_result(query_reconstruction_request)
+        }
     }
 }
 
+fn reconstruct_icq_result(query: QueryReconstructionRequest) -> StdResult<Binary> {
+    let query_result_str = match query.query_type {
+        QueryResult::Gamm { result_type } => match result_type {
+            GammResultTypes::Pool => {
+                let any_msg: osmosis_std::shim::Any =
+                    osmosis_std::shim::Any::decode(query.icq_result.kv_results[0].value.as_slice())
+                        .unwrap();
+                assert_eq!(any_msg.type_url, "/osmosis.gamm.v1beta1.Pool");
+
+                let osmo_pool: osmosis_std::types::osmosis::gamm::v1beta1::Pool =
+                    any_msg.try_into().unwrap();
+
+                to_json_string(&osmo_pool)?
+            }
+        },
+        QueryResult::Bank { result_type } => match result_type {
+            BankResultTypes::AccountDenomBalance => {
+                let balances: neutron_sdk::interchain_queries::v047::types::Balances =
+                    KVReconstruct::reconstruct(&query.icq_result.kv_results).unwrap();
+
+                to_json_string(&balances)?
+            }
+        },
+    };
+
+    let resp = QueryReconstructionResponse {
+        json_value: serde_json::from_str(&query_result_str)
+            .map_err(|_| StdError::generic_err("failed to get json value".to_string()))?,
+    };
+
+    to_json_binary(&resp)
+}
+
 fn get_registration_config(deps: Deps, query: QueryRegistrationInfoRequest) -> StdResult<Binary> {
-    let (kv_key, response_code_id) = match query.module.as_str() {
+    let (kv_key, response_code_id, query_type) = match query.module.as_str() {
         "gamm" => {
             let pool_prefix_key: u8 = 0x02;
             let pool_id: u64 = 1;
@@ -69,6 +111,9 @@ fn get_registration_config(deps: Deps, query: QueryRegistrationInfoRequest) -> S
                     key: Binary::new(pool_access_key),
                 },
                 GAMM_QUERY_REGISTRATION_REPLY_ID,
+                QueryResult::Gamm {
+                    result_type: GammResultTypes::Pool,
+                },
             )
         }
         "bank" => {
@@ -83,6 +128,9 @@ fn get_registration_config(deps: Deps, query: QueryRegistrationInfoRequest) -> S
                     key: Binary::new(balance_key),
                 },
                 BANK_QUERY_REGISTRATION_REPLY_ID,
+                QueryResult::Bank {
+                    result_type: BankResultTypes::AccountDenomBalance,
+                },
             )
         }
         _ => return Err(ContractError::UnsupportedModule(query.module).into()),
@@ -101,6 +149,7 @@ fn get_registration_config(deps: Deps, query: QueryRegistrationInfoRequest) -> S
     let query = QueryRegistrationInfoResponse {
         registration_msg: kv_registration_msg,
         reply_id: response_code_id,
+        query_type,
     };
 
     to_json_binary(&query)

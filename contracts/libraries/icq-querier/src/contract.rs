@@ -9,26 +9,19 @@ use neutron_sdk::{
         msg::{MsgRegisterInterchainQueryResponse, NeutronMsg},
         query::NeutronQuery,
     },
-    interchain_queries::{queries::get_raw_interchain_query_result, types::KVReconstruct},
+    interchain_queries::queries::get_raw_interchain_query_result,
     sudo::msg::SudoMsg,
 };
-use prost::Message;
-use valence_icq_lib_utils::QueryMsg as DomainRegistryQueryMsg;
+use serde_json::Value;
 use valence_icq_lib_utils::QueryRegistrationInfoRequest as DomainRegistryQueryRequest;
+use valence_icq_lib_utils::{PendingQueryIdConfig, QueryMsg as DomainRegistryQueryMsg};
 
 use valence_icq_lib_utils::QueryRegistrationInfoResponse;
 use valence_library_utils::error::LibraryError;
 
 use crate::{
-    error::ContractError,
-    msg::{
-        BankResultTypes, Config, FunctionMsgs, GammResultTypes, InstantiateMsg, LibraryConfig,
-        QueryMsg, QueryResult,
-    },
-    state::{
-        PendingQueryIdConfig, ASSOCIATED_QUERY_IDS, LOGS, QUERY_REGISTRATION_REPLY_IDS,
-        QUERY_RESULTS,
-    },
+    msg::{Config, FunctionMsgs, InstantiateMsg, LibraryConfig, QueryMsg},
+    state::{ASSOCIATED_QUERY_IDS, LOGS, QUERY_RESULTS},
 };
 
 // version info for migration info
@@ -80,25 +73,14 @@ fn register_kv_query(
         }),
     )?;
 
-    let query_type = match module.as_str() {
-        "gamm" => QueryResult::Gamm {
-            result_type: GammResultTypes::Pool,
-        },
-        "bank" => QueryResult::Bank {
-            result_type: BankResultTypes::AccountDenomBalance,
-        },
-        _ => return Err(ContractError::UnsupportedModule(module).into()),
-    };
     let query_cfg = PendingQueryIdConfig {
         associated_domain_registry: type_registry,
-        query_type,
+        query_type: query_registration_resp.query_type,
     };
 
-    QUERY_REGISTRATION_REPLY_IDS.save(
-        deps.storage,
-        query_registration_resp.reply_id,
-        &query_cfg,
-    )?;
+    // here the key is set to the resp.reply_id just to get to the reply handler.
+    // it will get overriden by the actual query id in the reply handler.
+    ASSOCIATED_QUERY_IDS.save(deps.storage, query_registration_resp.reply_id, &query_cfg)?;
 
     // fire registration in a submsg to get the registered query id back
     let submsg = SubMsg::reply_on_success(
@@ -174,34 +156,16 @@ fn handle_sudo_kv_query_result(
         .map_err(|_| StdError::generic_err("failed to get the raw icq result"))?;
 
     let pending_query_config = ASSOCIATED_QUERY_IDS.load(deps.storage, query_id)?;
-    let query_result_str = match pending_query_config.query_type {
-        QueryResult::Gamm { result_type } => match result_type {
-            GammResultTypes::Pool => {
-                let any_msg: osmosis_std::shim::Any = osmosis_std::shim::Any::decode(
-                    registered_query_result.result.kv_results[0]
-                        .value
-                        .as_slice(),
-                )
-                .unwrap();
-                assert_eq!(any_msg.type_url, "/osmosis.gamm.v1beta1.Pool");
 
-                let osmo_pool: osmosis_std::types::osmosis::gamm::v1beta1::Pool =
-                    any_msg.try_into().unwrap();
-
-                to_json_string(&osmo_pool).unwrap()
-            }
-        },
-        QueryResult::Bank { result_type } => match result_type {
-            BankResultTypes::AccountDenomBalance => {
-                let balances: neutron_sdk::interchain_queries::v047::types::Balances =
-                    KVReconstruct::reconstruct(&registered_query_result.result.kv_results).unwrap();
-
-                to_json_string(&balances).unwrap()
-            }
-        },
-    };
-
-    let json_response: serde_json::Value = serde_json::from_str(&query_result_str).unwrap();
+    let json_response: Value = deps.querier.query_wasm_smart(
+        pending_query_config.associated_domain_registry,
+        &DomainRegistryQueryMsg::ReconstructQuery(
+            valence_icq_lib_utils::QueryReconstructionRequest {
+                icq_result: registered_query_result.result,
+                query_type: pending_query_config.query_type,
+            },
+        ),
+    )?;
 
     QUERY_RESULTS.save(deps.storage, query_id, &json_response)?;
 
@@ -233,11 +197,9 @@ fn try_associate_registered_query_id(deps: DepsMut, reply: Reply) -> StdResult<R
         &reply.id.to_string(),
     )?;
 
-    let query_cfg = QUERY_REGISTRATION_REPLY_IDS.load(deps.storage, reply.id)?;
-
-    ASSOCIATED_QUERY_IDS.save(deps.storage, resp.id, &query_cfg)?;
-
-    QUERY_REGISTRATION_REPLY_IDS.remove(deps.storage, reply.id);
+    let pending_query_config = ASSOCIATED_QUERY_IDS.load(deps.storage, reply.id)?;
+    ASSOCIATED_QUERY_IDS.save(deps.storage, resp.id, &pending_query_config)?;
+    ASSOCIATED_QUERY_IDS.remove(deps.storage, reply.id);
 
     Ok(Response::default())
 }

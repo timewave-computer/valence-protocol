@@ -5248,20 +5248,14 @@ dependencies = [
  "cw-storage-plus 2.0.0",
  "cw20 2.0.0",
  "neutron-sdk",
- "osmosis-std",
- "osmosis-test-tube",
- "prost 0.13.3",
- "prost-types 0.13.3",
  "serde-json-wasm 1.0.1",
  "serde_json",
  "thiserror 1.0.69",
- "valence-account-utils",
  "valence-icq-lib-utils",
  "valence-library-base",
  "valence-library-utils",
  "valence-macros",
  "valence-osmosis-type-registry",
- "valence-osmosis-utils",
 ]
 
 [[package]]

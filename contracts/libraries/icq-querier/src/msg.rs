@@ -7,22 +7,6 @@ use valence_library_utils::{error::LibraryError, msg::LibraryConfigValidation};
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
 
 #[cw_serde]
-pub enum QueryResult {
-    Gamm { result_type: GammResultTypes },
-    Bank { result_type: BankResultTypes },
-}
-
-#[cw_serde]
-pub enum GammResultTypes {
-    Pool,
-}
-
-#[cw_serde]
-pub enum BankResultTypes {
-    AccountDenomBalance,
-}
-
-#[cw_serde]
 pub struct InstantiateMsg {}
 
 #[cw_serde]
