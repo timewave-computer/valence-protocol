@@ -8,35 +8,32 @@ use neutron_sdk::{
     bindings::{
         msg::{MsgRegisterInterchainQueryResponse, NeutronMsg},
         query::NeutronQuery,
-        types::KVKey,
     },
-    interchain_queries::{
-        helpers::decode_and_convert,
-        queries::get_raw_interchain_query_result,
-        types::{KVReconstruct, QueryType},
-        v047::{helpers::create_account_denom_balance_key, types::BANK_STORE_KEY},
-    },
+    interchain_queries::{queries::get_raw_interchain_query_result, types::KVReconstruct},
     sudo::msg::SudoMsg,
 };
 use prost::Message;
-use serde_json::Value;
+use valence_icq_lib_utils::QueryMsg as DomainRegistryQueryMsg;
+use valence_icq_lib_utils::QueryRegistrationInfoRequest as DomainRegistryQueryRequest;
+
+use valence_icq_lib_utils::QueryRegistrationInfoResponse;
 use valence_library_utils::error::LibraryError;
 
 use crate::{
     error::ContractError,
     msg::{
         BankResultTypes, Config, FunctionMsgs, GammResultTypes, InstantiateMsg, LibraryConfig,
-        LibraryConfigUpdate, QueryMsg, QueryResult,
+        QueryMsg, QueryResult,
     },
-    state::{ASSOCIATED_QUERY_IDS, LOGS, QUERY_RESULTS},
+    state::{
+        PendingQueryIdConfig, ASSOCIATED_QUERY_IDS, LOGS, QUERY_REGISTRATION_REPLY_IDS,
+        QUERY_RESULTS,
+    },
 };
 
 // version info for migration info
 const _CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const _CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-
-const GAMM_QUERY_REGISTRATION_REPLY_ID: u64 = 31415;
-const BANK_QUERY_REGISTRATION_REPLY_ID: u64 = 31416;
 
 pub type QueryDeps<'a> = Deps<'a, NeutronQuery>;
 pub type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
@@ -54,7 +51,7 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
     msg: FunctionMsgs,
@@ -62,81 +59,54 @@ pub fn execute(
     // valence_library_base::execute(deps, env, info, msg, process_function, update_config)
     match msg {
         FunctionMsgs::RegisterKvQuery {
-            connection_id,
-            update_period,
+            type_registry,
             module,
-        } => register_kv_query(connection_id, update_period, module),
+            query,
+        } => register_kv_query(deps, type_registry, module, query),
     }
 }
 
 fn register_kv_query(
-    connection_id: String,
-    update_period: u64,
-    path: String, // aka module, e.g. gamm
+    deps: DepsMut,
+    type_registry: String,
+    module: String,
+    query: String,
 ) -> Result<Response<NeutronMsg>, LibraryError> {
-    let (kv_key, response_code_id) = match path.as_str() {
-        "gamm" => {
-            let pool_prefix_key: u8 = 0x02;
-            let pool_id: u64 = 1;
-            let mut pool_access_key = vec![pool_prefix_key];
-            pool_access_key.extend_from_slice(&pool_id.to_be_bytes());
+    let query_registration_resp: QueryRegistrationInfoResponse = deps.querier.query_wasm_smart(
+        type_registry.to_string(),
+        &DomainRegistryQueryMsg::GetRegistrationConfig(DomainRegistryQueryRequest {
+            module: module.to_string(),
+            query,
+        }),
+    )?;
 
-            (
-                KVKey {
-                    path,
-                    key: Binary::new(pool_access_key),
-                },
-                GAMM_QUERY_REGISTRATION_REPLY_ID,
-            )
-        }
-        "bank" => {
-            let addr = "osmo1hj5fveer5cjtn4wd6wstzugjfdxzl0xpwhpz63";
-            let converted_addr_bytes = decode_and_convert(&addr).unwrap();
-            let balance_key =
-                create_account_denom_balance_key(converted_addr_bytes, "uosmo").unwrap();
-
-            (
-                KVKey {
-                    path: BANK_STORE_KEY.to_string(),
-                    key: Binary::new(balance_key),
-                },
-                BANK_QUERY_REGISTRATION_REPLY_ID,
-            )
-        }
-        _ => return Err(ContractError::UnsupportedModule(path).into()),
+    let query_type = match module.as_str() {
+        "gamm" => QueryResult::Gamm {
+            result_type: GammResultTypes::Pool,
+        },
+        "bank" => QueryResult::Bank {
+            result_type: BankResultTypes::AccountDenomBalance,
+        },
+        _ => return Err(ContractError::UnsupportedModule(module).into()),
+    };
+    let query_cfg = PendingQueryIdConfig {
+        associated_domain_registry: type_registry,
+        query_type,
     };
 
-    let kv_registration_msg = NeutronMsg::RegisterInterchainQuery {
-        query_type: QueryType::KV.into(),
-        keys: vec![kv_key],
-        transactions_filter: String::new(),
-        connection_id,
-        update_period,
-    };
+    QUERY_REGISTRATION_REPLY_IDS.save(
+        deps.storage,
+        query_registration_resp.reply_id,
+        &query_cfg,
+    )?;
 
     // fire registration in a submsg to get the registered query id back
-    let submsg = SubMsg::reply_on_success(kv_registration_msg, response_code_id);
+    let submsg = SubMsg::reply_on_success(
+        query_registration_resp.registration_msg,
+        query_registration_resp.reply_id,
+    );
 
     Ok(Response::default().add_submessage(submsg))
-}
-
-pub fn update_config(
-    deps: DepsMut,
-    _env: Env,
-    _info: MessageInfo,
-    new_config: LibraryConfigUpdate,
-) -> Result<(), LibraryError> {
-    new_config.update_config(deps)
-}
-
-pub fn process_function(
-    _deps: DepsMut,
-    _env: Env,
-    _info: MessageInfo,
-    _msg: FunctionMsgs,
-    _cfg: Config,
-) -> Result<Response<NeutronMsg>, LibraryError> {
-    Ok(Response::default())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -177,10 +147,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 resp.push(entry?);
             }
             to_json_binary(&resp)
-        } // QueryMsg::AssertResultCondition {
-          //     query_id,
-          //     condition,
-          // } => assert_result_condition(deps, query_id, condition),
+        }
     }
 }
 
@@ -206,8 +173,8 @@ fn handle_sudo_kv_query_result(
     let registered_query_result = get_raw_interchain_query_result(deps.as_ref(), query_id)
         .map_err(|_| StdError::generic_err("failed to get the raw icq result"))?;
 
-    let associated_query_type = ASSOCIATED_QUERY_IDS.load(deps.storage, query_id)?;
-    let query_result_str = match associated_query_type {
+    let pending_query_config = ASSOCIATED_QUERY_IDS.load(deps.storage, query_id)?;
+    let query_result_str = match pending_query_config.query_type {
         QueryResult::Gamm { result_type } => match result_type {
             GammResultTypes::Pool => {
                 let any_msg: osmosis_std::shim::Any = osmosis_std::shim::Any::decode(
@@ -243,12 +210,7 @@ fn handle_sudo_kv_query_result(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, _: Env, msg: Reply) -> StdResult<Response> {
-    match msg.id {
-        GAMM_QUERY_REGISTRATION_REPLY_ID | BANK_QUERY_REGISTRATION_REPLY_ID => {
-            try_associate_registered_query_id(deps, msg)
-        }
-        _ => Err(ContractError::UnknownReplyId(msg.id).into()),
-    }
+    try_associate_registered_query_id(deps, msg)
 }
 
 fn try_associate_registered_query_id(deps: DepsMut, reply: Reply) -> StdResult<Response> {
@@ -271,16 +233,11 @@ fn try_associate_registered_query_id(deps: DepsMut, reply: Reply) -> StdResult<R
         &reply.id.to_string(),
     )?;
 
-    let val_type = match reply.id {
-        GAMM_QUERY_REGISTRATION_REPLY_ID => QueryResult::Gamm {
-            result_type: GammResultTypes::Pool,
-        },
-        BANK_QUERY_REGISTRATION_REPLY_ID => QueryResult::Bank {
-            result_type: BankResultTypes::AccountDenomBalance,
-        },
-        _ => return Err(ContractError::UnknownReplyId(reply.id).into()),
-    };
-    ASSOCIATED_QUERY_IDS.save(deps.storage, resp.id, &val_type)?;
+    let query_cfg = QUERY_REGISTRATION_REPLY_IDS.load(deps.storage, reply.id)?;
+
+    ASSOCIATED_QUERY_IDS.save(deps.storage, resp.id, &query_cfg)?;
+
+    QUERY_REGISTRATION_REPLY_IDS.remove(deps.storage, reply.id);
 
     Ok(Response::default())
 }

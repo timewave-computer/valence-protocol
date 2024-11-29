@@ -1,0 +1,38 @@
+[package]
+name       = "valence-icq-lib-utils"
+authors    = { workspace = true }
+edition    = { workspace = true }
+license    = { workspace = true }
+version    = { workspace = true }
+repository = { workspace = true }
+
+[features]
+default = []
+testing = [
+    "dep:cw-multi-test",
+    "dep:cw20",
+    "dep:cw20-base",
+    "dep:sha2",
+    "dep:valence-base-account",
+]
+
+[dependencies]
+cosmwasm-schema       = { workspace = true }
+cosmwasm-std          = { workspace = true }
+cw-denom              = { workspace = true }
+cw-ownable            = { workspace = true }
+cw-utils              = { workspace = true }
+serde                 = { workspace = true }
+serde_json            = { workspace = true }
+thiserror             = { workspace = true }
+valence-account-utils = { workspace = true }
+valence-macros        = { workspace = true }
+cw-storage-plus       = { workspace = true }
+neutron-sdk           = { workspace = true }
+
+# Testing dependencies
+cw-multi-test        = { workspace = true, optional = true }
+cw20                 = { workspace = true, optional = true }
+cw20-base            = { workspace = true, optional = true }
+sha2                 = { workspace = true, optional = true }
+valence-base-account = { workspace = true, optional = true }

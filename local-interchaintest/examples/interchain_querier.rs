@@ -67,6 +67,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         "{}/artifacts/valence_icq_querier.wasm",
         current_dir.display()
     );
+    let osmo_domain_registry_local_path = format!(
+        "{}/artifacts/valence_osmosis_type_registry.wasm",
+        current_dir.display()
+    );
 
     info!("sleeping to allow icq relayer to start...");
     std::thread::sleep(Duration::from_secs(10));
@@ -74,6 +78,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     uploader
         .with_chain_name(NEUTRON_CHAIN_NAME)
         .send_single_contract(&icq_lib_local_path)?;
+
+    uploader
+        .with_chain_name(NEUTRON_CHAIN_NAME)
+        .send_single_contract(&osmo_domain_registry_local_path)?;
 
     let icq_querier_lib_code_id = test_ctx
         .get_contract()
@@ -83,6 +91,37 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap();
 
     info!("icq querier library code id: {icq_querier_lib_code_id}");
+
+    let osmo_domain_registry_code_id = test_ctx
+        .get_contract()
+        .contract("valence_osmosis_type_registry")
+        .get_cw()
+        .code_id
+        .unwrap();
+
+    let ntrn_to_osmo_connection_id = test_ctx
+        .get_connections()
+        .src(NEUTRON_CHAIN_NAME)
+        .dest(OSMOSIS_CHAIN_NAME)
+        .get();
+
+    let osmo_domain_registry = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        osmo_domain_registry_code_id,
+        &serde_json::to_string(&valence_icq_lib_utils::InstantiateMsg {
+            connection_id: ntrn_to_osmo_connection_id,
+        })?,
+        "icq_querier_lib",
+        None,
+        "",
+    )?;
+    info!(
+        "osmo_domain_registry address: {}",
+        osmo_domain_registry.address
+    );
 
     // instantiate icq querier lib
     let icq_test_lib = contract_instantiate(
@@ -104,8 +143,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let kvq_registration_response = register_kvq(
         &test_ctx,
         icq_test_lib.address.to_string(),
-        OSMOSIS_CHAIN_NAME.to_string(),
+        osmo_domain_registry.address.to_string(),
         "gamm".to_string(),
+        "query".to_string(),
     )?;
 
     info!(
@@ -118,8 +158,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let kvq_registration_response = register_kvq(
         &test_ctx,
         icq_test_lib.address.to_string(),
-        OSMOSIS_CHAIN_NAME.to_string(),
+        osmo_domain_registry.address.to_string(),
         "bank".to_string(),
+        "query".to_string(),
     )?;
 
     info!(
@@ -141,19 +182,16 @@ fn main() -> Result<(), Box<dyn Error>> {
 pub fn register_kvq(
     test_ctx: &TestContext,
     icq_lib: String,
-    domain: String,
+    type_registry: String,
     module: String,
+    query: String,
 ) -> Result<TransactionResponse, LocalError> {
-    info!("registering ICQ KV query on domain {domain} for mod {module}...");
+    info!("registering ICQ KV query via type registry {type_registry}...");
 
     let register_kvq_msg = FunctionMsgs::RegisterKvQuery {
-        connection_id: test_ctx
-            .get_connections()
-            .src(NEUTRON_CHAIN_NAME)
-            .dest(&domain)
-            .get(),
-        update_period: 5,
+        type_registry,
         module,
+        query,
     };
 
     contract_execute(

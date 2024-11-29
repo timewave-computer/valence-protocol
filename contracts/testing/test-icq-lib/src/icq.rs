@@ -231,11 +231,8 @@ pub fn register_kv_query(
 
 #[cfg(test)]
 mod test {
-    use cosmwasm_std::{from_json, to_json_string, Binary, Uint128};
-    use neutron_sdk::{
-        bindings::types::StorageValue,
-        interchain_queries::{query_kv_result, types::KVReconstruct},
-    };
+    use cosmwasm_std::{to_json_string, Binary};
+    use neutron_sdk::{bindings::types::StorageValue, interchain_queries::types::KVReconstruct};
     use osmosis_std::{shim::Any, types::osmosis::gamm::v1beta1::Pool};
     use prost::Message;
     use serde_json::Value;
@@ -282,7 +279,7 @@ mod test {
         };
 
         let balances: neutron_sdk::interchain_queries::v047::types::Balances =
-            KVReconstruct::reconstruct(&vec![storage_value]).unwrap();
+            KVReconstruct::reconstruct(&[storage_value]).unwrap();
 
         println!("balances: {:?}", balances);
     }

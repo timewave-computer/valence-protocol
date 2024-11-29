@@ -1,5 +1,5 @@
 [package]
-name       = "valence-icq-querier"
+name       = "valence-osmosis-type-registry"
 authors    = { workspace = true }
 edition    = { workspace = true }
 license    = { workspace = true }
@@ -17,11 +17,7 @@ library = []
 cosmwasm-std          = { workspace = true }
 cosmwasm-schema       = { workspace = true }
 cw-ownable            = { workspace = true }
-valence-macros        = { workspace = true }
-valence-library-utils = { workspace = true }
-valence-library-base  = { workspace = true }
 osmosis-std           = { workspace = true }
-valence-account-utils = { workspace = true }
 valence-osmosis-utils = { workspace = true }
 prost                 = { version = "0.13.3", default-features = false, features = [ "prost-derive" ] }
 prost-types           = { version = "0.13.3", default-features = false }
@@ -30,7 +26,6 @@ serde-json-wasm       = { version = "1.0.0", default-features = false }
 cw-storage-plus       = { workspace = true }
 thiserror             = { workspace = true }
 serde_json            = { workspace = true }
-valence-osmosis-type-registry = { workspace = true }
 valence-icq-lib-utils = { workspace = true }
 
 [dev-dependencies]

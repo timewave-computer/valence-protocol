@@ -28,11 +28,11 @@ pub struct InstantiateMsg {}
 #[cw_serde]
 pub enum FunctionMsgs {
     RegisterKvQuery {
-        connection_id: String,
-        update_period: u64,
-        // TODO: enum
         module: String,
-        //
+        // address of the target domain type registry contract
+        type_registry: String,
+        // json string of the query
+        query: String,
     },
 }
 
@@ -49,13 +49,6 @@ pub enum QueryMsg {
 
     #[returns(Vec<(u64, Value)>)]
     QueryResults {},
-    // #[returns(bool)]
-    // AssertResultCondition {
-    //     query_id: u64,
-    //     path: String,
-    //     operator: String,
-    //     assertion_value: String,
-    // },
 }
 
 #[cw_serde]
