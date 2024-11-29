@@ -1,6 +1,7 @@
 pub mod authorization;
 pub mod base_account;
 pub mod ibc;
+pub mod icq;
 pub mod manager;
 pub mod osmosis;
 pub mod persistence;

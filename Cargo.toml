@@ -59,6 +59,7 @@ valence-processor                    = { path = "contracts/processor", features 
 valence-splitter-library             = { path = "contracts/libraries/splitter", features = ["library"] }
 valence-test-dynamic-ratio           = { path = "contracts/testing/test-dynamic-ratio", features = ["library"] }
 valence-test-library                 = { path = "contracts/testing/test-library", features = ["library"] }
+valence-test-icq-lib                 = { path = "contracts/testing/test-icq-lib", features = ["library"] }
 valence-workflow-registry            = { path = "contracts/workflow-registry", features = ["library"] }
 valence-astroport-lper               = { path = "contracts/libraries/astroport-lper", features = ["library"] }
 valence-forwarder-library            = { path = "contracts/libraries/forwarder", features = ["library"] }
