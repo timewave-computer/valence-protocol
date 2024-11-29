@@ -144,7 +144,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &test_ctx,
         icq_test_lib.address.to_string(),
         osmo_domain_registry.address.to_string(),
-        "gamm".to_string(),
+        "/osmosis.gamm.v1beta1.Pool".to_string(),
         "query".to_string(),
     )?;
 
@@ -153,13 +153,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         kvq_registration_response
     );
 
-    std::thread::sleep(Duration::from_secs(5));
+    std::thread::sleep(Duration::from_secs(2));
 
     let kvq_registration_response = register_kvq(
         &test_ctx,
         icq_test_lib.address.to_string(),
         osmo_domain_registry.address.to_string(),
-        "bank".to_string(),
+        "/cosmos.bank.v1beta1.QueryBalanceResponse".to_string(),
         "query".to_string(),
     )?;
 
@@ -168,13 +168,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         kvq_registration_response
     );
 
-    std::thread::sleep(Duration::from_secs(5));
+    let mut results_found = false;
+    while !results_found {
+        let results = query_results(&test_ctx, icq_test_lib.address.to_string())?;
 
-    let logs = query_logs(&test_ctx, icq_test_lib.address.to_string())?;
-    info!("logs: {:?}", logs);
-
-    let results = query_results(&test_ctx, icq_test_lib.address.to_string())?;
-    info!("results: {:?}", results);
+        if !results.is_empty() {
+            info!("results: {:?}", results);
+            results_found = true;
+        } else {
+            info!("no results yet; sleeping for 3...");
+            std::thread::sleep(Duration::from_secs(3));
+        }
+    }
 
     Ok(())
 }
@@ -204,25 +209,6 @@ pub fn register_kvq(
             .map_err(|e| LocalError::Custom { msg: e.to_string() })?,
         "--amount 1000000untrn --gas 50000000",
     )
-}
-
-pub fn query_logs(
-    test_ctx: &TestContext,
-    icq_lib: String,
-) -> Result<Vec<(String, String)>, LocalError> {
-    let query_response = contract_query(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        &icq_lib,
-        &serde_json::to_string(&QueryMsg::Logs {})
-            .map_err(|e| LocalError::Custom { msg: e.to_string() })?,
-    )["data"]
-        .clone();
-
-    let resp: Vec<(String, String)> = serde_json::from_value(query_response).unwrap();
-
-    Ok(resp)
 }
 
 pub fn query_results(

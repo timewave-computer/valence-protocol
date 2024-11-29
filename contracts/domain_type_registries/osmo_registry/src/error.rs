@@ -11,6 +11,9 @@ pub enum ContractError {
 
     #[error("Unsupported module: {0}")]
     UnsupportedModule(String),
+
+    #[error("Unknown type URL: {0}")]
+    UnknownTypeUrl(String),
 }
 
 impl From<ContractError> for StdError {

@@ -232,7 +232,12 @@ pub fn register_kv_query(
 #[cfg(test)]
 mod test {
     use cosmwasm_std::{to_json_string, Binary};
-    use neutron_sdk::{bindings::types::StorageValue, interchain_queries::types::KVReconstruct};
+    use neutron_sdk::{
+        bindings::types::StorageValue,
+        interchain_queries::{
+            types::KVReconstruct, v047::helpers::deconstruct_account_denom_balance_key,
+        },
+    };
     use osmosis_std::{shim::Any, types::osmosis::gamm::v1beta1::Pool};
     use prost::Message;
     use serde_json::Value;
@@ -282,5 +287,25 @@ mod test {
             KVReconstruct::reconstruct(&[storage_value]).unwrap();
 
         println!("balances: {:?}", balances);
+    }
+
+    #[test]
+    fn try_decode_balance_response_from_binary_alt() {
+        let b64_key = "AhS8qJZnI6YkudXN06CxcRJLTC+8wXVvc21v";
+        let binary_key = Binary::from_base64(b64_key).unwrap();
+
+        let b64_value = "OTk4Nzg5OTk3MjUwMA==";
+        let binary_value = Binary::from_base64(b64_value).unwrap();
+
+        let storage_value = StorageValue {
+            storage_prefix: "bank".to_string(),
+            key: binary_key,
+            value: binary_value,
+        };
+
+        let (_, denom) = deconstruct_account_denom_balance_key(storage_value.key.to_vec()).unwrap();
+        println!("denom: {denom}");
+        let value_str = String::from_utf8(storage_value.value.to_vec()).unwrap();
+        println!("value_str: {value_str}");
     }
 }

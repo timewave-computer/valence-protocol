@@ -12,16 +12,17 @@ use neutron_sdk::{
     interchain_queries::queries::get_raw_interchain_query_result,
     sudo::msg::SudoMsg,
 };
-use serde_json::Value;
-use valence_icq_lib_utils::QueryRegistrationInfoRequest as DomainRegistryQueryRequest;
 use valence_icq_lib_utils::{PendingQueryIdConfig, QueryMsg as DomainRegistryQueryMsg};
+use valence_icq_lib_utils::{
+    QueryReconstructionResponse, QueryRegistrationInfoRequest as DomainRegistryQueryRequest,
+};
 
 use valence_icq_lib_utils::QueryRegistrationInfoResponse;
 use valence_library_utils::error::LibraryError;
 
 use crate::{
     msg::{Config, FunctionMsgs, InstantiateMsg, LibraryConfig, QueryMsg},
-    state::{ASSOCIATED_QUERY_IDS, LOGS, QUERY_RESULTS},
+    state::{ASSOCIATED_QUERY_IDS, QUERY_RESULTS},
 };
 
 // version info for migration info
@@ -68,14 +69,14 @@ fn register_kv_query(
     let query_registration_resp: QueryRegistrationInfoResponse = deps.querier.query_wasm_smart(
         type_registry.to_string(),
         &DomainRegistryQueryMsg::GetRegistrationConfig(DomainRegistryQueryRequest {
-            module: module.to_string(),
+            module,
             query,
         }),
     )?;
 
     let query_cfg = PendingQueryIdConfig {
         associated_domain_registry: type_registry,
-        query_type: query_registration_resp.query_type,
+        query_type: query_registration_resp.query_type.clone(),
     };
 
     // here the key is set to the resp.reply_id just to get to the reply handler.
@@ -84,11 +85,14 @@ fn register_kv_query(
 
     // fire registration in a submsg to get the registered query id back
     let submsg = SubMsg::reply_on_success(
-        query_registration_resp.registration_msg,
+        query_registration_resp.registration_msg.clone(),
         query_registration_resp.reply_id,
     );
 
-    Ok(Response::default().add_submessage(submsg))
+    Ok(Response::default().add_submessage(submsg).add_attribute(
+        "query_registration_response".to_string(),
+        to_json_string(&query_registration_resp)?,
+    ))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -116,13 +120,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             }
             to_json_binary(&resp)
         }
-        QueryMsg::Logs {} => {
-            let mut resp = vec![];
-            for entry in LOGS.range(deps.storage, None, None, Order::Ascending) {
-                resp.push(entry?);
-            }
-            to_json_binary(&resp)
-        }
         QueryMsg::QueryResults {} => {
             let mut resp = vec![];
             for entry in QUERY_RESULTS.range(deps.storage, None, None, Order::Ascending) {
@@ -134,17 +131,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response<NeutronMsg>> {
+pub fn sudo(deps: ExecuteDeps, _env: Env, msg: SudoMsg) -> StdResult<Response<NeutronMsg>> {
     match msg {
         SudoMsg::KVQueryResult { query_id } => handle_sudo_kv_query_result(deps, query_id),
-        _ => {
-            LOGS.save(
-                deps.storage,
-                format!("sudo_catchall_handler-{}", env.block.height).to_string(),
-                &to_json_string(&msg)?,
-            )?;
-            Ok(Response::default())
-        }
+        _ => Ok(Response::default()),
     }
 }
 
@@ -157,7 +147,7 @@ fn handle_sudo_kv_query_result(
 
     let pending_query_config = ASSOCIATED_QUERY_IDS.load(deps.storage, query_id)?;
 
-    let json_response: Value = deps.querier.query_wasm_smart(
+    let json_response: QueryReconstructionResponse = deps.querier.query_wasm_smart(
         pending_query_config.associated_domain_registry,
         &DomainRegistryQueryMsg::ReconstructQuery(
             valence_icq_lib_utils::QueryReconstructionRequest {
@@ -167,9 +157,9 @@ fn handle_sudo_kv_query_result(
         ),
     )?;
 
-    QUERY_RESULTS.save(deps.storage, query_id, &json_response)?;
+    QUERY_RESULTS.save(deps.storage, query_id, &json_response.json_value)?;
 
-    Ok(Response::new().add_attribute("query_result", json_response.to_string()))
+    Ok(Response::new().add_attribute("query_result", json_response.json_value.to_string()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -190,12 +180,6 @@ fn try_associate_registered_query_id(deps: DepsMut, reply: Reply) -> StdResult<R
     let resp: MsgRegisterInterchainQueryResponse =
         serde_json_wasm::from_slice(binary.as_slice())
             .map_err(|e| StdError::generic_err(e.to_string()))?;
-
-    LOGS.save(
-        deps.storage,
-        format!("registered_query_type_{}", reply.id),
-        &reply.id.to_string(),
-    )?;
 
     let pending_query_config = ASSOCIATED_QUERY_IDS.load(deps.storage, reply.id)?;
     ASSOCIATED_QUERY_IDS.save(deps.storage, resp.id, &pending_query_config)?;

@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
@@ -8,7 +10,9 @@ use neutron_sdk::interchain_queries::helpers::decode_and_convert;
 use neutron_sdk::interchain_queries::types::{KVReconstruct, QueryType};
 use neutron_sdk::interchain_queries::v047::helpers::create_account_denom_balance_key;
 use neutron_sdk::interchain_queries::v047::types::BANK_STORE_KEY;
+use osmosis_std::shim::Any;
 use prost::Message;
+use serde_json::Value;
 use valence_icq_lib_utils::GammResultTypes;
 use valence_icq_lib_utils::QueryReconstructionRequest;
 use valence_icq_lib_utils::QueryRegistrationInfoRequest;
@@ -17,6 +21,7 @@ use valence_icq_lib_utils::QueryResult;
 use valence_icq_lib_utils::{BankResultTypes, QueryReconstructionResponse};
 
 use crate::error::ContractError;
+use crate::msg::OsmosisTypes;
 use crate::state::CONNECTION_ID;
 
 use valence_icq_lib_utils::ExecuteMsg as DomainRegistryExecuteMsg;
@@ -68,10 +73,8 @@ fn reconstruct_icq_result(query: QueryReconstructionRequest) -> StdResult<Binary
     let query_result_str = match query.query_type {
         QueryResult::Gamm { result_type } => match result_type {
             GammResultTypes::Pool => {
-                let any_msg: osmosis_std::shim::Any =
-                    osmosis_std::shim::Any::decode(query.icq_result.kv_results[0].value.as_slice())
-                        .unwrap();
-                assert_eq!(any_msg.type_url, "/osmosis.gamm.v1beta1.Pool");
+                let any_msg: Any = Any::decode(query.icq_result.kv_results[0].value.as_slice())
+                    .map_err(|e| StdError::generic_err(e.to_string()))?;
 
                 let osmo_pool: osmosis_std::types::osmosis::gamm::v1beta1::Pool =
                     any_msg.try_into().unwrap();
@@ -89,17 +92,18 @@ fn reconstruct_icq_result(query: QueryReconstructionRequest) -> StdResult<Binary
         },
     };
 
-    let resp = QueryReconstructionResponse {
-        json_value: serde_json::from_str(&query_result_str)
-            .map_err(|_| StdError::generic_err("failed to get json value".to_string()))?,
-    };
+    let json_value: Value = serde_json::from_str(&query_result_str).unwrap();
+
+    let resp = QueryReconstructionResponse { json_value };
 
     to_json_binary(&resp)
 }
 
 fn get_registration_config(deps: Deps, query: QueryRegistrationInfoRequest) -> StdResult<Binary> {
-    let (kv_key, response_code_id, query_type) = match query.module.as_str() {
-        "gamm" => {
+    let osmo_type = OsmosisTypes::from_str(&query.module)?;
+
+    let (kv_key, response_code_id, query_type) = match osmo_type {
+        OsmosisTypes::GammV1Beta1Pool(_pool) => {
             let pool_prefix_key: u8 = 0x02;
             let pool_id: u64 = 1;
             let mut pool_access_key = vec![pool_prefix_key];
@@ -107,7 +111,7 @@ fn get_registration_config(deps: Deps, query: QueryRegistrationInfoRequest) -> S
 
             (
                 KVKey {
-                    path: query.module.to_string(),
+                    path: "gamm".to_string(),
                     key: Binary::new(pool_access_key),
                 },
                 GAMM_QUERY_REGISTRATION_REPLY_ID,
@@ -116,7 +120,7 @@ fn get_registration_config(deps: Deps, query: QueryRegistrationInfoRequest) -> S
                 },
             )
         }
-        "bank" => {
+        OsmosisTypes::BankV1Beta1BalanceResponse(_query_balance_response) => {
             let addr = "osmo1hj5fveer5cjtn4wd6wstzugjfdxzl0xpwhpz63".to_string();
             let converted_addr_bytes = decode_and_convert(&addr).unwrap();
             let balance_key =
@@ -133,7 +137,7 @@ fn get_registration_config(deps: Deps, query: QueryRegistrationInfoRequest) -> S
                 },
             )
         }
-        _ => return Err(ContractError::UnsupportedModule(query.module).into()),
+        _ => unimplemented!(),
     };
 
     let connection_id = CONNECTION_ID.load(deps.storage)?;

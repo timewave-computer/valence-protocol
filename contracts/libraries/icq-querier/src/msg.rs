@@ -25,9 +25,6 @@ pub enum FunctionMsgs {
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
-    #[returns(Vec<(String, String)>)]
-    Logs {},
-
     #[returns(Vec<(u64, String)>)]
     RegisteredQueries {},
 
