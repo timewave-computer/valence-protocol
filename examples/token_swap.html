@@ -156,16 +156,37 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="token-swap-program"><a class="header" href="#token-swap-program">Token Swap Program</a></h1>
-<pre class="mermaid">graph LR
+<p>This example demonstrates a simple <em>token swap</em> program whereby two parties wish to exchange specific amounts of (different) tokens they each hold, at a rate they have previously agreed on. The program ensures the swap happens atomically, so neither party can withdraw without completing the trade.</p>
+<pre class="mermaid">---
+title: Valence token swap program
+---
+graph LR
 	InA((Party A Deposit))
 	InB((Party B Deposit))
 	OutA((Party A Withdraw))
 	OutB((Party B Withdraw))
 	SSA[Splitter A]
 	SSB[Splitter B]
+	subgraph Neutron
 	InA --&gt; SSA --&gt; OutB
 	InB --&gt; SSB --&gt; OutA
+	end
 </pre>
+<p>The program is composed of the following components:</p>
+<ul>
+<li><strong>Party A Deposit account</strong>: a <a href="../components/accounts.html">Valence account</a> which Party A will deposit their tokens into, to be exchanged with Party B's tokens.</li>
+<li><strong>Splitter A</strong>: an instance of the <a href="../libraries/splitter.html">Splitter library</a> that will transfer Party A's tokens from its input account (i.e. the <strong>Party A Deposit account</strong>) to its output account (i.e. the <strong>Party B Withdraw account</strong>) upon execution of its <code>split</code> function.</li>
+<li><strong>Party B Withdraw account</strong>: the account from which Party B can withdraw Party A's tokens after the swap has successfully completed. Note: this can be a <a href="../components/accounts.html">Valence account</a>, but it could also be a regular chain account, or a smart contract.</li>
+<li><strong>Party B Deposit account</strong>:  a <a href="../components/accounts.html">Valence account</a> which Party B will deposit their funds into, to be exchanged with Party A's funds.</li>
+<li><strong>Splitter B</strong>: an instance of the <a href="../libraries/splitter.html">Splitter library</a> that will transfer Party B's tokens from its input account (i.e. the <strong>Party B Deposit account</strong>) to its output account (i.e. the <strong>Party A Withdraw account</strong>) upon execution of its <code>split</code> function.</li>
+<li><strong>Party A Withdraw account</strong>: the account from which Party A can withdraw Party B's tokens after the swap has successfully completed. Note: this can be a <a href="../components/accounts.html">Valence account</a>, but it could also be a regular chain account, or a smart contract.</li>
+</ul>
+<p>The way the program is able to fulfil the requirement for an <em>atomic exchange of tokens</em> between the two parties is done by implementing an <strong>atomic subroutine</strong> composed of two function calls:</p>
+<ol>
+<li><strong>Splitter A</strong>'s <code>split</code> function</li>
+<li><strong>Splitter B</strong>'s <code>split</code> function</li>
+</ol>
+<p>The Authorizations component will ensure that either both succeed, or none is executed, thereby ensuring that <strong>funds remain safe at all time</strong> (either remaining in the respective deposit accounts, or transferred to the respective withdraw accounts).</p>
 
                     </main>
 
