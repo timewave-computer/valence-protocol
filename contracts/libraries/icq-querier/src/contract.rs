@@ -12,6 +12,7 @@ use neutron_sdk::{
     interchain_queries::queries::get_raw_interchain_query_result,
     sudo::msg::SudoMsg,
 };
+use serde_json::Value;
 use valence_icq_lib_utils::{PendingQueryIdConfig, QueryMsg as DomainRegistryQueryMsg};
 use valence_icq_lib_utils::{
     QueryReconstructionResponse, QueryRegistrationInfoRequest as DomainRegistryQueryRequest,
@@ -39,7 +40,6 @@ pub fn instantiate(
     _info: MessageInfo,
     _msg: InstantiateMsg,
 ) -> Result<Response<NeutronMsg>, LibraryError> {
-    // valence_library_base::instantiate(deps, CONTRACT_NAME, CONTRACT_VERSION, msg)
     Ok(Response::default())
 }
 
@@ -50,7 +50,6 @@ pub fn execute(
     _info: MessageInfo,
     msg: FunctionMsgs,
 ) -> Result<Response<NeutronMsg>, LibraryError> {
-    // valence_library_base::execute(deps, env, info, msg, process_function, update_config)
     match msg {
         FunctionMsgs::RegisterKvQuery {
             type_registry,
@@ -64,13 +63,13 @@ fn register_kv_query(
     deps: DepsMut,
     type_registry: String,
     module: String,
-    query: String,
+    query: serde_json::Map<String, Value>,
 ) -> Result<Response<NeutronMsg>, LibraryError> {
     let query_registration_resp: QueryRegistrationInfoResponse = deps.querier.query_wasm_smart(
         type_registry.to_string(),
         &DomainRegistryQueryMsg::GetRegistrationConfig(DomainRegistryQueryRequest {
             module,
-            query,
+            params: query,
         }),
     )?;
 

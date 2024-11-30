@@ -9,14 +9,14 @@ use localic_std::{
     types::TransactionResponse,
 };
 use log::info;
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::{env, error::Error, time::Duration};
 use valence_icq_querier::msg::{FunctionMsgs, InstantiateMsg, QueryMsg};
 
 use localic_utils::{
     utils::test_context::TestContext, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
-    LOCAL_IC_API_URL, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_DENOM,
-    OSMOSIS_CHAIN_NAME,
+    LOCAL_IC_API_URL, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_ADMIN_ADDR,
+    OSMOSIS_CHAIN_DENOM, OSMOSIS_CHAIN_NAME,
 };
 
 // KeyNextGlobalPoolId defines key to store the next Pool ID to be used.
@@ -140,12 +140,18 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("attempting GAMM total liquidity query");
 
+    let gamm_query_params = json!({
+        "pool_id": "1"
+    });
+
+    println!("json gamm query: {:?}", gamm_query_params);
+
     let kvq_registration_response = register_kvq(
         &test_ctx,
         icq_test_lib.address.to_string(),
         osmo_domain_registry.address.to_string(),
-        "/osmosis.gamm.v1beta1.Pool".to_string(),
-        "query".to_string(),
+        osmosis_std::types::osmosis::gamm::v1beta1::Pool::TYPE_URL.to_string(),
+        gamm_query_params.as_object().unwrap().clone(),
     )?;
 
     info!(
@@ -155,12 +161,19 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     std::thread::sleep(Duration::from_secs(2));
 
+    let bank_query_params = json!({
+        "addr": OSMOSIS_CHAIN_ADMIN_ADDR.to_string(),
+        "denom": OSMOSIS_CHAIN_DENOM.to_string(),
+    });
+
+    println!("json bank query: {:?}", bank_query_params);
+
     let kvq_registration_response = register_kvq(
         &test_ctx,
         icq_test_lib.address.to_string(),
         osmo_domain_registry.address.to_string(),
-        "/cosmos.bank.v1beta1.QueryBalanceResponse".to_string(),
-        "query".to_string(),
+        osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceResponse::TYPE_URL.to_string(),
+        bank_query_params.as_object().unwrap().clone(),
     )?;
 
     info!(
@@ -172,7 +185,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     while !results_found {
         let results = query_results(&test_ctx, icq_test_lib.address.to_string())?;
 
-        if !results.is_empty() {
+        if results.len() == 2 {
             info!("results: {:?}", results);
             results_found = true;
         } else {
@@ -189,15 +202,21 @@ pub fn register_kvq(
     icq_lib: String,
     type_registry: String,
     module: String,
-    query: String,
+    query: serde_json::Map<String, Value>,
 ) -> Result<TransactionResponse, LocalError> {
-    info!("registering ICQ KV query via type registry {type_registry}...");
-
     let register_kvq_msg = FunctionMsgs::RegisterKvQuery {
         type_registry,
         module,
         query,
     };
+
+    let stringified_msg = serde_json::to_string(&register_kvq_msg)
+        .map_err(|e| LocalError::Custom { msg: e.to_string() })?;
+
+    info!(
+        "registering ICQ KV query on querier {icq_lib} :  {:?}",
+        stringified_msg
+    );
 
     contract_execute(
         test_ctx
@@ -205,8 +224,7 @@ pub fn register_kvq(
             .get_request_builder(NEUTRON_CHAIN_NAME),
         &icq_lib,
         DEFAULT_KEY,
-        &serde_json::to_string(&register_kvq_msg)
-            .map_err(|e| LocalError::Custom { msg: e.to_string() })?,
+        &stringified_msg,
         "--amount 1000000untrn --gas 50000000",
     )
 }

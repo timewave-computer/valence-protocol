@@ -35,7 +35,7 @@ pub struct QueryReconstructionResponse {
 #[cw_serde]
 pub struct QueryRegistrationInfoRequest {
     pub module: String,
-    pub query: String,
+    pub params: serde_json::Map<String, Value>,
 }
 
 #[cw_serde]

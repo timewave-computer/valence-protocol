@@ -16,7 +16,7 @@ pub enum FunctionMsgs {
         // address of the target domain type registry contract
         type_registry: String,
         // json string of the query
-        query: String,
+        query: serde_json::Map<String, Value>,
     },
 }
 
