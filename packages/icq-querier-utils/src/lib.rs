@@ -24,7 +24,7 @@ pub enum QueryMsg {
 #[cw_serde]
 pub struct QueryReconstructionRequest {
     pub icq_result: InterchainQueryResult,
-    pub query_type: QueryResult,
+    pub query_type: String,
 }
 
 #[cw_serde]
@@ -34,7 +34,12 @@ pub struct QueryReconstructionResponse {
 
 #[cw_serde]
 pub struct QueryRegistrationInfoRequest {
+    /// module here refers to some string identifier of the query we want to perform.
+    /// one useful identifier is that of the proto type, e.g. `/osmosis.gamm.v1beta1.Pool`.
+    /// basically describes what type we are dealing with
     pub module: String,
+    /// params here describe the parameters to be passed into our query request.
+    /// if module above describes the what, these params describe the how.
     pub params: serde_json::Map<String, Value>,
 }
 
@@ -42,27 +47,10 @@ pub struct QueryRegistrationInfoRequest {
 pub struct QueryRegistrationInfoResponse {
     pub registration_msg: NeutronMsg,
     pub reply_id: u64,
-    pub query_type: QueryResult,
-}
-
-#[cw_serde]
-pub enum QueryResult {
-    Gamm { result_type: GammResultTypes },
-    Bank { result_type: BankResultTypes },
-}
-
-#[cw_serde]
-pub enum GammResultTypes {
-    Pool,
-}
-
-#[cw_serde]
-pub enum BankResultTypes {
-    AccountDenomBalance,
 }
 
 #[cw_serde]
 pub struct PendingQueryIdConfig {
     pub associated_domain_registry: String,
-    pub query_type: QueryResult,
+    pub query_type: String,
 }

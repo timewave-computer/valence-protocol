@@ -68,14 +68,14 @@ fn register_kv_query(
     let query_registration_resp: QueryRegistrationInfoResponse = deps.querier.query_wasm_smart(
         type_registry.to_string(),
         &DomainRegistryQueryMsg::GetRegistrationConfig(DomainRegistryQueryRequest {
-            module,
+            module: module.to_string(),
             params: query,
         }),
     )?;
 
     let query_cfg = PendingQueryIdConfig {
         associated_domain_registry: type_registry,
-        query_type: query_registration_resp.query_type.clone(),
+        query_type: module.to_string(),
     };
 
     // here the key is set to the resp.reply_id just to get to the reply handler.
