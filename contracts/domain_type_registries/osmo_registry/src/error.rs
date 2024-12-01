@@ -1,4 +1,5 @@
 use cosmwasm_std::StdError;
+use serde_json::Value;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -14,6 +15,9 @@ pub enum ContractError {
 
     #[error("Unknown type URL: {0}")]
     UnknownTypeUrl(String),
+
+    #[error("json field {0} missing from the query params: {1:?}")]
+    JsonFieldMissing(String, serde_json::Map<String, Value>),
 }
 
 impl From<ContractError> for StdError {

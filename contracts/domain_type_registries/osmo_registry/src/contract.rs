@@ -11,7 +11,7 @@ use valence_icq_lib_utils::QueryRegistrationInfoRequest;
 use valence_icq_lib_utils::QueryRegistrationInfoResponse;
 
 use crate::error::ContractError;
-use crate::msg::OsmosisTypes;
+use crate::msg::DomainRegistryType;
 use crate::state::CONNECTION_ID;
 
 use valence_icq_lib_utils::ExecuteMsg as DomainRegistryExecuteMsg;
@@ -57,7 +57,7 @@ pub fn query(deps: Deps, _env: Env, msg: DomainRegistryQueryMsg) -> StdResult<Bi
 }
 
 fn reconstruct_icq_result(query: QueryReconstructionRequest) -> StdResult<Binary> {
-    let underlying_type = OsmosisTypes::from_str(&query.query_type)?;
+    let underlying_type = DomainRegistryType::from_str(&query.query_type)?;
 
     let reconstructed_json_value = underlying_type.reconstruct_response(&query)?;
 
@@ -69,7 +69,7 @@ fn reconstruct_icq_result(query: QueryReconstructionRequest) -> StdResult<Binary
 }
 
 fn get_registration_config(deps: Deps, query: QueryRegistrationInfoRequest) -> StdResult<Binary> {
-    let osmo_type = OsmosisTypes::from_str(&query.module)?;
+    let osmo_type = DomainRegistryType::from_str(&query.module)?;
 
     let (kv_key, response_code_id) = osmo_type.get_registration_config(query.params)?;
 
