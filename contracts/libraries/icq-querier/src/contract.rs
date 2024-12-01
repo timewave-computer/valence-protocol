@@ -56,6 +56,74 @@ pub fn execute(
             module,
             query,
         } => register_kv_query(deps, type_registry, module, query),
+        FunctionMsgs::AssertQueryResult {
+            query_id,
+            assertion,
+        } => assert_query_result(deps, query_id, assertion),
+    }
+}
+
+fn assert_query_result(
+    deps: DepsMut,
+    query_id: u64,
+    assertion: Vec<String>, // reverse polish notation
+) -> Result<Response<NeutronMsg>, LibraryError> {
+    let query_result = QUERY_RESULTS.load(deps.storage, query_id)?;
+
+    let mut stack = vec![];
+    for token in assertion.clone() {
+        match token.as_str() {
+            // operators
+            "==" => {
+                let b = stack.pop().unwrap();
+                let a = stack.pop().unwrap();
+                stack.push((a == b).to_string());
+            }
+            "!=" => {
+                let b = stack.pop().unwrap();
+                let a = stack.pop().unwrap();
+                stack.push((a != b).to_string());
+            }
+            ">" => {
+                let b = stack.pop().unwrap();
+                let a = stack.pop().unwrap();
+                stack.push((a > b).to_string());
+            }
+            "<" => {
+                let b = stack.pop().unwrap();
+                let a = stack.pop().unwrap();
+                stack.push((a < b).to_string());
+            }
+            // TODO: bunch of stuff here is missing like &&, ||, etc.
+            // operands
+            _ => {
+                if token.starts_with('/') {
+                    let result = query_result.pointer(&token).unwrap();
+                    stack.push(result.to_string());
+                } else {
+                    stack.push(token.to_string());
+                }
+            }
+        }
+    }
+
+    if stack.len() == 1 {
+        let val = stack.pop().unwrap();
+        if val == "true" {
+            Ok(Response::default()
+                .add_attribute("query_result", "true")
+                .add_attribute("for_assertion", assertion.join(" ")))
+        } else {
+            Err(LibraryError::Std(StdError::generic_err(format!(
+                "assertion failed, stack is non empty: {:?}",
+                stack
+            ))))
+        }
+    } else {
+        Err(LibraryError::Std(StdError::generic_err(format!(
+            "assertion failed, stack is non empty: {:?}",
+            stack
+        ))))
     }
 }
 

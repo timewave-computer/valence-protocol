@@ -18,6 +18,10 @@ pub enum FunctionMsgs {
         // json string of the query
         query: serde_json::Map<String, Value>,
     },
+    AssertQueryResult {
+        query_id: u64,
+        assertion: Vec<String>,
+    },
 }
 
 #[valence_library_query]

@@ -182,8 +182,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let mut results_found = false;
+    let mut results = vec![];
     while !results_found {
-        let results = query_results(&test_ctx, icq_test_lib.address.to_string())?;
+        results = query_results(&test_ctx, icq_test_lib.address.to_string())?;
 
         if results.len() == 2 {
             info!("results: {:?}", results);
@@ -194,7 +195,84 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
+    let resp_1 = assert_icq_result(
+        &test_ctx,
+        icq_test_lib.address.to_string(),
+        results[0].0,
+        vec![
+            "/pool_assets/0/token/amount".to_string(),
+            "/pool_assets/1/token/amount".to_string(),
+            "==".to_string(),
+        ],
+    )?;
+
+    std::thread::sleep(Duration::from_secs(3));
+    info!("assertion #1 result: {:?}", resp_1);
+
+    let balance_amount: String = results[1]
+        .1
+        .pointer("/coins/0/amount")
+        .unwrap()
+        .as_str()
+        .unwrap()
+        .to_string();
+    info!("passing balance for assertion: {balance_amount}");
+    let resp_2 = assert_icq_result(
+        &test_ctx,
+        icq_test_lib.address.to_string(),
+        results[1].0,
+        vec![
+            "/coins/0/amount".to_string(),
+            balance_amount, // passing true
+            "==".to_string(),
+        ],
+    )?;
+    std::thread::sleep(Duration::from_secs(3));
+
+    info!("assertion #2 result: {:?}", resp_2);
+
+    let resp_3 = assert_icq_result(
+        &test_ctx,
+        icq_test_lib.address.to_string(),
+        results[1].0,
+        vec![
+            "/coins/0/amount".to_string(),
+            "314".to_string(), // passing false assertion value
+            "==".to_string(),
+        ],
+    )?;
+    std::thread::sleep(Duration::from_secs(3));
+
+    info!("assertion #3 result: {:?}", resp_3);
+
     Ok(())
+}
+
+pub fn assert_icq_result(
+    test_ctx: &TestContext,
+    icq_lib: String,
+    query_id: u64,
+    assertion: Vec<String>,
+) -> Result<TransactionResponse, LocalError> {
+    let icq_assertion_msg = FunctionMsgs::AssertQueryResult {
+        query_id,
+        assertion,
+    };
+
+    let stringified_msg = serde_json::to_string(&icq_assertion_msg)
+        .map_err(|e| LocalError::Custom { msg: e.to_string() })?;
+
+    info!("asserting query {query_id} result: {stringified_msg}");
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &icq_lib,
+        DEFAULT_KEY,
+        &stringified_msg,
+        "--amount 1000000untrn --gas 50000000",
+    )
 }
 
 pub fn register_kvq(
