@@ -9,8 +9,8 @@ use valence_icq_lib_utils::QueryReconstructionRequest;
 use valence_icq_lib_utils::QueryReconstructionResponse;
 use valence_icq_lib_utils::QueryRegistrationInfoRequest;
 use valence_icq_lib_utils::QueryRegistrationInfoResponse;
+use valence_icq_lib_utils::TypeRegistryError;
 
-use crate::error::ContractError;
 use crate::msg::DomainRegistryType;
 use crate::state::CONNECTION_ID;
 
@@ -28,7 +28,7 @@ pub fn instantiate(
     _env: Env,
     _info: MessageInfo,
     msg: DomainRegistryInstantiateMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response, TypeRegistryError> {
     CONNECTION_ID.save(deps.storage, &msg.connection_id)?;
 
     Ok(Response::default())
@@ -40,7 +40,7 @@ pub fn execute(
     _env: Env,
     _info: MessageInfo,
     _msg: DomainRegistryExecuteMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response, TypeRegistryError> {
     Ok(Response::default())
 }
 

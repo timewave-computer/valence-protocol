@@ -56,6 +56,35 @@ pub struct PendingQueryIdConfig {
     pub query_type: String,
 }
 
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum TypeRegistryError {
+    #[error("{0}")]
+    Std(#[from] StdError),
+
+    #[error("Unknown reply id: {0}")]
+    UnknownReplyId(u64),
+
+    #[error("Unsupported module: {0}")]
+    UnsupportedModule(String),
+
+    #[error("Unknown type URL: {0}")]
+    UnknownTypeUrl(String),
+
+    #[error("json field {0} missing from the query params: {1:?}")]
+    JsonFieldMissing(String, serde_json::Map<String, Value>),
+}
+
+impl From<TypeRegistryError> for StdError {
+    fn from(val: TypeRegistryError) -> Self {
+        match val {
+            TypeRegistryError::Std(std_error) => std_error,
+            e => StdError::generic_err(e.to_string()),
+        }
+    }
+}
+
 /// macro to generate enums for types we wish to support in each domain
 /// registry
 #[macro_export]
@@ -74,14 +103,14 @@ macro_rules! define_registry_types {
         impl FromStr for DomainRegistryType
         where $($type: QueryTypeDefinition, )*
         {
-            type Err = ContractError;
+            type Err = $crate::TypeRegistryError;
 
             fn from_str(type_url: &str) -> Result<Self, Self::Err> {
                 match type_url {
                     $(
                         <$type>::TYPE_URL => Ok(DomainRegistryType::$variant(<$type>::default())),
                     )*
-                    _ => Err(ContractError::UnknownTypeUrl(type_url.to_string())),
+                    _ => Err($crate::TypeRegistryError::UnknownTypeUrl(type_url.to_string())),
                 }
             }
         }

@@ -6,8 +6,6 @@ use neutron_sdk::bindings::types::KVKey;
 use serde_json::Value;
 use valence_icq_lib_utils::{define_registry_types, QueryReconstructionRequest};
 
-use crate::error::ContractError;
-
 pub trait QueryTypeDefinition {
     const REPLY_ID: u64;
 

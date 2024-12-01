@@ -5,4 +5,3 @@ mod testing;
 
 pub mod error;
 pub mod state;
-pub mod utils;
