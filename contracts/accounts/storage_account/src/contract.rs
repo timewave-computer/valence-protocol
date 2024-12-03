@@ -46,21 +46,29 @@ pub fn execute(
         ExecuteMsg::ApproveLibrary { library } => execute::approve_library(deps, info, library),
         ExecuteMsg::RemoveLibrary { library } => execute::remove_library(deps, info, library),
         ExecuteMsg::UpdateOwnership(action) => execute::update_ownership(deps, env, info, action),
-        ExecuteMsg::PostBlob { key, value } => execute::try_post_blob(deps, key, value),
+        ExecuteMsg::PostBlob { key, value } => execute::try_post_blob(deps, info, key, value),
     }
 }
 
 mod execute {
-    use cosmwasm_std::{Binary, DepsMut, Empty, Env, MessageInfo, Response};
-    use valence_account_utils::error::ContractError;
+    use cosmwasm_std::{ensure, Binary, DepsMut, Empty, Env, MessageInfo, Response};
+    use valence_account_utils::error::{ContractError, UnauthorizedReason};
 
     use crate::state::{APPROVED_LIBRARIES, BLOB_STORE};
 
     pub fn try_post_blob(
         deps: DepsMut,
+        info: MessageInfo,
         key: String,
         value: Binary,
     ) -> Result<Response, ContractError> {
+        // If not admin, check if it's an approved library
+        ensure!(
+            cw_ownable::is_owner(deps.storage, &info.sender)?
+                || APPROVED_LIBRARIES.has(deps.storage, info.sender.clone()),
+            ContractError::Unauthorized(UnauthorizedReason::NotAdminOrApprovedLibrary)
+        );
+
         // store the value
         BLOB_STORE.save(deps.storage, key.clone(), &value)?;
 
