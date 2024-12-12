@@ -5309,6 +5309,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-middleware-utils"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 2.1.4",
+]
+
+[[package]]
 name = "valence-neutron-ibc-transfer-library"
 version = "0.1.0"
 dependencies = [

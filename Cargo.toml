@@ -90,6 +90,7 @@ valence-program-registry-utils = { path = "packages/program-registry-utils" }
 valence-program-manager        = { path = "program-manager" }
 valence-program-registry       = { path = "contracts/program-registry", features = ["library"] }
 valence-icq-lib-utils          = { path = "packages/icq-querier-utils" }
+valence-middleware-utils       = { path = "packages/middleware-utils" }
 
 # domain type registries
 valence-osmosis-type-registry = { path = "contracts/domain_type_registries/osmo_registry", features = ["library"] }

@@ -1,0 +1,10 @@
+[package]
+name        = "valence-middleware-utils"
+version     = { workspace = true }
+edition     = { workspace = true }
+authors     = ["Timewave Labs"]
+description = "valence middleware utilities"
+
+[dependencies]
+cosmwasm-std    = { workspace = true }
+cosmwasm-schema = { workspace = true }
