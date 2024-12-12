@@ -1,4 +1,4 @@
-use cosmwasm_std::{from_base64, from_json, to_json_string, Binary, StdError, StdResult};
+use cosmwasm_std::{to_json_string, Binary, StdError, StdResult};
 use neutron_sdk::{
     bindings::types::KVKey,
     interchain_queries::{
@@ -7,8 +7,6 @@ use neutron_sdk::{
         v047::{helpers::create_account_denom_balance_key, types::BANK_STORE_KEY},
     },
 };
-use osmosis_std::{shim::Any, types::cosmos::bank::v1beta1::QueryBalanceResponse};
-use prost::Message;
 use serde_json::Value;
 use valence_icq_lib_utils::{get_str_query_param, QueryReconstructionRequest};
 

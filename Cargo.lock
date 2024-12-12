@@ -5309,6 +5309,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-middleware-osmosis"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 2.1.4",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "neutron-sdk",
+ "osmosis-std",
+ "osmosis-std-derive",
+ "osmosis-test-tube",
+ "prost 0.13.3",
+ "prost-types 0.13.3",
+ "serde-json-wasm 1.0.1",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "valence-middleware-utils"
 version = "0.1.0"
 dependencies = [
