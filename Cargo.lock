@@ -2568,12 +2568,15 @@ dependencies = [
  "valence-forwarder-library",
  "valence-generic-ibc-transfer-library",
  "valence-ibc-utils",
+ "valence-icq-lib-utils",
+ "valence-icq-querier",
  "valence-library-utils",
  "valence-neutron-ibc-transfer-library",
  "valence-osmosis-cl-lper",
  "valence-osmosis-cl-withdrawer",
  "valence-osmosis-gamm-lper",
  "valence-osmosis-gamm-withdrawer",
+ "valence-osmosis-type-registry",
  "valence-osmosis-utils",
  "valence-processor",
  "valence-processor-utils",
@@ -5213,6 +5216,49 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-icq-lib-utils"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 2.1.4",
+ "cw-denom",
+ "cw-multi-test",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "cw-utils 2.0.0",
+ "cw20 2.0.0",
+ "cw20-base",
+ "neutron-sdk",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "thiserror 1.0.69",
+ "valence-account-utils",
+ "valence-base-account",
+ "valence-macros",
+]
+
+[[package]]
+name = "valence-icq-querier"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 2.1.4",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "cw20 2.0.0",
+ "neutron-sdk",
+ "serde-json-wasm 1.0.1",
+ "serde_json",
+ "thiserror 1.0.69",
+ "valence-icq-lib-utils",
+ "valence-library-base",
+ "valence-library-utils",
+ "valence-macros",
+ "valence-osmosis-type-registry",
+]
+
+[[package]]
 name = "valence-library-base"
 version = "0.1.0"
 dependencies = [
@@ -5366,6 +5412,27 @@ dependencies = [
  "valence-library-utils",
  "valence-macros",
  "valence-osmosis-gamm-lper",
+ "valence-osmosis-utils",
+]
+
+[[package]]
+name = "valence-osmosis-type-registry"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 2.1.4",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "cw20 2.0.0",
+ "neutron-sdk",
+ "osmosis-std",
+ "osmosis-test-tube",
+ "prost 0.13.3",
+ "prost-types 0.13.3",
+ "serde-json-wasm 1.0.1",
+ "serde_json",
+ "thiserror 1.0.69",
+ "valence-icq-lib-utils",
  "valence-osmosis-utils",
 ]
 

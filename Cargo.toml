@@ -6,6 +6,7 @@ members = [
     "contracts/processor",
     "contracts/testing/*",
     "contracts/program-registry",
+    "contracts/domain_type_registries/*",
     "packages/*",
     "program-manager",
     "local-interchaintest",
@@ -72,6 +73,7 @@ valence-osmosis-gamm-lper            = { path = "contracts/libraries/osmosis-gam
 valence-osmosis-gamm-withdrawer      = { path = "contracts/libraries/osmosis-gamm-withdrawer", features = ["library"] }
 valence-osmosis-cl-lper              = { path = "contracts/libraries/osmosis-cl-lper", features = ["library"] }
 valence-osmosis-cl-withdrawer        = { path = "contracts/libraries/osmosis-cl-withdrawer", features = ["library"] }
+valence-icq-querier                  = { path = "contracts/libraries/icq-querier", features = ["library"] }
 
 # our packages
 valence-account-utils          = { path = "packages/account-utils" }
@@ -87,6 +89,10 @@ valence-library-utils          = { path = "packages/library-utils" }
 valence-program-registry-utils = { path = "packages/program-registry-utils" }
 valence-program-manager        = { path = "program-manager" }
 valence-program-registry       = { path = "contracts/program-registry", features = ["library"] }
+valence-icq-lib-utils          = { path = "packages/icq-querier-utils" }
+
+# domain type registries
+valence-osmosis-type-registry = { path = "contracts/domain_type_registries/osmo_registry", features = ["library"] }
 
 # dev-dependencies
 cw-multi-test        = { version = "2.1.1", features = ["cosmwasm_1_4"] }

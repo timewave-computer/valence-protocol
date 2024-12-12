@@ -1,0 +1,32 @@
+[package]
+name       = "valence-icq-querier"
+authors    = { workspace = true }
+edition    = { workspace = true }
+license    = { workspace = true }
+version    = { workspace = true }
+repository = { workspace = true }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# use library feature to disable all instantiate/execute/query exports
+library = []
+
+[dependencies]
+cosmwasm-std          = { workspace = true }
+cosmwasm-schema       = { workspace = true }
+cw-ownable            = { workspace = true }
+valence-macros        = { workspace = true }
+valence-library-utils = { workspace = true }
+valence-library-base  = { workspace = true }
+neutron-sdk           = { workspace = true }
+serde-json-wasm       = { version = "1.0.0", default-features = false }
+cw-storage-plus       = { workspace = true }
+thiserror             = { workspace = true }
+serde_json            = { workspace = true }
+valence-osmosis-type-registry = { workspace = true }
+valence-icq-lib-utils = { workspace = true }
+
+[dev-dependencies]
+cw20                  = { workspace = true }
