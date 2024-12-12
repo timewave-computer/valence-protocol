@@ -1,0 +1,2 @@
+forge-std/=dependencies/forge-std-1.9.4/
+hyperlane/=dependencies/hyperlane-5.8.3/solidity/contracts
