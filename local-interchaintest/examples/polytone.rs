@@ -411,6 +411,77 @@ fn main() -> Result<(), Box<dyn Error>> {
         &PolytoneProxyState::TimedOut,
     );
 
+    // Stop relayer again
+    test_ctx.stop_relayer();
+
+    info!("Retrying proxy creation...");
+    // If we retry the proxy creation now, it should update the state to PendingResponse
+    let retry_proxy_creation_msg_on_authorization_contract =
+        valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+            valence_authorization_utils::msg::PermissionlessMsg::RetryBridgeCreation {
+                domain_name: "juno".to_string(),
+            },
+        );
+
+    let retry_proxy_creation_on_juno_processor =
+        valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+            valence_processor_utils::msg::PermissionlessMsg::RetryBridgeCreation {},
+        );
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &predicted_authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&retry_proxy_creation_msg_on_authorization_contract).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(JUNO_CHAIN_NAME),
+        &predicted_processor_on_juno_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&retry_proxy_creation_on_juno_processor).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+
+    verify_proxy_state_on_processor(
+        &mut test_ctx,
+        &predicted_processor_on_juno_address,
+        &PolytoneProxyState::PendingResponse,
+    );
+
+    verify_proxy_state_on_authorization(
+        &mut test_ctx,
+        &predicted_authorization_contract_address,
+        &PolytoneProxyState::PendingResponse,
+    );
+
+    // Let's make sure that when we start the relayer, the packets will time out again
+    std::thread::sleep(Duration::from_secs(TIMEOUT_SECONDS));
+
+    // Start the relayer again
+    restart_relayer(&mut test_ctx);
+
+    // The proxy creation from the processor should have timed out
+    verify_proxy_state_on_processor(
+        &mut test_ctx,
+        &predicted_processor_on_juno_address,
+        &PolytoneProxyState::TimedOut,
+    );
+
+    // The proxy creation for the external domain that we added on the authorization contract should have timed out too
+    verify_proxy_state_on_authorization(
+        &mut test_ctx,
+        &predicted_authorization_contract_address,
+        &PolytoneProxyState::TimedOut,
+    );
+
     info!("Retrying proxy creation...");
     // If we retry the proxy creation now, it should succeed and it should create the proxy on both domains
     let retry_proxy_creation_msg_on_authorization_contract =
