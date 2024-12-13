@@ -1,12 +1,21 @@
-// TODO: declare select types for osmosis-std
+use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_std::Binary;
 
-use cosmwasm_schema::cw_serde;
+use crate::xyk::ValenceXykPool;
 
 #[cw_serde]
 pub struct InstantiateMsg {}
-
 #[cw_serde]
 pub enum ExecuteMsg {}
 
 #[cw_serde]
-pub enum QueryMsg {}
+#[derive(QueryResponses)]
+pub enum QueryMsg {
+    /// serialize a message to binary
+    #[returns(Binary)]
+    Serialize { obj: ValenceXykPool },
+    /// deserialize a message from binary/bytes
+    #[returns(ValenceXykPool)]
+    Deserialize { type_url: String, binary: Binary },
+    // TODO: transform an outdated type to a new version
+}
