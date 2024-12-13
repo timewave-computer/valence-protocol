@@ -73,6 +73,31 @@ library QueueMap {
     }
 
     /**
+     * @dev Calculates the number of 32-byte storage slots needed for a given byte length
+     * @param byteLength The length of data in bytes that needs to be stored
+     * @return uint256 Number of storage slots required
+     *
+     * @notice Mathematical explanation:
+     * 1. We use (length + 31) / 32 to calculate required slots because:
+     *    - Each storage slot is exactly 32 bytes
+     *    - We need to round up for any partial slots
+     *
+     * 2. Example calculations:
+     *    - For 32 bytes: (32 + 31) / 32 = 63 / 32 = 1 slot
+     *    - For 33 bytes: (33 + 31) / 32 = 64 / 32 = 2 slots
+     *    - For 64 bytes: (64 + 31) / 32 = 95 / 32 = 2 slots
+     *    - For 65 bytes: (65 + 31) / 32 = 96 / 32 = 3 slots
+     *
+     * 3. The +31 ensures proper rounding up because:
+     *    - Integer division rounds down by default
+     *    - Adding 31 ensures we get the ceiling when dividing by 32
+     *    - This guarantees we have enough slots for all data
+     */
+    function calculateRequiredSlots(uint256 byteLength) internal pure returns (uint256) {
+        return (byteLength + 31) / 32;
+    }
+
+    /**
      * @dev Adds an element to the end of the queue
      * @param self The queue to add to
      * @param value The data to store (encoded as bytes)
@@ -99,7 +124,7 @@ library QueueMap {
         }
 
         // Calculate number of 32-byte slots needed and store data
-        uint256 numSlots = (length + 31) / 32;
+        uint256 numSlots = calculateRequiredSlots(length);
         for (uint256 i = 0; i < numSlots; i++) {
             bytes32 slot = keccak256(abi.encodePacked(baseSlot, i));
             assembly {
@@ -141,7 +166,7 @@ library QueueMap {
 
         // Allocate memory and read data chunks
         bytes memory value = new bytes(length);
-        uint256 numSlots = (length + 31) / 32;
+        uint256 numSlots = calculateRequiredSlots(length);
 
         for (uint256 i = 0; i < numSlots; i++) {
             bytes32 slot = keccak256(abi.encodePacked(baseSlot, i));
@@ -239,7 +264,7 @@ library QueueMap {
             }
 
             // Copy all data chunks
-            uint256 numSlots = (elementLength + 31) / 32;
+            uint256 numSlots = calculateRequiredSlots(elementLength);
             for (uint256 j = 0; j < numSlots; j++) {
                 bytes32 sourceSlot = keccak256(abi.encodePacked(sourceBaseSlot, j));
                 bytes32 targetSlot = keccak256(abi.encodePacked(targetBaseSlot, j));
@@ -266,7 +291,7 @@ library QueueMap {
             sstore(insertBaseSlot, insertLength)
         }
 
-        uint256 insertNumSlots = (insertLength + 31) / 32;
+        uint256 insertNumSlots = calculateRequiredSlots(insertLength);
         for (uint256 i = 0; i < insertNumSlots; i++) {
             bytes32 slot = keccak256(abi.encodePacked(insertBaseSlot, i));
             assembly {
@@ -329,7 +354,7 @@ library QueueMap {
         }
 
         bytes memory removedValue = new bytes(elementLength);
-        uint256 numSlots = (elementLength + 31) / 32;
+        uint256 numSlots = calculateRequiredSlots(elementLength);
         for (uint256 i = 0; i < numSlots; i++) {
             bytes32 slot = keccak256(abi.encodePacked(removeBaseSlot, i));
             assembly {
@@ -359,7 +384,7 @@ library QueueMap {
                 sstore(targetBaseSlot, nextLength)
             }
 
-            uint256 nextNumSlots = (nextLength + 31) / 32;
+            uint256 nextNumSlots = calculateRequiredSlots(nextLength);
             for (uint256 j = 0; j < nextNumSlots; j++) {
                 bytes32 sourceSlot = keccak256(abi.encodePacked(sourceBaseSlot, j));
                 bytes32 targetSlot = keccak256(abi.encodePacked(targetBaseSlot, j));
@@ -389,7 +414,7 @@ library QueueMap {
             sstore(lastBaseSlot, 0)
         }
 
-        uint256 lastNumSlots = (lastLength + 31) / 32;
+        uint256 lastNumSlots = calculateRequiredSlots(lastLength);
         for (uint256 i = 0; i < lastNumSlots; i++) {
             bytes32 slot = keccak256(abi.encodePacked(lastBaseSlot, i));
             assembly {
