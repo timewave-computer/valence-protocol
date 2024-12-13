@@ -15,7 +15,7 @@ contract ProcessorMessageTest is Test {
     bytes1 private constant MEDIUM_PRIORITY = 0x00;
     bytes1 private constant HIGH_PRIORITY = 0x01;
 
-    function testHeaderParsing() public {
+    function testHeaderParsing() public view {
         // Debug current message format
         bytes memory message = bytes.concat(
             ENQUEUE_TYPE, // 1 byte - index 0
@@ -51,7 +51,7 @@ contract ProcessorMessageTest is Test {
         assertEq(numMsgs, 2);
     }
 
-    function testMessageParsing() public {
+    function testMessageParsing() public view {
         // Create two sample messages
         bytes memory message1 = hex"0123456789";
         bytes memory message2 = hex"abcdef";
@@ -81,7 +81,7 @@ contract ProcessorMessageTest is Test {
         assertEq(result.messages[1], hex"abcdef");
     }
 
-    function testAtomicSubroutineParsing() public {
+    function testAtomicSubroutineParsing() public view {
         address testAddress = address(0x1234567890123456789012345678901234567890);
 
         // Create atomic subroutine data
@@ -127,7 +127,7 @@ contract ProcessorMessageTest is Test {
         assertEq(subroutines[0].atomic.retryLogic.interval, 10);
     }
 
-    function testNonAtomicSubroutineParsing() public {
+    function testNonAtomicSubroutineParsing() public view {
         address testAddress = address(0x1234567890123456789012345678901234567890);
         address callbackAddress = address(0x2234567890123456789012345678901234567890);
         bytes memory callbackMessage = hex"deadbeef";
@@ -192,7 +192,7 @@ contract ProcessorMessageTest is Test {
         assertEq(subroutines[0].nonAtomic.functions[0].callbackConfirmation.callbackMessage, callbackMessage);
     }
 
-    function testIndefiniteRetry() public {
+    function testIndefiniteRetry() public view {
         address testAddress = address(0x1234567890123456789012345678901234567890);
 
         // Create atomic subroutine data with indefinite retry
@@ -233,7 +233,7 @@ contract ProcessorMessageTest is Test {
         assertEq(subroutines[0].atomic.retryLogic.times.amount, 0);
     }
 
-    function testMultipleAtomicFunctions() public {
+    function testMultipleAtomicFunctions() public view {
         address testAddress1 = address(0x1234567890123456789012345678901234567890);
         address testAddress2 = address(0x2234567890123456789012345678901234567890);
 

@@ -24,4 +24,3 @@ contract ProcessorTest is Test {
         new Processor(MOCK_AUTH_CONTRACT, address(0));
     }
 }
-
