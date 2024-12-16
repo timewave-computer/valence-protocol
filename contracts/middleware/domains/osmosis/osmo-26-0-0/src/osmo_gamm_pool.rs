@@ -9,31 +9,38 @@ pub mod valence_xyk_type {
     use osmosis_std::types::osmosis::gamm::v1beta1::PoolParams;
     use osmosis_std::types::{cosmos::base::v1beta1::Coin, osmosis::gamm::v1beta1::PoolAsset};
 
+    const ADDRESS_KEY: &str = "address";
+    const ID_KEY: &str = "id";
+    const FUTURE_POOL_GOVERNOR_KEY: &str = "future_pool_governor";
+    const TOTAL_WEIGHT_KEY: &str = "total_weight";
+    const SHARES_DENOM_KEY: &str = "shares_denom";
+    const POOL_PARAMS_KEY: &str = "pool_params";
+
     impl TryFrom<Pool> for ValenceXykPool {
         type Error = StdError;
 
         fn try_from(pool: Pool) -> Result<Self, Self::Error> {
             // pack all the domain-specific fields
             let mut domain_specific_fields = BTreeMap::from([
-                ("address".to_string(), to_json_binary(&pool.address)?),
-                ("id".to_string(), to_json_binary(&pool.id)?),
+                (ADDRESS_KEY.to_string(), to_json_binary(&pool.address)?),
+                (ID_KEY.to_string(), to_json_binary(&pool.id)?),
                 (
-                    "future_pool_governor".to_string(),
+                    FUTURE_POOL_GOVERNOR_KEY.to_string(),
                     to_json_binary(&pool.future_pool_governor)?,
                 ),
                 (
-                    "total_weight".to_string(),
+                    TOTAL_WEIGHT_KEY.to_string(),
                     to_json_binary(&pool.total_weight)?,
                 ),
                 (
-                    "pool_params".to_string(),
+                    POOL_PARAMS_KEY.to_string(),
                     to_json_binary(&pool.pool_params)?,
                 ),
             ]);
 
             if let Some(shares) = &pool.total_shares {
                 domain_specific_fields
-                    .insert("shares_denom".to_string(), to_json_binary(&shares.denom)?);
+                    .insert(SHARES_DENOM_KEY.to_string(), to_json_binary(&shares.denom)?);
             }
 
             for asset in &pool.pool_assets {
@@ -77,24 +84,24 @@ pub mod valence_xyk_type {
         fn try_from(value: ValenceXykPool) -> Result<Self, Self::Error> {
             // unpack the pool address
             let address: String =
-                try_unpack_domain_specific_value("address", &value.domain_specific_fields)?;
+                try_unpack_domain_specific_value(ADDRESS_KEY, &value.domain_specific_fields)?;
 
             // unpack the pool id
-            let id: u64 = try_unpack_domain_specific_value("id", &value.domain_specific_fields)?;
+            let id: u64 = try_unpack_domain_specific_value(ID_KEY, &value.domain_specific_fields)?;
 
             // unpack the future pool governor
             let future_pool_governor: String = try_unpack_domain_specific_value(
-                "future_pool_governor",
+                FUTURE_POOL_GOVERNOR_KEY,
                 &value.domain_specific_fields,
             )?;
 
             // unpack the pool params
             let pool_params: Option<PoolParams> =
-                try_unpack_domain_specific_value("pool_params", &value.domain_specific_fields)?;
+                try_unpack_domain_specific_value(POOL_PARAMS_KEY, &value.domain_specific_fields)?;
 
             // unpack the shares denom and total shares amount before combining them to a proto coin
             let shares_denom: String =
-                try_unpack_domain_specific_value("shares_denom", &value.domain_specific_fields)?;
+                try_unpack_domain_specific_value(SHARES_DENOM_KEY, &value.domain_specific_fields)?;
             let shares_coin = Coin {
                 denom: shares_denom,
                 amount: value.total_shares,
@@ -102,7 +109,7 @@ pub mod valence_xyk_type {
 
             // unpack the total weight
             let total_weight: String =
-                try_unpack_domain_specific_value("total_weight", &value.domain_specific_fields)?;
+                try_unpack_domain_specific_value(TOTAL_WEIGHT_KEY, &value.domain_specific_fields)?;
 
             // unpack the pool assets
             let pool_assets: Vec<PoolAsset> = value
@@ -149,13 +156,13 @@ pub mod valence_xyk_type {
         #[test]
         fn test_try_into() {
             let domain_specific_fields = BTreeMap::from([
-                ("address".to_string(), to_json_binary("pool1").unwrap()),
-                ("id".to_string(), to_json_binary(&1).unwrap()),
+                (ADDRESS_KEY.to_string(), to_json_binary("pool1").unwrap()),
+                (ID_KEY.to_string(), to_json_binary(&1).unwrap()),
                 (
-                    "future_pool_governor".to_string(),
+                    FUTURE_POOL_GOVERNOR_KEY.to_string(),
                     to_json_binary("gov1").unwrap(),
                 ),
-                ("total_weight".to_string(), to_json_binary("100").unwrap()),
+                (TOTAL_WEIGHT_KEY.to_string(), to_json_binary("100").unwrap()),
                 (
                     "pool_asset_uatom_weight".to_string(),
                     to_json_binary("120").unwrap(),
@@ -165,11 +172,11 @@ pub mod valence_xyk_type {
                     to_json_binary("80").unwrap(),
                 ),
                 (
-                    "shares_denom".to_string(),
+                    SHARES_DENOM_KEY.to_string(),
                     to_json_binary("osmo/gamm/whatever").unwrap(),
                 ),
                 (
-                    "pool_params".to_string(),
+                    POOL_PARAMS_KEY.to_string(),
                     to_json_binary(&Some(PoolParams {
                         swap_fee: "0.003".to_string(),
                         exit_fee: "0.0".to_string(),
@@ -177,7 +184,7 @@ pub mod valence_xyk_type {
                     }))
                     .unwrap(),
                 ),
-                ("total_weight".to_string(), to_json_binary("100").unwrap()),
+                (TOTAL_WEIGHT_KEY.to_string(), to_json_binary("100").unwrap()),
             ]);
 
             let pool = ValenceXykPool {
