@@ -19,8 +19,12 @@ pub trait IcqIntegration {
 pub enum MiddlewareError {
     #[error("{0}")]
     Std(#[from] StdError),
-    // #[error("Processor is currently paused")]
-    // ProcessorPaused {},
+
+    #[error("{0}")]
+    ParseIntError(#[from] std::num::ParseIntError),
+
+    #[error("{0}")]
+    DecodeError(#[from] prost::DecodeError),
 }
 
 pub fn try_unpack_domain_specific_value<T>(

@@ -5,12 +5,21 @@ use cosmwasm_std::{ensure, Binary, Coin, Decimal, StdError, StdResult};
 
 use crate::MiddlewareError;
 
+pub trait ValenceXykAdapter {
+    type External;
+
+    fn try_to_canonical(&self) -> Result<ValenceXykPool, MiddlewareError>;
+    fn try_from_canonical(canonical: ValenceXykPool) -> Result<Self::External, MiddlewareError>;
+}
+
 #[cw_serde]
 pub struct ValenceXykPool {
     /// assets in the pool
     pub assets: Vec<Coin>,
+
     /// total amount of shares issued
     pub total_shares: String,
+
     /// any other fields that are unique to the external pool type
     /// being represented by this struct
     pub domain_specific_fields: BTreeMap<String, Binary>,
@@ -23,18 +32,16 @@ impl ValenceXykPool {
             StdError::generic_err("price can be calculated iff xyk pool contains exactly 2 assets")
         );
 
+        ensure!(
+            !self.assets[0].amount.is_zero() && !self.assets[1].amount.is_zero(),
+            StdError::generic_err("price can't be calculated if any of the assets amount is zero")
+        );
+
         let a = self.assets[0].amount;
         let b = self.assets[1].amount;
 
         Ok(Decimal::from_ratio(a, b))
     }
-}
-
-pub trait ValenceXykAdapter {
-    type External;
-
-    fn try_to_canonical(&self) -> Result<ValenceXykPool, MiddlewareError>;
-    fn try_from_canonical(canonical: ValenceXykPool) -> Result<Self::External, MiddlewareError>;
 }
 
 /*

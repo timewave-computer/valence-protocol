@@ -2,7 +2,7 @@ use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
 
 use std::collections::BTreeMap;
 
-use cosmwasm_std::{to_json_binary, Binary, StdError};
+use cosmwasm_std::{to_json_binary, Binary};
 use neutron_sdk::bindings::types::{InterchainQueryResult, KVKey};
 use osmosis_std::shim::Any;
 use valence_middleware_utils::{try_unpack_domain_specific_value, IcqIntegration, MiddlewareError};
@@ -30,12 +30,9 @@ impl IcqIntegration for OsmosisXykPool {
         query_id: String,
         icq_result: InterchainQueryResult,
     ) -> Result<Binary, MiddlewareError> {
-        let any_msg: Any = Any::decode(icq_result.kv_results[0].value.as_slice())
-            .map_err(|e| StdError::generic_err(e.to_string()))?;
+        let any_msg: Any = Any::decode(icq_result.kv_results[0].value.as_slice())?;
 
-        let osmo_pool: Pool = any_msg
-            .try_into()
-            .map_err(|_| StdError::generic_err("failed to decode pool from any"))?;
+        let osmo_pool: Pool = any_msg.try_into()?;
 
         let binary = to_json_binary(&osmo_pool)?;
 

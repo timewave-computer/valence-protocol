@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
+use cosmwasm_std::coin;
 use cosmwasm_std::to_json_binary;
-use cosmwasm_std::{coin, StdError};
 
 use osmosis_std::types::osmosis::gamm::v1beta1::{Pool, PoolParams};
 use osmosis_std::types::{cosmos::base::v1beta1::Coin, osmosis::gamm::v1beta1::PoolAsset};
@@ -53,10 +53,7 @@ impl ValenceXykAdapter for OsmosisXykPool {
         let mut assets = vec![];
         for asset in &self.0.pool_assets {
             if let Some(t) = &asset.token {
-                assets.push(coin(
-                    u128::from_str(&t.amount).map_err(|e| StdError::generic_err(e.to_string()))?,
-                    t.denom.to_string(),
-                ));
+                assets.push(coin(u128::from_str(&t.amount)?, t.denom.to_string()));
             }
         }
 
