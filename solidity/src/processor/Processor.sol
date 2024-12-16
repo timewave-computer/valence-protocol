@@ -44,8 +44,8 @@ contract Processor is IMessageRecipient {
         mailbox = _mailbox;
 
         // Initialize both queues with unique namespaces
-        highPriorityQueue = QueueMap.createQueue("HIGH_PRIORITY_QUEUE");
-        mediumPriorityQueue = QueueMap.createQueue("MEDIUM_PRIORITY_QUEUE");
+        highPriorityQueue = QueueMap.createQueue("HIGH");
+        mediumPriorityQueue = QueueMap.createQueue("MED");
     }
 
     // Implement the handle function
