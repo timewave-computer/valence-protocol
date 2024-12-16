@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Binary, Coin};
+use cosmwasm_std::{ensure, Binary, Coin, Decimal, StdError, StdResult};
 
 #[cw_serde]
 pub struct ValenceXykPool {
@@ -12,6 +12,27 @@ pub struct ValenceXykPool {
     /// any other fields that are unique to the external pool type
     /// being represented by this struct
     pub domain_specific_fields: BTreeMap<String, Binary>,
+}
+
+impl ValenceXykPool {
+    pub fn get_price(&self) -> StdResult<Decimal> {
+        ensure!(
+            self.assets.len() == 2,
+            StdError::generic_err("price can be calculated iff xyk pool contains exactly 2 assets")
+        );
+
+        let a = self.assets[0].amount;
+        let b = self.assets[1].amount;
+
+        Ok(Decimal::from_ratio(a, b))
+    }
+}
+
+pub trait ValenceXykAdapter {
+    type External;
+
+    fn try_to_canonical(&self) -> StdResult<ValenceXykPool>;
+    fn try_from_canonical(canonical: ValenceXykPool) -> StdResult<Self::External>;
 }
 
 /*

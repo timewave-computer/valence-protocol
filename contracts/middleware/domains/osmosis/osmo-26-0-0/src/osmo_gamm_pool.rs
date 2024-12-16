@@ -1,13 +1,19 @@
+use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
+pub struct OsmosisXykPool(pub Pool);
+
 pub mod valence_xyk_type {
     use std::collections::BTreeMap;
     use std::str::FromStr;
 
-    use crate::{middleware::try_unpack_domain_specific_value, xyk::ValenceXykPool};
-    use cosmwasm_std::to_json_binary;
-    use cosmwasm_std::{StdError, Uint128};
-    use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
-    use osmosis_std::types::osmosis::gamm::v1beta1::PoolParams;
+    use cosmwasm_std::Uint128;
+    use cosmwasm_std::{to_json_binary, StdResult};
+
+    use osmosis_std::types::osmosis::gamm::v1beta1::{Pool, PoolParams};
     use osmosis_std::types::{cosmos::base::v1beta1::Coin, osmosis::gamm::v1beta1::PoolAsset};
+    use valence_canonical_types::pools::xyk::{ValenceXykAdapter, ValenceXykPool};
+    use valence_canonical_types::try_unpack_domain_specific_value;
+
+    use super::OsmosisXykPool;
 
     const ADDRESS_KEY: &str = "address";
     const ID_KEY: &str = "id";
@@ -16,34 +22,34 @@ pub mod valence_xyk_type {
     const SHARES_DENOM_KEY: &str = "shares_denom";
     const POOL_PARAMS_KEY: &str = "pool_params";
 
-    impl TryFrom<Pool> for ValenceXykPool {
-        type Error = StdError;
+    impl ValenceXykAdapter for OsmosisXykPool {
+        type External = Pool;
 
-        fn try_from(pool: Pool) -> Result<Self, Self::Error> {
+        fn try_to_canonical(&self) -> StdResult<ValenceXykPool> {
             // pack all the domain-specific fields
             let mut domain_specific_fields = BTreeMap::from([
-                (ADDRESS_KEY.to_string(), to_json_binary(&pool.address)?),
-                (ID_KEY.to_string(), to_json_binary(&pool.id)?),
+                (ADDRESS_KEY.to_string(), to_json_binary(&self.0.address)?),
+                (ID_KEY.to_string(), to_json_binary(&self.0.id)?),
                 (
                     FUTURE_POOL_GOVERNOR_KEY.to_string(),
-                    to_json_binary(&pool.future_pool_governor)?,
+                    to_json_binary(&self.0.future_pool_governor)?,
                 ),
                 (
                     TOTAL_WEIGHT_KEY.to_string(),
-                    to_json_binary(&pool.total_weight)?,
+                    to_json_binary(&self.0.total_weight)?,
                 ),
                 (
                     POOL_PARAMS_KEY.to_string(),
-                    to_json_binary(&pool.pool_params)?,
+                    to_json_binary(&self.0.pool_params)?,
                 ),
             ]);
 
-            if let Some(shares) = &pool.total_shares {
+            if let Some(shares) = &self.0.total_shares {
                 domain_specific_fields
                     .insert(SHARES_DENOM_KEY.to_string(), to_json_binary(&shares.denom)?);
             }
 
-            for asset in &pool.pool_assets {
+            for asset in &self.0.pool_assets {
                 if let Some(token) = &asset.token {
                     domain_specific_fields.insert(
                         format!("pool_asset_{}_weight", token.denom),
@@ -52,8 +58,10 @@ pub mod valence_xyk_type {
                 }
             }
 
-            let assets = pool
+            let assets = self
+                .0
                 .pool_assets
+                .clone()
                 .into_iter()
                 .filter_map(|asset| {
                     asset.token.map(|token| {
@@ -65,8 +73,10 @@ pub mod valence_xyk_type {
                 })
                 .collect();
 
-            let total_shares = pool
+            let total_shares = self
+                .0
                 .total_shares
+                .clone()
                 .map(|shares| shares.amount)
                 .unwrap_or_default();
 
@@ -76,43 +86,46 @@ pub mod valence_xyk_type {
                 domain_specific_fields,
             })
         }
-    }
 
-    impl TryFrom<ValenceXykPool> for Pool {
-        type Error = StdError;
-
-        fn try_from(value: ValenceXykPool) -> Result<Self, Self::Error> {
+        fn try_from_canonical(canonical: ValenceXykPool) -> StdResult<Self::External> {
             // unpack the pool address
             let address: String =
-                try_unpack_domain_specific_value(ADDRESS_KEY, &value.domain_specific_fields)?;
+                try_unpack_domain_specific_value(ADDRESS_KEY, &canonical.domain_specific_fields)?;
 
             // unpack the pool id
-            let id: u64 = try_unpack_domain_specific_value(ID_KEY, &value.domain_specific_fields)?;
+            let id: u64 =
+                try_unpack_domain_specific_value(ID_KEY, &canonical.domain_specific_fields)?;
 
             // unpack the future pool governor
             let future_pool_governor: String = try_unpack_domain_specific_value(
                 FUTURE_POOL_GOVERNOR_KEY,
-                &value.domain_specific_fields,
+                &canonical.domain_specific_fields,
             )?;
 
             // unpack the pool params
-            let pool_params: Option<PoolParams> =
-                try_unpack_domain_specific_value(POOL_PARAMS_KEY, &value.domain_specific_fields)?;
+            let pool_params: Option<PoolParams> = try_unpack_domain_specific_value(
+                POOL_PARAMS_KEY,
+                &canonical.domain_specific_fields,
+            )?;
 
             // unpack the shares denom and total shares amount before combining them to a proto coin
-            let shares_denom: String =
-                try_unpack_domain_specific_value(SHARES_DENOM_KEY, &value.domain_specific_fields)?;
+            let shares_denom: String = try_unpack_domain_specific_value(
+                SHARES_DENOM_KEY,
+                &canonical.domain_specific_fields,
+            )?;
             let shares_coin = Coin {
                 denom: shares_denom,
-                amount: value.total_shares,
+                amount: canonical.total_shares,
             };
 
             // unpack the total weight
-            let total_weight: String =
-                try_unpack_domain_specific_value(TOTAL_WEIGHT_KEY, &value.domain_specific_fields)?;
+            let total_weight: String = try_unpack_domain_specific_value(
+                TOTAL_WEIGHT_KEY,
+                &canonical.domain_specific_fields,
+            )?;
 
             // unpack the pool assets
-            let pool_assets: Vec<PoolAsset> = value
+            let pool_assets: Vec<PoolAsset> = canonical
                 .assets
                 .iter()
                 .map(|asset| {
@@ -123,7 +136,7 @@ pub mod valence_xyk_type {
 
                     let weight: String = try_unpack_domain_specific_value(
                         &format!("pool_asset_{}_weight", asset.denom),
-                        &value.domain_specific_fields,
+                        &canonical.domain_specific_fields,
                     )
                     .unwrap();
 
@@ -150,7 +163,6 @@ pub mod valence_xyk_type {
     mod tests {
         use super::*;
         use cosmwasm_std::{coin, to_json_binary};
-        use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
         use std::collections::BTreeMap;
 
         #[test]
@@ -193,7 +205,7 @@ pub mod valence_xyk_type {
                 domain_specific_fields,
             };
 
-            let osmosis_pool: Pool = pool.try_into().unwrap();
+            let osmosis_pool = OsmosisXykPool::try_from_canonical(pool).unwrap();
 
             println!("osmosis_pool: {:?}", osmosis_pool);
             assert_eq!(osmosis_pool.address, "pool1");
@@ -243,8 +255,7 @@ pub mod valence_xyk_type {
                 total_weight: "100".to_string(),
             };
 
-            let valence_xyk_pool = ValenceXykPool::try_from(pool).unwrap();
-
+            let valence_xyk_pool = OsmosisXykPool(pool).try_to_canonical().unwrap();
             println!("parsed xyk pool: {:?}", valence_xyk_pool);
 
             assert_eq!(valence_xyk_pool.assets.len(), 2);
@@ -261,19 +272,14 @@ pub mod icq {
     use cosmwasm_std::{to_json_binary, Binary, StdError, StdResult};
     use neutron_sdk::bindings::types::{InterchainQueryResult, KVKey};
     use osmosis_std::{shim::Any, types::osmosis::gamm::v1beta1::Pool};
+    use valence_canonical_types::try_unpack_domain_specific_value;
+    use valence_middleware_utils::IcqIntegration;
 
-    use crate::middleware::try_unpack_domain_specific_value;
     use prost::Message;
 
-    pub trait IcqIntegration {
-        fn get_kv_key(&self, params: BTreeMap<String, Binary>) -> StdResult<KVKey>;
-        fn decode_and_reconstruct(
-            query_id: String,
-            icq_result: InterchainQueryResult,
-        ) -> StdResult<Binary>;
-    }
+    use super::OsmosisXykPool;
 
-    impl IcqIntegration for Pool {
+    impl IcqIntegration for OsmosisXykPool {
         fn get_kv_key(&self, params: BTreeMap<String, Binary>) -> StdResult<KVKey> {
             let pool_prefix_key: u8 = 0x02;
 
@@ -316,7 +322,7 @@ pub mod icq {
             let mut params = BTreeMap::new();
             params.insert("pool_id".to_string(), to_json_binary(&1u64).unwrap());
 
-            let kv_key = pool.get_kv_key(params).unwrap();
+            let kv_key = OsmosisXykPool(pool).get_kv_key(params).unwrap();
             let b64_key = "AgAAAAAAAAAB";
             let binary_key = Binary::from_base64(b64_key).unwrap();
 
@@ -339,7 +345,7 @@ pub mod icq {
                 value: binary_value,
             };
 
-            let osmo_pool_binary = Pool::decode_and_reconstruct(
+            let osmo_pool_binary = OsmosisXykPool::decode_and_reconstruct(
                 Pool::TYPE_URL.to_string(),
                 InterchainQueryResult {
                     kv_results: vec![storage_value],
@@ -405,10 +411,10 @@ mod tests {
     use cosmwasm_std::{from_json, Binary};
     use neutron_sdk::bindings::types::{InterchainQueryResult, StorageValue};
     use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
+    use valence_canonical_types::pools::xyk::ValenceXykAdapter;
+    use valence_middleware_utils::IcqIntegration;
 
-    use crate::xyk::ValenceXykPool;
-
-    use super::icq::IcqIntegration;
+    use crate::osmo_gamm_pool::OsmosisXykPool;
 
     #[test]
     fn e2e() {
@@ -425,7 +431,7 @@ mod tests {
         };
 
         // first we simulate the icq result reconstruction of b64(proto) -> type -> b64(type)
-        let osmo_pool_binary = Pool::decode_and_reconstruct(
+        let osmo_pool_binary = OsmosisXykPool::decode_and_reconstruct(
             Pool::TYPE_URL.to_string(),
             InterchainQueryResult {
                 kv_results: vec![storage_value],
@@ -439,7 +445,8 @@ mod tests {
         let osmo_pool: Pool = from_json(osmo_pool_binary).unwrap();
 
         // parse the external type into a valence type
-        let mut valence_pool: ValenceXykPool = osmo_pool.try_into().unwrap();
+
+        let mut valence_pool = OsmosisXykPool(osmo_pool).try_to_canonical().unwrap();
 
         // simulate modifying the pool instance
         valence_pool.assets.push(cosmwasm_std::coin(100, "batom"));
@@ -449,7 +456,7 @@ mod tests {
         );
 
         // convert the valence type back into the external type
-        let osmo_pool: Pool = valence_pool.try_into().unwrap();
+        let osmo_pool = OsmosisXykPool::try_from_canonical(valence_pool).unwrap();
 
         assert_eq!(osmo_pool.pool_assets.len(), 3);
     }

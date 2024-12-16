@@ -1,0 +1,11 @@
+[package]
+name        = "valence-canonical-types"
+version     = { workspace = true }
+edition     = { workspace = true }
+authors     = { workspace = true }
+description = "canonical types for Valence Protocol"
+
+[dependencies]
+cosmwasm-schema = { workspace = true }
+cosmwasm-std    = { workspace = true }
+serde           = { workspace = true }

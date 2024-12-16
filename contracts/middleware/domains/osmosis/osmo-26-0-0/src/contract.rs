@@ -5,11 +5,9 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
 };
+use valence_canonical_types::pools::xyk::ValenceXykPool;
 
-use crate::{
-    msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
-    xyk::ValenceXykPool,
-};
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");

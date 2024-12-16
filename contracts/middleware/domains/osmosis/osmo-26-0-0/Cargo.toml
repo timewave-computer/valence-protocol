@@ -26,6 +26,8 @@ serde-json-wasm       = { version = "1.0.0", default-features = false }
 thiserror             = { workspace = true }
 serde_json            = { workspace = true }
 cw-storage-plus       = { workspace = true }
+valence-canonical-types = { workspace = true }
+valence-middleware-utils = { workspace = true }
 
 [dev-dependencies]
 osmosis-test-tube     = { workspace = true }

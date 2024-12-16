@@ -5156,6 +5156,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-canonical-types"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.1.4",
+ "cosmwasm-std 2.1.4",
+ "serde",
+]
+
+[[package]]
 name = "valence-forwarder-library"
 version = "0.1.0"
 dependencies = [
@@ -5325,6 +5334,8 @@ dependencies = [
  "serde-json-wasm 1.0.1",
  "serde_json",
  "thiserror 1.0.69",
+ "valence-canonical-types",
+ "valence-middleware-utils",
 ]
 
 [[package]]
@@ -5333,6 +5344,8 @@ version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 2.1.4",
  "cosmwasm-std 2.1.4",
+ "neutron-sdk",
+ "valence-canonical-types",
 ]
 
 [[package]]
