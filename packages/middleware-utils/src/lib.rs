@@ -3,7 +3,10 @@ use std::collections::BTreeMap;
 use thiserror::Error;
 
 use cosmwasm_std::{from_json, Binary, StdError, StdResult};
-use neutron_sdk::bindings::types::{InterchainQueryResult, KVKey};
+use neutron_sdk::{
+    bindings::types::{InterchainQueryResult, KVKey},
+    NeutronError,
+};
 
 pub mod canonical_types;
 
@@ -25,6 +28,9 @@ pub enum MiddlewareError {
 
     #[error("{0}")]
     DecodeError(#[from] prost::DecodeError),
+
+    #[error("{0}")]
+    NeutronError(#[from] NeutronError),
 }
 
 pub fn try_unpack_domain_specific_value<T>(

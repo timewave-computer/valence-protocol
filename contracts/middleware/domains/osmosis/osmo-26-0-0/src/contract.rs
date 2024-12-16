@@ -7,7 +7,10 @@ use cosmwasm_std::{
 };
 use valence_middleware_utils::canonical_types::pools::xyk::ValenceXykPool;
 
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::{
+    definitions::ValenceType,
+    msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
+};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -44,14 +47,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     }
 }
 
-fn try_serialize_obj(object: ValenceXykPool) -> StdResult<Binary> {
+fn try_serialize_obj(object: ValenceType) -> StdResult<Binary> {
     Ok(Binary::new("a".as_bytes().to_vec()))
 }
 
-fn try_deserialize_type_url(type_url: String, binary: Binary) -> StdResult<ValenceXykPool> {
-    Ok(ValenceXykPool {
+fn try_deserialize_type_url(type_url: String, binary: Binary) -> StdResult<ValenceType> {
+    Ok(ValenceType::ValenceXykPool(ValenceXykPool {
         assets: vec![],
         total_shares: "hi".to_string(),
         domain_specific_fields: BTreeMap::new(),
-    })
+    }))
 }
