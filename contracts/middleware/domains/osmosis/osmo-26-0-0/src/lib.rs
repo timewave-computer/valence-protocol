@@ -1,3 +1,3 @@
 pub mod contract;
+pub mod definitions;
 pub mod msg;
-pub mod osmo_gamm_pool;

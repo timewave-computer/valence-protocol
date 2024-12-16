@@ -8,5 +8,6 @@ description = "valence middleware utilities"
 [dependencies]
 cosmwasm-std    = { workspace = true }
 cosmwasm-schema = { workspace = true }
-valence-canonical-types = { workspace = true }
+# valence-canonical-types = { workspace = true }
 neutron-sdk    = { workspace = true }
+thiserror       = { workspace = true }

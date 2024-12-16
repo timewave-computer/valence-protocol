@@ -3,6 +3,8 @@ use std::collections::BTreeMap;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{ensure, Binary, Coin, Decimal, StdError, StdResult};
 
+use crate::MiddlewareError;
+
 #[cw_serde]
 pub struct ValenceXykPool {
     /// assets in the pool
@@ -31,8 +33,8 @@ impl ValenceXykPool {
 pub trait ValenceXykAdapter {
     type External;
 
-    fn try_to_canonical(&self) -> StdResult<ValenceXykPool>;
-    fn try_from_canonical(canonical: ValenceXykPool) -> StdResult<Self::External>;
+    fn try_to_canonical(&self) -> Result<ValenceXykPool, MiddlewareError>;
+    fn try_from_canonical(canonical: ValenceXykPool) -> Result<Self::External, MiddlewareError>;
 }
 
 /*

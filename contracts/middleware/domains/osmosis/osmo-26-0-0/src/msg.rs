@@ -1,6 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Binary;
-use valence_canonical_types::pools::xyk::ValenceXykPool;
+use valence_middleware_utils::canonical_types::pools::xyk::ValenceXykPool;
 
 #[cw_serde]
 pub struct InstantiateMsg {}
