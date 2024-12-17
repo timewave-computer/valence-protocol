@@ -7,7 +7,7 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use valence_encoder_utils::msg::QueryMsg;
 
-use crate::{error::ContractError, EVMLibrary};
+use crate::{error::ContractError, EVMLibraryFunction};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -50,7 +50,7 @@ pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 fn is_valid_encoding_info(library: String, function: String) -> bool {
-    EVMLibrary::is_valid(&library, &function)
+    EVMLibraryFunction::is_valid(&library, &function)
 }
 
 fn encode(_library: String, _function: String, _msg: Binary) -> StdResult<Binary> {
