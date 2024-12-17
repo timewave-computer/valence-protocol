@@ -47,18 +47,24 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::RegisterEncoder { version, address } => {
+            cw_ownable::assert_owner(deps.storage, &info.sender)?;
+
             ENCODERS.save(
                 deps.storage,
                 version.clone(),
                 &deps.api.addr_validate(&address)?,
             )?;
+
             Ok(Response::new()
                 .add_attribute("method", "register_encoder")
                 .add_attribute("address", address)
                 .add_attribute("version", version))
         }
         ExecuteMsg::RemoveEncoder { version } => {
+            cw_ownable::assert_owner(deps.storage, &info.sender)?;
+
             ENCODERS.remove(deps.storage, version.clone());
+
             Ok(Response::new()
                 .add_attribute("method", "remove_encoder")
                 .add_attribute("version", version))
