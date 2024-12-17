@@ -18,3 +18,5 @@ cw-storage-plus       = { workspace = true }
 cw2                   = { workspace = true }
 thiserror             = { workspace = true }
 valence-encoder-utils = { workspace = true }
+alloy-sol-types       = "0.8.15"
+strum                 = { version = "0.26.3", features = ["derive"] }

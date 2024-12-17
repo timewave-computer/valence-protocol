@@ -7,7 +7,7 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use valence_encoder_utils::msg::QueryMsg;
 
-use crate::error::ContractError;
+use crate::{error::ContractError, EVMLibrary};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -36,23 +36,23 @@ pub fn execute(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::IsValidEncodingInfo { library, function } => {
-            to_json_binary(&is_valid_encoding_info(deps, library, function)?)
+            to_json_binary(&is_valid_encoding_info(library, function))
         }
         QueryMsg::Encode {
             library,
             function,
             msg,
-        } => to_json_binary(&encode(deps, library, function, msg)?),
+        } => to_json_binary(&encode(library, function, msg)?),
     }
 }
 
-fn is_valid_encoding_info(deps: Deps, library: String, function: String) -> StdResult<bool> {
-    todo!()
+fn is_valid_encoding_info(library: String, function: String) -> bool {
+    EVMLibrary::is_valid(&library, &function)
 }
 
-fn encode(deps: Deps, library: String, function: String, msg: Binary) -> StdResult<Binary> {
+fn encode(_library: String, _function: String, _msg: Binary) -> StdResult<Binary> {
     todo!()
 }
