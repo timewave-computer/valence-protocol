@@ -19,7 +19,7 @@ mod tests {
     use neutron_sdk::bindings::types::{InterchainQueryResult, StorageValue};
     use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
     use valence_middleware_utils::{
-        canonical_types::pools::xyk::ValenceXykAdapter, IcqIntegration,
+        canonical_types::ValenceTypeAdapter, type_registry::types::ValenceType, IcqIntegration,
     };
 
     use crate::definitions::gamm_pool::{OsmosisXykPool, STORAGE_PREFIX};
@@ -54,7 +54,12 @@ mod tests {
 
         // parse the external type into a valence type
 
-        let mut valence_pool = OsmosisXykPool(osmo_pool).try_to_canonical().unwrap();
+        let canonical_valence_pool = OsmosisXykPool(osmo_pool).try_to_canonical().unwrap();
+
+        let mut valence_pool = match canonical_valence_pool.clone() {
+            ValenceType::XykPool(pool) => pool,
+            _ => panic!("unexpected type"),
+        };
 
         // simulate modifying the pool instance
         valence_pool.assets.push(cosmwasm_std::coin(100, "batom"));
@@ -64,7 +69,7 @@ mod tests {
         );
 
         // convert the valence type back into the external type
-        let osmo_pool = OsmosisXykPool::try_from_canonical(valence_pool).unwrap();
+        let osmo_pool = OsmosisXykPool::try_from_canonical(canonical_valence_pool).unwrap();
 
         assert_eq!(osmo_pool.pool_assets.len(), 3);
     }
