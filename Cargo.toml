@@ -7,6 +7,7 @@ members = [
     "contracts/testing/*",
     "contracts/program-registry",
     "contracts/middleware/domains/osmosis/osmo-26-0-0",
+    "contracts/middleware/brokers/osmo-broker",
     "packages/*",
     "program-manager",
     "local-interchaintest",
@@ -77,6 +78,7 @@ valence-icq-querier                  = { path = "contracts/libraries/icq-querier
 
 # middleware
 valence-middleware-osmosis           = { path = "contracts/middleware/domains/osmosis/osmo-26-0-0", features = ["library"] }
+valence-middleware-broker-osmosis    = { path = "contracts/middleware/brokers/osmo-broker", features = ["library"] }
 
 # our packages
 valence-account-utils          = { path = "packages/account-utils" }

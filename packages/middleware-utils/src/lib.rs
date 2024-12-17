@@ -8,6 +8,7 @@ use neutron_sdk::{
     NeutronError,
 };
 
+pub mod broker;
 pub mod canonical_types;
 
 pub trait IcqIntegration {
