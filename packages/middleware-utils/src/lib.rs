@@ -10,16 +10,17 @@ use neutron_sdk::{
 
 pub mod broker;
 pub mod canonical_types;
+pub mod type_registry;
 
 pub trait IcqIntegration {
-    fn get_kv_key(&self, params: BTreeMap<String, Binary>) -> Result<KVKey, MiddlewareError>;
+    fn get_kv_key(params: BTreeMap<String, Binary>) -> Result<KVKey, MiddlewareError>;
     fn decode_and_reconstruct(
         query_id: String,
         icq_result: InterchainQueryResult,
     ) -> Result<Binary, MiddlewareError>;
 }
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug)]
 pub enum MiddlewareError {
     #[error("{0}")]
     Std(#[from] StdError),
@@ -27,11 +28,14 @@ pub enum MiddlewareError {
     #[error("{0}")]
     ParseIntError(#[from] std::num::ParseIntError),
 
-    #[error("{0}")]
-    DecodeError(#[from] prost::DecodeError),
+    #[error("failed to decode proto: {0}")]
+    DecodeError(String),
 
     #[error("{0}")]
     NeutronError(#[from] NeutronError),
+
+    #[error("{0}")]
+    SemverError(#[from] semver::Error),
 }
 
 pub fn try_unpack_domain_specific_value<T>(

@@ -11,3 +11,4 @@ cosmwasm-schema = { workspace = true }
 neutron-sdk     = { workspace = true }
 thiserror       = { workspace = true }
 prost           = { workspace = true }
+semver          = { workspace = true }

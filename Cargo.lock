@@ -3928,9 +3928,9 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "1.0.23"
+version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61697e0a1c7e512e84a621326239844a24d8207b4669b41bc18b32ea5cbf988b"
+checksum = "3cb6eb87a131f756572d7fb904f6e7b68633f09cca868c5df1c4b8d1a694bbba"
 
 [[package]]
 name = "serde"
@@ -5322,6 +5322,7 @@ dependencies = [
  "osmosis-test-tube",
  "prost 0.13.3",
  "prost-types 0.13.3",
+ "semver",
  "serde-json-wasm 1.0.1",
  "serde_json",
  "thiserror 1.0.69",
@@ -5356,6 +5357,7 @@ dependencies = [
  "cosmwasm-std 2.1.4",
  "neutron-sdk",
  "prost 0.13.3",
+ "semver",
  "thiserror 1.0.69",
 ]
 

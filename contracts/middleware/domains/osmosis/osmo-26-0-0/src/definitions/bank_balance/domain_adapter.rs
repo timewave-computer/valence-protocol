@@ -17,7 +17,7 @@ use valence_middleware_utils::{try_unpack_domain_specific_value, IcqIntegration,
 use super::{OsmosisBankBalance, ADDR_KEY, DENOM_KEY};
 
 impl IcqIntegration for OsmosisBankBalance {
-    fn get_kv_key(&self, params: BTreeMap<String, Binary>) -> Result<KVKey, MiddlewareError> {
+    fn get_kv_key(params: BTreeMap<String, Binary>) -> Result<KVKey, MiddlewareError> {
         let addr: String = try_unpack_domain_specific_value(ADDR_KEY, &params)?;
         let denom: String = try_unpack_domain_specific_value(DENOM_KEY, &params)?;
 
@@ -32,7 +32,7 @@ impl IcqIntegration for OsmosisBankBalance {
     }
 
     fn decode_and_reconstruct(
-        query_id: String,
+        _query_id: String,
         icq_result: InterchainQueryResult,
     ) -> Result<Binary, MiddlewareError> {
         let balances: Balances = KVReconstruct::reconstruct(&icq_result.kv_results)?;
@@ -50,7 +50,6 @@ mod tests {
 
     #[test]
     fn test_get_kv_key() {
-        let qb_response = QueryBalanceResponse::default();
         let mut params = BTreeMap::new();
 
         params.insert(
@@ -59,7 +58,7 @@ mod tests {
         );
         params.insert(DENOM_KEY.to_string(), to_json_binary(&"uosmo").unwrap());
 
-        let kvk_response = OsmosisBankBalance(qb_response).get_kv_key(params).unwrap();
+        let kvk_response = OsmosisBankBalance::get_kv_key(params).unwrap();
 
         let key_binary = Binary::from_base64("AhS8qJZnI6YkudXN06CxcRJLTC+8wXVvc21v").unwrap();
 

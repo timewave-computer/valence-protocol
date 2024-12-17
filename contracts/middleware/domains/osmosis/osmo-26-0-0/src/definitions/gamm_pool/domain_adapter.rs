@@ -2,7 +2,7 @@ use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
 
 use std::collections::BTreeMap;
 
-use cosmwasm_std::{to_json_binary, Binary};
+use cosmwasm_std::{to_json_binary, Binary, StdError};
 use neutron_sdk::bindings::types::{InterchainQueryResult, KVKey};
 use osmosis_std::shim::Any;
 use valence_middleware_utils::{try_unpack_domain_specific_value, IcqIntegration, MiddlewareError};
@@ -12,7 +12,7 @@ use prost::Message;
 use super::{OsmosisXykPool, STORAGE_PREFIX};
 
 impl IcqIntegration for OsmosisXykPool {
-    fn get_kv_key(&self, params: BTreeMap<String, Binary>) -> Result<KVKey, MiddlewareError> {
+    fn get_kv_key(params: BTreeMap<String, Binary>) -> Result<KVKey, MiddlewareError> {
         let pool_prefix_key: u8 = 0x02;
 
         let id: u64 = try_unpack_domain_specific_value("pool_id", &params)?;
@@ -27,12 +27,15 @@ impl IcqIntegration for OsmosisXykPool {
     }
 
     fn decode_and_reconstruct(
-        query_id: String,
+        _query_id: String,
         icq_result: InterchainQueryResult,
     ) -> Result<Binary, MiddlewareError> {
-        let any_msg: Any = Any::decode(icq_result.kv_results[0].value.as_slice())?;
+        let any_msg: Any = Any::decode(icq_result.kv_results[0].value.as_slice())
+            .map_err(|e| MiddlewareError::DecodeError(e.to_string()))?;
 
-        let osmo_pool: Pool = any_msg.try_into()?;
+        let osmo_pool: Pool = any_msg
+            .try_into()
+            .map_err(|_| StdError::generic_err("failed to parse into pool"))?;
 
         let binary = to_json_binary(&osmo_pool)?;
 
@@ -49,11 +52,10 @@ mod tests {
 
     #[test]
     fn test_get_kv_key() {
-        let pool = Pool::default();
         let mut params = BTreeMap::new();
         params.insert("pool_id".to_string(), to_json_binary(&1u64).unwrap());
 
-        let kv_key = OsmosisXykPool(pool).get_kv_key(params).unwrap();
+        let kv_key = OsmosisXykPool::get_kv_key(params).unwrap();
         let b64_key = "AgAAAAAAAAAB";
         let binary_key = Binary::from_base64(b64_key).unwrap();
 
