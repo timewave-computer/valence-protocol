@@ -37,7 +37,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, MiddlewareError> {
     match msg {
-        ExecuteMsg::SetLatestRegistry { version, address } => {
+        ExecuteMsg::SetRegistry { version, address } => {
             try_add_new_registry(deps, version, address)
         }
     }
@@ -56,6 +56,9 @@ fn try_add_new_registry(
         version: version.to_string(),
     };
 
+    // TODO: likely here we will need to "couple" the new type
+    // with the previous one to know the type update route
+
     ACTIVE_REGISTRIES.save(deps.storage, version.to_string(), &type_registry)?;
     LATEST.save(deps.storage, &version.to_string())?;
 
@@ -64,32 +67,40 @@ fn try_add_new_registry(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {
-        QueryMsg::DecodeProto {
-            registry_version,
+    // if version is specified, we use that. otherwise default to latest.
+    let target_version = match msg.registry_version {
+        Some(version) => version,
+        None => LATEST.load(deps.storage)?,
+    };
+    // load the target registry
+    let registry = ACTIVE_REGISTRIES.load(deps.storage, target_version)?;
+
+    match msg.query {
+        RegistryQueryMsg::ReconstructProto {
             query_id,
             icq_result,
-        } => try_decode_proto(deps, registry_version, query_id, icq_result),
-        QueryMsg::GetKVKey {
-            registry_version,
+        } => try_decode_proto(
+            deps,
+            registry.registry_address.to_string(),
             query_id,
-            params,
-        } => try_get_kv_key(deps, registry_version, query_id, params),
-        QueryMsg::ToCanonical {} => try_to_canonical(),
-        QueryMsg::FromCanonical {} => try_from_canonical(),
+            icq_result,
+        ),
+        RegistryQueryMsg::KVKey { type_id, params } => {
+            try_get_kv_key(deps, registry.registry_address.to_string(), type_id, params)
+        }
+        RegistryQueryMsg::ToCanonical { type_url, binary } => try_to_canonical(),
+        RegistryQueryMsg::FromCanonical { obj } => try_from_canonical(),
     }
 }
 
 fn try_decode_proto(
     deps: Deps,
-    registry_version: Option<String>,
+    registry: String,
     query_id: String,
     icq_result: InterchainQueryResult,
 ) -> StdResult<Binary> {
-    let target_registry = get_target_registry(deps, registry_version)?;
-
     let resp: NativeTypeWrapper = deps.querier.query_wasm_smart(
-        target_registry.registry_address,
+        registry,
         &RegistryQueryMsg::ReconstructProto {
             query_id,
             icq_result,
@@ -101,16 +112,13 @@ fn try_decode_proto(
 
 fn try_get_kv_key(
     deps: Deps,
-    registry_version: Option<String>,
+    registry: String,
     type_id: String,
     params: BTreeMap<String, Binary>,
 ) -> StdResult<Binary> {
-    let target_registry = get_target_registry(deps, registry_version)?;
-
-    let response: KVKey = deps.querier.query_wasm_smart(
-        target_registry.registry_address,
-        &RegistryQueryMsg::KVKey { type_id, params },
-    )?;
+    let response: KVKey = deps
+        .querier
+        .query_wasm_smart(registry, &RegistryQueryMsg::KVKey { type_id, params })?;
 
     println!("[broker] response kv key: {:?}", response);
 
@@ -123,17 +131,4 @@ fn try_to_canonical() -> StdResult<Binary> {
 
 fn try_from_canonical() -> StdResult<Binary> {
     Ok(Binary::new("a".as_bytes().to_vec()))
-}
-
-fn get_target_registry(deps: Deps, version: Option<String>) -> StdResult<TypeRegistry> {
-    // if version is specified, we use that. otherwise default to latest.
-    let target_version = match version {
-        Some(version) => version,
-        None => LATEST.load(deps.storage)?,
-    };
-    // load the target registry
-    let registry = ACTIVE_REGISTRIES.load(deps.storage, target_version)?;
-    println!("[broker] target registry: {:?}", registry.registry_address);
-
-    Ok(registry)
 }

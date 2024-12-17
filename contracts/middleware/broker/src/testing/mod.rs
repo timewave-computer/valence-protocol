@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use cosmwasm_std::{Addr, Binary, StdResult};
 use cw_multi_test::{App, AppResponse, ContractWrapper, Executor};
 use neutron_sdk::bindings::types::{InterchainQueryResult, KVKey};
-use valence_middleware_utils::type_registry::types::NativeTypeWrapper;
+use valence_middleware_utils::type_registry::types::{NativeTypeWrapper, RegistryQueryMsg};
 
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
@@ -73,7 +73,7 @@ impl Default for Suite {
 
 impl Suite {
     fn add_new_registry(&mut self, version: &str, addr: String) -> AppResponse {
-        let msg = ExecuteMsg::SetLatestRegistry {
+        let msg = ExecuteMsg::SetRegistry {
             version: version.to_string(),
             address: addr,
         };
@@ -88,22 +88,25 @@ impl Suite {
         query_id: &str,
         icq_result: InterchainQueryResult,
     ) -> StdResult<NativeTypeWrapper> {
-        let msg = QueryMsg::DecodeProto {
+        let msg = QueryMsg {
             registry_version: None,
-            query_id: query_id.to_string(),
-            icq_result,
+            query: RegistryQueryMsg::ReconstructProto {
+                query_id: query_id.to_string(),
+                icq_result,
+            },
         };
-
         self.app
             .wrap()
             .query_wasm_smart(self.broker_addr.clone(), &msg)
     }
 
     fn get_kv_key(&mut self, query_id: &str, params: BTreeMap<String, Binary>) -> StdResult<KVKey> {
-        let msg = QueryMsg::GetKVKey {
+        let msg = QueryMsg {
             registry_version: None,
-            query_id: query_id.to_string(),
-            params,
+            query: RegistryQueryMsg::KVKey {
+                type_id: query_id.to_string(),
+                params,
+            },
         };
 
         self.app

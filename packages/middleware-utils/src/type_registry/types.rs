@@ -22,10 +22,10 @@ pub enum ValenceType {
 pub enum RegistryQueryMsg {
     /// serialize a message to binary
     #[returns(Binary)]
-    Serialize { obj: ValenceType },
+    FromCanonical { obj: ValenceType },
     /// deserialize a message from binary/bytes
     #[returns(Binary)]
-    Deserialize { type_url: String, binary: Binary },
+    ToCanonical { type_url: String, binary: Binary },
 
     /// get the kvkey used for registering an interchain query
     #[returns(neutron_sdk::bindings::types::KVKey)]

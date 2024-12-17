@@ -44,8 +44,8 @@ pub fn execute(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(_deps: Deps, _env: Env, msg: RegistryQueryMsg) -> StdResult<Binary> {
     match msg {
-        RegistryQueryMsg::Serialize { obj } => try_serialize_obj(obj),
-        RegistryQueryMsg::Deserialize { type_url, binary } => {
+        RegistryQueryMsg::FromCanonical { obj } => try_serialize_obj(obj),
+        RegistryQueryMsg::ToCanonical { type_url, binary } => {
             let deser = try_deserialize_type_url(type_url, binary)?;
             to_json_binary(&deser)
         }
