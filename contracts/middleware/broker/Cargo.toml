@@ -1,5 +1,5 @@
 [package]
-name       = "valence-middleware-broker-osmosis"
+name       = "valence-middleware-broker"
 authors    = { workspace = true }
 edition    = { workspace = true }
 license    = { workspace = true }
@@ -17,8 +17,6 @@ library = []
 cosmwasm-std          = { workspace = true }
 cosmwasm-schema       = { workspace = true }
 cw-ownable            = { workspace = true }
-osmosis-std           = "0.26.0"
-osmosis-std-derive    = "0.26.0"
 prost                 = { workspace = true }
 prost-types           = { workspace = true }
 neutron-sdk           = { workspace = true }
