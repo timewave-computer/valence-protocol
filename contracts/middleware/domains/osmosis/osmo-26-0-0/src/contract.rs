@@ -9,7 +9,8 @@ use neutron_sdk::bindings::types::InterchainQueryResult;
 use valence_middleware_utils::{
     canonical_types::pools::xyk::ValenceXykPool,
     type_registry::types::{
-        RegistryExecuteMsg, RegistryInstantiateMsg, RegistryQueryMsg, ValenceType,
+        NativeTypeWrapper, RegistryExecuteMsg, RegistryInstantiateMsg, RegistryQueryMsg,
+        ValenceType,
     },
     IcqIntegration,
 };
@@ -63,6 +64,8 @@ fn try_get_kv_key(type_id: String, params: BTreeMap<String, Binary>) -> StdResul
         _ => return Err(StdError::generic_err("unknown type_id")),
     };
 
+    println!("[registry] kv key: {:?}", kv_key);
+
     match kv_key {
         Ok(kv) => to_json_binary(&kv),
         Err(_) => Err(StdError::generic_err("failed to read kv key")),
@@ -77,7 +80,7 @@ fn try_reconstruct_proto(type_id: String, icq_result: InterchainQueryResult) -> 
     };
 
     match reconstruction_result {
-        Ok(res) => to_json_binary(&res),
+        Ok(res) => to_json_binary(&NativeTypeWrapper { binary: res }),
         Err(_) => Err(StdError::generic_err(
             "failed to reconstruct type from proto",
         )),

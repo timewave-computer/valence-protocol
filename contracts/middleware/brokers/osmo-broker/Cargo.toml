@@ -30,4 +30,5 @@ valence-middleware-utils = { workspace = true }
 semver = { workspace = true }
 
 [dev-dependencies]
-osmosis-test-tube     = { workspace = true }
+cw-multi-test = { workspace = true }
+valence-middleware-osmosis = { workspace = true }

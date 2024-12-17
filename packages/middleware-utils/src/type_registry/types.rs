@@ -28,15 +28,21 @@ pub enum RegistryQueryMsg {
     Deserialize { type_url: String, binary: Binary },
 
     /// get the kvkey used for registering an interchain query
-    #[returns(Binary)]
+    #[returns(neutron_sdk::bindings::types::KVKey)]
     KVKey {
         type_id: String,
         params: BTreeMap<String, Binary>,
     },
 
-    #[returns(Binary)]
+    #[returns(NativeTypeWrapper)]
     ReconstructProto {
         query_id: String,
         icq_result: InterchainQueryResult,
-    }, // TODO: transform an outdated type to a new version
+    },
+    // TODO: transform an outdated type to a new version
+}
+
+#[cw_serde]
+pub struct NativeTypeWrapper {
+    pub binary: Binary,
 }

@@ -2,12 +2,12 @@ use std::{collections::BTreeMap, str::FromStr};
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
-use neutron_sdk::bindings::types::InterchainQueryResult;
+use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use neutron_sdk::bindings::types::{InterchainQueryResult, KVKey};
 use semver::Version;
 use valence_middleware_utils::{
     broker::types::{Broker, ExecuteMsg, InstantiateMsg, QueryMsg},
-    type_registry::types::RegistryQueryMsg,
+    type_registry::types::{NativeTypeWrapper, RegistryQueryMsg},
     MiddlewareError,
 };
 
@@ -70,8 +70,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         } => try_decode_proto(deps, registry_version, query_id, icq_result),
         QueryMsg::GetKVKey {
             registry_version,
+            query_id,
             params,
-        } => try_get_kv_key(deps, registry_version, params),
+        } => try_get_kv_key(deps, registry_version, query_id, params),
         QueryMsg::ToCanonical {} => try_to_canonical(),
         QueryMsg::FromCanonical {} => try_from_canonical(),
     }
@@ -85,7 +86,7 @@ fn try_decode_proto(
 ) -> StdResult<Binary> {
     let target_registry = get_target_registry(deps, registry_version)?;
 
-    let decoded_result = deps.querier.query_wasm_smart(
+    let resp: NativeTypeWrapper = deps.querier.query_wasm_smart(
         target_registry.registry_address,
         &RegistryQueryMsg::ReconstructProto {
             query_id,
@@ -93,17 +94,25 @@ fn try_decode_proto(
         },
     )?;
 
-    Ok(decoded_result)
+    to_json_binary(&resp)
 }
 
 fn try_get_kv_key(
     deps: Deps,
     registry_version: Option<String>,
+    type_id: String,
     params: BTreeMap<String, Binary>,
 ) -> StdResult<Binary> {
     let target_registry = get_target_registry(deps, registry_version)?;
 
-    Ok(Binary::new("a".as_bytes().to_vec()))
+    let response: KVKey = deps.querier.query_wasm_smart(
+        target_registry.registry_address,
+        &RegistryQueryMsg::KVKey { type_id, params },
+    )?;
+
+    println!("[broker] response kv key: {:?}", response);
+
+    to_json_binary(&response)
 }
 
 fn try_to_canonical() -> StdResult<Binary> {
@@ -121,5 +130,8 @@ fn get_target_registry(deps: Deps, version: Option<String>) -> StdResult<Broker>
         None => LATEST.load(deps.storage)?,
     };
     // load the target registry
-    ACTIVE_REGISTRIES.load(deps.storage, target_version)
+    let registry = ACTIVE_REGISTRIES.load(deps.storage, target_version)?;
+    println!("[broker] target registry: {:?}", registry.registry_address);
+
+    Ok(registry)
 }
