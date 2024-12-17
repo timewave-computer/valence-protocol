@@ -3,8 +3,7 @@ use std::collections::BTreeMap;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary};
 use neutron_sdk::bindings::types::InterchainQueryResult;
-
-use crate::type_registry::types::{NativeTypeWrapper, ValenceType};
+use valence_middleware_utils::type_registry::types::{NativeTypeWrapper, ValenceType};
 
 #[cw_serde]
 pub struct InstantiateMsg {}
@@ -36,7 +35,7 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
-pub struct Broker {
+pub struct TypeRegistry {
     // address of the instantiated registry
     pub registry_address: Addr,
     // semver

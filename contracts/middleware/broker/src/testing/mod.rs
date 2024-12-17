@@ -5,7 +5,9 @@ use std::collections::BTreeMap;
 use cosmwasm_std::{Addr, Binary, StdResult};
 use cw_multi_test::{App, AppResponse, ContractWrapper, Executor};
 use neutron_sdk::bindings::types::{InterchainQueryResult, KVKey};
-use valence_middleware_utils::{broker::types::QueryMsg, type_registry::types::NativeTypeWrapper};
+use valence_middleware_utils::type_registry::types::NativeTypeWrapper;
+
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 struct Suite {
     pub app: App,
@@ -34,7 +36,7 @@ impl Default for Suite {
         let broker_code_id = app.store_code(Box::new(broker_wrapper));
         let registry_code_id = app.store_code(Box::new(registry_wrapper));
 
-        let broker_instantiate_msg = valence_middleware_utils::broker::types::InstantiateMsg {};
+        let broker_instantiate_msg = InstantiateMsg {};
         let registry_instantiate_msg =
             valence_middleware_utils::type_registry::types::RegistryInstantiateMsg {};
 
@@ -71,7 +73,7 @@ impl Default for Suite {
 
 impl Suite {
     fn add_new_registry(&mut self, version: &str, addr: String) -> AppResponse {
-        let msg = valence_middleware_utils::broker::types::ExecuteMsg::SetLatestRegistry {
+        let msg = ExecuteMsg::SetLatestRegistry {
             version: version.to_string(),
             address: addr,
         };
@@ -86,7 +88,7 @@ impl Suite {
         query_id: &str,
         icq_result: InterchainQueryResult,
     ) -> StdResult<NativeTypeWrapper> {
-        let msg = valence_middleware_utils::broker::types::QueryMsg::DecodeProto {
+        let msg = QueryMsg::DecodeProto {
             registry_version: None,
             query_id: query_id.to_string(),
             icq_result,

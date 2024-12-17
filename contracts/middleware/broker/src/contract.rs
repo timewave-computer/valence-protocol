@@ -6,12 +6,14 @@ use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Resp
 use neutron_sdk::bindings::types::{InterchainQueryResult, KVKey};
 use semver::Version;
 use valence_middleware_utils::{
-    broker::types::{Broker, ExecuteMsg, InstantiateMsg, QueryMsg},
     type_registry::types::{NativeTypeWrapper, RegistryQueryMsg},
     MiddlewareError,
 };
 
-use crate::state::{ACTIVE_REGISTRIES, LATEST};
+use crate::{
+    msg::{ExecuteMsg, InstantiateMsg, QueryMsg, TypeRegistry},
+    state::{ACTIVE_REGISTRIES, LATEST},
+};
 
 // version info for migration info
 const _CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -49,12 +51,12 @@ fn try_add_new_registry(
     let addr = deps.api.addr_validate(&addr)?;
     let version = Version::from_str(&version)?;
 
-    let broker = Broker {
+    let type_registry = TypeRegistry {
         registry_address: addr,
         version: version.to_string(),
     };
 
-    ACTIVE_REGISTRIES.save(deps.storage, version.to_string(), &broker)?;
+    ACTIVE_REGISTRIES.save(deps.storage, version.to_string(), &type_registry)?;
     LATEST.save(deps.storage, &version.to_string())?;
 
     Ok(Response::new())
@@ -123,7 +125,7 @@ fn try_from_canonical() -> StdResult<Binary> {
     Ok(Binary::new("a".as_bytes().to_vec()))
 }
 
-fn get_target_registry(deps: Deps, version: Option<String>) -> StdResult<Broker> {
+fn get_target_registry(deps: Deps, version: Option<String>) -> StdResult<TypeRegistry> {
     // if version is specified, we use that. otherwise default to latest.
     let target_version = match version {
         Some(version) => version,
