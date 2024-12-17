@@ -2,6 +2,7 @@
 members = [
     "contracts/accounts/*",
     "contracts/libraries/*",
+    "contracts/encoders/*",
     "contracts/authorization",
     "contracts/processor",
     "contracts/testing/*",
@@ -78,6 +79,7 @@ valence-account-utils          = { path = "packages/account-utils" }
 valence-astroport-utils        = { path = "packages/astroport-utils" }
 valence-osmosis-utils          = { path = "packages/osmosis-utils" }
 valence-authorization-utils    = { path = "packages/authorization-utils" }
+valence-encoder-utils          = { path = "packages/encoder-utils" }
 valence-ibc-utils              = { path = "packages/ibc-utils" }
 valence-macros                 = { path = "packages/valence-macros" }
 valence-polytone-utils         = { path = "packages/polytone-utils" }

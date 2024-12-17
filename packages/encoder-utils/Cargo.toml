@@ -1,0 +1,10 @@
+[package]
+name        = "valence-encoder-utils"
+version     = { workspace = true }
+edition     = { workspace = true }
+authors     = { workspace = true }
+description = "Helpers for encoding functionalities"
+
+[dependencies]
+cosmwasm-std    = { workspace = true }
+cosmwasm-schema = { workspace = true }
