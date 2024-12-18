@@ -30,3 +30,5 @@ semver = { workspace = true }
 [dev-dependencies]
 cw-multi-test = { workspace = true }
 valence-middleware-osmosis = { workspace = true }
+osmosis-std           = "0.26.0"
+osmosis-std-derive    = "0.26.0"

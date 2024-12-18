@@ -21,7 +21,7 @@ pub enum ValenceType {
 #[derive(QueryResponses)]
 pub enum RegistryQueryMsg {
     /// serialize a message to binary
-    #[returns(Binary)]
+    #[returns(NativeTypeWrapper)]
     FromCanonical { obj: ValenceType },
     /// deserialize a message from binary/bytes
     #[returns(Binary)]

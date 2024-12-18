@@ -5318,6 +5318,8 @@ dependencies = [
  "cw-ownable",
  "cw-storage-plus 2.0.0",
  "neutron-sdk",
+ "osmosis-std",
+ "osmosis-std-derive",
  "prost 0.13.3",
  "prost-types 0.13.3",
  "semver",

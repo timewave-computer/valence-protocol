@@ -3,11 +3,15 @@ use std::collections::BTreeMap;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
+    from_json, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult,
 };
 use neutron_sdk::bindings::types::InterchainQueryResult;
+use osmosis_std::types::{
+    cosmos::bank::v1beta1::QueryBalanceResponse, osmosis::gamm::v1beta1::Pool,
+};
 use valence_middleware_utils::{
-    canonical_types::pools::xyk::ValenceXykPool,
+    canonical_types::ValenceTypeAdapter,
     type_registry::types::{
         NativeTypeWrapper, RegistryExecuteMsg, RegistryInstantiateMsg, RegistryQueryMsg,
         ValenceType,
@@ -44,10 +48,10 @@ pub fn execute(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(_deps: Deps, _env: Env, msg: RegistryQueryMsg) -> StdResult<Binary> {
     match msg {
-        RegistryQueryMsg::FromCanonical { obj } => try_serialize_obj(obj),
+        RegistryQueryMsg::FromCanonical { obj } => try_from_canonical(obj),
         RegistryQueryMsg::ToCanonical { type_url, binary } => {
-            let deser = try_deserialize_type_url(type_url, binary)?;
-            to_json_binary(&deser)
+            let canonical = try_to_canonical(type_url, binary)?;
+            to_json_binary(&canonical)
         }
         RegistryQueryMsg::KVKey { type_id, params } => try_get_kv_key(type_id, params),
         RegistryQueryMsg::ReconstructProto {
@@ -87,14 +91,48 @@ fn try_reconstruct_proto(type_id: String, icq_result: InterchainQueryResult) -> 
     }
 }
 
-fn try_serialize_obj(_object: ValenceType) -> StdResult<Binary> {
-    Ok(Binary::new("a".as_bytes().to_vec()))
+fn try_from_canonical(object: ValenceType) -> StdResult<Binary> {
+    println!("[registry] converting valence type to binary: {:?}", object);
+    match &object {
+        ValenceType::XykPool(_) => {
+            let obj = OsmosisXykPool::try_from_canonical(object)
+                .map_err(|e| StdError::generic_err(e.to_string()))?;
+            to_json_binary(&NativeTypeWrapper {
+                binary: to_json_binary(&obj)?,
+            })
+        }
+        ValenceType::BankBalance(_) => {
+            let obj = OsmosisBankBalance::try_from_canonical(object)
+                .map_err(|e| StdError::generic_err(e.to_string()))?;
+            to_json_binary(&NativeTypeWrapper {
+                binary: to_json_binary(&obj)?,
+            })
+        }
+    }
 }
 
-fn try_deserialize_type_url(_type_url: String, _binary: Binary) -> StdResult<ValenceType> {
-    Ok(ValenceType::XykPool(ValenceXykPool {
-        assets: vec![],
-        total_shares: "hi".to_string(),
-        domain_specific_fields: BTreeMap::new(),
-    }))
+fn try_to_canonical(type_url: String, binary: Binary) -> StdResult<ValenceType> {
+    println!("[registry] converting {type_url} binary to canonical valence type");
+    let canonical_type = match type_url.as_str() {
+        "gamm_pool" => {
+            let obj: Pool = from_json(&binary).map_err(|e| StdError::generic_err(e.to_string()))?;
+
+            let native_type = OsmosisXykPool(obj);
+            native_type
+                .try_to_canonical()
+                .map_err(|e| StdError::generic_err(e.to_string()))?
+        }
+        "bank_balances" => {
+            let obj: QueryBalanceResponse =
+                from_json(&binary).map_err(|e| StdError::generic_err(e.to_string()))?;
+
+            let native_type = OsmosisBankBalance(obj);
+            native_type
+                .try_to_canonical()
+                .map_err(|e| StdError::generic_err(e.to_string()))?
+        }
+        _ => return Err(StdError::generic_err("unknown type_id")),
+    };
+
+    Ok(canonical_type)
 }

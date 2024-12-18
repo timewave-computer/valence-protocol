@@ -26,3 +26,13 @@ in `middleware-utils`.
 
 With that, the only thing that changes between registries is the
 contents of `/definitions` directory.
+
+## Module organization
+
+Under `/type-registries`, organisation is outlined in a domain-driven
+manner. Types are grouped by their domain and are expected to be
+self-contained.
+
+For instance, `/type-registries/osmosis` is expected to contain all
+registry instances related to the Osmosis domain. Different instances
+should be versioned by semver which follows the external domain versioning.

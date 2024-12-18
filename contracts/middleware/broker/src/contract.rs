@@ -6,7 +6,7 @@ use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Resp
 use neutron_sdk::bindings::types::{InterchainQueryResult, KVKey};
 use semver::Version;
 use valence_middleware_utils::{
-    type_registry::types::{NativeTypeWrapper, RegistryQueryMsg},
+    type_registry::types::{NativeTypeWrapper, RegistryQueryMsg, ValenceType},
     MiddlewareError,
 };
 
@@ -88,8 +88,15 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         RegistryQueryMsg::KVKey { type_id, params } => {
             try_get_kv_key(deps, registry.registry_address.to_string(), type_id, params)
         }
-        RegistryQueryMsg::ToCanonical { type_url, binary } => try_to_canonical(),
-        RegistryQueryMsg::FromCanonical { obj } => try_from_canonical(),
+        RegistryQueryMsg::ToCanonical { type_url, binary } => try_to_canonical(
+            deps,
+            registry.registry_address.to_string(),
+            type_url,
+            binary,
+        ),
+        RegistryQueryMsg::FromCanonical { obj } => {
+            try_from_canonical(deps, registry.registry_address.to_string(), obj)
+        }
     }
 }
 
@@ -125,10 +132,25 @@ fn try_get_kv_key(
     to_json_binary(&response)
 }
 
-fn try_to_canonical() -> StdResult<Binary> {
-    Ok(Binary::new("a".as_bytes().to_vec()))
+fn try_to_canonical(
+    deps: Deps,
+    registry: String,
+    type_url: String,
+    binary: Binary,
+) -> StdResult<Binary> {
+    let response: ValenceType = deps.querier.query_wasm_smart(
+        registry,
+        &RegistryQueryMsg::ToCanonical { type_url, binary },
+    )?;
+    to_json_binary(&response)
 }
 
-fn try_from_canonical() -> StdResult<Binary> {
-    Ok(Binary::new("a".as_bytes().to_vec()))
+fn try_from_canonical(deps: Deps, registry: String, canonical: ValenceType) -> StdResult<Binary> {
+    println!("[broker] try_from_canonical: {:?}", canonical);
+    let response: NativeTypeWrapper = deps.querier.query_wasm_smart(
+        registry,
+        &RegistryQueryMsg::FromCanonical { obj: canonical },
+    )?;
+    println!("[broker] response: {:?}", response);
+    to_json_binary(&response)
 }

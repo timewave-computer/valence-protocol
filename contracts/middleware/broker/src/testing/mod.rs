@@ -5,7 +5,9 @@ use std::collections::BTreeMap;
 use cosmwasm_std::{Addr, Binary, StdResult};
 use cw_multi_test::{App, AppResponse, ContractWrapper, Executor};
 use neutron_sdk::bindings::types::{InterchainQueryResult, KVKey};
-use valence_middleware_utils::type_registry::types::{NativeTypeWrapper, RegistryQueryMsg};
+use valence_middleware_utils::type_registry::types::{
+    NativeTypeWrapper, RegistryQueryMsg, ValenceType,
+};
 
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
@@ -107,6 +109,31 @@ impl Suite {
                 type_id: query_id.to_string(),
                 params,
             },
+        };
+
+        self.app
+            .wrap()
+            .query_wasm_smart(self.broker_addr.clone(), &msg)
+    }
+
+    fn try_to_canonical(&mut self, type_url: &str, binary: Binary) -> StdResult<ValenceType> {
+        let msg = QueryMsg {
+            registry_version: None,
+            query: RegistryQueryMsg::ToCanonical {
+                type_url: type_url.to_string(),
+                binary,
+            },
+        };
+
+        self.app
+            .wrap()
+            .query_wasm_smart(self.broker_addr.clone(), &msg)
+    }
+
+    fn try_from_canonical(&mut self, obj: ValenceType) -> StdResult<NativeTypeWrapper> {
+        let msg = QueryMsg {
+            registry_version: None,
+            query: RegistryQueryMsg::FromCanonical { obj },
         };
 
         self.app
