@@ -4,7 +4,13 @@ use strum::EnumString;
 
 pub mod contract;
 pub mod error;
+pub mod evict_msgs;
+pub mod insert_msgs;
 pub mod libraries;
+pub mod pause;
+pub mod resume;
+pub mod send_msgs;
+pub mod solidity_types;
 
 #[cfg(test)]
 mod tests;

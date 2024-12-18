@@ -5,7 +5,7 @@ use cosmwasm_std::{
     to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
 };
 use cw2::set_contract_version;
-use valence_encoder_utils::msg::QueryMsg;
+use valence_encoder_utils::msg::{EncodingMessage, QueryMsg};
 
 use crate::{error::ContractError, EVMLibraryFunction};
 
@@ -41,11 +41,7 @@ pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::IsValidEncodingInfo { library, function } => {
             to_json_binary(&is_valid_encoding_info(library, function))
         }
-        QueryMsg::Encode {
-            library,
-            function,
-            msg,
-        } => to_json_binary(&encode(library, function, msg)?),
+        QueryMsg::Encode { encoding_message } => to_json_binary(&encode(encoding_message)?),
     }
 }
 
@@ -53,6 +49,6 @@ fn is_valid_encoding_info(library: String, function: String) -> bool {
     EVMLibraryFunction::is_valid(&library, &function)
 }
 
-fn encode(_library: String, _function: String, _msg: Binary) -> StdResult<Binary> {
+fn encode(_encoding_message: EncodingMessage) -> StdResult<Binary> {
     todo!()
 }

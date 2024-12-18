@@ -6,5 +6,6 @@ authors     = { workspace = true }
 description = "Helpers for encoding functionalities"
 
 [dependencies]
-cosmwasm-std    = { workspace = true }
-cosmwasm-schema = { workspace = true }
+cosmwasm-std                = { workspace = true }
+cosmwasm-schema             = { workspace = true }
+valence-authorization-utils = { workspace = true }

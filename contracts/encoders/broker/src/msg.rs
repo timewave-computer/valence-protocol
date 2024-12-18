@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query};
+use valence_encoder_utils::msg::EncodingMessage;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -39,8 +40,6 @@ pub enum QueryMsg {
     #[returns(Binary)]
     Encode {
         encoder_version: String,
-        library: String,
-        function: String,
-        msg: Binary,
+        encoding_message: EncodingMessage,
     },
 }

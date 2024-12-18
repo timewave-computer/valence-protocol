@@ -5699,12 +5699,14 @@ version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 2.1.4",
  "cosmwasm-std 2.1.4",
+ "valence-authorization-utils",
 ]
 
 [[package]]
 name = "valence-evm-encoder"
 version = "0.1.0"
 dependencies = [
+ "alloy-primitives",
  "alloy-sol-types",
  "cosmwasm-schema 2.1.4",
  "cosmwasm-std 2.1.4",
