@@ -34,7 +34,7 @@ pub fn execute(_deps: DepsMut, _env: Env, _info: MessageInfo, _msg: Empty) -> St
 pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::IsValidLibrary { library } => to_json_binary(&is_valid_library(library)),
-        QueryMsg::Encode { message } => to_json_binary(&encode(message)?),
+        QueryMsg::Encode { message } => encode(message),
     }
 }
 

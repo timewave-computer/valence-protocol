@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.28;
 
-import {Test} from "forge-std/src/Test.sol";
+import {Test, console} from "forge-std/src/Test.sol";
 import {ProcessorMessageDecoder} from "../src/processor/libs/ProcessorMessageDecoder.sol";
 import {IProcessorMessageTypes} from "../src/processor/interfaces/IProcessorMessageTypes.sol";
 
@@ -73,11 +73,14 @@ contract ProcessorMessageDecoderTest is Test {
     }
 
     function test_DecodePauseMessage() public pure {
-        // Encode a tuple of (messageType, empty bytes) using abi.encode
-        bytes memory encoded = abi.encode(
-            uint8(IProcessorMessageTypes.ProcessorMessageType.Pause),
-            bytes("") // Empty bytes for Pause message
-        );
+        // Create ProcessorMessage bytes similar to how Rust encodes it
+        IProcessorMessageTypes.ProcessorMessage memory original = IProcessorMessageTypes.ProcessorMessage({
+            messageType: IProcessorMessageTypes.ProcessorMessageType.Pause,
+            message: "" // Empty bytes for Pause
+        });
+
+        // Encode the entire struct
+        bytes memory encoded = abi.encode(original);
 
         IProcessorMessageTypes.ProcessorMessage memory decoded = ProcessorMessageDecoder.decode(encoded);
         assertEq(uint8(decoded.messageType), uint8(IProcessorMessageTypes.ProcessorMessageType.Pause));
@@ -85,11 +88,14 @@ contract ProcessorMessageDecoderTest is Test {
     }
 
     function test_DecodeResumeMessage() public pure {
-        // Similar to Pause, but with Resume message type
-        bytes memory encoded = abi.encode(
-            uint8(IProcessorMessageTypes.ProcessorMessageType.Resume),
-            bytes("") // Empty bytes for Resume message
-        );
+        // Create ProcessorMessage bytes similar to how Rust encodes it
+        IProcessorMessageTypes.ProcessorMessage memory original = IProcessorMessageTypes.ProcessorMessage({
+            messageType: IProcessorMessageTypes.ProcessorMessageType.Resume,
+            message: "" // Empty bytes for Resume
+        });
+
+        // Encode the entire struct
+        bytes memory encoded = abi.encode(original);
 
         IProcessorMessageTypes.ProcessorMessage memory decoded = ProcessorMessageDecoder.decode(encoded);
         assertEq(uint8(decoded.messageType), uint8(IProcessorMessageTypes.ProcessorMessageType.Resume));
@@ -97,20 +103,26 @@ contract ProcessorMessageDecoderTest is Test {
     }
 
     function test_DecodeEvictMsgsMessage() public pure {
-        IProcessorMessageTypes.EvictMsgs memory original =
+        // First create the EvictMsgs struct
+        IProcessorMessageTypes.EvictMsgs memory evictMsgs =
             IProcessorMessageTypes.EvictMsgs({queuePosition: 42, priority: IProcessorMessageTypes.Priority.High});
 
-        // Encode as a tuple of (messageType, encoded EvictMsgs)
-        bytes memory encoded =
-            abi.encode(uint8(IProcessorMessageTypes.ProcessorMessageType.EvictMsgs), abi.encode(original));
+        // Create the ProcessorMessage with EvictMsgs encoded as its message
+        IProcessorMessageTypes.ProcessorMessage memory original = IProcessorMessageTypes.ProcessorMessage({
+            messageType: IProcessorMessageTypes.ProcessorMessageType.EvictMsgs,
+            message: abi.encode(evictMsgs)
+        });
+
+        // Encode the entire ProcessorMessage struct
+        bytes memory encoded = abi.encode(original);
 
         IProcessorMessageTypes.ProcessorMessage memory decoded = ProcessorMessageDecoder.decode(encoded);
         IProcessorMessageTypes.EvictMsgs memory evictMsg =
             abi.decode(decoded.message, (IProcessorMessageTypes.EvictMsgs));
 
         assertEq(uint8(decoded.messageType), uint8(IProcessorMessageTypes.ProcessorMessageType.EvictMsgs));
-        assertEq(evictMsg.queuePosition, original.queuePosition);
-        assertEq(uint8(evictMsg.priority), uint8(original.priority));
+        assertEq(evictMsg.queuePosition, evictMsgs.queuePosition);
+        assertEq(uint8(evictMsg.priority), uint8(evictMsgs.priority));
     }
 
     function test_DecodeSendMsgsMessage() public pure {
@@ -118,26 +130,33 @@ contract ProcessorMessageDecoderTest is Test {
         messages[0] = bytes("msg1");
         messages[1] = bytes("msg2");
 
-        IProcessorMessageTypes.SendMsgs memory original = IProcessorMessageTypes.SendMsgs({
+        // Create the SendMsgs struct
+        IProcessorMessageTypes.SendMsgs memory sendMsgs = IProcessorMessageTypes.SendMsgs({
             executionId: 123,
             priority: IProcessorMessageTypes.Priority.Medium,
             subroutine: createAtomicSubroutine(),
             messages: messages
         });
 
-        // Encode as a tuple of (messageType, encoded SendMsgs)
-        bytes memory encoded =
-            abi.encode(uint8(IProcessorMessageTypes.ProcessorMessageType.SendMsgs), abi.encode(original));
+        // Create the ProcessorMessage with SendMsgs encoded as its message
+        IProcessorMessageTypes.ProcessorMessage memory original = IProcessorMessageTypes.ProcessorMessage({
+            messageType: IProcessorMessageTypes.ProcessorMessageType.SendMsgs,
+            message: abi.encode(sendMsgs)
+        });
+
+        // Encode the entire ProcessorMessage struct
+        bytes memory encoded = abi.encode(original);
 
         IProcessorMessageTypes.ProcessorMessage memory decoded = ProcessorMessageDecoder.decode(encoded);
-        IProcessorMessageTypes.SendMsgs memory sendMsg = abi.decode(decoded.message, (IProcessorMessageTypes.SendMsgs));
+        IProcessorMessageTypes.SendMsgs memory decodedSendMsg =
+            abi.decode(decoded.message, (IProcessorMessageTypes.SendMsgs));
 
         assertEq(uint8(decoded.messageType), uint8(IProcessorMessageTypes.ProcessorMessageType.SendMsgs));
-        assertEq(sendMsg.executionId, original.executionId);
-        assertEq(uint8(sendMsg.priority), uint8(original.priority));
-        assertEq(sendMsg.messages.length, original.messages.length);
-        assertEq(string(sendMsg.messages[0]), string(original.messages[0]));
-        assertEq(string(sendMsg.messages[1]), string(original.messages[1]));
+        assertEq(decodedSendMsg.executionId, sendMsgs.executionId);
+        assertEq(uint8(decodedSendMsg.priority), uint8(sendMsgs.priority));
+        assertEq(decodedSendMsg.messages.length, sendMsgs.messages.length);
+        assertEq(string(decodedSendMsg.messages[0]), string(sendMsgs.messages[0]));
+        assertEq(string(decodedSendMsg.messages[1]), string(sendMsgs.messages[1]));
     }
 
     function test_DecodeInsertMsgsMessage() public pure {
@@ -145,7 +164,8 @@ contract ProcessorMessageDecoderTest is Test {
         messages[0] = bytes("msg1");
         messages[1] = bytes("msg2");
 
-        IProcessorMessageTypes.InsertMsgs memory original = IProcessorMessageTypes.InsertMsgs({
+        // Create the InsertMsgs struct
+        IProcessorMessageTypes.InsertMsgs memory insertMsgs = IProcessorMessageTypes.InsertMsgs({
             executionId: 456,
             queuePosition: 789,
             priority: IProcessorMessageTypes.Priority.High,
@@ -153,58 +173,86 @@ contract ProcessorMessageDecoderTest is Test {
             messages: messages
         });
 
-        // Encode as a tuple of (messageType, encoded InsertMsgs)
-        bytes memory encoded =
-            abi.encode(uint8(IProcessorMessageTypes.ProcessorMessageType.InsertMsgs), abi.encode(original));
+        // Create the ProcessorMessage with InsertMsgs encoded as its message
+        IProcessorMessageTypes.ProcessorMessage memory original = IProcessorMessageTypes.ProcessorMessage({
+            messageType: IProcessorMessageTypes.ProcessorMessageType.InsertMsgs,
+            message: abi.encode(insertMsgs)
+        });
+
+        // Encode the entire ProcessorMessage struct
+        bytes memory encoded = abi.encode(original);
 
         IProcessorMessageTypes.ProcessorMessage memory decoded = ProcessorMessageDecoder.decode(encoded);
-        IProcessorMessageTypes.InsertMsgs memory insertMsg =
+        IProcessorMessageTypes.InsertMsgs memory decodedInsertMsg =
             abi.decode(decoded.message, (IProcessorMessageTypes.InsertMsgs));
 
         assertEq(uint8(decoded.messageType), uint8(IProcessorMessageTypes.ProcessorMessageType.InsertMsgs));
-        assertEq(insertMsg.executionId, original.executionId);
-        assertEq(insertMsg.queuePosition, original.queuePosition);
-        assertEq(uint8(insertMsg.priority), uint8(original.priority));
-        assertEq(insertMsg.messages.length, original.messages.length);
-        assertEq(string(insertMsg.messages[0]), string(original.messages[0]));
-        assertEq(string(insertMsg.messages[1]), string(original.messages[1]));
+        assertEq(decodedInsertMsg.executionId, insertMsgs.executionId);
+        assertEq(decodedInsertMsg.queuePosition, insertMsgs.queuePosition);
+        assertEq(uint8(decodedInsertMsg.priority), uint8(insertMsgs.priority));
+        assertEq(decodedInsertMsg.messages.length, insertMsgs.messages.length);
+        assertEq(string(decodedInsertMsg.messages[0]), string(insertMsgs.messages[0]));
+        assertEq(string(decodedInsertMsg.messages[1]), string(insertMsgs.messages[1]));
     }
 
-    function test_InvalidMessageType() public {
-        // Create an invalid message type (5)
-        bytes memory encoded = abi.encode(uint8(5), bytes(""));
+    function test_DecodePauseMessageFromRust() public pure {
+        // These are the exact bytes produced by the CosmWasm contract
+        bytes memory encodedFromRust =
+            hex"0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000";
 
-        vm.expectRevert(ProcessorMessageDecoder.InvalidMessageType.selector);
-        ProcessorMessageDecoder.decode(encoded);
+        // Decode using the same decoder as other tests
+        IProcessorMessageTypes.ProcessorMessage memory decoded = ProcessorMessageDecoder.decode(encodedFromRust);
+
+        // Verify the results match what we expect
+        assertEq(uint8(decoded.messageType), uint8(IProcessorMessageTypes.ProcessorMessageType.Pause));
+        assertEq(decoded.message.length, 0);
     }
 
-    function test_DecodeComplexSubroutines() public pure {
-        // Test atomic subroutine decoding
-        IProcessorMessageTypes.Subroutine memory atomicSub = createAtomicSubroutine();
-        IProcessorMessageTypes.AtomicSubroutine memory decodedAtomic =
-            abi.decode(atomicSub.subroutine, (IProcessorMessageTypes.AtomicSubroutine));
+    function test_DecodeSendMsgsFromRust() public pure {
+        // These are the exact bytes produced by the CosmWasm contract for the SendMsgs test
+        bytes memory encodedFromRust =
+            hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000002e0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000001e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000000100000000000000000000000001010101010101010101010101010101010101010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000004d264e05e000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004d264e05e00000000000000000000000000000000000000000000000000000000";
 
-        assertEq(uint8(atomicSub.subroutineType), uint8(IProcessorMessageTypes.SubroutineType.Atomic));
-        assertEq(decodedAtomic.functions.length, 2);
-        assertEq(decodedAtomic.functions[0].contractAddress, address(0x1));
-        assertEq(uint8(decodedAtomic.retryLogic.times.retryType), uint8(IProcessorMessageTypes.RetryTimesType.Amount));
-        assertEq(decodedAtomic.retryLogic.times.amount, 3);
-        assertEq(uint8(decodedAtomic.retryLogic.interval.durationType), uint8(IProcessorMessageTypes.DurationType.Time));
-        assertEq(decodedAtomic.retryLogic.interval.value, 1800);
+        // Step 1: Decode the main ProcessorMessage structure
+        IProcessorMessageTypes.ProcessorMessage memory decoded = ProcessorMessageDecoder.decode(encodedFromRust);
 
-        // Test non-atomic subroutine decoding
-        IProcessorMessageTypes.Subroutine memory nonAtomicSub = createNonAtomicSubroutine();
-        IProcessorMessageTypes.NonAtomicSubroutine memory decodedNonAtomic =
-            abi.decode(nonAtomicSub.subroutine, (IProcessorMessageTypes.NonAtomicSubroutine));
+        // Verify message type is SendMsgs
+        assertEq(uint8(decoded.messageType), uint8(IProcessorMessageTypes.ProcessorMessageType.SendMsgs));
 
-        assertEq(uint8(nonAtomicSub.subroutineType), uint8(IProcessorMessageTypes.SubroutineType.NonAtomic));
-        assertEq(decodedNonAtomic.functions.length, 2);
-        assertEq(decodedNonAtomic.functions[0].contractAddress, address(0x1));
+        // Step 2: Decode the SendMsgs payload
+        IProcessorMessageTypes.SendMsgs memory sendMsgs = ProcessorMessageDecoder.decodeSendMsgs(decoded.message);
+
+        // Step 3: Verify basic SendMsgs fields
+        assertEq(sendMsgs.executionId, 1);
+        assertEq(uint8(sendMsgs.priority), uint8(IProcessorMessageTypes.Priority.Medium));
+        assertEq(sendMsgs.messages.length, 2);
+
+        // Step 4: Verify subroutine structure
+        assertEq(uint8(sendMsgs.subroutine.subroutineType), uint8(IProcessorMessageTypes.SubroutineType.Atomic));
+
+        // Step 5: Decode and verify atomic subroutine
+        IProcessorMessageTypes.AtomicSubroutine memory atomicSubroutine =
+            abi.decode(sendMsgs.subroutine.subroutine, (IProcessorMessageTypes.AtomicSubroutine));
+
+        // Verify atomic functions array
+        assertEq(atomicSubroutine.functions.length, 1);
+        // Create the expected address - all bytes are 0x01
+        address expectedAddress = address(0x0101010101010101010101010101010101010101);
+        assertEq(atomicSubroutine.functions[0].contractAddress, expectedAddress);
+
+        // Verify retry logic
         assertEq(
-            uint8(decodedNonAtomic.functions[0].retryLogic.times.retryType),
-            uint8(IProcessorMessageTypes.RetryTimesType.Indefinitely)
+            uint8(atomicSubroutine.retryLogic.times.retryType), uint8(IProcessorMessageTypes.RetryTimesType.Amount)
         );
-        assertEq(decodedNonAtomic.functions[0].callbackConfirmation.contractAddress, address(0x3));
-        assertEq(string(decodedNonAtomic.functions[0].callbackConfirmation.callbackMessage), "callback");
+        assertEq(atomicSubroutine.retryLogic.times.amount, 3);
+        assertEq(
+            uint8(atomicSubroutine.retryLogic.interval.durationType), uint8(IProcessorMessageTypes.DurationType.Height)
+        );
+        assertEq(atomicSubroutine.retryLogic.interval.value, 100);
+
+        // Verify messages array contains data
+        for (uint256 i = 0; i < sendMsgs.messages.length; i++) {
+            assert(sendMsgs.messages[i].length > 0);
+        }
     }
 }

@@ -20,19 +20,11 @@ library ProcessorMessageDecoder {
      * @return A ProcessorMessage struct containing the decoded message type and data
      */
     function decode(bytes memory _body) internal pure returns (IProcessorMessageTypes.ProcessorMessage memory) {
-        // Decode the entire message structure at once
-        (uint8 messageTypeRaw, bytes memory message) = abi.decode(_body, (uint8, bytes));
+        // Decode directly into the ProcessorMessage struct
+        IProcessorMessageTypes.ProcessorMessage memory message =
+            abi.decode(_body, (IProcessorMessageTypes.ProcessorMessage));
 
-        // Validate the message type
-        if (messageTypeRaw > 4) {
-            revert InvalidMessageType();
-        }
-
-        // Convert the raw uint8 to our enum type
-        IProcessorMessageTypes.ProcessorMessageType messageType =
-            IProcessorMessageTypes.ProcessorMessageType(messageTypeRaw);
-
-        return IProcessorMessageTypes.ProcessorMessage({messageType: messageType, message: message});
+        return message;
     }
 
     /**
