@@ -1,4 +1,4 @@
-# Valence EVM Encoder
+# Valence EVM Encoder V1
 
 The Valence EVM Encoder is a specialized smart contract responsible for encoding instructions that will be executed by **EVM Valence Processors**. It utilizes the Ethereum Application Binary Interface (ABI) encoding standard to perform two critical encoding functions:
 

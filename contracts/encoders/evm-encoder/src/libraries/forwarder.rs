@@ -29,7 +29,7 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
                 }
             }
         }
-        // TODO: Implement these once we get to the library implementation
+        // TODO: Decide what is going to be allowed to be updated from here in the library
         ExecuteMsg::UpdateConfig { .. } => todo!(),
         ExecuteMsg::UpdateProcessor { .. } => todo!(),
         ExecuteMsg::UpdateOwnership(..) => todo!(),

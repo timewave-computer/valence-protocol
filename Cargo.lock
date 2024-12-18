@@ -5703,8 +5703,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "valence-evm-encoder"
-version = "0.1.0"
+name = "valence-evm-encoder-v1"
+version = "1.0.0"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
