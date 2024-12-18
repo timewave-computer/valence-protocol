@@ -10,9 +10,6 @@ import {IProcessorMessageTypes} from "../interfaces/IProcessorMessageTypes.sol";
  * various types of messages that can be processed by the processor.
  */
 library ProcessorMessageDecoder {
-    // Custom error for invalid message types
-    error InvalidMessageType();
-
     /**
      * @notice Decodes a byte array into a ProcessorMessage struct
      * @dev The first byte of the input contains the message type, followed by the encoded message data
