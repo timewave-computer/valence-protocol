@@ -4,7 +4,7 @@ use cosmwasm_std::Binary;
 
 use crate::solidity_types::{ProcessorMessage, ProcessorMessageType};
 
-fn encode() -> Binary {
+pub fn encode() -> Binary {
     let processor_message = ProcessorMessage {
         messageType: ProcessorMessageType::Resume,
         // No data is required for the Resume message

@@ -5,7 +5,7 @@ use cosmwasm_std::{
     to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response, StdResult,
 };
 use cw2::set_contract_version;
-use valence_encoder_utils::msg::{EncodingMessage, QueryMsg as EncoderQueryMsg};
+use valence_encoder_utils::msg::{ProcessorMessageToEncode, QueryMsg as EncoderQueryMsg};
 
 use crate::{
     error::ContractError,
@@ -82,20 +82,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Ownership {} => to_json_binary(&cw_ownable::get_ownership(deps.storage)?),
         QueryMsg::Encoder { version } => to_json_binary(&get_encoder(deps, version)?),
         QueryMsg::ListEncoders {} => to_json_binary(&list_encoders(deps)?),
-        QueryMsg::IsValidEncodingInfo {
+        QueryMsg::IsValidLibrary {
             encoder_version,
             library,
-            function,
-        } => to_json_binary(&is_valid_encoding_info(
-            deps,
-            encoder_version,
-            library,
-            function,
-        )?),
+        } => to_json_binary(&is_valid_library(deps, encoder_version, library)?),
         QueryMsg::Encode {
             encoder_version,
-            encoding_message,
-        } => to_json_binary(&encode(deps, encoder_version, encoding_message)?),
+            message,
+        } => to_json_binary(&encode(deps, encoder_version, message)?),
     }
 }
 
@@ -116,25 +110,18 @@ fn list_encoders(deps: Deps) -> StdResult<Vec<(String, Addr)>> {
         .collect::<StdResult<Vec<(String, Addr)>>>()
 }
 
-fn is_valid_encoding_info(
-    deps: Deps,
-    encoder_version: String,
-    library: String,
-    function: String,
-) -> StdResult<bool> {
+fn is_valid_library(deps: Deps, encoder_version: String, library: String) -> StdResult<bool> {
     let encoder = ENCODERS.load(deps.storage, encoder_version)?;
-    deps.querier.query_wasm_smart(
-        encoder,
-        &EncoderQueryMsg::IsValidEncodingInfo { library, function },
-    )
+    deps.querier
+        .query_wasm_smart(encoder, &EncoderQueryMsg::IsValidLibrary { library })
 }
 
 fn encode(
     deps: Deps,
     encoder_version: String,
-    encoding_message: EncodingMessage,
+    message: ProcessorMessageToEncode,
 ) -> StdResult<Binary> {
     let encoder = ENCODERS.load(deps.storage, encoder_version)?;
     deps.querier
-        .query_wasm_smart(encoder, &EncoderQueryMsg::Encode { encoding_message })
+        .query_wasm_smart(encoder, &EncoderQueryMsg::Encode { message })
 }

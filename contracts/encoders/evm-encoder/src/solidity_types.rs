@@ -2,7 +2,7 @@ use alloy_sol_types::sol;
 
 // The types below is what our processor messages will be decoded into on the EVM processor, with all the required information to build the batches
 // and apply the logic
-sol!(
+sol! {
     struct ProcessorMessage {
         ProcessorMessageType messageType;
         bytes message; // ABI encoded message according to the type
@@ -100,4 +100,4 @@ sol!(
         uint64 queuePosition;
         Priority priority;
     }
-);
+}

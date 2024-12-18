@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query};
-use valence_encoder_utils::msg::EncodingMessage;
+use valence_encoder_utils::msg::ProcessorMessageToEncode;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -29,17 +29,16 @@ pub enum QueryMsg {
     Encoder { version: String },
     #[returns(Vec<(String, Addr)>)]
     ListEncoders {},
-    // Checks that the library and function that we want to encode into exist in the encoder for the given version
+    // Checks that the library that we want to encode into exists for a specific encoder version
     #[returns(bool)]
-    IsValidEncodingInfo {
+    IsValidLibrary {
         encoder_version: String,
         library: String,
-        function: String,
     },
     // Encodes the message
     #[returns(Binary)]
     Encode {
         encoder_version: String,
-        encoding_message: EncodingMessage,
+        message: ProcessorMessageToEncode,
     },
 }

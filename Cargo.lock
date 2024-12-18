@@ -5711,10 +5711,15 @@ dependencies = [
  "cosmwasm-schema 2.1.4",
  "cosmwasm-std 2.1.4",
  "cw-storage-plus 2.0.0",
+ "cw-utils 2.0.0",
  "cw2 2.0.0",
+ "serde_json",
  "strum 0.26.3",
  "thiserror 1.0.69",
+ "valence-authorization-utils",
  "valence-encoder-utils",
+ "valence-forwarder-library",
+ "valence-library-utils",
 ]
 
 [[package]]

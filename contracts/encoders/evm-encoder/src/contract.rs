@@ -5,9 +5,9 @@ use cosmwasm_std::{
     to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
 };
 use cw2::set_contract_version;
-use valence_encoder_utils::msg::{EncodingMessage, QueryMsg};
+use valence_encoder_utils::msg::{ProcessorMessageToEncode, QueryMsg};
 
-use crate::{error::ContractError, EVMLibraryFunction};
+use crate::{evict_msgs, insert_msgs, pause, resume, send_msgs, EVMLibraryFunction};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -26,29 +26,42 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(
-    _deps: DepsMut,
-    _env: Env,
-    _info: MessageInfo,
-    _msg: Empty,
-) -> Result<Response, ContractError> {
+pub fn execute(_deps: DepsMut, _env: Env, _info: MessageInfo, _msg: Empty) -> StdResult<Response> {
     unimplemented!("This contract does not handle any messages, only queries")
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::IsValidEncodingInfo { library, function } => {
-            to_json_binary(&is_valid_encoding_info(library, function))
-        }
-        QueryMsg::Encode { encoding_message } => to_json_binary(&encode(encoding_message)?),
+        QueryMsg::IsValidLibrary { library } => to_json_binary(&is_valid_library(library)),
+        QueryMsg::Encode { message } => to_json_binary(&encode(message)?),
     }
 }
 
-fn is_valid_encoding_info(library: String, function: String) -> bool {
-    EVMLibraryFunction::is_valid(&library, &function)
+fn is_valid_library(library: String) -> bool {
+    EVMLibraryFunction::is_valid(&library)
 }
 
-fn encode(_encoding_message: EncodingMessage) -> StdResult<Binary> {
-    todo!()
+fn encode(message: ProcessorMessageToEncode) -> StdResult<Binary> {
+    match message {
+        ProcessorMessageToEncode::SendMsgs {
+            execution_id,
+            priority,
+            subroutine,
+            messages,
+        } => send_msgs::encode(execution_id, priority, subroutine, messages),
+        ProcessorMessageToEncode::InsertMsgs {
+            execution_id,
+            queue_position,
+            priority,
+            subroutine,
+            messages,
+        } => insert_msgs::encode(execution_id, queue_position, priority, subroutine, messages),
+        ProcessorMessageToEncode::EvictMsgs {
+            queue_position,
+            priority,
+        } => evict_msgs::encode(queue_position, priority),
+        ProcessorMessageToEncode::Pause {} => Ok(pause::encode()),
+        ProcessorMessageToEncode::Resume {} => Ok(resume::encode()),
+    }
 }

@@ -6,23 +6,25 @@ use valence_authorization_utils::authorization::{Priority, Subroutine};
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     #[returns(bool)]
-    IsValidEncodingInfo { library: String, function: String },
+    IsValidLibrary { library: String },
     #[returns(Binary)]
-    Encode { encoding_message: EncodingMessage },
+    Encode { message: ProcessorMessageToEncode },
 }
 
 #[cw_serde]
-pub enum EncodingMessage {
+pub enum ProcessorMessageToEncode {
     SendMsgs {
+        execution_id: u64,
         priority: Priority,
         subroutine: Subroutine,
-        msgs: Vec<Binary>,
+        messages: Vec<Message>,
     },
     InsertMsgs {
+        execution_id: u64,
         queue_position: u64,
         priority: Priority,
         subroutine: Subroutine,
-        msgs: Vec<Binary>,
+        messages: Vec<Message>,
     },
     EvictMsgs {
         queue_position: u64,
@@ -30,4 +32,10 @@ pub enum EncodingMessage {
     },
     Pause {},
     Resume {},
+}
+
+#[cw_serde]
+pub struct Message {
+    pub library: String,
+    pub data: Binary,
 }
