@@ -6,7 +6,7 @@ use valence_encoder_utils::msg::Message;
 use crate::{
     encode_subroutine,
     solidity_types::{self, InsertMsgs, ProcessorMessage, ProcessorMessageType},
-    EVMLibraryFunction,
+    EVMLibrary,
 };
 
 pub fn encode(
@@ -27,7 +27,7 @@ pub fn encode(
         messages: messages
             .iter()
             .map(|m| {
-                let encoded = EVMLibraryFunction::encode_message(&m.library, &m.data)?;
+                let encoded = EVMLibrary::encode_message(&m.library, &m.data)?;
                 Ok(encoded.into())
             })
             .collect::<Result<Vec<_>, StdError>>()?,

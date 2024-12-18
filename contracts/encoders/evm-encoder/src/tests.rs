@@ -16,15 +16,15 @@ use valence_encoder_utils::msg::{Message as EncoderMessage, ProcessorMessageToEn
 use crate::{
     contract::{instantiate, query},
     solidity_types::{EvictMsgs, InsertMsgs, ProcessorMessage, ProcessorMessageType, SendMsgs},
-    EVMLibraryFunction,
+    EVMLibrary,
 };
 
 #[test]
 fn test_valid_combinations() {
-    assert!(EVMLibraryFunction::is_valid("forwarder"));
-    assert!(!EVMLibraryFunction::is_valid("invalid"));
+    assert!(EVMLibrary::is_valid("forwarder"));
+    assert!(!EVMLibrary::is_valid("invalid"));
     // PascalCase variants should not work as strings
-    assert!(!EVMLibraryFunction::is_valid("Forwarder"));
+    assert!(!EVMLibrary::is_valid("Forwarder"));
 }
 
 #[test]

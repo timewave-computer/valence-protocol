@@ -21,28 +21,28 @@ mod tests;
 
 #[derive(Debug, EnumString)]
 #[strum(serialize_all = "snake_case")]
-pub enum EVMLibraryFunction {
+pub enum EVMLibrary {
     // This one is reserved for when the user sends ABI raw bytes to a contract that is not one of our libraries
     NoLibrary,
     Forwarder,
 }
 
-impl EVMLibraryFunction {
+impl EVMLibrary {
     /// Verifies that the library asked for is a valid library and returns it
     pub fn get_library(lib: &str) -> Result<Self, StdError> {
         // Parse the library enum using strum
         let library = lib
-            .parse::<EVMLibraryFunction>()
+            .parse::<EVMLibrary>()
             .map_err(|_| StdError::generic_err("Invalid library".to_string()))?;
 
         Ok(library)
     }
     /// Validates if the provided library and function strings are valid
-    /// `lib` is library name in snake_case (e.g. "forwarder") and `func` is the function name in snake_case (e.g. "forward")
+    /// `lib` is library name in snake_case (e.g. "forwarder")
     /// returns true if both library and function exist
     pub fn is_valid(lib: &str) -> bool {
-        lib.parse::<EVMLibraryFunction>().map_or(false, |function| {
-            !matches!(function, EVMLibraryFunction::NoLibrary)
+        lib.parse::<EVMLibrary>().map_or(false, |function| {
+            !matches!(function, EVMLibrary::NoLibrary)
         })
     }
 
@@ -51,8 +51,8 @@ impl EVMLibraryFunction {
         let library = Self::get_library(lib)?;
         match library {
             // When raw bytes are sent we don't do any checks here and just forward the message.
-            EVMLibraryFunction::NoLibrary => Ok(msg.to_vec()),
-            EVMLibraryFunction::Forwarder => forwarder::encode(msg),
+            EVMLibrary::NoLibrary => Ok(msg.to_vec()),
+            EVMLibrary::Forwarder => forwarder::encode(msg),
         }
     }
 }
