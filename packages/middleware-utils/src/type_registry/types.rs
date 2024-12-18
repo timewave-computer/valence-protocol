@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Binary;
-use neutron_sdk::bindings::types::InterchainQueryResult;
+use neutron_sdk::bindings::types::{InterchainQueryResult, KVKey};
 
 use crate::canonical_types::{bank::balance::ValenceBankBalance, pools::xyk::ValenceXykPool};
 
@@ -28,7 +28,7 @@ pub enum RegistryQueryMsg {
     ToCanonical { type_url: String, binary: Binary },
 
     /// get the kvkey used for registering an interchain query
-    #[returns(neutron_sdk::bindings::types::KVKey)]
+    #[returns(KVKey)]
     KVKey {
         type_id: String,
         params: BTreeMap<String, Binary>,

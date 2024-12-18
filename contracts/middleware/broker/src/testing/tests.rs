@@ -19,7 +19,7 @@ fn test_get_kv_key() {
 
     let params = BTreeMap::from([("pool_id".to_string(), to_json_binary(&1u64).unwrap())]);
 
-    let kv_key = suite.get_kv_key("gamm_pool", params).unwrap();
+    let kv_key = suite.get_kv_key(Pool::TYPE_URL, params).unwrap();
 
     println!("kv_key: {:?}", kv_key);
 }
@@ -48,7 +48,9 @@ fn test_reconstruct_proto() {
         revision: 1,
     };
 
-    let reconstructed_result = suite.query_decode_proto("gamm_pool", icq_result).unwrap();
+    let reconstructed_result = suite
+        .query_decode_proto(Pool::TYPE_URL, icq_result)
+        .unwrap();
     println!("reconstructed result: {:?}", reconstructed_result);
 }
 

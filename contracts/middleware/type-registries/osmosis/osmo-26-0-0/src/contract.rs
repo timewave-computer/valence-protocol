@@ -63,8 +63,8 @@ pub fn query(_deps: Deps, _env: Env, msg: RegistryQueryMsg) -> StdResult<Binary>
 
 fn try_get_kv_key(type_id: String, params: BTreeMap<String, Binary>) -> StdResult<Binary> {
     let kv_key = match type_id.as_str() {
-        "gamm_pool" => OsmosisXykPool::get_kv_key(params),
-        "bank_balances" => OsmosisBankBalance::get_kv_key(params),
+        Pool::TYPE_URL => OsmosisXykPool::get_kv_key(params),
+        QueryBalanceResponse::TYPE_URL => OsmosisBankBalance::get_kv_key(params),
         _ => return Err(StdError::generic_err("unknown type_id")),
     };
 
@@ -78,8 +78,10 @@ fn try_get_kv_key(type_id: String, params: BTreeMap<String, Binary>) -> StdResul
 
 fn try_reconstruct_proto(type_id: String, icq_result: InterchainQueryResult) -> StdResult<Binary> {
     let reconstruction_result = match type_id.as_str() {
-        "gamm_pool" => OsmosisXykPool::decode_and_reconstruct(type_id, icq_result),
-        "bank_balances" => OsmosisBankBalance::decode_and_reconstruct(type_id, icq_result),
+        Pool::TYPE_URL => OsmosisXykPool::decode_and_reconstruct(type_id, icq_result),
+        QueryBalanceResponse::TYPE_URL => {
+            OsmosisBankBalance::decode_and_reconstruct(type_id, icq_result)
+        }
         _ => return Err(StdError::generic_err("unknown type_id")),
     };
 
@@ -114,7 +116,7 @@ fn try_from_canonical(object: ValenceType) -> StdResult<Binary> {
 fn try_to_canonical(type_url: String, binary: Binary) -> StdResult<ValenceType> {
     println!("[registry] converting {type_url} binary to canonical valence type");
     let canonical_type = match type_url.as_str() {
-        "gamm_pool" => {
+        Pool::TYPE_URL => {
             let obj: Pool = from_json(&binary).map_err(|e| StdError::generic_err(e.to_string()))?;
 
             let native_type = OsmosisXykPool(obj);
@@ -122,7 +124,7 @@ fn try_to_canonical(type_url: String, binary: Binary) -> StdResult<ValenceType> 
                 .try_to_canonical()
                 .map_err(|e| StdError::generic_err(e.to_string()))?
         }
-        "bank_balances" => {
+        QueryBalanceResponse::TYPE_URL => {
             let obj: QueryBalanceResponse =
                 from_json(&binary).map_err(|e| StdError::generic_err(e.to_string()))?;
 
