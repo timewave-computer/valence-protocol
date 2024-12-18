@@ -27,7 +27,7 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(_deps: DepsMut, _env: Env, _info: MessageInfo, _msg: Empty) -> StdResult<Response> {
-    unimplemented!("This contract does not handle any messages, only queries")
+    unimplemented!("This contract does not handle any execute messages, only queries")
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
