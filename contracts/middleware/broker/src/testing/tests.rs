@@ -65,7 +65,7 @@ fn test_into_canonical() {
 
     let binary = to_json_binary(&Pool::default()).unwrap();
 
-    let resp: ValenceType = suite.try_to_canonical("gamm_pool", binary).unwrap();
+    let resp: ValenceType = suite.try_to_canonical(Pool::TYPE_URL, binary).unwrap();
 
     println!("resp: {:?}", resp);
 }
@@ -120,7 +120,7 @@ fn test_from_canonical() {
     let native_binary_response = suite.try_from_canonical(canonical).unwrap();
 
     let revert_canonical: ValenceType = suite
-        .try_to_canonical("gamm_pool", native_binary_response.binary)
+        .try_to_canonical(Pool::TYPE_URL, native_binary_response.binary)
         .unwrap();
 
     match revert_canonical {

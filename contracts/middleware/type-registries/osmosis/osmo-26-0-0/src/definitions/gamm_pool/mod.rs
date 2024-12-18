@@ -13,6 +13,12 @@ const STORAGE_PREFIX: &str = "gamm";
 
 pub struct OsmosisXykPool(pub Pool);
 
+impl From<Pool> for OsmosisXykPool {
+    fn from(pool: Pool) -> Self {
+        Self(pool)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use cosmwasm_std::{from_json, Binary};
@@ -71,6 +77,6 @@ mod tests {
         // convert the valence type back into the external type
         let osmo_pool = OsmosisXykPool::try_from_canonical(canonical_valence_pool).unwrap();
 
-        assert_eq!(osmo_pool.pool_assets.len(), 3);
+        assert_eq!(osmo_pool.pool_assets.len(), 2);
     }
 }

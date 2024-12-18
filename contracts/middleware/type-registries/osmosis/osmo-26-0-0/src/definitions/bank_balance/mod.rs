@@ -7,3 +7,9 @@ const ADDR_KEY: &str = "addr";
 const DENOM_KEY: &str = "denom";
 
 pub struct OsmosisBankBalance(pub QueryBalanceResponse);
+
+impl From<QueryBalanceResponse> for OsmosisBankBalance {
+    fn from(balance: QueryBalanceResponse) -> Self {
+        Self(balance)
+    }
+}
