@@ -348,7 +348,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             asset1: NTRN_DENOM.to_string(),
                             asset2: token.clone(),
                         },
-                        slippage_tolerance: None,
+                        max_spread: None,
                     },
                 },
             ),

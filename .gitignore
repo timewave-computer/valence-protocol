@@ -19,6 +19,7 @@
 
 # schemas
 contracts/**/schema/raw
+program-manager/schema/raw
 
 # local-interchaintest
 local-interchaintest/configs
