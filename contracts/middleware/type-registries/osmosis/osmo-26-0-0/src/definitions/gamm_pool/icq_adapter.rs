@@ -37,9 +37,9 @@ impl IcqIntegration for OsmosisXykPool {
             .try_into()
             .map_err(|_| StdError::generic_err("failed to parse into pool"))?;
 
-        let binary = to_json_binary(&osmo_pool)?;
-
-        Ok(binary)
+        to_json_binary(&osmo_pool)
+            .map_err(StdError::from)
+            .map_err(MiddlewareError::Std)
     }
 }
 

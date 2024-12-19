@@ -8,10 +8,6 @@ use valence_middleware_utils::register_types;
 pub mod bank_balance;
 pub mod gamm_pool;
 
-// TODO: embed the previously deployed version identifier there
-// to ensure that types declared here implement a 1-1 mapper from
-// the outdated version to this one.
-
 // thought: these definitions could also be treated as optional fields.
 // e.g. not every type needs to be ICQ-able, so some types could miss
 // the ICQ adapter implementation. If registry receives an ICQ request
@@ -25,15 +21,17 @@ pub mod gamm_pool;
 
 register_types! {
     "/osmosis.gamm.v1beta1.Pool" => {
+        // in the future, further plugins can be added here to handle type-specific
+        // logic. e.g. a migration plugin that would handle the type conversion
+        // from the type defined in the previous (semver) type registry:
+        // migrate_from: osmo_25_0_0::Pool,
         native_type: Pool,
         adapter: OsmosisXykPool,
         to_valence: ValenceType::XykPool,
-        // migrate_from: osmo_25_0_0::Pool,
     },
     "/cosmos.bank.v1beta1.QueryBalanceResponse" => {
         native_type: QueryBalanceResponse,
         adapter: OsmosisBankBalance,
         to_valence: ValenceType::BankBalance,
-        // migrate_from: osmo_25_0_0::QueryBalanceResponse,
     }
 }

@@ -35,6 +35,9 @@ pub enum MiddlewareError {
 
     #[error("{0}")]
     SemverError(#[from] semver::Error),
+
+    #[error("canonical type conversion error: {0}")]
+    CanonicalConversionError(String),
 }
 
 pub fn try_unpack_domain_specific_value<T>(

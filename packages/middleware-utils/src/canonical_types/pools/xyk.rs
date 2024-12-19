@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 
-use cosmwasm_schema::cw_serde;
+use cosmwasm_schema::{cw_serde, serde::de::DeserializeOwned};
 use cosmwasm_std::{ensure, Binary, Coin, Decimal, StdError, StdResult};
+
+use crate::try_unpack_domain_specific_value;
 
 #[cw_serde]
 pub struct ValenceXykPool {
@@ -32,6 +34,13 @@ impl ValenceXykPool {
         let b = self.assets[1].amount;
 
         Ok(Decimal::from_ratio(a, b))
+    }
+
+    pub fn get_domain_specific_field<T>(&self, key: &str) -> StdResult<T>
+    where
+        T: DeserializeOwned,
+    {
+        try_unpack_domain_specific_value(key, &self.domain_specific_fields)
     }
 }
 

@@ -1,6 +1,6 @@
 use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
 
-pub mod domain_adapter;
+pub mod icq_adapter;
 pub mod valence_adapter;
 
 const ADDRESS_KEY: &str = "address";

@@ -11,6 +11,9 @@ pub struct RegistryInstantiateMsg {}
 #[cw_serde]
 pub enum RegistryExecuteMsg {}
 
+/// this is effectively the valence vm types that are enabled
+/// on a system level. if a particular type is not defined here,
+/// it cannot be used in programs.
 #[cw_serde]
 pub enum ValenceType {
     XykPool(ValenceXykPool),

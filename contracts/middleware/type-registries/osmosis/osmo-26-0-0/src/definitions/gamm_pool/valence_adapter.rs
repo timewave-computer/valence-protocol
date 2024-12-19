@@ -4,13 +4,12 @@ use std::str::FromStr;
 use cosmwasm_std::coin;
 use cosmwasm_std::to_json_binary;
 
-use cosmwasm_std::StdError;
 use osmosis_std::types::osmosis::gamm::v1beta1::{Pool, PoolParams};
 use osmosis_std::types::{cosmos::base::v1beta1::Coin, osmosis::gamm::v1beta1::PoolAsset};
 use valence_middleware_utils::canonical_types::pools::xyk::ValenceXykPool;
 use valence_middleware_utils::canonical_types::ValenceTypeAdapter;
 use valence_middleware_utils::type_registry::types::ValenceType;
-use valence_middleware_utils::{try_unpack_domain_specific_value, MiddlewareError};
+use valence_middleware_utils::MiddlewareError;
 
 use super::{
     OsmosisXykPool, ADDRESS_KEY, FUTURE_POOL_GOVERNOR_KEY, ID_KEY, POOL_PARAMS_KEY,
@@ -75,62 +74,33 @@ impl ValenceTypeAdapter for OsmosisXykPool {
     }
 
     fn try_from_canonical(canonical: ValenceType) -> Result<Self::External, MiddlewareError> {
-        let canonical_inner = match canonical {
+        let inner = match canonical {
             ValenceType::XykPool(pool) => pool,
             _ => {
-                return Err(MiddlewareError::Std(StdError::generic_err(
-                    "canonical inner type mismatch",
-                )))
+                return Err(MiddlewareError::CanonicalConversionError(
+                    "canonical inner type mismatch".to_string(),
+                ))
             }
         };
-        // unpack the pool address
-        let address: String =
-            try_unpack_domain_specific_value(ADDRESS_KEY, &canonical_inner.domain_specific_fields)?;
-
-        // unpack the pool id
-        let id: u64 =
-            try_unpack_domain_specific_value(ID_KEY, &canonical_inner.domain_specific_fields)?;
-
-        // unpack the future pool governor
-        let future_pool_governor: String = try_unpack_domain_specific_value(
-            FUTURE_POOL_GOVERNOR_KEY,
-            &canonical_inner.domain_specific_fields,
-        )?;
-
-        // unpack the pool params
-        let pool_params: Option<PoolParams> = try_unpack_domain_specific_value(
-            POOL_PARAMS_KEY,
-            &canonical_inner.domain_specific_fields,
-        )?;
-
-        // unpack the shares denom and total shares amount before combining them to a proto coin
-        let shares_denom: String = try_unpack_domain_specific_value(
-            SHARES_DENOM_KEY,
-            &canonical_inner.domain_specific_fields,
-        )?;
-        let shares_coin = Coin {
-            denom: shares_denom,
-            amount: canonical_inner.total_shares,
-        };
-
-        // unpack the total weight
-        let total_weight: String = try_unpack_domain_specific_value(
-            TOTAL_WEIGHT_KEY,
-            &canonical_inner.domain_specific_fields,
-        )?;
+        // unpack domain specific fields from inner type
+        let address: String = inner.get_domain_specific_field(ADDRESS_KEY)?;
+        let id: u64 = inner.get_domain_specific_field(ID_KEY)?;
+        let future_pool_governor: String =
+            inner.get_domain_specific_field(FUTURE_POOL_GOVERNOR_KEY)?;
+        let pool_params: Option<PoolParams> = inner.get_domain_specific_field(POOL_PARAMS_KEY)?;
+        let shares_denom: String = inner.get_domain_specific_field(SHARES_DENOM_KEY)?;
+        let total_weight: String = inner.get_domain_specific_field(TOTAL_WEIGHT_KEY)?;
 
         // unpack the pool assets
         let mut pool_assets = vec![];
-        for asset in &canonical_inner.assets {
+        for asset in &inner.assets {
             let pool_asset = PoolAsset {
                 token: Some(Coin {
                     denom: asset.denom.to_string(),
                     amount: asset.amount.into(),
                 }),
-                weight: try_unpack_domain_specific_value(
-                    &format!("pool_asset_{}_weight", asset.denom),
-                    &canonical_inner.domain_specific_fields,
-                )?,
+                weight: inner
+                    .get_domain_specific_field(&format!("pool_asset_{}_weight", asset.denom))?,
             };
             pool_assets.push(pool_asset);
         }
@@ -140,7 +110,10 @@ impl ValenceTypeAdapter for OsmosisXykPool {
             id,
             pool_params,
             future_pool_governor,
-            total_shares: Some(shares_coin),
+            total_shares: Some(Coin {
+                denom: shares_denom,
+                amount: inner.total_shares,
+            }),
             pool_assets,
             total_weight,
         })
