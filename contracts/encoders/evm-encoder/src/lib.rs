@@ -6,15 +6,11 @@ use cosmwasm_std::{Binary, StdError, StdResult};
 use libraries::forwarder::{self};
 use strum::EnumString;
 use valence_authorization_utils::authorization::Subroutine;
+use valence_encoder_utils::processor::solidity_types;
 
 pub mod contract;
-pub mod evict_msgs;
-pub mod insert_msgs;
 pub mod libraries;
-pub mod pause;
-pub mod resume;
-pub mod send_msgs;
-pub mod solidity_types;
+pub mod processor;
 
 #[cfg(test)]
 mod tests;

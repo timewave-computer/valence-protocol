@@ -7,7 +7,10 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use valence_encoder_utils::msg::{ProcessorMessageToEncode, QueryMsg};
 
-use crate::{evict_msgs, insert_msgs, pause, resume, send_msgs, EVMLibrary};
+use crate::{
+    processor::{evict_msgs, insert_msgs, pause, resume, send_msgs},
+    EVMLibrary,
+};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");

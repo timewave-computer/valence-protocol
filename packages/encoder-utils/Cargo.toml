@@ -9,3 +9,4 @@ description = "Helpers for encoding functionalities"
 cosmwasm-std                = { workspace = true }
 cosmwasm-schema             = { workspace = true }
 valence-authorization-utils = { workspace = true }
+alloy-sol-types             = "0.7.7"
