@@ -34,7 +34,7 @@ pub fn create_provide_liquidity_msg(
                 amount: Uint128::new(amount2),
             },
         ],
-        slippage_tolerance: cfg.lp_config.slippage_tolerance,
+        slippage_tolerance: None,
         auto_stake: Some(false),
         receiver: Some(cfg.output_addr.to_string()),
     };
@@ -118,7 +118,7 @@ fn create_xyk_liquidity_msg(
         contract_addr: cfg.pool_addr.to_string(),
         msg: to_json_binary(&ExecuteMsg::Swap {
             offer_asset: astroport_offer_asset.clone(),
-            max_spread: cfg.lp_config.slippage_tolerance,
+            max_spread: cfg.lp_config.max_spread,
             belief_price: None,
             to: None,
             ask_asset_info: None,
@@ -138,7 +138,7 @@ fn create_xyk_liquidity_msg(
                     amount: Uint128::new(ask_asset.amount.u128()),
                 },
             ],
-            slippage_tolerance: cfg.lp_config.slippage_tolerance,
+            slippage_tolerance: None,
             auto_stake: Some(false),
             receiver: Some(cfg.output_addr.to_string()),
         })?,
@@ -175,7 +175,7 @@ fn create_stable_or_custom_liquidity_msg(
         contract_addr: cfg.pool_addr.to_string(),
         msg: to_json_binary(&ExecuteMsg::ProvideLiquidity {
             assets,
-            slippage_tolerance: cfg.lp_config.slippage_tolerance,
+            slippage_tolerance: None,
             auto_stake: Some(false),
             receiver: Some(cfg.output_addr.to_string()),
         })?,
