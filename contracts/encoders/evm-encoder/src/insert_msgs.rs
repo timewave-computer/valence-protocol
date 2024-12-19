@@ -5,7 +5,7 @@ use valence_encoder_utils::msg::Message;
 
 use crate::{
     encode_subroutine,
-    solidity_types::{self, InsertMsgs, ProcessorMessage, ProcessorMessageType},
+    solidity_types::{InsertMsgs, ProcessorMessage, ProcessorMessageType},
     EVMLibrary,
 };
 
@@ -19,10 +19,7 @@ pub fn encode(
     let message = InsertMsgs {
         executionId: execution_id,
         queuePosition: queue_position,
-        priority: match priority {
-            Priority::Medium => solidity_types::Priority::Medium,
-            Priority::High => solidity_types::Priority::High,
-        },
+        priority: priority.into(),
         subroutine: encode_subroutine(subroutine)?,
         messages: messages
             .iter()

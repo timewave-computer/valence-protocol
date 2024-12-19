@@ -101,3 +101,12 @@ sol! {
         Priority priority;
     }
 }
+
+impl From<valence_authorization_utils::authorization::Priority> for Priority {
+    fn from(priority: valence_authorization_utils::authorization::Priority) -> Self {
+        match priority {
+            valence_authorization_utils::authorization::Priority::Medium => Priority::Medium,
+            valence_authorization_utils::authorization::Priority::High => Priority::High,
+        }
+    }
+}
