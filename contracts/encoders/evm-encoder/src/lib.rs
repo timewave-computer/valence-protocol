@@ -37,16 +37,15 @@ impl EVMLibrary {
 
         Ok(library)
     }
-    /// Validates if the provided library and function strings are valid
+    /// Validates if the provided library is valid
     /// `lib` is library name in snake_case (e.g. "forwarder")
-    /// returns true if both library and function exist
+    /// returns true if the library exists and is not `NoLibrary`
     pub fn is_valid(lib: &str) -> bool {
-        lib.parse::<EVMLibrary>().map_or(false, |function| {
-            !matches!(function, EVMLibrary::NoLibrary)
-        })
+        lib.parse::<EVMLibrary>()
+            .map_or(false, |library| !matches!(library, EVMLibrary::NoLibrary))
     }
 
-    /// Encodes the provided message using the provided library and function strings
+    /// Encodes the provided message using the provided library
     pub fn encode_message(lib: &str, msg: &Binary) -> StdResult<Vec<u8>> {
         let library = Self::get_library(lib)?;
         match library {
