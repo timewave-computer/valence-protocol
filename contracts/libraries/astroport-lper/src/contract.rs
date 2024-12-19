@@ -103,7 +103,8 @@ mod functions {
 
         // Get the pool asset ratios
         let pool_asset_ratios =
-            cosmwasm_std::Decimal::from_ratio(pool_asset1_balance, pool_asset2_balance);
+            cosmwasm_std::Decimal::checked_from_ratio(pool_asset1_balance, pool_asset2_balance)
+                .map_err(|e| LibraryError::ExecutionError(e.to_string()))?;
 
         // If we have an expected pool ratio range, we need to check if the pool is within that range
         if let Some(range) = expected_pool_ratio_range {
@@ -208,7 +209,9 @@ mod functions {
             Ok((required_asset1_amount.u128(), balance2))
         } else {
             // We can't provide all asset2 tokens so we need to determine how many we can provide according to our available asset1
-            let ratio = cosmwasm_std::Decimal::from_ratio(pool_asset1_balance, pool_asset2_balance);
+            let ratio =
+                cosmwasm_std::Decimal::checked_from_ratio(pool_asset2_balance, pool_asset1_balance)
+                    .map_err(|e| LibraryError::ExecutionError(e.to_string()))?;
 
             Ok((
                 balance1,
@@ -287,7 +290,8 @@ mod functions {
         // Check pool ratio if range is provided
         if let Some(range) = expected_pool_ratio_range {
             let pool_asset_ratios =
-                cosmwasm_std::Decimal::from_ratio(pool_asset1_balance, pool_asset2_balance);
+                cosmwasm_std::Decimal::checked_from_ratio(pool_asset1_balance, pool_asset2_balance)
+                    .map_err(|e| LibraryError::ExecutionError(e.to_string()))?;
             range.is_within_range(pool_asset_ratios)?;
         }
 
