@@ -8,10 +8,12 @@ import {IProcessorMessageTypes} from "../src/processor/interfaces/IProcessorMess
 contract ProcessorMessageDecoderTest is Test {
     // Helper function to create a basic atomic subroutine
     function createAtomicSubroutine() internal pure returns (IProcessorMessageTypes.Subroutine memory) {
+        // Create some addresses that the atomic functions will call, any address will do
         address[] memory addresses = new address[](2);
         addresses[0] = address(0x1);
         addresses[1] = address(0x2);
 
+        // Create the atomic functions using the addresses created before
         IProcessorMessageTypes.AtomicFunction[] memory functions = new IProcessorMessageTypes.AtomicFunction[](2);
         functions[0] = IProcessorMessageTypes.AtomicFunction(addresses[0]);
         functions[1] = IProcessorMessageTypes.AtomicFunction(addresses[1]);
