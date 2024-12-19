@@ -78,7 +78,7 @@ valence-icq-querier                  = { path = "contracts/libraries/icq-querier
 
 # middleware
 valence-middleware-osmosis      = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = ["library"] }
-valence-middleware-broker       = { path = "contracts/middleware/brokers", features = ["library"] }
+valence-middleware-broker       = { path = "contracts/middleware/broker", features = ["library"] }
 
 # our packages
 valence-account-utils          = { path = "packages/account-utils" }
