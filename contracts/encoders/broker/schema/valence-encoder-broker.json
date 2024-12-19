@@ -239,21 +239,17 @@
       {
         "type": "object",
         "required": [
-          "is_valid_encoding_info"
+          "is_valid_library"
         ],
         "properties": {
-          "is_valid_encoding_info": {
+          "is_valid_library": {
             "type": "object",
             "required": [
               "encoder_version",
-              "function",
               "library"
             ],
             "properties": {
               "encoder_version": {
-                "type": "string"
-              },
-              "function": {
                 "type": "string"
               },
               "library": {
@@ -275,22 +271,14 @@
             "type": "object",
             "required": [
               "encoder_version",
-              "function",
-              "library",
-              "msg"
+              "message"
             ],
             "properties": {
               "encoder_version": {
                 "type": "string"
               },
-              "function": {
-                "type": "string"
-              },
-              "library": {
-                "type": "string"
-              },
-              "msg": {
-                "$ref": "#/definitions/Binary"
+              "message": {
+                "$ref": "#/definitions/ProcessorMessageToEncode"
               }
             },
             "additionalProperties": false
@@ -314,9 +302,563 @@
       }
     ],
     "definitions": {
+      "Addr": {
+        "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+        "type": "string"
+      },
+      "AtomicFunction": {
+        "type": "object",
+        "required": [
+          "contract_address",
+          "domain",
+          "message_details"
+        ],
+        "properties": {
+          "contract_address": {
+            "$ref": "#/definitions/LibraryAccountType"
+          },
+          "domain": {
+            "$ref": "#/definitions/Domain"
+          },
+          "message_details": {
+            "$ref": "#/definitions/MessageDetails"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AtomicSubroutine": {
+        "type": "object",
+        "required": [
+          "functions"
+        ],
+        "properties": {
+          "functions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/AtomicFunction"
+            }
+          },
+          "retry_logic": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/RetryLogic"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
       "Binary": {
         "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
         "type": "string"
+      },
+      "Domain": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "main"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "external"
+            ],
+            "properties": {
+              "external": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Duration": {
+        "description": "Duration is a delta of time. You can add it to a BlockInfo or Expiration to move that further in the future. Note that an height-based Duration and a time-based Expiration cannot be combined",
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "height"
+            ],
+            "properties": {
+              "height": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Time in seconds",
+            "type": "object",
+            "required": [
+              "time"
+            ],
+            "properties": {
+              "time": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "FunctionCallback": {
+        "type": "object",
+        "required": [
+          "callback_message",
+          "contract_address"
+        ],
+        "properties": {
+          "callback_message": {
+            "$ref": "#/definitions/Binary"
+          },
+          "contract_address": {
+            "$ref": "#/definitions/Addr"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LibraryAccountType": {
+        "description": "An account type that is used in the library configs It can either be an Id or Addr The config that will be passed to the library must be of Addr veriant",
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "|library_account_addr|"
+            ],
+            "properties": {
+              "|library_account_addr|": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "|account_id|"
+            ],
+            "properties": {
+              "|account_id|": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "|library_id|"
+            ],
+            "properties": {
+              "|library_id|": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Message": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "params_restrictions": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/definitions/ParamRestriction"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "Message2": {
+        "type": "object",
+        "required": [
+          "data",
+          "library"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/definitions/Binary"
+          },
+          "library": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MessageDetails": {
+        "type": "object",
+        "required": [
+          "message",
+          "message_type"
+        ],
+        "properties": {
+          "message": {
+            "$ref": "#/definitions/Message"
+          },
+          "message_type": {
+            "$ref": "#/definitions/MessageType"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MessageType": {
+        "type": "string",
+        "enum": [
+          "cosmwasm_execute_msg",
+          "cosmwasm_migrate_msg"
+        ]
+      },
+      "NonAtomicFunction": {
+        "type": "object",
+        "required": [
+          "contract_address",
+          "domain",
+          "message_details"
+        ],
+        "properties": {
+          "callback_confirmation": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/FunctionCallback"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contract_address": {
+            "$ref": "#/definitions/LibraryAccountType"
+          },
+          "domain": {
+            "$ref": "#/definitions/Domain"
+          },
+          "message_details": {
+            "$ref": "#/definitions/MessageDetails"
+          },
+          "retry_logic": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/RetryLogic"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "NonAtomicSubroutine": {
+        "type": "object",
+        "required": [
+          "functions"
+        ],
+        "properties": {
+          "functions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/NonAtomicFunction"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ParamRestriction": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "must_be_included"
+            ],
+            "properties": {
+              "must_be_included": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "cannot_be_included"
+            ],
+            "properties": {
+              "cannot_be_included": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "must_be_value"
+            ],
+            "properties": {
+              "must_be_value": {
+                "type": "array",
+                "items": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "$ref": "#/definitions/Binary"
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Priority": {
+        "type": "string",
+        "enum": [
+          "medium",
+          "high"
+        ]
+      },
+      "ProcessorMessageToEncode": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "send_msgs"
+            ],
+            "properties": {
+              "send_msgs": {
+                "type": "object",
+                "required": [
+                  "execution_id",
+                  "messages",
+                  "priority",
+                  "subroutine"
+                ],
+                "properties": {
+                  "execution_id": {
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
+                  "messages": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/definitions/Message2"
+                    }
+                  },
+                  "priority": {
+                    "$ref": "#/definitions/Priority"
+                  },
+                  "subroutine": {
+                    "$ref": "#/definitions/Subroutine"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "insert_msgs"
+            ],
+            "properties": {
+              "insert_msgs": {
+                "type": "object",
+                "required": [
+                  "execution_id",
+                  "messages",
+                  "priority",
+                  "queue_position",
+                  "subroutine"
+                ],
+                "properties": {
+                  "execution_id": {
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
+                  "messages": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/definitions/Message2"
+                    }
+                  },
+                  "priority": {
+                    "$ref": "#/definitions/Priority"
+                  },
+                  "queue_position": {
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
+                  "subroutine": {
+                    "$ref": "#/definitions/Subroutine"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "evict_msgs"
+            ],
+            "properties": {
+              "evict_msgs": {
+                "type": "object",
+                "required": [
+                  "priority",
+                  "queue_position"
+                ],
+                "properties": {
+                  "priority": {
+                    "$ref": "#/definitions/Priority"
+                  },
+                  "queue_position": {
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "pause"
+            ],
+            "properties": {
+              "pause": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "resume"
+            ],
+            "properties": {
+              "resume": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "RetryLogic": {
+        "type": "object",
+        "required": [
+          "interval",
+          "times"
+        ],
+        "properties": {
+          "interval": {
+            "$ref": "#/definitions/Duration"
+          },
+          "times": {
+            "$ref": "#/definitions/RetryTimes"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RetryTimes": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "indefinitely"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "amount"
+            ],
+            "properties": {
+              "amount": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Subroutine": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "atomic"
+            ],
+            "properties": {
+              "atomic": {
+                "$ref": "#/definitions/AtomicSubroutine"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "non_atomic"
+            ],
+            "properties": {
+              "non_atomic": {
+                "$ref": "#/definitions/NonAtomicSubroutine"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
       }
     }
   },
@@ -335,7 +877,7 @@
       "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
       "type": "string"
     },
-    "is_valid_encoding_info": {
+    "is_valid_library": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Boolean",
       "type": "boolean"
