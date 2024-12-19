@@ -208,7 +208,7 @@ mod functions {
             Ok((required_asset1_amount.u128(), balance2))
         } else {
             // We can't provide all asset2 tokens so we need to determine how many we can provide according to our available asset1
-            let ratio = cosmwasm_std::Decimal::from_ratio(pool_asset1_balance, pool_asset2_balance);
+            let ratio = cosmwasm_std::Decimal::from_ratio(pool_asset2_balance, pool_asset1_balance);
 
             Ok((
                 balance1,
