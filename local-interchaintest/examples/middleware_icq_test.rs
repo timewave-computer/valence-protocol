@@ -12,7 +12,9 @@ use localic_std::{
 use log::info;
 use std::{collections::BTreeMap, env, error::Error, time::Duration};
 use valence_icq_querier::msg::FunctionMsgs;
-use valence_middleware_utils::type_registry::types::RegistryInstantiateMsg;
+use valence_middleware_utils::type_registry::types::{
+    RegistryInstantiateMsg, RegistryQueryMsg, ValenceType,
+};
 
 use localic_utils::{
     utils::test_context::TestContext, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
@@ -199,6 +201,25 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("query results: {:?}", query_results_response);
 
+    let hopefully_proto_gamm_pool = query_results_response[0].1.clone();
+
+    let valence_xyk_pool = broker_get_canonical(
+        &test_ctx,
+        broker_contract.address.to_string(),
+        osmosis_std::types::osmosis::gamm::v1beta1::Pool::TYPE_URL.to_string(),
+        hopefully_proto_gamm_pool,
+    )?;
+
+    info!("valence xyk pool: {:?}", valence_xyk_pool);
+
+    match valence_xyk_pool {
+        ValenceType::XykPool(valence_xyk_pool) => {
+            let price = valence_xyk_pool.get_price();
+            info!("price: {:?}", price);
+        }
+        _ => panic!("should be xyk pool"),
+    };
+
     Ok(())
 }
 
@@ -278,6 +299,31 @@ pub fn query_results(
 
     println!("query response: {:?}", query_response);
     let resp: Vec<(u64, Binary)> = serde_json::from_value(query_response).unwrap();
+
+    Ok(resp)
+}
+
+pub fn broker_get_canonical(
+    test_ctx: &TestContext,
+    broker_addr: String,
+    type_url: String,
+    binary: Binary,
+) -> Result<ValenceType, LocalError> {
+    let query_response = contract_query(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &broker_addr,
+        &serde_json::to_string(&valence_middleware_broker::msg::QueryMsg {
+            registry_version: None,
+            query: RegistryQueryMsg::ToCanonical { type_url, binary },
+        })
+        .map_err(|e| LocalError::Custom { msg: e.to_string() })?,
+    )["data"]
+        .clone();
+
+    println!("query response: {:?}", query_response);
+    let resp: ValenceType = serde_json::from_value(query_response).unwrap();
 
     Ok(resp)
 }
