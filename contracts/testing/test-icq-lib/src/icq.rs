@@ -232,15 +232,20 @@ pub fn register_kv_query(
 #[cfg(test)]
 mod test {
     use cosmwasm_std::{to_json_string, Binary};
-    use neutron_sdk::bindings::types::StorageValue;
+    use neutron_sdk::{
+        bindings::types::StorageValue,
+        interchain_queries::{
+            types::KVReconstruct, v047::helpers::deconstruct_account_denom_balance_key,
+        },
+    };
     use osmosis_std::{shim::Any, types::osmosis::gamm::v1beta1::Pool};
     use prost::Message;
     use serde_json::Value;
 
     #[test]
     fn try_decode_osmo_pool_from_binary() {
-        let key_utf8 = "\u{2}\0\0\0\0\0\0\0\u{1}";
-        let binary_key = Binary::from(key_utf8.as_bytes());
+        let b64_key = "AgAAAAAAAAAB";
+        let binary_key = Binary::from_base64(b64_key).unwrap();
 
         let b64_value = "Chovb3Ntb3Npcy5nYW1tLnYxYmV0YTEuUG9vbBKGAgo/b3NtbzE5ZTJtZjdjeXdrdjd6YXVnNm5rNWY4N2QwN2Z4cmRncmxhZHZ5bWgyZ3d2NWNydm0zdm5zdWV3aGg3EAEaBgoBMBIBMCIEMTI4aCokCgtnYW1tL3Bvb2wvMRIVMTAwMDAwMDAwMDAwMDAwMDAwMDAwMl8KUQpEaWJjLzRFNDFFRDhGM0RDQUVBMTVGNEQ2QURDNkVERDdDMDRBNjc2MTYwNzM1Qzk3MTBCOTA0QjdCRjUzNTI1QjU2RDYSCTEwMDAwMDAwMBIKMTA3Mzc0MTgyNDIgChIKBXVvc21vEgkxMDAwMDAwMDASCjEwNzM3NDE4MjQ6CjIxNDc0ODM2NDg=";
         let binary_value = Binary::from_base64(b64_value).unwrap();
@@ -262,5 +267,45 @@ mod test {
         let json_str: String = to_json_string(&osmo_pool).unwrap();
         let json_value: Value = serde_json::from_str(&json_str).unwrap();
         println!("json value: {:?}", json_value);
+    }
+
+    #[test]
+    fn try_decode_balance_response_from_binary() {
+        let b64_key = "AhS8qJZnI6YkudXN06CxcRJLTC+8wXVvc21v";
+        let binary_key = Binary::from_base64(b64_key).unwrap();
+
+        let b64_value = "OTk5NjY5OTk5MjUwMA==";
+        let binary_value = Binary::from_base64(b64_value).unwrap();
+
+        let storage_value = StorageValue {
+            storage_prefix: "bank".to_string(),
+            key: binary_key,
+            value: binary_value,
+        };
+
+        let balances: neutron_sdk::interchain_queries::v047::types::Balances =
+            KVReconstruct::reconstruct(&[storage_value]).unwrap();
+
+        println!("balances: {:?}", balances);
+    }
+
+    #[test]
+    fn try_decode_balance_response_from_binary_alt() {
+        let b64_key = "AhS8qJZnI6YkudXN06CxcRJLTC+8wXVvc21v";
+        let binary_key = Binary::from_base64(b64_key).unwrap();
+
+        let b64_value = "OTk4Nzg5OTk3MjUwMA==";
+        let binary_value = Binary::from_base64(b64_value).unwrap();
+
+        let storage_value = StorageValue {
+            storage_prefix: "bank".to_string(),
+            key: binary_key,
+            value: binary_value,
+        };
+
+        let (_, denom) = deconstruct_account_denom_balance_key(storage_value.key.to_vec()).unwrap();
+        println!("denom: {denom}");
+        let value_str = String::from_utf8(storage_value.value.to_vec()).unwrap();
+        println!("value_str: {value_str}");
     }
 }
