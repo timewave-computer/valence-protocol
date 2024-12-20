@@ -146,166 +146,166 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("json gamm query: {:?}", gamm_query_params);
 
-    let kvq_registration_response = register_kvq(
-        &test_ctx,
-        icq_test_lib.address.to_string(),
-        osmo_domain_registry.address.to_string(),
-        osmosis_std::types::osmosis::gamm::v1beta1::Pool::TYPE_URL.to_string(),
-        gamm_query_params.as_object().unwrap().clone(),
-    )?;
+    // let kvq_registration_response = register_kvq(
+    //     &test_ctx,
+    //     icq_test_lib.address.to_string(),
+    //     osmo_domain_registry.address.to_string(),
+    //     osmosis_std::types::osmosis::gamm::v1beta1::Pool::TYPE_URL.to_string(),
+    //     gamm_query_params.as_object().unwrap().clone(),
+    // )?;
 
-    info!(
-        "kv query registration response: {:?}",
-        kvq_registration_response
-    );
+    // info!(
+    //     "kv query registration response: {:?}",
+    //     kvq_registration_response
+    // );
 
-    std::thread::sleep(Duration::from_secs(2));
+    // std::thread::sleep(Duration::from_secs(2));
 
-    let bank_query_params = json!({
-        "addr": OSMOSIS_CHAIN_ADMIN_ADDR.to_string(),
-        "denom": OSMOSIS_CHAIN_DENOM.to_string(),
-    });
+    // let bank_query_params = json!({
+    //     "addr": OSMOSIS_CHAIN_ADMIN_ADDR.to_string(),
+    //     "denom": OSMOSIS_CHAIN_DENOM.to_string(),
+    // });
 
-    println!("json bank query: {:?}", bank_query_params);
+    // println!("json bank query: {:?}", bank_query_params);
 
-    let kvq_registration_response = register_kvq(
-        &test_ctx,
-        icq_test_lib.address.to_string(),
-        osmo_domain_registry.address.to_string(),
-        osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceResponse::TYPE_URL.to_string(),
-        bank_query_params.as_object().unwrap().clone(),
-    )?;
+    // let kvq_registration_response = register_kvq(
+    //     &test_ctx,
+    //     icq_test_lib.address.to_string(),
+    //     osmo_domain_registry.address.to_string(),
+    //     osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceResponse::TYPE_URL.to_string(),
+    //     bank_query_params.as_object().unwrap().clone(),
+    // )?;
 
-    info!(
-        "kv query registration response: {:?}",
-        kvq_registration_response
-    );
+    // info!(
+    //     "kv query registration response: {:?}",
+    //     kvq_registration_response
+    // );
 
-    let mut results_found = false;
-    let mut results = vec![];
-    while !results_found {
-        results = query_results(&test_ctx, icq_test_lib.address.to_string())?;
+    // let mut results_found = false;
+    // let mut results = vec![];
+    // while !results_found {
+    //     results = query_results(&test_ctx, icq_test_lib.address.to_string())?;
 
-        if results.len() == 2 {
-            info!("results: {:?}", results);
-            results_found = true;
-        } else {
-            info!("no results yet; sleeping for 3...");
-            std::thread::sleep(Duration::from_secs(3));
-        }
-    }
+    //     if results.len() == 2 {
+    //         info!("results: {:?}", results);
+    //         results_found = true;
+    //     } else {
+    //         info!("no results yet; sleeping for 3...");
+    //         std::thread::sleep(Duration::from_secs(3));
+    //     }
+    // }
 
-    let resp_1 = assert_icq_result(
-        &test_ctx,
-        icq_test_lib.address.to_string(),
-        results[0].0,
-        vec![
-            "/pool_assets/0/token/amount".to_string(),
-            "/pool_assets/1/token/amount".to_string(),
-            "==".to_string(),
-        ],
-    )?;
+    // let resp_1 = assert_icq_result(
+    //     &test_ctx,
+    //     icq_test_lib.address.to_string(),
+    //     results[0].0,
+    //     vec![
+    //         "/pool_assets/0/token/amount".to_string(),
+    //         "/pool_assets/1/token/amount".to_string(),
+    //         "==".to_string(),
+    //     ],
+    // )?;
 
-    std::thread::sleep(Duration::from_secs(3));
-    info!("assertion #1 result: {:?}", resp_1);
+    // std::thread::sleep(Duration::from_secs(3));
+    // info!("assertion #1 result: {:?}", resp_1);
 
-    let balance_amount: String = results[1]
-        .1
-        .pointer("/coins/0/amount")
-        .unwrap()
-        .as_str()
-        .unwrap()
-        .to_string();
-    info!("passing balance for assertion: {balance_amount}");
-    let resp_2 = assert_icq_result(
-        &test_ctx,
-        icq_test_lib.address.to_string(),
-        results[1].0,
-        vec![
-            "/coins/0/amount".to_string(),
-            balance_amount, // passing true
-            "==".to_string(),
-        ],
-    )?;
-    std::thread::sleep(Duration::from_secs(3));
+    // let balance_amount: String = results[1]
+    //     .1
+    //     .pointer("/coins/0/amount")
+    //     .unwrap()
+    //     .as_str()
+    //     .unwrap()
+    //     .to_string();
+    // info!("passing balance for assertion: {balance_amount}");
+    // let resp_2 = assert_icq_result(
+    //     &test_ctx,
+    //     icq_test_lib.address.to_string(),
+    //     results[1].0,
+    //     vec![
+    //         "/coins/0/amount".to_string(),
+    //         balance_amount, // passing true
+    //         "==".to_string(),
+    //     ],
+    // )?;
+    // std::thread::sleep(Duration::from_secs(3));
 
-    info!("assertion #2 result: {:?}", resp_2);
+    // info!("assertion #2 result: {:?}", resp_2);
 
-    let resp_3 = assert_icq_result(
-        &test_ctx,
-        icq_test_lib.address.to_string(),
-        results[1].0,
-        vec![
-            "/coins/0/amount".to_string(),
-            "314".to_string(), // passing false assertion value
-            "==".to_string(),
-        ],
-    )?;
-    std::thread::sleep(Duration::from_secs(3));
+    // let resp_3 = assert_icq_result(
+    //     &test_ctx,
+    //     icq_test_lib.address.to_string(),
+    //     results[1].0,
+    //     vec![
+    //         "/coins/0/amount".to_string(),
+    //         "314".to_string(), // passing false assertion value
+    //         "==".to_string(),
+    //     ],
+    // )?;
+    // std::thread::sleep(Duration::from_secs(3));
 
-    info!("assertion #3 result: {:?}", resp_3);
+    // info!("assertion #3 result: {:?}", resp_3);
 
     Ok(())
 }
 
-pub fn assert_icq_result(
-    test_ctx: &TestContext,
-    icq_lib: String,
-    query_id: u64,
-    assertion: Vec<String>,
-) -> Result<TransactionResponse, LocalError> {
-    let icq_assertion_msg = FunctionMsgs::AssertQueryResult {
-        query_id,
-        assertion,
-    };
+// pub fn assert_icq_result(
+//     test_ctx: &TestContext,
+//     icq_lib: String,
+//     query_id: u64,
+//     assertion: Vec<String>,
+// ) -> Result<TransactionResponse, LocalError> {
+//     let icq_assertion_msg = FunctionMsgs::AssertQueryResult {
+//         query_id,
+//         assertion,
+//     };
 
-    let stringified_msg = serde_json::to_string(&icq_assertion_msg)
-        .map_err(|e| LocalError::Custom { msg: e.to_string() })?;
+//     let stringified_msg = serde_json::to_string(&icq_assertion_msg)
+//         .map_err(|e| LocalError::Custom { msg: e.to_string() })?;
 
-    info!("asserting query {query_id} result: {stringified_msg}");
+//     info!("asserting query {query_id} result: {stringified_msg}");
 
-    contract_execute(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        &icq_lib,
-        DEFAULT_KEY,
-        &stringified_msg,
-        "--amount 1000000untrn --gas 50000000",
-    )
-}
+//     contract_execute(
+//         test_ctx
+//             .get_request_builder()
+//             .get_request_builder(NEUTRON_CHAIN_NAME),
+//         &icq_lib,
+//         DEFAULT_KEY,
+//         &stringified_msg,
+//         "--amount 1000000untrn --gas 50000000",
+//     )
+// }
 
-pub fn register_kvq(
-    test_ctx: &TestContext,
-    icq_lib: String,
-    type_registry: String,
-    module: String,
-    query: serde_json::Map<String, Value>,
-) -> Result<TransactionResponse, LocalError> {
-    let register_kvq_msg = FunctionMsgs::RegisterKvQuery {
-        type_registry,
-        module,
-        query,
-    };
+// pub fn register_kvq(
+//     test_ctx: &TestContext,
+//     icq_lib: String,
+//     type_registry: String,
+//     module: String,
+//     query: serde_json::Map<String, Value>,
+// ) -> Result<TransactionResponse, LocalError> {
+//     let register_kvq_msg = FunctionMsgs::RegisterKvQuery {
+//         type_registry,
+//         module,
+//         query,
+//     };
 
-    let stringified_msg = serde_json::to_string(&register_kvq_msg)
-        .map_err(|e| LocalError::Custom { msg: e.to_string() })?;
+//     let stringified_msg = serde_json::to_string(&register_kvq_msg)
+//         .map_err(|e| LocalError::Custom { msg: e.to_string() })?;
 
-    info!(
-        "registering ICQ KV query on querier {icq_lib} :  {:?}",
-        stringified_msg
-    );
+//     info!(
+//         "registering ICQ KV query on querier {icq_lib} :  {:?}",
+//         stringified_msg
+//     );
 
-    contract_execute(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        &icq_lib,
-        DEFAULT_KEY,
-        &stringified_msg,
-        "--amount 1000000untrn --gas 50000000",
-    )
-}
+//     contract_execute(
+//         test_ctx
+//             .get_request_builder()
+//             .get_request_builder(NEUTRON_CHAIN_NAME),
+//         &icq_lib,
+//         DEFAULT_KEY,
+//         &stringified_msg,
+//         "--amount 1000000untrn --gas 50000000",
+//     )
+// }
 
 pub fn query_results(
     test_ctx: &TestContext,

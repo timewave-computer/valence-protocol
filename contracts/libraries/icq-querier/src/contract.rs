@@ -1,25 +1,24 @@
+use std::collections::BTreeMap;
+
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, to_json_string, Binary, Deps, DepsMut, Env, MessageInfo, Order, Reply,
-    Response, StdError, StdResult, SubMsg,
+    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response, StdError,
+    StdResult, SubMsg,
 };
 use neutron_sdk::{
     bindings::{
         msg::{MsgRegisterInterchainQueryResponse, NeutronMsg},
         query::NeutronQuery,
+        types::KVKey,
     },
-    interchain_queries::queries::get_raw_interchain_query_result,
+    interchain_queries::{queries::get_raw_interchain_query_result, types::QueryType},
     sudo::msg::SudoMsg,
 };
-use serde_json::Value;
-use valence_icq_lib_utils::{PendingQueryIdConfig, QueryMsg as DomainRegistryQueryMsg};
-use valence_icq_lib_utils::{
-    QueryReconstructionResponse, QueryRegistrationInfoRequest as DomainRegistryQueryRequest,
-};
+use valence_icq_lib_utils::PendingQueryIdConfig;
 
-use valence_icq_lib_utils::QueryRegistrationInfoResponse;
 use valence_library_utils::error::LibraryError;
+use valence_middleware_utils::type_registry::types::{NativeTypeWrapper, RegistryQueryMsg};
 
 use crate::{
     msg::{Config, FunctionMsgs, InstantiateMsg, LibraryConfig, QueryMsg},
@@ -52,114 +51,55 @@ pub fn execute(
 ) -> Result<Response<NeutronMsg>, LibraryError> {
     match msg {
         FunctionMsgs::RegisterKvQuery {
-            type_registry,
-            module,
-            query,
-        } => register_kv_query(deps, type_registry, module, query),
-        FunctionMsgs::AssertQueryResult {
-            query_id,
-            assertion,
-        } => assert_query_result(deps, query_id, assertion),
-    }
-}
-
-fn assert_query_result(
-    deps: DepsMut,
-    query_id: u64,
-    assertion: Vec<String>, // reverse polish notation
-) -> Result<Response<NeutronMsg>, LibraryError> {
-    let query_result = QUERY_RESULTS.load(deps.storage, query_id)?;
-
-    let mut stack = vec![];
-    for token in assertion.clone() {
-        match token.as_str() {
-            // operators
-            "==" => {
-                let b = stack.pop().unwrap();
-                let a = stack.pop().unwrap();
-                stack.push((a == b).to_string());
-            }
-            "!=" => {
-                let b = stack.pop().unwrap();
-                let a = stack.pop().unwrap();
-                stack.push((a != b).to_string());
-            }
-            ">" => {
-                let b = stack.pop().unwrap();
-                let a = stack.pop().unwrap();
-                stack.push((a > b).to_string());
-            }
-            "<" => {
-                let b = stack.pop().unwrap();
-                let a = stack.pop().unwrap();
-                stack.push((a < b).to_string());
-            }
-            // TODO: bunch of stuff here is missing like &&, ||, etc.
-            // operands
-            _ => {
-                if token.starts_with('/') {
-                    let result = query_result.pointer(&token).unwrap();
-                    stack.push(result.to_string());
-                } else {
-                    stack.push(token.to_string());
-                }
-            }
-        }
-    }
-
-    if stack.len() == 1 {
-        let val = stack.pop().unwrap();
-        if val == "true" {
-            Ok(Response::default()
-                .add_attribute("query_result", "true")
-                .add_attribute("for_assertion", assertion.join(" ")))
-        } else {
-            Err(LibraryError::Std(StdError::generic_err(format!(
-                "assertion failed, stack is non empty: {:?}",
-                stack
-            ))))
-        }
-    } else {
-        Err(LibraryError::Std(StdError::generic_err(format!(
-            "assertion failed, stack is non empty: {:?}",
-            stack
-        ))))
+            broker_addr,
+            type_id,
+            connection_id,
+            params,
+        } => register_kv_query(deps, broker_addr, type_id, connection_id, params),
     }
 }
 
 fn register_kv_query(
     deps: DepsMut,
-    type_registry: String,
-    module: String,
-    query: serde_json::Map<String, Value>,
+    broker_addr: String,
+    type_id: String,
+    connection_id: String,
+    params: BTreeMap<String, Binary>,
 ) -> Result<Response<NeutronMsg>, LibraryError> {
-    let query_registration_resp: QueryRegistrationInfoResponse = deps.querier.query_wasm_smart(
-        type_registry.to_string(),
-        &DomainRegistryQueryMsg::GetRegistrationConfig(DomainRegistryQueryRequest {
-            module: module.to_string(),
-            params: query,
-        }),
+    let query_kv_key: KVKey = deps.querier.query_wasm_smart(
+        broker_addr.to_string(),
+        &valence_middleware_broker::msg::QueryMsg {
+            registry_version: None,
+            query: RegistryQueryMsg::KVKey {
+                type_id: type_id.to_string(),
+                params,
+            },
+        },
     )?;
 
-    let query_cfg = PendingQueryIdConfig {
-        associated_domain_registry: type_registry,
-        query_type: module.to_string(),
+    let kv_registration_msg = NeutronMsg::RegisterInterchainQuery {
+        query_type: QueryType::KV.into(),
+        keys: vec![query_kv_key],
+        transactions_filter: String::new(),
+        connection_id,
+        update_period: 5,
     };
 
     // here the key is set to the resp.reply_id just to get to the reply handler.
     // it will get overriden by the actual query id in the reply handler.
-    ASSOCIATED_QUERY_IDS.save(deps.storage, query_registration_resp.reply_id, &query_cfg)?;
+    ASSOCIATED_QUERY_IDS.save(
+        deps.storage,
+        1,
+        &PendingQueryIdConfig {
+            associated_domain_registry: broker_addr,
+            query_type: type_id,
+        },
+    )?;
 
     // fire registration in a submsg to get the registered query id back
-    let submsg = SubMsg::reply_on_success(
-        query_registration_resp.registration_msg.clone(),
-        query_registration_resp.reply_id,
-    );
+    let submsg = SubMsg::reply_on_success(kv_registration_msg, 1);
 
-    Ok(Response::default().add_submessage(submsg).add_attribute(
-        "query_registration_response".to_string(),
-        to_json_string(&query_registration_resp)?,
-    ))
+    Ok(Response::default().add_submessage(submsg))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -214,19 +154,23 @@ fn handle_sudo_kv_query_result(
 
     let pending_query_config = ASSOCIATED_QUERY_IDS.load(deps.storage, query_id)?;
 
-    let json_response: QueryReconstructionResponse = deps.querier.query_wasm_smart(
+    let reconstruction_response: NativeTypeWrapper = deps.querier.query_wasm_smart(
         pending_query_config.associated_domain_registry,
-        &DomainRegistryQueryMsg::ReconstructQuery(
-            valence_icq_lib_utils::QueryReconstructionRequest {
+        &valence_middleware_broker::msg::QueryMsg {
+            registry_version: None,
+            query: RegistryQueryMsg::ReconstructProto {
+                query_id: pending_query_config.query_type,
                 icq_result: registered_query_result.result,
-                query_type: pending_query_config.query_type,
             },
-        ),
+        },
     )?;
 
-    QUERY_RESULTS.save(deps.storage, query_id, &json_response.json_value)?;
+    QUERY_RESULTS.save(deps.storage, query_id, &reconstruction_response.binary)?;
 
-    Ok(Response::new().add_attribute("query_result", json_response.json_value.to_string()))
+    Ok(Response::new().add_attribute(
+        "query_result",
+        to_json_binary(&reconstruction_response)?.to_string(),
+    ))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

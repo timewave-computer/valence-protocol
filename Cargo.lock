@@ -5252,13 +5252,13 @@ dependencies = [
  "cw20 2.0.0",
  "neutron-sdk",
  "serde-json-wasm 1.0.1",
- "serde_json",
  "thiserror 1.0.69",
  "valence-icq-lib-utils",
  "valence-library-base",
  "valence-library-utils",
  "valence-macros",
- "valence-osmosis-type-registry",
+ "valence-middleware-broker",
+ "valence-middleware-utils",
 ]
 
 [[package]]

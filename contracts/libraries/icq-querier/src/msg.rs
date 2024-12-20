@@ -1,8 +1,10 @@
+use std::collections::BTreeMap;
+
 use cosmwasm_schema::{cw_serde, QueryResponses};
 
-use cosmwasm_std::{Addr, Deps, DepsMut};
+use cosmwasm_std::{Addr, Binary, Deps, DepsMut};
 use cw_ownable::cw_ownable_query;
-use serde_json::Value;
+
 use valence_library_utils::{error::LibraryError, msg::LibraryConfigValidation};
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
 
@@ -12,15 +14,10 @@ pub struct InstantiateMsg {}
 #[cw_serde]
 pub enum FunctionMsgs {
     RegisterKvQuery {
-        module: String,
-        // address of the target domain type registry contract
-        type_registry: String,
-        // json string of the query
-        query: serde_json::Map<String, Value>,
-    },
-    AssertQueryResult {
-        query_id: u64,
-        assertion: Vec<String>,
+        broker_addr: String,
+        type_id: String,
+        connection_id: String,
+        params: BTreeMap<String, Binary>,
     },
 }
 
@@ -32,7 +29,7 @@ pub enum QueryMsg {
     #[returns(Vec<(u64, String)>)]
     RegisteredQueries {},
 
-    #[returns(Vec<(u64, Value)>)]
+    #[returns(Vec<(u64, Binary)>)]
     QueryResults {},
 }
 
