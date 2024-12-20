@@ -97,9 +97,6 @@ valence-program-registry       = { path = "contracts/program-registry", features
 valence-icq-lib-utils          = { path = "packages/icq-querier-utils" }
 valence-middleware-utils       = { path = "packages/middleware-utils" }
 
-# domain type registries
-valence-osmosis-type-registry = { path = "contracts/domain_type_registries/osmo_registry", features = ["library"] }
-
 # dev-dependencies
 cw-multi-test        = { version = "2.1.1", features = ["cosmwasm_1_4"] }
 cw20                 = { version = "2.0.0" }
