@@ -87,13 +87,13 @@ impl Suite {
 
     fn query_decode_proto(
         &mut self,
-        query_id: &str,
+        type_id: &str,
         icq_result: InterchainQueryResult,
     ) -> StdResult<NativeTypeWrapper> {
         let msg = QueryMsg {
             registry_version: None,
             query: RegistryQueryMsg::ReconstructProto {
-                query_id: query_id.to_string(),
+                type_id: type_id.to_string(),
                 icq_result,
             },
         };
@@ -102,11 +102,11 @@ impl Suite {
             .query_wasm_smart(self.broker_addr.clone(), &msg)
     }
 
-    fn get_kv_key(&mut self, query_id: &str, params: BTreeMap<String, Binary>) -> StdResult<KVKey> {
+    fn get_kv_key(&mut self, type_id: &str, params: BTreeMap<String, Binary>) -> StdResult<KVKey> {
         let msg = QueryMsg {
             registry_version: None,
             query: RegistryQueryMsg::KVKey {
-                type_id: query_id.to_string(),
+                type_id: type_id.to_string(),
                 params,
             },
         };

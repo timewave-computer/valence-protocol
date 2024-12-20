@@ -55,11 +55,11 @@ macro_rules! register_types {
                         _ => Err(::cosmwasm_std::StdError::generic_err("unknown type"))
                     }
                 },
-                RegistryQueryMsg::ReconstructProto { query_id, icq_result } => {
-                    match query_id.as_str() {
+                RegistryQueryMsg::ReconstructProto { type_id, icq_result } => {
+                    match type_id.as_str() {
                         $(
                             $type_id => {
-                                let binary = <$adapter>::decode_and_reconstruct(query_id, icq_result)
+                                let binary = <$adapter>::decode_and_reconstruct(type_id, icq_result)
                                     .map_err(|_| StdError::generic_err("failed to reconstruct type from proto"))?;
                                 to_json_binary(&NativeTypeWrapper { binary })
                             },

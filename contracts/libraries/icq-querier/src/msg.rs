@@ -15,6 +15,7 @@ pub struct InstantiateMsg {}
 pub enum FunctionMsgs {
     RegisterKvQuery {
         broker_addr: String,
+        registry_version: Option<String>,
         type_id: String,
         connection_id: String,
         params: BTreeMap<String, Binary>,

@@ -24,7 +24,6 @@ neutron-sdk                 = { workspace = true }
 serde-json-wasm             = { version = "1.0.0", default-features = false }
 cw-storage-plus             = { workspace = true }
 thiserror                   = { workspace = true }
-valence-icq-lib-utils       = { workspace = true }
 valence-middleware-broker   = { workspace = true }
 valence-middleware-utils    = { workspace = true }
 

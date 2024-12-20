@@ -15,14 +15,13 @@ use neutron_sdk::{
     interchain_queries::{queries::get_raw_interchain_query_result, types::QueryType},
     sudo::msg::SudoMsg,
 };
-use valence_icq_lib_utils::PendingQueryIdConfig;
 
 use valence_library_utils::error::LibraryError;
 use valence_middleware_utils::type_registry::types::{NativeTypeWrapper, RegistryQueryMsg};
 
 use crate::{
     msg::{Config, FunctionMsgs, InstantiateMsg, LibraryConfig, QueryMsg},
-    state::{ASSOCIATED_QUERY_IDS, QUERY_RESULTS},
+    state::{PendingQueryIdConfig, ASSOCIATED_QUERY_IDS, QUERY_RESULTS},
 };
 
 // version info for migration info
@@ -52,16 +51,25 @@ pub fn execute(
     match msg {
         FunctionMsgs::RegisterKvQuery {
             broker_addr,
+            registry_version,
             type_id,
             connection_id,
             params,
-        } => register_kv_query(deps, broker_addr, type_id, connection_id, params),
+        } => register_kv_query(
+            deps,
+            broker_addr,
+            registry_version,
+            type_id,
+            connection_id,
+            params,
+        ),
     }
 }
 
 fn register_kv_query(
     deps: DepsMut,
     broker_addr: String,
+    registry_version: Option<String>,
     type_id: String,
     connection_id: String,
     params: BTreeMap<String, Binary>,
@@ -69,7 +77,7 @@ fn register_kv_query(
     let query_kv_key: KVKey = deps.querier.query_wasm_smart(
         broker_addr.to_string(),
         &valence_middleware_broker::msg::QueryMsg {
-            registry_version: None,
+            registry_version: registry_version.clone(),
             query: RegistryQueryMsg::KVKey {
                 type_id: type_id.to_string(),
                 params,
@@ -91,8 +99,9 @@ fn register_kv_query(
         deps.storage,
         1,
         &PendingQueryIdConfig {
-            associated_domain_registry: broker_addr,
-            query_type: type_id,
+            broker_addr,
+            type_url: type_id,
+            registry_version,
         },
     )?;
 
@@ -155,11 +164,11 @@ fn handle_sudo_kv_query_result(
     let pending_query_config = ASSOCIATED_QUERY_IDS.load(deps.storage, query_id)?;
 
     let reconstruction_response: NativeTypeWrapper = deps.querier.query_wasm_smart(
-        pending_query_config.associated_domain_registry,
+        pending_query_config.broker_addr,
         &valence_middleware_broker::msg::QueryMsg {
-            registry_version: None,
+            registry_version: pending_query_config.registry_version,
             query: RegistryQueryMsg::ReconstructProto {
-                query_id: pending_query_config.query_type,
+                type_id: pending_query_config.type_url,
                 icq_result: registered_query_result.result,
             },
         },

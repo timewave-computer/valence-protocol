@@ -77,12 +77,12 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
     match msg.query {
         RegistryQueryMsg::ReconstructProto {
-            query_id,
+            type_id,
             icq_result,
         } => try_decode_proto(
             deps,
             registry.registry_address.to_string(),
-            query_id,
+            type_id,
             icq_result,
         ),
         RegistryQueryMsg::KVKey { type_id, params } => {
@@ -103,13 +103,13 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 fn try_decode_proto(
     deps: Deps,
     registry: String,
-    query_id: String,
+    type_id: String,
     icq_result: InterchainQueryResult,
 ) -> StdResult<Binary> {
     let resp: NativeTypeWrapper = deps.querier.query_wasm_smart(
         registry,
         &RegistryQueryMsg::ReconstructProto {
-            query_id,
+            type_id,
             icq_result,
         },
     )?;

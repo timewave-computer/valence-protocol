@@ -73,21 +73,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         current_dir.display()
     );
 
-    info!("sleeping for 5 to allow icq relayer to start...");
+    info!("sleeping for 10 to allow icq relayer to start...");
     std::thread::sleep(Duration::from_secs(10));
 
     uploader
         .with_chain_name(NEUTRON_CHAIN_NAME)
         .send_single_contract(&icq_lib_local_path)?;
-    std::thread::sleep(Duration::from_secs(1));
     uploader
         .with_chain_name(NEUTRON_CHAIN_NAME)
         .send_single_contract(&osmosis_type_registry_middleware_path)?;
-    std::thread::sleep(Duration::from_secs(1));
     uploader
         .with_chain_name(NEUTRON_CHAIN_NAME)
         .send_single_contract(&osmosis_middleware_broker_path)?;
-    std::thread::sleep(Duration::from_secs(1));
 
     // set up the ICQ querier
     let icq_querier_lib_code_id = test_ctx
@@ -158,21 +155,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(Duration::from_secs(3));
 
     // associate type registry with broker
-    let set_registry_response = set_type_registry(
+    set_type_registry(
         &test_ctx,
         broker_contract.address.to_string(),
         type_registry_contract.address,
         "26.0.0".to_string(),
     )?;
-
-    info!(
-        "type registry addition response: {:?}",
-        set_registry_response
-    );
     std::thread::sleep(Duration::from_secs(2));
-
-    let gamm_query_params =
-        BTreeMap::from([("pool_id".to_string(), to_json_binary(&pool_id).unwrap())]);
 
     let ntrn_to_osmo_connection_id = test_ctx
         .get_connections()
@@ -180,19 +169,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         .dest(OSMOSIS_CHAIN_NAME)
         .get();
 
-    let kvq_registration_response = register_kvq(
+    // fire the query registration request
+    register_kvq(
         &test_ctx,
         icq_test_lib.address.to_string(),
         broker_contract.address.to_string(),
         osmosis_std::types::osmosis::gamm::v1beta1::Pool::TYPE_URL.to_string(),
         ntrn_to_osmo_connection_id,
-        gamm_query_params,
+        BTreeMap::from([("pool_id".to_string(), to_json_binary(&pool_id).unwrap())]),
     )?;
-
-    info!(
-        "KEY VALUE QUERY REGISTRATION RESPONSE TXHASH: {}",
-        kvq_registration_response.tx_hash.unwrap()
-    );
 
     std::thread::sleep(Duration::from_secs(10));
 
@@ -258,6 +243,7 @@ pub fn register_kvq(
     params: BTreeMap<String, Binary>,
 ) -> Result<TransactionResponse, LocalError> {
     let register_kvq_msg = FunctionMsgs::RegisterKvQuery {
+        registry_version: None,
         broker_addr,
         type_id,
         connection_id,
@@ -297,7 +283,7 @@ pub fn query_results(
     )["data"]
         .clone();
 
-    println!("query response: {:?}", query_response);
+    info!("query response: {:?}", query_response);
     let resp: Vec<(u64, Binary)> = serde_json::from_value(query_response).unwrap();
 
     Ok(resp)
@@ -322,7 +308,7 @@ pub fn broker_get_canonical(
     )["data"]
         .clone();
 
-    println!("query response: {:?}", query_response);
+    info!("query response: {:?}", query_response);
     let resp: ValenceType = serde_json::from_value(query_response).unwrap();
 
     Ok(resp)

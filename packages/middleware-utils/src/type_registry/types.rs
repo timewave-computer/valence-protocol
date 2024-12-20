@@ -13,7 +13,9 @@ pub enum RegistryExecuteMsg {}
 
 /// this is effectively the valence vm types that are enabled
 /// on a system level. if a particular type is not defined here,
-/// it cannot be used in programs.
+/// it cannot be used in programs. if a type is here, then developers
+/// are free to integrate any remote types that would fall into
+/// any of these categories.
 #[cw_serde]
 pub enum ValenceType {
     XykPool(ValenceXykPool),
@@ -39,7 +41,7 @@ pub enum RegistryQueryMsg {
 
     #[returns(NativeTypeWrapper)]
     ReconstructProto {
-        query_id: String,
+        type_id: String,
         icq_result: InterchainQueryResult,
     },
     // TODO: transform an outdated type to a new version

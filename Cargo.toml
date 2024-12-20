@@ -94,7 +94,6 @@ valence-library-utils          = { path = "packages/library-utils" }
 valence-program-registry-utils = { path = "packages/program-registry-utils" }
 valence-program-manager        = { path = "program-manager" }
 valence-program-registry       = { path = "contracts/program-registry", features = ["library"] }
-valence-icq-lib-utils          = { path = "packages/icq-querier-utils" }
 valence-middleware-utils       = { path = "packages/middleware-utils" }
 
 # dev-dependencies
