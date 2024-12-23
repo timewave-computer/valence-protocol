@@ -750,7 +750,9 @@ fn process_processor_callback(
                 build_tokenfactory_denom(env.contract.address.as_str(), &authorization.label);
 
             let msg = match callback.execution_result {
-                ExecutionResult::Success | ExecutionResult::PartiallyExecuted(_, _) => {
+                ExecutionResult::Success
+                | ExecutionResult::PartiallyExecuted(_, _)
+                | ExecutionResult::RemovedByOwner => {
                     // If the operation was executed or partially executed, the token will be burned
                     burn_msg(env.contract.address.to_string(), 1, denom)
                 }
