@@ -753,7 +753,7 @@ fn process_processor_callback(
                 ExecutionResult::Success
                 | ExecutionResult::PartiallyExecuted(_, _)
                 | ExecutionResult::RemovedByOwner => {
-                    // If the operation was executed or partially executed, the token will be burned
+                    // If the operation was executed, partially executed or removed by the owner the token will be burned
                     burn_msg(env.contract.address.to_string(), 1, denom)
                 }
                 _ => {
