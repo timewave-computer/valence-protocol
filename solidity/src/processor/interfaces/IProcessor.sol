@@ -13,4 +13,47 @@ interface IProcessor {
         uint256 executedCount;
         bytes errorData;
     }
+
+    /**
+     * @notice Represents the callback after a subroutine execution
+     * @param executionResult The outcome of the execution (Success, Rejected, or PartiallyExecuted)
+     * @param data Additional data related to the callback execution, if any
+     */
+    struct Callback {
+        ExecutionResult executionResult;
+        bytes data;
+    }
+
+    /**
+     * @notice Enum representing the possible results of a subroutine execution
+     * @dev Used in Callback struct to indicate the overall status of the execution
+     * @param Success Indicates that all functions were executed
+     * @param Rejected Indicates that nothing was executed
+     * @param PartiallyExecuted Indicates that the execution was partially successful (some functions executed, only for non-atomic subroutines)
+     */
+    enum ExecutionResult {
+        Success,
+        Rejected,
+        PartiallyExecuted
+    }
+
+    /**
+     * @notice Represents the details of a rejected execution result
+     * @dev This struct is used to store the error data in case of rejection during subroutine execution
+     * @param errorData Contains the raw error data from the failed execution
+     */
+    struct RejectedResult {
+        bytes errorData;
+    }
+
+    /**
+     * @notice Represents the details of a partially executed result (only for non-atomic subroutines)
+     * @dev This struct stores information about the partial success of the execution
+     * @param executedCount The number of functions that were executed successfully before failure
+     * @param errorData Contains the error data from the first failed function
+     */
+    struct PartiallyExecutedResult {
+        uint256 executedCount;
+        bytes errorData;
+    }
 }
