@@ -60,7 +60,7 @@ contract LiteProcessorTest is Test {
     /// @notice Test that handle() reverts when message is from unauthorized sender
     function test_Handle_RevertOnUnauthorizedContract() public {
         bytes memory message = _encodePauseMessage();
-        bytes32 unauthorizedSender = bytes32(uint256(ORIGIN_DOMAIN));
+        bytes32 unauthorizedSender = bytes32(uint256(1));
 
         vm.prank(MAILBOX);
         vm.expectRevert(ProcessorErrors.NotAuthorizationContract.selector);
