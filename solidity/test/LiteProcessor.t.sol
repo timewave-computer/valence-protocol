@@ -62,7 +62,7 @@ contract LiteProcessorTest is Test {
         bytes memory message = _encodePauseMessage();
 
         vm.prank(MAILBOX);
-        // Check for both ProcessorPaused and MessageReceived events
+        // Check for both MessageReceived and ProcessorPaused events
         vm.expectEmit(true, true, false, true);
         emit ProcessorEvents.MessageReceived(1, AUTH_CONTRACT, message);
         vm.expectEmit(true, true, false, true);
@@ -84,7 +84,7 @@ contract LiteProcessorTest is Test {
         bytes memory resumeMessage = _encodeResumeMessage();
 
         vm.prank(MAILBOX);
-        // Check for both ProcessorResumed and MessageReceived events
+        // Check for both MessageReceived and ProcessorResumed events
         vm.expectEmit(true, true, false, true);
         emit ProcessorEvents.MessageReceived(1, AUTH_CONTRACT, resumeMessage);
         vm.expectEmit(true, true, false, true);
