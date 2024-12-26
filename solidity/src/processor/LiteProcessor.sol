@@ -67,6 +67,7 @@ contract LiteProcessor is IMessageRecipient, ProcessorBase {
             _handleSendMsgs(decodedMessage);
             emit ProcessorEvents.ProcessedSendMsgsOperation();
         } else {
+            // InsertMsgs and EvictMsgs are not supported in LiteProcessor because there are no queues
             revert ProcessorErrors.UnsupportedOperationError();
         }
     }
