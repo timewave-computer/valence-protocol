@@ -186,10 +186,15 @@ contract LiteProcessor is IMessageRecipient {
             abi.decode(decodedMessage.message, (IProcessorMessageTypes.SendMsgs));
 
         if (sendMsgs.subroutine.subroutineType == IProcessorMessageTypes.SubroutineType.Atomic) {
-            SubroutineResult memory result = _handleAtomicSubroutine(sendMsgs);
+            IProcessorMessageTypes.AtomicSubroutine memory atomicSubroutine =
+                abi.decode(sendMsgs.subroutine.subroutine, (IProcessorMessageTypes.AtomicSubroutine));
+            SubroutineResult memory result = _handleAtomicSubroutine(atomicSubroutine, sendMsgs.messages);
             emit SubroutineProcessed(true, result.succeeded, result.executedCount, result.errorData);
         } else {
-            SubroutineResult memory result = _handleNonAtomicSubroutine(sendMsgs);
+            IProcessorMessageTypes.NonAtomicSubroutine memory nonAtomicSubroutine =
+                abi.decode(sendMsgs.subroutine.subroutine, (IProcessorMessageTypes.NonAtomicSubroutine));
+
+            SubroutineResult memory result = _handleNonAtomicSubroutine(nonAtomicSubroutine, sendMsgs.messages);
             emit SubroutineProcessed(false, result.succeeded, result.executedCount, result.errorData);
         }
     }
@@ -197,14 +202,15 @@ contract LiteProcessor is IMessageRecipient {
     /**
      * @notice Executes all functions in an atomic subroutine
      * @dev Either all functions succeed or no state changes are committed
-     * @param sendMsgs The SendMsgs operation containing the atomic subroutine
+     * @param atomicSubroutine The atomic subroutine to execute
+     * @param messages The messages to be sent for each contract call
      * @return result Contains execution success status, executed function count (all or 0), and error data if any failed
      */
-    function _handleAtomicSubroutine(IProcessorMessageTypes.SendMsgs memory sendMsgs)
-        internal
-        returns (SubroutineResult memory)
-    {
-        try this._executeAtomicSubroutine(sendMsgs) returns (uint256 totalExecuted) {
+    function _handleAtomicSubroutine(
+        IProcessorMessageTypes.AtomicSubroutine memory atomicSubroutine,
+        bytes[] memory messages
+    ) internal returns (SubroutineResult memory) {
+        try this._executeAtomicSubroutine(atomicSubroutine, messages) returns (uint256 totalExecuted) {
             return SubroutineResult({succeeded: true, executedCount: totalExecuted, errorData: ""});
         } catch (bytes memory err) {
             return SubroutineResult({succeeded: false, executedCount: 0, errorData: err});
@@ -214,24 +220,21 @@ contract LiteProcessor is IMessageRecipient {
     /**
      * @notice Executes functions in a non-atomic subroutine until one fails
      * @dev Processes functions one by one, stopping at first failure
-     * @param sendMsgs The SendMsgs operation containing the non-atomic subroutine
+     * @param nonAtomicSubroutine The non-atomic subroutine to execute
+     * @param messages The messages to be sent for each contract call
      * @return result Contains execution count and error data if any failed
      */
-    function _handleNonAtomicSubroutine(IProcessorMessageTypes.SendMsgs memory sendMsgs)
-        internal
-        returns (SubroutineResult memory)
-    {
-        IProcessorMessageTypes.NonAtomicSubroutine memory nonAtomicSubroutine =
-            abi.decode(sendMsgs.subroutine.subroutine, (IProcessorMessageTypes.NonAtomicSubroutine));
-
+    function _handleNonAtomicSubroutine(
+        IProcessorMessageTypes.NonAtomicSubroutine memory nonAtomicSubroutine,
+        bytes[] memory messages
+    ) internal returns (SubroutineResult memory) {
         uint256 executedCount = 0;
         bytes memory errorData;
         bool succeeded = true;
 
         // Execute each function until one fails
         for (uint256 i = 0; i < nonAtomicSubroutine.functions.length; i++) {
-            (bool success, bytes memory err) =
-                nonAtomicSubroutine.functions[i].contractAddress.call(sendMsgs.messages[i]);
+            (bool success, bytes memory err) = nonAtomicSubroutine.functions[i].contractAddress.call(messages[i]);
 
             if (success) {
                 executedCount++;
@@ -248,19 +251,20 @@ contract LiteProcessor is IMessageRecipient {
     /**
      * @notice External function that executes the atomic subroutine and reverts if any fail
      * @dev External to allow try-catch pattern for atomicity
-     * @param sendMsgs The SendMsgs operation containing the atomic subroutine
+     * @param atomicSubroutine The atomic subroutine to execute
+     * @param messages The messages to be sent for each contract call
      * @return totalExecuted Number of functions executed
      */
-    function _executeAtomicSubroutine(IProcessorMessageTypes.SendMsgs memory sendMsgs) external returns (uint256) {
+    function _executeAtomicSubroutine(
+        IProcessorMessageTypes.AtomicSubroutine memory atomicSubroutine,
+        bytes[] memory messages
+    ) external returns (uint256) {
         // Only allow calls from the contract itself, need this extra protection to prevent external access
         // This is necessary because the function is external and can be called by anyone
         // It's external to allow try-catch pattern for atomicity
         if (msg.sender != address(this)) {
             revert UnauthorizedAccessError();
         }
-
-        IProcessorMessageTypes.AtomicSubroutine memory atomicSubroutine =
-            abi.decode(sendMsgs.subroutine.subroutine, (IProcessorMessageTypes.AtomicSubroutine));
 
         for (uint256 i = 0; i < atomicSubroutine.functions.length; i++) {
             /**
@@ -274,7 +278,7 @@ contract LiteProcessor is IMessageRecipient {
              *         - Use the length value at the start of err (mload(err))
              *         - Revert with exactly the original error data
              */
-            (bool success, bytes memory err) = atomicSubroutine.functions[i].contractAddress.call(sendMsgs.messages[i]);
+            (bool success, bytes memory err) = atomicSubroutine.functions[i].contractAddress.call(messages[i]);
             if (!success) {
                 // Forward the original error data
                 assembly {
