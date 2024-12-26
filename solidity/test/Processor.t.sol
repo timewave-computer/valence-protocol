@@ -21,14 +21,14 @@ contract ProcessorTest is Test {
     }
 
     /// @notice Test that the constructor properly initializes state variables
-    function test_Constructor() public view {
+    function testConstructor() public view {
         assertEq(address(processor.mailbox()), MAILBOX);
         assertEq(processor.authorizationContract(), AUTH_CONTRACT);
         assertFalse(processor.paused());
     }
 
     /// @notice Test that constructor reverts when given zero address for mailbox
-    function test_Constructor_RevertOnZeroMailbox() public {
+    function testConstructorRevertOnZeroMailbox() public {
         vm.expectRevert(ProcessorErrors.InvalidAddress.selector);
         new Processor(AUTH_CONTRACT, address(0), ORIGIN_DOMAIN);
     }

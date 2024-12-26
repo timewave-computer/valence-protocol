@@ -217,6 +217,5 @@ abstract contract ProcessorBase {
     function _sendCallback(bytes memory callback) internal {
         // Send the callback to the mailbox
         mailbox.dispatch(originDomain, authorizationContract, callback);
-        emit ProcessorEvents.CallbackSent();
     }
 }

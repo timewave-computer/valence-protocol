@@ -7,7 +7,6 @@ import {IProcessorMessageTypes} from "./interfaces/IProcessorMessageTypes.sol";
 import {IProcessor} from "./interfaces/IProcessor.sol";
 import {ProcessorErrors} from "./libs/ProcessorErrors.sol";
 import {ProcessorBase} from "./ProcessorBase.sol";
-import {ProcessorEvents} from "./libs/ProcessorEvents.sol";
 
 /**
  * @title LiteProcessor
@@ -52,9 +51,6 @@ contract LiteProcessor is IMessageRecipient, ProcessorBase {
             revert ProcessorErrors.NotAuthorizationContract();
         }
 
-        // Emit reception before processing
-        emit ProcessorEvents.MessageReceived(_origin, _sender, _body);
-
         // Decode and route message to appropriate handler
         IProcessorMessageTypes.ProcessorMessage memory decodedMessage = ProcessorMessageDecoder.decode(_body);
         _handleMessageType(decodedMessage);
@@ -73,7 +69,6 @@ contract LiteProcessor is IMessageRecipient, ProcessorBase {
             _handleResume();
         } else if (decodedMessage.messageType == IProcessorMessageTypes.ProcessorMessageType.SendMsgs) {
             _handleSendMsgs(decodedMessage);
-            emit ProcessorEvents.ProcessedSendMsgsOperation();
         } else {
             // InsertMsgs and EvictMsgs are not supported in LiteProcessor because there are no queues
             revert ProcessorErrors.UnsupportedOperation();
@@ -100,13 +95,11 @@ contract LiteProcessor is IMessageRecipient, ProcessorBase {
             IProcessorMessageTypes.AtomicSubroutine memory atomicSubroutine =
                 abi.decode(sendMsgs.subroutine.subroutine, (IProcessorMessageTypes.AtomicSubroutine));
             result = _handleAtomicSubroutine(atomicSubroutine, sendMsgs.messages);
-            emit ProcessorEvents.SubroutineProcessed(true, result.succeeded, result.executedCount, result.errorData);
         } else {
             IProcessorMessageTypes.NonAtomicSubroutine memory nonAtomicSubroutine =
                 abi.decode(sendMsgs.subroutine.subroutine, (IProcessorMessageTypes.NonAtomicSubroutine));
 
             result = _handleNonAtomicSubroutine(nonAtomicSubroutine, sendMsgs.messages);
-            emit ProcessorEvents.SubroutineProcessed(false, result.succeeded, result.executedCount, result.errorData);
         }
 
         // Send callback to Hyperlane mailbox
