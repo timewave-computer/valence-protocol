@@ -42,6 +42,11 @@ contract LiteProcessor is IMessageRecipient, ProcessorBase {
             revert ProcessorErrors.UnauthorizedAccess();
         }
 
+        // Verify origin is the expected domain
+        if (_origin != originDomain) {
+            revert ProcessorErrors.InvalidOriginDomain();
+        }
+
         // Verify message is from authorized contract
         if (_sender != authorizationContract) {
             revert ProcessorErrors.NotAuthorizationContract();

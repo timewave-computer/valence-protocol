@@ -46,17 +46,25 @@ contract LiteProcessorTest is Test {
         bytes memory message = _encodePauseMessage();
 
         vm.expectRevert(ProcessorErrors.UnauthorizedAccess.selector);
-        processor.handle(1, AUTH_CONTRACT, message);
+        processor.handle(ORIGIN_DOMAIN, AUTH_CONTRACT, message);
+    }
+
+    /// @notice Test that handle() reverts when receiving a message from an invalid origin domain
+    function test_Handle_RevertOnInvalidOriginDomain() public {
+        bytes memory message = _encodePauseMessage();
+
+        vm.expectRevert(ProcessorErrors.UnauthorizedAccess.selector);
+        processor.handle(2, AUTH_CONTRACT, message);
     }
 
     /// @notice Test that handle() reverts when message is from unauthorized sender
     function test_Handle_RevertOnUnauthorizedContract() public {
         bytes memory message = _encodePauseMessage();
-        bytes32 unauthorizedSender = bytes32(uint256(1));
+        bytes32 unauthorizedSender = bytes32(uint256(ORIGIN_DOMAIN));
 
         vm.prank(MAILBOX);
         vm.expectRevert(ProcessorErrors.NotAuthorizationContract.selector);
-        processor.handle(1, unauthorizedSender, message);
+        processor.handle(ORIGIN_DOMAIN, unauthorizedSender, message);
     }
 
     /// @notice Test successful pause message handling and event emission
@@ -66,11 +74,11 @@ contract LiteProcessorTest is Test {
         vm.prank(MAILBOX);
         // Check for both MessageReceived and ProcessorPaused events
         vm.expectEmit(true, true, false, true);
-        emit ProcessorEvents.MessageReceived(1, AUTH_CONTRACT, message);
+        emit ProcessorEvents.MessageReceived(ORIGIN_DOMAIN, AUTH_CONTRACT, message);
         vm.expectEmit(true, true, false, true);
         emit ProcessorEvents.ProcessorPaused();
 
-        processor.handle(1, AUTH_CONTRACT, message);
+        processor.handle(ORIGIN_DOMAIN, AUTH_CONTRACT, message);
         assertTrue(processor.paused());
     }
 
@@ -79,7 +87,7 @@ contract LiteProcessorTest is Test {
         // First pause the processor to test resume functionality
         bytes memory pauseMessage = _encodePauseMessage();
         vm.prank(MAILBOX);
-        processor.handle(1, AUTH_CONTRACT, pauseMessage);
+        processor.handle(ORIGIN_DOMAIN, AUTH_CONTRACT, pauseMessage);
         assertTrue(processor.paused());
 
         // Then test resume message
@@ -88,7 +96,7 @@ contract LiteProcessorTest is Test {
         vm.prank(MAILBOX);
         // Check for both MessageReceived and ProcessorResumed events
         vm.expectEmit(true, true, false, true);
-        emit ProcessorEvents.MessageReceived(1, AUTH_CONTRACT, resumeMessage);
+        emit ProcessorEvents.MessageReceived(ORIGIN_DOMAIN, AUTH_CONTRACT, resumeMessage);
         vm.expectEmit(true, true, false, true);
         emit ProcessorEvents.ProcessorResumed();
 

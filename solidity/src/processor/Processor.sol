@@ -39,6 +39,11 @@ contract Processor is IMessageRecipient, ProcessorBase {
             revert ProcessorErrors.UnauthorizedAccess();
         }
 
+        // Verify origin is the expected domain
+        if (_origin != originDomain) {
+            revert ProcessorErrors.InvalidOriginDomain();
+        }
+
         // Check that the sender of the message is the authorization contract
         if (_sender != authorizationContract) {
             revert ProcessorErrors.NotAuthorizationContract();
