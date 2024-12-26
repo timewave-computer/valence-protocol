@@ -12,7 +12,7 @@ import {ProcessorEvents} from "./libs/ProcessorEvents.sol";
 /**
  * @title LiteProcessor
  * @notice A lightweight processor for handling cross-chain messages with atomic and non-atomic execution
- * @dev Implements IMessageRecipient for Hyperlane message handling
+ * @dev Implements IMessageRecipient for Hyperlane message handling and ProcessorBase for core shared processor logic
  */
 contract LiteProcessor is IMessageRecipient, ProcessorBase {
     // ============ Constructor ============
