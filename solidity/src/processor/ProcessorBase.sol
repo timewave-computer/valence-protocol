@@ -35,6 +35,7 @@ abstract contract ProcessorBase {
      * @notice Initializes the state variables
      * @param _authorizationContract The authorized contract address in bytes32
      * @param _mailbox The Hyperlane mailbox address
+     * @param _originDomain The origin domain ID for sending callbacks
      */
     constructor(bytes32 _authorizationContract, address _mailbox, uint32 _originDomain) {
         if (_mailbox == address(0)) {
