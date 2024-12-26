@@ -10,6 +10,8 @@ import {Test} from "forge-std/src/Test.sol";
 import {LiteProcessor} from "../src/processor/LiteProcessor.sol";
 import {IProcessorMessageTypes} from "../src/processor/interfaces/IProcessorMessageTypes.sol";
 import {ProcessorMessageDecoder} from "../src/processor/libs/ProcessorMessageDecoder.sol";
+import {ProcessorErrors} from "../src/processor/libs/ProcessorErrors.sol";
+import {ProcessorEvents} from "../src/processor/libs/ProcessorEvents.sol";
 
 contract LiteProcessorTest is Test {
     // Main contract instance to be tested
@@ -18,11 +20,6 @@ contract LiteProcessorTest is Test {
     address public constant MAILBOX = address(0x1234);
     // Mock authorization contract address converted to bytes32 for cross-chain representation
     bytes32 public constant AUTH_CONTRACT = bytes32(uint256(uint160(address(0x5678))));
-
-    // Events that we expect the contract to emit
-    event MessageReceived(uint32 indexed origin, bytes32 indexed sender, bytes body);
-    event ProcessorPaused();
-    event ProcessorResumed();
 
     /// @notice Deploy a fresh instance of the processor before each test
     function setUp() public {
@@ -38,7 +35,7 @@ contract LiteProcessorTest is Test {
 
     /// @notice Test that constructor reverts when given zero address for mailbox
     function test_Constructor_RevertOnZeroMailbox() public {
-        vm.expectRevert(LiteProcessor.InvalidAddressError.selector);
+        vm.expectRevert(ProcessorErrors.InvalidAddressError.selector);
         new LiteProcessor(AUTH_CONTRACT, address(0));
     }
 
@@ -46,7 +43,7 @@ contract LiteProcessorTest is Test {
     function test_Handle_RevertOnUnauthorizedSender() public {
         bytes memory message = _encodePauseMessage();
 
-        vm.expectRevert(LiteProcessor.UnauthorizedAccessError.selector);
+        vm.expectRevert(ProcessorErrors.UnauthorizedAccessError.selector);
         processor.handle(1, AUTH_CONTRACT, message);
     }
 
@@ -56,7 +53,7 @@ contract LiteProcessorTest is Test {
         bytes32 unauthorizedSender = bytes32(uint256(1));
 
         vm.prank(MAILBOX);
-        vm.expectRevert(LiteProcessor.NotAuthorizationContractError.selector);
+        vm.expectRevert(ProcessorErrors.NotAuthorizationContractError.selector);
         processor.handle(1, unauthorizedSender, message);
     }
 
@@ -67,9 +64,9 @@ contract LiteProcessorTest is Test {
         vm.prank(MAILBOX);
         // Check for both ProcessorPaused and MessageReceived events
         vm.expectEmit(true, true, false, true);
-        emit MessageReceived(1, AUTH_CONTRACT, message);
+        emit ProcessorEvents.MessageReceived(1, AUTH_CONTRACT, message);
         vm.expectEmit(true, true, false, true);
-        emit ProcessorPaused();
+        emit ProcessorEvents.ProcessorPaused();
 
         processor.handle(1, AUTH_CONTRACT, message);
         assertTrue(processor.paused());
@@ -89,9 +86,9 @@ contract LiteProcessorTest is Test {
         vm.prank(MAILBOX);
         // Check for both ProcessorResumed and MessageReceived events
         vm.expectEmit(true, true, false, true);
-        emit MessageReceived(1, AUTH_CONTRACT, resumeMessage);
+        emit ProcessorEvents.MessageReceived(1, AUTH_CONTRACT, resumeMessage);
         vm.expectEmit(true, true, false, true);
-        emit ProcessorResumed();
+        emit ProcessorEvents.ProcessorResumed();
 
         processor.handle(1, AUTH_CONTRACT, resumeMessage);
         assertFalse(processor.paused());
@@ -102,7 +99,7 @@ contract LiteProcessorTest is Test {
         bytes memory message = _encodeInsertMsgsMessage();
 
         vm.prank(MAILBOX);
-        vm.expectRevert(LiteProcessor.UnsupportedOperationError.selector);
+        vm.expectRevert(ProcessorErrors.UnsupportedOperationError.selector);
         processor.handle(1, AUTH_CONTRACT, message);
     }
 
