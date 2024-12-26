@@ -39,12 +39,12 @@ contract LiteProcessor is IMessageRecipient, ProcessorBase {
     function handle(uint32 _origin, bytes32 _sender, bytes calldata _body) external payable override {
         // Verify sender is authorized mailbox
         if (msg.sender != address(mailbox)) {
-            revert ProcessorErrors.UnauthorizedAccessError();
+            revert ProcessorErrors.UnauthorizedAccess();
         }
 
         // Verify message is from authorized contract
         if (_sender != authorizationContract) {
-            revert ProcessorErrors.NotAuthorizationContractError();
+            revert ProcessorErrors.NotAuthorizationContract();
         }
 
         // Emit reception before processing
@@ -71,7 +71,7 @@ contract LiteProcessor is IMessageRecipient, ProcessorBase {
             emit ProcessorEvents.ProcessedSendMsgsOperation();
         } else {
             // InsertMsgs and EvictMsgs are not supported in LiteProcessor because there are no queues
-            revert ProcessorErrors.UnsupportedOperationError();
+            revert ProcessorErrors.UnsupportedOperation();
         }
     }
 
@@ -83,7 +83,7 @@ contract LiteProcessor is IMessageRecipient, ProcessorBase {
     function _handleSendMsgs(IProcessorMessageTypes.ProcessorMessage memory decodedMessage) internal {
         // Check if the processor is paused
         if (paused) {
-            revert ProcessorErrors.ProcessorPausedError();
+            revert ProcessorErrors.ProcessorPaused();
         }
 
         IProcessorMessageTypes.SendMsgs memory sendMsgs =

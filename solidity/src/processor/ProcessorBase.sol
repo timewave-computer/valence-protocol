@@ -38,7 +38,7 @@ abstract contract ProcessorBase {
      */
     constructor(bytes32 _authorizationContract, address _mailbox, uint32 _originDomain) {
         if (_mailbox == address(0)) {
-            revert ProcessorErrors.InvalidAddressError();
+            revert ProcessorErrors.InvalidAddress();
         }
         authorizationContract = _authorizationContract;
         mailbox = IMailbox(_mailbox);
@@ -125,7 +125,7 @@ abstract contract ProcessorBase {
         // This is necessary because the function is external and can be called by anyone
         // It's external to allow try-catch pattern for atomicity
         if (msg.sender != address(this)) {
-            revert ProcessorErrors.UnauthorizedAccessError();
+            revert ProcessorErrors.UnauthorizedAccess();
         }
 
         for (uint256 i = 0; i < atomicSubroutine.functions.length; i++) {

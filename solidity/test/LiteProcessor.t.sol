@@ -37,7 +37,7 @@ contract LiteProcessorTest is Test {
 
     /// @notice Test that constructor reverts when given zero address for mailbox
     function test_Constructor_RevertOnZeroMailbox() public {
-        vm.expectRevert(ProcessorErrors.InvalidAddressError.selector);
+        vm.expectRevert(ProcessorErrors.InvalidAddress.selector);
         new LiteProcessor(AUTH_CONTRACT, address(0), ORIGIN_DOMAIN);
     }
 
@@ -45,7 +45,7 @@ contract LiteProcessorTest is Test {
     function test_Handle_RevertOnUnauthorizedSender() public {
         bytes memory message = _encodePauseMessage();
 
-        vm.expectRevert(ProcessorErrors.UnauthorizedAccessError.selector);
+        vm.expectRevert(ProcessorErrors.UnauthorizedAccess.selector);
         processor.handle(1, AUTH_CONTRACT, message);
     }
 
@@ -55,7 +55,7 @@ contract LiteProcessorTest is Test {
         bytes32 unauthorizedSender = bytes32(uint256(1));
 
         vm.prank(MAILBOX);
-        vm.expectRevert(ProcessorErrors.NotAuthorizationContractError.selector);
+        vm.expectRevert(ProcessorErrors.NotAuthorizationContract.selector);
         processor.handle(1, unauthorizedSender, message);
     }
 
@@ -101,7 +101,7 @@ contract LiteProcessorTest is Test {
         bytes memory message = _encodeInsertMsgsMessage();
 
         vm.prank(MAILBOX);
-        vm.expectRevert(ProcessorErrors.UnsupportedOperationError.selector);
+        vm.expectRevert(ProcessorErrors.UnsupportedOperation.selector);
         processor.handle(1, AUTH_CONTRACT, message);
     }
 

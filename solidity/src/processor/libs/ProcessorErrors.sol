@@ -2,9 +2,9 @@
 pragma solidity ^0.8.28;
 
 library ProcessorErrors {
-    error UnauthorizedAccessError();
-    error NotAuthorizationContractError();
-    error InvalidAddressError();
-    error ProcessorPausedError();
-    error UnsupportedOperationError();
+    error UnauthorizedAccess();
+    error NotAuthorizationContract();
+    error InvalidAddress();
+    error ProcessorPaused();
+    error UnsupportedOperation();
 }
