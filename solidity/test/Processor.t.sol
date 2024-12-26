@@ -20,7 +20,7 @@ contract ProcessorTest is Test {
     }
 
     function testConstructorZeroMailbox() public {
-        vm.expectRevert(Processor.InvalidAddress.selector);
+        vm.expectRevert(Processor.InvalidAddressError.selector);
         new Processor(MOCK_AUTH_CONTRACT, address(0));
     }
 }

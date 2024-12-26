@@ -28,15 +28,15 @@ contract Processor is IMessageRecipient {
     event MessageReceived(uint32 indexed origin, bytes32 indexed sender, bytes body);
 
     // Custom errors
-    error UnauthorizedAccess();
-    error NotAuthorizationContract();
-    error InvalidAddress();
-    error ProcessorPaused();
+    error UnauthorizedAccessError();
+    error NotAuthorizationContractError();
+    error InvalidAddressError();
+    error ProcessorPausedError();
 
     constructor(bytes32 _authorizationContract, address _mailbox) {
         // Check for zero addresses
         if (_mailbox == address(0)) {
-            revert InvalidAddress();
+            revert InvalidAddressError();
         }
 
         // Set authorization contract and mailbox
@@ -52,12 +52,12 @@ contract Processor is IMessageRecipient {
     function handle(uint32 _origin, bytes32 _sender, bytes calldata _body) external payable override {
         // Only mailbox can call this function
         if (msg.sender != mailbox) {
-            revert UnauthorizedAccess();
+            revert UnauthorizedAccessError();
         }
 
         // Check that the sender of the message is the authorization contract
         if (_sender != authorizationContract) {
-            revert NotAuthorizationContract();
+            revert NotAuthorizationContractError();
         }
 
         emit MessageReceived(_origin, _sender, _body);
