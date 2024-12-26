@@ -164,7 +164,7 @@ abstract contract ProcessorBase {
      *        execution count, and any error data from the subroutine execution
      */
     function _buildAndSendCallback(uint64 executionId, IProcessor.SubroutineResult memory subroutineResult) internal {
-        bytes memory callback = _buildCallback(executionId, subroutineResult);
+        IProcessor.Callback memory callback = _buildCallback(executionId, subroutineResult);
         _sendCallback(callback);
     }
 
@@ -173,11 +173,12 @@ abstract contract ProcessorBase {
      * @dev This function processes the results of a subroutine execution and packages it into a standardized format
      * @param executionId Unique identifier for this execution instance
      * @param subroutineResult Contains the execution results including success status, executed count, and any error data
-     * @return bytes The ABI encoded callback structure containing all execution information
+     * @return callback The callback structure containing the execution outcome
      */
     function _buildCallback(uint64 executionId, IProcessor.SubroutineResult memory subroutineResult)
         internal
-        returns (bytes memory)
+        pure
+        returns (IProcessor.Callback memory)
     {
         // Determine the execution result based on the following rules:
         // - If succeeded = true -> Success (all operations completed)
@@ -192,21 +193,13 @@ abstract contract ProcessorBase {
             executionResult = IProcessor.ExecutionResult.PartiallyExecuted;
         }
 
-        // Construct the callback structure
-        IProcessor.Callback memory callback = IProcessor.Callback({
+        // Construct the callback structure and return it
+        return IProcessor.Callback({
             executionId: executionId,
             executionResult: executionResult,
             executedCount: subroutineResult.executedCount,
             data: subroutineResult.errorData
         });
-
-        // Emit callback event to keep track of execution results
-        emit ProcessorEvents.CallbackBuilt(executionId, executionResult);
-
-        // Encode the entire callback structure into bytes for transmission
-        // Using abi.encode ensures proper encoding of all struct members
-        // This encoded data can be decoded later by the receiving contract
-        return abi.encode(callback);
     }
 
     /**
@@ -214,10 +207,16 @@ abstract contract ProcessorBase {
      * @dev This function handles the actual dispatch of callback data through the
      *      cross-domain messaging system. It uses the mailbox contract to send
      *      the message back to the origin domain and emits an event for tracking.
-     * @param callback The ABI-encoded callback data containing execution results
+     * @param callback The callback structure to be sent
      */
-    function _sendCallback(bytes memory callback) internal {
-        // Send the callback to the mailbox
-        mailbox.dispatch(originDomain, authorizationContract, callback);
+    function _sendCallback(IProcessor.Callback memory callback) internal {
+        // Encode the entire callback structure into bytes for transmission
+        // Using abi.encode ensures proper encoding of all struct members
+        // This encoded data can be decoded later by the decoder
+        bytes memory encodedCallback = abi.encode(callback);
+        // Send the encoded callback to the mailbox
+        mailbox.dispatch(originDomain, authorizationContract, encodedCallback);
+        // Emit an event to track the callback transmission
+        emit ProcessorEvents.CallbackSent(callback.executionId, callback.executionResult);
     }
 }

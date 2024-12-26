@@ -23,9 +23,9 @@ library ProcessorEvents {
     event ProcessorResumed();
 
     /**
-     * @notice Emitted when a callback is built for the hyperlane mailbox
+     * @notice Emitted when a callback is sent to the hyperlane mailbox
      * @param executionId The Execution ID of the message(s) that triggered the callback
      * @param result The outcome of the execution
      */
-    event CallbackBuilt(uint256 indexed executionId, IProcessor.ExecutionResult result);
+    event CallbackSent(uint256 indexed executionId, IProcessor.ExecutionResult result);
 }
