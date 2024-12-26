@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import {ProcessorErrors} from "./libs/ProcessorErrors.sol";
 import {IProcessorMessageTypes} from "./interfaces/IProcessorMessageTypes.sol";
 import {IProcessor} from "./interfaces/IProcessor.sol";
+import {IMailbox} from "hyperlane/interfaces/IMailbox.sol";
 import {ProcessorEvents} from "./libs/ProcessorEvents.sol";
 
 abstract contract ProcessorBase {
@@ -17,7 +18,13 @@ abstract contract ProcessorBase {
      * @notice The only address allowed to deliver messages to this processor
      * @dev This should be the Hyperlane mailbox contract
      */
-    address public immutable mailbox;
+    IMailbox public immutable mailbox;
+
+    /**
+     * @notice The origin domain ID for sending the callbacks via Hyperlane
+     * @dev This is the ID of the domain the authorization contract is deployed on (Neutron ID) - Check: https://hyp-v3-docs-er9k07ozr-abacus-works.vercel.app/docs/reference/domains
+     */
+    uint32 public immutable originDomain;
 
     /**
      * @notice Indicates if the processor is currently paused
@@ -29,12 +36,13 @@ abstract contract ProcessorBase {
      * @param _authorizationContract The authorized contract address in bytes32
      * @param _mailbox The Hyperlane mailbox address
      */
-    constructor(bytes32 _authorizationContract, address _mailbox) {
+    constructor(bytes32 _authorizationContract, address _mailbox, uint32 _originDomain) {
         if (_mailbox == address(0)) {
             revert ProcessorErrors.InvalidAddressError();
         }
         authorizationContract = _authorizationContract;
-        mailbox = _mailbox;
+        mailbox = IMailbox(_mailbox);
+        originDomain = _originDomain;
     }
 
     /**
@@ -82,7 +90,7 @@ abstract contract ProcessorBase {
         IProcessorMessageTypes.NonAtomicSubroutine memory nonAtomicSubroutine,
         bytes[] memory messages
     ) internal returns (IProcessor.SubroutineResult memory) {
-        uint256 executedCount = 0;
+        uint32 executedCount = 0;
         bytes memory errorData;
         bool succeeded = true;
 
@@ -143,5 +151,71 @@ abstract contract ProcessorBase {
 
         // Return the total number of executed functions
         return atomicSubroutine.functions.length;
+    }
+
+    /**
+     * @notice Combines callback building and sending into a single atomic operation
+     * @dev This function serves as a convenience wrapper that ensures callbacks are properly
+     *      built and sent in sequence. It helps maintain the atomicity of the callback process
+     *      by handling both operations in a single function call.
+     * @param executionId The unique identifier for the execution being reported
+     * @param subroutineResult Contains all execution outcomes including success status,
+     *        execution count, and any error data from the subroutine execution
+     */
+    function _buildAndSendCallback(uint64 executionId, IProcessor.SubroutineResult memory subroutineResult) internal {
+        bytes memory callback = _buildCallback(executionId, subroutineResult);
+        _sendCallback(callback);
+    }
+
+    /**
+     * @notice Builds a callback structure containing execution results and encodes it
+     * @dev This function processes the results of a subroutine execution and packages it into a standardized format
+     * @param executionId Unique identifier for this execution instance
+     * @param subroutineResult Contains the execution results including success status, executed count, and any error data
+     * @return bytes The ABI encoded callback structure containing all execution information
+     */
+    function _buildCallback(uint64 executionId, IProcessor.SubroutineResult memory subroutineResult)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        // Determine the execution result based on the following rules:
+        // - If succeeded = true -> Success (all operations completed)
+        // - If succeeded = false and executedCount = 0 -> Rejected (nothing executed)
+        // - If succeeded = false and executedCount > 0 -> PartiallyExecuted (some operations completed)
+        IProcessor.ExecutionResult executionResult;
+        if (subroutineResult.succeeded) {
+            executionResult = IProcessor.ExecutionResult.Success;
+        } else if (subroutineResult.executedCount == 0) {
+            executionResult = IProcessor.ExecutionResult.Rejected;
+        } else {
+            executionResult = IProcessor.ExecutionResult.PartiallyExecuted;
+        }
+
+        // Construct the callback structure
+        IProcessor.Callback memory callback = IProcessor.Callback({
+            executionId: executionId,
+            executionResult: executionResult,
+            executedCount: subroutineResult.executedCount,
+            data: subroutineResult.errorData
+        });
+
+        // Encode the entire callback structure into bytes for transmission
+        // Using abi.encode ensures proper encoding of all struct members
+        // This encoded data can be decoded later by the receiving contract
+        return abi.encode(callback);
+    }
+
+    /**
+     * @notice Sends an encoded callback to the designated mailbox contract
+     * @dev This function handles the actual dispatch of callback data through the
+     *      cross-domain messaging system. It uses the mailbox contract to send
+     *      the message back to the origin domain and emits an event for tracking.
+     * @param callback The ABI-encoded callback data containing execution results
+     */
+    function _sendCallback(bytes memory callback) internal {
+        // Send the callback to the mailbox
+        mailbox.dispatch(originDomain, authorizationContract, callback);
+        emit ProcessorEvents.CallbackSent();
     }
 }

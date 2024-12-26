@@ -42,4 +42,9 @@ library ProcessorEvents {
      * @notice Emitted when a SendMsgs operation is processed
      */
     event ProcessedSendMsgsOperation();
+
+    /**
+     * @notice Emitted when a callback is sent to the hyperlane mailbox
+     */
+    event CallbackSent();
 }

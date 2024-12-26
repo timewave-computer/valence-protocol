@@ -16,11 +16,14 @@ interface IProcessor {
 
     /**
      * @notice Represents the callback after a subroutine execution
+     * @param executionId The Execution ID of the message(s) that triggered the callback
      * @param executionResult The outcome of the execution (Success, Rejected, or PartiallyExecuted)
      * @param data Additional data related to the callback execution, if any
      */
     struct Callback {
+        uint64 executionId;
         ExecutionResult executionResult;
+        uint256 executedCount;
         bytes data;
     }
 

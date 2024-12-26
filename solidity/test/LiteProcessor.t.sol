@@ -20,10 +20,12 @@ contract LiteProcessorTest is Test {
     address public constant MAILBOX = address(0x1234);
     // Mock authorization contract address converted to bytes32 for cross-chain representation
     bytes32 public constant AUTH_CONTRACT = bytes32(uint256(uint160(address(0x5678))));
+    // Domain ID of the origin domain
+    uint32 public constant ORIGIN_DOMAIN = 1;
 
     /// @notice Deploy a fresh instance of the processor before each test
     function setUp() public {
-        processor = new LiteProcessor(AUTH_CONTRACT, MAILBOX);
+        processor = new LiteProcessor(AUTH_CONTRACT, MAILBOX, ORIGIN_DOMAIN);
     }
 
     /// @notice Test that the constructor properly initializes state variables
@@ -36,7 +38,7 @@ contract LiteProcessorTest is Test {
     /// @notice Test that constructor reverts when given zero address for mailbox
     function test_Constructor_RevertOnZeroMailbox() public {
         vm.expectRevert(ProcessorErrors.InvalidAddressError.selector);
-        new LiteProcessor(AUTH_CONTRACT, address(0));
+        new LiteProcessor(AUTH_CONTRACT, address(0), ORIGIN_DOMAIN);
     }
 
     /// @notice Test that handle() reverts when called by non-mailbox address

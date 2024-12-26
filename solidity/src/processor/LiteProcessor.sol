@@ -22,8 +22,11 @@ contract LiteProcessor is IMessageRecipient, ProcessorBase {
      *      and passing the necessary parameters for the authorized contract and mailbox.
      * @param _authorizationContract The address of the authorized contract, represented as a bytes32 value.
      * @param _mailbox The address of the Hyperlane mailbox contract.
+     * @param _originDomain The origin domain ID for sending the callbacks via Hyperlane.
      */
-    constructor(bytes32 _authorizationContract, address _mailbox) ProcessorBase(_authorizationContract, _mailbox) {}
+    constructor(bytes32 _authorizationContract, address _mailbox, uint32 _originDomain)
+        ProcessorBase(_authorizationContract, _mailbox, _originDomain)
+    {}
 
     // ============ External Functions ============
 
@@ -35,7 +38,7 @@ contract LiteProcessor is IMessageRecipient, ProcessorBase {
      */
     function handle(uint32 _origin, bytes32 _sender, bytes calldata _body) external payable override {
         // Verify sender is authorized mailbox
-        if (msg.sender != mailbox) {
+        if (msg.sender != address(mailbox)) {
             revert ProcessorErrors.UnauthorizedAccessError();
         }
 
@@ -86,18 +89,22 @@ contract LiteProcessor is IMessageRecipient, ProcessorBase {
         IProcessorMessageTypes.SendMsgs memory sendMsgs =
             abi.decode(decodedMessage.message, (IProcessorMessageTypes.SendMsgs));
 
+        IProcessor.SubroutineResult memory result;
+
         if (sendMsgs.subroutine.subroutineType == IProcessorMessageTypes.SubroutineType.Atomic) {
             IProcessorMessageTypes.AtomicSubroutine memory atomicSubroutine =
                 abi.decode(sendMsgs.subroutine.subroutine, (IProcessorMessageTypes.AtomicSubroutine));
-            IProcessor.SubroutineResult memory result = _handleAtomicSubroutine(atomicSubroutine, sendMsgs.messages);
+            result = _handleAtomicSubroutine(atomicSubroutine, sendMsgs.messages);
             emit ProcessorEvents.SubroutineProcessed(true, result.succeeded, result.executedCount, result.errorData);
         } else {
             IProcessorMessageTypes.NonAtomicSubroutine memory nonAtomicSubroutine =
                 abi.decode(sendMsgs.subroutine.subroutine, (IProcessorMessageTypes.NonAtomicSubroutine));
 
-            IProcessor.SubroutineResult memory result =
-                _handleNonAtomicSubroutine(nonAtomicSubroutine, sendMsgs.messages);
+            result = _handleNonAtomicSubroutine(nonAtomicSubroutine, sendMsgs.messages);
             emit ProcessorEvents.SubroutineProcessed(false, result.succeeded, result.executedCount, result.errorData);
         }
+
+        // Send callback to Hyperlane mailbox
+        _buildAndSendCallback(sendMsgs.executionId, result);
     }
 }
