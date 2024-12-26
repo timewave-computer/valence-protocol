@@ -177,7 +177,6 @@ abstract contract ProcessorBase {
      */
     function _buildCallback(uint64 executionId, IProcessor.SubroutineResult memory subroutineResult)
         internal
-        pure
         returns (bytes memory)
     {
         // Determine the execution result based on the following rules:
@@ -200,6 +199,9 @@ abstract contract ProcessorBase {
             executedCount: subroutineResult.executedCount,
             data: subroutineResult.errorData
         });
+
+        // Emit callback event to keep track of execution results
+        emit ProcessorEvents.CallbackBuilt(executionId, executionResult);
 
         // Encode the entire callback structure into bytes for transmission
         // Using abi.encode ensures proper encoding of all struct members
