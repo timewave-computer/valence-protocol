@@ -26,7 +26,11 @@ contract Processor is IMessageRecipient, ProcessorBase {
      */
     constructor(bytes32 _authorizationContract, address _mailbox, uint32 _originDomain)
         ProcessorBase(_authorizationContract, _mailbox, _originDomain)
-    {}
+    {
+        // Initialize both queues with unique namespaces
+        mediumPriorityQueue = QueueMap.createQueue("MED");
+        highPriorityQueue = QueueMap.createQueue("HIGH");
+    }
 
     // Implement the handle function
     function handle(uint32 _origin, bytes32 _sender, bytes calldata _body) external payable override {
