@@ -17,15 +17,10 @@ contract LiteProcessorTest is Test {
     // Mock mailbox address that will be authorized to call the processor
     address public constant MAILBOX = address(0x1234);
     // Mock authorization contract address converted to bytes32 for cross-chain representation
-    bytes32 public constant AUTH_CONTRACT =
-        bytes32(uint256(uint160(address(0x5678))));
+    bytes32 public constant AUTH_CONTRACT = bytes32(uint256(uint160(address(0x5678))));
 
     // Events that we expect the contract to emit
-    event MessageReceived(
-        uint32 indexed origin,
-        bytes32 indexed sender,
-        bytes body
-    );
+    event MessageReceived(uint32 indexed origin, bytes32 indexed sender, bytes body);
     event ProcessorPaused();
     event ProcessorResumed();
 
@@ -35,7 +30,7 @@ contract LiteProcessorTest is Test {
     }
 
     /// @notice Test that the constructor properly initializes state variables
-    function test_Constructor() view public {
+    function test_Constructor() public view {
         assertEq(address(processor.mailbox()), MAILBOX);
         assertEq(processor.authorizationContract(), AUTH_CONTRACT);
         assertFalse(processor.paused());
@@ -72,9 +67,9 @@ contract LiteProcessorTest is Test {
         vm.prank(MAILBOX);
         // Check for both ProcessorPaused and MessageReceived events
         vm.expectEmit(true, true, false, true);
-        emit ProcessorPaused();
-        vm.expectEmit(true, true, false, true);
         emit MessageReceived(1, AUTH_CONTRACT, message);
+        vm.expectEmit(true, true, false, true);
+        emit ProcessorPaused();
 
         processor.handle(1, AUTH_CONTRACT, message);
         assertTrue(processor.paused());
@@ -94,9 +89,9 @@ contract LiteProcessorTest is Test {
         vm.prank(MAILBOX);
         // Check for both ProcessorResumed and MessageReceived events
         vm.expectEmit(true, true, false, true);
-        emit ProcessorResumed();
-        vm.expectEmit(true, true, false, true);
         emit MessageReceived(1, AUTH_CONTRACT, resumeMessage);
+        vm.expectEmit(true, true, false, true);
+        emit ProcessorResumed();
 
         processor.handle(1, AUTH_CONTRACT, resumeMessage);
         assertFalse(processor.paused());
@@ -116,49 +111,41 @@ contract LiteProcessorTest is Test {
     /// @notice Creates an encoded pause message
     /// @return bytes The ABI encoded pause message
     function _encodePauseMessage() internal pure returns (bytes memory) {
-        IProcessorMessageTypes.ProcessorMessage
-            memory message = IProcessorMessageTypes.ProcessorMessage({
-                messageType: IProcessorMessageTypes.ProcessorMessageType.Pause,
-                message: bytes("")
-            });
+        IProcessorMessageTypes.ProcessorMessage memory message = IProcessorMessageTypes.ProcessorMessage({
+            messageType: IProcessorMessageTypes.ProcessorMessageType.Pause,
+            message: bytes("")
+        });
         return abi.encode(message);
     }
 
     /// @notice Creates an encoded resume message
     /// @return bytes The ABI encoded resume message
     function _encodeResumeMessage() internal pure returns (bytes memory) {
-        IProcessorMessageTypes.ProcessorMessage
-            memory message = IProcessorMessageTypes.ProcessorMessage({
-                messageType: IProcessorMessageTypes.ProcessorMessageType.Resume,
-                message: bytes("")
-            });
+        IProcessorMessageTypes.ProcessorMessage memory message = IProcessorMessageTypes.ProcessorMessage({
+            messageType: IProcessorMessageTypes.ProcessorMessageType.Resume,
+            message: bytes("")
+        });
         return abi.encode(message);
     }
 
     /// @notice Creates an encoded InsertMsgs message for testing unsupported operations
     /// @return bytes The ABI encoded InsertMsgs message
     function _encodeInsertMsgsMessage() internal pure returns (bytes memory) {
-        IProcessorMessageTypes.InsertMsgs memory insertMsgs = IProcessorMessageTypes
-            .InsertMsgs({
-                executionId: 1,
-                queuePosition: 0,
-                priority: IProcessorMessageTypes.Priority.Medium,
-                subroutine: IProcessorMessageTypes.Subroutine({
-                    subroutineType: IProcessorMessageTypes
-                        .SubroutineType
-                        .Atomic,
-                    subroutine: bytes("")
-                }),
-                messages: new bytes[](0)
-            });
+        IProcessorMessageTypes.InsertMsgs memory insertMsgs = IProcessorMessageTypes.InsertMsgs({
+            executionId: 1,
+            queuePosition: 0,
+            priority: IProcessorMessageTypes.Priority.Medium,
+            subroutine: IProcessorMessageTypes.Subroutine({
+                subroutineType: IProcessorMessageTypes.SubroutineType.Atomic,
+                subroutine: bytes("")
+            }),
+            messages: new bytes[](0)
+        });
 
-        IProcessorMessageTypes.ProcessorMessage
-            memory message = IProcessorMessageTypes.ProcessorMessage({
-                messageType: IProcessorMessageTypes
-                    .ProcessorMessageType
-                    .SendMsgs,
-                message: abi.encode(insertMsgs)
-            });
+        IProcessorMessageTypes.ProcessorMessage memory message = IProcessorMessageTypes.ProcessorMessage({
+            messageType: IProcessorMessageTypes.ProcessorMessageType.InsertMsgs,
+            message: abi.encode(insertMsgs)
+        });
 
         return abi.encode(message);
     }
