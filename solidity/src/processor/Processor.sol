@@ -33,7 +33,7 @@ contract Processor is IMessageRecipient, ProcessorBase {
     }
 
     // Implement the handle function
-    function handle(uint32 _origin, bytes32 _sender, bytes calldata /*_body*/) external payable override {
+    function handle(uint32 _origin, bytes32 _sender, bytes calldata /*_body*/ ) external payable override {
         // Only mailbox can call this function
         if (msg.sender != address(mailbox)) {
             revert ProcessorErrors.UnauthorizedAccess();

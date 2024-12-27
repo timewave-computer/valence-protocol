@@ -217,6 +217,6 @@ abstract contract ProcessorBase {
         // Send the encoded callback to the mailbox
         mailbox.dispatch(originDomain, authorizationContract, encodedCallback);
         // Emit an event to track the callback transmission
-        emit ProcessorEvents.CallbackSent(callback.executionId, callback.executionResult);
+        emit ProcessorEvents.CallbackSent(callback.executionId, callback.executionResult, callback.executedCount);
     }
 }
