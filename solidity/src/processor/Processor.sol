@@ -19,14 +19,18 @@ contract Processor is IMessageRecipient, ProcessorBase {
     /**
      * @notice Initializes the LiteProcessor contract
      * @dev The constructor initializes the LiteProcessor by calling the base contract constructor
-     *      and passing the necessary parameters for the authorized contract and mailbox.
-     * @param _authorizationContract The address of the authorized contract, represented as a bytes32 value.
+     *      and passing the necessary parameters for the authorization contract and mailbox.
+     * @param _authorizationContract The address of the authorization contract, represented as a bytes32 value.
      * @param _mailbox The address of the Hyperlane mailbox contract.
      * @param _originDomain The origin domain ID for sending the callbacks via Hyperlane.
+     * @param _authorizedAddresses The list of authorized addresses that can call the processor directly.
      */
-    constructor(bytes32 _authorizationContract, address _mailbox, uint32 _originDomain)
-        ProcessorBase(_authorizationContract, _mailbox, _originDomain)
-    {
+    constructor(
+        bytes32 _authorizationContract,
+        address _mailbox,
+        uint32 _originDomain,
+        address[] memory _authorizedAddresses
+    ) ProcessorBase(_authorizationContract, _mailbox, _originDomain, _authorizedAddresses) {
         // Initialize both queues with unique namespaces
         mediumPriorityQueue = QueueMap.createQueue("MED");
         highPriorityQueue = QueueMap.createQueue("HIGH");
@@ -48,5 +52,13 @@ contract Processor is IMessageRecipient, ProcessorBase {
         if (_sender != authorizationContract) {
             revert ProcessorErrors.NotAuthorizationContract();
         }
+    }
+
+    /**
+     * @notice Handles incoming messages from an authorized addresses
+     * @param _body The message payload
+     */
+    function execute(bytes calldata _body) external payable override {
+        // TODO: Implement the execute function
     }
 }

@@ -14,22 +14,26 @@ contract ProcessorTest is Test {
     bytes32 public constant AUTH_CONTRACT = bytes32(uint256(uint160(address(0x5678))));
     // Domain ID of the origin domain
     uint32 public constant ORIGIN_DOMAIN = 1;
+    // Authorized addresses that can call the processor directly
+    address[] public AUTHORIZED_ADDRESSES = [address(0x1234)];
 
     /// @notice Deploy a fresh instance of the processor before each test
     function setUp() public {
-        processor = new Processor(AUTH_CONTRACT, MAILBOX, ORIGIN_DOMAIN);
+        processor = new Processor(AUTH_CONTRACT, MAILBOX, ORIGIN_DOMAIN, AUTHORIZED_ADDRESSES);
     }
 
     /// @notice Test that the constructor properly initializes state variables
     function testConstructor() public view {
         assertEq(address(processor.mailbox()), MAILBOX);
         assertEq(processor.authorizationContract(), AUTH_CONTRACT);
+        assertEq(processor.originDomain(), ORIGIN_DOMAIN);
+        assertEq(processor.authorizedAddresses(AUTHORIZED_ADDRESSES[0]), true);
         assertFalse(processor.paused());
     }
 
     /// @notice Test that constructor reverts when given zero address for mailbox
     function testConstructorRevertOnZeroMailbox() public {
         vm.expectRevert(ProcessorErrors.InvalidAddress.selector);
-        new Processor(AUTH_CONTRACT, address(0), ORIGIN_DOMAIN);
+        new Processor(AUTH_CONTRACT, address(0), ORIGIN_DOMAIN, AUTHORIZED_ADDRESSES);
     }
 }

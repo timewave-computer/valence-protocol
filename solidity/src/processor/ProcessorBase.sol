@@ -5,11 +5,12 @@ import {ProcessorErrors} from "./libs/ProcessorErrors.sol";
 import {IProcessorMessageTypes} from "./interfaces/IProcessorMessageTypes.sol";
 import {IProcessor} from "./interfaces/IProcessor.sol";
 import {IMailbox} from "hyperlane/interfaces/IMailbox.sol";
+import {ICallback} from "./interfaces/ICallback.sol";
 import {ProcessorEvents} from "./libs/ProcessorEvents.sol";
 
 abstract contract ProcessorBase {
     /**
-     * @notice The authorized contract that can send messages from the main domain
+     * @notice The authorization contract that can send messages from the main domain
      * @dev Stored as bytes32 to handle cross-chain address representation
      */
     bytes32 public immutable authorizationContract;
@@ -27,24 +28,45 @@ abstract contract ProcessorBase {
     uint32 public immutable originDomain;
 
     /**
+     * @notice The addresses authorized to interact with the processor contract directly
+     */
+    mapping(address => bool) public authorizedAddresses;
+
+    /**
      * @notice Indicates if the processor is currently paused
      */
     bool public paused;
 
     /**
      * @notice Initializes the state variables
-     * @param _authorizationContract The authorized contract address in bytes32
+     * @param _authorizationContract The authorization contract address in bytes32
      * @param _mailbox The Hyperlane mailbox address
      * @param _originDomain The origin domain ID for sending callbacks
+     * @param _authorizedAddresses The addresses authorized to interact with the processor directly
      */
-    constructor(bytes32 _authorizationContract, address _mailbox, uint32 _originDomain) {
+    constructor(
+        bytes32 _authorizationContract,
+        address _mailbox,
+        uint32 _originDomain,
+        address[] memory _authorizedAddresses
+    ) {
         if (_mailbox == address(0)) {
             revert ProcessorErrors.InvalidAddress();
         }
         authorizationContract = _authorizationContract;
         mailbox = IMailbox(_mailbox);
         originDomain = _originDomain;
+
+        for (uint256 i = 0; i < _authorizedAddresses.length; i++) {
+            authorizedAddresses[_authorizedAddresses[i]] = true;
+        }
     }
+
+    /**
+     * @notice Handles incoming messages from an authorized addresses
+     * @param _body The message payload
+     */
+    function execute(bytes calldata _body) external payable virtual;
 
     /**
      * @notice Handles pause messages
@@ -159,13 +181,18 @@ abstract contract ProcessorBase {
      * @dev This function serves as a convenience wrapper that ensures callbacks are properly
      *      built and sent in sequence. It helps maintain the atomicity of the callback process
      *      by handling both operations in a single function call.
+     * @param callbackReceiver The address that will receive the callback
      * @param executionId The unique identifier for the execution being reported
      * @param subroutineResult Contains all execution outcomes including success status,
      *        execution count, and any error data from the subroutine execution
      */
-    function _buildAndSendCallback(uint64 executionId, IProcessor.SubroutineResult memory subroutineResult) internal {
+    function _buildAndSendCallback(
+        address callbackReceiver,
+        uint64 executionId,
+        IProcessor.SubroutineResult memory subroutineResult
+    ) internal {
         IProcessor.Callback memory callback = _buildCallback(executionId, subroutineResult);
-        _sendCallback(callback);
+        _sendCallback(callbackReceiver, callback);
     }
 
     /**
@@ -207,15 +234,22 @@ abstract contract ProcessorBase {
      * @dev This function handles the actual dispatch of callback data through the
      *      cross-domain messaging system. It uses the mailbox contract to send
      *      the message back to the origin domain and emits an event for tracking.
+     * @param callbackReceiver The address that will receive the callback
      * @param callback The callback structure to be sent
      */
-    function _sendCallback(IProcessor.Callback memory callback) internal {
+    function _sendCallback(address callbackReceiver, IProcessor.Callback memory callback) internal {
         // Encode the entire callback structure into bytes for transmission
         // Using abi.encode ensures proper encoding of all struct members
         // This encoded data can be decoded later by the decoder
         bytes memory encodedCallback = abi.encode(callback);
-        // Send the encoded callback to the mailbox
-        mailbox.dispatch(originDomain, authorizationContract, encodedCallback);
+
+        // If the sender was the mailbox, we send it back to the mailbox
+        // Otherwise, we send it to the contract that initiated the execution, which should be able to process callbacks
+        if (callbackReceiver == address(mailbox)) {
+            mailbox.dispatch(originDomain, authorizationContract, encodedCallback);
+        } else {
+            ICallback(callbackReceiver).handleCallback(encodedCallback);
+        }
         // Emit an event to track the callback transmission
         emit ProcessorEvents.CallbackSent(callback.executionId, callback.executionResult, callback.executedCount);
     }

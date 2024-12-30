@@ -22,26 +22,30 @@ contract LiteProcessorTest is Test {
     bytes32 public constant AUTH_CONTRACT = bytes32(uint256(uint160(address(0x5678))));
     // Domain ID of the origin domain
     uint32 public constant ORIGIN_DOMAIN = 1;
+    // Authorized addresses that can call the processor directly
+    address[] public AUTHORIZED_ADDRESSES = [address(0x1234)];
 
     /// @notice Deploy a fresh instance of the processor before each test
     function setUp() public {
-        processor = new LiteProcessor(AUTH_CONTRACT, MAILBOX, ORIGIN_DOMAIN);
+        processor = new LiteProcessor(AUTH_CONTRACT, MAILBOX, ORIGIN_DOMAIN, AUTHORIZED_ADDRESSES);
     }
 
     /// @notice Test that the constructor properly initializes state variables
     function testConstructor() public view {
         assertEq(address(processor.mailbox()), MAILBOX);
         assertEq(processor.authorizationContract(), AUTH_CONTRACT);
+        assertEq(processor.originDomain(), ORIGIN_DOMAIN);
+        assertEq(processor.authorizedAddresses(AUTHORIZED_ADDRESSES[0]), true);
         assertFalse(processor.paused());
     }
 
     /// @notice Test that constructor reverts when given zero address for mailbox
     function testConstructorRevertOnZeroMailbox() public {
         vm.expectRevert(ProcessorErrors.InvalidAddress.selector);
-        new LiteProcessor(AUTH_CONTRACT, address(0), ORIGIN_DOMAIN);
+        new LiteProcessor(AUTH_CONTRACT, address(0), ORIGIN_DOMAIN, AUTHORIZED_ADDRESSES);
     }
 
-    /// @notice Test that handle() reverts when called by non-mailbox address
+    /// @notice Test that handle() reverts when called by an address that is not the mailbox address or an authorized address
     function testHandleRevertOnUnauthorizedSender() public {
         bytes memory message = _encodePauseMessage();
 
@@ -67,11 +71,23 @@ contract LiteProcessorTest is Test {
         processor.handle(ORIGIN_DOMAIN, unauthorizedSender, message);
     }
 
-    /// @notice Test successful pause message handling and event emission
-    function testHandlePauseMessage() public {
+    /// @notice Test successful pause message handling and event emission when sending from the mailbox
+    function testHandlePauseMessageMailbox() public {
         bytes memory message = _encodePauseMessage();
 
         vm.prank(MAILBOX);
+        // Check for ProcessorPaused event
+        emit ProcessorEvents.ProcessorPaused();
+
+        processor.handle(ORIGIN_DOMAIN, AUTH_CONTRACT, message);
+        assertTrue(processor.paused());
+    }
+
+    /// @notice Test successful pause message handling and event emission when sending from an authorized address
+    function testHandlePauseMessageAuthorizedAddress() public {
+        bytes memory message = _encodePauseMessage();
+
+        vm.prank(AUTHORIZED_ADDRESSES[0]);
         // Check for ProcessorPaused event
         emit ProcessorEvents.ProcessorPaused();
 

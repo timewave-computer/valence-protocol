@@ -18,14 +18,18 @@ contract LiteProcessor is IMessageRecipient, ProcessorBase {
     /**
      * @notice Initializes the LiteProcessor contract
      * @dev The constructor initializes the LiteProcessor by calling the base contract constructor
-     *      and passing the necessary parameters for the authorized contract and mailbox.
-     * @param _authorizationContract The address of the authorized contract, represented as a bytes32 value.
+     *      and passing the necessary parameters for the authorization contract and mailbox.
+     * @param _authorizationContract The address of the authorization contract, represented as a bytes32 value.
      * @param _mailbox The address of the Hyperlane mailbox contract.
      * @param _originDomain The origin domain ID for sending the callbacks via Hyperlane.
+     * @param _authorizedAddresses The list of authorized addresses that can call the processor directly.
      */
-    constructor(bytes32 _authorizationContract, address _mailbox, uint32 _originDomain)
-        ProcessorBase(_authorizationContract, _mailbox, _originDomain)
-    {}
+    constructor(
+        bytes32 _authorizationContract,
+        address _mailbox,
+        uint32 _originDomain,
+        address[] memory _authorizedAddresses
+    ) ProcessorBase(_authorizationContract, _mailbox, _originDomain, _authorizedAddresses) {}
 
     // ============ External Functions ============
 
@@ -46,10 +50,23 @@ contract LiteProcessor is IMessageRecipient, ProcessorBase {
             revert ProcessorErrors.InvalidOriginDomain();
         }
 
-        // Verify message is from authorized contract
+        // Verify message is from authorization contract
         if (_sender != authorizationContract) {
             revert ProcessorErrors.NotAuthorizationContract();
         }
+
+        // Decode and route message to appropriate handler
+        IProcessorMessageTypes.ProcessorMessage memory decodedMessage = ProcessorMessageDecoder.decode(_body);
+        _handleMessageType(decodedMessage);
+    }
+
+    /**
+     * @notice Handles incoming messages from an authorized addresses
+     * @param _body The message payload
+     */
+    function execute(bytes calldata _body) external payable override {
+        // Verify sender is authorized address
+        require(authorizedAddresses[msg.sender], ProcessorErrors.UnauthorizedAccess());
 
         // Decode and route message to appropriate handler
         IProcessorMessageTypes.ProcessorMessage memory decodedMessage = ProcessorMessageDecoder.decode(_body);
@@ -102,7 +119,9 @@ contract LiteProcessor is IMessageRecipient, ProcessorBase {
             result = _handleNonAtomicSubroutine(nonAtomicSubroutine, sendMsgs.messages);
         }
 
-        // Send callback to Hyperlane mailbox
-        _buildAndSendCallback(sendMsgs.executionId, result);
+        // Send callback only if the address that executed this function is a Smart Contract (e.g Hyperlane mailbox or sub-authorization contract)
+        if (msg.sender.code.length > 0) {
+            _buildAndSendCallback(msg.sender, sendMsgs.executionId, result);
+        }
     }
 }
