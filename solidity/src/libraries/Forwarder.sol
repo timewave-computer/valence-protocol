@@ -132,8 +132,11 @@ contract Forwarder is Library {
      * @param output Destination account
      */
     function _forwardToken(ForwardingConfig memory fConfig, Account input, Account output) private {
+        // Check if what we are trying to forward is the native coin or ERC20
+        bool isNativeCoin = _isNativeCoin(fConfig.tokenAddress);
+
         // Determine the balance based on token type (native coin or ERC20)
-        uint256 balance = fConfig.tokenAddress == address(0)
+        uint256 balance = isNativeCoin
             ? address(input).balance // Balance of native coin (ETH)
             : IERC20(fConfig.tokenAddress).balanceOf(address(input)); // Balance of ERC20 token
 
@@ -144,14 +147,23 @@ contract Forwarder is Library {
         if (amountToSend == 0) return;
 
         // Prepare transfer data based on token type
-        bytes memory data = fConfig.tokenAddress == address(0)
+        bytes memory data = isNativeCoin
             ? bytes("") // No data for native coin transfer
             : abi.encodeCall(IERC20.transfer, (address(output), amountToSend)); // ERC20 transfer call data
 
         input.execute(
-            fConfig.tokenAddress == address(0) ? payable(output) : fConfig.tokenAddress, // Target: output address for ETH, token contract for ERC20
-            fConfig.tokenAddress == address(0) ? amountToSend : 0, // Value: amount for ETH, 0 for ERC20
+            isNativeCoin ? payable(output) : fConfig.tokenAddress, // Target: output address for ETH, token contract for ERC20
+            isNativeCoin ? amountToSend : 0, // Value: amount for ETH, 0 for ERC20
             data // Empty for ETH, transfer data for ERC20
         );
+    }
+
+    /**
+     * @dev Checks if the given address represents the native coin (ETH)
+     * @param tokenAddress Address to check
+     * @return bool True if address is zero address (native coin), false otherwise
+     */
+    function _isNativeCoin(address tokenAddress) private pure returns (bool) {
+        return tokenAddress == address(0);
     }
 }
