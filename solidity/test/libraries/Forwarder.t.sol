@@ -127,7 +127,7 @@ contract ForwarderTest is Test {
         assertEq(address(outputAccount).balance, 1 ether);
         assertEq(token.balanceOf(address(outputAccount)), 100);
 
-        // Mine a block
+        // Increase a block
         vm.roll(block.number + 1);
 
         // Forward again
@@ -152,7 +152,7 @@ contract ForwarderTest is Test {
         assertEq(address(outputAccount).balance, 0.1 ether);
         assertEq(token.balanceOf(address(outputAccount)), 50);
 
-        // Mine a block
+        // Increase a block
         vm.roll(block.number + 1);
 
         // Forward again
@@ -178,7 +178,7 @@ contract ForwarderTest is Test {
         vm.startPrank(processor);
         forwarder.forward();
 
-        // Mine a block
+        // Increase a block
         vm.roll(block.number + 1);
 
         forwarder.forward();
