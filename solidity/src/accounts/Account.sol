@@ -13,9 +13,6 @@ abstract contract Account is Ownable {
     /// @dev Maps library address to approval status (true = approved, false = not approved)
     mapping(address => bool) public approvedLibraries;
 
-    /// @dev Emitted when execution of external call fails
-    error ExecutionFailed();
-
     /// @dev Emitted when trying to execute through an address that is not the owner or an approved library
     error NotOwnerOrLibrary(address _sender);
 
@@ -79,6 +76,6 @@ abstract contract Account is Ownable {
         return returnData;
     }
 
-    /// @dev Allows the contract to receive ETH that can later be used by approved libraries in execute() calls
+    /// @dev Allows the contract to receive native tokens (e.g. ETH) that can later be used by approved libraries or the owner in execute() calls
     receive() external payable {}
 }
