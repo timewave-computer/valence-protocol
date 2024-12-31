@@ -243,12 +243,13 @@ abstract contract ProcessorBase {
         // This encoded data can be decoded later by the decoder
         bytes memory encodedCallback = abi.encode(callback);
 
-        // If the sender was the mailbox, we send it back to the mailbox
-        // Otherwise, we send it to the contract that initiated the execution, which should be able to process callbacks
+        // If the sender was the mailbox, we send it back to the mailbox, otherwise we send it to the contract that initiated the execution
         if (callbackReceiver == address(mailbox)) {
             mailbox.dispatch(originDomain, authorizationContract, encodedCallback);
         } else {
-            ICallback(callbackReceiver).handleCallback(encodedCallback);
+            // Send the callback to the designated receiver, but we don't revert on failure
+            (bool success, ) = callbackReceiver.call(abi.encodeWithSelector(ICallback.handleCallback.selector, encodedCallback));
+            success; // No-op; the variable is not being used for anything
         }
         // Emit an event to track the callback transmission
         emit ProcessorEvents.CallbackSent(callback.executionId, callback.executionResult, callback.executedCount);
