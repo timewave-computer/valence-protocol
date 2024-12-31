@@ -16,8 +16,8 @@ abstract contract Account is Ownable {
     /// @dev Emitted when execution of external call fails
     error ExecutionFailed();
 
-    /// @dev Emitted when trying to execute through non-approved library
-    error LibraryNotApproved(address _library);
+    /// @dev Emitted when trying to execute through an address that is not the owner or an approved library
+    error NotOwnerOrLibrary(address _sender);
 
     /**
      * @dev Contract constructor
@@ -54,11 +54,11 @@ abstract contract Account is Ownable {
      * @param _value Amount of native tokens to send with the call
      * @param _data Encoded function call data
      * @return result Bytes returned from the call
-     * @notice Only calls from approved libraries are allowed
+     * @notice Only calls from approved libraries or owner are allowed
      */
     function execute(address _target, uint256 _value, bytes calldata _data) external returns (bytes memory result) {
-        if (!approvedLibraries[msg.sender]) {
-            revert LibraryNotApproved(msg.sender);
+        if (!approvedLibraries[msg.sender] && msg.sender != owner()) {
+            revert NotOwnerOrLibrary(msg.sender);
         }
 
         (bool success, bytes memory returnData) = _target.call{value: _value}(_data);

@@ -97,6 +97,23 @@ contract BaseAccountTest is Test {
         assertEq(target.value(), testValue);
     }
 
+    function test_ExecuteWithoutvalueFromOwner() public {
+        uint256 testValue = 123;
+
+        bytes memory callData = abi.encodeWithSelector(TestTarget.setValue.selector, testValue);
+
+        vm.prank(owner);
+        bytes memory result = account.execute(
+            address(target),
+            0, // no value sent
+            callData
+        );
+
+        uint256 decodedResult = abi.decode(result, (uint256));
+        assertEq(decodedResult, testValue);
+        assertEq(target.value(), testValue);
+    }
+
     function test_ExecuteWithValue() public {
         uint256 testValue = 456;
         uint256 paymentAmount = 1 ether;
@@ -157,5 +174,72 @@ contract BaseAccountTest is Test {
         (bool success,) = address(account).call{value: amount}("");
         assertTrue(success);
         assertEq(address(account).balance, amount);
+    }
+
+    function test_TransferEthToUser() public {
+        // Amount to transfer
+        uint256 transferAmount = 1 ether;
+
+        // Recipient address
+        address recipient = address(0x1234);
+
+        // Fund the account
+        vm.deal(address(account), transferAmount);
+
+        // Initial balance checks
+        uint256 initialAccountBalance = address(account).balance;
+        uint256 initialRecipientBalance = recipient.balance;
+
+        // Execute transfer as approved library
+        vm.prank(library1);
+        account.execute(recipient, transferAmount, "");
+
+        // Verify balances
+        assertEq(address(account).balance, initialAccountBalance - transferAmount);
+        assertEq(recipient.balance, initialRecipientBalance + transferAmount);
+    }
+
+    function test_OwnerWithdrawDepositedEth() public {
+        // Amount to deposit and withdraw
+        uint256 depositAmount = 2 ether;
+
+        // Fund the account
+        vm.deal(address(account), depositAmount);
+
+        // Initial balance checks
+        uint256 initialOwnerBalance = owner.balance;
+        uint256 initialAccountBalance = address(account).balance;
+
+        // Withdraw as owner
+        vm.prank(owner);
+        account.execute(owner, depositAmount, "");
+
+        // Verify balances
+        assertEq(address(account).balance, initialAccountBalance - depositAmount);
+        assertEq(owner.balance, initialOwnerBalance + depositAmount);
+    }
+
+    function test_TransferEthToBetweenBaseAccounts() public {
+        // Create a second account
+        address secondOwner = address(0x5678);
+        BaseAccount secondAccount = new BaseAccount(secondOwner, new address[](0));
+
+        // Amount to transfer
+        uint256 transferAmount = 1 ether;
+
+        // Fund the first account
+        vm.deal(address(account), transferAmount);
+
+        // Initial balance checks
+        uint256 initialFirstAccountBalance = address(account).balance;
+        uint256 initialSecondAccountBalance = address(secondAccount).balance;
+
+        // Execute transfer as approved library
+        vm.prank(owner);
+        account.execute(address(secondAccount), transferAmount, "");
+
+        // Verify balances
+        assertEq(address(account).balance, initialFirstAccountBalance - transferAmount);
+        assertEq(address(secondAccount).balance, initialSecondAccountBalance + transferAmount);
     }
 }

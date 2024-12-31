@@ -248,7 +248,8 @@ abstract contract ProcessorBase {
             mailbox.dispatch(originDomain, authorizationContract, encodedCallback);
         } else {
             // Send the callback to the designated receiver, but we don't revert on failure
-            (bool success, ) = callbackReceiver.call(abi.encodeWithSelector(ICallback.handleCallback.selector, encodedCallback));
+            (bool success,) =
+                callbackReceiver.call(abi.encodeWithSelector(ICallback.handleCallback.selector, encodedCallback));
             success; // No-op; the variable is not being used for anything
         }
         // Emit an event to track the callback transmission
