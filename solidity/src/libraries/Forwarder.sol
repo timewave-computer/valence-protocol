@@ -132,30 +132,26 @@ contract Forwarder is Library {
      * @param output Destination account
      */
     function _forwardToken(ForwardingConfig memory fConfig, Account input, Account output) private {
-        uint256 balance;
-        bytes memory data;
+        // Determine the balance based on token type (native coin or ERC20)
+        uint256 balance = fConfig.tokenAddress == address(0)
+            ? address(input).balance // Balance of native coin (ETH)
+            : IERC20(fConfig.tokenAddress).balanceOf(address(input)); // Balance of ERC20 token
 
-        if (fConfig.tokenAddress == address(0)) {
-            // Handle native coin (ETH)
-            balance = address(input).balance;
-            data = "";
-        } else {
-            // Handle ERC20 token
-            balance = IERC20(fConfig.tokenAddress).balanceOf(address(input));
-            data = abi.encodeCall(
-                IERC20.transfer, (address(output), balance < fConfig.maxAmount ? balance : fConfig.maxAmount)
-            );
-        }
-
-        // Takes smaller of: available balance or configured max amount
+        // Calculate amount to send, capped by max amount configuration
         uint256 amountToSend = balance < fConfig.maxAmount ? balance : fConfig.maxAmount;
 
-        if (amountToSend > 0) {
-            input.execute(
-                fConfig.tokenAddress == address(0) ? payable(output) : fConfig.tokenAddress, // Target: output address for ETH, token contract for ERC20
-                fConfig.tokenAddress == address(0) ? amountToSend : 0, // Value: amount for ETH, 0 for ERC20
-                data // Empty for ETH, transfer data for ERC20
-            );
-        }
+        // Skip execution if no amount to send
+        if (amountToSend == 0) return;
+
+        // Prepare transfer data based on token type
+        bytes memory data = fConfig.tokenAddress == address(0)
+            ? bytes("") // No data for native coin transfer
+            : abi.encodeCall(IERC20.transfer, (address(output), amountToSend)); // ERC20 transfer call data
+
+        input.execute(
+            fConfig.tokenAddress == address(0) ? payable(output) : fConfig.tokenAddress, // Target: output address for ETH, token contract for ERC20
+            fConfig.tokenAddress == address(0) ? amountToSend : 0, // Value: amount for ETH, 0 for ERC20
+            data // Empty for ETH, transfer data for ERC20
+        );
     }
 }
