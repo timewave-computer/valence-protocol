@@ -7,11 +7,11 @@ pragma solidity ^0.8.28;
  * @dev Tests contract deployment, authorization checks, and message handling functionality
  */
 import {Test} from "forge-std/src/Test.sol";
-import {LiteProcessor} from "../src/processor/LiteProcessor.sol";
-import {IProcessorMessageTypes} from "../src/processor/interfaces/IProcessorMessageTypes.sol";
-import {ProcessorMessageDecoder} from "../src/processor/libs/ProcessorMessageDecoder.sol";
-import {ProcessorErrors} from "../src/processor/libs/ProcessorErrors.sol";
-import {ProcessorEvents} from "../src/processor/libs/ProcessorEvents.sol";
+import {LiteProcessor} from "../../src/processor/LiteProcessor.sol";
+import {IProcessorMessageTypes} from "../../src/processor/interfaces/IProcessorMessageTypes.sol";
+import {ProcessorMessageDecoder} from "../../src/processor/libs/ProcessorMessageDecoder.sol";
+import {ProcessorErrors} from "../../src/processor/libs/ProcessorErrors.sol";
+import {ProcessorEvents} from "../../src/processor/libs/ProcessorEvents.sol";
 
 contract LiteProcessorTest is Test {
     // Main contract instance to be tested

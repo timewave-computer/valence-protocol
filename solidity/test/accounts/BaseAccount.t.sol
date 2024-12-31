@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/src/Test.sol";
-import {BaseAccount} from "../src/accounts/BaseAccount.sol";
+import {BaseAccount} from "../../src/accounts/BaseAccount.sol";
 
 // Test contract to receive calls from Account
 contract TestTarget {

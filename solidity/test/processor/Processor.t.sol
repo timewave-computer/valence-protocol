@@ -2,8 +2,8 @@
 pragma solidity ^0.8.28;
 
 import {Test, console} from "forge-std/src/Test.sol";
-import {Processor} from "../src/processor/Processor.sol";
-import {ProcessorErrors} from "../src/processor/libs/ProcessorErrors.sol";
+import {Processor} from "../../src/processor/Processor.sol";
+import {ProcessorErrors} from "../../src/processor/libs/ProcessorErrors.sol";
 
 contract ProcessorTest is Test {
     // Main contract instance to be tested

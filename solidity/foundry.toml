@@ -2,6 +2,8 @@
 src = "src"
 out = "out"
 libs = ["dependencies"]
+# Enable IR pipeline to support complex memory-to-storage copying (required for array of structs)
+viaIR = true
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
 [dependencies]

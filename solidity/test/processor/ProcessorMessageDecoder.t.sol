@@ -2,8 +2,8 @@
 pragma solidity ^0.8.28;
 
 import {Test, console} from "forge-std/src/Test.sol";
-import {ProcessorMessageDecoder} from "../src/processor/libs/ProcessorMessageDecoder.sol";
-import {IProcessorMessageTypes} from "../src/processor/interfaces/IProcessorMessageTypes.sol";
+import {ProcessorMessageDecoder} from "../../src/processor/libs/ProcessorMessageDecoder.sol";
+import {IProcessorMessageTypes} from "../../src/processor/interfaces/IProcessorMessageTypes.sol";
 
 contract ProcessorMessageDecoderTest is Test {
     // Helper function to create a basic atomic subroutine
