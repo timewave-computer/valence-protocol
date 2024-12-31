@@ -137,7 +137,7 @@ contract Forwarder is Library {
 
         // Determine the balance based on token type (native coin or ERC20)
         uint256 balance = isNativeCoin
-            ? address(input).balance // Balance of native coin (ETH)
+            ? address(input).balance // Balance of native coin (e.g. ETH)
             : IERC20(fConfig.tokenAddress).balanceOf(address(input)); // Balance of ERC20 token
 
         // Calculate amount to send, capped by max amount configuration
@@ -152,14 +152,14 @@ contract Forwarder is Library {
             : abi.encodeCall(IERC20.transfer, (address(output), amountToSend)); // ERC20 transfer call data
 
         input.execute(
-            isNativeCoin ? payable(output) : fConfig.tokenAddress, // Target: output address for ETH, token contract for ERC20
-            isNativeCoin ? amountToSend : 0, // Value: amount for ETH, 0 for ERC20
-            data // Empty for ETH, transfer data for ERC20
+            isNativeCoin ? payable(output) : fConfig.tokenAddress, // Target: output address for Native coin, token contract for ERC20
+            isNativeCoin ? amountToSend : 0, // Value: amount for Native coin, 0 for ERC20
+            data // Empty for Native coin, transfer data for ERC20
         );
     }
 
     /**
-     * @dev Checks if the given address represents the native coin (ETH)
+     * @dev Checks if the given address represents the native coin (e.g. ETH)
      * @param tokenAddress Address to check
      * @return bool True if address is zero address (native coin), false otherwise
      */
