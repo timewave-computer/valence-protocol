@@ -15,7 +15,7 @@ sol! {
         // We can use address here directly because that's what Smart contracts are under the hood in Solidity
         address inputAccount;
         address outputAccount;
-        ForwardingConfig[] forwarding_configs;
+        ForwardingConfig[] forwardingConfigs;
         IntervalType intervalType;
         uint64 minInterval;
     }

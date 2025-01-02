@@ -1,12 +1,16 @@
-use std::str::FromStr;
-
-use alloy_primitives::Address;
-use alloy_sol_types::SolCall;
+use alloy_sol_types::{SolCall, SolValue};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Binary, StdError, StdResult};
-use valence_encoder_utils::libraries::forwarder::solidity_types::forwardCall;
+use valence_encoder_utils::libraries::{
+    forwarder::solidity_types::{forwardCall, IntervalType},
+    updateConfigCall,
+};
 use valence_forwarder_library::msg::{ForwardingConstraints, FunctionMsgs};
 use valence_library_utils::{msg::ExecuteMsg, LibraryAccountType};
+
+use crate::parse_address;
+
+use super::{update_ownership_call, update_processor_call};
 
 // We need to define a new config that will be used to encode the message because the one from the CW library is not the same as the one from the Solidity library
 #[cw_serde]
@@ -50,37 +54,50 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
             }
         }
         ExecuteMsg::UpdateConfig { new_config } => {
-            let input_account = Address::from_str(&new_config.input_addr.to_string()?).map_err(|e| {
-                StdError::generic_err(format!("Error parsing input address: {}", e))
-            })?;
+            // Parse addresses
+            let input_account = parse_address(&new_config.input_addr.to_string()?)?;
+            let output_account = parse_address(&new_config.output_addr.to_string()?)?;
 
-            let output_account = Address::from_str(&new_config.output_addr.to_string()?).map_err(|e| {
-                StdError::generic_err(format!("Error parsing output address: {}", e))
-            })?;
+            // Convert forwarding configurations
+            let forwarding_configs = new_config
+                .forwarding_configs
+                .iter()
+                .map(|cfg| {
+                    Ok(valence_encoder_utils::libraries::forwarder::solidity_types::ForwardingConfig {
+                        tokenAddress: parse_address(&cfg.token_address)?,
+                        maxAmount: cfg.max_amount,
+                    })
+                })
+                .collect::<StdResult<Vec<_>>>()?;
 
-            let forwarding_configs=
+            // Parse interval constraints
+            let (interval_type, min_interval) =
+                match new_config.forwarding_constraints.min_interval() {
+                    Some(min_interval) => match min_interval {
+                        cw_utils::Duration::Height(blocks) => (IntervalType::BLOCKS, *blocks),
+                        cw_utils::Duration::Time(time) => (IntervalType::TIME, *time),
+                    },
+                    // If no interval is set, the value 0 is used which will be interpreted as no interval in the contract
+                    None => (IntervalType::TIME, 0),
+                };
 
-
-            let forwarder_config =
+            // Build config struct
+            let config =
                 valence_encoder_utils::libraries::forwarder::solidity_types::ForwarderConfig {
                     inputAccount: input_account,
                     outputAccount: output_account,
-                    forwarding_configs: new_config
-                        .forwarding_configs
-                        .iter()
-                        .map(|fwd_cfg| {
-                            Ok(valence_encoder_utils::libraries::forwarder::solidity_types::ForwardingConfig {
-                                tokenAddress: Address::from_str(&fwd_cfg.token_address)
-                                    .map_err(|e| StdError::generic_err(format!("Error parsing token address: {}", e)))?,
-                                maxAmount: fwd_cfg.max_amount,
-                            })
-                        })
-                        .collect::<Result<Vec<_>, _>>()?
-                    intervalType: ,
-                    minInterval: todo!(),
+                    forwardingConfigs: forwarding_configs,
+                    intervalType: interval_type,
+                    minInterval: min_interval,
                 };
+
+            // Create the encoded call with the encoded config
+            let call = updateConfigCall {
+                _config: config.abi_encode().into(),
+            };
+            Ok(call.abi_encode())
         }
-        ExecuteMsg::UpdateProcessor { .. } => todo!(),
-        ExecuteMsg::UpdateOwnership(..) => todo!(),
+        ExecuteMsg::UpdateProcessor { processor } => update_processor_call(&processor),
+        ExecuteMsg::UpdateOwnership(action) => update_ownership_call(action),
     }
 }

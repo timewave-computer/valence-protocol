@@ -162,3 +162,8 @@ fn encode_retry_logic(
         }
     }
 }
+
+/// Helper to parse EVM addresses from strings
+fn parse_address(addr: &str) -> StdResult<Address> {
+    Address::from_str(addr).map_err(|e| StdError::generic_err(format!("Invalid address: {}", e)))
+}
