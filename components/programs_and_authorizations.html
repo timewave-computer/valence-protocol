@@ -163,9 +163,9 @@
 <li><strong>Non Atomic</strong>, i.e., execute function one, if it succeeds execute function two, and if that succeeds do function three, and so on.</li>
 <li>or <strong>Atomic</strong>, i.e., execution function one, function two, and function three, and if any of them fail then revert all steps.</li>
 </ul>
-<p><strong>Valence programs</strong> are typically used to implement complex, cross-chain workflows performing financial operations, in a trust-minimized way, on funds provided by various third-parties. Therefore, it goes without saying that a program's subroutines should not (all and/or always) be allowed to be executed by just anout anyone.</p>
+<p><strong>Valence programs</strong> are typically used to implement complex, cross-chain workflows performing financial operations, in a trust-minimized way, on funds provided by various third-parties. Therefore, it goes without saying that a program's subroutines should not (all and/or always) be allowed to be executed by just about anyone.</p>
 <p>To specify fine-grained controls over who can initiate the execution of a <strong>Subroutine</strong>, program creators use the <strong>Authorizations</strong> module.</p>
-<p>The <strong>Authorizations</strong> module is a very powerful and flexible system that supports simple to more advanced access-control configuration schemes, such as:</p>
+<p>The <strong>Authorizations</strong> module is a powerful and flexible system that supports simple to advanced access control configuration schemes, such as:</p>
 <ul>
 <li><strong>Anyone</strong> can initiate execution of a <strong>Subroutine</strong></li>
 <li>Only <strong>permissioned actors</strong> can initiate execution of a <strong>Subroutine</strong></li>
@@ -176,7 +176,7 @@
 <li>Authorizations can be <strong>enabled/disabled</strong></li>
 <li>Authorizations can tightly <strong>constrain parameters</strong>. For example, an authorization to execute a token transfer message can limit the execution to only supply the amount argument, and not the denom or receiver in the transfer message</li>
 </ul>
-<p>To support the on-chain execution of <strong>Valence Programs</strong>, the <strong>Valence Protocol</strong> provides 2 important contracts: the <strong>Authorizations contract</strong> and the <strong>Processor contract</strong>.</p>
+<p>To support the on-chain execution of <strong>Valence Programs</strong>, the <strong>Valence Protocol</strong> provides two important contracts: the <strong>Authorizations contract</strong> and the <strong>Processor contract</strong>.</p>
 <p>The <strong>Authorizations contract</strong> is the entry point for users. The user sends a set of messages to the Authorizations contract and the label (id) of the authorization they want to execute. The Authorizations contract then verifies that the sender is authorized, that the messages are valid, constructs a <em>MessageBatch</em> based on the subroutine and passes this batch to the <strong>Processor contract</strong> for execution. The authority to execute any <em>Subroutine</em> is tokenized so that these tokens can be transferred on-chain.</p>
 <p>The <strong>Processor contract</strong> receives a <em>MessageBatch</em> and executes the contained <em>Messages</em> in sequence. It does this by maintaining execution queues, where the queue items are <em>Subroutines.</em> The processor exposes a <code>Tick</code> message that allows anyone to trigger the processor, whereby the first batch of the queue is executed or moved to the back of the queue if it's not executable yet (e.g. retry period has not passed).</p>
 <pre class="mermaid">graph LR;
