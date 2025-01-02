@@ -32,14 +32,14 @@ contract Forwarder is Library {
      * @dev Main configuration struct
      * @param inputAccount Source account
      * @param outputAccount Destination account
-     * @param forwarding_configs Array of token forwarding rules
+     * @param forwardingConfigs Array of token forwarding rules
      * @param intervalType Whether to use time or block intervals
      * @param minInterval Minimum interval between forwards
      */
     struct ForwarderConfig {
         Account inputAccount;
         Account outputAccount;
-        ForwardingConfig[] forwarding_configs;
+        ForwardingConfig[] forwardingConfigs;
         IntervalType intervalType;
         uint64 minInterval;
     }
@@ -71,11 +71,11 @@ contract Forwarder is Library {
      */
     function validateConfig(bytes memory _config) internal pure returns (ForwarderConfig memory) {
         ForwarderConfig memory decodedConfig = abi.decode(_config, (ForwarderConfig));
-        uint256 len = decodedConfig.forwarding_configs.length;
+        uint256 len = decodedConfig.forwardingConfigs.length;
         for (uint256 i = 0; i < len - 1; i++) {
-            address tokenA = decodedConfig.forwarding_configs[i].tokenAddress;
+            address tokenA = decodedConfig.forwardingConfigs[i].tokenAddress;
             for (uint256 j = i + 1; j < len; j++) {
-                if (tokenA == decodedConfig.forwarding_configs[j].tokenAddress) {
+                if (tokenA == decodedConfig.forwardingConfigs[j].tokenAddress) {
                     revert("Duplicate token");
                 }
             }
@@ -101,8 +101,8 @@ contract Forwarder is Library {
         Account input = config.inputAccount;
         Account output = config.outputAccount;
 
-        for (uint256 i = 0; i < config.forwarding_configs.length; i++) {
-            ForwardingConfig memory fConfig = config.forwarding_configs[i];
+        for (uint256 i = 0; i < config.forwardingConfigs.length; i++) {
+            ForwardingConfig memory fConfig = config.forwardingConfigs[i];
             _forwardToken(fConfig, input, output);
         }
     }
