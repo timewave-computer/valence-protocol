@@ -7,7 +7,7 @@ use valence_encoder_utils::libraries::{
 
 pub mod forwarder;
 
-// Function Calls that are common to all libraries
+// Function calls that are common to all libraries
 
 /// Updates the processor of the library
 pub fn update_processor_call(processor_addr: &str) -> StdResult<Vec<u8>> {
