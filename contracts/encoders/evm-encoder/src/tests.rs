@@ -1,8 +1,9 @@
-use alloy_primitives::Address;
+use alloy_primitives::{Address, U256};
 use alloy_sol_types::SolValue;
 use cosmwasm_std::{
+    from_json,
     testing::{message_info, mock_dependencies, mock_env},
-    Addr, Binary, Empty,
+    Addr, Binary, Empty, HexBinary,
 };
 use cw_utils::Duration;
 use valence_authorization_utils::{
@@ -10,8 +11,14 @@ use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType},
     domain::Domain,
     function::{AtomicFunction, NonAtomicFunction, RetryLogic, RetryTimes},
+    msg::InternalAuthorizationMsg,
 };
-use valence_encoder_utils::msg::{Message as EncoderMessage, ProcessorMessageToEncode, QueryMsg};
+use valence_encoder_utils::{
+    msg::{
+        Message as EncoderMessage, ProcessorMessageToDecode, ProcessorMessageToEncode, QueryMsg,
+    },
+    processor::solidity_types::Callback,
+};
 
 use crate::{
     contract::{instantiate, query},
@@ -406,4 +413,56 @@ fn test_send_msgs_with_different_retry_logic() {
             crate::solidity_types::Priority::Medium
         );
     }
+}
+
+#[test]
+fn test_decode_callback_message() {
+    let mut deps = mock_dependencies();
+    let env = mock_env();
+    let info = message_info(&Addr::unchecked("any"), &[]);
+
+    // Instantiate the contract
+    instantiate(deps.as_mut(), env.clone(), info.clone(), Empty {}).unwrap();
+
+    // Create a callback message
+    let selector = [0x08, 0xc3, 0x79, 0xa0]; // Error(string) selector
+    let message = "Time interval not passed";
+    let mut encoded = selector.to_vec();
+    encoded.extend(message.as_bytes());
+    let callback_data = alloy_primitives::Bytes::from(encoded);
+
+    let evm_processor_callback = Callback {
+        executionId: 1,
+        executionResult:
+            valence_encoder_utils::processor::solidity_types::ExecutionResult::Rejected,
+        executedCount: U256::from(0),
+        data: callback_data.clone(),
+    };
+
+    // ABI encode the callback message
+    let encoded_callback = evm_processor_callback.abi_encode();
+
+    // Decode using our contract
+    let decoded = query(
+        deps.as_ref(),
+        env.clone(),
+        QueryMsg::Decode {
+            message: ProcessorMessageToDecode::HyperlaneCallback {
+                callback: HexBinary::from(encoded_callback),
+            },
+        },
+    )
+    .unwrap();
+
+    // Check that we got the expected result
+    let expected: InternalAuthorizationMsg = from_json(decoded).unwrap();
+
+    let expected_callback = InternalAuthorizationMsg::ProcessorCallback {
+        execution_id: 1,
+        execution_result: valence_authorization_utils::callback::ExecutionResult::Rejected(
+            callback_data.to_string(),
+        ),
+    };
+
+    assert_eq!(expected, expected_callback);
 }

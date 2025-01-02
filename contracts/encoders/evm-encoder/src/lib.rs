@@ -9,6 +9,7 @@ use valence_authorization_utils::authorization::Subroutine;
 use valence_encoder_utils::processor::solidity_types;
 
 pub mod contract;
+pub mod hyperlane;
 pub mod libraries;
 pub mod processor;
 
