@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Binary;
+use cosmwasm_std::{Binary, HexBinary};
 use valence_authorization_utils::authorization::{Priority, Subroutine};
 
 #[cw_serde]
@@ -9,6 +9,8 @@ pub enum QueryMsg {
     IsValidLibrary { library: String },
     #[returns(Binary)]
     Encode { message: ProcessorMessageToEncode },
+    #[returns(Binary)]
+    Decode { message: ProcessorMessageToDecode },
 }
 
 #[cw_serde]
@@ -32,6 +34,11 @@ pub enum ProcessorMessageToEncode {
     },
     Pause {},
     Resume {},
+}
+
+#[cw_serde]
+pub enum ProcessorMessageToDecode {
+    HyperlaneCallback { callback: HexBinary },
 }
 
 #[cw_serde]

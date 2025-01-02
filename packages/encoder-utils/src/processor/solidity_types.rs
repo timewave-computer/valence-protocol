@@ -100,6 +100,34 @@ sol! {
         uint64 queuePosition;
         Priority priority;
     }
+
+    struct SubroutineResult {
+        bool succeeded;
+        uint256 executedCount;
+        bytes errorData;
+    }
+
+    struct Callback {
+        uint64 executionId;
+        ExecutionResult executionResult;
+        uint256 executedCount;
+        bytes data;
+    }
+
+    enum ExecutionResult {
+        Success,
+        Rejected,
+        PartiallyExecuted
+    }
+
+    struct RejectedResult {
+        bytes errorData;
+    }
+
+    struct PartiallyExecutedResult {
+        uint256 executedCount;
+        bytes errorData;
+    }
 }
 
 impl From<valence_authorization_utils::authorization::Priority> for Priority {
@@ -107,6 +135,32 @@ impl From<valence_authorization_utils::authorization::Priority> for Priority {
         match priority {
             valence_authorization_utils::authorization::Priority::Medium => Priority::Medium,
             valence_authorization_utils::authorization::Priority::High => Priority::High,
+        }
+    }
+}
+
+// Convert a solidity callback into a callback for the authorization contract
+impl From<Callback> for valence_authorization_utils::msg::InternalAuthorizationMsg {
+    fn from(msg: Callback) -> Self {
+        valence_authorization_utils::msg::InternalAuthorizationMsg::ProcessorCallback {
+            execution_id: msg.executionId,
+            execution_result: match msg.executionResult {
+                ExecutionResult::Success => {
+                    valence_authorization_utils::callback::ExecutionResult::Success
+                }
+                ExecutionResult::Rejected => {
+                    valence_authorization_utils::callback::ExecutionResult::Rejected(
+                        msg.data.to_string(),
+                    )
+                }
+                ExecutionResult::PartiallyExecuted => {
+                    valence_authorization_utils::callback::ExecutionResult::PartiallyExecuted(
+                        msg.executedCount.to(),
+                        msg.data.to_string(),
+                    )
+                }
+                ExecutionResult::__Invalid => unreachable!(),
+            },
         }
     }
 }

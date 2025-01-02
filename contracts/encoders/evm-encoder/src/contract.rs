@@ -5,9 +5,10 @@ use cosmwasm_std::{
     to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
 };
 use cw2::set_contract_version;
-use valence_encoder_utils::msg::{ProcessorMessageToEncode, QueryMsg};
+use valence_encoder_utils::msg::{ProcessorMessageToDecode, ProcessorMessageToEncode, QueryMsg};
 
 use crate::{
+    hyperlane,
     processor::{evict_msgs, insert_msgs, pause, resume, send_msgs},
     EVMLibrary,
 };
@@ -38,6 +39,7 @@ pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::IsValidLibrary { library } => to_json_binary(&is_valid_library(library)),
         QueryMsg::Encode { message } => encode(message),
+        QueryMsg::Decode { message } => decode(message),
     }
 }
 
@@ -66,5 +68,13 @@ fn encode(message: ProcessorMessageToEncode) -> StdResult<Binary> {
         } => evict_msgs::encode(queue_position, priority),
         ProcessorMessageToEncode::Pause {} => Ok(pause::encode()),
         ProcessorMessageToEncode::Resume {} => Ok(resume::encode()),
+    }
+}
+
+fn decode(message: ProcessorMessageToDecode) -> StdResult<Binary> {
+    match message {
+        ProcessorMessageToDecode::HyperlaneCallback { callback } => {
+            Ok(hyperlane::callback::decode(&callback)?)
+        }
     }
 }

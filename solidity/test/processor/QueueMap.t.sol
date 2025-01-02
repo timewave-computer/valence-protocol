@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/src/Test.sol";
-import {QueueMap} from "../src/processor/libs/QueueMap.sol";
+import {QueueMap} from "../../src/processor/libs/QueueMap.sol";
 
 contract QueueMapTest is Test {
     using QueueMap for QueueMap.Queue;
