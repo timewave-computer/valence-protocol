@@ -683,6 +683,7 @@ fn retry_bridge_creation(
                 timeout_seconds,
                 state: PolytoneProxyState::PendingResponse,
             };
+            EXTERNAL_DOMAINS.save(deps.storage, domain_name.clone(), &external_domain)?;
 
             WasmMsg::Execute {
                 contract_addr: address.to_string(),
