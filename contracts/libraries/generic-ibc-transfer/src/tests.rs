@@ -259,7 +259,7 @@ fn instantiate_fails_for_invalid_ibc_transfer_timeout() {
 
 #[test]
 #[should_panic(expected = "Invalid IBC transfer config: amount cannot be zero.")]
-fn update_config_validates_config() {
+fn update_config_validates_amount() {
     let mut suite = IbcTransferTestSuite::default();
 
     let mut cfg = suite.ibc_transfer_config(
@@ -274,6 +274,54 @@ fn update_config_validates_config() {
 
     // Update config and set amount to zero
     cfg.amount = IbcTransferAmount::FixedAmount(Uint128::zero());
+
+    // Execute update config action
+    suite.update_config(lib.clone(), cfg).unwrap();
+}
+
+#[test]
+#[should_panic(
+    expected = "Invalid IBC transfer config: remote_chain_info's channel_id cannot be empty."
+)]
+fn update_config_validates_channel_id() {
+    let mut suite = IbcTransferTestSuite::default();
+
+    let mut cfg = suite.ibc_transfer_config(
+        NTRN.to_string(),
+        IbcTransferAmount::FullAmount,
+        "".to_string(),
+        RemoteChainInfo::new("channel-1".to_string(), Some(600u64.into())),
+    );
+
+    // Instantiate IBC transfer contract
+    let lib = suite.ibc_transfer_init(&cfg);
+
+    // Update config and set channel_id to empty
+    cfg.remote_chain_info.channel_id = "".to_string();
+
+    // Execute update config action
+    suite.update_config(lib.clone(), cfg).unwrap();
+}
+
+#[test]
+#[should_panic(
+    expected = "Invalid IBC transfer config: remote_chain_info's ibc_transfer_timeout cannot be zero."
+)]
+fn update_config_validates_ibc_timeout() {
+    let mut suite = IbcTransferTestSuite::default();
+
+    let mut cfg = suite.ibc_transfer_config(
+        NTRN.to_string(),
+        IbcTransferAmount::FullAmount,
+        "".to_string(),
+        RemoteChainInfo::new("channel-1".to_string(), Some(600u64.into())),
+    );
+
+    // Instantiate IBC transfer contract
+    let lib = suite.ibc_transfer_init(&cfg);
+
+    // Update config and set ibc timeout to zero
+    cfg.remote_chain_info.ibc_transfer_timeout = Some(Uint64::zero());
 
     // Execute update config action
     suite.update_config(lib.clone(), cfg).unwrap();
