@@ -22,7 +22,7 @@ abstract contract Account is Ownable {
      * @param _libraries Array of initial library addresses to approve
      */
     constructor(address _owner, address[] memory _libraries) Ownable(_owner) {
-        for (uint256 i = 0; i < _libraries.length; i++) {
+        for (uint8 i = 0; i < _libraries.length; i++) {
             approvedLibraries[_libraries[i]] = true;
         }
     }
@@ -42,7 +42,7 @@ abstract contract Account is Ownable {
      * @notice Can only be called by the contract owner
      */
     function removeLibrary(address _library) external onlyOwner {
-        approvedLibraries[_library] = false;
+        delete approvedLibraries[_library];
     }
 
     /**

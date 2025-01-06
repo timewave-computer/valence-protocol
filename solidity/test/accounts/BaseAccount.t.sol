@@ -97,7 +97,7 @@ contract BaseAccountTest is Test {
         assertEq(target.value(), testValue);
     }
 
-    function test_ExecuteWithoutvalueFromOwner() public {
+    function test_ExecuteWithoutValueFromOwner() public {
         uint256 testValue = 123;
 
         bytes memory callData = abi.encodeWithSelector(TestTarget.setValue.selector, testValue);

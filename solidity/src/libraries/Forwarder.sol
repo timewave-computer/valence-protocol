@@ -72,6 +72,9 @@ contract Forwarder is Library {
     function validateConfig(bytes memory _config) internal pure returns (ForwarderConfig memory) {
         ForwarderConfig memory decodedConfig = abi.decode(_config, (ForwarderConfig));
         uint256 len = decodedConfig.forwardingConfigs.length;
+        if (len == 0) {
+            revert("No forwarding configs");
+        }
         for (uint256 i = 0; i < len - 1; i++) {
             address tokenA = decodedConfig.forwardingConfigs[i].tokenAddress;
             for (uint256 j = i + 1; j < len; j++) {
