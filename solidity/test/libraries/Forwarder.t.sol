@@ -201,6 +201,20 @@ contract ForwarderTest is Test {
         vm.stopPrank();
     }
 
+    function testRejectNoForwardingConfigs() public {
+        vm.startPrank(owner);
+
+        Forwarder.ForwardingConfig[] memory noConfigs = new Forwarder.ForwardingConfig[](0);
+
+        Forwarder.ForwarderConfig memory badConfig =
+            Forwarder.ForwarderConfig(inputAccount, outputAccount, noConfigs, Forwarder.IntervalType.BLOCKS, 1);
+
+        vm.expectRevert("No forwarding configs");
+        forwarder.updateConfig(abi.encode(badConfig));
+
+        vm.stopPrank();
+    }
+
     function testCannotForwardBeforeTimeInterval() public {
         vm.startPrank(owner);
 
