@@ -10,7 +10,7 @@ use valence_library_utils::{msg::ExecuteMsg, LibraryAccountType};
 
 use crate::parse_address;
 
-use super::{update_ownership_call, update_processor_call};
+use super::{get_update_ownership_call, get_update_processor_call};
 
 // We need to define a new config that will be used to encode the message because the one from the CW library is not the same as the one from the Solidity library
 #[cw_serde]
@@ -97,7 +97,7 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
             };
             Ok(call.abi_encode())
         }
-        ExecuteMsg::UpdateProcessor { processor } => update_processor_call(&processor),
-        ExecuteMsg::UpdateOwnership(action) => update_ownership_call(action),
+        ExecuteMsg::UpdateProcessor { processor } => get_update_processor_call(&processor),
+        ExecuteMsg::UpdateOwnership(action) => get_update_ownership_call(action),
     }
 }
