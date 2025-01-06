@@ -75,9 +75,9 @@ contract Forwarder is Library {
         if (len == 0) {
             revert("No forwarding configs");
         }
-        for (uint256 i = 0; i < len - 1; i++) {
+        for (uint8 i = 0; i < len - 1; i++) {
             address tokenA = decodedConfig.forwardingConfigs[i].tokenAddress;
-            for (uint256 j = i + 1; j < len; j++) {
+            for (uint8 j = i + 1; j < len; j++) {
                 if (tokenA == decodedConfig.forwardingConfigs[j].tokenAddress) {
                     revert("Duplicate token");
                 }
@@ -104,7 +104,7 @@ contract Forwarder is Library {
         Account input = config.inputAccount;
         Account output = config.outputAccount;
 
-        for (uint256 i = 0; i < config.forwardingConfigs.length; i++) {
+        for (uint8 i = 0; i < config.forwardingConfigs.length; i++) {
             ForwardingConfig memory fConfig = config.forwardingConfigs[i];
             _forwardToken(fConfig, input, output);
         }

@@ -253,7 +253,7 @@ contract ProcessorMessageDecoderTest is Test {
         assertEq(atomicSubroutine.retryLogic.interval.value, 100);
 
         // Verify messages array contains data
-        for (uint256 i = 0; i < sendMsgs.messages.length; i++) {
+        for (uint8 i = 0; i < sendMsgs.messages.length; i++) {
             assert(sendMsgs.messages[i].length > 0);
         }
     }
