@@ -57,7 +57,7 @@ abstract contract ProcessorBase {
         mailbox = IMailbox(_mailbox);
         originDomain = _originDomain;
 
-        for (uint256 i = 0; i < _authorizedAddresses.length; i++) {
+        for (uint8 i = 0; i < _authorizedAddresses.length; i++) {
             authorizedAddresses[_authorizedAddresses[i]] = true;
         }
     }
@@ -118,7 +118,7 @@ abstract contract ProcessorBase {
         bool succeeded = true;
 
         // Execute each function until one fails
-        for (uint256 i = 0; i < nonAtomicSubroutine.functions.length; i++) {
+        for (uint8 i = 0; i < nonAtomicSubroutine.functions.length; i++) {
             (bool success, bytes memory err) = nonAtomicSubroutine.functions[i].contractAddress.call(messages[i]);
 
             if (success) {
@@ -151,7 +151,7 @@ abstract contract ProcessorBase {
             revert ProcessorErrors.UnauthorizedAccess();
         }
 
-        for (uint256 i = 0; i < atomicSubroutine.functions.length; i++) {
+        for (uint8 i = 0; i < atomicSubroutine.functions.length; i++) {
             /**
              * @notice Executes a contract call and forwards any error if the call fails
              * @dev When a contract call fails, Solidity captures the revert data (error)
@@ -248,7 +248,8 @@ abstract contract ProcessorBase {
             mailbox.dispatch(originDomain, authorizationContract, encodedCallback);
         } else {
             // Send the callback to the designated receiver, but we don't revert on failure
-            (bool success, ) = callbackReceiver.call(abi.encodeWithSelector(ICallback.handleCallback.selector, encodedCallback));
+            (bool success,) =
+                callbackReceiver.call(abi.encodeWithSelector(ICallback.handleCallback.selector, encodedCallback));
             success; // No-op; the variable is not being used for anything
         }
         // Emit an event to track the callback transmission
