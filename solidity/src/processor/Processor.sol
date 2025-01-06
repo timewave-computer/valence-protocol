@@ -3,63 +3,62 @@ pragma solidity ^0.8.28;
 
 import {IMessageRecipient} from "hyperlane/interfaces/IMessageRecipient.sol";
 import {QueueMap} from "./libs/QueueMap.sol";
+import {ProcessorBase} from "./ProcessorBase.sol";
+import {ProcessorErrors} from "./libs/ProcessorErrors.sol";
+import {ProcessorEvents} from "./libs/ProcessorEvents.sol";
 
-contract Processor is IMessageRecipient {
+contract Processor is IMessageRecipient, ProcessorBase {
     // Use the library for the Queue type
     using QueueMap for QueueMap.Queue;
-
-    // Authorization contract will be the sender of the messages on the main domain
-    // It's the hex representation of the address in the main domain
-    bytes32 public authorizationContract;
-
-    // Add mailbox address which will be the only address that can send messages to the processor
-    address public mailbox;
-
-    // Flag to check if the processor is paused
-    bool public paused;
 
     // Declare the two queues
     QueueMap.Queue private highPriorityQueue;
     QueueMap.Queue private mediumPriorityQueue;
 
-    // Event declarations
-    event BatchAdded(string queueType, bytes data);
-    event BatchRemoved(string queueType, bytes data);
-    event MessageReceived(uint32 indexed origin, bytes32 indexed sender, bytes body);
-
-    // Custom errors
-    error UnauthorizedAccess();
-    error NotAuthorizationContract();
-    error InvalidAddress();
-    error ProcessorPaused();
-
-    constructor(bytes32 _authorizationContract, address _mailbox) {
-        // Check for zero addresses
-        if (_mailbox == address(0)) {
-            revert InvalidAddress();
-        }
-
-        // Set authorization contract and mailbox
-        authorizationContract = _authorizationContract;
-        mailbox = _mailbox;
-
+    // ============ Constructor ============
+    /**
+     * @notice Initializes the LiteProcessor contract
+     * @dev The constructor initializes the LiteProcessor by calling the base contract constructor
+     *      and passing the necessary parameters for the authorization contract and mailbox.
+     * @param _authorizationContract The address of the authorization contract, represented as a bytes32 value.
+     * @param _mailbox The address of the Hyperlane mailbox contract.
+     * @param _originDomain The origin domain ID for sending the callbacks via Hyperlane.
+     * @param _authorizedAddresses The list of authorized addresses that can call the processor directly.
+     */
+    constructor(
+        bytes32 _authorizationContract,
+        address _mailbox,
+        uint32 _originDomain,
+        address[] memory _authorizedAddresses
+    ) ProcessorBase(_authorizationContract, _mailbox, _originDomain, _authorizedAddresses) {
         // Initialize both queues with unique namespaces
-        highPriorityQueue = QueueMap.createQueue("HIGH");
         mediumPriorityQueue = QueueMap.createQueue("MED");
+        highPriorityQueue = QueueMap.createQueue("HIGH");
     }
 
     // Implement the handle function
-    function handle(uint32 _origin, bytes32 _sender, bytes calldata _body) external payable override {
+    function handle(uint32 _origin, bytes32 _sender, bytes calldata /*_body*/ ) external payable override {
         // Only mailbox can call this function
-        if (msg.sender != mailbox) {
-            revert UnauthorizedAccess();
+        if (msg.sender != address(mailbox)) {
+            revert ProcessorErrors.UnauthorizedAccess();
+        }
+
+        // Verify origin is the expected domain
+        if (_origin != originDomain) {
+            revert ProcessorErrors.InvalidOriginDomain();
         }
 
         // Check that the sender of the message is the authorization contract
         if (_sender != authorizationContract) {
-            revert NotAuthorizationContract();
+            revert ProcessorErrors.NotAuthorizationContract();
         }
+    }
 
-        emit MessageReceived(_origin, _sender, _body);
+    /**
+     * @notice Handles incoming messages from an authorized addresses
+     * @param _body The message payload
+     */
+    function execute(bytes calldata _body) external payable override {
+        // TODO: Implement the execute function
     }
 }
