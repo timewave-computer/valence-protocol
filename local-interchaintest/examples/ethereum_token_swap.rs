@@ -1,6 +1,6 @@
 use std::{error::Error, str::FromStr};
 
-use alloy_primitives::Address;
+use alloy::primitives::Address;
 use local_interchaintest::utils::ethereum::EthClient;
 
 fn main() -> Result<(), Box<dyn Error>> {
