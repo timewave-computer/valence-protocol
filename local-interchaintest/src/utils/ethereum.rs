@@ -2,7 +2,7 @@ use alloy::{
     consensus::Account,
     primitives::{Address, FixedBytes, U256},
     providers::{Provider, ProviderBuilder},
-    rpc::types::TransactionRequest,
+    rpc::types::{Transaction, TransactionRequest},
     transports::http::{reqwest::Url, Client, Http},
 };
 use std::error::Error;
@@ -71,5 +71,13 @@ impl EthClient {
             .tx_hash()
             .clone();
         Ok(tx_hash)
+    }
+
+    pub fn get_transaction_by_hash(&self, tx_hash: FixedBytes<32>) -> Result<Option<Transaction>, Box<dyn Error>> {
+        let tx = self.rt.block_on(async {
+            let tx = self.provider.get_transaction_by_hash(tx_hash).await;
+            tx
+        })?;
+        Ok(tx)
     }
 }

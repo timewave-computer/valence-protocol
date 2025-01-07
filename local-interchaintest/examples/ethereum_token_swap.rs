@@ -1,12 +1,12 @@
 use std::error::Error;
 
 use alloy::{network::TransactionBuilder, primitives::U256, rpc::types::TransactionRequest};
-use local_interchaintest::utils::ethereum::EthClient;
+use local_interchaintest::utils::{ethereum::EthClient, DEFAULT_ANVIL_RPC_ENDPOINT};
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    let eth = EthClient::new("http://localhost:8545")?;
+    let eth = EthClient::new(DEFAULT_ANVIL_RPC_ENDPOINT)?;
 
     let block = eth.get_block_number()?;
     println!("Current block number: {}", block);
@@ -37,6 +37,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Balance account 0 after: {} wei", balance_account_0_after);
     let balance_account_1_after = eth.get_balance(accounts[1])?;
     println!("Balance account 1 after: {} wei", balance_account_1_after);
+
+    let tx = eth.get_transaction_by_hash(hash)?;
+    println!("Transaction: {:?}", tx);
 
     Ok(())
 }

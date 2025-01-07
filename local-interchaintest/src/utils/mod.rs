@@ -45,3 +45,5 @@ pub const PERSISTENCE_CHAIN_PREFIX: &str = "persistence";
 pub const PERSISTENCE_CHAIN_ADMIN_ADDR: &str = "persistence1hj5fveer5cjtn4wd6wstzugjfdxzl0xpgq5pz8";
 
 pub const ASTROPORT_LP_SUBDENOM: &str = "astroport/share";
+
+pub const DEFAULT_ANVIL_RPC_ENDPOINT: &str = "http://localhost:8545";
