@@ -47,3 +47,6 @@ tokio                                = { workspace = true }
 osmosis-std                          = { workspace = true }
 valence-test-icq-lib                 = { workspace = true }
 neutron-sdk                          = { workspace = true }
+alloy-transport-http = "0.9.2"
+alloy-rpc-client = "0.9.2"
+alloy-primitives = "0.8.18"
