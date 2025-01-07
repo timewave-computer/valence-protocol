@@ -1,5 +1,6 @@
 pub mod authorization;
 pub mod base_account;
+pub mod ethereum;
 pub mod ibc;
 pub mod icq;
 pub mod manager;
