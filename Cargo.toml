@@ -108,6 +108,6 @@ tokio                = "1.40.0"
 osmosis-test-tube    = "26.0.1"
 env_logger           = "0.11.5"
 log                  = "0.4.22"
-prost                 = { version = "0.13.3", default-features = false, features = [ "prost-derive" ] }
-prost-types           = { version = "0.13.3", default-features = false }
-semver                = "1.0.24"
+prost                = "0.13.3"
+prost-types          = "0.13.3"
+semver               = "1.0.24"

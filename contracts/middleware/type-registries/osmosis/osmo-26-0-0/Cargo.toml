@@ -19,8 +19,8 @@ cosmwasm-schema       = { workspace = true }
 cw-ownable            = { workspace = true }
 osmosis-std           = "0.26.0"
 osmosis-std-derive    = "0.26.0"
-prost                 = { workspace = true }
-prost-types           = { workspace = true }
+prost                 = { workspace = true, default-features = false, features = [ "prost-derive" ] }
+prost-types           = { workspace = true, default-features = false }
 neutron-sdk           = { workspace = true }
 serde-json-wasm       = { version = "1.0.0", default-features = false }
 thiserror             = { workspace = true }

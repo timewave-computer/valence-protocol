@@ -17,8 +17,8 @@ library = []
 cosmwasm-std          = { workspace = true }
 cosmwasm-schema       = { workspace = true }
 cw-ownable            = { workspace = true }
-prost                 = { workspace = true }
-prost-types           = { workspace = true }
+prost                 = { workspace = true, default-features = false, features = [ "prost-derive" ] }
+prost-types           = { workspace = true, default-features = false }
 neutron-sdk           = { workspace = true }
 serde-json-wasm       = { version = "1.0.0", default-features = false }
 thiserror             = { workspace = true }
