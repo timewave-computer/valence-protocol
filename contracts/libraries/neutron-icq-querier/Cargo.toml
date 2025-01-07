@@ -1,5 +1,5 @@
 [package]
-name       = "valence-icq-querier"
+name       = "valence-neutron-icq-querier"
 authors    = { workspace = true }
 edition    = { workspace = true }
 license    = { workspace = true }

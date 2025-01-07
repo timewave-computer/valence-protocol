@@ -74,7 +74,7 @@ valence-osmosis-gamm-lper            = { path = "contracts/libraries/osmosis-gam
 valence-osmosis-gamm-withdrawer      = { path = "contracts/libraries/osmosis-gamm-withdrawer", features = ["library"] }
 valence-osmosis-cl-lper              = { path = "contracts/libraries/osmosis-cl-lper", features = ["library"] }
 valence-osmosis-cl-withdrawer        = { path = "contracts/libraries/osmosis-cl-withdrawer", features = ["library"] }
-valence-icq-querier                  = { path = "contracts/libraries/icq-querier", features = ["library"] }
+valence-neutron-icq-querier          = { path = "contracts/libraries/neutron-icq-querier", features = ["library"] }
 
 # middleware
 valence-middleware-osmosis      = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = ["library"] }
