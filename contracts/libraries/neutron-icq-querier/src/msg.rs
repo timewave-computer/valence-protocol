@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 
-use cosmwasm_std::{Addr, Binary, Deps, DepsMut};
+use cosmwasm_std::{Addr, Binary, Deps, DepsMut, Uint64};
 use cw_ownable::cw_ownable_query;
 
 use valence_library_utils::{error::LibraryError, msg::LibraryConfigValidation};
@@ -18,6 +18,7 @@ pub enum FunctionMsgs {
         registry_version: Option<String>,
         type_id: String,
         connection_id: String,
+        update_period: Uint64,
         params: BTreeMap<String, Binary>,
     },
 }

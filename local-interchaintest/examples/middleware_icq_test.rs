@@ -1,4 +1,4 @@
-use cosmwasm_std::{to_json_binary, Binary};
+use cosmwasm_std::{to_json_binary, Binary, Uint64};
 use local_interchaintest::utils::{
     icq::{generate_icq_relayer_config, start_icq_relayer},
     osmosis::gamm::setup_gamm_pool,
@@ -176,6 +176,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         broker_contract.address.to_string(),
         osmosis_std::types::osmosis::gamm::v1beta1::Pool::TYPE_URL.to_string(),
         ntrn_to_osmo_connection_id,
+        Uint64::new(5),
         BTreeMap::from([("pool_id".to_string(), to_json_binary(&pool_id).unwrap())]),
     )?;
 
@@ -240,6 +241,7 @@ pub fn register_kvq(
     broker_addr: String,
     type_id: String,
     connection_id: String,
+    update_period: Uint64,
     params: BTreeMap<String, Binary>,
 ) -> Result<TransactionResponse, LocalError> {
     let register_kvq_msg = FunctionMsgs::RegisterKvQuery {
@@ -247,6 +249,7 @@ pub fn register_kvq(
         broker_addr,
         type_id,
         connection_id,
+        update_period,
         params,
     };
 

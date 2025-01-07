@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response, StdError,
-    StdResult, SubMsg,
+    StdResult, SubMsg, Uint64,
 };
 use neutron_sdk::{
     bindings::{
@@ -54,6 +54,7 @@ pub fn execute(
             registry_version,
             type_id,
             connection_id,
+            update_period,
             params,
         } => register_kv_query(
             deps,
@@ -61,6 +62,7 @@ pub fn execute(
             registry_version,
             type_id,
             connection_id,
+            update_period,
             params,
         ),
     }
@@ -72,6 +74,7 @@ fn register_kv_query(
     registry_version: Option<String>,
     type_id: String,
     connection_id: String,
+    update_period: Uint64,
     params: BTreeMap<String, Binary>,
 ) -> Result<Response<NeutronMsg>, LibraryError> {
     let query_kv_key: KVKey = deps.querier.query_wasm_smart(
@@ -90,7 +93,7 @@ fn register_kv_query(
         keys: vec![query_kv_key],
         transactions_filter: String::new(),
         connection_id,
-        update_period: 5,
+        update_period: update_period.u64(),
     };
 
     // here the key is set to the resp.reply_id just to get to the reply handler.
