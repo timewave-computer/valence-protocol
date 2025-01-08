@@ -1,15 +1,25 @@
 use alloy::{
     consensus::Account,
-    primitives::{Address, FixedBytes, U256},
-    providers::{Provider, ProviderBuilder},
-    rpc::types::{Transaction, TransactionRequest},
+    network::Ethereum,
+    primitives::{Address, TxHash, U256},
+    providers::{
+        fillers::{BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller},
+        Identity, Provider, ProviderBuilder, RootProvider,
+    },
+    rpc::types::{Transaction, TransactionReceipt, TransactionRequest},
     transports::http::{reqwest::Url, Client, Http},
 };
 use std::error::Error;
 use tokio::runtime::Runtime;
 
+// Define the individual fillers in a nested structure
+type BaseFillChain = JoinFill<NonceFiller, ChainIdFiller>;
+type WithBlobGas = JoinFill<BlobGasFiller, BaseFillChain>;
+type WithGas = JoinFill<GasFiller, WithBlobGas>;
+type AllFillers = JoinFill<Identity, WithGas>;
+
 pub struct EthClient {
-    pub provider: Box<dyn Provider<Http<Client>>>,
+    pub provider: FillProvider<AllFillers, RootProvider<Http<Client>>, Http<Client>, Ethereum>,
     pub rt: Runtime,
 }
 
@@ -26,10 +36,7 @@ impl EthClient {
             .with_recommended_fillers()
             .on_http(url);
 
-        Ok(Self {
-            provider: Box::new(provider),
-            rt,
-        })
+        Ok(Self { provider, rt })
     }
 
     pub fn get_block_number(&self) -> Result<u64, Box<dyn Error>> {
@@ -38,46 +45,45 @@ impl EthClient {
     }
 
     pub fn get_balance(&self, address: Address) -> Result<U256, Box<dyn Error>> {
-        let balance = self.rt.block_on(async {
-            let balance = self.provider.get_balance(address).await;
-            balance
-        })?;
+        let balance = self
+            .rt
+            .block_on(async { self.provider.get_balance(address).await })?;
         Ok(balance)
     }
 
     pub fn get_accounts_addresses(&self) -> Result<Vec<Address>, Box<dyn Error>> {
-        let accounts = self.rt.block_on(async {
-            let accounts = self.provider.get_accounts().await;
-            accounts
-        })?;
+        let accounts = self
+            .rt
+            .block_on(async { self.provider.get_accounts().await })?;
         Ok(accounts)
     }
 
     pub fn get_account(&self, address: Address) -> Result<Account, Box<dyn Error>> {
-        let account = self.rt.block_on(async {
-            let account = self.provider.get_account(address).await;
-            account
-        })?;
+        let account = self
+            .rt
+            .block_on(async { self.provider.get_account(address).await })?;
         Ok(account)
     }
 
-    pub fn send_transaction(&self, tx: TransactionRequest) -> Result<FixedBytes<32>, Box<dyn Error>> {
-        let tx_hash = self
-            .rt
-            .block_on(async {
-                let tx_hash = self.provider.send_transaction(tx).await;
-                tx_hash
-            })?
-            .tx_hash()
-            .clone();
-        Ok(tx_hash)
+    pub fn send_transaction(
+        &self,
+        tx: TransactionRequest,
+    ) -> Result<TransactionReceipt, Box<dyn Error>> {
+        self.rt.block_on(async {
+            let tx_hash = self.provider.send_transaction(tx).await?;
+            let receipt = tx_hash.get_receipt().await?;
+
+            Ok(receipt)
+        })
     }
 
-    pub fn get_transaction_by_hash(&self, tx_hash: FixedBytes<32>) -> Result<Option<Transaction>, Box<dyn Error>> {
-        let tx = self.rt.block_on(async {
-            let tx = self.provider.get_transaction_by_hash(tx_hash).await;
-            tx
-        })?;
+    pub fn get_transaction_by_hash(
+        &self,
+        tx_hash: TxHash,
+    ) -> Result<Option<Transaction>, Box<dyn Error>> {
+        let tx = self
+            .rt
+            .block_on(async { self.provider.get_transaction_by_hash(tx_hash).await })?;
         Ok(tx)
     }
 }

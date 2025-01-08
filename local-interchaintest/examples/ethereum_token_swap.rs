@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use alloy::{network::TransactionBuilder, primitives::U256, rpc::types::TransactionRequest};
+use alloy::{network::TransactionBuilder, primitives::U256, rpc::types::TransactionRequest, sol};
 use local_interchaintest::utils::{ethereum::EthClient, DEFAULT_ANVIL_RPC_ENDPOINT};
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -30,16 +30,44 @@ fn main() -> Result<(), Box<dyn Error>> {
         .from(accounts[0])
         .to(accounts[1])
         .with_value(U256::from(100));
-    let hash = eth.send_transaction(tx)?;
-    println!("Transaction hash: {}", hash);
+    let receipt = eth.send_transaction(tx)?;
+    println!("Transaction hash: {}", receipt.transaction_hash);
 
     let balance_account_0_after = eth.get_balance(accounts[0])?;
     println!("Balance account 0 after: {} wei", balance_account_0_after);
     let balance_account_1_after = eth.get_balance(accounts[1])?;
     println!("Balance account 1 after: {} wei", balance_account_1_after);
 
-    let tx = eth.get_transaction_by_hash(hash)?;
+    let tx = eth.get_transaction_by_hash(receipt.transaction_hash)?;
     println!("Transaction: {:?}", tx);
+
+    sol!(
+        #[sol(rpc)]
+        BaseAccount,
+        "../solidity/out/BaseAccount.sol/BaseAccount.json"
+    );
+
+    let transaction = BaseAccount::deploy_builder(&eth.provider, accounts[0], vec![])
+        .into_transaction_request()
+        .from(accounts[0]);
+
+    let contract_address = eth.send_transaction(transaction)?.contract_address.unwrap();
+    println!("Contract Address: {:?}", contract_address);
+
+    let contract = BaseAccount::new(contract_address, &eth.provider);
+
+    let builder = contract.owner();
+    let owner = eth.rt.block_on(async { builder.call().await })?._0;
+    println!("Owner: {:?}", owner);
+
+    let builder = contract.approveLibrary(accounts[1]);
+    let tx = builder.into_transaction_request().from(accounts[0]);
+    eth.send_transaction(tx)?;
+
+    // Check that approved libraries was updated
+    let builder = contract.approvedLibraries(accounts[1]);
+    let approved_libraries = eth.rt.block_on(async { builder.call().await })?._0;
+    println!("Approved Libraries: {:?}", approved_libraries);
 
     Ok(())
 }
