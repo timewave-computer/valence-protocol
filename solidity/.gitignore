@@ -1,0 +1,6 @@
+# Compiler files
+cache/
+out/
+
+# Soldeer
+/dependencies
