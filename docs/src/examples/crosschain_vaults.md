@@ -1,6 +1,6 @@
 # Crosschain Vaults
 
-**Note:** _This example is still in design and includes new or experimental features of Valence Programs that may not be supported in current production releases._
+**Note:** _This example is still in the design phase and includes new or experimental features of Valence Programs that may not be supported in the current production release._
 
 ## Overview
 
