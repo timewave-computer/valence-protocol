@@ -5,7 +5,9 @@ use cosmwasm_std::{
     to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response, StdResult,
 };
 use cw2::set_contract_version;
-use valence_encoder_utils::msg::{ProcessorMessageToEncode, QueryMsg as EncoderQueryMsg};
+use valence_encoder_utils::msg::{
+    ProcessorMessageToDecode, ProcessorMessageToEncode, QueryMsg as EncoderQueryMsg,
+};
 
 use crate::{
     error::ContractError,
@@ -90,6 +92,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             encoder_version,
             message,
         } => to_json_binary(&encode(deps, encoder_version, message)?),
+        QueryMsg::Decode {
+            encoder_version,
+            message,
+        } => to_json_binary(&decode(deps, encoder_version, message)?),
     }
 }
 
@@ -124,4 +130,14 @@ fn encode(
     let encoder = ENCODERS.load(deps.storage, encoder_version)?;
     deps.querier
         .query_wasm_smart(encoder, &EncoderQueryMsg::Encode { message })
+}
+
+fn decode(
+    deps: Deps,
+    encoder_version: String,
+    message: ProcessorMessageToDecode,
+) -> StdResult<Binary> {
+    let encoder = ENCODERS.load(deps.storage, encoder_version)?;
+    deps.querier
+        .query_wasm_smart(encoder, &EncoderQueryMsg::Decode { message })
 }
