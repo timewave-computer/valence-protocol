@@ -9,12 +9,9 @@ You can use Valence Programs to create crosschain vaults. Users interact with a 
 In this example, we have made the following assumptions:
 - Users can deposit tokens into a standard ERC4626 vault on Ethereum
 - ERC20 shares are issued to users on Ethereum
-- A strategist can execute actions to move funds to Neutron where they are held in some position
 - If a user wishes to redeem their tokens, they can issue a withdrawal request which will burn the user's shares when tokens are redeemed
 - The redemption rate that tells us how many tokens can be redeemed per shares is given by: \\( R = \frac{TotalAssets}{TotalIssuedShares} = \frac{TotalInVault + TotalInTransit + TotalInPostion}{TotalIssuedShares}\\)
-- A permissioned actor called the "Strategist" is authorized to transport funds from Ethereum to Neutron and vice-versa as well as adjust the redemption rate accordingly
-
-While we have chosen Ethereum and Neutron as examples here, one could similarly construct such vaults between any two chains as long as they are supported by Valence Programs.
+- A permissioned actor called the "Strategist" is authorized to transport funds from Ethereum to Neutron where they are locked in some DeFi protocol. And vice-versa, the Strategist can withdraw from the position so the funds are redeemable on Ethereum. The redemption rate must be adjusted by the Strategist accordingly
 
 ```mermaid 
 ---
@@ -31,9 +28,11 @@ graph LR
 	NP -- Strategist Transport --> EV
 ```
 
+While we have chosen Ethereum and Neutron as examples here, one could similarly construct such vaults between any two chains as long as they are supported by Valence Programs.
+
 ## Implementing Crosschain Vaults as a Valence Program
 
-Recall that Valence Programs are comprised of Libraries and Accounts. Libraries are a colletion of Functions that perform token oprations on the Accounts. Since there are two chains here, Libraries and Accounts will exist on both chains.
+Recall that Valence Programs are comprised of Libraries and Accounts. Libraries are a collection of Functions that perform token oprations on the Accounts. Since there are two chains here, Libraries and Accounts will exist on both chains.
 
 Since gas is cheaper on Neutron than on Ethereum, computationally expensive operations, such as constraining the Strategist actions will be done on Neutron. Authorized messages will then be executed by each chain's Processor. Hyperlane is used to pass messages from the Authorization contract on Neutron to the Processor on Ethereum.
 
