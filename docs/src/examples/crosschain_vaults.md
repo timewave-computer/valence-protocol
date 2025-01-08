@@ -4,7 +4,7 @@
 
 ## Overview
 
-You can use Valence Programs to create crosschain vaults. Users interact with a vault on one chain while the hokens are held on another chain where yield is generated.
+You can use Valence Programs to create crosschain vaults. Users interact with a vault on one chain while the tokens are held on another chain where yield is generated.
 
 In this example, we have made the following assumptions:
 - Users can deposit tokens into a standard ERC4626 vault on Ethereum
