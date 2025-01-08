@@ -6,6 +6,7 @@ use cosmwasm_std::{
     to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response, StdError,
     StdResult, SubMsg, Uint64,
 };
+use cw2::set_contract_version;
 use neutron_sdk::{
     bindings::{
         msg::{MsgRegisterInterchainQueryResponse, NeutronMsg},
@@ -16,38 +17,37 @@ use neutron_sdk::{
     sudo::msg::SudoMsg,
 };
 
-use valence_library_utils::error::LibraryError;
 use valence_middleware_utils::type_registry::types::{NativeTypeWrapper, RegistryQueryMsg};
 
 use crate::{
-    msg::{Config, FunctionMsgs, InstantiateMsg, LibraryConfig, QueryMsg},
-    state::{PendingQueryIdConfig, ASSOCIATED_QUERY_IDS, QUERY_RESULTS},
+    error::ContractError, msg::{Config, FunctionMsgs, InstantiateMsg, LibraryConfig, QueryMsg}, state::{PendingQueryIdConfig, ASSOCIATED_QUERY_IDS, QUERY_RESULTS}
 };
 
 // version info for migration info
-const _CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
-const _CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub type QueryDeps<'a> = Deps<'a, NeutronQuery>;
 pub type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
     _msg: InstantiateMsg,
-) -> Result<Response<NeutronMsg>, LibraryError> {
+) -> Result<Response<NeutronMsg>, ContractError> {
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     Ok(Response::default())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     _env: Env,
     _info: MessageInfo,
     msg: FunctionMsgs,
-) -> Result<Response<NeutronMsg>, LibraryError> {
+) -> Result<Response<NeutronMsg>, ContractError> {
     match msg {
         FunctionMsgs::RegisterKvQuery {
             broker_addr,
@@ -69,14 +69,14 @@ pub fn execute(
 }
 
 fn register_kv_query(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     broker_addr: String,
     registry_version: Option<String>,
     type_id: String,
     connection_id: String,
     update_period: Uint64,
     params: BTreeMap<String, Binary>,
-) -> Result<Response<NeutronMsg>, LibraryError> {
+) -> Result<Response<NeutronMsg>, ContractError> {
     let query_kv_key: KVKey = deps.querier.query_wasm_smart(
         broker_addr.to_string(),
         &valence_middleware_broker::msg::QueryMsg {
@@ -115,7 +115,7 @@ fn register_kv_query(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: QueryDeps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Ownership {} => {
             to_json_binary(&valence_library_base::get_ownership(deps.storage)?)

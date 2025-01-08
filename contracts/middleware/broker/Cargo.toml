@@ -26,6 +26,7 @@ serde_json                  = { workspace = true }
 cw-storage-plus             = { workspace = true }
 valence-middleware-utils    = { workspace = true }
 semver                      = { workspace = true }
+cw2                         = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test               = { workspace = true }
