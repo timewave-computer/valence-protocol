@@ -231,7 +231,8 @@
                   "broker_addr",
                   "connection_id",
                   "params",
-                  "type_id"
+                  "type_id",
+                  "update_period"
                 ],
                 "properties": {
                   "broker_addr": {
@@ -252,6 +253,9 @@
                   },
                   "type_id": {
                     "type": "string"
+                  },
+                  "update_period": {
+                    "$ref": "#/definitions/Uint64"
                   }
                 },
                 "additionalProperties": false

@@ -34,6 +34,5 @@ pub fn execute(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(_deps: Deps, _env: Env, msg: RegistryQueryMsg) -> StdResult<Binary> {
-    println!("[registry] delegating query to macro handler & hoping for the best");
     handle_query(msg)
 }
