@@ -40,25 +40,25 @@ Since gas is cheaper on Neutron than on Ethereum, computationally expensive oper
 ---
 title: Program Control
 ---
-graph LR
+graph BT
 	Strategist
 	subgraph Ethereum
 		EP(Processor)
 		EHM(Hyperlane Mailbox)
-		EL(Ethereum Libraries)
+		EL(Ethereum Valence Libraries)
 		EVA(Valence Accounts)
-
 	end
 	subgraph Neutron
 		A(Authorizations)
 		NP(Processor)
+		EE(EVM Encoder)
 		NHM(Hyperlane Mailbox)
-		NL(Neutron Libraries)
+		NL(Neutron Valence Libraries)
 		NVA(Valence Accounts)
 	end
 
 	Strategist --> A
-	A --> NHM -- Relayer --> EHM --> EP --> EL --> EVA
+	A --> NHM --> EE --> Relayer --> EHM --> EP --> EL --> EVA
 	A --> NP --> NL--> NVA
 ```
 
@@ -70,21 +70,40 @@ On Ethereum, we'll need Accounts for:
 
 On Neutron, we'll need Accounts for:
 - **Deposit**: To hold tokens bridged from Ethereum. Tokens from this pool can be used to enter into the position on Neutron.
-- **Position Holder**: Will hold the vouchers or shares associated with the position on Neutron
+- **Position**: Will hold the vouchers or shares associated with the position on Neutron
 - **Withdraw**: To hold the tokens that are withdrawn from the position. Tokens from this pool can be bridged back to Ethereum.
 
 We'll need the following Libraries on Ethereum:
+- **Bridge Transfer**: To transfer funds from the Etherem Deposit Account to the Neutron Deposit Account. 
+- **Forwarder**: To transfer funds between the Deposit and Withdraw accounts on Ethereum. Two instances of the Library will be required.
 
 We'll need the following Libraries on Neutron:
+- **Position Depositor**: To take funds in the Deposit and create a position with them. The position is helf by the Position account.
+- **Position Withdrawer**: To redeem a position for underlying funds that are then transferred to the withdraw account.
+- **Bridge Transfer**: To transfer funds from the Neutron Withdraw Account to the Ethereum Withdraw Account.
 
-The Vault contract is a special contract on Ethereum that does the following:
+### Vault Contract
+The Vault contract is a special contract on Ethereum that has an ERC4626 interface.
 
-
-#### Allowing users to deposit and withdraw tokens
+#### User methods to deposit funds
+- **Deposit**: Deposit funds into the registered Deposit Account. Receive shares back based on the redemption rate. 
+	```
+	Deposit {
+		amount: Uint256,
+		receiver: String
+	}
+	```
+- **Mint**: Mint shares from the vault. Expects the user to provide sufficient tokens to cover the cost of the shares based on the current redemption rate.
+	```
+	Mint {
+		shares: Uint256,
+		receiver: String
+	}
+	```
 
 ```mermaid 
 ---
-title: User Deposit Flow
+title: User Deposit and Share Mint Flow
 ---
 graph LR
 	User
@@ -98,6 +117,29 @@ graph LR
 	EV -- 2/ Send Shares --> User
 	EV -- 3/ Send Tokens --> ED
 ```
+#### User methods to withdraw funds
+- **Redeem**: Send shares to redeem assets. This creates a `WithdrawRecord` in a queue. This record is processed at the next `Epoch`
+	```
+	Redeem {
+		shares: Uint256,
+		receiver: String,
+		max_loss_bps: u64
+	}
+	```
+- **Withdraw**: Withdraw amount of assets. It expects the the user to have sufficient shares. This creates a `WithdrawRecord` in a queue. This record is processed at the next `Epoch`
+	```
+	Withdraw {
+		amount: Uint256,
+		receiver: String,
+		max_loss_bps: u64
+	}
+	```
+
+Withdraws are subject to a lockup period after the user has initiated a redemption. During this time the redemption rate may change. Users can specify an acceptable loss in case the the redemption rate decreases using the `max_loss_bps` parameter.
+
+After the `Epoch` has completed, a user may complete the withdrawal by executing the following message:
+
+- **CompleteWithdraw**: Pop the `WithdrawRecord`. Pull funds from the Withdraw Account and send to user. Burn the user's deposited shares.
 
 ```mermaid 
 ---
@@ -112,8 +154,23 @@ graph RL
 	EW -- 2/ Send Tokens --> EV -- 3/ Send Tokens --> User
 	User -- 1/ Deposit Shares --> EV
 
-
 ```
+
+### Strategist methods to manage the vault
+The vault validates that the Processor is making calls to it. On Neutron, the Authorization contract limits the calls to be made only by a trusted Strategist. The Authorization contract can further constrain when/how the Strategist actions can be taken.
+
+- **Update**: The strategist can update the current redemption rate. 
+  ```
+  Update {
+	rate: Uint256
+  }
+- **Pause and Unpause**: The strategist can pause and unpause vault operations.
+  ```
+  Pause {}
+  ```
+### Program subroutines
+
+The program authorizes the Strategist to update the redemption rate and transport funds between various accounts.
 
 #### Allowing the Strategist to transport funds
 
@@ -168,4 +225,7 @@ graph
 	ED --> FDW --> EW
 ```
 
-
+## Design notes
+This is a simplified design to demonstrate how a cross-chain vault may be implemented with Valence Programs. Production deployments will need to consider factors not covered here including:
+- Fees for gas, bridging, and for entering/exiting the position on Neutron. It is recommend that the vault impose withdraw fee and platform for users.
+- How to constrain the strategist behaviour to ensure to ensure that they are setting the redemption rates correctly
