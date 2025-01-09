@@ -78,8 +78,8 @@ valence-osmosis-cl-withdrawer        = { path = "contracts/libraries/osmosis-cl-
 valence-neutron-icq-querier          = { path = "contracts/libraries/neutron-icq-querier", features = ["library"] }
 
 # middleware
-valence-middleware-osmosis      = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = ["library"] }
-valence-middleware-broker       = { path = "contracts/middleware/broker", features = ["library"] }
+valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = ["library"] }
+valence-middleware-broker  = { path = "contracts/middleware/broker", features = ["library"] }
 
 # our packages
 valence-account-utils          = { path = "packages/account-utils" }
@@ -110,6 +110,6 @@ tokio                = "1.40.0"
 osmosis-test-tube    = "26.0.1"
 env_logger           = "0.11.5"
 log                  = "0.4.22"
-prost                = "0.13.3"
-prost-types          = "0.13.3"
+prost                = { version = "0.13.3", default-features = false }
+prost-types          = { version = "0.13.3", default-features = false }
 semver               = "1.0.24"

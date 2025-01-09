@@ -6854,6 +6854,7 @@ dependencies = [
  "alloy-sol-types 0.7.7",
  "cosmwasm-schema 2.2.0",
  "cosmwasm-std 2.2.0",
+ "cw-ownable",
  "cw-storage-plus 2.0.0",
  "cw-utils 2.0.0",
  "cw2 2.0.0",
