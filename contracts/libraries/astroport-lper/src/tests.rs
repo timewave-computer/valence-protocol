@@ -27,12 +27,12 @@ struct LPerTestSuite {
 
 impl Default for LPerTestSuite {
     fn default() -> Self {
-        Self::new(true)
+        Self::new(true, 1_000_000, 2_000_000)
     }
 }
 
 impl LPerTestSuite {
-    pub fn new(native_lp_token: bool) -> Self {
+    pub fn new(native_lp_token: bool, fund_amount_asset1: u128, fund_amount_asset2: u128) -> Self {
         let inner = AstroportTestAppBuilder::new().build().unwrap();
 
         // Create two base accounts
@@ -66,11 +66,11 @@ impl LPerTestSuite {
                 amount: vec![
                     BankCoin {
                         denom: inner.pool_asset2.clone(),
-                        amount: 1_000_000u128.to_string(),
+                        amount: fund_amount_asset2.to_string(),
                     },
                     BankCoin {
                         denom: inner.pool_asset1.clone(),
-                        amount: 1_000_000u128.to_string(),
+                        amount: fund_amount_asset1.to_string(),
                     },
                 ],
             },
@@ -504,7 +504,7 @@ fn provide_double_sided_liquidity_native_lp_token() {
 
 #[test]
 fn provide_double_sided_liquidity_cw20_lp_token() {
-    let setup = LPerTestSuite::new(false);
+    let setup = LPerTestSuite::new(false, 1_000_000, 2_000_000);
     let wasm = Wasm::new(&setup.inner.app);
     let bank = Bank::new(&setup.inner.app);
 
@@ -631,7 +631,7 @@ fn provide_single_sided_liquidity_native_lp_token() {
 
 #[test]
 fn provide_single_sided_liquidity_cw20_lp_token() {
-    let setup = LPerTestSuite::new(false);
+    let setup = LPerTestSuite::new(false, 1_000_000, 2_000_000);
     let wasm = Wasm::new(&setup.inner.app);
     let bank = Bank::new(&setup.inner.app);
 
@@ -727,5 +727,75 @@ fn test_limit_single_sided_liquidity() {
     assert_eq!(
         input_acc_balance_before - liquidity_provided,
         input_acc_balance_after
+    );
+}
+
+#[test]
+fn test_not_enough_asset2_balance() {
+    let setup = LPerTestSuite::new(true, 1_000_000, 1_800_000);
+    let wasm = Wasm::new(&setup.inner.app);
+    let bank = Bank::new(&setup.inner.app);
+
+    // Get balances before providing liquidity
+    let input_acc_balance_before = bank
+        .query_all_balances(&QueryAllBalancesRequest {
+            address: setup.input_acc.clone(),
+            pagination: None,
+            resolve_denom: false,
+        })
+        .unwrap();
+
+    assert_eq!(input_acc_balance_before.balances.len(), 2);
+    assert!(input_acc_balance_before
+        .balances
+        .iter()
+        .any(|c| c.denom == setup.inner.pool_asset1));
+    assert!(input_acc_balance_before
+        .balances
+        .iter()
+        .any(|c| c.denom == setup.inner.pool_asset2));
+
+    wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
+        &setup.lper_addr,
+        &ExecuteMsg::ProcessFunction(FunctionMsgs::ProvideDoubleSidedLiquidity {
+            expected_pool_ratio_range: None,
+        }),
+        &[],
+        setup.inner.processor_acc(),
+    )
+    .unwrap();
+
+    // Only asset1 should be left in the input account because there was not enough to cover
+    let input_acc_balance_after = bank
+        .query_all_balances(&QueryAllBalancesRequest {
+            address: setup.input_acc.clone(),
+            pagination: None,
+            resolve_denom: false,
+        })
+        .unwrap();
+
+    assert_eq!(input_acc_balance_after.balances.len(), 1);
+    assert_eq!(
+        input_acc_balance_after.balances[0].denom,
+        setup.inner.pool_asset1
+    );
+    assert_eq!(
+        input_acc_balance_after.balances[0].amount,
+        100_000u128.to_string()
+    );
+
+    // Output account should have the LP tokens
+    let output_acc_balance = bank
+        .query_all_balances(&QueryAllBalancesRequest {
+            address: setup.output_acc.clone(),
+            pagination: None,
+            resolve_denom: false,
+        })
+        .unwrap();
+
+    assert_eq!(output_acc_balance.balances.len(), 1);
+    assert_eq!(
+        output_acc_balance.balances[0].denom,
+        setup.inner.pool_native_liquidity_token
     );
 }
