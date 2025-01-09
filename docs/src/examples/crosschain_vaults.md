@@ -58,7 +58,7 @@ graph BT
 	end
 
 	Strategist --> A
-	A --> NHM --> EE --> Relayer --> EHM --> EP --> EL --> EVA
+	A --> EE --> NHM --> Relayer --> EHM --> EP --> EL --> EVA
 	A --> NP --> NL--> NVA
 ```
 
