@@ -7,11 +7,11 @@
 You can use Valence Programs to create crosschain vaults. Users interact with a vault on one chain while the tokens are held on another chain where yield is generated.
 
 In this example, we have made the following assumptions:
-- Users can deposit tokens into a standard ERC4626 vault on Ethereum
-- ERC20 shares are issued to users on Ethereum
-- If a user wishes to redeem their tokens, they can issue a withdrawal request which will burn the user's shares when tokens are redeemed
+- Users can deposit tokens into a standard ERC4626 vault on Ethereum.
+- ERC20 shares are issued to users on Ethereum.
+- If a user wishes to redeem their tokens, they can issue a withdrawal request which will burn the user's shares when tokens are redeemed.
 - The redemption rate that tells us how many tokens can be redeemed per shares is given by: \\( R = \frac{TotalAssets}{TotalIssuedShares} = \frac{TotalInVault + TotalInTransit + TotalInPostion}{TotalIssuedShares}\\)
-- A permissioned actor called the "Strategist" is authorized to transport funds from Ethereum to Neutron where they are locked in some DeFi protocol. And vice-versa, the Strategist can withdraw from the position so the funds are redeemable on Ethereum. The redemption rate must be adjusted by the Strategist accordingly
+- A permissioned actor called the "Strategist" is authorized to transport funds from Ethereum to Neutron where they are locked in some DeFi protocol. And vice-versa, the Strategist can withdraw from the position so the funds are redeemable on Ethereum. The redemption rate must be adjusted by the Strategist accordingly.
 
 ```mermaid 
 ---
@@ -66,20 +66,20 @@ graph BT
 
 On Ethereum, we'll need Accounts for:
 - **Deposit**: To hold user deposited tokens. Tokens from this pool can be then transported to Neutron.
-- **Withdraw**: Told hold tokens received from Neutron. Tokens from this pool can then be 
+- **Withdraw**: To hold tokens received from Neutron. Tokens from this pool can then be redeemed for shares.
 
 On Neutron, we'll need Accounts for:
 - **Deposit**: To hold tokens bridged from Ethereum. Tokens from this pool can be used to enter into the position on Neutron.
-- **Position**: Will hold the vouchers or shares associated with the position on Neutron
+- **Position**: Will hold the vouchers or shares associated with the position on Neutron.
 - **Withdraw**: To hold the tokens that are withdrawn from the position. Tokens from this pool can be bridged back to Ethereum.
 
 We'll need the following Libraries on Ethereum:
-- **Bridge Transfer**: To transfer funds from the Etherem Deposit Account to the Neutron Deposit Account. 
-- **Forwarder**: To transfer funds between the Deposit and Withdraw accounts on Ethereum. Two instances of the Library will be required.
+- **Bridge Transfer**: To transfer funds from the Ethereum Deposit Account to the Neutron Deposit Account. 
+- **Forwarder**: To transfer funds between the Deposit and Withdraw Accounts on Ethereum. Two instances of the Library will be required.
 
 We'll need the following Libraries on Neutron:
-- **Position Depositor**: To take funds in the Deposit and create a position with them. The position is helf by the Position account.
-- **Position Withdrawer**: To redeem a position for underlying funds that are then transferred to the withdraw account.
+- **Position Depositor**: To take funds in the Deposit and create a position with them. The position is held by the Position account.
+- **Position Withdrawer**: To redeem a position for underlying funds that are then transferred to the Withdraw Account on Neutron.
 - **Bridge Transfer**: To transfer funds from the Neutron Withdraw Account to the Ethereum Withdraw Account.
 
 Note that the Accounts mentioned here the standard [Valence Accounts](../components/accounts.md). Th Bridge Transfer library will depend on the token being transferred, but will offer similar functionality to the [IBC Transfer](../libraries/generic-ibc-transfer.md) library. The Position Depositor and Withdrawer will depend on the type of position, but can be similar to the [Liqudity Provider](../libraries/astroport-lper.md) and [Liquidity Withdrawer](../libraries/astroport-withdrawer.md).
@@ -172,10 +172,9 @@ The vault validates that the Processor is making calls to it. On Neutron, the Au
   ```
 ### Program subroutines
 
-The program authorizes the Strategist to update the redemption rate and transport funds between various accounts.
+The program authorizes the Strategist to update the redemption rate and transport funds between various Accounts.
 
 #### Allowing the Strategist to transport funds
-
 
 ```mermaid
 ---
