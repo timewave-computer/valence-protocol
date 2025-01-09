@@ -8,7 +8,7 @@ You can use Valence Programs to create crosschain vaults. Users interact with a 
 
 In this example, we have made the following assumptions:
 - Users can deposit tokens into a standard ERC-4626 vault on Ethereum.
-- ERC20 shares are issued to users on Ethereum.
+- ERC-20 shares are issued to users on Ethereum.
 - If a user wishes to redeem their tokens, they can issue a withdrawal request which will burn the user's shares when tokens are redeemed.
 - The redemption rate that tells us how many tokens can be redeemed per shares is given by: \\( R = \frac{TotalAssets}{TotalIssuedShares} = \frac{TotalInVault + TotalInTransit + TotalInPostion}{TotalIssuedShares}\\)
 - A permissioned actor called the "Strategist" is authorized to transport funds from Ethereum to Neutron where they are locked in some DeFi protocol. And vice-versa, the Strategist can withdraw from the position so the funds are redeemable on Ethereum. The redemption rate must be adjusted by the Strategist accordingly.
