@@ -9,6 +9,7 @@ pub mod persistence;
 pub mod polytone;
 pub mod processor;
 pub mod relayer;
+pub mod solidity_contracts;
 
 // Local-ic chain configs files
 pub const NEUTRON_CONFIG_FILE: &str = "neutron.json";

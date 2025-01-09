@@ -1,4 +1,4 @@
-name: EVM CI
+name: Solidity Contracts
 
 on:
   push:

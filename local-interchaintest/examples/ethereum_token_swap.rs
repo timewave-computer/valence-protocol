@@ -1,7 +1,9 @@
 use std::error::Error;
 
-use alloy::{network::TransactionBuilder, primitives::U256, rpc::types::TransactionRequest, sol};
-use local_interchaintest::utils::{ethereum::EthClient, DEFAULT_ANVIL_RPC_ENDPOINT};
+use alloy::{network::TransactionBuilder, primitives::U256, rpc::types::TransactionRequest};
+use local_interchaintest::utils::{
+    ethereum::EthClient, solidity_contracts::BaseAccount, DEFAULT_ANVIL_RPC_ENDPOINT,
+};
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -40,12 +42,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let tx = eth.get_transaction_by_hash(receipt.transaction_hash)?;
     println!("Transaction: {:?}", tx);
-
-    sol!(
-        #[sol(rpc)]
-        BaseAccount,
-        "../solidity/out/BaseAccount.sol/BaseAccount.json"
-    );
 
     let transaction = BaseAccount::deploy_builder(&eth.provider, accounts[0], vec![])
         .into_transaction_request()
