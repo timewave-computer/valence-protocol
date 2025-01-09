@@ -214,6 +214,7 @@ pub trait LibraryTestSuite<
     }
 
     fn query_all_balances(&self, addr: &Addr) -> Vec<Coin> {
+        #[allow(deprecated)]
         self.app().wrap().query_all_balances(addr).unwrap()
     }
 

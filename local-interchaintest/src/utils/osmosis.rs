@@ -35,7 +35,7 @@ pub mod gamm {
             .build_tx_create_osmo_pool()
             .with_weight(denom_1, 1)
             .with_weight(denom_2, 1)
-            .with_initial_deposit(denom_1, 100_000_000)
+            .with_initial_deposit(denom_1, 120_000_000)
             .with_initial_deposit(denom_2, 100_000_000)
             .send()?;
 
