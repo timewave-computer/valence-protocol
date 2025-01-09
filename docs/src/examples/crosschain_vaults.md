@@ -7,7 +7,7 @@
 You can use Valence Programs to create crosschain vaults. Users interact with a vault on one chain while the tokens are held on another chain where yield is generated.
 
 In this example, we have made the following assumptions:
-- Users can deposit tokens into a standard ERC4626 vault on Ethereum.
+- Users can deposit tokens into a standard ERC-4626 vault on Ethereum.
 - ERC20 shares are issued to users on Ethereum.
 - If a user wishes to redeem their tokens, they can issue a withdrawal request which will burn the user's shares when tokens are redeemed.
 - The redemption rate that tells us how many tokens can be redeemed per shares is given by: \\( R = \frac{TotalAssets}{TotalIssuedShares} = \frac{TotalInVault + TotalInTransit + TotalInPostion}{TotalIssuedShares}\\)
