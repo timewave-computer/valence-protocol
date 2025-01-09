@@ -1,0 +1,423 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Crosschain Vaults - Valence Protocol Documentation</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+        <!-- MathJax -->
+        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "ayu" : "light";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc.js"></script>
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Valence Protocol Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/timewave-computer/valence-protocol" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="crosschain-vaults"><a class="header" href="#crosschain-vaults">Crosschain Vaults</a></h1>
+<p><strong>Note:</strong> <em>This example is still in the design phase and includes new or experimental features of Valence Programs that may not be supported in the current production release.</em></p>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<p>You can use Valence Programs to create crosschain vaults. Users interact with a vault on one chain while the tokens are held on another chain where yield is generated.</p>
+<p>Note: In our initial implementation we use Neutron for co-processing and Hyperlane for general message passing between the co-processor and the target domain. Deployment of Valence programs as zk RISC-V co-processors with permissionless message passing will be available in the coming months.</p>
+<p>In this example, we have made the following assumptions:</p>
+<ul>
+<li>Users can deposit tokens into a standard ERC-4626 vault on Ethereum.</li>
+<li>ERC-20 shares are issued to users on Ethereum.</li>
+<li>If a user wishes to redeem their tokens, they can issue a withdrawal request which will burn the user's shares when tokens are redeemed.</li>
+<li>The redemption rate that tells us how many tokens can be redeemed per shares is given by: \( R = \frac{TotalAssets}{TotalIssuedShares} = \frac{TotalInVault + TotalInTransit + TotalInPostion}{TotalIssuedShares}\)</li>
+<li>A permissioned actor called the "Strategist" is authorized to transport funds from Ethereum to Neutron where they are locked in some DeFi protocol. And vice-versa, the Strategist can withdraw from the position so the funds are redeemable on Ethereum. The redemption rate must be adjusted by the Strategist accordingly.</li>
+</ul>
+<pre class="mermaid">---
+title: Crosschain Vaults Overview
+---
+graph LR
+	User
+	EV(Ethereum Vault)
+	NP(Neutron Position)
+
+	User -- Tokens --&gt; EV
+	EV -- Shares --&gt; User
+	EV -- Strategist Transport --&gt; NP
+	NP -- Strategist Transport --&gt; EV
+</pre>
+<p>While we have chosen Ethereum and Neutron as examples here, one could similarly construct such vaults between any two chains as long as they are supported by Valence Programs.</p>
+<h2 id="implementing-crosschain-vaults-as-a-valence-program"><a class="header" href="#implementing-crosschain-vaults-as-a-valence-program">Implementing Crosschain Vaults as a Valence Program</a></h2>
+<p>Recall that Valence Programs are comprised of Libraries and Accounts. Libraries are a collection of Functions that perform token oprations on the Accounts. Since there are two chains here, Libraries and Accounts will exist on both chains.</p>
+<p>Since gas is cheaper on Neutron than on Ethereum, computationally expensive operations, such as constraining the Strategist actions will be done on Neutron. Authorized messages will then be executed by each chain's Processor. Hyperlane is used to pass messages from the Authorization contract on Neutron to the Processor on Ethereum.</p>
+<pre class="mermaid">---
+title: Program Control
+---
+graph BT
+	Strategist
+	subgraph Ethereum
+		EP(Processor)
+		EHM(Hyperlane Mailbox)
+		EL(Ethereum Valence Libraries)
+		EVA(Valence Accounts)
+	end
+	subgraph Neutron
+		A(Authorizations)
+		NP(Processor)
+		EE(EVM Encoder)
+		NHM(Hyperlane Mailbox)
+		NL(Neutron Valence Libraries)
+		NVA(Valence Accounts)
+	end
+
+	Strategist --&gt; A
+	A --&gt; EE --&gt; NHM --&gt; Relayer --&gt; EHM --&gt; EP --&gt; EL --&gt; EVA
+	A --&gt; NP --&gt; NL--&gt; NVA
+</pre>
+<h3 id="libraries-and-accounts-needed"><a class="header" href="#libraries-and-accounts-needed">Libraries and Accounts needed</a></h3>
+<p>On Ethereum, we'll need Accounts for:</p>
+<ul>
+<li><strong>Deposit</strong>: To hold user deposited tokens. Tokens from this pool can be then transported to Neutron.</li>
+<li><strong>Withdraw</strong>: To hold tokens received from Neutron. Tokens from this pool can then be redeemed for shares.</li>
+</ul>
+<p>On Neutron, we'll need Accounts for:</p>
+<ul>
+<li><strong>Deposit</strong>: To hold tokens bridged from Ethereum. Tokens from this pool can be used to enter into the position on Neutron.</li>
+<li><strong>Position</strong>: Will hold the vouchers or shares associated with the position on Neutron.</li>
+<li><strong>Withdraw</strong>: To hold the tokens that are withdrawn from the position. Tokens from this pool can be bridged back to Ethereum.</li>
+</ul>
+<p>We'll need the following Libraries on Ethereum:</p>
+<ul>
+<li><strong>Bridge Transfer</strong>: To transfer funds from the Ethereum Deposit Account to the Neutron Deposit Account.</li>
+<li><strong>Forwarder</strong>: To transfer funds between the Deposit and Withdraw Accounts on Ethereum. Two instances of the Library will be required.</li>
+</ul>
+<p>We'll need the following Libraries on Neutron:</p>
+<ul>
+<li><strong>Position Depositor</strong>: To take funds in the Deposit and create a position with them. The position is held by the Position account.</li>
+<li><strong>Position Withdrawer</strong>: To redeem a position for underlying funds that are then transferred to the Withdraw Account on Neutron.</li>
+<li><strong>Bridge Transfer</strong>: To transfer funds from the Neutron Withdraw Account to the Ethereum Withdraw Account.</li>
+</ul>
+<p>Note that the Accounts mentioned here the standard <a href="../components/accounts.html">Valence Accounts</a>. Th Bridge Transfer library will depend on the token being transferred, but will offer similar functionality to the <a href="../libraries/generic-ibc-transfer.html">IBC Transfer</a> library. The Position Depositor and Withdrawer will depend on the type of position, but can be similar to the <a href="../libraries/astroport-lper.html">Liqudity Provider</a> and <a href="../libraries/astroport-withdrawer.html">Liquidity Withdrawer</a>.</p>
+<h3 id="vault-contract"><a class="header" href="#vault-contract">Vault Contract</a></h3>
+<p>The Vault contract is a special contract on Ethereum that has an ERC-4626 interface.</p>
+<h4 id="user-methods-to-deposit-funds"><a class="header" href="#user-methods-to-deposit-funds">User methods to deposit funds</a></h4>
+<ul>
+<li><strong>Deposit</strong>: Deposit funds into the registered Deposit Account. Receive shares back based on the redemption rate.
+<pre><code>Deposit {
+	amount: Uint256,
+	receiver: String
+}
+</code></pre>
+</li>
+<li><strong>Mint</strong>: Mint shares from the vault. Expects the user to provide sufficient tokens to cover the cost of the shares based on the current redemption rate.
+<pre><code>Mint {
+	shares: Uint256,
+	receiver: String
+}
+</code></pre>
+</li>
+</ul>
+<pre class="mermaid">---
+title: User Deposit and Share Mint Flow
+---
+graph LR
+	User
+	subgraph Ethereum
+		direction LR
+		EV(Vault)
+		ED((Deposit))
+	end
+	
+	User -- 1/ Deposit Tokens --&gt; EV
+	EV -- 2/ Send Shares --&gt; User
+	EV -- 3/ Send Tokens --&gt; ED
+</pre>
+<h4 id="user-methods-to-withdraw-funds"><a class="header" href="#user-methods-to-withdraw-funds">User methods to withdraw funds</a></h4>
+<ul>
+<li><strong>Redeem</strong>: Send shares to redeem assets. This creates a <code>WithdrawRecord</code> in a queue. This record is processed at the next <code>Epoch</code>
+<pre><code>Redeem {
+	shares: Uint256,
+	receiver: String,
+	max_loss_bps: u64
+}
+</code></pre>
+</li>
+<li><strong>Withdraw</strong>: Withdraw amount of assets. It expects the user to have sufficient shares. This creates a <code>WithdrawRecord</code> in a queue. This record is processed at the next <code>Epoch</code>.
+<pre><code>Withdraw {
+	amount: Uint256,
+	receiver: String,
+	max_loss_bps: u64
+}
+</code></pre>
+</li>
+</ul>
+<p>Withdraws are subject to a lockup period after the user has initiated a redemption. During this time the redemption rate may change. Users can specify an acceptable loss in case the the redemption rate decreases using the <code>max_loss_bps</code> parameter.</p>
+<p>After the <code>Epoch</code> has completed, a user may complete the withdrawal by executing the following message:</p>
+<ul>
+<li><strong>CompleteWithdraw</strong>: Pop the <code>WithdrawRecord</code>. Pull funds from the Withdraw Account and send to user. Burn the user's deposited shares.</li>
+</ul>
+<pre class="mermaid">---
+title: User Withdraw Flow
+---
+graph RL
+	subgraph Ethereum
+		direction RL
+		EV(Vault)
+		EW((Withdraw))
+	end
+	EW -- 2/ Send Tokens --&gt; EV -- 3/ Send Tokens --&gt; User
+	User -- 1/ Deposit Shares --&gt; EV
+
+</pre>
+<h3 id="strategist-methods-to-manage-the-vault"><a class="header" href="#strategist-methods-to-manage-the-vault">Strategist methods to manage the vault</a></h3>
+<p>The vault validates that the Processor is making calls to it. On Neutron, the Authorization contract limits the calls to be made only by a trusted Strategist. The Authorization contract can further constrain when or how Strategist actions can be taken.</p>
+<ul>
+<li><strong>Update</strong>: The strategist can update the current redemption rate.
+<pre><code>Update {
+  rate: Uint256
+}
+</code></pre>
+</li>
+<li><strong>Pause and Unpause</strong>: The strategist can pause and unpause vault operations.
+<pre><code>Pause {}
+</code></pre>
+</li>
+</ul>
+<h3 id="program-subroutines"><a class="header" href="#program-subroutines">Program subroutines</a></h3>
+<p>The program authorizes the Strategist to update the redemption rate and transport funds between various Accounts.</p>
+<h4 id="allowing-the-strategist-to-transport-funds"><a class="header" href="#allowing-the-strategist-to-transport-funds">Allowing the Strategist to transport funds</a></h4>
+<pre class="mermaid">---
+title: From Ethereum Deposit Account to Neutron Position Account
+---
+graph LR
+	subgraph Ethereum
+		ED((Deposit))
+		ET(Bridge Transfer)
+	end
+	subgraph Neutron
+		NPH((Position Holder))
+		NPD(Position Depositor)
+		ND((Deposit))
+	end
+
+	ED --&gt; ET --&gt; ND --&gt; NPD --&gt; NPH
+</pre>
+<pre class="mermaid">---
+title: From Neutron Position Account to Ethereum Withdraw Account
+---
+graph RL
+	subgraph Ethereum
+		EW((Withdraw))
+	end
+	subgraph Neutron
+		NPH((Position Holder))
+		NW((Widthdraw))
+		NT(Bridge Transfer)
+		NPW(Position Withdrawer)
+	end
+
+	NPH --&gt; NPW --&gt; NW --&gt; NT --&gt; EW
+
+</pre>
+<pre class="mermaid">---
+title: Between Ethereum Deposit and Ethereum Withdraw Accounts
+---
+graph
+	subgraph Ethereum
+		ED((Deposit))
+		EW((Withdraw))
+		FDW(Forwarder)
+	end
+	ED --&gt; FDW --&gt; EW
+</pre>
+<h2 id="design-notes"><a class="header" href="#design-notes">Design notes</a></h2>
+<p>This is a simplified design to demonstrate how a cross-chain vault can be implemented with Valence Programs. Production deployments will need to consider additional factors not covered here including:</p>
+<ul>
+<li>Fees for gas, bridging, and for entering/exiting the position on Neutron. It is recommend that the vault impose withdraw fee and platform for users.</li>
+<li>How to constrain Strategist behavior to ensure they set redemption rates correctly.</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../examples/token_swap.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../examples/token_swap.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid.min.js"></script>
+        <script src="../mermaid-init.js"></script>
+
+
+    </div>
+    </body>
+</html>
