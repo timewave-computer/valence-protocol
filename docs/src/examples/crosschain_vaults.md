@@ -87,7 +87,7 @@ We'll need the following Libraries on Neutron:
 Note that the Accounts mentioned here the standard [Valence Accounts](../components/accounts.md). Th Bridge Transfer library will depend on the token being transferred, but will offer similar functionality to the [IBC Transfer](../libraries/generic-ibc-transfer.md) library. The Position Depositor and Withdrawer will depend on the type of position, but can be similar to the [Liqudity Provider](../libraries/astroport-lper.md) and [Liquidity Withdrawer](../libraries/astroport-withdrawer.md).
 
 ### Vault Contract
-The Vault contract is a special contract on Ethereum that has an ERC4626 interface.
+The Vault contract is a special contract on Ethereum that has an ERC-4626 interface.
 
 #### User methods to deposit funds
 - **Deposit**: Deposit funds into the registered Deposit Account. Receive shares back based on the redemption rate. 
