@@ -6,6 +6,8 @@
 
 You can use Valence Programs to create crosschain vaults. Users interact with a vault on one chain while the tokens are held on another chain where yield is generated.
 
+Note: In our initial implementation we use Neutron for co-processing and Hyperlane for general message passing between the co-processor and the target domain. Deployment of Valence programs as zk RISC-V co-processors with permissionless message passing will be available in the coming months.
+
 In this example, we have made the following assumptions:
 - Users can deposit tokens into a standard ERC-4626 vault on Ethereum.
 - ERC-20 shares are issued to users on Ethereum.
