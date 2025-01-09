@@ -161,7 +161,7 @@ graph RL
 ```
 
 ### Strategist methods to manage the vault
-The vault validates that the Processor is making calls to it. On Neutron, the Authorization contract limits the calls to be made only by a trusted Strategist. The Authorization contract can further constrain when/how the Strategist actions can be taken.
+The vault validates that the Processor is making calls to it. On Neutron, the Authorization contract limits the calls to be made only by a trusted Strategist. The Authorization contract can further constrain when or how Strategist actions can be taken.
 
 - **Update**: The strategist can update the current redemption rate. 
   ```
