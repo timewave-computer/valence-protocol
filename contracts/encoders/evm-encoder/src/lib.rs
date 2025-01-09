@@ -9,6 +9,7 @@ use valence_authorization_utils::authorization::Subroutine;
 use valence_encoder_utils::processor::solidity_types;
 
 pub mod contract;
+pub mod hyperlane;
 pub mod libraries;
 pub mod processor;
 
@@ -160,4 +161,9 @@ fn encode_retry_logic(
             },
         }
     }
+}
+
+/// Helper to parse EVM addresses from strings
+fn parse_address(addr: &str) -> StdResult<Address> {
+    Address::from_str(addr).map_err(|e| StdError::generic_err(format!("Invalid address: {}", e)))
 }

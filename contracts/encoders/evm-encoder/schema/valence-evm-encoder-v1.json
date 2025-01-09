@@ -61,6 +61,27 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "decode"
+        ],
+        "properties": {
+          "decode": {
+            "type": "object",
+            "required": [
+              "message"
+            ],
+            "properties": {
+              "message": {
+                "$ref": "#/definitions/ProcessorMessageToDecode"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ],
     "definitions": {
@@ -188,6 +209,10 @@
           }
         },
         "additionalProperties": false
+      },
+      "HexBinary": {
+        "description": "This is a wrapper around Vec<u8> to add hex de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is similar to `cosmwasm_std::Binary` but uses hex. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+        "type": "string"
       },
       "LibraryAccountType": {
         "description": "An account type that is used in the library configs It can either be an Id or Addr The config that will be passed to the library must be of Addr veriant",
@@ -415,6 +440,31 @@
           "high"
         ]
       },
+      "ProcessorMessageToDecode": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "hyperlane_callback"
+            ],
+            "properties": {
+              "hyperlane_callback": {
+                "type": "object",
+                "required": [
+                  "callback"
+                ],
+                "properties": {
+                  "callback": {
+                    "$ref": "#/definitions/HexBinary"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
       "ProcessorMessageToEncode": {
         "oneOf": [
           {
@@ -627,6 +677,12 @@
   "migrate": null,
   "sudo": null,
   "responses": {
+    "decode": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Binary",
+      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+      "type": "string"
+    },
     "encode": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Binary",

@@ -14,20 +14,20 @@ crate-type = ["cdylib", "rlib"]
 library = []
 
 [dependencies]
-cosmwasm-std                = { workspace = true }
-cosmwasm-schema             = { workspace = true }
-cw-ownable                  = { workspace = true }
-osmosis-std                 = { workspace = true }
-osmosis-std-derive          = { workspace = true }
-prost                       = { workspace = true, default-features = false, features = [ "prost-derive" ] }
-prost-types                 = { workspace = true, default-features = false }
-neutron-sdk                 = { workspace = true }
-serde-json-wasm             = { version = "1.0.0", default-features = false }
-thiserror                   = { workspace = true }
-serde_json                  = { workspace = true }
-cw-storage-plus             = { workspace = true }
-valence-middleware-utils    = { workspace = true }
-cw2                         = { workspace = true }
+cosmwasm-std             = { workspace = true }
+cosmwasm-schema          = { workspace = true }
+cw-ownable               = { workspace = true }
+osmosis-std              = { workspace = true }
+osmosis-std-derive       = { workspace = true }
+prost                    = { workspace = true, features = ["prost-derive"] }
+prost-types              = { workspace = true }
+neutron-sdk              = { workspace = true }
+serde-json-wasm          = { version = "1.0.0" }
+thiserror                = { workspace = true }
+serde_json               = { workspace = true }
+cw-storage-plus          = { workspace = true }
+valence-middleware-utils = { workspace = true }
+cw2                      = { workspace = true }
 
 [dev-dependencies]
-osmosis-test-tube     = { workspace = true }
+osmosis-test-tube = { workspace = true }
