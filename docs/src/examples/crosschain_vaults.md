@@ -229,6 +229,6 @@ graph
 ```
 
 ## Design notes
-This is a simplified design to demonstrate how a cross-chain vault may be implemented with Valence Programs. Production deployments will need to consider factors not covered here including:
+This is a simplified design to demonstrate how a cross-chain vault can be implemented with Valence Programs. Production deployments will need to consider additional factors not covered here including:
 - Fees for gas, bridging, and for entering/exiting the position on Neutron. It is recommend that the vault impose withdraw fee and platform for users.
 - How to constrain Strategist behavior to ensure they set redemption rates correctly.
