@@ -130,7 +130,7 @@ graph LR
 		max_loss_bps: u64
 	}
 	```
-- **Withdraw**: Withdraw amount of assets. It expects the the user to have sufficient shares. This creates a `WithdrawRecord` in a queue. This record is processed at the next `Epoch`
+- **Withdraw**: Withdraw amount of assets. It expects the user to have sufficient shares. This creates a `WithdrawRecord` in a queue. This record is processed at the next `Epoch`.
 	```
 	Withdraw {
 		amount: Uint256,
