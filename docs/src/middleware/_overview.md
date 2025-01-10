@@ -10,11 +10,3 @@ At its core, middleware is made up from the following components:
 ## Design goals
 
 TODO: describe modifiable middleware
-
-An important part of Valence Protocol is the integration of new and existing domains
-into a single, coherent distributed system.
-
-
-## Problem statement
-
-TODO
