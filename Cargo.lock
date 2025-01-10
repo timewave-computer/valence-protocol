@@ -1891,6 +1891,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cosmwasm-storage"
+version = "1.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "66de2ab9db04757bcedef2b5984fbe536903ada4a8a9766717a4a71197ef34f6"
+dependencies = [
+ "cosmwasm-std 1.5.9",
+ "serde",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2209,6 +2219,23 @@ dependencies = [
  "cw-utils 2.0.0",
  "schemars",
  "serde",
+]
+
+[[package]]
+name = "cw20-base"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17ad79e86ea3707229bf78df94e08732e8f713207b4a77b2699755596725e7d9"
+dependencies = [
+ "cosmwasm-schema 1.5.9",
+ "cosmwasm-std 1.5.9",
+ "cw-storage-plus 1.2.0",
+ "cw2 1.1.2",
+ "cw20 1.1.2",
+ "schemars",
+ "semver 1.0.24",
+ "serde",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -3094,6 +3121,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "hpl-interface"
+version = "0.0.7"
+source = "git+https://github.com/many-things/cw-hyperlane?rev=d07e55e#d07e55e17c791a5f6557f114e3fb6cb433d9b800"
+dependencies = [
+ "bech32 0.9.1",
+ "cosmwasm-schema 1.5.9",
+ "cosmwasm-std 1.5.9",
+ "cosmwasm-storage",
+ "cw-storage-plus 1.2.0",
+ "cw2 1.1.2",
+ "cw20 1.1.2",
+ "cw20-base 1.1.2",
+ "ripemd",
+ "schemars",
+ "serde",
+ "sha2 0.10.8",
+ "sha3",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "http"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3681,6 +3729,7 @@ dependencies = [
  "cw-utils 2.0.0",
  "env_logger 0.11.6",
  "hex",
+ "hpl-interface",
  "localic-std",
  "localic-utils",
  "log",
@@ -6713,7 +6762,7 @@ dependencies = [
  "cw-ownable",
  "cw-utils 2.0.0",
  "cw20 2.0.0",
- "cw20-base",
+ "cw20-base 2.0.0",
  "serde",
  "serde_json",
  "sha2 0.10.8",
@@ -6813,7 +6862,7 @@ dependencies = [
  "cw-storage-plus 2.0.0",
  "cw2 2.0.0",
  "cw20 2.0.0",
- "cw20-base",
+ "cw20-base 2.0.0",
  "getset",
  "itertools 0.13.0",
  "schemars",
@@ -6878,7 +6927,7 @@ dependencies = [
  "cw-storage-plus 2.0.0",
  "cw-utils 2.0.0",
  "cw20 2.0.0",
- "cw20-base",
+ "cw20-base 2.0.0",
  "getset",
  "schemars",
  "serde",
@@ -6901,7 +6950,7 @@ dependencies = [
  "cw-storage-plus 2.0.0",
  "cw-utils 2.0.0",
  "cw20 2.0.0",
- "cw20-base",
+ "cw20-base 2.0.0",
  "getset",
  "schemars",
  "serde",
@@ -6956,7 +7005,7 @@ dependencies = [
  "cw-storage-plus 2.0.0",
  "cw-utils 2.0.0",
  "cw20 2.0.0",
- "cw20-base",
+ "cw20-base 2.0.0",
  "serde",
  "serde_json",
  "sha2 0.10.8",
@@ -7044,7 +7093,7 @@ dependencies = [
  "cw-storage-plus 2.0.0",
  "cw-utils 2.0.0",
  "cw20 2.0.0",
- "cw20-base",
+ "cw20-base 2.0.0",
  "getset",
  "neutron-sdk",
  "schemars",
@@ -7300,7 +7349,7 @@ dependencies = [
  "cw-storage-plus 2.0.0",
  "cw-utils 2.0.0",
  "cw20 2.0.0",
- "cw20-base",
+ "cw20-base 2.0.0",
  "getset",
  "schemars",
  "serde",
@@ -7323,7 +7372,7 @@ dependencies = [
  "cw-storage-plus 2.0.0",
  "cw-utils 2.0.0",
  "cw20 2.0.0",
- "cw20-base",
+ "cw20-base 2.0.0",
  "getset",
  "itertools 0.13.0",
  "schemars",
@@ -7349,7 +7398,7 @@ dependencies = [
  "cw-storage-plus 2.0.0",
  "cw2 2.0.0",
  "cw20 2.0.0",
- "cw20-base",
+ "cw20-base 2.0.0",
  "getset",
  "itertools 0.13.0",
  "schemars",
@@ -7389,7 +7438,7 @@ dependencies = [
  "cw-storage-plus 2.0.0",
  "cw-utils 2.0.0",
  "cw20 2.0.0",
- "cw20-base",
+ "cw20-base 2.0.0",
  "getset",
  "schemars",
  "serde",

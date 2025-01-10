@@ -3,7 +3,10 @@ use std::error::Error;
 use alloy::{network::TransactionBuilder, primitives::U256, rpc::types::TransactionRequest};
 use local_interchaintest::utils::{
     ethereum::EthClient, solidity_contracts::BaseAccount, DEFAULT_ANVIL_RPC_ENDPOINT,
+    HYPERLANE_COSMWASM_ARTIFACTS_PATH, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
+    VALENCE_ARTIFACTS_PATH,
 };
+use localic_utils::{ConfigChainBuilder, TestContextBuilder, LOCAL_IC_API_URL};
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -64,6 +67,23 @@ fn main() -> Result<(), Box<dyn Error>> {
     let builder = contract.approvedLibraries(accounts[1]);
     let approved_libraries = eth.rt.block_on(async { builder.call().await })?._0;
     println!("Approved Libraries: {:?}", approved_libraries);
+
+    let mut test_ctx = TestContextBuilder::default()
+        .with_unwrap_raw_logs(true)
+        .with_api_url(LOCAL_IC_API_URL)
+        .with_artifacts_dir(VALENCE_ARTIFACTS_PATH)
+        .with_chain(ConfigChainBuilder::default_neutron().build()?)
+        .with_log_file_path(LOGS_FILE_PATH)
+        .build()?;
+
+    // Upload all Hyperlane contracts to Neutron
+    let mut uploader = test_ctx.build_tx_upload_contracts();
+    uploader
+        .send_with_local_cache(
+            HYPERLANE_COSMWASM_ARTIFACTS_PATH,
+            LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
+        )
+        .unwrap();
 
     Ok(())
 }

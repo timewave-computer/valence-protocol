@@ -1,6 +1,7 @@
 pub mod authorization;
 pub mod base_account;
 pub mod ethereum;
+pub mod hyperlane;
 pub mod ibc;
 pub mod icq;
 pub mod manager;
@@ -20,6 +21,9 @@ pub const NEUTRON_OSMO_CONFIG_FILE: &str = "neutron_osmosis.json";
 pub const VALENCE_ARTIFACTS_PATH: &str = "artifacts";
 // We keep the polytone contracts here for our tests
 pub const POLYTONE_ARTIFACTS_PATH: &str = "local-interchaintest/polytone_contracts";
+// We keep the cosmwasm hyperlane contracts here to set up hyperlane on a cosmwasm chain
+pub const HYPERLANE_COSMWASM_ARTIFACTS_PATH: &str =
+    "local-interchaintest/hyperlane_contracts/cosmwasm";
 // Where we are keeping the astroport contracts for all our tests
 pub const ASTROPORT_PATH: &str = "packages/astroport-utils/contracts";
 // When spinning up local-ic, this is where the logs files will be stored, we used this to cache code_ids for a specific local-ic instance
