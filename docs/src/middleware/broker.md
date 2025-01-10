@@ -1,7 +1,7 @@
 # Middleware Broker
 
 Middleware broker acts as an app-level integration gateway in Valence Programs.
-*Integration* is used here rather ambiguously on purpose - brokers should remain
+*Integration* here is used rather ambiguously on purpose - brokers should remain
 agnostic to the primitives being integrated into Valence Protocol. These primitives
 may involve but not be limited to:
 
