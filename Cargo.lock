@@ -3724,6 +3724,7 @@ version = "0.1.0"
 dependencies = [
  "alloy",
  "cosmos-grpc-client",
+ "cosmwasm-schema 2.2.0",
  "cosmwasm-std 1.5.9",
  "cosmwasm-std 2.2.0",
  "cw-utils 2.0.0",
@@ -3739,6 +3740,7 @@ dependencies = [
  "polytone-note",
  "polytone-voice",
  "rand 0.8.5",
+ "serde-json-wasm 0.5.2",
  "serde_json",
  "sha2 0.10.8",
  "tokio",

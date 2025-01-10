@@ -2,9 +2,8 @@ use std::error::Error;
 
 use alloy::{network::TransactionBuilder, primitives::U256, rpc::types::TransactionRequest};
 use local_interchaintest::utils::{
-    ethereum::EthClient, solidity_contracts::BaseAccount, DEFAULT_ANVIL_RPC_ENDPOINT,
-    HYPERLANE_COSMWASM_ARTIFACTS_PATH, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
-    VALENCE_ARTIFACTS_PATH,
+    ethereum::EthClient, hyperlane::set_up_cw_hyperlane_contracts, solidity_contracts::BaseAccount,
+    DEFAULT_ANVIL_RPC_ENDPOINT, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
 };
 use localic_utils::{ConfigChainBuilder, TestContextBuilder, LOCAL_IC_API_URL};
 
@@ -77,13 +76,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         .build()?;
 
     // Upload all Hyperlane contracts to Neutron
-    let mut uploader = test_ctx.build_tx_upload_contracts();
-    uploader
-        .send_with_local_cache(
-            HYPERLANE_COSMWASM_ARTIFACTS_PATH,
-            LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
-        )
-        .unwrap();
+    let neutron_hyperlane_contracts = set_up_cw_hyperlane_contracts(&mut test_ctx)?;
+
+    println!("Neutron Mailbox: {:?}", neutron_hyperlane_contracts.mailbox);
 
     Ok(())
 }
