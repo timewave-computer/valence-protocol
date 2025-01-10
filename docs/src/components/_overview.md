@@ -6,3 +6,4 @@ This section provides a high-level breakdown of the components that compose a Va
 - [Accounts](./accounts.md)
 - [Libraries and Functions](./libraries_and_functions.md)
 - [Programs and Authorizations](./programs_and_authorizations.md)
+- [Middleware](./middleware.md)

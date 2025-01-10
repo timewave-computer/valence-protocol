@@ -12,6 +12,8 @@ cargo install mdbook mdbook-mermaid
 
 2. Build:
 
+From `/docs` directory, run:
+
 ```bash
 mdbook build
 ```
