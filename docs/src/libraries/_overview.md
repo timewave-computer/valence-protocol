@@ -4,14 +4,14 @@ This section contains a detailed description of the various libraries that can b
 
 **Valence Protocol libraries**:
 
-- [Astroport LPer](./astroport-lper.md)
-- [Astroport Withdrawer](./astroport-withdrawer.md)
+- [Astroport LPer](./astroport_lper.md)
+- [Astroport Withdrawer](./astroport_withdrawer.md)
 - [Forwarder](./forwarder.md)
-- [Generic IBC Transfer](./generic-ibc-transfer.md)
-- [Neutron IBC Transfer](./neutron-ibc-transfer.md)
-- [Osmosis CL LPer](./osmosis-cl-lper.md)
-- [Osmosis CL Withdrawer](./osmosis-cl-withdrawer.md)
-- [Osmosis GAMM LPer](./osmosis-gamm-lper.md)
-- [Osmosis GAMM Withdrawer](./osmosis-gamm-withdrawer.md)
-- [Reverse Splitter](./reverse-splitter.md)
+- [Generic IBC Transfer](./generic_ibc_transfer.md)
+- [Neutron IBC Transfer](./neutron_ibc_transfer.md)
+- [Osmosis CL LPer](./osmosis_cl_lper.md)
+- [Osmosis CL Withdrawer](./osmosis_cl_withdrawer.md)
+- [Osmosis GAMM LPer](./osmosis_gamm_lper.md)
+- [Osmosis GAMM Withdrawer](./osmosis_gamm_withdrawer.md)
+- [Reverse Splitter](./reverse_splitter.md)
 - [Splitter](./splitter.md)
