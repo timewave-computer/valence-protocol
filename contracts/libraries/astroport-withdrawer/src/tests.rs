@@ -7,15 +7,17 @@ use neutron_test_tube::{
     },
     Account, Bank, Module, Wasm,
 };
-use valence_astroport_utils::suite::{AstroportTestAppBuilder, AstroportTestAppSetup};
+use valence_astroport_utils::{
+    decimal_range::DecimalRange,
+    suite::{AstroportTestAppBuilder, AstroportTestAppSetup, FEE_DENOM},
+    AssetData, PoolType,
+};
 use valence_library_utils::{
     error::{LibraryError, UnauthorizedReason},
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
-use crate::msg::{
-    FunctionMsgs, LibraryConfig, LibraryConfigUpdate, LiquidityWithdrawerConfig, PoolType,
-};
+use crate::msg::{FunctionMsgs, LibraryConfig, LibraryConfigUpdate, LiquidityWithdrawerConfig};
 
 const CONTRACT_PATH: &str = "../../../artifacts";
 
@@ -146,9 +148,19 @@ fn instantiate_withdrawer_contract(
         .code_id;
 
     let (pool_addr, pool_type) = if native_lp_token {
-        (setup.pool_native_addr.clone(), PoolType::NativeLpToken)
+        (
+            setup.pool_native_addr.clone(),
+            PoolType::NativeLpToken(
+                valence_astroport_utils::astroport_native_lp_token::PairType::Xyk {},
+            ),
+        )
     } else {
-        (setup.pool_cw20_addr.clone(), PoolType::Cw20LpToken)
+        (
+            setup.pool_cw20_addr.clone(),
+            PoolType::Cw20LpToken(
+                valence_astroport_utils::astroport_cw20_lp_token::PairType::Xyk {},
+            ),
+        )
     };
 
     wasm.instantiate(
@@ -160,7 +172,13 @@ fn instantiate_withdrawer_contract(
                 input_acc.as_str(),
                 output_acc.as_str(),
                 pool_addr,
-                LiquidityWithdrawerConfig { pool_type },
+                LiquidityWithdrawerConfig {
+                    pool_type,
+                    asset_data: AssetData {
+                        asset1: setup.pool_asset1.to_string(),
+                        asset2: setup.pool_asset2.to_string(),
+                    },
+                },
             ),
         },
         None,
@@ -183,7 +201,13 @@ pub fn only_owner_can_update_config() {
         output_addr: Some(setup.output_acc.as_str().into()),
         pool_addr: Some(setup.inner.pool_cw20_addr.clone()),
         withdrawer_config: Some(LiquidityWithdrawerConfig {
-            pool_type: PoolType::Cw20LpToken,
+            pool_type: PoolType::Cw20LpToken(
+                valence_astroport_utils::astroport_cw20_lp_token::PairType::Xyk {},
+            ),
+            asset_data: AssetData {
+                asset1: setup.inner.pool_asset1.to_string(),
+                asset2: setup.inner.pool_asset2.to_string(),
+            },
         }),
     };
 
@@ -289,7 +313,9 @@ fn only_processor_can_execute_functions() {
     let error = wasm
         .execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
             &setup.withdrawer_addr,
-            &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {}),
+            &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {
+                expected_pool_ratio_range: None,
+            }),
             &[],
             setup.inner.owner_acc(),
         )
@@ -303,7 +329,9 @@ fn only_processor_can_execute_functions() {
 
     wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
         &setup.withdrawer_addr,
-        &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {}),
+        &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {
+            expected_pool_ratio_range: None,
+        }),
         &[],
         setup.inner.processor_acc(),
     )
@@ -318,7 +346,9 @@ fn withdraw_liquidity_native_lp_token() {
 
     wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
         &setup.withdrawer_addr,
-        &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {}),
+        &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {
+            expected_pool_ratio_range: None,
+        }),
         &[],
         setup.inner.processor_acc(),
     )
@@ -352,7 +382,9 @@ fn withdraw_liquidity_cw20_lp_token() {
 
     wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
         &setup.withdrawer_addr,
-        &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {}),
+        &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {
+            expected_pool_ratio_range: None,
+        }),
         &[],
         setup.inner.processor_acc(),
     )
@@ -376,4 +408,15 @@ fn withdraw_liquidity_cw20_lp_token() {
         .balances
         .iter()
         .any(|c| c.denom == setup.inner.pool_asset2));
+}
+
+#[test]
+fn withdraw_liquidity_validates_expected_decimal_range() {
+    unimplemented!("todo")
+}
+
+#[test]
+// #[should_panic]
+fn withdraw_liquidity_expected_decimal_range_validation_fails() {
+    unimplemented!("todo")
 }

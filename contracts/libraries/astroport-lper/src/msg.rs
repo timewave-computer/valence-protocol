@@ -1,6 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{ensure, Addr, Decimal, Deps, DepsMut, Uint128};
+use cosmwasm_std::{Addr, Decimal, Deps, DepsMut, Uint128};
 use cw_ownable::cw_ownable_query;
+use valence_astroport_utils::{decimal_range::DecimalRange, AssetData, PoolType};
 use valence_library_utils::{
     error::LibraryError, msg::LibraryConfigValidation, LibraryAccountType,
 };
@@ -16,22 +17,6 @@ pub enum FunctionMsgs {
         limit: Option<Uint128>,
         expected_pool_ratio_range: Option<DecimalRange>,
     },
-}
-
-#[cw_serde]
-pub struct DecimalRange {
-    min: Decimal,
-    max: Decimal,
-}
-
-impl DecimalRange {
-    pub fn is_within_range(&self, value: Decimal) -> Result<(), LibraryError> {
-        ensure!(
-            value >= self.min && value <= self.max,
-            LibraryError::ExecutionError("Value is not within the expected range".to_string())
-        );
-        Ok(())
-    }
 }
 
 #[valence_library_query]
@@ -82,20 +67,6 @@ pub struct LiquidityProviderConfig {
     pub asset_data: AssetData,
     /// Slippage tolerance when providing liquidity
     pub slippage_tolerance: Option<Decimal>,
-}
-
-#[cw_serde]
-pub enum PoolType {
-    NativeLpToken(valence_astroport_utils::astroport_native_lp_token::PairType),
-    Cw20LpToken(valence_astroport_utils::astroport_cw20_lp_token::PairType),
-}
-
-#[cw_serde]
-pub struct AssetData {
-    /// Denom of the first asset
-    pub asset1: String,
-    /// Denom of the second asset
-    pub asset2: String,
 }
 
 #[cw_serde]

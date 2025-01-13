@@ -6,15 +6,16 @@ use neutron_test_tube::{
     },
     Account, Bank, Module, NeutronTestApp, Wasm,
 };
-use valence_astroport_utils::suite::{AstroportTestAppBuilder, AstroportTestAppSetup};
+use valence_astroport_utils::{
+    suite::{AstroportTestAppBuilder, AstroportTestAppSetup},
+    AssetData, PoolType,
+};
 use valence_library_utils::{
     error::{LibraryError, UnauthorizedReason},
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
-use crate::msg::{
-    AssetData, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, LiquidityProviderConfig, PoolType,
-};
+use crate::msg::{FunctionMsgs, LibraryConfig, LibraryConfigUpdate, LiquidityProviderConfig};
 
 const CONTRACT_PATH: &str = "../../../artifacts";
 
@@ -500,6 +501,17 @@ fn provide_double_sided_liquidity_native_lp_token() {
         output_acc_balance.balances[0].denom,
         setup.inner.pool_native_liquidity_token
     );
+}
+
+#[test]
+fn provide_double_sided_liquidity_native_lp_token_validates_expected_decimal_range() {
+    unimplemented!("todo")
+}
+
+#[test]
+// #[should_panic]
+fn provide_double_sided_liquidity_native_lp_token_expected_decimal_range_validation_fails() {
+    unimplemented!("todo")
 }
 
 #[test]

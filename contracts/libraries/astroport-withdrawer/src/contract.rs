@@ -57,11 +57,14 @@ mod execute {
 
 mod functions {
     use cosmwasm_std::{CosmosMsg, DepsMut, Env, MessageInfo, Response};
+    use valence_astroport_utils::{
+        decimal_range::DecimalRange, get_pool_asset_amounts, query_pool, PoolType,
+    };
     use valence_library_utils::{error::LibraryError, execute_on_behalf_of};
 
     use crate::{
         astroport_cw20, astroport_native,
-        msg::{Config, FunctionMsgs, PoolType},
+        msg::{Config, FunctionMsgs},
     };
 
     pub fn process_function(
@@ -72,11 +75,41 @@ mod functions {
         cfg: Config,
     ) -> Result<Response, LibraryError> {
         match msg {
-            FunctionMsgs::WithdrawLiquidity {} => withdraw_liquidity(deps, cfg),
+            FunctionMsgs::WithdrawLiquidity {
+                expected_pool_ratio_range,
+            } => withdraw_liquidity(deps, cfg, expected_pool_ratio_range),
         }
     }
 
-    fn withdraw_liquidity(deps: DepsMut, cfg: Config) -> Result<Response, LibraryError> {
+    fn withdraw_liquidity(
+        deps: DepsMut,
+        cfg: Config,
+        expected_pool_ratio_range: Option<DecimalRange>,
+    ) -> Result<Response, LibraryError> {
+        // If we have an expected pool ratio range, we need to check if the pool is within that range
+        if let Some(range) = expected_pool_ratio_range {
+            // Get assets in the pool
+            let pool_response = query_pool(
+                &deps,
+                cfg.pool_addr.as_ref(),
+                &cfg.withdrawer_config.pool_type,
+            )?;
+
+            // Get the amounts of each of the assets of our config in the pool
+            let (pool_asset1_balance, pool_asset2_balance) = get_pool_asset_amounts(
+                pool_response,
+                &cfg.withdrawer_config.asset_data.asset1,
+                &cfg.withdrawer_config.asset_data.asset2,
+            )?;
+
+            // Get the pool asset ratios
+            let pool_asset_ratios =
+                cosmwasm_std::Decimal::checked_from_ratio(pool_asset1_balance, pool_asset2_balance)
+                    .map_err(|e| LibraryError::ExecutionError(e.to_string()))?;
+
+            range.is_within_range(pool_asset_ratios)?;
+        }
+
         let msgs = create_withdraw_liquidity_msgs(&deps, &cfg)?;
 
         let input_account_msgs = execute_on_behalf_of(msgs, &cfg.input_addr)?;
@@ -91,8 +124,10 @@ mod functions {
         cfg: &Config,
     ) -> Result<Vec<CosmosMsg>, LibraryError> {
         match &cfg.withdrawer_config.pool_type {
-            PoolType::NativeLpToken => astroport_native::create_withdraw_liquidity_msgs(deps, cfg),
-            PoolType::Cw20LpToken => astroport_cw20::create_withdraw_liquidity_msgs(deps, cfg),
+            PoolType::NativeLpToken(_) => {
+                astroport_native::create_withdraw_liquidity_msgs(deps, cfg)
+            }
+            PoolType::Cw20LpToken(_) => astroport_cw20::create_withdraw_liquidity_msgs(deps, cfg),
         }
     }
 }

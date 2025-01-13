@@ -57,12 +57,15 @@ mod execute {
 
 mod functions {
     use cosmwasm_std::{Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128};
-    use valence_astroport_utils::decimal_checked_ops::DecimalCheckedOps;
+    use valence_astroport_utils::{
+        decimal_checked_ops::DecimalCheckedOps, decimal_range::DecimalRange,
+        get_pool_asset_amounts, query_pool, AssetTrait, PoolType,
+    };
     use valence_library_utils::{error::LibraryError, execute_on_behalf_of};
 
     use crate::{
         astroport_cw20, astroport_native,
-        msg::{Config, DecimalRange, FunctionMsgs, PoolType},
+        msg::{Config, FunctionMsgs},
     };
 
     pub fn process_function(
@@ -141,57 +144,6 @@ mod functions {
         Ok((balance_asset1, balance_asset2))
     }
 
-    fn query_pool(
-        deps: &DepsMut,
-        pool_addr: &str,
-        pool_type: &PoolType,
-    ) -> Result<Vec<Box<dyn AssetTrait>>, LibraryError> {
-        match pool_type {
-            PoolType::NativeLpToken(_) => {
-                let assets = astroport_native::query_pool(deps, pool_addr)?;
-                Ok(assets
-                    .into_iter()
-                    .map(|asset| Box::new(asset) as Box<dyn AssetTrait>)
-                    .collect())
-            }
-            PoolType::Cw20LpToken(_) => {
-                let assets = astroport_cw20::query_pool(deps, pool_addr)?;
-                Ok(assets
-                    .into_iter()
-                    .map(|asset| Box::new(asset) as Box<dyn AssetTrait>)
-                    .collect())
-            }
-        }
-    }
-
-    fn get_pool_asset_amounts(
-        assets: Vec<Box<dyn AssetTrait>>,
-        asset1_denom: &str,
-        asset2_denom: &str,
-    ) -> Result<(u128, u128), LibraryError> {
-        let (mut asset1_balance, mut asset2_balance) = (0, 0);
-
-        for asset in assets {
-            let coin = asset
-                .as_coin()
-                .map_err(|error| LibraryError::ExecutionError(error.to_string()))?;
-
-            if coin.denom == asset1_denom {
-                asset1_balance = coin.amount.u128();
-            } else if coin.denom == asset2_denom {
-                asset2_balance = coin.amount.u128();
-            }
-        }
-
-        if asset1_balance == 0 || asset2_balance == 0 {
-            return Err(LibraryError::ExecutionError(
-                "All pool assets must be non-zero".to_string(),
-            ));
-        }
-
-        Ok((asset1_balance, asset2_balance))
-    }
-
     fn calculate_provide_amounts(
         balance1: u128,
         balance2: u128,
@@ -235,26 +187,6 @@ mod functions {
             PoolType::Cw20LpToken(_) => {
                 astroport_cw20::create_provide_liquidity_msg(cfg, amount1, amount2)
             }
-        }
-    }
-
-    // Define a trait that both Asset types can implement
-    pub trait AssetTrait {
-        fn as_coin(&self) -> Result<cosmwasm_std::Coin, LibraryError>;
-    }
-
-    // Implement the trait for both Asset types
-    impl AssetTrait for valence_astroport_utils::astroport_native_lp_token::Asset {
-        fn as_coin(&self) -> Result<cosmwasm_std::Coin, LibraryError> {
-            self.as_coin()
-                .map_err(|error| LibraryError::ExecutionError(error.to_string()))
-        }
-    }
-
-    impl AssetTrait for valence_astroport_utils::astroport_cw20_lp_token::Asset {
-        fn as_coin(&self) -> Result<cosmwasm_std::Coin, LibraryError> {
-            self.to_coin()
-                .map_err(|error| LibraryError::ExecutionError(error.to_string()))
         }
     }
 
