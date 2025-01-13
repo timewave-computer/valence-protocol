@@ -2,7 +2,7 @@
 
 A **Valence Program** is an instance of the **Valence Protocol**. A Valence program's execution can typically _span multiple Blockchains_. In the Valence Protocol, we refer to the various Blockchains that are supported as **domains**.
 
-A **Domain** is environment which the components that form a program (more on these later) can be instantiated (deployed) on.
+A **Domain** is an environment in which the components that form a program (more on these later) can be instantiated (deployed).
 
 **Domains** are defined by **three properties**:
   1. The **Chain**: the Blockchain's name _e.g. Neutron, Osmosis, Ethereum mainnet_.
