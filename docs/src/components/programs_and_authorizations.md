@@ -9,11 +9,11 @@ A **Subroutine** can be:
 - **Non Atomic**, i.e., execute function one, if it succeeds execute function two, and if that succeeds do function three, and so on.
 - or **Atomic**, i.e., execution function one, function two, and function three, and if any of them fail then revert all steps.
 
-**Valence programs** are typically used to implement complex, cross-chain workflows performing financial operations, in a trust-minimized way, on funds provided by various third-parties. Therefore, it goes without saying that a program's subroutines should not (all and/or always) be allowed to be executed by just anout anyone.
+**Valence programs** are typically used to implement complex, cross-chain workflows performing financial operations, in a trust-minimized way, on funds provided by various third-parties. Therefore, it goes without saying that a program's subroutines should not (all and/or always) be allowed to be executed by just about anyone.
 
 To specify fine-grained controls over who can initiate the execution of a **Subroutine**, program creators use the **Authorizations** module.
 
-The **Authorizations** module is a very powerful and flexible system that supports simple to more advanced access-control configuration schemes, such as:
+The **Authorizations** module is a powerful and flexible system that supports simple to advanced access control configuration schemes, such as:
 
 - **Anyone** can initiate execution of a **Subroutine**
 - Only **permissioned actors** can initiate execution of a **Subroutine**
@@ -24,7 +24,7 @@ The **Authorizations** module is a very powerful and flexible system that suppor
 - Authorizations can be **enabled/disabled**
 - Authorizations can tightly **constrain parameters**. For example, an authorization to execute a token transfer message can limit the execution to only supply the amount argument, and not the denom or receiver in the transfer message
 
-To support the on-chain execution of **Valence Programs**, the **Valence Protocol** provides 2 important contracts: the **Authorizations contract** and the **Processor contract**.
+To support the on-chain execution of **Valence Programs**, the **Valence Protocol** provides two important contracts: the **Authorizations contract** and the **Processor contract**.
 
 The **Authorizations contract** is the entry point for users. The user sends a set of messages to the Authorizations contract and the label (id) of the authorization they want to execute. The Authorizations contract then verifies that the sender is authorized, that the messages are valid, constructs a _MessageBatch_ based on the subroutine and passes this batch to the **Processor contract** for execution. The authority to execute any _Subroutine_ is tokenized so that these tokens can be transferred on-chain.
 

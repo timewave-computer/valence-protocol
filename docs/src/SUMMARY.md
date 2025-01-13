@@ -28,3 +28,4 @@
   - [Splitter](./libraries/splitter.md)
 - [Examples](./examples/_overview.md)
   - [Token Swap](./examples/token_swap.md)
+  - [Crosschain Vaults](./examples/crosschain_vaults.md)
