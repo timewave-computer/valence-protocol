@@ -110,7 +110,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let gamm_lwer_config = valence_osmosis_gamm_withdrawer::msg::LibraryConfig {
         input_addr: gamm_output_acc.clone(),
         output_addr: final_output_acc.clone(),
-        lw_config: valence_osmosis_gamm_withdrawer::msg::LiquidityWithdrawerConfig { pool_id },
+        lw_config: valence_osmosis_gamm_withdrawer::msg::LiquidityWithdrawerConfig {
+            pool_id,
+            pool_asset_2: OSMOSIS_CHAIN_DENOM.to_string(),
+            pool_asset_1: ntrn_on_osmo_denom.to_string(),
+        },
     };
 
     let gamm_lper_library = builder.add_library(LibraryInfo::new(
@@ -374,7 +378,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let lw_message = ProcessorMessage::CosmwasmExecuteMsg {
         msg: Binary::from(serde_json::to_vec(
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
-                valence_osmosis_gamm_withdrawer::msg::FunctionMsgs::WithdrawLiquidity {},
+                valence_osmosis_gamm_withdrawer::msg::FunctionMsgs::WithdrawLiquidity {
+                    expected_spot_price: None,
+                },
             ),
         )?),
     };

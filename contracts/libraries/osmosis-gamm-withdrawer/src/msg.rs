@@ -8,10 +8,13 @@ use valence_library_utils::{
     error::LibraryError, msg::LibraryConfigValidation, LibraryAccountType,
 };
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
+use valence_osmosis_utils::utils::DecimalRange;
 
 #[cw_serde]
 pub enum FunctionMsgs {
-    WithdrawLiquidity {},
+    WithdrawLiquidity {
+        expected_spot_price: Option<DecimalRange>,
+    },
 }
 
 #[valence_library_query]
@@ -23,6 +26,8 @@ pub enum QueryMsg {}
 #[cw_serde]
 pub struct LiquidityWithdrawerConfig {
     pub pool_id: u64,
+    pub pool_asset_1: String,
+    pub pool_asset_2: String,
 }
 
 #[cw_serde]

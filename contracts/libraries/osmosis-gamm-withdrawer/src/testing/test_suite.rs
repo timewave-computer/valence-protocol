@@ -53,6 +53,8 @@ impl LPerTestSuite {
                 output_acc.as_str(),
                 lw_config.unwrap_or(LiquidityWithdrawerConfig {
                     pool_id: inner.pool_cfg.pool_id.u64(),
+                    pool_asset_1: inner.pool_cfg.pool_asset1.to_string(),
+                    pool_asset_2: inner.pool_cfg.pool_asset2.to_string(),
                 }),
             ),
         };
@@ -117,7 +119,9 @@ impl LPerTestSuite {
 
         wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
             &self.lp_withdrawer_addr,
-            &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {}),
+            &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {
+                expected_spot_price: None,
+            }),
             &[],
             self.inner.processor_acc(),
         )
