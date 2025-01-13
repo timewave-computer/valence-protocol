@@ -3,7 +3,6 @@ use std::error::Error;
 use alloy::sol;
 use cosmwasm_std_old::{Coin, Uint128};
 use local_interchaintest::utils::{
-    ethereum::EthClient,
     hyperlane::{
         bech32_to_hex_address, set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts,
     },
@@ -12,8 +11,7 @@ use local_interchaintest::utils::{
 };
 use localic_std::modules::bank;
 use localic_utils::{
-    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, LOCAL_IC_API_URL, NEUTRON_CHAIN_DENOM,
-    NEUTRON_CHAIN_NAME,
+    utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, LOCAL_IC_API_URL, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME
 };
 
 fn main() -> Result<(), Box<dyn Error>> {

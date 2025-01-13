@@ -3789,8 +3789,9 @@ dependencies = [
 [[package]]
 name = "localic-utils"
 version = "0.1.0"
-source = "git+https://github.com/timewave-computer/localic-utils?branch=main#e2801c6549a7e33599e6c8e5363a4f22942d37fd"
+source = "git+https://github.com/timewave-computer/localic-utils?branch=main#e1750be3dc19192ed92e901ce5f862c17ae5032c"
 dependencies = [
+ "alloy",
  "astroport",
  "cosmwasm-std 1.5.9",
  "derive_builder",
@@ -3801,6 +3802,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "thiserror 1.0.69",
+ "tokio",
 ]
 
 [[package]]

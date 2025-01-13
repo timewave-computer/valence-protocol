@@ -1,11 +1,10 @@
 use localic_std::modules::cosmwasm::{contract_execute, contract_instantiate};
 use localic_utils::{
-    utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM,
+    utils::{ethereum::EthClient, test_context::TestContext}, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM,
     NEUTRON_CHAIN_NAME, NEUTRON_CHAIN_PREFIX,
 };
 
 use super::{
-    ethereum::EthClient,
     solidity_contracts::{
         InterchainGasPaymaster, Mailbox, MerkleTreeHook, PausableIsm, ValidatorAnnounce,
     },
