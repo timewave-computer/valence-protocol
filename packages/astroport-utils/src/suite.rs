@@ -190,7 +190,7 @@ impl AstroportTestAppBuilder {
                         info: crate::astroport_native_lp_token::AssetInfo::NativeToken {
                             denom: denom.to_string(),
                         },
-                        amount: Uint128::new(1_000_000_000),
+                        amount: Uint128::new(2_000_000_000),
                     },
                 ],
                 slippage_tolerance: None,
@@ -199,7 +199,7 @@ impl AstroportTestAppBuilder {
                 min_lp_to_receive: None,
             },
             &[
-                coin(1_000_000_000u128, denom.clone()),
+                coin(2_000_000_000u128, denom.clone()),
                 coin(1_000_000_000u128, FEE_DENOM.to_string()),
             ],
             &accounts[0],
@@ -284,7 +284,7 @@ impl AstroportTestAppBuilder {
                         info: crate::astroport_cw20_lp_token::AssetInfo::NativeToken {
                             denom: denom.clone(),
                         },
-                        amount: Uint128::new(1_000_000_000),
+                        amount: Uint128::new(2_000_000_000),
                     },
                 ],
                 slippage_tolerance: None,
@@ -292,7 +292,7 @@ impl AstroportTestAppBuilder {
                 receiver: None,
             },
             &[
-                coin(1_000_000_000u128, denom.clone()),
+                coin(2_000_000_000u128, denom.clone()),
                 coin(1_000_000_000u128, FEE_DENOM.to_string()),
             ],
             &accounts[0],
