@@ -10,7 +10,7 @@ This section goes into more details in explaining the rationale for these contra
 - To have all the user authorizations for multiple domains in a single place, making it very easy to control the application.
 - To have a single address (`Processor`) that will execute the messages for all the contracts in a domain using execution queues.
 - To only tick a single contract (`Processor`) which will go through the queues to route and execute the messages.
-- Be able to create, edit or remove different application permissions with ease.
+- To be able to create, edit or remove different application permissions with ease.
 
 ## Technical deep-dive:
 
