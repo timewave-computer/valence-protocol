@@ -1,71 +1,25 @@
 use std::error::Error;
 
-use alloy::{network::TransactionBuilder, primitives::U256, rpc::types::TransactionRequest};
+use alloy::sol;
+use cosmwasm_std_old::{Coin, Uint128};
 use local_interchaintest::utils::{
-    ethereum::EthClient, hyperlane::set_up_cw_hyperlane_contracts, solidity_contracts::BaseAccount,
-    DEFAULT_ANVIL_RPC_ENDPOINT, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
+    ethereum::EthClient,
+    hyperlane::{
+        bech32_to_hex_address, set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts,
+    },
+    DEFAULT_ANVIL_RPC_ENDPOINT, HYPERLANE_RELAYER_NEUTRON_WALLET, LOGS_FILE_PATH,
+    VALENCE_ARTIFACTS_PATH,
 };
-use localic_utils::{ConfigChainBuilder, TestContextBuilder, LOCAL_IC_API_URL};
+use localic_std::modules::bank;
+use localic_utils::{
+    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, LOCAL_IC_API_URL, NEUTRON_CHAIN_DENOM,
+    NEUTRON_CHAIN_NAME,
+};
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
     let eth = EthClient::new(DEFAULT_ANVIL_RPC_ENDPOINT)?;
-
-    let block = eth.get_block_number()?;
-    println!("Current block number: {}", block);
-
-    let accounts = eth.get_accounts_addresses()?;
-    println!("Accounts: {:?}", accounts);
-
-    // Get balance
-    let balance = eth.get_balance(accounts[0])?;
-    println!("Balance: {} wei", balance);
-
-    let account = eth.get_account(accounts[0])?;
-    println!("Account 0: {:?}", account);
-
-    let balance_account_0_before = eth.get_balance(accounts[0])?;
-    println!("Balance account 0 before: {} wei", balance_account_0_before);
-    let balance_account_1_before = eth.get_balance(accounts[1])?;
-    println!("Balance account 1 before: {} wei", balance_account_1_before);
-
-    let tx = TransactionRequest::default()
-        .from(accounts[0])
-        .to(accounts[1])
-        .with_value(U256::from(100));
-    let receipt = eth.send_transaction(tx)?;
-    println!("Transaction hash: {}", receipt.transaction_hash);
-
-    let balance_account_0_after = eth.get_balance(accounts[0])?;
-    println!("Balance account 0 after: {} wei", balance_account_0_after);
-    let balance_account_1_after = eth.get_balance(accounts[1])?;
-    println!("Balance account 1 after: {} wei", balance_account_1_after);
-
-    let tx = eth.get_transaction_by_hash(receipt.transaction_hash)?;
-    println!("Transaction: {:?}", tx);
-
-    let transaction = BaseAccount::deploy_builder(&eth.provider, accounts[0], vec![])
-        .into_transaction_request()
-        .from(accounts[0]);
-
-    let contract_address = eth.send_transaction(transaction)?.contract_address.unwrap();
-    println!("Contract Address: {:?}", contract_address);
-
-    let contract = BaseAccount::new(contract_address, &eth.provider);
-
-    let builder = contract.owner();
-    let owner = eth.rt.block_on(async { builder.call().await })?._0;
-    println!("Owner: {:?}", owner);
-
-    let builder = contract.approveLibrary(accounts[1]);
-    let tx = builder.into_transaction_request().from(accounts[0]);
-    eth.send_transaction(tx)?;
-
-    // Check that approved libraries was updated
-    let builder = contract.approvedLibraries(accounts[1]);
-    let approved_libraries = eth.rt.block_on(async { builder.call().await })?._0;
-    println!("Approved Libraries: {:?}", approved_libraries);
 
     let mut test_ctx = TestContextBuilder::default()
         .with_unwrap_raw_logs(true)
@@ -79,6 +33,84 @@ fn main() -> Result<(), Box<dyn Error>> {
     let neutron_hyperlane_contracts = set_up_cw_hyperlane_contracts(&mut test_ctx)?;
 
     println!("Neutron Mailbox: {:?}", neutron_hyperlane_contracts.mailbox);
+    println!("Neutron IGP: {:?}", neutron_hyperlane_contracts.igp);
+    println!(
+        "Neutron ISM: {:?}",
+        neutron_hyperlane_contracts.ism_pausable
+    );
+    println!(
+        "Neutron Hook Merkle: {:?}",
+        neutron_hyperlane_contracts.hook_merkle
+    );
+    println!(
+        "Neutron Validator Announce: {:?}",
+        neutron_hyperlane_contracts.validator_announce
+    );
+
+    println!(
+        "Neutron Mailbox hex: {:?}",
+        bech32_to_hex_address(&neutron_hyperlane_contracts.mailbox)?
+    );
+    println!(
+        "Neutron IGP hex: {:?}",
+        bech32_to_hex_address(&neutron_hyperlane_contracts.igp)?
+    );
+    println!(
+        "Neutron ISM hex: {:?}",
+        bech32_to_hex_address(&neutron_hyperlane_contracts.ism_pausable)?
+    );
+    println!(
+        "Neutron Hook Merkle hex: {:?}",
+        bech32_to_hex_address(&neutron_hyperlane_contracts.hook_merkle)?
+    );
+    println!(
+        "Neutron Validator Announce hex: {:?}",
+        bech32_to_hex_address(&neutron_hyperlane_contracts.validator_announce)?
+    );
+
+    let eth_hyperlane_contracts = set_up_eth_hyperlane_contracts(&eth, 1)?;
+    println!("Eth Mailbox: {:?}", eth_hyperlane_contracts.mailbox);
+    println!("Eth IGP: {:?}", eth_hyperlane_contracts.igp);
+    println!("Eth ISM: {:?}", eth_hyperlane_contracts.ism_pausable);
+    println!("Eth Hook Merkle: {:?}", eth_hyperlane_contracts.hook_merkle);
+    println!(
+        "Eth Validator Announce: {:?}",
+        eth_hyperlane_contracts.validator_announce
+    );
+
+    // Create a Test Recipient
+    sol!(
+        #[sol(rpc)]
+        TestRecipient,
+        "./hyperlane/contracts/solidity/TestRecipient.json",
+    );
+
+    let accounts = eth.get_accounts_addresses()?;
+
+    let tx = TestRecipient::deploy_builder(&eth.provider)
+        .into_transaction_request()
+        .from(accounts[0]);
+
+    let test_recipient = eth.send_transaction(tx)?.contract_address.unwrap();
+    println!("Test Recipient: {:?}", test_recipient);
+
+    bank::send(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        &HYPERLANE_RELAYER_NEUTRON_WALLET,
+        &[Coin {
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
+            amount: Uint128::new(1000000000),
+        }],
+        &Coin {
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
+            amount: cosmwasm_std_old::Uint128::new(5000),
+        },
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
     Ok(())
 }

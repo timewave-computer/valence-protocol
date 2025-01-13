@@ -4,13 +4,28 @@ use localic_utils::{
     NEUTRON_CHAIN_NAME, NEUTRON_CHAIN_PREFIX,
 };
 
-use super::{GAS_FLAGS, HYPERLANE_COSMWASM_ARTIFACTS_PATH, LOCAL_CODE_ID_CACHE_PATH_NEUTRON};
-
+use super::{
+    ethereum::EthClient,
+    solidity_contracts::{
+        InterchainGasPaymaster, Mailbox, MerkleTreeHook, PausableIsm, ValidatorAnnounce,
+    },
+    GAS_FLAGS, HYPERLANE_COSMWASM_ARTIFACTS_PATH, LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
+};
 pub struct HyperlaneContracts {
     pub mailbox: String,
-    pub hook_pausable: String,
+    pub hook_merkle: String,
     pub igp: String,
     pub ism_pausable: String,
+    pub validator_announce: String,
+}
+
+/// Converts a bech32 address to a hex address equivalent
+pub fn bech32_to_hex_address(bech32_address: &str) -> Result<String, Box<dyn std::error::Error>> {
+    // Decode the bech32 address
+    let (_, data) = bech32::decode(bech32_address)?;
+    // Convert to hex and add 0x prefix
+    let hex = format!("0x{}", hex::encode(data));
+    Ok(hex)
 }
 
 pub fn set_up_cw_hyperlane_contracts(
@@ -51,26 +66,25 @@ pub fn set_up_cw_hyperlane_contracts(
     .unwrap()
     .address;
 
-    let pausable_hook_code_id = test_ctx
+    let merkle_hook_code_id = test_ctx
         .get_contract()
-        .contract("hpl_hook_pausable")
+        .contract("hpl_hook_merkle")
         .get_cw()
         .code_id
         .unwrap();
 
-    let hook_pausable_instantiate_msg = hpl_interface::hook::pausable::InstantiateMsg {
-        owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        paused: false,
+    let hook_merkle_instantiate_msg = hpl_interface::hook::merkle::InstantiateMsg {
+        mailbox: mailbox.clone(),
     };
 
-    let hook_pausable = contract_instantiate(
+    let hook_merkle = contract_instantiate(
         &test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
         DEFAULT_KEY,
-        pausable_hook_code_id,
-        &serde_json::to_string(&hook_pausable_instantiate_msg).unwrap(),
-        "hook_pausable",
+        merkle_hook_code_id,
+        &serde_json::to_string(&hook_merkle_instantiate_msg).unwrap(),
+        "hook_merkle",
         None,
         "",
     )
@@ -135,12 +149,38 @@ pub fn set_up_cw_hyperlane_contracts(
     .unwrap()
     .address;
 
+    let validator_announce_code_id = test_ctx
+        .get_contract()
+        .contract("hpl_validator_announce")
+        .get_cw()
+        .code_id
+        .unwrap();
+
+    let validator_announce_instantiate_msg = hpl_interface::core::va::InstantiateMsg {
+        hrp: NEUTRON_CHAIN_PREFIX.to_string(),
+        mailbox: mailbox.clone(),
+    };
+
+    let validator_announce = contract_instantiate(
+        &test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        validator_announce_code_id,
+        &serde_json::to_string(&validator_announce_instantiate_msg).unwrap(),
+        "validator_announce",
+        None,
+        "",
+    )
+    .unwrap()
+    .address;
+
     // Set hooks and ISM on mailbox
     let mailbox_set_default_hook_msg = hpl_interface::core::mailbox::ExecuteMsg::SetDefaultHook {
-        hook: hook_pausable.clone(),
+        hook: hook_merkle.clone(),
     };
     let mailbox_set_required_hook_msg = hpl_interface::core::mailbox::ExecuteMsg::SetRequiredHook {
-        hook: hook_pausable.clone(),
+        hook: hook_merkle.clone(),
     };
     let mailbox_set_default_ism_msg = hpl_interface::core::mailbox::ExecuteMsg::SetDefaultIsm {
         ism: ism_pausable.clone(),
@@ -178,13 +218,85 @@ pub fn set_up_cw_hyperlane_contracts(
         DEFAULT_KEY,
         &serde_json::to_string(&mailbox_set_default_ism_msg).unwrap(),
         GAS_FLAGS,
-    ).unwrap();
+    )
+    .unwrap();
     std::thread::sleep(std::time::Duration::from_secs(3));
 
     Ok(HyperlaneContracts {
         mailbox,
-        hook_pausable,
+        hook_merkle,
         igp,
         ism_pausable,
+        validator_announce,
+    })
+}
+
+pub fn set_up_eth_hyperlane_contracts(
+    eth_client: &EthClient,
+    domain_id: u32,
+) -> Result<HyperlaneContracts, Box<dyn std::error::Error>> {
+    let accounts = eth_client.get_accounts_addresses()?;
+
+    let transaction = Mailbox::deploy_builder(&eth_client.provider, domain_id)
+        .into_transaction_request()
+        .from(accounts[0]);
+
+    let mailbox = eth_client
+        .send_transaction(transaction)?
+        .contract_address
+        .unwrap();
+
+    let transaction = MerkleTreeHook::deploy_builder(&eth_client.provider, mailbox.clone())
+        .into_transaction_request()
+        .from(accounts[0]);
+
+    let hook_merkle = eth_client
+        .send_transaction(transaction)?
+        .contract_address
+        .unwrap();
+
+    let transaction = InterchainGasPaymaster::deploy_builder(&eth_client.provider)
+        .into_transaction_request()
+        .from(accounts[0]);
+
+    let igp = eth_client
+        .send_transaction(transaction)?
+        .contract_address
+        .unwrap();
+
+    let transaction = PausableIsm::deploy_builder(&eth_client.provider, accounts[0])
+        .into_transaction_request()
+        .from(accounts[0]);
+
+    let ism_pausable = eth_client
+        .send_transaction(transaction)?
+        .contract_address
+        .unwrap();
+
+    let transaction = ValidatorAnnounce::deploy_builder(&eth_client.provider, mailbox.clone())
+        .into_transaction_request()
+        .from(accounts[0]);
+
+    let validator_announce = eth_client
+        .send_transaction(transaction)?
+        .contract_address
+        .unwrap();
+
+    
+
+    // Set hooks and ISM on mailbox
+    let mailbox_contract = Mailbox::new(mailbox.clone(), &eth_client.provider);
+    let tx = mailbox_contract
+        .initialize(accounts[0], ism_pausable, hook_merkle, hook_merkle)
+        .into_transaction_request()
+        .from(accounts[0]);
+    eth_client.send_transaction(tx)?;
+
+    Ok(HyperlaneContracts {
+        mailbox: mailbox.to_string(),
+        hook_merkle: hook_merkle.to_string(),
+        igp: igp.to_string(),
+        ism_pausable: ism_pausable.to_string(),
+        validator_announce: validator_announce.to_string(),
     })
 }

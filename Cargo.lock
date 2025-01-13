@@ -3723,6 +3723,7 @@ name = "local-interchaintest"
 version = "0.1.0"
 dependencies = [
  "alloy",
+ "bech32 0.11.0",
  "cosmos-grpc-client",
  "cosmwasm-schema 2.2.0",
  "cosmwasm-std 1.5.9",
