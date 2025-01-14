@@ -15,6 +15,7 @@ use valence_library_utils::msg::{ExecuteMsg, InstantiateMsg};
 use valence_osmosis_utils::{
     suite::{OsmosisTestAppBuilder, OsmosisTestAppSetup},
     testing::balancer::BalancerPool,
+    utils::DecimalRange,
 };
 
 use crate::msg::{FunctionMsgs, LibraryConfig, LibraryConfigUpdate, LiquidityWithdrawerConfig};
@@ -114,13 +115,16 @@ impl LPerTestSuite {
         try_proto_to_cosmwasm_coins(resp.balances)
     }
 
-    pub fn withdraw_liquidity(&self) -> ExecuteResponse<MsgExecuteContractResponse> {
+    pub fn withdraw_liquidity(
+        &self,
+        expected_spot_price: Option<DecimalRange>,
+    ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
         wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
             &self.lp_withdrawer_addr,
             &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {
-                expected_spot_price: None,
+                expected_spot_price,
             }),
             &[],
             self.inner.processor_acc(),

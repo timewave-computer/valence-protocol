@@ -78,15 +78,16 @@ fn try_withdraw_liquidity(
 ) -> Result<Response, LibraryError> {
     let pm_querier = PoolmanagerQuerier::new(&deps.querier);
 
-    let pool_ratio = pm_querier.query_spot_price(
-        cfg.lw_config.pool_id,
-        cfg.lw_config.pool_asset_1,
-        cfg.lw_config.pool_asset_2,
-    )?;
-
     // assert the spot price to be within our expectations,
     // if expectations are set.
     if let Some(acceptable_spot_price_range) = expected_spot_price {
+        let pool_ratio = pm_querier.query_spot_price(
+            cfg.lw_config.pool_id,
+            cfg.lw_config.pool_asset_1,
+            cfg.lw_config.pool_asset_2,
+        )?;
+
+        // perform the spot price validation
         acceptable_spot_price_range.contains(pool_ratio)?;
     }
 

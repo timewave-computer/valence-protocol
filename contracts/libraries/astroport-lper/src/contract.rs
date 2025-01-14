@@ -59,7 +59,7 @@ mod functions {
     use cosmwasm_std::{Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128};
     use valence_astroport_utils::{
         decimal_checked_ops::DecimalCheckedOps, decimal_range::DecimalRange,
-        get_pool_asset_amounts, query_pool, AssetTrait, PoolType,
+        get_pool_asset_amounts, query_pool, PoolType,
     };
     use valence_library_utils::{error::LibraryError, execute_on_behalf_of};
 

@@ -8,8 +8,7 @@ use neutron_test_tube::{
     Account, Bank, Module, Wasm,
 };
 use valence_astroport_utils::{
-    decimal_range::DecimalRange,
-    suite::{AstroportTestAppBuilder, AstroportTestAppSetup, FEE_DENOM},
+    suite::{AstroportTestAppBuilder, AstroportTestAppSetup},
     AssetData, PoolType,
 };
 use valence_library_utils::{

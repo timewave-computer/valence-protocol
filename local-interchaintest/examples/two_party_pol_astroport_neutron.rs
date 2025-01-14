@@ -28,7 +28,7 @@ use valence_astroport_utils::{
     astroport_native_lp_token::{
         Asset, AssetInfo, FactoryInstantiateMsg, FactoryQueryMsg, PairConfig, PairType,
     },
-    AssetData, PoolType,
+    AssetData,
 };
 use valence_authorization_utils::{
     authorization::{AuthorizationModeInfo, PermissionTypeInfo},
