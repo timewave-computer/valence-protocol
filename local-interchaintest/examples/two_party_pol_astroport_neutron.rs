@@ -24,11 +24,8 @@ use log::info;
 use rand::{distributions::Alphanumeric, Rng};
 use serde_json::Value;
 use valence_astroport_lper::msg::LiquidityProviderConfig;
-use valence_astroport_utils::{
-    astroport_native_lp_token::{
-        Asset, AssetInfo, FactoryInstantiateMsg, FactoryQueryMsg, PairConfig, PairType,
-    },
-    AssetData,
+use valence_astroport_utils::astroport_native_lp_token::{
+    Asset, AssetInfo, FactoryInstantiateMsg, FactoryQueryMsg, PairConfig, PairType,
 };
 use valence_authorization_utils::{
     authorization::{AuthorizationModeInfo, PermissionTypeInfo},
@@ -37,7 +34,9 @@ use valence_authorization_utils::{
     msg::ProcessorMessage,
 };
 use valence_forwarder_library::msg::{ForwardingConstraints, UncheckedForwardingConfig};
-use valence_library_utils::{denoms::UncheckedDenom, LibraryAccountType};
+use valence_library_utils::{
+    denoms::UncheckedDenom, liquidity_utils::AssetData, LibraryAccountType,
+};
 use valence_program_manager::{
     account::{AccountInfo, AccountType},
     library::{LibraryConfig, LibraryInfo},

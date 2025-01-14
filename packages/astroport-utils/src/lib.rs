@@ -4,7 +4,6 @@ use valence_library_utils::error::LibraryError;
 
 pub mod astroport_cw20_lp_token;
 pub mod astroport_native_lp_token;
-pub mod decimal_range;
 
 #[cfg(feature = "testing")]
 pub mod suite;
@@ -33,14 +32,6 @@ impl AssetTrait for astroport_cw20_lp_token::Asset {
 pub enum PoolType {
     NativeLpToken(astroport_native_lp_token::PairType),
     Cw20LpToken(astroport_cw20_lp_token::PairType),
-}
-
-#[cw_serde]
-pub struct AssetData {
-    /// Denom of the first asset
-    pub asset1: String,
-    /// Denom of the second asset
-    pub asset2: String,
 }
 
 pub fn query_pool(

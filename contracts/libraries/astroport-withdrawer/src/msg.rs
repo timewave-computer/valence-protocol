@@ -1,9 +1,12 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut};
 use cw_ownable::cw_ownable_query;
-use valence_astroport_utils::{decimal_range::DecimalRange, AssetData, PoolType};
+use valence_astroport_utils::PoolType;
 use valence_library_utils::{
-    error::LibraryError, msg::LibraryConfigValidation, LibraryAccountType,
+    error::LibraryError,
+    liquidity_utils::{AssetData, DecimalRange},
+    msg::LibraryConfigValidation,
+    LibraryAccountType,
 };
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
 

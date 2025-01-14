@@ -56,11 +56,11 @@ mod execute {
 }
 
 mod functions {
-    use cosmwasm_std::{CosmosMsg, DepsMut, Env, MessageInfo, Response};
-    use valence_astroport_utils::{
-        decimal_range::DecimalRange, get_pool_asset_amounts, query_pool, PoolType,
+    use cosmwasm_std::{CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Response};
+    use valence_astroport_utils::{get_pool_asset_amounts, query_pool, PoolType};
+    use valence_library_utils::{
+        error::LibraryError, execute_on_behalf_of, liquidity_utils::DecimalRange,
     };
-    use valence_library_utils::{error::LibraryError, execute_on_behalf_of};
 
     use crate::{
         astroport_cw20, astroport_native,
@@ -104,10 +104,10 @@ mod functions {
 
             // Get the pool asset ratios
             let pool_asset_ratios =
-                cosmwasm_std::Decimal::checked_from_ratio(pool_asset1_balance, pool_asset2_balance)
+                Decimal::checked_from_ratio(pool_asset1_balance, pool_asset2_balance)
                     .map_err(|e| LibraryError::ExecutionError(e.to_string()))?;
 
-            range.is_within_range(pool_asset_ratios)?;
+            range.contains(pool_asset_ratios)?;
         }
 
         let msgs = create_withdraw_liquidity_msgs(&deps, &cfg)?;

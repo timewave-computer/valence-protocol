@@ -2,7 +2,8 @@ use std::str::FromStr;
 
 use cosmwasm_std::{coin, Decimal};
 
-use valence_osmosis_utils::{suite::OSMO_DENOM, utils::DecimalRange};
+use valence_library_utils::liquidity_utils::{AssetData, DecimalRange};
+use valence_osmosis_utils::suite::OSMO_DENOM;
 
 use crate::msg::LiquidityProviderConfig;
 
@@ -15,8 +16,10 @@ fn test_provide_liquidity_fails_validation() {
         vec![coin(1_000_000u128, OSMO_DENOM)],
         Some(LiquidityProviderConfig {
             pool_id: 1,
-            pool_asset_1: OSMO_DENOM.to_string(),
-            pool_asset_2: "random_denom".to_string(),
+            asset_data: AssetData {
+                asset1: OSMO_DENOM.to_string(),
+                asset2: "random_denom".to_string(),
+            },
         }),
     );
 }
@@ -26,10 +29,10 @@ fn test_provide_liquidity_fails_validation() {
 fn test_provide_two_sided_liquidity_out_of_range() {
     let setup = LPerTestSuite::default();
 
-    setup.provide_two_sided_liquidity(Some(DecimalRange::from((
+    setup.provide_two_sided_liquidity(Some(DecimalRange::new(
         Decimal::from_str("0.0009").unwrap(),
         Decimal::from_str("0.1111").unwrap(),
-    ))));
+    )));
 }
 
 #[test]
@@ -60,10 +63,10 @@ fn test_provide_two_sided_liquidity_valid_range() {
     assert_eq!(input_bals.len(), 2);
     assert_eq!(output_bals.len(), 0);
 
-    setup.provide_two_sided_liquidity(Some(DecimalRange::from((
+    setup.provide_two_sided_liquidity(Some(DecimalRange::new(
         Decimal::from_str("0.9").unwrap(),
         Decimal::from_str("1.1").unwrap(),
-    ))));
+    )));
 
     let input_bals = setup.query_all_balances(&setup.input_acc).unwrap();
     let output_bals = setup.query_all_balances(&setup.output_acc).unwrap();
@@ -79,10 +82,10 @@ fn test_provide_single_sided_liquidity_out_of_range() {
     setup.provide_single_sided_liquidity(
         OSMO_DENOM,
         10_000u128.into(),
-        Some(DecimalRange::from((
+        Some(DecimalRange::new(
             Decimal::from_str("0.00001").unwrap(),
             Decimal::from_str("0.11111").unwrap(),
-        ))),
+        )),
     );
 }
 
@@ -117,10 +120,10 @@ fn test_provide_single_sided_liquidity_valid_range() {
     setup.provide_single_sided_liquidity(
         OSMO_DENOM,
         10_000u128.into(),
-        Some(DecimalRange::from((
+        Some(DecimalRange::new(
             Decimal::from_str("0.9").unwrap(),
             Decimal::from_str("1.1").unwrap(),
-        ))),
+        )),
     );
 
     let input_bals = setup.query_all_balances(&setup.input_acc).unwrap();

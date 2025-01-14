@@ -56,12 +56,13 @@ mod execute {
 }
 
 mod functions {
-    use cosmwasm_std::{Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128};
+    use cosmwasm_std::{Coin, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Response, Uint128};
     use valence_astroport_utils::{
-        decimal_checked_ops::DecimalCheckedOps, decimal_range::DecimalRange,
-        get_pool_asset_amounts, query_pool, PoolType,
+        decimal_checked_ops::DecimalCheckedOps, get_pool_asset_amounts, query_pool, PoolType,
     };
-    use valence_library_utils::{error::LibraryError, execute_on_behalf_of};
+    use valence_library_utils::{
+        error::LibraryError, execute_on_behalf_of, liquidity_utils::DecimalRange,
+    };
 
     use crate::{
         astroport_cw20, astroport_native,
@@ -106,12 +107,12 @@ mod functions {
 
         // Get the pool asset ratios
         let pool_asset_ratios =
-            cosmwasm_std::Decimal::checked_from_ratio(pool_asset1_balance, pool_asset2_balance)
+            Decimal::checked_from_ratio(pool_asset1_balance, pool_asset2_balance)
                 .map_err(|e| LibraryError::ExecutionError(e.to_string()))?;
 
         // If we have an expected pool ratio range, we need to check if the pool is within that range
         if let Some(range) = expected_pool_ratio_range {
-            range.is_within_range(pool_asset_ratios)?;
+            range.contains(pool_asset_ratios)?;
         }
 
         let (asset1_provide_amount, asset2_provide_amount) = calculate_provide_amounts(
@@ -149,7 +150,7 @@ mod functions {
         balance2: u128,
         pool_asset1_balance: u128,
         pool_asset2_balance: u128,
-        pool_asset_ratio: cosmwasm_std::Decimal,
+        pool_asset_ratio: Decimal,
     ) -> Result<(u128, u128), LibraryError> {
         // Let's get the maximum amount of assets that we can provide liquidity
         let required_asset1_amount = pool_asset_ratio
@@ -161,9 +162,8 @@ mod functions {
             Ok((required_asset1_amount.u128(), balance2))
         } else {
             // We can't provide all asset2 tokens so we need to determine how many we can provide according to our available asset1
-            let ratio =
-                cosmwasm_std::Decimal::checked_from_ratio(pool_asset2_balance, pool_asset1_balance)
-                    .map_err(|e| LibraryError::ExecutionError(e.to_string()))?;
+            let ratio = Decimal::checked_from_ratio(pool_asset2_balance, pool_asset1_balance)
+                .map_err(|e| LibraryError::ExecutionError(e.to_string()))?;
 
             Ok((
                 balance1,
@@ -222,9 +222,9 @@ mod functions {
         // Check pool ratio if range is provided
         if let Some(range) = expected_pool_ratio_range {
             let pool_asset_ratios =
-                cosmwasm_std::Decimal::checked_from_ratio(pool_asset1_balance, pool_asset2_balance)
+                Decimal::checked_from_ratio(pool_asset1_balance, pool_asset2_balance)
                     .map_err(|e| LibraryError::ExecutionError(e.to_string()))?;
-            range.is_within_range(pool_asset_ratios)?;
+            range.contains(pool_asset_ratios)?;
         }
 
         // Check limit if provided

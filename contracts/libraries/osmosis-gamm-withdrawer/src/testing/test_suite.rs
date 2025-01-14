@@ -11,11 +11,13 @@ use osmosis_test_tube::{
     },
     Account, Bank, ExecuteResponse, Module, Wasm,
 };
-use valence_library_utils::msg::{ExecuteMsg, InstantiateMsg};
+use valence_library_utils::{
+    liquidity_utils::{AssetData, DecimalRange},
+    msg::{ExecuteMsg, InstantiateMsg},
+};
 use valence_osmosis_utils::{
     suite::{OsmosisTestAppBuilder, OsmosisTestAppSetup},
     testing::balancer::BalancerPool,
-    utils::DecimalRange,
 };
 
 use crate::msg::{FunctionMsgs, LibraryConfig, LibraryConfigUpdate, LiquidityWithdrawerConfig};
@@ -54,8 +56,10 @@ impl LPerTestSuite {
                 output_acc.as_str(),
                 lw_config.unwrap_or(LiquidityWithdrawerConfig {
                     pool_id: inner.pool_cfg.pool_id.u64(),
-                    pool_asset_1: inner.pool_cfg.pool_asset1.to_string(),
-                    pool_asset_2: inner.pool_cfg.pool_asset2.to_string(),
+                    asset_data: AssetData {
+                        asset1: inner.pool_cfg.pool_asset1.to_string(),
+                        asset2: inner.pool_cfg.pool_asset2.to_string(),
+                    },
                 }),
             ),
         };

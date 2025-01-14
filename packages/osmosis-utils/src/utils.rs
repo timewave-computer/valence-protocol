@@ -13,27 +13,27 @@ pub struct LiquidityProviderConfig {
     pub pool_asset_2: String,
 }
 
-#[cw_serde]
-pub struct DecimalRange {
-    min: Decimal,
-    max: Decimal,
-}
+// #[cw_serde]
+// pub struct DecimalRange {
+//     min: Decimal,
+//     max: Decimal,
+// }
 
-impl From<(Decimal, Decimal)> for DecimalRange {
-    fn from((min, max): (Decimal, Decimal)) -> Self {
-        DecimalRange { min, max }
-    }
-}
+// impl From<(Decimal, Decimal)> for DecimalRange {
+//     fn from((min, max): (Decimal, Decimal)) -> Self {
+//         DecimalRange { min, max }
+//     }
+// }
 
-impl DecimalRange {
-    pub fn contains(&self, value: Decimal) -> Result<(), LibraryError> {
-        ensure!(
-            value >= self.min && value <= self.max,
-            LibraryError::ExecutionError("Value is not within the expected range".to_string())
-        );
-        Ok(())
-    }
-}
+// impl DecimalRange {
+//     pub fn contains(&self, value: Decimal) -> Result<(), LibraryError> {
+//         ensure!(
+//             value >= self.min && value <= self.max,
+//             LibraryError::ExecutionError("Value is not within the expected range".to_string())
+//         );
+//         Ok(())
+//     }
+// }
 
 pub fn get_provide_liquidity_msg(
     input_addr: &str,

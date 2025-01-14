@@ -1,5 +1,5 @@
 use cosmwasm_std::{coin, Decimal};
-use valence_osmosis_utils::utils::DecimalRange;
+use valence_library_utils::liquidity_utils::DecimalRange;
 
 use super::test_suite::LPerTestSuite;
 
@@ -63,10 +63,10 @@ fn test_withdraw_liquidity_pool_ratio_validation_fails() {
     assert_eq!(pre_lp_output_bals.len(), 0);
 
     // set the expected spot price to one that does not contain the pool ratio (1.0)
-    let expected_spot_price = DecimalRange::from((
+    let expected_spot_price = DecimalRange::new(
         Decimal::from_ratio(15u128, 1u128),
         Decimal::from_ratio(20u128, 1u128),
-    ));
+    );
 
     suite.withdraw_liquidity(Some(expected_spot_price));
 }
@@ -77,10 +77,10 @@ fn test_withdraw_liquidity_pool_ratio_validation_succeeds() {
     let suite = LPerTestSuite::new(lp_token_amt, None);
 
     // set the expected spot price to (0.1, 2.0)
-    let expected_spot_price = DecimalRange::from((
+    let expected_spot_price = DecimalRange::new(
         Decimal::from_ratio(1u128, 10u128),
         Decimal::from_ratio(2u128, 1u128),
-    ));
+    );
 
     // withdraw the liquidity with price range expectations that should pass
     suite.withdraw_liquidity(Some(expected_spot_price));

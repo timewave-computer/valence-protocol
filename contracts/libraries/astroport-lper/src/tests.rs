@@ -7,12 +7,12 @@ use neutron_test_tube::{
     Account, Bank, Module, NeutronTestApp, Wasm,
 };
 use valence_astroport_utils::{
-    decimal_range::DecimalRange,
     suite::{AstroportTestAppBuilder, AstroportTestAppSetup},
-    AssetData, PoolType,
+    PoolType,
 };
 use valence_library_utils::{
     error::{LibraryError, UnauthorizedReason},
+    liquidity_utils::{AssetData, DecimalRange},
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
