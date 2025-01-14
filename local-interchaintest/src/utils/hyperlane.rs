@@ -504,69 +504,49 @@ async fn run_hyperlane_relayer(
     chain1: &str,
     chain2: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Get current working directory for mounting paths
-    let current_dir = std::env::current_dir()?;
-    let base_dir = current_dir.join("local-interchaintest");
-    let hyperlane_db_relayer_location = "hyperlane_db_relayer";
-    let hyperlane_validator_signatures_location = "tmp/hyperlane_validator_signatures";
+    let base_dir = std::env::current_dir()?.join("local-interchaintest");
 
-    // First remove directories if they exist
-    if Path::new(&base_dir.join(hyperlane_db_relayer_location)).exists() {
-        fs::remove_dir_all(base_dir.join(hyperlane_db_relayer_location))?;
+    let paths = ["hyperlane_db_relayer", "tmp/hyperlane_validator_signatures"];
+
+    // Clean up and recreate directories
+    for path in &paths {
+        let full_path = base_dir.join(path);
+        if full_path.exists() {
+            fs::remove_dir_all(&full_path)?;
+        }
+        std::fs::create_dir_all(&full_path)?;
     }
-    if Path::new(&base_dir.join(hyperlane_validator_signatures_location)).exists() {
-        fs::remove_dir_all(base_dir.join(hyperlane_validator_signatures_location))?;
-    }
 
-    // Create required directories for relayer operation
-    std::fs::create_dir_all(base_dir.join(hyperlane_db_relayer_location))?;
-    std::fs::create_dir_all(base_dir.join(hyperlane_validator_signatures_location))?;
-
-    // Set up mount paths for configuration and data
     let config_path = base_dir.join("hyperlane/config/config.json");
     let config_path_str = config_path.to_str().unwrap();
 
-    // Define mount configurations for the container
-    let mounts = vec![
-        // Mount for config file
-        Mount {
-            target: Some(config_path_str.to_string()),
-            source: Some(config_path_str.to_string()),
-            typ: Some(MountTypeEnum::BIND),
-            read_only: Some(true),
-            ..Default::default()
-        },
-        // Mount for database
-        Mount {
-            target: Some("/hyperlane_db".to_string()),
-            source: Some(
-                base_dir
-                    .join(hyperlane_db_relayer_location)
-                    .to_str()
-                    .unwrap()
-                    .to_string(),
-            ),
-            typ: Some(MountTypeEnum::BIND),
-            read_only: Some(false),
-            ..Default::default()
-        },
-        // Mount for validator signatures
-        Mount {
-            target: Some("/tmp/hyperlane_validator_signatures".to_string()),
-            source: Some(
-                base_dir
-                    .join(hyperlane_validator_signatures_location)
-                    .to_str()
-                    .unwrap()
-                    .to_string(),
-            ),
-            typ: Some(MountTypeEnum::BIND),
-            read_only: Some(true),
-            ..Default::default()
-        },
-    ];
+    // Define mount configurations
+    let mut mounts = vec![Mount {
+        target: Some(config_path_str.to_string()),
+        source: Some(config_path_str.to_string()),
+        typ: Some(MountTypeEnum::BIND),
+        read_only: Some(true),
+        ..Default::default()
+    }];
 
-    // Rest of the code remains the same...
+    // Add DB mount
+    mounts.push(Mount {
+        target: Some("/hyperlane_db".to_string()),
+        source: Some(base_dir.join(paths[0]).to_str().unwrap().to_string()),
+        typ: Some(MountTypeEnum::BIND),
+        read_only: Some(false),
+        ..Default::default()
+    });
+
+    // Add validator signatures mount
+    mounts.push(Mount {
+        target: Some("/tmp/hyperlane_validator_signatures".to_string()),
+        source: Some(base_dir.join(paths[1]).to_str().unwrap().to_string()),
+        typ: Some(MountTypeEnum::BIND),
+        read_only: Some(true),
+        ..Default::default()
+    });
+
     let config_files = format!("CONFIG_FILES={}", config_path_str);
     let relay_chains = format!("{},{}", chain1, chain2);
 
@@ -601,6 +581,7 @@ async fn run_hyperlane_relayer(
         .start_container::<String>(&container.id, None)
         .await?;
     info!("Started relayer container: {}", container.id);
+
     Ok(())
 }
 
