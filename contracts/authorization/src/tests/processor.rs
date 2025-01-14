@@ -2750,7 +2750,7 @@ fn refund_and_burn_tokens_after_callback() {
             .as_str()
     ));
 
-    // Let's balance of the user to verify he only has 1 token left
+    // Check the balance of the user to verify that they don't have any tokens left
     let balance = bank
         .query_balance(&QueryBalanceRequest {
             address: setup.user_accounts[0].address(),
