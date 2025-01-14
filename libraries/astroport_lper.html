@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Osmosis GAMM LPer - Valence Protocol Documentation</title>
+        <title>Astroport LPer - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -157,36 +157,36 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="osmosis-gamm-lper-library"><a class="header" href="#osmosis-gamm-lper-library">Osmosis GAMM LPer library</a></h1>
-<p>The <strong>Valence Osmosis GAMM LPer library</strong> library allows to <strong>join a pool</strong> on <strong>Osmosis</strong>, using the <strong>GAMM module</strong> (Generalized Automated Market Maker), from an <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into an <strong>output account</strong>.</p>
+                        <h1 id="astroport-lper-library"><a class="header" href="#astroport-lper-library">Astroport LPer library</a></h1>
+<p>The <strong>Valence Astroport LPer library</strong> library allows to <strong>provide liquidity</strong> into an <strong>Astroport Liquidity Pool</strong> from an <strong>input account</strong> and deposit the <strong>LP tokens</strong> into an <strong>output account</strong>.</p>
 <h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
 <pre class="mermaid">---
-title: Osmosis GAMM Liquidity Provider
+title: Astroport Liquidity Provider
 ---
 graph LR
   IA((Input
       Account))
   OA((Output
-          Account))
+		  Account))
   P[Processor]
-  S[Osmosis GAMM
+  S[Astroport
       Liquidity
       Provider]
-  AP[Osmosis
+  AP[Astroport
      Pool]
-  P -- 1/Join Pool --&gt; S
+  P -- 1/Provide Liquidity --&gt; S
   S -- 2/Query balances --&gt; IA
   S -- 3/Compute amounts --&gt; S
-  S -- 4/Do Join Pool --&gt; IA
-  IA -- 5/Join Pool
-                  [Tokens] --&gt; AP
-  AP -- 5'/Transfer LP tokens --&gt; OA
+  S -- 4/Do Provide Liquidity --&gt; IA
+  IA -- 5/Provide Liquidity
+				  [Tokens] --&gt; AP
+  AP -- 5'/Transfer LP Tokens --&gt; OA
 
 </pre>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>ProvideDoubleSidedLiquidity</strong></td><td><code>expected_spot_price: Option&lt;DecimalRange&gt;</code></td><td>Provide double-sided liquidity to the pre-configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>. Abort it the spot price is not within the <code>expected_spot_price</code> range (if specified).</td></tr>
-<tr><td><strong>ProvideSingleSidedLiquidity</strong></td><td><code>asset: String</code><br><code>limit: Option&lt;Uint128&gt;</code><br><code>expected_spot_price: Option&lt;DecimalRange&gt;</code></td><td>Provide single-sided liquidity for the specified <code>asset</code> to the pre-configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>. Abort it the spot price is not within the <code>expected_spot_price</code> range (if specified).</td></tr>
+<tr><td><strong>ProvideDoubleSidedLiquidity</strong></td><td><code>expected_pool_ratio_range: Option&lt;DecimalRange&gt;</code></td><td>Provide double-sided liquidity to the pre-configured <strong>Astroport Pool</strong> from the <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>. Abort it the pool ratio is not within the <code>expected_pool_ratio</code> range (if specified).</td></tr>
+<tr><td><strong>ProvideSingleSidedLiquidity</strong></td><td><code>asset: String</code><br><code>limit: Option&lt;Uint128&gt;</code><br><code>expected_pool_ratio_range: Option&lt;DecimalRange&gt;</code></td><td>Provide single-sided liquidity for the specified <code>asset</code> to the pre-configured <strong>Astroport Pool</strong> from the <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>. Abort it the pool ratio is not within the <code>expected_pool_ratio</code> range (if specified).</td></tr>
 </tbody></table>
 </div>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
@@ -196,19 +196,34 @@ graph LR
 </span>pub struct LibraryConfig {
     // Account from which the funds are LPed
     pub input_addr: LibraryAccountType,
-    // Account to which the LP position is forwarded
+    // Account to which the LP tokens are forwarded
     pub output_addr: LibraryAccountType,
+    // Pool address
+    pub pool_addr: String,
     // LP configuration
     pub lp_config: LiquidityProviderConfig,
 }
 
 pub struct LiquidityProviderConfig {
-    // ID of the Osmosis pool
-    pub pool_id: Uint64,
-    // Pool asset 1 
-    pub pool_asset_1: String,
-    // Pool asset 2
-    pub pool_asset_2: String,
+    // Pool type, old Astroport pools use Cw20 lp tokens and new pools use native tokens, so we specify here what kind of token we are going to get.
+    // We also provide the PairType structure of the right Astroport version that we are going to use for each scenario
+    pub pool_type: PoolType,
+    // Denoms of both native assets we are going to provide liquidity for
+    pub asset_data: AssetData,
+    // Slippage tolerance
+    pub slippage_tolerance: Option&lt;Decimal&gt;,
+}
+
+#[cw_serde]
+pub enum PoolType {
+    NativeLpToken(valence_astroport_utils::astroport_native_lp_token::PairType),
+    Cw20LpToken(valence_astroport_utils::astroport_cw20_lp_token::PairType),
+}
+
+
+pub struct AssetData {
+    pub asset1: String,
+    pub asset2: String,
 }
 <span class="boring">}</span></code></pre></pre>
 
@@ -216,11 +231,11 @@ pub struct LiquidityProviderConfig {
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../libraries/osmosis-cl-withdrawer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../libraries/_overview.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../libraries/osmosis-gamm-withdrawer.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../libraries/astroport_withdrawer.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -230,11 +245,11 @@ pub struct LiquidityProviderConfig {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../libraries/osmosis-cl-withdrawer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../libraries/_overview.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../libraries/osmosis-gamm-withdrawer.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../libraries/astroport_withdrawer.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

@@ -285,7 +285,7 @@ graph LR
   end
 </pre>
 <p>This example highlights the crucial role that <strong>Valence Libraries</strong> play for integrating <strong>Valence Programs</strong> with pre-existing decentralized apps and services.</p>
-<p>One thing remains unclear in this example, though: how are <strong>Functions</strong> called? This is where <a href="components/./authorizations_and_execution.html">Authorizations and Execution</a> come into the picture.</p>
+<p>One thing remains unclear in this example, though: how are <strong>Functions</strong> called? This is where <a href="components/./programs_and_authorizations.html">Programs and Authorizations</a> come into the picture.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="programs-and-authorizations"><a class="header" href="#programs-and-authorizations">Programs and Authorizations</a></h1>
 <p>A <strong>Valence Program</strong> is an instance of the <strong>Valence Protocol</strong>. It is a particular arrangement and configuration of <a href="components/./accounts.html">accounts</a> and <a href="components/./libraries_and_functions.html">libraries</a> across multiple <a href="components/./domains.html">domains</a> e.g. a POL (protocol-owned liquidity) lending relationship between two parties. Similarly to how a <em>library</em> exposes executable <em>functions</em>, programs are associated with a set of executable <strong>Subroutines</strong>.</p>
 <p>A <strong>Subroutine</strong> is a vector of <strong>Functions</strong>. A <strong>Subroutine</strong> can call out to one or more <strong>function(s)</strong> from a single library, or from different ones. A <strong>Subroutine</strong> is limited to <strong>one execution domain</strong> (i.e. it cannot use functions from libraries instantiated on multiple domains).</p>
@@ -592,16 +592,16 @@ pub enum ExecutionResult {
 <p>This section contains a detailed description of the various libraries that can be used to rapidly build Valence cross-chain programs.</p>
 <p><strong>Valence Protocol libraries</strong>:</p>
 <ul>
-<li><a href="libraries/./astroport-lper.html">Astroport LPer</a></li>
-<li><a href="libraries/./astroport-withdrawer.html">Astroport Withdrawer</a></li>
+<li><a href="libraries/./astroport_lper.html">Astroport LPer</a></li>
+<li><a href="libraries/./astroport_withdrawer.html">Astroport Withdrawer</a></li>
 <li><a href="libraries/./forwarder.html">Forwarder</a></li>
-<li><a href="libraries/./generic-ibc-transfer.html">Generic IBC Transfer</a></li>
-<li><a href="libraries/./neutron-ibc-transfer.html">Neutron IBC Transfer</a></li>
-<li><a href="libraries/./osmosis-cl-lper.html">Osmosis CL LPer</a></li>
-<li><a href="libraries/./osmosis-cl-withdrawer.html">Osmosis CL Withdrawer</a></li>
-<li><a href="libraries/./osmosis-gamm-lper.html">Osmosis GAMM LPer</a></li>
-<li><a href="libraries/./osmosis-gamm-withdrawer.html">Osmosis GAMM Withdrawer</a></li>
-<li><a href="libraries/./reverse-splitter.html">Reverse Splitter</a></li>
+<li><a href="libraries/./generic_ibc_transfer.html">Generic IBC Transfer</a></li>
+<li><a href="libraries/./neutron_ibc_transfer.html">Neutron IBC Transfer</a></li>
+<li><a href="libraries/./osmosis_cl_lper.html">Osmosis CL LPer</a></li>
+<li><a href="libraries/./osmosis_cl_withdrawer.html">Osmosis CL Withdrawer</a></li>
+<li><a href="libraries/./osmosis_gamm_lper.html">Osmosis GAMM LPer</a></li>
+<li><a href="libraries/./osmosis_gamm_withdrawer.html">Osmosis GAMM Withdrawer</a></li>
+<li><a href="libraries/./reverse_splitter.html">Reverse Splitter</a></li>
 <li><a href="libraries/./splitter.html">Splitter</a></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="astroport-lper-library"><a class="header" href="#astroport-lper-library">Astroport LPer library</a></h1>
@@ -997,8 +997,8 @@ provided to the pool.</li>
 those that are entirely single-sided.</p>
 <h2 id="functions-5"><a class="header" href="#functions-5">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>ProvideLiquidityDefault</strong></td><td><code>bucket_amount: Uint64</code></td><td>Create a position on the pre-configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, following the <a href="libraries/osmosis-cl-lper.html#default">Default approach</a> described above, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>.</td></tr>
-<tr><td><strong>ProvideLiquidityCustom</strong></td><td><code>tick_range: TickRange</code><br><code>token_min_amount_0: Option&lt;Uint128&gt;</code><br><code>token_min_amount_1: Option&lt;Uint128&gt;</code></td><td>Create a position on the pre-configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, following the <a href="libraries/osmosis-cl-lper.html#custom">Custom approach</a> described above, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>.</td></tr>
+<tr><td><strong>ProvideLiquidityDefault</strong></td><td><code>bucket_amount: Uint64</code></td><td>Create a position on the pre-configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, following the <a href="libraries/osmosis_cl_lper.html#default">Default approach</a> described above, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>.</td></tr>
+<tr><td><strong>ProvideLiquidityCustom</strong></td><td><code>tick_range: TickRange</code><br><code>token_min_amount_0: Option&lt;Uint128&gt;</code><br><code>token_min_amount_1: Option&lt;Uint128&gt;</code></td><td>Create a position on the pre-configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, following the <a href="libraries/osmosis_cl_lper.html#custom">Custom approach</a> described above, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>.</td></tr>
 </tbody></table>
 </div>
 <h2 id="configuration-5"><a class="header" href="#configuration-5">Configuration</a></h2>

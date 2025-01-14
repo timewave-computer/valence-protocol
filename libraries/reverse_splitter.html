@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Generic IBC Transfer - Valence Protocol Documentation</title>
+        <title>Reverse Splitter - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -157,33 +157,35 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="valence-generic-ibc-transfer-library"><a class="header" href="#valence-generic-ibc-transfer-library">Valence Generic IBC Transfer library</a></h1>
-<p>The <strong>Valence Generic IBC Transfer</strong> library allows to transfer funds over IBC from an <strong>input account</strong> on a source chain to an <strong>output account</strong> on a destination chain. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
-<p><strong>Note</strong>: this library should not be used on <strong>Neutron</strong>, which requires some fees to be paid to relayers for IBC transfers. For Neutron, prefer using the dedicated (and optimized) <strong><a href="./neutron-ibc-transfer.html">Neutron IBC Transfer library</a></strong> instead.</p>
+                        <h1 id="valence-reverse-splitter-library"><a class="header" href="#valence-reverse-splitter-library">Valence Reverse Splitter library</a></h1>
+<p>The <strong>Reverse Splitter</strong> library allows to <strong>route funds</strong> from <strong>one or more input account(s)</strong> to a <strong>single output account</strong>, for <strong>one or more token denom(s)</strong> according to the configured <strong>ratio(s)</strong>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
 <h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
 <pre class="mermaid">---
-title: Generic IBC Transfer Library
+title: Reverse Splitter Library
 ---
 graph LR
-  IA((Input
-      Account))
+  IA1((Input
+      Account1))
+  IA2((Input
+       Account2))
   OA((Output
 		  Account))
   P[Processor]
-  S[Gen IBC Transfer
+  S[Reverse Splitter
     Library]
-  subgraph Chain 1
-  P -- 1/IbcTransfer --&gt; S
-  S -- 2/Query balances --&gt; IA
-  S -- 3/Do Send funds --&gt; IA
-  end
-  subgraph Chain 2
-  IA -- 4/IBC Transfer --&gt; OA
-  end
+  C[Contract]
+  P -- 1/Split --&gt; S
+  S -- 2/Query balances --&gt; IA1
+  S -- 2'/Query balances --&gt; IA2
+  S -. 3/Query split ratio .-&gt; C
+  S -- 4/Do Send funds --&gt; IA1
+  S -- 4'/Do Send funds --&gt; IA2
+  IA1 -- 5/Send funds --&gt; OA
+  IA2 -- 5'/Send funds --&gt; OA
 </pre>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>IbcTransfer</strong></td><td>-</td><td>Transfer funds over IBC from an <strong>input account</strong> on a source chain to an <strong>output account</strong> on a destination chain.</td></tr>
+<tr><td><strong>Split</strong></td><td>-</td><td>Split and route funds from the configured <strong>input account(s)</strong> to the <strong>output account</strong>, according to the configured <strong>token denom(s)</strong> and <strong>ratio(s)</strong>.</td></tr>
 </tbody></table>
 </div>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
@@ -191,47 +193,45 @@ graph LR
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>struct LibraryConfig {
-  // Account from which the funds are pulled (on the source chain)
-  input_addr: LibraryAccountType,
-  // Account to which the funds are sent (on the destination chain)
-  output_addr: String,
-  // Denom of the token to transfer
-  denom: UncheckedDenom,
-  // Amount to be transferred, either a fixed amount or the whole available balance.
-  amount: IbcTransferAmount,
-  // Memo to be passed in the IBC transfer message.
-  memo: String,
-  // Information about the destination chain.
-  remote_chain_info: RemoteChainInfo,
-  // Denom map for the Packet-Forwarding Middleware, to perform a multi-hop transfer.
-  denom_to_pfm_map: BTreeMap&lt;String, PacketForwardMiddlewareConfig&gt;,
+    output_addr: LibraryAccountType,   // Account to which the funds are sent.
+    splits: Vec&lt;UncheckedSplitConfig&gt;, // Split configuration per denom.
+    base_denom: UncheckedDenom         // Base denom, used with ratios.
 }
 
-// Defines the amount to be transferred, either a fixed amount or the whole available balance.
-enum IbcTransferAmount {
-  // Transfer the full available balance of the input account.
-  FullAmount,
-  // Transfer the specified amount of tokens.
-  FixedAmount(Uint128),
+// Split config for specified account
+struct UncheckedSplitConfig {
+  denom: UncheckedDenom,                // Denom for this split configuration (either native or CW20).
+  account: LibraryAccountType,          // Address of the input account for this split config.
+  amount: UncheckedSplitAmount,         // Fixed amount of tokens or an amount defined based on a ratio.
+  factor: Option&lt;u64&gt;                   // Multiplier relative to other denoms (only used if a ratio is specified).
 }
 
-pub struct RemoteChainInfo {
-  // Channel of the IBC connection to be used.
-  channel_id: String,
-  // Port of  the IBC connection to be used.
-  port_id: Option&lt;String&gt;,
-  // Timeout for the IBC transfer.
-  ibc_transfer_timeout: Option&lt;Uint64&gt;,
+// Ratio configuration, either fixed &amp; dynamically calculated
+enum UncheckedRatioConfig {
+  FixedAmount(Uint128), // Fixed amount of tokens
+  FixedRatio(Decimal),  // Fixed ratio e.g. 0.0262 for NTRN/STARS (or could be another arbitrary ratio)
+  DynamicRatio {        // Dynamic ratio calculation (delegated to external contract)
+	contract_addr: "&lt;TWAP Oracle wrapper contract address&gt;",
+    params: "base64-encoded arbitrary payload to send in addition to the denoms"
+  }
 }
 
-// Configuration for a multi-hop transfer using the Packet Forwarding Middleware
-struct PacketForwardMiddlewareConfig {
-  // Channel ID from the source chain to the intermediate chain
-  local_to_hop_chain_channel_id: String,
-  // Channel ID from the intermediate to the destination chain
-  hop_to_destination_chain_channel_id: String,
-  // Temporary receiver address on the intermediate chain
-  hop_chain_receiver_address: String,
+// Standard query &amp; response for contract computing a dynamic ratio
+// for the Splitter &amp; Reverse Splitter libraries.
+#[cw_serde]
+#[derive(QueryResponses)]
+pub enum DynamicRatioQueryMsg {
+    #[returns(DynamicRatioResponse)]
+    DynamicRatio {
+        denoms: Vec&lt;String&gt;,
+        params: String,
+    }
+}
+
+#[cw_serde]
+// Response returned by the external contract for a dynamic ratio
+struct DynamicRatioResponse {
+    pub denom_ratios: HashMap&lt;String, Decimal&gt;,
 }
 <span class="boring">}</span></code></pre></pre>
 
@@ -239,11 +239,11 @@ struct PacketForwardMiddlewareConfig {
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../libraries/forwarder.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../libraries/osmosis_gamm_withdrawer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../libraries/neutron-ibc-transfer.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../libraries/splitter.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -253,11 +253,11 @@ struct PacketForwardMiddlewareConfig {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../libraries/forwarder.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../libraries/osmosis_gamm_withdrawer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../libraries/neutron-ibc-transfer.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../libraries/splitter.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

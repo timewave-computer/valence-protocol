@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Astroport Withdrawer - Valence Protocol Documentation</title>
+        <title>Osmosis GAMM Withdrawer - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -157,11 +157,11 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="astroport-withdrawer-library"><a class="header" href="#astroport-withdrawer-library">Astroport Withdrawer library</a></h1>
-<p>The <strong>Valence Astroport Withdrawer library</strong> library allows to <strong>withdraw liquidity</strong> from an Astroport Liquidity Pool from an <strong>input account</strong> an deposit the withdrawed tokens into an <strong>output account</strong>.</p>
+                        <h1 id="osmosis-gamm-liquidity-withdrawer-library"><a class="header" href="#osmosis-gamm-liquidity-withdrawer-library">Osmosis GAMM liquidity withdrawer library</a></h1>
+<p>The <strong>Valence Osmosis GAMM Withdrawer library</strong> library allows to <strong>exit a pool</strong> on <strong>Osmosis</strong>, using the <strong>GAMM module</strong> (Generalized Automated Market Maker), from an <strong>input account</strong>, an deposit the withdrawed tokens into an <strong>output account</strong>.</p>
 <h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
 <pre class="mermaid">---
-title: Astroport Liquidity Withdrawal
+title: Osmosis GAMM Liquidity Withdrawal
 ---
 graph LR
   IA((Input
@@ -169,10 +169,10 @@ graph LR
   OA((Output
 		  Account))
   P[Processor]
-  S[Astroport
+  S[Osmosis GAMM
       Liquidity
       Withdrawal]
-  AP[Astroport
+  AP[Osmosis
      Pool]
   P -- 1/Withdraw Liquidity --&gt; S
   S -- 2/Query balances --&gt; IA
@@ -184,7 +184,7 @@ graph LR
 </pre>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>WithdrawLiquidity</strong></td><td>-</td><td>Withdraw liquidity from the configured <strong>Astroport Pool</strong> from the <strong>input account</strong> and deposit the withdrawed tokens into the configured <strong>output account</strong></td></tr>
+<tr><td><strong>WithdrawLiquidity</strong></td><td>-</td><td>Withdraw liquidity from the configured <strong>Osmosis Pool</strong> from the <strong>input account</strong> and deposit the withdrawed tokens into the configured <strong>output account</strong></td></tr>
 </tbody></table>
 </div>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
@@ -192,25 +192,17 @@ graph LR
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct LibraryConfig {
-    // Account holding the LP position
+    // Account from which the funds are LPed
     pub input_addr: LibraryAccountType,
-    // Account to which the withdrawn assets are forwarded
+    // Account to which the LP tokens are forwarded
     pub output_addr: LibraryAccountType,
-    // Pool address
-    pub pool_addr: String,
     // Liquidity withdrawer configuration
     pub withdrawer_config: LiquidityWithdrawerConfig,
 }
 
 pub struct LiquidityWithdrawerConfig {
-    // Pool type, old Astroport pools use Cw20 lp tokens and new pools use native tokens, so we specify here what kind of token we are will use.
-    // We also provide the PairType structure of the right Astroport version that we are going to use for each scenario
-    pub pool_type: PoolType,
-}
-
-pub enum PoolType {
-    NativeLpToken,
-    Cw20LpToken,
+    // ID of the pool
+    pub pool_id: Uint64,
 }
 <span class="boring">}</span></code></pre></pre>
 
@@ -218,11 +210,11 @@ pub enum PoolType {
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../libraries/astroport-lper.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../libraries/osmosis_gamm_lper.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../libraries/forwarder.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../libraries/reverse_splitter.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -232,11 +224,11 @@ pub enum PoolType {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../libraries/astroport-lper.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../libraries/osmosis_gamm_lper.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../libraries/forwarder.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../libraries/reverse_splitter.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

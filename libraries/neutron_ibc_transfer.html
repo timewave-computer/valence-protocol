@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Astroport LPer - Valence Protocol Documentation</title>
+        <title>Neutron IBC Transfer - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -157,11 +157,12 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="astroport-lper-library"><a class="header" href="#astroport-lper-library">Astroport LPer library</a></h1>
-<p>The <strong>Valence Astroport LPer library</strong> library allows to <strong>provide liquidity</strong> into an <strong>Astroport Liquidity Pool</strong> from an <strong>input account</strong> and deposit the <strong>LP tokens</strong> into an <strong>output account</strong>.</p>
+                        <h1 id="valence-neutron-ibc-transfer-library"><a class="header" href="#valence-neutron-ibc-transfer-library">Valence Neutron IBC Transfer library</a></h1>
+<p>The <strong>Valence Neutron IBC Transfer</strong> library allows to transfer funds over IBC from an <strong>input account</strong> on <strong>Neutron</strong> to an <strong>output account</strong> on a destination chain. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
+<p>Note: this library should not be used on another CosmWasm chain than <strong>Neutron</strong>, which requires some fees to be paid to relayers for IBC transfers. For other CosmWasm chains, prefer using the <strong><a href="./generic-ibc-transfer.html">Generic IBC Transfer library</a></strong> instead.</p>
 <h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
 <pre class="mermaid">---
-title: Astroport Liquidity Provider
+title: Neutron IBC Transfer Library
 ---
 graph LR
   IA((Input
@@ -169,61 +170,68 @@ graph LR
   OA((Output
 		  Account))
   P[Processor]
-  S[Astroport
-      Liquidity
-      Provider]
-  AP[Astroport
-     Pool]
-  P -- 1/Provide Liquidity --&gt; S
+  S[Neutron IBC Transfer
+    Library]
+  subgraph Neutron
+  P -- 1/IbcTransfer --&gt; S
   S -- 2/Query balances --&gt; IA
-  S -- 3/Compute amounts --&gt; S
-  S -- 4/Do Provide Liquidity --&gt; IA
-  IA -- 5/Provide Liquidity
-				  [Tokens] --&gt; AP
-  AP -- 5'/Transfer LP Tokens --&gt; OA
-
+  S -- 3/Do Send funds --&gt; IA
+  end
+  subgraph Chain 2
+  IA -- 4/IBC Transfer --&gt; OA
+  end
 </pre>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>ProvideDoubleSidedLiquidity</strong></td><td><code>expected_pool_ratio_range: Option&lt;DecimalRange&gt;</code></td><td>Provide double-sided liquidity to the pre-configured <strong>Astroport Pool</strong> from the <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>. Abort it the pool ratio is not within the <code>expected_pool_ratio</code> range (if specified).</td></tr>
-<tr><td><strong>ProvideSingleSidedLiquidity</strong></td><td><code>asset: String</code><br><code>limit: Option&lt;Uint128&gt;</code><br><code>expected_pool_ratio_range: Option&lt;DecimalRange&gt;</code></td><td>Provide single-sided liquidity for the specified <code>asset</code> to the pre-configured <strong>Astroport Pool</strong> from the <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>. Abort it the pool ratio is not within the <code>expected_pool_ratio</code> range (if specified).</td></tr>
+<tr><td><strong>IbcTransfer</strong></td><td>-</td><td>Transfer funds over IBC from an <strong>input account</strong> on <strong>Neutron</strong> to an <strong>output account</strong> on a destination chain.</td></tr>
 </tbody></table>
 </div>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
 <p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub struct LibraryConfig {
-    // Account from which the funds are LPed
-    pub input_addr: LibraryAccountType,
-    // Account to which the LP tokens are forwarded
-    pub output_addr: LibraryAccountType,
-    // Pool address
-    pub pool_addr: String,
-    // LP configuration
-    pub lp_config: LiquidityProviderConfig,
+</span>struct LibraryConfig {
+  // Account from which the funds are pulled (on the source chain)
+  input_addr: LibraryAccountType,
+  // Account to which the funds are sent (on the destination chain)
+  output_addr: String,
+  // Denom of the token to transfer
+  denom: UncheckedDenom,
+  // Amount to be transferred, either a fixed amount or the whole available balance.
+  amount: IbcTransferAmount,
+  // Memo to be passed in the IBC transfer message.
+  memo: String,
+  // Information about the destination chain.
+  remote_chain_info: RemoteChainInfo,
+  // Denom map for the Packet-Forwarding Middleware, to perform a multi-hop transfer.
+  denom_to_pfm_map: BTreeMap&lt;String, PacketForwardMiddlewareConfig&gt;,
 }
 
-pub struct LiquidityProviderConfig {
-    // Pool type, old Astroport pools use Cw20 lp tokens and new pools use native tokens, so we specify here what kind of token we are going to get.
-    // We also provide the PairType structure of the right Astroport version that we are going to use for each scenario
-    pub pool_type: PoolType,
-    // Denoms of both native assets we are going to provide liquidity for
-    pub asset_data: AssetData,
-    // Slippage tolerance
-    pub slippage_tolerance: Option&lt;Decimal&gt;,
+// Defines the amount to be transferred, either a fixed amount or the whole available balance.
+enum IbcTransferAmount {
+  // Transfer the full available balance of the input account.
+  FullAmount,
+  // Transfer the specified amount of tokens.
+  FixedAmount(Uint128),
 }
 
-#[cw_serde]
-pub enum PoolType {
-    NativeLpToken(valence_astroport_utils::astroport_native_lp_token::PairType),
-    Cw20LpToken(valence_astroport_utils::astroport_cw20_lp_token::PairType),
+pub struct RemoteChainInfo {
+  // Channel of the IBC connection to be used.
+  channel_id: String,
+  // Port of  the IBC connection to be used.
+  port_id: Option&lt;String&gt;,
+  // Timeout for the IBC transfer.
+  ibc_transfer_timeout: Option&lt;Uint64&gt;,
 }
 
-
-pub struct AssetData {
-    pub asset1: String,
-    pub asset2: String,
+// Configuration for a multi-hop transfer using the Packet Forwarding Middleware
+struct PacketForwardMiddlewareConfig {
+  // Channel ID from the source chain to the intermediate chain
+  local_to_hop_chain_channel_id: String,
+  // Channel ID from the intermediate to the destination chain
+  hop_to_destination_chain_channel_id: String,
+  // Temporary receiver address on the intermediate chain
+  hop_chain_receiver_address: String,
 }
 <span class="boring">}</span></code></pre></pre>
 
@@ -231,11 +239,11 @@ pub struct AssetData {
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../libraries/_overview.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../libraries/generic_ibc_transfer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../libraries/astroport-withdrawer.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../libraries/osmosis_cl_lper.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -245,11 +253,11 @@ pub struct AssetData {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../libraries/_overview.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../libraries/generic_ibc_transfer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../libraries/astroport-withdrawer.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../libraries/osmosis_cl_lper.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

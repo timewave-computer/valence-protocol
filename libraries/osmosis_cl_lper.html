@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Neutron IBC Transfer - Valence Protocol Documentation</title>
+        <title>Osmosis CL LPer - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -157,12 +157,12 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="valence-neutron-ibc-transfer-library"><a class="header" href="#valence-neutron-ibc-transfer-library">Valence Neutron IBC Transfer library</a></h1>
-<p>The <strong>Valence Neutron IBC Transfer</strong> library allows to transfer funds over IBC from an <strong>input account</strong> on <strong>Neutron</strong> to an <strong>output account</strong> on a destination chain. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
-<p>Note: this library should not be used on another CosmWasm chain than <strong>Neutron</strong>, which requires some fees to be paid to relayers for IBC transfers. For other CosmWasm chains, prefer using the <strong><a href="./generic-ibc-transfer.html">Generic IBC Transfer library</a></strong> instead.</p>
+                        <h1 id="osmosis-cl-lper-library"><a class="header" href="#osmosis-cl-lper-library">Osmosis CL LPer library</a></h1>
+<p>The <strong>Valence Osmosis CL LPer library</strong> library allows to <strong>create concentrated liquidity
+positions</strong> on <strong>Osmosis</strong> from an <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into an <strong>output account</strong>.</p>
 <h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
 <pre class="mermaid">---
-title: Neutron IBC Transfer Library
+title: Osmosis CL Liquidity Provider
 ---
 graph LR
   IA((Input
@@ -170,68 +170,80 @@ graph LR
   OA((Output
 		  Account))
   P[Processor]
-  S[Neutron IBC Transfer
-    Library]
-  subgraph Neutron
-  P -- 1/IbcTransfer --&gt; S
+  S[Osmosis CL
+      Liquidity
+      Provider]
+  AP[Osmosis CL
+     Pool]
+  P -- 1/Provide Liquidity --&gt; S
   S -- 2/Query balances --&gt; IA
-  S -- 3/Do Send funds --&gt; IA
-  end
-  subgraph Chain 2
-  IA -- 4/IBC Transfer --&gt; OA
-  end
+  S -- 3/Configure target
+    range --&gt; S
+  S -- 4/Do Provide Liquidity --&gt; IA
+  IA -- 5/Provide Liquidity
+				  [Tokens] --&gt; AP
+  AP -- 5'/Transfer LP Tokens --&gt; OA
+
 </pre>
+<h2 id="concentrated-liquidity-position-creation"><a class="header" href="#concentrated-liquidity-position-creation">Concentrated Liquidity Position creation</a></h2>
+<p>Because of the way CL positions are created, there are two ways to achieve it:</p>
+<h3 id="default"><a class="header" href="#default">Default</a></h3>
+<p>Default position creation centers around the idea of creating a position
+with respect to the currently active tick of the pool.</p>
+<p>This method expects a single parameter, <code>bucket_amount</code>, which describes
+how many <em>buckets</em> of the pool should be taken into account to both sides
+of the price curve.</p>
+<p>Consider a situation where the current tick is 125, and the configured
+tick spacing is 10.</p>
+<p>If this method is called with <code>bucket_amount</code> set to 5, the following logic
+will be performed:</p>
+<ul>
+<li>find the current bucket range, which is 120 to 130</li>
+<li>extend the current bucket ranges by 5 buckets to both sides, meaning
+that the range "to the left" will be extended by 5 * 10 = 50, and the
+range "to the right" will be extended by 5 * 10 = 50, resulting in the covered
+range from 120 - 50 = 70 to 130 + 50 = 180, giving the position tick range of (70, 180).</li>
+</ul>
+<h3 id="custom"><a class="header" href="#custom">Custom</a></h3>
+<p>Custom position creation allows for more fine-grained control over the
+way the position is created.</p>
+<p>This approach expects users to specify the following parameters:</p>
+<ul>
+<li><code>tick_range</code>, which describes the price range to be covered</li>
+<li><code>token_min_amount_0</code> and <code>token_min_amount_1</code> which are optional
+parameters that describe the minimum amount of tokens that should be
+provided to the pool.</li>
+</ul>
+<p>With this flexibility a wide variety of positions can be created, such as
+those that are entirely single-sided.</p>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>IbcTransfer</strong></td><td>-</td><td>Transfer funds over IBC from an <strong>input account</strong> on <strong>Neutron</strong> to an <strong>output account</strong> on a destination chain.</td></tr>
+<tr><td><strong>ProvideLiquidityDefault</strong></td><td><code>bucket_amount: Uint64</code></td><td>Create a position on the pre-configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, following the <a href="#default">Default approach</a> described above, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>.</td></tr>
+<tr><td><strong>ProvideLiquidityCustom</strong></td><td><code>tick_range: TickRange</code><br><code>token_min_amount_0: Option&lt;Uint128&gt;</code><br><code>token_min_amount_1: Option&lt;Uint128&gt;</code></td><td>Create a position on the pre-configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, following the <a href="#custom">Custom approach</a> described above, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>.</td></tr>
 </tbody></table>
 </div>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
 <p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>struct LibraryConfig {
-  // Account from which the funds are pulled (on the source chain)
-  input_addr: LibraryAccountType,
-  // Account to which the funds are sent (on the destination chain)
-  output_addr: String,
-  // Denom of the token to transfer
-  denom: UncheckedDenom,
-  // Amount to be transferred, either a fixed amount or the whole available balance.
-  amount: IbcTransferAmount,
-  // Memo to be passed in the IBC transfer message.
-  memo: String,
-  // Information about the destination chain.
-  remote_chain_info: RemoteChainInfo,
-  // Denom map for the Packet-Forwarding Middleware, to perform a multi-hop transfer.
-  denom_to_pfm_map: BTreeMap&lt;String, PacketForwardMiddlewareConfig&gt;,
+</span>pub struct LibraryConfig {
+    // Account from which the funds are LPed
+    pub input_addr: LibraryAccountType,
+    // Account to which the LP position is forwarded
+    pub output_addr: LibraryAccountType,
+    // LP configuration
+    pub lp_config: LiquidityProviderConfig,
 }
 
-// Defines the amount to be transferred, either a fixed amount or the whole available balance.
-enum IbcTransferAmount {
-  // Transfer the full available balance of the input account.
-  FullAmount,
-  // Transfer the specified amount of tokens.
-  FixedAmount(Uint128),
-}
-
-pub struct RemoteChainInfo {
-  // Channel of the IBC connection to be used.
-  channel_id: String,
-  // Port of  the IBC connection to be used.
-  port_id: Option&lt;String&gt;,
-  // Timeout for the IBC transfer.
-  ibc_transfer_timeout: Option&lt;Uint64&gt;,
-}
-
-// Configuration for a multi-hop transfer using the Packet Forwarding Middleware
-struct PacketForwardMiddlewareConfig {
-  // Channel ID from the source chain to the intermediate chain
-  local_to_hop_chain_channel_id: String,
-  // Channel ID from the intermediate to the destination chain
-  hop_to_destination_chain_channel_id: String,
-  // Temporary receiver address on the intermediate chain
-  hop_chain_receiver_address: String,
+pub struct LiquidityProviderConfig {
+    // ID of the Osmosis CL pool
+    pub pool_id: Uint64,
+    // Pool asset 1 
+    pub pool_asset_1: String,
+    // Pool asset 2
+    pub pool_asset_2: String,
+    // Pool global price range
+    pub global_tick_range: TickRange,
 }
 <span class="boring">}</span></code></pre></pre>
 
@@ -239,11 +251,11 @@ struct PacketForwardMiddlewareConfig {
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../libraries/generic-ibc-transfer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../libraries/neutron_ibc_transfer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../libraries/osmosis-cl-lper.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../libraries/osmosis_cl_withdrawer.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -253,11 +265,11 @@ struct PacketForwardMiddlewareConfig {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../libraries/generic-ibc-transfer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../libraries/neutron_ibc_transfer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../libraries/osmosis-cl-lper.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../libraries/osmosis_cl_withdrawer.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
