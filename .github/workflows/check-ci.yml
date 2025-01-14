@@ -31,6 +31,12 @@ jobs:
           cache-on-failure: true
           shared-key: ${{ github.event.pull_request.number || github.ref }}
 
+      - name: Download Forge artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: forge-artifacts
+          path: ./solidity/out/
+
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
 
