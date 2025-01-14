@@ -5,7 +5,7 @@ use bollard::{
     Docker,
 };
 
-pub async fn setup_anvil_container() -> Result<(), Box<dyn Error>> {
+pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
     // Connect to the Docker daemon
     let docker = Docker::connect_with_local_defaults()?;
 
