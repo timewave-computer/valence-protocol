@@ -1,4 +1,4 @@
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{Decimal, Uint128};
 use cw20::Cw20ExecuteMsg;
 use neutron_test_tube::{
     neutron_std::types::cosmos::{
@@ -8,6 +8,7 @@ use neutron_test_tube::{
     Account, Bank, Module, Wasm,
 };
 use valence_astroport_utils::{
+    decimal_range::DecimalRange,
     suite::{AstroportTestAppBuilder, AstroportTestAppSetup},
     AssetData, PoolType,
 };
@@ -410,12 +411,60 @@ fn withdraw_liquidity_cw20_lp_token() {
 }
 
 #[test]
-fn withdraw_liquidity_validates_expected_decimal_range() {
-    unimplemented!("todo")
+fn withdraw_liquidity_expected_decimal_range_validation_succeeds() {
+    let setup = WithdrawerTestSuite::default();
+    let wasm = Wasm::new(&setup.inner.app);
+    let bank = Bank::new(&setup.inner.app);
+
+    wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
+        &setup.withdrawer_addr,
+        &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {
+            expected_pool_ratio_range: Some(DecimalRange::new(
+                Decimal::from_ratio(1u128, 10u128),
+                Decimal::from_ratio(11u128, 10u128),
+            )),
+        }),
+        &[],
+        setup.inner.processor_acc(),
+    )
+    .unwrap();
+
+    // Output account should have received the pool assets
+    let output_account_balances_after = bank
+        .query_all_balances(&QueryAllBalancesRequest {
+            address: setup.output_acc.clone(),
+            pagination: None,
+            resolve_denom: false,
+        })
+        .unwrap();
+
+    assert_eq!(output_account_balances_after.balances.len(), 2);
+    assert!(output_account_balances_after
+        .balances
+        .iter()
+        .any(|c| c.denom == setup.inner.pool_asset1));
+    assert!(output_account_balances_after
+        .balances
+        .iter()
+        .any(|c| c.denom == setup.inner.pool_asset2));
 }
 
 #[test]
-// #[should_panic]
+#[should_panic(expected = "Value is not within the expected range")]
 fn withdraw_liquidity_expected_decimal_range_validation_fails() {
-    unimplemented!("todo")
+    let setup = WithdrawerTestSuite::default();
+    let wasm = Wasm::new(&setup.inner.app);
+
+    wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
+        &setup.withdrawer_addr,
+        &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {
+            expected_pool_ratio_range: Some(DecimalRange::new(
+                Decimal::from_ratio(15u128, 1u128),
+                Decimal::from_ratio(17u128, 1u128),
+            )),
+        }),
+        &[],
+        setup.inner.processor_acc(),
+    )
+    .unwrap();
 }
