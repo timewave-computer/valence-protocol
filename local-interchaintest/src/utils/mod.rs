@@ -23,6 +23,7 @@ pub const POLYTONE_ARTIFACTS_PATH: &str = "local-interchaintest/polytone_contrac
 // We keep the cosmwasm hyperlane contracts here to set up hyperlane on a cosmwasm chain
 pub const HYPERLANE_COSMWASM_ARTIFACTS_PATH: &str =
     "local-interchaintest/hyperlane/contracts/cosmwasm";
+pub const HYPERLANE_RELAYER_CONFIG_PATH: &str = "local-interchaintest/hyperlane/config/config.json";
 // Where we are keeping the astroport contracts for all our tests
 pub const ASTROPORT_PATH: &str = "packages/astroport-utils/contracts";
 // When spinning up local-ic, this is where the logs files will be stored, we used this to cache code_ids for a specific local-ic instance
@@ -51,4 +52,3 @@ pub const PERSISTENCE_CHAIN_ADMIN_ADDR: &str = "persistence1hj5fveer5cjtn4wd6wst
 pub const ASTROPORT_LP_SUBDENOM: &str = "astroport/share";
 
 pub const DEFAULT_ANVIL_RPC_ENDPOINT: &str = "http://localhost:8545";
-pub const HYPERLANE_RELAYER_NEUTRON_WALLET: &str = "neutron15428vq2uzwhm3taey9sr9x5vm6tk78ewatua57";
