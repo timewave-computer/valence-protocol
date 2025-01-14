@@ -2099,7 +2099,14 @@ fn failed_non_atomic_batch_after_retries() {
 
     // We'll create an authorization with 3 functions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
     let authorizations = vec![AuthorizationBuilder::new()
-        .with_label("permissionless")
+        .with_label("permissioned")
+        .with_mode(AuthorizationModeInfo::Permissioned(
+            PermissionTypeInfo::WithCallLimit(vec![(
+                setup.user_accounts[0].address(),
+                // Mint one tokens to execute once
+                Uint128::new(1),
+            )]),
+        ))
         .with_subroutine(
             NonAtomicSubroutineBuilder::new()
                 .with_function(
@@ -2154,15 +2161,17 @@ fn failed_non_atomic_batch_after_retries() {
     );
     let message2 = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
 
+    let permission_token = build_tokenfactory_denom(&authorization_contract, "permissioned");
+
     // Send the messages
     wasm.execute::<ExecuteMsg>(
         &authorization_contract,
         &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
-            label: "permissionless".to_string(),
+            label: "permissioned".to_string(),
             messages: vec![message1, message2],
             ttl: None,
         }),
-        &[],
+        &[Coin::new(Uint128::one(), permission_token.to_string())],
         &setup.user_accounts[0],
     )
     .unwrap();
@@ -2211,6 +2220,26 @@ fn failed_non_atomic_batch_after_retries() {
         query_callbacks[0].execution_result,
         ExecutionResult::PartiallyExecuted(1, _)
     ));
+
+    // Verify that neither the contract nor the user has the token (it was burned)
+    let bank = Bank::new(&setup.app);
+    let balance = bank
+        .query_balance(&QueryBalanceRequest {
+            address: setup.user_accounts[0].address(),
+            denom: permission_token.clone(),
+        })
+        .unwrap();
+
+    assert_eq!(balance.balance.unwrap().amount, "0");
+
+    let balance = bank
+        .query_balance(&QueryBalanceRequest {
+            address: authorization_contract.clone(),
+            denom: permission_token,
+        })
+        .unwrap();
+
+    assert_eq!(balance.balance.unwrap().amount, "0");
 }
 
 #[test]
