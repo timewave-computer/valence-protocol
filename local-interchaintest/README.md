@@ -18,12 +18,6 @@ local-ic start neutron_juno --api-port 42069
 
 This will start a local environment with a Gaia chain, a Neutron (using ICS) chain and a Juno chain. The `--api-port` will expose the API on port 42069, we are using this port in our local-ic-utils crate so let's use the same to reuse some of the utils there.
 
-To spin up a local Ethereum testnet node, we use Anvil. If you want to run the tests that involve Ethereum, you need to start the Anvil node beforehand. You can do this by running the following command:
-
-```bash
-docker run --name anvil -e ANVIL_IP_ADDR=0.0.0.0 -p 8545:8545 ghcr.io/foundry-rs/foundry:latest anvil
-```
-
 The tests will spin up the relayer between the chains, so you don't need to worry about that.
 
 ## Running tests

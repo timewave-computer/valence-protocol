@@ -4,6 +4,7 @@ use alloy::sol;
 use cosmwasm_std_old::HexBinary;
 use hpl_interface::core::mailbox::DispatchMsg;
 use local_interchaintest::utils::{
+    ethereum::setup_anvil_container,
     hyperlane::{set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts, set_up_hyperlane},
     DEFAULT_ANVIL_RPC_ENDPOINT, GAS_FLAGS, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
 };
@@ -16,6 +17,10 @@ use log::info;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
+
+    // Start anvil container
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(setup_anvil_container())?;
 
     let eth = EthClient::new(DEFAULT_ANVIL_RPC_ENDPOINT)?;
 
