@@ -3845,7 +3845,6 @@ dependencies = [
  "bech32 0.11.0",
  "bollard",
  "cosmos-grpc-client",
- "cosmwasm-schema 2.2.0",
  "cosmwasm-std 1.5.9",
  "cosmwasm-std 2.2.0",
  "cw-utils 2.0.0",

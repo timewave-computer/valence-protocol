@@ -20,7 +20,6 @@ polytone-note                        = { git = "https://github.com/DA0-DA0/polyt
 polytone-voice                       = { git = "https://github.com/DA0-DA0/polytone", rev = "f70440a" }
 cosmwasm-std                         = { workspace = true }
 cosmwasm-std-old                     = { package = "cosmwasm-std", version = "1.5.7" }
-cosmwasm-schema                      = { workspace = true }
 cw-utils                             = { workspace = true }
 valence-authorization                = { workspace = true }
 valence-processor                    = { workspace = true }
