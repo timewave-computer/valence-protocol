@@ -25,10 +25,6 @@ pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
-    // Prepare container configuration
-    let mut env = HashMap::new();
-    env.insert("ANVIL_IP_ADDR".to_string(), "0.0.0.0".to_string());
-
     let config = Config {
         image: Some("ghcr.io/foundry-rs/foundry:latest"),
         cmd: Some(vec!["anvil"]),

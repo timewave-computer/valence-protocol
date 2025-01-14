@@ -29,9 +29,3 @@ sol!(
     ValidatorAnnounce,
     "./hyperlane/contracts/solidity/ValidatorAnnounce.json",
 );
-
-sol!(
-    #[sol(rpc)]
-    BaseAccount,
-    "../solidity/out/BaseAccount.sol/BaseAccount.json",
-);
