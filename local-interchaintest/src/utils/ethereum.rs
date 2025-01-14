@@ -4,6 +4,7 @@ use bollard::{
     container::{Config, CreateContainerOptions, ListContainersOptions, StartContainerOptions},
     Docker,
 };
+use log::info;
 
 pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
     // Connect to the Docker daemon
@@ -20,7 +21,7 @@ pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
     // Check if container already exists
     let containers = docker.list_containers(Some(options)).await?;
     if !containers.is_empty() {
-        println!("Anvil container already exists");
+        info!("Anvil container already exists");
         return Ok(());
     }
 
@@ -59,7 +60,6 @@ pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
         name: "anvil",
         platform: None,
     });
-
     let container = docker.create_container(options, config).await?;
 
     // Start container
@@ -67,6 +67,6 @@ pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
         .start_container(&container.id, None::<StartContainerOptions<String>>)
         .await?;
 
-    println!("Anvil container started successfully");
+    info!("Anvil container started successfully");
     Ok(())
 }
