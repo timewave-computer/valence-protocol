@@ -16,6 +16,7 @@ use osmosis_std::{
 use valence_library_utils::{
     error::LibraryError,
     execute_on_behalf_of,
+    liquidity_utils::DecimalRange,
     msg::{ExecuteMsg, InstantiateMsg},
 };
 use valence_osmosis_utils::utils::{gamm_utils::ValenceLiquidPooler, get_withdraw_liquidity_msg};
@@ -63,12 +64,31 @@ pub fn process_function(
     cfg: Config,
 ) -> Result<Response, LibraryError> {
     match msg {
-        FunctionMsgs::WithdrawLiquidity {} => try_withdraw_liquidity(deps, cfg),
+        FunctionMsgs::WithdrawLiquidity {
+            expected_spot_price,
+        } => try_withdraw_liquidity(deps, cfg, expected_spot_price),
     }
 }
 
-fn try_withdraw_liquidity(deps: DepsMut, cfg: Config) -> Result<Response, LibraryError> {
+fn try_withdraw_liquidity(
+    deps: DepsMut,
+    cfg: Config,
+    expected_spot_price: Option<DecimalRange>,
+) -> Result<Response, LibraryError> {
     let pm_querier = PoolmanagerQuerier::new(&deps.querier);
+
+    // assert the spot price to be within our expectations,
+    // if expectations are set.
+    if let Some(acceptable_spot_price_range) = expected_spot_price {
+        let pool_ratio = pm_querier.query_spot_price(
+            cfg.lw_config.pool_id,
+            cfg.lw_config.asset_data.asset1,
+            cfg.lw_config.asset_data.asset2,
+        )?;
+
+        // perform the spot price validation
+        acceptable_spot_price_range.contains(pool_ratio)?;
+    }
 
     // get the LP token balance of configured input account
     let lp_token = pm_querier.query_pool_liquidity_token(cfg.lw_config.pool_id)?;
