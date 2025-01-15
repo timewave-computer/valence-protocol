@@ -167,3 +167,57 @@ interchainquery result. These raw results fetched from other cosmos chains will 
 in protobuf and require additional processing in order to be reasoned about.
 
 ## Library Functions
+
+At its core, this library should support initiating the interchain queries, receiving their
+responses, and reclaiming the escrowed fees by unregistering the queries.
+
+In practice, however, these functions are not very useful in a broader Valence Program context
+by themselves - remote domain *KV-Query* results (next just *V*) arrive back encoded in
+formats meant for those remote domains.
+
+For most cosmos-sdk based chains, *V* is stored in protobuf. Interpreting protobuf from
+within cosmwasm context is not straightforward and requires additional steps.
+Other domains may store their state in other encoding formats. We do not make any assumptions
+about remote domain encodings in this library - instead, that responsibility is handed over
+to the middleware.
+
+For that reason, it is likely that this library will take on the additional responsibility of
+transforming those remote-encoded responses into [canonical data formats](./../middleware/valence_types.md)
+that will be easily recognized within the Valence Protocol scope.
+Aforementioned transformation will be performed by making use of [Valence Middleware](./../middleware/_overview.md).
+
+After the query response is transformed into its canonical representation, the resulting
+data type is written into a [Storage Account](./../components/storage_account.md) making
+it available for further processing, interpretation, or other functions.
+
+## Library Lifecycle
+
+With the baseline functionality in mind, there are multiple design decisions to be made
+that will shape the overall lifecycle of this library.
+
+This library may take on one of two possible routes with respect to how long it is considered
+active:
+1. single-use, instantiated to perform a particular query and complete
+2. multi-use, instantiated to perform multiple domain queries
+
+For single-use design, one of the main questions is at what point does the query
+actually get registered.
+
+One approach for the single-use approach could be to register the query as soon as
+the library is instantiated. This way, given a complex Valence Program configuration,
+IC Querier library would have the smallest chance of being the bottleneck and
+potentially blocking other libraries from performing their functions (due to query
+result not being fetched yet).
+Alternatively, queries could be registered on-demand. That way, the library
+would be instantiated just like any other library. When a query would be required,
+a message would be executed and the query would get registered.
+
+Both approaches would perform the queries, but the library would remain active.
+For that reason we likely need to introduce some notion of finalization.
+Registered Interchain Queries continue receiving updates according to the `update_period`
+specified during the query registration. This is quite an open design space -
+some potential approaches to query deregistration may involve:
+
+- deregister the query after n query results (e.g. after 1)
+- deregister the query once the result is posted on a block that exceeds a given block/time
+- deregister the query manually with a specific message
