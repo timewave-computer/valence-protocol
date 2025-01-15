@@ -2099,7 +2099,14 @@ fn failed_non_atomic_batch_after_retries() {
 
     // We'll create an authorization with 3 functions, where the first one and third will always succeed but the second one will fail until we modify the contract to succeed
     let authorizations = vec![AuthorizationBuilder::new()
-        .with_label("permissionless")
+        .with_label("permissioned")
+        .with_mode(AuthorizationModeInfo::Permissioned(
+            PermissionTypeInfo::WithCallLimit(vec![(
+                setup.user_accounts[0].address(),
+                // Mint one tokens to execute once
+                Uint128::new(1),
+            )]),
+        ))
         .with_subroutine(
             NonAtomicSubroutineBuilder::new()
                 .with_function(
@@ -2154,15 +2161,17 @@ fn failed_non_atomic_batch_after_retries() {
     );
     let message2 = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
 
+    let permission_token = build_tokenfactory_denom(&authorization_contract, "permissioned");
+
     // Send the messages
     wasm.execute::<ExecuteMsg>(
         &authorization_contract,
         &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
-            label: "permissionless".to_string(),
+            label: "permissioned".to_string(),
             messages: vec![message1, message2],
             ttl: None,
         }),
-        &[],
+        &[Coin::new(Uint128::one(), permission_token.to_string())],
         &setup.user_accounts[0],
     )
     .unwrap();
@@ -2211,6 +2220,26 @@ fn failed_non_atomic_batch_after_retries() {
         query_callbacks[0].execution_result,
         ExecutionResult::PartiallyExecuted(1, _)
     ));
+
+    // Verify that neither the contract nor the user has the token (it was burned)
+    let bank = Bank::new(&setup.app);
+    let balance = bank
+        .query_balance(&QueryBalanceRequest {
+            address: setup.user_accounts[0].address(),
+            denom: permission_token.clone(),
+        })
+        .unwrap();
+
+    assert_eq!(balance.balance.unwrap().amount, "0");
+
+    let balance = bank
+        .query_balance(&QueryBalanceRequest {
+            address: authorization_contract.clone(),
+            denom: permission_token,
+        })
+        .unwrap();
+
+    assert_eq!(balance.balance.unwrap().amount, "0");
 }
 
 #[test]
@@ -2750,7 +2779,7 @@ fn refund_and_burn_tokens_after_callback() {
             .as_str()
     ));
 
-    // Let's balance of the user to verify he only has 1 token left
+    // Check the balance of the user to verify that they don't have any tokens left
     let balance = bank
         .query_balance(&QueryBalanceRequest {
             address: setup.user_accounts[0].address(),
@@ -2828,6 +2857,153 @@ fn refund_and_burn_tokens_after_callback() {
         .unwrap();
 
     assert_eq!(contract_balance.balance.unwrap().amount, "0");
+}
+
+#[test]
+fn burn_tokens_after_removed_by_owner() {
+    let setup = NeutronTestAppBuilder::new().build().unwrap();
+
+    let wasm = Wasm::new(&setup.app);
+    let bank = Bank::new(&setup.app);
+
+    let (authorization_contract, _) = store_and_instantiate_authorization_with_processor_contract(
+        &setup.app,
+        &setup.owner_accounts[0],
+        setup.owner_addr.to_string(),
+        vec![setup.subowner_addr.to_string()],
+    );
+    let test_library_contract =
+        store_and_instantiate_test_library(&wasm, &setup.owner_accounts[0], None);
+
+    // We'll create an authorization that we'll remove by the owner to check that the token is correctly burned
+    let authorizations = vec![AuthorizationBuilder::new()
+        .with_label("permissioned-with-limit")
+        .with_mode(AuthorizationModeInfo::Permissioned(
+            PermissionTypeInfo::WithCallLimit(vec![(
+                setup.user_accounts[0].address(),
+                // Mint one token to allow 1 execution
+                Uint128::one(),
+            )]),
+        ))
+        .with_subroutine(
+            NonAtomicSubroutineBuilder::new()
+                .with_function(
+                    NonAtomicFunctionBuilder::new()
+                        .with_contract_address(&test_library_contract)
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "will_succeed".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .build(),
+        )
+        .build()];
+
+    // Create the authorization and messages that will be sent
+    wasm.execute::<ExecuteMsg>(
+        &authorization_contract,
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
+        &[],
+        &setup.owner_accounts[0],
+    )
+    .unwrap();
+
+    let binary = Binary::from(
+        serde_json::to_vec(&TestLibraryExecuteMsg::WillSucceed { execution_id: None }).unwrap(),
+    );
+
+    let message1 = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
+
+    // The token that was minted to the user
+    let permission_token =
+        build_tokenfactory_denom(&authorization_contract, "permissioned-with-limit");
+
+    // Sending the message will enqueue into the processor
+    wasm.execute::<ExecuteMsg>(
+        &authorization_contract,
+        &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
+            label: "permissioned-with-limit".to_string(),
+            messages: vec![message1.clone()],
+            ttl: None,
+        }),
+        &[Coin::new(Uint128::one(), permission_token.to_string())],
+        &setup.user_accounts[0],
+    )
+    .unwrap();
+
+    // Let's balance of the user to verify that he doesn't have any tokens left
+    let balance = bank
+        .query_balance(&QueryBalanceRequest {
+            address: setup.user_accounts[0].address(),
+            denom: permission_token.clone(),
+        })
+        .unwrap();
+
+    assert_eq!(balance.balance.unwrap().amount, "0");
+
+    // Verify that the contract has the token in escrow
+    let contract_balance = bank
+        .query_balance(&QueryBalanceRequest {
+            address: authorization_contract.clone(),
+            denom: permission_token.clone(),
+        })
+        .unwrap();
+
+    assert_eq!(contract_balance.balance.unwrap().amount, "1");
+
+    // Remove the message by owner
+    wasm.execute::<ExecuteMsg>(
+        &authorization_contract,
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::EvictMsgs {
+            domain: Domain::Main,
+            queue_position: 0,
+            priority: Priority::Medium,
+        }),
+        &[],
+        &setup.owner_accounts[0],
+    )
+    .unwrap();
+
+    // We should have a confirmed callback  with RemovedByOwner result
+    let query_callbacks = wasm
+        .query::<QueryMsg, Vec<ProcessorCallbackInfo>>(
+            &authorization_contract,
+            &QueryMsg::ProcessorCallbacks {
+                start_after: None,
+                limit: None,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(query_callbacks.len(), 1);
+    assert_eq!(
+        query_callbacks[0].execution_result,
+        ExecutionResult::RemovedByOwner
+    );
+
+    // Token should have been burnt, not refunded
+    let contract_balance = bank
+        .query_balance(&QueryBalanceRequest {
+            address: authorization_contract.clone(),
+            denom: permission_token.clone(),
+        })
+        .unwrap();
+
+    assert_eq!(contract_balance.balance.unwrap().amount, "0");
+
+    // User should still have 0 tokens
+    let balance = bank
+        .query_balance(&QueryBalanceRequest {
+            address: setup.user_accounts[0].address(),
+            denom: permission_token.clone(),
+        })
+        .unwrap();
+
+    assert_eq!(balance.balance.unwrap().amount, "0");
 }
 
 #[test]

@@ -1,14 +1,20 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut};
 use cw_ownable::cw_ownable_query;
+use valence_astroport_utils::PoolType;
 use valence_library_utils::{
-    error::LibraryError, msg::LibraryConfigValidation, LibraryAccountType,
+    error::LibraryError,
+    liquidity_utils::{AssetData, DecimalRange},
+    msg::LibraryConfigValidation,
+    LibraryAccountType,
 };
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
 
 #[cw_serde]
 pub enum FunctionMsgs {
-    WithdrawLiquidity {},
+    WithdrawLiquidity {
+        expected_pool_ratio_range: Option<DecimalRange>,
+    },
 }
 
 #[valence_library_query]
@@ -52,15 +58,13 @@ impl LibraryConfig {
 
 #[cw_serde]
 pub struct LiquidityWithdrawerConfig {
-    /// Pool type, old Astroport pools use Cw20 lp tokens and new pools use native tokens, so we specify here what kind of token we are going to get.
-    /// We also provide the PairType structure of the right Astroport version that we are going to use for each scenario
+    /// Pool type, old Astroport pools use Cw20 lp tokens and new pools use native tokens,
+    /// so we specify here what kind of token we are going to get.
+    /// We also provide the PairType structure of the right Astroport version that we are
+    /// going to use for each scenario
     pub pool_type: PoolType,
-}
-
-#[cw_serde]
-pub enum PoolType {
-    NativeLpToken,
-    Cw20LpToken,
+    /// Denoms of the underlying assets to be withdrawn
+    pub asset_data: AssetData,
 }
 
 #[cw_serde]

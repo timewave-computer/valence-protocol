@@ -11,7 +11,10 @@ use osmosis_test_tube::{
     },
     Account, Bank, ExecuteResponse, Module, Wasm,
 };
-use valence_library_utils::msg::{ExecuteMsg, InstantiateMsg};
+use valence_library_utils::{
+    liquidity_utils::{AssetData, DecimalRange},
+    msg::{ExecuteMsg, InstantiateMsg},
+};
 use valence_osmosis_utils::{
     suite::{OsmosisTestAppBuilder, OsmosisTestAppSetup},
     testing::balancer::BalancerPool,
@@ -53,6 +56,10 @@ impl LPerTestSuite {
                 output_acc.as_str(),
                 lw_config.unwrap_or(LiquidityWithdrawerConfig {
                     pool_id: inner.pool_cfg.pool_id.u64(),
+                    asset_data: AssetData {
+                        asset1: inner.pool_cfg.pool_asset1.to_string(),
+                        asset2: inner.pool_cfg.pool_asset2.to_string(),
+                    },
                 }),
             ),
         };
@@ -112,12 +119,17 @@ impl LPerTestSuite {
         try_proto_to_cosmwasm_coins(resp.balances)
     }
 
-    pub fn withdraw_liquidity(&self) -> ExecuteResponse<MsgExecuteContractResponse> {
+    pub fn withdraw_liquidity(
+        &self,
+        expected_spot_price: Option<DecimalRange>,
+    ) -> ExecuteResponse<MsgExecuteContractResponse> {
         let wasm = Wasm::new(&self.inner.app);
 
         wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
             &self.lp_withdrawer_addr,
-            &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {}),
+            &ExecuteMsg::ProcessFunction(FunctionMsgs::WithdrawLiquidity {
+                expected_spot_price,
+            }),
             &[],
             self.inner.processor_acc(),
         )

@@ -13,11 +13,11 @@ use osmosis_std::{
 use valence_library_utils::{
     error::LibraryError,
     execute_on_behalf_of,
+    liquidity_utils::DecimalRange,
     msg::{ExecuteMsg, InstantiateMsg},
 };
 use valence_osmosis_utils::utils::{
     gamm_utils::ValenceLiquidPooler, get_provide_liquidity_msg, get_provide_ss_liquidity_msg,
-    DecimalRange,
 };
 
 use crate::msg::{Config, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, QueryMsg};
@@ -87,8 +87,8 @@ fn provide_single_sided_liquidity(
     let pool = pm_querier.query_pool_config(cfg.lp_config.pool_id)?;
     let pool_ratio = pm_querier.query_spot_price(
         cfg.lp_config.pool_id,
-        cfg.lp_config.pool_asset_1,
-        cfg.lp_config.pool_asset_2,
+        cfg.lp_config.asset_data.asset1,
+        cfg.lp_config.asset_data.asset2,
     )?;
 
     // assert the spot price to be within our expectations,
@@ -144,17 +144,17 @@ pub fn provide_double_sided_liquidity(
     // first we assert the input account balances
     let bal_asset_1 = deps
         .querier
-        .query_balance(&cfg.input_addr, &cfg.lp_config.pool_asset_1)?;
+        .query_balance(&cfg.input_addr, &cfg.lp_config.asset_data.asset1)?;
     let bal_asset_2 = deps
         .querier
-        .query_balance(&cfg.input_addr, &cfg.lp_config.pool_asset_2)?;
+        .query_balance(&cfg.input_addr, &cfg.lp_config.asset_data.asset2)?;
 
     let pm_querier = PoolmanagerQuerier::new(&deps.querier);
 
     let pool_ratio = pm_querier.query_spot_price(
         cfg.lp_config.pool_id,
-        cfg.lp_config.pool_asset_1,
-        cfg.lp_config.pool_asset_2,
+        cfg.lp_config.asset_data.asset1,
+        cfg.lp_config.asset_data.asset2,
     )?;
     let pool = pm_querier.query_pool_config(cfg.lp_config.pool_id)?;
 
