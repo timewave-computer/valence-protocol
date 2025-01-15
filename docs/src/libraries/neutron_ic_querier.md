@@ -221,3 +221,43 @@ some potential approaches to query deregistration may involve:
 - deregister the query after n query results (e.g. after 1)
 - deregister the query once the result is posted on a block that exceeds a given block/time
 - deregister the query manually with a specific message
+
+## Library in Valence Programs
+
+Neutron IC Querier does not behave as a standard library in that it does not produce
+any fungible outcome. Instead, it produces a foreign type that gets converted
+into a Valence Type.
+
+While that result could be posted directly to the state of this library,
+instead, it is posted to an associated output account meant for storing data.
+Just as some other libraries have a notion of output accounts for transferring some
+funds, Neutron IC Querier has a notion of output account for writing some data.
+
+For example, consider a situation where this library had queried the balance of some
+remote account, parsed the response into a Valence Balance type, and wrote that resulting
+object into its associated output account. That output account may be the input account
+of some other library, which will attempt to perform its function based on the content
+written to its input account. This may involve something along the lines of:
+`if balance > 0, do x; otherwise, do y;`.
+
+It is a little less obvious as to what is the *input account* of Neutron IC Querier.
+For one, the input account could be standard type account that deals with token transfers.
+Prior to registering the interchain query, input account could be expected to receive
+the query deposit (in `untrn`) meant to cover the query registration costs.
+With that, the IC Querier flow in a Valence Program may look like this:
+
+```
+┌──────────────┐                ┌────────────┐                   ┌───────────┐
+│   standard   │   pay query    │ Neutron IC │   write Valence   │  storage  │
+│   account    │────deposit────▶│  Querier   │──────result──────▶│  account  │
+└──────────────┘                └────────────┘                   └───────────┘
+```
+
+Input account being funded with sufficient `untrn` here could even be seen as the trigger
+for when a query should be registered. It's probably worth noting that anyone would
+be free to transfer funds into that account and "trigger" the query registration,
+but it is hardly an attack - just an early start to a flow that was meant to happen anyways.
+Prematurely registered queries could be dealt with (permissioned deregistration),
+and given the escrow cost, this type of attack does not seem very likely. Also worth
+noting, this type of design would probably not be compatible with query registration
+happening as soon as the library is instantiated.
