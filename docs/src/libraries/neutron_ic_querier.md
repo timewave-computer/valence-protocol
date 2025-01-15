@@ -254,10 +254,11 @@ With that, the IC Querier flow in a Valence Program may look like this:
 ```
 
 Input account being funded with sufficient `untrn` here could even be seen as the trigger
-for when a query should be registered. It's probably worth noting that anyone would
+for when a query should be registered: input account could be gated by some logic that should
+precede the query registration. It's probably worth noting that anyone would
 be free to transfer funds into that account and "trigger" the query registration,
 but it is hardly an attack - just an early start to a flow that was meant to happen anyways.
-Prematurely registered queries could be dealt with (permissioned deregistration),
+Prematurely registered queries could be dealt with (permissioned/permisionless deregistration),
 and given the escrow cost, this type of attack does not seem very likely. Also worth
 noting, this type of design would probably not be compatible with query registration
 happening as soon as the library is instantiated.
