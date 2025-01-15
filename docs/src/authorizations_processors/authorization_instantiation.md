@@ -8,4 +8,4 @@ When the contract is instantiated, it will be provided the following information
 
 - Admin of the contract (if different to sender).
 
-The instantiation will set up all the processors on each domain so that we can start instantiating the services afterwards and providing the correct `Processor` addresses to each of them depending on which domain they are in.
+The instantiation will set up all the processors on each domain so that we can start instantiating the libraries afterwards and providing the correct `Processor` addresses to each of them depending on which domain they are in.
