@@ -3,7 +3,15 @@
 // The content of this file is taken from the 'astroport' crate, specifically version 5.0.0
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{coin, Addr, Binary, Coin, Decimal, StdError, StdResult, Uint128};
+use cosmwasm_std::{coin, Addr, Binary, Coin, Decimal, DepsMut, StdError, StdResult, Uint128};
+use valence_library_utils::error::LibraryError;
+
+pub fn query_pool(deps: &DepsMut, pool_addr: &str) -> Result<Vec<Asset>, LibraryError> {
+    let response: PoolResponse = deps
+        .querier
+        .query_wasm_smart(pool_addr, &PoolQueryMsg::Pool {})?;
+    Ok(response.assets)
+}
 
 /// This structure holds the parameters that are returned from a swap simulation response
 #[cw_serde]

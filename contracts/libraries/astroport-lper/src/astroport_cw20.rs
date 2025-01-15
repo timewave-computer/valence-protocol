@@ -1,18 +1,12 @@
-use crate::msg::{Config, PoolType};
+use crate::msg::Config;
 
 use cosmwasm_std::{coin, CosmosMsg, WasmMsg};
 use cosmwasm_std::{to_json_binary, DepsMut, Uint128};
 use valence_astroport_utils::astroport_cw20_lp_token::{
-    Asset, AssetInfo, ExecuteMsg, PairType, PoolQueryMsg, PoolResponse, SimulationResponse,
+    Asset, AssetInfo, ExecuteMsg, PairType, PoolQueryMsg, SimulationResponse,
 };
+use valence_astroport_utils::PoolType;
 use valence_library_utils::error::LibraryError;
-
-pub fn query_pool(deps: &DepsMut, pool_addr: &str) -> Result<Vec<Asset>, LibraryError> {
-    let response: PoolResponse = deps
-        .querier
-        .query_wasm_smart(pool_addr, &PoolQueryMsg::Pool {})?;
-    Ok(response.assets)
-}
 
 pub fn create_provide_liquidity_msg(
     cfg: &Config,

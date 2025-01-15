@@ -23,7 +23,7 @@ use localic_utils::{
 use log::info;
 use rand::{distributions::Alphanumeric, Rng};
 use serde_json::Value;
-use valence_astroport_lper::msg::{AssetData, LiquidityProviderConfig};
+use valence_astroport_lper::msg::LiquidityProviderConfig;
 use valence_astroport_utils::astroport_native_lp_token::{
     Asset, AssetInfo, FactoryInstantiateMsg, FactoryQueryMsg, PairConfig, PairType,
 };
@@ -34,7 +34,9 @@ use valence_authorization_utils::{
     msg::ProcessorMessage,
 };
 use valence_forwarder_library::msg::{ForwardingConstraints, UncheckedForwardingConfig};
-use valence_library_utils::{denoms::UncheckedDenom, LibraryAccountType};
+use valence_library_utils::{
+    denoms::UncheckedDenom, liquidity_utils::AssetData, LibraryAccountType,
+};
 use valence_program_manager::{
     account::{AccountInfo, AccountType},
     library::{LibraryConfig, LibraryInfo},
@@ -341,8 +343,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                     output_addr: LibraryAccountType::AccountId(5),
                     pool_addr: pool_addr.to_string(),
                     lp_config: LiquidityProviderConfig {
-                        pool_type: valence_astroport_lper::msg::PoolType::NativeLpToken(
-                            PairType::Xyk {},
+                        pool_type: valence_astroport_utils::PoolType::NativeLpToken(
+                            valence_astroport_utils::astroport_native_lp_token::PairType::Xyk {},
                         ),
                         asset_data: AssetData {
                             asset1: NTRN_DENOM.to_string(),
@@ -408,7 +410,13 @@ fn main() -> Result<(), Box<dyn Error>> {
                     pool_addr: pool_addr.to_string(),
                     withdrawer_config:
                         valence_astroport_withdrawer::msg::LiquidityWithdrawerConfig {
-                            pool_type: valence_astroport_withdrawer::msg::PoolType::NativeLpToken,
+                            pool_type: valence_astroport_utils::PoolType::NativeLpToken(
+                                valence_astroport_utils::astroport_native_lp_token::PairType::Xyk {  },
+                            ),
+                            asset_data: AssetData {
+                                asset1: NTRN_DENOM.to_string(),
+                                asset2: token.clone(),
+                            },
                         },
                 },
             ),
@@ -981,7 +989,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let binary2 = Binary::from(
         serde_json::to_vec(
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
-                valence_astroport_withdrawer::msg::FunctionMsgs::WithdrawLiquidity {},
+                valence_astroport_withdrawer::msg::FunctionMsgs::WithdrawLiquidity {
+                    expected_pool_ratio_range: None,
+                },
             ),
         )
         .unwrap(),

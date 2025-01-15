@@ -1,38 +1,15 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{ensure, Coin, CosmosMsg, Decimal, StdResult, Uint128};
+use cosmwasm_std::{Coin, CosmosMsg, StdResult, Uint128};
 use osmosis_std::{
     cosmwasm_to_proto_coins,
     types::osmosis::gamm::v1beta1::{MsgExitPool, MsgJoinPool, MsgJoinSwapExternAmountIn},
 };
-use valence_library_utils::error::LibraryError;
 
 #[cw_serde]
 pub struct LiquidityProviderConfig {
     pub pool_id: u64,
     pub pool_asset_1: String,
     pub pool_asset_2: String,
-}
-
-#[cw_serde]
-pub struct DecimalRange {
-    min: Decimal,
-    max: Decimal,
-}
-
-impl From<(Decimal, Decimal)> for DecimalRange {
-    fn from((min, max): (Decimal, Decimal)) -> Self {
-        DecimalRange { min, max }
-    }
-}
-
-impl DecimalRange {
-    pub fn contains(&self, value: Decimal) -> Result<(), LibraryError> {
-        ensure!(
-            value >= self.min && value <= self.max,
-            LibraryError::ExecutionError("Value is not within the expected range".to_string())
-        );
-        Ok(())
-    }
 }
 
 pub fn get_provide_liquidity_msg(

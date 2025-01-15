@@ -4,10 +4,13 @@ use cosmwasm_std::{ensure, Addr, Deps, DepsMut, Uint128, Uint64};
 use cw_ownable::cw_ownable_query;
 use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
 use valence_library_utils::{
-    error::LibraryError, msg::LibraryConfigValidation, LibraryAccountType,
+    error::LibraryError,
+    liquidity_utils::{AssetData, DecimalRange},
+    msg::LibraryConfigValidation,
+    LibraryAccountType,
 };
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
-use valence_osmosis_utils::utils::{gamm_utils::ValenceLiquidPooler, DecimalRange};
+use valence_osmosis_utils::utils::gamm_utils::ValenceLiquidPooler;
 
 #[cw_serde]
 pub enum FunctionMsgs {
@@ -30,8 +33,7 @@ pub enum QueryMsg {}
 #[cw_serde]
 pub struct LiquidityProviderConfig {
     pub pool_id: u64,
-    pub pool_asset_1: String,
-    pub pool_asset_2: String,
+    pub asset_data: AssetData,
 }
 
 #[cw_serde]
@@ -92,10 +94,10 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
         let (mut asset_1_found, mut asset_2_found) = (false, false);
         for pool_asset in pool.pool_assets {
             if let Some(asset) = pool_asset.token {
-                if self.lp_config.pool_asset_1 == asset.denom {
+                if self.lp_config.asset_data.asset1 == asset.denom {
                     asset_1_found = true;
                 }
-                if self.lp_config.pool_asset_2 == asset.denom {
+                if self.lp_config.asset_data.asset2 == asset.denom {
                     asset_2_found = true;
                 }
             }
