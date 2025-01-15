@@ -416,13 +416,13 @@ Each “item” stored in the queue is an object <code>MessageBatch</code> that 
 <p>Processor contract on main domain.</p>
 </li>
 <li>
-<p>[(Domain, Connector(Polytone_note_contract), Processor_contract_on_domain, callback_proxy, IBC_Timeout_settings)]: If it's a cross domain application, an array will be passed with each external domain label and its corresponding connector contracts and proxies that will be instantiated before hand. For each connector, there will be also a proxy corresponding to that external domain because it’s a two-way communication flow and we need to receive callbacks. Additionally, we need a set of <code>Timeout</code> settings for the bridge, to know for how long the messages sent through the connector are going to be valid.</p>
+<p><code>[(Domain, Connector(Polytone_note_contract), Processor_contract_on_domain, callback_proxy, IBC_Timeout_settings)]</code>: If it's a cross domain application, an array will be passed with each external domain label and its corresponding connector contracts and proxies that will be instantiated before hand. For each connector, there will be also a proxy corresponding to that external domain because it’s a two-way communication flow and we need to receive callbacks. Additionally, we need a set of <code>Timeout</code> settings for the bridge, to know for how long the messages sent through the connector are going to be valid.</p>
 </li>
 <li>
 <p>Admin of the contract (if different to sender).</p>
 </li>
 </ul>
-<p>The instantiation will set up all the processors on each domain so that we can start instantiating the services afterwards and providing the correct <code>Processor</code> addresses to each of them depending on which domain they are in.</p>
+<p>The instantiation will set up all the processors on each domain so that we can start instantiating the libraries afterwards and providing the correct <code>Processor</code> addresses to each of them depending on which domain they are in.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="owner-functions"><a class="header" href="#owner-functions">Owner Functions</a></h1>
 <ul>
 <li>
