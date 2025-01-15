@@ -24,14 +24,24 @@ Read more about the given type ICQ integration in the [type registry documentati
 
 ### Query registration fee
 
-Neutron `interchainqueries` module is configured to take a fee (denominated in `untrn`) in order to register a query.
+Neutron `interchainqueries` module is configured to escrow a fee (denominated in `untrn`) in order to register a query.
 The fee parameter is dynamic and can be queried via the `interchainqueries` module.
+
+### Query deregistration
+
+Interchain Query escrow payments can be reclaimed by submitting the
+`RemoveInterchainQuery` message.
+Only the query owner (this contract) is able to submit this message.
+
+Interchain Queries should be removed after they are no longer needed,
+however, that moment may be different for each Valence Program depending
+on its configuration.
 
 ### relevant `interchainqueries` module details
 
 #### Query Registration Message types
 
-Interchain queries can be registered by submitting the following `neutron-sdk` message:
+Interchain queries can be registered and unregistered by submitting the following `neutron-sdk` messages:
 
 ```rust
 pub enum NeutronMsg {
@@ -52,7 +62,10 @@ pub enum NeutronMsg {
 
 		/// **update_period** is used to say how often the query must be updated.
 		update_period: u64,
-	}
+	},
+	RemoveInterchainQuery {
+    query_id: u64,
+	},
 }
 ```
 
@@ -132,7 +145,7 @@ pub struct StorageValue {
 }
 ```
 
-### Query lifecycle
+## Query lifecycle
 
 After `RegisterInterchainQuery` message is submitted, `interchainqueries` module will deduct
 the query registration fee from the caller.
@@ -153,8 +166,4 @@ That `query_id` can then be used to query the `interchainqueries` module to obta
 interchainquery result. These raw results fetched from other cosmos chains will be encoded
 in protobuf and require additional processing in order to be reasoned about.
 
-## Library Configuration
-
-# TODO
-
-- registered query removal
+## Library Functions
