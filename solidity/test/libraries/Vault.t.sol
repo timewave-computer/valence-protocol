@@ -45,7 +45,6 @@ contract VaultTest is Test {
 
         vault = new ValenceVault(
             owner,
-            processor,
             abi.encode(config),
             address(token),
             "Valence Vault Token",
@@ -211,7 +210,7 @@ contract VaultTest is Test {
 
         vm.startPrank(user);
 
-uint256 preBalance = token.balanceOf(user);
+        uint256 preBalance = token.balanceOf(user);
 
         // Test partial mint
         vault.mint(3000, user);
@@ -236,6 +235,37 @@ uint256 preBalance = token.balanceOf(user);
         assertEq(token.balanceOf(address(user)), preBalance - 5000);
         assertEq(vault.balanceOf(address(user)), 5000);
 
+        vm.stopPrank();
+    }
+
+    function testPauseUnpauseAndPermissions() public {
+        // Test only strategist can pause
+        vm.startPrank(user);
+        vm.expectRevert(abi.encodeWithSelector(ValenceVault.OnlyOwnerOrStrategistAllowed.selector));
+        vault.pause(true);
+        vm.stopPrank();
+
+        // Test pause functionality
+        vm.startPrank(strategist);
+        vault.pause(true);
+        assertTrue(vault.paused());
+        vm.stopPrank();
+
+        // Test deposits blocked when paused
+        vm.startPrank(user);
+        vm.expectRevert(abi.encodeWithSelector(ValenceVault.VaultIsPaused.selector));
+        vault.deposit(1000, user);
+        vm.stopPrank();
+
+        // Test unpause and deposit
+        vm.startPrank(owner);
+        vault.pause(false);
+        assertFalse(vault.paused());
+        vm.stopPrank();
+
+        vm.startPrank(user);
+        vault.deposit(1000, user);
+        assertEq(vault.totalAssets(), 1000);
         vm.stopPrank();
     }
 }
