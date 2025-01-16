@@ -2,7 +2,7 @@
 name        = "valence-authorization-utils"
 version     = { workspace = true }
 edition     = { workspace = true }
-authors     = ["Timewave Labs"]
+authors     = [ "Timewave Labs" ]
 description = "Helpers for authorization contract"
 
 [dependencies]

@@ -1,17 +1,17 @@
 [package]
 name    = "valence-program-registry"
 version = "0.1.0"
-authors = ["Timewave Labs"]
+authors = [ "Timewave Labs" ]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = [ "cdylib", "rlib" ]
 
 [features]
 # use library feature to disable all instantiate/execute/query exports
-library = []
+library = [  ]
 
 [package.metadata.scripts]
 optimize = """docker run --rm -v "$(pwd)":/code \

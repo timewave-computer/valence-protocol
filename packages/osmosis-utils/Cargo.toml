@@ -2,14 +2,12 @@
 name        = "valence-osmosis-utils"
 version     = { workspace = true }
 edition     = { workspace = true }
-authors     = ["Timewave Labs"]
+authors     = [ "Timewave Labs" ]
 description = "Utils for osmosis libraries"
 
 [features]
-default = []
-testing = [
-    "dep:osmosis-test-tube",
-]
+default = [  ]
+testing = [ "dep:osmosis-test-tube" ]
 
 [dependencies]
 cosmwasm-std          = { workspace = true }

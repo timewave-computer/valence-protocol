@@ -2,7 +2,7 @@
 name        = "valence-polytone-utils"
 version     = { workspace = true }
 edition     = { workspace = true }
-authors     = ["Timewave Labs"]
+authors     = [ "Timewave Labs" ]
 description = "Helpers for polytone bridging"
 
 [dependencies]

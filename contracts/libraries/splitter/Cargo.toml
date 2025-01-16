@@ -7,11 +7,11 @@ version    = { workspace = true }
 repository = { workspace = true }
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = [ "cdylib", "rlib" ]
 
 [features]
 # use library feature to disable all instantiate/execute/query exports
-library = []
+library = [  ]
 
 [dependencies]
 cosmwasm-schema       = { workspace = true }
@@ -35,5 +35,5 @@ cw20                       = { workspace = true }
 cw20-base                  = { workspace = true }
 sha2                       = { workspace = true }
 valence-account-utils      = { workspace = true }
-valence-library-utils      = { workspace = true, features = ["testing"] }
+valence-library-utils      = { workspace = true, features = [ "testing" ] }
 valence-test-dynamic-ratio = { workspace = true }

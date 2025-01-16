@@ -7,11 +7,11 @@ version    = { workspace = true }
 repository = { workspace = true }
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = [ "cdylib", "rlib" ]
 
 [features]
 # use library feature to disable all instantiate/execute/query exports
-library = []
+library = [  ]
 
 [dependencies]
 cosmwasm-std             = { workspace = true }
@@ -19,7 +19,7 @@ cosmwasm-schema          = { workspace = true }
 cw-ownable               = { workspace = true }
 osmosis-std              = { workspace = true }
 osmosis-std-derive       = { workspace = true }
-prost                    = { workspace = true, features = ["prost-derive"] }
+prost                    = { workspace = true, features = [ "prost-derive" ] }
 prost-types              = { workspace = true }
 neutron-sdk              = { workspace = true }
 serde-json-wasm          = { version = "1.0.0" }

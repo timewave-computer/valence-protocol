@@ -7,11 +7,11 @@ version    = { workspace = true }
 repository = { workspace = true }
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = [ "cdylib", "rlib" ]
 
 [features]
 # use library feature to disable all instantiate/execute/query exports
-library = []
+library = [  ]
 
 [dependencies]
 cosmwasm-std          = { workspace = true }
@@ -27,5 +27,5 @@ valence-osmosis-utils = { workspace = true }
 [dev-dependencies]
 cw20                      = { workspace = true }
 osmosis-test-tube         = { workspace = true }
-valence-osmosis-utils     = { workspace = true, features = ["testing"] }
+valence-osmosis-utils     = { workspace = true, features = [ "testing" ] }
 valence-osmosis-gamm-lper = { workspace = true }

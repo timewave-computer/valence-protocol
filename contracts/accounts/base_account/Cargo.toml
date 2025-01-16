@@ -1,17 +1,17 @@
 [package]
 name    = "valence-base-account"
 version = "0.1.0"
-authors = ["Timewave Labs"]
+authors = [ "Timewave Labs" ]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = [ "cdylib", "rlib" ]
 
 [features]
 # use library feature to disable all instantiate/execute/query exports
-library = []
+library = [  ]
 
 [package.metadata.scripts]
 optimize = """docker run --rm -v "$(pwd)":/code \
@@ -22,7 +22,7 @@ optimize = """docker run --rm -v "$(pwd)":/code \
 
 [dependencies]
 cosmwasm-schema       = { workspace = true }
-cosmwasm-std          = { workspace = true, features = ["stargate"] }
+cosmwasm-std          = { workspace = true, features = [ "stargate" ] }
 cw-ownable            = { workspace = true }
 cw-storage-plus       = { workspace = true }
 cw2                   = { workspace = true }
@@ -40,4 +40,4 @@ cw20-base             = { workspace = true }
 getset                = { workspace = true }
 itertools             = { workspace = true }
 sha2                  = { workspace = true }
-valence-account-utils = { workspace = true, features = ["testing"] }
+valence-account-utils = { workspace = true, features = [ "testing" ] }

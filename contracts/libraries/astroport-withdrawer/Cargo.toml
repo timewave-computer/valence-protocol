@@ -7,11 +7,11 @@ version    = { workspace = true }
 repository = { workspace = true }
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = [ "cdylib", "rlib" ]
 
 [features]
 # use library feature to disable all instantiate/execute/query exports
-library = []
+library = [  ]
 
 [dependencies]
 cosmwasm-std            = { workspace = true }
@@ -24,7 +24,7 @@ valence-library-base    = { workspace = true }
 valence-astroport-utils = { workspace = true }
 
 [dev-dependencies]
-valence-astroport-utils = { workspace = true, features = ["testing"] }
+valence-astroport-utils = { workspace = true, features = [ "testing" ] }
 cw20                    = { workspace = true }
 valence-account-utils   = { workspace = true }
 neutron-test-tube       = { workspace = true }
