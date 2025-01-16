@@ -20,7 +20,9 @@ use neutron_sdk::{
 use valence_middleware_utils::type_registry::types::{NativeTypeWrapper, RegistryQueryMsg};
 
 use crate::{
-    error::ContractError, msg::{Config, FunctionMsgs, InstantiateMsg, LibraryConfig, QueryMsg}, state::{PendingQueryIdConfig, ASSOCIATED_QUERY_IDS, QUERY_RESULTS}
+    error::ContractError,
+    msg::{Config, FunctionMsgs, InstantiateMsg, LibraryConfig, QueryMsg},
+    state::{PendingQueryIdConfig, ASSOCIATED_QUERY_IDS, QUERY_RESULTS},
 };
 
 // version info for migration info

@@ -39,7 +39,7 @@ impl EVMLibrary {
     /// returns true if the library exists and is not `NoLibrary`
     pub fn is_valid(lib: &str) -> bool {
         lib.parse::<EVMLibrary>()
-            .map_or(false, |library| !matches!(library, EVMLibrary::NoLibrary))
+            .is_ok_and(|library| !matches!(library, EVMLibrary::NoLibrary))
     }
 
     /// Encodes the provided message using the provided library

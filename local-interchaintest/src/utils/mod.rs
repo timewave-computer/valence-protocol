@@ -1,5 +1,7 @@
 pub mod authorization;
 pub mod base_account;
+pub mod ethereum;
+pub mod hyperlane;
 pub mod ibc;
 pub mod icq;
 pub mod manager;
@@ -8,6 +10,7 @@ pub mod persistence;
 pub mod polytone;
 pub mod processor;
 pub mod relayer;
+pub mod solidity_contracts;
 
 // Local-ic chain configs files
 pub const NEUTRON_CONFIG_FILE: &str = "neutron.json";
@@ -18,6 +21,10 @@ pub const NEUTRON_OSMO_CONFIG_FILE: &str = "neutron_osmosis.json";
 pub const VALENCE_ARTIFACTS_PATH: &str = "artifacts";
 // We keep the polytone contracts here for our tests
 pub const POLYTONE_ARTIFACTS_PATH: &str = "local-interchaintest/polytone_contracts";
+// We keep the cosmwasm hyperlane contracts here to set up hyperlane on a cosmwasm chain
+pub const HYPERLANE_COSMWASM_ARTIFACTS_PATH: &str =
+    "local-interchaintest/hyperlane/contracts/cosmwasm";
+pub const HYPERLANE_RELAYER_CONFIG_PATH: &str = "local-interchaintest/hyperlane/config/config.json";
 // Where we are keeping the astroport contracts for all our tests
 pub const ASTROPORT_PATH: &str = "packages/astroport-utils/contracts";
 // When spinning up local-ic, this is where the logs files will be stored, we used this to cache code_ids for a specific local-ic instance
@@ -44,3 +51,5 @@ pub const PERSISTENCE_CHAIN_PREFIX: &str = "persistence";
 pub const PERSISTENCE_CHAIN_ADMIN_ADDR: &str = "persistence1hj5fveer5cjtn4wd6wstzugjfdxzl0xpgq5pz8";
 
 pub const ASTROPORT_LP_SUBDENOM: &str = "astroport/share";
+
+pub const DEFAULT_ANVIL_RPC_ENDPOINT: &str = "http://localhost:8545";
