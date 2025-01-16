@@ -9,4 +9,4 @@ viaIR = true
 [dependencies]
 forge-std = "1.9.4"
 hyperlane = { version = "5.8.3", git = "https://github.com/hyperlane-xyz/hyperlane-monorepo", directory = "solidity", rev = "5b70527" }
-"@openzeppelin-contracts" = "5.2.0"
+"@openzeppelin-contracts" = "5.2.0-rc.1"
