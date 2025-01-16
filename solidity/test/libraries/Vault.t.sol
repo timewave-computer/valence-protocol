@@ -8,7 +8,6 @@ import {MockERC20} from "../mocks/MockERC20.sol";
 import {Ownable} from "@openzeppelin-contracts/access/Ownable.sol";
 
 contract VaultTest is Test {
-    // Test contracts and addresses
     ValenceVault vault;
     BaseAccount depositAccount;
     BaseAccount withdrawAccount;
@@ -17,21 +16,23 @@ contract VaultTest is Test {
     address owner = address(1);
     address processor = address(2);
     address strategist = address(3);
+    address user = address(4);
 
-    /**
-     * @dev Setup test environment
-     * Deploys token, accounts and forwarder with initial config
-     */
+    // Events to test
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Deposit(
+        address indexed sender,
+        address indexed owner,
+        uint256 assets,
+        uint256 shares
+    );
+
     function setUp() public {
-        // Set initial block timestamp and height
         vm.warp(5000);
         vm.roll(100);
 
         vm.startPrank(owner);
-        // Mock underlying token for the vault
         token = new MockERC20("Test Token", "TEST");
-
-        // Create accounts after forwarder
         depositAccount = new BaseAccount(owner, new address[](0));
         withdrawAccount = new BaseAccount(owner, new address[](0));
 
@@ -51,16 +52,21 @@ contract VaultTest is Test {
         );
         withdrawAccount.approveLibrary(address(vault));
         vm.stopPrank();
+
+        // Setup initial state
+        vm.startPrank(owner);
+        token.mint(user, 10000);
+        vm.stopPrank();
+        
+        vm.startPrank(user);
+        token.approve(address(vault), type(uint256).max);
+        vm.stopPrank();
     }
 
     function testUpdateConfig() public {
         vm.startPrank(owner);
-
-        BaseAccount newDepositAccount = new BaseAccount(
-            owner,
-            new address[](0)
-        );
-
+        BaseAccount newDepositAccount = new BaseAccount(owner, new address[](0));
+        
         ValenceVault.VaultConfig memory newConfig = ValenceVault.VaultConfig(
             newDepositAccount,
             withdrawAccount,
@@ -68,22 +74,77 @@ contract VaultTest is Test {
         );
 
         vault.updateConfig(abi.encode(newConfig));
-
         (BaseAccount depAcc, ,) = vault.config();
-
-        assert(depAcc == newDepositAccount);
-
+        assertEq(address(depAcc), address(newDepositAccount));
         vm.stopPrank();
     }
 
-    // TODO: Change test once we change the vault contract logic
+    function testConvertToShares() view public {
+        // Test 1:1 conversion (initial state)
+        uint256 assets = 1000;
+        uint256 expectedShares = assets;
+        assertEq(vault.convertToShares(assets), expectedShares);
+        
+        // Test with small amounts
+        assets = 1;
+        expectedShares = 1;
+        assertEq(vault.convertToShares(assets), expectedShares);
+        
+        // Test with large amounts
+        assets = 1_000_000;
+        expectedShares = 1_000_000;
+        assertEq(vault.convertToShares(assets), expectedShares);
+    }
+
+    function testConvertToAssets() view public {
+        // Test 1:1 conversion (initial state)
+        uint256 shares = 1000;
+        uint256 expectedAssets = shares;
+        assertEq(vault.convertToAssets(shares), expectedAssets);
+        
+        // Test with small amounts
+        shares = 1;
+        expectedAssets = 1;
+        assertEq(vault.convertToAssets(shares), expectedAssets);
+        
+        // Test with large amounts
+        shares = 1_000_000;
+        expectedAssets = 1_000_000;
+        assertEq(vault.convertToAssets(shares), expectedAssets);
+    }
+
     function testTotalAssets() public {
-        vm.startPrank(owner);
+        // Test empty vault
+        assertEq(vault.totalAssets(), 0);
 
-        token.mint(address(vault), 1000);
+        // Test with deposits
+        vm.startPrank(user);
+        vault.deposit(1000, user);
+        assertEq(vault.totalAssets(), 1000);
 
-        uint256 totalAssets = vault.totalAssets();
+        vault.deposit(500, user);
+        assertEq(vault.totalAssets(), 1500);
+        vm.stopPrank();
+    }
 
-        assert(totalAssets == 1000);
+    function testTotalSupplyZero() view public {
+        assertEq(vault.totalSupply(), 0);
+        assertEq(vault.totalAssets(), 0);
+    }
+
+        function testDeposit() public {
+        vm.startPrank(user);
+        
+        uint256 depositAmount = 1000;
+        uint256 preBalance = token.balanceOf(user);
+        
+        vault.deposit(depositAmount, user);
+        
+        assertEq(token.balanceOf(address(depositAccount)), depositAmount);
+        assertEq(token.balanceOf(user), preBalance - depositAmount);
+        assertEq(vault.balanceOf(user), depositAmount);
+        assertEq(vault.totalSupply(), depositAmount);
+        
+        vm.stopPrank();
     }
 }

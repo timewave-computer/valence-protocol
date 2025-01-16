@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.28;
 
-import {ERC20, IERC20, ERC4626} from "@openzeppelin-contracts/token/ERC20/extensions/ERC4626.sol";
+import {SafeERC20, ERC20, IERC20, ERC4626} from "@openzeppelin-contracts/token/ERC20/extensions/ERC4626.sol";
 import {Library} from "./Library.sol";
 import {BaseAccount} from "../accounts/BaseAccount.sol";
+import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
 
 contract ValenceVault is Library, ERC4626 {
+    using Math for uint256;
+
     struct VaultConfig {
         BaseAccount DepositAccount;
         BaseAccount WithdrawAccount;
@@ -13,7 +16,11 @@ contract ValenceVault is Library, ERC4626 {
     }
 
     VaultConfig public config;
-    uint256 public assetsInPosition;
+
+    // Current redemption rate in basis points (1/10000)
+    uint256 public redemptionRate;
+    // Constant for basis point calculations
+    uint256 private constant BASIS_POINTS = 10000;
 
     constructor(
         address _owner,
@@ -26,7 +33,9 @@ contract ValenceVault is Library, ERC4626 {
         Library(_owner, _processor, _config)
         ERC20(vaultTokenName, vaultTokenSymbol)
         ERC4626(IERC20(underlying))
-    {}
+    {
+        redemptionRate = BASIS_POINTS; // Initialize at 1:1
+    }
 
     function updateConfig(bytes memory _config) public override onlyOwner {
         VaultConfig memory decodedConfig = abi.decode(_config, (VaultConfig));
@@ -34,27 +43,33 @@ contract ValenceVault is Library, ERC4626 {
         config = decodedConfig;
     }
 
-    // totalAssets
-    // function totalAssets() public view override returns (uint256) {
-    //     return IERC20(asset()).balanceOf(address(config.DepositAccount)) + assetsInPosition;
-    // }
+    function totalAssets() public view override returns (uint256) {
+        return _convertToAssets(totalSupply(), Math.Rounding.Floor);
+    }
 
-    // convertToShares
-    // convertToAssets
-    // maxWithdraw
-    // maxRedeem
-    // previewDeposit
-    // previewMint
-    // previewWithdraw
-    // previewRedeem
-    // deposit
-    // mint
-    // withdraw
-    // redeem
+    function _deposit(
+        address caller,
+        address receiver,
+        uint256 assets,
+        uint256 shares
+    ) internal virtual override {
+        SafeERC20.safeTransferFrom(IERC20(asset()), caller, address(config.DepositAccount), assets);
+        _mint(receiver, shares);
 
-    // _convertToShares
-    // _convertToAssets
-    // _deposit
-    // _withdraw
-    // _decimalsOffset
+        emit Deposit(caller, receiver, assets, shares);
+    }
+
+    function _convertToAssets(
+        uint256 shares,
+        Math.Rounding rounding
+    ) internal view override returns (uint256) {
+        return shares.mulDiv(redemptionRate, BASIS_POINTS, rounding);
+    }
+
+    function _convertToShares(
+        uint256 assets,
+        Math.Rounding rounding
+    ) internal view override returns (uint256) {
+        return assets.mulDiv(BASIS_POINTS, redemptionRate, rounding);
+    }
 }
