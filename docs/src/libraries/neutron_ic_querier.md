@@ -172,10 +172,10 @@ At its core, this library should support initiating the interchain queries, rece
 responses, and reclaiming the escrowed fees by unregistering the queries.
 
 In practice, however, these functions are not very useful in a broader Valence Program context
-by themselves - remote domain *KV-Query* results (next just *V*) arrive back encoded in
+by themselves - remote domain *KV-Query* results arrive back encoded in
 formats meant for those remote domains.
 
-For most cosmos-sdk based chains, *V* is stored in protobuf. Interpreting protobuf from
+For most cosmos-sdk based chains, storage values are stored in protobuf. Interpreting protobuf from
 within cosmwasm context is not straightforward and requires additional steps.
 Other domains may store their state in other encoding formats. We do not make any assumptions
 about remote domain encodings in this library - instead, that responsibility is handed over
