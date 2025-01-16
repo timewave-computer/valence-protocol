@@ -9,6 +9,8 @@ import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
 contract ValenceVault is Library, ERC4626 {
     using Math for uint256;
 
+    error DepositCapExceeded(uint256 attempted, uint256 available);
+
     struct VaultConfig {
         BaseAccount DepositAccount;
         BaseAccount WithdrawAccount;
@@ -83,7 +85,7 @@ contract ValenceVault is Library, ERC4626 {
         address receiver,
         uint256 assets,
         uint256 shares
-    ) internal virtual override {
+    ) internal override {
         SafeERC20.safeTransferFrom(
             IERC20(asset()),
             caller,

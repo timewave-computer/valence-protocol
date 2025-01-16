@@ -169,6 +169,8 @@ contract VaultTest is Test {
 
         vm.startPrank(user);
 
+        uint256 preBalance = token.balanceOf(user);
+
         // Test partial deposit
         vault.deposit(3000, user);
         assertEq(vault.totalAssets(), 3000);
@@ -190,7 +192,8 @@ contract VaultTest is Test {
 
         // Make sure the deposit account receives the deposits
         assertEq(token.balanceOf(address(depositAccount)), 5000);
-assertEq(vault.balanceOf(address(user)), 5000);
+        assertEq(token.balanceOf(address(user)), preBalance - 5000);
+        assertEq(vault.balanceOf(address(user)), 5000);
 
         vm.stopPrank();
     }
@@ -207,6 +210,8 @@ assertEq(vault.balanceOf(address(user)), 5000);
         vm.stopPrank();
 
         vm.startPrank(user);
+
+uint256 preBalance = token.balanceOf(user);
 
         // Test partial mint
         vault.mint(3000, user);
@@ -228,6 +233,7 @@ assertEq(vault.balanceOf(address(user)), 5000);
         vault.mint(1000, user);
 
         assertEq(token.balanceOf(address(depositAccount)), 5000);
+        assertEq(token.balanceOf(address(user)), preBalance - 5000);
         assertEq(vault.balanceOf(address(user)), 5000);
 
         vm.stopPrank();
