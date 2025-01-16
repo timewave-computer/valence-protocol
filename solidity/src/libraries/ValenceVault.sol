@@ -13,6 +13,7 @@ contract ValenceVault is Library, ERC4626 {
         BaseAccount DepositAccount;
         BaseAccount WithdrawAccount;
         address Strategist;
+        uint256 depositCap; // 0 means no cap
     }
 
     VaultConfig public config;
@@ -45,6 +46,36 @@ contract ValenceVault is Library, ERC4626 {
 
     function totalAssets() public view override returns (uint256) {
         return _convertToAssets(totalSupply(), Math.Rounding.Floor);
+    }
+
+    function maxDeposit(address) public view override returns (uint256) {
+        if (config.depositCap == 0) {
+            return type(uint256).max;
+        }
+
+        uint256 totalDeposits = totalAssets();
+        if (totalDeposits >= config.depositCap) {
+            return 0;
+        }
+
+        return config.depositCap - totalDeposits;
+    }
+
+    function maxMint(address) public view override returns (uint256) {
+        if (config.depositCap == 0) {
+            return type(uint256).max;
+        }
+
+        uint256 totalDeposits = totalAssets();
+        if (totalDeposits >= config.depositCap) {
+            return 0;
+        }
+
+        return
+            _convertToShares(
+                config.depositCap - totalDeposits,
+                Math.Rounding.Floor
+            );
     }
 
     function _deposit(
