@@ -74,4 +74,15 @@ contract VaultTest is Test {
 
         vm.stopPrank();
     }
+
+// TODO: Change test once we change the vault contract logic
+    function testTotalAssets() public {
+        vm.startPrank(owner);
+
+        token.mint(address(vault), 1000);
+
+        uint256 totalAssets = vault.totalAssets();
+
+        assert(totalAssets == 1000);
+    }
 }
