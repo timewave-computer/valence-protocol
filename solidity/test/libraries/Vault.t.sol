@@ -37,13 +37,13 @@ contract VaultTest is Test {
 
         ValenceVault.VaultConfig memory config = ValenceVault.VaultConfig(
             depositAccount,
-            withdrawAccount
+            withdrawAccount,
+            strategist
         );
 
         vault = new ValenceVault(
             owner,
             processor,
-            strategist,
             abi.encode(config),
             address(token),
             "Valence Vault Token",
@@ -63,19 +63,20 @@ contract VaultTest is Test {
 
         ValenceVault.VaultConfig memory newConfig = ValenceVault.VaultConfig(
             newDepositAccount,
-            withdrawAccount
+            withdrawAccount,
+            strategist
         );
 
         vault.updateConfig(abi.encode(newConfig));
 
-        (BaseAccount depAcc, ) = vault.config();
+        (BaseAccount depAcc, ,) = vault.config();
 
         assert(depAcc == newDepositAccount);
 
         vm.stopPrank();
     }
 
-// TODO: Change test once we change the vault contract logic
+    // TODO: Change test once we change the vault contract logic
     function testTotalAssets() public {
         vm.startPrank(owner);
 
