@@ -37,7 +37,7 @@ Interchain Queries should be removed after they are no longer needed,
 however, that moment may be different for each Valence Program depending
 on its configuration.
 
-### relevant `interchainqueries` module details
+### Background on the `interchainqueries` module
 
 #### Query Registration Message types
 
