@@ -1,0 +1,451 @@
+{
+    "contractName": "IProcessor",
+    "abi": [],
+    "metadata": "{\"compiler\":{\"version\":\"0.8.28+commit.7893614a\"},\"language\":\"Solidity\",\"output\":{\"abi\":[],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"/mnt/extra/Projects/timewave/valence-workflow/solidity/src/processor/interfaces/IProcessor.sol\":\"IProcessor\"},\"evmVersion\":\"cancun\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[],\"viaIR\":true},\"sources\":{\"/mnt/extra/Projects/timewave/valence-workflow/solidity/src/processor/interfaces/IProcessor.sol\":{\"keccak256\":\"0x51df2de25b25edce5d8ad5fef3ae92e1a65b0ed4d68dcf417353e94d05159e36\",\"license\":\"Apache-2.0\",\"urls\":[\"bzz-raw://537fa04828974dca7184779fac7d9c1a12c0cccb20b97786921bdadc69252ea4\",\"dweb:/ipfs/Qmc15tspxtZ9tRsouxNB8BrddszYuvujqLjzdnJN4EFMTa\"]}},\"version\":1}",
+    "bytecode": "",
+    "deployedBytecode": "",
+    "sourceMap": "",
+    "deployedSourceMap": "",
+    "sourcePath": "/mnt/extra/Projects/timewave/valence-workflow/solidity/src/processor/interfaces/IProcessor.sol",
+    "compiler": {
+        "name": "solc",
+        "version": "0.8.28+commit.7893614a"
+    },
+    "ast": {
+        "absolutePath": "/mnt/extra/Projects/timewave/valence-workflow/solidity/src/processor/interfaces/IProcessor.sol",
+        "exportedSymbols": {
+            "IProcessor": [
+                47700
+            ]
+        },
+        "id": 47701,
+        "license": "Apache-2.0",
+        "nodeType": "SourceUnit",
+        "nodes": [
+            {
+                "id": 47665,
+                "literals": [
+                    "solidity",
+                    "^",
+                    "0.8",
+                    ".28"
+                ],
+                "nodeType": "PragmaDirective",
+                "src": "39:24:52"
+            },
+            {
+                "abstract": false,
+                "baseContracts": [],
+                "canonicalName": "IProcessor",
+                "contractDependencies": [],
+                "contractKind": "interface",
+                "fullyImplemented": true,
+                "id": 47700,
+                "linearizedBaseContracts": [
+                    47700
+                ],
+                "name": "IProcessor",
+                "nameLocation": "75:10:52",
+                "nodeType": "ContractDefinition",
+                "nodes": [
+                    {
+                        "canonicalName": "IProcessor.SubroutineResult",
+                        "documentation": {
+                            "id": 47666,
+                            "nodeType": "StructuredDocumentation",
+                            "src": "92:390:52",
+                            "text": " @notice Result of a subroutine execution\n @param succeeded Whether all functions executed successfully\n @param executedCount Number of successfully executed functions before failure or completion. For atomic subroutines, this will be the total count if all succeeded\n @param errorData The error data from the last failed function, empty if all succeeded"
+                        },
+                        "id": 47673,
+                        "members": [
+                            {
+                                "constant": false,
+                                "id": 47668,
+                                "mutability": "mutable",
+                                "name": "succeeded",
+                                "nameLocation": "526:9:52",
+                                "nodeType": "VariableDeclaration",
+                                "scope": 47673,
+                                "src": "521:14:52",
+                                "stateVariable": false,
+                                "storageLocation": "default",
+                                "typeDescriptions": {
+                                    "typeIdentifier": "t_bool",
+                                    "typeString": "bool"
+                                },
+                                "typeName": {
+                                    "id": 47667,
+                                    "name": "bool",
+                                    "nodeType": "ElementaryTypeName",
+                                    "src": "521:4:52",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_bool",
+                                        "typeString": "bool"
+                                    }
+                                },
+                                "visibility": "internal"
+                            },
+                            {
+                                "constant": false,
+                                "id": 47670,
+                                "mutability": "mutable",
+                                "name": "executedCount",
+                                "nameLocation": "553:13:52",
+                                "nodeType": "VariableDeclaration",
+                                "scope": 47673,
+                                "src": "545:21:52",
+                                "stateVariable": false,
+                                "storageLocation": "default",
+                                "typeDescriptions": {
+                                    "typeIdentifier": "t_uint256",
+                                    "typeString": "uint256"
+                                },
+                                "typeName": {
+                                    "id": 47669,
+                                    "name": "uint256",
+                                    "nodeType": "ElementaryTypeName",
+                                    "src": "545:7:52",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_uint256",
+                                        "typeString": "uint256"
+                                    }
+                                },
+                                "visibility": "internal"
+                            },
+                            {
+                                "constant": false,
+                                "id": 47672,
+                                "mutability": "mutable",
+                                "name": "errorData",
+                                "nameLocation": "582:9:52",
+                                "nodeType": "VariableDeclaration",
+                                "scope": 47673,
+                                "src": "576:15:52",
+                                "stateVariable": false,
+                                "storageLocation": "default",
+                                "typeDescriptions": {
+                                    "typeIdentifier": "t_bytes_storage_ptr",
+                                    "typeString": "bytes"
+                                },
+                                "typeName": {
+                                    "id": 47671,
+                                    "name": "bytes",
+                                    "nodeType": "ElementaryTypeName",
+                                    "src": "576:5:52",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_bytes_storage_ptr",
+                                        "typeString": "bytes"
+                                    }
+                                },
+                                "visibility": "internal"
+                            }
+                        ],
+                        "name": "SubroutineResult",
+                        "nameLocation": "494:16:52",
+                        "nodeType": "StructDefinition",
+                        "scope": 47700,
+                        "src": "487:111:52",
+                        "visibility": "public"
+                    },
+                    {
+                        "canonicalName": "IProcessor.Callback",
+                        "documentation": {
+                            "id": 47674,
+                            "nodeType": "StructuredDocumentation",
+                            "src": "604:346:52",
+                            "text": " @notice Represents the callback after a subroutine execution\n @param executionId The Execution ID of the message(s) that triggered the callback\n @param executionResult The outcome of the execution (Success, Rejected, or PartiallyExecuted)\n @param data Additional data related to the callback execution, if any"
+                        },
+                        "id": 47684,
+                        "members": [
+                            {
+                                "constant": false,
+                                "id": 47676,
+                                "mutability": "mutable",
+                                "name": "executionId",
+                                "nameLocation": "988:11:52",
+                                "nodeType": "VariableDeclaration",
+                                "scope": 47684,
+                                "src": "981:18:52",
+                                "stateVariable": false,
+                                "storageLocation": "default",
+                                "typeDescriptions": {
+                                    "typeIdentifier": "t_uint64",
+                                    "typeString": "uint64"
+                                },
+                                "typeName": {
+                                    "id": 47675,
+                                    "name": "uint64",
+                                    "nodeType": "ElementaryTypeName",
+                                    "src": "981:6:52",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_uint64",
+                                        "typeString": "uint64"
+                                    }
+                                },
+                                "visibility": "internal"
+                            },
+                            {
+                                "constant": false,
+                                "id": 47679,
+                                "mutability": "mutable",
+                                "name": "executionResult",
+                                "nameLocation": "1025:15:52",
+                                "nodeType": "VariableDeclaration",
+                                "scope": 47684,
+                                "src": "1009:31:52",
+                                "stateVariable": false,
+                                "storageLocation": "default",
+                                "typeDescriptions": {
+                                    "typeIdentifier": "t_enum$_ExecutionResult_$47689",
+                                    "typeString": "enum IProcessor.ExecutionResult"
+                                },
+                                "typeName": {
+                                    "id": 47678,
+                                    "nodeType": "UserDefinedTypeName",
+                                    "pathNode": {
+                                        "id": 47677,
+                                        "name": "ExecutionResult",
+                                        "nameLocations": [
+                                            "1009:15:52"
+                                        ],
+                                        "nodeType": "IdentifierPath",
+                                        "referencedDeclaration": 47689,
+                                        "src": "1009:15:52"
+                                    },
+                                    "referencedDeclaration": 47689,
+                                    "src": "1009:15:52",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_enum$_ExecutionResult_$47689",
+                                        "typeString": "enum IProcessor.ExecutionResult"
+                                    }
+                                },
+                                "visibility": "internal"
+                            },
+                            {
+                                "constant": false,
+                                "id": 47681,
+                                "mutability": "mutable",
+                                "name": "executedCount",
+                                "nameLocation": "1058:13:52",
+                                "nodeType": "VariableDeclaration",
+                                "scope": 47684,
+                                "src": "1050:21:52",
+                                "stateVariable": false,
+                                "storageLocation": "default",
+                                "typeDescriptions": {
+                                    "typeIdentifier": "t_uint256",
+                                    "typeString": "uint256"
+                                },
+                                "typeName": {
+                                    "id": 47680,
+                                    "name": "uint256",
+                                    "nodeType": "ElementaryTypeName",
+                                    "src": "1050:7:52",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_uint256",
+                                        "typeString": "uint256"
+                                    }
+                                },
+                                "visibility": "internal"
+                            },
+                            {
+                                "constant": false,
+                                "id": 47683,
+                                "mutability": "mutable",
+                                "name": "data",
+                                "nameLocation": "1087:4:52",
+                                "nodeType": "VariableDeclaration",
+                                "scope": 47684,
+                                "src": "1081:10:52",
+                                "stateVariable": false,
+                                "storageLocation": "default",
+                                "typeDescriptions": {
+                                    "typeIdentifier": "t_bytes_storage_ptr",
+                                    "typeString": "bytes"
+                                },
+                                "typeName": {
+                                    "id": 47682,
+                                    "name": "bytes",
+                                    "nodeType": "ElementaryTypeName",
+                                    "src": "1081:5:52",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_bytes_storage_ptr",
+                                        "typeString": "bytes"
+                                    }
+                                },
+                                "visibility": "internal"
+                            }
+                        ],
+                        "name": "Callback",
+                        "nameLocation": "962:8:52",
+                        "nodeType": "StructDefinition",
+                        "scope": 47700,
+                        "src": "955:143:52",
+                        "visibility": "public"
+                    },
+                    {
+                        "canonicalName": "IProcessor.ExecutionResult",
+                        "documentation": {
+                            "id": 47685,
+                            "nodeType": "StructuredDocumentation",
+                            "src": "1104:444:52",
+                            "text": " @notice Enum representing the possible results of a subroutine execution\n @dev Used in Callback struct to indicate the overall status of the execution\n @param Success Indicates that all functions were executed\n @param Rejected Indicates that nothing was executed\n @param PartiallyExecuted Indicates that the execution was partially successful (some functions executed, only for non-atomic subroutines)"
+                        },
+                        "id": 47689,
+                        "members": [
+                            {
+                                "id": 47686,
+                                "name": "Success",
+                                "nameLocation": "1584:7:52",
+                                "nodeType": "EnumValue",
+                                "src": "1584:7:52"
+                            },
+                            {
+                                "id": 47687,
+                                "name": "Rejected",
+                                "nameLocation": "1601:8:52",
+                                "nodeType": "EnumValue",
+                                "src": "1601:8:52"
+                            },
+                            {
+                                "id": 47688,
+                                "name": "PartiallyExecuted",
+                                "nameLocation": "1619:17:52",
+                                "nodeType": "EnumValue",
+                                "src": "1619:17:52"
+                            }
+                        ],
+                        "name": "ExecutionResult",
+                        "nameLocation": "1558:15:52",
+                        "nodeType": "EnumDefinition",
+                        "src": "1553:89:52"
+                    },
+                    {
+                        "canonicalName": "IProcessor.RejectedResult",
+                        "documentation": {
+                            "id": 47690,
+                            "nodeType": "StructuredDocumentation",
+                            "src": "1648:263:52",
+                            "text": " @notice Represents the details of a rejected execution result\n @dev This struct is used to store the error data in case of rejection during subroutine execution\n @param errorData Contains the raw error data from the failed execution"
+                        },
+                        "id": 47693,
+                        "members": [
+                            {
+                                "constant": false,
+                                "id": 47692,
+                                "mutability": "mutable",
+                                "name": "errorData",
+                                "nameLocation": "1954:9:52",
+                                "nodeType": "VariableDeclaration",
+                                "scope": 47693,
+                                "src": "1948:15:52",
+                                "stateVariable": false,
+                                "storageLocation": "default",
+                                "typeDescriptions": {
+                                    "typeIdentifier": "t_bytes_storage_ptr",
+                                    "typeString": "bytes"
+                                },
+                                "typeName": {
+                                    "id": 47691,
+                                    "name": "bytes",
+                                    "nodeType": "ElementaryTypeName",
+                                    "src": "1948:5:52",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_bytes_storage_ptr",
+                                        "typeString": "bytes"
+                                    }
+                                },
+                                "visibility": "internal"
+                            }
+                        ],
+                        "name": "RejectedResult",
+                        "nameLocation": "1923:14:52",
+                        "nodeType": "StructDefinition",
+                        "scope": 47700,
+                        "src": "1916:54:52",
+                        "visibility": "public"
+                    },
+                    {
+                        "canonicalName": "IProcessor.PartiallyExecutedResult",
+                        "documentation": {
+                            "id": 47694,
+                            "nodeType": "StructuredDocumentation",
+                            "src": "1976:378:52",
+                            "text": " @notice Represents the details of a partially executed result (only for non-atomic subroutines)\n @dev This struct stores information about the partial success of the execution\n @param executedCount The number of functions that were executed successfully before failure\n @param errorData Contains the error data from the first failed function"
+                        },
+                        "id": 47699,
+                        "members": [
+                            {
+                                "constant": false,
+                                "id": 47696,
+                                "mutability": "mutable",
+                                "name": "executedCount",
+                                "nameLocation": "2408:13:52",
+                                "nodeType": "VariableDeclaration",
+                                "scope": 47699,
+                                "src": "2400:21:52",
+                                "stateVariable": false,
+                                "storageLocation": "default",
+                                "typeDescriptions": {
+                                    "typeIdentifier": "t_uint256",
+                                    "typeString": "uint256"
+                                },
+                                "typeName": {
+                                    "id": 47695,
+                                    "name": "uint256",
+                                    "nodeType": "ElementaryTypeName",
+                                    "src": "2400:7:52",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_uint256",
+                                        "typeString": "uint256"
+                                    }
+                                },
+                                "visibility": "internal"
+                            },
+                            {
+                                "constant": false,
+                                "id": 47698,
+                                "mutability": "mutable",
+                                "name": "errorData",
+                                "nameLocation": "2437:9:52",
+                                "nodeType": "VariableDeclaration",
+                                "scope": 47699,
+                                "src": "2431:15:52",
+                                "stateVariable": false,
+                                "storageLocation": "default",
+                                "typeDescriptions": {
+                                    "typeIdentifier": "t_bytes_storage_ptr",
+                                    "typeString": "bytes"
+                                },
+                                "typeName": {
+                                    "id": 47697,
+                                    "name": "bytes",
+                                    "nodeType": "ElementaryTypeName",
+                                    "src": "2431:5:52",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_bytes_storage_ptr",
+                                        "typeString": "bytes"
+                                    }
+                                },
+                                "visibility": "internal"
+                            }
+                        ],
+                        "name": "PartiallyExecutedResult",
+                        "nameLocation": "2366:23:52",
+                        "nodeType": "StructDefinition",
+                        "scope": 47700,
+                        "src": "2359:94:52",
+                        "visibility": "public"
+                    }
+                ],
+                "scope": 47701,
+                "src": "65:2390:52",
+                "usedErrors": [],
+                "usedEvents": []
+            }
+        ],
+        "src": "39:2417:52"
+    },
+    "functionHashes": {},
+    "gasEstimates": null
+}

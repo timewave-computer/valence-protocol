@@ -1,0 +1,2093 @@
+{
+    "contractName": "ProcessorMessageDecoder",
+    "abi": [],
+    "metadata": "{\"compiler\":{\"version\":\"0.8.28+commit.7893614a\"},\"language\":\"Solidity\",\"output\":{\"abi\":[],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"title\":\"ProcessorMessageDecoder Library\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"notice\":\"This library handles the decoding of processor messages. The library contains all necessary type definitions and decoding logic for handling various types of messages that can be processed by the processor.\",\"version\":1}},\"settings\":{\"compilationTarget\":{\"/mnt/extra/Projects/timewave/valence-workflow/solidity/src/processor/libs/ProcessorMessageDecoder.sol\":\"ProcessorMessageDecoder\"},\"evmVersion\":\"cancun\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[],\"viaIR\":true},\"sources\":{\"/mnt/extra/Projects/timewave/valence-workflow/solidity/src/processor/interfaces/IProcessorMessageTypes.sol\":{\"keccak256\":\"0x2670544bf821a38174146c1d6b0cbb0a8c6b1a2d98195b0d815dbbbabfd2a7ab\",\"license\":\"Apache-2.0\",\"urls\":[\"bzz-raw://276ea6956ddc4516c792b2d34fbb39fd14766c4e33b10113a630b01c0caf1ffe\",\"dweb:/ipfs/QmcLgJ3nQAST2GgHRPy2fR4HE95NFhKBSJw7cvSNsqbJmZ\"]},\"/mnt/extra/Projects/timewave/valence-workflow/solidity/src/processor/libs/ProcessorMessageDecoder.sol\":{\"keccak256\":\"0xa66825460cea9521655fbb8e51a26fb3c3f3ef21cc4b7e0276e173ba8422f338\",\"license\":\"Apache-2.0\",\"urls\":[\"bzz-raw://a8ac6f0e7afe7845b4b4aef64c0909291ec1ecb09a296579782c28c2c1b7701d\",\"dweb:/ipfs/QmYhBYT9vwGWutGTX3VBE3i5nMPcuGerUuabUa44NCQYmm\"]}},\"version\":1}",
+    "bytecode": "6080806040523460175760399081601c823930815050f35b5f80fdfe5f80fdfea2646970667358221220a60fea0a15e304792fe06da38b2c0b1b6565d11def69593d5bfae126a4ac26e564736f6c634300081c0033",
+    "deployedBytecode": "5f80fdfea2646970667358221220a60fea0a15e304792fe06da38b2c0b1b6565d11def69593d5bfae126a4ac26e564736f6c634300081c0033",
+    "sourceMap": "421:2523:56:-:0;;;;;;;;;;;;;;;;;;;;;",
+    "deployedSourceMap": "421:2523:56:-:0;;",
+    "sourcePath": "/mnt/extra/Projects/timewave/valence-workflow/solidity/src/processor/libs/ProcessorMessageDecoder.sol",
+    "compiler": {
+        "name": "solc",
+        "version": "0.8.28+commit.7893614a"
+    },
+    "ast": {
+        "absolutePath": "/mnt/extra/Projects/timewave/valence-workflow/solidity/src/processor/libs/ProcessorMessageDecoder.sol",
+        "exportedSymbols": {
+            "IProcessorMessageTypes": [
+                47834
+            ],
+            "ProcessorMessageDecoder": [
+                48033
+            ]
+        },
+        "id": 48034,
+        "license": "Apache-2.0",
+        "nodeType": "SourceUnit",
+        "nodes": [
+            {
+                "id": 47872,
+                "literals": [
+                    "solidity",
+                    "^",
+                    "0.8",
+                    ".28"
+                ],
+                "nodeType": "PragmaDirective",
+                "src": "39:24:56"
+            },
+            {
+                "absolutePath": "/mnt/extra/Projects/timewave/valence-workflow/solidity/src/processor/interfaces/IProcessorMessageTypes.sol",
+                "file": "../interfaces/IProcessorMessageTypes.sol",
+                "id": 47874,
+                "nameLocation": "-1:-1:-1",
+                "nodeType": "ImportDirective",
+                "scope": 48034,
+                "sourceUnit": 47835,
+                "src": "65:80:56",
+                "symbolAliases": [
+                    {
+                        "foreign": {
+                            "id": 47873,
+                            "name": "IProcessorMessageTypes",
+                            "nodeType": "Identifier",
+                            "overloadedDeclarations": [],
+                            "referencedDeclaration": 47834,
+                            "src": "73:22:56",
+                            "typeDescriptions": {}
+                        },
+                        "nameLocation": "-1:-1:-1"
+                    }
+                ],
+                "unitAlias": ""
+            },
+            {
+                "abstract": false,
+                "baseContracts": [],
+                "canonicalName": "ProcessorMessageDecoder",
+                "contractDependencies": [],
+                "contractKind": "library",
+                "documentation": {
+                    "id": 47875,
+                    "nodeType": "StructuredDocumentation",
+                    "src": "147:273:56",
+                    "text": " @title ProcessorMessageDecoder Library\n @notice This library handles the decoding of processor messages.\n The library contains all necessary type definitions and decoding logic for handling\n various types of messages that can be processed by the processor."
+                },
+                "fullyImplemented": true,
+                "id": 48033,
+                "linearizedBaseContracts": [
+                    48033
+                ],
+                "name": "ProcessorMessageDecoder",
+                "nameLocation": "429:23:56",
+                "nodeType": "ContractDefinition",
+                "nodes": [
+                    {
+                        "body": {
+                            "id": 47899,
+                            "nodeType": "Block",
+                            "src": "895:231:56",
+                            "statements": [
+                                {
+                                    "assignments": [
+                                        47888
+                                    ],
+                                    "declarations": [
+                                        {
+                                            "constant": false,
+                                            "id": 47888,
+                                            "mutability": "mutable",
+                                            "name": "message",
+                                            "nameLocation": "1012:7:56",
+                                            "nodeType": "VariableDeclaration",
+                                            "scope": 47899,
+                                            "src": "965:54:56",
+                                            "stateVariable": false,
+                                            "storageLocation": "memory",
+                                            "typeDescriptions": {
+                                                "typeIdentifier": "t_struct$_ProcessorMessage_$47734_memory_ptr",
+                                                "typeString": "struct IProcessorMessageTypes.ProcessorMessage"
+                                            },
+                                            "typeName": {
+                                                "id": 47887,
+                                                "nodeType": "UserDefinedTypeName",
+                                                "pathNode": {
+                                                    "id": 47886,
+                                                    "name": "IProcessorMessageTypes.ProcessorMessage",
+                                                    "nameLocations": [
+                                                        "965:22:56",
+                                                        "988:16:56"
+                                                    ],
+                                                    "nodeType": "IdentifierPath",
+                                                    "referencedDeclaration": 47734,
+                                                    "src": "965:39:56"
+                                                },
+                                                "referencedDeclaration": 47734,
+                                                "src": "965:39:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_struct$_ProcessorMessage_$47734_storage_ptr",
+                                                    "typeString": "struct IProcessorMessageTypes.ProcessorMessage"
+                                                }
+                                            },
+                                            "visibility": "internal"
+                                        }
+                                    ],
+                                    "id": 47896,
+                                    "initialValue": {
+                                        "arguments": [
+                                            {
+                                                "id": 47891,
+                                                "name": "_body",
+                                                "nodeType": "Identifier",
+                                                "overloadedDeclarations": [],
+                                                "referencedDeclaration": 47878,
+                                                "src": "1045:5:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_bytes_memory_ptr",
+                                                    "typeString": "bytes memory"
+                                                }
+                                            },
+                                            {
+                                                "components": [
+                                                    {
+                                                        "expression": {
+                                                            "id": 47892,
+                                                            "name": "IProcessorMessageTypes",
+                                                            "nodeType": "Identifier",
+                                                            "overloadedDeclarations": [],
+                                                            "referencedDeclaration": 47834,
+                                                            "src": "1053:22:56",
+                                                            "typeDescriptions": {
+                                                                "typeIdentifier": "t_type$_t_contract$_IProcessorMessageTypes_$47834_$",
+                                                                "typeString": "type(contract IProcessorMessageTypes)"
+                                                            }
+                                                        },
+                                                        "id": 47893,
+                                                        "isConstant": false,
+                                                        "isLValue": false,
+                                                        "isPure": false,
+                                                        "lValueRequested": false,
+                                                        "memberLocation": "1076:16:56",
+                                                        "memberName": "ProcessorMessage",
+                                                        "nodeType": "MemberAccess",
+                                                        "referencedDeclaration": 47734,
+                                                        "src": "1053:39:56",
+                                                        "typeDescriptions": {
+                                                            "typeIdentifier": "t_type$_t_struct$_ProcessorMessage_$47734_storage_ptr_$",
+                                                            "typeString": "type(struct IProcessorMessageTypes.ProcessorMessage storage pointer)"
+                                                        }
+                                                    }
+                                                ],
+                                                "id": 47894,
+                                                "isConstant": false,
+                                                "isInlineArray": false,
+                                                "isLValue": false,
+                                                "isPure": false,
+                                                "lValueRequested": false,
+                                                "nodeType": "TupleExpression",
+                                                "src": "1052:41:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_type$_t_struct$_ProcessorMessage_$47734_storage_ptr_$",
+                                                    "typeString": "type(struct IProcessorMessageTypes.ProcessorMessage storage pointer)"
+                                                }
+                                            }
+                                        ],
+                                        "expression": {
+                                            "argumentTypes": [
+                                                {
+                                                    "typeIdentifier": "t_bytes_memory_ptr",
+                                                    "typeString": "bytes memory"
+                                                },
+                                                {
+                                                    "typeIdentifier": "t_type$_t_struct$_ProcessorMessage_$47734_storage_ptr_$",
+                                                    "typeString": "type(struct IProcessorMessageTypes.ProcessorMessage storage pointer)"
+                                                }
+                                            ],
+                                            "expression": {
+                                                "id": 47889,
+                                                "name": "abi",
+                                                "nodeType": "Identifier",
+                                                "overloadedDeclarations": [],
+                                                "referencedDeclaration": 4294967295,
+                                                "src": "1034:3:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_magic_abi",
+                                                    "typeString": "abi"
+                                                }
+                                            },
+                                            "id": 47890,
+                                            "isConstant": false,
+                                            "isLValue": false,
+                                            "isPure": true,
+                                            "lValueRequested": false,
+                                            "memberLocation": "1038:6:56",
+                                            "memberName": "decode",
+                                            "nodeType": "MemberAccess",
+                                            "src": "1034:10:56",
+                                            "typeDescriptions": {
+                                                "typeIdentifier": "t_function_abidecode_pure$__$returns$__$",
+                                                "typeString": "function () pure"
+                                            }
+                                        },
+                                        "id": 47895,
+                                        "isConstant": false,
+                                        "isLValue": false,
+                                        "isPure": false,
+                                        "kind": "functionCall",
+                                        "lValueRequested": false,
+                                        "nameLocations": [],
+                                        "names": [],
+                                        "nodeType": "FunctionCall",
+                                        "src": "1034:60:56",
+                                        "tryCall": false,
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_struct$_ProcessorMessage_$47734_memory_ptr",
+                                            "typeString": "struct IProcessorMessageTypes.ProcessorMessage memory"
+                                        }
+                                    },
+                                    "nodeType": "VariableDeclarationStatement",
+                                    "src": "965:129:56"
+                                },
+                                {
+                                    "expression": {
+                                        "id": 47897,
+                                        "name": "message",
+                                        "nodeType": "Identifier",
+                                        "overloadedDeclarations": [],
+                                        "referencedDeclaration": 47888,
+                                        "src": "1112:7:56",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_struct$_ProcessorMessage_$47734_memory_ptr",
+                                            "typeString": "struct IProcessorMessageTypes.ProcessorMessage memory"
+                                        }
+                                    },
+                                    "functionReturnParameters": 47883,
+                                    "id": 47898,
+                                    "nodeType": "Return",
+                                    "src": "1105:14:56"
+                                }
+                            ]
+                        },
+                        "documentation": {
+                            "id": 47876,
+                            "nodeType": "StructuredDocumentation",
+                            "src": "459:324:56",
+                            "text": " @notice Decodes a byte array into a ProcessorMessage struct\n @dev The first byte of the input contains the message type, followed by the encoded message data\n @param _body The encoded message bytes to decode\n @return A ProcessorMessage struct containing the decoded message type and data"
+                        },
+                        "id": 47900,
+                        "implemented": true,
+                        "kind": "function",
+                        "modifiers": [],
+                        "name": "decode",
+                        "nameLocation": "797:6:56",
+                        "nodeType": "FunctionDefinition",
+                        "parameters": {
+                            "id": 47879,
+                            "nodeType": "ParameterList",
+                            "parameters": [
+                                {
+                                    "constant": false,
+                                    "id": 47878,
+                                    "mutability": "mutable",
+                                    "name": "_body",
+                                    "nameLocation": "817:5:56",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 47900,
+                                    "src": "804:18:56",
+                                    "stateVariable": false,
+                                    "storageLocation": "memory",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_bytes_memory_ptr",
+                                        "typeString": "bytes"
+                                    },
+                                    "typeName": {
+                                        "id": 47877,
+                                        "name": "bytes",
+                                        "nodeType": "ElementaryTypeName",
+                                        "src": "804:5:56",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_bytes_storage_ptr",
+                                            "typeString": "bytes"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                }
+                            ],
+                            "src": "803:20:56"
+                        },
+                        "returnParameters": {
+                            "id": 47883,
+                            "nodeType": "ParameterList",
+                            "parameters": [
+                                {
+                                    "constant": false,
+                                    "id": 47882,
+                                    "mutability": "mutable",
+                                    "name": "",
+                                    "nameLocation": "-1:-1:-1",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 47900,
+                                    "src": "847:46:56",
+                                    "stateVariable": false,
+                                    "storageLocation": "memory",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_struct$_ProcessorMessage_$47734_memory_ptr",
+                                        "typeString": "struct IProcessorMessageTypes.ProcessorMessage"
+                                    },
+                                    "typeName": {
+                                        "id": 47881,
+                                        "nodeType": "UserDefinedTypeName",
+                                        "pathNode": {
+                                            "id": 47880,
+                                            "name": "IProcessorMessageTypes.ProcessorMessage",
+                                            "nameLocations": [
+                                                "847:22:56",
+                                                "870:16:56"
+                                            ],
+                                            "nodeType": "IdentifierPath",
+                                            "referencedDeclaration": 47734,
+                                            "src": "847:39:56"
+                                        },
+                                        "referencedDeclaration": 47734,
+                                        "src": "847:39:56",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_struct$_ProcessorMessage_$47734_storage_ptr",
+                                            "typeString": "struct IProcessorMessageTypes.ProcessorMessage"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                }
+                            ],
+                            "src": "846:48:56"
+                        },
+                        "scope": 48033,
+                        "src": "788:338:56",
+                        "stateMutability": "pure",
+                        "virtual": false,
+                        "visibility": "internal"
+                    },
+                    {
+                        "body": {
+                            "id": 47917,
+                            "nodeType": "Block",
+                            "src": "1315:78:56",
+                            "statements": [
+                                {
+                                    "expression": {
+                                        "arguments": [
+                                            {
+                                                "id": 47911,
+                                                "name": "_data",
+                                                "nodeType": "Identifier",
+                                                "overloadedDeclarations": [],
+                                                "referencedDeclaration": 47903,
+                                                "src": "1343:5:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_bytes_memory_ptr",
+                                                    "typeString": "bytes memory"
+                                                }
+                                            },
+                                            {
+                                                "components": [
+                                                    {
+                                                        "expression": {
+                                                            "id": 47912,
+                                                            "name": "IProcessorMessageTypes",
+                                                            "nodeType": "Identifier",
+                                                            "overloadedDeclarations": [],
+                                                            "referencedDeclaration": 47834,
+                                                            "src": "1351:22:56",
+                                                            "typeDescriptions": {
+                                                                "typeIdentifier": "t_type$_t_contract$_IProcessorMessageTypes_$47834_$",
+                                                                "typeString": "type(contract IProcessorMessageTypes)"
+                                                            }
+                                                        },
+                                                        "id": 47913,
+                                                        "isConstant": false,
+                                                        "isLValue": false,
+                                                        "isPure": false,
+                                                        "lValueRequested": false,
+                                                        "memberLocation": "1374:10:56",
+                                                        "memberName": "Subroutine",
+                                                        "nodeType": "MemberAccess",
+                                                        "referencedDeclaration": 47798,
+                                                        "src": "1351:33:56",
+                                                        "typeDescriptions": {
+                                                            "typeIdentifier": "t_type$_t_struct$_Subroutine_$47798_storage_ptr_$",
+                                                            "typeString": "type(struct IProcessorMessageTypes.Subroutine storage pointer)"
+                                                        }
+                                                    }
+                                                ],
+                                                "id": 47914,
+                                                "isConstant": false,
+                                                "isInlineArray": false,
+                                                "isLValue": false,
+                                                "isPure": false,
+                                                "lValueRequested": false,
+                                                "nodeType": "TupleExpression",
+                                                "src": "1350:35:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_type$_t_struct$_Subroutine_$47798_storage_ptr_$",
+                                                    "typeString": "type(struct IProcessorMessageTypes.Subroutine storage pointer)"
+                                                }
+                                            }
+                                        ],
+                                        "expression": {
+                                            "argumentTypes": [
+                                                {
+                                                    "typeIdentifier": "t_bytes_memory_ptr",
+                                                    "typeString": "bytes memory"
+                                                },
+                                                {
+                                                    "typeIdentifier": "t_type$_t_struct$_Subroutine_$47798_storage_ptr_$",
+                                                    "typeString": "type(struct IProcessorMessageTypes.Subroutine storage pointer)"
+                                                }
+                                            ],
+                                            "expression": {
+                                                "id": 47909,
+                                                "name": "abi",
+                                                "nodeType": "Identifier",
+                                                "overloadedDeclarations": [],
+                                                "referencedDeclaration": 4294967295,
+                                                "src": "1332:3:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_magic_abi",
+                                                    "typeString": "abi"
+                                                }
+                                            },
+                                            "id": 47910,
+                                            "isConstant": false,
+                                            "isLValue": false,
+                                            "isPure": true,
+                                            "lValueRequested": false,
+                                            "memberLocation": "1336:6:56",
+                                            "memberName": "decode",
+                                            "nodeType": "MemberAccess",
+                                            "src": "1332:10:56",
+                                            "typeDescriptions": {
+                                                "typeIdentifier": "t_function_abidecode_pure$__$returns$__$",
+                                                "typeString": "function () pure"
+                                            }
+                                        },
+                                        "id": 47915,
+                                        "isConstant": false,
+                                        "isLValue": false,
+                                        "isPure": false,
+                                        "kind": "functionCall",
+                                        "lValueRequested": false,
+                                        "nameLocations": [],
+                                        "names": [],
+                                        "nodeType": "FunctionCall",
+                                        "src": "1332:54:56",
+                                        "tryCall": false,
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_struct$_Subroutine_$47798_memory_ptr",
+                                            "typeString": "struct IProcessorMessageTypes.Subroutine memory"
+                                        }
+                                    },
+                                    "functionReturnParameters": 47908,
+                                    "id": 47916,
+                                    "nodeType": "Return",
+                                    "src": "1325:61:56"
+                                }
+                            ]
+                        },
+                        "documentation": {
+                            "id": 47901,
+                            "nodeType": "StructuredDocumentation",
+                            "src": "1132:67:56",
+                            "text": " @notice Decodes a subroutine from bytes directly"
+                        },
+                        "id": 47918,
+                        "implemented": true,
+                        "kind": "function",
+                        "modifiers": [],
+                        "name": "decodeSubroutine",
+                        "nameLocation": "1213:16:56",
+                        "nodeType": "FunctionDefinition",
+                        "parameters": {
+                            "id": 47904,
+                            "nodeType": "ParameterList",
+                            "parameters": [
+                                {
+                                    "constant": false,
+                                    "id": 47903,
+                                    "mutability": "mutable",
+                                    "name": "_data",
+                                    "nameLocation": "1243:5:56",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 47918,
+                                    "src": "1230:18:56",
+                                    "stateVariable": false,
+                                    "storageLocation": "memory",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_bytes_memory_ptr",
+                                        "typeString": "bytes"
+                                    },
+                                    "typeName": {
+                                        "id": 47902,
+                                        "name": "bytes",
+                                        "nodeType": "ElementaryTypeName",
+                                        "src": "1230:5:56",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_bytes_storage_ptr",
+                                            "typeString": "bytes"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                }
+                            ],
+                            "src": "1229:20:56"
+                        },
+                        "returnParameters": {
+                            "id": 47908,
+                            "nodeType": "ParameterList",
+                            "parameters": [
+                                {
+                                    "constant": false,
+                                    "id": 47907,
+                                    "mutability": "mutable",
+                                    "name": "",
+                                    "nameLocation": "-1:-1:-1",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 47918,
+                                    "src": "1273:40:56",
+                                    "stateVariable": false,
+                                    "storageLocation": "memory",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_struct$_Subroutine_$47798_memory_ptr",
+                                        "typeString": "struct IProcessorMessageTypes.Subroutine"
+                                    },
+                                    "typeName": {
+                                        "id": 47906,
+                                        "nodeType": "UserDefinedTypeName",
+                                        "pathNode": {
+                                            "id": 47905,
+                                            "name": "IProcessorMessageTypes.Subroutine",
+                                            "nameLocations": [
+                                                "1273:22:56",
+                                                "1296:10:56"
+                                            ],
+                                            "nodeType": "IdentifierPath",
+                                            "referencedDeclaration": 47798,
+                                            "src": "1273:33:56"
+                                        },
+                                        "referencedDeclaration": 47798,
+                                        "src": "1273:33:56",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_struct$_Subroutine_$47798_storage_ptr",
+                                            "typeString": "struct IProcessorMessageTypes.Subroutine"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                }
+                            ],
+                            "src": "1272:42:56"
+                        },
+                        "scope": 48033,
+                        "src": "1204:189:56",
+                        "stateMutability": "pure",
+                        "virtual": false,
+                        "visibility": "internal"
+                    },
+                    {
+                        "body": {
+                            "id": 47935,
+                            "nodeType": "Block",
+                            "src": "1580:78:56",
+                            "statements": [
+                                {
+                                    "expression": {
+                                        "arguments": [
+                                            {
+                                                "id": 47929,
+                                                "name": "_data",
+                                                "nodeType": "Identifier",
+                                                "overloadedDeclarations": [],
+                                                "referencedDeclaration": 47921,
+                                                "src": "1608:5:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_bytes_memory_ptr",
+                                                    "typeString": "bytes memory"
+                                                }
+                                            },
+                                            {
+                                                "components": [
+                                                    {
+                                                        "expression": {
+                                                            "id": 47930,
+                                                            "name": "IProcessorMessageTypes",
+                                                            "nodeType": "Identifier",
+                                                            "overloadedDeclarations": [],
+                                                            "referencedDeclaration": 47834,
+                                                            "src": "1616:22:56",
+                                                            "typeDescriptions": {
+                                                                "typeIdentifier": "t_type$_t_contract$_IProcessorMessageTypes_$47834_$",
+                                                                "typeString": "type(contract IProcessorMessageTypes)"
+                                                            }
+                                                        },
+                                                        "id": 47931,
+                                                        "isConstant": false,
+                                                        "isLValue": false,
+                                                        "isPure": false,
+                                                        "lValueRequested": false,
+                                                        "memberLocation": "1639:10:56",
+                                                        "memberName": "InsertMsgs",
+                                                        "nodeType": "MemberAccess",
+                                                        "referencedDeclaration": 47813,
+                                                        "src": "1616:33:56",
+                                                        "typeDescriptions": {
+                                                            "typeIdentifier": "t_type$_t_struct$_InsertMsgs_$47813_storage_ptr_$",
+                                                            "typeString": "type(struct IProcessorMessageTypes.InsertMsgs storage pointer)"
+                                                        }
+                                                    }
+                                                ],
+                                                "id": 47932,
+                                                "isConstant": false,
+                                                "isInlineArray": false,
+                                                "isLValue": false,
+                                                "isPure": false,
+                                                "lValueRequested": false,
+                                                "nodeType": "TupleExpression",
+                                                "src": "1615:35:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_type$_t_struct$_InsertMsgs_$47813_storage_ptr_$",
+                                                    "typeString": "type(struct IProcessorMessageTypes.InsertMsgs storage pointer)"
+                                                }
+                                            }
+                                        ],
+                                        "expression": {
+                                            "argumentTypes": [
+                                                {
+                                                    "typeIdentifier": "t_bytes_memory_ptr",
+                                                    "typeString": "bytes memory"
+                                                },
+                                                {
+                                                    "typeIdentifier": "t_type$_t_struct$_InsertMsgs_$47813_storage_ptr_$",
+                                                    "typeString": "type(struct IProcessorMessageTypes.InsertMsgs storage pointer)"
+                                                }
+                                            ],
+                                            "expression": {
+                                                "id": 47927,
+                                                "name": "abi",
+                                                "nodeType": "Identifier",
+                                                "overloadedDeclarations": [],
+                                                "referencedDeclaration": 4294967295,
+                                                "src": "1597:3:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_magic_abi",
+                                                    "typeString": "abi"
+                                                }
+                                            },
+                                            "id": 47928,
+                                            "isConstant": false,
+                                            "isLValue": false,
+                                            "isPure": true,
+                                            "lValueRequested": false,
+                                            "memberLocation": "1601:6:56",
+                                            "memberName": "decode",
+                                            "nodeType": "MemberAccess",
+                                            "src": "1597:10:56",
+                                            "typeDescriptions": {
+                                                "typeIdentifier": "t_function_abidecode_pure$__$returns$__$",
+                                                "typeString": "function () pure"
+                                            }
+                                        },
+                                        "id": 47933,
+                                        "isConstant": false,
+                                        "isLValue": false,
+                                        "isPure": false,
+                                        "kind": "functionCall",
+                                        "lValueRequested": false,
+                                        "nameLocations": [],
+                                        "names": [],
+                                        "nodeType": "FunctionCall",
+                                        "src": "1597:54:56",
+                                        "tryCall": false,
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_struct$_InsertMsgs_$47813_memory_ptr",
+                                            "typeString": "struct IProcessorMessageTypes.InsertMsgs memory"
+                                        }
+                                    },
+                                    "functionReturnParameters": 47926,
+                                    "id": 47934,
+                                    "nodeType": "Return",
+                                    "src": "1590:61:56"
+                                }
+                            ]
+                        },
+                        "documentation": {
+                            "id": 47919,
+                            "nodeType": "StructuredDocumentation",
+                            "src": "1399:65:56",
+                            "text": " @notice Decodes InsertMsgs directly from bytes"
+                        },
+                        "id": 47936,
+                        "implemented": true,
+                        "kind": "function",
+                        "modifiers": [],
+                        "name": "decodeInsertMsgs",
+                        "nameLocation": "1478:16:56",
+                        "nodeType": "FunctionDefinition",
+                        "parameters": {
+                            "id": 47922,
+                            "nodeType": "ParameterList",
+                            "parameters": [
+                                {
+                                    "constant": false,
+                                    "id": 47921,
+                                    "mutability": "mutable",
+                                    "name": "_data",
+                                    "nameLocation": "1508:5:56",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 47936,
+                                    "src": "1495:18:56",
+                                    "stateVariable": false,
+                                    "storageLocation": "memory",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_bytes_memory_ptr",
+                                        "typeString": "bytes"
+                                    },
+                                    "typeName": {
+                                        "id": 47920,
+                                        "name": "bytes",
+                                        "nodeType": "ElementaryTypeName",
+                                        "src": "1495:5:56",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_bytes_storage_ptr",
+                                            "typeString": "bytes"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                }
+                            ],
+                            "src": "1494:20:56"
+                        },
+                        "returnParameters": {
+                            "id": 47926,
+                            "nodeType": "ParameterList",
+                            "parameters": [
+                                {
+                                    "constant": false,
+                                    "id": 47925,
+                                    "mutability": "mutable",
+                                    "name": "",
+                                    "nameLocation": "-1:-1:-1",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 47936,
+                                    "src": "1538:40:56",
+                                    "stateVariable": false,
+                                    "storageLocation": "memory",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_struct$_InsertMsgs_$47813_memory_ptr",
+                                        "typeString": "struct IProcessorMessageTypes.InsertMsgs"
+                                    },
+                                    "typeName": {
+                                        "id": 47924,
+                                        "nodeType": "UserDefinedTypeName",
+                                        "pathNode": {
+                                            "id": 47923,
+                                            "name": "IProcessorMessageTypes.InsertMsgs",
+                                            "nameLocations": [
+                                                "1538:22:56",
+                                                "1561:10:56"
+                                            ],
+                                            "nodeType": "IdentifierPath",
+                                            "referencedDeclaration": 47813,
+                                            "src": "1538:33:56"
+                                        },
+                                        "referencedDeclaration": 47813,
+                                        "src": "1538:33:56",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_struct$_InsertMsgs_$47813_storage_ptr",
+                                            "typeString": "struct IProcessorMessageTypes.InsertMsgs"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                }
+                            ],
+                            "src": "1537:42:56"
+                        },
+                        "scope": 48033,
+                        "src": "1469:189:56",
+                        "stateMutability": "pure",
+                        "virtual": false,
+                        "visibility": "internal"
+                    },
+                    {
+                        "body": {
+                            "id": 47953,
+                            "nodeType": "Block",
+                            "src": "1839:76:56",
+                            "statements": [
+                                {
+                                    "expression": {
+                                        "arguments": [
+                                            {
+                                                "id": 47947,
+                                                "name": "_data",
+                                                "nodeType": "Identifier",
+                                                "overloadedDeclarations": [],
+                                                "referencedDeclaration": 47939,
+                                                "src": "1867:5:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_bytes_memory_ptr",
+                                                    "typeString": "bytes memory"
+                                                }
+                                            },
+                                            {
+                                                "components": [
+                                                    {
+                                                        "expression": {
+                                                            "id": 47948,
+                                                            "name": "IProcessorMessageTypes",
+                                                            "nodeType": "Identifier",
+                                                            "overloadedDeclarations": [],
+                                                            "referencedDeclaration": 47834,
+                                                            "src": "1875:22:56",
+                                                            "typeDescriptions": {
+                                                                "typeIdentifier": "t_type$_t_contract$_IProcessorMessageTypes_$47834_$",
+                                                                "typeString": "type(contract IProcessorMessageTypes)"
+                                                            }
+                                                        },
+                                                        "id": 47949,
+                                                        "isConstant": false,
+                                                        "isLValue": false,
+                                                        "isPure": false,
+                                                        "lValueRequested": false,
+                                                        "memberLocation": "1898:8:56",
+                                                        "memberName": "SendMsgs",
+                                                        "nodeType": "MemberAccess",
+                                                        "referencedDeclaration": 47826,
+                                                        "src": "1875:31:56",
+                                                        "typeDescriptions": {
+                                                            "typeIdentifier": "t_type$_t_struct$_SendMsgs_$47826_storage_ptr_$",
+                                                            "typeString": "type(struct IProcessorMessageTypes.SendMsgs storage pointer)"
+                                                        }
+                                                    }
+                                                ],
+                                                "id": 47950,
+                                                "isConstant": false,
+                                                "isInlineArray": false,
+                                                "isLValue": false,
+                                                "isPure": false,
+                                                "lValueRequested": false,
+                                                "nodeType": "TupleExpression",
+                                                "src": "1874:33:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_type$_t_struct$_SendMsgs_$47826_storage_ptr_$",
+                                                    "typeString": "type(struct IProcessorMessageTypes.SendMsgs storage pointer)"
+                                                }
+                                            }
+                                        ],
+                                        "expression": {
+                                            "argumentTypes": [
+                                                {
+                                                    "typeIdentifier": "t_bytes_memory_ptr",
+                                                    "typeString": "bytes memory"
+                                                },
+                                                {
+                                                    "typeIdentifier": "t_type$_t_struct$_SendMsgs_$47826_storage_ptr_$",
+                                                    "typeString": "type(struct IProcessorMessageTypes.SendMsgs storage pointer)"
+                                                }
+                                            ],
+                                            "expression": {
+                                                "id": 47945,
+                                                "name": "abi",
+                                                "nodeType": "Identifier",
+                                                "overloadedDeclarations": [],
+                                                "referencedDeclaration": 4294967295,
+                                                "src": "1856:3:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_magic_abi",
+                                                    "typeString": "abi"
+                                                }
+                                            },
+                                            "id": 47946,
+                                            "isConstant": false,
+                                            "isLValue": false,
+                                            "isPure": true,
+                                            "lValueRequested": false,
+                                            "memberLocation": "1860:6:56",
+                                            "memberName": "decode",
+                                            "nodeType": "MemberAccess",
+                                            "src": "1856:10:56",
+                                            "typeDescriptions": {
+                                                "typeIdentifier": "t_function_abidecode_pure$__$returns$__$",
+                                                "typeString": "function () pure"
+                                            }
+                                        },
+                                        "id": 47951,
+                                        "isConstant": false,
+                                        "isLValue": false,
+                                        "isPure": false,
+                                        "kind": "functionCall",
+                                        "lValueRequested": false,
+                                        "nameLocations": [],
+                                        "names": [],
+                                        "nodeType": "FunctionCall",
+                                        "src": "1856:52:56",
+                                        "tryCall": false,
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_struct$_SendMsgs_$47826_memory_ptr",
+                                            "typeString": "struct IProcessorMessageTypes.SendMsgs memory"
+                                        }
+                                    },
+                                    "functionReturnParameters": 47944,
+                                    "id": 47952,
+                                    "nodeType": "Return",
+                                    "src": "1849:59:56"
+                                }
+                            ]
+                        },
+                        "documentation": {
+                            "id": 47937,
+                            "nodeType": "StructuredDocumentation",
+                            "src": "1664:63:56",
+                            "text": " @notice Decodes SendMsgs directly from bytes"
+                        },
+                        "id": 47954,
+                        "implemented": true,
+                        "kind": "function",
+                        "modifiers": [],
+                        "name": "decodeSendMsgs",
+                        "nameLocation": "1741:14:56",
+                        "nodeType": "FunctionDefinition",
+                        "parameters": {
+                            "id": 47940,
+                            "nodeType": "ParameterList",
+                            "parameters": [
+                                {
+                                    "constant": false,
+                                    "id": 47939,
+                                    "mutability": "mutable",
+                                    "name": "_data",
+                                    "nameLocation": "1769:5:56",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 47954,
+                                    "src": "1756:18:56",
+                                    "stateVariable": false,
+                                    "storageLocation": "memory",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_bytes_memory_ptr",
+                                        "typeString": "bytes"
+                                    },
+                                    "typeName": {
+                                        "id": 47938,
+                                        "name": "bytes",
+                                        "nodeType": "ElementaryTypeName",
+                                        "src": "1756:5:56",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_bytes_storage_ptr",
+                                            "typeString": "bytes"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                }
+                            ],
+                            "src": "1755:20:56"
+                        },
+                        "returnParameters": {
+                            "id": 47944,
+                            "nodeType": "ParameterList",
+                            "parameters": [
+                                {
+                                    "constant": false,
+                                    "id": 47943,
+                                    "mutability": "mutable",
+                                    "name": "",
+                                    "nameLocation": "-1:-1:-1",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 47954,
+                                    "src": "1799:38:56",
+                                    "stateVariable": false,
+                                    "storageLocation": "memory",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_struct$_SendMsgs_$47826_memory_ptr",
+                                        "typeString": "struct IProcessorMessageTypes.SendMsgs"
+                                    },
+                                    "typeName": {
+                                        "id": 47942,
+                                        "nodeType": "UserDefinedTypeName",
+                                        "pathNode": {
+                                            "id": 47941,
+                                            "name": "IProcessorMessageTypes.SendMsgs",
+                                            "nameLocations": [
+                                                "1799:22:56",
+                                                "1822:8:56"
+                                            ],
+                                            "nodeType": "IdentifierPath",
+                                            "referencedDeclaration": 47826,
+                                            "src": "1799:31:56"
+                                        },
+                                        "referencedDeclaration": 47826,
+                                        "src": "1799:31:56",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_struct$_SendMsgs_$47826_storage_ptr",
+                                            "typeString": "struct IProcessorMessageTypes.SendMsgs"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                }
+                            ],
+                            "src": "1798:40:56"
+                        },
+                        "scope": 48033,
+                        "src": "1732:183:56",
+                        "stateMutability": "pure",
+                        "virtual": false,
+                        "visibility": "internal"
+                    },
+                    {
+                        "body": {
+                            "id": 47971,
+                            "nodeType": "Block",
+                            "src": "2099:77:56",
+                            "statements": [
+                                {
+                                    "expression": {
+                                        "arguments": [
+                                            {
+                                                "id": 47965,
+                                                "name": "_data",
+                                                "nodeType": "Identifier",
+                                                "overloadedDeclarations": [],
+                                                "referencedDeclaration": 47957,
+                                                "src": "2127:5:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_bytes_memory_ptr",
+                                                    "typeString": "bytes memory"
+                                                }
+                                            },
+                                            {
+                                                "components": [
+                                                    {
+                                                        "expression": {
+                                                            "id": 47966,
+                                                            "name": "IProcessorMessageTypes",
+                                                            "nodeType": "Identifier",
+                                                            "overloadedDeclarations": [],
+                                                            "referencedDeclaration": 47834,
+                                                            "src": "2135:22:56",
+                                                            "typeDescriptions": {
+                                                                "typeIdentifier": "t_type$_t_contract$_IProcessorMessageTypes_$47834_$",
+                                                                "typeString": "type(contract IProcessorMessageTypes)"
+                                                            }
+                                                        },
+                                                        "id": 47967,
+                                                        "isConstant": false,
+                                                        "isLValue": false,
+                                                        "isPure": false,
+                                                        "lValueRequested": false,
+                                                        "memberLocation": "2158:9:56",
+                                                        "memberName": "EvictMsgs",
+                                                        "nodeType": "MemberAccess",
+                                                        "referencedDeclaration": 47833,
+                                                        "src": "2135:32:56",
+                                                        "typeDescriptions": {
+                                                            "typeIdentifier": "t_type$_t_struct$_EvictMsgs_$47833_storage_ptr_$",
+                                                            "typeString": "type(struct IProcessorMessageTypes.EvictMsgs storage pointer)"
+                                                        }
+                                                    }
+                                                ],
+                                                "id": 47968,
+                                                "isConstant": false,
+                                                "isInlineArray": false,
+                                                "isLValue": false,
+                                                "isPure": false,
+                                                "lValueRequested": false,
+                                                "nodeType": "TupleExpression",
+                                                "src": "2134:34:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_type$_t_struct$_EvictMsgs_$47833_storage_ptr_$",
+                                                    "typeString": "type(struct IProcessorMessageTypes.EvictMsgs storage pointer)"
+                                                }
+                                            }
+                                        ],
+                                        "expression": {
+                                            "argumentTypes": [
+                                                {
+                                                    "typeIdentifier": "t_bytes_memory_ptr",
+                                                    "typeString": "bytes memory"
+                                                },
+                                                {
+                                                    "typeIdentifier": "t_type$_t_struct$_EvictMsgs_$47833_storage_ptr_$",
+                                                    "typeString": "type(struct IProcessorMessageTypes.EvictMsgs storage pointer)"
+                                                }
+                                            ],
+                                            "expression": {
+                                                "id": 47963,
+                                                "name": "abi",
+                                                "nodeType": "Identifier",
+                                                "overloadedDeclarations": [],
+                                                "referencedDeclaration": 4294967295,
+                                                "src": "2116:3:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_magic_abi",
+                                                    "typeString": "abi"
+                                                }
+                                            },
+                                            "id": 47964,
+                                            "isConstant": false,
+                                            "isLValue": false,
+                                            "isPure": true,
+                                            "lValueRequested": false,
+                                            "memberLocation": "2120:6:56",
+                                            "memberName": "decode",
+                                            "nodeType": "MemberAccess",
+                                            "src": "2116:10:56",
+                                            "typeDescriptions": {
+                                                "typeIdentifier": "t_function_abidecode_pure$__$returns$__$",
+                                                "typeString": "function () pure"
+                                            }
+                                        },
+                                        "id": 47969,
+                                        "isConstant": false,
+                                        "isLValue": false,
+                                        "isPure": false,
+                                        "kind": "functionCall",
+                                        "lValueRequested": false,
+                                        "nameLocations": [],
+                                        "names": [],
+                                        "nodeType": "FunctionCall",
+                                        "src": "2116:53:56",
+                                        "tryCall": false,
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_struct$_EvictMsgs_$47833_memory_ptr",
+                                            "typeString": "struct IProcessorMessageTypes.EvictMsgs memory"
+                                        }
+                                    },
+                                    "functionReturnParameters": 47962,
+                                    "id": 47970,
+                                    "nodeType": "Return",
+                                    "src": "2109:60:56"
+                                }
+                            ]
+                        },
+                        "documentation": {
+                            "id": 47955,
+                            "nodeType": "StructuredDocumentation",
+                            "src": "1921:64:56",
+                            "text": " @notice Decodes EvictMsgs directly from bytes"
+                        },
+                        "id": 47972,
+                        "implemented": true,
+                        "kind": "function",
+                        "modifiers": [],
+                        "name": "decodeEvictMsgs",
+                        "nameLocation": "1999:15:56",
+                        "nodeType": "FunctionDefinition",
+                        "parameters": {
+                            "id": 47958,
+                            "nodeType": "ParameterList",
+                            "parameters": [
+                                {
+                                    "constant": false,
+                                    "id": 47957,
+                                    "mutability": "mutable",
+                                    "name": "_data",
+                                    "nameLocation": "2028:5:56",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 47972,
+                                    "src": "2015:18:56",
+                                    "stateVariable": false,
+                                    "storageLocation": "memory",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_bytes_memory_ptr",
+                                        "typeString": "bytes"
+                                    },
+                                    "typeName": {
+                                        "id": 47956,
+                                        "name": "bytes",
+                                        "nodeType": "ElementaryTypeName",
+                                        "src": "2015:5:56",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_bytes_storage_ptr",
+                                            "typeString": "bytes"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                }
+                            ],
+                            "src": "2014:20:56"
+                        },
+                        "returnParameters": {
+                            "id": 47962,
+                            "nodeType": "ParameterList",
+                            "parameters": [
+                                {
+                                    "constant": false,
+                                    "id": 47961,
+                                    "mutability": "mutable",
+                                    "name": "",
+                                    "nameLocation": "-1:-1:-1",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 47972,
+                                    "src": "2058:39:56",
+                                    "stateVariable": false,
+                                    "storageLocation": "memory",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_struct$_EvictMsgs_$47833_memory_ptr",
+                                        "typeString": "struct IProcessorMessageTypes.EvictMsgs"
+                                    },
+                                    "typeName": {
+                                        "id": 47960,
+                                        "nodeType": "UserDefinedTypeName",
+                                        "pathNode": {
+                                            "id": 47959,
+                                            "name": "IProcessorMessageTypes.EvictMsgs",
+                                            "nameLocations": [
+                                                "2058:22:56",
+                                                "2081:9:56"
+                                            ],
+                                            "nodeType": "IdentifierPath",
+                                            "referencedDeclaration": 47833,
+                                            "src": "2058:32:56"
+                                        },
+                                        "referencedDeclaration": 47833,
+                                        "src": "2058:32:56",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_struct$_EvictMsgs_$47833_storage_ptr",
+                                            "typeString": "struct IProcessorMessageTypes.EvictMsgs"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                }
+                            ],
+                            "src": "2057:41:56"
+                        },
+                        "scope": 48033,
+                        "src": "1990:186:56",
+                        "stateMutability": "pure",
+                        "virtual": false,
+                        "visibility": "internal"
+                    },
+                    {
+                        "body": {
+                            "id": 48031,
+                            "nodeType": "Block",
+                            "src": "2415:527:56",
+                            "statements": [
+                                {
+                                    "condition": {
+                                        "commonType": {
+                                            "typeIdentifier": "t_enum$_ProcessorMessageType_$47710",
+                                            "typeString": "enum IProcessorMessageTypes.ProcessorMessageType"
+                                        },
+                                        "id": 47986,
+                                        "isConstant": false,
+                                        "isLValue": false,
+                                        "isPure": false,
+                                        "lValueRequested": false,
+                                        "leftExpression": {
+                                            "expression": {
+                                                "id": 47981,
+                                                "name": "_message",
+                                                "nodeType": "Identifier",
+                                                "overloadedDeclarations": [],
+                                                "referencedDeclaration": 47976,
+                                                "src": "2429:8:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_struct$_ProcessorMessage_$47734_memory_ptr",
+                                                    "typeString": "struct IProcessorMessageTypes.ProcessorMessage memory"
+                                                }
+                                            },
+                                            "id": 47982,
+                                            "isConstant": false,
+                                            "isLValue": true,
+                                            "isPure": false,
+                                            "lValueRequested": false,
+                                            "memberLocation": "2438:11:56",
+                                            "memberName": "messageType",
+                                            "nodeType": "MemberAccess",
+                                            "referencedDeclaration": 47731,
+                                            "src": "2429:20:56",
+                                            "typeDescriptions": {
+                                                "typeIdentifier": "t_enum$_ProcessorMessageType_$47710",
+                                                "typeString": "enum IProcessorMessageTypes.ProcessorMessageType"
+                                            }
+                                        },
+                                        "nodeType": "BinaryOperation",
+                                        "operator": "==",
+                                        "rightExpression": {
+                                            "expression": {
+                                                "expression": {
+                                                    "id": 47983,
+                                                    "name": "IProcessorMessageTypes",
+                                                    "nodeType": "Identifier",
+                                                    "overloadedDeclarations": [],
+                                                    "referencedDeclaration": 47834,
+                                                    "src": "2453:22:56",
+                                                    "typeDescriptions": {
+                                                        "typeIdentifier": "t_type$_t_contract$_IProcessorMessageTypes_$47834_$",
+                                                        "typeString": "type(contract IProcessorMessageTypes)"
+                                                    }
+                                                },
+                                                "id": 47984,
+                                                "isConstant": false,
+                                                "isLValue": false,
+                                                "isPure": false,
+                                                "lValueRequested": false,
+                                                "memberLocation": "2476:20:56",
+                                                "memberName": "ProcessorMessageType",
+                                                "nodeType": "MemberAccess",
+                                                "referencedDeclaration": 47710,
+                                                "src": "2453:43:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_type$_t_enum$_ProcessorMessageType_$47710_$",
+                                                    "typeString": "type(enum IProcessorMessageTypes.ProcessorMessageType)"
+                                                }
+                                            },
+                                            "id": 47985,
+                                            "isConstant": false,
+                                            "isLValue": false,
+                                            "isPure": true,
+                                            "lValueRequested": false,
+                                            "memberLocation": "2497:10:56",
+                                            "memberName": "InsertMsgs",
+                                            "nodeType": "MemberAccess",
+                                            "referencedDeclaration": 47709,
+                                            "src": "2453:54:56",
+                                            "typeDescriptions": {
+                                                "typeIdentifier": "t_enum$_ProcessorMessageType_$47710",
+                                                "typeString": "enum IProcessorMessageTypes.ProcessorMessageType"
+                                            }
+                                        },
+                                        "src": "2429:78:56",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_bool",
+                                            "typeString": "bool"
+                                        }
+                                    },
+                                    "falseBody": {
+                                        "condition": {
+                                            "commonType": {
+                                                "typeIdentifier": "t_enum$_ProcessorMessageType_$47710",
+                                                "typeString": "enum IProcessorMessageTypes.ProcessorMessageType"
+                                            },
+                                            "id": 48001,
+                                            "isConstant": false,
+                                            "isLValue": false,
+                                            "isPure": false,
+                                            "lValueRequested": false,
+                                            "leftExpression": {
+                                                "expression": {
+                                                    "id": 47996,
+                                                    "name": "_message",
+                                                    "nodeType": "Identifier",
+                                                    "overloadedDeclarations": [],
+                                                    "referencedDeclaration": 47976,
+                                                    "src": "2597:8:56",
+                                                    "typeDescriptions": {
+                                                        "typeIdentifier": "t_struct$_ProcessorMessage_$47734_memory_ptr",
+                                                        "typeString": "struct IProcessorMessageTypes.ProcessorMessage memory"
+                                                    }
+                                                },
+                                                "id": 47997,
+                                                "isConstant": false,
+                                                "isLValue": true,
+                                                "isPure": false,
+                                                "lValueRequested": false,
+                                                "memberLocation": "2606:11:56",
+                                                "memberName": "messageType",
+                                                "nodeType": "MemberAccess",
+                                                "referencedDeclaration": 47731,
+                                                "src": "2597:20:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_enum$_ProcessorMessageType_$47710",
+                                                    "typeString": "enum IProcessorMessageTypes.ProcessorMessageType"
+                                                }
+                                            },
+                                            "nodeType": "BinaryOperation",
+                                            "operator": "==",
+                                            "rightExpression": {
+                                                "expression": {
+                                                    "expression": {
+                                                        "id": 47998,
+                                                        "name": "IProcessorMessageTypes",
+                                                        "nodeType": "Identifier",
+                                                        "overloadedDeclarations": [],
+                                                        "referencedDeclaration": 47834,
+                                                        "src": "2621:22:56",
+                                                        "typeDescriptions": {
+                                                            "typeIdentifier": "t_type$_t_contract$_IProcessorMessageTypes_$47834_$",
+                                                            "typeString": "type(contract IProcessorMessageTypes)"
+                                                        }
+                                                    },
+                                                    "id": 47999,
+                                                    "isConstant": false,
+                                                    "isLValue": false,
+                                                    "isPure": false,
+                                                    "lValueRequested": false,
+                                                    "memberLocation": "2644:20:56",
+                                                    "memberName": "ProcessorMessageType",
+                                                    "nodeType": "MemberAccess",
+                                                    "referencedDeclaration": 47710,
+                                                    "src": "2621:43:56",
+                                                    "typeDescriptions": {
+                                                        "typeIdentifier": "t_type$_t_enum$_ProcessorMessageType_$47710_$",
+                                                        "typeString": "type(enum IProcessorMessageTypes.ProcessorMessageType)"
+                                                    }
+                                                },
+                                                "id": 48000,
+                                                "isConstant": false,
+                                                "isLValue": false,
+                                                "isPure": true,
+                                                "lValueRequested": false,
+                                                "memberLocation": "2665:8:56",
+                                                "memberName": "SendMsgs",
+                                                "nodeType": "MemberAccess",
+                                                "referencedDeclaration": 47708,
+                                                "src": "2621:52:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_enum$_ProcessorMessageType_$47710",
+                                                    "typeString": "enum IProcessorMessageTypes.ProcessorMessageType"
+                                                }
+                                            },
+                                            "src": "2597:76:56",
+                                            "typeDescriptions": {
+                                                "typeIdentifier": "t_bool",
+                                                "typeString": "bool"
+                                            }
+                                        },
+                                        "falseBody": {
+                                            "condition": {
+                                                "commonType": {
+                                                    "typeIdentifier": "t_enum$_ProcessorMessageType_$47710",
+                                                    "typeString": "enum IProcessorMessageTypes.ProcessorMessageType"
+                                                },
+                                                "id": 48016,
+                                                "isConstant": false,
+                                                "isLValue": false,
+                                                "isPure": false,
+                                                "lValueRequested": false,
+                                                "leftExpression": {
+                                                    "expression": {
+                                                        "id": 48011,
+                                                        "name": "_message",
+                                                        "nodeType": "Identifier",
+                                                        "overloadedDeclarations": [],
+                                                        "referencedDeclaration": 47976,
+                                                        "src": "2761:8:56",
+                                                        "typeDescriptions": {
+                                                            "typeIdentifier": "t_struct$_ProcessorMessage_$47734_memory_ptr",
+                                                            "typeString": "struct IProcessorMessageTypes.ProcessorMessage memory"
+                                                        }
+                                                    },
+                                                    "id": 48012,
+                                                    "isConstant": false,
+                                                    "isLValue": true,
+                                                    "isPure": false,
+                                                    "lValueRequested": false,
+                                                    "memberLocation": "2770:11:56",
+                                                    "memberName": "messageType",
+                                                    "nodeType": "MemberAccess",
+                                                    "referencedDeclaration": 47731,
+                                                    "src": "2761:20:56",
+                                                    "typeDescriptions": {
+                                                        "typeIdentifier": "t_enum$_ProcessorMessageType_$47710",
+                                                        "typeString": "enum IProcessorMessageTypes.ProcessorMessageType"
+                                                    }
+                                                },
+                                                "nodeType": "BinaryOperation",
+                                                "operator": "==",
+                                                "rightExpression": {
+                                                    "expression": {
+                                                        "expression": {
+                                                            "id": 48013,
+                                                            "name": "IProcessorMessageTypes",
+                                                            "nodeType": "Identifier",
+                                                            "overloadedDeclarations": [],
+                                                            "referencedDeclaration": 47834,
+                                                            "src": "2785:22:56",
+                                                            "typeDescriptions": {
+                                                                "typeIdentifier": "t_type$_t_contract$_IProcessorMessageTypes_$47834_$",
+                                                                "typeString": "type(contract IProcessorMessageTypes)"
+                                                            }
+                                                        },
+                                                        "id": 48014,
+                                                        "isConstant": false,
+                                                        "isLValue": false,
+                                                        "isPure": false,
+                                                        "lValueRequested": false,
+                                                        "memberLocation": "2808:20:56",
+                                                        "memberName": "ProcessorMessageType",
+                                                        "nodeType": "MemberAccess",
+                                                        "referencedDeclaration": 47710,
+                                                        "src": "2785:43:56",
+                                                        "typeDescriptions": {
+                                                            "typeIdentifier": "t_type$_t_enum$_ProcessorMessageType_$47710_$",
+                                                            "typeString": "type(enum IProcessorMessageTypes.ProcessorMessageType)"
+                                                        }
+                                                    },
+                                                    "id": 48015,
+                                                    "isConstant": false,
+                                                    "isLValue": false,
+                                                    "isPure": true,
+                                                    "lValueRequested": false,
+                                                    "memberLocation": "2829:9:56",
+                                                    "memberName": "EvictMsgs",
+                                                    "nodeType": "MemberAccess",
+                                                    "referencedDeclaration": 47707,
+                                                    "src": "2785:53:56",
+                                                    "typeDescriptions": {
+                                                        "typeIdentifier": "t_enum$_ProcessorMessageType_$47710",
+                                                        "typeString": "enum IProcessorMessageTypes.ProcessorMessageType"
+                                                    }
+                                                },
+                                                "src": "2761:77:56",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_bool",
+                                                    "typeString": "bool"
+                                                }
+                                            },
+                                            "id": 48026,
+                                            "nodeType": "IfStatement",
+                                            "src": "2757:160:56",
+                                            "trueBody": {
+                                                "id": 48025,
+                                                "nodeType": "Block",
+                                                "src": "2840:77:56",
+                                                "statements": [
+                                                    {
+                                                        "expression": {
+                                                            "arguments": [
+                                                                {
+                                                                    "arguments": [
+                                                                        {
+                                                                            "expression": {
+                                                                                "id": 48020,
+                                                                                "name": "_message",
+                                                                                "nodeType": "Identifier",
+                                                                                "overloadedDeclarations": [],
+                                                                                "referencedDeclaration": 47976,
+                                                                                "src": "2888:8:56",
+                                                                                "typeDescriptions": {
+                                                                                    "typeIdentifier": "t_struct$_ProcessorMessage_$47734_memory_ptr",
+                                                                                    "typeString": "struct IProcessorMessageTypes.ProcessorMessage memory"
+                                                                                }
+                                                                            },
+                                                                            "id": 48021,
+                                                                            "isConstant": false,
+                                                                            "isLValue": true,
+                                                                            "isPure": false,
+                                                                            "lValueRequested": false,
+                                                                            "memberLocation": "2897:7:56",
+                                                                            "memberName": "message",
+                                                                            "nodeType": "MemberAccess",
+                                                                            "referencedDeclaration": 47733,
+                                                                            "src": "2888:16:56",
+                                                                            "typeDescriptions": {
+                                                                                "typeIdentifier": "t_bytes_memory_ptr",
+                                                                                "typeString": "bytes memory"
+                                                                            }
+                                                                        }
+                                                                    ],
+                                                                    "expression": {
+                                                                        "argumentTypes": [
+                                                                            {
+                                                                                "typeIdentifier": "t_bytes_memory_ptr",
+                                                                                "typeString": "bytes memory"
+                                                                            }
+                                                                        ],
+                                                                        "id": 48019,
+                                                                        "name": "decodeEvictMsgs",
+                                                                        "nodeType": "Identifier",
+                                                                        "overloadedDeclarations": [],
+                                                                        "referencedDeclaration": 47972,
+                                                                        "src": "2872:15:56",
+                                                                        "typeDescriptions": {
+                                                                            "typeIdentifier": "t_function_internal_pure$_t_bytes_memory_ptr_$returns$_t_struct$_EvictMsgs_$47833_memory_ptr_$",
+                                                                            "typeString": "function (bytes memory) pure returns (struct IProcessorMessageTypes.EvictMsgs memory)"
+                                                                        }
+                                                                    },
+                                                                    "id": 48022,
+                                                                    "isConstant": false,
+                                                                    "isLValue": false,
+                                                                    "isPure": false,
+                                                                    "kind": "functionCall",
+                                                                    "lValueRequested": false,
+                                                                    "nameLocations": [],
+                                                                    "names": [],
+                                                                    "nodeType": "FunctionCall",
+                                                                    "src": "2872:33:56",
+                                                                    "tryCall": false,
+                                                                    "typeDescriptions": {
+                                                                        "typeIdentifier": "t_struct$_EvictMsgs_$47833_memory_ptr",
+                                                                        "typeString": "struct IProcessorMessageTypes.EvictMsgs memory"
+                                                                    }
+                                                                }
+                                                            ],
+                                                            "expression": {
+                                                                "argumentTypes": [
+                                                                    {
+                                                                        "typeIdentifier": "t_struct$_EvictMsgs_$47833_memory_ptr",
+                                                                        "typeString": "struct IProcessorMessageTypes.EvictMsgs memory"
+                                                                    }
+                                                                ],
+                                                                "expression": {
+                                                                    "id": 48017,
+                                                                    "name": "abi",
+                                                                    "nodeType": "Identifier",
+                                                                    "overloadedDeclarations": [],
+                                                                    "referencedDeclaration": 4294967295,
+                                                                    "src": "2861:3:56",
+                                                                    "typeDescriptions": {
+                                                                        "typeIdentifier": "t_magic_abi",
+                                                                        "typeString": "abi"
+                                                                    }
+                                                                },
+                                                                "id": 48018,
+                                                                "isConstant": false,
+                                                                "isLValue": false,
+                                                                "isPure": true,
+                                                                "lValueRequested": false,
+                                                                "memberLocation": "2865:6:56",
+                                                                "memberName": "encode",
+                                                                "nodeType": "MemberAccess",
+                                                                "src": "2861:10:56",
+                                                                "typeDescriptions": {
+                                                                    "typeIdentifier": "t_function_abiencode_pure$__$returns$_t_bytes_memory_ptr_$",
+                                                                    "typeString": "function () pure returns (bytes memory)"
+                                                                }
+                                                            },
+                                                            "id": 48023,
+                                                            "isConstant": false,
+                                                            "isLValue": false,
+                                                            "isPure": false,
+                                                            "kind": "functionCall",
+                                                            "lValueRequested": false,
+                                                            "nameLocations": [],
+                                                            "names": [],
+                                                            "nodeType": "FunctionCall",
+                                                            "src": "2861:45:56",
+                                                            "tryCall": false,
+                                                            "typeDescriptions": {
+                                                                "typeIdentifier": "t_bytes_memory_ptr",
+                                                                "typeString": "bytes memory"
+                                                            }
+                                                        },
+                                                        "functionReturnParameters": 47980,
+                                                        "id": 48024,
+                                                        "nodeType": "Return",
+                                                        "src": "2854:52:56"
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        "id": 48027,
+                                        "nodeType": "IfStatement",
+                                        "src": "2593:324:56",
+                                        "trueBody": {
+                                            "id": 48010,
+                                            "nodeType": "Block",
+                                            "src": "2675:76:56",
+                                            "statements": [
+                                                {
+                                                    "expression": {
+                                                        "arguments": [
+                                                            {
+                                                                "arguments": [
+                                                                    {
+                                                                        "expression": {
+                                                                            "id": 48005,
+                                                                            "name": "_message",
+                                                                            "nodeType": "Identifier",
+                                                                            "overloadedDeclarations": [],
+                                                                            "referencedDeclaration": 47976,
+                                                                            "src": "2722:8:56",
+                                                                            "typeDescriptions": {
+                                                                                "typeIdentifier": "t_struct$_ProcessorMessage_$47734_memory_ptr",
+                                                                                "typeString": "struct IProcessorMessageTypes.ProcessorMessage memory"
+                                                                            }
+                                                                        },
+                                                                        "id": 48006,
+                                                                        "isConstant": false,
+                                                                        "isLValue": true,
+                                                                        "isPure": false,
+                                                                        "lValueRequested": false,
+                                                                        "memberLocation": "2731:7:56",
+                                                                        "memberName": "message",
+                                                                        "nodeType": "MemberAccess",
+                                                                        "referencedDeclaration": 47733,
+                                                                        "src": "2722:16:56",
+                                                                        "typeDescriptions": {
+                                                                            "typeIdentifier": "t_bytes_memory_ptr",
+                                                                            "typeString": "bytes memory"
+                                                                        }
+                                                                    }
+                                                                ],
+                                                                "expression": {
+                                                                    "argumentTypes": [
+                                                                        {
+                                                                            "typeIdentifier": "t_bytes_memory_ptr",
+                                                                            "typeString": "bytes memory"
+                                                                        }
+                                                                    ],
+                                                                    "id": 48004,
+                                                                    "name": "decodeSendMsgs",
+                                                                    "nodeType": "Identifier",
+                                                                    "overloadedDeclarations": [],
+                                                                    "referencedDeclaration": 47954,
+                                                                    "src": "2707:14:56",
+                                                                    "typeDescriptions": {
+                                                                        "typeIdentifier": "t_function_internal_pure$_t_bytes_memory_ptr_$returns$_t_struct$_SendMsgs_$47826_memory_ptr_$",
+                                                                        "typeString": "function (bytes memory) pure returns (struct IProcessorMessageTypes.SendMsgs memory)"
+                                                                    }
+                                                                },
+                                                                "id": 48007,
+                                                                "isConstant": false,
+                                                                "isLValue": false,
+                                                                "isPure": false,
+                                                                "kind": "functionCall",
+                                                                "lValueRequested": false,
+                                                                "nameLocations": [],
+                                                                "names": [],
+                                                                "nodeType": "FunctionCall",
+                                                                "src": "2707:32:56",
+                                                                "tryCall": false,
+                                                                "typeDescriptions": {
+                                                                    "typeIdentifier": "t_struct$_SendMsgs_$47826_memory_ptr",
+                                                                    "typeString": "struct IProcessorMessageTypes.SendMsgs memory"
+                                                                }
+                                                            }
+                                                        ],
+                                                        "expression": {
+                                                            "argumentTypes": [
+                                                                {
+                                                                    "typeIdentifier": "t_struct$_SendMsgs_$47826_memory_ptr",
+                                                                    "typeString": "struct IProcessorMessageTypes.SendMsgs memory"
+                                                                }
+                                                            ],
+                                                            "expression": {
+                                                                "id": 48002,
+                                                                "name": "abi",
+                                                                "nodeType": "Identifier",
+                                                                "overloadedDeclarations": [],
+                                                                "referencedDeclaration": 4294967295,
+                                                                "src": "2696:3:56",
+                                                                "typeDescriptions": {
+                                                                    "typeIdentifier": "t_magic_abi",
+                                                                    "typeString": "abi"
+                                                                }
+                                                            },
+                                                            "id": 48003,
+                                                            "isConstant": false,
+                                                            "isLValue": false,
+                                                            "isPure": true,
+                                                            "lValueRequested": false,
+                                                            "memberLocation": "2700:6:56",
+                                                            "memberName": "encode",
+                                                            "nodeType": "MemberAccess",
+                                                            "src": "2696:10:56",
+                                                            "typeDescriptions": {
+                                                                "typeIdentifier": "t_function_abiencode_pure$__$returns$_t_bytes_memory_ptr_$",
+                                                                "typeString": "function () pure returns (bytes memory)"
+                                                            }
+                                                        },
+                                                        "id": 48008,
+                                                        "isConstant": false,
+                                                        "isLValue": false,
+                                                        "isPure": false,
+                                                        "kind": "functionCall",
+                                                        "lValueRequested": false,
+                                                        "nameLocations": [],
+                                                        "names": [],
+                                                        "nodeType": "FunctionCall",
+                                                        "src": "2696:44:56",
+                                                        "tryCall": false,
+                                                        "typeDescriptions": {
+                                                            "typeIdentifier": "t_bytes_memory_ptr",
+                                                            "typeString": "bytes memory"
+                                                        }
+                                                    },
+                                                    "functionReturnParameters": 47980,
+                                                    "id": 48009,
+                                                    "nodeType": "Return",
+                                                    "src": "2689:51:56"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "id": 48028,
+                                    "nodeType": "IfStatement",
+                                    "src": "2425:492:56",
+                                    "trueBody": {
+                                        "id": 47995,
+                                        "nodeType": "Block",
+                                        "src": "2509:78:56",
+                                        "statements": [
+                                            {
+                                                "expression": {
+                                                    "arguments": [
+                                                        {
+                                                            "arguments": [
+                                                                {
+                                                                    "expression": {
+                                                                        "id": 47990,
+                                                                        "name": "_message",
+                                                                        "nodeType": "Identifier",
+                                                                        "overloadedDeclarations": [],
+                                                                        "referencedDeclaration": 47976,
+                                                                        "src": "2558:8:56",
+                                                                        "typeDescriptions": {
+                                                                            "typeIdentifier": "t_struct$_ProcessorMessage_$47734_memory_ptr",
+                                                                            "typeString": "struct IProcessorMessageTypes.ProcessorMessage memory"
+                                                                        }
+                                                                    },
+                                                                    "id": 47991,
+                                                                    "isConstant": false,
+                                                                    "isLValue": true,
+                                                                    "isPure": false,
+                                                                    "lValueRequested": false,
+                                                                    "memberLocation": "2567:7:56",
+                                                                    "memberName": "message",
+                                                                    "nodeType": "MemberAccess",
+                                                                    "referencedDeclaration": 47733,
+                                                                    "src": "2558:16:56",
+                                                                    "typeDescriptions": {
+                                                                        "typeIdentifier": "t_bytes_memory_ptr",
+                                                                        "typeString": "bytes memory"
+                                                                    }
+                                                                }
+                                                            ],
+                                                            "expression": {
+                                                                "argumentTypes": [
+                                                                    {
+                                                                        "typeIdentifier": "t_bytes_memory_ptr",
+                                                                        "typeString": "bytes memory"
+                                                                    }
+                                                                ],
+                                                                "id": 47989,
+                                                                "name": "decodeInsertMsgs",
+                                                                "nodeType": "Identifier",
+                                                                "overloadedDeclarations": [],
+                                                                "referencedDeclaration": 47936,
+                                                                "src": "2541:16:56",
+                                                                "typeDescriptions": {
+                                                                    "typeIdentifier": "t_function_internal_pure$_t_bytes_memory_ptr_$returns$_t_struct$_InsertMsgs_$47813_memory_ptr_$",
+                                                                    "typeString": "function (bytes memory) pure returns (struct IProcessorMessageTypes.InsertMsgs memory)"
+                                                                }
+                                                            },
+                                                            "id": 47992,
+                                                            "isConstant": false,
+                                                            "isLValue": false,
+                                                            "isPure": false,
+                                                            "kind": "functionCall",
+                                                            "lValueRequested": false,
+                                                            "nameLocations": [],
+                                                            "names": [],
+                                                            "nodeType": "FunctionCall",
+                                                            "src": "2541:34:56",
+                                                            "tryCall": false,
+                                                            "typeDescriptions": {
+                                                                "typeIdentifier": "t_struct$_InsertMsgs_$47813_memory_ptr",
+                                                                "typeString": "struct IProcessorMessageTypes.InsertMsgs memory"
+                                                            }
+                                                        }
+                                                    ],
+                                                    "expression": {
+                                                        "argumentTypes": [
+                                                            {
+                                                                "typeIdentifier": "t_struct$_InsertMsgs_$47813_memory_ptr",
+                                                                "typeString": "struct IProcessorMessageTypes.InsertMsgs memory"
+                                                            }
+                                                        ],
+                                                        "expression": {
+                                                            "id": 47987,
+                                                            "name": "abi",
+                                                            "nodeType": "Identifier",
+                                                            "overloadedDeclarations": [],
+                                                            "referencedDeclaration": 4294967295,
+                                                            "src": "2530:3:56",
+                                                            "typeDescriptions": {
+                                                                "typeIdentifier": "t_magic_abi",
+                                                                "typeString": "abi"
+                                                            }
+                                                        },
+                                                        "id": 47988,
+                                                        "isConstant": false,
+                                                        "isLValue": false,
+                                                        "isPure": true,
+                                                        "lValueRequested": false,
+                                                        "memberLocation": "2534:6:56",
+                                                        "memberName": "encode",
+                                                        "nodeType": "MemberAccess",
+                                                        "src": "2530:10:56",
+                                                        "typeDescriptions": {
+                                                            "typeIdentifier": "t_function_abiencode_pure$__$returns$_t_bytes_memory_ptr_$",
+                                                            "typeString": "function () pure returns (bytes memory)"
+                                                        }
+                                                    },
+                                                    "id": 47993,
+                                                    "isConstant": false,
+                                                    "isLValue": false,
+                                                    "isPure": false,
+                                                    "kind": "functionCall",
+                                                    "lValueRequested": false,
+                                                    "nameLocations": [],
+                                                    "names": [],
+                                                    "nodeType": "FunctionCall",
+                                                    "src": "2530:46:56",
+                                                    "tryCall": false,
+                                                    "typeDescriptions": {
+                                                        "typeIdentifier": "t_bytes_memory_ptr",
+                                                        "typeString": "bytes memory"
+                                                    }
+                                                },
+                                                "functionReturnParameters": 47980,
+                                                "id": 47994,
+                                                "nodeType": "Return",
+                                                "src": "2523:53:56"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "expression": {
+                                        "hexValue": "",
+                                        "id": 48029,
+                                        "isConstant": false,
+                                        "isLValue": false,
+                                        "isPure": true,
+                                        "kind": "string",
+                                        "lValueRequested": false,
+                                        "nodeType": "Literal",
+                                        "src": "2933:2:56",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_stringliteral_c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+                                            "typeString": "literal_string \"\""
+                                        },
+                                        "value": ""
+                                    },
+                                    "functionReturnParameters": 47980,
+                                    "id": 48030,
+                                    "nodeType": "Return",
+                                    "src": "2926:9:56"
+                                }
+                            ]
+                        },
+                        "documentation": {
+                            "id": 47973,
+                            "nodeType": "StructuredDocumentation",
+                            "src": "2182:76:56",
+                            "text": " @notice Decodes the message payload based on message type"
+                        },
+                        "id": 48032,
+                        "implemented": true,
+                        "kind": "function",
+                        "modifiers": [],
+                        "name": "decodeMessagePayload",
+                        "nameLocation": "2272:20:56",
+                        "nodeType": "FunctionDefinition",
+                        "parameters": {
+                            "id": 47977,
+                            "nodeType": "ParameterList",
+                            "parameters": [
+                                {
+                                    "constant": false,
+                                    "id": 47976,
+                                    "mutability": "mutable",
+                                    "name": "_message",
+                                    "nameLocation": "2340:8:56",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 48032,
+                                    "src": "2293:55:56",
+                                    "stateVariable": false,
+                                    "storageLocation": "memory",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_struct$_ProcessorMessage_$47734_memory_ptr",
+                                        "typeString": "struct IProcessorMessageTypes.ProcessorMessage"
+                                    },
+                                    "typeName": {
+                                        "id": 47975,
+                                        "nodeType": "UserDefinedTypeName",
+                                        "pathNode": {
+                                            "id": 47974,
+                                            "name": "IProcessorMessageTypes.ProcessorMessage",
+                                            "nameLocations": [
+                                                "2293:22:56",
+                                                "2316:16:56"
+                                            ],
+                                            "nodeType": "IdentifierPath",
+                                            "referencedDeclaration": 47734,
+                                            "src": "2293:39:56"
+                                        },
+                                        "referencedDeclaration": 47734,
+                                        "src": "2293:39:56",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_struct$_ProcessorMessage_$47734_storage_ptr",
+                                            "typeString": "struct IProcessorMessageTypes.ProcessorMessage"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                }
+                            ],
+                            "src": "2292:57:56"
+                        },
+                        "returnParameters": {
+                            "id": 47980,
+                            "nodeType": "ParameterList",
+                            "parameters": [
+                                {
+                                    "constant": false,
+                                    "id": 47979,
+                                    "mutability": "mutable",
+                                    "name": "",
+                                    "nameLocation": "-1:-1:-1",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 48032,
+                                    "src": "2397:12:56",
+                                    "stateVariable": false,
+                                    "storageLocation": "memory",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_bytes_memory_ptr",
+                                        "typeString": "bytes"
+                                    },
+                                    "typeName": {
+                                        "id": 47978,
+                                        "name": "bytes",
+                                        "nodeType": "ElementaryTypeName",
+                                        "src": "2397:5:56",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_bytes_storage_ptr",
+                                            "typeString": "bytes"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                }
+                            ],
+                            "src": "2396:14:56"
+                        },
+                        "scope": 48033,
+                        "src": "2263:679:56",
+                        "stateMutability": "pure",
+                        "virtual": false,
+                        "visibility": "internal"
+                    }
+                ],
+                "scope": 48034,
+                "src": "421:2523:56",
+                "usedErrors": [],
+                "usedEvents": []
+            }
+        ],
+        "src": "39:2906:56"
+    },
+    "functionHashes": {},
+    "gasEstimates": {
+        "creation": {
+            "codeDepositCost": "11400",
+            "executionCost": "infinite",
+            "totalCost": "infinite"
+        },
+        "internal": {
+            "decode(bytes memory)": "infinite",
+            "decodeEvictMsgs(bytes memory)": "infinite",
+            "decodeInsertMsgs(bytes memory)": "infinite",
+            "decodeMessagePayload(struct IProcessorMessageTypes.ProcessorMessage memory)": "infinite",
+            "decodeSendMsgs(bytes memory)": "infinite",
+            "decodeSubroutine(bytes memory)": "infinite"
+        }
+    }
+}

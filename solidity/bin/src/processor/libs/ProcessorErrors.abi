@@ -1,0 +1,1 @@
+[{"inputs":[],"name":"InvalidAddress","type":"error"},{"inputs":[],"name":"InvalidOriginDomain","type":"error"},{"inputs":[],"name":"NotAuthorizationContract","type":"error"},{"inputs":[],"name":"ProcessorPaused","type":"error"},{"inputs":[],"name":"UnauthorizedAccess","type":"error"},{"inputs":[],"name":"UnsupportedOperation","type":"error"}]

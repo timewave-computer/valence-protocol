@@ -1,0 +1,297 @@
+{
+    "contractName": "ProcessorEvents",
+    "abi": [
+        {
+            "anonymous": false,
+            "inputs": [
+                {
+                    "indexed": true,
+                    "internalType": "uint64",
+                    "name": "executionId",
+                    "type": "uint64"
+                },
+                {
+                    "indexed": false,
+                    "internalType": "enum IProcessor.ExecutionResult",
+                    "name": "result",
+                    "type": "uint8"
+                },
+                {
+                    "indexed": false,
+                    "internalType": "uint256",
+                    "name": "executedCount",
+                    "type": "uint256"
+                }
+            ],
+            "name": "CallbackSent",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [],
+            "name": "ProcessorPaused",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [],
+            "name": "ProcessorResumed",
+            "type": "event"
+        }
+    ],
+    "metadata": "{\"compiler\":{\"version\":\"0.8.28+commit.7893614a\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint64\",\"name\":\"executionId\",\"type\":\"uint64\"},{\"indexed\":false,\"internalType\":\"enum IProcessor.ExecutionResult\",\"name\":\"result\",\"type\":\"uint8\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"executedCount\",\"type\":\"uint256\"}],\"name\":\"CallbackSent\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[],\"name\":\"ProcessorPaused\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[],\"name\":\"ProcessorResumed\",\"type\":\"event\"}],\"devdoc\":{\"events\":{\"CallbackSent(uint64,uint8,uint256)\":{\"params\":{\"executedCount\":\"The number of functions that were executed successfully before failure or completion\",\"executionId\":\"The Execution ID of the message(s) that triggered the callback\",\"result\":\"The outcome of the execution\"}}},\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"events\":{\"CallbackSent(uint64,uint8,uint256)\":{\"notice\":\"Emitted when a callback is sent to the hyperlane mailbox\"},\"ProcessorPaused()\":{\"notice\":\"Emitted when the processor is paused\"},\"ProcessorResumed()\":{\"notice\":\"Emitted when the processor is resumed\"}},\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"/mnt/extra/Projects/timewave/valence-workflow/solidity/src/processor/libs/ProcessorEvents.sol\":\"ProcessorEvents\"},\"evmVersion\":\"cancun\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[],\"viaIR\":true},\"sources\":{\"/mnt/extra/Projects/timewave/valence-workflow/solidity/src/processor/interfaces/IProcessor.sol\":{\"keccak256\":\"0x51df2de25b25edce5d8ad5fef3ae92e1a65b0ed4d68dcf417353e94d05159e36\",\"license\":\"Apache-2.0\",\"urls\":[\"bzz-raw://537fa04828974dca7184779fac7d9c1a12c0cccb20b97786921bdadc69252ea4\",\"dweb:/ipfs/Qmc15tspxtZ9tRsouxNB8BrddszYuvujqLjzdnJN4EFMTa\"]},\"/mnt/extra/Projects/timewave/valence-workflow/solidity/src/processor/libs/ProcessorEvents.sol\":{\"keccak256\":\"0x349af7f2421ea16950ce3098a01cc3f9443eb2cb1f7e7ed76dc45100b68d3a45\",\"license\":\"Apache-2.0\",\"urls\":[\"bzz-raw://4d8e0fe26f708c28abb2227ed5491ff5c92cb62faa2bde9de259759fd963cfa7\",\"dweb:/ipfs/QmbyQ6wtLqvWSSo1M19n3aRG9JJzAMcmPgKENxpv43Bb7z\"]}},\"version\":1}",
+    "bytecode": "6080806040523460175760399081601c823930815050f35b5f80fdfe5f80fdfea264697066735822122037b39d680eea31fbcd65429ce8d68c2f64905a2561ccbdff2412dd75bb97ea6d64736f6c634300081c0033",
+    "deployedBytecode": "5f80fdfea264697066735822122037b39d680eea31fbcd65429ce8d68c2f64905a2561ccbdff2412dd75bb97ea6d64736f6c634300081c0033",
+    "sourceMap": "123:675:55:-:0;;;;;;;;;;;;;;;;;;;;;",
+    "deployedSourceMap": "123:675:55:-:0;;",
+    "sourcePath": "/mnt/extra/Projects/timewave/valence-workflow/solidity/src/processor/libs/ProcessorEvents.sol",
+    "compiler": {
+        "name": "solc",
+        "version": "0.8.28+commit.7893614a"
+    },
+    "ast": {
+        "absolutePath": "/mnt/extra/Projects/timewave/valence-workflow/solidity/src/processor/libs/ProcessorEvents.sol",
+        "exportedSymbols": {
+            "IProcessor": [
+                47700
+            ],
+            "ProcessorEvents": [
+                47870
+            ]
+        },
+        "id": 47871,
+        "license": "Apache-2.0",
+        "nodeType": "SourceUnit",
+        "nodes": [
+            {
+                "id": 47851,
+                "literals": [
+                    "solidity",
+                    "^",
+                    "0.8",
+                    ".28"
+                ],
+                "nodeType": "PragmaDirective",
+                "src": "39:24:55"
+            },
+            {
+                "absolutePath": "/mnt/extra/Projects/timewave/valence-workflow/solidity/src/processor/interfaces/IProcessor.sol",
+                "file": "../interfaces/IProcessor.sol",
+                "id": 47853,
+                "nameLocation": "-1:-1:-1",
+                "nodeType": "ImportDirective",
+                "scope": 47871,
+                "sourceUnit": 47701,
+                "src": "65:56:55",
+                "symbolAliases": [
+                    {
+                        "foreign": {
+                            "id": 47852,
+                            "name": "IProcessor",
+                            "nodeType": "Identifier",
+                            "overloadedDeclarations": [],
+                            "referencedDeclaration": 47700,
+                            "src": "73:10:55",
+                            "typeDescriptions": {}
+                        },
+                        "nameLocation": "-1:-1:-1"
+                    }
+                ],
+                "unitAlias": ""
+            },
+            {
+                "abstract": false,
+                "baseContracts": [],
+                "canonicalName": "ProcessorEvents",
+                "contractDependencies": [],
+                "contractKind": "library",
+                "fullyImplemented": true,
+                "id": 47870,
+                "linearizedBaseContracts": [
+                    47870
+                ],
+                "name": "ProcessorEvents",
+                "nameLocation": "131:15:55",
+                "nodeType": "ContractDefinition",
+                "nodes": [
+                    {
+                        "anonymous": false,
+                        "documentation": {
+                            "id": 47854,
+                            "nodeType": "StructuredDocumentation",
+                            "src": "153:63:55",
+                            "text": " @notice Emitted when the processor is paused"
+                        },
+                        "eventSelector": "5d96658d2cfcd5708b43dfce1c2ad2804dce006538335a41feb4fa6231a178d7",
+                        "id": 47856,
+                        "name": "ProcessorPaused",
+                        "nameLocation": "227:15:55",
+                        "nodeType": "EventDefinition",
+                        "parameters": {
+                            "id": 47855,
+                            "nodeType": "ParameterList",
+                            "parameters": [],
+                            "src": "242:2:55"
+                        },
+                        "src": "221:24:55"
+                    },
+                    {
+                        "anonymous": false,
+                        "documentation": {
+                            "id": 47857,
+                            "nodeType": "StructuredDocumentation",
+                            "src": "251:64:55",
+                            "text": " @notice Emitted when the processor is resumed"
+                        },
+                        "eventSelector": "c35b6a410dc984c3f841f64e429d3ba027a3322387f11f5385a8af2f2ccd6226",
+                        "id": 47859,
+                        "name": "ProcessorResumed",
+                        "nameLocation": "326:16:55",
+                        "nodeType": "EventDefinition",
+                        "parameters": {
+                            "id": 47858,
+                            "nodeType": "ParameterList",
+                            "parameters": [],
+                            "src": "342:2:55"
+                        },
+                        "src": "320:25:55"
+                    },
+                    {
+                        "anonymous": false,
+                        "documentation": {
+                            "id": 47860,
+                            "nodeType": "StructuredDocumentation",
+                            "src": "351:335:55",
+                            "text": " @notice Emitted when a callback is sent to the hyperlane mailbox\n @param executionId The Execution ID of the message(s) that triggered the callback\n @param result The outcome of the execution\n @param executedCount The number of functions that were executed successfully before failure or completion"
+                        },
+                        "eventSelector": "bf094c62e2005d837b96c60fc68289cca59fce1a2a21891e84805b81359f3ecc",
+                        "id": 47869,
+                        "name": "CallbackSent",
+                        "nameLocation": "697:12:55",
+                        "nodeType": "EventDefinition",
+                        "parameters": {
+                            "id": 47868,
+                            "nodeType": "ParameterList",
+                            "parameters": [
+                                {
+                                    "constant": false,
+                                    "id": 47862,
+                                    "indexed": true,
+                                    "mutability": "mutable",
+                                    "name": "executionId",
+                                    "nameLocation": "725:11:55",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 47869,
+                                    "src": "710:26:55",
+                                    "stateVariable": false,
+                                    "storageLocation": "default",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_uint64",
+                                        "typeString": "uint64"
+                                    },
+                                    "typeName": {
+                                        "id": 47861,
+                                        "name": "uint64",
+                                        "nodeType": "ElementaryTypeName",
+                                        "src": "710:6:55",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_uint64",
+                                            "typeString": "uint64"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                },
+                                {
+                                    "constant": false,
+                                    "id": 47865,
+                                    "indexed": false,
+                                    "mutability": "mutable",
+                                    "name": "result",
+                                    "nameLocation": "765:6:55",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 47869,
+                                    "src": "738:33:55",
+                                    "stateVariable": false,
+                                    "storageLocation": "default",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_enum$_ExecutionResult_$47689",
+                                        "typeString": "enum IProcessor.ExecutionResult"
+                                    },
+                                    "typeName": {
+                                        "id": 47864,
+                                        "nodeType": "UserDefinedTypeName",
+                                        "pathNode": {
+                                            "id": 47863,
+                                            "name": "IProcessor.ExecutionResult",
+                                            "nameLocations": [
+                                                "738:10:55",
+                                                "749:15:55"
+                                            ],
+                                            "nodeType": "IdentifierPath",
+                                            "referencedDeclaration": 47689,
+                                            "src": "738:26:55"
+                                        },
+                                        "referencedDeclaration": 47689,
+                                        "src": "738:26:55",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_enum$_ExecutionResult_$47689",
+                                            "typeString": "enum IProcessor.ExecutionResult"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                },
+                                {
+                                    "constant": false,
+                                    "id": 47867,
+                                    "indexed": false,
+                                    "mutability": "mutable",
+                                    "name": "executedCount",
+                                    "nameLocation": "781:13:55",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 47869,
+                                    "src": "773:21:55",
+                                    "stateVariable": false,
+                                    "storageLocation": "default",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_uint256",
+                                        "typeString": "uint256"
+                                    },
+                                    "typeName": {
+                                        "id": 47866,
+                                        "name": "uint256",
+                                        "nodeType": "ElementaryTypeName",
+                                        "src": "773:7:55",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_uint256",
+                                            "typeString": "uint256"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                }
+                            ],
+                            "src": "709:86:55"
+                        },
+                        "src": "691:105:55"
+                    }
+                ],
+                "scope": 47871,
+                "src": "123:675:55",
+                "usedErrors": [],
+                "usedEvents": [
+                    47856,
+                    47859,
+                    47869
+                ]
+            }
+        ],
+        "src": "39:760:55"
+    },
+    "functionHashes": {},
+    "gasEstimates": {
+        "creation": {
+            "codeDepositCost": "11400",
+            "executionCost": "infinite",
+            "totalCost": "infinite"
+        }
+    }
+}

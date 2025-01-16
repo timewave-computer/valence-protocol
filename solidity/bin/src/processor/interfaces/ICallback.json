@@ -1,0 +1,145 @@
+{
+    "contractName": "ICallback",
+    "abi": [
+        {
+            "inputs": [
+                {
+                    "internalType": "bytes",
+                    "name": "callbackData",
+                    "type": "bytes"
+                }
+            ],
+            "name": "handleCallback",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        }
+    ],
+    "metadata": "{\"compiler\":{\"version\":\"0.8.28+commit.7893614a\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"callbackData\",\"type\":\"bytes\"}],\"name\":\"handleCallback\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"Must be implemented by contracts if they want to handle processor callbacks\",\"kind\":\"dev\",\"methods\":{\"handleCallback(bytes)\":{\"details\":\"Validate and process callback data appropriately\",\"params\":{\"callbackData\":\"ABI encoded callback parameters\"}}},\"title\":\"Callback Interface\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"handleCallback(bytes)\":{\"notice\":\"Handles incoming callback data from the processor\"}},\"notice\":\"Interface for handling processor callbacks\",\"version\":1}},\"settings\":{\"compilationTarget\":{\"/mnt/extra/Projects/timewave/valence-workflow/solidity/src/processor/interfaces/ICallback.sol\":\"ICallback\"},\"evmVersion\":\"cancun\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[],\"viaIR\":true},\"sources\":{\"/mnt/extra/Projects/timewave/valence-workflow/solidity/src/processor/interfaces/ICallback.sol\":{\"keccak256\":\"0x396063262958278329175c1fedd3ae1dcd4ffc06b34e3719e96d920032fb8d50\",\"license\":\"Apache-2.0\",\"urls\":[\"bzz-raw://7bbf2ecc755f8beff9186fa15df3704a86054c6986fd8872229b19563a270632\",\"dweb:/ipfs/QmUKQqYwsCbEW67hbCNrAXP87qTTAs3NZJcGqXJWqF8vNJ\"]}},\"version\":1}",
+    "bytecode": "",
+    "deployedBytecode": "",
+    "sourceMap": "",
+    "deployedSourceMap": "",
+    "sourcePath": "/mnt/extra/Projects/timewave/valence-workflow/solidity/src/processor/interfaces/ICallback.sol",
+    "compiler": {
+        "name": "solc",
+        "version": "0.8.28+commit.7893614a"
+    },
+    "ast": {
+        "absolutePath": "/mnt/extra/Projects/timewave/valence-workflow/solidity/src/processor/interfaces/ICallback.sol",
+        "exportedSymbols": {
+            "ICallback": [
+                47663
+            ]
+        },
+        "id": 47664,
+        "license": "Apache-2.0",
+        "nodeType": "SourceUnit",
+        "nodes": [
+            {
+                "id": 47655,
+                "literals": [
+                    "solidity",
+                    "^",
+                    "0.8",
+                    ".28"
+                ],
+                "nodeType": "PragmaDirective",
+                "src": "39:24:51"
+            },
+            {
+                "abstract": false,
+                "baseContracts": [],
+                "canonicalName": "ICallback",
+                "contractDependencies": [],
+                "contractKind": "interface",
+                "documentation": {
+                    "id": 47656,
+                    "nodeType": "StructuredDocumentation",
+                    "src": "65:170:51",
+                    "text": "@title Callback Interface\n @notice Interface for handling processor callbacks\n @dev Must be implemented by contracts if they want to handle processor callbacks"
+                },
+                "fullyImplemented": false,
+                "id": 47663,
+                "linearizedBaseContracts": [
+                    47663
+                ],
+                "name": "ICallback",
+                "nameLocation": "245:9:51",
+                "nodeType": "ContractDefinition",
+                "nodes": [
+                    {
+                        "documentation": {
+                            "id": 47657,
+                            "nodeType": "StructuredDocumentation",
+                            "src": "261:183:51",
+                            "text": "@notice Handles incoming callback data from the processor\n @param callbackData ABI encoded callback parameters\n @dev Validate and process callback data appropriately"
+                        },
+                        "functionSelector": "7003fdf4",
+                        "id": 47662,
+                        "implemented": false,
+                        "kind": "function",
+                        "modifiers": [],
+                        "name": "handleCallback",
+                        "nameLocation": "458:14:51",
+                        "nodeType": "FunctionDefinition",
+                        "parameters": {
+                            "id": 47660,
+                            "nodeType": "ParameterList",
+                            "parameters": [
+                                {
+                                    "constant": false,
+                                    "id": 47659,
+                                    "mutability": "mutable",
+                                    "name": "callbackData",
+                                    "nameLocation": "486:12:51",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 47662,
+                                    "src": "473:25:51",
+                                    "stateVariable": false,
+                                    "storageLocation": "memory",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_bytes_memory_ptr",
+                                        "typeString": "bytes"
+                                    },
+                                    "typeName": {
+                                        "id": 47658,
+                                        "name": "bytes",
+                                        "nodeType": "ElementaryTypeName",
+                                        "src": "473:5:51",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_bytes_storage_ptr",
+                                            "typeString": "bytes"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                }
+                            ],
+                            "src": "472:27:51"
+                        },
+                        "returnParameters": {
+                            "id": 47661,
+                            "nodeType": "ParameterList",
+                            "parameters": [],
+                            "src": "508:0:51"
+                        },
+                        "scope": 47663,
+                        "src": "449:60:51",
+                        "stateMutability": "nonpayable",
+                        "virtual": false,
+                        "visibility": "external"
+                    }
+                ],
+                "scope": 47664,
+                "src": "235:276:51",
+                "usedErrors": [],
+                "usedEvents": []
+            }
+        ],
+        "src": "39:473:51"
+    },
+    "functionHashes": {
+        "handleCallback(bytes)": "7003fdf4"
+    },
+    "gasEstimates": null
+}

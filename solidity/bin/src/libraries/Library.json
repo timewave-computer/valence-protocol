@@ -1,0 +1,866 @@
+{
+    "contractName": "Library",
+    "abi": [
+        {
+            "inputs": [
+                {
+                    "internalType": "address",
+                    "name": "owner",
+                    "type": "address"
+                }
+            ],
+            "name": "OwnableInvalidOwner",
+            "type": "error"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "address",
+                    "name": "account",
+                    "type": "address"
+                }
+            ],
+            "name": "OwnableUnauthorizedAccount",
+            "type": "error"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                {
+                    "indexed": true,
+                    "internalType": "address",
+                    "name": "previousOwner",
+                    "type": "address"
+                },
+                {
+                    "indexed": true,
+                    "internalType": "address",
+                    "name": "newOwner",
+                    "type": "address"
+                }
+            ],
+            "name": "OwnershipTransferred",
+            "type": "event"
+        },
+        {
+            "inputs": [],
+            "name": "owner",
+            "outputs": [
+                {
+                    "internalType": "address",
+                    "name": "",
+                    "type": "address"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [],
+            "name": "processor",
+            "outputs": [
+                {
+                    "internalType": "address",
+                    "name": "",
+                    "type": "address"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [],
+            "name": "renounceOwnership",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "address",
+                    "name": "newOwner",
+                    "type": "address"
+                }
+            ],
+            "name": "transferOwnership",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "bytes",
+                    "name": "_config",
+                    "type": "bytes"
+                }
+            ],
+            "name": "updateConfig",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "address",
+                    "name": "_processor",
+                    "type": "address"
+                }
+            ],
+            "name": "updateProcessor",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        }
+    ],
+    "metadata": "{\"compiler\":{\"version\":\"0.8.28+commit.7893614a\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"OwnableInvalidOwner\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"OwnableUnauthorizedAccount\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"processor\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_config\",\"type\":\"bytes\"}],\"name\":\"updateConfig\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_processor\",\"type\":\"address\"}],\"name\":\"updateProcessor\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"Abstract contract that defines the base library functionality. Any library will inherit from this. Inherits from OpenZeppelin's Ownable for basic access control\",\"errors\":{\"OwnableInvalidOwner(address)\":[{\"details\":\"The owner is not a valid owner account. (eg. `address(0)`)\"}],\"OwnableUnauthorizedAccount(address)\":[{\"details\":\"The caller account is not authorized to perform an operation.\"}]},\"kind\":\"dev\",\"methods\":{\"constructor\":{\"details\":\"Constructor initializes the library with owner, processor, and initial configuration\",\"params\":{\"_config\":\"Initial configuration data for the library\",\"_owner\":\"The initial owner of the contract\",\"_processor\":\"The initial processor address\"}},\"owner()\":{\"details\":\"Returns the address of the current owner.\"},\"renounceOwnership()\":{\"details\":\"Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.\"},\"transferOwnership(address)\":{\"details\":\"Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.\"},\"updateConfig(bytes)\":{\"details\":\"Updates the library configurationShould validate function before applying configuration\",\"params\":{\"_config\":\"Configuration data to be applied\"}},\"updateProcessor(address)\":{\"details\":\"Allows the owner to update the processor address\",\"params\":{\"_processor\":\"New processor address\"}}},\"title\":\"Library\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"constructor\":{\"notice\":\"Calls updateConfig to set initial library configuration\"},\"updateConfig(bytes)\":{\"notice\":\"Must be implemented by each library\"}},\"version\":1}},\"settings\":{\"compilationTarget\":{\"/mnt/extra/Projects/timewave/valence-workflow/solidity/src/libraries/Library.sol\":\"Library\"},\"evmVersion\":\"cancun\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[],\"viaIR\":true},\"sources\":{\"/mnt/extra/Projects/timewave/valence-workflow/solidity/dependencies/@openzeppelin-contracts-5.2.0-rc.1/access/Ownable.sol\":{\"keccak256\":\"0xff6d0bb2e285473e5311d9d3caacb525ae3538a80758c10649a4d61029b017bb\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://8ed324d3920bb545059d66ab97d43e43ee85fd3bd52e03e401f020afb0b120f6\",\"dweb:/ipfs/QmfEckWLmZkDDcoWrkEvMWhms66xwTLff9DDhegYpvHo1a\"]},\"/mnt/extra/Projects/timewave/valence-workflow/solidity/dependencies/@openzeppelin-contracts-5.2.0-rc.1/utils/Context.sol\":{\"keccak256\":\"0x493033a8d1b176a037b2cc6a04dad01a5c157722049bbecf632ca876224dd4b2\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://6a708e8a5bdb1011c2c381c9a5cfd8a9a956d7d0a9dc1bd8bcdaf52f76ef2f12\",\"dweb:/ipfs/Qmax9WHBnVsZP46ZxEMNRQpLQnrdE4dK8LehML1Py8FowF\"]},\"/mnt/extra/Projects/timewave/valence-workflow/solidity/src/libraries/Library.sol\":{\"keccak256\":\"0x69d868cc8de2a5f43a7cf9444facad818f3c4407ae283fa75c89e58d75b77f82\",\"license\":\"Apache-2.0\",\"urls\":[\"bzz-raw://d4fc5545866eb0918a8c0dd08ee1e8233fdb9eb301de9c0ce04f8a9e8c961e78\",\"dweb:/ipfs/QmXoLrvdiPjThiR2JjpH8zgd4z25fKgiE9YSX8oYUhMt5s\"]}},\"version\":1}",
+    "bytecode": "",
+    "deployedBytecode": "",
+    "sourceMap": "",
+    "deployedSourceMap": "",
+    "sourcePath": "/mnt/extra/Projects/timewave/valence-workflow/solidity/src/libraries/Library.sol",
+    "compiler": {
+        "name": "solc",
+        "version": "0.8.28+commit.7893614a"
+    },
+    "ast": {
+        "absolutePath": "/mnt/extra/Projects/timewave/valence-workflow/solidity/src/libraries/Library.sol",
+        "exportedSymbols": {
+            "Library": [
+                46698
+            ],
+            "Ownable": [
+                147
+            ]
+        },
+        "id": 46699,
+        "license": "Apache-2.0",
+        "nodeType": "SourceUnit",
+        "nodes": [
+            {
+                "id": 46636,
+                "literals": [
+                    "solidity",
+                    "^",
+                    "0.8",
+                    ".28"
+                ],
+                "nodeType": "PragmaDirective",
+                "src": "39:24:46"
+            },
+            {
+                "absolutePath": "/mnt/extra/Projects/timewave/valence-workflow/solidity/dependencies/@openzeppelin-contracts-5.2.0-rc.1/access/Ownable.sol",
+                "file": "/mnt/extra/Projects/timewave/valence-workflow/solidity/dependencies/@openzeppelin-contracts-5.2.0-rc.1/access/Ownable.sol",
+                "id": 46638,
+                "nameLocation": "-1:-1:-1",
+                "nodeType": "ImportDirective",
+                "scope": 46699,
+                "sourceUnit": 148,
+                "src": "65:146:46",
+                "symbolAliases": [
+                    {
+                        "foreign": {
+                            "id": 46637,
+                            "name": "Ownable",
+                            "nodeType": "Identifier",
+                            "overloadedDeclarations": [],
+                            "referencedDeclaration": 147,
+                            "src": "73:7:46",
+                            "typeDescriptions": {}
+                        },
+                        "nameLocation": "-1:-1:-1"
+                    }
+                ],
+                "unitAlias": ""
+            },
+            {
+                "abstract": true,
+                "baseContracts": [
+                    {
+                        "baseName": {
+                            "id": 46640,
+                            "name": "Ownable",
+                            "nameLocations": [
+                                "443:7:46"
+                            ],
+                            "nodeType": "IdentifierPath",
+                            "referencedDeclaration": 147,
+                            "src": "443:7:46"
+                        },
+                        "id": 46641,
+                        "nodeType": "InheritanceSpecifier",
+                        "src": "443:7:46"
+                    }
+                ],
+                "canonicalName": "Library",
+                "contractDependencies": [],
+                "contractKind": "contract",
+                "documentation": {
+                    "id": 46639,
+                    "nodeType": "StructuredDocumentation",
+                    "src": "213:200:46",
+                    "text": " @title Library\n @dev Abstract contract that defines the base library functionality.\n Any library will inherit from this.\n Inherits from OpenZeppelin's Ownable for basic access control"
+                },
+                "fullyImplemented": false,
+                "id": 46698,
+                "linearizedBaseContracts": [
+                    46698,
+                    147,
+                    2287
+                ],
+                "name": "Library",
+                "nameLocation": "432:7:46",
+                "nodeType": "ContractDefinition",
+                "nodes": [
+                    {
+                        "constant": false,
+                        "functionSelector": "ce1b1d43",
+                        "id": 46643,
+                        "mutability": "mutable",
+                        "name": "processor",
+                        "nameLocation": "548:9:46",
+                        "nodeType": "VariableDeclaration",
+                        "scope": 46698,
+                        "src": "533:24:46",
+                        "stateVariable": true,
+                        "storageLocation": "default",
+                        "typeDescriptions": {
+                            "typeIdentifier": "t_address",
+                            "typeString": "address"
+                        },
+                        "typeName": {
+                            "id": 46642,
+                            "name": "address",
+                            "nodeType": "ElementaryTypeName",
+                            "src": "533:7:46",
+                            "stateMutability": "nonpayable",
+                            "typeDescriptions": {
+                                "typeIdentifier": "t_address",
+                                "typeString": "address"
+                            }
+                        },
+                        "visibility": "public"
+                    },
+                    {
+                        "body": {
+                            "id": 46655,
+                            "nodeType": "Block",
+                            "src": "679:105:46",
+                            "statements": [
+                                {
+                                    "expression": {
+                                        "arguments": [
+                                            {
+                                                "commonType": {
+                                                    "typeIdentifier": "t_address",
+                                                    "typeString": "address"
+                                                },
+                                                "id": 46650,
+                                                "isConstant": false,
+                                                "isLValue": false,
+                                                "isPure": false,
+                                                "lValueRequested": false,
+                                                "leftExpression": {
+                                                    "expression": {
+                                                        "id": 46647,
+                                                        "name": "msg",
+                                                        "nodeType": "Identifier",
+                                                        "overloadedDeclarations": [],
+                                                        "referencedDeclaration": 4294967281,
+                                                        "src": "697:3:46",
+                                                        "typeDescriptions": {
+                                                            "typeIdentifier": "t_magic_message",
+                                                            "typeString": "msg"
+                                                        }
+                                                    },
+                                                    "id": 46648,
+                                                    "isConstant": false,
+                                                    "isLValue": false,
+                                                    "isPure": false,
+                                                    "lValueRequested": false,
+                                                    "memberLocation": "701:6:46",
+                                                    "memberName": "sender",
+                                                    "nodeType": "MemberAccess",
+                                                    "src": "697:10:46",
+                                                    "typeDescriptions": {
+                                                        "typeIdentifier": "t_address",
+                                                        "typeString": "address"
+                                                    }
+                                                },
+                                                "nodeType": "BinaryOperation",
+                                                "operator": "==",
+                                                "rightExpression": {
+                                                    "id": 46649,
+                                                    "name": "processor",
+                                                    "nodeType": "Identifier",
+                                                    "overloadedDeclarations": [],
+                                                    "referencedDeclaration": 46643,
+                                                    "src": "711:9:46",
+                                                    "typeDescriptions": {
+                                                        "typeIdentifier": "t_address",
+                                                        "typeString": "address"
+                                                    }
+                                                },
+                                                "src": "697:23:46",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_bool",
+                                                    "typeString": "bool"
+                                                }
+                                            },
+                                            {
+                                                "hexValue": "4f6e6c79207468652070726f636573736f722063616e2063616c6c20746869732066756e6374696f6e",
+                                                "id": 46651,
+                                                "isConstant": false,
+                                                "isLValue": false,
+                                                "isPure": true,
+                                                "kind": "string",
+                                                "lValueRequested": false,
+                                                "nodeType": "Literal",
+                                                "src": "722:43:46",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_stringliteral_b0607ce7b17cddabcd73ccbb0a8ed4edd35fbe705b9869f281efc7eb0476a89f",
+                                                    "typeString": "literal_string \"Only the processor can call this function\""
+                                                },
+                                                "value": "Only the processor can call this function"
+                                            }
+                                        ],
+                                        "expression": {
+                                            "argumentTypes": [
+                                                {
+                                                    "typeIdentifier": "t_bool",
+                                                    "typeString": "bool"
+                                                },
+                                                {
+                                                    "typeIdentifier": "t_stringliteral_b0607ce7b17cddabcd73ccbb0a8ed4edd35fbe705b9869f281efc7eb0476a89f",
+                                                    "typeString": "literal_string \"Only the processor can call this function\""
+                                                }
+                                            ],
+                                            "id": 46646,
+                                            "name": "require",
+                                            "nodeType": "Identifier",
+                                            "overloadedDeclarations": [
+                                                4294967278,
+                                                4294967278,
+                                                4294967278
+                                            ],
+                                            "referencedDeclaration": 4294967278,
+                                            "src": "689:7:46",
+                                            "typeDescriptions": {
+                                                "typeIdentifier": "t_function_require_pure$_t_bool_$_t_string_memory_ptr_$returns$__$",
+                                                "typeString": "function (bool,string memory) pure"
+                                            }
+                                        },
+                                        "id": 46652,
+                                        "isConstant": false,
+                                        "isLValue": false,
+                                        "isPure": false,
+                                        "kind": "functionCall",
+                                        "lValueRequested": false,
+                                        "nameLocations": [],
+                                        "names": [],
+                                        "nodeType": "FunctionCall",
+                                        "src": "689:77:46",
+                                        "tryCall": false,
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_tuple$__$",
+                                            "typeString": "tuple()"
+                                        }
+                                    },
+                                    "id": 46653,
+                                    "nodeType": "ExpressionStatement",
+                                    "src": "689:77:46"
+                                },
+                                {
+                                    "id": 46654,
+                                    "nodeType": "PlaceholderStatement",
+                                    "src": "776:1:46"
+                                }
+                            ]
+                        },
+                        "documentation": {
+                            "id": 46644,
+                            "nodeType": "StructuredDocumentation",
+                            "src": "564:85:46",
+                            "text": " @dev Restricts function to be called only by the processor address"
+                        },
+                        "id": 46656,
+                        "name": "onlyProcessor",
+                        "nameLocation": "663:13:46",
+                        "nodeType": "ModifierDefinition",
+                        "parameters": {
+                            "id": 46645,
+                            "nodeType": "ParameterList",
+                            "parameters": [],
+                            "src": "676:2:46"
+                        },
+                        "src": "654:130:46",
+                        "virtual": false,
+                        "visibility": "internal"
+                    },
+                    {
+                        "body": {
+                            "id": 46677,
+                            "nodeType": "Block",
+                            "src": "1235:167:46",
+                            "statements": [
+                                {
+                                    "expression": {
+                                        "id": 46671,
+                                        "isConstant": false,
+                                        "isLValue": false,
+                                        "isPure": false,
+                                        "lValueRequested": false,
+                                        "leftHandSide": {
+                                            "id": 46669,
+                                            "name": "processor",
+                                            "nodeType": "Identifier",
+                                            "overloadedDeclarations": [],
+                                            "referencedDeclaration": 46643,
+                                            "src": "1282:9:46",
+                                            "typeDescriptions": {
+                                                "typeIdentifier": "t_address",
+                                                "typeString": "address"
+                                            }
+                                        },
+                                        "nodeType": "Assignment",
+                                        "operator": "=",
+                                        "rightHandSide": {
+                                            "id": 46670,
+                                            "name": "_processor",
+                                            "nodeType": "Identifier",
+                                            "overloadedDeclarations": [],
+                                            "referencedDeclaration": 46661,
+                                            "src": "1294:10:46",
+                                            "typeDescriptions": {
+                                                "typeIdentifier": "t_address",
+                                                "typeString": "address"
+                                            }
+                                        },
+                                        "src": "1282:22:46",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_address",
+                                            "typeString": "address"
+                                        }
+                                    },
+                                    "id": 46672,
+                                    "nodeType": "ExpressionStatement",
+                                    "src": "1282:22:46"
+                                },
+                                {
+                                    "expression": {
+                                        "arguments": [
+                                            {
+                                                "id": 46674,
+                                                "name": "_config",
+                                                "nodeType": "Identifier",
+                                                "overloadedDeclarations": [],
+                                                "referencedDeclaration": 46663,
+                                                "src": "1387:7:46",
+                                                "typeDescriptions": {
+                                                    "typeIdentifier": "t_bytes_memory_ptr",
+                                                    "typeString": "bytes memory"
+                                                }
+                                            }
+                                        ],
+                                        "expression": {
+                                            "argumentTypes": [
+                                                {
+                                                    "typeIdentifier": "t_bytes_memory_ptr",
+                                                    "typeString": "bytes memory"
+                                                }
+                                            ],
+                                            "id": 46673,
+                                            "name": "updateConfig",
+                                            "nodeType": "Identifier",
+                                            "overloadedDeclarations": [],
+                                            "referencedDeclaration": 46697,
+                                            "src": "1374:12:46",
+                                            "typeDescriptions": {
+                                                "typeIdentifier": "t_function_internal_nonpayable$_t_bytes_memory_ptr_$returns$__$",
+                                                "typeString": "function (bytes memory)"
+                                            }
+                                        },
+                                        "id": 46675,
+                                        "isConstant": false,
+                                        "isLValue": false,
+                                        "isPure": false,
+                                        "kind": "functionCall",
+                                        "lValueRequested": false,
+                                        "nameLocations": [],
+                                        "names": [],
+                                        "nodeType": "FunctionCall",
+                                        "src": "1374:21:46",
+                                        "tryCall": false,
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_tuple$__$",
+                                            "typeString": "tuple()"
+                                        }
+                                    },
+                                    "id": 46676,
+                                    "nodeType": "ExpressionStatement",
+                                    "src": "1374:21:46"
+                                }
+                            ]
+                        },
+                        "documentation": {
+                            "id": 46657,
+                            "nodeType": "StructuredDocumentation",
+                            "src": "790:354:46",
+                            "text": " @dev Constructor initializes the library with owner, processor, and initial configuration\n @param _owner The initial owner of the contract\n @param _processor The initial processor address\n @param _config Initial configuration data for the library\n @notice Calls updateConfig to set initial library configuration"
+                        },
+                        "id": 46678,
+                        "implemented": true,
+                        "kind": "constructor",
+                        "modifiers": [
+                            {
+                                "arguments": [
+                                    {
+                                        "id": 46666,
+                                        "name": "_owner",
+                                        "nodeType": "Identifier",
+                                        "overloadedDeclarations": [],
+                                        "referencedDeclaration": 46659,
+                                        "src": "1227:6:46",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_address",
+                                            "typeString": "address"
+                                        }
+                                    }
+                                ],
+                                "id": 46667,
+                                "kind": "baseConstructorSpecifier",
+                                "modifierName": {
+                                    "id": 46665,
+                                    "name": "Ownable",
+                                    "nameLocations": [
+                                        "1219:7:46"
+                                    ],
+                                    "nodeType": "IdentifierPath",
+                                    "referencedDeclaration": 147,
+                                    "src": "1219:7:46"
+                                },
+                                "nodeType": "ModifierInvocation",
+                                "src": "1219:15:46"
+                            }
+                        ],
+                        "name": "",
+                        "nameLocation": "-1:-1:-1",
+                        "nodeType": "FunctionDefinition",
+                        "parameters": {
+                            "id": 46664,
+                            "nodeType": "ParameterList",
+                            "parameters": [
+                                {
+                                    "constant": false,
+                                    "id": 46659,
+                                    "mutability": "mutable",
+                                    "name": "_owner",
+                                    "nameLocation": "1169:6:46",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 46678,
+                                    "src": "1161:14:46",
+                                    "stateVariable": false,
+                                    "storageLocation": "default",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_address",
+                                        "typeString": "address"
+                                    },
+                                    "typeName": {
+                                        "id": 46658,
+                                        "name": "address",
+                                        "nodeType": "ElementaryTypeName",
+                                        "src": "1161:7:46",
+                                        "stateMutability": "nonpayable",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_address",
+                                            "typeString": "address"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                },
+                                {
+                                    "constant": false,
+                                    "id": 46661,
+                                    "mutability": "mutable",
+                                    "name": "_processor",
+                                    "nameLocation": "1185:10:46",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 46678,
+                                    "src": "1177:18:46",
+                                    "stateVariable": false,
+                                    "storageLocation": "default",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_address",
+                                        "typeString": "address"
+                                    },
+                                    "typeName": {
+                                        "id": 46660,
+                                        "name": "address",
+                                        "nodeType": "ElementaryTypeName",
+                                        "src": "1177:7:46",
+                                        "stateMutability": "nonpayable",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_address",
+                                            "typeString": "address"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                },
+                                {
+                                    "constant": false,
+                                    "id": 46663,
+                                    "mutability": "mutable",
+                                    "name": "_config",
+                                    "nameLocation": "1210:7:46",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 46678,
+                                    "src": "1197:20:46",
+                                    "stateVariable": false,
+                                    "storageLocation": "memory",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_bytes_memory_ptr",
+                                        "typeString": "bytes"
+                                    },
+                                    "typeName": {
+                                        "id": 46662,
+                                        "name": "bytes",
+                                        "nodeType": "ElementaryTypeName",
+                                        "src": "1197:5:46",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_bytes_storage_ptr",
+                                            "typeString": "bytes"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                }
+                            ],
+                            "src": "1160:58:46"
+                        },
+                        "returnParameters": {
+                            "id": 46668,
+                            "nodeType": "ParameterList",
+                            "parameters": [],
+                            "src": "1235:0:46"
+                        },
+                        "scope": 46698,
+                        "src": "1149:253:46",
+                        "stateMutability": "nonpayable",
+                        "virtual": false,
+                        "visibility": "internal"
+                    },
+                    {
+                        "body": {
+                            "id": 46690,
+                            "nodeType": "Block",
+                            "src": "1596:39:46",
+                            "statements": [
+                                {
+                                    "expression": {
+                                        "id": 46688,
+                                        "isConstant": false,
+                                        "isLValue": false,
+                                        "isPure": false,
+                                        "lValueRequested": false,
+                                        "leftHandSide": {
+                                            "id": 46686,
+                                            "name": "processor",
+                                            "nodeType": "Identifier",
+                                            "overloadedDeclarations": [],
+                                            "referencedDeclaration": 46643,
+                                            "src": "1606:9:46",
+                                            "typeDescriptions": {
+                                                "typeIdentifier": "t_address",
+                                                "typeString": "address"
+                                            }
+                                        },
+                                        "nodeType": "Assignment",
+                                        "operator": "=",
+                                        "rightHandSide": {
+                                            "id": 46687,
+                                            "name": "_processor",
+                                            "nodeType": "Identifier",
+                                            "overloadedDeclarations": [],
+                                            "referencedDeclaration": 46681,
+                                            "src": "1618:10:46",
+                                            "typeDescriptions": {
+                                                "typeIdentifier": "t_address",
+                                                "typeString": "address"
+                                            }
+                                        },
+                                        "src": "1606:22:46",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_address",
+                                            "typeString": "address"
+                                        }
+                                    },
+                                    "id": 46689,
+                                    "nodeType": "ExpressionStatement",
+                                    "src": "1606:22:46"
+                                }
+                            ]
+                        },
+                        "documentation": {
+                            "id": 46679,
+                            "nodeType": "StructuredDocumentation",
+                            "src": "1408:119:46",
+                            "text": " @dev Allows the owner to update the processor address\n @param _processor New processor address"
+                        },
+                        "functionSelector": "8e8c6848",
+                        "id": 46691,
+                        "implemented": true,
+                        "kind": "function",
+                        "modifiers": [
+                            {
+                                "id": 46684,
+                                "kind": "modifierInvocation",
+                                "modifierName": {
+                                    "id": 46683,
+                                    "name": "onlyOwner",
+                                    "nameLocations": [
+                                        "1586:9:46"
+                                    ],
+                                    "nodeType": "IdentifierPath",
+                                    "referencedDeclaration": 58,
+                                    "src": "1586:9:46"
+                                },
+                                "nodeType": "ModifierInvocation",
+                                "src": "1586:9:46"
+                            }
+                        ],
+                        "name": "updateProcessor",
+                        "nameLocation": "1541:15:46",
+                        "nodeType": "FunctionDefinition",
+                        "parameters": {
+                            "id": 46682,
+                            "nodeType": "ParameterList",
+                            "parameters": [
+                                {
+                                    "constant": false,
+                                    "id": 46681,
+                                    "mutability": "mutable",
+                                    "name": "_processor",
+                                    "nameLocation": "1565:10:46",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 46691,
+                                    "src": "1557:18:46",
+                                    "stateVariable": false,
+                                    "storageLocation": "default",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_address",
+                                        "typeString": "address"
+                                    },
+                                    "typeName": {
+                                        "id": 46680,
+                                        "name": "address",
+                                        "nodeType": "ElementaryTypeName",
+                                        "src": "1557:7:46",
+                                        "stateMutability": "nonpayable",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_address",
+                                            "typeString": "address"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                }
+                            ],
+                            "src": "1556:20:46"
+                        },
+                        "returnParameters": {
+                            "id": 46685,
+                            "nodeType": "ParameterList",
+                            "parameters": [],
+                            "src": "1596:0:46"
+                        },
+                        "scope": 46698,
+                        "src": "1532:103:46",
+                        "stateMutability": "nonpayable",
+                        "virtual": false,
+                        "visibility": "external"
+                    },
+                    {
+                        "documentation": {
+                            "id": 46692,
+                            "nodeType": "StructuredDocumentation",
+                            "src": "1641:230:46",
+                            "text": " @dev Updates the library configuration\n @param _config Configuration data to be applied\n @notice Must be implemented by each library\n @dev Should validate function before applying configuration"
+                        },
+                        "functionSelector": "8cc6acce",
+                        "id": 46697,
+                        "implemented": false,
+                        "kind": "function",
+                        "modifiers": [],
+                        "name": "updateConfig",
+                        "nameLocation": "1885:12:46",
+                        "nodeType": "FunctionDefinition",
+                        "parameters": {
+                            "id": 46695,
+                            "nodeType": "ParameterList",
+                            "parameters": [
+                                {
+                                    "constant": false,
+                                    "id": 46694,
+                                    "mutability": "mutable",
+                                    "name": "_config",
+                                    "nameLocation": "1911:7:46",
+                                    "nodeType": "VariableDeclaration",
+                                    "scope": 46697,
+                                    "src": "1898:20:46",
+                                    "stateVariable": false,
+                                    "storageLocation": "memory",
+                                    "typeDescriptions": {
+                                        "typeIdentifier": "t_bytes_memory_ptr",
+                                        "typeString": "bytes"
+                                    },
+                                    "typeName": {
+                                        "id": 46693,
+                                        "name": "bytes",
+                                        "nodeType": "ElementaryTypeName",
+                                        "src": "1898:5:46",
+                                        "typeDescriptions": {
+                                            "typeIdentifier": "t_bytes_storage_ptr",
+                                            "typeString": "bytes"
+                                        }
+                                    },
+                                    "visibility": "internal"
+                                }
+                            ],
+                            "src": "1897:22:46"
+                        },
+                        "returnParameters": {
+                            "id": 46696,
+                            "nodeType": "ParameterList",
+                            "parameters": [],
+                            "src": "1934:0:46"
+                        },
+                        "scope": 46698,
+                        "src": "1876:59:46",
+                        "stateMutability": "nonpayable",
+                        "virtual": true,
+                        "visibility": "public"
+                    }
+                ],
+                "scope": 46699,
+                "src": "414:1523:46",
+                "usedErrors": [
+                    13,
+                    18
+                ],
+                "usedEvents": [
+                    24
+                ]
+            }
+        ],
+        "src": "39:1899:46"
+    },
+    "functionHashes": {
+        "owner()": "8da5cb5b",
+        "processor()": "ce1b1d43",
+        "renounceOwnership()": "715018a6",
+        "transferOwnership(address)": "f2fde38b",
+        "updateConfig(bytes)": "8cc6acce",
+        "updateProcessor(address)": "8e8c6848"
+    },
+    "gasEstimates": null
+}
