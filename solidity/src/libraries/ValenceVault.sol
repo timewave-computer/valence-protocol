@@ -53,7 +53,12 @@ contract ValenceVault is Library, ERC4626 {
         uint256 assets,
         uint256 shares
     ) internal virtual override {
-        SafeERC20.safeTransferFrom(IERC20(asset()), caller, address(config.DepositAccount), assets);
+        SafeERC20.safeTransferFrom(
+            IERC20(asset()),
+            caller,
+            address(config.DepositAccount),
+            assets
+        );
         _mint(receiver, shares);
 
         emit Deposit(caller, receiver, assets, shares);
