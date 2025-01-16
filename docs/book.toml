@@ -7,10 +7,11 @@ title        = "Valence Protocol Documentation"
 
 [output.html]
 git-repository-url    = "https://github.com/timewave-computer/valence-protocol"
-default-theme         = "navy"
-preferred-dark-theme  = "navy"
+default-theme         = "light"
 preferred-light-theme = "light"
+preferred-dark-theme  = "ayu"
 additional-js         = ["mermaid.min.js", "mermaid-init.js"]
+mathjax-support = true
 
 [preprocessor.mermaid]
 command = "mdbook-mermaid"

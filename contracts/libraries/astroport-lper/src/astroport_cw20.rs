@@ -1,18 +1,12 @@
-use crate::msg::{Config, PoolType};
+use crate::msg::Config;
 
 use cosmwasm_std::{coin, CosmosMsg, WasmMsg};
 use cosmwasm_std::{to_json_binary, DepsMut, Uint128};
 use valence_astroport_utils::astroport_cw20_lp_token::{
-    Asset, AssetInfo, ExecuteMsg, PairType, PoolQueryMsg, PoolResponse, SimulationResponse,
+    Asset, AssetInfo, ExecuteMsg, PairType, PoolQueryMsg, SimulationResponse,
 };
+use valence_astroport_utils::PoolType;
 use valence_library_utils::error::LibraryError;
-
-pub fn query_pool(deps: &DepsMut, pool_addr: &str) -> Result<Vec<Asset>, LibraryError> {
-    let response: PoolResponse = deps
-        .querier
-        .query_wasm_smart(pool_addr, &PoolQueryMsg::Pool {})?;
-    Ok(response.assets)
-}
 
 pub fn create_provide_liquidity_msg(
     cfg: &Config,
@@ -34,7 +28,7 @@ pub fn create_provide_liquidity_msg(
                 amount: Uint128::new(amount2),
             },
         ],
-        slippage_tolerance: cfg.lp_config.slippage_tolerance,
+        slippage_tolerance: None,
         auto_stake: Some(false),
         receiver: Some(cfg.output_addr.to_string()),
     };
@@ -118,7 +112,7 @@ fn create_xyk_liquidity_msg(
         contract_addr: cfg.pool_addr.to_string(),
         msg: to_json_binary(&ExecuteMsg::Swap {
             offer_asset: astroport_offer_asset.clone(),
-            max_spread: cfg.lp_config.slippage_tolerance,
+            max_spread: cfg.lp_config.max_spread,
             belief_price: None,
             to: None,
             ask_asset_info: None,
@@ -138,7 +132,7 @@ fn create_xyk_liquidity_msg(
                     amount: Uint128::new(ask_asset.amount.u128()),
                 },
             ],
-            slippage_tolerance: cfg.lp_config.slippage_tolerance,
+            slippage_tolerance: None,
             auto_stake: Some(false),
             receiver: Some(cfg.output_addr.to_string()),
         })?,
@@ -175,7 +169,7 @@ fn create_stable_or_custom_liquidity_msg(
         contract_addr: cfg.pool_addr.to_string(),
         msg: to_json_binary(&ExecuteMsg::ProvideLiquidity {
             assets,
-            slippage_tolerance: cfg.lp_config.slippage_tolerance,
+            slippage_tolerance: None,
             auto_stake: Some(false),
             receiver: Some(cfg.output_addr.to_string()),
         })?,
