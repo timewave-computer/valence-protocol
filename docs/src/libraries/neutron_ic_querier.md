@@ -192,35 +192,63 @@ it available for further processing, interpretation, or other functions.
 
 ## Library Lifecycle
 
-With the baseline functionality in mind, there are multiple design decisions to be made
-that will shape the overall lifecycle of this library.
+With the baseline functionality in mind, there are a few design decisions
+that shape the overall lifecycle of this library.
 
-This library may take on one of two possible routes with respect to how long it is considered
-active:
-1. single-use, instantiated to perform a particular query and complete
-2. multi-use, instantiated to perform multiple domain queries
+### Instantiation flow
 
-For single-use design, one of the main questions is at what point does the query
-actually get registered.
+Neutron Interchain Querier is instantiated with the configuration needed
+to initiate and process the queries that it will be capable of executing.
 
-One approach for the single-use approach could be to register the query as soon as
-the library is instantiated. This way, given a complex Valence Program configuration,
-IC Querier library would have the smallest chance of being the bottleneck and
-potentially blocking other libraries from performing their functions (due to query
-result not being fetched yet).
-Alternatively, queries could be registered on-demand. That way, the library
-would be instantiated just like any other library. When a query would be required,
-a message would be executed and the query would get registered.
+This involves the following configuration parameters.
 
-Both approaches would perform the queries, but the library would remain active.
-For that reason we likely need to introduce some notion of finalization.
-Registered Interchain Queries continue receiving updates according to the `update_period`
-specified during the query registration. This is quite an open design space -
-some potential approaches to query deregistration may involve:
+#### Account association
 
-- deregister the query after n query results (e.g. after 1)
-- deregister the query once the result is posted on a block that exceeds a given block/time
-- deregister the query manually with a specific message
+Like other libraries, this querier is going to be associated with an account.
+Associated Storage accounts will authorize instances of Neutron IC Queriers
+to post data objects of the canonical Valence types.
+
+Unlike most other libraries, there is no notion of input and output accounts.
+There is just an account, and it is the only account that this library will
+be posting data into.
+
+Account association will follow the same logic of approve/revoke as in other
+libraries.
+
+#### Query configurations
+
+On instantiation, IC Querier will be configured to perform a set of queries.
+This configuration will consist of a complete set of parameters needed to
+register and process the query responses, as well as the outline of how those
+responses should be processed into Valence Types to then be written under
+a particular storage slot to a given Storage Account.
+
+Each query definition will contain its unique identifier. This identifier is
+going to be needed for distinguishing a given query from others during query
+registration and deregistration.
+
+### Execution flow
+
+With Neutron IC Querier instantiated, the library is ready to start carrying
+out the queries.
+
+#### Query initiation
+
+Configured queries can be triggered / initiated on-demand, by calling the
+execute method and specifying the unique query identifier(s).
+
+This will, in turn, submit the query registration message to `interchainqueries`
+module and kick off the interchain query flow. After the result is fetched
+back, library will attempt to decode the response and convert it into a
+`ValenceType` which is then to be posted into the associated Storage Account.
+
+#### Query deregistration
+
+At any point after the query registration, authorized addresses (admin/processor)
+are permitted to unregister a given query.
+
+This will reclaim the escrow fee and remove the query from `interchainqueries`
+active queries list, thus concluding the lifecycle of a given query.
 
 ## Library in Valence Programs
 
@@ -230,35 +258,23 @@ into a Valence Type.
 
 While that result could be posted directly to the state of this library,
 instead, it is posted to an associated output account meant for storing data.
-Just as some other libraries have a notion of output accounts for transferring some
-funds, Neutron IC Querier has a notion of output account for writing some data.
+Just as some other libraries have a notion of input accounts that grant them
+the permission of executing some logic, Neutron IC Querier has a notion of an
+associated account which grants the querier a permission to writing some data
+into its storage slots.
 
-For example, consider a situation where this library had queried the balance of some
-remote account, parsed the response into a Valence Balance type, and wrote that resulting
-object into its associated output account. That output account may be the input account
-of some other library, which will attempt to perform its function based on the content
-written to its input account. This may involve something along the lines of:
-`if balance > 0, do x; otherwise, do y;`.
+For example, consider a situation where this library had queried the balance of
+some remote account, parsed the response into a Valence Balance type, and wrote
+that resulting object into its associated storage account. That same associated
+account may be the input account of some other library, which will attempt to
+perform its function based on the content written to its input account. This may
+involve something along the lines of: `if balance > 0, do x; otherwise, do y;`.
 
-It is a little less obvious as to what is the *input account* of Neutron IC Querier.
-For one, the input account could be standard type account that deals with token transfers.
-Prior to registering the interchain query, input account could be expected to receive
-the query deposit (in `untrn`) meant to cover the query registration costs.
 With that, the IC Querier flow in a Valence Program may look like this:
 
 ```
-┌──────────────┐                ┌────────────┐                   ┌───────────┐
-│   standard   │   pay query    │ Neutron IC │   write Valence   │  storage  │
-│   account    │────deposit────▶│  Querier   │──────result──────▶│  account  │
-└──────────────┘                └────────────┘                   └───────────┘
+┌────────────┐                   ┌───────────┐
+│ Neutron IC │   write Valence   │  storage  │
+│  Querier   │──────result──────▶│  account  │
+└────────────┘                   └───────────┘
 ```
-
-Input account being funded with sufficient `untrn` here could even be seen as the trigger
-for when a query should be registered: input account could be gated by some logic that should
-precede the query registration. It's probably worth noting that anyone would
-be free to transfer funds into that account and "trigger" the query registration,
-but it is hardly an attack - just an early start to a flow that was meant to happen anyways.
-Prematurely registered queries could be dealt with (permissioned/permisionless deregistration),
-and given the escrow cost, this type of attack does not seem very likely. Also worth
-noting, this type of design would probably not be compatible with query registration
-happening as soon as the library is instantiated.
