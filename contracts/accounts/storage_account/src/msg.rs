@@ -9,7 +9,7 @@ pub enum ExecuteMsg {
     ApproveLibrary { library: String },
     // Remove library from approved list (only admin)
     RemoveLibrary { library: String },
-    // store in storage
+    // stores the given `ValenceType` variant under storage key `key`
     StoreValenceType { key: String, variant: ValenceType },
 }
 
@@ -17,8 +17,10 @@ pub enum ExecuteMsg {
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
+    // Get list of approved libraries
     #[returns(Vec<String>)]
-    ListApprovedLibraries {}, // Get list of approved libraries
+    ListApprovedLibraries {},
+    // Get Valence type variant from storage
     #[returns(ValenceType)]
-    QueryValenceType { key: String }, // Get Valence type object from storage
+    QueryValenceType { key: String },
 }

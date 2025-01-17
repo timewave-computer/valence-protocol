@@ -73,7 +73,7 @@ mod execute {
         );
 
         // store the variant
-        VALENCE_TYPE_STORE.save(deps.storage, key.clone(), &variant)?;
+        VALENCE_TYPE_STORE.save(deps.storage, key.to_string(), &variant)?;
 
         Ok(Response::new()
             .add_attribute("method", "post_valence_type")
@@ -136,11 +136,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             to_json_binary(&libraries)
         }
         QueryMsg::QueryValenceType { key } => {
-            let obj = VALENCE_TYPE_STORE.may_load(deps.storage, key)?;
-
-            match obj {
+            match VALENCE_TYPE_STORE.may_load(deps.storage, key)? {
                 Some(val) => to_json_binary(&val),
-                None => Err(StdError::generic_err("blob not found")),
+                None => Err(StdError::generic_err(
+                    "no value associated with storage key",
+                )),
             }
         }
     }
