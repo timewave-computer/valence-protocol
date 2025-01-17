@@ -2,14 +2,18 @@ use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 
-use cosmwasm_std::{Addr, Binary, Deps, DepsMut, Uint64};
+use cosmwasm_std::{Addr, Binary, Deps, Uint64};
 use cw_ownable::cw_ownable_query;
 
-use valence_library_utils::{error::LibraryError, msg::LibraryConfigValidation};
+use valence_library_utils::{
+    error::LibraryError, msg::LibraryConfigValidation, LibraryAccountType,
+};
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
 
-#[cw_serde]
-pub struct InstantiateMsg {}
+use crate::contract::ExecuteDeps;
+
+// #[cw_serde]
+// pub struct InstantiateMsg {}
 
 #[cw_serde]
 pub enum FunctionMsgs {
@@ -41,22 +45,28 @@ pub struct QuerierConfig {}
 #[cw_serde]
 #[derive(ValenceLibraryInterface)]
 pub struct LibraryConfig {
+    pub storage_account: LibraryAccountType,
     pub querier_config: QuerierConfig,
 }
 
 impl LibraryConfig {
-    pub fn new(querier_config: QuerierConfig) -> Self {
-        LibraryConfig { querier_config }
+    pub fn new(storage_acc: impl Into<LibraryAccountType>, querier_config: QuerierConfig) -> Self {
+        LibraryConfig {
+            storage_account: storage_acc.into(),
+            querier_config,
+        }
     }
 
-    fn do_validate(&self, _api: &dyn cosmwasm_std::Api) -> Result<(), LibraryError> {
-        Ok(())
+    fn do_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<(Addr), LibraryError> {
+        let storage_addr = self.storage_account.to_addr(api)?;
+        Ok((storage_addr))
     }
 }
 
 #[cw_serde]
 /// Validated library configuration
 pub struct Config {
+    pub storage_acc_addr: Addr,
     pub querier_config: QuerierConfig,
 }
 
@@ -68,16 +78,17 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
     }
 
     fn validate(&self, deps: Deps) -> Result<Config, LibraryError> {
-        self.do_validate(deps.api)?;
+        let storage_acc_addr = self.do_validate(deps.api)?;
 
         Ok(Config {
+            storage_acc_addr,
             querier_config: self.querier_config.clone(),
         })
     }
 }
 
 impl LibraryConfigUpdate {
-    pub fn update_config(self, deps: DepsMut) -> Result<(), LibraryError> {
+    pub fn update_config(self, deps: ExecuteDeps) -> Result<(), LibraryError> {
         let config: Config = valence_library_base::load_config(deps.storage)?;
         // TODO
         valence_library_base::save_config(deps.storage, &config)?;

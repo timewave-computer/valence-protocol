@@ -99,7 +99,14 @@ fn main() -> Result<(), Box<dyn Error>> {
             .get_request_builder(NEUTRON_CHAIN_NAME),
         DEFAULT_KEY,
         icq_querier_lib_code_id,
-        &serde_json::to_string(&valence_neutron_ic_querier::msg::InstantiateMsg {})?,
+        &serde_json::to_string(&valence_library_utils::msg::InstantiateMsg {
+            owner: todo!(),
+            processor: todo!(),
+            config: valence_neutron_ic_querier::msg::Config {
+                storage_acc_addr: todo!(),
+                querier_config: todo!(),
+            },
+        })?,
         "icq_querier_lib",
         None,
         "",

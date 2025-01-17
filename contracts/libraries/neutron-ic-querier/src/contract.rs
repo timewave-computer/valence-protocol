@@ -6,7 +6,6 @@ use cosmwasm_std::{
     to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response, StdError,
     StdResult, SubMsg, Uint64,
 };
-use cw2::set_contract_version;
 use neutron_sdk::{
     bindings::{
         msg::{MsgRegisterInterchainQueryResponse, NeutronMsg},
@@ -17,11 +16,14 @@ use neutron_sdk::{
     sudo::msg::SudoMsg,
 };
 
+use valence_library_utils::{
+    error::LibraryError,
+    msg::{ExecuteMsg, InstantiateMsg},
+};
 use valence_middleware_utils::type_registry::types::{NativeTypeWrapper, RegistryQueryMsg};
 
 use crate::{
-    error::ContractError,
-    msg::{Config, FunctionMsgs, InstantiateMsg, LibraryConfig, QueryMsg},
+    msg::{Config, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, QueryMsg},
     state::{PendingQueryIdConfig, ASSOCIATED_QUERY_IDS, QUERY_RESULTS},
 };
 
@@ -37,19 +39,37 @@ pub fn instantiate(
     deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    _msg: InstantiateMsg,
-) -> Result<Response<NeutronMsg>, ContractError> {
-    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    Ok(Response::default())
+    msg: InstantiateMsg<LibraryConfig>,
+) -> Result<Response, LibraryError> {
+    valence_library_base::instantiate(deps, CONTRACT_NAME, CONTRACT_VERSION, msg)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: ExecuteDeps,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>,
+) -> Result<Response<NeutronMsg>, LibraryError> {
+    valence_library_base::execute(deps, env, info, msg, process_function, update_config)
+}
+
+pub fn update_config(
+    deps: ExecuteDeps,
+    _env: Env,
+    _info: MessageInfo,
+    new_config: LibraryConfigUpdate,
+) -> Result<(), LibraryError> {
+    new_config.update_config(deps)
+}
+
+pub fn process_function(
+    deps: ExecuteDeps,
     _env: Env,
     _info: MessageInfo,
     msg: FunctionMsgs,
-) -> Result<Response<NeutronMsg>, ContractError> {
+    cfg: Config,
+) -> Result<Response<NeutronMsg>, LibraryError> {
     match msg {
         FunctionMsgs::RegisterKvQuery {
             broker_addr,
@@ -78,7 +98,7 @@ fn register_kv_query(
     connection_id: String,
     update_period: Uint64,
     params: BTreeMap<String, Binary>,
-) -> Result<Response<NeutronMsg>, ContractError> {
+) -> Result<Response<NeutronMsg>, LibraryError> {
     let query_kv_key: KVKey = deps.querier.query_wasm_smart(
         broker_addr.to_string(),
         &valence_middleware_broker::msg::QueryMsg {
