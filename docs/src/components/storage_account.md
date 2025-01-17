@@ -1,6 +1,7 @@
 # Valence Storage Account
 
-The Valence Storage Account is a type of Valence account that can store data objects.
+The Valence Storage Account is a type of Valence account that can store Valence Type data
+objects.
 
 Like all other accounts, Storage Accounts follow the same pattern of approving and revoking
 authorized libraries from being able to post data objects into a given account.
@@ -21,22 +22,22 @@ pub enum ExecuteMsg {
     // Remove library from approved list (only admin)
     RemoveLibrary { library: String },
     // store a payload in storage
-    PostBlob { key: String, value: Binary },
+    PostData { key: String, value: ValenceType },
 }
 ```
 
 Library approval and removal follow the same implementation as that of the fund accounts.
 
-`PostBlob` is the key method of this contract. It takes in a *key* of type `String`, and its
-associated value of type `Binary`.
+`PostData` is the key method of this contract. It takes in a *key* of type `String`, and its
+associated value of type `ValenceType`.
 
-If `PostBlob` is called by the owner or an approved library, it will persist the *key-value*
+If `PostData` is called by the owner or an approved library, it will persist the *key-value*
 mapping in its state. Storage here works in an overriding manner, meaning that posting data
 for a key that already exists will override its previous value and act as an update method.
 
 ### Query Methods
 
-Once data had been posted into the storage account using `PostBlob` call, it is made available
+Once data had been posted into the storage account using `PostData` call, it is made available
 for querying.
 
 Storage account exposes the following `QueryMsg`:
@@ -46,10 +47,6 @@ pub enum QueryMsg {
     #[returns(Vec<String>)]
     ListApprovedLibraries {}, // Get list of approved libraries
     #[returns(Binary)]
-    Blob { key: String }, // Get blob from storage
+    StorageSlot { key: String }, // Get object from storage
 }
 ```
-
-## Example usage in Valence Programs
-
-TODO: describe potential use cases in Valence Programs
