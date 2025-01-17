@@ -9,7 +9,7 @@ use valence_account_utils::{error::ContractError, msg::InstantiateMsg};
 
 use crate::{
     msg::{ExecuteMsg, QueryMsg},
-    state::{APPROVED_LIBRARIES, BLOB_STORE},
+    state::{APPROVED_LIBRARIES, VALENCE_TYPE_STORE},
 };
 
 // version info for migration info
@@ -46,21 +46,24 @@ pub fn execute(
         ExecuteMsg::ApproveLibrary { library } => execute::approve_library(deps, info, library),
         ExecuteMsg::RemoveLibrary { library } => execute::remove_library(deps, info, library),
         ExecuteMsg::UpdateOwnership(action) => execute::update_ownership(deps, env, info, action),
-        ExecuteMsg::PostBlob { key, value } => execute::try_post_blob(deps, info, key, value),
+        ExecuteMsg::StoreValenceType { key, variant } => {
+            execute::try_post_valence_type(deps, info, key, variant)
+        }
     }
 }
 
 mod execute {
-    use cosmwasm_std::{ensure, Binary, DepsMut, Empty, Env, MessageInfo, Response};
+    use cosmwasm_std::{ensure, DepsMut, Empty, Env, MessageInfo, Response};
     use valence_account_utils::error::{ContractError, UnauthorizedReason};
+    use valence_middleware_utils::type_registry::types::ValenceType;
 
-    use crate::state::{APPROVED_LIBRARIES, BLOB_STORE};
+    use crate::state::{APPROVED_LIBRARIES, VALENCE_TYPE_STORE};
 
-    pub fn try_post_blob(
+    pub fn try_post_valence_type(
         deps: DepsMut,
         info: MessageInfo,
         key: String,
-        value: Binary,
+        variant: ValenceType,
     ) -> Result<Response, ContractError> {
         // If not admin, check if it's an approved library
         ensure!(
@@ -69,13 +72,13 @@ mod execute {
             ContractError::Unauthorized(UnauthorizedReason::NotAdminOrApprovedLibrary)
         );
 
-        // store the value
-        BLOB_STORE.save(deps.storage, key.clone(), &value)?;
+        // store the variant
+        VALENCE_TYPE_STORE.save(deps.storage, key.clone(), &variant)?;
 
         Ok(Response::new()
-            .add_attribute("method", "post_blob")
+            .add_attribute("method", "post_valence_type")
             .add_attribute("key", key)
-            .add_attribute("value", format!("{:?}", value)))
+            .add_attribute("variant", format!("{:?}", variant)))
     }
 
     pub fn approve_library(
@@ -132,10 +135,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 .collect::<StdResult<Vec<_>>>()?;
             to_json_binary(&libraries)
         }
-        QueryMsg::Blob { key } => {
-            let blob = BLOB_STORE.may_load(deps.storage, key)?;
+        QueryMsg::QueryValenceType { key } => {
+            let obj = VALENCE_TYPE_STORE.may_load(deps.storage, key)?;
 
-            match blob {
+            match obj {
                 Some(val) => to_json_binary(&val),
                 None => Err(StdError::generic_err("blob not found")),
             }

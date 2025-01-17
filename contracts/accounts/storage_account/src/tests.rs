@@ -1,4 +1,4 @@
-use cosmwasm_std::{coin, from_json, to_json_binary, Addr, Binary, Coin};
+use cosmwasm_std::{coin, coins, Addr, Coin};
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::{Ownership, OwnershipError};
 use getset::{Getters, Setters};
@@ -8,6 +8,9 @@ use valence_account_utils::{
     error::ContractError,
     msg::InstantiateMsg,
     testing::{AccountTestSuite, AccountTestSuiteBase},
+};
+use valence_middleware_utils::{
+    canonical_types::bank::balance::ValenceBankBalance, type_registry::types::ValenceType,
 };
 
 use crate::msg::{ExecuteMsg, QueryMsg};
@@ -159,12 +162,17 @@ impl StorageAccountTestSuite {
         )
     }
 
-    fn post_blob(&mut self, addr: Addr, key: &str, blob: Binary) -> AnyResult<AppResponse> {
+    fn post_valence_type(
+        &mut self,
+        addr: Addr,
+        key: &str,
+        variant: ValenceType,
+    ) -> AnyResult<AppResponse> {
         self.contract_execute(
             addr,
-            &ExecuteMsg::PostBlob {
+            &ExecuteMsg::StoreValenceType {
                 key: key.to_string(),
-                value: blob,
+                variant,
             },
         )
     }
@@ -177,10 +185,10 @@ impl StorageAccountTestSuite {
         self.query_wasm(addr, &QueryMsg::Ownership {})
     }
 
-    fn query_blob(&mut self, acc: Addr, key: &str) -> Option<Binary> {
+    fn query_blob(&mut self, acc: Addr, key: &str) -> ValenceType {
         self.query_wasm(
             &acc,
-            &QueryMsg::Blob {
+            &QueryMsg::QueryValenceType {
                 key: key.to_string(),
             },
         )
@@ -439,19 +447,24 @@ fn post_data_blob_admin() {
     // Instantiate storage account contract
     let acc = suite.account_init(vec![]);
 
-    // generate a blob to be stored
-    let blob = to_json_binary(&coin(ONE_MILLION, NTRN)).unwrap();
+    let variant = ValenceType::BankBalance(ValenceBankBalance {
+        assets: coins(ONE_MILLION, NTRN),
+    });
 
-    suite.post_blob(acc.clone(), BLOB_KEY, blob).unwrap();
+    suite
+        .post_valence_type(acc.clone(), BLOB_KEY, variant)
+        .unwrap();
 
     // get the posted blob and try to reconstruct it
-    let blob_query_result = suite.query_blob(acc, BLOB_KEY).unwrap();
-
-    let coin: Coin = from_json(blob_query_result).unwrap();
+    let query_result = suite.query_blob(acc, BLOB_KEY);
+    let balance_resp: ValenceBankBalance = match query_result {
+        ValenceType::BankBalance(blob) => blob,
+        _ => panic!("Unexpected variant type"),
+    };
 
     // assert that the underlying data is the same
-    assert_eq!(coin.denom, NTRN);
-    assert_eq!(coin.amount.u128(), ONE_MILLION);
+    assert_eq!(balance_resp.assets[0].denom, NTRN);
+    assert_eq!(balance_resp.assets[0].amount.u128(), ONE_MILLION);
 }
 
 #[test]
@@ -462,8 +475,9 @@ fn post_data_blob_unauthorized() {
     // Instantiate storage account contract
     let acc = suite.account_init(vec![]);
 
-    // generate a blob to be stored
-    let blob = to_json_binary(&coin(ONE_MILLION, NTRN)).unwrap();
+    let variant = ValenceType::BankBalance(ValenceBankBalance {
+        assets: coins(ONE_MILLION, NTRN),
+    });
 
     suite
         .inner
@@ -471,13 +485,11 @@ fn post_data_blob_unauthorized() {
         .execute_contract(
             Addr::unchecked("not the real"),
             acc.clone(),
-            &ExecuteMsg::PostBlob {
+            &ExecuteMsg::StoreValenceType {
                 key: BLOB_KEY.to_string(),
-                value: blob,
+                variant,
             },
             &[],
         )
         .unwrap();
-
-    // TODO: unit test for approved libraries
 }
