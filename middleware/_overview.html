@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Authorizations &amp; Processors - Valence Protocol Documentation</title>
+        <title>Middleware - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -157,40 +157,24 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="authorizations--processors"><a class="header" href="#authorizations--processors">Authorizations &amp; Processors</a></h1>
-<p>The <strong>Authorizations</strong> and <strong>Processor</strong> contracts are foundational pieces of the <strong>Valence Protocol</strong>, as they enable on-chain (and cross-chain) execution of <strong>Valence Programs</strong>, and enforce access control to the programs's <strong>subroutines</strong> via <strong>authorizations</strong>.</p>
-<p>This section goes into more details in explaining the rationale for these contracts, and shares insights about their technical implementation as well as how end-users can interact with <strong>Valence programs</strong> via authorizations.</p>
-<h2 id="rationale"><a class="header" href="#rationale">Rationale</a></h2>
+                        <h1 id="middleware"><a class="header" href="#middleware">Middleware</a></h1>
+<p>This section contains a description of the Valence Protocol middleware design.</p>
+<p><strong>Valence Protocol Middleware components</strong>:</p>
 <ul>
-<li>To have a general purpose set of smart contracts that will provide the users (anyone if the authorization is permissionless or authorization token owners if it’s permissioned) with a single point of entry to interact with the Valence program, which can have libraries and accounts deployed on multiple chains.</li>
-<li>To have all the user authorizations for multiple domains in a single place, making it very easy to control the application.</li>
-<li>To have a single address (<code>Processor</code>) that will execute the messages for all the contracts in a domain using execution queues.</li>
-<li>To only tick a single contract (<code>Processor</code>) which will go through the queues to route and execute the messages.</li>
-<li>To be able to create, edit or remove different application permissions with ease.</li>
-</ul>
-<h2 id="technical-deep-dive"><a class="header" href="#technical-deep-dive">Technical deep-dive:</a></h2>
-<ul>
-<li><a href="./assumptions.html">Assumptions</a></li>
-<li><a href="./processor.html">Processor Contract</a></li>
-<li><a href="./authorization.html">Authorization Contract</a>
-<ul>
-<li><a href="./authorization_instantiation.html">Instantiation</a></li>
-<li><a href="./authorization_owner_actions.html">Owner Actions</a></li>
-<li><a href="./authorization_user_actions.html">User Actions</a></li>
-</ul>
-</li>
-<li><a href="./callbacks.html">Callbacks</a></li>
+<li><a href="./broker.html">Middleware Broker</a></li>
+<li><a href="./type_registry.html">Middleware Type Registry</a></li>
+<li><a href="./valence_types.html">Valence Types</a></li>
 </ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../components/middleware.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../libraries/splitter.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../authorizations_processors/assumptions.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../middleware/broker.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -200,11 +184,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../components/middleware.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../libraries/splitter.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../authorizations_processors/assumptions.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../middleware/broker.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

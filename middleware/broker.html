@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Authorizations &amp; Processors - Valence Protocol Documentation</title>
+        <title>Broker - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -157,40 +157,72 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="authorizations--processors"><a class="header" href="#authorizations--processors">Authorizations &amp; Processors</a></h1>
-<p>The <strong>Authorizations</strong> and <strong>Processor</strong> contracts are foundational pieces of the <strong>Valence Protocol</strong>, as they enable on-chain (and cross-chain) execution of <strong>Valence Programs</strong>, and enforce access control to the programs's <strong>subroutines</strong> via <strong>authorizations</strong>.</p>
-<p>This section goes into more details in explaining the rationale for these contracts, and shares insights about their technical implementation as well as how end-users can interact with <strong>Valence programs</strong> via authorizations.</p>
-<h2 id="rationale"><a class="header" href="#rationale">Rationale</a></h2>
+                        <h1 id="middleware-broker"><a class="header" href="#middleware-broker">Middleware Broker</a></h1>
+<p>Middleware broker acts as an app-level integration gateway in Valence Programs.
+<em>Integration</em> here is used rather ambiguously on purpose - brokers should remain
+agnostic to the primitives being integrated into Valence Protocol. These primitives
+may involve but not be limited to:</p>
 <ul>
-<li>To have a general purpose set of smart contracts that will provide the users (anyone if the authorization is permissionless or authorization token owners if it’s permissioned) with a single point of entry to interact with the Valence program, which can have libraries and accounts deployed on multiple chains.</li>
-<li>To have all the user authorizations for multiple domains in a single place, making it very easy to control the application.</li>
-<li>To have a single address (<code>Processor</code>) that will execute the messages for all the contracts in a domain using execution queues.</li>
-<li>To only tick a single contract (<code>Processor</code>) which will go through the queues to route and execute the messages.</li>
-<li>To be able to create, edit or remove different application permissions with ease.</li>
+<li>data types</li>
+<li>functions</li>
+<li>encoding schemes</li>
+<li>any other distributed system building blocks that may be implemented differently</li>
 </ul>
-<h2 id="technical-deep-dive"><a class="header" href="#technical-deep-dive">Technical deep-dive:</a></h2>
-<ul>
-<li><a href="./assumptions.html">Assumptions</a></li>
-<li><a href="./processor.html">Processor Contract</a></li>
-<li><a href="./authorization.html">Authorization Contract</a>
-<ul>
-<li><a href="./authorization_instantiation.html">Instantiation</a></li>
-<li><a href="./authorization_owner_actions.html">Owner Actions</a></li>
-<li><a href="./authorization_user_actions.html">User Actions</a></li>
-</ul>
-</li>
-<li><a href="./callbacks.html">Callbacks</a></li>
-</ul>
+<h3 id="problem-statement"><a class="header" href="#problem-statement">Problem statement</a></h3>
+<p>Valence Programs can be configured to span over multiple domains and last for an
+indefinite duration of time.</p>
+<p>Domains integrated into Valence Protocol are sovereign and evolve on their own.</p>
+<p>Middleware brokers provide the means to live with these differences by enabling
+various primitive conversions to be as seamless as possible. Seamless here primarily
+refers to causing <strong>no downtime</strong> to bring a given primitive up-to-date, and
+making the process of doing so as <strong>easy as possible</strong> for the developers.</p>
+<p>To visualize a rather complex instance of this problem, consider the following
+situation. A Valence Program is initialized to continuously query a particular
+type from a remote domain, modify some of its values, and send the altered object
+back to the remote domain for further actions.
+At some point during the runtime, remote domain performs an upgrade which extends
+the given type with additional fields. The Valence Program is unaware of this
+upgrade and continues with its order of operations. However, the type in question
+from the perspective of the Valence Program had drifted and is no longer
+representative of its origin domain.</p>
+<p>Among other things, Middleware brokers should enable such programs to gracefully
+recover into a synchronized state that can continue operating in a correct manner.</p>
+<h2 id="broker-lifecycle"><a class="header" href="#broker-lifecycle">Broker Lifecycle</a></h2>
+<p>Brokers are singleton components that are instantiated before the program start
+time.</p>
+<p>Valence Programs refer to their brokers of choice by their respective addresses.</p>
+<p>This means that the same broker instance for a particular domain could be used
+across many Valence Programs.</p>
+<p>Brokers maintain their set of <a href="./type_registry.html"><em>type registries</em></a> and index
+them by <code>semver</code>. New type registries can be added to the broker during runtime.
+While programs have the freedom to select a particular version of a type registry
+to be used for a given request, by default, the most up to date type registry is used.</p>
+<p>Two aforementioned properties reduce the amount of work needed to upkeep the integrations
+across active Valence Programs: updating one broker with the latest version of a
+given domain will immediately become available for all Valence Programs using it.</p>
+<h2 id="api"><a class="header" href="#api">API</a></h2>
+<p>Broker interface is agnostic to the type registries it indexes. A single query is
+exposed:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct QueryMsg {
+    pub registry_version: Option&lt;String&gt;,
+    pub query: RegistryQueryMsg,
+}
+<span class="boring">}</span></code></pre></pre>
+<p>This query message should only change in situations where it may become limiting.</p>
+<p>After receiving the query request, broker will relay the contained <code>RegistryQueryMsg</code>
+to the correct type registry, and return the result to the caller.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../components/middleware.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../middleware/_overview.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../authorizations_processors/assumptions.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../middleware/type_registry.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -200,11 +232,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../components/middleware.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../middleware/_overview.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../authorizations_processors/assumptions.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../middleware/type_registry.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
