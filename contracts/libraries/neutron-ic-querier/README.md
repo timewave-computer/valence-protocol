@@ -1,7 +1,7 @@
-# Neutron ICQ-querier library
+# Neutron IC-querier library
 
-**Neutron ICQ Querier library** allows registering and receiving results for KV-based queries.
-This library is effectively a wrapper around the `interchainqueries` module on Neutron. 
+**Neutron IC Querier library** allows registering and receiving results for KV-based queries.
+This library is effectively a wrapper around the `interchainqueries` module on Neutron.
 
 ## Prerequisites
 

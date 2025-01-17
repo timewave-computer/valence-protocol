@@ -14,7 +14,7 @@ use std::{collections::BTreeMap, env, error::Error, time::Duration};
 use valence_middleware_utils::type_registry::types::{
     RegistryInstantiateMsg, RegistryQueryMsg, ValenceType,
 };
-use valence_neutron_icq_querier::msg::FunctionMsgs;
+use valence_neutron_ic_querier::msg::FunctionMsgs;
 
 use localic_utils::{
     utils::test_context::TestContext, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
@@ -99,7 +99,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .get_request_builder(NEUTRON_CHAIN_NAME),
         DEFAULT_KEY,
         icq_querier_lib_code_id,
-        &serde_json::to_string(&valence_neutron_icq_querier::msg::InstantiateMsg {})?,
+        &serde_json::to_string(&valence_neutron_ic_querier::msg::InstantiateMsg {})?,
         "icq_querier_lib",
         None,
         "",
@@ -281,7 +281,7 @@ pub fn query_results(
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
         &icq_lib,
-        &serde_json::to_string(&valence_neutron_icq_querier::msg::QueryMsg::QueryResults {})
+        &serde_json::to_string(&valence_neutron_ic_querier::msg::QueryMsg::QueryResults {})
             .map_err(|e| LocalError::Custom { msg: e.to_string() })?,
     )["data"]
         .clone();

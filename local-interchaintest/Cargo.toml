@@ -47,7 +47,7 @@ tokio                                = { workspace = true }
 osmosis-std                          = { workspace = true }
 valence-test-icq-lib                 = { workspace = true }
 neutron-sdk                          = { workspace = true }
-valence-neutron-icq-querier          = { workspace = true }
+valence-neutron-ic-querier           = { workspace = true }
 valence-middleware-broker            = { workspace = true }
 valence-middleware-osmosis           = { workspace = true }
 valence-middleware-utils             = { workspace = true }

@@ -3878,7 +3878,7 @@ dependencies = [
  "valence-middleware-osmosis",
  "valence-middleware-utils",
  "valence-neutron-ibc-transfer-library",
- "valence-neutron-icq-querier",
+ "valence-neutron-ic-querier",
  "valence-osmosis-cl-lper",
  "valence-osmosis-cl-withdrawer",
  "valence-osmosis-gamm-lper",
@@ -7252,7 +7252,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "valence-neutron-icq-querier"
+name = "valence-neutron-ic-querier"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 2.2.0",
