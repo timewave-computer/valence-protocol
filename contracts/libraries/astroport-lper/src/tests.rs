@@ -1,4 +1,4 @@
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{Decimal, Uint128};
 use neutron_test_tube::{
     neutron_std::types::cosmos::{
         bank::v1beta1::{MsgSend, QueryAllBalancesRequest, QueryBalanceRequest},
@@ -6,15 +6,17 @@ use neutron_test_tube::{
     },
     Account, Bank, Module, NeutronTestApp, Wasm,
 };
-use valence_astroport_utils::suite::{AstroportTestAppBuilder, AstroportTestAppSetup};
+use valence_astroport_utils::{
+    suite::{AstroportTestAppBuilder, AstroportTestAppSetup},
+    PoolType,
+};
 use valence_library_utils::{
     error::{LibraryError, UnauthorizedReason},
+    liquidity_utils::{AssetData, DecimalRange},
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
-use crate::msg::{
-    AssetData, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, LiquidityProviderConfig, PoolType,
-};
+use crate::msg::{FunctionMsgs, LibraryConfig, LibraryConfigUpdate, LiquidityProviderConfig};
 
 const CONTRACT_PATH: &str = "../../../artifacts";
 
@@ -168,7 +170,7 @@ fn instantiate_lper_contract(
                         asset1: setup.pool_asset1.clone(),
                         asset2: setup.pool_asset2.clone(),
                     },
-                    slippage_tolerance: None,
+                    max_spread: None,
                 },
             ),
         },
@@ -209,7 +211,7 @@ pub fn only_owner_can_update_config() {
                 asset1: setup.inner.pool_asset1.clone(),
                 asset2: setup.inner.pool_asset2.clone(),
             },
-            slippage_tolerance: None,
+            max_spread: None,
         }),
     };
 
@@ -341,7 +343,7 @@ fn instantiate_with_wrong_assets() {
                             asset1: setup.inner.pool_asset2.clone(),
                             asset2: setup.inner.pool_asset1.clone(),
                         },
-                        slippage_tolerance: None,
+                        max_spread: None,
                     },
                 ),
             },
@@ -391,7 +393,7 @@ fn instantiate_with_wrong_pool_type() {
                             asset1: setup.inner.pool_asset2.clone(),
                             asset2: setup.inner.pool_asset1.clone(),
                         },
-                        slippage_tolerance: None,
+                        max_spread: None,
                     },
                 ),
             },
@@ -798,4 +800,182 @@ fn test_not_enough_asset2_balance() {
         output_acc_balance.balances[0].denom,
         setup.inner.pool_native_liquidity_token
     );
+}
+
+#[test]
+fn provide_double_sided_liquidity_native_lp_token_validates_expected_decimal_range() {
+    let setup = LPerTestSuite::default();
+    let wasm = Wasm::new(&setup.inner.app);
+    let bank = Bank::new(&setup.inner.app);
+
+    // Get balances before providing liquidity
+    let input_acc_balance_before = bank
+        .query_all_balances(&QueryAllBalancesRequest {
+            address: setup.input_acc.clone(),
+            pagination: None,
+            resolve_denom: false,
+        })
+        .unwrap();
+
+    assert_eq!(input_acc_balance_before.balances.len(), 2);
+    assert!(input_acc_balance_before
+        .balances
+        .iter()
+        .any(|c| c.denom == setup.inner.pool_asset1));
+    assert!(input_acc_balance_before
+        .balances
+        .iter()
+        .any(|c| c.denom == setup.inner.pool_asset2));
+
+    wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
+        &setup.lper_addr,
+        &ExecuteMsg::ProcessFunction(FunctionMsgs::ProvideDoubleSidedLiquidity {
+            expected_pool_ratio_range: Some(DecimalRange::new(
+                Decimal::from_ratio(1u128, 10u128),
+                Decimal::from_ratio(11u128, 10u128),
+            )),
+        }),
+        &[],
+        setup.inner.processor_acc(),
+    )
+    .unwrap();
+
+    // No balance should be left in the input account
+    let input_acc_balance_after = bank
+        .query_all_balances(&QueryAllBalancesRequest {
+            address: setup.input_acc.clone(),
+            pagination: None,
+            resolve_denom: false,
+        })
+        .unwrap();
+
+    assert_eq!(input_acc_balance_after.balances.len(), 0);
+
+    // Output account should have the LP tokens
+    let output_acc_balance = bank
+        .query_all_balances(&QueryAllBalancesRequest {
+            address: setup.output_acc.clone(),
+            pagination: None,
+            resolve_denom: false,
+        })
+        .unwrap();
+
+    assert_eq!(output_acc_balance.balances.len(), 1);
+    assert_eq!(
+        output_acc_balance.balances[0].denom,
+        setup.inner.pool_native_liquidity_token
+    );
+}
+
+#[test]
+#[should_panic(expected = "Value is not within the expected range")]
+fn provide_double_sided_liquidity_native_lp_token_expected_decimal_range_validation_fails() {
+    let setup = LPerTestSuite::default();
+    let wasm = Wasm::new(&setup.inner.app);
+
+    wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
+        &setup.lper_addr,
+        &ExecuteMsg::ProcessFunction(FunctionMsgs::ProvideDoubleSidedLiquidity {
+            expected_pool_ratio_range: Some(DecimalRange::new(
+                Decimal::from_ratio(1u128, 10u128),
+                Decimal::from_ratio(2u128, 10u128),
+            )),
+        }),
+        &[],
+        setup.inner.processor_acc(),
+    )
+    .unwrap();
+}
+
+#[test]
+fn provide_single_sided_liquidity_native_lp_token_validates_expected_decimal_range() {
+    let setup = LPerTestSuite::default();
+    let wasm = Wasm::new(&setup.inner.app);
+    let bank = Bank::new(&setup.inner.app);
+
+    // Get balances before providing liquidity
+    let input_acc_balance_before = bank
+        .query_all_balances(&QueryAllBalancesRequest {
+            address: setup.input_acc.clone(),
+            pagination: None,
+            resolve_denom: false,
+        })
+        .unwrap();
+
+    assert_eq!(input_acc_balance_before.balances.len(), 2);
+    assert!(input_acc_balance_before
+        .balances
+        .iter()
+        .any(|c| c.denom == setup.inner.pool_asset1));
+    assert!(input_acc_balance_before
+        .balances
+        .iter()
+        .any(|c| c.denom == setup.inner.pool_asset2));
+
+    wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
+        &setup.lper_addr,
+        &ExecuteMsg::ProcessFunction(FunctionMsgs::ProvideSingleSidedLiquidity {
+            asset: setup.inner.pool_asset1.clone(),
+            limit: None,
+            expected_pool_ratio_range: Some(DecimalRange::new(
+                Decimal::from_ratio(1u128, 10u128),
+                Decimal::from_ratio(11u128, 10u128),
+            )),
+        }),
+        &[],
+        setup.inner.processor_acc(),
+    )
+    .unwrap();
+
+    // No balance should be left in the input account
+    let input_acc_balance_after = bank
+        .query_all_balances(&QueryAllBalancesRequest {
+            address: setup.input_acc.clone(),
+            pagination: None,
+            resolve_denom: false,
+        })
+        .unwrap();
+
+    assert_eq!(input_acc_balance_after.balances.len(), 1);
+    assert_eq!(
+        input_acc_balance_after.balances[0].denom,
+        setup.inner.pool_asset2
+    );
+
+    // Output account should have the LP tokens
+    let output_acc_balance = bank
+        .query_all_balances(&QueryAllBalancesRequest {
+            address: setup.output_acc.clone(),
+            pagination: None,
+            resolve_denom: false,
+        })
+        .unwrap();
+
+    assert_eq!(output_acc_balance.balances.len(), 1);
+    assert_eq!(
+        output_acc_balance.balances[0].denom,
+        setup.inner.pool_native_liquidity_token
+    );
+}
+
+#[test]
+#[should_panic(expected = "Value is not within the expected range")]
+fn provide_single_sided_liquidity_native_lp_token_expected_decimal_range_validation_fails() {
+    let setup = LPerTestSuite::default();
+    let wasm = Wasm::new(&setup.inner.app);
+
+    wasm.execute::<ExecuteMsg<FunctionMsgs, LibraryConfigUpdate>>(
+        &setup.lper_addr,
+        &ExecuteMsg::ProcessFunction(FunctionMsgs::ProvideSingleSidedLiquidity {
+            asset: setup.inner.pool_asset1.clone(),
+            limit: None,
+            expected_pool_ratio_range: Some(DecimalRange::new(
+                Decimal::from_ratio(1u128, 10u128),
+                Decimal::from_ratio(2u128, 10u128),
+            )),
+        }),
+        &[],
+        setup.inner.processor_acc(),
+    )
+    .unwrap();
 }

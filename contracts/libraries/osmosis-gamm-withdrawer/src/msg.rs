@@ -5,13 +5,18 @@ use cw_ownable::cw_ownable_query;
 
 use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
 use valence_library_utils::{
-    error::LibraryError, msg::LibraryConfigValidation, LibraryAccountType,
+    error::LibraryError,
+    liquidity_utils::{AssetData, DecimalRange},
+    msg::LibraryConfigValidation,
+    LibraryAccountType,
 };
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
 
 #[cw_serde]
 pub enum FunctionMsgs {
-    WithdrawLiquidity {},
+    WithdrawLiquidity {
+        expected_spot_price: Option<DecimalRange>,
+    },
 }
 
 #[valence_library_query]
@@ -23,6 +28,7 @@ pub enum QueryMsg {}
 #[cw_serde]
 pub struct LiquidityWithdrawerConfig {
     pub pool_id: u64,
+    pub asset_data: AssetData,
 }
 
 #[cw_serde]

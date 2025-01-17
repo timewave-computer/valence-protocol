@@ -5073,6 +5073,7 @@ dependencies = [
  "cosmwasm-schema 2.1.4",
  "cosmwasm-std 2.1.4",
  "neutron-test-tube",
+ "valence-library-utils",
 ]
 
 [[package]]
