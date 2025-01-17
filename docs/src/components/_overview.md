@@ -7,3 +7,4 @@ This section provides a high-level breakdown of the components that compose a Va
 - [Libraries and Functions](./libraries_and_functions.md)
 - [Programs and Authorizations](./programs_and_authorizations.md)
 - [Middleware](./middleware.md)
+- [Storage Accounts](./storage_account.md)

@@ -15,3 +15,4 @@ This section contains a detailed description of the various libraries that can b
 - [Osmosis GAMM Withdrawer](./osmosis_gamm_withdrawer.md)
 - [Reverse Splitter](./reverse_splitter.md)
 - [Splitter](./splitter.md)
+- [Neutron Interchain Querier](./neutron_ic_querier.md)
