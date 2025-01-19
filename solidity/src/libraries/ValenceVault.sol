@@ -12,14 +12,19 @@ contract ValenceVault is ERC4626, Ownable {
     error VaultIsPaused();
     error OnlyOwnerOrStrategistAllowed();
     error OnlyStrategistAllowed();
+    error InvalidRate();
+    error InvalidWithdrawFee();
 
     event PausedStateChanged(bool paused);
+    event RateUpdated(uint256 newRate);
+    event WithdrawFeeUpdated(uint256 newFee);
 
     struct VaultConfig {
         BaseAccount depositAccount;
         BaseAccount withdrawAccount;
         address strategist;
         uint256 depositCap; // 0 means no cap
+        uint256 maxWithdrawFee; // in basis points
     }
 
     VaultConfig public config;
@@ -27,6 +32,8 @@ contract ValenceVault is ERC4626, Ownable {
 
     // Current redemption rate in basis points (1/10000)
     uint256 public redemptionRate;
+    // Current position withdraw fee in basis points (1/10000)
+    uint256 public positionWithdrawFee;
     // Constant for basis point calculations
     uint256 private constant BASIS_POINTS = 10000;
 
@@ -118,6 +125,30 @@ contract ValenceVault is ERC4626, Ownable {
         address receiver
     ) public override whenNotPaused returns (uint256) {
         return super.mint(shares, receiver);
+    }
+
+    /**
+     * @notice Updates the redemption rate and position withdrawal fee
+     * @param rate New redemption rate in basis points (1/10000)
+     * @param withdrawFee New position withdrawal fee in basis points (1/10000)
+     * @dev Only callable by strategist
+     */
+    function update(uint256 rate, uint256 withdrawFee) external onlyStrategist {
+        // Rate should never be zero as it would make shares worthless
+        if (rate == 0) {
+            revert InvalidRate();
+        }
+
+        // Withdraw fee cannot exceed maximum set in config
+        if (withdrawFee > config.maxWithdrawFee) {
+            revert InvalidWithdrawFee();
+        }
+
+        redemptionRate = rate;
+        positionWithdrawFee = withdrawFee;
+
+        emit RateUpdated(rate);
+        emit WithdrawFeeUpdated(withdrawFee);
     }
 
     function pause(bool _pause) external onlyOwnerOrStrategist {

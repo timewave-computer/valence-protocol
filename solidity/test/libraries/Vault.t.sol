@@ -40,7 +40,8 @@ contract VaultTest is Test {
             depositAccount,
             withdrawAccount,
             strategist,
-            0
+            0,
+            2000
         );
 
         vault = new ValenceVault(
@@ -74,11 +75,12 @@ contract VaultTest is Test {
             newDepositAccount,
             withdrawAccount,
             strategist,
-            5000
+            5000,
+            2000
         );
 
         vault.updateConfig(abi.encode(newConfig));
-        (BaseAccount depAcc, , , ) = vault.config();
+        (BaseAccount depAcc, , , , ) = vault.config();
         assertEq(address(depAcc), address(newDepositAccount));
         vm.stopPrank();
     }
@@ -160,7 +162,8 @@ contract VaultTest is Test {
             depositAccount,
             withdrawAccount,
             strategist,
-            5000 // 5000 token cap
+            5000, // 5000 token cap
+            2000
         );
         vault.updateConfig(abi.encode(newConfig));
 
@@ -203,7 +206,8 @@ contract VaultTest is Test {
             depositAccount,
             withdrawAccount,
             strategist,
-            5000 // 5000 token cap
+            5000, // 5000 token cap
+            2000
         );
         vault.updateConfig(abi.encode(newConfig));
         vm.stopPrank();
@@ -241,7 +245,11 @@ contract VaultTest is Test {
     function testPauseUnpauseAndPermissions() public {
         // Test only strategist can pause
         vm.startPrank(user);
-        vm.expectRevert(abi.encodeWithSelector(ValenceVault.OnlyOwnerOrStrategistAllowed.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ValenceVault.OnlyOwnerOrStrategistAllowed.selector
+            )
+        );
         vault.pause(true);
         vm.stopPrank();
 
@@ -253,7 +261,9 @@ contract VaultTest is Test {
 
         // Test deposits blocked when paused
         vm.startPrank(user);
-        vm.expectRevert(abi.encodeWithSelector(ValenceVault.VaultIsPaused.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(ValenceVault.VaultIsPaused.selector)
+        );
         vault.deposit(1000, user);
         vm.stopPrank();
 
@@ -266,6 +276,60 @@ contract VaultTest is Test {
         vm.startPrank(user);
         vault.deposit(1000, user);
         assertEq(vault.totalAssets(), 1000);
+        vm.stopPrank();
+    }
+
+    function testUpdateRateAndFee() public {
+        vm.startPrank(strategist);
+
+        // Test valid update
+        vault.update(11000, 500); // 1.1x rate and 5% fee
+        assertEq(vault.redemptionRate(), 11000);
+        assertEq(vault.positionWithdrawFee(), 500);
+
+        // Test deposit after rate change
+        vm.stopPrank();
+        vm.startPrank(user);
+        uint256 depositAmount = 1000;
+        vault.deposit(depositAmount, user);
+        // With 1.1x rate, 1000 assets should give ~909 shares (1000 * 10000 / 11000)
+        assertEq(vault.balanceOf(user), 909);
+        vm.stopPrank();
+    }
+
+    function testUpdateRateAndFeeRestrictions() public {
+        vm.startPrank(user);
+        // Test non-strategist cannot update
+        vm.expectRevert(
+            abi.encodeWithSelector(ValenceVault.OnlyStrategistAllowed.selector)
+        );
+        vault.update(11000, 500);
+        vm.stopPrank();
+
+        vm.startPrank(strategist);
+        // Test cannot set zero rate
+        vm.expectRevert(
+            abi.encodeWithSelector(ValenceVault.InvalidRate.selector)
+        );
+        vault.update(0, 500);
+
+        // Test cannot set fee above max
+        vm.expectRevert(
+            abi.encodeWithSelector(ValenceVault.InvalidWithdrawFee.selector)
+        );
+        vault.update(10000, 2100); // Above 20%
+        vm.stopPrank();
+    }
+
+    function testUpdateEvents() public {
+        vm.startPrank(strategist);
+
+        vm.expectEmit(true, true, true, true);
+        emit ValenceVault.RateUpdated(11000);
+        vm.expectEmit(true, true, true, true);
+        emit ValenceVault.WithdrawFeeUpdated(500);
+
+        vault.update(11000, 500);
         vm.stopPrank();
     }
 }
