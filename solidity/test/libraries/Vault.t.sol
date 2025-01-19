@@ -14,7 +14,6 @@ contract VaultTest is Test {
     MockERC20 token;
 
     address owner = address(1);
-    address processor = address(2);
     address strategist = address(3);
     address user = address(4);
 
@@ -27,6 +26,9 @@ contract VaultTest is Test {
         uint256 shares
     );
 
+    // Fee of 500 basis points (5%)
+    uint256 constant FEE_BPS = 500;
+
     function setUp() public {
         vm.warp(5000);
         vm.roll(100);
@@ -36,13 +38,20 @@ contract VaultTest is Test {
         depositAccount = new BaseAccount(owner, new address[](0));
         withdrawAccount = new BaseAccount(owner, new address[](0));
 
-        ValenceVault.VaultConfig memory config = ValenceVault.VaultConfig(
-            depositAccount,
-            withdrawAccount,
-            strategist,
-            0,
-            2000
-        );
+        // Setup fee configuration
+        ValenceVault.FeeConfig memory feeConfig = ValenceVault.FeeConfig({
+            depositFeeBps: 0
+        });
+
+        // Setup vault configuration
+        ValenceVault.VaultConfig memory config = ValenceVault.VaultConfig({
+            depositAccount: depositAccount,
+            withdrawAccount: withdrawAccount,
+            strategist: strategist,
+            depositCap: 0,
+            maxWithdrawFee: 2000,
+            fees: feeConfig
+        });
 
         vault = new ValenceVault(
             owner,
@@ -51,16 +60,45 @@ contract VaultTest is Test {
             "Valence Vault Token",
             "VVT"
         );
+        depositAccount.approveLibrary(address(vault));
         withdrawAccount.approveLibrary(address(vault));
         vm.stopPrank();
 
         // Setup initial state
         vm.startPrank(owner);
-        token.mint(user, 10000);
+        token.mint(user, 100_000_000_000);
         vm.stopPrank();
 
         vm.startPrank(user);
         token.approve(address(vault), type(uint256).max);
+        vm.stopPrank();
+    }
+
+    function setFee(uint256 fee) public {
+        vm.startPrank(owner);
+        ValenceVault.FeeConfig memory feeConfig = ValenceVault.FeeConfig({
+            depositFeeBps: fee
+        });
+
+        (
+            BaseAccount _depositAccount,
+            BaseAccount _withdrawAccount,
+            address _strategist,
+            uint256 depositCap,
+            uint256 maxWithdrawFee,
+
+        ) = vault.config();
+
+        ValenceVault.VaultConfig memory newConfig = ValenceVault.VaultConfig(
+            _depositAccount,
+            _withdrawAccount,
+            _strategist,
+            depositCap,
+            maxWithdrawFee,
+            feeConfig
+        );
+
+        vault.updateConfig(abi.encode(newConfig));
         vm.stopPrank();
     }
 
@@ -71,16 +109,21 @@ contract VaultTest is Test {
             new address[](0)
         );
 
+        ValenceVault.FeeConfig memory feeConfig = ValenceVault.FeeConfig({
+            depositFeeBps: 0
+        });
+
         ValenceVault.VaultConfig memory newConfig = ValenceVault.VaultConfig(
             newDepositAccount,
             withdrawAccount,
             strategist,
             5000,
-            2000
+            2000,
+            feeConfig
         );
 
         vault.updateConfig(abi.encode(newConfig));
-        (BaseAccount depAcc, , , , ) = vault.config();
+        (BaseAccount depAcc, , , , , ) = vault.config();
         assertEq(address(depAcc), address(newDepositAccount));
         vm.stopPrank();
     }
@@ -158,12 +201,16 @@ contract VaultTest is Test {
         vm.startPrank(owner);
 
         // Set a deposit cap
+        ValenceVault.FeeConfig memory feeConfig = ValenceVault.FeeConfig({
+            depositFeeBps: 0
+        });
         ValenceVault.VaultConfig memory newConfig = ValenceVault.VaultConfig(
             depositAccount,
             withdrawAccount,
             strategist,
             5000, // 5000 token cap
-            2000
+            2000,
+            feeConfig
         );
         vault.updateConfig(abi.encode(newConfig));
 
@@ -202,12 +249,16 @@ contract VaultTest is Test {
 
     function testMintCap() public {
         vm.startPrank(owner);
+        ValenceVault.FeeConfig memory feeConfig = ValenceVault.FeeConfig({
+            depositFeeBps: 0
+        });
         ValenceVault.VaultConfig memory newConfig = ValenceVault.VaultConfig(
             depositAccount,
             withdrawAccount,
             strategist,
             5000, // 5000 token cap
-            2000
+            2000,
+            feeConfig
         );
         vault.updateConfig(abi.encode(newConfig));
         vm.stopPrank();
@@ -239,6 +290,150 @@ contract VaultTest is Test {
         assertEq(token.balanceOf(address(user)), preBalance - 5000);
         assertEq(vault.balanceOf(address(user)), 5000);
 
+        vm.stopPrank();
+    }
+
+    function testFeeCalculationHelpers() public {
+        setFee(FEE_BPS);
+        uint256 depositAmount = 1000 ether;
+
+        // Test deposit fee calculation
+        uint256 expectedFee = (depositAmount * FEE_BPS) / 10000;
+        uint256 calculatedFee = vault.calculateDepositFee(depositAmount);
+        assertEq(
+            calculatedFee,
+            expectedFee,
+            "Deposit fee calculation mismatch"
+        );
+
+        // Test mint fee calculation
+        uint256 sharesToMint = 950 ether; // Should require 1000 ether input for 5% fee
+        (uint256 grossAssets, uint256 fee) = vault.calculateMintFee(
+            sharesToMint
+        );
+
+        // Verify the gross assets and fee
+        assertEq(fee, expectedFee, "Mint fee calculation mismatch");
+        assertEq(
+            grossAssets,
+            depositAmount,
+            "Gross assets calculation mismatch"
+        );
+    }
+
+    function testDepositAndMintEquivalence() public {
+        setFee(FEE_BPS);
+        uint256 depositAmount = 1000;
+
+        // Test deposit flow
+        vm.startPrank(user);
+        uint256 depositShares = vault.deposit(depositAmount, user);
+        uint256 depositFeeCollected = vault.feesOwedInAsset();
+
+        // Reset fee counter and user balance for mint test
+        vm.stopPrank();
+        vm.startPrank(owner);
+        token.mint(user, depositAmount); // Replenish user's tokens
+        vm.stopPrank();
+
+        // Calculate equivalent shares for mint
+        uint256 expectedShares = depositShares;
+
+        // Test mint flow
+        vm.startPrank(user);
+        uint256 mintAssets = vault.mint(expectedShares, user);
+        uint256 mintFeeCollected = vault.feesOwedInAsset() -
+            depositFeeCollected;
+
+        // Verify equivalence
+        assertEq(
+            mintAssets,
+            depositAmount,
+            "Assets required for mint should match deposit amount"
+        );
+        assertEq(
+            mintFeeCollected,
+            depositFeeCollected,
+            "Fees collected should be equal"
+        );
+        assertEq(
+            vault.balanceOf(user),
+            expectedShares * 2,
+            "User should have received equal shares"
+        );
+    }
+
+    function testFeesWithDifferentAmounts() public {
+        setFee(FEE_BPS);
+        uint256[] memory amounts = new uint256[](3);
+        amounts[0] = 1000; // Small amount
+        amounts[1] = 100_000; // Medium amount
+        amounts[2] = 10_000_000; // Large amount
+
+        for (uint256 i = 0; i < amounts.length; i++) {
+            uint256 depositAmount = amounts[i];
+
+            // Test deposit
+            vm.startPrank(user);
+            uint256 sharesByDeposit = vault.deposit(depositAmount, user);
+            uint256 depositFee = vault.calculateDepositFee(depositAmount);
+
+            // Test mint with equivalent shares
+            (uint256 grossAssets, uint256 mintFee) = vault.calculateMintFee(
+                sharesByDeposit
+            );
+
+            // Verify fee calculations match
+            assertEq(
+                depositFee,
+                mintFee,
+                string.concat(
+                    "Fee mismatch for amount: ",
+                    vm.toString(depositAmount)
+                )
+            );
+            assertEq(
+                grossAssets,
+                depositAmount,
+                string.concat(
+                    "Gross assets mismatch for amount: ",
+                    vm.toString(depositAmount)
+                )
+            );
+            vm.stopPrank();
+        }
+    }
+
+    function testZeroFeeCase() public {
+        uint256 amount = 1000;
+
+        // Verify no fees are charged
+        assertEq(
+            vault.calculateDepositFee(amount),
+            0,
+            "Should be no deposit fee"
+        );
+
+        (uint256 grossAssets, uint256 mintFee) = vault.calculateMintFee(amount);
+        assertEq(mintFee, 0, "Should be no mint fee");
+        assertEq(
+            grossAssets,
+            amount,
+            "Gross assets should equal input with no fee"
+        );
+
+        // Verify actual operations
+        vm.startPrank(user);
+        uint256 preBalance = token.balanceOf(user);
+
+        uint256 shares = vault.deposit(amount, user);
+        assertEq(shares, amount, "Should get equal shares with no fee");
+        assertEq(
+            token.balanceOf(user),
+            preBalance - amount,
+            "Should transfer exact amount"
+        );
+        assertEq(vault.feesOwedInAsset(), 0, "Should collect no fees");
         vm.stopPrank();
     }
 

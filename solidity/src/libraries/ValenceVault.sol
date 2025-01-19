@@ -19,12 +19,17 @@ contract ValenceVault is ERC4626, Ownable {
     event RateUpdated(uint256 newRate);
     event WithdrawFeeUpdated(uint256 newFee);
 
+    struct FeeConfig {
+        uint256 depositFeeBps; // Deposit fee in basis points
+    }
+
     struct VaultConfig {
         BaseAccount depositAccount;
         BaseAccount withdrawAccount;
         address strategist;
         uint256 depositCap; // 0 means no cap
         uint256 maxWithdrawFee; // in basis points
+        FeeConfig fees;
     }
 
     VaultConfig public config;
@@ -34,6 +39,8 @@ contract ValenceVault is ERC4626, Ownable {
     uint256 public redemptionRate;
     // Current position withdraw fee in basis points (1/10000)
     uint256 public positionWithdrawFee;
+    // Fees to be collected in asset
+    uint256 public feesOwedInAsset;
     // Constant for basis point calculations
     uint256 private constant BASIS_POINTS = 10000;
 
@@ -113,18 +120,48 @@ contract ValenceVault is ERC4626, Ownable {
             );
     }
 
+    /** @dev Override deposit to handle fees before calling _deposit */
     function deposit(
         uint256 assets,
         address receiver
     ) public override whenNotPaused returns (uint256) {
-        return super.deposit(assets, receiver);
+        uint256 maxAssets = maxDeposit(receiver);
+        if (assets > maxAssets) {
+            revert ERC4626ExceededMaxDeposit(receiver, assets, maxAssets);
+        }
+
+        uint256 depositFee = calculateDepositFee(assets);
+        uint256 assetsAfterFee = assets - depositFee;
+
+        if (depositFee > 0) {
+            feesOwedInAsset += depositFee;
+        }
+
+        uint256 shares = previewDeposit(assetsAfterFee);
+        _deposit(_msgSender(), receiver, assets, shares);
+
+        return shares;
     }
 
+    /** @dev Override mint to handle fees before calling _deposit */
     function mint(
         uint256 shares,
         address receiver
     ) public override whenNotPaused returns (uint256) {
-        return super.mint(shares, receiver);
+        uint256 maxShares = maxMint(receiver);
+        if (shares > maxShares) {
+            revert ERC4626ExceededMaxMint(receiver, shares, maxShares);
+        }
+
+        (uint256 grossAssets, uint256 fee) = calculateMintFee(shares);
+
+        if (fee > 0) {
+            feesOwedInAsset += fee;
+        }
+
+        _deposit(_msgSender(), receiver, grossAssets, shares);
+
+        return grossAssets;
     }
 
     /**
@@ -154,6 +191,41 @@ contract ValenceVault is ERC4626, Ownable {
     function pause(bool _pause) external onlyOwnerOrStrategist {
         paused = _pause;
         emit PausedStateChanged(_pause);
+    }
+
+    /**
+     * @notice Calculates the gross assets needed and fee for minting shares
+     * @param shares Amount of shares to mint
+     * @return grossAssets Total assets needed including fee
+     * @return fee Fee amount in assets
+     */
+    function calculateMintFee(
+        uint256 shares
+    ) public view returns (uint256 grossAssets, uint256 fee) {
+        // Calculate base assets needed for shares
+        uint256 baseAssets = previewMint(shares);
+
+        // Calculate gross assets required including fee
+        uint256 feeBps = config.fees.depositFeeBps;
+        if (feeBps == 0) {
+            return (baseAssets, 0);
+        }
+
+        // grossAssets = baseAssets / (1 - feeRate)
+        grossAssets = baseAssets.mulDiv(
+            BASIS_POINTS,
+            BASIS_POINTS - feeBps,
+            Math.Rounding.Ceil
+        );
+
+        fee = grossAssets - baseAssets;
+        return (grossAssets, fee);
+    }
+
+    function calculateDepositFee(uint256 assets) public view returns (uint256) {
+        uint256 feeBps = config.fees.depositFeeBps;
+        if (feeBps == 0) return 0;
+        return assets.mulDiv(feeBps, BASIS_POINTS, Math.Rounding.Ceil);
     }
 
     function _deposit(
