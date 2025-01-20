@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, to_json_vec, Binary, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response,
-    StdError, StdResult, SubMsg, Uint64, WasmMsg,
+    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response, StdError,
+    StdResult, SubMsg, Uint64, WasmMsg,
 };
 use neutron_sdk::{
     bindings::{
@@ -26,7 +26,7 @@ use valence_middleware_utils::type_registry::types::{
 
 use crate::{
     msg::{Config, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, QueryMsg},
-    state::{PendingQueryIdConfig, ASSOCIATED_QUERY_IDS, QUERY_RESULTS},
+    state::{PendingQueryIdConfig, ASSOCIATED_QUERY_IDS},
 };
 
 // version info for migration info
@@ -151,13 +151,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             }
             to_json_binary(&resp)
         }
-        QueryMsg::QueryResults {} => {
-            let mut resp = vec![];
-            for entry in QUERY_RESULTS.range(deps.storage, None, None, Order::Ascending) {
-                resp.push(entry?);
-            }
-            to_json_binary(&resp)
-        }
     }
 }
 
@@ -199,8 +192,6 @@ fn handle_sudo_kv_query_result(
             },
         },
     )?;
-
-    QUERY_RESULTS.save(deps.storage, query_id, &valence_canonical_response)?;
 
     let storage_acc_write_msg = WasmMsg::Execute {
         contract_addr: pending_query_config.storage_acc.to_string(),

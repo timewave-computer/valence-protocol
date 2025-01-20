@@ -248,22 +248,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(Duration::from_secs(10));
 
     info!("querying results...");
-    let query_results_response = query_results(&test_ctx, icq_test_lib.address.to_string())?;
-
-    info!("query results: {:?}", query_results_response);
-
-    let hopefully_valence_type = query_results_response[0].1.clone();
-
-    info!("valence xyk pool: {:?}", hopefully_valence_type);
-
-    match hopefully_valence_type {
-        ValenceType::XykPool(valence_xyk_pool) => {
-            let price = valence_xyk_pool.get_price();
-            info!("price: {:?}", price);
-        }
-        _ => panic!("should be xyk pool"),
-    };
-
     let storage_account_value = query_storage_account(
         &test_ctx,
         storage_acc_contract.address,
@@ -271,6 +255,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
 
     info!("storage account value: {:?}", storage_account_value);
+
+    match storage_account_value {
+        ValenceType::XykPool(valence_xyk_pool) => {
+            let price = valence_xyk_pool.get_price();
+            info!("price: {:?}", price);
+        }
+        _ => panic!("should be xyk pool"),
+    };
 
     Ok(())
 }
@@ -337,26 +329,6 @@ pub fn register_kvq(
         &stringified_msg,
         "--amount 1000000untrn --gas 50000000",
     )
-}
-
-pub fn query_results(
-    test_ctx: &TestContext,
-    icq_lib: String,
-) -> Result<Vec<(u64, ValenceType)>, LocalError> {
-    let query_response = contract_query(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        &icq_lib,
-        &serde_json::to_string(&valence_neutron_ic_querier::msg::QueryMsg::QueryResults {})
-            .map_err(|e| LocalError::Custom { msg: e.to_string() })?,
-    )["data"]
-        .clone();
-
-    info!("query response: {:?}", query_response);
-    let resp: Vec<(u64, ValenceType)> = serde_json::from_value(query_response).unwrap();
-
-    Ok(resp)
 }
 
 pub fn query_storage_account(

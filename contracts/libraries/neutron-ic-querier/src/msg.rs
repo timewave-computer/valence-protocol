@@ -9,7 +9,6 @@ use valence_library_utils::{
     error::LibraryError, msg::LibraryConfigValidation, LibraryAccountType,
 };
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
-use valence_middleware_utils::type_registry::types::ValenceType;
 
 use crate::contract::ExecuteDeps;
 
@@ -30,9 +29,6 @@ pub enum FunctionMsgs {
 pub enum QueryMsg {
     #[returns(Vec<(u64, String)>)]
     RegisteredQueries {},
-
-    #[returns(Vec<(u64, ValenceType)>)]
-    QueryResults {},
 }
 
 #[cw_serde]
