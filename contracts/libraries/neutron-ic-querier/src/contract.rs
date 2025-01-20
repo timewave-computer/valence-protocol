@@ -20,7 +20,9 @@ use valence_library_utils::{
     error::LibraryError,
     msg::{ExecuteMsg, InstantiateMsg},
 };
-use valence_middleware_utils::type_registry::types::{NativeTypeWrapper, RegistryQueryMsg};
+use valence_middleware_utils::type_registry::types::{
+    NativeTypeWrapper, RegistryQueryMsg, ValenceType,
+};
 
 use crate::{
     msg::{Config, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, QueryMsg},
@@ -177,22 +179,33 @@ fn handle_sudo_kv_query_result(
 
     let pending_query_config = ASSOCIATED_QUERY_IDS.load(deps.storage, query_id)?;
 
-    let reconstruction_response: NativeTypeWrapper = deps.querier.query_wasm_smart(
-        pending_query_config.broker_addr,
+    let proto_reconstruction_response: NativeTypeWrapper = deps.querier.query_wasm_smart(
+        pending_query_config.broker_addr.to_string(),
         &valence_middleware_broker::msg::QueryMsg {
-            registry_version: pending_query_config.registry_version,
+            registry_version: pending_query_config.registry_version.clone(),
             query: RegistryQueryMsg::ReconstructProto {
-                type_id: pending_query_config.type_url,
+                type_id: pending_query_config.type_url.to_string(),
                 icq_result: registered_query_result.result,
             },
         },
     )?;
 
-    QUERY_RESULTS.save(deps.storage, query_id, &reconstruction_response.binary)?;
+    let valence_canonical_response: ValenceType = deps.querier.query_wasm_smart(
+        pending_query_config.broker_addr,
+        &valence_middleware_broker::msg::QueryMsg {
+            registry_version: pending_query_config.registry_version,
+            query: RegistryQueryMsg::ToCanonical {
+                type_url: pending_query_config.type_url,
+                binary: proto_reconstruction_response.binary,
+            },
+        },
+    )?;
+
+    QUERY_RESULTS.save(deps.storage, query_id, &valence_canonical_response)?;
 
     Ok(Response::new().add_attribute(
         "query_result",
-        to_json_binary(&reconstruction_response)?.to_string(),
+        to_json_binary(&valence_canonical_response)?.to_string(),
     ))
 }
 

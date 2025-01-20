@@ -237,18 +237,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("query results: {:?}", query_results_response);
 
-    let hopefully_proto_gamm_pool = query_results_response[0].1.clone();
+    let hopefully_valence_type = query_results_response[0].1.clone();
 
-    let valence_xyk_pool = broker_get_canonical(
-        &test_ctx,
-        broker_contract.address.to_string(),
-        osmosis_std::types::osmosis::gamm::v1beta1::Pool::TYPE_URL.to_string(),
-        hopefully_proto_gamm_pool,
-    )?;
+    info!("valence xyk pool: {:?}", hopefully_valence_type);
 
-    info!("valence xyk pool: {:?}", valence_xyk_pool);
-
-    match valence_xyk_pool {
+    match hopefully_valence_type {
         ValenceType::XykPool(valence_xyk_pool) => {
             let price = valence_xyk_pool.get_price();
             info!("price: {:?}", price);
@@ -326,7 +319,7 @@ pub fn register_kvq(
 pub fn query_results(
     test_ctx: &TestContext,
     icq_lib: String,
-) -> Result<Vec<(u64, Binary)>, LocalError> {
+) -> Result<Vec<(u64, ValenceType)>, LocalError> {
     let query_response = contract_query(
         test_ctx
             .get_request_builder()
@@ -338,7 +331,7 @@ pub fn query_results(
         .clone();
 
     info!("query response: {:?}", query_response);
-    let resp: Vec<(u64, Binary)> = serde_json::from_value(query_response).unwrap();
+    let resp: Vec<(u64, ValenceType)> = serde_json::from_value(query_response).unwrap();
 
     Ok(resp)
 }
