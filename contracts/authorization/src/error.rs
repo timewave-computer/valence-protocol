@@ -38,6 +38,9 @@ pub enum ContractError {
 
     #[error("Unexpected current executions value, cannot be 0")]
     CurrentExecutionsIsZero {},
+
+    #[error("Bridge creation not required")]
+    BridgeCreationNotRequired {},
 }
 
 #[derive(Error, Debug, PartialEq)]

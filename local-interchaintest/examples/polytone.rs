@@ -37,12 +37,9 @@ use valence_authorization_utils::{
     },
     authorization_message::{Message, MessageDetails, MessageType},
     callback::{ExecutionResult, ProcessorCallbackInfo},
-    domain::{Connector, Domain, ExternalDomain, PolytoneProxyState},
+    domain::{CosmwasmBridge, Domain, ExecutionEnvironment, ExternalDomain, PolytoneProxyState},
     function::AtomicFunction,
-    msg::{
-        CallbackProxy, Connector as AuthorizationConnector, ExternalDomainInfo, PermissionedMsg,
-        ProcessorMessage,
-    },
+    msg::{ExternalDomainInfo, PermissionedMsg, PolytoneNoteInfo, ProcessorMessage},
 };
 
 use valence_library_utils::LibraryAccountType;
@@ -367,15 +364,18 @@ fn main() -> Result<(), Box<dyn Error>> {
             external_domains: vec![ExternalDomainInfo {
                 name: "juno".to_string(),
                 execution_environment:
-                    valence_authorization_utils::domain::ExecutionEnvironment::CosmWasm,
-                connector: AuthorizationConnector::PolytoneNote {
-                    address: polytone_note_on_neutron_address.clone(),
-                    timeout_seconds: TIMEOUT_SECONDS,
-                },
+                    valence_authorization_utils::msg::ExecutionEnvironmentInfo::Cosmwasm(
+                        valence_authorization_utils::msg::CosmwasmBridgeInfo::Polytone(
+                            valence_authorization_utils::msg::PolytoneConnectorsInfo {
+                                polytone_note: PolytoneNoteInfo {
+                                    address: polytone_note_on_neutron_address.clone(),
+                                    timeout_seconds: TIMEOUT_SECONDS,
+                                },
+                                polytone_proxy: predicted_proxy_address_on_neutron.clone(),
+                            },
+                        ),
+                    ),
                 processor: predicted_processor_on_juno_address.clone(),
-                callback_proxy: CallbackProxy::PolytoneProxy(
-                    predicted_proxy_address_on_neutron.clone(),
-                ),
             }],
         },
     );
@@ -1085,14 +1085,22 @@ fn verify_proxy_state_on_authorization(
         )
         .unwrap();
 
-        match &external_domains.first().unwrap().connector {
-            Connector::PolytoneNote { state, .. } => {
-                if state.eq(expected_state) {
-                    info!("Target state reached!");
-                    break;
-                } else {
-                    info!("Waiting for the right state, current state: {:?}", state);
+        match &external_domains.first().unwrap().execution_environment {
+            ExecutionEnvironment::Cosmwasm(cosmwasm_bridge) => match cosmwasm_bridge {
+                CosmwasmBridge::Polytone(polytone_connectors) => {
+                    if polytone_connectors.polytone_note.state.eq(expected_state) {
+                        info!("Target state reached!");
+                        break;
+                    } else {
+                        info!(
+                            "Waiting for the right state, current state: {:?}",
+                            polytone_connectors.polytone_note.state
+                        );
+                    }
                 }
+            },
+            ExecutionEnvironment::Evm(_) => {
+                panic!("No polytone proxy state on EVM bridge!")
             }
         }
 

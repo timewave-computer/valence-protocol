@@ -2,10 +2,10 @@ use cosmwasm_std::{to_json_binary, Binary, CosmosMsg, DepsMut, Storage, Uint64, 
 use valence_authorization_utils::{
     authorization::{Authorization, Subroutine},
     callback::PolytoneCallbackMsg,
-    domain::{Connector, Domain},
+    domain::{CosmwasmBridge, Domain, ExecutionEnvironment},
     msg::ExternalDomainInfo,
 };
-use valence_polytone_utils::polytone::{CallbackRequest, PolytoneExecuteMsg};
+use valence_bridging_utils::polytone::{CallbackRequest, PolytoneExecuteMsg};
 
 use crate::{
     error::{AuthorizationErrorReason, ContractError},
@@ -16,8 +16,8 @@ use crate::{
 pub fn add_domain(
     deps: DepsMut,
     callback_receiver: String,
-    domain: &ExternalDomainInfo,
-) -> Result<CosmosMsg, ContractError> {
+    domain: ExternalDomainInfo,
+) -> Result<Option<CosmosMsg>, ContractError> {
     let external_domain = domain.to_external_domain_validated(deps.api)?;
 
     if EXTERNAL_DOMAINS.has(deps.storage, external_domain.name.clone()) {
@@ -28,26 +28,31 @@ pub fn add_domain(
 
     EXTERNAL_DOMAINS.save(deps.storage, external_domain.name.clone(), &external_domain)?;
 
-    // Create the message to create the bridge account
-    let msg = match external_domain.connector {
-        // In polytone to create the proxy we can send an empty vector of messages
-        Connector::PolytoneNote {
-            address,
-            timeout_seconds,
-            ..
-        } => CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: address.to_string(),
-            msg: to_json_binary(&PolytoneExecuteMsg::Execute {
-                msgs: vec![],
-                callback: Some(CallbackRequest {
-                    receiver: callback_receiver,
-                    // When we add domain we will return a callback with the name of the domain to know that we are getting the callback when trying to create the proxy
-                    msg: to_json_binary(&PolytoneCallbackMsg::CreateProxy(external_domain.name))?,
-                }),
-                timeout_seconds: Uint64::from(timeout_seconds),
-            })?,
-            funds: vec![],
-        }),
+    // Create the message to create the bridge account if it's required
+    let msg = match external_domain.execution_environment {
+        ExecutionEnvironment::Cosmwasm(cosmwasm_bridge) => match cosmwasm_bridge {
+            CosmwasmBridge::Polytone(polytone_connectors) => {
+                // In polytone to create the proxy we can send an empty vector of messages
+                Some(CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: polytone_connectors.polytone_note.address.to_string(),
+                    msg: to_json_binary(&PolytoneExecuteMsg::Execute {
+                        msgs: vec![],
+                        callback: Some(CallbackRequest {
+                            receiver: callback_receiver,
+                            // When we add domain we will return a callback with the name of the domain to know that we are getting the callback when trying to create the proxy
+                            msg: to_json_binary(&PolytoneCallbackMsg::CreateProxy(
+                                external_domain.name,
+                            ))?,
+                        }),
+                        timeout_seconds: Uint64::from(
+                            polytone_connectors.polytone_note.timeout_seconds,
+                        ),
+                    })?,
+                    funds: vec![],
+                }))
+            }
+        },
+        ExecutionEnvironment::Evm(_) => None,
     };
 
     Ok(msg)
@@ -91,25 +96,27 @@ pub fn create_msg_for_processor_or_bridge(
         }
         Domain::External(name) => {
             let external_domain = EXTERNAL_DOMAINS.load(storage, name.clone())?;
-            match external_domain.connector {
-                // If it has to go through polytone, we will create the message for polytone instead
-                Connector::PolytoneNote {
-                    address,
-                    timeout_seconds,
-                    ..
-                } => Ok(CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: address.to_string(),
-                    msg: to_json_binary(&PolytoneExecuteMsg::Execute {
-                        msgs: vec![CosmosMsg::Wasm(WasmMsg::Execute {
-                            contract_addr: external_domain.processor,
-                            msg: execute_msg,
+            match external_domain.execution_environment {
+                ExecutionEnvironment::Cosmwasm(cosmwasm_bridge) => match cosmwasm_bridge {
+                    CosmwasmBridge::Polytone(polytone_connectors) => {
+                        Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+                            contract_addr: polytone_connectors.polytone_note.address.to_string(),
+                            msg: to_json_binary(&PolytoneExecuteMsg::Execute {
+                                msgs: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+                                    contract_addr: external_domain.processor,
+                                    msg: execute_msg,
+                                    funds: vec![],
+                                })],
+                                callback: callback_request,
+                                timeout_seconds: Uint64::from(
+                                    polytone_connectors.polytone_note.timeout_seconds,
+                                ),
+                            })?,
                             funds: vec![],
-                        })],
-                        callback: callback_request,
-                        timeout_seconds: Uint64::from(timeout_seconds),
-                    })?,
-                    funds: vec![],
-                })),
+                        }))
+                    }
+                },
+                ExecutionEnvironment::Evm(_) => todo!(),
             }
         }
     }

@@ -10,6 +10,6 @@ cosmwasm-std           = { workspace = true }
 cw-utils               = { workspace = true }
 cosmwasm-schema        = { workspace = true }
 cw-ownable             = { workspace = true }
-valence-polytone-utils = { workspace = true }
+valence-bridging-utils = { workspace = true }
 valence-library-utils  = { workspace = true }
 serde_json             = { workspace = true }

@@ -1,13 +1,16 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Api, Binary, StdResult, Uint128, WasmMsg};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query, Expiration};
-use valence_polytone_utils::polytone::CallbackMessage;
+use valence_bridging_utils::polytone::CallbackMessage;
 
 use crate::{
     authorization::{Authorization, AuthorizationInfo, Priority},
     authorization_message::MessageType,
     callback::{ExecutionResult, ProcessorCallbackInfo},
-    domain::{Domain, ExecutionEnvironment, ExternalDomain},
+    domain::{
+        CosmwasmBridge, Domain, EvmBridge, ExecutionEnvironment, ExternalDomain,
+        PolytoneConnectors, PolytoneNote, PolytoneProxyState,
+    },
 };
 
 #[cw_serde]
@@ -22,64 +25,79 @@ pub struct InstantiateMsg {
 #[cw_serde]
 pub struct ExternalDomainInfo {
     pub name: String,
-    pub execution_environment: ExecutionEnvironment,
-    pub connector: Connector,
+    pub execution_environment: ExecutionEnvironmentInfo,
     pub processor: String,
-    pub callback_proxy: CallbackProxy,
 }
 
 impl ExternalDomainInfo {
-    pub fn to_external_domain_validated(&self, api: &dyn Api) -> StdResult<ExternalDomain> {
-        Ok(ExternalDomain {
-            name: self.name.clone(),
-            execution_environment: self.execution_environment.clone(),
-            connector: crate::domain::Connector::PolytoneNote {
-                address: self.connector.to_addr(api)?,
-                timeout_seconds: self.connector.timeout_seconds(),
-                state: crate::domain::PolytoneProxyState::PendingResponse,
-            },
-            processor: self.processor.clone(),
-            callback_proxy: crate::domain::CallbackProxy::PolytoneProxy(
-                self.callback_proxy.to_addr(api)?,
-            ),
-        })
+    pub fn to_external_domain_validated(self, api: &dyn Api) -> StdResult<ExternalDomain> {
+        self.into_external_domain(api)
     }
 }
 
 #[cw_serde]
-pub enum Connector {
-    PolytoneNote {
-        address: String,
-        timeout_seconds: u64,
-    },
+pub enum ExecutionEnvironmentInfo {
+    Cosmwasm(CosmwasmBridgeInfo),
+    Evm(EvmBridgeInfo),
 }
 
-impl Connector {
+#[cw_serde]
+pub enum CosmwasmBridgeInfo {
+    Polytone(PolytoneConnectorsInfo),
+}
+
+#[cw_serde]
+pub enum EvmBridgeInfo {
+    HyperlaneMailbox(String),
+}
+
+#[cw_serde]
+pub struct PolytoneConnectorsInfo {
+    pub polytone_note: PolytoneNoteInfo,
+    pub polytone_proxy: String,
+}
+
+#[cw_serde]
+pub struct PolytoneNoteInfo {
+    pub address: String,
+    pub timeout_seconds: u64,
+}
+
+impl PolytoneNoteInfo {
     pub fn to_addr(&self, api: &dyn Api) -> StdResult<Addr> {
-        match self {
-            Connector::PolytoneNote { address, .. } => api.addr_validate(address),
-        }
+        api.addr_validate(&self.address)
     }
 
     pub fn timeout_seconds(&self) -> u64 {
-        match self {
-            Connector::PolytoneNote {
-                timeout_seconds, ..
-            } => *timeout_seconds,
-        }
+        self.timeout_seconds
     }
 }
 
-#[cw_serde]
-pub enum CallbackProxy {
-    PolytoneProxy(String),
-}
-
-impl CallbackProxy {
-    pub fn to_addr(&self, api: &dyn Api) -> StdResult<Addr> {
-        match self {
-            CallbackProxy::PolytoneProxy(addr) => api.addr_validate(addr),
-        }
+impl ExternalDomainInfo {
+    pub fn into_external_domain(self, api: &dyn Api) -> StdResult<ExternalDomain> {
+        Ok(ExternalDomain {
+            name: self.name,
+            execution_environment: match self.execution_environment {
+                ExecutionEnvironmentInfo::Cosmwasm(bridge_info) => match bridge_info {
+                    CosmwasmBridgeInfo::Polytone(polytone_info) => ExecutionEnvironment::Cosmwasm(
+                        CosmwasmBridge::Polytone(PolytoneConnectors {
+                            polytone_note: PolytoneNote {
+                                address: polytone_info.polytone_note.to_addr(api)?,
+                                timeout_seconds: polytone_info.polytone_note.timeout_seconds,
+                                state: PolytoneProxyState::PendingResponse,
+                            },
+                            polytone_proxy: api.addr_validate(&polytone_info.polytone_proxy)?,
+                        }),
+                    ),
+                },
+                ExecutionEnvironmentInfo::Evm(bridge_info) => match bridge_info {
+                    EvmBridgeInfo::HyperlaneMailbox(addr) => ExecutionEnvironment::Evm(
+                        EvmBridge::HyperlaneMailbox(api.addr_validate(&addr)?),
+                    ),
+                },
+            },
+            processor: self.processor,
+        })
     }
 }
 

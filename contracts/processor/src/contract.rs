@@ -13,7 +13,7 @@ use valence_authorization_utils::{
     domain::PolytoneProxyState,
     msg::ProcessorMessage,
 };
-use valence_polytone_utils::polytone::{
+use valence_bridging_utils::polytone::{
     Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg,
 };
 use valence_processor_utils::{

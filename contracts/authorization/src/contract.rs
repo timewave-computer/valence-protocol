@@ -3,7 +3,7 @@ use cosmos_sdk_proto::{cosmos::base::v1beta1::Coin, traits::MessageExt};
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     coins, from_json, to_json_binary, Addr, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Empty, Env,
-    MessageInfo, Order, Response, StdResult, Storage, Uint64, WasmMsg,
+    MessageInfo, Order, Response, StdError, StdResult, Storage, Uint64, WasmMsg,
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner, is_owner};
 use cw_storage_plus::Bound;
@@ -15,13 +15,16 @@ use valence_authorization_utils::{
         Priority,
     },
     callback::{ExecutionResult, OperationInitiator, PolytoneCallbackMsg, ProcessorCallbackInfo},
-    domain::{Connector, Domain, ExternalDomain, PolytoneProxyState},
+    domain::{
+        CosmwasmBridge, Domain, EvmBridge, ExecutionEnvironment, ExternalDomain,
+        PolytoneConnectors, PolytoneNote, PolytoneProxyState,
+    },
     msg::{
         ExecuteMsg, ExternalDomainInfo, InstantiateMsg, InternalAuthorizationMsg, Mint, OwnerMsg,
         PermissionedMsg, PermissionlessMsg, ProcessorMessage, QueryMsg,
     },
 };
-use valence_polytone_utils::polytone::{
+use valence_bridging_utils::polytone::{
     Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg,
 };
 use valence_processor_utils::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExecuteMsg};
@@ -204,11 +207,9 @@ fn add_external_domains(
     let mut messages = vec![];
     // Save all external domains
     for domain in external_domains {
-        messages.push(add_domain(
-            deps.branch(),
-            env.contract.address.to_string(),
-            &domain,
-        )?);
+        if let Some(msg) = add_domain(deps.branch(), env.contract.address.to_string(), domain)? {
+            messages.push(msg);
+        }
     }
 
     Ok(Response::new()
@@ -422,7 +423,7 @@ fn insert_messages(
         })?;
 
     // Validate that the messages match with the label
-    authorization.validate_messages(deps.storage, &messages)?;
+    authorization.validate_messages(&messages)?;
 
     let current_executions = CURRENT_EXECUTIONS
         .load(deps.storage, label.clone())
@@ -508,7 +509,6 @@ fn send_msgs(
         })?;
 
     authorization.validate_executable(
-        deps.storage,
         &env.block,
         deps.querier,
         env.contract.address.as_str(),
@@ -665,40 +665,51 @@ fn retry_bridge_creation(
 ) -> Result<Response, ContractError> {
     let mut external_domain = EXTERNAL_DOMAINS.load(deps.storage, domain_name.clone())?;
 
-    let msg = match external_domain.connector {
-        Connector::PolytoneNote {
-            address,
-            timeout_seconds,
-            state,
-        } => {
-            if state.ne(&PolytoneProxyState::TimedOut) {
-                return Err(ContractError::Unauthorized(
-                    UnauthorizedReason::BridgeCreationNotTimedOut {},
-                ));
-            }
+    let msg = match external_domain.execution_environment {
+        ExecutionEnvironment::Cosmwasm(cosmwasm_bridge) => match cosmwasm_bridge {
+            CosmwasmBridge::Polytone(polytone_connectors) => {
+                let polytone_note = &polytone_connectors.polytone_note;
+                if polytone_note.state.ne(&PolytoneProxyState::TimedOut) {
+                    return Err(ContractError::Unauthorized(
+                        UnauthorizedReason::BridgeCreationNotTimedOut {},
+                    ));
+                }
 
-            // Update the state
-            external_domain.connector = Connector::PolytoneNote {
-                address: address.clone(),
-                timeout_seconds,
-                state: PolytoneProxyState::PendingResponse,
-            };
-            EXTERNAL_DOMAINS.save(deps.storage, domain_name.clone(), &external_domain)?;
+                // Update the state
+                let new_polytone_note = PolytoneNote {
+                    address: polytone_note.address.clone(),
+                    timeout_seconds: polytone_note.timeout_seconds,
+                    state: PolytoneProxyState::PendingResponse,
+                };
+                let new_polytone_connectors = PolytoneConnectors {
+                    polytone_note: new_polytone_note,
+                    polytone_proxy: polytone_connectors.polytone_proxy.clone(),
+                };
+                external_domain.execution_environment = ExecutionEnvironment::Cosmwasm(
+                    CosmwasmBridge::Polytone(new_polytone_connectors),
+                );
+                EXTERNAL_DOMAINS.save(deps.storage, domain_name.clone(), &external_domain)?;
 
-            WasmMsg::Execute {
-                contract_addr: address.to_string(),
-                msg: to_json_binary(&PolytoneExecuteMsg::Execute {
-                    msgs: vec![],
-                    callback: Some(CallbackRequest {
-                        receiver: env.contract.address.to_string(),
-                        // When we add domain we will return a callback with the name of the domain to know that we are getting the callback when trying to create the proxy
-                        msg: to_json_binary(&PolytoneCallbackMsg::CreateProxy(domain_name))?,
-                    }),
-                    timeout_seconds: Uint64::from(timeout_seconds),
-                })?,
-                funds: vec![],
+                WasmMsg::Execute {
+                    contract_addr: polytone_note.address.to_string(),
+                    msg: to_json_binary(&PolytoneExecuteMsg::Execute {
+                        msgs: vec![],
+                        callback: Some(CallbackRequest {
+                            receiver: env.contract.address.to_string(),
+                            // When we add domain we will return a callback with the name of the domain to know that we are getting the callback when trying to create the proxy
+                            msg: to_json_binary(&PolytoneCallbackMsg::CreateProxy(domain_name))?,
+                        }),
+                        timeout_seconds: Uint64::from(polytone_note.timeout_seconds),
+                    })?,
+                    funds: vec![],
+                }
             }
-        }
+        },
+        ExecutionEnvironment::Evm(evm_bridge) => match evm_bridge {
+            EvmBridge::HyperlaneMailbox(_) => {
+                return Err(ContractError::BridgeCreationNotRequired {});
+            }
+        },
     };
 
     Ok(Response::new()
@@ -925,17 +936,23 @@ fn process_polytone_callback(
                 Callback::Execute(result) => {
                     // If the result is a timeout, we will update the state of the connector to timeout otherwise we will update to Created
                     if result == Err("timeout".to_string())
-                        && external_domain.get_connector_state()
-                            == PolytoneProxyState::PendingResponse
+                        && external_domain.get_polytone_proxy_state()
+                            == Some(PolytoneProxyState::PendingResponse)
                     {
-                        external_domain.set_connector_state(PolytoneProxyState::TimedOut)
+                        external_domain
+                            .set_polytone_proxy_state(PolytoneProxyState::TimedOut)
+                            .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?
                     } else {
-                        external_domain.set_connector_state(PolytoneProxyState::Created)
+                        external_domain
+                            .set_polytone_proxy_state(PolytoneProxyState::Created)
+                            .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?
                     }
                 }
                 Callback::FatalError(error) => {
                     // We should never run out of gas for executing an empty array of messages, but in the case we do we'll log it
-                    external_domain.set_connector_state(PolytoneProxyState::UnexpectedError(error))
+                    external_domain
+                        .set_polytone_proxy_state(PolytoneProxyState::UnexpectedError(error))
+                        .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?
                 }
                 // Should never happen because we don't do queries
                 Callback::Query(_) => {
@@ -1086,7 +1103,7 @@ pub fn store_inprocess_callback(
             let external_domain = EXTERNAL_DOMAINS.load(storage, domain_name.clone())?;
             // The address that will send the callback for that specific processor and the address that can send a timeout
             (
-                external_domain.get_callback_proxy_address(),
+                external_domain.get_callback_address(),
                 Some(external_domain.get_connector_address()),
             )
         }

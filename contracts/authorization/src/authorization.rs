@@ -6,7 +6,7 @@ use valence_authorization_utils::{
         Authorization, AuthorizationMode, AuthorizationState, PermissionType, Priority, Subroutine,
     },
     authorization_message::ParamRestriction,
-    domain::{Domain, ExecutionEnvironment},
+    domain::Domain,
     function::Function,
     msg::ProcessorMessage,
 };
@@ -33,19 +33,13 @@ pub trait Validate {
         contract_address: &str,
         info: &MessageInfo,
     ) -> Result<(), ContractError>;
-    fn validate_messages(
-        &self,
-        store: &dyn Storage,
-        messages: &[ProcessorMessage],
-    ) -> Result<(), ContractError>;
+    fn validate_messages(&self, messages: &[ProcessorMessage]) -> Result<(), ContractError>;
     fn validate_messages_generic<T: Function>(
-        store: &dyn Storage,
         messages: &[ProcessorMessage],
         functions: &[T],
     ) -> Result<(), ContractError>;
     fn validate_executable(
         &self,
-        store: &dyn Storage,
         block: &BlockInfo,
         querier: QuerierWrapper,
         contract_address: &str,
@@ -178,24 +172,19 @@ impl Validate for Authorization {
         Ok(())
     }
 
-    fn validate_messages(
-        &self,
-        store: &dyn Storage,
-        messages: &[ProcessorMessage],
-    ) -> Result<(), ContractError> {
+    fn validate_messages(&self, messages: &[ProcessorMessage]) -> Result<(), ContractError> {
         match &self.subroutine {
             Subroutine::Atomic(config) => {
-                Self::validate_messages_generic(store, messages, &config.functions)?
+                Self::validate_messages_generic(messages, &config.functions)?
             }
             Subroutine::NonAtomic(config) => {
-                Self::validate_messages_generic(store, messages, &config.functions)?
+                Self::validate_messages_generic(messages, &config.functions)?
             }
         }
         Ok(())
     }
 
     fn validate_messages_generic<T: Function>(
-        store: &dyn Storage,
         messages: &[ProcessorMessage],
         functions: &[T],
     ) -> Result<(), ContractError> {
@@ -204,56 +193,41 @@ impl Validate for Authorization {
         }
 
         for (each_message, each_function) in messages.iter().zip(functions.iter()) {
-            let execution_environment = match each_function.domain() {
-                Domain::Main => ExecutionEnvironment::CosmWasm,
-                Domain::External(name) => {
-                    let domain = EXTERNAL_DOMAINS.load(store, name.clone())?;
-                    domain.execution_environment
-                }
-            };
+            // Check that the message type matches the function type
+            if each_message.get_message_type() != each_function.message_details().message_type {
+                return Err(ContractError::Message(MessageErrorReason::InvalidType {}));
+            }
 
-            match &execution_environment {
-                ExecutionEnvironment::CosmWasm => {
-                    // Check that the message type matches the function type
-                    if each_message.get_message_type()
-                        != each_function.message_details().message_type
-                    {
-                        return Err(ContractError::Message(MessageErrorReason::InvalidType {}));
-                    }
+            // Extract the message from the ProcessorMessage
+            let msg = each_message.get_msg();
 
-                    // Extract the message from the ProcessorMessage
-                    let msg = each_message.get_msg();
+            // Extract the json from each message
+            let json: Value =
+                serde_json::from_slice(msg.as_slice()).map_err(|e| ContractError::InvalidJson {
+                    error: e.to_string(),
+                })?;
 
-                    // Extract the json from each message
-                    let json: Value = serde_json::from_slice(msg.as_slice()).map_err(|e| {
-                        ContractError::InvalidJson {
-                            error: e.to_string(),
-                        }
-                    })?;
+            // Check that json only has one top level key
+            if json.as_object().map(|obj| obj.len()).unwrap_or(0) != 1 {
+                return Err(ContractError::Message(
+                    MessageErrorReason::InvalidStructure {},
+                ));
+            }
 
-                    // Check that json only has one top level key
-                    if json.as_object().map(|obj| obj.len()).unwrap_or(0) != 1 {
-                        return Err(ContractError::Message(
-                            MessageErrorReason::InvalidStructure {},
-                        ));
-                    }
+            // Check that top level key matches the message name
+            if json
+                .get(each_function.message_details().message.name.as_str())
+                .is_none()
+            {
+                return Err(ContractError::Message(MessageErrorReason::DoesNotMatch {}));
+            }
 
-                    // Check that top level key matches the message name
-                    if json
-                        .get(each_function.message_details().message.name.as_str())
-                        .is_none()
-                    {
-                        return Err(ContractError::Message(MessageErrorReason::DoesNotMatch {}));
-                    }
-
-                    // Check that all the Parameter restrictions are met
-                    if let Some(param_restrictions) =
-                        &each_function.message_details().message.params_restrictions
-                    {
-                        for each_restriction in param_restrictions {
-                            check_restriction(&json, each_restriction)?;
-                        }
-                    }
+            // Check that all the Parameter restrictions are met
+            if let Some(param_restrictions) =
+                &each_function.message_details().message.params_restrictions
+            {
+                for each_restriction in param_restrictions {
+                    check_restriction(&json, each_restriction)?;
                 }
             }
         }
@@ -262,7 +236,6 @@ impl Validate for Authorization {
 
     fn validate_executable(
         &self,
-        store: &dyn Storage,
         block: &BlockInfo,
         querier: QuerierWrapper,
         contract_address: &str,
@@ -273,7 +246,7 @@ impl Validate for Authorization {
         self.ensure_active(block)?;
         self.ensure_not_expired(block)?;
         self.validate_permission(querier, contract_address, info)?;
-        self.validate_messages(store, messages)?;
+        self.validate_messages(messages)?;
 
         Ok(())
     }
