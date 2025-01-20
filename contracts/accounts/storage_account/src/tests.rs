@@ -185,7 +185,7 @@ impl StorageAccountTestSuite {
         self.query_wasm(addr, &QueryMsg::Ownership {})
     }
 
-    fn query_blob(&mut self, acc: Addr, key: &str) -> ValenceType {
+    fn query_valence_type(&mut self, acc: Addr, key: &str) -> ValenceType {
         self.query_wasm(
             &acc,
             &QueryMsg::QueryValenceType {
@@ -455,8 +455,8 @@ fn post_data_blob_admin() {
         .post_valence_type(acc.clone(), BLOB_KEY, variant)
         .unwrap();
 
-    // get the posted blob and try to reconstruct it
-    let query_result = suite.query_blob(acc, BLOB_KEY);
+    // get the stored valence type and try to reconstruct it
+    let query_result = suite.query_valence_type(acc, BLOB_KEY);
     let balance_resp: ValenceBankBalance = match query_result {
         ValenceType::BankBalance(blob) => blob,
         _ => panic!("Unexpected variant type"),

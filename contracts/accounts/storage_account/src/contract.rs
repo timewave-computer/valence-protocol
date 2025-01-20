@@ -47,7 +47,7 @@ pub fn execute(
         ExecuteMsg::RemoveLibrary { library } => execute::remove_library(deps, info, library),
         ExecuteMsg::UpdateOwnership(action) => execute::update_ownership(deps, env, info, action),
         ExecuteMsg::StoreValenceType { key, variant } => {
-            execute::try_post_valence_type(deps, info, key, variant)
+            execute::try_store_valence_type(deps, info, key, variant)
         }
     }
 }
@@ -59,7 +59,7 @@ mod execute {
 
     use crate::state::{APPROVED_LIBRARIES, VALENCE_TYPE_STORE};
 
-    pub fn try_post_valence_type(
+    pub fn try_store_valence_type(
         deps: DepsMut,
         info: MessageInfo,
         key: String,
@@ -76,7 +76,7 @@ mod execute {
         VALENCE_TYPE_STORE.save(deps.storage, key.to_string(), &variant)?;
 
         Ok(Response::new()
-            .add_attribute("method", "post_valence_type")
+            .add_attribute("method", "store_valence_type")
             .add_attribute("key", key)
             .add_attribute("variant", format!("{:?}", variant)))
     }
