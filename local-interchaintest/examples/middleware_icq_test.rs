@@ -11,6 +11,7 @@ use localic_std::{
     types::TransactionResponse,
 };
 use log::info;
+use neutron_sdk::bindings::query::{NeutronQuery, PageRequest, QueryRegisteredQueriesResponse};
 use std::{collections::BTreeMap, env, error::Error, time::Duration};
 use valence_library_utils::LibraryAccountType;
 use valence_middleware_utils::type_registry::types::{
@@ -231,6 +232,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
     std::thread::sleep(Duration::from_secs(2));
 
+    let registered_queries = query_icqs(
+        &mut test_ctx,
+        NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        "".to_string(),
+    )?;
+
     // fire the query registration request
     let icq_registration_resp = register_kvq(
         &test_ctx,
@@ -264,7 +271,22 @@ fn main() -> Result<(), Box<dyn Error>> {
         _ => panic!("should be xyk pool"),
     };
 
+    std::thread::sleep(Duration::from_secs(2));
+
+    // info!("deregistering the kv query #{}", )
+
     Ok(())
+}
+
+pub fn query_icqs(
+    test_ctx: &mut TestContext,
+    owner: String,
+    connection_id: String,
+) -> Result<QueryRegisteredQueriesResponse, Box<dyn Error>> {
+    // TODO: return registered queries from neutron icq module
+    Ok(QueryRegisteredQueriesResponse {
+        registered_queries: vec![],
+    })
 }
 
 pub fn set_type_registry(
@@ -317,6 +339,37 @@ pub fn register_kvq(
 
     info!(
         "registering ICQ KV query on querier {icq_lib} :  {:?}",
+        stringified_msg
+    );
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &icq_lib,
+        DEFAULT_KEY,
+        &stringified_msg,
+        "--amount 1000000untrn --gas 50000000",
+    )
+}
+
+pub fn deregister_kvq(
+    test_ctx: &TestContext,
+    icq_lib: String,
+    query_id: u64,
+) -> Result<TransactionResponse, LocalError> {
+    let deregister_kvq_fn = FunctionMsgs::DeregisterKvQuery { query_id };
+
+    let tx_execute_msg =
+        valence_library_utils::msg::ExecuteMsg::<FunctionMsgs, ()>::ProcessFunction(
+            deregister_kvq_fn,
+        );
+
+    let stringified_msg = serde_json::to_string(&tx_execute_msg)
+        .map_err(|e| LocalError::Custom { msg: e.to_string() })?;
+
+    info!(
+        "deregistering ICQ KV query from querier {icq_lib} :  {:?}",
         stringified_msg
     );
 

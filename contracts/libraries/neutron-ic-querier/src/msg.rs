@@ -20,6 +20,9 @@ pub enum FunctionMsgs {
         update_period: Uint64,
         params: BTreeMap<String, Binary>,
     },
+    DeregisterKvQuery {
+        query_id: u64,
+    },
 }
 
 #[valence_library_query]

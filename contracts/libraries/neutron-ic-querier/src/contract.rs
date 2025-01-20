@@ -79,7 +79,20 @@ pub fn process_function(
             update_period,
             params,
         } => register_kv_query(deps, cfg, registry_version, type_id, update_period, params),
+        FunctionMsgs::DeregisterKvQuery { query_id } => deregister_kv_query(deps, query_id),
     }
+}
+
+fn deregister_kv_query(
+    deps: ExecuteDeps,
+    query_id: u64,
+) -> Result<Response<NeutronMsg>, LibraryError> {
+    // remove the associated query entry
+    ASSOCIATED_QUERY_IDS.remove(deps.storage, query_id);
+
+    let query_removal_msg = NeutronMsg::remove_interchain_query(query_id);
+
+    Ok(Response::new().add_message(query_removal_msg))
 }
 
 fn register_kv_query(
@@ -118,10 +131,10 @@ fn register_kv_query(
         storage_acc: cfg.storage_acc_addr,
     };
 
-    ASSOCIATED_QUERY_IDS.save(deps.storage, 1, &pending_query_config)?;
+    ASSOCIATED_QUERY_IDS.save(deps.storage, 314, &pending_query_config)?;
 
     // fire registration in a submsg to get the registered query id back
-    let submsg = SubMsg::reply_on_success(kv_registration_msg, 1);
+    let submsg = SubMsg::reply_on_success(kv_registration_msg, 314);
 
     Ok(Response::default().add_submessage(submsg))
 }
