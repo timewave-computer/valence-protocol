@@ -11,15 +11,16 @@ use localic_std::{
 };
 use log::info;
 use std::{collections::BTreeMap, env, error::Error, time::Duration};
+use valence_library_utils::LibraryAccountType;
 use valence_middleware_utils::type_registry::types::{
     RegistryInstantiateMsg, RegistryQueryMsg, ValenceType,
 };
-use valence_neutron_ic_querier::msg::FunctionMsgs;
+use valence_neutron_ic_querier::msg::{FunctionMsgs, LibraryConfig};
 
 use localic_utils::{
     utils::test_context::TestContext, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
-    LOCAL_IC_API_URL, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_DENOM,
-    OSMOSIS_CHAIN_NAME,
+    LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
+    OSMOSIS_CHAIN_DENOM, OSMOSIS_CHAIN_NAME,
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -69,7 +70,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         current_dir.display()
     );
     let icq_lib_local_path = format!(
-        "{}/artifacts/valence_icq_querier.wasm",
+        "{}/artifacts/valence_neutron_ic_querier.wasm",
+        current_dir.display()
+    );
+    let storage_acc_path = format!(
+        "{}/artifacts/valence_storage_account.wasm",
         current_dir.display()
     );
 
@@ -85,35 +90,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     uploader
         .with_chain_name(NEUTRON_CHAIN_NAME)
         .send_single_contract(&osmosis_middleware_broker_path)?;
+    uploader
+        .with_chain_name(NEUTRON_CHAIN_NAME)
+        .send_single_contract(&storage_acc_path)?;
 
-    // set up the ICQ querier
-    let icq_querier_lib_code_id = test_ctx
-        .get_contract()
-        .contract("valence_icq_querier")
-        .get_cw()
-        .code_id
-        .unwrap();
-    let icq_test_lib = contract_instantiate(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        DEFAULT_KEY,
-        icq_querier_lib_code_id,
-        &serde_json::to_string(&valence_library_utils::msg::InstantiateMsg {
-            owner: todo!(),
-            processor: todo!(),
-            config: valence_neutron_ic_querier::msg::Config {
-                storage_acc_addr: todo!(),
-                querier_config: todo!(),
-            },
-        })?,
-        "icq_querier_lib",
-        None,
-        "",
-    )?;
-    info!("icq querier lib address: {}", icq_test_lib.address);
-
-    std::thread::sleep(Duration::from_secs(3));
+    let ntrn_to_osmo_connection_id = test_ctx
+        .get_connections()
+        .src(NEUTRON_CHAIN_NAME)
+        .dest(OSMOSIS_CHAIN_NAME)
+        .get();
 
     // set up the type registry
     let type_registry_code_id = test_ctx
@@ -161,6 +146,67 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("middleware broker address: {}", broker_contract.address);
     std::thread::sleep(Duration::from_secs(3));
 
+    // set up the storage account
+    let storage_acc_code_id = test_ctx
+        .get_contract()
+        .contract("valence_storage_account")
+        .get_cw()
+        .code_id
+        .unwrap();
+
+    let storage_acc_contract = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        storage_acc_code_id,
+        &serde_json::to_string(&valence_account_utils::msg::InstantiateMsg {
+            admin: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+            approved_libraries: vec![],
+        })?,
+        "storage_account",
+        None,
+        "",
+    )?;
+
+    info!("storage account: {}", storage_acc_contract.address);
+    std::thread::sleep(Duration::from_secs(3));
+
+    // set up the IC querier
+    let neutron_ic_querier_lib_code_id = test_ctx
+        .get_contract()
+        .contract("valence_neutron_ic_querier")
+        .get_cw()
+        .code_id
+        .unwrap();
+
+    let icq_test_lib = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        neutron_ic_querier_lib_code_id,
+        &serde_json::to_string(
+            &valence_library_utils::msg::InstantiateMsg::<LibraryConfig> {
+                owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+                processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+                config: LibraryConfig::new(
+                    LibraryAccountType::Addr(storage_acc_contract.address),
+                    valence_neutron_ic_querier::msg::QuerierConfig {
+                        broker_addr: broker_contract.address.to_string(),
+                        connection_id: ntrn_to_osmo_connection_id,
+                    },
+                ),
+            },
+        )?,
+        "icq_querier_lib",
+        None,
+        "",
+    )?;
+    info!("icq querier lib address: {}", icq_test_lib.address);
+
+    std::thread::sleep(Duration::from_secs(3));
+
     // associate type registry with broker
     set_type_registry(
         &test_ctx,
@@ -170,22 +216,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
     std::thread::sleep(Duration::from_secs(2));
 
-    let ntrn_to_osmo_connection_id = test_ctx
-        .get_connections()
-        .src(NEUTRON_CHAIN_NAME)
-        .dest(OSMOSIS_CHAIN_NAME)
-        .get();
-
     // fire the query registration request
-    register_kvq(
+    let icq_registration_resp = register_kvq(
         &test_ctx,
         icq_test_lib.address.to_string(),
-        broker_contract.address.to_string(),
         osmosis_std::types::osmosis::gamm::v1beta1::Pool::TYPE_URL.to_string(),
-        ntrn_to_osmo_connection_id,
         Uint64::new(5),
         BTreeMap::from([("pool_id".to_string(), to_json_binary(&pool_id).unwrap())]),
     )?;
+
+    info!(
+        "icq registration response: {:?}",
+        icq_registration_resp.tx_hash.unwrap()
+    );
 
     std::thread::sleep(Duration::from_secs(10));
 
@@ -245,22 +288,23 @@ pub fn set_type_registry(
 pub fn register_kvq(
     test_ctx: &TestContext,
     icq_lib: String,
-    broker_addr: String,
     type_id: String,
-    connection_id: String,
     update_period: Uint64,
     params: BTreeMap<String, Binary>,
 ) -> Result<TransactionResponse, LocalError> {
-    let register_kvq_msg = FunctionMsgs::RegisterKvQuery {
+    let register_kvq_fn = FunctionMsgs::RegisterKvQuery {
         registry_version: None,
-        broker_addr,
         type_id,
-        connection_id,
         update_period,
         params,
     };
 
-    let stringified_msg = serde_json::to_string(&register_kvq_msg)
+    let tx_execute_msg =
+        valence_library_utils::msg::ExecuteMsg::<FunctionMsgs, ()>::ProcessFunction(
+            register_kvq_fn,
+        );
+
+    let stringified_msg = serde_json::to_string(&tx_execute_msg)
         .map_err(|e| LocalError::Custom { msg: e.to_string() })?;
 
     info!(

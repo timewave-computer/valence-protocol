@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 
-use cosmwasm_std::{Addr, Binary, Deps, Uint64};
+use cosmwasm_std::{Addr, Binary, Deps, DepsMut, Uint64};
 use cw_ownable::cw_ownable_query;
 
 use valence_library_utils::{
@@ -12,16 +12,11 @@ use valence_macros::{valence_library_query, ValenceLibraryInterface};
 
 use crate::contract::ExecuteDeps;
 
-// #[cw_serde]
-// pub struct InstantiateMsg {}
-
 #[cw_serde]
 pub enum FunctionMsgs {
     RegisterKvQuery {
-        broker_addr: String,
         registry_version: Option<String>,
         type_id: String,
-        connection_id: String,
         update_period: Uint64,
         params: BTreeMap<String, Binary>,
     },
@@ -40,7 +35,11 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
-pub struct QuerierConfig {}
+pub struct QuerierConfig {
+    pub broker_addr: String,
+    pub connection_id: String,
+    // TODO: add known query configurations
+}
 
 #[cw_serde]
 #[derive(ValenceLibraryInterface)]

@@ -72,35 +72,24 @@ pub fn process_function(
 ) -> Result<Response<NeutronMsg>, LibraryError> {
     match msg {
         FunctionMsgs::RegisterKvQuery {
-            broker_addr,
             registry_version,
             type_id,
-            connection_id,
             update_period,
             params,
-        } => register_kv_query(
-            deps,
-            broker_addr,
-            registry_version,
-            type_id,
-            connection_id,
-            update_period,
-            params,
-        ),
+        } => register_kv_query(deps, cfg, registry_version, type_id, update_period, params),
     }
 }
 
 fn register_kv_query(
     deps: ExecuteDeps,
-    broker_addr: String,
+    cfg: Config,
     registry_version: Option<String>,
     type_id: String,
-    connection_id: String,
     update_period: Uint64,
     params: BTreeMap<String, Binary>,
 ) -> Result<Response<NeutronMsg>, LibraryError> {
     let query_kv_key: KVKey = deps.querier.query_wasm_smart(
-        broker_addr.to_string(),
+        cfg.querier_config.broker_addr.to_string(),
         &valence_middleware_broker::msg::QueryMsg {
             registry_version: registry_version.clone(),
             query: RegistryQueryMsg::KVKey {
@@ -114,7 +103,7 @@ fn register_kv_query(
         query_type: QueryType::KV.into(),
         keys: vec![query_kv_key],
         transactions_filter: String::new(),
-        connection_id,
+        connection_id: cfg.querier_config.connection_id.to_string(),
         update_period: update_period.u64(),
     };
 
@@ -124,7 +113,7 @@ fn register_kv_query(
         deps.storage,
         1,
         &PendingQueryIdConfig {
-            broker_addr,
+            broker_addr: cfg.querier_config.broker_addr.to_string(),
             type_url: type_id,
             registry_version,
         },
@@ -137,7 +126,7 @@ fn register_kv_query(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: QueryDeps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Ownership {} => {
             to_json_binary(&valence_library_base::get_ownership(deps.storage)?)

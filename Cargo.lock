@@ -3890,6 +3890,7 @@ dependencies = [
  "valence-program-registry-utils",
  "valence-reverse-splitter-library",
  "valence-splitter-library",
+ "valence-storage-account",
  "valence-test-icq-lib",
 ]
 
