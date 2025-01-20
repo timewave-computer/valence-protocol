@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response, StdError,
-    StdResult, SubMsg, Uint64,
+    to_json_binary, to_json_vec, Binary, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response,
+    StdError, StdResult, SubMsg, Uint64, WasmMsg,
 };
 use neutron_sdk::{
     bindings::{
@@ -111,15 +111,14 @@ fn register_kv_query(
 
     // here the key is set to the resp.reply_id just to get to the reply handler.
     // it will get overriden by the actual query id in the reply handler.
-    ASSOCIATED_QUERY_IDS.save(
-        deps.storage,
-        1,
-        &PendingQueryIdConfig {
-            broker_addr: cfg.querier_config.broker_addr.to_string(),
-            type_url: type_id,
-            registry_version,
-        },
-    )?;
+    let pending_query_config = PendingQueryIdConfig {
+        broker_addr: cfg.querier_config.broker_addr.to_string(),
+        type_url: type_id,
+        registry_version,
+        storage_acc: cfg.storage_acc_addr,
+    };
+
+    ASSOCIATED_QUERY_IDS.save(deps.storage, 1, &pending_query_config)?;
 
     // fire registration in a submsg to get the registered query id back
     let submsg = SubMsg::reply_on_success(kv_registration_msg, 1);
@@ -203,10 +202,23 @@ fn handle_sudo_kv_query_result(
 
     QUERY_RESULTS.save(deps.storage, query_id, &valence_canonical_response)?;
 
-    Ok(Response::new().add_attribute(
-        "query_result",
-        to_json_binary(&valence_canonical_response)?.to_string(),
-    ))
+    let storage_acc_write_msg = WasmMsg::Execute {
+        contract_addr: pending_query_config.storage_acc.to_string(),
+        msg: to_json_binary(
+            &valence_storage_account::msg::ExecuteMsg::StoreValenceType {
+                key: "test_result".to_string(),
+                variant: valence_canonical_response.clone(),
+            },
+        )?,
+        funds: vec![],
+    };
+
+    Ok(Response::new()
+        .add_message(storage_acc_write_msg)
+        .add_attribute(
+            "query_result",
+            to_json_binary(&valence_canonical_response)?.to_string(),
+        ))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

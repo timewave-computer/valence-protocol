@@ -7270,6 +7270,7 @@ dependencies = [
  "valence-macros",
  "valence-middleware-broker",
  "valence-middleware-utils",
+ "valence-storage-account",
 ]
 
 [[package]]

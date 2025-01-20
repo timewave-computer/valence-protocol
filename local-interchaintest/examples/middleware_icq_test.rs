@@ -1,5 +1,6 @@
 use cosmwasm_std::{to_json_binary, Binary, Uint64};
 use local_interchaintest::utils::{
+    base_account::approve_library,
     icq::{generate_icq_relayer_config, start_icq_relayer},
     osmosis::gamm::setup_gamm_pool,
     LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
@@ -191,7 +192,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
                 processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
                 config: LibraryConfig::new(
-                    LibraryAccountType::Addr(storage_acc_contract.address),
+                    LibraryAccountType::Addr(storage_acc_contract.address.to_string()),
                     valence_neutron_ic_querier::msg::QuerierConfig {
                         broker_addr: broker_contract.address.to_string(),
                         connection_id: ntrn_to_osmo_connection_id,
@@ -205,6 +206,20 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
     info!("icq querier lib address: {}", icq_test_lib.address);
 
+    std::thread::sleep(Duration::from_secs(3));
+
+    info!(
+        "approving icq test lib {} on storage account {}",
+        icq_test_lib.address, storage_acc_contract.address
+    );
+    approve_library(
+        &mut test_ctx,
+        NEUTRON_CHAIN_NAME,
+        DEFAULT_KEY,
+        storage_acc_contract.address.as_str(),
+        icq_test_lib.address.to_string(),
+        None,
+    );
     std::thread::sleep(Duration::from_secs(3));
 
     // associate type registry with broker
@@ -248,6 +263,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         _ => panic!("should be xyk pool"),
     };
+
+    let storage_account_value = query_storage_account(
+        &test_ctx,
+        storage_acc_contract.address,
+        "test_result".to_string(),
+    )?;
+
+    info!("storage account value: {:?}", storage_account_value);
 
     Ok(())
 }
@@ -334,6 +357,33 @@ pub fn query_results(
     let resp: Vec<(u64, ValenceType)> = serde_json::from_value(query_response).unwrap();
 
     Ok(resp)
+}
+
+pub fn query_storage_account(
+    test_ctx: &TestContext,
+    storage_account: String,
+    storage_key: String,
+) -> Result<ValenceType, LocalError> {
+    let query_response = contract_query(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &storage_account,
+        &serde_json::to_string(&valence_storage_account::msg::QueryMsg::QueryValenceType {
+            key: storage_key,
+        })
+        .map_err(|e| LocalError::Custom { msg: e.to_string() })?,
+    )["data"]
+        .clone();
+
+    info!("query response: {:?}", query_response);
+    let resp: Result<ValenceType, serde_json::error::Error> =
+        serde_json::from_value(query_response);
+
+    match resp {
+        Ok(val) => Ok(val),
+        Err(e) => Err(LocalError::Custom { msg: e.to_string() }),
+    }
 }
 
 pub fn broker_get_canonical(

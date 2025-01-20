@@ -1,4 +1,5 @@
 use cosmwasm_schema::cw_serde;
+use cosmwasm_std::Addr;
 use cw_storage_plus::Map;
 use valence_middleware_utils::type_registry::types::ValenceType;
 
@@ -10,4 +11,5 @@ pub struct PendingQueryIdConfig {
     pub type_url: String,
     pub broker_addr: String,
     pub registry_version: Option<String>,
+    pub storage_acc: Addr,
 }
