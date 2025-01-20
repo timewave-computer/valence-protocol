@@ -31,7 +31,7 @@ use valence_processor_utils::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExec
 
 use crate::{
     authorization::Validate,
-    domain::{add_domain, create_msg_for_processor_or_bridge, get_domain},
+    domain::{add_domain, create_msg_for_processor, get_domain},
     error::{AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason},
     state::{
         AUTHORIZATIONS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS, FIRST_OWNERSHIP,
@@ -388,8 +388,7 @@ fn pause_processor(deps: DepsMut, domain: Domain) -> Result<Response, ContractEr
     let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
         AuthorizationMsg::Pause {},
     ))?;
-    let message =
-        create_msg_for_processor_or_bridge(deps.storage, execute_msg_binary, &domain, None)?;
+    let message = create_msg_for_processor(deps.storage, execute_msg_binary, &domain, None)?;
 
     Ok(Response::new()
         .add_message(message)
@@ -400,8 +399,7 @@ fn resume_processor(deps: DepsMut, domain: Domain) -> Result<Response, ContractE
     let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
         AuthorizationMsg::Resume {},
     ))?;
-    let message =
-        create_msg_for_processor_or_bridge(deps.storage, execute_msg_binary, &domain, None)?;
+    let message = create_msg_for_processor(deps.storage, execute_msg_binary, &domain, None)?;
 
     Ok(Response::new()
         .add_message(message)
@@ -452,7 +450,7 @@ fn insert_messages(
         msg: to_json_binary(&PolytoneCallbackMsg::ExecutionID(id))?,
     };
 
-    let msg = create_msg_for_processor_or_bridge(
+    let msg = create_msg_for_processor(
         deps.storage,
         execute_msg_binary,
         &domain,
@@ -487,7 +485,7 @@ fn evict_messages(
             priority,
         },
     ))?;
-    let msg = create_msg_for_processor_or_bridge(deps.storage, execute_msg_binary, &domain, None)?;
+    let msg = create_msg_for_processor(deps.storage, execute_msg_binary, &domain, None)?;
 
     Ok(Response::new()
         .add_message(msg)
@@ -552,7 +550,7 @@ fn send_msgs(
     };
 
     // We need to know if this will be sent to the processor on the main domain or to an external domain
-    let msg = create_msg_for_processor_or_bridge(
+    let msg = create_msg_for_processor(
         deps.storage,
         execute_msg_binary,
         &domain,
@@ -619,7 +617,7 @@ fn retry_msgs(deps: DepsMut, env: Env, execution_id: u64) -> Result<Response, Co
                 // We will use the ID to know which callback we are getting
                 msg: to_json_binary(&PolytoneCallbackMsg::ExecutionID(execution_id))?,
             };
-            messages.push(create_msg_for_processor_or_bridge(
+            messages.push(create_msg_for_processor(
                 deps.storage,
                 execute_msg_binary,
                 &callback_info.domain,

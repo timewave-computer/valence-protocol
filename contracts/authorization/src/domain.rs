@@ -2,7 +2,7 @@ use cosmwasm_std::{to_json_binary, Binary, CosmosMsg, DepsMut, Storage, Uint64, 
 use valence_authorization_utils::{
     authorization::{Authorization, Subroutine},
     callback::PolytoneCallbackMsg,
-    domain::{CosmwasmBridge, Domain, ExecutionEnvironment},
+    domain::{CosmwasmBridge, Domain, ExecutionEnvironment, PolytoneNote},
     msg::ExternalDomainInfo,
 };
 use valence_bridging_utils::polytone::{CallbackRequest, PolytoneExecuteMsg};
@@ -77,47 +77,61 @@ pub fn get_domain(authorization: &Authorization) -> Result<Domain, ContractError
     }
 }
 
-pub fn create_msg_for_processor_or_bridge(
+pub fn create_msg_for_processor(
     storage: &dyn Storage,
     execute_msg: Binary,
     domain: &Domain,
     callback_request: Option<CallbackRequest>,
 ) -> Result<CosmosMsg, ContractError> {
-    // If the domain is the main domain we will use the processor on the main domain, otherwise we will use polytone to send it to the processor on the external domain
     match domain {
-        Domain::Main => {
-            let processor = PROCESSOR_ON_MAIN_DOMAIN.load(storage)?;
-            // Simple message for the main domain's processor
-            Ok(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: processor.to_string(),
-                msg: execute_msg,
-                funds: vec![],
-            }))
-        }
-        Domain::External(name) => {
-            let external_domain = EXTERNAL_DOMAINS.load(storage, name.clone())?;
+        Domain::Main => create_msg_for_main_domain(storage, execute_msg),
+        Domain::External(external_domain) => {
+            let external_domain = EXTERNAL_DOMAINS.load(storage, external_domain.clone())?;
             match external_domain.execution_environment {
                 ExecutionEnvironment::Cosmwasm(cosmwasm_bridge) => match cosmwasm_bridge {
-                    CosmwasmBridge::Polytone(polytone_connectors) => {
-                        Ok(CosmosMsg::Wasm(WasmMsg::Execute {
-                            contract_addr: polytone_connectors.polytone_note.address.to_string(),
-                            msg: to_json_binary(&PolytoneExecuteMsg::Execute {
-                                msgs: vec![CosmosMsg::Wasm(WasmMsg::Execute {
-                                    contract_addr: external_domain.processor,
-                                    msg: execute_msg,
-                                    funds: vec![],
-                                })],
-                                callback: callback_request,
-                                timeout_seconds: Uint64::from(
-                                    polytone_connectors.polytone_note.timeout_seconds,
-                                ),
-                            })?,
-                            funds: vec![],
-                        }))
-                    }
+                    CosmwasmBridge::Polytone(polytone_connectors) => create_msg_for_polytone(
+                        polytone_connectors.polytone_note,
+                        external_domain.processor,
+                        execute_msg,
+                        callback_request,
+                    ),
                 },
                 ExecutionEnvironment::Evm(_) => todo!(),
             }
         }
     }
+}
+
+pub fn create_msg_for_main_domain(
+    storage: &dyn Storage,
+    execute_msg: Binary,
+) -> Result<CosmosMsg, ContractError> {
+    let processor = PROCESSOR_ON_MAIN_DOMAIN.load(storage)?;
+    // Simple message for the main domain's processor
+    Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: processor.to_string(),
+        msg: execute_msg,
+        funds: vec![],
+    }))
+}
+
+pub fn create_msg_for_polytone(
+    polytone_note: PolytoneNote,
+    processor: String,
+    execute_msg: Binary,
+    callback_request: Option<CallbackRequest>,
+) -> Result<CosmosMsg, ContractError> {
+    Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: polytone_note.address.to_string(),
+        msg: to_json_binary(&PolytoneExecuteMsg::Execute {
+            msgs: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: processor,
+                msg: execute_msg,
+                funds: vec![],
+            })],
+            callback: callback_request,
+            timeout_seconds: Uint64::from(polytone_note.timeout_seconds),
+        })?,
+        funds: vec![],
+    }))
 }
