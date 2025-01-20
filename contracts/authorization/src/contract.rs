@@ -385,9 +385,18 @@ fn mint_authorizations(
 }
 
 fn pause_processor(deps: DepsMut, domain: Domain) -> Result<Response, ContractError> {
-    let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
-        AuthorizationMsg::Pause {},
-    ))?;
+    // The pause msg that is used for both main and external Cosmwasm domains
+    let pause_msg = &ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::Pause {});
+    let execute_msg_binary = match domain.clone() {
+        Domain::Main => to_json_binary(pause_msg)?,
+        Domain::External(external_domain_id) => {
+            let external_domain = EXTERNAL_DOMAINS.load(deps.storage, external_domain_id)?;
+            match external_domain.execution_environment {
+                ExecutionEnvironment::Cosmwasm(_) => to_json_binary(pause_msg)?,
+                ExecutionEnvironment::Evm(_) => todo!(),
+            }
+        }
+    };
     let message = create_msg_for_processor(deps.storage, execute_msg_binary, &domain, None)?;
 
     Ok(Response::new()
@@ -396,9 +405,18 @@ fn pause_processor(deps: DepsMut, domain: Domain) -> Result<Response, ContractEr
 }
 
 fn resume_processor(deps: DepsMut, domain: Domain) -> Result<Response, ContractError> {
-    let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
-        AuthorizationMsg::Resume {},
-    ))?;
+    // The resume msg that is used for both main and external Cosmwasm domains
+    let resume_msg = &ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::Resume {});
+    let execute_msg_binary = match domain.clone() {
+        Domain::Main => to_json_binary(resume_msg)?,
+        Domain::External(external_domain_id) => {
+            let external_domain = EXTERNAL_DOMAINS.load(deps.storage, external_domain_id)?;
+            match external_domain.execution_environment {
+                ExecutionEnvironment::Cosmwasm(_) => to_json_binary(resume_msg)?,
+                ExecutionEnvironment::Evm(_) => todo!(),
+            }
+        }
+    };
     let message = create_msg_for_processor(deps.storage, execute_msg_binary, &domain, None)?;
 
     Ok(Response::new()
