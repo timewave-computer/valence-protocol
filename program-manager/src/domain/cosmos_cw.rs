@@ -1054,7 +1054,9 @@ impl CosmosCosmwasmConnector {
                     polytone_connectors,
                 ) => polytone_connectors.polytone_note.state,
             },
-            valence_authorization_utils::domain::ExecutionEnvironment::Evm(_) => return Ok(false),
+            valence_authorization_utils::domain::ExecutionEnvironment::Evm(_, _) => {
+                return Ok(false)
+            }
         };
 
         match state {

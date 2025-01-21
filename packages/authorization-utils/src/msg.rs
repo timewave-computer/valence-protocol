@@ -8,8 +8,8 @@ use crate::{
     authorization_message::MessageType,
     callback::{ExecutionResult, ProcessorCallbackInfo},
     domain::{
-        CosmwasmBridge, Domain, EvmBridge, ExecutionEnvironment, ExternalDomain,
-        PolytoneConnectors, PolytoneNote, PolytoneProxyState,
+        CosmwasmBridge, Domain, Encoder, EvmBridge, ExecutionEnvironment, ExternalDomain,
+        HyperlaneConnector, PolytoneConnectors, PolytoneNote, PolytoneProxyState,
     },
 };
 
@@ -38,7 +38,7 @@ impl ExternalDomainInfo {
 #[cw_serde]
 pub enum ExecutionEnvironmentInfo {
     Cosmwasm(CosmwasmBridgeInfo),
-    Evm(EvmBridgeInfo),
+    Evm(EncoderInfo, EvmBridgeInfo),
 }
 
 #[cw_serde]
@@ -48,7 +48,7 @@ pub enum CosmwasmBridgeInfo {
 
 #[cw_serde]
 pub enum EvmBridgeInfo {
-    HyperlaneMailbox(String),
+    Hyperlane(HyperlaneConnectorInfo),
 }
 
 #[cw_serde]
@@ -63,6 +63,44 @@ pub struct PolytoneNoteInfo {
     pub timeout_seconds: u64,
 }
 
+#[cw_serde]
+pub struct EncoderInfo {
+    pub broker_address: String,
+    pub encoder_namespace: String,
+}
+
+#[cw_serde]
+pub struct HyperlaneConnectorInfo {
+    pub mailbox: String,
+    pub domain_id: u64,
+}
+
+impl EncoderInfo {
+    pub fn to_addr(&self, api: &dyn Api) -> StdResult<Addr> {
+        api.addr_validate(&self.broker_address)
+    }
+
+    pub fn to_validated_encoder(&self, api: &dyn Api) -> StdResult<Encoder> {
+        Ok(Encoder {
+            broker_address: self.to_addr(api)?,
+            encoder_namespace: self.encoder_namespace.clone(),
+        })
+    }
+}
+
+impl HyperlaneConnectorInfo {
+    pub fn to_addr(&self, api: &dyn Api) -> StdResult<Addr> {
+        api.addr_validate(&self.mailbox)
+    }
+
+    pub fn to_validated_hyperlane_connector(&self, api: &dyn Api) -> StdResult<HyperlaneConnector> {
+        Ok(HyperlaneConnector {
+            mailbox: self.to_addr(api)?,
+            domain_id: self.domain_id,
+        })
+    }
+}
+
 impl PolytoneNoteInfo {
     pub fn to_addr(&self, api: &dyn Api) -> StdResult<Addr> {
         api.addr_validate(&self.address)
@@ -73,29 +111,46 @@ impl PolytoneNoteInfo {
     }
 }
 
+impl EvmBridgeInfo {
+    pub fn to_validated_evm_bridge(self, api: &dyn Api) -> StdResult<EvmBridge> {
+        match self {
+            EvmBridgeInfo::Hyperlane(hyperlane_info) => Ok(EvmBridge::Hyperlane(
+                hyperlane_info.to_validated_hyperlane_connector(api)?,
+            )),
+        }
+    }
+}
+
+impl ExecutionEnvironmentInfo {
+    pub fn into_execution_environment(self, api: &dyn Api) -> StdResult<ExecutionEnvironment> {
+        match self {
+            ExecutionEnvironmentInfo::Cosmwasm(bridge_info) => match bridge_info {
+                CosmwasmBridgeInfo::Polytone(polytone_info) => Ok(ExecutionEnvironment::Cosmwasm(
+                    CosmwasmBridge::Polytone(PolytoneConnectors {
+                        polytone_note: PolytoneNote {
+                            address: polytone_info.polytone_note.to_addr(api)?,
+                            timeout_seconds: polytone_info.polytone_note.timeout_seconds,
+                            state: PolytoneProxyState::PendingResponse,
+                        },
+                        polytone_proxy: api.addr_validate(&polytone_info.polytone_proxy)?,
+                    }),
+                )),
+            },
+            ExecutionEnvironmentInfo::Evm(encoder_info, bridge_info) => {
+                Ok(ExecutionEnvironment::Evm(
+                    encoder_info.to_validated_encoder(api)?,
+                    bridge_info.to_validated_evm_bridge(api)?,
+                ))
+            }
+        }
+    }
+}
+
 impl ExternalDomainInfo {
     pub fn into_external_domain(self, api: &dyn Api) -> StdResult<ExternalDomain> {
         Ok(ExternalDomain {
             name: self.name,
-            execution_environment: match self.execution_environment {
-                ExecutionEnvironmentInfo::Cosmwasm(bridge_info) => match bridge_info {
-                    CosmwasmBridgeInfo::Polytone(polytone_info) => ExecutionEnvironment::Cosmwasm(
-                        CosmwasmBridge::Polytone(PolytoneConnectors {
-                            polytone_note: PolytoneNote {
-                                address: polytone_info.polytone_note.to_addr(api)?,
-                                timeout_seconds: polytone_info.polytone_note.timeout_seconds,
-                                state: PolytoneProxyState::PendingResponse,
-                            },
-                            polytone_proxy: api.addr_validate(&polytone_info.polytone_proxy)?,
-                        }),
-                    ),
-                },
-                ExecutionEnvironmentInfo::Evm(bridge_info) => match bridge_info {
-                    EvmBridgeInfo::HyperlaneMailbox(addr) => ExecutionEnvironment::Evm(
-                        EvmBridge::HyperlaneMailbox(api.addr_validate(&addr)?),
-                    ),
-                },
-            },
+            execution_environment: self.execution_environment.into_execution_environment(api)?,
             processor: self.processor,
         })
     }

@@ -393,7 +393,7 @@ fn pause_processor(deps: DepsMut, domain: Domain) -> Result<Response, ContractEr
             let external_domain = EXTERNAL_DOMAINS.load(deps.storage, external_domain_id)?;
             match external_domain.execution_environment {
                 ExecutionEnvironment::Cosmwasm(_) => to_json_binary(pause_msg)?,
-                ExecutionEnvironment::Evm(_) => todo!(),
+                ExecutionEnvironment::Evm(_, _) => todo!(),
             }
         }
     };
@@ -413,7 +413,7 @@ fn resume_processor(deps: DepsMut, domain: Domain) -> Result<Response, ContractE
             let external_domain = EXTERNAL_DOMAINS.load(deps.storage, external_domain_id)?;
             match external_domain.execution_environment {
                 ExecutionEnvironment::Cosmwasm(_) => to_json_binary(resume_msg)?,
-                ExecutionEnvironment::Evm(_) => todo!(),
+                ExecutionEnvironment::Evm(_, _) => todo!(),
             }
         }
     };
@@ -721,8 +721,8 @@ fn retry_bridge_creation(
                 }
             }
         },
-        ExecutionEnvironment::Evm(evm_bridge) => match evm_bridge {
-            EvmBridge::HyperlaneMailbox(_) => {
+        ExecutionEnvironment::Evm(_, evm_bridge) => match evm_bridge {
+            EvmBridge::Hyperlane(_) => {
                 return Err(ContractError::BridgeCreationNotRequired {});
             }
         },

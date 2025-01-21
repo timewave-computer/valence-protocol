@@ -1099,7 +1099,7 @@ fn verify_proxy_state_on_authorization(
                     }
                 }
             },
-            ExecutionEnvironment::Evm(_) => {
+            ExecutionEnvironment::Evm(_, _) => {
                 panic!("No polytone proxy state on EVM bridge!")
             }
         }

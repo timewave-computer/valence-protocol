@@ -20,7 +20,9 @@ impl ExternalDomain {
             ExecutionEnvironment::Cosmwasm(CosmwasmBridge::Polytone(polytone_info)) => {
                 polytone_info.polytone_note.address.clone()
             }
-            ExecutionEnvironment::Evm(EvmBridge::HyperlaneMailbox(address)) => address.clone(),
+            ExecutionEnvironment::Evm(_, EvmBridge::Hyperlane(hyperlane_info)) => {
+                hyperlane_info.mailbox.clone()
+            }
         }
     }
 
@@ -29,7 +31,9 @@ impl ExternalDomain {
             ExecutionEnvironment::Cosmwasm(CosmwasmBridge::Polytone(polytone_info)) => {
                 polytone_info.polytone_proxy.clone()
             }
-            ExecutionEnvironment::Evm(EvmBridge::HyperlaneMailbox(address)) => address.clone(),
+            ExecutionEnvironment::Evm(_, EvmBridge::Hyperlane(hyperlane_info)) => {
+                hyperlane_info.mailbox.clone()
+            }
         }
     }
 
@@ -38,7 +42,7 @@ impl ExternalDomain {
             ExecutionEnvironment::Cosmwasm(CosmwasmBridge::Polytone(polytone_info)) => {
                 Some(polytone_info.polytone_note.state.clone())
             }
-            ExecutionEnvironment::Evm(EvmBridge::HyperlaneMailbox(_)) => None,
+            ExecutionEnvironment::Evm(_, _) => None,
         }
     }
 
@@ -51,9 +55,16 @@ impl ExternalDomain {
                 polytone_info.polytone_note.state = state;
                 Ok(())
             }
-            ExecutionEnvironment::Evm(EvmBridge::HyperlaneMailbox(_)) => {
+            ExecutionEnvironment::Evm(_, _) => {
                 Err("EVM domain does not have a polytone proxy state")
             }
+        }
+    }
+
+    pub fn get_encoder(&self) -> Option<&Encoder> {
+        match &self.execution_environment {
+            ExecutionEnvironment::Cosmwasm(_) => None,
+            ExecutionEnvironment::Evm(encoder, _) => Some(encoder),
         }
     }
 }
@@ -61,7 +72,7 @@ impl ExternalDomain {
 #[cw_serde]
 pub enum ExecutionEnvironment {
     Cosmwasm(CosmwasmBridge),
-    Evm(EvmBridge),
+    Evm(Encoder, EvmBridge),
 }
 
 #[cw_serde]
@@ -71,7 +82,7 @@ pub enum CosmwasmBridge {
 
 #[cw_serde]
 pub enum EvmBridge {
-    HyperlaneMailbox(Addr),
+    Hyperlane(HyperlaneConnector),
 }
 
 #[cw_serde]
@@ -97,4 +108,16 @@ pub enum PolytoneProxyState {
     Created,
     // Unexpected error occured during creation
     UnexpectedError(String),
+}
+
+#[cw_serde]
+pub struct Encoder {
+    pub broker_address: Addr,
+    pub encoder_namespace: String,
+}
+
+#[cw_serde]
+pub struct HyperlaneConnector {
+    pub mailbox: Addr,
+    pub domain_id: u64,
 }

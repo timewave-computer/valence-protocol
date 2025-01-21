@@ -52,7 +52,7 @@ pub fn add_domain(
                 }))
             }
         },
-        ExecutionEnvironment::Evm(_) => None,
+        ExecutionEnvironment::Evm(_, _) => None,
     };
 
     Ok(msg)
@@ -96,7 +96,7 @@ pub fn create_msg_for_processor(
                         callback_request,
                     ),
                 },
-                ExecutionEnvironment::Evm(_) => todo!(),
+                ExecutionEnvironment::Evm(_, _) => todo!(),
             }
         }
     }
