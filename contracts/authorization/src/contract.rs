@@ -27,6 +27,8 @@ use valence_authorization_utils::{
 use valence_bridging_utils::polytone::{
     Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg,
 };
+use valence_encoder_broker::msg::QueryMsg as EncoderBrokerQueryMsg;
+use valence_encoder_utils::msg::ProcessorMessageToEncode;
 use valence_processor_utils::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExecuteMsg};
 
 use crate::{
@@ -393,7 +395,16 @@ fn pause_processor(deps: DepsMut, domain: Domain) -> Result<Response, ContractEr
             let external_domain = EXTERNAL_DOMAINS.load(deps.storage, external_domain_id)?;
             match external_domain.execution_environment {
                 ExecutionEnvironment::Cosmwasm(_) => to_json_binary(pause_msg)?,
-                ExecutionEnvironment::Evm(_, _) => todo!(),
+                ExecutionEnvironment::Evm(encoder, _) => {
+                    // We are going to query the encoder to get the corresponding message to pause the processor
+                    deps.querier.query_wasm_smart(
+                        encoder.broker_address,
+                        &EncoderBrokerQueryMsg::Encode {
+                            encoder_version: encoder.encoder_version,
+                            message: ProcessorMessageToEncode::Pause {},
+                        },
+                    )?
+                }
             }
         }
     };
@@ -413,7 +424,16 @@ fn resume_processor(deps: DepsMut, domain: Domain) -> Result<Response, ContractE
             let external_domain = EXTERNAL_DOMAINS.load(deps.storage, external_domain_id)?;
             match external_domain.execution_environment {
                 ExecutionEnvironment::Cosmwasm(_) => to_json_binary(resume_msg)?,
-                ExecutionEnvironment::Evm(_, _) => todo!(),
+                ExecutionEnvironment::Evm(encoder, _) => {
+                    // We are going to query the encoder to get the corresponding message to resume the processor
+                    deps.querier.query_wasm_smart(
+                        encoder.broker_address,
+                        &EncoderBrokerQueryMsg::Encode {
+                            encoder_version: encoder.encoder_version,
+                            message: ProcessorMessageToEncode::Resume {},
+                        },
+                    )?
+                }
             }
         }
     };

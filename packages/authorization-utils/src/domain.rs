@@ -113,11 +113,11 @@ pub enum PolytoneProxyState {
 #[cw_serde]
 pub struct Encoder {
     pub broker_address: Addr,
-    pub encoder_namespace: String,
+    pub encoder_version: String,
 }
 
 #[cw_serde]
 pub struct HyperlaneConnector {
     pub mailbox: Addr,
-    pub domain_id: u64,
+    pub domain_id: u32,
 }

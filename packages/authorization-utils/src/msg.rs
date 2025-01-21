@@ -66,13 +66,13 @@ pub struct PolytoneNoteInfo {
 #[cw_serde]
 pub struct EncoderInfo {
     pub broker_address: String,
-    pub encoder_namespace: String,
+    pub encoder_version: String,
 }
 
 #[cw_serde]
 pub struct HyperlaneConnectorInfo {
     pub mailbox: String,
-    pub domain_id: u64,
+    pub domain_id: u32,
 }
 
 impl EncoderInfo {
@@ -83,7 +83,7 @@ impl EncoderInfo {
     pub fn to_validated_encoder(&self, api: &dyn Api) -> StdResult<Encoder> {
         Ok(Encoder {
             broker_address: self.to_addr(api)?,
-            encoder_namespace: self.encoder_namespace.clone(),
+            encoder_version: self.encoder_version.clone(),
         })
     }
 }

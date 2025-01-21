@@ -1,11 +1,16 @@
-use cosmwasm_std::{to_json_binary, Binary, CosmosMsg, DepsMut, Storage, Uint64, WasmMsg};
+use cosmwasm_std::{
+    to_json_binary, Addr, Binary, CosmosMsg, DepsMut, HexBinary, Storage, Uint64, WasmMsg,
+};
 use valence_authorization_utils::{
     authorization::{Authorization, Subroutine},
     callback::PolytoneCallbackMsg,
-    domain::{CosmwasmBridge, Domain, ExecutionEnvironment, PolytoneNote},
+    domain::{CosmwasmBridge, Domain, EvmBridge, ExecutionEnvironment, PolytoneNote},
     msg::ExternalDomainInfo,
 };
-use valence_bridging_utils::polytone::{CallbackRequest, PolytoneExecuteMsg};
+use valence_bridging_utils::{
+    hyperlane::{DispatchMsg, HyperlaneExecuteMsg},
+    polytone::{CallbackRequest, PolytoneExecuteMsg},
+};
 
 use crate::{
     error::{AuthorizationErrorReason, ContractError},
@@ -96,7 +101,14 @@ pub fn create_msg_for_processor(
                         callback_request,
                     ),
                 },
-                ExecutionEnvironment::Evm(_, _) => todo!(),
+                ExecutionEnvironment::Evm(_, evm_bridge) => match evm_bridge {
+                    EvmBridge::Hyperlane(hyperlane_connector) => create_msg_for_hyperlane(
+                        hyperlane_connector.mailbox,
+                        hyperlane_connector.domain_id,
+                        external_domain.processor,
+                        execute_msg,
+                    ),
+                },
             }
         }
     }
@@ -134,4 +146,33 @@ pub fn create_msg_for_polytone(
         })?,
         funds: vec![],
     }))
+}
+
+pub fn create_msg_for_hyperlane(
+    mailbox: Addr,
+    domain_id: u32,
+    processor: String,
+    execute_msg: Binary,
+) -> Result<CosmosMsg, ContractError> {
+    Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: mailbox.to_string(),
+        msg: to_json_binary(&HyperlaneExecuteMsg::Dispatch(DispatchMsg {
+            dest_domain: domain_id,
+            recipient_addr: format_address_for_hyperlane(processor)?,
+            msg_body: HexBinary::from(execute_msg.to_vec()),
+            hook: None,
+            metadata: None,
+        }))?,
+        funds: vec![],
+    }))
+}
+
+/// Formats an address for Hyperlane by removing the "0x" prefix and padding it to 32 bytes
+fn format_address_for_hyperlane(address: String) -> Result<HexBinary, ContractError> {
+    // Remove "0x" prefix if present
+    let address_hex = address.trim_start_matches("0x").to_string().to_lowercase();
+    // Pad to 32 bytes (64 hex characters) because mailboxes expect 32 bytes addresses with leading zeros
+    let padded_address = format!("{:0>64}", address_hex);
+    // Convert to HexBinary which is what Hyperlane expects
+    Ok(HexBinary::from_hex(&padded_address)?)
 }

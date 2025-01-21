@@ -6974,6 +6974,8 @@ dependencies = [
  "thiserror 1.0.69",
  "valence-authorization-utils",
  "valence-bridging-utils",
+ "valence-encoder-broker",
+ "valence-encoder-utils",
  "valence-library-utils",
  "valence-processor",
  "valence-processor-utils",
