@@ -29,12 +29,12 @@ use valence_bridging_utils::{
     polytone::{Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg},
 };
 use valence_encoder_broker::msg::QueryMsg as EncoderBrokerQueryMsg;
-use valence_encoder_utils::msg::ProcessorMessageToEncode;
+use valence_encoder_utils::msg::{ProcessorMessageToDecode, ProcessorMessageToEncode};
 use valence_processor_utils::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExecuteMsg};
 
 use crate::{
     authorization::Validate,
-    domain::{add_domain, create_msg_for_processor, get_domain},
+    domain::{add_domain, create_msg_for_processor, format_address_for_hyperlane, get_domain},
     error::{AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason},
     state::{
         AUTHORIZATIONS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS, FIRST_OWNERSHIP,
@@ -858,14 +858,14 @@ fn process_polytone_callback(
             // Get the polytone address
             let Some(ref polytone_address) = callback_info.bridge_callback_address else {
                 return Err(ContractError::Unauthorized(
-                    UnauthorizedReason::UnauthorizedPolytoneCallbackSender {},
+                    UnauthorizedReason::UnauthorizedCallbackSender {},
                 ));
             };
 
             // Only the polytone address can send the callback
             if info.sender != polytone_address {
                 return Err(ContractError::Unauthorized(
-                    UnauthorizedReason::UnauthorizedPolytoneCallbackSender {},
+                    UnauthorizedReason::UnauthorizedCallbackSender {},
                 ));
             }
 
@@ -968,7 +968,7 @@ fn process_polytone_callback(
             // Only Polytone Note is allowed to send this callback
             if info.sender != external_domain.get_connector_address() {
                 return Err(ContractError::Unauthorized(
-                    UnauthorizedReason::UnauthorizedPolytoneCallbackSender {},
+                    UnauthorizedReason::UnauthorizedCallbackSender {},
                 ));
             }
 
@@ -1011,12 +1011,73 @@ fn process_polytone_callback(
 }
 
 fn process_hyperlane_callback(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    _handle_msg: HandleMsg,
+    handle_msg: HandleMsg,
 ) -> Result<Response, ContractError> {
-    todo!()
+    // We need to check that the callback comes from a registered processor address in the external domains and that the domain ID matches
+    // and obtain the encoder to decode the callback
+    let encoder = EXTERNAL_DOMAINS
+        .range(deps.storage, None, None, Order::Ascending)
+        .filter_map(Result::ok)
+        .find_map(|(_, external_domain)| {
+            // First check the execution environment
+            match &external_domain.execution_environment {
+                // It must be an EVM connected with Hyperlane execution environment
+                ExecutionEnvironment::Evm(encoder, EvmBridge::Hyperlane(connector)) => {
+                    // We must both check the domain ID and the processor address
+                    // The domain ID because anyone could send a message from that domain and relay it
+                    // The processor address because we want to make sure that the callback is coming from the processor
+                    // Since there is a possible remote edge case for different domain IDs to have the same processor address we must check both
+                    if connector.domain_id != handle_msg.origin {
+                        return None;
+                    }
+
+                    match format_address_for_hyperlane(external_domain.processor.clone()) {
+                        Ok(formatted_address) => {
+                            if formatted_address == handle_msg.sender {
+                                Some(encoder.clone())
+                            } else {
+                                None
+                            }
+                        }
+                        Err(_) => None,
+                    }
+                }
+                // Return None for non-EVM/Hyperlane execution environments
+                _ => None,
+            }
+        })
+        .ok_or(ContractError::Unauthorized(
+            UnauthorizedReason::UnauthorizedCallbackSender {},
+        ))?;
+
+    // Now that we know for sure its an authorized and valid callback, we need to decode it and update the status
+    let wrapped_callback: Binary = deps.querier.query_wasm_smart(
+        encoder.broker_address,
+        &EncoderBrokerQueryMsg::Decode {
+            encoder_version: encoder.encoder_version,
+            message: ProcessorMessageToDecode::HyperlaneCallback {
+                callback: handle_msg.body,
+            },
+        },
+    )?;
+
+    // Deserialize the callback to obtain the execution ID and the result
+    let InternalAuthorizationMsg::ProcessorCallback {
+        execution_id,
+        execution_result,
+    } = from_json(&wrapped_callback)?;
+
+    // Update the information
+    let mut callback_info = PROCESSOR_CALLBACKS.load(deps.storage, execution_id)?;
+    callback_info.execution_result = execution_result;
+    PROCESSOR_CALLBACKS.save(deps.storage, execution_id, &callback_info)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "process_hyperlane_callback")
+        .add_attribute("execution_id", execution_id.to_string()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

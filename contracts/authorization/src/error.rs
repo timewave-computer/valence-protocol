@@ -93,8 +93,8 @@ pub enum UnauthorizedReason {
     #[error("The polytone callback is not for a message initiated by the authorization contract")]
     InvalidPolytoneCallbackInitiator {},
 
-    #[error("The polytone callback was not sent by an unauthorized address")]
-    UnauthorizedPolytoneCallbackSender {},
+    #[error("The callback was not sent by an authorized address")]
+    UnauthorizedCallbackSender {},
 
     #[error("Creation of bridge was not timed out")]
     BridgeCreationNotTimedOut {},

@@ -169,7 +169,7 @@ pub fn create_msg_for_hyperlane(
 }
 
 /// Formats an address for Hyperlane by removing the "0x" prefix and padding it to 32 bytes
-fn format_address_for_hyperlane(address: String) -> Result<HexBinary, ContractError> {
+pub fn format_address_for_hyperlane(address: String) -> Result<HexBinary, ContractError> {
     // Remove "0x" prefix if present
     let address_hex = address.trim_start_matches("0x").to_string().to_lowercase();
     // Pad to 32 bytes (64 hex characters) because mailboxes expect 32 bytes addresses with leading zeros
