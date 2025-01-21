@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response, StdError,
-    StdResult, SubMsg, Uint64, WasmMsg,
+    to_json_binary, BankMsg, Binary, Coin, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response,
+    StdError, StdResult, SubMsg, Uint128, Uint64, WasmMsg,
 };
 use neutron_sdk::{
     bindings::{
@@ -68,7 +68,7 @@ pub fn update_config(
 pub fn process_function(
     deps: ExecuteDeps,
     _env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: FunctionMsgs,
     cfg: Config,
 ) -> Result<Response<NeutronMsg>, LibraryError> {
@@ -79,12 +79,13 @@ pub fn process_function(
             update_period,
             params,
         } => register_kv_query(deps, cfg, registry_version, type_id, update_period, params),
-        FunctionMsgs::DeregisterKvQuery { query_id } => deregister_kv_query(deps, query_id),
+        FunctionMsgs::DeregisterKvQuery { query_id } => deregister_kv_query(deps, info, query_id),
     }
 }
 
 fn deregister_kv_query(
     deps: ExecuteDeps,
+    info: MessageInfo,
     query_id: u64,
 ) -> Result<Response<NeutronMsg>, LibraryError> {
     // remove the associated query entry
@@ -92,7 +93,17 @@ fn deregister_kv_query(
 
     let query_removal_msg = NeutronMsg::remove_interchain_query(query_id);
 
-    Ok(Response::new().add_message(query_removal_msg))
+    let transfer_escrow_msg = BankMsg::Send {
+        to_address: info.sender.to_string(),
+        amount: vec![Coin {
+            denom: "untrn".to_string(),
+            amount: Uint128::new(1000000),
+        }],
+    };
+
+    Ok(Response::new()
+        .add_message(query_removal_msg)
+        .add_message(transfer_escrow_msg))
 }
 
 fn register_kv_query(
@@ -103,7 +114,8 @@ fn register_kv_query(
     update_period: Uint64,
     params: BTreeMap<String, Binary>,
 ) -> Result<Response<NeutronMsg>, LibraryError> {
-    // TODO: ensure query registration fee is covered!
+    // TODO: should be querying the ICQ registration fee from `interchainqueries` mod
+    // here but the query is not exposed.
 
     let query_kv_key: KVKey = deps.querier.query_wasm_smart(
         cfg.querier_config.broker_addr.to_string(),

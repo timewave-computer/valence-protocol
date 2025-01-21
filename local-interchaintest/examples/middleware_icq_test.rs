@@ -1,4 +1,4 @@
-use cosmwasm_std::{to_json_binary, Binary, Uint64};
+use cosmwasm_std::{to_json_binary, Binary, Uint128, Uint64};
 use local_interchaintest::utils::{
     base_account::approve_library,
     icq::{generate_icq_relayer_config, start_icq_relayer},
@@ -281,20 +281,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("deregistering the kv query #{registered_query_id}");
 
-    let ic_querier_token_balances = bank::get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        &icq_test_lib.address.to_string(),
-    );
-    info!("ic_querier_token_balances: {:?}", ic_querier_token_balances);
-    let admin_token_balances = bank::get_balance(
+    let pre_admin_token_balances = bank::get_balance(
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
         NEUTRON_CHAIN_ADMIN_ADDR,
     );
-    info!("admin_token_balances: {:?}", admin_token_balances);
+    info!("pre_admin_token_balances: {:?}", pre_admin_token_balances);
 
     let deregistration_response = deregister_kvq(
         &test_ctx,
@@ -309,20 +302,34 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     std::thread::sleep(Duration::from_secs(2));
 
-    let ic_querier_token_balances = bank::get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        &icq_test_lib.address.to_string(),
-    );
-    info!("ic_querier_token_balances: {:?}", ic_querier_token_balances);
-    let admin_token_balances = bank::get_balance(
+    let post_admin_token_balances = bank::get_balance(
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
         NEUTRON_CHAIN_ADMIN_ADDR,
     );
-    info!("admin_token_balances: {:?}", admin_token_balances);
+    info!("post_admin_token_balances: {:?}", post_admin_token_balances);
+
+    let pre_deregistration_ntrn_bal = pre_admin_token_balances
+        .iter()
+        .find(|b| b.denom == NEUTRON_CHAIN_DENOM)
+        .unwrap()
+        .amount;
+    let post_deregistration_ntrn_bal = post_admin_token_balances
+        .iter()
+        .find(|b| b.denom == NEUTRON_CHAIN_DENOM)
+        .unwrap()
+        .amount;
+
+    // assert that the admin was credited with icq registration
+    // escrow refund
+    assert_eq!(
+        post_deregistration_ntrn_bal
+            .checked_sub(pre_deregistration_ntrn_bal)
+            .unwrap()
+            .u128(),
+        1000000
+    );
 
     Ok(())
 }
