@@ -76,12 +76,14 @@ pub fn process_function(
 }
 
 fn deregister_kv_query(
-    _deps: ExecuteDeps,
+    deps: ExecuteDeps,
     info: MessageInfo,
     query_id: u64,
 ) -> Result<Response<NeutronMsg>, LibraryError> {
     // remove the associated query entry
-    // TODO: update with lib config updates
+    let mut config: Config = valence_library_base::load_config(deps.storage)?;
+    config.registered_queries.remove(&query_id);
+    valence_library_base::save_config(deps.storage, &config)?;
 
     let query_removal_msg = NeutronMsg::remove_interchain_query(query_id);
 
@@ -226,7 +228,7 @@ fn handle_sudo_kv_query_result(
         contract_addr: cfg.storage_acc_addr.to_string(),
         msg: to_json_binary(
             &valence_storage_account::msg::ExecuteMsg::StoreValenceType {
-                key: "test_result".to_string(),
+                key: target_query_identifier.to_string(),
                 variant: valence_canonical_response.clone(),
             },
         )?,

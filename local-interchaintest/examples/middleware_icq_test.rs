@@ -267,7 +267,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let storage_account_value = query_storage_account(
         &test_ctx,
         storage_acc_contract.address,
-        "test_result".to_string(),
+        "gamm_pool".to_string(),
     )?;
 
     info!("storage account value: {:?}", storage_account_value);
