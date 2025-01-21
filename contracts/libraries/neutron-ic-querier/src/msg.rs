@@ -22,16 +22,12 @@ pub enum FunctionMsgs {
 #[cw_ownable_query]
 #[cw_serde]
 #[derive(QueryResponses)]
-pub enum QueryMsg {
-    #[returns(Vec<(u64, String)>)]
-    RegisteredQueries {},
-}
+pub enum QueryMsg {}
 
 #[cw_serde]
 pub struct QuerierConfig {
     pub broker_addr: String,
     pub connection_id: String,
-    // TODO: add known query configurations
 }
 
 #[cw_serde]
@@ -45,7 +41,7 @@ pub struct LibraryConfig {
 #[cw_serde]
 pub struct QueryDefinition {
     pub registry_version: Option<String>,
-    pub type_id: String,
+    pub type_url: String,
     pub update_period: Uint64,
     pub params: BTreeMap<String, Binary>,
 }
@@ -81,6 +77,7 @@ pub struct Config {
     pub storage_acc_addr: Addr,
     pub querier_config: QuerierConfig,
     pub query_definitions: BTreeMap<String, QueryDefinition>,
+    pub registered_queries: BTreeMap<u64, String>,
 }
 
 impl LibraryConfigValidation<Config> for LibraryConfig {
@@ -97,6 +94,7 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
             storage_acc_addr,
             querier_config,
             query_definitions,
+            registered_queries: BTreeMap::new(),
         })
     }
 }

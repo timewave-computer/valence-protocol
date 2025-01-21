@@ -1,7 +1,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, BankMsg, Binary, Coin, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response,
+    to_json_binary, BankMsg, Binary, Coin, Deps, DepsMut, Env, MessageInfo, Reply, Response,
     StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use neutron_sdk::{
@@ -22,10 +22,7 @@ use valence_middleware_utils::type_registry::types::{
     NativeTypeWrapper, RegistryQueryMsg, ValenceType,
 };
 
-use crate::{
-    msg::{Config, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, QueryMsg},
-    state::{PendingQueryIdConfig, ASSOCIATED_QUERY_IDS},
-};
+use crate::msg::{Config, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, QueryMsg};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -79,12 +76,12 @@ pub fn process_function(
 }
 
 fn deregister_kv_query(
-    deps: ExecuteDeps,
+    _deps: ExecuteDeps,
     info: MessageInfo,
     query_id: u64,
 ) -> Result<Response<NeutronMsg>, LibraryError> {
     // remove the associated query entry
-    ASSOCIATED_QUERY_IDS.remove(deps.storage, query_id);
+    // TODO: update with lib config updates
 
     let query_removal_msg = NeutronMsg::remove_interchain_query(query_id);
 
@@ -108,7 +105,6 @@ fn register_kv_query(
 ) -> Result<Response<NeutronMsg>, LibraryError> {
     // TODO: should be querying the ICQ registration fee from `interchainqueries` mod
     // here but the query is not exposed.
-
     let query_definition = cfg
         .query_definitions
         .get(&target_query)
@@ -121,7 +117,7 @@ fn register_kv_query(
         &valence_middleware_broker::msg::QueryMsg {
             registry_version: query_definition.registry_version.clone(),
             query: RegistryQueryMsg::KVKey {
-                type_id: query_definition.type_id.to_string(),
+                type_id: query_definition.type_url.to_string(),
                 params: query_definition.params.clone(),
             },
         },
@@ -135,19 +131,23 @@ fn register_kv_query(
         update_period: query_definition.update_period.u64(),
     };
 
-    // here the key is set to the resp.reply_id just to get to the reply handler.
-    // it will get overriden by the actual query id in the reply handler.
-    let pending_query_config = PendingQueryIdConfig {
-        broker_addr: cfg.querier_config.broker_addr.to_string(),
-        type_url: query_definition.type_id.to_string(),
-        registry_version: query_definition.registry_version.clone(),
-        storage_acc: cfg.storage_acc_addr,
-    };
+    // we load the current library config to get the nonce for submsg
+    // reply processing
+    let mut config: Config = valence_library_base::load_config(deps.storage)?;
 
-    ASSOCIATED_QUERY_IDS.save(deps.storage, 314, &pending_query_config)?;
+    // get the nonce of the query to be registered to serve as a temporary identifier
+    // TODO: revisit this later to see if this can go wrong in a real-world scenario
+    // where assumed nonce may override an existing query?
+    let nonce = config.registered_queries.len() as u64;
+    // push the target query identifier to the registered queries list,
+    // advancing the nonce for further queries
+    config.registered_queries.insert(nonce, target_query);
+
+    // save the config
+    valence_library_base::save_config(deps.storage, &config)?;
 
     // fire registration in a submsg to get the registered query id back
-    let submsg = SubMsg::reply_on_success(kv_registration_msg, 314);
+    let submsg = SubMsg::reply_on_success(kv_registration_msg, nonce);
 
     Ok(Response::default().add_submessage(submsg))
 }
@@ -170,13 +170,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 valence_library_utils::raw_config::query_raw_library_config(deps.storage)?;
             to_json_binary(&raw_config)
         }
-        QueryMsg::RegisteredQueries {} => {
-            let mut resp = vec![];
-            for entry in ASSOCIATED_QUERY_IDS.range(deps.storage, None, None, Order::Ascending) {
-                resp.push(entry?);
-            }
-            to_json_binary(&resp)
-        }
     }
 }
 
@@ -195,32 +188,42 @@ fn handle_sudo_kv_query_result(
     let registered_query_result = get_raw_interchain_query_result(deps.as_ref(), query_id)
         .map_err(|_| StdError::generic_err("failed to get the raw icq result"))?;
 
-    let pending_query_config = ASSOCIATED_QUERY_IDS.load(deps.storage, query_id)?;
+    let cfg: Config = valence_library_base::load_config(deps.storage)?;
+
+    let target_query_identifier = cfg
+        .registered_queries
+        .get(&query_id)
+        .ok_or_else(|| StdError::generic_err("no active query found for the given query id"))?;
+
+    let target_query_definition = cfg
+        .query_definitions
+        .get(&target_query_identifier.to_string())
+        .ok_or_else(|| StdError::generic_err("no query definition found for the given query id"))?;
 
     let proto_reconstruction_response: NativeTypeWrapper = deps.querier.query_wasm_smart(
-        pending_query_config.broker_addr.to_string(),
+        cfg.querier_config.broker_addr.to_string(),
         &valence_middleware_broker::msg::QueryMsg {
-            registry_version: pending_query_config.registry_version.clone(),
+            registry_version: target_query_definition.registry_version.clone(),
             query: RegistryQueryMsg::ReconstructProto {
-                type_id: pending_query_config.type_url.to_string(),
+                type_id: target_query_definition.type_url.to_string(),
                 icq_result: registered_query_result.result,
             },
         },
     )?;
 
     let valence_canonical_response: ValenceType = deps.querier.query_wasm_smart(
-        pending_query_config.broker_addr,
+        cfg.querier_config.broker_addr.to_string(),
         &valence_middleware_broker::msg::QueryMsg {
-            registry_version: pending_query_config.registry_version,
+            registry_version: target_query_definition.registry_version.clone(),
             query: RegistryQueryMsg::ToCanonical {
-                type_url: pending_query_config.type_url,
+                type_url: target_query_definition.type_url.to_string(),
                 binary: proto_reconstruction_response.binary,
             },
         },
     )?;
 
     let storage_acc_write_msg = WasmMsg::Execute {
-        contract_addr: pending_query_config.storage_acc.to_string(),
+        contract_addr: cfg.storage_acc_addr.to_string(),
         msg: to_json_binary(
             &valence_storage_account::msg::ExecuteMsg::StoreValenceType {
                 key: "test_result".to_string(),
@@ -253,13 +256,24 @@ fn try_associate_registered_query_id(deps: DepsMut, reply: Reply) -> StdResult<R
         .data
         .ok_or_else(|| StdError::generic_err("no data in reply"))?;
 
-    let resp: MsgRegisterInterchainQueryResponse =
+    let icq_registration_response: MsgRegisterInterchainQueryResponse =
         serde_json_wasm::from_slice(binary.as_slice())
             .map_err(|e| StdError::generic_err(e.to_string()))?;
 
-    let pending_query_config = ASSOCIATED_QUERY_IDS.load(deps.storage, reply.id)?;
-    ASSOCIATED_QUERY_IDS.save(deps.storage, resp.id, &pending_query_config)?;
-    ASSOCIATED_QUERY_IDS.remove(deps.storage, reply.id);
+    let mut config: Config = valence_library_base::load_config(deps.storage)?;
+
+    let target_query_identifier = config
+        .registered_queries
+        .get(&reply.id)
+        .ok_or_else(|| StdError::generic_err("no query found for the given reply id"))?;
+
+    // remap the key from the nonce to the assigned interchain query id
+    config.registered_queries.insert(
+        icq_registration_response.id,
+        target_query_identifier.to_string(),
+    );
+
+    valence_library_base::save_config(deps.storage, &config)?;
 
     Ok(Response::default())
 }

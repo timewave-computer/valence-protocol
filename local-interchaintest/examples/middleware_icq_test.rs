@@ -188,7 +188,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "gamm_pool".to_string(),
         QueryDefinition {
             registry_version: None,
-            type_id: osmosis_std::types::osmosis::gamm::v1beta1::Pool::TYPE_URL.to_string(),
+            type_url: osmosis_std::types::osmosis::gamm::v1beta1::Pool::TYPE_URL.to_string(),
             update_period: Uint64::new(5),
             params: BTreeMap::from([("pool_id".to_string(), to_json_binary(&pool_id).unwrap())]),
         },
