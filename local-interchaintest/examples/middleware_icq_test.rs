@@ -1,4 +1,4 @@
-use cosmwasm_std::{to_json_binary, Binary, Uint128, Uint64};
+use cosmwasm_std::{to_json_binary, Binary, Uint64};
 use local_interchaintest::utils::{
     base_account::approve_library,
     icq::{generate_icq_relayer_config, start_icq_relayer},
@@ -14,17 +14,12 @@ use localic_std::{
     types::TransactionResponse,
 };
 use log::info;
-use neutron_sdk::{
-    bindings::query::{NeutronQuery, PageRequest, QueryRegisteredQueriesResponse},
-    interchain_queries::v047::queries::query_balance,
-};
-use serde_json::Value;
 use std::{collections::BTreeMap, env, error::Error, time::Duration};
 use valence_library_utils::LibraryAccountType;
 use valence_middleware_utils::type_registry::types::{
     RegistryInstantiateMsg, RegistryQueryMsg, ValenceType,
 };
-use valence_neutron_ic_querier::msg::{FunctionMsgs, LibraryConfig};
+use valence_neutron_ic_querier::msg::{FunctionMsgs, LibraryConfig, QueryDefinition};
 
 use localic_utils::{
     utils::test_context::TestContext, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
@@ -189,6 +184,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         .code_id
         .unwrap();
 
+    let query_definitions = BTreeMap::from_iter(vec![(
+        "gamm_pool".to_string(),
+        QueryDefinition {
+            registry_version: None,
+            type_id: osmosis_std::types::osmosis::gamm::v1beta1::Pool::TYPE_URL.to_string(),
+            update_period: Uint64::new(5),
+            params: BTreeMap::from([("pool_id".to_string(), to_json_binary(&pool_id).unwrap())]),
+        },
+    )]);
     let icq_test_lib = contract_instantiate(
         test_ctx
             .get_request_builder()
@@ -205,6 +209,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         broker_addr: broker_contract.address.to_string(),
                         connection_id: ntrn_to_osmo_connection_id,
                     },
+                    query_definitions,
                 ),
             },
         )?,
@@ -243,9 +248,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let icq_registration_resp = register_kvq(
         &test_ctx,
         icq_test_lib.address.to_string(),
-        osmosis_std::types::osmosis::gamm::v1beta1::Pool::TYPE_URL.to_string(),
-        Uint64::new(5),
-        BTreeMap::from([("pool_id".to_string(), to_json_binary(&pool_id).unwrap())]),
+        "gamm_pool".to_string(),
     )?;
 
     info!(
@@ -397,16 +400,9 @@ pub fn set_type_registry(
 pub fn register_kvq(
     test_ctx: &TestContext,
     icq_lib: String,
-    type_id: String,
-    update_period: Uint64,
-    params: BTreeMap<String, Binary>,
+    target_query: String,
 ) -> Result<TransactionResponse, LocalError> {
-    let register_kvq_fn = FunctionMsgs::RegisterKvQuery {
-        registry_version: None,
-        type_id,
-        update_period,
-        params,
-    };
+    let register_kvq_fn = FunctionMsgs::RegisterKvQuery { target_query };
 
     let tx_execute_msg =
         valence_library_utils::msg::ExecuteMsg::<FunctionMsgs, ()>::ProcessFunction(

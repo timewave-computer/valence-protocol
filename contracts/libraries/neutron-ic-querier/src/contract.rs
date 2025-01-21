@@ -1,10 +1,8 @@
-use std::collections::BTreeMap;
-
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_json_binary, BankMsg, Binary, Coin, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response,
-    StdError, StdResult, SubMsg, Uint128, Uint64, WasmMsg,
+    StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use neutron_sdk::{
     bindings::{
@@ -73,12 +71,9 @@ pub fn process_function(
     cfg: Config,
 ) -> Result<Response<NeutronMsg>, LibraryError> {
     match msg {
-        FunctionMsgs::RegisterKvQuery {
-            registry_version,
-            type_id,
-            update_period,
-            params,
-        } => register_kv_query(deps, cfg, registry_version, type_id, update_period, params),
+        FunctionMsgs::RegisterKvQuery { target_query } => {
+            register_kv_query(deps, cfg, target_query)
+        }
         FunctionMsgs::DeregisterKvQuery { query_id } => deregister_kv_query(deps, info, query_id),
     }
 }
@@ -109,21 +104,25 @@ fn deregister_kv_query(
 fn register_kv_query(
     deps: ExecuteDeps,
     cfg: Config,
-    registry_version: Option<String>,
-    type_id: String,
-    update_period: Uint64,
-    params: BTreeMap<String, Binary>,
+    target_query: String,
 ) -> Result<Response<NeutronMsg>, LibraryError> {
     // TODO: should be querying the ICQ registration fee from `interchainqueries` mod
     // here but the query is not exposed.
 
+    let query_definition = cfg
+        .query_definitions
+        .get(&target_query)
+        .ok_or(LibraryError::Std(StdError::generic_err(
+            "no query definition for key",
+        )))?;
+
     let query_kv_key: KVKey = deps.querier.query_wasm_smart(
         cfg.querier_config.broker_addr.to_string(),
         &valence_middleware_broker::msg::QueryMsg {
-            registry_version: registry_version.clone(),
+            registry_version: query_definition.registry_version.clone(),
             query: RegistryQueryMsg::KVKey {
-                type_id: type_id.to_string(),
-                params,
+                type_id: query_definition.type_id.to_string(),
+                params: query_definition.params.clone(),
             },
         },
     )?;
@@ -133,15 +132,15 @@ fn register_kv_query(
         keys: vec![query_kv_key],
         transactions_filter: String::new(),
         connection_id: cfg.querier_config.connection_id.to_string(),
-        update_period: update_period.u64(),
+        update_period: query_definition.update_period.u64(),
     };
 
     // here the key is set to the resp.reply_id just to get to the reply handler.
     // it will get overriden by the actual query id in the reply handler.
     let pending_query_config = PendingQueryIdConfig {
         broker_addr: cfg.querier_config.broker_addr.to_string(),
-        type_url: type_id,
-        registry_version,
+        type_url: query_definition.type_id.to_string(),
+        registry_version: query_definition.registry_version.clone(),
         storage_acc: cfg.storage_acc_addr,
     };
 

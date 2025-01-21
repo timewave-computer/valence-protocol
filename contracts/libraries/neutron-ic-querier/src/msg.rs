@@ -14,15 +14,8 @@ use crate::contract::ExecuteDeps;
 
 #[cw_serde]
 pub enum FunctionMsgs {
-    RegisterKvQuery {
-        registry_version: Option<String>,
-        type_id: String,
-        update_period: Uint64,
-        params: BTreeMap<String, Binary>,
-    },
-    DeregisterKvQuery {
-        query_id: u64,
-    },
+    RegisterKvQuery { target_query: String },
+    DeregisterKvQuery { query_id: u64 },
 }
 
 #[valence_library_query]
@@ -46,27 +39,48 @@ pub struct QuerierConfig {
 pub struct LibraryConfig {
     pub storage_account: LibraryAccountType,
     pub querier_config: QuerierConfig,
-}
-
-impl LibraryConfig {
-    pub fn new(storage_acc: impl Into<LibraryAccountType>, querier_config: QuerierConfig) -> Self {
-        LibraryConfig {
-            storage_account: storage_acc.into(),
-            querier_config,
-        }
-    }
-
-    fn do_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<(Addr), LibraryError> {
-        let storage_addr = self.storage_account.to_addr(api)?;
-        Ok((storage_addr))
-    }
+    pub query_definitions: BTreeMap<String, QueryDefinition>,
 }
 
 #[cw_serde]
+pub struct QueryDefinition {
+    pub registry_version: Option<String>,
+    pub type_id: String,
+    pub update_period: Uint64,
+    pub params: BTreeMap<String, Binary>,
+}
+
+impl LibraryConfig {
+    pub fn new(
+        storage_acc: impl Into<LibraryAccountType>,
+        querier_config: QuerierConfig,
+        query_definitions: BTreeMap<String, QueryDefinition>,
+    ) -> Self {
+        LibraryConfig {
+            storage_account: storage_acc.into(),
+            querier_config,
+            query_definitions,
+        }
+    }
+
+    fn do_validate(
+        &self,
+        api: &dyn cosmwasm_std::Api,
+    ) -> Result<(Addr, QuerierConfig, BTreeMap<String, QueryDefinition>), LibraryError> {
+        let storage_addr = self.storage_account.to_addr(api)?;
+        let querier_config = self.querier_config.clone();
+        let query_definitions = self.query_definitions.clone();
+
+        Ok((storage_addr, querier_config, query_definitions))
+    }
+}
+
 /// Validated library configuration
+#[cw_serde]
 pub struct Config {
     pub storage_acc_addr: Addr,
     pub querier_config: QuerierConfig,
+    pub query_definitions: BTreeMap<String, QueryDefinition>,
 }
 
 impl LibraryConfigValidation<Config> for LibraryConfig {
@@ -77,11 +91,12 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
     }
 
     fn validate(&self, deps: Deps) -> Result<Config, LibraryError> {
-        let storage_acc_addr = self.do_validate(deps.api)?;
+        let (storage_acc_addr, querier_config, query_definitions) = self.do_validate(deps.api)?;
 
         Ok(Config {
             storage_acc_addr,
-            querier_config: self.querier_config.clone(),
+            querier_config,
+            query_definitions,
         })
     }
 }
