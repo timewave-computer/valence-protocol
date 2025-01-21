@@ -5,6 +5,7 @@ import {SafeERC20, ERC20, IERC20, ERC4626} from "@openzeppelin-contracts/token/E
 import {BaseAccount} from "../accounts/BaseAccount.sol";
 import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
 import {Ownable} from "@openzeppelin-contracts/access/Ownable.sol";
+// import {console} from "forge-std/src/console.sol";
 
 contract ValenceVault is ERC4626, Ownable {
     using Math for uint256;
@@ -14,13 +15,19 @@ contract ValenceVault is ERC4626, Ownable {
     error OnlyStrategistAllowed();
     error InvalidRate();
     error InvalidWithdrawFee();
+    error ZeroShares();
+    error ZeroAssets();
 
     event PausedStateChanged(bool paused);
     event RateUpdated(uint256 newRate);
     event WithdrawFeeUpdated(uint256 newFee);
+    event FeesUpdated(uint256 platformFee, uint256 performanceFee);
+    event MaxHistoricalRateUpdated(uint256 newRate);
 
     struct FeeConfig {
         uint256 depositFeeBps; // Deposit fee in basis points
+        uint256 platformFeeBps; // Yearly platform fee in basis points
+        uint256 performanceFeeBps; // Performance fee in basis points
     }
 
     struct VaultConfig {
@@ -37,12 +44,20 @@ contract ValenceVault is ERC4626, Ownable {
 
     // Current redemption rate in basis points (1/10000)
     uint256 public redemptionRate;
+    // Maximum historical redemption rate for performance fee calculation
+    uint256 public maxHistoricalRate;
     // Current position withdraw fee in basis points (1/10000)
     uint256 public positionWithdrawFee;
+    // Total shares at last update
+    uint256 public LastUpdateTotalShares;
+    // Last update timestamp for fee calculation
+    uint256 public lastUpdateTimestamp;
     // Fees to be collected in asset
     uint256 public feesOwedInAsset;
+
     // Constant for basis point calculations
     uint256 private constant BASIS_POINTS = 10000;
+    uint256 private constant SECONDS_PER_YEAR = 365 days;
 
     modifier onlyStrategist() {
         if (msg.sender != config.strategist) {
@@ -78,11 +93,15 @@ contract ValenceVault is ERC4626, Ownable {
     {
         config = abi.decode(_config, (VaultConfig));
         redemptionRate = BASIS_POINTS; // Initialize at 1:1
+        maxHistoricalRate = BASIS_POINTS;
+        lastUpdateTimestamp = block.timestamp;
+        LastUpdateTotalShares = 0;
     }
 
     function updateConfig(bytes memory _config) public onlyOwner {
         VaultConfig memory decodedConfig = abi.decode(_config, (VaultConfig));
 
+        // TODO: Do checks for config updates
         config = decodedConfig;
     }
 
@@ -165,27 +184,60 @@ contract ValenceVault is ERC4626, Ownable {
     }
 
     /**
-     * @notice Updates the redemption rate and position withdrawal fee
-     * @param rate New redemption rate in basis points (1/10000)
-     * @param withdrawFee New position withdrawal fee in basis points (1/10000)
-     * @dev Only callable by strategist
+     * @notice Updates the redemption rate and calculates/collects fees
+     * @param newRate New redemption rate in basis points (1/10000)
+     * @param newWithdrawFee New position withdrawal fee in basis points (1/10000)
      */
-    function update(uint256 rate, uint256 withdrawFee) external onlyStrategist {
-        // Rate should never be zero as it would make shares worthless
-        if (rate == 0) {
+    function update(
+        uint256 newRate,
+        uint256 newWithdrawFee
+    ) external onlyStrategist {
+        // Input validation
+        if (newRate == 0) {
             revert InvalidRate();
         }
-
-        // Withdraw fee cannot exceed maximum set in config
-        if (withdrawFee > config.maxWithdrawFee) {
+        if (newWithdrawFee > config.maxWithdrawFee) {
             revert InvalidWithdrawFee();
         }
 
-        redemptionRate = rate;
-        positionWithdrawFee = withdrawFee;
+        uint256 currentAssets = totalAssets();
+        uint256 currentShares = totalSupply();
 
-        emit RateUpdated(rate);
-        emit WithdrawFeeUpdated(withdrawFee);
+        if (currentShares == 0) revert ZeroShares();
+        if (currentAssets == 0) revert ZeroAssets();
+
+        // Calculate fees
+        uint256 platformFees = calculatePlatformFees(
+            newRate,
+            currentAssets,
+            currentShares
+        );
+
+        uint256 performanceFees = calculatePerformanceFees(
+            newRate,
+            currentAssets
+        );
+
+        // Update state
+        redemptionRate = newRate;
+        positionWithdrawFee = newWithdrawFee;
+        LastUpdateTotalShares = currentShares;
+        lastUpdateTimestamp = block.timestamp;
+
+        // Update max historical rate if new rate is higher
+        if (newRate > maxHistoricalRate) {
+            maxHistoricalRate = newRate;
+            emit MaxHistoricalRateUpdated(newRate);
+        }
+
+        // Update fees owed
+        if (platformFees > 0 || performanceFees > 0) {
+            feesOwedInAsset += platformFees + performanceFees;
+            emit FeesUpdated(platformFees, performanceFees);
+        }
+
+        emit RateUpdated(newRate);
+        emit WithdrawFeeUpdated(newWithdrawFee);
     }
 
     function pause(bool _pause) external onlyOwnerOrStrategist {
@@ -226,6 +278,87 @@ contract ValenceVault is ERC4626, Ownable {
         uint256 feeBps = config.fees.depositFeeBps;
         if (feeBps == 0) return 0;
         return assets.mulDiv(feeBps, BASIS_POINTS, Math.Rounding.Ceil);
+    }
+
+    /**
+     * @dev Calculates platform fees based on minimum values to prevent manipulation
+     * @param newRate New redemption rate being set
+     * @param currentAssets Current total assets in vault
+     * @param currentShares Current total shares
+     * @return platformFees Amount of platform fees to collect
+     */
+    /**
+     * @dev Calculates platform fees based on minimum values to prevent manipulation
+     * @param newRate New redemption rate being set
+     * @param currentAssets Current total assets in vault
+     * @param currentShares Current total shares
+     * @return platformFees Amount of platform fees to collect
+     */
+    function calculatePlatformFees(
+        uint256 newRate,
+        uint256 currentAssets,
+        uint256 currentShares
+    ) public view returns (uint256 platformFees) {
+        if (config.fees.platformFeeBps == 0) {
+            return 0;
+        }
+
+        // Get minimum shares between current and last update
+        uint256 sharesToUse = currentShares;
+        if (LastUpdateTotalShares < sharesToUse) {
+            sharesToUse = LastUpdateTotalShares;
+        }
+
+        // Calculate minimum assets using the lower rate
+        uint256 rateToUse = newRate > redemptionRate ? redemptionRate : newRate;
+
+        uint256 assetsToChargeFees = sharesToUse.mulDiv(
+            rateToUse,
+            BASIS_POINTS
+        );
+
+        // Cap at current total assets if lower
+        if (assetsToChargeFees > currentAssets) {
+            assetsToChargeFees = currentAssets;
+        }
+
+        // Calculate time-weighted platform fee
+        uint256 timeElapsed = block.timestamp - lastUpdateTimestamp;
+
+        platformFees = assetsToChargeFees
+            .mulDiv(config.fees.platformFeeBps, BASIS_POINTS)
+            .mulDiv(timeElapsed, SECONDS_PER_YEAR);
+
+        return platformFees;
+    }
+
+    /**
+     * @dev Calculates performance fees based on yield above maxHistoricalRate
+     * @param newRate New redemption rate being set
+     * @param currentAssets Current total assets in vault
+     * @return performanceFees Amount of performance fees to collect
+     */
+    function calculatePerformanceFees(
+        uint256 newRate,
+        uint256 currentAssets
+    ) public view returns (uint256 performanceFees) {
+        if (
+            config.fees.performanceFeeBps == 0 || newRate <= maxHistoricalRate
+        ) {
+            return 0;
+        }
+
+        // Calculate yield as the increase in value since max historical rate
+        uint256 yield = currentAssets.mulDiv(
+            newRate - maxHistoricalRate,
+            BASIS_POINTS
+        );
+
+        // Take fee only from the new yield
+        performanceFees = yield.mulDiv(
+            config.fees.performanceFeeBps,
+            BASIS_POINTS
+        );
     }
 
     function _deposit(

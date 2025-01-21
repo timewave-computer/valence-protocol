@@ -6,8 +6,11 @@ import {ERC4626, ValenceVault} from "../../src/libraries/ValenceVault.sol";
 import {BaseAccount} from "../../src/accounts/BaseAccount.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {Ownable} from "@openzeppelin-contracts/access/Ownable.sol";
+import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
 
 contract VaultTest is Test {
+    using Math for uint256;
+
     ValenceVault vault;
     BaseAccount depositAccount;
     BaseAccount withdrawAccount;
@@ -16,6 +19,8 @@ contract VaultTest is Test {
     address owner = address(1);
     address strategist = address(3);
     address user = address(4);
+
+    uint256 private constant BASIS_POINTS = 10000;
 
     // Events to test
     event Transfer(address indexed from, address indexed to, uint256 value);
@@ -27,7 +32,16 @@ contract VaultTest is Test {
     );
 
     // Fee of 500 basis points (5%)
-    uint256 constant FEE_BPS = 500;
+    uint256 constant DEPOSIT_FEE_BPS = 500;
+
+    function defaultFees() public pure returns (ValenceVault.FeeConfig memory) {
+        return
+            ValenceVault.FeeConfig({
+                depositFeeBps: 0,
+                platformFeeBps: 0,
+                performanceFeeBps: 0
+            });
+    }
 
     function setUp() public {
         vm.warp(5000);
@@ -38,11 +52,6 @@ contract VaultTest is Test {
         depositAccount = new BaseAccount(owner, new address[](0));
         withdrawAccount = new BaseAccount(owner, new address[](0));
 
-        // Setup fee configuration
-        ValenceVault.FeeConfig memory feeConfig = ValenceVault.FeeConfig({
-            depositFeeBps: 0
-        });
-
         // Setup vault configuration
         ValenceVault.VaultConfig memory config = ValenceVault.VaultConfig({
             depositAccount: depositAccount,
@@ -50,7 +59,7 @@ contract VaultTest is Test {
             strategist: strategist,
             depositCap: 0,
             maxWithdrawFee: 2000,
-            fees: feeConfig
+            fees: defaultFees()
         });
 
         vault = new ValenceVault(
@@ -74,10 +83,16 @@ contract VaultTest is Test {
         vm.stopPrank();
     }
 
-    function setFee(uint256 fee) public {
+    function setFee(
+        uint256 depositFee,
+        uint256 platformFee,
+        uint256 performanceFee
+    ) public {
         vm.startPrank(owner);
         ValenceVault.FeeConfig memory feeConfig = ValenceVault.FeeConfig({
-            depositFeeBps: fee
+            depositFeeBps: depositFee,
+            platformFeeBps: platformFee,
+            performanceFeeBps: performanceFee
         });
 
         (
@@ -102,6 +117,14 @@ contract VaultTest is Test {
         vm.stopPrank();
     }
 
+    function testInitialState() public view {
+        assertEq(vault.redemptionRate(), BASIS_POINTS);
+        assertEq(vault.maxHistoricalRate(), BASIS_POINTS);
+        assertEq(vault.LastUpdateTotalShares(), 0);
+        assertEq(vault.positionWithdrawFee(), 0);
+        assertEq(vault.feesOwedInAsset(), 0);
+    }
+
     function testUpdateConfig() public {
         vm.startPrank(owner);
         BaseAccount newDepositAccount = new BaseAccount(
@@ -109,17 +132,13 @@ contract VaultTest is Test {
             new address[](0)
         );
 
-        ValenceVault.FeeConfig memory feeConfig = ValenceVault.FeeConfig({
-            depositFeeBps: 0
-        });
-
         ValenceVault.VaultConfig memory newConfig = ValenceVault.VaultConfig(
             newDepositAccount,
             withdrawAccount,
             strategist,
             5000,
             2000,
-            feeConfig
+            defaultFees()
         );
 
         vault.updateConfig(abi.encode(newConfig));
@@ -201,16 +220,13 @@ contract VaultTest is Test {
         vm.startPrank(owner);
 
         // Set a deposit cap
-        ValenceVault.FeeConfig memory feeConfig = ValenceVault.FeeConfig({
-            depositFeeBps: 0
-        });
         ValenceVault.VaultConfig memory newConfig = ValenceVault.VaultConfig(
             depositAccount,
             withdrawAccount,
             strategist,
             5000, // 5000 token cap
             2000,
-            feeConfig
+            defaultFees()
         );
         vault.updateConfig(abi.encode(newConfig));
 
@@ -249,16 +265,14 @@ contract VaultTest is Test {
 
     function testMintCap() public {
         vm.startPrank(owner);
-        ValenceVault.FeeConfig memory feeConfig = ValenceVault.FeeConfig({
-            depositFeeBps: 0
-        });
+
         ValenceVault.VaultConfig memory newConfig = ValenceVault.VaultConfig(
             depositAccount,
             withdrawAccount,
             strategist,
             5000, // 5000 token cap
             2000,
-            feeConfig
+            defaultFees()
         );
         vault.updateConfig(abi.encode(newConfig));
         vm.stopPrank();
@@ -294,11 +308,11 @@ contract VaultTest is Test {
     }
 
     function testFeeCalculationHelpers() public {
-        setFee(FEE_BPS);
+        setFee(DEPOSIT_FEE_BPS, 0, 0);
         uint256 depositAmount = 1000 ether;
 
         // Test deposit fee calculation
-        uint256 expectedFee = (depositAmount * FEE_BPS) / 10000;
+        uint256 expectedFee = (depositAmount * DEPOSIT_FEE_BPS) / 10000;
         uint256 calculatedFee = vault.calculateDepositFee(depositAmount);
         assertEq(
             calculatedFee,
@@ -322,7 +336,7 @@ contract VaultTest is Test {
     }
 
     function testDepositAndMintEquivalence() public {
-        setFee(FEE_BPS);
+        setFee(DEPOSIT_FEE_BPS, 0, 0);
         uint256 depositAmount = 1000;
 
         // Test deposit flow
@@ -364,7 +378,7 @@ contract VaultTest is Test {
     }
 
     function testFeesWithDifferentAmounts() public {
-        setFee(FEE_BPS);
+        setFee(DEPOSIT_FEE_BPS, 0, 0);
         uint256[] memory amounts = new uint256[](3);
         amounts[0] = 1000; // Small amount
         amounts[1] = 100_000; // Medium amount
@@ -519,12 +533,180 @@ contract VaultTest is Test {
     function testUpdateEvents() public {
         vm.startPrank(strategist);
 
+vm.expectEmit(true, true, true, true);
+        emit ValenceVault.MaxHistoricalRateUpdated(11000);
         vm.expectEmit(true, true, true, true);
         emit ValenceVault.RateUpdated(11000);
         vm.expectEmit(true, true, true, true);
         emit ValenceVault.WithdrawFeeUpdated(500);
+        
 
         vault.update(11000, 500);
+        vm.stopPrank();
+    }
+
+    function testPlatformFees() public {
+        // Setup platform fee of 10% yearly
+        setFee(0, 1000, 0);
+
+        // Initial deposit
+        vm.startPrank(user);
+        uint256 depositAmount = 100_000;
+        vault.deposit(depositAmount, user);
+        vm.stopPrank();
+
+        // Skip 6 months
+        vm.warp(block.timestamp + 182.5 days);
+
+        vm.startPrank(strategist);
+        // Update with same rate to trigger platform fee collection
+        uint256 initialFeesOwed = vault.feesOwedInAsset();
+        vault.update(BASIS_POINTS, 0);
+
+        // Expected fee should be ~5% of assets (half of yearly 10%)
+        uint256 expectedFee = depositAmount.mulDiv(1000, BASIS_POINTS, Math.Rounding.Floor).mulDiv(182.5 days, 365 days, Math.Rounding.Floor);
+        uint256 actualFee = vault.feesOwedInAsset() - initialFeesOwed;
+        
+        // Allow 0.1% tolerance due to rounding
+        assertApproxEqRel(actualFee, expectedFee, 1e15);
+        vm.stopPrank();
+    }
+
+    function testPlatformFeesMultipleUpdates() public {
+        setFee(0, 1000, 0); // 10% yearly platform fee
+
+        // Initial deposit
+        vm.startPrank(user);
+        vault.deposit(100_000, user);
+        vm.stopPrank();
+
+        vm.startPrank(strategist);
+
+        // First update after 3 months
+        vm.warp(block.timestamp + 91.25 days);
+        uint256 initialFeesOwed = vault.feesOwedInAsset();
+        vault.update(BASIS_POINTS, 0);
+        uint256 firstFees = vault.feesOwedInAsset() - initialFeesOwed;
+
+        // Second update after another 3 months
+        vm.warp(block.timestamp + 91.25 days);
+        uint256 secondFeesStart = vault.feesOwedInAsset();
+        vault.update(BASIS_POINTS, 0);
+        uint256 secondFees = vault.feesOwedInAsset() - secondFeesStart;
+
+        // Both fee amounts should be approximately equal (same time period)
+        assertApproxEqRel(firstFees, secondFees, 1e15);
+        vm.stopPrank();
+    }
+
+    function testPerformanceFees() public {
+        setFee(0, 0, 2000); // 20% performance fee
+
+        // Initial deposit
+        vm.startPrank(user);
+        vault.deposit(100_000, user);
+        vm.stopPrank();
+
+        vm.startPrank(strategist);
+        // Update with 50% increase
+        uint256 newRate = BASIS_POINTS * 15 / 10; // 1.5x
+        uint256 initialFeesOwed = vault.feesOwedInAsset();
+        vault.update(newRate, 0);
+
+        // Calculate expected performance fee
+        uint256 totalAssets = vault.totalAssets();
+        uint256 yield = totalAssets.mulDiv(newRate - BASIS_POINTS, BASIS_POINTS, Math.Rounding.Floor);
+        uint256 expectedFee = yield.mulDiv(2000, BASIS_POINTS, Math.Rounding.Floor);
+        uint256 actualFee = vault.feesOwedInAsset() - initialFeesOwed;
+        
+        assertEq(actualFee, expectedFee);
+        assertEq(vault.maxHistoricalRate(), newRate);
+        vm.stopPrank();
+    }
+
+    function testNoPerformanceFeeBelowHighWater() public {
+        setFee(0, 0, 2000); // 20% performance fee
+
+        vm.startPrank(user);
+        vault.deposit(100_000, user);
+        vm.stopPrank();
+
+        vm.startPrank(strategist);
+        // First update with 50% increase
+        uint256 highRate = BASIS_POINTS * 15 / 10; // 1.5x
+        vault.update(highRate, 0);
+        uint256 feesAfterIncrease = vault.feesOwedInAsset();
+
+        // Second update with lower rate
+        uint256 lowerRate = BASIS_POINTS * 13 / 10; // 1.3x
+        vault.update(lowerRate, 0);
+        
+        // No new performance fees should be collected
+        assertEq(vault.feesOwedInAsset(), feesAfterIncrease);
+        // High water mark should remain at highest point
+        assertEq(vault.maxHistoricalRate(), highRate);
+        vm.stopPrank();
+    }
+
+    function testCombinedPlatformAndPerformanceFees() public {
+        setFee(0, 1000, 2000); // 10% platform, 20% performance
+
+        // Initial deposit
+        vm.startPrank(user);
+        vault.deposit(100_000, user);
+        vm.stopPrank();
+
+        // Skip 6 months and update with 50% increase
+        vm.warp(block.timestamp + 182.5 days);
+
+        vm.startPrank(strategist);
+        uint256 newRate = BASIS_POINTS * 15 / 10; // 1.5x
+        uint256 initialFeesOwed = vault.feesOwedInAsset();
+        vault.update(newRate, 0);
+
+        uint256 totalAssets = vault.totalAssets();
+        
+        // Calculate expected platform fee (half of 10% yearly)
+        uint256 expectedPlatformFee = totalAssets
+            .mulDiv(1000, BASIS_POINTS, Math.Rounding.Floor)
+            .mulDiv(182.5 days, 365 days, Math.Rounding.Floor);
+
+        // Calculate expected performance fee (20% of 50% gain)
+        uint256 yield = totalAssets.mulDiv(newRate - BASIS_POINTS, BASIS_POINTS, Math.Rounding.Floor);
+        uint256 expectedPerformanceFee = yield.mulDiv(2000, BASIS_POINTS, Math.Rounding.Floor);
+
+        uint256 totalFees = vault.feesOwedInAsset() - initialFeesOwed;
+        assertApproxEqRel(totalFees, expectedPlatformFee + expectedPerformanceFee, 1e15);
+        vm.stopPrank();
+    }
+
+    function testPlatformFeesWithShareSupplyChanges() public {
+        setFee(0, 1000, 0); // 10% yearly platform fee
+
+        // Initial deposit
+        vm.startPrank(user);
+        vault.deposit(100_000, user);
+        vm.stopPrank();
+
+        // Skip time and update to record initial shares
+        vm.warp(block.timestamp + 30 days);
+        vm.prank(strategist);
+        vault.update(BASIS_POINTS, 0);
+        uint256 firstFees = vault.feesOwedInAsset();
+
+        // Double the share supply
+        vm.startPrank(user);
+        vault.deposit(100_000, user);
+        vm.stopPrank();
+
+        // Skip same time and update again
+        vm.warp(block.timestamp + 30 days);
+        vm.startPrank(strategist);
+        vault.update(BASIS_POINTS, 0);
+        uint256 secondFees = vault.feesOwedInAsset() - firstFees;
+
+        // Second fee period should charge on higher share supply
+        assertGt(secondFees, firstFees);
         vm.stopPrank();
     }
 }
