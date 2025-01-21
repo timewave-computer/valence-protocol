@@ -103,6 +103,8 @@ fn register_kv_query(
     update_period: Uint64,
     params: BTreeMap<String, Binary>,
 ) -> Result<Response<NeutronMsg>, LibraryError> {
+    // TODO: ensure query registration fee is covered!
+
     let query_kv_key: KVKey = deps.querier.query_wasm_smart(
         cfg.querier_config.broker_addr.to_string(),
         &valence_middleware_broker::msg::QueryMsg {

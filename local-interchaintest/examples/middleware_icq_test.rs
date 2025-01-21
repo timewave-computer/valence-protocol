@@ -7,11 +7,18 @@ use local_interchaintest::utils::{
 };
 use localic_std::{
     errors::LocalError,
-    modules::cosmwasm::{contract_execute, contract_instantiate, contract_query},
+    modules::{
+        bank,
+        cosmwasm::{contract_execute, contract_instantiate, contract_query},
+    },
     types::TransactionResponse,
 };
 use log::info;
-use neutron_sdk::bindings::query::{NeutronQuery, PageRequest, QueryRegisteredQueriesResponse};
+use neutron_sdk::{
+    bindings::query::{NeutronQuery, PageRequest, QueryRegisteredQueriesResponse},
+    interchain_queries::v047::queries::query_balance,
+};
+use serde_json::Value;
 use std::{collections::BTreeMap, env, error::Error, time::Duration};
 use valence_library_utils::LibraryAccountType;
 use valence_middleware_utils::type_registry::types::{
@@ -232,12 +239,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
     std::thread::sleep(Duration::from_secs(2));
 
-    let registered_queries = query_icqs(
-        &mut test_ctx,
-        NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        "".to_string(),
-    )?;
-
     // fire the query registration request
     let icq_registration_resp = register_kvq(
         &test_ctx,
@@ -249,8 +250,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!(
         "icq registration response: {:?}",
-        icq_registration_resp.tx_hash.unwrap()
+        icq_registration_resp.tx_hash.clone().unwrap()
     );
+
+    std::thread::sleep(Duration::from_secs(2));
+
+    let registered_query_id =
+        extract_registered_icq_id(&mut test_ctx, icq_registration_resp.tx_hash.unwrap())?;
 
     std::thread::sleep(Duration::from_secs(10));
 
@@ -273,20 +279,86 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     std::thread::sleep(Duration::from_secs(2));
 
-    // info!("deregistering the kv query #{}", )
+    info!("deregistering the kv query #{registered_query_id}");
+
+    let ic_querier_token_balances = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &icq_test_lib.address.to_string(),
+    );
+    info!("ic_querier_token_balances: {:?}", ic_querier_token_balances);
+    let admin_token_balances = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        NEUTRON_CHAIN_ADMIN_ADDR,
+    );
+    info!("admin_token_balances: {:?}", admin_token_balances);
+
+    let deregistration_response = deregister_kvq(
+        &test_ctx,
+        icq_test_lib.address.to_string(),
+        registered_query_id,
+    )?;
+
+    info!(
+        "query deregistration tx hash: {:?}",
+        deregistration_response.tx_hash.unwrap()
+    );
+
+    std::thread::sleep(Duration::from_secs(2));
+
+    let ic_querier_token_balances = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &icq_test_lib.address.to_string(),
+    );
+    info!("ic_querier_token_balances: {:?}", ic_querier_token_balances);
+    let admin_token_balances = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        NEUTRON_CHAIN_ADMIN_ADDR,
+    );
+    info!("admin_token_balances: {:?}", admin_token_balances);
 
     Ok(())
 }
 
-pub fn query_icqs(
+pub fn extract_registered_icq_id(
     test_ctx: &mut TestContext,
-    owner: String,
-    connection_id: String,
-) -> Result<QueryRegisteredQueriesResponse, Box<dyn Error>> {
-    // TODO: return registered queries from neutron icq module
-    Ok(QueryRegisteredQueriesResponse {
-        registered_queries: vec![],
-    })
+    tx_hash: String,
+) -> Result<u64, Box<dyn Error>> {
+    let registered_query_response = test_ctx
+        .get_request_builder()
+        .get_request_builder(NEUTRON_CHAIN_NAME)
+        .query_tx_hash(&tx_hash)["events"]
+        .clone();
+
+    let query_registration_attribute = registered_query_response
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|e| match e["attributes"].clone() {
+            serde_json::Value::Array(vec) => Some(vec),
+            _ => None,
+        })
+        .flatten()
+        .find(|e| e["key"] == "query_id")
+        .unwrap();
+
+    let query_id_str = match query_registration_attribute["value"].clone() {
+        serde_json::Value::String(n) => n.to_string(),
+        _ => panic!("query_id not found in icq registration response"),
+    };
+
+    let query_id: u64 = query_id_str.parse().unwrap();
+
+    info!("registered query id: #{query_id}");
+
+    Ok(query_id)
 }
 
 pub fn set_type_registry(
@@ -380,7 +452,7 @@ pub fn deregister_kvq(
         &icq_lib,
         DEFAULT_KEY,
         &stringified_msg,
-        "--amount 1000000untrn --gas 50000000",
+        "--gas 50000000",
     )
 }
 
