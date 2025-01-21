@@ -1013,7 +1013,7 @@ fn process_polytone_callback(
 fn process_hyperlane_callback(
     deps: DepsMut,
     _env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     handle_msg: HandleMsg,
 ) -> Result<Response, ContractError> {
     // We need to check that the callback comes from a registered processor address in the external domains and that the domain ID matches
@@ -1026,9 +1026,15 @@ fn process_hyperlane_callback(
             match &external_domain.execution_environment {
                 // It must be an EVM connected with Hyperlane execution environment
                 ExecutionEnvironment::Evm(encoder, EvmBridge::Hyperlane(connector)) => {
-                    // We must both check the domain ID and the processor address
-                    // The domain ID because anyone could send a message from that domain and relay it
-                    // The processor address because we want to make sure that the callback is coming from the processor
+                    // We must:
+                    // 1) the mailbox address to verify that it comes from the correct mailbox address we registered the domain on
+                    // 2) the domain ID to verify that it comes from the correct domain
+                    // 3) the processor address to verify that it comes from the correct address from that domain
+
+                    if connector.mailbox != info.sender {
+                        return None;
+                    }
+
                     // Since there is a possible remote edge case for different domain IDs to have the same processor address we must check both
                     if connector.domain_id != handle_msg.origin {
                         return None;
