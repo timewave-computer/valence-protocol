@@ -1026,10 +1026,10 @@ fn process_hyperlane_callback(
             match &external_domain.execution_environment {
                 // It must be an EVM connected with Hyperlane execution environment
                 ExecutionEnvironment::Evm(encoder, EvmBridge::Hyperlane(connector)) => {
-                    // We must:
-                    // 1) the mailbox address to verify that it comes from the correct mailbox address we registered the domain on
-                    // 2) the domain ID to verify that it comes from the correct domain
-                    // 3) the processor address to verify that it comes from the correct address from that domain
+                    // We must do the following checks:
+                    // 1) The sender is the mailbox address registered for this domain
+                    // 2) The domain ID must match the origin of the message
+                    // 3) The sender on the External Domain must be the processor address that we registered for this domain (formatted accordingly to Hyperlane)
 
                     if connector.mailbox != info.sender {
                         return None;
