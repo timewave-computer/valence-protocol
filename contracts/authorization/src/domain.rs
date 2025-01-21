@@ -57,6 +57,7 @@ pub fn add_domain(
                 }))
             }
         },
+        // Not required for any of our EVM bridges
         ExecutionEnvironment::Evm(_, _) => None,
     };
 

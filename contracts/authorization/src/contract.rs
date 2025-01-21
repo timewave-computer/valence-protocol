@@ -24,8 +24,9 @@ use valence_authorization_utils::{
         PermissionedMsg, PermissionlessMsg, ProcessorMessage, QueryMsg,
     },
 };
-use valence_bridging_utils::polytone::{
-    Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg,
+use valence_bridging_utils::{
+    hyperlane::HandleMsg,
+    polytone::{Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg},
 };
 use valence_encoder_broker::msg::QueryMsg as EncoderBrokerQueryMsg;
 use valence_encoder_utils::msg::ProcessorMessageToEncode;
@@ -162,6 +163,9 @@ pub fn execute(
         }
         ExecuteMsg::PolytoneCallback(callback_msg) => {
             process_polytone_callback(deps, env, info, callback_msg)
+        }
+        ExecuteMsg::HyperlaneCallback(handle_msg) => {
+            process_hyperlane_callback(deps, env, info, handle_msg)
         }
     }
 }
@@ -1004,6 +1008,15 @@ fn process_polytone_callback(
     Ok(Response::new()
         .add_messages(messages)
         .add_attribute("action", "process_polytone_callback"))
+}
+
+fn process_hyperlane_callback(
+    _deps: DepsMut,
+    _env: Env,
+    _info: MessageInfo,
+    _handle_msg: HandleMsg,
+) -> Result<Response, ContractError> {
+    todo!()
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

@@ -14,3 +14,11 @@ pub struct DispatchMsg {
     pub hook: Option<String>,
     pub metadata: Option<HexBinary>,
 }
+
+#[cw_serde]
+#[derive(Default)]
+pub struct HandleMsg {
+    pub origin: u32,
+    pub sender: HexBinary,
+    pub body: HexBinary,
+}
