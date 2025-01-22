@@ -449,8 +449,8 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice Creates a withdrawal request for shares
-     * @param shares Amount of shares to withdraw
+     * @notice Creates a withdrawal request for assets
+     * @param assets Amount of assets to withdraw
      * @param receiver Address to receive the withdrawn assets
      * @param owner Address that owns the shares
      * @param maxLossBps Maximum acceptable loss in basis points
@@ -458,18 +458,83 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @return requestId The ID of the created withdrawal request
      */
     function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner,
+        uint256 maxLossBps,
+        bool allowSolverCompletion
+    ) public nonReentrant whenNotPaused returns (uint64) {
+        _validateWithdrawParams(receiver, owner, assets, maxLossBps);
+
+        // Calculate shares needed for the requested assets
+        uint256 shares = previewWithdraw(assets);
+
+        // Check if assets exceed max withdraw amount
+        uint256 maxAssets = maxWithdraw(owner);
+        if (assets > maxAssets) {
+            revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
+        }
+
+        return
+            _withdraw(
+                shares,
+                receiver,
+                owner,
+                maxLossBps,
+                allowSolverCompletion
+            );
+    }
+
+    /**
+     * @notice Creates a redemption request for shares
+     * @param shares Amount of shares to redeem
+     * @param receiver Address to receive the redeemed assets
+     * @param owner Address that owns the shares
+     * @param maxLossBps Maximum acceptable loss in basis points
+     * @param allowSolverCompletion Whether to allow solvers to complete this request
+     * @return requestId The ID of the created redemption request
+     */
+    function redeem(
         uint256 shares,
         address receiver,
         address owner,
         uint256 maxLossBps,
         bool allowSolverCompletion
     ) public nonReentrant whenNotPaused returns (uint64) {
-        // Input validation
-        if (receiver == address(0)) revert InvalidReceiver();
-        if (owner == address(0)) revert InvalidOwner();
-        if (shares == 0) revert InvalidShares();
-        if (maxLossBps > BASIS_POINTS) revert InvalidMaxLoss();
+        _validateWithdrawParams(receiver, owner, shares, maxLossBps);
 
+        // Check if shares exceed max redeem amount
+        uint256 maxShares = maxRedeem(owner);
+        if (shares > maxShares) {
+            revert ERC4626ExceededMaxRedeem(owner, shares, maxShares);
+        }
+
+        return
+            _withdraw(
+                shares,
+                receiver,
+                owner,
+                maxLossBps,
+                allowSolverCompletion
+            );
+    }
+
+    /**
+     * @dev Internal function to handle withdrawal/redemption request creation
+     * @param shares Amount of shares to withdraw
+     * @param receiver Address to receive the assets
+     * @param owner Address that owns the shares
+     * @param maxLossBps Maximum acceptable loss in basis points
+     * @param allowSolverCompletion Whether to allow solvers to complete this request
+     * @return requestId The ID of the created request
+     */
+    function _withdraw(
+        uint256 shares,
+        address receiver,
+        address owner,
+        uint256 maxLossBps,
+        bool allowSolverCompletion
+    ) internal returns (uint64) {
         // Burn shares first (CEI pattern)
         if (msg.sender != owner) {
             uint256 allowed = allowance(owner, msg.sender);
@@ -489,7 +554,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
 
         // Create withdrawal request
         uint64 requestId = _nextWithdrawRequestId++;
-        uint256 currentFirstId = userFirstRequestId[owner];
+        uint64 currentFirstId = uint64(userFirstRequestId[owner]);
 
         WithdrawRequest memory request = WithdrawRequest({
             sharesAmount: shares,
@@ -497,7 +562,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
             maxLossBps: uint64(maxLossBps),
             solverFee: 0,
             owner: owner,
-            nextId: uint64(currentFirstId),
+            nextId: currentFirstId,
             receiver: receiver
         });
 
@@ -605,5 +670,20 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
             strategistShares,
             platformShares
         );
+    }
+
+    /**
+     * @dev Internal function to validate common withdraw/redeem parameters
+     */
+    function _validateWithdrawParams(
+        address receiver,
+        address owner,
+        uint256 amount,
+        uint256 maxLossBps
+    ) internal pure {
+        if (receiver == address(0)) revert InvalidReceiver();
+        if (owner == address(0)) revert InvalidOwner();
+        if (amount == 0) revert InvalidShares();
+        if (maxLossBps > BASIS_POINTS) revert InvalidMaxLoss();
     }
 }

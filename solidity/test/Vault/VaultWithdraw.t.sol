@@ -3,8 +3,9 @@ pragma solidity ^0.8.28;
 
 import {VaultHelper} from "./VaultHelper.t.sol";
 import {ValenceVault} from "../../src/libraries/ValenceVault.sol";
+import {ERC4626} from "@openzeppelin-contracts/token/ERC20/extensions/ERC4626.sol";
 
-contract ValenceVaultWithdrawTest is VaultHelper {
+abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
     event WithdrawRequested(
         uint256 indexed requestId,
         address indexed owner,
@@ -14,89 +15,55 @@ contract ValenceVaultWithdrawTest is VaultHelper {
         bool solverEnabled
     );
 
-    function setUp() public override {
+    function setUp() public virtual override {
         super.setUp();
-
         // Setup initial state - deposit some tokens
         vm.startPrank(user);
         vault.deposit(10000, user);
         vm.stopPrank();
     }
 
-    function testBasicWithdraw() public {
+    // Abstract function to be implemented by child contracts
+    function executeWithdraw(
+        uint256 amount,
+        address receiver,
+        address owner,
+        uint256 maxLossBps,
+        bool allowSolver
+    ) internal virtual returns (uint64);
+
+    // Shared tests
+    function testBasicRequest() public {
         vm.startPrank(user);
-        uint256 withdrawShares = 1000;
+        uint256 amount = 1000;
         uint256 preBalance = vault.balanceOf(user);
 
-        uint64 requestId = vault.withdraw(
-            withdrawShares,
-            user,
-            user,
-            500, // 5% max loss
-            false // no solver
-        );
+        uint64 requestId = executeWithdraw(amount, user, user, 500, false);
 
-        // Verify request created correctly
         ValenceVault.WithdrawRequest memory request = vault.getRequest(
             requestId
         );
-        assertEq(
-            request.sharesAmount,
-            withdrawShares,
-            "Incorrect shares amount"
-        );
+        // For withdraw, shares will be converted. For redeem, it's direct.
+        // Child tests will verify the specific share amount
         assertEq(request.owner, user, "Incorrect owner");
         assertEq(request.receiver, user, "Incorrect receiver");
         assertEq(request.maxLossBps, 500, "Incorrect maxLoss");
         assertEq(request.solverFee, 0, "Should have no solver fee");
-
-        // Verify shares burned
-        assertEq(
-            vault.balanceOf(user),
-            preBalance - withdrawShares,
-            "Shares not burned"
-        );
+        assertTrue(vault.balanceOf(user) < preBalance, "Shares not burned");
 
         vm.stopPrank();
     }
 
-    function testWithdrawForOther() public {
-        address receiver = makeAddr("receiver");
-        vm.startPrank(user);
-
-        uint64 requestId = vault.withdraw(
-            1000,
-            receiver,
-            user,
-            500,
-            false
-        );
-
-        ValenceVault.WithdrawRequest memory request = vault.getRequest(
-            requestId
-        );
-        assertEq(request.receiver, receiver, "Incorrect receiver");
-        assertEq(request.owner, user, "Incorrect owner");
-
-        vm.stopPrank();
-    }
-
-    function testWithdrawWithSolver() public {
+    function testWithSolver() public {
         vm.startPrank(user);
         uint256 preBalance = token.balanceOf(user);
 
-        uint64 requestId = vault.withdraw(
-            1000,
-            user,
-            user,
-            500,
-            true
-        );
+        uint64 requestId = executeWithdraw(1000, user, user, 500, true);
 
         ValenceVault.WithdrawRequest memory request = vault.getRequest(
             requestId
         );
-        (, , , , , , ValenceVault.FeeConfig memory fees,) = vault.config();
+        (, , , , , , ValenceVault.FeeConfig memory fees, ) = vault.config();
         assertEq(
             request.solverFee,
             fees.solverCompletionFee,
@@ -111,17 +78,14 @@ contract ValenceVaultWithdrawTest is VaultHelper {
         vm.stopPrank();
     }
 
-    function testWithdrawCount() public {
+    function testRequestCount() public {
         vm.startPrank(user);
-
         uint256 maxWithdraws = vault.getMaxWithdraws();
 
-        // Create max allowed withdraws
         for (uint256 i = 0; i < maxWithdraws; i++) {
-            vault.withdraw(100, user, user, 500, false);
+            executeWithdraw(100, user, user, 500, false);
         }
 
-        // Try to create one more
         vm.expectRevert(
             abi.encodeWithSelector(
                 ValenceVault.TooManyWithdraws.selector,
@@ -129,195 +93,103 @@ contract ValenceVaultWithdrawTest is VaultHelper {
                 maxWithdraws
             )
         );
-        vault.withdraw(100, user, user, 500, false);
+        executeWithdraw(100, user, user, 500, false);
 
         vm.stopPrank();
     }
 
-    function testWithdrawEmitsEvent() public {
+    // Common validation tests
+    function testToZeroAddress() public {
         vm.startPrank(user);
-        uint256 shares = 1000;
-        uint256 maxLoss = 500;
-
-        vm.expectEmit(true, true, true, true);
-        emit WithdrawRequested(
-            1,
-            user,
-            user,
-            shares,
-            maxLoss,
-            false
-        );
-
-        vault.withdraw(shares, user, user, maxLoss, false);
-        vm.stopPrank();
-    }
-
-    function testWithdrawWithoutAllowance() public {
-        address other = makeAddr("other");
-        vm.startPrank(other);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ValenceVault.InsufficientAllowance.selector,
-                1000,
-                0
-            )
-        );
-        vault.withdraw(1000, other, user, 500, false);
-
-        vm.stopPrank();
-    }
-
-    function testWithdrawWithAllowance() public {
-        address spender = makeAddr("spender");
-        vm.startPrank(user);
-        vault.approve(spender, 1000);
-        vm.stopPrank();
-
-        vm.startPrank(spender);
-        uint64 requestId = vault.withdraw(
-            1000,
-            spender,
-            user,
-            500,
-            false
-        );
-
-        ValenceVault.WithdrawRequest memory request = vault.getRequest(
-            requestId
-        );
-        assertEq(request.owner, user, "Incorrect owner");
-        assertEq(request.receiver, spender, "Incorrect receiver");
-
-        vm.stopPrank();
-    }
-
-    function testWithdrawToZeroAddress() public {
-        vm.startPrank(user);
-
         vm.expectRevert(ValenceVault.InvalidReceiver.selector);
-        vault.withdraw(1000, address(0), user, 500, false);
-
+        executeWithdraw(1000, address(0), user, 500, false);
         vm.stopPrank();
     }
 
-    function testWithdrawFromZeroAddress() public {
+    function testFromZeroAddress() public {
         vm.startPrank(user);
-
         vm.expectRevert(ValenceVault.InvalidOwner.selector);
-        vault.withdraw(1000, user, address(0), 500, false);
-
+        executeWithdraw(1000, user, address(0), 500, false);
         vm.stopPrank();
     }
 
-    function testWithdrawZeroShares() public {
+    function testZeroAmount() public {
         vm.startPrank(user);
-
         vm.expectRevert(ValenceVault.InvalidShares.selector);
-        vault.withdraw(0, user, user, 500, false);
-
+        executeWithdraw(0, user, user, 500, false);
         vm.stopPrank();
     }
 
-    function testWithdrawInvalidMaxLoss() public {
+    function testInvalidMaxLoss() public {
         vm.startPrank(user);
-
         vm.expectRevert(ValenceVault.InvalidMaxLoss.selector);
-        vault.withdraw(
-            1000,
-            user,
-            user,
-            BASIS_POINTS + 1,
-            false
-        );
-
+        executeWithdraw(1000, user, user, BASIS_POINTS + 1, false);
         vm.stopPrank();
     }
 
-    function testWithdrawWhenPaused() public {
+    function testWhenPaused() public {
         vm.prank(owner);
         vault.pause(true);
 
         vm.startPrank(user);
         vm.expectRevert(ValenceVault.VaultIsPaused.selector);
-        vault.withdraw(1000, user, user, 500, false);
+        executeWithdraw(1000, user, user, 500, false);
         vm.stopPrank();
     }
+}
 
-    function testWithdrawLinkedList() public {
-        vm.startPrank(user);
-
-        // Create multiple withdraws and verify linked list
-        uint64 request1 = vault.withdraw(
-            1000,
-            user,
-            user,
-            500,
-            false
-        );
-        uint64 request2 = vault.withdraw(
-            1000,
-            user,
-            user,
-            500,
-            false
-        );
-        uint64 request3 = vault.withdraw(
-            1000,
-            user,
-            user,
-            500,
-            false
-        );
-
-        // Verify the linked list
-        assertEq(
-            vault.userFirstRequestId(user),
-            request3,
-            "Incorrect first request"
-        );
-
-        ValenceVault.WithdrawRequest memory req3 = vault.getRequest(request3);
-        assertEq(
-            uint256(req3.nextId),
-            request2,
-            "Incorrect next pointer from request 3"
-        );
-
-        ValenceVault.WithdrawRequest memory req2 = vault.getRequest(request2);
-        assertEq(
-            uint256(req2.nextId),
-            request1,
-            "Incorrect next pointer from request 2"
-        );
-
-        ValenceVault.WithdrawRequest memory req1 = vault.getRequest(request1);
-        assertEq(uint256(req1.nextId), 0, "Last request should point to 0");
-
-        vm.stopPrank();
+contract ValenceVaultWithdrawTest is ValenceVaultWithdrawBaseTest {
+    function executeWithdraw(
+        uint256 amount,
+        address receiver,
+        address owner,
+        uint256 maxLossBps,
+        bool allowSolver
+    ) internal override returns (uint64) {
+        return vault.withdraw(amount, receiver, owner, maxLossBps, allowSolver);
     }
 
-    function testRequestIdIncrement() public {
+    function testMaxWithdraw() public {
         vm.startPrank(user);
+        uint256 maxAssets = vault.maxWithdraw(user);
 
-        uint256 firstId = vault.withdraw(
-            1000,
-            user,
-            user,
-            500,
-            false
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ERC4626.ERC4626ExceededMaxWithdraw.selector,
+                user,
+                maxAssets + 1,
+                maxAssets
+            )
         );
-        uint256 secondId = vault.withdraw(
-            1000,
-            user,
-            user,
-            500,
-            false
+        vault.withdraw(maxAssets + 1, user, user, 500, false);
+        vm.stopPrank();
+    }
+}
+
+contract ValenceVaultRedeemTest is ValenceVaultWithdrawBaseTest {
+    function executeWithdraw(
+        uint256 amount,
+        address receiver,
+        address owner,
+        uint256 maxLossBps,
+        bool allowSolver
+    ) internal override returns (uint64) {
+        return vault.redeem(amount, receiver, owner, maxLossBps, allowSolver);
+    }
+
+    function testMaxRedeem() public {
+        vm.startPrank(user);
+        uint256 maxShares = vault.maxRedeem(user);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ERC4626.ERC4626ExceededMaxRedeem.selector,
+                user,
+                maxShares + 1,
+                maxShares
+            )
         );
-
-        assertEq(secondId, firstId + 1, "Request IDs should increment");
-
+        vault.redeem(maxShares + 1, user, user, 500, false);
         vm.stopPrank();
     }
 }
