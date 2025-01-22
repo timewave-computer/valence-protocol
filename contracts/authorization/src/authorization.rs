@@ -105,11 +105,12 @@ impl Validate for Authorization {
         functions: &[T],
         querier: QuerierWrapper,
     ) -> Result<(), ContractError> {
-        // Get domains
+        // An authorization must have at least one function
         let first = functions.first().ok_or(ContractError::Authorization(
             AuthorizationErrorReason::NoFunctions {},
         ))?;
 
+        // Get domains to perform validations
         let domain = first.domain();
         let external_domain = match domain {
             Domain::Main => None,
