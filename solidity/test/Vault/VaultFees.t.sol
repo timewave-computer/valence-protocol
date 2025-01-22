@@ -19,24 +19,14 @@ contract ValenceVaultFeeTest is VaultHelper {
         // Test deposit fee calculation
         uint256 expectedFee = (depositAmount * DEPOSIT_FEE_BPS) / BASIS_POINTS;
         uint256 calculatedFee = vault.calculateDepositFee(depositAmount);
-        assertEq(
-            calculatedFee,
-            expectedFee,
-            "Deposit fee calculation mismatch"
-        );
+        assertEq(calculatedFee, expectedFee, "Deposit fee calculation mismatch");
 
         // Test mint fee calculation
         uint256 sharesToMint = 9_500; // Should require 10_000 input for 5% fee
-        (uint256 grossAssets, uint256 fee) = vault.calculateMintFee(
-            sharesToMint
-        );
+        (uint256 grossAssets, uint256 fee) = vault.calculateMintFee(sharesToMint);
 
         assertEq(fee, expectedFee, "Mint fee calculation mismatch");
-        assertEq(
-            grossAssets,
-            depositAmount,
-            "Gross assets calculation mismatch"
-        );
+        assertEq(grossAssets, depositAmount, "Gross assets calculation mismatch");
     }
 
     function testDepositWithFee() public {
@@ -49,16 +39,8 @@ contract ValenceVaultFeeTest is VaultHelper {
 
         vault.deposit(depositAmount, user);
 
-        assertEq(
-            vault.balanceOf(user),
-            expectedShares,
-            "User should receive shares minus fee"
-        );
-        assertEq(
-            vault.feesOwedInAsset(),
-            expectedFee,
-            "Fee not collected correctly"
-        );
+        assertEq(vault.balanceOf(user), expectedShares, "User should receive shares minus fee");
+        assertEq(vault.feesOwedInAsset(), expectedFee, "Fee not collected correctly");
         vm.stopPrank();
     }
 
@@ -67,28 +49,14 @@ contract ValenceVaultFeeTest is VaultHelper {
         vm.startPrank(user);
 
         uint256 sharesToMint = 9_500;
-        (uint256 requiredAssets, uint256 expectedFee) = vault.calculateMintFee(
-            sharesToMint
-        );
+        (uint256 requiredAssets, uint256 expectedFee) = vault.calculateMintFee(sharesToMint);
 
         uint256 preBalance = token.balanceOf(user);
         vault.mint(sharesToMint, user);
 
-        assertEq(
-            vault.balanceOf(user),
-            sharesToMint,
-            "User should receive requested shares"
-        );
-        assertEq(
-            token.balanceOf(user),
-            preBalance - requiredAssets,
-            "Incorrect assets taken"
-        );
-        assertEq(
-            vault.feesOwedInAsset(),
-            expectedFee,
-            "Fee not collected correctly"
-        );
+        assertEq(vault.balanceOf(user), sharesToMint, "User should receive requested shares");
+        assertEq(token.balanceOf(user), preBalance - requiredAssets, "Incorrect assets taken");
+        assertEq(vault.feesOwedInAsset(), expectedFee, "Fee not collected correctly");
         vm.stopPrank();
     }
 
@@ -109,32 +77,24 @@ contract ValenceVaultFeeTest is VaultHelper {
 
         uint256 initialFeesOwed = vault.feesOwedInAsset();
         vault.update(BASIS_POINTS, 0);
-        uint256 firstPeriodFees = vault.balanceOf(platformFeeAccount) +
-            vault.balanceOf(strategistFeeAccount) -
-            initialFeesOwed;
+        uint256 firstPeriodFees =
+            vault.balanceOf(platformFeeAccount) + vault.balanceOf(strategistFeeAccount) - initialFeesOwed;
 
         vm.warp(vm.getBlockTimestamp() + period);
 
         vault.update(BASIS_POINTS, 0);
-        uint256 secondPeriodFees = vault.balanceOf(platformFeeAccount) +
-            vault.balanceOf(strategistFeeAccount) -
-            firstPeriodFees;
+        uint256 secondPeriodFees =
+            vault.balanceOf(platformFeeAccount) + vault.balanceOf(strategistFeeAccount) - firstPeriodFees;
 
         vm.stopPrank();
 
         // Calculate expected fee
-        uint256 expectedPeriodFee = initialDeposit
-            .mulDiv(PLATFORM_FEE_BPS, BASIS_POINTS)
-            .mulDiv(period, 365 days);
+        uint256 expectedPeriodFee = initialDeposit.mulDiv(PLATFORM_FEE_BPS, BASIS_POINTS).mulDiv(period, 365 days);
 
         // Assert first period has no fees (LastUpdateTotalShares was 0)
         assertEq(firstPeriodFees, 0, "First period should have no fees");
         // Assert second period has expected fees
-        assertEq(
-            secondPeriodFees,
-            expectedPeriodFee,
-            "Second period fees incorrect"
-        );
+        assertEq(secondPeriodFees, expectedPeriodFee, "Second period fees incorrect");
     }
 
     function testPerformanceFee() public {
@@ -152,30 +112,13 @@ contract ValenceVaultFeeTest is VaultHelper {
         vault.update(newRate, 0);
 
         // Calculate yield and fee
-        uint256 totalYield = depositAmount.mulDiv(
-            newRate - BASIS_POINTS,
-            BASIS_POINTS,
-            Math.Rounding.Floor
-        );
-        uint256 expectedFee = totalYield.mulDiv(
-            PERFORMANCE_FEE_BPS,
-            BASIS_POINTS,
-            Math.Rounding.Floor
-        );
-        uint256 actualFee = vault.balanceOf(platformFeeAccount) +
-            vault.balanceOf(strategistFeeAccount) -
-            initialFeesOwed;
+        uint256 totalYield = depositAmount.mulDiv(newRate - BASIS_POINTS, BASIS_POINTS, Math.Rounding.Floor);
+        uint256 expectedFee = totalYield.mulDiv(PERFORMANCE_FEE_BPS, BASIS_POINTS, Math.Rounding.Floor);
+        uint256 actualFee =
+            vault.balanceOf(platformFeeAccount) + vault.balanceOf(strategistFeeAccount) - initialFeesOwed;
 
-        assertEq(
-            actualFee,
-            expectedFee,
-            "Performance fee calculation incorrect"
-        );
-        assertEq(
-            vault.maxHistoricalRate(),
-            newRate,
-            "Max historical rate not updated"
-        );
+        assertEq(actualFee, expectedFee, "Performance fee calculation incorrect");
+        assertEq(vault.maxHistoricalRate(), newRate, "Max historical rate not updated");
         vm.stopPrank();
     }
 
@@ -196,16 +139,8 @@ contract ValenceVaultFeeTest is VaultHelper {
         uint256 lowerRate = (BASIS_POINTS * 13) / 10; // 1.3x
         vault.update(lowerRate, 0);
 
-        assertEq(
-            vault.feesOwedInAsset(),
-            feesAfterIncrease,
-            "No new fees should be collected below high water"
-        );
-        assertEq(
-            vault.maxHistoricalRate(),
-            highRate,
-            "High water mark should not change"
-        );
+        assertEq(vault.feesOwedInAsset(), feesAfterIncrease, "No new fees should be collected below high water");
+        assertEq(vault.maxHistoricalRate(), highRate, "High water mark should not change");
         vm.stopPrank();
     }
 
@@ -221,11 +156,7 @@ contract ValenceVaultFeeTest is VaultHelper {
         vault.deposit(depositAmount, user);
         vm.stopPrank();
 
-        assertEq(
-            vault.feesOwedInAsset(),
-            depositFee,
-            "Initial deposit fee incorrect"
-        );
+        assertEq(vault.feesOwedInAsset(), depositFee, "Initial deposit fee incorrect");
 
         // Initial update to set LastUpdateTotalShares
         vm.startPrank(strategist);
@@ -243,30 +174,20 @@ contract ValenceVaultFeeTest is VaultHelper {
         // Calculate platform fee
         uint256 assetsForPlatformFee = depositAmount - depositFee;
 
-        uint256 expectedPlatformFee = assetsForPlatformFee
-            .mulDiv(PLATFORM_FEE_BPS, BASIS_POINTS, Math.Rounding.Floor)
+        uint256 expectedPlatformFee = assetsForPlatformFee.mulDiv(PLATFORM_FEE_BPS, BASIS_POINTS, Math.Rounding.Floor)
             .mulDiv(182.5 days, 365 days, Math.Rounding.Floor);
 
         // Calculate performance fee
-        uint256 totalYield = depositAmount.mulDiv(
-            newRate - BASIS_POINTS,
-            BASIS_POINTS,
-            Math.Rounding.Floor
-        );
+        uint256 totalYield = depositAmount.mulDiv(newRate - BASIS_POINTS, BASIS_POINTS, Math.Rounding.Floor);
 
-        uint256 expectedPerformanceFee = totalYield.mulDiv(
-            PERFORMANCE_FEE_BPS,
-            BASIS_POINTS,
-            Math.Rounding.Floor
-        );
+        uint256 expectedPerformanceFee = totalYield.mulDiv(PERFORMANCE_FEE_BPS, BASIS_POINTS, Math.Rounding.Floor);
 
         vault.update(newRate, 0);
 
         // Final fee checks
-        uint256 totalNewFees = vault.balanceOf(platformFeeAccount) +
-            vault.balanceOf(strategistFeeAccount) -
-            preUpdateFees;
-            
+        uint256 totalNewFees =
+            vault.balanceOf(platformFeeAccount) + vault.balanceOf(strategistFeeAccount) - preUpdateFees;
+
         assertEq(
             totalNewFees,
             depositFee + expectedPlatformFee + expectedPerformanceFee,
