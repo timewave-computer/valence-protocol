@@ -16,7 +16,7 @@ use valence_authorization_utils::authorization::AuthorizationInfo;
 
 use crate::{
     account::InstantiateAccountData, config::ConfigError, library::LibraryConfig,
-    program_config::ProgramConfig,
+    mock_api::MockApi, program_config::ProgramConfig,
 };
 
 pub type ConnectorResult<T> = Result<T, ConnectorError>;
@@ -174,6 +174,7 @@ pub trait Connector: fmt::Debug + Send + Sync {
     // Verify the bridge account was instantiated
     async fn verify_bridge_account(&mut self, bridge_addr: String) -> ConnectorResult<()>;
 
+    fn get_api(&self) -> &MockApi;
     // ---------------------------------------------------------------------------------------
     // Below are functions that sohuld only be implemented on a specific domain
     // For example authorization contract methods should only be implemented on the main domain
