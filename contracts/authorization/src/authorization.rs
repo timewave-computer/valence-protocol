@@ -104,7 +104,7 @@ impl Validate for Authorization {
                 ));
             }
 
-            // We validate that we only add correct messages per ExecutionEnvironment
+            // We validate that we only add correct messages for that ExecutionEnvironment
             if let Some(ref domain) = external_domain {
                 match domain.execution_environment {
                     ExecutionEnvironment::Cosmwasm(_) => {
