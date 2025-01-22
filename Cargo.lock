@@ -7256,10 +7256,12 @@ dependencies = [
 name = "valence-neutron-ic-querier"
 version = "0.1.0"
 dependencies = [
+ "cosmos-sdk-proto 0.20.0",
  "cosmwasm-schema 2.2.0",
  "cosmwasm-std 2.2.0",
  "cw-ownable",
  "cw-storage-plus 2.0.0",
+ "cw-utils 2.0.0",
  "cw2 2.0.0",
  "cw20 2.0.0",
  "neutron-sdk",

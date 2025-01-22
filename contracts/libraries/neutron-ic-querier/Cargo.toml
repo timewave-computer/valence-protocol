@@ -28,6 +28,8 @@ thiserror                   = { workspace = true }
 valence-middleware-broker   = { workspace = true }
 valence-middleware-utils    = { workspace = true }
 cw2                         = { workspace = true }
+cosmos-sdk-proto            = { workspace = true }
+cw-utils                    = { workspace = true }
 
 [dev-dependencies]
 cw20 = { workspace = true }

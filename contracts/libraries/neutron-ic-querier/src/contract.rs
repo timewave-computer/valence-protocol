@@ -1,13 +1,14 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, BankMsg, Binary, Coin, Deps, DepsMut, Env, MessageInfo, Reply, Response,
-    StdError, StdResult, SubMsg, Uint128, WasmMsg,
+    ensure, to_json_binary, BankMsg, Binary, Coin, Deps, DepsMut, Env, MessageInfo, QuerierWrapper,
+    QueryRequest, Reply, Response, StdError, StdResult, SubMsg, Uint64, WasmMsg,
 };
+use cw_utils::must_pay;
 use neutron_sdk::{
     bindings::{
         msg::{MsgRegisterInterchainQueryResponse, NeutronMsg},
-        query::NeutronQuery,
+        query::{NeutronQuery, QueryRegisteredQueryResponse},
         types::KVKey,
     },
     interchain_queries::{queries::get_raw_interchain_query_result, types::QueryType},
@@ -69,7 +70,7 @@ pub fn process_function(
 ) -> Result<Response<NeutronMsg>, LibraryError> {
     match msg {
         FunctionMsgs::RegisterKvQuery { target_query } => {
-            register_kv_query(deps, cfg, target_query)
+            register_kv_query(deps, info, cfg, target_query)
         }
         FunctionMsgs::DeregisterKvQuery { query_id } => deregister_kv_query(deps, info, query_id),
     }
@@ -87,12 +88,13 @@ fn deregister_kv_query(
 
     let query_removal_msg = NeutronMsg::remove_interchain_query(query_id);
 
+    let registered_query: QueryRegisteredQueryResponse = deps
+        .querier
+        .query(&NeutronQuery::RegisteredInterchainQuery { query_id }.into())?;
+
     let transfer_escrow_msg = BankMsg::Send {
         to_address: info.sender.to_string(),
-        amount: vec![Coin {
-            denom: "untrn".to_string(),
-            amount: Uint128::new(1000000),
-        }],
+        amount: registered_query.registered_query.deposit,
     };
 
     Ok(Response::new()
@@ -102,17 +104,28 @@ fn deregister_kv_query(
 
 fn register_kv_query(
     deps: ExecuteDeps,
+    info: MessageInfo,
     cfg: Config,
     target_query: String,
 ) -> Result<Response<NeutronMsg>, LibraryError> {
-    // TODO: should be querying the ICQ registration fee from `interchainqueries` mod
-    // here but the query is not exposed.
     let query_definition = cfg
         .query_definitions
         .get(&target_query)
         .ok_or(LibraryError::Std(StdError::generic_err(
             "no query definition for key",
         )))?;
+
+    // query the icq registration fee from `interchainqueries` module
+    let icq_registration_fee = query_icq_registration_fee(deps.as_ref().into_empty().querier)?;
+
+    // get the amount of fee denom paid by the sender
+    let paid_fee_denom_amount = must_pay(&info, &icq_registration_fee.denom)
+        .map_err(|_| StdError::generic_err("sender must pay icq registration fee"))?;
+
+    ensure!(
+        paid_fee_denom_amount >= icq_registration_fee.amount,
+        StdError::generic_err("insufficient icq registration fee amount")
+    );
 
     let query_kv_key: KVKey = deps.querier.query_wasm_smart(
         cfg.querier_config.broker_addr.to_string(),
@@ -152,6 +165,33 @@ fn register_kv_query(
     let submsg = SubMsg::reply_on_success(kv_registration_msg, nonce);
 
     Ok(Response::default().add_submessage(submsg))
+}
+
+fn query_icq_registration_fee(querier: QuerierWrapper) -> Result<Coin, StdError> {
+    #[cosmwasm_schema::cw_serde]
+    struct Params {
+        pub query_submit_timeout: Uint64,
+        pub query_deposit: Vec<Coin>,
+        pub tx_query_removal_limit: Uint64,
+    }
+    #[cosmwasm_schema::cw_serde]
+    struct QueryParamsResponse {
+        pub params: Params,
+    }
+
+    let query_request = QueryRequest::Stargate {
+        path: "/neutron.interchainqueries.Query/Params".to_owned(),
+        data: Binary::from(vec![]),
+    };
+
+    let res: QueryParamsResponse = querier.query(&query_request)?;
+
+    match res.params.query_deposit.len() {
+        1 => Ok(res.params.query_deposit[0].clone()),
+        _ => Err(StdError::generic_err(
+            "query deposit response must contain one token",
+        )),
+    }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -199,7 +239,7 @@ fn handle_sudo_kv_query_result(
 
     let target_query_definition = cfg
         .query_definitions
-        .get(&target_query_identifier.to_string())
+        .get(target_query_identifier)
         .ok_or_else(|| StdError::generic_err("no query definition found for the given query id"))?;
 
     let proto_reconstruction_response: NativeTypeWrapper = deps.querier.query_wasm_smart(
