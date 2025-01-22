@@ -106,17 +106,19 @@ contract ValenceVaultFeeTest is VaultHelper {
 
         // First period
         vm.warp(vm.getBlockTimestamp() + period);
-        
+
         uint256 initialFeesOwed = vault.feesOwedInAsset();
         vault.update(BASIS_POINTS, 0);
-        uint256 firstPeriodFees = vault.feesOwedInAsset() - initialFeesOwed;
+        uint256 firstPeriodFees = vault.balanceOf(platformFeeAccount) +
+            vault.balanceOf(strategistFeeAccount) -
+            initialFeesOwed;
 
-        // Second period - make sure we warp after getting initial fees
-        uint256 secondFeesStart = vault.feesOwedInAsset();
         vm.warp(vm.getBlockTimestamp() + period);
 
         vault.update(BASIS_POINTS, 0);
-        uint256 secondPeriodFees = vault.feesOwedInAsset() - secondFeesStart;
+        uint256 secondPeriodFees = vault.balanceOf(platformFeeAccount) +
+            vault.balanceOf(strategistFeeAccount) -
+            firstPeriodFees;
 
         vm.stopPrank();
 
@@ -160,7 +162,9 @@ contract ValenceVaultFeeTest is VaultHelper {
             BASIS_POINTS,
             Math.Rounding.Floor
         );
-        uint256 actualFee = vault.feesOwedInAsset() - initialFeesOwed;
+        uint256 actualFee = vault.balanceOf(platformFeeAccount) +
+            vault.balanceOf(strategistFeeAccount) -
+            initialFeesOwed;
 
         assertEq(
             actualFee,
@@ -208,57 +212,66 @@ contract ValenceVaultFeeTest is VaultHelper {
     function testCombinedFees() public {
     setFees(DEPOSIT_FEE_BPS, PLATFORM_FEE_BPS, PERFORMANCE_FEE_BPS, 0);
 
-    uint256 depositAmount = 10_000;
+        uint256 depositAmount = 10_000;
 
-    // Test deposit fee
-    vm.startPrank(user);
-    uint256 depositFee = (depositAmount * DEPOSIT_FEE_BPS) / BASIS_POINTS;
-    vault.deposit(depositAmount, user);
-    vm.stopPrank();
+        // Test deposit fee
+        vm.startPrank(user);
+        uint256 depositFee = (depositAmount * DEPOSIT_FEE_BPS) / BASIS_POINTS;
 
-    assertEq(
-        vault.feesOwedInAsset(),
-        depositFee,
-        "Initial deposit fee incorrect"
-    );
+        vault.deposit(depositAmount, user);
+        vm.stopPrank();
 
-    // Initial update to set LastUpdateTotalShares
-    vm.startPrank(strategist);
-    vault.update(BASIS_POINTS, 0); // Update with 1:1 rate
-    vm.stopPrank();
+        assertEq(
+            vault.feesOwedInAsset(),
+            depositFee,
+            "Initial deposit fee incorrect"
+        );
 
-    // Skip 6 months and update with 50% increase
-    vm.warp(vm.getBlockTimestamp() + 182.5 days);
+        // Initial update to set LastUpdateTotalShares
+        vm.startPrank(strategist);
+        vault.update(BASIS_POINTS, 0); // Update with 1:1 rate
+        vm.stopPrank();
 
-    vm.startPrank(strategist);
-    uint256 newRate = (BASIS_POINTS * 15) / 10; // 1.5x
-    uint256 preUpdateFees = vault.feesOwedInAsset();
-    vault.update(newRate, 0);
+        // Skip 6 months and update with 50% increase
+        vm.warp(vm.getBlockTimestamp() + 182.5 days);
 
-    // Calculate expected platform fee (half of 10% yearly)
-    uint256 assetsForPlatformFee = depositAmount - depositFee;
-    uint256 expectedPlatformFee = assetsForPlatformFee
-        .mulDiv(PLATFORM_FEE_BPS, BASIS_POINTS, Math.Rounding.Floor)
-        .mulDiv(182.5 days, 365 days, Math.Rounding.Floor);
+        vm.startPrank(strategist);
+        uint256 newRate = (BASIS_POINTS * 15) / 10; // 1.5x
 
-    // Calculate expected performance fee (20% of 50% gain)
-    uint256 totalYield = assetsForPlatformFee.mulDiv(
-        newRate - BASIS_POINTS,
-        BASIS_POINTS,
-        Math.Rounding.Floor
-    );
-    uint256 expectedPerformanceFee = totalYield.mulDiv(
-        PERFORMANCE_FEE_BPS,
-        BASIS_POINTS,
-        Math.Rounding.Floor
-    );
+        uint256 preUpdateFees = vault.feesOwedInAsset();
 
-    uint256 totalNewFees = vault.feesOwedInAsset() - preUpdateFees;
-    assertEq(
-        totalNewFees,
-        expectedPlatformFee + expectedPerformanceFee,
-        "Combined fee calculation incorrect"
-    );
-    vm.stopPrank();
-}
+        // Calculate platform fee
+        uint256 assetsForPlatformFee = depositAmount - depositFee;
+
+        uint256 expectedPlatformFee = assetsForPlatformFee
+            .mulDiv(PLATFORM_FEE_BPS, BASIS_POINTS, Math.Rounding.Floor)
+            .mulDiv(182.5 days, 365 days, Math.Rounding.Floor);
+
+        // Calculate performance fee
+        uint256 totalYield = depositAmount.mulDiv(
+            newRate - BASIS_POINTS,
+            BASIS_POINTS,
+            Math.Rounding.Floor
+        );
+
+        uint256 expectedPerformanceFee = totalYield.mulDiv(
+            PERFORMANCE_FEE_BPS,
+            BASIS_POINTS,
+            Math.Rounding.Floor
+        );
+
+        vault.update(newRate, 0);
+
+        // Final fee checks
+        uint256 totalNewFees = vault.balanceOf(platformFeeAccount) +
+            vault.balanceOf(strategistFeeAccount) -
+            preUpdateFees;
+            
+        assertEq(
+            totalNewFees,
+            depositFee + expectedPlatformFee + expectedPerformanceFee,
+            "Combined fee calculation incorrect"
+        );
+        vm.stopPrank();
+    }
 }

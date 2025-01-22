@@ -30,6 +30,12 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     event WithdrawFeeUpdated(uint256 newFee);
     event FeesUpdated(uint256 platformFee, uint256 performanceFee);
     event MaxHistoricalRateUpdated(uint256 newRate);
+    event FeesDistributed(
+        address indexed strategistAccount,
+        address indexed platformAccount,
+        uint256 strategistShares,
+        uint256 platformShares
+    );
     event WithdrawRequested(
         uint256 indexed requestId,
         address indexed owner,
@@ -46,6 +52,12 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         uint256 solverCompletionFee; // Fee paid to solver for completion of withdraws
     }
 
+    struct FeeDistributionConfig {
+        address strategistAccount; // Account to receive strategist's portion of fees
+        address platformAccount; // Account to receive platform's portion of fees
+        uint256 strategistRatioBps; // Strategist's share of total fees in basis points
+    }
+
     struct VaultConfig {
         BaseAccount depositAccount;
         BaseAccount withdrawAccount;
@@ -54,6 +66,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         uint256 maxWithdrawFee; // in basis points
         uint64 withdrawLockupPeriod; // Position + vault lockup period in seconds
         FeeConfig fees;
+        FeeDistributionConfig feeDistribution;
     }
 
     // Withdraw request structure
@@ -255,6 +268,15 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
             currentAssets
         );
 
+        // Update fees owed
+        if (platformFees > 0 || performanceFees > 0) {
+            feesOwedInAsset += platformFees + performanceFees;
+            emit FeesUpdated(platformFees, performanceFees);
+        }
+
+        // Distribute accumulated fees
+        _distributeFees();
+
         // Update state
         redemptionRate = newRate;
         positionWithdrawFee = newWithdrawFee;
@@ -265,12 +287,6 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         if (newRate > maxHistoricalRate) {
             maxHistoricalRate = newRate;
             emit MaxHistoricalRateUpdated(newRate);
-        }
-
-        // Update fees owed
-        if (platformFees > 0 || performanceFees > 0) {
-            feesOwedInAsset += platformFees + performanceFees;
-            emit FeesUpdated(platformFees, performanceFees);
         }
 
         emit RateUpdated(newRate);
@@ -543,5 +559,47 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         Math.Rounding rounding
     ) internal view override returns (uint256) {
         return assets.mulDiv(BASIS_POINTS, redemptionRate, rounding);
+    }
+
+    function _distributeFees() internal {
+        if (feesOwedInAsset == 0) return;
+
+        // Calculate fee shares for strategist
+        uint256 strategistAssets = feesOwedInAsset.mulDiv(
+            config.feeDistribution.strategistRatioBps,
+            BASIS_POINTS,
+            Math.Rounding.Floor
+        );
+
+        // Calculate platform's share as the remainder
+        uint256 platformAssets = feesOwedInAsset - strategistAssets;
+
+        // Convert assets to shares
+        uint256 strategistShares = _convertToShares(
+            strategistAssets,
+            Math.Rounding.Floor
+        );
+        uint256 platformShares = _convertToShares(
+            platformAssets,
+            Math.Rounding.Floor
+        );
+
+        // Mint shares to respective accounts
+        if (strategistShares > 0) {
+            _mint(config.feeDistribution.strategistAccount, strategistShares);
+        }
+        if (platformShares > 0) {
+            _mint(config.feeDistribution.platformAccount, platformShares);
+        }
+
+        // Reset fees owed
+        feesOwedInAsset = 0;
+
+        emit FeesDistributed(
+            config.feeDistribution.strategistAccount,
+            config.feeDistribution.platformAccount,
+            strategistShares,
+            platformShares
+        );
     }
 }

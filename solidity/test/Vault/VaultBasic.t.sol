@@ -173,7 +173,8 @@ contract VaultBasicTest is VaultHelper {
             depositCap: newDepositCap,
             maxWithdrawFee: MAX_WITHDRAW_FEE,
             withdrawLockupPeriod: ONE_DAY,
-            fees: defaultFees()
+            fees: defaultFees(),
+            feeDistribution: defaultDistributionFees()
         });
 
         vault.updateConfig(abi.encode(newConfig));
@@ -186,7 +187,7 @@ contract VaultBasicTest is VaultHelper {
             uint256 updatedDepositCap,
             ,
             ,
-            ValenceVault.FeeConfig memory updatedFees
+            ValenceVault.FeeConfig memory updatedFees,
         ) = vault.config();
 
         assertEq(
@@ -215,7 +216,8 @@ contract VaultBasicTest is VaultHelper {
             depositCap: 5000,
             maxWithdrawFee: MAX_WITHDRAW_FEE,
             withdrawLockupPeriod: ONE_DAY,
-            fees: defaultFees()
+            fees: defaultFees(),
+            feeDistribution: defaultDistributionFees()
         });
 
         vm.expectRevert(
