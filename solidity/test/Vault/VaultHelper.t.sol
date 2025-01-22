@@ -28,6 +28,10 @@ abstract contract VaultHelper is Test {
     address internal strategist;
     address internal user;
 
+    // Address for fee distribution
+    address internal strategistFeeAccount;
+    address internal platformFeeAccount;
+
     // Events
     event Deposit(
         address indexed sender,
@@ -41,6 +45,8 @@ abstract contract VaultHelper is Test {
         owner = makeAddr("owner");
         strategist = makeAddr("strategist");
         user = makeAddr("user");
+        strategistFeeAccount = makeAddr("strategistFeeAccount");
+        platformFeeAccount = makeAddr("platformFeeAccount");
 
         // Setup initial block and time
         vm.warp(INITIAL_TIMESTAMP);
@@ -59,7 +65,8 @@ abstract contract VaultHelper is Test {
             strategist: strategist,
             depositCap: 0,
             maxWithdrawFee: MAX_WITHDRAW_FEE,
-            fees: defaultFees()
+            fees: defaultFees(),
+            feeDistribution: defaultDistributionFees()
         });
 
         vault = new ValenceVault(
@@ -86,14 +93,70 @@ abstract contract VaultHelper is Test {
     }
 
     function defaultFees() public pure returns (ValenceVault.FeeConfig memory) {
-        return ValenceVault.FeeConfig({
-            depositFeeBps: 0,
-            platformFeeBps: 0,
-            performanceFeeBps: 0
-        });
+        return
+            ValenceVault.FeeConfig({
+                depositFeeBps: 0,
+                platformFeeBps: 0,
+                performanceFeeBps: 0
+            });
     }
 
-    function setFees(uint256 depositFee, uint256 platformFee, uint256 performanceFee) internal {
+    function defaultDistributionFees()
+        public
+        view
+        returns (ValenceVault.FeeDistributionConfig memory)
+    {
+        return
+            ValenceVault.FeeDistributionConfig({
+                strategistAccount: strategistFeeAccount,
+                platformAccount: platformFeeAccount,
+                strategistRatioBps: 3000
+            });
+    }
+
+    function setFeeDistribution(
+        address strategistAccount,
+        address platformAccount,
+        uint256 strategistRatioBps
+    ) internal {
+        vm.startPrank(owner);
+
+        (
+            BaseAccount _depositAccount,
+            BaseAccount _withdrawAccount,
+            address _strategist,
+            uint256 _depositCap,
+            uint256 _maxWithdrawFee,
+            ValenceVault.FeeConfig memory _fees,
+
+        ) = vault.config();
+
+        ValenceVault.FeeDistributionConfig memory feeDistConfig = ValenceVault
+            .FeeDistributionConfig({
+                strategistAccount: strategistAccount,
+                platformAccount: platformAccount,
+                strategistRatioBps: strategistRatioBps
+            });
+
+        ValenceVault.VaultConfig memory newConfig = ValenceVault.VaultConfig({
+            depositAccount: _depositAccount,
+            withdrawAccount: _withdrawAccount,
+            strategist: _strategist,
+            depositCap: _depositCap,
+            maxWithdrawFee: _maxWithdrawFee,
+            fees: _fees,
+            feeDistribution: feeDistConfig
+        });
+
+        vault.updateConfig(abi.encode(newConfig));
+        vm.stopPrank();
+    }
+
+    function setFees(
+        uint256 depositFee,
+        uint256 platformFee,
+        uint256 performanceFee
+    ) internal {
         vm.startPrank(owner);
         ValenceVault.FeeConfig memory feeConfig = ValenceVault.FeeConfig({
             depositFeeBps: depositFee,
@@ -105,17 +168,20 @@ abstract contract VaultHelper is Test {
             BaseAccount _depositAccount,
             BaseAccount _withdrawAccount,
             address _strategist,
-            uint256 depositCap,
-            uint256 maxWithdrawFee,
+            uint256 _depositCap,
+            uint256 _maxWithdrawFee,
+            ,
+            ValenceVault.FeeDistributionConfig memory _feeDistribution
         ) = vault.config();
 
         ValenceVault.VaultConfig memory newConfig = ValenceVault.VaultConfig(
             _depositAccount,
             _withdrawAccount,
             _strategist,
-            depositCap,
-            maxWithdrawFee,
-            feeConfig
+            _depositCap,
+            _maxWithdrawFee,
+            feeConfig,
+            _feeDistribution
         );
 
         vault.updateConfig(abi.encode(newConfig));
@@ -129,8 +195,9 @@ abstract contract VaultHelper is Test {
             BaseAccount _withdrawAccount,
             address _strategist,
             ,
-            uint256 maxWithdrawFee,
-            ValenceVault.FeeConfig memory fees
+            uint256 _maxWithdrawFee,
+            ValenceVault.FeeConfig memory _fees,
+            ValenceVault.FeeDistributionConfig memory _feeDistribution
         ) = vault.config();
 
         ValenceVault.VaultConfig memory newConfig = ValenceVault.VaultConfig(
@@ -138,8 +205,9 @@ abstract contract VaultHelper is Test {
             _withdrawAccount,
             _strategist,
             newCap,
-            maxWithdrawFee,
-            fees
+            _maxWithdrawFee,
+            _fees,
+            _feeDistribution
         );
 
         vault.updateConfig(abi.encode(newConfig));

@@ -23,11 +23,23 @@ contract ValenceVault is ERC4626, Ownable {
     event WithdrawFeeUpdated(uint256 newFee);
     event FeesUpdated(uint256 platformFee, uint256 performanceFee);
     event MaxHistoricalRateUpdated(uint256 newRate);
+    event FeesDistributed(
+        address indexed strategistAccount,
+        address indexed platformAccount,
+        uint256 strategistShares,
+        uint256 platformShares
+    );
 
     struct FeeConfig {
         uint256 depositFeeBps; // Deposit fee in basis points
         uint256 platformFeeBps; // Yearly platform fee in basis points
         uint256 performanceFeeBps; // Performance fee in basis points
+    }
+
+    struct FeeDistributionConfig {
+        address strategistAccount; // Account to receive strategist's portion of fees
+        address platformAccount; // Account to receive platform's portion of fees
+        uint256 strategistRatioBps; // Strategist's share of total fees in basis points
     }
 
     struct VaultConfig {
@@ -37,6 +49,7 @@ contract ValenceVault is ERC4626, Ownable {
         uint256 depositCap; // 0 means no cap
         uint256 maxWithdrawFee; // in basis points
         FeeConfig fees;
+        FeeDistributionConfig feeDistribution;
     }
 
     VaultConfig public config;
@@ -218,6 +231,15 @@ contract ValenceVault is ERC4626, Ownable {
             currentAssets
         );
 
+        // Update fees owed
+        if (platformFees > 0 || performanceFees > 0) {
+            feesOwedInAsset += platformFees + performanceFees;
+            emit FeesUpdated(platformFees, performanceFees);
+        }
+
+        // Distribute accumulated fees
+        _distributeFees();
+
         // Update state
         redemptionRate = newRate;
         positionWithdrawFee = newWithdrawFee;
@@ -228,12 +250,6 @@ contract ValenceVault is ERC4626, Ownable {
         if (newRate > maxHistoricalRate) {
             maxHistoricalRate = newRate;
             emit MaxHistoricalRateUpdated(newRate);
-        }
-
-        // Update fees owed
-        if (platformFees > 0 || performanceFees > 0) {
-            feesOwedInAsset += platformFees + performanceFees;
-            emit FeesUpdated(platformFees, performanceFees);
         }
 
         emit RateUpdated(newRate);
@@ -390,5 +406,47 @@ contract ValenceVault is ERC4626, Ownable {
         Math.Rounding rounding
     ) internal view override returns (uint256) {
         return assets.mulDiv(BASIS_POINTS, redemptionRate, rounding);
+    }
+
+    function _distributeFees() internal {
+        if (feesOwedInAsset == 0) return;
+
+        // Calculate fee shares for strategist
+        uint256 strategistAssets = feesOwedInAsset.mulDiv(
+            config.feeDistribution.strategistRatioBps,
+            BASIS_POINTS,
+            Math.Rounding.Floor
+        );
+
+        // Calculate platform's share as the remainder
+        uint256 platformAssets = feesOwedInAsset - strategistAssets;
+
+        // Convert assets to shares
+        uint256 strategistShares = _convertToShares(
+            strategistAssets,
+            Math.Rounding.Floor
+        );
+        uint256 platformShares = _convertToShares(
+            platformAssets,
+            Math.Rounding.Floor
+        );
+
+        // Mint shares to respective accounts
+        if (strategistShares > 0) {
+            _mint(config.feeDistribution.strategistAccount, strategistShares);
+        }
+        if (platformShares > 0) {
+            _mint(config.feeDistribution.platformAccount, platformShares);
+        }
+
+        // Reset fees owed
+        feesOwedInAsset = 0;
+
+        emit FeesDistributed(
+            config.feeDistribution.strategistAccount,
+            config.feeDistribution.platformAccount,
+            strategistShares,
+            platformShares
+        );
     }
 }
