@@ -27,8 +27,6 @@ pub trait Validate {
         querier: QuerierWrapper,
     ) -> Result<(), ContractError>;
     fn validate_domain<T: Function>(&self, func: &T, domain: &Domain) -> Result<(), ContractError>;
-
-    // Message validation
     fn validate_message_type<T: Function>(
         &self,
         func: &T,
