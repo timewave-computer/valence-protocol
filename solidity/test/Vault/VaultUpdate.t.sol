@@ -49,7 +49,7 @@ contract VaultUpdateTest is VaultHelper {
 
     function testUpdateCollectsAndDistributesFees() public {
         // Setup fees
-        setFees(0, 1000, 2000); // 10% platform fee, 20% performance fee
+        setFees(0, 1000, 2000, 0); // 10% platform fee, 20% performance fee
 
         // Setup initial deposit and state
         uint256 depositAmount = 100000;
@@ -94,7 +94,7 @@ contract VaultUpdateTest is VaultHelper {
 
     function testFeesDistributionRatio() public {
         // Setup fees and initial deposit
-        setFees(0, 1000, 0); // 10% platform fee only
+        setFees(0, 1000, 0, 0); // 10% platform fee only
 
         vm.startPrank(user);
         uint256 depositAmount = 100000;
@@ -127,7 +127,7 @@ contract VaultUpdateTest is VaultHelper {
 
     function testUpdateDistributesDepositFees() public {
         // Setup deposit fee
-        setFees(500, 0, 0); // 5% deposit fee only
+        setFees(500, 0, 0, 0); // 5% deposit fee only
 
         // Make deposit to collect fees
         vm.startPrank(user);
@@ -154,7 +154,7 @@ contract VaultUpdateTest is VaultHelper {
 
     function testUpdateDistributesMultipleFeeTypes() public {
         // Setup multiple fee types
-        setFees(500, 1000, 2000); // 5% deposit, 10% platform, 20% performance fee
+        setFees(500, 1000, 2000, 0); // 5% deposit, 10% platform, 20% performance fee
 
         // Make deposit
         uint256 depositAmount = 100000;

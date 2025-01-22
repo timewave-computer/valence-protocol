@@ -96,7 +96,7 @@ contract ValenceVaultWithdrawTest is VaultHelper {
         ValenceVault.WithdrawRequest memory request = vault.getRequest(
             requestId
         );
-        (, , , , , , ValenceVault.FeeConfig memory fees) = vault.config();
+        (, , , , , , ValenceVault.FeeConfig memory fees,) = vault.config();
         assertEq(
             request.solverFee,
             fees.solverCompletionFee,
