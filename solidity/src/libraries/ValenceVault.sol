@@ -210,7 +210,8 @@ contract ValenceVault is ERC4626, Ownable {
         if (newRate == 0) {
             revert InvalidRate();
         }
-        if (newWithdrawFee > config.maxWithdrawFee) {
+        VaultConfig memory _config = config;
+        if (newWithdrawFee > _config.maxWithdrawFee) {
             revert InvalidWithdrawFee();
         }
 
@@ -221,15 +222,18 @@ contract ValenceVault is ERC4626, Ownable {
         if (currentAssets == 0) revert ZeroAssets();
 
         // Calculate fees
+
         uint256 platformFees = calculatePlatformFees(
             newRate,
             currentAssets,
-            currentShares
+            currentShares,
+            _config.fees.platformFeeBps
         );
 
         uint256 performanceFees = calculatePerformanceFees(
             newRate,
-            currentAssets
+            currentAssets,
+            _config.fees.performanceFeeBps
         );
 
         // Update fees owed
@@ -315,9 +319,9 @@ contract ValenceVault is ERC4626, Ownable {
     function calculatePlatformFees(
         uint256 newRate,
         uint256 currentAssets,
-        uint256 currentShares
+        uint256 currentShares,
+        uint32 platformFeeBps
     ) public view returns (uint256 platformFees) {
-        uint32 platformFeeBps = config.fees.platformFeeBps;
         if (platformFeeBps == 0) {
             return 0;
         }
@@ -359,12 +363,10 @@ contract ValenceVault is ERC4626, Ownable {
      */
     function calculatePerformanceFees(
         uint256 newRate,
-        uint256 currentAssets
+        uint256 currentAssets,
+        uint32 performanceFeeBps
     ) public view returns (uint256 performanceFees) {
-        uint32 performanceFeeBps = config.fees.performanceFeeBps;
-        if (
-            performanceFeeBps == 0 || newRate <= maxHistoricalRate
-        ) {
+        if (performanceFeeBps == 0 || newRate <= maxHistoricalRate) {
             return 0;
         }
 
@@ -375,10 +377,7 @@ contract ValenceVault is ERC4626, Ownable {
         );
 
         // Take fee only from the new yield
-        performanceFees = yield.mulDiv(
-            performanceFeeBps,
-            BASIS_POINTS
-        );
+        performanceFees = yield.mulDiv(performanceFeeBps, BASIS_POINTS);
     }
 
     function _deposit(
