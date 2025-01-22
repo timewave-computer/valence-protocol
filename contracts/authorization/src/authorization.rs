@@ -1,12 +1,12 @@
-use cosmwasm_std::{BlockInfo, MessageInfo, QuerierWrapper, Storage, Uint128};
+use cosmwasm_std::{Binary, BlockInfo, MessageInfo, QuerierWrapper, Storage, Uint128};
 use cw_utils::{must_pay, Expiration};
 use serde_json::Value;
 use valence_authorization_utils::{
     authorization::{
         Authorization, AuthorizationMode, AuthorizationState, PermissionType, Priority, Subroutine,
     },
-    authorization_message::ParamRestriction,
-    domain::Domain,
+    authorization_message::{MessageType, ParamRestriction},
+    domain::{Domain, ExecutionEnvironment},
     function::Function,
     msg::ProcessorMessage,
 };
@@ -84,24 +84,76 @@ impl Validate for Authorization {
             AuthorizationErrorReason::NoFunctions {},
         ))?;
 
-        // The domain of the functions must be registered
-        match &first_function.domain() {
-            Domain::Main => (),
-            Domain::External(domain_name) => {
-                if !EXTERNAL_DOMAINS.has(store, domain_name.clone()) {
-                    return Err(ContractError::DomainIsNotRegistered(domain_name.clone()));
-                }
-            }
-        }
+        let domain = first_function.domain();
+        // If it's for an external domain, we load it to validate the functions
+        let external_domain = match domain {
+            Domain::Main => None,
+            Domain::External(domain_name) => Some(
+                // The domain of the functions must be registered
+                EXTERNAL_DOMAINS
+                    .load(store, domain_name.clone())
+                    .map_err(|_| ContractError::DomainIsNotRegistered(domain_name.clone()))?,
+            ),
+        };
 
-        // All functions in an authorization must be executed in the same domain (for v1)
-        for each_function in functions.iter().skip(1) {
-            if !each_function.domain().eq(first_function.domain()) {
+        for func in functions {
+            // All functions in an authorization must be executed in the same domain (for v1)
+            if !func.domain().eq(domain) {
                 return Err(ContractError::Authorization(
                     AuthorizationErrorReason::DifferentFunctionDomains {},
                 ));
             }
+
+            // We validate that we only add correct messages per ExecutionEnvironment
+            if let Some(ref domain) = external_domain {
+                match domain.execution_environment {
+                    ExecutionEnvironment::Cosmwasm(_) => {
+                        if !matches!(
+                            func.message_details().message_type,
+                            MessageType::CosmwasmExecuteMsg | MessageType::CosmwasmMigrateMsg
+                        ) {
+                            return Err(ContractError::Authorization(
+                                AuthorizationErrorReason::InvalidMessageType {},
+                            ));
+                        }
+                    }
+                    ExecutionEnvironment::Evm(_, _) => {
+                        if !matches!(
+                            func.message_details().message_type,
+                            MessageType::SolidityRawCall | MessageType::SolidityCall(_, _)
+                        ) {
+                            return Err(ContractError::Authorization(
+                                AuthorizationErrorReason::InvalidMessageType {},
+                            ));
+                        }
+                    }
+                }
+            }
+
+            // SolidityRawCall can only have one MustBeBytes restriction
+            if let MessageType::SolidityRawCall = func.message_details().message_type {
+                if let Some(restrictions) = &func.message_details().message.params_restrictions {
+                    if restrictions.len() != 1
+                        || !matches!(restrictions[0], ParamRestriction::MustBeBytes(_))
+                    {
+                        return Err(ContractError::Authorization(
+                            AuthorizationErrorReason::InvalidParamRestrictions {},
+                        ));
+                    }
+                }
+            // Other message types cannot have MustBeBytes restriction
+            } else if let Some(restrictions) = &func.message_details().message.params_restrictions {
+                if restrictions
+                    .iter()
+                    .any(|r| matches!(r, ParamRestriction::MustBeBytes(_)))
+                {
+                    return Err(ContractError::Authorization(
+                        AuthorizationErrorReason::InvalidParamRestrictions {},
+                    ));
+                }
+            }
         }
+
         Ok(())
     }
 
@@ -194,40 +246,59 @@ impl Validate for Authorization {
 
         for (each_message, each_function) in messages.iter().zip(functions.iter()) {
             // Check that the message type matches the function type
-            if each_message.get_message_type() != each_function.message_details().message_type {
+            if !each_message.eq(&each_function.message_details().message_type) {
                 return Err(ContractError::Message(MessageErrorReason::InvalidType {}));
             }
 
             // Extract the message from the ProcessorMessage
             let msg = each_message.get_msg();
 
-            // Extract the json from each message
-            let json: Value =
-                serde_json::from_slice(msg.as_slice()).map_err(|e| ContractError::InvalidJson {
-                    error: e.to_string(),
-                })?;
+            // If the message received is a json we're going to validate it as a json
+            // If it's raw bytes we are going to validate the raw bytes
+            match each_message {
+                ProcessorMessage::CosmwasmExecuteMsg { .. }
+                | ProcessorMessage::CosmwasmMigrateMsg { .. }
+                | ProcessorMessage::SolidityCall { .. } => {
+                    // Extract the json from each message
+                    let json: Value = serde_json::from_slice(msg.as_slice()).map_err(|e| {
+                        ContractError::InvalidJson {
+                            error: e.to_string(),
+                        }
+                    })?;
 
-            // Check that json only has one top level key
-            if json.as_object().map(|obj| obj.len()).unwrap_or(0) != 1 {
-                return Err(ContractError::Message(
-                    MessageErrorReason::InvalidStructure {},
-                ));
-            }
+                    // Check that json only has one top level key
+                    if json.as_object().map(|obj| obj.len()).unwrap_or(0) != 1 {
+                        return Err(ContractError::Message(
+                            MessageErrorReason::InvalidStructure {},
+                        ));
+                    }
 
-            // Check that top level key matches the message name
-            if json
-                .get(each_function.message_details().message.name.as_str())
-                .is_none()
-            {
-                return Err(ContractError::Message(MessageErrorReason::DoesNotMatch {}));
-            }
+                    // Check that top level key matches the message name
+                    if json
+                        .get(each_function.message_details().message.name.as_str())
+                        .is_none()
+                    {
+                        return Err(ContractError::Message(MessageErrorReason::DoesNotMatch {}));
+                    }
 
-            // Check that all the Parameter restrictions are met
-            if let Some(param_restrictions) =
-                &each_function.message_details().message.params_restrictions
-            {
-                for each_restriction in param_restrictions {
-                    check_restriction(&json, each_restriction)?;
+                    // Check that all the Parameter restrictions are met
+                    if let Some(param_restrictions) =
+                        &each_function.message_details().message.params_restrictions
+                    {
+                        for each_restriction in param_restrictions {
+                            check_json_restriction(&json, each_restriction)?;
+                        }
+                    }
+                }
+                ProcessorMessage::SolidityRawCall { .. } => {
+                    // Check that all the Parameter restrictions are met
+                    if let Some(param_restrictions) =
+                        &each_function.message_details().message.params_restrictions
+                    {
+                        for each_restriction in param_restrictions {
+                            check_bytes_restriction(msg, each_restriction)?;
+                        }
+                    }
                 }
             }
         }
@@ -252,7 +323,7 @@ impl Validate for Authorization {
     }
 }
 
-fn check_restriction(
+fn check_json_restriction(
     json: &Value,
     param_restriction: &ParamRestriction,
 ) -> Result<(), ContractError> {
@@ -302,6 +373,28 @@ fn check_restriction(
                 ));
             }
         }
+        // We should never get here because we validate authorizations to not have these restrictions for json messages
+        ParamRestriction::MustBeBytes(_) => {
+            return Err(ContractError::Message(MessageErrorReason::InvalidType {}))
+        }
+    }
+    Ok(())
+}
+
+fn check_bytes_restriction(
+    msg: &Binary,
+    param_restriction: &ParamRestriction,
+) -> Result<(), ContractError> {
+    match param_restriction {
+        ParamRestriction::MustBeBytes(expected) => {
+            if msg != expected {
+                return Err(ContractError::Message(
+                    MessageErrorReason::InvalidMessageParams {},
+                ));
+            }
+        }
+        // We should never get here because we validate authorizations to not have these restrictions for raw bytes messages
+        _ => return Err(ContractError::Message(MessageErrorReason::InvalidType {})),
     }
     Ok(())
 }

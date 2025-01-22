@@ -1,6 +1,8 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Binary;
 
+use crate::msg::EncoderInfo;
+
 #[cw_serde]
 pub struct MessageDetails {
     pub message_type: MessageType,
@@ -11,7 +13,14 @@ pub struct MessageDetails {
 pub enum MessageType {
     CosmwasmExecuteMsg,
     CosmwasmMigrateMsg,
+    SolidityCall(EncoderInfo, LibraryName),
+    SolidityRawCall,
 }
+
+// LibraryName is the library we want to encode the message for on the encoder we pass it as a String to avoid requiring to migrate the contract to
+// create authorizations for libraries we add later on the encoders
+#[cw_serde]
+pub struct LibraryName(String);
 
 #[cw_serde]
 pub struct Message {
@@ -28,4 +37,7 @@ pub enum ParamRestriction {
     MustBeIncluded(Vec<String>),
     CannotBeIncluded(Vec<String>),
     MustBeValue(Vec<String>, Binary),
+    // Used when we are passing the raw bytes to be executed in another domain, e.g. ABI encoded bytes for Solidity
+    // This will restrict that the bytes passed are restricted to this value.
+    MustBeBytes(Binary),
 }

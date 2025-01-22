@@ -68,6 +68,12 @@ pub enum AuthorizationErrorReason {
 
     #[error("The authorization has reached its max concurrent executions")]
     MaxConcurrentExecutionsReached {},
+
+    #[error("Param restrictions for this message type are invalid")]
+    InvalidParamRestrictions {},
+
+    #[error("Invalid message type for this execution environment")]
+    InvalidMessageType {},
 }
 
 #[derive(Error, Debug, PartialEq)]

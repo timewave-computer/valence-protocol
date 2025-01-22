@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Api, Binary, StdResult, Uint128, WasmMsg};
+use cosmwasm_std::{Addr, Api, Binary, StdError, StdResult, Uint128, WasmMsg};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query, Expiration};
 use valence_bridging_utils::{hyperlane::HandleMsg, polytone::CallbackMessage};
 
@@ -269,20 +269,38 @@ pub enum InternalAuthorizationMsg {
 pub enum ProcessorMessage {
     CosmwasmExecuteMsg { msg: Binary },
     CosmwasmMigrateMsg { code_id: u64, msg: Binary },
+    SolidityCall { msg: Binary },
+    SolidityRawCall { msg: Binary },
+}
+
+impl PartialEq<MessageType> for ProcessorMessage {
+    fn eq(&self, other: &MessageType) -> bool {
+        matches!(
+            (self, other),
+            (
+                ProcessorMessage::CosmwasmExecuteMsg { .. },
+                MessageType::CosmwasmExecuteMsg
+            ) | (
+                ProcessorMessage::CosmwasmMigrateMsg { .. },
+                MessageType::CosmwasmMigrateMsg
+            ) | (
+                ProcessorMessage::SolidityCall { .. },
+                MessageType::SolidityCall(..)
+            ) | (
+                ProcessorMessage::SolidityRawCall { .. },
+                MessageType::SolidityRawCall
+            )
+        )
+    }
 }
 
 impl ProcessorMessage {
-    pub fn get_message_type(&self) -> MessageType {
-        match self {
-            ProcessorMessage::CosmwasmExecuteMsg { .. } => MessageType::CosmwasmExecuteMsg,
-            ProcessorMessage::CosmwasmMigrateMsg { .. } => MessageType::CosmwasmMigrateMsg,
-        }
-    }
-
     pub fn get_msg(&self) -> &Binary {
         match self {
             ProcessorMessage::CosmwasmExecuteMsg { msg } => msg,
             ProcessorMessage::CosmwasmMigrateMsg { msg, .. } => msg,
+            ProcessorMessage::SolidityCall { msg } => msg,
+            ProcessorMessage::SolidityRawCall { msg } => msg,
         }
     }
 
@@ -290,21 +308,26 @@ impl ProcessorMessage {
         match self {
             ProcessorMessage::CosmwasmExecuteMsg { msg: msg_ref } => *msg_ref = msg,
             ProcessorMessage::CosmwasmMigrateMsg { msg: msg_ref, .. } => *msg_ref = msg,
+            ProcessorMessage::SolidityCall { msg: msg_ref } => *msg_ref = msg,
+            ProcessorMessage::SolidityRawCall { msg: msg_ref } => *msg_ref = msg,
         }
     }
 
-    pub fn to_wasm_message(&self, contract_addr: &str) -> WasmMsg {
+    pub fn to_wasm_message(&self, contract_addr: &str) -> Result<WasmMsg, StdError> {
         match self {
-            ProcessorMessage::CosmwasmExecuteMsg { msg } => WasmMsg::Execute {
+            ProcessorMessage::CosmwasmExecuteMsg { msg } => Ok(WasmMsg::Execute {
                 contract_addr: contract_addr.to_string(),
                 msg: msg.clone(),
                 funds: vec![],
-            },
-            ProcessorMessage::CosmwasmMigrateMsg { code_id, msg } => WasmMsg::Migrate {
+            }),
+            ProcessorMessage::CosmwasmMigrateMsg { code_id, msg } => Ok(WasmMsg::Migrate {
                 contract_addr: contract_addr.to_string(),
                 new_code_id: *code_id,
                 msg: msg.clone(),
-            },
+            }),
+            ProcessorMessage::SolidityCall { .. } | ProcessorMessage::SolidityRawCall { .. } => {
+                Err(StdError::generic_err("Msg type not supported"))
+            }
         }
     }
 }
