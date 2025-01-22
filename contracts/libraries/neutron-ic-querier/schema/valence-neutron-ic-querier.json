@@ -1,5 +1,5 @@
 {
-  "contract_name": "valence-neutron-icq-querier",
+  "contract_name": "valence-neutron-ic-querier",
   "contract_version": "0.1.0",
   "idl_version": "1.0.0",
   "instantiate": {
@@ -24,21 +24,122 @@
     },
     "additionalProperties": false,
     "definitions": {
+      "Binary": {
+        "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+        "type": "string"
+      },
+      "LibraryAccountType": {
+        "description": "An account type that is used in the library configs It can either be an Id or Addr The config that will be passed to the library must be of Addr veriant",
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "|library_account_addr|"
+            ],
+            "properties": {
+              "|library_account_addr|": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "|account_id|"
+            ],
+            "properties": {
+              "|account_id|": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "|library_id|"
+            ],
+            "properties": {
+              "|library_id|": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
       "LibraryConfig": {
         "type": "object",
         "required": [
-          "querier_config"
+          "querier_config",
+          "query_definitions",
+          "storage_account"
         ],
         "properties": {
           "querier_config": {
             "$ref": "#/definitions/QuerierConfig"
+          },
+          "query_definitions": {
+            "type": "object",
+            "additionalProperties": false
+          },
+          "storage_account": {
+            "$ref": "#/definitions/LibraryAccountType"
           }
         },
         "additionalProperties": false
       },
       "QuerierConfig": {
         "type": "object",
+        "required": [
+          "broker_addr",
+          "connection_id"
+        ],
+        "properties": {
+          "broker_addr": {
+            "type": "string"
+          },
+          "connection_id": {
+            "type": "string"
+          }
+        },
         "additionalProperties": false
+      },
+      "QueryDefinition": {
+        "type": "object",
+        "required": [
+          "params",
+          "type_url",
+          "update_period"
+        ],
+        "properties": {
+          "params": {
+            "type": "object",
+            "additionalProperties": false
+          },
+          "registry_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type_url": {
+            "type": "string"
+          },
+          "update_period": {
+            "$ref": "#/definitions/Uint64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Uint64": {
+        "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+        "type": "string"
       }
     }
   },
@@ -228,37 +329,82 @@
               "register_kv_query": {
                 "type": "object",
                 "required": [
-                  "broker_addr",
-                  "connection_id",
-                  "params",
-                  "type_id",
-                  "update_period"
+                  "target_query"
                 ],
                 "properties": {
-                  "broker_addr": {
+                  "target_query": {
                     "type": "string"
-                  },
-                  "connection_id": {
-                    "type": "string"
-                  },
-                  "params": {
-                    "type": "object",
-                    "additionalProperties": false
-                  },
-                  "registry_version": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
-                  "type_id": {
-                    "type": "string"
-                  },
-                  "update_period": {
-                    "$ref": "#/definitions/Uint64"
                   }
                 },
                 "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "deregister_kv_query"
+            ],
+            "properties": {
+              "deregister_kv_query": {
+                "type": "object",
+                "required": [
+                  "query_id"
+                ],
+                "properties": {
+                  "query_id": {
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "LibraryAccountType": {
+        "description": "An account type that is used in the library configs It can either be an Id or Addr The config that will be passed to the library must be of Addr veriant",
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "|library_account_addr|"
+            ],
+            "properties": {
+              "|library_account_addr|": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "|account_id|"
+            ],
+            "properties": {
+              "|account_id|": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "|library_id|"
+            ],
+            "properties": {
+              "|library_id|": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
               }
             },
             "additionalProperties": false
@@ -277,12 +423,68 @@
                 "type": "null"
               }
             ]
+          },
+          "query_definitions": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false
+          },
+          "storage_account": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false
       },
       "QuerierConfig": {
         "type": "object",
+        "required": [
+          "broker_addr",
+          "connection_id"
+        ],
+        "properties": {
+          "broker_addr": {
+            "type": "string"
+          },
+          "connection_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "QueryDefinition": {
+        "type": "object",
+        "required": [
+          "params",
+          "type_url",
+          "update_period"
+        ],
+        "properties": {
+          "params": {
+            "type": "object",
+            "additionalProperties": false
+          },
+          "registry_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type_url": {
+            "type": "string"
+          },
+          "update_period": {
+            "$ref": "#/definitions/Uint64"
+          }
+        },
         "additionalProperties": false
       },
       "Timestamp": {
@@ -303,32 +505,6 @@
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "QueryMsg",
     "oneOf": [
-      {
-        "type": "object",
-        "required": [
-          "registered_queries"
-        ],
-        "properties": {
-          "registered_queries": {
-            "type": "object",
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
-        "type": "object",
-        "required": [
-          "query_results"
-        ],
-        "properties": {
-          "query_results": {
-            "type": "object",
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
       {
         "description": "Query to get the processor address.",
         "type": "object",
@@ -395,18 +571,88 @@
       "description": "Validated library configuration",
       "type": "object",
       "required": [
-        "querier_config"
+        "pending_query_registrations",
+        "querier_config",
+        "query_definitions",
+        "registered_queries",
+        "storage_acc_addr"
       ],
       "properties": {
+        "pending_query_registrations": {
+          "type": "object",
+          "additionalProperties": false
+        },
         "querier_config": {
           "$ref": "#/definitions/QuerierConfig"
+        },
+        "query_definitions": {
+          "type": "object",
+          "additionalProperties": false
+        },
+        "registered_queries": {
+          "type": "object",
+          "additionalProperties": false
+        },
+        "storage_acc_addr": {
+          "$ref": "#/definitions/Addr"
         }
       },
       "additionalProperties": false,
       "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+          "type": "string"
+        },
         "QuerierConfig": {
           "type": "object",
+          "required": [
+            "broker_addr",
+            "connection_id"
+          ],
+          "properties": {
+            "broker_addr": {
+              "type": "string"
+            },
+            "connection_id": {
+              "type": "string"
+            }
+          },
           "additionalProperties": false
+        },
+        "QueryDefinition": {
+          "type": "object",
+          "required": [
+            "params",
+            "type_url",
+            "update_period"
+          ],
+          "properties": {
+            "params": {
+              "type": "object",
+              "additionalProperties": false
+            },
+            "registry_version": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type_url": {
+              "type": "string"
+            },
+            "update_period": {
+              "$ref": "#/definitions/Uint64"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
         }
       }
     },
@@ -421,18 +667,119 @@
       "title": "LibraryConfig",
       "type": "object",
       "required": [
-        "querier_config"
+        "querier_config",
+        "query_definitions",
+        "storage_account"
       ],
       "properties": {
         "querier_config": {
           "$ref": "#/definitions/QuerierConfig"
+        },
+        "query_definitions": {
+          "type": "object",
+          "additionalProperties": false
+        },
+        "storage_account": {
+          "$ref": "#/definitions/LibraryAccountType"
         }
       },
       "additionalProperties": false,
       "definitions": {
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+          "type": "string"
+        },
+        "LibraryAccountType": {
+          "description": "An account type that is used in the library configs It can either be an Id or Addr The config that will be passed to the library must be of Addr veriant",
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "|library_account_addr|"
+              ],
+              "properties": {
+                "|library_account_addr|": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "|account_id|"
+              ],
+              "properties": {
+                "|account_id|": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "|library_id|"
+              ],
+              "properties": {
+                "|library_id|": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
         "QuerierConfig": {
           "type": "object",
+          "required": [
+            "broker_addr",
+            "connection_id"
+          ],
+          "properties": {
+            "broker_addr": {
+              "type": "string"
+            },
+            "connection_id": {
+              "type": "string"
+            }
+          },
           "additionalProperties": false
+        },
+        "QueryDefinition": {
+          "type": "object",
+          "required": [
+            "params",
+            "type_url",
+            "update_period"
+          ],
+          "properties": {
+            "params": {
+              "type": "object",
+              "additionalProperties": false
+            },
+            "registry_version": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type_url": {
+              "type": "string"
+            },
+            "update_period": {
+              "$ref": "#/definitions/Uint64"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
         }
       }
     },
@@ -529,52 +876,6 @@
           "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
           "type": "string"
         }
-      }
-    },
-    "query_results": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Array_of_Tuple_of_uint64_and_Binary",
-      "type": "array",
-      "items": {
-        "type": "array",
-        "items": [
-          {
-            "type": "integer",
-            "format": "uint64",
-            "minimum": 0.0
-          },
-          {
-            "$ref": "#/definitions/Binary"
-          }
-        ],
-        "maxItems": 2,
-        "minItems": 2
-      },
-      "definitions": {
-        "Binary": {
-          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
-          "type": "string"
-        }
-      }
-    },
-    "registered_queries": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Array_of_Tuple_of_uint64_and_String",
-      "type": "array",
-      "items": {
-        "type": "array",
-        "items": [
-          {
-            "type": "integer",
-            "format": "uint64",
-            "minimum": 0.0
-          },
-          {
-            "type": "string"
-          }
-        ],
-        "maxItems": 2,
-        "minItems": 2
       }
     }
   }
