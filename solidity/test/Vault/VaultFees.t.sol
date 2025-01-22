@@ -13,7 +13,7 @@ contract ValenceVaultFeeTest is VaultHelper {
     uint256 constant PERFORMANCE_FEE_BPS = 2000; // 20%
 
     function testDepositFeeCalculation() public {
-        setFees(DEPOSIT_FEE_BPS, 0, 0);
+        setFees(DEPOSIT_FEE_BPS, 0, 0, 0);
         uint256 depositAmount = 10_000;
 
         // Test deposit fee calculation
@@ -40,7 +40,7 @@ contract ValenceVaultFeeTest is VaultHelper {
     }
 
     function testDepositWithFee() public {
-        setFees(DEPOSIT_FEE_BPS, 0, 0);
+        setFees(DEPOSIT_FEE_BPS, 0, 0, 0);
         vm.startPrank(user);
 
         uint256 depositAmount = 10_000;
@@ -63,7 +63,7 @@ contract ValenceVaultFeeTest is VaultHelper {
     }
 
     function testMintWithFee() public {
-        setFees(DEPOSIT_FEE_BPS, 0, 0);
+        setFees(DEPOSIT_FEE_BPS, 0, 0, 0);
         vm.startPrank(user);
 
         uint256 sharesToMint = 9_500;
@@ -94,7 +94,7 @@ contract ValenceVaultFeeTest is VaultHelper {
 
     function testPlatformFee() public {
         // Setup
-        setFees(0, PLATFORM_FEE_BPS, 0);
+        setFees(0, PLATFORM_FEE_BPS, 0, 0);
         uint256 initialDeposit = 10_000;
         uint256 period = 91.25 days;
 
@@ -136,7 +136,7 @@ contract ValenceVaultFeeTest is VaultHelper {
     }
 
     function testPerformanceFee() public {
-        setFees(0, 0, PERFORMANCE_FEE_BPS);
+        setFees(0, 0, PERFORMANCE_FEE_BPS, 0);
 
         uint256 depositAmount = 10_000;
         vm.startPrank(user);
@@ -176,7 +176,7 @@ contract ValenceVaultFeeTest is VaultHelper {
     }
 
     function testNoPerformanceFeeBelowHighWater() public {
-        setFees(0, 0, PERFORMANCE_FEE_BPS);
+        setFees(0, 0, PERFORMANCE_FEE_BPS, 0);
 
         vm.startPrank(user);
         vault.deposit(10_000, user);
@@ -206,7 +206,7 @@ contract ValenceVaultFeeTest is VaultHelper {
     }
 
     function testCombinedFees() public {
-    setFees(DEPOSIT_FEE_BPS, PLATFORM_FEE_BPS, PERFORMANCE_FEE_BPS);
+    setFees(DEPOSIT_FEE_BPS, PLATFORM_FEE_BPS, PERFORMANCE_FEE_BPS, 0);
 
     uint256 depositAmount = 10_000;
 

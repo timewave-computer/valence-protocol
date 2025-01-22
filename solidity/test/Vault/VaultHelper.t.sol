@@ -16,6 +16,7 @@ abstract contract VaultHelper is Test {
     uint256 internal constant MAX_WITHDRAW_FEE = 2000;
     uint256 internal constant INITIAL_TIMESTAMP = 5000;
     uint256 internal constant INITIAL_BLOCK = 100;
+    uint64 internal constant ONE_DAY = 1 days;
 
     // Contracts
     ValenceVault internal vault;
@@ -59,6 +60,7 @@ abstract contract VaultHelper is Test {
             strategist: strategist,
             depositCap: 0,
             maxWithdrawFee: MAX_WITHDRAW_FEE,
+            withdrawLockupPeriod: ONE_DAY * 3,
             fees: defaultFees()
         });
 
@@ -86,19 +88,27 @@ abstract contract VaultHelper is Test {
     }
 
     function defaultFees() public pure returns (ValenceVault.FeeConfig memory) {
-        return ValenceVault.FeeConfig({
-            depositFeeBps: 0,
-            platformFeeBps: 0,
-            performanceFeeBps: 0
-        });
+        return
+            ValenceVault.FeeConfig({
+                depositFeeBps: 0,
+                platformFeeBps: 0,
+                performanceFeeBps: 0,
+                solverCompletionFee: 0
+            });
     }
 
-    function setFees(uint256 depositFee, uint256 platformFee, uint256 performanceFee) internal {
+    function setFees(
+        uint256 depositFee,
+        uint256 platformFee,
+        uint256 performanceFee,
+        uint256 solverCompletionFee
+    ) internal {
         vm.startPrank(owner);
         ValenceVault.FeeConfig memory feeConfig = ValenceVault.FeeConfig({
             depositFeeBps: depositFee,
             platformFeeBps: platformFee,
-            performanceFeeBps: performanceFee
+            performanceFeeBps: performanceFee,
+            solverCompletionFee: solverCompletionFee
         });
 
         (
@@ -107,6 +117,8 @@ abstract contract VaultHelper is Test {
             address _strategist,
             uint256 depositCap,
             uint256 maxWithdrawFee,
+            uint64 withdrawLockupPeriod,
+
         ) = vault.config();
 
         ValenceVault.VaultConfig memory newConfig = ValenceVault.VaultConfig(
@@ -115,6 +127,7 @@ abstract contract VaultHelper is Test {
             _strategist,
             depositCap,
             maxWithdrawFee,
+            withdrawLockupPeriod,
             feeConfig
         );
 
@@ -130,6 +143,7 @@ abstract contract VaultHelper is Test {
             address _strategist,
             ,
             uint256 maxWithdrawFee,
+            uint64 withdrawLockupPeriod,
             ValenceVault.FeeConfig memory fees
         ) = vault.config();
 
@@ -139,6 +153,7 @@ abstract contract VaultHelper is Test {
             _strategist,
             newCap,
             maxWithdrawFee,
+            withdrawLockupPeriod,
             fees
         );
 

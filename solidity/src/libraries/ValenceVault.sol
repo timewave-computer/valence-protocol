@@ -2,12 +2,13 @@
 pragma solidity ^0.8.28;
 
 import {SafeERC20, ERC20, IERC20, ERC4626} from "@openzeppelin-contracts/token/ERC20/extensions/ERC4626.sol";
+import "@openzeppelin-contracts/utils/ReentrancyGuard.sol";
 import {BaseAccount} from "../accounts/BaseAccount.sol";
 import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
 import {Ownable} from "@openzeppelin-contracts/access/Ownable.sol";
 // import {console} from "forge-std/src/console.sol";
 
-contract ValenceVault is ERC4626, Ownable {
+contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     using Math for uint256;
 
     error VaultIsPaused();
@@ -17,17 +18,32 @@ contract ValenceVault is ERC4626, Ownable {
     error InvalidWithdrawFee();
     error ZeroShares();
     error ZeroAssets();
+    error InsufficientAllowance(uint256 required, uint256 available);
+    error TooManyWithdraws(uint256 current, uint256 max);
+    error InvalidReceiver();
+    error InvalidOwner();
+    error InvalidMaxLoss();
+    error InvalidShares();
 
     event PausedStateChanged(bool paused);
     event RateUpdated(uint256 newRate);
     event WithdrawFeeUpdated(uint256 newFee);
     event FeesUpdated(uint256 platformFee, uint256 performanceFee);
     event MaxHistoricalRateUpdated(uint256 newRate);
+    event WithdrawRequested(
+        uint256 indexed requestId,
+        address indexed owner,
+        address indexed receiver,
+        uint256 shares,
+        uint256 maxLossBps,
+        bool solverEnabled
+    );
 
     struct FeeConfig {
         uint256 depositFeeBps; // Deposit fee in basis points
         uint256 platformFeeBps; // Yearly platform fee in basis points
         uint256 performanceFeeBps; // Performance fee in basis points
+        uint256 solverCompletionFee; // Fee paid to solver for completion of withdraws
     }
 
     struct VaultConfig {
@@ -36,7 +52,19 @@ contract ValenceVault is ERC4626, Ownable {
         address strategist;
         uint256 depositCap; // 0 means no cap
         uint256 maxWithdrawFee; // in basis points
+        uint64 withdrawLockupPeriod; // Position + vault lockup period in seconds
         FeeConfig fees;
+    }
+
+    // Withdraw request structure
+    struct WithdrawRequest {
+        uint256 sharesAmount; // Amount of shares to be redeemed
+        uint64 claimTime; // Timestamp when request becomes claimable
+        uint64 maxLossBps; // Maximum acceptable loss in basis points
+        uint256 solverFee; // Fee for solver completion (only used in solver mapping)
+        address owner; // Owner of the request
+        uint64 nextId; // Next request ID for this user (0 if last)
+        address receiver; // Receiver of the withdrawn assets
     }
 
     VaultConfig public config;
@@ -54,6 +82,15 @@ contract ValenceVault is ERC4626, Ownable {
     uint256 public lastUpdateTimestamp;
     // Fees to be collected in asset
     uint256 public feesOwedInAsset;
+    // Withdraw request ID counter
+    uint64 private _nextWithdrawRequestId = 1;
+
+    // Single mapping for tracking first request per user
+    mapping(address => uint64) public userFirstRequestId;
+
+    // Separate mappings for the actual requests
+    mapping(uint64 => WithdrawRequest) public userWithdrawRequests;
+    mapping(uint64 => WithdrawRequest) public solverWithdrawRequests;
 
     // Constant for basis point calculations
     uint256 private constant BASIS_POINTS = 10000;
@@ -359,6 +396,122 @@ contract ValenceVault is ERC4626, Ownable {
             config.fees.performanceFeeBps,
             BASIS_POINTS
         );
+    }
+
+    function getMaxWithdraws() public view returns (uint256) {
+        return config.withdrawLockupPeriod / 1 days;
+    }
+
+    function getCurrentWithdrawCount(
+        address owner
+    ) public view returns (uint256) {
+        uint256 count = 0;
+        uint64 currentId = userFirstRequestId[owner];
+
+        while (currentId != 0) {
+            count++;
+            WithdrawRequest memory request = userWithdrawRequests[currentId];
+            if (request.owner == address(0)) {
+                request = solverWithdrawRequests[currentId];
+            }
+            currentId = request.nextId;
+        }
+        return count;
+    }
+
+    function getRequest(
+        uint64 requestId
+    ) public view returns (WithdrawRequest memory) {
+        WithdrawRequest memory request = userWithdrawRequests[requestId];
+        if (request.owner != address(0)) {
+            return request;
+        }
+        return solverWithdrawRequests[requestId];
+    }
+
+    /**
+     * @notice Creates a withdrawal request for shares
+     * @param shares Amount of shares to withdraw
+     * @param receiver Address to receive the withdrawn assets
+     * @param owner Address that owns the shares
+     * @param maxLossBps Maximum acceptable loss in basis points
+     * @param allowSolverCompletion Whether to allow solvers to complete this request
+     * @return requestId The ID of the created withdrawal request
+     */
+    function withdraw(
+        uint256 shares,
+        address receiver,
+        address owner,
+        uint256 maxLossBps,
+        bool allowSolverCompletion
+    ) public nonReentrant whenNotPaused returns (uint64) {
+        // Input validation
+        if (receiver == address(0)) revert InvalidReceiver();
+        if (owner == address(0)) revert InvalidOwner();
+        if (shares == 0) revert InvalidShares();
+        if (maxLossBps > BASIS_POINTS) revert InvalidMaxLoss();
+
+        // Burn shares first (CEI pattern)
+        if (msg.sender != owner) {
+            uint256 allowed = allowance(owner, msg.sender);
+            if (allowed < shares) {
+                revert InsufficientAllowance(shares, allowed);
+            }
+            _spendAllowance(owner, msg.sender, shares);
+        }
+        _burn(owner, shares);
+
+        // Check withdraw count limit
+        uint256 currentCount = getCurrentWithdrawCount(owner);
+        uint256 maxWithdraws = getMaxWithdraws();
+        if (currentCount >= maxWithdraws) {
+            revert TooManyWithdraws(currentCount, maxWithdraws);
+        }
+
+        // Create withdrawal request
+        uint64 requestId = _nextWithdrawRequestId++;
+        uint256 currentFirstId = userFirstRequestId[owner];
+
+        WithdrawRequest memory request = WithdrawRequest({
+            sharesAmount: shares,
+            claimTime: uint64(block.timestamp + config.withdrawLockupPeriod),
+            maxLossBps: uint64(maxLossBps),
+            solverFee: 0,
+            owner: owner,
+            nextId: uint64(currentFirstId),
+            receiver: receiver
+        });
+
+        // Handle solver completion setup if enabled
+        if (allowSolverCompletion) {
+            request.solverFee = config.fees.solverCompletionFee;
+
+            // Transfer solver fee
+            SafeERC20.safeTransferFrom(
+                IERC20(asset()),
+                msg.sender,
+                address(this),
+                config.fees.solverCompletionFee
+            );
+
+            solverWithdrawRequests[requestId] = request;
+        } else {
+            userWithdrawRequests[requestId] = request;
+        }
+
+        // Update user's first request pointer
+        userFirstRequestId[owner] = requestId;
+
+        emit WithdrawRequested(
+            requestId,
+            owner,
+            receiver,
+            shares,
+            maxLossBps,
+            allowSolverCompletion
+        );
+
+        return requestId;
     }
 
     function _deposit(

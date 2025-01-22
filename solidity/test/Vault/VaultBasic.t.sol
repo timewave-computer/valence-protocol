@@ -120,7 +120,7 @@ contract VaultBasicTest is VaultHelper {
         vm.startPrank(user);
         vault.deposit(10_000, user);
         vm.stopPrank();
-        
+
         // Test rate decrease (0.8x)
         uint256 decreaseRate = (BASIS_POINTS * 8) / 10; // 0.8x
         vm.startPrank(strategist);
@@ -172,6 +172,7 @@ contract VaultBasicTest is VaultHelper {
             strategist: strategist,
             depositCap: newDepositCap,
             maxWithdrawFee: MAX_WITHDRAW_FEE,
+            withdrawLockupPeriod: ONE_DAY,
             fees: defaultFees()
         });
 
@@ -183,6 +184,7 @@ contract VaultBasicTest is VaultHelper {
             BaseAccount updatedWithdrawAccount,
             address updatedStrategist,
             uint256 updatedDepositCap,
+            ,
             ,
             ValenceVault.FeeConfig memory updatedFees
         ) = vault.config();
@@ -212,6 +214,7 @@ contract VaultBasicTest is VaultHelper {
             strategist: strategist,
             depositCap: 5000,
             maxWithdrawFee: MAX_WITHDRAW_FEE,
+            withdrawLockupPeriod: ONE_DAY,
             fees: defaultFees()
         });
 
