@@ -135,7 +135,7 @@ impl Subroutine {
             .unwrap_or_default()
     }
 
-    fn get_function_by_index(&self, index: usize) -> Option<&dyn Function> {
+    pub fn get_function_by_index(&self, index: usize) -> Option<&dyn Function> {
         match self {
             Subroutine::Atomic(config) => config.functions.get(index).map(|a| a as &dyn Function),
             Subroutine::NonAtomic(config) => {

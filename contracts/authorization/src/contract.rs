@@ -3,7 +3,7 @@ use cosmos_sdk_proto::{cosmos::base::v1beta1::Coin, traits::MessageExt};
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     coins, from_json, to_json_binary, Addr, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Empty, Env,
-    MessageInfo, Order, Response, StdResult, Storage, Uint64, WasmMsg,
+    MessageInfo, Order, Response, StdError, StdResult, Storage, Uint64, WasmMsg,
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner, is_owner};
 use cw_storage_plus::Bound;
@@ -15,20 +15,28 @@ use valence_authorization_utils::{
         Priority,
     },
     callback::{ExecutionResult, OperationInitiator, PolytoneCallbackMsg, ProcessorCallbackInfo},
-    domain::{Connector, Domain, ExternalDomain, PolytoneProxyState},
+    domain::{
+        CosmwasmBridge, Domain, EvmBridge, ExecutionEnvironment, ExternalDomain,
+        PolytoneConnectors, PolytoneNote, PolytoneProxyState,
+    },
     msg::{
         ExecuteMsg, ExternalDomainInfo, InstantiateMsg, InternalAuthorizationMsg, Mint, OwnerMsg,
         PermissionedMsg, PermissionlessMsg, ProcessorMessage, QueryMsg,
     },
 };
-use valence_polytone_utils::polytone::{
-    Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg,
+use valence_bridging_utils::{
+    hyperlane::HandleMsg,
+    polytone::{Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg},
+};
+use valence_encoder_broker::msg::QueryMsg as EncoderBrokerQueryMsg;
+use valence_encoder_utils::msg::{
+    convert_into_encoder_messages, ProcessorMessageToDecode, ProcessorMessageToEncode,
 };
 use valence_processor_utils::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExecuteMsg};
 
 use crate::{
     authorization::Validate,
-    domain::{add_domain, create_msg_for_processor_or_bridge, get_domain},
+    domain::{add_domain, create_msg_for_processor, format_address_for_hyperlane, get_domain},
     error::{AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason},
     state::{
         AUTHORIZATIONS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS, FIRST_OWNERSHIP,
@@ -158,6 +166,9 @@ pub fn execute(
         ExecuteMsg::PolytoneCallback(callback_msg) => {
             process_polytone_callback(deps, env, info, callback_msg)
         }
+        ExecuteMsg::HyperlaneCallback(handle_msg) => {
+            process_hyperlane_callback(deps, env, info, handle_msg)
+        }
     }
 }
 
@@ -204,11 +215,9 @@ fn add_external_domains(
     let mut messages = vec![];
     // Save all external domains
     for domain in external_domains {
-        messages.push(add_domain(
-            deps.branch(),
-            env.contract.address.to_string(),
-            &domain,
-        )?);
+        if let Some(msg) = add_domain(deps.branch(), env.contract.address.to_string(), domain)? {
+            messages.push(msg);
+        }
     }
 
     Ok(Response::new()
@@ -234,7 +243,7 @@ fn create_authorizations(
         }
 
         // Perform all validations on the authorization
-        authorization.validate(deps.storage)?;
+        authorization.validate(deps.storage, deps.querier)?;
 
         // If Authorization is permissioned we need to create the tokenfactory token and mint the corresponding amounts to the addresses that can
         // execute the authorization
@@ -317,7 +326,7 @@ fn modify_authorization(
         authorization.priority = priority;
     }
 
-    authorization.validate(deps.storage)?;
+    authorization.validate(deps.storage, deps.querier)?;
 
     AUTHORIZATIONS.save(deps.storage, label, &authorization)?;
 
@@ -384,11 +393,28 @@ fn mint_authorizations(
 }
 
 fn pause_processor(deps: DepsMut, domain: Domain) -> Result<Response, ContractError> {
-    let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
-        AuthorizationMsg::Pause {},
-    ))?;
-    let message =
-        create_msg_for_processor_or_bridge(deps.storage, execute_msg_binary, &domain, None)?;
+    // The pause msg that is used for both main and external Cosmwasm domains
+    let pause_msg = ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::Pause {});
+    let execute_msg_binary = match domain.clone() {
+        Domain::Main => to_json_binary(&pause_msg)?,
+        Domain::External(external_domain_id) => {
+            let external_domain = EXTERNAL_DOMAINS.load(deps.storage, external_domain_id)?;
+            match external_domain.execution_environment {
+                ExecutionEnvironment::Cosmwasm(_) => to_json_binary(&pause_msg)?,
+                ExecutionEnvironment::Evm(encoder, _) => {
+                    // We are going to query the encoder to get the corresponding message to pause the processor
+                    deps.querier.query_wasm_smart(
+                        encoder.broker_address,
+                        &EncoderBrokerQueryMsg::Encode {
+                            encoder_version: encoder.encoder_version,
+                            message: ProcessorMessageToEncode::Pause {},
+                        },
+                    )?
+                }
+            }
+        }
+    };
+    let message = create_msg_for_processor(deps.storage, execute_msg_binary, &domain, None)?;
 
     Ok(Response::new()
         .add_message(message)
@@ -396,11 +422,28 @@ fn pause_processor(deps: DepsMut, domain: Domain) -> Result<Response, ContractEr
 }
 
 fn resume_processor(deps: DepsMut, domain: Domain) -> Result<Response, ContractError> {
-    let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
-        AuthorizationMsg::Resume {},
-    ))?;
-    let message =
-        create_msg_for_processor_or_bridge(deps.storage, execute_msg_binary, &domain, None)?;
+    // The resume msg that is used for both main and external Cosmwasm domains
+    let resume_msg = ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::Resume {});
+    let execute_msg_binary = match domain.clone() {
+        Domain::Main => to_json_binary(&resume_msg)?,
+        Domain::External(external_domain_id) => {
+            let external_domain = EXTERNAL_DOMAINS.load(deps.storage, external_domain_id)?;
+            match external_domain.execution_environment {
+                ExecutionEnvironment::Cosmwasm(_) => to_json_binary(&resume_msg)?,
+                ExecutionEnvironment::Evm(encoder, _) => {
+                    // We are going to query the encoder to get the corresponding message to resume the processor
+                    deps.querier.query_wasm_smart(
+                        encoder.broker_address,
+                        &EncoderBrokerQueryMsg::Encode {
+                            encoder_version: encoder.encoder_version,
+                            message: ProcessorMessageToEncode::Resume {},
+                        },
+                    )?
+                }
+            }
+        }
+    };
+    let message = create_msg_for_processor(deps.storage, execute_msg_binary, &domain, None)?;
 
     Ok(Response::new()
         .add_message(message)
@@ -422,7 +465,7 @@ fn insert_messages(
         })?;
 
     // Validate that the messages match with the label
-    authorization.validate_messages(deps.storage, &messages)?;
+    authorization.validate_messages(&messages)?;
 
     let current_executions = CURRENT_EXECUTIONS
         .load(deps.storage, label.clone())
@@ -435,23 +478,52 @@ fn insert_messages(
 
     let domain = get_domain(&authorization)?;
     let id = get_and_increase_execution_id(deps.storage)?;
-    let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
-        AuthorizationMsg::InsertMsgs {
+    let insert_msgs =
+        ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::InsertMsgs {
             id,
             queue_position,
             msgs: messages.clone(),
-            subroutine: authorization.subroutine,
-            priority,
-        },
-    ))?;
+            subroutine: authorization.subroutine.clone(),
+            priority: priority.clone(),
+        });
 
+    let execute_msg_binary = match domain.clone() {
+        Domain::Main => to_json_binary(&insert_msgs)?,
+        Domain::External(external_domain_id) => {
+            let external_domain = EXTERNAL_DOMAINS.load(deps.storage, external_domain_id)?;
+            match external_domain.execution_environment {
+                ExecutionEnvironment::Cosmwasm(_) => to_json_binary(&insert_msgs)?,
+                ExecutionEnvironment::Evm(encoder, _) => {
+                    // Transform processor messages with encoder messages that have information of the library they need to encode to, according
+                    // to the authorization
+                    let encoder_messages =
+                        convert_into_encoder_messages(messages.clone(), &authorization)?;
+                    deps.querier.query_wasm_smart(
+                        encoder.broker_address,
+                        &EncoderBrokerQueryMsg::Encode {
+                            encoder_version: encoder.encoder_version,
+                            message: ProcessorMessageToEncode::InsertMsgs {
+                                execution_id: id,
+                                queue_position,
+                                priority,
+                                subroutine: authorization.subroutine,
+                                messages: encoder_messages,
+                            },
+                        },
+                    )?
+                }
+            }
+        }
+    };
+
+    // Callback request used for polytone
     let callback_request = CallbackRequest {
         receiver: env.contract.address.to_string(),
         // We will use the ID to know which callback we are getting
         msg: to_json_binary(&PolytoneCallbackMsg::ExecutionID(id))?,
     };
 
-    let msg = create_msg_for_processor_or_bridge(
+    let msg = create_msg_for_processor(
         deps.storage,
         execute_msg_binary,
         &domain,
@@ -480,13 +552,31 @@ fn evict_messages(
     queue_position: u64,
     priority: Priority,
 ) -> Result<Response, ContractError> {
-    let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
-        AuthorizationMsg::EvictMsgs {
-            queue_position,
-            priority,
-        },
-    ))?;
-    let msg = create_msg_for_processor_or_bridge(deps.storage, execute_msg_binary, &domain, None)?;
+    let evict_msg = ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::EvictMsgs {
+        queue_position,
+        priority: priority.clone(),
+    });
+
+    let execute_msg_binary = match domain.clone() {
+        Domain::Main => to_json_binary(&evict_msg)?,
+        Domain::External(external_domain_id) => {
+            let external_domain = EXTERNAL_DOMAINS.load(deps.storage, external_domain_id)?;
+            match external_domain.execution_environment {
+                ExecutionEnvironment::Cosmwasm(_) => to_json_binary(&evict_msg)?,
+                ExecutionEnvironment::Evm(encoder, _) => deps.querier.query_wasm_smart(
+                    encoder.broker_address,
+                    &EncoderBrokerQueryMsg::Encode {
+                        encoder_version: encoder.encoder_version,
+                        message: ProcessorMessageToEncode::EvictMsgs {
+                            queue_position,
+                            priority,
+                        },
+                    },
+                )?,
+            }
+        }
+    };
+    let msg = create_msg_for_processor(deps.storage, execute_msg_binary, &domain, None)?;
 
     Ok(Response::new()
         .add_message(msg)
@@ -508,7 +598,6 @@ fn send_msgs(
         })?;
 
     authorization.validate_executable(
-        deps.storage,
         &env.block,
         deps.querier,
         env.contract.address.as_str(),
@@ -536,14 +625,40 @@ fn send_msgs(
     // Get the ID we are going to use for the execution (used to process callbacks)
     let id = get_and_increase_execution_id(deps.storage)?;
     // Message for the processor
-    let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
-        AuthorizationMsg::EnqueueMsgs {
-            id,
-            msgs: messages.clone(),
-            subroutine: authorization.subroutine,
-            priority: authorization.priority,
-        },
-    ))?;
+    let send_msgs = ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::EnqueueMsgs {
+        id,
+        msgs: messages.clone(),
+        subroutine: authorization.subroutine.clone(),
+        priority: authorization.priority.clone(),
+    });
+
+    let execute_msg_binary = match domain.clone() {
+        Domain::Main => to_json_binary(&send_msgs)?,
+        Domain::External(external_domain_id) => {
+            let external_domain = EXTERNAL_DOMAINS.load(deps.storage, external_domain_id)?;
+            match external_domain.execution_environment {
+                ExecutionEnvironment::Cosmwasm(_) => to_json_binary(&send_msgs)?,
+                ExecutionEnvironment::Evm(encoder, _) => {
+                    // Transform processor messages with encoder messages that have information of the library they need to encode to, according
+                    // to the authorization
+                    let encoder_messages =
+                        convert_into_encoder_messages(messages.clone(), &authorization)?;
+                    deps.querier.query_wasm_smart(
+                        encoder.broker_address,
+                        &EncoderBrokerQueryMsg::Encode {
+                            encoder_version: encoder.encoder_version,
+                            message: ProcessorMessageToEncode::SendMsgs {
+                                execution_id: id,
+                                priority: authorization.priority,
+                                subroutine: authorization.subroutine,
+                                messages: encoder_messages,
+                            },
+                        },
+                    )?
+                }
+            }
+        }
+    };
 
     let callback_request = CallbackRequest {
         receiver: env.contract.address.to_string(),
@@ -552,7 +667,7 @@ fn send_msgs(
     };
 
     // We need to know if this will be sent to the processor on the main domain or to an external domain
-    let msg = create_msg_for_processor_or_bridge(
+    let msg = create_msg_for_processor(
         deps.storage,
         execute_msg_binary,
         &domain,
@@ -619,7 +734,7 @@ fn retry_msgs(deps: DepsMut, env: Env, execution_id: u64) -> Result<Response, Co
                 // We will use the ID to know which callback we are getting
                 msg: to_json_binary(&PolytoneCallbackMsg::ExecutionID(execution_id))?,
             };
-            messages.push(create_msg_for_processor_or_bridge(
+            messages.push(create_msg_for_processor(
                 deps.storage,
                 execute_msg_binary,
                 &callback_info.domain,
@@ -665,40 +780,51 @@ fn retry_bridge_creation(
 ) -> Result<Response, ContractError> {
     let mut external_domain = EXTERNAL_DOMAINS.load(deps.storage, domain_name.clone())?;
 
-    let msg = match external_domain.connector {
-        Connector::PolytoneNote {
-            address,
-            timeout_seconds,
-            state,
-        } => {
-            if state.ne(&PolytoneProxyState::TimedOut) {
-                return Err(ContractError::Unauthorized(
-                    UnauthorizedReason::BridgeCreationNotTimedOut {},
-                ));
-            }
+    let msg = match external_domain.execution_environment {
+        ExecutionEnvironment::Cosmwasm(cosmwasm_bridge) => match cosmwasm_bridge {
+            CosmwasmBridge::Polytone(polytone_connectors) => {
+                let polytone_note = &polytone_connectors.polytone_note;
+                if polytone_note.state.ne(&PolytoneProxyState::TimedOut) {
+                    return Err(ContractError::Unauthorized(
+                        UnauthorizedReason::BridgeCreationNotTimedOut {},
+                    ));
+                }
 
-            // Update the state
-            external_domain.connector = Connector::PolytoneNote {
-                address: address.clone(),
-                timeout_seconds,
-                state: PolytoneProxyState::PendingResponse,
-            };
-            EXTERNAL_DOMAINS.save(deps.storage, domain_name.clone(), &external_domain)?;
+                // Update the state
+                let new_polytone_note = PolytoneNote {
+                    address: polytone_note.address.clone(),
+                    timeout_seconds: polytone_note.timeout_seconds,
+                    state: PolytoneProxyState::PendingResponse,
+                };
+                let new_polytone_connectors = PolytoneConnectors {
+                    polytone_note: new_polytone_note,
+                    polytone_proxy: polytone_connectors.polytone_proxy.clone(),
+                };
+                external_domain.execution_environment = ExecutionEnvironment::Cosmwasm(
+                    CosmwasmBridge::Polytone(new_polytone_connectors),
+                );
+                EXTERNAL_DOMAINS.save(deps.storage, domain_name.clone(), &external_domain)?;
 
-            WasmMsg::Execute {
-                contract_addr: address.to_string(),
-                msg: to_json_binary(&PolytoneExecuteMsg::Execute {
-                    msgs: vec![],
-                    callback: Some(CallbackRequest {
-                        receiver: env.contract.address.to_string(),
-                        // When we add domain we will return a callback with the name of the domain to know that we are getting the callback when trying to create the proxy
-                        msg: to_json_binary(&PolytoneCallbackMsg::CreateProxy(domain_name))?,
-                    }),
-                    timeout_seconds: Uint64::from(timeout_seconds),
-                })?,
-                funds: vec![],
+                WasmMsg::Execute {
+                    contract_addr: polytone_note.address.to_string(),
+                    msg: to_json_binary(&PolytoneExecuteMsg::Execute {
+                        msgs: vec![],
+                        callback: Some(CallbackRequest {
+                            receiver: env.contract.address.to_string(),
+                            // When we add domain we will return a callback with the name of the domain to know that we are getting the callback when trying to create the proxy
+                            msg: to_json_binary(&PolytoneCallbackMsg::CreateProxy(domain_name))?,
+                        }),
+                        timeout_seconds: Uint64::from(polytone_note.timeout_seconds),
+                    })?,
+                    funds: vec![],
+                }
             }
-        }
+        },
+        ExecutionEnvironment::Evm(_, evm_bridge) => match evm_bridge {
+            EvmBridge::Hyperlane(_) => {
+                return Err(ContractError::BridgeCreationNotRequired {});
+            }
+        },
     };
 
     Ok(Response::new()
@@ -807,14 +933,14 @@ fn process_polytone_callback(
             // Get the polytone address
             let Some(ref polytone_address) = callback_info.bridge_callback_address else {
                 return Err(ContractError::Unauthorized(
-                    UnauthorizedReason::UnauthorizedPolytoneCallbackSender {},
+                    UnauthorizedReason::UnauthorizedCallbackSender {},
                 ));
             };
 
             // Only the polytone address can send the callback
             if info.sender != polytone_address {
                 return Err(ContractError::Unauthorized(
-                    UnauthorizedReason::UnauthorizedPolytoneCallbackSender {},
+                    UnauthorizedReason::UnauthorizedCallbackSender {},
                 ));
             }
 
@@ -917,7 +1043,7 @@ fn process_polytone_callback(
             // Only Polytone Note is allowed to send this callback
             if info.sender != external_domain.get_connector_address() {
                 return Err(ContractError::Unauthorized(
-                    UnauthorizedReason::UnauthorizedPolytoneCallbackSender {},
+                    UnauthorizedReason::UnauthorizedCallbackSender {},
                 ));
             }
 
@@ -925,17 +1051,23 @@ fn process_polytone_callback(
                 Callback::Execute(result) => {
                     // If the result is a timeout, we will update the state of the connector to timeout otherwise we will update to Created
                     if result == Err("timeout".to_string())
-                        && external_domain.get_connector_state()
-                            == PolytoneProxyState::PendingResponse
+                        && external_domain.get_polytone_proxy_state()
+                            == Some(PolytoneProxyState::PendingResponse)
                     {
-                        external_domain.set_connector_state(PolytoneProxyState::TimedOut)
+                        external_domain
+                            .set_polytone_proxy_state(PolytoneProxyState::TimedOut)
+                            .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?
                     } else {
-                        external_domain.set_connector_state(PolytoneProxyState::Created)
+                        external_domain
+                            .set_polytone_proxy_state(PolytoneProxyState::Created)
+                            .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?
                     }
                 }
                 Callback::FatalError(error) => {
                     // We should never run out of gas for executing an empty array of messages, but in the case we do we'll log it
-                    external_domain.set_connector_state(PolytoneProxyState::UnexpectedError(error))
+                    external_domain
+                        .set_polytone_proxy_state(PolytoneProxyState::UnexpectedError(error))
+                        .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?
                 }
                 // Should never happen because we don't do queries
                 Callback::Query(_) => {
@@ -951,6 +1083,82 @@ fn process_polytone_callback(
     Ok(Response::new()
         .add_messages(messages)
         .add_attribute("action", "process_polytone_callback"))
+}
+
+fn process_hyperlane_callback(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    handle_msg: HandleMsg,
+) -> Result<Response, ContractError> {
+    // We need to check that the callback comes from a registered processor address in the external domains and that the domain ID matches
+    // and obtain the encoder to decode the callback
+    let encoder = EXTERNAL_DOMAINS
+        .range(deps.storage, None, None, Order::Ascending)
+        .filter_map(Result::ok)
+        .find_map(|(_, external_domain)| {
+            // First check the execution environment
+            match &external_domain.execution_environment {
+                // It must be an EVM connected with Hyperlane execution environment
+                ExecutionEnvironment::Evm(encoder, EvmBridge::Hyperlane(connector)) => {
+                    // We must do the following checks:
+                    // 1) The sender is the mailbox address registered for this domain
+                    // 2) The domain ID must match the origin of the message
+                    // 3) The sender on the External Domain must be the processor address that we registered for this domain (formatted accordingly to Hyperlane)
+
+                    if connector.mailbox != info.sender {
+                        return None;
+                    }
+
+                    // Since there is a possible remote edge case for different domain IDs to have the same processor address we must check both
+                    if connector.domain_id != handle_msg.origin {
+                        return None;
+                    }
+
+                    match format_address_for_hyperlane(external_domain.processor.clone()) {
+                        Ok(formatted_address) => {
+                            if formatted_address == handle_msg.sender {
+                                Some(encoder.clone())
+                            } else {
+                                None
+                            }
+                        }
+                        Err(_) => None,
+                    }
+                }
+                // Return None for non-EVM/Hyperlane execution environments
+                _ => None,
+            }
+        })
+        .ok_or(ContractError::Unauthorized(
+            UnauthorizedReason::UnauthorizedCallbackSender {},
+        ))?;
+
+    // Now that we know for sure its an authorized and valid callback, we need to decode it and update the status
+    let wrapped_callback: Binary = deps.querier.query_wasm_smart(
+        encoder.broker_address,
+        &EncoderBrokerQueryMsg::Decode {
+            encoder_version: encoder.encoder_version,
+            message: ProcessorMessageToDecode::HyperlaneCallback {
+                callback: handle_msg.body,
+            },
+        },
+    )?;
+
+    // Deserialize the callback to obtain the execution ID and the result
+    let InternalAuthorizationMsg::ProcessorCallback {
+        execution_id,
+        execution_result,
+    } = from_json(&wrapped_callback)?;
+
+    // Update the information
+    let mut callback_info = PROCESSOR_CALLBACKS.load(deps.storage, execution_id)?;
+    callback_info.execution_result = execution_result;
+    PROCESSOR_CALLBACKS.save(deps.storage, execution_id, &callback_info)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "process_hyperlane_callback")
+        .add_attribute("execution_id", execution_id.to_string()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -1086,7 +1294,7 @@ pub fn store_inprocess_callback(
             let external_domain = EXTERNAL_DOMAINS.load(storage, domain_name.clone())?;
             // The address that will send the callback for that specific processor and the address that can send a timeout
             (
-                external_domain.get_callback_proxy_address(),
+                external_domain.get_callback_address(),
                 Some(external_domain.get_connector_address()),
             )
         }

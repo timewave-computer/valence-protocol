@@ -3,7 +3,7 @@ use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
     from_json, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Reply,
-    Response, StdResult, SubMsg, SubMsgResult, Uint64, WasmMsg,
+    Response, StdError, StdResult, SubMsg, SubMsgResult, Uint64, WasmMsg,
 };
 
 use cw_storage_plus::Bound;
@@ -13,7 +13,7 @@ use valence_authorization_utils::{
     domain::PolytoneProxyState,
     msg::ProcessorMessage,
 };
-use valence_polytone_utils::polytone::{
+use valence_bridging_utils::polytone::{
     Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg,
 };
 use valence_processor_utils::{
@@ -346,7 +346,7 @@ fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
                             },
                         )?;
                     } else {
-                        messages = batch.create_message_by_index(current_index)
+                        messages = batch.create_message_by_index(current_index)?;
                     };
                 }
             }
@@ -501,7 +501,8 @@ fn execute_atomic(
             UnauthorizedReason::NotProcessor {},
         ));
     }
-    let messages: Vec<CosmosMsg> = batch.into();
+
+    let messages = Into::<Result<Vec<CosmosMsg>, StdError>>::into(batch)?;
 
     Ok(Response::new()
         .add_messages(messages)

@@ -13,7 +13,7 @@ use log::info;
 use serde_json::Value;
 use valence_authorization_utils::{
     callback::ProcessorCallbackInfo,
-    msg::{CallbackProxy, Connector, ExternalDomainInfo, PermissionedMsg},
+    msg::{CosmwasmBridgeInfo, ExternalDomainInfo, PermissionedMsg, PolytoneConnectorsInfo},
 };
 use valence_processor_utils::msg::PolytoneContracts;
 
@@ -434,15 +434,16 @@ pub fn set_up_external_domain_with_polytone(
             external_domains: vec![ExternalDomainInfo {
                 name: chain_name.to_string(),
                 execution_environment:
-                    valence_authorization_utils::domain::ExecutionEnvironment::CosmWasm,
-                connector: Connector::PolytoneNote {
-                    address: polytone_note_on_neutron_address.clone(),
-                    timeout_seconds,
-                },
+                    valence_authorization_utils::msg::ExecutionEnvironmentInfo::Cosmwasm(
+                        CosmwasmBridgeInfo::Polytone(PolytoneConnectorsInfo {
+                            polytone_note: valence_authorization_utils::msg::PolytoneNoteInfo {
+                                address: polytone_note_on_external_domain_address.clone(),
+                                timeout_seconds,
+                            },
+                            polytone_proxy: predicted_proxy_address_on_external_domain.clone(),
+                        }),
+                    ),
                 processor: predicted_processor_on_external_domain_address.clone(),
-                callback_proxy: CallbackProxy::PolytoneProxy(
-                    predicted_proxy_address_on_neutron.clone(),
-                ),
             }],
         },
     );

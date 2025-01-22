@@ -47,12 +47,14 @@ fn test_pause_message() {
     let pause_msg = ProcessorMessageToEncode::Pause {};
 
     // Encode using our contract
-    let encoded = query(
+    let encoded_wrapped = query(
         deps.as_ref(),
         env.clone(),
         QueryMsg::Encode { message: pause_msg },
     )
     .unwrap();
+
+    let encoded: Binary = from_json(&encoded_wrapped).unwrap();
 
     // Decode using Alloy
     let processor_msg = ProcessorMessage::abi_decode(&encoded, true).unwrap();
@@ -128,12 +130,14 @@ fn test_send_msgs() {
     };
 
     // Encode using our contract
-    let encoded = query(
+    let encoded_wrapped = query(
         deps.as_ref(),
         env.clone(),
         QueryMsg::Encode { message: send_msgs },
     )
     .unwrap();
+
+    let encoded: Binary = from_json(&encoded_wrapped).unwrap();
 
     // Decode using Alloy
     let processor_msg = ProcessorMessage::abi_decode(&encoded, true).unwrap();
@@ -233,7 +237,7 @@ fn test_insert_msgs() {
     };
 
     // Encode using our contract
-    let encoded = query(
+    let encoded_wrapped = query(
         deps.as_ref(),
         env.clone(),
         QueryMsg::Encode {
@@ -241,6 +245,8 @@ fn test_insert_msgs() {
         },
     )
     .unwrap();
+
+    let encoded: Binary = from_json(&encoded_wrapped).unwrap();
 
     // Decode using Alloy
     let processor_msg = ProcessorMessage::abi_decode(&encoded, true).unwrap();
@@ -276,7 +282,7 @@ fn test_evict_msgs() {
     };
 
     // Encode using our contract
-    let encoded = query(
+    let encoded_wrapped = query(
         deps.as_ref(),
         env.clone(),
         QueryMsg::Encode {
@@ -284,6 +290,8 @@ fn test_evict_msgs() {
         },
     )
     .unwrap();
+
+    let encoded: Binary = from_json(&encoded_wrapped).unwrap();
 
     // Decode using Alloy
     let processor_msg = ProcessorMessage::abi_decode(&encoded, true).unwrap();
@@ -314,7 +322,7 @@ fn test_resume() {
     let resume_msg = ProcessorMessageToEncode::Resume {};
 
     // Encode using our contract
-    let encoded = query(
+    let encoded_wrapped = query(
         deps.as_ref(),
         env.clone(),
         QueryMsg::Encode {
@@ -322,6 +330,8 @@ fn test_resume() {
         },
     )
     .unwrap();
+
+    let encoded: Binary = from_json(&encoded_wrapped).unwrap();
 
     // Decode using Alloy
     let processor_msg = ProcessorMessage::abi_decode(&encoded, true).unwrap();
@@ -396,12 +406,14 @@ fn test_send_msgs_with_different_retry_logic() {
             messages: messages.clone(),
         };
 
-        let encoded = query(
+        let encoded_wrapped = query(
             deps.as_ref(),
             env.clone(),
             QueryMsg::Encode { message: send_msgs },
         )
         .unwrap();
+
+        let encoded: Binary = from_json(&encoded_wrapped).unwrap();
 
         let processor_msg = ProcessorMessage::abi_decode(&encoded, true).unwrap();
         matches!(processor_msg.messageType, ProcessorMessageType::SendMsgs);
@@ -443,7 +455,7 @@ fn test_decode_callback_message() {
     let encoded_callback = evm_processor_callback.abi_encode();
 
     // Decode using our contract
-    let decoded = query(
+    let decoded_wrapped = query(
         deps.as_ref(),
         env.clone(),
         QueryMsg::Decode {
@@ -453,6 +465,8 @@ fn test_decode_callback_message() {
         },
     )
     .unwrap();
+
+    let decoded: Binary = from_json(&decoded_wrapped).unwrap();
 
     // Check that we got the expected result
     let expected: InternalAuthorizationMsg = from_json(decoded).unwrap();

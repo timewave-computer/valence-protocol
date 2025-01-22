@@ -436,6 +436,22 @@
           }
         ]
       },
+      "EncoderInfo": {
+        "type": "object",
+        "required": [
+          "broker_address",
+          "encoder_version"
+        ],
+        "properties": {
+          "broker_address": {
+            "type": "string"
+          },
+          "encoder_version": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "FunctionCallback": {
         "type": "object",
         "required": [
@@ -555,10 +571,37 @@
         "additionalProperties": false
       },
       "MessageType": {
-        "type": "string",
-        "enum": [
-          "cosmwasm_execute_msg",
-          "cosmwasm_migrate_msg"
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "cosmwasm_execute_msg",
+              "cosmwasm_migrate_msg",
+              "solidity_raw_call"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "solidity_call"
+            ],
+            "properties": {
+              "solidity_call": {
+                "type": "array",
+                "items": [
+                  {
+                    "$ref": "#/definitions/EncoderInfo"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          }
         ]
       },
       "NonAtomicFunction": {
@@ -669,6 +712,18 @@
                 ],
                 "maxItems": 2,
                 "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "must_be_bytes"
+            ],
+            "properties": {
+              "must_be_bytes": {
+                "$ref": "#/definitions/Binary"
               }
             },
             "additionalProperties": false

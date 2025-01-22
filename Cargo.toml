@@ -76,6 +76,7 @@ valence-osmosis-gamm-withdrawer      = { path = "contracts/libraries/osmosis-gam
 valence-osmosis-cl-lper              = { path = "contracts/libraries/osmosis-cl-lper", features = ["library"] }
 valence-osmosis-cl-withdrawer        = { path = "contracts/libraries/osmosis-cl-withdrawer", features = ["library"] }
 valence-neutron-icq-querier          = { path = "contracts/libraries/neutron-icq-querier", features = ["library"] }
+valence-encoder-broker               = { path = "contracts/encoders/broker", features = ["library"] }
 
 # middleware
 valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = ["library"] }
@@ -89,7 +90,7 @@ valence-authorization-utils    = { path = "packages/authorization-utils" }
 valence-encoder-utils          = { path = "packages/encoder-utils" }
 valence-ibc-utils              = { path = "packages/ibc-utils" }
 valence-macros                 = { path = "packages/valence-macros" }
-valence-polytone-utils         = { path = "packages/polytone-utils" }
+valence-bridging-utils         = { path = "packages/bridging-utils" }
 valence-processor-utils        = { path = "packages/processor-utils" }
 valence-library-base           = { path = "packages/library-base" }
 valence-library-utils          = { path = "packages/library-utils" }

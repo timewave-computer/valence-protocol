@@ -11,54 +11,91 @@ pub enum Domain {
 pub struct ExternalDomain {
     pub name: String,
     pub execution_environment: ExecutionEnvironment,
-    pub connector: Connector,
     pub processor: String,
-    pub callback_proxy: CallbackProxy,
 }
 
 impl ExternalDomain {
     pub fn get_connector_address(&self) -> Addr {
-        match &self.connector {
-            Connector::PolytoneNote { address, .. } => address.clone(),
-        }
-    }
-
-    pub fn get_callback_proxy_address(&self) -> Addr {
-        match &self.callback_proxy {
-            CallbackProxy::PolytoneProxy(address) => address.clone(),
-        }
-    }
-
-    pub fn get_connector_state(&self) -> PolytoneProxyState {
-        match &self.connector {
-            Connector::PolytoneNote { state, .. } => state.clone(),
-        }
-    }
-
-    pub fn set_connector_state(&mut self, state: PolytoneProxyState) {
-        match &mut self.connector {
-            Connector::PolytoneNote {
-                state: current_state,
-                ..
-            } => {
-                *current_state = state;
+        match &self.execution_environment {
+            ExecutionEnvironment::Cosmwasm(CosmwasmBridge::Polytone(polytone_info)) => {
+                polytone_info.polytone_note.address.clone()
             }
+            ExecutionEnvironment::Evm(_, EvmBridge::Hyperlane(hyperlane_info)) => {
+                hyperlane_info.mailbox.clone()
+            }
+        }
+    }
+
+    pub fn get_callback_address(&self) -> Addr {
+        match &self.execution_environment {
+            ExecutionEnvironment::Cosmwasm(CosmwasmBridge::Polytone(polytone_info)) => {
+                polytone_info.polytone_proxy.clone()
+            }
+            ExecutionEnvironment::Evm(_, EvmBridge::Hyperlane(hyperlane_info)) => {
+                hyperlane_info.mailbox.clone()
+            }
+        }
+    }
+
+    pub fn get_polytone_proxy_state(&self) -> Option<PolytoneProxyState> {
+        match &self.execution_environment {
+            ExecutionEnvironment::Cosmwasm(CosmwasmBridge::Polytone(polytone_info)) => {
+                Some(polytone_info.polytone_note.state.clone())
+            }
+            ExecutionEnvironment::Evm(_, _) => None,
+        }
+    }
+
+    pub fn set_polytone_proxy_state(
+        &mut self,
+        state: PolytoneProxyState,
+    ) -> Result<(), &'static str> {
+        match &mut self.execution_environment {
+            ExecutionEnvironment::Cosmwasm(CosmwasmBridge::Polytone(polytone_info)) => {
+                polytone_info.polytone_note.state = state;
+                Ok(())
+            }
+            ExecutionEnvironment::Evm(_, _) => {
+                Err("EVM domain does not have a polytone proxy state")
+            }
+        }
+    }
+
+    pub fn get_encoder(&self) -> Option<&Encoder> {
+        match &self.execution_environment {
+            ExecutionEnvironment::Cosmwasm(_) => None,
+            ExecutionEnvironment::Evm(encoder, _) => Some(encoder),
         }
     }
 }
 
 #[cw_serde]
 pub enum ExecutionEnvironment {
-    CosmWasm,
+    Cosmwasm(CosmwasmBridge),
+    Evm(Encoder, EvmBridge),
 }
 
 #[cw_serde]
-pub enum Connector {
-    PolytoneNote {
-        address: Addr,
-        timeout_seconds: u64,
-        state: PolytoneProxyState,
-    },
+pub enum CosmwasmBridge {
+    Polytone(PolytoneConnectors),
+}
+
+#[cw_serde]
+pub enum EvmBridge {
+    Hyperlane(HyperlaneConnector),
+}
+
+#[cw_serde]
+pub struct PolytoneConnectors {
+    pub polytone_note: PolytoneNote,
+    pub polytone_proxy: Addr,
+}
+
+#[cw_serde]
+pub struct PolytoneNote {
+    pub address: Addr,
+    pub timeout_seconds: u64,
+    pub state: PolytoneProxyState,
 }
 
 #[cw_serde]
@@ -74,6 +111,13 @@ pub enum PolytoneProxyState {
 }
 
 #[cw_serde]
-pub enum CallbackProxy {
-    PolytoneProxy(Addr),
+pub struct Encoder {
+    pub broker_address: Addr,
+    pub encoder_version: String,
+}
+
+#[cw_serde]
+pub struct HyperlaneConnector {
+    pub mailbox: Addr,
+    pub domain_id: u32,
 }

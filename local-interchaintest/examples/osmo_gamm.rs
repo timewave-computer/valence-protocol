@@ -264,7 +264,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             },
             cosmwasm_std_old::Coin {
                 denom: OSMOSIS_CHAIN_DENOM.to_string(),
-                amount: 1_000_000u128.into(),
+                amount: 1_200_000u128.into(),
             },
         ],
         &cosmwasm_std_old::Coin {

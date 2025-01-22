@@ -100,11 +100,7 @@ contract ValenceVault is ERC4626, Ownable {
         address underlying,
         string memory vaultTokenName,
         string memory vaultTokenSymbol
-    )
-        ERC20(vaultTokenName, vaultTokenSymbol)
-        ERC4626(IERC20(underlying))
-        Ownable(_owner)
-    {
+    ) ERC20(vaultTokenName, vaultTokenSymbol) ERC4626(IERC20(underlying)) Ownable(_owner) {
         config = abi.decode(_config, (VaultConfig));
         redemptionRate = BASIS_POINTS; // Initialize at 1:1
         maxHistoricalRate = BASIS_POINTS;
@@ -146,18 +142,13 @@ contract ValenceVault is ERC4626, Ownable {
             return 0;
         }
 
-        return
-            _convertToShares(
-                config.depositCap - totalDeposits,
-                Math.Rounding.Floor
-            );
+        return _convertToShares(config.depositCap - totalDeposits, Math.Rounding.Floor);
     }
 
-    /** @dev Override deposit to handle fees before calling _deposit */
-    function deposit(
-        uint256 assets,
-        address receiver
-    ) public override whenNotPaused returns (uint256) {
+    /**
+     * @dev Override deposit to handle fees before calling _deposit
+     */
+    function deposit(uint256 assets, address receiver) public override whenNotPaused returns (uint256) {
         uint256 maxAssets = maxDeposit(receiver);
         if (assets > maxAssets) {
             revert ERC4626ExceededMaxDeposit(receiver, assets, maxAssets);
@@ -176,11 +167,10 @@ contract ValenceVault is ERC4626, Ownable {
         return shares;
     }
 
-    /** @dev Override mint to handle fees before calling _deposit */
-    function mint(
-        uint256 shares,
-        address receiver
-    ) public override whenNotPaused returns (uint256) {
+    /**
+     * @dev Override mint to handle fees before calling _deposit
+     */
+    function mint(uint256 shares, address receiver) public override whenNotPaused returns (uint256) {
         uint256 maxShares = maxMint(receiver);
         if (shares > maxShares) {
             revert ERC4626ExceededMaxMint(receiver, shares, maxShares);
@@ -202,10 +192,7 @@ contract ValenceVault is ERC4626, Ownable {
      * @param newRate New redemption rate in basis points (1/10000)
      * @param newWithdrawFee New position withdrawal fee in basis points (1/10000)
      */
-    function update(
-        uint256 newRate,
-        uint32 newWithdrawFee
-    ) external onlyStrategist {
+    function update(uint256 newRate, uint32 newWithdrawFee) external onlyStrategist {
         // Input validation
         if (newRate == 0) {
             revert InvalidRate();
@@ -223,18 +210,9 @@ contract ValenceVault is ERC4626, Ownable {
 
         // Calculate fees
 
-        uint256 platformFees = calculatePlatformFees(
-            newRate,
-            currentAssets,
-            currentShares,
-            _config.fees.platformFeeBps
-        );
+        uint256 platformFees = calculatePlatformFees(newRate, currentAssets, currentShares, _config.fees.platformFeeBps);
 
-        uint256 performanceFees = calculatePerformanceFees(
-            newRate,
-            currentAssets,
-            _config.fees.performanceFeeBps
-        );
+        uint256 performanceFees = calculatePerformanceFees(newRate, currentAssets, _config.fees.performanceFeeBps);
 
         // Update fees owed
         if (platformFees > 0 || performanceFees > 0) {
@@ -272,9 +250,7 @@ contract ValenceVault is ERC4626, Ownable {
      * @return grossAssets Total assets needed including fee
      * @return fee Fee amount in assets
      */
-    function calculateMintFee(
-        uint256 shares
-    ) public view returns (uint256 grossAssets, uint256 fee) {
+    function calculateMintFee(uint256 shares) public view returns (uint256 grossAssets, uint256 fee) {
         // Calculate base assets needed for shares
         uint256 baseAssets = previewMint(shares);
 
@@ -285,11 +261,7 @@ contract ValenceVault is ERC4626, Ownable {
         }
 
         // grossAssets = baseAssets / (1 - feeRate)
-        grossAssets = baseAssets.mulDiv(
-            BASIS_POINTS,
-            BASIS_POINTS - feeBps,
-            Math.Rounding.Ceil
-        );
+        grossAssets = baseAssets.mulDiv(BASIS_POINTS, BASIS_POINTS - feeBps, Math.Rounding.Ceil);
 
         fee = grossAssets - baseAssets;
         return (grossAssets, fee);
@@ -316,12 +288,11 @@ contract ValenceVault is ERC4626, Ownable {
      * @param currentShares Current total shares
      * @return platformFees Amount of platform fees to collect
      */
-    function calculatePlatformFees(
-        uint256 newRate,
-        uint256 currentAssets,
-        uint256 currentShares,
-        uint32 platformFeeBps
-    ) public view returns (uint256 platformFees) {
+    function calculatePlatformFees(uint256 newRate, uint256 currentAssets, uint256 currentShares, uint32 platformFeeBps)
+        public
+        view
+        returns (uint256 platformFees)
+    {
         if (platformFeeBps == 0) {
             return 0;
         }
@@ -335,10 +306,7 @@ contract ValenceVault is ERC4626, Ownable {
         // Calculate minimum assets using the lower rate
         uint256 rateToUse = newRate > redemptionRate ? redemptionRate : newRate;
 
-        uint256 assetsToChargeFees = sharesToUse.mulDiv(
-            rateToUse,
-            BASIS_POINTS
-        );
+        uint256 assetsToChargeFees = sharesToUse.mulDiv(rateToUse, BASIS_POINTS);
 
         // Cap at current total assets if lower
         if (assetsToChargeFees > currentAssets) {
@@ -348,9 +316,7 @@ contract ValenceVault is ERC4626, Ownable {
         // Calculate time-weighted platform fee
         uint256 timeElapsed = block.timestamp - lastUpdateTimestamp;
 
-        platformFees = assetsToChargeFees
-            .mulDiv(platformFeeBps, BASIS_POINTS)
-            .mulDiv(timeElapsed, SECONDS_PER_YEAR);
+        platformFees = assetsToChargeFees.mulDiv(platformFeeBps, BASIS_POINTS).mulDiv(timeElapsed, SECONDS_PER_YEAR);
 
         return platformFees;
     }
@@ -361,53 +327,34 @@ contract ValenceVault is ERC4626, Ownable {
      * @param currentAssets Current total assets in vault
      * @return performanceFees Amount of performance fees to collect
      */
-    function calculatePerformanceFees(
-        uint256 newRate,
-        uint256 currentAssets,
-        uint32 performanceFeeBps
-    ) public view returns (uint256 performanceFees) {
+    function calculatePerformanceFees(uint256 newRate, uint256 currentAssets, uint32 performanceFeeBps)
+        public
+        view
+        returns (uint256 performanceFees)
+    {
         if (performanceFeeBps == 0 || newRate <= maxHistoricalRate) {
             return 0;
         }
 
         // Calculate yield as the increase in value since max historical rate
-        uint256 yield = currentAssets.mulDiv(
-            newRate - maxHistoricalRate,
-            BASIS_POINTS
-        );
+        uint256 yield = currentAssets.mulDiv(newRate - maxHistoricalRate, BASIS_POINTS);
 
         // Take fee only from the new yield
         performanceFees = yield.mulDiv(performanceFeeBps, BASIS_POINTS);
     }
 
-    function _deposit(
-        address caller,
-        address receiver,
-        uint256 assets,
-        uint256 shares
-    ) internal override {
-        SafeERC20.safeTransferFrom(
-            IERC20(asset()),
-            caller,
-            address(config.depositAccount),
-            assets
-        );
+    function _deposit(address caller, address receiver, uint256 assets, uint256 shares) internal override {
+        SafeERC20.safeTransferFrom(IERC20(asset()), caller, address(config.depositAccount), assets);
         _mint(receiver, shares);
 
         emit Deposit(caller, receiver, assets, shares);
     }
 
-    function _convertToAssets(
-        uint256 shares,
-        Math.Rounding rounding
-    ) internal view override returns (uint256) {
+    function _convertToAssets(uint256 shares, Math.Rounding rounding) internal view override returns (uint256) {
         return shares.mulDiv(redemptionRate, BASIS_POINTS, rounding);
     }
 
-    function _convertToShares(
-        uint256 assets,
-        Math.Rounding rounding
-    ) internal view override returns (uint256) {
+    function _convertToShares(uint256 assets, Math.Rounding rounding) internal view override returns (uint256) {
         return assets.mulDiv(BASIS_POINTS, redemptionRate, rounding);
     }
 
@@ -416,24 +363,15 @@ contract ValenceVault is ERC4626, Ownable {
         if (feesOwedInAsset == 0) return;
 
         // Calculate fee shares for strategist
-        uint256 strategistAssets = feesOwedInAsset.mulDiv(
-            feeDistribution.strategistRatioBps,
-            BASIS_POINTS,
-            Math.Rounding.Floor
-        );
+        uint256 strategistAssets =
+            feesOwedInAsset.mulDiv(feeDistribution.strategistRatioBps, BASIS_POINTS, Math.Rounding.Floor);
 
         // Calculate platform's share as the remainder
         uint256 platformAssets = feesOwedInAsset - strategistAssets;
 
         // Convert assets to shares
-        uint256 strategistShares = _convertToShares(
-            strategistAssets,
-            Math.Rounding.Floor
-        );
-        uint256 platformShares = _convertToShares(
-            platformAssets,
-            Math.Rounding.Floor
-        );
+        uint256 strategistShares = _convertToShares(strategistAssets, Math.Rounding.Floor);
+        uint256 platformShares = _convertToShares(platformAssets, Math.Rounding.Floor);
 
         // Mint shares to respective accounts
         if (strategistShares > 0) {
@@ -447,10 +385,7 @@ contract ValenceVault is ERC4626, Ownable {
         feesOwedInAsset = 0;
 
         emit FeesDistributed(
-            feeDistribution.strategistAccount,
-            feeDistribution.platformAccount,
-            strategistShares,
-            platformShares
+            feeDistribution.strategistAccount, feeDistribution.platformAccount, strategistShares, platformShares
         );
     }
 }
