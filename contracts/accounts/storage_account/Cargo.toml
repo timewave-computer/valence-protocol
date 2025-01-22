@@ -23,6 +23,7 @@ schemars              = { workspace = true }
 serde                 = { workspace = true }
 thiserror             = { workspace = true }
 valence-account-utils = { workspace = true }
+valence-middleware-utils = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test         = { workspace = true }
