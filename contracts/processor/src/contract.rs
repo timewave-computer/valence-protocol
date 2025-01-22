@@ -11,7 +11,6 @@ use valence_authorization_utils::{
     authorization::{Priority, Subroutine},
     callback::ExecutionResult,
     domain::PolytoneProxyState,
-    msg::ProcessorMessage,
 };
 use valence_polytone_utils::polytone::{
     Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg,
@@ -45,6 +44,7 @@ const MAX_PAGE_LIMIT: u32 = 250;
 
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+const SUBROUTINES_TIMEOUT_SECONDS: u64 = 15;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -67,6 +67,7 @@ pub fn instantiate(
             None => ProcessorDomain::Main,
         },
         state: State::Active,
+        subroutines_timeout_seconds: SUBROUTINES_TIMEOUT_SECONDS,
     };
     CONFIG.save(deps.storage, &config)?;
 
@@ -124,7 +125,17 @@ pub fn execute(
                     msgs,
                     subroutine,
                     priority,
-                } => enqueue_messages(deps, id, msgs, subroutine, priority),
+                } => enqueue_messages(
+                    deps,
+                    MessageBatch::new(
+                        env,
+                        id,
+                        msgs,
+                        subroutine,
+                        priority,
+                        config.subroutines_timeout_seconds,
+                    ),
+                ),
                 AuthorizationMsg::EvictMsgs {
                     queue_position,
                     priority,
@@ -135,7 +146,18 @@ pub fn execute(
                     msgs,
                     subroutine,
                     priority,
-                } => insert_messages(deps, queue_position, id, msgs, subroutine, priority),
+                } => insert_messages(
+                    deps,
+                    MessageBatch::new(
+                        env,
+                        id,
+                        msgs,
+                        subroutine,
+                        priority,
+                        config.subroutines_timeout_seconds,
+                    ),
+                    queue_position,
+                ),
                 AuthorizationMsg::Pause {} => pause_processor(deps),
                 AuthorizationMsg::Resume {} => resume_processor(deps),
             }
@@ -181,25 +203,10 @@ fn resume_processor(deps: DepsMut) -> Result<Response, ContractError> {
 }
 
 /// Adds the messages to the back of the corresponding queue
-fn enqueue_messages(
-    deps: DepsMut,
-    id: u64,
-    msgs: Vec<ProcessorMessage>,
-    subroutine: Subroutine,
-    priority: Priority,
-) -> Result<Response, ContractError> {
-    let queue = get_queue_map(&priority);
-
-    let message_batch = MessageBatch {
-        id,
-        msgs,
-        subroutine,
-        priority,
-        retry: None,
-    };
+fn enqueue_messages(deps: DepsMut, message_batch: MessageBatch) -> Result<Response, ContractError> {
+    let queue = get_queue_map(&message_batch.priority);
     queue.push_back(deps.storage, &message_batch)?;
-    EXECUTION_ID_TO_BATCH.save(deps.storage, id, &message_batch)?;
-
+    EXECUTION_ID_TO_BATCH.save(deps.storage, message_batch.id, &message_batch)?;
     Ok(Response::new().add_attribute("method", "enqueue_messages"))
 }
 
@@ -241,25 +248,12 @@ fn evict_messages(
 /// Insert a set of messages in a specific position of the queue
 fn insert_messages(
     deps: DepsMut,
+    message_batch: MessageBatch,
     queue_position: u64,
-    id: u64,
-    msgs: Vec<ProcessorMessage>,
-    subroutine: Subroutine,
-    priority: Priority,
 ) -> Result<Response, ContractError> {
-    let mut queue = get_queue_map(&priority);
-
-    let message_batch = MessageBatch {
-        id,
-        msgs,
-        subroutine,
-        priority,
-        retry: None,
-    };
-
+    let mut queue = get_queue_map(&message_batch.priority);
     queue.insert_at(deps.storage, queue_position, &message_batch)?;
-    EXECUTION_ID_TO_BATCH.save(deps.storage, id, &message_batch)?;
-
+    EXECUTION_ID_TO_BATCH.save(deps.storage, message_batch.id, &message_batch)?;
     Ok(Response::new().add_attribute("method", "add_messages"))
 }
 
@@ -282,6 +276,11 @@ fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let messages;
     match message_batch {
         Some(batch) => {
+            if batch.expiration_time.is_expired(&env.block) {
+                return Ok(Response::new()
+                    .add_attribute("method", "tick")
+                    .add_attribute("expired", batch.id.to_string()));
+            }
             // First we check if the current batch or function to be executed is retriable, if it isn't we'll just push it back to the end of the queue
             // If the retry_cooldown has not passed yet, we'll push the batch back to the queue and wait for the next tick
             if let Some(current_retry) = batch.retry.clone() {

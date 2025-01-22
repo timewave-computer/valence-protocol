@@ -2023,6 +2023,9 @@ fn failed_atomic_batch_after_retries() {
                     }),
                     priority: Priority::Medium,
                     retry: None,
+                    expiration_time: cw_utils::Expiration::AtTime(
+                        setup.app.get_block_timestamp().plus_seconds(100),
+                    ),
                 },
             }),
             &[],

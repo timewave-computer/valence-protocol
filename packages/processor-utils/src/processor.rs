@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Binary, CosmosMsg, StdError, StdResult, SubMsg, WasmMsg};
+use cosmwasm_std::{Addr, Binary, CosmosMsg, Env, StdError, StdResult, SubMsg, WasmMsg};
 use cw_utils::Expiration;
 use serde_json::{json, Value};
 use valence_authorization_utils::{
@@ -15,6 +15,7 @@ pub struct Config {
     pub authorization_contract: String,
     pub processor_domain: ProcessorDomain,
     pub state: State,
+    pub subroutines_timeout_seconds: u64,
 }
 
 #[cw_serde]
@@ -49,6 +50,7 @@ pub struct MessageBatch {
     pub subroutine: Subroutine,
     pub priority: Priority,
     pub retry: Option<CurrentRetry>,
+    pub expiration_time: Expiration,
 }
 
 impl From<MessageBatch> for Vec<CosmosMsg> {
@@ -85,6 +87,24 @@ fn create_cosmos_msg(msg: ProcessorMessage, contract_address: String) -> CosmosM
 }
 
 impl MessageBatch {
+    pub fn new(
+        env: Env,
+        id: u64,
+        msgs: Vec<ProcessorMessage>,
+        subroutine: Subroutine,
+        priority: Priority,
+        timeout: u64,
+    ) -> Self {
+        let timestamp = env.block.time.plus_seconds(timeout);
+        Self {
+            id,
+            msgs,
+            subroutine,
+            priority,
+            retry: None,
+            expiration_time: Expiration::AtTime(timestamp),
+        }
+    }
     /// This is used for non-atomic batches. We need to catch the reply always because we need to know if the message was successful to continue
     /// with the next message in the batch or apply the retry logic
     pub fn create_message_by_index(&self, index: usize) -> Vec<SubMsg> {
