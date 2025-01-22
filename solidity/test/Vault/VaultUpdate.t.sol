@@ -36,7 +36,7 @@ contract VaultUpdateTest is VaultHelper {
         vm.stopPrank();
 
         uint256 newRate = BASIS_POINTS + 100; // 1.01x
-        uint256 newWithdrawFee = 100; // 1%
+        uint32 newWithdrawFee = 100; // 1%
 
         vm.startPrank(strategist);
         vault.update(newRate, newWithdrawFee);

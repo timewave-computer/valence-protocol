@@ -13,7 +13,7 @@ abstract contract VaultHelper is Test {
     // Constants
     uint256 internal constant BASIS_POINTS = 10000;
     uint256 internal constant INITIAL_USER_BALANCE = 100_000_000_000;
-    uint256 internal constant MAX_WITHDRAW_FEE = 2000;
+    uint32 internal constant MAX_WITHDRAW_FEE = 2000;
     uint256 internal constant INITIAL_TIMESTAMP = 5000;
     uint256 internal constant INITIAL_BLOCK = 100;
 
@@ -117,7 +117,7 @@ abstract contract VaultHelper is Test {
     function setFeeDistribution(
         address strategistAccount,
         address platformAccount,
-        uint256 strategistRatioBps
+        uint32 strategistRatioBps
     ) internal {
         vm.startPrank(owner);
 
@@ -126,7 +126,7 @@ abstract contract VaultHelper is Test {
             BaseAccount _withdrawAccount,
             address _strategist,
             uint256 _depositCap,
-            uint256 _maxWithdrawFee,
+            uint32 _maxWithdrawFee,
             ValenceVault.FeeConfig memory _fees,
 
         ) = vault.config();
@@ -153,9 +153,9 @@ abstract contract VaultHelper is Test {
     }
 
     function setFees(
-        uint256 depositFee,
-        uint256 platformFee,
-        uint256 performanceFee
+        uint32 depositFee,
+        uint32 platformFee,
+        uint32 performanceFee
     ) internal {
         vm.startPrank(owner);
         ValenceVault.FeeConfig memory feeConfig = ValenceVault.FeeConfig({
@@ -169,7 +169,7 @@ abstract contract VaultHelper is Test {
             BaseAccount _withdrawAccount,
             address _strategist,
             uint256 _depositCap,
-            uint256 _maxWithdrawFee,
+            uint32 _maxWithdrawFee,
             ,
             ValenceVault.FeeDistributionConfig memory _feeDistribution
         ) = vault.config();
@@ -195,7 +195,7 @@ abstract contract VaultHelper is Test {
             BaseAccount _withdrawAccount,
             address _strategist,
             ,
-            uint256 _maxWithdrawFee,
+            uint32 _maxWithdrawFee,
             ValenceVault.FeeConfig memory _fees,
             ValenceVault.FeeDistributionConfig memory _feeDistribution
         ) = vault.config();

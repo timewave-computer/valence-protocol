@@ -22,7 +22,7 @@ contract VaultBasicTest is VaultHelper {
             "Incorrect initial max historical rate"
         );
         assertEq(
-            vault.LastUpdateTotalShares(),
+            vault.lastUpdateTotalShares(),
             0,
             "Initial shares should be 0"
         );
