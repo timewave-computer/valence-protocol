@@ -151,12 +151,10 @@ fn register_kv_query(
     let mut config: Config = valence_library_base::load_config(deps.storage)?;
 
     // get the nonce of the query to be registered to serve as a temporary identifier
-    // TODO: revisit this later to see if this can go wrong in a real-world scenario
-    // where assumed nonce may override an existing query?
-    let nonce = config.registered_queries.len() as u64;
-    // push the target query identifier to the registered queries list,
-    // advancing the nonce for further queries
-    config.registered_queries.insert(nonce, target_query);
+    let nonce = config.pending_query_registrations.len() as u64;
+    config
+        .pending_query_registrations
+        .insert(nonce, target_query);
 
     // save the config
     valence_library_base::save_config(deps.storage, &config)?;
@@ -291,8 +289,7 @@ pub fn reply(deps: DepsMut, _: Env, msg: Reply) -> StdResult<Response> {
 fn try_associate_registered_query_id(deps: DepsMut, reply: Reply) -> StdResult<Response> {
     let submsg_response = reply.result.into_result().map_err(StdError::generic_err)?;
 
-    // response.data is deprecated
-    // TODO: look into whether it's possible to use the cw2.0 method
+    // TODO: revisit this once we enable cw2.0 as .data is deprecated
     #[allow(deprecated)]
     let binary = submsg_response
         .data
@@ -304,18 +301,22 @@ fn try_associate_registered_query_id(deps: DepsMut, reply: Reply) -> StdResult<R
 
     let mut config: Config = valence_library_base::load_config(deps.storage)?;
 
-    let target_query_identifier = config
-        .registered_queries
-        .get(&reply.id)
-        .ok_or_else(|| StdError::generic_err("no query found for the given reply id"))?;
+    // we remove the pending query registration entry with this submsg reply
+    // id as the key which should return the target query identifier
+    match config.pending_query_registrations.remove(&reply.id) {
+        Some(target_query_id) => {
+            // associate the assigned `interchainqueries` query_id with the
+            // internal target query id
+            config
+                .registered_queries
+                .insert(icq_registration_response.id, target_query_id);
 
-    // remap the key from the nonce to the assigned interchain query id
-    config.registered_queries.insert(
-        icq_registration_response.id,
-        target_query_identifier.to_string(),
-    );
+            valence_library_base::save_config(deps.storage, &config)?;
 
-    valence_library_base::save_config(deps.storage, &config)?;
-
-    Ok(Response::default())
+            Ok(Response::default())
+        }
+        None => Err(StdError::generic_err(
+            "no pending query registration found for the given submsg reply id",
+        )),
+    }
 }

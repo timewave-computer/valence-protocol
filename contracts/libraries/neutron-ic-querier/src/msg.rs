@@ -78,6 +78,13 @@ pub struct Config {
     pub querier_config: QuerierConfig,
     pub query_definitions: BTreeMap<String, QueryDefinition>,
     pub registered_queries: BTreeMap<u64, String>,
+    // index of queries currently being registered.
+    // index of the map is the id being used for submsg reply.
+    // value at the given index is the query identifier which should
+    // have an associated value in the `query_definitions` above.
+    // in practice, this map should "always" be empty because it gets
+    // cleared upon submsg callback.
+    pub pending_query_registrations: BTreeMap<u64, String>,
 }
 
 impl LibraryConfigValidation<Config> for LibraryConfig {
@@ -95,6 +102,7 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
             querier_config,
             query_definitions,
             registered_queries: BTreeMap::new(),
+            pending_query_registrations: BTreeMap::new(),
         })
     }
 }
