@@ -147,11 +147,15 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         maxHistoricalRate = BASIS_POINTS;
         lastUpdateTimestamp = block.timestamp;
         lastUpdateTotalShares = 0;
+        maxHistoricalRate = BASIS_POINTS;
+        lastUpdateTimestamp = block.timestamp;
+        lastUpdateTotalShares = 0;
     }
 
     function updateConfig(bytes memory _config) public onlyOwner {
         VaultConfig memory decodedConfig = abi.decode(_config, (VaultConfig));
 
+        // TODO: Do checks for config updates
         // TODO: Do checks for config updates
         config = decodedConfig;
     }
@@ -191,6 +195,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     }
 
     /** @dev Override deposit to handle fees before calling _deposit */
+    /** @dev Override deposit to handle fees before calling _deposit */
     function deposit(
         uint256 assets,
         address receiver
@@ -213,6 +218,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         return shares;
     }
 
+    /** @dev Override mint to handle fees before calling _deposit */
     /** @dev Override mint to handle fees before calling _deposit */
     function mint(
         uint256 shares,
