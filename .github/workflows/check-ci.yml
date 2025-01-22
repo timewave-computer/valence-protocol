@@ -32,6 +32,7 @@ jobs:
           shared-key: ${{ github.event.pull_request.number || github.ref }}
 
       - name: Download Forge artifacts
+        if: github.event_name == 'workflow_run'
         uses: actions/download-artifact@v4
         with:
           name: forge-artifacts
