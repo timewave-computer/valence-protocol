@@ -13,14 +13,10 @@ pub struct MessageDetails {
 pub enum MessageType {
     CosmwasmExecuteMsg,
     CosmwasmMigrateMsg,
-    SolidityCall(EncoderInfo, LibraryName),
+    // Provide the EncoderInfo and the LibraryName that we want to encode the message into
+    SolidityCall(EncoderInfo, String),
     SolidityRawCall,
 }
-
-// LibraryName is the library we want to encode the message for on the encoder we pass it as a String to avoid requiring to migrate the contract to
-// create authorizations for libraries we add later on the encoders
-#[cw_serde]
-pub struct LibraryName(String);
 
 #[cw_serde]
 pub struct Message {

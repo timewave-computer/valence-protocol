@@ -74,6 +74,9 @@ pub enum AuthorizationErrorReason {
 
     #[error("Invalid message type for this execution environment")]
     InvalidMessageType {},
+
+    #[error("Encoding for library in authorization does not exist")]
+    InvalidLibraryName {},
 }
 
 #[derive(Error, Debug, PartialEq)]

@@ -6,10 +6,11 @@ use valence_authorization_utils::{
         Authorization, AuthorizationMode, AuthorizationState, PermissionType, Priority, Subroutine,
     },
     authorization_message::{MessageType, ParamRestriction},
-    domain::{Domain, ExecutionEnvironment},
+    domain::{Domain, ExecutionEnvironment, ExternalDomain},
     function::Function,
     msg::ProcessorMessage,
 };
+use valence_encoder_broker::msg::QueryMsg as EncoderBrokerQueryMsg;
 
 use crate::{
     contract::build_tokenfactory_denom,
@@ -18,12 +19,27 @@ use crate::{
 };
 
 pub trait Validate {
-    fn validate(&self, store: &dyn Storage) -> Result<(), ContractError>;
+    fn validate(&self, store: &dyn Storage, querier: QuerierWrapper) -> Result<(), ContractError>;
     fn validate_functions<T: Function>(
         &self,
         store: &dyn Storage,
         functions: &[T],
+        querier: QuerierWrapper,
     ) -> Result<(), ContractError>;
+    fn validate_domain<T: Function>(&self, func: &T, domain: &Domain) -> Result<(), ContractError>;
+
+    // Message validation
+    fn validate_message_type<T: Function>(
+        &self,
+        func: &T,
+        external_domain: &Option<ExternalDomain>,
+    ) -> Result<(), ContractError>;
+    fn validate_solidity_library<T: Function>(
+        &self,
+        func: &T,
+        querier: &QuerierWrapper,
+    ) -> Result<(), ContractError>;
+    fn validate_param_restrictions<T: Function>(&self, func: &T) -> Result<(), ContractError>;
     fn ensure_enabled(&self) -> Result<(), ContractError>;
     fn ensure_active(&self, block: &BlockInfo) -> Result<(), ContractError>;
     fn ensure_not_expired(&self, block: &BlockInfo) -> Result<(), ContractError>;
@@ -49,7 +65,7 @@ pub trait Validate {
 }
 
 impl Validate for Authorization {
-    fn validate(&self, store: &dyn Storage) -> Result<(), ContractError> {
+    fn validate(&self, store: &dyn Storage, querier: QuerierWrapper) -> Result<(), ContractError> {
         // Label can't be empty
         if self.label.is_empty() {
             return Err(ContractError::Authorization(
@@ -58,8 +74,12 @@ impl Validate for Authorization {
         }
 
         match &self.subroutine {
-            Subroutine::Atomic(config) => self.validate_functions(store, &config.functions)?,
-            Subroutine::NonAtomic(config) => self.validate_functions(store, &config.functions)?,
+            Subroutine::Atomic(config) => {
+                self.validate_functions(store, &config.functions, querier)?
+            }
+            Subroutine::NonAtomic(config) => {
+                self.validate_functions(store, &config.functions, querier)?
+            }
         }
 
         // If an authorization is permissionless, it can't have high priority
@@ -74,75 +94,150 @@ impl Validate for Authorization {
         Ok(())
     }
 
+    /// Validates all functions in an authorization
+    /// Checks:
+    /// - Functions exist
+    /// - Domain consistency and registration
+    /// - Message type compatibility
+    /// - Library validity for Solidity calls
+    /// - Parameter restrictions
     fn validate_functions<T: Function>(
         &self,
         store: &dyn Storage,
         functions: &[T],
+        querier: QuerierWrapper,
     ) -> Result<(), ContractError> {
-        // An authorization must have functions
-        let first_function = functions.first().ok_or(ContractError::Authorization(
+        // Get domains
+        let first = functions.first().ok_or(ContractError::Authorization(
             AuthorizationErrorReason::NoFunctions {},
         ))?;
 
-        let domain = first_function.domain();
-        // If it's for an external domain, we load it to validate the functions
+        let domain = first.domain();
         let external_domain = match domain {
             Domain::Main => None,
-            Domain::External(domain_name) => Some(
-                // The domain of the functions must be registered
+            Domain::External(name) => Some(
                 EXTERNAL_DOMAINS
-                    .load(store, domain_name.clone())
-                    .map_err(|_| ContractError::DomainIsNotRegistered(domain_name.clone()))?,
+                    .load(store, name.clone())
+                    .map_err(|_| ContractError::DomainIsNotRegistered(name.clone()))?,
             ),
         };
 
         for func in functions {
-            // All functions in an authorization must be executed in the same domain (for v1)
-            if !func.domain().eq(domain) {
-                return Err(ContractError::Authorization(
-                    AuthorizationErrorReason::DifferentFunctionDomains {},
-                ));
-            }
+            self.validate_domain(func, domain)?;
+            self.validate_message_type(func, &external_domain)?;
+            self.validate_solidity_library(func, &querier)?;
+            self.validate_param_restrictions(func)?;
+        }
+        Ok(())
+    }
 
-            // We validate that we only add correct messages for that ExecutionEnvironment
-            if let Some(ref domain) = external_domain {
-                match domain.execution_environment {
-                    ExecutionEnvironment::Cosmwasm(_) => {
-                        if !matches!(
-                            func.message_details().message_type,
-                            MessageType::CosmwasmExecuteMsg | MessageType::CosmwasmMigrateMsg
-                        ) {
-                            return Err(ContractError::Authorization(
-                                AuthorizationErrorReason::InvalidMessageType {},
-                            ));
-                        }
-                    }
-                    ExecutionEnvironment::Evm(_, _) => {
-                        if !matches!(
-                            func.message_details().message_type,
-                            MessageType::SolidityRawCall | MessageType::SolidityCall(_, _)
-                        ) {
-                            return Err(ContractError::Authorization(
-                                AuthorizationErrorReason::InvalidMessageType {},
-                            ));
-                        }
-                    }
-                }
-            }
+    /// Ensures function belongs to a certain domain
+    fn validate_domain<T: Function>(&self, func: &T, domain: &Domain) -> Result<(), ContractError> {
+        // All messages in an authorization must be executed in the same domain (for v1)
+        if !func.domain().eq(domain) {
+            return Err(ContractError::Authorization(
+                AuthorizationErrorReason::DifferentFunctionDomains {},
+            ));
+        }
+        Ok(())
+    }
 
-            // SolidityRawCall can only have one MustBeBytes restriction
-            if let MessageType::SolidityRawCall = func.message_details().message_type {
-                if let Some(restrictions) = &func.message_details().message.params_restrictions {
-                    if restrictions.len() != 1
-                        || !matches!(restrictions[0], ParamRestriction::MustBeBytes(_))
-                    {
+    /// Validates message type compatibility with execution environment:
+    /// - Cosmwasm: Only CosmwasmExecuteMsg/MigrateMsg allowed
+    /// - EVM: Only SolidityRawCall/SolidityCall allowed
+    /// - Main domain: Only CosmwasmExecuteMsg/MigrateMsg allowed
+    fn validate_message_type<T: Function>(
+        &self,
+        func: &T,
+        external_domain: &Option<ExternalDomain>,
+    ) -> Result<(), ContractError> {
+        if let Some(domain) = external_domain {
+            match domain.execution_environment {
+                ExecutionEnvironment::Cosmwasm(_) => {
+                    if !matches!(
+                        func.message_details().message_type,
+                        MessageType::CosmwasmExecuteMsg | MessageType::CosmwasmMigrateMsg
+                    ) {
                         return Err(ContractError::Authorization(
-                            AuthorizationErrorReason::InvalidParamRestrictions {},
+                            AuthorizationErrorReason::InvalidMessageType {},
                         ));
                     }
                 }
-            // Other message types cannot have MustBeBytes restriction
-            } else if let Some(restrictions) = &func.message_details().message.params_restrictions {
+                ExecutionEnvironment::Evm(_, _) => {
+                    if !matches!(
+                        func.message_details().message_type,
+                        MessageType::SolidityRawCall | MessageType::SolidityCall(_, _)
+                    ) {
+                        return Err(ContractError::Authorization(
+                            AuthorizationErrorReason::InvalidMessageType {},
+                        ));
+                    }
+                }
+            }
+        } else {
+            // We are on Main Domain so only Cosmwasm messages are allowed
+            match func.message_details().message_type {
+                MessageType::CosmwasmExecuteMsg | MessageType::CosmwasmMigrateMsg => (),
+                _ => {
+                    return Err(ContractError::Authorization(
+                        AuthorizationErrorReason::InvalidMessageType {},
+                    ));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// For SolidityCall messages:
+    /// - Verifies library exists in encoder by querying the encoder broker
+    fn validate_solidity_library<T: Function>(
+        &self,
+        func: &T,
+        querier: &QuerierWrapper,
+    ) -> Result<(), ContractError> {
+        // If it's a solidity call, the library must be a valid library on the encoder
+        if let MessageType::SolidityCall(encoder, library_name) =
+            &func.message_details().message_type
+        {
+            let exists: bool = querier.query_wasm_smart(
+                encoder.broker_address.clone(),
+                &EncoderBrokerQueryMsg::IsValidLibrary {
+                    encoder_version: encoder.encoder_version.clone(),
+                    library: library_name.clone(),
+                },
+            )?;
+            if !exists {
+                return Err(ContractError::Authorization(
+                    AuthorizationErrorReason::InvalidLibraryName {},
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    /// Validates parameter restrictions:
+    /// - SolidityRawCall: Only MustBeBytes restrictions allowed (maximum 1)
+    /// - Other messages: Cannot have MustBeBytes restrictions
+    fn validate_param_restrictions<T: Function>(&self, func: &T) -> Result<(), ContractError> {
+        let details = func.message_details();
+        let restrictions = match &details.message.params_restrictions {
+            Some(r) => r,
+            None => return Ok(()),
+        };
+
+        match details.message_type {
+            MessageType::SolidityRawCall => {
+                if restrictions.len() > 1
+                    || (restrictions.len() == 1
+                        && !matches!(restrictions[0], ParamRestriction::MustBeBytes(_)))
+                {
+                    return Err(ContractError::Authorization(
+                        AuthorizationErrorReason::InvalidParamRestrictions {},
+                    ));
+                }
+            }
+            _ => {
                 if restrictions
                     .iter()
                     .any(|r| matches!(r, ParamRestriction::MustBeBytes(_)))
@@ -153,7 +248,6 @@ impl Validate for Authorization {
                 }
             }
         }
-
         Ok(())
     }
 

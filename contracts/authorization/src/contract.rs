@@ -29,7 +29,9 @@ use valence_bridging_utils::{
     polytone::{Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg},
 };
 use valence_encoder_broker::msg::QueryMsg as EncoderBrokerQueryMsg;
-use valence_encoder_utils::msg::{ProcessorMessageToDecode, ProcessorMessageToEncode};
+use valence_encoder_utils::msg::{
+    convert_into_encoder_messages, ProcessorMessageToDecode, ProcessorMessageToEncode,
+};
 use valence_processor_utils::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExecuteMsg};
 
 use crate::{
@@ -241,7 +243,7 @@ fn create_authorizations(
         }
 
         // Perform all validations on the authorization
-        authorization.validate(deps.storage)?;
+        authorization.validate(deps.storage, deps.querier)?;
 
         // If Authorization is permissioned we need to create the tokenfactory token and mint the corresponding amounts to the addresses that can
         // execute the authorization
@@ -324,7 +326,7 @@ fn modify_authorization(
         authorization.priority = priority;
     }
 
-    authorization.validate(deps.storage)?;
+    authorization.validate(deps.storage, deps.querier)?;
 
     AUTHORIZATIONS.save(deps.storage, label, &authorization)?;
 
@@ -392,13 +394,13 @@ fn mint_authorizations(
 
 fn pause_processor(deps: DepsMut, domain: Domain) -> Result<Response, ContractError> {
     // The pause msg that is used for both main and external Cosmwasm domains
-    let pause_msg = &ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::Pause {});
+    let pause_msg = ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::Pause {});
     let execute_msg_binary = match domain.clone() {
-        Domain::Main => to_json_binary(pause_msg)?,
+        Domain::Main => to_json_binary(&pause_msg)?,
         Domain::External(external_domain_id) => {
             let external_domain = EXTERNAL_DOMAINS.load(deps.storage, external_domain_id)?;
             match external_domain.execution_environment {
-                ExecutionEnvironment::Cosmwasm(_) => to_json_binary(pause_msg)?,
+                ExecutionEnvironment::Cosmwasm(_) => to_json_binary(&pause_msg)?,
                 ExecutionEnvironment::Evm(encoder, _) => {
                     // We are going to query the encoder to get the corresponding message to pause the processor
                     deps.querier.query_wasm_smart(
@@ -421,13 +423,13 @@ fn pause_processor(deps: DepsMut, domain: Domain) -> Result<Response, ContractEr
 
 fn resume_processor(deps: DepsMut, domain: Domain) -> Result<Response, ContractError> {
     // The resume msg that is used for both main and external Cosmwasm domains
-    let resume_msg = &ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::Resume {});
+    let resume_msg = ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::Resume {});
     let execute_msg_binary = match domain.clone() {
-        Domain::Main => to_json_binary(resume_msg)?,
+        Domain::Main => to_json_binary(&resume_msg)?,
         Domain::External(external_domain_id) => {
             let external_domain = EXTERNAL_DOMAINS.load(deps.storage, external_domain_id)?;
             match external_domain.execution_environment {
-                ExecutionEnvironment::Cosmwasm(_) => to_json_binary(resume_msg)?,
+                ExecutionEnvironment::Cosmwasm(_) => to_json_binary(&resume_msg)?,
                 ExecutionEnvironment::Evm(encoder, _) => {
                     // We are going to query the encoder to get the corresponding message to resume the processor
                     deps.querier.query_wasm_smart(
@@ -476,16 +478,45 @@ fn insert_messages(
 
     let domain = get_domain(&authorization)?;
     let id = get_and_increase_execution_id(deps.storage)?;
-    let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
-        AuthorizationMsg::InsertMsgs {
+    let insert_msgs =
+        ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::InsertMsgs {
             id,
             queue_position,
             msgs: messages.clone(),
-            subroutine: authorization.subroutine,
-            priority,
-        },
-    ))?;
+            subroutine: authorization.subroutine.clone(),
+            priority: priority.clone(),
+        });
 
+    let execute_msg_binary = match domain.clone() {
+        Domain::Main => to_json_binary(&insert_msgs)?,
+        Domain::External(external_domain_id) => {
+            let external_domain = EXTERNAL_DOMAINS.load(deps.storage, external_domain_id)?;
+            match external_domain.execution_environment {
+                ExecutionEnvironment::Cosmwasm(_) => to_json_binary(&insert_msgs)?,
+                ExecutionEnvironment::Evm(encoder, _) => {
+                    // Transform processor messages with encoder messages that have information of the library they need to encode to, according
+                    // to the authorization
+                    let encoder_messages =
+                        convert_into_encoder_messages(messages.clone(), &authorization)?;
+                    deps.querier.query_wasm_smart(
+                        encoder.broker_address,
+                        &EncoderBrokerQueryMsg::Encode {
+                            encoder_version: encoder.encoder_version,
+                            message: ProcessorMessageToEncode::InsertMsgs {
+                                execution_id: id,
+                                queue_position,
+                                priority,
+                                subroutine: authorization.subroutine,
+                                messages: encoder_messages,
+                            },
+                        },
+                    )?
+                }
+            }
+        }
+    };
+
+    // Callback request used for polytone
     let callback_request = CallbackRequest {
         receiver: env.contract.address.to_string(),
         // We will use the ID to know which callback we are getting
@@ -521,12 +552,30 @@ fn evict_messages(
     queue_position: u64,
     priority: Priority,
 ) -> Result<Response, ContractError> {
-    let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
-        AuthorizationMsg::EvictMsgs {
-            queue_position,
-            priority,
-        },
-    ))?;
+    let evict_msg = ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::EvictMsgs {
+        queue_position,
+        priority: priority.clone(),
+    });
+
+    let execute_msg_binary = match domain.clone() {
+        Domain::Main => to_json_binary(&evict_msg)?,
+        Domain::External(external_domain_id) => {
+            let external_domain = EXTERNAL_DOMAINS.load(deps.storage, external_domain_id)?;
+            match external_domain.execution_environment {
+                ExecutionEnvironment::Cosmwasm(_) => to_json_binary(&evict_msg)?,
+                ExecutionEnvironment::Evm(encoder, _) => deps.querier.query_wasm_smart(
+                    encoder.broker_address,
+                    &EncoderBrokerQueryMsg::Encode {
+                        encoder_version: encoder.encoder_version,
+                        message: ProcessorMessageToEncode::EvictMsgs {
+                            queue_position,
+                            priority,
+                        },
+                    },
+                )?,
+            }
+        }
+    };
     let msg = create_msg_for_processor(deps.storage, execute_msg_binary, &domain, None)?;
 
     Ok(Response::new()
@@ -576,14 +625,40 @@ fn send_msgs(
     // Get the ID we are going to use for the execution (used to process callbacks)
     let id = get_and_increase_execution_id(deps.storage)?;
     // Message for the processor
-    let execute_msg_binary = to_json_binary(&ProcessorExecuteMsg::AuthorizationModuleAction(
-        AuthorizationMsg::EnqueueMsgs {
-            id,
-            msgs: messages.clone(),
-            subroutine: authorization.subroutine,
-            priority: authorization.priority,
-        },
-    ))?;
+    let send_msgs = ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::EnqueueMsgs {
+        id,
+        msgs: messages.clone(),
+        subroutine: authorization.subroutine.clone(),
+        priority: authorization.priority.clone(),
+    });
+
+    let execute_msg_binary = match domain.clone() {
+        Domain::Main => to_json_binary(&send_msgs)?,
+        Domain::External(external_domain_id) => {
+            let external_domain = EXTERNAL_DOMAINS.load(deps.storage, external_domain_id)?;
+            match external_domain.execution_environment {
+                ExecutionEnvironment::Cosmwasm(_) => to_json_binary(&send_msgs)?,
+                ExecutionEnvironment::Evm(encoder, _) => {
+                    // Transform processor messages with encoder messages that have information of the library they need to encode to, according
+                    // to the authorization
+                    let encoder_messages =
+                        convert_into_encoder_messages(messages.clone(), &authorization)?;
+                    deps.querier.query_wasm_smart(
+                        encoder.broker_address,
+                        &EncoderBrokerQueryMsg::Encode {
+                            encoder_version: encoder.encoder_version,
+                            message: ProcessorMessageToEncode::SendMsgs {
+                                execution_id: id,
+                                priority: authorization.priority,
+                                subroutine: authorization.subroutine,
+                                messages: encoder_messages,
+                            },
+                        },
+                    )?
+                }
+            }
+        }
+    };
 
     let callback_request = CallbackRequest {
         receiver: env.contract.address.to_string(),
