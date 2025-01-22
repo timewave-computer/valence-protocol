@@ -8,9 +8,9 @@ import {console} from "forge-std/src/console.sol";
 contract ValenceVaultFeeTest is VaultHelper {
     using Math for uint256;
 
-    uint256 constant DEPOSIT_FEE_BPS = 500; // 5%
-    uint256 constant PLATFORM_FEE_BPS = 1000; // 10%
-    uint256 constant PERFORMANCE_FEE_BPS = 2000; // 20%
+    uint32 constant DEPOSIT_FEE_BPS = 500; // 5%
+    uint32 constant PLATFORM_FEE_BPS = 1000; // 10%
+    uint32 constant PERFORMANCE_FEE_BPS = 2000; // 20%
 
     function testDepositFeeCalculation() public {
         setFees(DEPOSIT_FEE_BPS, 0, 0, 0);

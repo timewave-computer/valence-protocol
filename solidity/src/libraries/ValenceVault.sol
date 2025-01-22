@@ -46,16 +46,16 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     );
 
     struct FeeConfig {
-        uint256 depositFeeBps; // Deposit fee in basis points
-        uint256 platformFeeBps; // Yearly platform fee in basis points
-        uint256 performanceFeeBps; // Performance fee in basis points
+        uint32 depositFeeBps; // Deposit fee in basis points
+        uint32 platformFeeBps; // Yearly platform fee in basis points
+        uint32 performanceFeeBps; // Performance fee in basis points
         uint256 solverCompletionFee; // Fee paid to solver for completion of withdraws
     }
 
     struct FeeDistributionConfig {
         address strategistAccount; // Account to receive strategist's portion of fees
         address platformAccount; // Account to receive platform's portion of fees
-        uint256 strategistRatioBps; // Strategist's share of total fees in basis points
+        uint32 strategistRatioBps; // Strategist's share of total fees in basis points
     }
 
     struct VaultConfig {
@@ -63,7 +63,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         BaseAccount withdrawAccount;
         address strategist;
         uint256 depositCap; // 0 means no cap
-        uint256 maxWithdrawFee; // in basis points
+        uint32 maxWithdrawFee; // in basis points
         uint64 withdrawLockupPeriod; // Position + vault lockup period in seconds
         FeeConfig fees;
         FeeDistributionConfig feeDistribution;
@@ -88,9 +88,9 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     // Maximum historical redemption rate for performance fee calculation
     uint256 public maxHistoricalRate;
     // Current position withdraw fee in basis points (1/10000)
-    uint256 public positionWithdrawFee;
+    uint32 public positionWithdrawFee;
     // Total shares at last update
-    uint256 public LastUpdateTotalShares;
+    uint256 public lastUpdateTotalShares;
     // Last update timestamp for fee calculation
     uint256 public lastUpdateTimestamp;
     // Fees to be collected in asset
@@ -106,8 +106,9 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     mapping(uint64 => WithdrawRequest) public solverWithdrawRequests;
 
     // Constant for basis point calculations
-    uint256 private constant BASIS_POINTS = 10000;
-    uint256 private constant SECONDS_PER_YEAR = 365 days;
+    uint32 private constant BASIS_POINTS = 10000;
+    // 1 day = 86400 seconds
+    uint64 private constant SECONDS_PER_YEAR = 365 days;
 
     modifier onlyStrategist() {
         if (msg.sender != config.strategist) {
@@ -145,7 +146,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         redemptionRate = BASIS_POINTS; // Initialize at 1:1
         maxHistoricalRate = BASIS_POINTS;
         lastUpdateTimestamp = block.timestamp;
-        LastUpdateTotalShares = 0;
+        lastUpdateTotalShares = 0;
     }
 
     function updateConfig(bytes memory _config) public onlyOwner {
@@ -240,7 +241,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      */
     function update(
         uint256 newRate,
-        uint256 newWithdrawFee
+        uint32 newWithdrawFee
     ) external onlyStrategist {
         // Input validation
         if (newRate == 0) {
@@ -280,7 +281,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         // Update state
         redemptionRate = newRate;
         positionWithdrawFee = newWithdrawFee;
-        LastUpdateTotalShares = currentShares;
+        lastUpdateTotalShares = currentShares;
         lastUpdateTimestamp = block.timestamp;
 
         // Update max historical rate if new rate is higher
@@ -327,6 +328,14 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         return (grossAssets, fee);
     }
 
+    /**
+     * @notice Calculates the fee amount to be charged for a deposit
+     * @dev Uses basis points (BPS) for fee calculation where 1 BPS = 0.01%
+     *      The fee is rounded up to ensure the protocol doesn't lose dust amounts
+     *      If the deposit fee BPS is set to 0, returns 0 to optimize gas
+     * @param assets The amount of assets being deposited
+     * @return The fee amount in the same decimals as the asset
+     */
     function calculateDepositFee(uint256 assets) public view returns (uint256) {
         uint256 feeBps = config.fees.depositFeeBps;
         if (feeBps == 0) return 0;
@@ -340,26 +349,20 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @param currentShares Current total shares
      * @return platformFees Amount of platform fees to collect
      */
-    /**
-     * @dev Calculates platform fees based on minimum values to prevent manipulation
-     * @param newRate New redemption rate being set
-     * @param currentAssets Current total assets in vault
-     * @param currentShares Current total shares
-     * @return platformFees Amount of platform fees to collect
-     */
     function calculatePlatformFees(
         uint256 newRate,
         uint256 currentAssets,
         uint256 currentShares
     ) public view returns (uint256 platformFees) {
-        if (config.fees.platformFeeBps == 0) {
+        uint32 platformFeeBps = config.fees.platformFeeBps;
+        if (platformFeeBps == 0) {
             return 0;
         }
 
         // Get minimum shares between current and last update
         uint256 sharesToUse = currentShares;
-        if (LastUpdateTotalShares < sharesToUse) {
-            sharesToUse = LastUpdateTotalShares;
+        if (lastUpdateTotalShares < sharesToUse) {
+            sharesToUse = lastUpdateTotalShares;
         }
 
         // Calculate minimum assets using the lower rate
@@ -379,7 +382,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         uint256 timeElapsed = block.timestamp - lastUpdateTimestamp;
 
         platformFees = assetsToChargeFees
-            .mulDiv(config.fees.platformFeeBps, BASIS_POINTS)
+            .mulDiv(platformFeeBps, BASIS_POINTS)
             .mulDiv(timeElapsed, SECONDS_PER_YEAR);
 
         return platformFees;
@@ -395,8 +398,9 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         uint256 newRate,
         uint256 currentAssets
     ) public view returns (uint256 performanceFees) {
+        uint32 performanceFeeBps = config.fees.performanceFeeBps;
         if (
-            config.fees.performanceFeeBps == 0 || newRate <= maxHistoricalRate
+            performanceFeeBps == 0 || newRate <= maxHistoricalRate
         ) {
             return 0;
         }
@@ -562,11 +566,12 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     }
 
     function _distributeFees() internal {
+        FeeDistributionConfig memory feeDistribution = config.feeDistribution;
         if (feesOwedInAsset == 0) return;
 
         // Calculate fee shares for strategist
         uint256 strategistAssets = feesOwedInAsset.mulDiv(
-            config.feeDistribution.strategistRatioBps,
+            feeDistribution.strategistRatioBps,
             BASIS_POINTS,
             Math.Rounding.Floor
         );
@@ -586,18 +591,18 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
 
         // Mint shares to respective accounts
         if (strategistShares > 0) {
-            _mint(config.feeDistribution.strategistAccount, strategistShares);
+            _mint(feeDistribution.strategistAccount, strategistShares);
         }
         if (platformShares > 0) {
-            _mint(config.feeDistribution.platformAccount, platformShares);
+            _mint(feeDistribution.platformAccount, platformShares);
         }
 
         // Reset fees owed
         feesOwedInAsset = 0;
 
         emit FeesDistributed(
-            config.feeDistribution.strategistAccount,
-            config.feeDistribution.platformAccount,
+            feeDistribution.strategistAccount,
+            feeDistribution.platformAccount,
             strategistShares,
             platformShares
         );
