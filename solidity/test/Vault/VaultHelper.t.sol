@@ -34,12 +34,7 @@ abstract contract VaultHelper is Test {
     address internal platformFeeAccount;
 
     // Events
-    event Deposit(
-        address indexed sender,
-        address indexed owner,
-        uint256 assets,
-        uint256 shares
-    );
+    event Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares);
 
     function setUp() public virtual {
         // Setup addresses
@@ -71,13 +66,7 @@ abstract contract VaultHelper is Test {
             feeDistribution: defaultDistributionFees()
         });
 
-        vault = new ValenceVault(
-            owner,
-            abi.encode(config),
-            address(token),
-            "Valence Vault Token",
-            "VVT"
-        );
+        vault = new ValenceVault(owner, abi.encode(config), address(token), "Valence Vault Token", "VVT");
 
         // Setup permissions
         depositAccount.approveLibrary(address(vault));
@@ -96,32 +85,20 @@ abstract contract VaultHelper is Test {
 
     function defaultFees() public pure returns (ValenceVault.FeeConfig memory) {
         return
-            ValenceVault.FeeConfig({
-                depositFeeBps: 0,
-                platformFeeBps: 0,
-                performanceFeeBps: 0,
-                solverCompletionFee: 0
-            });
+            ValenceVault.FeeConfig({depositFeeBps: 0, platformFeeBps: 0, performanceFeeBps: 0, solverCompletionFee: 0});
     }
 
-    function defaultDistributionFees()
-        public
-        view
-        returns (ValenceVault.FeeDistributionConfig memory)
+    function defaultDistributionFees() public view returns (ValenceVault.FeeDistributionConfig memory) {
+        return ValenceVault.FeeDistributionConfig({
+            strategistAccount: strategistFeeAccount,
+            platformAccount: platformFeeAccount,
+            strategistRatioBps: 3000
+        });
+    }
+
+    function setFeeDistribution(address strategistAccount, address platformAccount, uint32 strategistRatioBps)
+        internal
     {
-        return
-            ValenceVault.FeeDistributionConfig({
-                strategistAccount: strategistFeeAccount,
-                platformAccount: platformFeeAccount,
-                strategistRatioBps: 3000
-            });
-    }
-
-    function setFeeDistribution(
-        address strategistAccount,
-        address platformAccount,
-        uint32 strategistRatioBps
-    ) internal {
         vm.startPrank(owner);
 
         (
@@ -132,15 +109,13 @@ abstract contract VaultHelper is Test {
             uint32 _maxWithdrawFee,
             uint64 _withdrawLockupPeriod,
             ValenceVault.FeeConfig memory _fees,
-
         ) = vault.config();
 
-        ValenceVault.FeeDistributionConfig memory feeDistConfig = ValenceVault
-            .FeeDistributionConfig({
-                strategistAccount: strategistAccount,
-                platformAccount: platformAccount,
-                strategistRatioBps: strategistRatioBps
-            });
+        ValenceVault.FeeDistributionConfig memory feeDistConfig = ValenceVault.FeeDistributionConfig({
+            strategistAccount: strategistAccount,
+            platformAccount: platformAccount,
+            strategistRatioBps: strategistRatioBps
+        });
 
         ValenceVault.VaultConfig memory newConfig = ValenceVault.VaultConfig({
             depositAccount: _depositAccount,
@@ -157,12 +132,9 @@ abstract contract VaultHelper is Test {
         vm.stopPrank();
     }
 
-    function setFees(
-        uint32 depositFee,
-        uint32 platformFee,
-        uint32 performanceFee,
-        uint256 solverCompletionFee
-    ) internal {
+    function setFees(uint32 depositFee, uint32 platformFee, uint32 performanceFee, uint256 solverCompletionFee)
+        internal
+    {
         vm.startPrank(owner);
         ValenceVault.FeeConfig memory feeConfig = ValenceVault.FeeConfig({
             depositFeeBps: depositFee,
@@ -191,7 +163,6 @@ abstract contract VaultHelper is Test {
             _withdrawLockupPeriod,
             feeConfig,
             _feeDistribution
-        
         );
 
         vault.updateConfig(abi.encode(newConfig));

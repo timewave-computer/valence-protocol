@@ -24,13 +24,10 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
     }
 
     // Abstract function to be implemented by child contracts
-    function executeWithdraw(
-        uint256 amount,
-        address receiver,
-        address owner,
-        uint256 maxLossBps,
-        bool allowSolver
-    ) internal virtual returns (uint64);
+    function executeWithdraw(uint256 amount, address receiver, address owner, uint256 maxLossBps, bool allowSolver)
+        internal
+        virtual
+        returns (uint64);
 
     // Shared tests
     function testBasicRequest() public {
@@ -40,9 +37,7 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
 
         uint64 requestId = executeWithdraw(amount, user, user, 500, false);
 
-        ValenceVault.WithdrawRequest memory request = vault.getRequest(
-            requestId
-        );
+        ValenceVault.WithdrawRequest memory request = vault.getRequest(requestId);
         // For withdraw, shares will be converted. For redeem, it's direct.
         // Child tests will verify the specific share amount
         assertEq(request.owner, user, "Incorrect owner");
@@ -60,20 +55,10 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
 
         uint64 requestId = executeWithdraw(1000, user, user, 500, true);
 
-        ValenceVault.WithdrawRequest memory request = vault.getRequest(
-            requestId
-        );
-        (, , , , , , ValenceVault.FeeConfig memory fees, ) = vault.config();
-        assertEq(
-            request.solverFee,
-            fees.solverCompletionFee,
-            "Incorrect solver fee"
-        );
-        assertEq(
-            token.balanceOf(user),
-            preBalance - fees.solverCompletionFee,
-            "Solver fee not charged"
-        );
+        ValenceVault.WithdrawRequest memory request = vault.getRequest(requestId);
+        (,,,,,, ValenceVault.FeeConfig memory fees,) = vault.config();
+        assertEq(request.solverFee, fees.solverCompletionFee, "Incorrect solver fee");
+        assertEq(token.balanceOf(user), preBalance - fees.solverCompletionFee, "Solver fee not charged");
 
         vm.stopPrank();
     }
@@ -86,13 +71,7 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
             executeWithdraw(100, user, user, 500, false);
         }
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ValenceVault.TooManyWithdraws.selector,
-                maxWithdraws,
-                maxWithdraws
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(ValenceVault.TooManyWithdraws.selector, maxWithdraws, maxWithdraws));
         executeWithdraw(100, user, user, 500, false);
 
         vm.stopPrank();
@@ -139,13 +118,11 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
 }
 
 contract ValenceVaultWithdrawTest is ValenceVaultWithdrawBaseTest {
-    function executeWithdraw(
-        uint256 amount,
-        address receiver,
-        address owner,
-        uint256 maxLossBps,
-        bool allowSolver
-    ) internal override returns (uint64) {
+    function executeWithdraw(uint256 amount, address receiver, address owner, uint256 maxLossBps, bool allowSolver)
+        internal
+        override
+        returns (uint64)
+    {
         return vault.withdraw(amount, receiver, owner, maxLossBps, allowSolver);
     }
 
@@ -154,12 +131,7 @@ contract ValenceVaultWithdrawTest is ValenceVaultWithdrawBaseTest {
         uint256 maxAssets = vault.maxWithdraw(user);
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ERC4626.ERC4626ExceededMaxWithdraw.selector,
-                user,
-                maxAssets + 1,
-                maxAssets
-            )
+            abi.encodeWithSelector(ERC4626.ERC4626ExceededMaxWithdraw.selector, user, maxAssets + 1, maxAssets)
         );
         vault.withdraw(maxAssets + 1, user, user, 500, false);
         vm.stopPrank();
@@ -167,13 +139,11 @@ contract ValenceVaultWithdrawTest is ValenceVaultWithdrawBaseTest {
 }
 
 contract ValenceVaultRedeemTest is ValenceVaultWithdrawBaseTest {
-    function executeWithdraw(
-        uint256 amount,
-        address receiver,
-        address owner,
-        uint256 maxLossBps,
-        bool allowSolver
-    ) internal override returns (uint64) {
+    function executeWithdraw(uint256 amount, address receiver, address owner, uint256 maxLossBps, bool allowSolver)
+        internal
+        override
+        returns (uint64)
+    {
         return vault.redeem(amount, receiver, owner, maxLossBps, allowSolver);
     }
 
@@ -182,12 +152,7 @@ contract ValenceVaultRedeemTest is ValenceVaultWithdrawBaseTest {
         uint256 maxShares = vault.maxRedeem(user);
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ERC4626.ERC4626ExceededMaxRedeem.selector,
-                user,
-                maxShares + 1,
-                maxShares
-            )
+            abi.encodeWithSelector(ERC4626.ERC4626ExceededMaxRedeem.selector, user, maxShares + 1, maxShares)
         );
         vault.redeem(maxShares + 1, user, user, 500, false);
         vm.stopPrank();
