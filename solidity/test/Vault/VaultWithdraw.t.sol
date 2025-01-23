@@ -115,6 +115,72 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
         executeWithdraw(1000, user, user, 500, false);
         vm.stopPrank();
     }
+
+    function testRequestChaining() public {
+    vm.startPrank(user);
+    
+    // Create first request
+    uint64 firstId = executeWithdraw(1000, user, user, 500, false);
+    
+    // Create second request
+    uint64 secondId = executeWithdraw(1000, user, user, 500, false);
+    
+    // Check chaining
+    ValenceVault.WithdrawRequest memory secondRequest = vault.getRequest(secondId);
+    
+    assertEq(secondRequest.nextId, firstId);
+    assertEq(vault.userFirstRequestId(user), secondId);
+    
+    vm.stopPrank();
+}
+
+function testRequestMapping() public {
+    setFees(0, 0, 0, 100);
+
+    vm.startPrank(user);
+    
+    // Create regular request
+    uint64 userRequestId = executeWithdraw(1000, user, user, 500, false);
+    
+    // Create solver request
+    uint64 solverRequestId = executeWithdraw(1000, user, user, 500, true);
+    
+    // Check correct mapping storage
+    ValenceVault.WithdrawRequest memory userRequest = vault.getRequest(userRequestId);
+    ValenceVault.WithdrawRequest memory solverRequest = vault.getRequest(solverRequestId);
+    
+    assertEq(userRequest.owner, user);
+    assertEq(solverRequest.owner, user);
+    assertTrue(solverRequest.solverFee > 0);
+    
+    vm.stopPrank();
+}
+
+function testUpdateIdTracking() public {
+    vm.startPrank(user);
+    
+    uint64 currentUpdateId = vault.currentUpdateId();
+    uint64 requestId = executeWithdraw(1000, user, user, 500, false);
+    
+    ValenceVault.WithdrawRequest memory request = vault.getRequest(requestId);
+    assertEq(request.updateId, currentUpdateId + 1);
+    
+    vm.stopPrank();
+}
+
+function testTotalAssetsToWithdrawAccumulation() public {
+    vm.startPrank(user);
+    
+    uint256 initialTotal = vault.totalAssetsToWithdrawNextUpdate();
+    uint256 withdrawAmount = 1000;
+    
+    executeWithdraw(withdrawAmount, user, user, 500, false);
+    
+    uint256 newTotal = vault.totalAssetsToWithdrawNextUpdate();
+    assertEq(newTotal, initialTotal + withdrawAmount);
+    
+    vm.stopPrank();
+}
 }
 
 contract ValenceVaultWithdrawTest is ValenceVaultWithdrawBaseTest {

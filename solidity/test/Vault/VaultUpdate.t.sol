@@ -72,7 +72,8 @@ contract VaultUpdateTest is VaultHelper {
         vm.stopPrank();
 
         // Calculate expected platform fees (half year)
-        uint256 platformFees = (depositAmount * 1000 * 180) / (BASIS_POINTS * 365);
+        uint256 platformFees = (depositAmount * 1000 * 180) /
+            (BASIS_POINTS * 365);
 
         // Calculate expected performance fees
         uint256 yield = (depositAmount * 1000) / BASIS_POINTS; // 10% increase
@@ -83,7 +84,10 @@ contract VaultUpdateTest is VaultHelper {
         uint256 expectedStrategistShares = (totalFees * 3000) / BASIS_POINTS;
         uint256 expectedPlatformShares = totalFees - expectedStrategistShares;
 
-        assertEq(vault.balanceOf(strategistFeeAccount), expectedStrategistShares);
+        assertEq(
+            vault.balanceOf(strategistFeeAccount),
+            expectedStrategistShares
+        );
         assertEq(vault.balanceOf(platformFeeAccount), expectedPlatformShares);
         assertEq(vault.feesOwedInAsset(), 0);
     }
@@ -114,7 +118,10 @@ contract VaultUpdateTest is VaultHelper {
         uint256 expectedStrategistShares = (totalFees * 3000) / BASIS_POINTS; // 3000
         uint256 expectedPlatformShares = totalFees - expectedStrategistShares; // 7000
 
-        assertEq(vault.balanceOf(strategistFeeAccount), expectedStrategistShares);
+        assertEq(
+            vault.balanceOf(strategistFeeAccount),
+            expectedStrategistShares
+        );
         assertEq(vault.balanceOf(platformFeeAccount), expectedPlatformShares);
     }
 
@@ -138,7 +145,10 @@ contract VaultUpdateTest is VaultHelper {
         uint256 expectedStrategistShares = (totalFees * 3000) / BASIS_POINTS; // 1500
         uint256 expectedPlatformShares = totalFees - expectedStrategistShares; // 3500
 
-        assertEq(vault.balanceOf(strategistFeeAccount), expectedStrategistShares);
+        assertEq(
+            vault.balanceOf(strategistFeeAccount),
+            expectedStrategistShares
+        );
         assertEq(vault.balanceOf(platformFeeAccount), expectedPlatformShares);
     }
 
@@ -179,8 +189,96 @@ contract VaultUpdateTest is VaultHelper {
         uint256 expectedStrategistShares = (totalFees * 3000) / BASIS_POINTS; // 4920
         uint256 expectedPlatformShares = totalFees - expectedStrategistShares; // 11480
 
-        assertEq(vault.balanceOf(strategistFeeAccount), expectedStrategistShares, "Strategist shares mismatch");
-        assertEq(vault.balanceOf(platformFeeAccount), expectedPlatformShares, "Platform shares mismatch");
+        assertEq(
+            vault.balanceOf(strategistFeeAccount),
+            expectedStrategistShares,
+            "Strategist shares mismatch"
+        );
+        assertEq(
+            vault.balanceOf(platformFeeAccount),
+            expectedPlatformShares,
+            "Platform shares mismatch"
+        );
         assertEq(vault.feesOwedInAsset(), 0, "Fees owed should be 0");
+    }
+
+    function testHandleWithdrawNetting() public {
+        // Setup initial deposit
+        vm.startPrank(user);
+        vault.deposit(100000, user);
+        vm.stopPrank();
+
+        uint256 nettingAmount = 50000;
+
+        // Prepare to capture the transfer event
+        vm.expectCall(
+            address(token),
+            abi.encodeWithSignature(
+                "transfer(address,uint256)",
+                address(withdrawAccount),
+                nettingAmount
+            )
+        );
+
+        vm.startPrank(strategist);
+        vault.update(BASIS_POINTS, 0, nettingAmount);
+        vm.stopPrank();
+    }
+
+    function testUpdateIncrementId() public {
+        // Setup initial state
+        vm.startPrank(user);
+        vault.deposit(100000, user);
+        vm.stopPrank();
+
+        uint64 initialUpdateId = vault.currentUpdateId();
+
+        vm.startPrank(strategist);
+        vault.update(BASIS_POINTS, 0, 0);
+        vm.stopPrank();
+
+        assertEq(vault.currentUpdateId(), initialUpdateId + 1);
+    }
+
+    function testUpdateInfoStorage() public {
+        // Setup initial state
+        vm.startPrank(user);
+        vault.deposit(100000, user);
+        vm.stopPrank();
+
+        uint256 initialRate = BASIS_POINTS;
+        uint256 newRate = BASIS_POINTS + 500; // 1.05x
+        uint32 withdrawFee = 100; // 1%
+        uint256 expectedWithdrawRate = initialRate - withdrawFee;
+
+        vm.startPrank(strategist);
+        vault.update(newRate, withdrawFee, 0);
+        vm.stopPrank();
+
+        (uint256 storedRate, uint256 storedTimestamp) = vault.updateInfos(
+            vault.currentUpdateId()
+        );
+        assertEq(storedRate, expectedWithdrawRate);
+        assertEq(storedTimestamp, block.timestamp);
+    }
+
+    function testMaxHistoricalRateUpdate() public {
+        // Setup initial state
+        vm.startPrank(user);
+        vault.deposit(100000, user);
+        vm.stopPrank();
+
+        uint256 higherRate = BASIS_POINTS + 500;
+        uint256 lowerRate = BASIS_POINTS + 200;
+
+        // First update with higher rate
+        vm.startPrank(strategist);
+        vault.update(higherRate, 0, 0);
+        assertEq(vault.maxHistoricalRate(), higherRate);
+
+        // Update with lower rate shouldn't change maxHistoricalRate
+        vault.update(lowerRate, 0, 0);
+        assertEq(vault.maxHistoricalRate(), higherRate);
+        vm.stopPrank();
     }
 }

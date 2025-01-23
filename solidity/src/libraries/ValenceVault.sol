@@ -24,7 +24,6 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     error InvalidOwner();
     error InvalidMaxLoss();
     error InvalidShares();
-    error InvalidNettingAmount(uint256 provided, uint256 maxAllowed);
 
     event PausedStateChanged(bool paused);
     event RateUpdated(uint256 newRate);
@@ -611,11 +610,6 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
 
         // Check deposit account balance and validate netting amount
         if (nettingAmount > 0) {
-            uint256 depositAccountBalance = IERC20(asset()).balanceOf(address(_config.depositAccount));
-            if (nettingAmount > depositAccountBalance) {
-                revert InvalidNettingAmount(nettingAmount, depositAccountBalance);
-            }
-
             // Prepare the transfer calldata
             bytes memory transferCalldata =
                 abi.encodeWithSignature("transfer(address,uint256)", address(_config.withdrawAccount), nettingAmount);
