@@ -55,6 +55,9 @@ they should match (unless there is a good reason for them not to).
 - `update_period: Uint64`, specifying how often the given query should be updated
 - `params: BTreeMap<String, Binary>`, providing the type registry with the base64
 encoded query parameters that are unique to this query
+- `query_id: Option<u64>`, optionally storing the assigned query_id after the
+query is registered. on instantiation this field is validated to be `None`, as
+it can only be modified via execute methods.
 
 ## Execution flow
 
@@ -88,7 +91,7 @@ At this point the query is published in the `interchainqueries` module and if
 everything is functioning as expected, the results posted back should be processed
 into canonical `ValenceType`s and then written to the associated storage account.
 
-### `DeregisterKvQuery { query_id: u64 }`
+### `DeregisterKvQuery { target_query: String }`
 
 In order to conclude a given query, authorized addresses can call the `DeregisterKvQuery`
 method with the query identifier.

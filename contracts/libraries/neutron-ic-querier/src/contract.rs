@@ -11,7 +11,7 @@ use neutron_sdk::{
         query::{NeutronQuery, QueryRegisteredQueryResponse},
         types::KVKey,
     },
-    interchain_queries::{queries::get_raw_interchain_query_result, types::QueryType},
+    interchain_queries::{queries::get_raw_interchain_query_result, types::QueryPayload},
     sudo::msg::SudoMsg,
 };
 
@@ -73,19 +73,33 @@ pub fn process_function(
         FunctionMsgs::RegisterKvQuery { target_query } => {
             register_kv_query(deps, info, cfg, target_query)
         }
-        FunctionMsgs::DeregisterKvQuery { query_id } => deregister_kv_query(deps, info, query_id),
+        FunctionMsgs::DeregisterKvQuery { target_query } => {
+            deregister_kv_query(deps, info, cfg, target_query)
+        }
     }
 }
 
 fn deregister_kv_query(
     deps: ExecuteDeps,
     info: MessageInfo,
-    query_id: u64,
+    mut cfg: Config,
+    target_query: String,
 ) -> Result<Response<NeutronMsg>, LibraryError> {
-    // remove the associated query entry from the library config
-    let mut config: Config = valence_library_base::load_config(deps.storage)?;
-    config.registered_queries.remove(&query_id);
-    valence_library_base::save_config(deps.storage, &config)?;
+    // load the target query and get its asigned query id
+    let query_definition = cfg
+        .query_definitions
+        .get_mut(&target_query)
+        .ok_or(StdError::generic_err("query definition not found"))?;
+    let query_id = query_definition
+        .query_id
+        .ok_or(StdError::generic_err("query is not registered"))?;
+
+    // clear the active query id from the query definition and remove
+    // the registered query entry from the library config
+    query_definition.query_id = None;
+    cfg.registered_queries.remove(&query_id);
+
+    valence_library_base::save_config(deps.storage, &cfg)?;
 
     // build the query removal message
     let query_removal_msg = NeutronMsg::remove_interchain_query(query_id);
@@ -146,13 +160,12 @@ fn register_kv_query(
         },
     )?;
 
-    let kv_registration_msg = NeutronMsg::RegisterInterchainQuery {
-        query_type: QueryType::KV.into(),
-        keys: vec![query_kv_key],
-        transactions_filter: String::new(),
-        connection_id: cfg.querier_config.connection_id.to_string(),
-        update_period: query_definition.update_period.u64(),
-    };
+    let kv_registration_msg = NeutronMsg::register_interchain_query(
+        QueryPayload::KV(vec![query_kv_key]),
+        cfg.querier_config.connection_id.to_string(),
+        query_definition.update_period.u64(),
+    )
+    .map_err(|e| StdError::generic_err(e.to_string()))?;
 
     // get the nonce of the query to be registered to serve as a temporary identifier
     let nonce = cfg.pending_query_registrations.len() as u64;
@@ -166,50 +179,6 @@ fn register_kv_query(
     let submsg = SubMsg::reply_on_success(kv_registration_msg, nonce);
 
     Ok(Response::default().add_submessage(submsg))
-}
-
-fn query_icq_registration_fee(querier: QuerierWrapper) -> Result<Vec<Coin>, StdError> {
-    #[cosmwasm_schema::cw_serde]
-    struct Params {
-        pub query_submit_timeout: Uint64,
-        pub query_deposit: Vec<Coin>,
-        pub tx_query_removal_limit: Uint64,
-    }
-    #[cosmwasm_schema::cw_serde]
-    struct QueryParamsResponse {
-        pub params: Params,
-    }
-
-    #[allow(deprecated)]
-    let query_request = QueryRequest::Stargate {
-        path: "/neutron.interchainqueries.Query/Params".to_owned(),
-        data: Binary::from(vec![]),
-    };
-
-    let res: QueryParamsResponse = querier.query(&query_request)?;
-
-    Ok(res.params.query_deposit)
-}
-
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {
-        QueryMsg::Ownership {} => {
-            to_json_binary(&valence_library_base::get_ownership(deps.storage)?)
-        }
-        QueryMsg::GetProcessor {} => {
-            to_json_binary(&valence_library_base::get_processor(deps.storage)?)
-        }
-        QueryMsg::GetLibraryConfig {} => {
-            let config: Config = valence_library_base::load_config(deps.storage)?;
-            to_json_binary(&config)
-        }
-        QueryMsg::GetRawLibraryConfig {} => {
-            let raw_config: LibraryConfig =
-                valence_library_utils::raw_config::query_raw_library_config(deps.storage)?;
-            to_json_binary(&raw_config)
-        }
-    }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -304,6 +273,13 @@ pub fn reply(deps: DepsMut, _: Env, msg: Reply) -> StdResult<Response> {
     // id as the key which should return the target query identifier
     match config.pending_query_registrations.remove(&msg.id) {
         Some(target_query_id) => {
+            let query_definition = config
+                .query_definitions
+                .get_mut(&target_query_id)
+                .ok_or_else(|| StdError::generic_err("query definition not found"))?;
+            // set the active query id on the query definition
+            query_definition.query_id = Some(icq_registration_response.id);
+
             // associate the assigned `interchainqueries` query_id with the
             // internal target query id
             config
@@ -318,4 +294,48 @@ pub fn reply(deps: DepsMut, _: Env, msg: Reply) -> StdResult<Response> {
             "no pending query registration found for the given submsg reply id",
         )),
     }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    match msg {
+        QueryMsg::Ownership {} => {
+            to_json_binary(&valence_library_base::get_ownership(deps.storage)?)
+        }
+        QueryMsg::GetProcessor {} => {
+            to_json_binary(&valence_library_base::get_processor(deps.storage)?)
+        }
+        QueryMsg::GetLibraryConfig {} => {
+            let config: Config = valence_library_base::load_config(deps.storage)?;
+            to_json_binary(&config)
+        }
+        QueryMsg::GetRawLibraryConfig {} => {
+            let raw_config: LibraryConfig =
+                valence_library_utils::raw_config::query_raw_library_config(deps.storage)?;
+            to_json_binary(&raw_config)
+        }
+    }
+}
+
+fn query_icq_registration_fee(querier: QuerierWrapper) -> Result<Vec<Coin>, StdError> {
+    #[cosmwasm_schema::cw_serde]
+    struct Params {
+        pub query_submit_timeout: Uint64,
+        pub query_deposit: Vec<Coin>,
+        pub tx_query_removal_limit: Uint64,
+    }
+    #[cosmwasm_schema::cw_serde]
+    struct QueryParamsResponse {
+        pub params: Params,
+    }
+
+    #[allow(deprecated)]
+    let query_request = QueryRequest::Stargate {
+        path: "/neutron.interchainqueries.Query/Params".to_owned(),
+        data: Binary::from(vec![]),
+    };
+
+    let res: QueryParamsResponse = querier.query(&query_request)?;
+
+    Ok(res.params.query_deposit)
 }

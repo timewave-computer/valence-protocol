@@ -15,7 +15,7 @@ use crate::contract::ExecuteDeps;
 #[cw_serde]
 pub enum FunctionMsgs {
     RegisterKvQuery { target_query: String },
-    DeregisterKvQuery { query_id: u64 },
+    DeregisterKvQuery { target_query: String },
 }
 
 #[valence_library_query]
@@ -44,6 +44,10 @@ pub struct QueryDefinition {
     pub type_url: String,
     pub update_period: Uint64,
     pub params: BTreeMap<String, Binary>,
+    /// query_id assigned by the `interchainqueries` module.
+    /// `None` on initialization, set after query is registered,
+    /// `None` after query is deregistered.
+    pub query_id: Option<u64>,
 }
 
 impl LibraryConfig {
@@ -85,6 +89,12 @@ impl LibraryConfig {
                 !query_definition.type_url.is_empty(),
                 LibraryError::ConfigurationError("query type_url cannot be empty".to_string())
             );
+            ensure!(
+                query_definition.query_id.is_none(),
+                LibraryError::ConfigurationError(
+                    "query_id should only be set after query is registered".to_string()
+                )
+            )
         }
 
         Ok((
