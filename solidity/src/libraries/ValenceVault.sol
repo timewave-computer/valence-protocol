@@ -24,9 +24,15 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     error InvalidOwner();
     error InvalidMaxLoss();
     error InvalidShares();
+    error InvalidNettingAmount(uint256 provided, uint256 maxAllowed);
 
     event PausedStateChanged(bool paused);
     event RateUpdated(uint256 newRate);
+    event UpdateProcessed(
+        uint256 indexed updateId,
+        uint256 withdrawRate,
+        uint256 totalAssetsToWithdraw
+    );
     event WithdrawFeeUpdated(uint256 newFee);
     event FeesUpdated(uint256 platformFee, uint256 performanceFee);
     event MaxHistoricalRateUpdated(uint256 newRate);
@@ -42,8 +48,10 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         address indexed receiver,
         uint256 shares,
         uint256 maxLossBps,
-        bool solverEnabled
+        bool solverEnabled,
+        uint64 updateId
     );
+    event DepositWithdrawNetting(uint256 netAmount, uint256 timestamp);
 
     struct FeeConfig {
         uint32 depositFeeBps; // Deposit fee in basis points
@@ -76,8 +84,15 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         uint64 maxLossBps; // Maximum acceptable loss in basis points
         uint256 solverFee; // Fee for solver completion (only used in solver mapping)
         address owner; // Owner of the request
-        uint64 nextId; // Next request ID for this user (0 if last)
         address receiver; // Receiver of the withdrawn assets
+        uint64 nextId; // Next request ID for this user (0 if last)
+        uint64 updateId; // Next update ID
+    }
+
+    // Struct to store information about each update
+    struct UpdateInfo {
+        uint256 withdrawRate; // Rate at which withdrawals were processed (redemptionRate - withdrawFee)
+        uint256 timestamp; // When this update occurred
     }
 
     VaultConfig public config;
@@ -95,6 +110,11 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     uint256 public lastUpdateTimestamp;
     // Fees to be collected in asset
     uint256 public feesOwedInAsset;
+    // Current update ID (increments with each update)
+    uint64 public currentUpdateId;
+    // The total amount we should withdraw in the next update
+    uint256 public totalAssetsToWithdrawNextUpdate;
+
     // Withdraw request ID counter
     uint64 private _nextWithdrawRequestId = 1;
 
@@ -104,6 +124,9 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     // Separate mappings for the actual requests
     mapping(uint64 => WithdrawRequest) public userWithdrawRequests;
     mapping(uint64 => WithdrawRequest) public solverWithdrawRequests;
+
+    // Mapping from update ID to update information
+    mapping(uint64 => UpdateInfo) public updateInfos;
 
     // Constant for basis point calculations
     uint32 private constant BASIS_POINTS = 10000;
@@ -235,13 +258,15 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice Updates the redemption rate and calculates/collects fees
+     * @notice Updates the redemption rate, calculates/collects fees, and handles deposit/withdraw netting
      * @param newRate New redemption rate in basis points (1/10000)
      * @param newWithdrawFee New position withdrawal fee in basis points (1/10000)
+     * @param nettingAmount Amount to transfer from deposit to withdraw account for netting
      */
     function update(
         uint256 newRate,
-        uint32 newWithdrawFee
+        uint32 newWithdrawFee,
+        uint256 nettingAmount
     ) external onlyStrategist {
         // Input validation
         if (newRate == 0) {
@@ -259,7 +284,6 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         if (currentAssets == 0) revert ZeroAssets();
 
         // Calculate fees
-
         uint256 platformFees = calculatePlatformFees(
             newRate,
             currentAssets,
@@ -282,9 +306,11 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         // Distribute accumulated fees
         _distributeFees();
 
+        // Handle withdraws
+        _handleWithdraws(newWithdrawFee, nettingAmount);
+
         // Update state
         redemptionRate = newRate;
-        positionWithdrawFee = newWithdrawFee;
         lastUpdateTotalShares = currentShares;
         lastUpdateTimestamp = block.timestamp;
 
@@ -295,7 +321,6 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         }
 
         emit RateUpdated(newRate);
-        emit WithdrawFeeUpdated(newWithdrawFee);
     }
 
     function pause(bool _pause) external onlyOwnerOrStrategist {
@@ -478,6 +503,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         return
             _withdraw(
                 shares,
+                assets,
                 receiver,
                 owner,
                 maxLossBps,
@@ -512,6 +538,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         return
             _withdraw(
                 shares,
+                previewRedeem(shares),
                 receiver,
                 owner,
                 maxLossBps,
@@ -530,6 +557,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      */
     function _withdraw(
         uint256 shares,
+        uint256 assetsToWithdraw,
         address receiver,
         address owner,
         uint256 maxLossBps,
@@ -554,7 +582,11 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
 
         // Create withdrawal request
         uint64 requestId = _nextWithdrawRequestId++;
+        uint64 updateId = currentUpdateId + 1;
         uint64 currentFirstId = uint64(userFirstRequestId[owner]);
+
+        // Update the total to withdraw on next update
+        totalAssetsToWithdrawNextUpdate += assetsToWithdraw;
 
         WithdrawRequest memory request = WithdrawRequest({
             sharesAmount: shares,
@@ -562,8 +594,9 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
             maxLossBps: uint64(maxLossBps),
             solverFee: 0,
             owner: owner,
+            receiver: receiver,
             nextId: currentFirstId,
-            receiver: receiver
+            updateId: updateId
         });
 
         // Handle solver completion setup if enabled
@@ -575,7 +608,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
                 IERC20(asset()),
                 msg.sender,
                 address(this),
-                config.fees.solverCompletionFee
+                request.solverFee
             );
 
             solverWithdrawRequests[requestId] = request;
@@ -592,7 +625,8 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
             receiver,
             shares,
             maxLossBps,
-            allowSolverCompletion
+            allowSolverCompletion,
+            updateId
         );
 
         return requestId;
@@ -670,6 +704,65 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
             strategistShares,
             platformShares
         );
+    }
+
+    /**
+     * @dev Handles all withdraw-related operations during an update
+     * @param newWithdrawFee New position withdrawal fee in basis points
+     * @param nettingAmount Amount to transfer from deposit to withdraw account
+     */
+    function _handleWithdraws(
+        uint32 newWithdrawFee,
+        uint256 nettingAmount
+    ) internal {
+        VaultConfig memory _config = config;
+
+        // Check deposit account balance and validate netting amount
+        if (nettingAmount > 0) {
+            uint256 depositAccountBalance = IERC20(asset()).balanceOf(
+                address(_config.depositAccount)
+            );
+            if (nettingAmount > depositAccountBalance) {
+                revert InvalidNettingAmount(
+                    nettingAmount,
+                    depositAccountBalance
+                );
+            }
+
+            // Prepare the transfer calldata
+            bytes memory transferCalldata = abi.encodeWithSignature(
+                "transfer(address,uint256)",
+                address(_config.withdrawAccount),
+                nettingAmount
+            );
+
+            // Execute the transfer through the deposit account
+            _config.depositAccount.execute(asset(), 0, transferCalldata);
+
+            emit DepositWithdrawNetting(nettingAmount, block.timestamp);
+        }
+
+        // Calculate withdraw rate and increment update ID
+        uint256 withdrawRate = redemptionRate - newWithdrawFee;
+        currentUpdateId++;
+
+        // Store withdraw info for this update
+        updateInfos[currentUpdateId] = UpdateInfo({
+            withdrawRate: withdrawRate,
+            timestamp: block.timestamp
+        });
+
+        // Emit withdraw-related events
+        emit UpdateProcessed(
+            currentUpdateId,
+            withdrawRate,
+            totalAssetsToWithdrawNextUpdate
+        );
+        emit WithdrawFeeUpdated(newWithdrawFee);
+
+        // Update withdraw-related state
+        positionWithdrawFee = newWithdrawFee;
+        totalAssetsToWithdrawNextUpdate = 0;
     }
 
     /**

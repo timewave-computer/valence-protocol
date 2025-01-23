@@ -108,14 +108,14 @@ contract ValenceVaultFeeTest is VaultHelper {
         vm.warp(vm.getBlockTimestamp() + period);
 
         uint256 initialFeesOwed = vault.feesOwedInAsset();
-        vault.update(BASIS_POINTS, 0);
+        vault.update(BASIS_POINTS, 0, 0);
         uint256 firstPeriodFees = vault.balanceOf(platformFeeAccount) +
             vault.balanceOf(strategistFeeAccount) -
             initialFeesOwed;
 
         vm.warp(vm.getBlockTimestamp() + period);
 
-        vault.update(BASIS_POINTS, 0);
+        vault.update(BASIS_POINTS, 0, 0);
         uint256 secondPeriodFees = vault.balanceOf(platformFeeAccount) +
             vault.balanceOf(strategistFeeAccount) -
             firstPeriodFees;
@@ -149,7 +149,7 @@ contract ValenceVaultFeeTest is VaultHelper {
         // Update with 50% increase
         uint256 newRate = (BASIS_POINTS * 15) / 10; // 1.5x
         uint256 initialFeesOwed = vault.feesOwedInAsset();
-        vault.update(newRate, 0);
+        vault.update(newRate, 0, 0);
 
         // Calculate yield and fee
         uint256 totalYield = depositAmount.mulDiv(
@@ -189,12 +189,12 @@ contract ValenceVaultFeeTest is VaultHelper {
         vm.startPrank(strategist);
         // First update with 50% increase
         uint256 highRate = (BASIS_POINTS * 15) / 10; // 1.5x
-        vault.update(highRate, 0);
+        vault.update(highRate, 0, 0);
         uint256 feesAfterIncrease = vault.feesOwedInAsset();
 
         // Second update with lower rate
         uint256 lowerRate = (BASIS_POINTS * 13) / 10; // 1.3x
-        vault.update(lowerRate, 0);
+        vault.update(lowerRate, 0, 0);
 
         assertEq(
             vault.feesOwedInAsset(),
@@ -210,7 +210,7 @@ contract ValenceVaultFeeTest is VaultHelper {
     }
 
     function testCombinedFees() public {
-    setFees(DEPOSIT_FEE_BPS, PLATFORM_FEE_BPS, PERFORMANCE_FEE_BPS, 0);
+        setFees(DEPOSIT_FEE_BPS, PLATFORM_FEE_BPS, PERFORMANCE_FEE_BPS, 0);
 
         uint256 depositAmount = 10_000;
 
@@ -229,7 +229,7 @@ contract ValenceVaultFeeTest is VaultHelper {
 
         // Initial update to set LastUpdateTotalShares
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS, 0); // Update with 1:1 rate
+        vault.update(BASIS_POINTS, 0, 0); // Update with 1:1 rate
         vm.stopPrank();
 
         // Skip 6 months and update with 50% increase
@@ -260,13 +260,13 @@ contract ValenceVaultFeeTest is VaultHelper {
             Math.Rounding.Floor
         );
 
-        vault.update(newRate, 0);
+        vault.update(newRate, 0, 0);
 
         // Final fee checks
         uint256 totalNewFees = vault.balanceOf(platformFeeAccount) +
             vault.balanceOf(strategistFeeAccount) -
             preUpdateFees;
-            
+
         assertEq(
             totalNewFees,
             depositFee + expectedPlatformFee + expectedPerformanceFee,
