@@ -15,6 +15,7 @@ use neutron_sdk::{
     sudo::msg::SudoMsg,
 };
 
+use serde_json_wasm::from_slice;
 use valence_library_utils::{
     error::LibraryError,
     msg::{ExecuteMsg, InstantiateMsg},
@@ -81,17 +82,20 @@ fn deregister_kv_query(
     info: MessageInfo,
     query_id: u64,
 ) -> Result<Response<NeutronMsg>, LibraryError> {
-    // remove the associated query entry
+    // remove the associated query entry from the library config
     let mut config: Config = valence_library_base::load_config(deps.storage)?;
     config.registered_queries.remove(&query_id);
     valence_library_base::save_config(deps.storage, &config)?;
 
+    // build the query removal message
     let query_removal_msg = NeutronMsg::remove_interchain_query(query_id);
 
+    // get the ic query to be removed in order to find the escrowed deposit
     let registered_query: QueryRegisteredQueryResponse = deps
         .querier
         .query(&NeutronQuery::RegisteredInterchainQuery { query_id }.into())?;
 
+    // transfer the recovered deposit back to the sender
     let transfer_escrow_msg = BankMsg::Send {
         to_address: info.sender.to_string(),
         amount: registered_query.registered_query.deposit,
@@ -105,28 +109,32 @@ fn deregister_kv_query(
 fn register_kv_query(
     deps: ExecuteDeps,
     info: MessageInfo,
-    cfg: Config,
+    mut cfg: Config,
     target_query: String,
 ) -> Result<Response<NeutronMsg>, LibraryError> {
+    // lookup the target query definition in the library config
     let query_definition = cfg
         .query_definitions
         .get(&target_query)
-        .ok_or(LibraryError::Std(StdError::generic_err(
-            "no query definition for key",
-        )))?;
+        .ok_or(StdError::generic_err("query definition not found"))?;
 
     // query the icq registration fee from `interchainqueries` module
     let icq_registration_fee = query_icq_registration_fee(deps.as_ref().into_empty().querier)?;
 
-    // get the amount of fee denom paid by the sender
-    let paid_fee_denom_amount = must_pay(&info, &icq_registration_fee.denom)
-        .map_err(|_| StdError::generic_err("sender must pay icq registration fee"))?;
+    // this is expected to just contain a single coin (untrn), but we respect
+    // the response type being a vector and assert all potential coins
+    for fee_coin in icq_registration_fee {
+        // get the amount of fee denom paid by the sender
+        let paid_fee_denom_amount = must_pay(&info, &fee_coin.denom)
+            .map_err(|_| StdError::generic_err("sender must pay icq registration fee"))?;
 
-    ensure!(
-        paid_fee_denom_amount >= icq_registration_fee.amount,
-        StdError::generic_err("insufficient icq registration fee amount")
-    );
+        ensure!(
+            paid_fee_denom_amount >= fee_coin.amount,
+            StdError::generic_err("insufficient icq registration fee amount")
+        );
+    }
 
+    // query the broker for the KV key to be registered
     let query_kv_key: KVKey = deps.querier.query_wasm_smart(
         cfg.querier_config.broker_addr.to_string(),
         &valence_middleware_broker::msg::QueryMsg {
@@ -146,18 +154,13 @@ fn register_kv_query(
         update_period: query_definition.update_period.u64(),
     };
 
-    // we load the current library config to get the nonce for submsg
-    // reply processing
-    let mut config: Config = valence_library_base::load_config(deps.storage)?;
-
     // get the nonce of the query to be registered to serve as a temporary identifier
-    let nonce = config.pending_query_registrations.len() as u64;
-    config
-        .pending_query_registrations
-        .insert(nonce, target_query);
+    let nonce = cfg.pending_query_registrations.len() as u64;
 
-    // save the config
-    valence_library_base::save_config(deps.storage, &config)?;
+    // write the pending query registration to the config in order to
+    // later associate it in the reply handler
+    cfg.pending_query_registrations.insert(nonce, target_query);
+    valence_library_base::save_config(deps.storage, &cfg)?;
 
     // fire registration in a submsg to get the registered query id back
     let submsg = SubMsg::reply_on_success(kv_registration_msg, nonce);
@@ -165,7 +168,7 @@ fn register_kv_query(
     Ok(Response::default().add_submessage(submsg))
 }
 
-fn query_icq_registration_fee(querier: QuerierWrapper) -> Result<Coin, StdError> {
+fn query_icq_registration_fee(querier: QuerierWrapper) -> Result<Vec<Coin>, StdError> {
     #[cosmwasm_schema::cw_serde]
     struct Params {
         pub query_submit_timeout: Uint64,
@@ -177,6 +180,7 @@ fn query_icq_registration_fee(querier: QuerierWrapper) -> Result<Coin, StdError>
         pub params: Params,
     }
 
+    #[allow(deprecated)]
     let query_request = QueryRequest::Stargate {
         path: "/neutron.interchainqueries.Query/Params".to_owned(),
         data: Binary::from(vec![]),
@@ -184,12 +188,7 @@ fn query_icq_registration_fee(querier: QuerierWrapper) -> Result<Coin, StdError>
 
     let res: QueryParamsResponse = querier.query(&query_request)?;
 
-    match res.params.query_deposit.len() {
-        1 => Ok(res.params.query_deposit[0].clone()),
-        _ => Err(StdError::generic_err(
-            "query deposit response must contain one token",
-        )),
-    }
+    Ok(res.params.query_deposit)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -216,11 +215,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn sudo(deps: ExecuteDeps, _env: Env, msg: SudoMsg) -> StdResult<Response<NeutronMsg>> {
     match msg {
+        // this is triggered by the ICQ relayer delivering the query result
         SudoMsg::KVQueryResult { query_id } => handle_sudo_kv_query_result(deps, query_id),
         _ => Ok(Response::default()),
     }
 }
 
+/// looks up the delivered query_id result from the `interchainqueries` module
+/// and processes it to store the canonical result in the storage account
 fn handle_sudo_kv_query_result(
     deps: ExecuteDeps,
     query_id: u64,
@@ -228,18 +230,21 @@ fn handle_sudo_kv_query_result(
     let registered_query_result = get_raw_interchain_query_result(deps.as_ref(), query_id)
         .map_err(|_| StdError::generic_err("failed to get the raw icq result"))?;
 
+    // as this call bypasses the valence_library_base, library config is not in scope.
+    // we load it manually.
     let cfg: Config = valence_library_base::load_config(deps.storage)?;
 
+    // lookup the query definition id
     let target_query_identifier = cfg
         .registered_queries
         .get(&query_id)
-        .ok_or_else(|| StdError::generic_err("no active query found for the given query id"))?;
-
+        .ok_or_else(|| StdError::generic_err("no registered query found for the given query id"))?;
     let target_query_definition = cfg
         .query_definitions
         .get(target_query_identifier)
         .ok_or_else(|| StdError::generic_err("no query definition found for the given query id"))?;
 
+    // call into the broker to deserialize the proto result into a native type (b64 encoded)
     let proto_reconstruction_response: NativeTypeWrapper = deps.querier.query_wasm_smart(
         cfg.querier_config.broker_addr.to_string(),
         &valence_middleware_broker::msg::QueryMsg {
@@ -251,6 +256,7 @@ fn handle_sudo_kv_query_result(
         },
     )?;
 
+    // call into the broker to canonicalize the native type into a valence type
     let valence_canonical_response: ValenceType = deps.querier.query_wasm_smart(
         cfg.querier_config.broker_addr.to_string(),
         &valence_middleware_broker::msg::QueryMsg {
@@ -262,6 +268,7 @@ fn handle_sudo_kv_query_result(
         },
     )?;
 
+    // write the resulting canonical response to the storage account under the target query id
     let storage_acc_write_msg = WasmMsg::Execute {
         contract_addr: cfg.storage_acc_addr.to_string(),
         msg: to_json_binary(
@@ -283,11 +290,7 @@ fn handle_sudo_kv_query_result(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, _: Env, msg: Reply) -> StdResult<Response> {
-    try_associate_registered_query_id(deps, msg)
-}
-
-fn try_associate_registered_query_id(deps: DepsMut, reply: Reply) -> StdResult<Response> {
-    let submsg_response = reply.result.into_result().map_err(StdError::generic_err)?;
+    let submsg_response = msg.result.into_result().map_err(StdError::generic_err)?;
 
     // TODO: revisit this once we enable cw2.0 as .data is deprecated
     #[allow(deprecated)]
@@ -296,14 +299,15 @@ fn try_associate_registered_query_id(deps: DepsMut, reply: Reply) -> StdResult<R
         .ok_or_else(|| StdError::generic_err("no data in reply"))?;
 
     let icq_registration_response: MsgRegisterInterchainQueryResponse =
-        serde_json_wasm::from_slice(binary.as_slice())
-            .map_err(|e| StdError::generic_err(e.to_string()))?;
+        from_slice(binary.as_slice()).map_err(|e| StdError::generic_err(e.to_string()))?;
 
+    // as this call bypasses the valence_library_base, library config is not in scope.
+    // we load it manually.
     let mut config: Config = valence_library_base::load_config(deps.storage)?;
 
     // we remove the pending query registration entry with this submsg reply
     // id as the key which should return the target query identifier
-    match config.pending_query_registrations.remove(&reply.id) {
+    match config.pending_query_registrations.remove(&msg.id) {
         Some(target_query_id) => {
             // associate the assigned `interchainqueries` query_id with the
             // internal target query id
