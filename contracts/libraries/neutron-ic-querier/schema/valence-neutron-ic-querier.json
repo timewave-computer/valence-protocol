@@ -122,6 +122,15 @@
             "type": "object",
             "additionalProperties": false
           },
+          "query_id": {
+            "description": "query_id assigned by the `interchainqueries` module. `None` on initialization, set after query is registered, `None` after query is deregistered.",
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          },
           "registry_version": {
             "type": [
               "string",
@@ -350,13 +359,11 @@
               "deregister_kv_query": {
                 "type": "object",
                 "required": [
-                  "query_id"
+                  "target_query"
                 ],
                 "properties": {
-                  "query_id": {
-                    "type": "integer",
-                    "format": "uint64",
-                    "minimum": 0.0
+                  "target_query": {
+                    "type": "string"
                   }
                 },
                 "additionalProperties": false
@@ -471,6 +478,15 @@
           "params": {
             "type": "object",
             "additionalProperties": false
+          },
+          "query_id": {
+            "description": "query_id assigned by the `interchainqueries` module. `None` on initialization, set after query is registered, `None` after query is deregistered.",
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
           },
           "registry_version": {
             "type": [
@@ -635,6 +651,15 @@
               "type": "object",
               "additionalProperties": false
             },
+            "query_id": {
+              "description": "query_id assigned by the `interchainqueries` module. `None` on initialization, set after query is registered, `None` after query is deregistered.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
             "registry_version": {
               "type": [
                 "string",
@@ -761,6 +786,15 @@
             "params": {
               "type": "object",
               "additionalProperties": false
+            },
+            "query_id": {
+              "description": "query_id assigned by the `interchainqueries` module. `None` on initialization, set after query is registered, `None` after query is deregistered.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
             },
             "registry_version": {
               "type": [
