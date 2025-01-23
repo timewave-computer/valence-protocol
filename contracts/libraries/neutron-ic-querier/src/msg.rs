@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 
-use cosmwasm_std::{Addr, Binary, Deps, Uint64};
+use cosmwasm_std::{ensure, Addr, Binary, Deps, Uint64};
 use cw_ownable::cw_ownable_query;
 
 use valence_library_utils::{
@@ -63,20 +63,53 @@ impl LibraryConfig {
         &self,
         api: &dyn cosmwasm_std::Api,
     ) -> Result<(Addr, QuerierConfig, BTreeMap<String, QueryDefinition>), LibraryError> {
+        // get the storage account address
         let storage_addr = self.storage_account.to_addr(api)?;
-        let querier_config = self.querier_config.clone();
-        let query_definitions = self.query_definitions.clone();
 
-        Ok((storage_addr, querier_config, query_definitions))
+        // validate the querier config fields
+        ensure!(
+            !self.querier_config.connection_id.is_empty(),
+            LibraryError::ConfigurationError("connection_id cannot be empty".to_string())
+        );
+        api.addr_validate(&self.querier_config.broker_addr)?;
+
+        // validate query definitions
+        for (_, query_definition) in self.query_definitions.iter() {
+            ensure!(
+                query_definition.update_period > Uint64::zero(),
+                LibraryError::ConfigurationError(
+                    "query update period must be greater than 0".to_string()
+                )
+            );
+            ensure!(
+                !query_definition.type_url.is_empty(),
+                LibraryError::ConfigurationError("query type_url cannot be empty".to_string())
+            );
+        }
+
+        Ok((
+            storage_addr,
+            self.querier_config.clone(),
+            self.query_definitions.clone(),
+        ))
     }
 }
 
 /// Validated library configuration
 #[cw_serde]
 pub struct Config {
+    // storage account to which the library will write the results
     pub storage_acc_addr: Addr,
+    // querier configurations that apply to all defined queries
     pub querier_config: QuerierConfig,
+    // map of configured queries that can be registered.
+    // key: query identifier (arbitrary string for internal use)
+    // value: query definition containing the necessary information
+    // to register the query
     pub query_definitions: BTreeMap<String, QueryDefinition>,
+    // map of currently registered interchain queries.
+    // key: `interchainqueries` module assigned query_id
+    // value: query identifier from `query_definitions` above
     pub registered_queries: BTreeMap<u64, String>,
     // index of queries currently being registered.
     // index of the map is the id being used for submsg reply.
@@ -109,8 +142,36 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
 
 impl LibraryConfigUpdate {
     pub fn update_config(self, deps: ExecuteDeps) -> Result<(), LibraryError> {
-        let config: Config = valence_library_base::load_config(deps.storage)?;
-        // TODO
+        let mut config: Config = valence_library_base::load_config(deps.storage)?;
+
+        if let Some(storage_acc) = self.storage_account {
+            config.storage_acc_addr = storage_acc.to_addr(deps.api)?;
+        }
+
+        if let Some(querier_config) = self.querier_config {
+            ensure!(
+                !querier_config.connection_id.is_empty(),
+                LibraryError::ConfigurationError("connection_id cannot be empty".to_string())
+            );
+            deps.api.addr_validate(&querier_config.broker_addr)?;
+            config.querier_config = querier_config;
+        }
+
+        if let Some(query_definitions) = self.query_definitions {
+            for (_, query_definition) in query_definitions.iter() {
+                ensure!(
+                    query_definition.update_period > Uint64::zero(),
+                    LibraryError::ConfigurationError(
+                        "query update period must be greater than 0".to_string()
+                    )
+                );
+                ensure!(
+                    !query_definition.type_url.is_empty(),
+                    LibraryError::ConfigurationError("query type_url cannot be empty".to_string())
+                );
+            }
+        }
+
         valence_library_base::save_config(deps.storage, &config)?;
         Ok(())
     }
