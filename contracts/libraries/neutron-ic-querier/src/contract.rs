@@ -280,12 +280,7 @@ fn handle_sudo_kv_query_result(
         funds: vec![],
     };
 
-    Ok(Response::new()
-        .add_message(storage_acc_write_msg)
-        .add_attribute(
-            "query_result",
-            to_json_binary(&valence_canonical_response)?.to_string(),
-        ))
+    Ok(Response::new().add_message(storage_acc_write_msg))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
