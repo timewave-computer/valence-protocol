@@ -185,6 +185,7 @@ Valence programs are:</p>
 <li><a href="components/./libraries_and_functions.html">Libraries and Functions</a></li>
 <li><a href="components/./programs_and_authorizations.html">Programs and Authorizations</a></li>
 <li><a href="components/./middleware.html">Middleware</a></li>
+<li><a href="components/./storage_account.html">Storage Accounts</a></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="domains"><a class="header" href="#domains">Domains</a></h1>
 <p>A <strong>Valence Program</strong> is an instance of the <strong>Valence Protocol</strong>. A Valence program's execution can typically <em>span multiple Blockchains</em>. In the Valence Protocol, we refer to the various Blockchains that are supported as <strong>domains</strong>.</p>
@@ -621,6 +622,7 @@ pub enum ExecutionResult {
 <li><a href="libraries/./osmosis_gamm_withdrawer.html">Osmosis GAMM Withdrawer</a></li>
 <li><a href="libraries/./reverse_splitter.html">Reverse Splitter</a></li>
 <li><a href="libraries/./splitter.html">Splitter</a></li>
+<li><a href="libraries/./neutron_ic_querier.html">Neutron Interchain Querier</a></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="astroport-lper-library"><a class="header" href="#astroport-lper-library">Astroport LPer library</a></h1>
 <p>The <strong>Valence Astroport LPer library</strong> library allows to <strong>provide liquidity</strong> into an <strong>Astroport Liquidity Pool</strong> from an <strong>input account</strong> and deposit the <strong>LP tokens</strong> into an <strong>output account</strong>.</p>
@@ -1339,6 +1341,226 @@ struct DynamicRatioResponse {
     pub denom_ratios: HashMap&lt;String, Decimal&gt;,
 }
 <span class="boring">}</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="neutron-interchain-querier"><a class="header" href="#neutron-interchain-querier">Neutron Interchain Querier</a></h1>
+<p><strong>Neutron Interchain Querier library</strong> allows registering and receiving results for KV-based queries.
+This library wraps around the functionality enabled by the <code>interchainqueries</code> module on Neutron.</p>
+<h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
+<h3 id="active-neutron-icq-relayer"><a class="header" href="#active-neutron-icq-relayer">Active Neutron ICQ relayer</a></h3>
+<p>This library requires active <a href="https://github.com/neutron-org/neutron-query-relayer">Neutron ICQ Relayers</a> operating on the specified routes.</p>
+<h3 id="valence-middleware-broker"><a class="header" href="#valence-middleware-broker">Valence Middleware broker</a></h3>
+<p>Each KV-based query requires a correctly encoded key in order to be registered.
+This library obtains the query keys from <a href="libraries/./../middleware/broker.html">Valence Middleware brokers</a>,
+which expose particular type registries.</p>
+<p>For a given KV-query to be performed, the underlying type registry must implement <code>IcqIntegration</code> trait
+which thefore provides the following adapters:</p>
+<ol>
+<li><code>get_kv_key</code>, enabling the ability to get the correct <code>KVKey</code> for query registration</li>
+<li><code>decode_and_reconstruct</code>, allowing to reconstruct the interchain query result</li>
+</ol>
+<p>Read more about the given type ICQ integration in the <a href="libraries/./../middleware/type_registry.html#neutron-interchain-query-integration">type registry documentation page</a>.</p>
+<h3 id="query-registration-fee"><a class="header" href="#query-registration-fee">Query registration fee</a></h3>
+<p>Neutron <code>interchainqueries</code> module is configured to escrow a fee (denominated in <code>untrn</code>) in order to register a query.
+The fee parameter is dynamic and can be queried via the <code>interchainqueries</code> module.</p>
+<h3 id="query-deregistration"><a class="header" href="#query-deregistration">Query deregistration</a></h3>
+<p>Interchain Query escrow payments can be reclaimed by submitting the
+<code>RemoveInterchainQuery</code> message.
+Only the query owner (this contract) is able to submit this message.</p>
+<p>Interchain Queries should be removed after they are no longer needed,
+however, that moment may be different for each Valence Program depending
+on its configuration.</p>
+<h3 id="background-on-the-interchainqueries-module"><a class="header" href="#background-on-the-interchainqueries-module">Background on the <code>interchainqueries</code> module</a></h3>
+<h4 id="query-registration-message-types"><a class="header" href="#query-registration-message-types">Query Registration Message types</a></h4>
+<p>Interchain queries can be registered and unregistered by submitting the following <code>neutron-sdk</code> messages:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum NeutronMsg {
+	// other variants
+
+	RegisterInterchainQuery {
+		/// **query_type** is a query type identifier ('tx' or 'kv' for now).
+		query_type: String,
+
+		/// **keys** is the KV-storage keys for which we want to get values from remote chain.
+		keys: Vec&lt;KVKey&gt;,
+
+		/// **transactions_filter** is the filter for transaction search ICQ.
+		transactions_filter: String,
+
+		/// **connection_id** is an IBC connection identifier between Neutron and remote chain.
+		connection_id: String,
+
+		/// **update_period** is used to say how often the query must be updated.
+		update_period: u64,
+	},
+	RemoveInterchainQuery {
+    query_id: u64,
+	},
+}
+<span class="boring">}</span></code></pre></pre>
+<p>where the <code>KVKey</code> is defined as follows:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct KVKey {
+    /// **path** is a path to the storage (storage prefix) where you want to read value by key (usually name of cosmos-packages module: 'staking', 'bank', etc.)
+    pub path: String,
+
+    /// **key** is a key you want to read from the storage
+    pub key: Binary,
+}
+<span class="boring">}</span></code></pre></pre>
+<p>This variant applies for both <em>tx</em>- and <em>kv</em>-based queries. Given that we are dealing with <em>kv</em>-based queries, <code>transactions_filter</code> field is irrelevant.</p>
+<p>Therefore our query registration message may look like the following:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>    let kv_registration_msg = NeutronMsg::RegisterInterchainQuery {
+        query_type: QueryType::KV.into(),
+        keys: vec![query_kv_key],
+        transactions_filter: String::new(),
+        connection_id: "connection-3".to_string(),
+        update_period: 5,
+    }
+<span class="boring">}</span></code></pre></pre>
+<p><code>query_kv_key</code> here is obtained by calling into the associated broker module for a given type and query parameters.</p>
+<h4 id="query-result-message-types"><a class="header" href="#query-result-message-types">Query Result Message types</a></h4>
+<p>After a query is registered and fetched back to Neutron, its results can be queried with the following neutron query:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum NeutronQuery {
+    /// Query a result of registered interchain query on remote chain
+    InterchainQueryResult {
+        /// **query_id** is an ID registered interchain query
+        query_id: u64,
+    },
+	// other types
+}
+<span class="boring">}</span></code></pre></pre>
+<p>which will return the interchain query result:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct InterchainQueryResult {
+    /// **kv_results** is a raw key-value pairs of query result
+    pub kv_results: Vec&lt;StorageValue&gt;,
+
+    /// **height** is a height of remote chain
+    pub height: u64,
+
+    #[serde(default)]
+    /// **revision** is a revision of remote chain
+    pub revision: u64,
+}
+<span class="boring">}</span></code></pre></pre>
+<p>where <code>StorageValue</code> is defined as:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>/// Describes value in the Cosmos-SDK KV-storage on remote chain
+pub struct StorageValue {
+    /// **storage_prefix** is a path to the storage (storage prefix) where you want to read
+    /// value by key (usually name of cosmos-packages module: 'staking', 'bank', etc.)
+    pub storage_prefix: String,
+
+    /// **key** is a key under which the **value** is stored in the storage on remote chain
+    pub key: Binary,
+
+    /// **value** is a value which is stored under the **key** in the storage on remote chain
+    pub value: Binary,
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="query-lifecycle"><a class="header" href="#query-lifecycle">Query lifecycle</a></h2>
+<p>After <code>RegisterInterchainQuery</code> message is submitted, <code>interchainqueries</code> module will deduct
+the query registration fee from the caller.</p>
+<p>At that point the query is assigned its unique <code>query_id</code> identifier, which is not known in advance.
+This identifier is returned to the caller in the reply.</p>
+<p>Once the query is registered, the responsible query relayer performs the following steps:</p>
+<ol>
+<li>fetch the specified value from the target domain</li>
+<li>post the query result to <code>interchainqueries</code> module</li>
+<li>trigger <code>SudoMsg::KVQueryResult</code> endpoint on the contract that registered the query</li>
+</ol>
+<p><code>SudoMsg::KVQueryResult</code> does not carry back the actual query result. Instead, it posts back
+a <code>query_id</code> of the query which had been performed, announcing that its result is available.</p>
+<p>That <code>query_id</code> can then be used to query the <code>interchainqueries</code> module to obtain the raw
+interchainquery result. These raw results fetched from other cosmos chains will be encoded
+in protobuf and require additional processing in order to be reasoned about.</p>
+<h2 id="library-functions"><a class="header" href="#library-functions">Library Functions</a></h2>
+<p>At its core, this library should support initiating the interchain queries, receiving their
+responses, and reclaiming the escrowed fees by unregistering the queries.</p>
+<p>In practice, however, these functions are not very useful in a broader Valence Program context
+by themselves - remote domain <em>KV-Query</em> results arrive back encoded in
+formats meant for those remote domains.</p>
+<p>For most cosmos-sdk based chains, storage values are stored in protobuf. Interpreting protobuf from
+within cosmwasm context is not straightforward and requires additional steps.
+Other domains may store their state in other encoding formats. We do not make any assumptions
+about remote domain encodings in this library - instead, that responsibility is handed over
+to the middleware.</p>
+<p>For that reason, it is likely that this library will take on the additional responsibility of
+transforming those remote-encoded responses into <a href="libraries/./../middleware/valence_types.html">canonical data formats</a>
+that will be easily recognized within the Valence Protocol scope.
+Aforementioned transformation will be performed by making use of <a href="libraries/./../middleware/_overview.html">Valence Middleware</a>.</p>
+<p>After the query response is transformed into its canonical representation, the resulting
+data type is written into a <a href="libraries/./../components/storage_account.html">Storage Account</a> making
+it available for further processing, interpretation, or other functions.</p>
+<h2 id="library-lifecycle"><a class="header" href="#library-lifecycle">Library Lifecycle</a></h2>
+<p>With the baseline functionality in mind, there are a few design decisions
+that shape the overall lifecycle of this library.</p>
+<h3 id="instantiation-flow"><a class="header" href="#instantiation-flow">Instantiation flow</a></h3>
+<p>Neutron Interchain Querier is instantiated with the configuration needed
+to initiate and process the queries that it will be capable of executing.</p>
+<p>This involves the following configuration parameters.</p>
+<h4 id="account-association"><a class="header" href="#account-association">Account association</a></h4>
+<p>Like other libraries, this querier is going to be associated with an account.
+Associated Storage accounts will authorize instances of Neutron IC Queriers
+to post data objects of the canonical Valence types.</p>
+<p>Unlike most other libraries, there is no notion of input and output accounts.
+There is just an account, and it is the only account that this library will
+be posting data into.</p>
+<p>Account association will follow the same logic of approve/revoke as in other
+libraries.</p>
+<h4 id="query-configurations"><a class="header" href="#query-configurations">Query configurations</a></h4>
+<p>On instantiation, IC Querier will be configured to perform a set of queries.
+This configuration will consist of a complete set of parameters needed to
+register and process the query responses, as well as the outline of how those
+responses should be processed into Valence Types to then be written under
+a particular storage slot to a given Storage Account.</p>
+<p>Each query definition will contain its unique identifier. This identifier is
+going to be needed for distinguishing a given query from others during query
+registration and deregistration.</p>
+<h3 id="execution-flow"><a class="header" href="#execution-flow">Execution flow</a></h3>
+<p>With Neutron IC Querier instantiated, the library is ready to start carrying
+out the queries.</p>
+<h4 id="query-initiation"><a class="header" href="#query-initiation">Query initiation</a></h4>
+<p>Configured queries can be triggered / initiated on-demand, by calling the
+execute method and specifying the unique query identifier(s).</p>
+<p>This will, in turn, submit the query registration message to <code>interchainqueries</code>
+module and kick off the interchain query flow. After the result is fetched
+back, library will attempt to decode the response and convert it into a
+<code>ValenceType</code> which is then to be posted into the associated Storage Account.</p>
+<h4 id="query-deregistration-1"><a class="header" href="#query-deregistration-1">Query deregistration</a></h4>
+<p>At any point after the query registration, authorized addresses (admin/processor)
+are permitted to unregister a given query.</p>
+<p>This will reclaim the escrow fee and remove the query from <code>interchainqueries</code>
+active queries list, thus concluding the lifecycle of a given query.</p>
+<h2 id="library-in-valence-programs"><a class="header" href="#library-in-valence-programs">Library in Valence Programs</a></h2>
+<p>Neutron IC Querier does not behave as a standard library in that it does not produce
+any fungible outcome. Instead, it produces a foreign type that gets converted
+into a Valence Type.</p>
+<p>While that result could be posted directly to the state of this library,
+instead, it is posted to an associated output account meant for storing data.
+Just as some other libraries have a notion of input accounts that grant them
+the permission of executing some logic, Neutron IC Querier has a notion of an
+associated account which grants the querier a permission to writing some data
+into its storage slots.</p>
+<p>For example, consider a situation where this library had queried the balance of
+some remote account, parsed the response into a Valence Balance type, and wrote
+that resulting object into its associated storage account. That same associated
+account may be the input account of some other library, which will attempt to
+perform its function based on the content written to its input account. This may
+involve something along the lines of: <code>if balance &gt; 0, do x; otherwise, do y;</code>.</p>
+<p>With that, the IC Querier flow in a Valence Program may look like this:</p>
+<pre><code>┌────────────┐                   ┌───────────┐
+│ Neutron IC │   write Valence   │  storage  │
+│  Querier   │──────result──────▶│  account  │
+└────────────┘                   └───────────┘
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="middleware"><a class="header" href="#middleware">Middleware</a></h1>
 <p>This section contains a description of the Valence Protocol middleware design.</p>
 <p><strong>Valence Protocol Middleware components</strong>:</p>
