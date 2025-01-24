@@ -14,8 +14,8 @@ Valence programs are:
 > A DeFi protocol wants to bridge tokens to another chain and deposit them into a vault. After a certain date, it wants to unwind the position. While the position is active, It may also want to delegate the right to change vault parameters to a designated committee, as long as the parameters are within a certain range.
 
 Without Valence programs, the protocol would have two choices:  
-**Choice 1:** Give the tokens to a **multisig** to execute actions on the protocol's behalf  
-**Choice 2:** Write **custom smart contracts**, and deployed them across multiple chains, to handle the cross-chain token operations.
+1. Give the tokens to a **multisig** to execute actions on the protocol's behalf  
+2. Write **custom smart contracts**, and deployed them across multiple chains, to handle the cross-chain token operations.
 
 **Valence programs** offer a third choice: the protocol does not need to trust a multisig, nor does it need to spend resources writing complex cross-chain logic.
 
