@@ -407,11 +407,13 @@ involve something along the lines of: `if balance > 0, do x; otherwise, do y;`.
 
 With that, the IC Querier flow in a Valence Program may look like this:
 
-```
-┌───────────┐            ┌───────┐             ┌────────────┐
-│neutron ic │   write    │storage│   interpret │   other    │
-│  querier  │──Valence──▶│account│◀───Valence──│  library   │
-└───────────┘    type    └───────┘      type   └────────────┘
+```mermaid
+---
+title: Neutron IC Querier in Valence Programs
+---
+graph LR
+    A[neutron IC querier] -->|post Valence type| B(storage account)
+    C[other library] -->|interpret Valence type| B
 ```
 
 > Valence Middleware is being actively developed. More elaborate examples
