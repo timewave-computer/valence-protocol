@@ -27,6 +27,7 @@
   - [Osmosis GAMM Withdrawer](./libraries/osmosis_gamm_withdrawer.md)
   - [Reverse Splitter](./libraries/reverse_splitter.md)
   - [Splitter](./libraries/splitter.md)
+  - [Neutron Interchain Querier](./libraries/neutron_ic_querier.md)
 - [Middleware](./middleware/_overview.md)
   - [Broker](./middleware/broker.md)
   - [Type Registry](./middleware/type_registry.md)
