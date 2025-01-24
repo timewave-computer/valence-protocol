@@ -158,7 +158,7 @@ pub struct StorageValue {
 }
 ```
 
-## Query lifecycle
+## Interchain Query lifecycle
 
 After `RegisterInterchainQuery` message is submitted, `interchainqueries` module will deduct
 the query registration fee from the caller.
@@ -176,11 +176,11 @@ Once the query is registered, the interchain query relayers performs the followi
 a `query_id` of the query which had been performed, announcing that its result is available.
 
 Obtained `query_id` can then be used to query the `interchainqueries` module for the **raw**
-interchainquery result. One thing note here is that these raw results are not meant to be
+interchainquery result. One thing to note here is that these raw results are not meant to be
 (natively) interpreted by foreign VMs; instead, they will adhere to the encoding schemes of
 the origin domain.
 
-## Library Functions
+## Library high-level flow
 
 At its core, this library should enable three key functions:
 
@@ -197,22 +197,21 @@ these functions can be divided into two categories:
 From this perspective, query initiation, receival, and termination can be seen as external
 operations that adhere to the functionality provided by the `interchainqueries` module on Neutron.
 
-Query result postprocessing, meanwhile, involves internal Valence Program operations.
+On the other hand, query result postprocessing involves internal Valence Program operations.
 KV-Query query results fetched from remote domains are not readily useful within the Valence
 scope because of their encoding formats. Result postprocessing is therefore about adapting
 remote domain data types into [canonical Valence Protocol data types](./../middleware/valence_types.md)
 that can be reasoned about.
 
-For most cosmos-sdk based chains, KV-storage values are encoded in protobuf. Interpreting protobuf
-from within cosmwasm context is not straightforward and requires explicit conversion steps.
-Other domains may store their state in other encoding formats.
-
-This library does not make any assumptions about the different encoding schemes that remote
-domains may be subject to - instead, that responsibility is handed over to [Valence Middleware](./../middleware/_overview.md).
+> For most cosmos-sdk based chains, KV-storage values are encoded in protobuf. Interpreting
+protobuf from within cosmwasm context is not straightforward and requires explicit conversion
+steps. Other domains may store their state in other encoding formats. This library does not
+make any assumptions about the different encoding schemes that remote domains may be subject
+to - instead, that responsibility is handed over to [Valence Middleware](./../middleware/_overview.md).
 
 Final step in result postprocessing is about persisting the canonicalized query results.
 Resulting Valence Types are written into a [Storage Account](./../components/storage_account.md),
-making it available for further processing, interpretation, or other functions.
+making it available for further processing, interpretation, or other types of processing.
 
 ## Library Lifecycle
 
@@ -221,64 +220,176 @@ that shape the overall lifecycle of this library.
 
 ### Instantiation flow
 
-Neutron Interchain Querier is instantiated with the configuration needed
+Neutron Interchain Querier is instantiated with the full configuration needed
 to initiate and process the queries that it will be capable of executing.
+After instantiation, the library has the full context needed to carry out its
+functions.
 
-This involves the following configuration parameters.
+Library is configured with the following `LibraryConfig`. Further sections
+will focus on each of its fields.
 
-#### Account association
+```rust
+pub struct LibraryConfig {
+    pub storage_account: LibraryAccountType,
+    pub querier_config: QuerierConfig,
+    pub query_definitions: BTreeMap<String, QueryDefinition>,
+}
+```
 
-Like other libraries, this querier is going to be associated with an account.
-Associated Storage accounts will authorize instances of Neutron IC Queriers
-to post data objects of the canonical Valence types.
+#### Storage Account association
 
-Unlike most other libraries, there is no notion of input and output accounts.
-There is just an account, and it is the only account that this library will
-be posting data into.
+Like other libraries, Neutron IC querier has a notion of its associated account.
 
-Account association will follow the same logic of approve/revoke as in other
-libraries.
+Associated Storage account will authorize libraries like Neutron IC Querier
+to persist canonical Valence types under its storage.
+
+Unlike most other libraries, IC querier does not differentiate between input and
+output accounts. There is just an account, and it is the only account that this
+library will be authorized to post its results into.
+
+Storage account association follows the same logic of approve/revoke as in other
+libraries. Its configuration is done via `LibraryAccountType`, following
+the same account pattern as other libraries.
+
+#### Global configurations that apply to all queries
+
+While this library is capable of carrying out an arbitrary number of distinct
+interchain queries, their scope is bound by `QuerierConfig`
+
+`QuerierConfig` describes ICQ parameters that will apply to every query to be
+managed by this library. It can be seen as the global configuration parameters,
+of which there are two:
+
+```rust
+pub struct QuerierConfig {
+    pub broker_addr: String,
+    pub connection_id: String,
+}
+```
+
+`connection_id` here describes the IBC connection between Neutron and the
+target domain. This effectively limits each instance of Neutron IC Querier to
+be responsible for querying one particular domain.
+
+`broker_addr` describes the address of the associated middleware broker.
+Just as all queries are going to be bound by a particular connection id,
+they will also be postprocessed using a single broker instance.
 
 #### Query configurations
 
-On instantiation, IC Querier will be configured to perform a set of queries.
-This configuration will consist of a complete set of parameters needed to
-register and process the query responses, as well as the outline of how those
-responses should be processed into Valence Types to then be written under
-a particular storage slot to a given Storage Account.
+Queries to be carried out by this library are configured with the following
+type:
 
-Each query definition will contain its unique identifier. This identifier is
-going to be needed for distinguishing a given query from others during query
-registration and deregistration.
+```rust
+pub struct QueryDefinition {
+    pub registry_version: Option<String>,
+    pub type_url: String,
+    pub update_period: Uint64,
+    pub params: BTreeMap<String, Binary>,
+    pub query_id: Option<u64>,
+}
+```
+
+- `registry_version: Option<String>` specifies which version of the type registry
+the middleware broker should use. When set to `None`, the broker uses its latest
+available type registry version. Set this field when a specific type registry
+version is needed instead of the latest one.
+- `type_url: String` identifies the query type within the type registry (via broker).
+An important thing to note here is that this url may differ from the one used to
+identify the target type on its origin domain. This decoupling is done intentionally
+in order to allow for flexible type mapping between domains when necessary.
+- `update_period: Uint64` specifies how often the given query should be performed/updated
+- `params: BTreeMap<String, Binary>` provides the type registry with the base64
+encoded query parameters that are going to be used for `KVKey` construction
+- `query_id: Option<u64>` is an internal parameter that gets modified during runtime.
+It must be set to `None` when configuring the library.
+
+Every query definition must be associated with a unique string-based identifier (key).
+Query definitions are passed to the library config via `BTreeMap<String, QueryDefinition>`,
+which ensures that there is only one `QueryDefinition` for every key. While these
+keys can be anything, they should clearly identify a particular query. Every function
+call exposed by this library expects these keys (and only these keys) as their arguments.
 
 ### Execution flow
 
 With Neutron IC Querier instantiated, the library is ready to start carrying
 out the queries.
 
-#### Query initiation
+#### Query registration
 
-Configured queries can be triggered / initiated on-demand, by calling the
-execute method and specifying the unique query identifier(s).
+Configured queries can be registered with the following function:
 
-This will, in turn, submit the query registration message to `interchainqueries`
-module and kick off the interchain query flow. After the result is fetched
-back, library will attempt to decode the response and convert it into a
-`ValenceType` which is then to be posted into the associated Storage Account.
+```rust
+RegisterKvQuery { target_query: String }
+```
+
+Query registration flow consists of the following steps:
+
+1. querying the `interchainqueries` module for the currently set query
+registration fee and asserting that the function caller covered all
+expected fees
+2. querying the middleware broker to obtain the `KVKey` value to be used
+in ICQ registration
+3. constructing and firing the ICQ registration message
+
+Each configured query can be started with this function call.
+
+#### Query result processing
+
+Interchain Query results are delivered to the `interchainqueries` module
+in an asynchronous manner. To ensure that query results are available to
+Valence Programs as fresh as possible, this library leverages `sudo` callbacks
+that are triggered after ICQ relayers post back the results for a query
+registered by this library.
+
+This entry point is configured as follows:
+
+```rust
+pub fn sudo(deps: ExecuteDeps, _env: Env, msg: SudoMsg) -> StdResult<Response<NeutronMsg>> {
+    match msg {
+        // this is triggered by the ICQ relayer delivering the query result
+        SudoMsg::KVQueryResult { query_id } => handle_sudo_kv_query_result(deps, query_id),
+        _ => Ok(Response::default()),
+    }
+}
+```
+
+This function call triggers a set of actions that will process the raw query
+result into a canonical Valence Type before posting it into the associated
+Storage account:
+
+1. query the `interchainqueries` module to obtain the raw query result
+associated with the given `query_id`
+2. query the broker to deserialize the proto-encoded result into a rust type
+3. query the broker to canonicalize the native rust type into `ValenceType`
+4. post the resulting canonical type to the associated storage account
+
+After these actions, the associated storage account will hold the adapted query
+result in its storage on the same block as the result was brought into Neutron.
 
 #### Query deregistration
 
-At any point after the query registration, authorized addresses (admin/processor)
-are permitted to unregister a given query.
+Actively registered queries can be removed from the active query set with the
+following function:
 
-This will reclaim the escrow fee and remove the query from `interchainqueries`
-active queries list, thus concluding the lifecycle of a given query.
+```rust
+DeregisterKvQuery { target_query: String }
+```
+
+This function will perform two actions.
+
+First it will query the `interchainqueries` module on Neutron for the `target_query`.
+This is done in order to find the deposit fee that was escrowed upon query
+registration.
+
+Next, the library will submit the query removal request to the `interchainqueries`
+module. If this request is successful, the deposit fee tokens will be transferred
+to the sender that initiated this function.
 
 ## Library in Valence Programs
 
-Neutron IC Querier does not behave as a standard library in that it does not produce
-any fungible outcome. Instead, it produces a foreign type that gets converted
-into a Valence Type.
+Neutron IC Querier does not behave as a standard library in that it does result in
+any fungible outcome. Instead, it produces a data object in the form of Valence Type.
 
 While that result could be posted directly to the state of this library,
 instead, it is posted to an associated output account meant for storing data.
@@ -297,8 +408,11 @@ involve something along the lines of: `if balance > 0, do x; otherwise, do y;`.
 With that, the IC Querier flow in a Valence Program may look like this:
 
 ```
-┌────────────┐                   ┌───────────┐
-│ Neutron IC │   write Valence   │  storage  │
-│  Querier   │──────result──────▶│  account  │
-└────────────┘                   └───────────┘
+┌───────────┐            ┌───────┐             ┌────────────┐
+│neutron ic │   write    │storage│   interpret │   other    │
+│  querier  │──Valence──▶│account│◀───Valence──│  library   │
+└───────────┘    type    └───────┘      type   └────────────┘
 ```
+
+> Valence Middleware is being actively developed. More elaborate examples
+of this library will be added here in the future.
