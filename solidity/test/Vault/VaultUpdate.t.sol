@@ -72,8 +72,7 @@ contract VaultUpdateTest is VaultHelper {
         vm.stopPrank();
 
         // Calculate expected platform fees (half year)
-        uint256 platformFees = (depositAmount * 1000 * 180) /
-            (BASIS_POINTS * 365);
+        uint256 platformFees = (depositAmount * 1000 * 180) / (BASIS_POINTS * 365);
 
         // Calculate expected performance fees
         uint256 yield = (depositAmount * 1000) / BASIS_POINTS; // 10% increase
@@ -84,10 +83,7 @@ contract VaultUpdateTest is VaultHelper {
         uint256 expectedStrategistShares = (totalFees * 3000) / BASIS_POINTS;
         uint256 expectedPlatformShares = totalFees - expectedStrategistShares;
 
-        assertEq(
-            vault.balanceOf(strategistFeeAccount),
-            expectedStrategistShares
-        );
+        assertEq(vault.balanceOf(strategistFeeAccount), expectedStrategistShares);
         assertEq(vault.balanceOf(platformFeeAccount), expectedPlatformShares);
         assertEq(vault.feesOwedInAsset(), 0);
     }
@@ -118,10 +114,7 @@ contract VaultUpdateTest is VaultHelper {
         uint256 expectedStrategistShares = (totalFees * 3000) / BASIS_POINTS; // 3000
         uint256 expectedPlatformShares = totalFees - expectedStrategistShares; // 7000
 
-        assertEq(
-            vault.balanceOf(strategistFeeAccount),
-            expectedStrategistShares
-        );
+        assertEq(vault.balanceOf(strategistFeeAccount), expectedStrategistShares);
         assertEq(vault.balanceOf(platformFeeAccount), expectedPlatformShares);
     }
 
@@ -145,10 +138,7 @@ contract VaultUpdateTest is VaultHelper {
         uint256 expectedStrategistShares = (totalFees * 3000) / BASIS_POINTS; // 1500
         uint256 expectedPlatformShares = totalFees - expectedStrategistShares; // 3500
 
-        assertEq(
-            vault.balanceOf(strategistFeeAccount),
-            expectedStrategistShares
-        );
+        assertEq(vault.balanceOf(strategistFeeAccount), expectedStrategistShares);
         assertEq(vault.balanceOf(platformFeeAccount), expectedPlatformShares);
     }
 
@@ -189,16 +179,8 @@ contract VaultUpdateTest is VaultHelper {
         uint256 expectedStrategistShares = (totalFees * 3000) / BASIS_POINTS; // 4920
         uint256 expectedPlatformShares = totalFees - expectedStrategistShares; // 11480
 
-        assertEq(
-            vault.balanceOf(strategistFeeAccount),
-            expectedStrategistShares,
-            "Strategist shares mismatch"
-        );
-        assertEq(
-            vault.balanceOf(platformFeeAccount),
-            expectedPlatformShares,
-            "Platform shares mismatch"
-        );
+        assertEq(vault.balanceOf(strategistFeeAccount), expectedStrategistShares, "Strategist shares mismatch");
+        assertEq(vault.balanceOf(platformFeeAccount), expectedPlatformShares, "Platform shares mismatch");
         assertEq(vault.feesOwedInAsset(), 0, "Fees owed should be 0");
     }
 
@@ -213,11 +195,7 @@ contract VaultUpdateTest is VaultHelper {
         // Prepare to capture the transfer event
         vm.expectCall(
             address(token),
-            abi.encodeWithSignature(
-                "transfer(address,uint256)",
-                address(withdrawAccount),
-                nettingAmount
-            )
+            abi.encodeWithSignature("transfer(address,uint256)", address(withdrawAccount), nettingAmount)
         );
 
         vm.startPrank(strategist);
@@ -255,9 +233,7 @@ contract VaultUpdateTest is VaultHelper {
         vault.update(newRate, withdrawFee, 0);
         vm.stopPrank();
 
-        (uint256 storedRate, uint256 storedTimestamp) = vault.updateInfos(
-            vault.currentUpdateId()
-        );
+        (uint256 storedRate, uint256 storedTimestamp) = vault.updateInfos(vault.currentUpdateId());
         assertEq(storedRate, expectedWithdrawRate);
         assertEq(storedTimestamp, block.timestamp);
     }

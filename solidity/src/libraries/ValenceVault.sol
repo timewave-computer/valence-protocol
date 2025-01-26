@@ -23,7 +23,9 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     error InvalidReceiver();
     error InvalidOwner();
     error InvalidMaxLoss();
-    error InvalidShares();
+    error InvalidAmount();
+    error InvalidSolverFee(uint256 sent, uint256 required);
+    error UnexpectedETH();
 
     event PausedStateChanged(bool paused);
     event RateUpdated(uint256 newRate);
@@ -75,11 +77,11 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     // Withdraw request structure
     struct WithdrawRequest {
         uint256 sharesAmount; // Amount of shares to be redeemed
-        uint64 claimTime; // Timestamp when request becomes claimable
-        uint64 maxLossBps; // Maximum acceptable loss in basis points
         uint256 solverFee; // Fee for solver completion (only used in solver mapping)
         address owner; // Owner of the request
         address receiver; // Receiver of the withdrawn assets
+        uint64 claimTime; // Timestamp when request becomes claimable
+        uint64 maxLossBps; // Maximum acceptable loss in basis points
         uint64 nextId; // Next request ID for this user (0 if last)
         uint64 updateId; // Next update ID
     }
@@ -435,8 +437,9 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @param allowSolverCompletion Whether to allow solvers to complete this request
      * @return requestId The ID of the created withdrawal request
      */
-    function withdraw(uint256 assets, address receiver, address owner, uint256 maxLossBps, bool allowSolverCompletion)
+    function withdraw(uint256 assets, address receiver, address owner, uint64 maxLossBps, bool allowSolverCompletion)
         public
+        payable
         nonReentrant
         whenNotPaused
         returns (uint64)
@@ -464,8 +467,9 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @param allowSolverCompletion Whether to allow solvers to complete this request
      * @return requestId The ID of the created redemption request
      */
-    function redeem(uint256 shares, address receiver, address owner, uint256 maxLossBps, bool allowSolverCompletion)
+    function redeem(uint256 shares, address receiver, address owner, uint64 maxLossBps, bool allowSolverCompletion)
         public
+        payable
         nonReentrant
         whenNotPaused
         returns (uint64)
@@ -495,7 +499,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         uint256 assetsToWithdraw,
         address receiver,
         address owner,
-        uint256 maxLossBps,
+        uint64 maxLossBps,
         bool allowSolverCompletion
     ) internal returns (uint64) {
         // Burn shares first (CEI pattern)
@@ -526,7 +530,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         WithdrawRequest memory request = WithdrawRequest({
             sharesAmount: shares,
             claimTime: uint64(block.timestamp + config.withdrawLockupPeriod),
-            maxLossBps: uint64(maxLossBps),
+            maxLossBps: maxLossBps,
             solverFee: 0,
             owner: owner,
             receiver: receiver,
@@ -538,11 +542,17 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         if (allowSolverCompletion) {
             request.solverFee = config.fees.solverCompletionFee;
 
-            // Transfer solver fee
-            SafeERC20.safeTransferFrom(IERC20(asset()), msg.sender, address(this), request.solverFee);
+            // Check if sent ETH matches solver fee
+            if (msg.value != request.solverFee) {
+                revert InvalidSolverFee(msg.value, request.solverFee);
+            }
 
             solverWithdrawRequests[requestId] = request;
         } else {
+            if (msg.value > 0) {
+                revert UnexpectedETH();
+            }
+
             userWithdrawRequests[requestId] = request;
         }
 
@@ -606,16 +616,14 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @param nettingAmount Amount to transfer from deposit to withdraw account
      */
     function _handleWithdraws(uint32 newWithdrawFee, uint256 nettingAmount) internal {
-        VaultConfig memory _config = config;
-
         // Check deposit account balance and validate netting amount
         if (nettingAmount > 0) {
             // Prepare the transfer calldata
             bytes memory transferCalldata =
-                abi.encodeWithSignature("transfer(address,uint256)", address(_config.withdrawAccount), nettingAmount);
+                abi.encodeCall(IERC20.transfer, (address(config.withdrawAccount), nettingAmount));
 
             // Execute the transfer through the deposit account
-            _config.depositAccount.execute(asset(), 0, transferCalldata);
+            config.depositAccount.execute(asset(), 0, transferCalldata);
 
             emit DepositWithdrawNetting(nettingAmount, block.timestamp);
         }
@@ -645,7 +653,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     {
         if (receiver == address(0)) revert InvalidReceiver();
         if (owner == address(0)) revert InvalidOwner();
-        if (amount == 0) revert InvalidShares();
+        if (amount == 0) revert InvalidAmount();
         if (maxLossBps > BASIS_POINTS) revert InvalidMaxLoss();
     }
 }

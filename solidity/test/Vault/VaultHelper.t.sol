@@ -134,6 +134,7 @@ abstract contract VaultHelper is Test {
 
     function setFees(uint32 depositFee, uint32 platformFee, uint32 performanceFee, uint256 solverCompletionFee)
         internal
+        returns (ValenceVault.FeeConfig memory)
     {
         vm.startPrank(owner);
         ValenceVault.FeeConfig memory feeConfig = ValenceVault.FeeConfig({
@@ -167,6 +168,8 @@ abstract contract VaultHelper is Test {
 
         vault.updateConfig(abi.encode(newConfig));
         vm.stopPrank();
+
+        return feeConfig;
     }
 
     function setDepositCap(uint256 newCap) internal {
