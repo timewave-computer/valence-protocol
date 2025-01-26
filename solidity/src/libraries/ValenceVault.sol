@@ -438,23 +438,23 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         // Count requests in memory to avoid multiple storage reads
         uint64 count;
         {
-            uint64 current = firstId;
-            while (current != 0) {
+            uint64 countCursor  = firstId;
+            while (countCursor  != 0) {
                 unchecked {
                     ++count;
                 }
-                current = withdrawRequests[current].nextId;
+                countCursor  = withdrawRequests[countCursor ].nextId;
             }
         }
 
         requestIds = new uint64[](count);
-        uint64 current = firstId;
+        uint64 cursor = firstId;
         uint64 index;
 
         // Fill array using cached values
-        while (current != 0) {
-            requestIds[index] = current;
-            current = withdrawRequests[current].nextId;
+        while (cursor != 0) {
+            requestIds[index] = cursor;
+            cursor = withdrawRequests[cursor].nextId;
             unchecked {
                 ++index;
             }
