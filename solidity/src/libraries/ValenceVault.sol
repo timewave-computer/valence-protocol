@@ -19,7 +19,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     error ZeroShares();
     error ZeroAssets();
     error InsufficientAllowance(uint256 required, uint256 available);
-    error TooManyWithdraws(uint256 current, uint256 max);
+    error TooManyWithdraws(uint64 current, uint64 max);
     error InvalidReceiver();
     error InvalidOwner();
     error InvalidMaxLoss();
@@ -119,8 +119,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     mapping(address => uint64) public userFirstRequestId;
 
     // Separate mappings for the actual requests
-    mapping(uint64 => WithdrawRequest) public userWithdrawRequests;
-    mapping(uint64 => WithdrawRequest) public solverWithdrawRequests;
+    mapping(uint64 => WithdrawRequest) public withdrawRequests;
 
     // Mapping from update ID to update information
     mapping(uint64 => UpdateInfo) public updateInfos;
@@ -401,31 +400,24 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         performanceFees = yield.mulDiv(performanceFeeBps, BASIS_POINTS);
     }
 
-    function getMaxWithdraws() public view returns (uint256) {
+    function getMaxWithdraws() public view returns (uint64) {
         return config.withdrawLockupPeriod / 1 days;
     }
 
-    function getCurrentWithdrawCount(address owner) public view returns (uint256) {
-        uint256 count = 0;
+    function getCurrentWithdrawCount(address owner) public view returns (uint64) {
+        uint64 count = 0;
         uint64 currentId = userFirstRequestId[owner];
 
         while (currentId != 0) {
             count++;
-            WithdrawRequest memory request = userWithdrawRequests[currentId];
-            if (request.owner == address(0)) {
-                request = solverWithdrawRequests[currentId];
-            }
+            WithdrawRequest memory request = withdrawRequests[currentId];
             currentId = request.nextId;
         }
         return count;
     }
 
     function getRequest(uint64 requestId) public view returns (WithdrawRequest memory) {
-        WithdrawRequest memory request = userWithdrawRequests[requestId];
-        if (request.owner != address(0)) {
-            return request;
-        }
-        return solverWithdrawRequests[requestId];
+        return withdrawRequests[requestId];
     }
 
     /**
@@ -513,8 +505,8 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         _burn(owner, shares);
 
         // Check withdraw count limit
-        uint256 currentCount = getCurrentWithdrawCount(owner);
-        uint256 maxWithdraws = getMaxWithdraws();
+        uint64 currentCount = getCurrentWithdrawCount(owner);
+        uint64 maxWithdraws = getMaxWithdraws();
         if (currentCount >= maxWithdraws) {
             revert TooManyWithdraws(currentCount, maxWithdraws);
         }
@@ -522,7 +514,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         // Create withdrawal request
         uint64 requestId = _nextWithdrawRequestId++;
         uint64 updateId = currentUpdateId + 1;
-        uint64 currentFirstId = uint64(userFirstRequestId[owner]);
+        uint64 currentFirstId = userFirstRequestId[owner];
 
         // Update the total to withdraw on next update
         totalAssetsToWithdrawNextUpdate += assetsToWithdraw;
@@ -531,7 +523,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
             sharesAmount: shares,
             claimTime: uint64(block.timestamp + config.withdrawLockupPeriod),
             maxLossBps: maxLossBps,
-            solverFee: 0,
+            solverFee: allowSolverCompletion ? config.fees.solverCompletionFee : 0,
             owner: owner,
             receiver: receiver,
             nextId: currentFirstId,
@@ -540,21 +532,18 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
 
         // Handle solver completion setup if enabled
         if (allowSolverCompletion) {
-            request.solverFee = config.fees.solverCompletionFee;
-
             // Check if sent ETH matches solver fee
             if (msg.value != request.solverFee) {
                 revert InvalidSolverFee(msg.value, request.solverFee);
             }
-
-            solverWithdrawRequests[requestId] = request;
         } else {
             if (msg.value > 0) {
                 revert UnexpectedETH();
             }
-
-            userWithdrawRequests[requestId] = request;
         }
+
+        // Store request 
+        withdrawRequests[requestId] = request;
 
         // Update user's first request pointer
         userFirstRequestId[owner] = requestId;
