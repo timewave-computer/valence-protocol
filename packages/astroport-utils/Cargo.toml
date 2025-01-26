@@ -12,6 +12,7 @@ testing = [
 ]
 
 [dependencies]
-cosmwasm-std      = { workspace = true }
-cosmwasm-schema   = { workspace = true }
-neutron-test-tube = { workspace = true, optional = true }
+cosmwasm-std            = { workspace = true }
+cosmwasm-schema         = { workspace = true }
+neutron-test-tube       = { workspace = true, optional = true }
+valence-library-utils   = { workspace = true }

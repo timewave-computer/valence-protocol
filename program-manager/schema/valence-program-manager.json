@@ -1294,22 +1294,22 @@
               }
             ]
           },
-          "pool_type": {
-            "description": "Pool type, old Astroport pools use Cw20 lp tokens and new pools use native tokens, so we specify here what kind of token we are going to get. We also provide the PairType structure of the right Astroport version that we are going to use for each scenario",
-            "allOf": [
-              {
-                "$ref": "#/definitions/PoolType"
-              }
-            ]
-          },
-          "slippage_tolerance": {
-            "description": "Slippage tolerance when providing liquidity",
+          "max_spread": {
+            "description": "Max spread used when swapping assets to provide single sided liquidity",
             "anyOf": [
               {
                 "$ref": "#/definitions/Decimal"
               },
               {
                 "type": "null"
+              }
+            ]
+          },
+          "pool_type": {
+            "description": "Pool type, old Astroport pools use Cw20 lp tokens and new pools use native tokens, so we specify here what kind of token we are going to get. We also provide the PairType structure of the right Astroport version that we are going to use for each scenario",
+            "allOf": [
+              {
+                "$ref": "#/definitions/PoolType"
               }
             ]
           }
@@ -1319,16 +1319,12 @@
       "LiquidityProviderConfig2": {
         "type": "object",
         "required": [
-          "pool_asset_1",
-          "pool_asset_2",
+          "asset_data",
           "pool_id"
         ],
         "properties": {
-          "pool_asset_1": {
-            "type": "string"
-          },
-          "pool_asset_2": {
-            "type": "string"
+          "asset_data": {
+            "$ref": "#/definitions/AssetData"
           },
           "pool_id": {
             "type": "integer",
@@ -1365,14 +1361,23 @@
       "LiquidityWithdrawerConfig": {
         "type": "object",
         "required": [
+          "asset_data",
           "pool_type"
         ],
         "properties": {
+          "asset_data": {
+            "description": "Denoms of the underlying assets to be withdrawn",
+            "allOf": [
+              {
+                "$ref": "#/definitions/AssetData"
+              }
+            ]
+          },
           "pool_type": {
             "description": "Pool type, old Astroport pools use Cw20 lp tokens and new pools use native tokens, so we specify here what kind of token we are going to get. We also provide the PairType structure of the right Astroport version that we are going to use for each scenario",
             "allOf": [
               {
-                "$ref": "#/definitions/PoolType2"
+                "$ref": "#/definitions/PoolType"
               }
             ]
           }
@@ -1382,9 +1387,13 @@
       "LiquidityWithdrawerConfig2": {
         "type": "object",
         "required": [
+          "asset_data",
           "pool_id"
         ],
         "properties": {
+          "asset_data": {
+            "$ref": "#/definitions/AssetData"
+          },
           "pool_id": {
             "type": "integer",
             "format": "uint64",
@@ -1731,13 +1740,6 @@
             },
             "additionalProperties": false
           }
-        ]
-      },
-      "PoolType2": {
-        "type": "string",
-        "enum": [
-          "native_lp_token",
-          "cw20_lp_token"
         ]
       },
       "Priority": {

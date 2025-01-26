@@ -195,6 +195,20 @@ impl LibraryConfigUpdate {
         }
 
         if let Some(remote_chain_info) = self.remote_chain_info {
+            if remote_chain_info.channel_id.is_empty() {
+                return Err(LibraryError::ConfigurationError(
+                    "Invalid IBC transfer config: remote_chain_info's channel_id cannot be empty."
+                        .to_string(),
+                ));
+            }
+
+            if let Some(timeout) = remote_chain_info.ibc_transfer_timeout {
+                if timeout.is_zero() {
+                    return Err(LibraryError::ConfigurationError(
+                        "Invalid IBC transfer config: remote_chain_info's ibc_transfer_timeout cannot be zero.".to_string(),
+                    ));
+                }
+            }
             config.remote_chain_info = remote_chain_info;
         }
 
