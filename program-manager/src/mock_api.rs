@@ -1,3 +1,6 @@
+// Copied from https://github.com/CosmWasm/cosmwasm/blob/v2.2.0/packages/std/src/testing/mock.rs
+// Under Apache License 2.0 license (https://github.com/CosmWasm/cosmwasm/blob/v2.2.0/LICENSE)
+
 use bech32::{encode, primitives::decode::CheckedHrpstring, Bech32, Hrp};
 use cosmwasm_std::{
     Addr, Api, CanonicalAddr, HashFunction, RecoverPubkeyError, StdError, StdResult,
