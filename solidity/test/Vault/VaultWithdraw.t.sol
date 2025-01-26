@@ -41,18 +41,9 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
         uint256 amount = 1000;
         uint256 preBalance = vault.balanceOf(user);
 
-        uint64 requestId = executeWithdraw(
-            amount,
-            user,
-            user,
-            500,
-            false,
-            defaultFees()
-        );
+        uint64 requestId = executeWithdraw(amount, user, user, 500, false, defaultFees());
 
-        ValenceVault.WithdrawRequest memory request = vault.getRequest(
-            requestId
-        );
+        ValenceVault.WithdrawRequest memory request = vault.getRequest(requestId);
         // For withdraw, shares will be converted. For redeem, it's direct.
         // Child tests will verify the specific share amount
         assertEq(request.owner, user, "Incorrect owner");
@@ -72,19 +63,9 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
 
         uint64 requestId = executeWithdraw(1000, user, user, 500, true, fees);
 
-        ValenceVault.WithdrawRequest memory request = vault.getRequest(
-            requestId
-        );
-        assertEq(
-            request.solverFee,
-            fees.solverCompletionFee,
-            "Incorrect solver fee"
-        );
-        assertEq(
-            user.balance,
-            preBalance - fees.solverCompletionFee,
-            "Solver fee not charged"
-        );
+        ValenceVault.WithdrawRequest memory request = vault.getRequest(requestId);
+        assertEq(request.solverFee, fees.solverCompletionFee, "Incorrect solver fee");
+        assertEq(user.balance, preBalance - fees.solverCompletionFee, "Solver fee not charged");
 
         vm.stopPrank();
     }
@@ -97,13 +78,7 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
             executeWithdraw(100, user, user, 500, false, defaultFees());
         }
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ValenceVault.TooManyWithdraws.selector,
-                maxWithdraws,
-                maxWithdraws
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(ValenceVault.TooManyWithdraws.selector, maxWithdraws, maxWithdraws));
         executeWithdraw(100, user, user, 500, false, defaultFees());
 
         vm.stopPrank();
@@ -134,14 +109,7 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
     function testInvalidMaxLoss() public {
         vm.startPrank(user);
         vm.expectRevert(ValenceVault.InvalidMaxLoss.selector);
-        executeWithdraw(
-            1000,
-            user,
-            user,
-            uint64(BASIS_POINTS + 1),
-            false,
-            defaultFees()
-        );
+        executeWithdraw(1000, user, user, uint64(BASIS_POINTS + 1), false, defaultFees());
         vm.stopPrank();
     }
 
@@ -159,29 +127,13 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
         vm.startPrank(user);
 
         // Create first request
-        uint64 firstId = executeWithdraw(
-            1000,
-            user,
-            user,
-            500,
-            false,
-            defaultFees()
-        );
+        uint64 firstId = executeWithdraw(1000, user, user, 500, false, defaultFees());
 
         // Create second request
-        uint64 secondId = executeWithdraw(
-            1000,
-            user,
-            user,
-            500,
-            false,
-            defaultFees()
-        );
+        uint64 secondId = executeWithdraw(1000, user, user, 500, false, defaultFees());
 
         // Check chaining
-        ValenceVault.WithdrawRequest memory secondRequest = vault.getRequest(
-            secondId
-        );
+        ValenceVault.WithdrawRequest memory secondRequest = vault.getRequest(secondId);
 
         assertEq(secondRequest.nextId, firstId);
         assertEq(vault.userFirstRequestId(user), secondId);
@@ -195,32 +147,14 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
         vm.startPrank(user);
 
         // Create regular request
-        uint64 userRequestId = executeWithdraw(
-            1000,
-            user,
-            user,
-            500,
-            false,
-            defaultFees()
-        );
+        uint64 userRequestId = executeWithdraw(1000, user, user, 500, false, defaultFees());
 
         // Create solver request
-        uint64 solverRequestId = executeWithdraw(
-            1000,
-            user,
-            user,
-            500,
-            true,
-            fees
-        );
+        uint64 solverRequestId = executeWithdraw(1000, user, user, 500, true, fees);
 
         // Check correct mapping storage
-        ValenceVault.WithdrawRequest memory userRequest = vault.getRequest(
-            userRequestId
-        );
-        ValenceVault.WithdrawRequest memory solverRequest = vault.getRequest(
-            solverRequestId
-        );
+        ValenceVault.WithdrawRequest memory userRequest = vault.getRequest(userRequestId);
+        ValenceVault.WithdrawRequest memory solverRequest = vault.getRequest(solverRequestId);
 
         assertEq(userRequest.owner, user);
         assertEq(solverRequest.owner, user);
@@ -233,18 +167,9 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
         vm.startPrank(user);
 
         uint64 currentUpdateId = vault.currentUpdateId();
-        uint64 requestId = executeWithdraw(
-            1000,
-            user,
-            user,
-            500,
-            false,
-            defaultFees()
-        );
+        uint64 requestId = executeWithdraw(1000, user, user, 500, false, defaultFees());
 
-        ValenceVault.WithdrawRequest memory request = vault.getRequest(
-            requestId
-        );
+        ValenceVault.WithdrawRequest memory request = vault.getRequest(requestId);
         assertEq(request.updateId, currentUpdateId + 1);
 
         vm.stopPrank();
@@ -267,16 +192,12 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
     function testExcessiveSolverFee() public {
         ValenceVault.FeeConfig memory fees = setFees(0, 0, 0, 100);
 
-        vm.startPrank(user);        
+        vm.startPrank(user);
         uint256 excessiveFee = fees.solverCompletionFee + 1;
 
         vm.deal(user, excessiveFee);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ValenceVault.InvalidSolverFee.selector,
-                excessiveFee,
-                fees.solverCompletionFee
-            )
+            abi.encodeWithSelector(ValenceVault.InvalidSolverFee.selector, excessiveFee, fees.solverCompletionFee)
         );
         vault.withdraw{value: excessiveFee}(1000, user, user, 500, true);
 
@@ -291,11 +212,7 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
 
         vm.deal(user, insufficientFee);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ValenceVault.InvalidSolverFee.selector,
-                insufficientFee,
-                fees.solverCompletionFee
-            )
+            abi.encodeWithSelector(ValenceVault.InvalidSolverFee.selector, insufficientFee, fees.solverCompletionFee)
         );
         vault.withdraw{value: insufficientFee}(1000, user, user, 500, true);
 
@@ -323,23 +240,9 @@ contract ValenceVaultWithdrawTest is ValenceVaultWithdrawBaseTest {
         ValenceVault.FeeConfig memory fees
     ) internal override returns (uint64) {
         if (allowSolver && fees.solverCompletionFee > 0) {
-            return
-                vault.withdraw{value: fees.solverCompletionFee}(
-                    amount,
-                    receiver,
-                    owner,
-                    maxLossBps,
-                    allowSolver
-                );
+            return vault.withdraw{value: fees.solverCompletionFee}(amount, receiver, owner, maxLossBps, allowSolver);
         } else {
-            return
-                vault.withdraw(
-                    amount,
-                    receiver,
-                    owner,
-                    maxLossBps,
-                    allowSolver
-                );
+            return vault.withdraw(amount, receiver, owner, maxLossBps, allowSolver);
         }
     }
 
@@ -348,12 +251,7 @@ contract ValenceVaultWithdrawTest is ValenceVaultWithdrawBaseTest {
         uint256 maxAssets = vault.maxWithdraw(user);
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ERC4626.ERC4626ExceededMaxWithdraw.selector,
-                user,
-                maxAssets + 1,
-                maxAssets
-            )
+            abi.encodeWithSelector(ERC4626.ERC4626ExceededMaxWithdraw.selector, user, maxAssets + 1, maxAssets)
         );
         vault.withdraw(maxAssets + 1, user, user, 500, false);
         vm.stopPrank();
@@ -370,17 +268,9 @@ contract ValenceVaultRedeemTest is ValenceVaultWithdrawBaseTest {
         ValenceVault.FeeConfig memory fees
     ) internal override returns (uint64) {
         if (allowSolver && fees.solverCompletionFee > 0) {
-            return
-                vault.redeem{value: fees.solverCompletionFee}(
-                    amount,
-                    receiver,
-                    owner,
-                    maxLossBps,
-                    allowSolver
-                );
+            return vault.redeem{value: fees.solverCompletionFee}(amount, receiver, owner, maxLossBps, allowSolver);
         } else {
-            return
-                vault.redeem(amount, receiver, owner, maxLossBps, allowSolver);
+            return vault.redeem(amount, receiver, owner, maxLossBps, allowSolver);
         }
     }
 
@@ -389,12 +279,7 @@ contract ValenceVaultRedeemTest is ValenceVaultWithdrawBaseTest {
         uint256 maxShares = vault.maxRedeem(user);
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ERC4626.ERC4626ExceededMaxRedeem.selector,
-                user,
-                maxShares + 1,
-                maxShares
-            )
+            abi.encodeWithSelector(ERC4626.ERC4626ExceededMaxRedeem.selector, user, maxShares + 1, maxShares)
         );
         vault.redeem(maxShares + 1, user, user, 500, false);
         vm.stopPrank();

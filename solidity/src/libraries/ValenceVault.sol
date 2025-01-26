@@ -410,14 +410,55 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
 
         while (currentId != 0) {
             count++;
-            WithdrawRequest memory request = withdrawRequests[currentId];
-            currentId = request.nextId;
+            currentId = withdrawRequests[currentId].nextId;
         }
         return count;
     }
 
     function getRequest(uint64 requestId) public view returns (WithdrawRequest memory) {
         return withdrawRequests[requestId];
+    }
+
+    /**
+     * @notice Gets all active withdraw request IDs for a user
+     * @param owner Address of the user
+     * @return requestIds Array of request IDs
+     * @dev Gas optimized by:
+     *      1. Single storage read for first request ID
+     *      2. Using unchecked for counter increments
+     *      3. Caching storage reads in memory
+     *      4. Minimizing memory expansion costs
+     */
+    function getUserWithdrawRequestIds(address owner) public view returns (uint64[] memory requestIds) {
+        uint64 firstId = userFirstRequestId[owner];
+        if (firstId == 0) {
+            return new uint64[](0);
+        }
+
+        // Count requests in memory to avoid multiple storage reads
+        uint64 count;
+        {
+            uint64 current = firstId;
+            while (current != 0) {
+                unchecked {
+                    ++count;
+                }
+                current = withdrawRequests[current].nextId;
+            }
+        }
+
+        requestIds = new uint64[](count);
+        uint64 current = firstId;
+        uint64 index;
+
+        // Fill array using cached values
+        while (current != 0) {
+            requestIds[index] = current;
+            current = withdrawRequests[current].nextId;
+            unchecked {
+                ++index;
+            }
+        }
     }
 
     /**
@@ -542,7 +583,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
             }
         }
 
-        // Store request 
+        // Store request
         withdrawRequests[requestId] = request;
 
         // Update user's first request pointer
