@@ -226,15 +226,16 @@ contract VaultUpdateTest is VaultHelper {
 
         uint256 initialRate = BASIS_POINTS;
         uint256 newRate = BASIS_POINTS + 500; // 1.05x
-        uint32 withdrawFee = 100; // 1%
+        uint64 withdrawFee = 100; // 1%
         uint256 expectedWithdrawRate = initialRate - withdrawFee;
 
         vm.startPrank(strategist);
         vault.update(newRate, withdrawFee, 0);
         vm.stopPrank();
 
-        (uint256 storedRate, uint256 storedTimestamp) = vault.updateInfos(vault.currentUpdateId());
+        (uint256 storedRate, uint64 _withdrawFee, uint256 storedTimestamp) = vault.updateInfos(vault.currentUpdateId());
         assertEq(storedRate, expectedWithdrawRate);
+        assertEq(withdrawFee, _withdrawFee);
         assertEq(storedTimestamp, block.timestamp);
     }
 

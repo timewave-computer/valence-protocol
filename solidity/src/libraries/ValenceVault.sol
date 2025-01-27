@@ -19,7 +19,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     error ZeroShares();
     error ZeroAssets();
     error InsufficientAllowance(uint256 required, uint256 available);
-    error TooManyWithdraws(uint64 current, uint64 max);
+    error WithdrawAlreadyExists();
     error InvalidReceiver();
     error InvalidOwner();
     error InvalidMaxLoss();
@@ -40,7 +40,6 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         uint256 platformShares
     );
     event WithdrawRequested(
-        uint256 indexed requestId,
         address indexed owner,
         address indexed receiver,
         uint256 shares,
@@ -82,14 +81,14 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         address receiver; // Receiver of the withdrawn assets
         uint64 claimTime; // Timestamp when request becomes claimable
         uint64 maxLossBps; // Maximum acceptable loss in basis points
-        uint64 nextId; // Next request ID for this user (0 if last)
         uint64 updateId; // Next update ID
     }
 
     // Struct to store information about each update
     struct UpdateInfo {
         uint256 withdrawRate; // Rate at which withdrawals were processed (redemptionRate - withdrawFee)
-        uint256 timestamp; // When this update occurred
+        uint64 withdrawFee; // The fee of that update
+        uint64 timestamp; // When this update occurred
     }
 
     VaultConfig public config;
@@ -100,7 +99,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     // Maximum historical redemption rate for performance fee calculation
     uint256 public maxHistoricalRate;
     // Current position withdraw fee in basis points (1/10000)
-    uint32 public positionWithdrawFee;
+    uint64 public positionWithdrawFee;
     // Total shares at last update
     uint256 public lastUpdateTotalShares;
     // Last update timestamp for fee calculation
@@ -115,11 +114,8 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     // Withdraw request ID counter
     uint64 private _nextWithdrawRequestId = 1;
 
-    // Single mapping for tracking first request per user
-    mapping(address => uint64) public userFirstRequestId;
-
     // Separate mappings for the actual requests
-    mapping(uint64 => WithdrawRequest) public withdrawRequests;
+    mapping(address => WithdrawRequest) public userWithdrawRequest;
 
     // Mapping from update ID to update information
     mapping(uint64 => UpdateInfo) public updateInfos;
@@ -249,7 +245,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @param newWithdrawFee New position withdrawal fee in basis points (1/10000)
      * @param nettingAmount Amount to transfer from deposit to withdraw account for netting
      */
-    function update(uint256 newRate, uint32 newWithdrawFee, uint256 nettingAmount) external onlyStrategist {
+    function update(uint256 newRate, uint64 newWithdrawFee, uint256 nettingAmount) external onlyStrategist {
         // Input validation
         if (newRate == 0) {
             revert InvalidRate();
@@ -400,65 +396,8 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         performanceFees = yield.mulDiv(performanceFeeBps, BASIS_POINTS);
     }
 
-    function getMaxWithdraws() public view returns (uint64) {
-        return config.withdrawLockupPeriod / 1 days;
-    }
-
-    function getCurrentWithdrawCount(address owner) public view returns (uint64) {
-        uint64 count = 0;
-        uint64 currentId = userFirstRequestId[owner];
-
-        while (currentId != 0) {
-            count++;
-            currentId = withdrawRequests[currentId].nextId;
-        }
-        return count;
-    }
-
-    function getRequest(uint64 requestId) public view returns (WithdrawRequest memory) {
-        return withdrawRequests[requestId];
-    }
-
-    /**
-     * @notice Gets all active withdraw request IDs for a user
-     * @param owner Address of the user
-     * @return requestIds Array of request IDs
-     * @dev Gas optimized by:
-     *      1. Single storage read for first request ID
-     *      2. Using unchecked for counter increments
-     *      3. Caching storage reads in memory
-     *      4. Minimizing memory expansion costs
-     */
-    function getUserWithdrawRequestIds(address owner) public view returns (uint64[] memory requestIds) {
-        uint64 firstId = userFirstRequestId[owner];
-        if (firstId == 0) {
-            return new uint64[](0);
-        }
-
-        // Count requests in memory to avoid multiple storage reads
-        uint64 count;
-        {
-            uint64 countCursor  = firstId;
-            while (countCursor  != 0) {
-                unchecked {
-                    ++count;
-                }
-                countCursor  = withdrawRequests[countCursor ].nextId;
-            }
-        }
-
-        requestIds = new uint64[](count);
-        uint64 cursor = firstId;
-        uint64 index;
-
-        // Fill array using cached values
-        while (cursor != 0) {
-            requestIds[index] = cursor;
-            cursor = withdrawRequests[cursor].nextId;
-            unchecked {
-                ++index;
-            }
-        }
+    function hasActiveWithdraw(address owner) public view returns (bool) {
+        return userWithdrawRequest[owner].sharesAmount > 0;
     }
 
     /**
@@ -468,14 +407,12 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @param owner Address that owns the shares
      * @param maxLossBps Maximum acceptable loss in basis points
      * @param allowSolverCompletion Whether to allow solvers to complete this request
-     * @return requestId The ID of the created withdrawal request
      */
     function withdraw(uint256 assets, address receiver, address owner, uint64 maxLossBps, bool allowSolverCompletion)
         public
         payable
         nonReentrant
         whenNotPaused
-        returns (uint64)
     {
         _validateWithdrawParams(receiver, owner, assets, maxLossBps);
 
@@ -488,7 +425,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
             revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
         }
 
-        return _withdraw(shares, assets, receiver, owner, maxLossBps, allowSolverCompletion);
+        _withdraw(shares, assets, receiver, owner, maxLossBps, allowSolverCompletion);
     }
 
     /**
@@ -498,14 +435,12 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @param owner Address that owns the shares
      * @param maxLossBps Maximum acceptable loss in basis points
      * @param allowSolverCompletion Whether to allow solvers to complete this request
-     * @return requestId The ID of the created redemption request
      */
     function redeem(uint256 shares, address receiver, address owner, uint64 maxLossBps, bool allowSolverCompletion)
         public
         payable
         nonReentrant
         whenNotPaused
-        returns (uint64)
     {
         _validateWithdrawParams(receiver, owner, shares, maxLossBps);
 
@@ -515,7 +450,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
             revert ERC4626ExceededMaxRedeem(owner, shares, maxShares);
         }
 
-        return _withdraw(shares, previewRedeem(shares), receiver, owner, maxLossBps, allowSolverCompletion);
+        _withdraw(shares, previewRedeem(shares), receiver, owner, maxLossBps, allowSolverCompletion);
     }
 
     /**
@@ -525,7 +460,6 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @param owner Address that owns the shares
      * @param maxLossBps Maximum acceptable loss in basis points
      * @param allowSolverCompletion Whether to allow solvers to complete this request
-     * @return requestId The ID of the created request
      */
     function _withdraw(
         uint256 shares,
@@ -534,7 +468,11 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         address owner,
         uint64 maxLossBps,
         bool allowSolverCompletion
-    ) internal returns (uint64) {
+    ) internal {
+        if (hasActiveWithdraw(owner)) {
+            revert WithdrawAlreadyExists();
+        }
+
         // Burn shares first (CEI pattern)
         if (msg.sender != owner) {
             uint256 allowed = allowance(owner, msg.sender);
@@ -545,17 +483,8 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         }
         _burn(owner, shares);
 
-        // Check withdraw count limit
-        uint64 currentCount = getCurrentWithdrawCount(owner);
-        uint64 maxWithdraws = getMaxWithdraws();
-        if (currentCount >= maxWithdraws) {
-            revert TooManyWithdraws(currentCount, maxWithdraws);
-        }
-
         // Create withdrawal request
-        uint64 requestId = _nextWithdrawRequestId++;
         uint64 updateId = currentUpdateId + 1;
-        uint64 currentFirstId = userFirstRequestId[owner];
 
         // Update the total to withdraw on next update
         totalAssetsToWithdrawNextUpdate += assetsToWithdraw;
@@ -567,7 +496,6 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
             solverFee: allowSolverCompletion ? config.fees.solverCompletionFee : 0,
             owner: owner,
             receiver: receiver,
-            nextId: currentFirstId,
             updateId: updateId
         });
 
@@ -584,14 +512,9 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         }
 
         // Store request
-        withdrawRequests[requestId] = request;
+        userWithdrawRequest[owner] = request;
 
-        // Update user's first request pointer
-        userFirstRequestId[owner] = requestId;
-
-        emit WithdrawRequested(requestId, owner, receiver, shares, maxLossBps, allowSolverCompletion, updateId);
-
-        return requestId;
+        emit WithdrawRequested(owner, receiver, shares, maxLossBps, allowSolverCompletion, updateId);
     }
 
     function _deposit(address caller, address receiver, uint256 assets, uint256 shares) internal override {
@@ -645,7 +568,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @param newWithdrawFee New position withdrawal fee in basis points
      * @param nettingAmount Amount to transfer from deposit to withdraw account
      */
-    function _handleWithdraws(uint32 newWithdrawFee, uint256 nettingAmount) internal {
+    function _handleWithdraws(uint64 newWithdrawFee, uint256 nettingAmount) internal {
         // Check deposit account balance and validate netting amount
         if (nettingAmount > 0) {
             // Prepare the transfer calldata
@@ -663,7 +586,8 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         currentUpdateId++;
 
         // Store withdraw info for this update
-        updateInfos[currentUpdateId] = UpdateInfo({withdrawRate: withdrawRate, timestamp: block.timestamp});
+        updateInfos[currentUpdateId] =
+            UpdateInfo({withdrawRate: withdrawRate, withdrawFee: newWithdrawFee, timestamp: uint64(block.timestamp)});
 
         // Emit withdraw-related events
         emit UpdateProcessed(currentUpdateId, withdrawRate, totalAssetsToWithdrawNextUpdate);
