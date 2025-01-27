@@ -11,7 +11,7 @@ Valence programs are:
 
 > **Example Use-case**:
 >
-> A DeFi protocol wants to bridge tokens to another chain and deposit them into a vault. After a certain date, it wants to unwind the position. While the position is active, It may also want to delegate the right to change vault parameters to a designated committee, as long as the parameters are within a certain range.
+> A DeFi protocol wants to bridge tokens to another chain and deposit them into a vault. After a certain date, it wants to unwind the position. While the position is active, it may also want to delegate the right to change vault parameters to a designated committee, as long as the parameters are within a certain range.
 
 Without Valence programs, the protocol would have two choices:  
 1. Give the tokens to a **multisig** to execute actions on the protocol's behalf  
