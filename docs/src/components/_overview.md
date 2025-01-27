@@ -15,7 +15,7 @@ Valence programs are:
 
 Without Valence programs, the protocol would have two choices:  
 1. Give the tokens to a **multisig** to execute actions on the protocol's behalf  
-2. Write **custom smart contracts**, and deployed them across multiple chains, to handle the cross-chain token operations.
+2. Write **custom smart contracts** and deploy them across multiple chains to handle the cross-chain token operations.
 
 **Valence programs** offer a third choice: the protocol does not need to trust a multisig, nor does it need to spend resources writing complex cross-chain logic.
 
