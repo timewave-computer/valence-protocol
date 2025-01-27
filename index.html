@@ -169,22 +169,32 @@
 </ul>
 <blockquote>
 <p><strong>Example Use-case</strong>:</p>
-<p>A DeFi protocol wants to bridge tokens to another chain and deposit them into a vault. After a certain date, it wants to unwind the position. While the position is active, It may also want to delegate the right to change vault parameters to a designated committee, as long as the parameters are within a certain range.</p>
+<p>A DeFi protocol wants to bridge tokens to another chain and deposit them into a vault. After a certain date, it wants to unwind the position. While the position is active, it may also want to delegate the right to change vault parameters to a designated committee, as long as the parameters are within a certain range.</p>
 </blockquote>
 <p>Without Valence programs, the protocol would have two choices:</p>
 <ol>
 <li>Give the tokens to a <strong>multisig</strong> to execute actions on the protocol's behalf</li>
-<li>Write <strong>custom smart contracts</strong>, and deployed them across multiple chains, to handle the cross-chain token operations.</li>
+<li>Write <strong>custom smart contracts</strong> and deploy them across multiple chains to handle the cross-chain token operations.</li>
 </ol>
 <p><strong>Valence programs</strong> offer a third choice: the protocol does not need to trust a multisig, nor does it need to spend resources writing complex cross-chain logic.</p>
-<p><em>By using Valence the protocol can rapidly configure and deploy a secure solution that meets its needs.</em></p>
+<p><em>By using Valence, the protocol can rapidly configure and deploy a secure solution that meets its needs.</em></p>
+<h2 id="key-components"><a class="header" href="#key-components">Key components</a></h2>
+<p>The rest of this section provides a high-level breakdown of the components that compose a Valence cross-chain program.</p>
+<ul>
+<li><a href="./domains.html">Domains</a></li>
+<li><a href="./accounts.html">Accounts</a></li>
+<li><a href="./libraries_and_functions.html">Libraries and Functions</a></li>
+<li><a href="./programs_and_authorizations.html">Programs and Authorizations</a></li>
+<li><a href="./middleware.html">Middleware</a></li>
+<li><a href="./storage_account.html">Storage Accounts</a></li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
 
-                            <a rel="next prefetch" href="components/_overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="components/domains.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -195,7 +205,7 @@
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
 
-                    <a rel="next prefetch" href="components/_overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="components/domains.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
