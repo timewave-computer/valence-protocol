@@ -19,7 +19,7 @@ Without Valence programs, the protocol would have two choices:
 
 **Valence programs** offer a third choice: the protocol does not need to trust a multisig, nor does it need to spend resources writing complex cross-chain logic.
 
-*By using Valence the protocol can rapidly configure and deploy a secure solution that meets its needs.*
+*By using Valence, the protocol can rapidly configure and deploy a secure solution that meets its needs.*
 
 ## Key components
 
