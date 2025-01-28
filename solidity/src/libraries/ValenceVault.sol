@@ -26,6 +26,10 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     error InvalidAmount();
     error InvalidSolverFee(uint256 sent, uint256 required);
     error UnexpectedETH();
+    error WithdrawRequestNotFound();
+    error SolverNotAllowed();
+    error WithdrawNotClaimable();
+    error SolverFeeTransferFailed();
 
     event PausedStateChanged(bool paused);
     event RateUpdated(uint256 newRate);
@@ -48,6 +52,10 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         uint64 updateId
     );
     event DepositWithdrawNetting(uint256 netAmount, uint256 timestamp);
+    event WithdrawCompleted(
+        address indexed owner, address indexed receiver, uint256 assets, uint256 shares, address indexed executor
+    );
+    event WithdrawCancelled(address indexed owner, uint256 shares, uint256 currentLoss, uint256 maxAllowedLoss);
 
     struct FeeConfig {
         uint32 depositFeeBps; // Deposit fee in basis points
@@ -451,6 +459,88 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         }
 
         _withdraw(shares, previewRedeem(shares), receiver, owner, maxLossBps, allowSolverCompletion);
+    }
+
+    /**
+     * @notice Completes a withdrawal request with loss protection
+     * @dev Checks if current loss is within maxLossBps range, if not refunds shares
+     * @param owner The owner of the withdrawal request
+     */
+    function completeWithdraw(address owner) external nonReentrant whenNotPaused {
+        // Get the withdrawal request
+        WithdrawRequest memory request = userWithdrawRequest[owner];
+
+        // Make sure request exists (shares > 0)
+        if (request.sharesAmount == 0) {
+            revert WithdrawRequestNotFound();
+        }
+
+        // Check if sender is authorized
+        if (msg.sender != request.owner) {
+            // If sender is not owner, verify solver completion is enabled
+            if (request.solverFee == 0) {
+                revert SolverNotAllowed();
+            }
+        }
+
+        // Check if request is claimable
+        if (block.timestamp < request.claimTime) {
+            revert WithdrawNotClaimable();
+        }
+
+        // Get the update info for this request
+        UpdateInfo memory updateInfo = updateInfos[request.updateId];
+
+        // Calculate assets to withdraw based on rates
+        uint256 assetsToWithdraw;
+
+        if (redemptionRate < updateInfo.withdrawRate) {
+            // Calculate current withdraw rate since we have a loss
+            uint256 currentWithdrawRate = redemptionRate - positionWithdrawFee;
+
+            // Calculate loss in basis points
+            uint256 lossBps = ((updateInfo.withdrawRate - currentWithdrawRate) * BASIS_POINTS) / updateInfo.withdrawRate;
+
+            if (lossBps > request.maxLossBps) {
+                uint256 refundShares = request.sharesAmount.mulDiv(
+                    BASIS_POINTS - updateInfo.withdrawFee, BASIS_POINTS, Math.Rounding.Floor
+                );
+
+                // Loss too high, refund shares minus the withdraw fee
+                _mint(owner, refundShares);
+
+                // Delete request and emit event
+                delete userWithdrawRequest[owner];
+
+                emit WithdrawCancelled(owner, refundShares, lossBps, request.maxLossBps);
+
+                // Return early as the withdraw is cancelled
+                return;
+            }
+
+            // Use current withdraw rate if loss is acceptable
+            assetsToWithdraw = request.sharesAmount.mulDiv(currentWithdrawRate, BASIS_POINTS, Math.Rounding.Floor);
+        } else {
+            // No loss, use original withdraw rate
+            assetsToWithdraw = request.sharesAmount.mulDiv(updateInfo.withdrawRate, BASIS_POINTS, Math.Rounding.Floor);
+        }
+
+        // Delete request before transfer to prevent reentrancy
+        delete userWithdrawRequest[owner];
+
+        // Transfer assets from withdraw account to receiver
+        bytes memory transferCalldata = abi.encodeCall(IERC20.transfer, (request.receiver, assetsToWithdraw));
+        config.withdrawAccount.execute(asset(), 0, transferCalldata);
+
+        // Pay solver fee if applicable
+        if (request.solverFee > 0) {
+            (bool success,) = payable(msg.sender).call{value: request.solverFee}("");
+            if (!success) {
+                revert SolverFeeTransferFailed();
+            }
+        }
+
+        emit WithdrawCompleted(owner, request.receiver, assetsToWithdraw, request.sharesAmount, msg.sender);
     }
 
     /**
