@@ -270,7 +270,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         &authorization_addr,
         format!("update_library_{}", library_1.get_library_id()).as_str(),
     );
-
     contract_execute(
         test_ctx
             .get_request_builder()

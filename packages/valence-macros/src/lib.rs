@@ -158,7 +158,7 @@ pub fn manager_impl_library_configs(_attr: TokenStream, input: TokenStream) -> T
     let mut update_msg_matches = Vec::new();
     let mut replace_config_matches = Vec::new();
     let mut get_instantiate_msg_matches = Vec::new();
-    let mut per_validate_matches = Vec::new();
+    let mut pre_validate_matches = Vec::new();
     let mut get_account_ids_matches = Vec::new();
 
     for variant in variants {
@@ -181,7 +181,7 @@ pub fn manager_impl_library_configs(_attr: TokenStream, input: TokenStream) -> T
             get_instantiate_msg_matches.push(quote! {
                 #enum_ident::None => return Err(LibraryError::NoLibraryConfig)
             });
-            per_validate_matches.push(quote! {
+            pre_validate_matches.push(quote! {
                 #enum_ident::None => Err(LibraryError::NoLibraryConfig)
             });
             get_account_ids_matches.push(quote! {
@@ -238,8 +238,8 @@ pub fn manager_impl_library_configs(_attr: TokenStream, input: TokenStream) -> T
                         })
                     });
 
-                    // Add per_validate_config match
-                    per_validate_matches.push(quote! {
+                    // Add pre_validate_config match
+                    pre_validate_matches.push(quote! {
                         #enum_ident::#variant_ident(config) => {
                             config.pre_validate(api)?;
                             Ok(())
@@ -310,9 +310,9 @@ pub fn manager_impl_library_configs(_attr: TokenStream, input: TokenStream) -> T
                 .map_err(LibraryError::SerdeJsonError)
             }
 
-            pub fn per_validate_config(&self, api: &dyn cosmwasm_std::Api) -> LibraryResult<()> {
+            pub fn pre_validate_config(&self, api: &dyn cosmwasm_std::Api) -> LibraryResult<()> {
                 match self {
-                    #(#per_validate_matches,)*
+                    #(#pre_validate_matches,)*
                 }
             }
 

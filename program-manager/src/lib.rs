@@ -7,6 +7,7 @@ pub mod error;
 pub mod helpers;
 pub mod library;
 pub mod macros;
+pub mod mock_api;
 pub mod program_config;
 pub mod program_config_builder;
 pub mod program_migration;
