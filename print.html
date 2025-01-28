@@ -189,18 +189,18 @@
 <li><a href="components/./middleware.html">Middleware</a></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="domains"><a class="header" href="#domains">Domains</a></h1>
-<p>A <strong>Valence Program</strong> is an instance of the <strong>Valence Protocol</strong>. A Valence program's execution can typically <em>span multiple Blockchains</em>. In the Valence Protocol, we refer to the various Blockchains that are supported as <strong>domains</strong>.</p>
-<p>A <strong>Domain</strong> is an environment in which the components that form a program (more on these later) can be instantiated (deployed).</p>
+<p>A <strong>Valence Program</strong> is an instance of the <strong>Valence Protocol</strong>. A Valence Program's execution can typically <em>span multiple Blockchains</em>. In the Valence Protocol, we refer to the various blockchains that are supported as <strong>domains</strong>.</p>
+<p>A <strong>domain</strong> is an environment in which the components that form a program (more on these later) can be instantiated (deployed).</p>
 <p><strong>Domains</strong> are defined by <strong>three properties</strong>:</p>
 <ol>
-<li>The <strong>Chain</strong>: the Blockchain's name <em>e.g. Neutron, Osmosis, Ethereum mainnet</em>.</li>
-<li>The <strong>Execution environment</strong>: the environment under which programs (typically smart contracts) can be executed on that particular chain <em>e.g. CosmWasm, EVM, SVM</em>.</li>
-<li>The type of <strong>Bridge</strong> used from the <strong>Main Domain</strong> to other domains <em>e.g. Polytone over IBC, Hyperlane</em>.</li>
+<li>The <strong>chain</strong>: the blockchain's name <em>e.g. Neutron, Osmosis, Ethereum mainnet</em>.</li>
+<li>The <strong>execution environment</strong>: the environment under which programs (typically smart contracts) can be executed on that particular chain <em>e.g. CosmWasm, EVM, SVM</em>.</li>
+<li>The type of <strong>bridge</strong> used from the <strong>main domain</strong> to other domains <em>e.g. Polytone over IBC, Hyperlane</em>.</li>
 </ol>
-<p>Within a particular ecosystem of Blockchains (e.g. Cosmos), the Valence Protocol usually defines one specific domain as the <strong>Main Domain</strong>, on which some supporting infrastructure components are deployed. Think of it as the <em>home base</em> supporting the execution and operations of a Valence programs. This will be further clarified in the <a href="components/./authorizations_processors/_overview.html">Authorizations &amp; Processors</a> section.</p>
+<p>Within a particular ecosystem of blockchains (e.g. Cosmos), the Valence Protocol usually defines one specific domain as the <strong>main domain</strong>, on which some supporting infrastructure components are deployed. Think of it as the <em>home base</em> supporting the execution and operations of Valence Programs. This will be further clarified in the <a href="components/./authorizations_processors/_overview.html">Authorizations &amp; Processors</a> section.</p>
 <p>Below is a simplified representation of a <em>program transferring tokens</em> from a given <strong>input account</strong> on the <strong>Neutron domain</strong>, a CosmWasm-enabled smart contract platform secured by the Cosmos Hub, to a specified <strong>output account</strong> on the <strong>Osmosis domain</strong>, a well-known DeFi platform in the Cosmos ecosystem.</p>
 <pre class="mermaid">---
-title: Valence cross-domain program
+title: Valence Cross-Domain Program
 ---
 graph LR
   IA((Input
@@ -211,7 +211,7 @@ graph LR
   IA
   end
   subgraph Osmosis
-  IA -- 4/Transfer tokens --&gt; OA
+  IA -- Transfer tokens --&gt; OA
   end
 </pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="accounts"><a class="header" href="#accounts">Accounts</a></h1>
@@ -247,20 +247,20 @@ graph LR
 <p>Note: this is a simplified representation.</p>
 <p><strong>Valence Accounts</strong> do not perform any operation by themselves on the held funds, the operations are performed by <strong><a href="components/./libraries_and_functions.html">Valence Libraries</a></strong>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="libraries-and-functions"><a class="header" href="#libraries-and-functions">Libraries and Functions</a></h1>
-<p><strong>Valence Libraries</strong> contain the business logic that can be applied to the funds held by <strong>Valence accounts</strong>. Most often, this logic is about <em>performing operations on tokens</em>, such as splitting, routing, or providing liquidity on a DEX. A <strong>Valence account</strong> has to first approve (authorize) a <strong>Valence library</strong> for it to perform operations on that account's balances. <strong>Valence Libraries</strong> expose <strong>Functions</strong> that it supports. <strong>Valence Programs</strong> can be composed of a more or less complex graph of <strong>Valence Accounts</strong> and <strong>Valence Libraries</strong> to form a more or less sophisticated cross-chain workflow. During the course of a <strong>Valence program</strong>'s execution, <strong>Functions</strong> are called by external parties, and trigger the library's operations on the linked accounts.</p>
+<p><strong>Valence Libraries</strong> contain the business logic that can be applied to the funds held by <strong>Valence Accounts</strong>. Most often, this logic is about <em>performing operations on tokens</em>, such as splitting, routing, or providing liquidity on a DEX. A <strong>Valence Account</strong> has to first approve (authorize) a <strong>Valence Library</strong> for it to perform operations on that account's balances. <strong>Valence Libraries</strong> expose <strong>Functions</strong> that it supports. <strong>Valence Programs</strong> can be composed of a more or less complex graph of <strong>Valence Accounts</strong> and <strong>Valence Libraries</strong> to form a more or less sophisticated cross-chain workflow. During the course of a <strong>Valence Program</strong>'s execution, <strong>Functions</strong> are called by external parties that trigger the library's operations on the linked accounts.</p>
 <p>A typical pattern for a <strong>Valence Library</strong> is to have one (or more) <strong>input account(s)</strong> and one (or more) <strong>output account(s)</strong>. While many libraries implement this pattern, it is by no means a requirement.</p>
-<p><strong>Valence Libraries</strong> play a critical role in integrating <strong>Valence Programs</strong> with existing decentralized apps and services that can be found in many Blockchain ecosystems e.g. DEXes, liquid staking, etc</p>
-<p>Now that we know accounts cannot perform any operations by themselves, we need to revisit the <em>token swap program</em> example (mentioned on the <a href="components/./accounts.html">Accounts</a> page) and bring <strong>Valence Libraries</strong> into the picture: the program receives an amount of <strong>Token A</strong> in an <strong>input account</strong>, and a <strong>Token Swap</strong> library exposes a <strong>swap</strong> function that, when called, will perform a swap operation of <strong>Token A</strong> held by the <strong>input account</strong> for <strong>Token B</strong> using a <strong>DEX</strong> on the <strong>same domain</strong> (e.g. Neutron), and transfer them to the <strong>transfer account</strong>. A <strong>Token Transfer</strong> library, that exposes a <strong>transfer</strong> function, will transfer the <strong>Token B</strong> amount (when the function is called) to a final <strong>output account</strong> on another domain (e.g. Osmosis). In this scenario, the <strong>DEX</strong> is an existing service found on the hosting domain (e.g. <strong>Astroport</strong> on <strong>Neutron</strong>), so it is not part of the <strong>Valence Protocol</strong>.</p>
+<p><strong>Valence Libraries</strong> play a critical role in integrating <strong>Valence Programs</strong> with existing decentralized apps and services that can be found in many blockchain ecosystems (e.g., DEXes, liquid staking, etc.).</p>
+<p>Now that we know accounts cannot perform any operations by themselves, we need to revisit the <em>token swap program</em> example (mentioned on the <a href="components/./accounts.html">Accounts</a> page) and bring <strong>Valence Libraries</strong> into the picture: the program receives an amount of <strong>Token A</strong> in an <strong>input account</strong>, and a <strong>Token Swap</strong> library exposes a <strong>swap</strong> function that, when called, will perform a swap operation of <strong>Token A</strong> held by the <strong>input account</strong> for <strong>Token B</strong> using a <strong>DEX</strong> on the <strong>same domain</strong> (e.g., Neutron), and transfer them to the <strong>transfer account</strong>. A <strong>Token Transfer</strong> library that exposes a <strong>transfer</strong> function will transfer the <strong>Token B</strong> amount (when the function is called) to a final <strong>output account</strong> on another domain (e.g. Osmosis). In this scenario, the <strong>DEX</strong> is an existing service found on the host domain (e.g. <strong>Astroport</strong> on <strong>Neutron</strong>), so it is not part of the <strong>Valence Protocol</strong>.</p>
 <p>The program is then composed of the following accounts &amp; libraries:</p>
 <ul>
-<li>A <strong>Valence Account</strong> is created on the <strong>Neutron domain</strong> to act as the <strong>Input account</strong>.</li>
-<li>A <strong>Valence Account</strong> is created on the <strong>Neutron domain</strong> to act as the <strong>Transfer account</strong>.</li>
-<li>A <strong>Token swap Valence Library</strong> is created on the <strong>Neutron domain</strong>, <em>authorized</em> by the <strong>Input Account</strong> (to be able to act on the held Token A balance), and <em>configured</em> with the <strong>Input account</strong> and <strong>Transfer account</strong> as the respective input and output for the swap operation.</li>
-<li>A <strong>Token Transfer Valence Library</strong> is created on the <strong>Neutron domain</strong>, <em>authorized</em> by the <strong>Transfer Account</strong> (to be able to act on the held Token B balance), and <em>configured</em> with the <strong>Transfer account</strong> and <strong>Output account</strong> as the respective input and output for the swap operation.</li>
-<li>A <strong>Valence Account</strong> is created on the <strong>Osmosis domain</strong> to act as the <strong>Output account</strong>.</li>
+<li>A <strong>Valence Account</strong> is created on the <strong>Neutron domain</strong> to act as the <strong>input account</strong>.</li>
+<li>A <strong>Valence Account</strong> is created on the <strong>Neutron domain</strong> to act as the <strong>transfer account</strong>.</li>
+<li>A <strong>Token Swap Valence Library</strong> is created on the <strong>Neutron domain</strong>, <em>authorized</em> by the <strong>input account</strong> (to be able to act on the held Token A balance), and <em>configured</em> with the <strong>input account</strong> and <strong>transfer account</strong> as the respective input and output for the swap operation.</li>
+<li>A <strong>Token Transfer Valence Library</strong> is created on the <strong>Neutron domain</strong>, <em>authorized</em> by the <strong>transfer account</strong> (to be able to act on the held Token B balance), and <em>configured</em> with the <strong>transfer account</strong> and <strong>output account</strong> as the respective input and output for the swap operation.</li>
+<li>A <strong>Valence Account</strong> is created on the <strong>Osmosis domain</strong> to act as the <strong>output account</strong>.</li>
 </ul>
 <pre class="mermaid">---
-title: Valence token swap program
+title: Valence Token Swap Program
 ---
 graph LR
   FC[[Function call]]
@@ -288,7 +288,7 @@ graph LR
   end
 </pre>
 <p>This example highlights the crucial role that <strong>Valence Libraries</strong> play for integrating <strong>Valence Programs</strong> with pre-existing decentralized apps and services.</p>
-<p>One thing remains unclear in this example, though: how are <strong>Functions</strong> called? This is where <a href="components/./programs_and_authorizations.html">Programs and Authorizations</a> come into the picture.</p>
+<p>However, one thing remains unclear in this example: how are <strong>Functions</strong> called? This is where <a href="components/./programs_and_authorizations.html">Programs and Authorizations</a> come into the picture.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="programs-and-authorizations"><a class="header" href="#programs-and-authorizations">Programs and Authorizations</a></h1>
 <p>A <strong>Valence Program</strong> is an instance of the <strong>Valence Protocol</strong>. It is a particular arrangement and configuration of <a href="components/./accounts.html">accounts</a> and <a href="components/./libraries_and_functions.html">libraries</a> across multiple <a href="components/./domains.html">domains</a> e.g. a POL (protocol-owned liquidity) lending relationship between two parties. Similarly to how a <em>library</em> exposes executable <em>functions</em>, programs are associated with a set of executable <strong>Subroutines</strong>.</p>
 <p>A <strong>Subroutine</strong> is a vector of <strong>Functions</strong>. A <strong>Subroutine</strong> can call out to one or more <strong>function(s)</strong> from a single library, or from different ones. A <strong>Subroutine</strong> is limited to <strong>one execution domain</strong> (i.e. it cannot use functions from libraries instantiated on multiple domains).</p>
