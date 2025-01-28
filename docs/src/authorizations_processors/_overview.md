@@ -2,7 +2,7 @@
 
 The **Authorizations** and **Processor** contracts are foundational pieces of the **Valence Protocol**, as they enable on-chain (and cross-chain) execution of **Valence Programs** and enforce access control to the program's **Subroutines** via **Authorizations**.
 
-This section explains the rationale for these contracts and shares insights about their technical implementation, as well as how end-users can interact with **Valence Programs** via **Authorizations**.
+This section explains the rationale for these contracts and shares insights into their technical implementation, as well as how end-users can interact with **Valence Programs** via **Authorizations**.
 
 ## Rationale
 
