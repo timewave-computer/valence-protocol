@@ -15,6 +15,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     error OnlyOwnerOrStrategistAllowed();
     error OnlyStrategistAllowed();
     error InvalidRate();
+    error InvalidUpdateSameBlock();
     error InvalidWithdrawFee();
     error ZeroShares();
     error ZeroAssets();
@@ -326,6 +327,9 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      */
     function update(uint256 newRate, uint64 newWithdrawFee, uint256 nettingAmount) external onlyStrategist {
         // Input validation
+        if (lastUpdateTimestamp == block.timestamp) {
+            revert InvalidUpdateSameBlock();
+        }
         if (newRate == 0) {
             revert InvalidRate();
         }

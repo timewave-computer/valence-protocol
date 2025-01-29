@@ -81,6 +81,9 @@ abstract contract VaultHelper is Test {
         vm.startPrank(user);
         token.approve(address(vault), type(uint256).max);
         vm.stopPrank();
+
+        vm.roll(vm.getBlockNumber() + 1);
+        vm.warp(vm.getBlockTimestamp() + 12);
     }
 
     function defaultFees() public pure returns (ValenceVault.FeeConfig memory) {
@@ -170,5 +173,13 @@ abstract contract VaultHelper is Test {
             fees: _fees,
             feeDistribution: _feeDistribution
         });
+    }
+
+    function _update(uint256 newRate, uint64 newWithdrawFee, uint256 nettingAmount) public {
+        // Add block and time 
+        vm.roll(vm.getBlockNumber() + 1);
+        vm.warp(vm.getBlockTimestamp() + 12);
+
+        vault.update(newRate, newWithdrawFee, nettingAmount);
     }
 }

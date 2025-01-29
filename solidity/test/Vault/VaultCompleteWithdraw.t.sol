@@ -442,6 +442,86 @@ contract VaultCompleteWithdrawTest is VaultHelper {
             assertTrue(shares > 0, "Withdraw should still be pending");
         }
     }
+
+    function testMultipleWithdrawsWithVaryingLossThresholds() public {
+        // Setup users with different loss thresholds
+        uint64[] memory maxLosses = new uint64[](3);
+        maxLosses[0] = 300; // 3% max loss
+        maxLosses[1] = 500; // 5% max loss
+        maxLosses[2] = 1000; // 10% max loss
+
+        // Setup solver fee
+        setFees(0, 0, 0, 100);
+
+        // Track initial balances
+        uint256[] memory initialBalances = new uint256[](3);
+        for (uint256 i = 0; i < 3; i++) {
+            initialBalances[i] = token.balanceOf(users[i]);
+        }
+
+        // Users request withdraws with different loss thresholds
+        for (uint256 i = 0; i < 3; i++) {
+            vm.prank(users[i]);
+            vault.withdraw{value: 100}(WITHDRAW_AMOUNT, users[i], users[i], maxLosses[i], true);
+        }
+
+        // Process initial update
+        vm.startPrank(strategist);
+        vault.update(BASIS_POINTS, 100, WITHDRAW_AMOUNT * 3); // Set 1% withdraw fee
+        vm.stopPrank();
+
+        // Fast forward past lockup period
+        vm.warp(block.timestamp + 3 days + 1);
+
+        // Update rate with 4% loss (total 5% with 1% fee)
+        vm.startPrank(strategist);
+        vault.update(BASIS_POINTS * 96 / 100, 100, 0);
+        vm.stopPrank();
+
+        // Store users current share balances
+        uint256[] memory sharesBefore = new uint256[](3);
+        for (uint256 i = 0; i < 3; i++) {
+            sharesBefore[i] = vault.balanceOf(users[i]);
+        }
+
+        // Complete all withdraws
+        address[] memory targetUsers = new address[](3);
+        for (uint256 i = 0; i < 3; i++) {
+            targetUsers[i] = users[i];
+        }
+
+        vm.prank(solver);
+        vault.completeWithdraws(targetUsers);
+
+        // Verify results:
+        // First user (3% max loss) - should have gotten refund as 5% loss > 3% threshold
+        (uint256 shares0,,,,,,) = vault.userWithdrawRequest(users[0]);
+        assertEq(shares0, 0, "First user request should be cleared");
+        assertTrue(vault.balanceOf(users[0]) > sharesBefore[0], "First user should have received refunded shares");
+
+        // Second user (5% max loss) - borderline case, should still withdraw
+        (uint256 shares1,,,,,,) = vault.userWithdrawRequest(users[1]);
+        assertEq(shares1, 0, "Second user request should be cleared");
+        assertTrue(token.balanceOf(users[1]) > initialBalances[1], "Second user should have received assets");
+
+        // Third user (10% max loss) - should withdraw successfully
+        (uint256 shares2,,,,,,) = vault.userWithdrawRequest(users[2]);
+        assertEq(shares2, 0, "Third user request should be cleared");
+        assertTrue(token.balanceOf(users[2]) > initialBalances[2], "Third user should have received assets");
+
+        // Verify the exact amounts for users who successfully withdrew
+        uint256 withdrawRate = (BASIS_POINTS * 96 / 100) - 100; // 96% rate - 1% fee
+        uint256 expectedWithdrawAmount = WITHDRAW_AMOUNT * withdrawRate / BASIS_POINTS;
+
+        for (uint256 i = 1; i < 3; i++) {
+            // Skip first user who got refunded
+            assertEq(
+                token.balanceOf(users[i]) - initialBalances[i],
+                expectedWithdrawAmount,
+                "Withdrawn amount should match exactly"
+            );
+        }
+    }
 }
 
 contract MockRejectingContract {

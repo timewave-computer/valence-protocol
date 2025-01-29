@@ -137,7 +137,7 @@ contract ValenceVaultFeeTest is VaultHelper {
 
         // Second update with lower rate
         uint256 lowerRate = (BASIS_POINTS * 13) / 10; // 1.3x
-        vault.update(lowerRate, 0, 0);
+        _update(lowerRate, 0, 0);
 
         assertEq(vault.feesOwedInAsset(), feesAfterIncrease, "No new fees should be collected below high water");
         assertEq(vault.maxHistoricalRate(), highRate, "High water mark should not change");
@@ -193,6 +193,42 @@ contract ValenceVaultFeeTest is VaultHelper {
             depositFee + expectedPlatformFee + expectedPerformanceFee,
             "Combined fee calculation incorrect"
         );
+        vm.stopPrank();
+    }
+
+    function testNoFeeAccumulationAfterUpdates() public {
+        // Setup multiple fee types
+        setFees(500, 1000, 2000, 0); // 5% deposit, 10% platform, 20% performance fee
+        
+        // Make initial deposit to generate deposit fees
+        uint256 depositAmount = 100000;
+        vm.startPrank(user);
+        vault.deposit(depositAmount, user);
+        vm.stopPrank();
+
+        // First update - should distribute deposit fees
+        vm.startPrank(strategist);
+        _update(BASIS_POINTS, 0, 0);
+        assertEq(vault.feesOwedInAsset(), 0, "Fees should be zero after first update");
+
+        // Move time forward and update with profit to generate platform and performance fees
+        _update(BASIS_POINTS + 500, 0, 0); // 5% profit
+        assertEq(vault.feesOwedInAsset(), 0, "Fees should be zero after second update");
+
+        // Another time period and rate change
+        _update(BASIS_POINTS + 1000, 0, 0); // 10% profit
+        assertEq(vault.feesOwedInAsset(), 0, "Fees should be zero after third update");
+
+        // Make another deposit to generate more deposit fees
+        vm.stopPrank();
+        vm.startPrank(user);
+        vault.deposit(depositAmount, user);
+        vm.stopPrank();
+
+        // Final update to distribute new deposit fees
+        vm.startPrank(strategist);
+        _update(BASIS_POINTS + 1500, 0, 0); // 15% profit
+        assertEq(vault.feesOwedInAsset(), 0, "Fees should be zero after fourth update");
         vm.stopPrank();
     }
 }

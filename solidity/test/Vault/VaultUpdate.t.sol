@@ -236,7 +236,7 @@ contract VaultUpdateTest is VaultHelper {
         (uint256 storedRate, uint64 _withdrawFee, uint256 storedTimestamp) = vault.updateInfos(vault.currentUpdateId());
         assertEq(storedRate, expectedWithdrawRate);
         assertEq(withdrawFee, _withdrawFee);
-        assertEq(storedTimestamp, block.timestamp);
+        assertEq(storedTimestamp, vm.getBlockTimestamp());
     }
 
     function testMaxHistoricalRateUpdate() public {
@@ -254,8 +254,52 @@ contract VaultUpdateTest is VaultHelper {
         assertEq(vault.maxHistoricalRate(), higherRate);
 
         // Update with lower rate shouldn't change maxHistoricalRate
-        vault.update(lowerRate, 0, 0);
+        _update(lowerRate, 0, 0);
         assertEq(vault.maxHistoricalRate(), higherRate);
         vm.stopPrank();
+    }
+
+    function testUpdateRevertsSameBlock() public {
+        // Setup initial state 
+        vm.startPrank(user);
+        vault.deposit(100000, user);
+        vm.stopPrank();
+
+        // Switch to strategist
+        vm.startPrank(strategist);
+
+        // First update should succeed
+        vault.update(BASIS_POINTS + 100, 0, 0);  // 1.01x rate
+
+        // Second update in same block should fail
+        vm.expectRevert(ValenceVault.InvalidUpdateSameBlock.selector);
+        vault.update(BASIS_POINTS + 200, 0, 0);  // 1.02x rate
+
+        vm.stopPrank();
+    }
+
+    function testUpdateSucceedsNextBlock() public {
+        // Setup initial state
+        vm.startPrank(user);
+        vault.deposit(1000, user);
+        vm.stopPrank();
+
+        // Switch to strategist
+        vm.startPrank(strategist);
+
+        // First update
+        vault.update(BASIS_POINTS + 100, 0, 0);  // 1.01x rate
+
+        // Move to next block
+        vm.roll(vm.getBlockNumber() + 1);
+        vm.warp(vm.getBlockTimestamp() + 12); // Assuming ~12 sec block time
+
+        // Second update should now succeed
+        vault.update(BASIS_POINTS + 200, 0, 0);  // 1.02x rate
+
+        vm.stopPrank();
+
+        // Verify the last update took effect
+        assertEq(vault.redemptionRate(), BASIS_POINTS + 200);
     }
 }
