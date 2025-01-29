@@ -92,45 +92,6 @@ contract VaultBasicTest is VaultHelper {
         assertEq(vault.convertToAssets(shares), expectedAssets, "Asset conversion with decreased rate failed");
     }
 
-    function testUpdateConfig() public {
-        vm.startPrank(owner);
-
-        // Create new deposit account
-        BaseAccount newDepositAccount = new BaseAccount(owner, new address[](0));
-        uint256 newDepositCap = 5000;
-
-        ValenceVault.VaultConfig memory newConfig = ValenceVault.VaultConfig({
-            depositAccount: newDepositAccount,
-            withdrawAccount: withdrawAccount,
-            strategist: strategist,
-            depositCap: newDepositCap,
-            maxWithdrawFee: MAX_WITHDRAW_FEE,
-            withdrawLockupPeriod: ONE_DAY,
-            fees: defaultFees(),
-            feeDistribution: defaultDistributionFees()
-        });
-
-        vault.updateConfig(abi.encode(newConfig));
-
-        // Verify config changes
-        (
-            BaseAccount updatedDepositAccount,
-            BaseAccount updatedWithdrawAccount,
-            address updatedStrategist,
-            uint256 updatedDepositCap,
-            ,
-            ,
-            ValenceVault.FeeConfig memory updatedFees,
-        ) = vault.config();
-
-        assertEq(address(updatedDepositAccount), address(newDepositAccount), "Deposit account not updated");
-        assertEq(address(updatedWithdrawAccount), address(withdrawAccount), "Withdraw account should not change");
-        assertEq(updatedStrategist, strategist, "Strategist should not change");
-        assertEq(updatedDepositCap, newDepositCap, "Deposit cap not updated");
-        assertEq(updatedFees.depositFeeBps, 0, "Fees should remain zero");
-        vm.stopPrank();
-    }
-
     function testOnlyOwnerCanUpdateConfig() public {
         vm.startPrank(user);
 

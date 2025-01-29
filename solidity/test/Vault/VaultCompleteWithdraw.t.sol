@@ -330,7 +330,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         vault.update(BASIS_POINTS, 100, WITHDRAW_AMOUNT); // 1% fee
         vm.stopPrank();
 
-vm.warp(vm.getBlockTimestamp() + 1 days);
+        vm.warp(vm.getBlockTimestamp() + 1 days);
 
         // Second user requests withdraw after first update
         vm.prank(users[1]);
@@ -357,7 +357,7 @@ vm.warp(vm.getBlockTimestamp() + 1 days);
 
     function testBatchWithdrawWithLossExceedingMax() public {
         setFees(0, 0, 0, 100);
-        
+
         // All users request withdraw
         for (uint256 i = 0; i < users.length; i++) {
             vm.prank(users[i]);

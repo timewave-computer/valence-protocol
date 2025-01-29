@@ -31,6 +31,17 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     error WithdrawNotClaimable();
     error SolverFeeTransferFailed();
 
+    // Config errors
+    error InvalidDepositAccount();
+    error InvalidWithdrawAccount();
+    error InvalidStrategist();
+    error InvalidFeeConfiguration();
+    error InvalidFeeDistribution();
+    error InvalidWithdrawLockupPeriod();
+    error InvalidMaxWithdrawFee();
+    error InvalidPlatformAccount();
+    error InvalidStrategistAccount();
+
     event PausedStateChanged(bool paused);
     event RateUpdated(uint256 newRate);
     event UpdateProcessed(uint256 indexed updateId, uint256 withdrawRate, uint256 totalAssetsToWithdraw);
@@ -58,6 +69,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     event WithdrawCancelled(address indexed owner, uint256 shares, uint256 currentLoss, uint256 maxAllowedLoss);
     // Event to track failed withdraws
     event WithdrawCompletionSkipped(address indexed owner, string reason);
+    event ConfigUpdated(address indexed updater, VaultConfig newConfig);
 
     struct FeeConfig {
         uint32 depositFeeBps; // Deposit fee in basis points
@@ -76,11 +88,11 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         BaseAccount depositAccount;
         BaseAccount withdrawAccount;
         address strategist;
-        uint256 depositCap; // 0 means no cap
-        uint32 maxWithdrawFee; // in basis points
-        uint64 withdrawLockupPeriod; // Position + vault lockup period in seconds
         FeeConfig fees;
         FeeDistributionConfig feeDistribution;
+        uint256 depositCap; // 0 means no cap
+        uint64 withdrawLockupPeriod; // Position + vault lockup period in seconds
+        uint32 maxWithdrawFee; // in basis points
     }
 
     // Withdraw request structure
@@ -180,11 +192,58 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         lastUpdateTotalShares = 0;
     }
 
+    /**
+     * @notice Updates the vault configuration
+     * @dev Validates all configuration parameters before updating
+     * @param _config Encoded VaultConfig struct
+     */
     function updateConfig(bytes memory _config) public onlyOwner {
         VaultConfig memory decodedConfig = abi.decode(_config, (VaultConfig));
 
-        // TODO: Do checks for config updates
+        // Validate accounts
+        if (address(decodedConfig.depositAccount) == address(0)) {
+            revert InvalidDepositAccount();
+        }
+        if (address(decodedConfig.withdrawAccount) == address(0)) {
+            revert InvalidWithdrawAccount();
+        }
+
+        // Validate strategist
+        if (decodedConfig.strategist == address(0)) {
+            revert InvalidStrategist();
+        }
+
+        // Validate fee configuration
+        if (
+            decodedConfig.fees.depositFeeBps > BASIS_POINTS || decodedConfig.fees.platformFeeBps > BASIS_POINTS
+                || decodedConfig.fees.performanceFeeBps > BASIS_POINTS
+        ) {
+            revert InvalidFeeConfiguration();
+        }
+
+        // Validate fee distribution
+        if (decodedConfig.feeDistribution.strategistRatioBps > BASIS_POINTS) {
+            revert InvalidFeeDistribution();
+        }
+        if (decodedConfig.feeDistribution.platformAccount == address(0)) {
+            revert InvalidPlatformAccount();
+        }
+        if (decodedConfig.feeDistribution.strategistAccount == address(0)) {
+            revert InvalidStrategistAccount();
+        }
+
+        // Validate withdraw parameters
+        if (decodedConfig.maxWithdrawFee > BASIS_POINTS) {
+            revert InvalidMaxWithdrawFee();
+        }
+        if (decodedConfig.withdrawLockupPeriod == 0) {
+            revert InvalidWithdrawLockupPeriod();
+        }
+
+        // All validations passed, update config
         config = decodedConfig;
+
+        emit ConfigUpdated(msg.sender, decodedConfig);
     }
 
     function totalAssets() public view override returns (uint256) {
@@ -530,8 +589,8 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
 
         // Check if sender is authorized
         if (msg.sender != request.owner && request.solverFee == 0) {
-                if (revertOnFailure) revert SolverNotAllowed();
-                return WithdrawResult(false, 0, 0, "Solver not allowed");
+            if (revertOnFailure) revert SolverNotAllowed();
+            return WithdrawResult(false, 0, 0, "Solver not allowed");
         }
 
         // Check if request is claimable
