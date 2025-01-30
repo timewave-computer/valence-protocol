@@ -7,11 +7,11 @@
 Valence Programs are:
 
 - **Easy to understand** and **quick to deploy**: a program can be set up with a configuration file and no code.
-- **Extensible**: if we don't support a DeFi integration out of the box, you can write one yourself in a matter of hours!
+- **Extensible**: if we don't yet support a DeFi integration out of the box, new integrations can be written in a matter of hours!
 
-> **Example Use-case**:
+> **Example Use Case**:
 >
-> A DeFi protocol wants to bridge tokens to another chain and deposit them into a vault. After a certain date, it wants to unwind the position. While the position is active, it may also want to delegate the right to change vault parameters to a designated committee, as long as the parameters are within a certain range.
+> A DeFi protocol wants to bridge tokens to another chain and deposit them into a vault. After a certain date, it wants to unwind the position. While the position is active, it may also want to delegate the right to change vault parameters to a designated committee so long as the parameters are within a certain range.
 
 Without Valence Programs, the protocol would have two choices:  
 1. Give the tokens to a **multisig** to execute actions on the protocol's behalf  
@@ -30,4 +30,3 @@ The rest of this section provides a high-level breakdown of the components that 
 - [Libraries and Functions](./libraries_and_functions.md)
 - [Programs and Authorizations](./programs_and_authorizations.md)
 - [Middleware](./middleware.md)
-- [Storage Accounts](./storage_account.md)
