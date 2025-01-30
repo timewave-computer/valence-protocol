@@ -5,6 +5,22 @@
 Each Valence Type variant may provide different assertion queries. To offer a unified API, Valence Asserter
 remains agnostic to the underlying type being queried and provides a common gateway to all available types.
 
+## High-level flow
+
+```mermaid
+---
+title: Forwarder Library
+---
+graph LR
+  IA((Storage Account))
+  P[Processor]
+  S[Valence Asserter]
+  P -- 1/Assert --> S
+  S -- 2/Query storage slot(s) --> IA
+  S -- 3/Evaluate the predicate --> S
+  S -- 4/Return OK/ERR --> P
+```
+
 ## Motivation
 
 Primary use case for Valence Type assertions is to enable **conditional execution** of functions.
@@ -37,6 +53,9 @@ Valence Asserter design should enable the evaluation of such predicates in Valen
 
 Two values are required for any comparison. In Valence Programs, both *a* and *b* will be obtained differently.
 
+> TODO: rethink whether we should limit one of the values to be constant. can we just treat both *a* & *b* as equals,
+where they can be configured as const or variable?
+
 #### variable *a*
 
 *a* is the variable that will only become known during runtime.
@@ -45,7 +64,6 @@ Valence Types reside in their dedicated storage slots in [Storage Accounts](./..
 
 #### constant *b*
 
-> TODO: rethink whether this needs to be const. we could just treat both *a* & *b* as equals.
 
 *b* is the value that *a* will be evaluated against. Setting *b* values can be done in multiple ways
 and follows the rules set by the authorizations module.
@@ -89,18 +107,65 @@ Thefore the assertion message may look as follows:
     "variable": {
       "storage_account": "neutron123...",
       "storage_slot": "pool",
-      "query": "GetPrice {}"
+      "query": b64("GetPrice {}"),
     }
   },
-  "predicate": ">",
+  "predicate": Predicate::GT,
   "b": {
     "constant": "10.0",
   },
+  "ty": "decimal"
+}
+```
+
+## Type definitions
+
+The following types are introduced:
+
+```rust
+pub enum Predicate {
+    LT,
+    LTE,
+    EQ,
+    GT,
+    GTE,
+}
+
+pub struct QueryInfo {
+    // addr of the storage account
+    storage_account: String,
+    // key to access the value in the storage account
+    storage_slot_key: String,
+    // b64 encoded query
+    query: Binary,
+}
+
+pub enum AssertionValue {
+    // storage account slot query
+    Variable(QueryInfo),
+    // serialized constant value
+    Constant(String),
+}
+
+// type that both values are expected to be
+pub enum ValueType {
+    Decimal,
+    Uint64,
+    Uint128,
+    Uint256,
+    String,
+}
+
+pub struct AssertionConfig {
+    a: AssertionValue,
+    predicate: Predicate,
+    b: AssertionValue,
+    ty: ValueType,
 }
 ```
 
 ## API
 
-```rust
-TODO
-```
+| Function    | Parameters | Description | Return Value |
+|-------------|------------|-------------|--------------|
+| **Assert** | `a: AssertionValue`<br>`predicate: Predicate`<br>`b: AssertionValue`<br>`ty: ValueType` | Evaluate the given predicate (*R(a, b)*). If *a* or *b* are variables, they get fetched using the configuartion specified in the respective `QueryInfo`.  | - predicate evaluates to true -> `Ok(())` <br> - predicate evaluates to false -> `Err` |
