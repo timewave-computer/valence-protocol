@@ -31,6 +31,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     error SolverNotAllowed();
     error WithdrawNotClaimable();
     error SolverFeeTransferFailed();
+    error FeeExceedsUint128();
 
     // Config errors
     error InvalidDepositAccount();
@@ -76,7 +77,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         uint32 depositFeeBps; // Deposit fee in basis points
         uint32 platformFeeBps; // Yearly platform fee in basis points
         uint32 performanceFeeBps; // Performance fee in basis points
-        uint256 solverCompletionFee; // Fee paid to solver for completion of withdraws
+        uint64 solverCompletionFee; // Fee paid to solver for completion of withdraws
     }
 
     struct FeeDistributionConfig {
@@ -91,27 +92,37 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         address strategist;
         FeeConfig fees;
         FeeDistributionConfig feeDistribution;
-        uint256 depositCap; // 0 means no cap
+        uint128 depositCap; // 0 means no cap
         uint64 withdrawLockupPeriod; // Position + vault lockup period in seconds
         uint32 maxWithdrawFee; // in basis points
     }
 
     // Withdraw request structure
     struct WithdrawRequest {
-        uint256 sharesAmount; // Amount of shares to be redeemed
-        uint256 solverFee; // Fee for solver completion (only used in solver mapping)
         address owner; // Owner of the request
-        address receiver; // Receiver of the withdrawn assets
         uint64 claimTime; // Timestamp when request becomes claimable
-        uint64 maxLossBps; // Maximum acceptable loss in basis points
+        uint32 maxLossBps; // Maximum acceptable loss in basis points
+        address receiver; // Receiver of the withdrawn assets
         uint64 updateId; // Next update ID
+        uint64 solverFee; // Fee for solver completion (only used in solver mapping)
+        uint128 sharesAmount; // Amount of shares to be redeemed
     }
 
     // Struct to store information about each update
     struct UpdateInfo {
-        uint256 withdrawRate; // Rate at which withdrawals were processed (redemptionRate - withdrawFee)
-        uint64 withdrawFee; // The fee of that update
+        uint32 withdrawRate; // Rate at which withdrawals were processed (redemptionRate - withdrawFee)
+        uint32 withdrawFee; // The fee of that update
         uint64 timestamp; // When this update occurred
+    }
+
+    struct PackedValues {
+        // Current position withdraw fee in basis points (1/10000)
+        uint64 positionWithdrawFee;
+        // Current update ID (increments with each update)
+        uint64 currentUpdateId;
+        // Withdraw request ID counter
+        uint64 nextWithdrawRequestId;
+        bool paused;
     }
 
     /**
@@ -125,27 +136,20 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     }
 
     VaultConfig public config;
-    bool public paused;
+    PackedValues public packedValues;
 
     // Current redemption rate in basis points (1/10000)
-    uint256 public redemptionRate;
+    uint32 public redemptionRate;
     // Maximum historical redemption rate for performance fee calculation
-    uint256 public maxHistoricalRate;
-    // Current position withdraw fee in basis points (1/10000)
-    uint64 public positionWithdrawFee;
+    uint32 public maxHistoricalRate;
     // Total shares at last update
     uint256 public lastUpdateTotalShares;
     // Last update timestamp for fee calculation
-    uint256 public lastUpdateTimestamp;
+    uint64 public lastUpdateTimestamp;
     // Fees to be collected in asset
-    uint256 public feesOwedInAsset;
-    // Current update ID (increments with each update)
-    uint64 public currentUpdateId;
+    uint128 public feesOwedInAsset;
     // The total amount we should withdraw in the next update
-    uint256 public totalAssetsToWithdrawNextUpdate;
-
-    // Withdraw request ID counter
-    uint64 private _nextWithdrawRequestId = 1;
+    uint128 public totalAssetsToWithdrawNextUpdate;
 
     // Separate mappings for the actual requests
     mapping(address => WithdrawRequest) public userWithdrawRequest;
@@ -173,7 +177,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     }
 
     modifier whenNotPaused() {
-        if (paused) {
+        if (packedValues.paused) {
             revert VaultIsPaused();
         }
         _;
@@ -189,7 +193,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         config = abi.decode(_config, (VaultConfig));
         redemptionRate = BASIS_POINTS; // Initialize at 1:1
         maxHistoricalRate = BASIS_POINTS;
-        lastUpdateTimestamp = block.timestamp;
+        lastUpdateTimestamp = uint64(block.timestamp);
         lastUpdateTotalShares = 0;
     }
 
@@ -286,7 +290,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
             revert ERC4626ExceededMaxDeposit(receiver, assets, maxAssets);
         }
 
-        uint256 depositFee = calculateDepositFee(assets);
+        uint128 depositFee = calculateDepositFee(assets);
         uint256 assetsAfterFee = assets - depositFee;
 
         if (depositFee > 0) {
@@ -308,7 +312,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
             revert ERC4626ExceededMaxMint(receiver, shares, maxShares);
         }
 
-        (uint256 grossAssets, uint256 fee) = calculateMintFee(shares);
+        (uint256 grossAssets, uint128 fee) = calculateMintFee(shares);
 
         if (fee > 0) {
             feesOwedInAsset += fee;
@@ -325,7 +329,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @param newWithdrawFee New position withdrawal fee in basis points (1/10000)
      * @param nettingAmount Amount to transfer from deposit to withdraw account for netting
      */
-    function update(uint256 newRate, uint64 newWithdrawFee, uint256 nettingAmount) external onlyStrategist {
+    function update(uint32 newRate, uint32 newWithdrawFee, uint256 nettingAmount) external onlyStrategist {
         // Input validation
         if (lastUpdateTimestamp == block.timestamp) {
             revert InvalidUpdateSameBlock();
@@ -345,9 +349,9 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         if (currentAssets == 0) revert ZeroAssets();
 
         // Calculate fees
-        uint256 platformFees = calculatePlatformFees(newRate, currentAssets, currentShares, _config.fees.platformFeeBps);
+        uint128 platformFees = calculatePlatformFees(newRate, currentAssets, currentShares, _config.fees.platformFeeBps);
 
-        uint256 performanceFees = calculatePerformanceFees(newRate, currentAssets, _config.fees.performanceFeeBps);
+        uint128 performanceFees = calculatePerformanceFees(newRate, currentAssets, _config.fees.performanceFeeBps);
 
         // Update fees owed
         if (platformFees > 0 || performanceFees > 0) {
@@ -364,7 +368,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         // Update state
         redemptionRate = newRate;
         lastUpdateTotalShares = currentShares;
-        lastUpdateTimestamp = block.timestamp;
+        lastUpdateTimestamp = uint64(block.timestamp);
 
         // Update max historical rate if new rate is higher
         if (newRate > maxHistoricalRate) {
@@ -375,9 +379,14 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         emit RateUpdated(newRate);
     }
 
-    function pause(bool _pause) external onlyOwnerOrStrategist {
-        paused = _pause;
-        emit PausedStateChanged(_pause);
+    function pause() external onlyOwnerOrStrategist {
+        packedValues.paused = true;
+        emit PausedStateChanged(true);
+    }
+
+    function unpause() external onlyOwnerOrStrategist {
+        packedValues.paused = false;
+        emit PausedStateChanged(false);
     }
 
     /**
@@ -386,7 +395,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @return grossAssets Total assets needed including fee
      * @return fee Fee amount in assets
      */
-    function calculateMintFee(uint256 shares) public view returns (uint256 grossAssets, uint256 fee) {
+    function calculateMintFee(uint256 shares) public view returns (uint256, uint128) {
         // Calculate base assets needed for shares
         uint256 baseAssets = previewMint(shares);
 
@@ -397,10 +406,15 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         }
 
         // grossAssets = baseAssets / (1 - feeRate)
-        grossAssets = baseAssets.mulDiv(BASIS_POINTS, BASIS_POINTS - feeBps, Math.Rounding.Ceil);
+        uint256 grossAssets = baseAssets.mulDiv(BASIS_POINTS, BASIS_POINTS - feeBps, Math.Rounding.Ceil);
 
-        fee = grossAssets - baseAssets;
-        return (grossAssets, fee);
+        uint256 fee = grossAssets - baseAssets;
+
+        if (fee > type(uint128).max) {
+            revert FeeExceedsUint128();
+        }
+
+        return (grossAssets, uint128(fee));
     }
 
     /**
@@ -411,10 +425,17 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @param assets The amount of assets being deposited
      * @return The fee amount in the same decimals as the asset
      */
-    function calculateDepositFee(uint256 assets) public view returns (uint256) {
+    function calculateDepositFee(uint256 assets) public view returns (uint128) {
         uint256 feeBps = config.fees.depositFeeBps;
         if (feeBps == 0) return 0;
-        return assets.mulDiv(feeBps, BASIS_POINTS, Math.Rounding.Ceil);
+        uint256 fee = assets.mulDiv(feeBps, BASIS_POINTS, Math.Rounding.Ceil);
+
+        // Check if fee exceeds uint128 max value
+        if (fee > type(uint128).max) {
+            revert FeeExceedsUint128();
+        }
+
+        return uint128(fee);
     }
 
     /**
@@ -427,7 +448,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     function calculatePlatformFees(uint256 newRate, uint256 currentAssets, uint256 currentShares, uint32 platformFeeBps)
         public
         view
-        returns (uint256 platformFees)
+        returns (uint128)
     {
         if (platformFeeBps == 0) {
             return 0;
@@ -452,9 +473,14 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         // Calculate time-weighted platform fee
         uint256 timeElapsed = block.timestamp - lastUpdateTimestamp;
 
-        platformFees = assetsToChargeFees.mulDiv(platformFeeBps, BASIS_POINTS).mulDiv(timeElapsed, SECONDS_PER_YEAR);
+        uint256 platformFees =
+            assetsToChargeFees.mulDiv(platformFeeBps, BASIS_POINTS).mulDiv(timeElapsed, SECONDS_PER_YEAR);
 
-        return platformFees;
+        if (platformFees > type(uint128).max) {
+            revert FeeExceedsUint128();
+        }
+
+        return uint128(platformFees);
     }
 
     /**
@@ -466,7 +492,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     function calculatePerformanceFees(uint256 newRate, uint256 currentAssets, uint32 performanceFeeBps)
         public
         view
-        returns (uint256 performanceFees)
+        returns (uint128)
     {
         if (performanceFeeBps == 0 || newRate <= maxHistoricalRate) {
             return 0;
@@ -476,7 +502,13 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         uint256 yield = currentAssets.mulDiv(newRate - maxHistoricalRate, BASIS_POINTS);
 
         // Take fee only from the new yield
-        performanceFees = yield.mulDiv(performanceFeeBps, BASIS_POINTS);
+        uint256 performanceFees = yield.mulDiv(performanceFeeBps, BASIS_POINTS);
+
+        if (performanceFees > type(uint128).max) {
+            revert FeeExceedsUint128();
+        }
+
+        return uint128(performanceFees);
     }
 
     function hasActiveWithdraw(address owner) public view returns (bool) {
@@ -491,7 +523,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @param maxLossBps Maximum acceptable loss in basis points
      * @param allowSolverCompletion Whether to allow solvers to complete this request
      */
-    function withdraw(uint256 assets, address receiver, address owner, uint64 maxLossBps, bool allowSolverCompletion)
+    function withdraw(uint256 assets, address receiver, address owner, uint32 maxLossBps, bool allowSolverCompletion)
         public
         payable
         nonReentrant
@@ -519,7 +551,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @param maxLossBps Maximum acceptable loss in basis points
      * @param allowSolverCompletion Whether to allow solvers to complete this request
      */
-    function redeem(uint256 shares, address receiver, address owner, uint64 maxLossBps, bool allowSolverCompletion)
+    function redeem(uint256 shares, address receiver, address owner, uint32 maxLossBps, bool allowSolverCompletion)
         public
         payable
         nonReentrant
@@ -609,11 +641,11 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
 
         if (redemptionRate < updateInfo.withdrawRate) {
             // Calculate current withdraw rate since we have a loss
-            uint256 currentWithdrawRate = redemptionRate - positionWithdrawFee;
+            uint256 currentWithdrawRate = redemptionRate - packedValues.positionWithdrawFee;
             uint256 lossBps = ((updateInfo.withdrawRate - currentWithdrawRate) * BASIS_POINTS) / updateInfo.withdrawRate;
 
             if (lossBps > request.maxLossBps) {
-                uint256 refundShares = request.sharesAmount.mulDiv(
+                uint256 refundShares = uint256(request.sharesAmount).mulDiv(
                     BASIS_POINTS - updateInfo.withdrawFee, BASIS_POINTS, Math.Rounding.Floor
                 );
 
@@ -625,9 +657,11 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
                 return WithdrawResult(false, 0, 0, "Loss exceeds maximum");
             }
 
-            assetsToWithdraw = request.sharesAmount.mulDiv(currentWithdrawRate, BASIS_POINTS, Math.Rounding.Floor);
+            assetsToWithdraw =
+                uint256(request.sharesAmount).mulDiv(currentWithdrawRate, BASIS_POINTS, Math.Rounding.Floor);
         } else {
-            assetsToWithdraw = request.sharesAmount.mulDiv(updateInfo.withdrawRate, BASIS_POINTS, Math.Rounding.Floor);
+            assetsToWithdraw =
+                uint256(request.sharesAmount).mulDiv(updateInfo.withdrawRate, BASIS_POINTS, Math.Rounding.Floor);
         }
 
         // Delete request before transfer to prevent reentrancy
@@ -659,7 +693,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         uint256 assetsToWithdraw,
         address receiver,
         address owner,
-        uint64 maxLossBps,
+        uint32 maxLossBps,
         bool allowSolverCompletion
     ) internal {
         if (hasActiveWithdraw(owner)) {
@@ -677,13 +711,13 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         _burn(owner, shares);
 
         // Create withdrawal request
-        uint64 updateId = currentUpdateId + 1;
+        uint64 updateId = packedValues.currentUpdateId + 1;
 
         // Update the total to withdraw on next update
-        totalAssetsToWithdrawNextUpdate += assetsToWithdraw;
+        totalAssetsToWithdrawNextUpdate += uint128(assetsToWithdraw);
 
         WithdrawRequest memory request = WithdrawRequest({
-            sharesAmount: shares,
+            sharesAmount: uint128(shares),
             claimTime: uint64(block.timestamp + config.withdrawLockupPeriod),
             maxLossBps: maxLossBps,
             solverFee: allowSolverCompletion ? config.fees.solverCompletionFee : 0,
@@ -731,7 +765,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
 
         // Calculate fee shares for strategist
         uint256 strategistAssets =
-            feesOwedInAsset.mulDiv(feeDistribution.strategistRatioBps, BASIS_POINTS, Math.Rounding.Floor);
+            uint256(feesOwedInAsset).mulDiv(feeDistribution.strategistRatioBps, BASIS_POINTS, Math.Rounding.Floor);
 
         // Calculate platform's share as the remainder
         uint256 platformAssets = feesOwedInAsset - strategistAssets;
@@ -761,7 +795,9 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @param newWithdrawFee New position withdrawal fee in basis points
      * @param nettingAmount Amount to transfer from deposit to withdraw account
      */
-    function _handleWithdraws(uint64 newWithdrawFee, uint256 nettingAmount) internal {
+    function _handleWithdraws(uint32 newWithdrawFee, uint256 nettingAmount) internal {
+        PackedValues memory _packedValues = packedValues;
+
         // Check deposit account balance and validate netting amount
         if (nettingAmount > 0) {
             // Prepare the transfer calldata
@@ -775,20 +811,25 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         }
 
         // Calculate withdraw rate and increment update ID
-        uint256 withdrawRate = redemptionRate - newWithdrawFee;
-        currentUpdateId++;
+        uint32 withdrawRate = redemptionRate - newWithdrawFee;
+        _packedValues.currentUpdateId++;
 
         // Store withdraw info for this update
-        updateInfos[currentUpdateId] =
-            UpdateInfo({withdrawRate: withdrawRate, withdrawFee: newWithdrawFee, timestamp: uint64(block.timestamp)});
+        updateInfos[_packedValues.currentUpdateId] = UpdateInfo({
+            withdrawRate: withdrawRate,
+            withdrawFee: uint32(newWithdrawFee),
+            timestamp: uint64(block.timestamp)
+        });
 
         // Emit withdraw-related events
-        emit UpdateProcessed(currentUpdateId, withdrawRate, totalAssetsToWithdrawNextUpdate);
+        emit UpdateProcessed(_packedValues.currentUpdateId, withdrawRate, totalAssetsToWithdrawNextUpdate);
         emit WithdrawFeeUpdated(newWithdrawFee);
 
         // Update withdraw-related state
-        positionWithdrawFee = newWithdrawFee;
+        _packedValues.positionWithdrawFee = newWithdrawFee;
         totalAssetsToWithdrawNextUpdate = 0;
+
+        packedValues = _packedValues;
     }
 
     /**

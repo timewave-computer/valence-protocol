@@ -107,7 +107,7 @@ contract ValenceVaultFeeTest is VaultHelper {
 
         vm.startPrank(strategist);
         // Update with 50% increase
-        uint256 newRate = (BASIS_POINTS * 15) / 10; // 1.5x
+        uint32 newRate = (BASIS_POINTS * 15) / 10; // 1.5x
         uint256 initialFeesOwed = vault.feesOwedInAsset();
         vault.update(newRate, 0, 0);
 
@@ -131,12 +131,12 @@ contract ValenceVaultFeeTest is VaultHelper {
 
         vm.startPrank(strategist);
         // First update with 50% increase
-        uint256 highRate = (BASIS_POINTS * 15) / 10; // 1.5x
+        uint32 highRate = (BASIS_POINTS * 15) / 10; // 1.5x
         vault.update(highRate, 0, 0);
         uint256 feesAfterIncrease = vault.feesOwedInAsset();
 
         // Second update with lower rate
-        uint256 lowerRate = (BASIS_POINTS * 13) / 10; // 1.3x
+        uint32 lowerRate = (BASIS_POINTS * 13) / 10; // 1.3x
         _update(lowerRate, 0, 0);
 
         assertEq(vault.feesOwedInAsset(), feesAfterIncrease, "No new fees should be collected below high water");
@@ -167,7 +167,7 @@ contract ValenceVaultFeeTest is VaultHelper {
         vm.warp(vm.getBlockTimestamp() + 182.5 days);
 
         vm.startPrank(strategist);
-        uint256 newRate = (BASIS_POINTS * 15) / 10; // 1.5x
+        uint32 newRate = (BASIS_POINTS * 15) / 10; // 1.5x
 
         uint256 preUpdateFees = vault.feesOwedInAsset();
 
@@ -199,7 +199,7 @@ contract ValenceVaultFeeTest is VaultHelper {
     function testNoFeeAccumulationAfterUpdates() public {
         // Setup multiple fee types
         setFees(500, 1000, 2000, 0); // 5% deposit, 10% platform, 20% performance fee
-        
+
         // Make initial deposit to generate deposit fees
         uint256 depositAmount = 100000;
         vm.startPrank(user);

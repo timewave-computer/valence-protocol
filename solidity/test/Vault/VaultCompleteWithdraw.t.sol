@@ -11,7 +11,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
     address[] users;
     address solver;
     uint256 constant WITHDRAW_AMOUNT = 1000;
-    uint64 constant MAX_LOSS = 500; // 5%
+    uint32 constant MAX_LOSS = 500; // 5%
     uint256 constant NUM_USERS = 5;
 
     event WithdrawCompleted(
@@ -68,7 +68,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         vm.warp(vm.getBlockTimestamp() + 3 days + 1);
 
         // Get the request info for verification
-        (uint256 shares,,,,,,) = vault.userWithdrawRequest(user);
+        (,,,,,, uint256 shares) = vault.userWithdrawRequest(user);
 
         vm.expectEmit(true, true, true, true);
         emit WithdrawCompleted(user, user, WITHDRAW_AMOUNT, shares, user);
@@ -78,7 +78,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         vault.completeWithdraw(user);
 
         // Verify request is cleared
-        (uint256 sharesAfter,,,,,,) = vault.userWithdrawRequest(user);
+        (,,,,,, uint256 sharesAfter) = vault.userWithdrawRequest(user);
         assertEq(sharesAfter, 0, "Shares should be 0 after completion");
     }
 
@@ -146,10 +146,10 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         vm.stopPrank();
 
         // Get initial shares
-        (uint256 initialShares,,,,,,) = vault.userWithdrawRequest(user);
+        (,,,,,, uint256 initialShares) = vault.userWithdrawRequest(user);
 
         // Process first update with a 1% withdraw fee (100 basis points)
-        uint64 withdrawFee = 100; // 1%
+        uint32 withdrawFee = 100; // 1%
         vm.startPrank(strategist);
         vault.update(BASIS_POINTS, withdrawFee, WITHDRAW_AMOUNT);
         vm.stopPrank();
@@ -158,7 +158,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         vm.warp(vm.getBlockTimestamp() + 3 days + 1);
 
         // Update rate with big loss (6% loss)
-        uint256 newRate = BASIS_POINTS * 94 / 100; // 94% of original rate (6% loss)
+        uint32 newRate = BASIS_POINTS * 94 / 100; // 94% of original rate (6% loss)
         vm.startPrank(strategist);
         vault.update(newRate, withdrawFee, 0);
         vm.stopPrank();
@@ -256,7 +256,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // Pause vault
         vm.prank(owner);
-        vault.pause(true);
+        vault.pause();
 
         // Should fail when paused
         vm.expectRevert(ValenceVault.VaultIsPaused.selector);
@@ -313,7 +313,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // Verify all withdraws from same update completed correctly
         for (uint256 i = 0; i < users.length; i++) {
-            (uint256 shares,,,,,,) = vault.userWithdrawRequest(users[i]);
+            (,,,,,, uint256 shares) = vault.userWithdrawRequest(users[i]);
             assertEq(shares, 0, "Withdraw request should be cleared");
         }
     }
@@ -349,8 +349,8 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         vault.completeWithdraws(users);
 
         // Verify withdraws from different updates
-        (uint256 shares0,,,,,,) = vault.userWithdrawRequest(users[0]);
-        (uint256 shares1,,,,,,) = vault.userWithdrawRequest(users[1]);
+        (,,,,,, uint256 shares0) = vault.userWithdrawRequest(users[0]);
+        (,,,,,, uint256 shares1) = vault.userWithdrawRequest(users[1]);
         assertEq(shares0, 0, "First user withdraw should be cleared");
         assertEq(shares1, 0, "Second user withdraw should be cleared");
     }
@@ -438,14 +438,14 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // Verify all withdraws are still pending due to lockup
         for (uint256 i = 0; i < users.length; i++) {
-            (uint256 shares,,,,,,) = vault.userWithdrawRequest(users[i]);
+            (,,,,,, uint256 shares) = vault.userWithdrawRequest(users[i]);
             assertTrue(shares > 0, "Withdraw should still be pending");
         }
     }
 
     function testMultipleWithdrawsWithVaryingLossThresholds() public {
         // Setup users with different loss thresholds
-        uint64[] memory maxLosses = new uint64[](3);
+        uint32[] memory maxLosses = new uint32[](3);
         maxLosses[0] = 300; // 3% max loss
         maxLosses[1] = 500; // 5% max loss
         maxLosses[2] = 1000; // 10% max loss
@@ -495,17 +495,17 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // Verify results:
         // First user (3% max loss) - should have gotten refund as 5% loss > 3% threshold
-        (uint256 shares0,,,,,,) = vault.userWithdrawRequest(users[0]);
+        (,,,,,, uint256 shares0) = vault.userWithdrawRequest(users[0]);
         assertEq(shares0, 0, "First user request should be cleared");
         assertTrue(vault.balanceOf(users[0]) > sharesBefore[0], "First user should have received refunded shares");
 
         // Second user (5% max loss) - borderline case, should still withdraw
-        (uint256 shares1,,,,,,) = vault.userWithdrawRequest(users[1]);
+        (,,,,,, uint256 shares1) = vault.userWithdrawRequest(users[1]);
         assertEq(shares1, 0, "Second user request should be cleared");
         assertTrue(token.balanceOf(users[1]) > initialBalances[1], "Second user should have received assets");
 
         // Third user (10% max loss) - should withdraw successfully
-        (uint256 shares2,,,,,,) = vault.userWithdrawRequest(users[2]);
+        (,,,,,, uint256 shares2) = vault.userWithdrawRequest(users[2]);
         assertEq(shares2, 0, "Third user request should be cleared");
         assertTrue(token.balanceOf(users[2]) > initialBalances[2], "Third user should have received assets");
 

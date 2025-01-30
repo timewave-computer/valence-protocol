@@ -118,7 +118,7 @@ abstract contract VaultHelper is Test {
         vm.stopPrank();
     }
 
-    function setFees(uint32 depositFee, uint32 platformFee, uint32 performanceFee, uint256 solverCompletionFee)
+    function setFees(uint32 depositFee, uint32 platformFee, uint32 performanceFee, uint64 solverCompletionFee)
         internal
         returns (ValenceVault.FeeConfig memory)
     {
@@ -140,7 +140,7 @@ abstract contract VaultHelper is Test {
         return feeConfig;
     }
 
-    function setDepositCap(uint256 newCap) internal {
+    function setDepositCap(uint128 newCap) internal {
         vm.startPrank(owner);
         ValenceVault.VaultConfig memory config = _getDefaultConfig();
 
@@ -158,7 +158,7 @@ abstract contract VaultHelper is Test {
             address _strategist,
             ValenceVault.FeeConfig memory _fees,
             ValenceVault.FeeDistributionConfig memory _feeDistribution,
-            uint256 _depositCap,
+            uint128 _depositCap,
             uint64 _withdrawLockupPeriod,
             uint32 _maxWithdrawFee
         ) = vault.config();
@@ -175,8 +175,20 @@ abstract contract VaultHelper is Test {
         });
     }
 
-    function _update(uint256 newRate, uint64 newWithdrawFee, uint256 nettingAmount) public {
-        // Add block and time 
+    function _getPackedValues() internal view returns (ValenceVault.PackedValues memory) {
+        (uint64 positionWithdrawFee, uint64 currentUpdateId, uint64 nextWithdrawRequestId, bool paused) =
+            vault.packedValues();
+
+        return ValenceVault.PackedValues({
+            positionWithdrawFee: positionWithdrawFee,
+            currentUpdateId: currentUpdateId,
+            nextWithdrawRequestId: nextWithdrawRequestId,
+            paused: paused
+        });
+    }
+
+    function _update(uint32 newRate, uint32 newWithdrawFee, uint256 nettingAmount) public {
+        // Add block and time
         vm.roll(vm.getBlockNumber() + 1);
         vm.warp(vm.getBlockTimestamp() + 12);
 

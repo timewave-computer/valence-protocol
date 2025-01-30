@@ -35,15 +35,17 @@ contract VaultUpdateTest is VaultHelper {
         vault.deposit(100000, user);
         vm.stopPrank();
 
-        uint256 newRate = BASIS_POINTS + 100; // 1.01x
+        uint32 newRate = BASIS_POINTS + 100; // 1.01x
         uint32 newWithdrawFee = 100; // 1%
 
         vm.startPrank(strategist);
         vault.update(newRate, newWithdrawFee, 0);
         vm.stopPrank();
 
+        ValenceVault.PackedValues memory packedValues = _getPackedValues();
+
         assertEq(vault.redemptionRate(), newRate);
-        assertEq(vault.positionWithdrawFee(), newWithdrawFee);
+        assertEq(packedValues.positionWithdrawFee, newWithdrawFee);
         assertEq(vault.feesOwedInAsset(), 0);
     }
 
@@ -65,7 +67,7 @@ contract VaultUpdateTest is VaultHelper {
         // Move time forward 6 months
         vm.warp(vm.getBlockTimestamp() + 180 days);
 
-        uint256 newRate = BASIS_POINTS + 1000; // 1.10x increase
+        uint32 newRate = BASIS_POINTS + 1000; // 1.10x increase
 
         vm.startPrank(strategist);
         vault.update(newRate, 0, 0);
@@ -209,13 +211,16 @@ contract VaultUpdateTest is VaultHelper {
         vault.deposit(100000, user);
         vm.stopPrank();
 
-        uint64 initialUpdateId = vault.currentUpdateId();
+        ValenceVault.PackedValues memory packedValues = _getPackedValues();
+        uint64 initialUpdateId = packedValues.currentUpdateId;
 
         vm.startPrank(strategist);
         vault.update(BASIS_POINTS, 0, 0);
         vm.stopPrank();
 
-        assertEq(vault.currentUpdateId(), initialUpdateId + 1);
+        packedValues = _getPackedValues();
+
+        assertEq(packedValues.currentUpdateId, initialUpdateId + 1);
     }
 
     function testUpdateInfoStorage() public {
@@ -225,15 +230,18 @@ contract VaultUpdateTest is VaultHelper {
         vm.stopPrank();
 
         uint256 initialRate = BASIS_POINTS;
-        uint256 newRate = BASIS_POINTS + 500; // 1.05x
-        uint64 withdrawFee = 100; // 1%
+        uint32 newRate = BASIS_POINTS + 500; // 1.05x
+        uint32 withdrawFee = 100; // 1%
         uint256 expectedWithdrawRate = initialRate - withdrawFee;
 
         vm.startPrank(strategist);
         vault.update(newRate, withdrawFee, 0);
         vm.stopPrank();
 
-        (uint256 storedRate, uint64 _withdrawFee, uint256 storedTimestamp) = vault.updateInfos(vault.currentUpdateId());
+        ValenceVault.PackedValues memory packedValues = _getPackedValues();
+
+        (uint256 storedRate, uint64 _withdrawFee, uint256 storedTimestamp) =
+            vault.updateInfos(packedValues.currentUpdateId);
         assertEq(storedRate, expectedWithdrawRate);
         assertEq(withdrawFee, _withdrawFee);
         assertEq(storedTimestamp, vm.getBlockTimestamp());
@@ -245,8 +253,8 @@ contract VaultUpdateTest is VaultHelper {
         vault.deposit(100000, user);
         vm.stopPrank();
 
-        uint256 higherRate = BASIS_POINTS + 500;
-        uint256 lowerRate = BASIS_POINTS + 200;
+        uint32 higherRate = BASIS_POINTS + 500;
+        uint32 lowerRate = BASIS_POINTS + 200;
 
         // First update with higher rate
         vm.startPrank(strategist);
@@ -260,7 +268,7 @@ contract VaultUpdateTest is VaultHelper {
     }
 
     function testUpdateRevertsSameBlock() public {
-        // Setup initial state 
+        // Setup initial state
         vm.startPrank(user);
         vault.deposit(100000, user);
         vm.stopPrank();
@@ -269,11 +277,11 @@ contract VaultUpdateTest is VaultHelper {
         vm.startPrank(strategist);
 
         // First update should succeed
-        vault.update(BASIS_POINTS + 100, 0, 0);  // 1.01x rate
+        vault.update(BASIS_POINTS + 100, 0, 0); // 1.01x rate
 
         // Second update in same block should fail
         vm.expectRevert(ValenceVault.InvalidUpdateSameBlock.selector);
-        vault.update(BASIS_POINTS + 200, 0, 0);  // 1.02x rate
+        vault.update(BASIS_POINTS + 200, 0, 0); // 1.02x rate
 
         vm.stopPrank();
     }
@@ -288,14 +296,14 @@ contract VaultUpdateTest is VaultHelper {
         vm.startPrank(strategist);
 
         // First update
-        vault.update(BASIS_POINTS + 100, 0, 0);  // 1.01x rate
+        vault.update(BASIS_POINTS + 100, 0, 0); // 1.01x rate
 
         // Move to next block
         vm.roll(vm.getBlockNumber() + 1);
         vm.warp(vm.getBlockTimestamp() + 12); // Assuming ~12 sec block time
 
         // Second update should now succeed
-        vault.update(BASIS_POINTS + 200, 0, 0);  // 1.02x rate
+        vault.update(BASIS_POINTS + 200, 0, 0); // 1.02x rate
 
         vm.stopPrank();
 

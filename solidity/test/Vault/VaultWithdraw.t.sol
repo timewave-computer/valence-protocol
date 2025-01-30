@@ -25,7 +25,7 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
         uint256 amount,
         address receiver,
         address owner,
-        uint64 maxLossBps,
+        uint32 maxLossBps,
         bool allowSolver,
         ValenceVault.FeeConfig memory fees
     ) internal virtual;
@@ -38,7 +38,7 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
 
         executeWithdraw(amount, user, user, 500, false, defaultFees());
 
-        (, uint256 solverFee, address _owner, address receiver,, uint64 maxLossBps,) = vault.userWithdrawRequest(user);
+        (address _owner,, uint64 maxLossBps, address receiver,, uint256 solverFee,) = vault.userWithdrawRequest(user);
 
         // For withdraw, shares will be converted. For redeem, it's direct.
         // Child tests will verify the specific share amount
@@ -59,7 +59,7 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
 
         executeWithdraw(1000, user, user, 500, true, fees);
 
-        (, uint256 solverFee,,,,,) = vault.userWithdrawRequest(user);
+        (,,,,, uint256 solverFee,) = vault.userWithdrawRequest(user);
         assertEq(solverFee, fees.solverCompletionFee, "Incorrect solver fee");
         assertEq(user.balance, preBalance - fees.solverCompletionFee, "Solver fee not charged");
 
@@ -91,13 +91,13 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
     function testInvalidMaxLoss() public {
         vm.startPrank(user);
         vm.expectRevert(ValenceVault.InvalidMaxLoss.selector);
-        executeWithdraw(1000, user, user, uint64(BASIS_POINTS + 1), false, defaultFees());
+        executeWithdraw(1000, user, user, BASIS_POINTS + 1, false, defaultFees());
         vm.stopPrank();
     }
 
     function testWhenPaused() public {
         vm.prank(owner);
-        vault.pause(true);
+        vault.pause();
 
         vm.startPrank(user);
         vm.expectRevert(ValenceVault.VaultIsPaused.selector);
@@ -108,9 +108,11 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
     function testUpdateIdTracking() public {
         vm.startPrank(user);
 
-        uint64 currentUpdateId = vault.currentUpdateId();
+        ValenceVault.PackedValues memory packedValues = _getPackedValues();
+
+        uint64 currentUpdateId = packedValues.currentUpdateId;
         executeWithdraw(1000, user, user, 500, false, defaultFees());
-        (,,,,,, uint64 updateId) = vault.userWithdrawRequest(user);
+        (,,,, uint64 updateId,,) = vault.userWithdrawRequest(user);
         assertEq(updateId, currentUpdateId + 1);
 
         vm.stopPrank();
@@ -199,13 +201,13 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
         vm.startPrank(user);
         executeWithdraw(1000, user, user, 500, false, defaultFees());
 
-        (uint256 sharesAmount,,,,,, uint64 updateId) = vault.userWithdrawRequest(user);
+        (,,,, uint64 updateId,, uint256 sharesAmount) = vault.userWithdrawRequest(user);
 
         // Fast forward but before update
         vm.warp(block.timestamp + 1 days);
 
         // Request should persist
-        (uint256 newSharesAmount,,,,,, uint64 newUpdateId) = vault.userWithdrawRequest(user);
+        (,,,, uint64 newUpdateId,, uint128 newSharesAmount) = vault.userWithdrawRequest(user);
         assertEq(sharesAmount, newSharesAmount, "Request should persist until update");
         assertEq(updateId, newUpdateId, "Update ID should remain unchanged");
 
@@ -229,7 +231,7 @@ contract ValenceVaultWithdrawTest is ValenceVaultWithdrawBaseTest {
         uint256 amount,
         address receiver,
         address owner,
-        uint64 maxLossBps,
+        uint32 maxLossBps,
         bool allowSolver,
         ValenceVault.FeeConfig memory fees
     ) internal override {
@@ -257,7 +259,7 @@ contract ValenceVaultRedeemTest is ValenceVaultWithdrawBaseTest {
         uint256 amount,
         address receiver,
         address owner,
-        uint64 maxLossBps,
+        uint32 maxLossBps,
         bool allowSolver,
         ValenceVault.FeeConfig memory fees
     ) internal override {

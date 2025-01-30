@@ -11,10 +11,12 @@ contract VaultBasicTest is VaultHelper {
     using Math for uint256;
 
     function testInitialState() public view {
+        ValenceVault.PackedValues memory packedValues = _getPackedValues();
+
         assertEq(vault.redemptionRate(), BASIS_POINTS, "Incorrect initial redemption rate");
         assertEq(vault.maxHistoricalRate(), BASIS_POINTS, "Incorrect initial max historical rate");
         assertEq(vault.lastUpdateTotalShares(), 0, "Initial shares should be 0");
-        assertEq(vault.positionWithdrawFee(), 0, "Initial withdraw fee should be 0");
+        assertEq(packedValues.positionWithdrawFee, 0, "Initial withdraw fee should be 0");
         assertEq(vault.feesOwedInAsset(), 0, "Initial fees owed should be 0");
         assertEq(vault.totalSupply(), 0, "Initial supply should be 0");
         assertEq(vault.totalAssets(), 0, "Initial assets should be 0");
@@ -50,7 +52,7 @@ contract VaultBasicTest is VaultHelper {
         vm.stopPrank();
 
         // Test rate increase (1.5x)
-        uint256 increaseRate = (BASIS_POINTS * 15) / 10; // 1.5x
+        uint32 increaseRate = (BASIS_POINTS * 15) / 10; // 1.5x
         vm.startPrank(strategist);
         vault.update(increaseRate, 0, 0);
         vm.stopPrank();
@@ -74,7 +76,7 @@ contract VaultBasicTest is VaultHelper {
         vm.stopPrank();
 
         // Test rate decrease (0.8x)
-        uint256 decreaseRate = (BASIS_POINTS * 8) / 10; // 0.8x
+        uint32 decreaseRate = (BASIS_POINTS * 8) / 10; // 0.8x
         vm.startPrank(strategist);
         vault.update(decreaseRate, 0, 0);
         vm.stopPrank();
