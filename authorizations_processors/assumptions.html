@@ -163,12 +163,12 @@
 <p><strong>Funds</strong>: You cannot send funds with the messages.</p>
 </li>
 <li>
-<p><strong>Bridging</strong>: We are assuming that messages can be sent and confirmed bidirectionally between domains. From the authorization contract on the main domain to the processor in a different domain in one direction and the callback confirming the correct or failed execution in the other direction.</p>
+<p><strong>Bridging</strong>: We are assuming that messages can be sent and confirmed bidirectionally between domains. The authorization contract on the main domain communicates with the processor in a different domain in one direction and the callback confirming the correct or failed execution in the other direction.</p>
 </li>
 <li>
 <p><strong>Instantiation</strong>: All these contracts can be instantiated beforehand and off-chain having predictable addresses. Here is an example instantiation flow using Polytone:</p>
 <ul>
-<li>Predict <code>authorization</code> contract address</li>
+<li>Predict <code>authorization</code> contract address.</li>
 <li>Instantiate polytone contracts &amp; set up relayers.</li>
 <li>Predict <code>proxy</code> contract address for the <code>authorization</code> contract on each external domain.</li>
 <li>Predict <code>proxy</code> contract address on the main domain for each processor on external domains.</li>
@@ -177,13 +177,13 @@
 </ul>
 </li>
 <li>
-<p><strong>Relaying</strong>: relayers will be running once everything is instantiated.</p>
+<p><strong>Relaying</strong>: Relayers will be running once everything is instantiated.</p>
 </li>
 <li>
-<p><strong>Tokenfactory</strong>: the main domain has the token factory module with no token creation fee so that we can create and mint these non fungible tokens with no additional cost.</p>
+<p><strong>Tokenfactory</strong>: The main domain has the token factory module with no token creation fee so that we can create and mint these nonfungible tokens with no additional cost.</p>
 </li>
 <li>
-<p><strong>Domains</strong>: in the current version, actions in each authorization will be limited to a single domain.</p>
+<p><strong>Domains</strong>: In the current version, actions in each authorization will be limited to a single domain.</p>
 </li>
 </ul>
 

@@ -158,10 +158,10 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="accounts"><a class="header" href="#accounts">Accounts</a></h1>
-<p><strong>Valence Programs</strong> usually perform operations on tokens, accross multiple domains, and to ensure that the funds remain safe throughout a program's execution, they rely on a primitive called <strong>Valence Accounts</strong>.</p>
-<p>A <strong>Valence Account</strong> is an escrow contract that can hold balances for various supported token-types (e.g., in Cosmos <code>ics-20</code> or <code>cw-20</code>) and ensures that only a restricted set of operations can be performed on the held tokens.
-A <strong>Valence Account</strong> is created (instantiated) on a specific <strong>domain</strong>, and bound to a specific <strong>Valence Program</strong>. <strong>Valence Programs</strong> will typically use multiple accounts, during the program's lifecycle, for different purposes. <strong>Valence Accounts</strong> are generic in nature; how they are used to form a program is entirely up to the program's creator.</p>
-<p>Using a simple <em>token swap program</em> as an example: the program receives an amount of <strong>Token A</strong> in an <strong>input account</strong>, and will <strong>swap</strong> these <strong>Token A</strong> for <strong>Token B</strong> using a <strong>DEX</strong> on the <strong>same domain</strong> (e.g. Neutron). After the swap operation, the received amount of <strong>Token B</strong> will be temporarily held in a <strong>transfer account</strong>, before being transfered to a final <strong>output account</strong> on another domain (e.g. Osmosis).</p>
+<p><strong>Valence Programs</strong> usually perform operations on tokens accross multiple domains. To ensure that the funds remain safe throughout a program's execution, Valence Programs rely on a primitive called <strong>Valence Accounts</strong>.</p>
+<p>A <strong>Valence Account</strong> is an escrow contract that can hold balances for various supported token types (e.g., in Cosmos <code>ics-20</code> or <code>cw-20</code>) and ensure that only a restricted set of operations can be performed on the held tokens.
+A <strong>Valence Accounts</strong> are created (instantiated) on a specific <strong>domain</strong> and bound to a specific <strong>Valence Program</strong>. <strong>Valence Programs</strong> will typically use multiple accounts during the program's lifecycle for different purposes. <strong>Valence Accounts</strong> are generic by nature; their use in forming a program is entirely up to the program's creator.</p>
+<p>Using a simple <em>token swap program</em> as an example: the program receives an amount of <strong>Token A</strong> in an <strong>input account</strong> and will <strong>swap</strong> these <strong>Token A</strong> for <strong>Token B</strong> using a <strong>DEX</strong> on the <strong>same domain</strong> (e.g. Neutron). After the swap operation, the received amount of <strong>Token B</strong> will be temporarily held in a <strong>transfer account</strong> before being transfered to a final <strong>output account</strong> on another domain (e.g. Osmosis).</p>
 <p>For this, the program will create the following accounts:</p>
 <ul>
 <li>A <strong>Valence Account</strong> is created on the <strong>Neutron domain</strong> to act as the <strong>Input account</strong>.</li>
@@ -169,7 +169,7 @@ A <strong>Valence Account</strong> is created (instantiated) on a specific <stro
 <li>A <strong>Valence Account</strong> is created on the <strong>Osmosis domain</strong> to act as the <strong>Output account</strong>.</li>
 </ul>
 <pre class="mermaid">---
-title: Valence token swap program
+title: Valence Token Swap Program
 ---
 graph LR
   IA((Input
@@ -184,11 +184,11 @@ graph LR
   DEX -- Token B --&gt; TA
   end
   subgraph Osmosis
-  TA -- 4/Transfer token B --&gt; OA
+  TA -- Transfer token B --&gt; OA
   end
 </pre>
 <p>Note: this is a simplified representation.</p>
-<p><strong>Valence Accounts</strong> do not perform any operation by themselves on the held funds, the operations are performed by <strong><a href="./libraries_and_functions.html">Valence Libraries</a></strong>.</p>
+<p><strong>Valence Accounts</strong> do not perform any operation by themselves on the held funds. The operations are performed by <strong><a href="./libraries_and_functions.html">Valence Libraries</a></strong>.</p>
 
                     </main>
 
