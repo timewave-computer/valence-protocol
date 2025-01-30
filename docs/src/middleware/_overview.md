@@ -7,3 +7,4 @@ This section contains a description of the Valence Protocol middleware design.
 - [Middleware Broker](./broker.md)
 - [Middleware Type Registry](./type_registry.md)
 - [Valence Types](./valence_types.md)
+- [Asserters](./valence_asserter.md)
