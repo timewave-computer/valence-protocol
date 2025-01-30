@@ -30,6 +30,7 @@
   - [Broker](./middleware/broker.md)
   - [Type Registry](./middleware/type_registry.md)
   - [Valence Types](./middleware/valence_types.md)
+  - [Valence Asserter](./middleware/valence_asserter.md)
 - [Examples](./examples/_overview.md)
   - [Token Swap](./examples/token_swap.md)
   - [Crosschain Vaults](./examples/crosschain_vaults.md)

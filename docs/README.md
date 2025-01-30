@@ -43,3 +43,13 @@ start chrome.exe .\book\index.html            # Windows (Cmd)
 ```bash
 mdbook serve
 ```
+
+4. Editing
+
+Continuously running `mdbook build` during editing can get tedious.
+
+To enable automatic re-rendering of the book after every file change, from the `/docs` directory, run:
+
+```bash
+mdbook watch
+```
