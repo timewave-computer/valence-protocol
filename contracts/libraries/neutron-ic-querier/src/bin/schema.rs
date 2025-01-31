@@ -1,9 +1,7 @@
 use cosmwasm_schema::write_api;
 
 use valence_library_utils::msg::{ExecuteMsg, InstantiateMsg};
-use valence_neutron_icq_querier::msg::{
-    FunctionMsgs, LibraryConfig, LibraryConfigUpdate, QueryMsg,
-};
+use valence_neutron_ic_querier::msg::{FunctionMsgs, LibraryConfig, LibraryConfigUpdate, QueryMsg};
 
 fn main() {
     write_api! {

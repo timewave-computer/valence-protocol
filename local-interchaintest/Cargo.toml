@@ -26,6 +26,7 @@ valence-processor                    = { workspace = true }
 valence-authorization-utils          = { workspace = true }
 valence-processor-utils              = { workspace = true }
 valence-account-utils                = { workspace = true }
+valence-storage-account              = { workspace = true }
 valence-library-utils                = { workspace = true }
 valence-splitter-library             = { workspace = true }
 valence-reverse-splitter-library     = { workspace = true }
@@ -47,7 +48,7 @@ tokio                                = { workspace = true }
 osmosis-std                          = { workspace = true }
 valence-test-icq-lib                 = { workspace = true }
 neutron-sdk                          = { workspace = true }
-valence-neutron-icq-querier          = { workspace = true }
+valence-neutron-ic-querier           = { workspace = true }
 valence-middleware-broker            = { workspace = true }
 valence-middleware-osmosis           = { workspace = true }
 valence-middleware-utils             = { workspace = true }
