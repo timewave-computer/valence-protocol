@@ -11,8 +11,10 @@ use crate::{
     testing::{Suite, STORAGE_SLOT_KEY},
 };
 
+use super::STORAGE_SLOT_KEY_2;
+
 #[test]
-fn base_Const_assertion() {
+fn base_const_assertion() {
     let mut suite = Suite::default();
 
     let xyk_pool = ValenceXykPool {
@@ -20,7 +22,7 @@ fn base_Const_assertion() {
         total_shares: "10".to_string(),
         domain_specific_fields: BTreeMap::new(),
     };
-    let resp = suite.post_valence_type(STORAGE_SLOT_KEY, ValenceType::XykPool(xyk_pool));
+    suite.post_valence_type(STORAGE_SLOT_KEY, ValenceType::XykPool(xyk_pool));
 
     let assertion_cfg = AssertionConfig {
         a: AssertionValue::Constant("10.0".to_string()),
@@ -56,6 +58,47 @@ fn base_variable_assertion() {
         }),
         predicate: Predicate::LT,
         b: AssertionValue::Constant("20.0".to_string()),
+        ty: ValueType::Decimal,
+    };
+
+    match suite.query_assert(assertion_cfg) {
+        Ok(_) => {
+            println!("assertion passed");
+        }
+        Err(e) => panic!("failed: {e}"),
+    }
+}
+
+#[test]
+fn double_variable_assertion() {
+    let mut suite = Suite::default();
+
+    let xyk_pool = ValenceXykPool {
+        assets: Suite::default_coins(),
+        total_shares: "10".to_string(),
+        domain_specific_fields: BTreeMap::new(),
+    };
+    suite.post_valence_type(STORAGE_SLOT_KEY, ValenceType::XykPool(xyk_pool));
+
+    let xyk_pool_2 = ValenceXykPool {
+        assets: Suite::default_coins_2(),
+        total_shares: "10".to_string(),
+        domain_specific_fields: BTreeMap::new(),
+    };
+    suite.post_valence_type(STORAGE_SLOT_KEY_2, ValenceType::XykPool(xyk_pool_2));
+
+    let assertion_cfg = AssertionConfig {
+        a: AssertionValue::Variable(QueryInfo {
+            storage_account: suite.storage_account.to_string(),
+            storage_slot_key: STORAGE_SLOT_KEY.to_string(),
+            query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
+        }),
+        predicate: Predicate::LT,
+        b: AssertionValue::Variable(QueryInfo {
+            storage_account: suite.storage_account.to_string(),
+            storage_slot_key: STORAGE_SLOT_KEY_2.to_string(),
+            query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
+        }),
         ty: ValueType::Decimal,
     };
 

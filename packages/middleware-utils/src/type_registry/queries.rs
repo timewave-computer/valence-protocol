@@ -8,8 +8,13 @@ pub trait ValenceTypeQuery {
 
 impl ValenceTypeQuery for ValenceType {
     fn query(&self, query: Binary) -> StdResult<Binary> {
-        // TODO: move this to some macro or something to avoid manual matching
-        // dynamically dispatch to the correct implementation
+        // IMPORTANT: if you add new variants here that are capable of querying with
+        // response values of:
+        // - String
+        // - Uint64
+        // - Uint256
+        // make sure to extend the unit tests under contracts/middleware/asserter/src/testing
+        // with the new variant and the expected response type.
         let queryable: &dyn ValenceTypeQuery = match self {
             ValenceType::XykPool(var) => var,
             ValenceType::BankBalance(var) => var,

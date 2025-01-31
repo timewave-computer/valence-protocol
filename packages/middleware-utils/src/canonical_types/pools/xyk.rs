@@ -21,6 +21,12 @@ pub struct ValenceXykPool {
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum XykPoolQuery {
+    // IMPORTANT: if you add new variants here that return one of the following response types:
+    // - String
+    // - Uint64
+    // - Uint256
+    // make sure to extend the unit tests under contracts/middleware/asserter/src/testing
+    // to cover that response type assertions.
     #[returns(Decimal)]
     GetPrice {},
 }

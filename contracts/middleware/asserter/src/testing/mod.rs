@@ -7,14 +7,14 @@ use valence_account_utils::msg::InstantiateMsg as StorageAccountInstantiateMsg;
 use valence_middleware_utils::type_registry::types::ValenceType;
 use valence_storage_account::msg::ExecuteMsg;
 
-pub const STORAGE_SLOT_KEY: &str = "pool";
+pub const STORAGE_SLOT_KEY: &str = "pool_osmo";
+pub const STORAGE_SLOT_KEY_2: &str = "pool_astro";
 
 struct Suite {
     pub app: App,
     pub admin: Addr,
     pub asserter: Addr,
     pub storage_account: Addr,
-    pub storage_slot_key: String,
 }
 
 impl Default for Suite {
@@ -70,7 +70,6 @@ impl Default for Suite {
             admin,
             asserter: asserter_addr,
             storage_account: storage_acc_addr,
-            storage_slot_key: STORAGE_SLOT_KEY.to_string(),
         }
     }
 }
@@ -104,6 +103,19 @@ impl Suite {
             Coin {
                 denom: "uusdc".to_string(),
                 amount: Uint128::new(500000),
+            },
+        ]
+    }
+
+    fn default_coins_2() -> Vec<Coin> {
+        vec![
+            Coin {
+                denom: "untrn".to_string(),
+                amount: Uint128::new(1200000),
+            },
+            Coin {
+                denom: "uusdc".to_string(),
+                amount: Uint128::new(33000),
             },
         ]
     }
