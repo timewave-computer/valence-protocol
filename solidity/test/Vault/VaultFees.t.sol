@@ -231,4 +231,107 @@ contract ValenceVaultFeeTest is VaultHelper {
         assertEq(vault.feesOwedInAsset(), 0, "Fees should be zero after fourth update");
         vm.stopPrank();
     }
+
+    function testFeeDistribution() public {
+        // Setup fee distribution ratio (30% to strategist, 70% to platform)
+        uint32 strategistRatio = 3000; // 30% in basis points
+        setFeeDistribution(strategistFeeAccount, platformFeeAccount, strategistRatio);
+
+        // Set deposit fee only for simplicity (5%)
+        setFees(500, 0, 0, 0);
+
+        // Calculate expected fee splits for a 10,000 token deposit
+        uint256 depositAmount = 10_000;
+        uint256 expectedTotalFee = (depositAmount * 500) / BASIS_POINTS; // 500 tokens
+
+        // Expected splits:
+        // Strategist (30%): 150 tokens worth of shares
+        // Platform (70%): 350 tokens worth of shares
+        uint256 expectedStrategistFee = (expectedTotalFee * strategistRatio) / BASIS_POINTS; // 150
+        uint256 expectedPlatformFee = expectedTotalFee - expectedStrategistFee; // 350
+
+        // Initial balances should be 0
+        assertEq(vault.balanceOf(strategistFeeAccount), 0, "Initial strategist balance should be 0");
+        assertEq(vault.balanceOf(platformFeeAccount), 0, "Initial platform balance should be 0");
+
+        // Make deposit to generate fees
+        vm.startPrank(user);
+        vault.deposit(depositAmount, user);
+        vm.stopPrank();
+
+        // Update to trigger fee distribution
+        vm.prank(strategist);
+        _update(BASIS_POINTS, 0, 0);
+
+        // Verify fee distribution
+        uint256 strategistShares = vault.balanceOf(strategistFeeAccount);
+        uint256 platformShares = vault.balanceOf(platformFeeAccount);
+
+        assertEq(strategistShares, expectedStrategistFee, "Incorrect strategist fee distribution");
+        assertEq(platformShares, expectedPlatformFee, "Incorrect platform fee distribution");
+
+        // Total distributed fees should equal expected total fee
+        assertEq(strategistShares + platformShares, expectedTotalFee, "Total distributed fees mismatch");
+
+        // feesOwedInAsset should be 0 after distribution
+        assertEq(vault.feesOwedInAsset(), 0, "Fees owed should be 0 after distribution");
+    }
+
+    function testFeeDistributionWithMultipleUpdates() public {
+        // Setup fee distribution (30% to strategist, 70% to platform)
+        uint32 strategistRatio = 3000;
+        setFeeDistribution(strategistFeeAccount, platformFeeAccount, strategistRatio);
+
+        // Set both deposit (5%) and performance (20%) fees
+        setFees(500, 0, 2000, 0);
+
+        uint256 depositAmount = 10_000;
+
+        // First deposit and update - only deposit fees
+        vm.startPrank(user);
+        vault.deposit(depositAmount, user);
+        vm.stopPrank();
+
+        vm.startPrank(strategist);
+        _update(BASIS_POINTS, 0, 0);
+
+        // Calculate and verify first distribution (deposit fees)
+        uint256 firstFee = (depositAmount * 500) / BASIS_POINTS; // 500 tokens
+        uint256 expectedFirstStrategistFee = (firstFee * strategistRatio) / BASIS_POINTS; // 150
+        uint256 expectedFirstPlatformFee = firstFee - expectedFirstStrategistFee; // 350
+
+        assertEq(
+            vault.balanceOf(strategistFeeAccount),
+            expectedFirstStrategistFee,
+            "First strategist fee distribution incorrect"
+        );
+        assertEq(
+            vault.balanceOf(platformFeeAccount), expectedFirstPlatformFee, "First platform fee distribution incorrect"
+        );
+
+        // Second update with performance increase (50% gain)
+        uint32 newRate = (BASIS_POINTS * 15) / 10; // 1.5x
+        _update(newRate, 0, 0);
+
+        // Calculate performance fee
+        uint256 totalYield = depositAmount.mulDiv(newRate - BASIS_POINTS, BASIS_POINTS);
+        uint256 performanceFee = totalYield.mulDiv(2000, BASIS_POINTS); // 20% of yield
+
+        uint256 expectedSecondStrategistFee = (performanceFee * strategistRatio) / BASIS_POINTS;
+        uint256 expectedSecondPlatformFee = performanceFee - expectedSecondStrategistFee;
+
+        // Total expected fees after both distributions
+        uint256 totalExpectedStrategistFee = expectedFirstStrategistFee + expectedSecondStrategistFee;
+        uint256 totalExpectedPlatformFee = expectedFirstPlatformFee + expectedSecondPlatformFee;
+
+        assertEq(
+            vault.balanceOf(strategistFeeAccount),
+            totalExpectedStrategistFee,
+            "Final strategist fee distribution incorrect"
+        );
+        assertEq(
+            vault.balanceOf(platformFeeAccount), totalExpectedPlatformFee, "Final platform fee distribution incorrect"
+        );
+        vm.stopPrank();
+    }
 }

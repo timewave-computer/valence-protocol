@@ -82,6 +82,40 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         assertEq(sharesAfter, 0, "Shares should be 0 after completion");
     }
 
+    function testCompleteWithdrawWithSolverFee() public {
+        setFees(0, 0, 0, 100);
+
+        // Create withdraw request
+        vm.startPrank(user);
+        vault.withdraw{value: 100}(WITHDRAW_AMOUNT, user, user, MAX_LOSS, true);
+        vm.stopPrank();
+
+        // Process update
+        vm.startPrank(strategist);
+        vault.update(BASIS_POINTS, 0, WITHDRAW_AMOUNT);
+        vm.stopPrank();
+
+        // Fast forward past lockup period
+        vm.warp(vm.getBlockTimestamp() + 3 days + 1);
+
+        // Get the request info for verification
+        (,,,,,, uint256 shares) = vault.userWithdrawRequest(user);
+
+        vm.expectEmit(true, true, true, true);
+        emit WithdrawCompleted(user, user, WITHDRAW_AMOUNT, shares, user);
+
+        uint256 userBalanceBefore = user.balance;
+
+        // Complete withdraw
+        vm.prank(user);
+        vault.completeWithdraw(user);
+
+        // Verify request is cleared
+        (,,,,,, uint256 sharesAfter) = vault.userWithdrawRequest(user);
+        assertEq(sharesAfter, 0, "Shares should be 0 after completion");
+        assertEq(user.balance, userBalanceBefore + 100, "Solver fee of 100 should be transferred to user");
+    }
+
     function testCompleteWithdrawWithSolver() public {
         // Setup solver fee
         setFees(0, 0, 0, 100);
@@ -167,11 +201,6 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // Calculate expected refunded shares (initialShares - 1% fee)
         uint256 expectedRefundShares = initialShares * (BASIS_POINTS - withdrawFee) / BASIS_POINTS;
-
-        // Calculate expected loss in BPS
-        uint256 originalWithdrawRate = BASIS_POINTS - withdrawFee;
-        uint256 newWithdrawRate = newRate - withdrawFee;
-        uint256 expectedLossBps = ((originalWithdrawRate - newWithdrawRate) * BASIS_POINTS) / originalWithdrawRate;
 
         // First try without vm.expectEmit to see what event is actually emitted
         vm.prank(user);

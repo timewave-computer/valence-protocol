@@ -79,7 +79,7 @@ contract VaultConfigTest is VaultHelper {
     function testCannotSetInvalidDepositAccount() public {
         vm.startPrank(owner);
 
-        ValenceVault.VaultConfig memory invalidConfig = _getDefaultConfig();
+        ValenceVault.VaultConfig memory invalidConfig = _getConfig();
         invalidConfig.depositAccount = BaseAccount(payable(address(0)));
 
         vm.expectRevert(ValenceVault.InvalidDepositAccount.selector);
@@ -91,7 +91,7 @@ contract VaultConfigTest is VaultHelper {
     function testCannotSetInvalidWithdrawAccount() public {
         vm.startPrank(owner);
 
-        ValenceVault.VaultConfig memory invalidConfig = _getDefaultConfig();
+        ValenceVault.VaultConfig memory invalidConfig = _getConfig();
         invalidConfig.withdrawAccount = BaseAccount(payable(address(0)));
 
         vm.expectRevert(ValenceVault.InvalidWithdrawAccount.selector);
@@ -103,7 +103,7 @@ contract VaultConfigTest is VaultHelper {
     function testCannotSetInvalidStrategist() public {
         vm.startPrank(owner);
 
-        ValenceVault.VaultConfig memory invalidConfig = _getDefaultConfig();
+        ValenceVault.VaultConfig memory invalidConfig = _getConfig();
         invalidConfig.strategist = address(0);
 
         vm.expectRevert(ValenceVault.InvalidStrategist.selector);
@@ -116,21 +116,21 @@ contract VaultConfigTest is VaultHelper {
         vm.startPrank(owner);
 
         // Test deposit fee > 100%
-        ValenceVault.VaultConfig memory invalidConfig = _getDefaultConfig();
+        ValenceVault.VaultConfig memory invalidConfig = _getConfig();
         invalidConfig.fees.depositFeeBps = BASIS_POINTS + 1;
 
         vm.expectRevert(ValenceVault.InvalidFeeConfiguration.selector);
         vault.updateConfig(abi.encode(invalidConfig));
 
         // Test platform fee > 100%
-        invalidConfig = _getDefaultConfig();
+        invalidConfig = _getConfig();
         invalidConfig.fees.platformFeeBps = BASIS_POINTS + 1;
 
         vm.expectRevert(ValenceVault.InvalidFeeConfiguration.selector);
         vault.updateConfig(abi.encode(invalidConfig));
 
         // Test performance fee > 100%
-        invalidConfig = _getDefaultConfig();
+        invalidConfig = _getConfig();
         invalidConfig.fees.performanceFeeBps = BASIS_POINTS + 1;
 
         vm.expectRevert(ValenceVault.InvalidFeeConfiguration.selector);
@@ -143,21 +143,21 @@ contract VaultConfigTest is VaultHelper {
         vm.startPrank(owner);
 
         // Test strategist ratio > 100%
-        ValenceVault.VaultConfig memory invalidConfig = _getDefaultConfig();
+        ValenceVault.VaultConfig memory invalidConfig = _getConfig();
         invalidConfig.feeDistribution.strategistRatioBps = BASIS_POINTS + 1;
 
         vm.expectRevert(ValenceVault.InvalidFeeDistribution.selector);
         vault.updateConfig(abi.encode(invalidConfig));
 
         // Test zero platform account
-        invalidConfig = _getDefaultConfig();
+        invalidConfig = _getConfig();
         invalidConfig.feeDistribution.platformAccount = address(0);
 
         vm.expectRevert(ValenceVault.InvalidPlatformAccount.selector);
         vault.updateConfig(abi.encode(invalidConfig));
 
         // Test zero strategist account
-        invalidConfig = _getDefaultConfig();
+        invalidConfig = _getConfig();
         invalidConfig.feeDistribution.strategistAccount = address(0);
 
         vm.expectRevert(ValenceVault.InvalidStrategistAccount.selector);
@@ -170,14 +170,14 @@ contract VaultConfigTest is VaultHelper {
         vm.startPrank(owner);
 
         // Test max withdraw fee > 100%
-        ValenceVault.VaultConfig memory invalidConfig = _getDefaultConfig();
+        ValenceVault.VaultConfig memory invalidConfig = _getConfig();
         invalidConfig.maxWithdrawFee = uint32(BASIS_POINTS + 1);
 
         vm.expectRevert(ValenceVault.InvalidMaxWithdrawFee.selector);
         vault.updateConfig(abi.encode(invalidConfig));
 
         // Test zero lockup period
-        invalidConfig = _getDefaultConfig();
+        invalidConfig = _getConfig();
         invalidConfig.withdrawLockupPeriod = 0;
 
         vm.expectRevert(ValenceVault.InvalidWithdrawLockupPeriod.selector);

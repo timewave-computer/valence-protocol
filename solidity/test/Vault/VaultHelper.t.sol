@@ -110,7 +110,7 @@ abstract contract VaultHelper is Test {
             strategistRatioBps: strategistRatioBps
         });
 
-        ValenceVault.VaultConfig memory config = _getDefaultConfig();
+        ValenceVault.VaultConfig memory config = _getConfig();
 
         config.feeDistribution = feeDistConfig;
 
@@ -130,7 +130,7 @@ abstract contract VaultHelper is Test {
             solverCompletionFee: solverCompletionFee
         });
 
-        ValenceVault.VaultConfig memory config = _getDefaultConfig();
+        ValenceVault.VaultConfig memory config = _getConfig();
 
         config.fees = feeConfig;
 
@@ -142,7 +142,7 @@ abstract contract VaultHelper is Test {
 
     function setDepositCap(uint128 newCap) internal {
         vm.startPrank(owner);
-        ValenceVault.VaultConfig memory config = _getDefaultConfig();
+        ValenceVault.VaultConfig memory config = _getConfig();
 
         config.depositCap = newCap;
 
@@ -151,7 +151,7 @@ abstract contract VaultHelper is Test {
     }
 
     // Helper function to get current config
-    function _getDefaultConfig() internal view returns (ValenceVault.VaultConfig memory) {
+    function _getConfig() internal view returns (ValenceVault.VaultConfig memory) {
         (
             BaseAccount _depositAccount,
             BaseAccount _withdrawAccount,
