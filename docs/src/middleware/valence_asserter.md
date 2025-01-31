@@ -44,7 +44,7 @@ graph LR
 
 | Function    | Parameters | Description | Return Value |
 |-------------|------------|-------------|--------------|
-| **Assert** | `a: AssertionValue`<br>`predicate: Predicate`<br>`b: AssertionValue`<br>`ty: ValueType` | Evaluate the given predicate *R(a, b)*.<br>If *a* or *b* are variables, they get fetched using the configuartion specified in the respective `QueryInfo`.<br>If either of them are constants, they get deserialized into `ty` directly.<br>Both *a* and *b* must be deserializable into the same type `ty`. | - predicate evaluates to true -> `Ok(())` <br> - predicate evaluates to false -> `Err` |
+| **Assert** | `a: AssertionValue`<br>`predicate: Predicate`<br>`b: AssertionValue`<br>`ty: ValueType` | Evaluate the given predicate *R(a, b)*.<br>If *a* or *b* are variables, they get fetched using the configuartion specified in the respective `QueryInfo`.<br>If either of them are constants, they get deserialized into `ty` directly.<br>Both *a* and *b* must be deserializable into the same type `ty`. |- predicate evaluates to true: `Ok(String)`<br>- predicate evaluates to false: `Err` |
 
 
 ## Design
@@ -58,21 +58,28 @@ Valence Asserter design should enable such predicate evaluations to be performed
 
 ### Comparison values
 
-Two values are required for any comparison. In Valence Programs, both *a* and *b* will be obtained differently.
+Two values are required for any comparison. Both *a* and *b* can be configured to be obtained in one of two ways:
 
-> TODO: rethink whether we should limit one of the values to be constant. can we just treat both *a* & *b* as equals,
-where they can be configured as const or variable?
+1. Constant value
+2. Variable value
 
-#### variable *a*
+Any combination of these values can be used for a given assertion:
 
-*a* is the variable that will only become known during runtime.
-Such values will be obtained from Valence Types which expose their own set of queries.
+- constant-constant (unlikely but perhaps there are cases where this may be desired)
+- constant-variable
+- variable-variable
+
+#### variable values
+
+Variable assertion values are meant to be used for information that can only become known during runtime.
+
+Such values will be obtained from Valence Types, which expose their own set of queries.
+
 Valence Types reside in their dedicated storage slots in [Storage Accounts](./../components/storage_account.md).
 
-#### constant *b*
+#### constant values
 
-*b* is the value that *a* will be evaluated against. Setting *b* values can be done in multiple ways
-and follows the rules set by the authorizations module.
+Constant assertion values are meant to be used for assertions where one of the operands is known before runtime.
 
 ### Predicates
 
@@ -149,8 +156,8 @@ pub struct QueryInfo {
 pub enum AssertionValue {
     // storage account slot query
     Variable(QueryInfo),
-    // serialized constant value
-    Constant(String),
+    // b64 encoded constant value
+    Constant(Binary),
 }
 
 // type that both values are expected to be
