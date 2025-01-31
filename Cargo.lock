@@ -3874,6 +3874,7 @@ dependencies = [
  "valence-generic-ibc-transfer-library",
  "valence-ibc-utils",
  "valence-library-utils",
+ "valence-middleware-asserter",
  "valence-middleware-broker",
  "valence-middleware-osmosis",
  "valence-middleware-utils",

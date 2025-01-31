@@ -52,6 +52,7 @@ valence-neutron-ic-querier           = { workspace = true }
 valence-middleware-broker            = { workspace = true }
 valence-middleware-osmosis           = { workspace = true }
 valence-middleware-utils             = { workspace = true }
+valence-middleware-asserter          = { workspace = true }
 alloy                                = { version = "0.9.2", features = ["full"] }
 hpl-interface                        = { git = "https://github.com/many-things/cw-hyperlane", rev = "d07e55e" }
 serde-json-wasm                      = "0.5.2"
