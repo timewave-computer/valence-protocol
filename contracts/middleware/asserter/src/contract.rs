@@ -1,7 +1,8 @@
 use std::str::FromStr;
 
 use crate::msg::{
-    AssertionConfig, AssertionValue, ExecuteMsg, InstantiateMsg, Predicate, QueryMsg, ValueType,
+    AssertionConfig, AssertionValue, ExecuteMsg, InstantiateMsg, Predicate, QueryInfo, QueryMsg,
+    ValueType,
 };
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -58,24 +59,19 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 fn evaluate_assertion(deps: Deps, assertion_config: AssertionConfig) -> StdResult<bool> {
     match assertion_config.ty {
         ValueType::Decimal => {
-            println!("is decimal");
             let a_comparable = match assertion_config.a {
                 AssertionValue::Constant(str) => Decimal::from_str(&str)?,
                 AssertionValue::Variable(query_info) => {
-                    let valence_type = read_storage_slot(
-                        deps.querier,
-                        query_info.storage_account,
-                        query_info.storage_slot_key,
-                    )?;
-                    println!("valence type: {:?}", valence_type);
-
-                    let bin_result = valence_type.query(query_info.query)?;
-                    from_json(&bin_result)?
+                    let binary_resp = fetch_variable_assertion_value(deps.querier, query_info)?;
+                    from_json(&binary_resp)?
                 }
             };
             let b_comparable = match assertion_config.b {
                 AssertionValue::Constant(str) => Decimal::from_str(&str)?,
-                AssertionValue::Variable(_) => unimplemented!(),
+                AssertionValue::Variable(query_info) => {
+                    let binary_resp = fetch_variable_assertion_value(deps.querier, query_info)?;
+                    from_json(&binary_resp)?
+                }
             };
             println!("a_comparable: {:?}", a_comparable);
             println!("b_comparable: {:?}", b_comparable);
@@ -94,14 +90,17 @@ fn evaluate_assertion(deps: Deps, assertion_config: AssertionConfig) -> StdResul
     }
 }
 
-fn read_storage_slot(
+fn fetch_variable_assertion_value(
     querier: QuerierWrapper,
-    storage_acc: String,
-    slot_key: String,
-) -> StdResult<ValenceType> {
+    query_info: QueryInfo,
+) -> StdResult<Binary> {
     let valence_type: ValenceType = querier.query_wasm_smart(
-        &storage_acc,
-        &StorageAccountQueryMsg::QueryValenceType { key: slot_key },
+        &query_info.storage_account,
+        &StorageAccountQueryMsg::QueryValenceType {
+            key: query_info.storage_slot_key,
+        },
     )?;
-    Ok(valence_type)
+    let bin_result = valence_type.query(query_info.query)?;
+
+    Ok(bin_result)
 }
