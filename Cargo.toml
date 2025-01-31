@@ -9,7 +9,6 @@ members = [
     "contracts/program-registry",
     "contracts/middleware/type-registries/osmosis/osmo-26-0-0",
     "contracts/middleware/broker",
-    "contracts/middleware/asserter",
     "packages/*",
     "program-manager",
     "local-interchaintest",
@@ -81,7 +80,6 @@ valence-neutron-ic-querier           = { path = "contracts/libraries/neutron-ic-
 # middleware
 valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = ["library"] }
 valence-middleware-broker  = { path = "contracts/middleware/broker", features = ["library"] }
-valence-middleware-asserter = { path = "contracts/middleware/asserter", features = ["library"] }
 
 # our packages
 valence-account-utils          = { path = "packages/account-utils" }

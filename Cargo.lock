@@ -7171,31 +7171,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "valence-middleware-asserter"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema 2.2.0",
- "cosmwasm-std 2.2.0",
- "cw-multi-test",
- "cw-ownable",
- "cw-storage-plus 2.0.0",
- "cw2 2.0.0",
- "neutron-sdk",
- "osmosis-std",
- "osmosis-std-derive",
- "prost 0.13.4",
- "prost-types 0.13.4",
- "semver 1.0.24",
- "serde-json-wasm 1.0.1",
- "serde_json",
- "thiserror 1.0.69",
- "valence-account-utils",
- "valence-middleware-osmosis",
- "valence-middleware-utils",
- "valence-storage-account",
-]
-
-[[package]]
 name = "valence-middleware-broker"
 version = "0.1.0"
 dependencies = [
