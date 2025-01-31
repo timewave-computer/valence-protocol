@@ -1,5 +1,6 @@
 # Summary
-- [Introduction](./components/_overview.md)
+- [Introduction](./introduction.md)
+- [Valence Programs](./components/_overview.md)
   - [Domains](./components/domains.md)
   - [Accounts](./components/accounts.md)
   - [Libraries and Functions](./components/libraries_and_functions.md)
