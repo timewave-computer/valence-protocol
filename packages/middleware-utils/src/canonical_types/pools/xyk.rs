@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
-use cosmwasm_schema::{cw_serde, serde::de::DeserializeOwned, QueryResponses};
-use cosmwasm_std::{ensure, from_json, to_json_binary, Binary, Coin, Decimal, StdError, StdResult};
+use cosmwasm_schema::{cw_serde, serde::de::DeserializeOwned};
+use cosmwasm_std::{ensure, Binary, Coin, Decimal, StdError, StdResult};
 
-use crate::{try_unpack_domain_specific_value, type_registry::queries::ValenceTypeQuery};
+use crate::try_unpack_domain_specific_value;
 
 #[cw_serde]
 pub struct ValenceXykPool {
@@ -16,41 +16,6 @@ pub struct ValenceXykPool {
     /// any other fields that are unique to the external pool type
     /// being represented by this struct
     pub domain_specific_fields: BTreeMap<String, Binary>,
-}
-
-#[cw_serde]
-#[derive(QueryResponses)]
-pub enum XykPoolQuery {
-    #[returns(Decimal)]
-    GetPrice {},
-}
-
-impl ValenceTypeQuery for ValenceXykPool {
-    fn query(&self, msg: Binary) -> StdResult<Binary> {
-        let query_msg: XykPoolQuery = from_json(&msg)?;
-        match query_msg {
-            XykPoolQuery::GetPrice {} => {
-                ensure!(
-                    self.assets.len() == 2,
-                    StdError::generic_err(
-                        "price can be calculated iff xyk pool contains exactly 2 assets"
-                    )
-                );
-
-                ensure!(
-                    !self.assets[0].amount.is_zero() && !self.assets[1].amount.is_zero(),
-                    StdError::generic_err(
-                        "price can't be calculated if any of the assets amount is zero"
-                    )
-                );
-
-                let a = self.assets[0].amount;
-                let b = self.assets[1].amount;
-
-                to_json_binary(&Decimal::from_ratio(a, b))
-            }
-        }
-    }
 }
 
 impl ValenceXykPool {

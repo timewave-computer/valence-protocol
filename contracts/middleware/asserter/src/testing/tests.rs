@@ -2,8 +2,7 @@ use std::collections::BTreeMap;
 
 use cosmwasm_std::to_json_binary;
 use valence_middleware_utils::{
-    canonical_types::pools::xyk::{ValenceXykPool, XykPoolQuery},
-    type_registry::types::ValenceType,
+    canonical_types::pools::xyk::ValenceXykPool, type_registry::types::ValenceType,
 };
 
 use crate::{
@@ -52,7 +51,7 @@ fn base_variable_assertion() {
         a: AssertionValue::Variable(QueryInfo {
             storage_account: suite.storage_account.to_string(),
             storage_slot_key: STORAGE_SLOT_KEY.to_string(),
-            query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
+            query: to_json_binary("hi").unwrap(),
         }),
         predicate: Predicate::LT,
         b: AssertionValue::Constant("20.0".to_string()),

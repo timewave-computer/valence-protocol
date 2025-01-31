@@ -6,14 +6,10 @@ use crate::msg::{
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    from_json, to_json_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, QuerierWrapper,
-    Response, StdError, StdResult,
+    to_json_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
 };
 use cw2::set_contract_version;
-use valence_middleware_utils::{
-    type_registry::{queries::ValenceTypeQuery, types::ValenceType},
-    MiddlewareError,
-};
+use valence_middleware_utils::{type_registry::types::ValenceType, MiddlewareError};
 use valence_storage_account::msg::QueryMsg as StorageAccountQueryMsg;
 
 // version info for migration info
@@ -62,15 +58,17 @@ fn evaluate_assertion(deps: Deps, assertion_config: AssertionConfig) -> StdResul
             let a_comparable = match assertion_config.a {
                 AssertionValue::Constant(str) => Decimal::from_str(&str)?,
                 AssertionValue::Variable(query_info) => {
-                    let valence_type = read_storage_slot(
-                        deps.querier,
-                        query_info.storage_account,
-                        query_info.storage_slot_key,
+                    let valence_type: ValenceType = deps.querier.query_wasm_smart(
+                        &query_info.storage_account,
+                        &StorageAccountQueryMsg::QueryValenceType {
+                            key: query_info.storage_slot_key,
+                        },
                     )?;
                     println!("valence type: {:?}", valence_type);
-
-                    let bin_result = valence_type.query(query_info.query)?;
-                    from_json(&bin_result)?
+                    match valence_type {
+                        ValenceType::XykPool(valence_xyk_pool) => valence_xyk_pool.get_price()?,
+                        _ => unimplemented!(),
+                    }
                 }
             };
             let b_comparable = match assertion_config.b {
@@ -92,16 +90,4 @@ fn evaluate_assertion(deps: Deps, assertion_config: AssertionConfig) -> StdResul
         ValueType::Uint256 => unimplemented!(),
         ValueType::String => unimplemented!(),
     }
-}
-
-fn read_storage_slot(
-    querier: QuerierWrapper,
-    storage_acc: String,
-    slot_key: String,
-) -> StdResult<ValenceType> {
-    let valence_type: ValenceType = querier.query_wasm_smart(
-        &storage_acc,
-        &StorageAccountQueryMsg::QueryValenceType { key: slot_key },
-    )?;
-    Ok(valence_type)
 }
