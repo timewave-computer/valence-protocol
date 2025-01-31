@@ -5,22 +5,6 @@
 Each Valence Type variant may provide different assertion queries. To offer a unified API, Valence Asserter
 remains agnostic to the underlying type being queried and provides a common gateway to all available types.
 
-## High-level flow
-
-```mermaid
----
-title: Forwarder Library
----
-graph LR
-  IA((Storage Account))
-  P[Processor]
-  S[Valence Asserter]
-  P -- 1/Assert --> S
-  S -- 2/Query storage slot(s) --> IA
-  S -- 3/Evaluate the predicate --> S
-  S -- 4/Return OK/ERR --> P
-```
-
 ## Motivation
 
 Primary use case for Valence Type assertions is to enable **conditional execution** of functions.
@@ -40,14 +24,37 @@ prevent later messages from executing as expected. If the batch is *atomic*, the
 If the batch is *non-atomic*, various [authorization](./../authorizations_processors/authorization.md) configuration
 options will dictate the further behavior.
 
+## High-level flow
+
+```mermaid
+---
+title: Forwarder Library
+---
+graph LR
+  IA((Storage Account))
+  P[Processor]
+  S[Valence Asserter]
+  P -- 1/Assert --> S
+  S -- 2/Query storage slot(s) --> IA
+  S -- 3/Evaluate the predicate --> S
+  S -- 4/Return OK/ERR --> P
+```
+
+## API
+
+| Function    | Parameters | Description | Return Value |
+|-------------|------------|-------------|--------------|
+| **Assert** | `a: AssertionValue`<br>`predicate: Predicate`<br>`b: AssertionValue`<br>`ty: ValueType` | Evaluate the given predicate *R(a, b)*.<br>If *a* or *b* are variables, they get fetched using the configuartion specified in the respective `QueryInfo`.<br>If either of them are constants, they get deserialized into `ty` directly.<br>Both *a* and *b* must be deserializable into the same type `ty`. | - predicate evaluates to true -> `Ok(())` <br> - predicate evaluates to false -> `Err` |
+
+
 ## Design
 
 Assertions to be performed are expressed as *R(a, b)*, where:
 
-- *a* and *b* are values of the same type
+- *a* and *b* are values of the same type `ty`
 - *R* is the predicate that applies to *a* and *b*
 
-Valence Asserter design should enable the evaluation of such predicates in Valence Programs.
+Valence Asserter design should enable such predicate evaluations to be performed in a generic manner within Valence Programs.
 
 ### Comparison values
 
@@ -63,7 +70,6 @@ Such values will be obtained from Valence Types which expose their own set of qu
 Valence Types reside in their dedicated storage slots in [Storage Accounts](./../components/storage_account.md).
 
 #### constant *b*
-
 
 *b* is the value that *a* will be evaluated against. Setting *b* values can be done in multiple ways
 and follows the rules set by the authorizations module.
@@ -93,7 +99,7 @@ ValenceXykQuery::GetPrice {} -> Decimal
 The program is configured to store the respective `ValenceXykPool` in a Storage Account with address
 `neutron123...`, under storage slot `pool`.
 
-Filling in the blanks of `*R(a, b)*`, we have:
+Filling in the blanks of *R(a, b)*, we have:
 
 - variable `a` is obtained with the `GetPrice {}` query of `neutron123...` storage slot `pool`
 - predicate `R` is known in advance: `>`
@@ -163,9 +169,3 @@ pub struct AssertionConfig {
     ty: ValueType,
 }
 ```
-
-## API
-
-| Function    | Parameters | Description | Return Value |
-|-------------|------------|-------------|--------------|
-| **Assert** | `a: AssertionValue`<br>`predicate: Predicate`<br>`b: AssertionValue`<br>`ty: ValueType` | Evaluate the given predicate (*R(a, b)*). If *a* or *b* are variables, they get fetched using the configuartion specified in the respective `QueryInfo`.  | - predicate evaluates to true -> `Ok(())` <br> - predicate evaluates to false -> `Err` |
