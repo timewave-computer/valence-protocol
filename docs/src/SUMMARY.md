@@ -5,6 +5,7 @@
   - [Libraries and Functions](./components/libraries_and_functions.md)
   - [Programs and Authorizations](./components/programs_and_authorizations.md)
   - [Middleware](./components/middleware.md)
+- [Valence zk-Coprocessor](./zk-coprocessor/_overview.md)
 - [Authorizations & Processors](./authorizations_processors/_overview.md)
   - [Assumptions](./authorizations_processors/assumptions.md)
   - [Processor Contract](./authorizations_processors/processor.md)
