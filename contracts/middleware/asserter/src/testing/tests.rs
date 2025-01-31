@@ -25,9 +25,9 @@ fn base_const_assertion() {
     suite.post_valence_type(STORAGE_SLOT_KEY, ValenceType::XykPool(xyk_pool));
 
     let assertion_cfg = AssertionConfig {
-        a: AssertionValue::Constant("10.0".to_string()),
+        a: AssertionValue::Constant(to_json_binary("10.0").unwrap()),
         predicate: Predicate::LT,
-        b: AssertionValue::Constant("20.0".to_string()),
+        b: AssertionValue::Constant(to_json_binary("20.0").unwrap()),
         ty: ValueType::Decimal,
     };
 
@@ -57,7 +57,7 @@ fn base_variable_assertion() {
             query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
         }),
         predicate: Predicate::LT,
-        b: AssertionValue::Constant("20.0".to_string()),
+        b: AssertionValue::Constant(to_json_binary("20.0").unwrap()),
         ty: ValueType::Decimal,
     };
 
