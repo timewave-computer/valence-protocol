@@ -10,7 +10,7 @@ pub enum ExecuteMsg {}
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
-    #[returns(())]
+    #[returns(String)]
     Assert(AssertionConfig),
 }
 
@@ -26,11 +26,11 @@ pub enum Predicate {
 #[cw_serde]
 pub struct QueryInfo {
     // addr of the storage account
-    storage_account: String,
+    pub storage_account: String,
     // key to access the value in the storage account
-    storage_slot_key: String,
+    pub storage_slot_key: String,
     // b64 encoded query
-    query: Binary,
+    pub query: Binary,
 }
 
 #[cw_serde]
