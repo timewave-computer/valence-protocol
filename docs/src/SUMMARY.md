@@ -6,6 +6,7 @@
   - [Programs and Authorizations](./components/programs_and_authorizations.md)
   - [Middleware](./components/middleware.md)
 - [Valence zk-Coprocessor](./zk-coprocessor/_overview.md)
+  - [Sparse Merkle Trees](./zk-coprocessor/sparse-merkle-trees.md)
 - [Authorizations & Processors](./authorizations_processors/_overview.md)
   - [Assumptions](./authorizations_processors/assumptions.md)
   - [Processor Contract](./authorizations_processors/processor.md)
