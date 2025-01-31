@@ -1,12 +1,14 @@
+use std::str::FromStr;
+
 use crate::msg::{
-    AssertionConfig, AssertionValue, ExecuteMsg, InstantiateMsg, QueryMsg, ValueType,
+    AssertionConfig, AssertionValue, ExecuteMsg, InstantiateMsg, Predicate, QueryInfo, QueryMsg,
+    ValueType,
 };
-use cosmwasm_schema::serde::de::DeserializeOwned;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     from_json, to_json_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, QuerierWrapper,
-    Response, StdError, StdResult, Uint128, Uint256, Uint64,
+    Response, StdError, StdResult,
 };
 use cw2::set_contract_version;
 use valence_middleware_utils::{
@@ -32,10 +34,10 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    _msg: ExecuteMsg,
+    msg: ExecuteMsg,
 ) -> Result<Response, MiddlewareError> {
     unimplemented!()
 }
@@ -43,68 +45,62 @@ pub fn execute(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Assert(assertion_config) => match evaluate_assertion(deps, assertion_config)? {
-            true => to_json_binary("pass"),
-            false => Err(StdError::generic_err("fail")),
-        },
+        QueryMsg::Assert(assertion_config) => {
+            let assertion_success = evaluate_assertion(deps, assertion_config)?;
+            if assertion_success {
+                to_json_binary("pass")
+            } else {
+                Err(StdError::generic_err("Assertion failed"))
+            }
+        }
     }
 }
 
-/// evaluates the assertion by deserializing both comparison values into a mutual type identified
-/// by `assertion_config.ty` before evaluating the predicate and returning boolean result.
 fn evaluate_assertion(deps: Deps, assertion_config: AssertionConfig) -> StdResult<bool> {
-    let assertion_bool = match assertion_config.ty {
+    match assertion_config.ty {
         ValueType::Decimal => {
-            let a_comparable: Decimal = get_comparable_value(deps.querier, assertion_config.a)?;
-            let b_comparable: Decimal = get_comparable_value(deps.querier, assertion_config.b)?;
-            assertion_config.predicate.eval(a_comparable, b_comparable)
+            let a_comparable = match assertion_config.a {
+                AssertionValue::Constant(str) => Decimal::from_str(&str)?,
+                AssertionValue::Variable(query_info) => {
+                    let binary_resp = fetch_variable_assertion_value(deps.querier, query_info)?;
+                    from_json(&binary_resp)?
+                }
+            };
+            let b_comparable = match assertion_config.b {
+                AssertionValue::Constant(str) => Decimal::from_str(&str)?,
+                AssertionValue::Variable(query_info) => {
+                    let binary_resp = fetch_variable_assertion_value(deps.querier, query_info)?;
+                    from_json(&binary_resp)?
+                }
+            };
+            println!("a_comparable: {:?}", a_comparable);
+            println!("b_comparable: {:?}", b_comparable);
+            match assertion_config.predicate {
+                Predicate::LT => Ok(a_comparable < b_comparable),
+                Predicate::LTE => Ok(a_comparable <= b_comparable),
+                Predicate::EQ => Ok(a_comparable == b_comparable),
+                Predicate::GT => Ok(a_comparable > b_comparable),
+                Predicate::GTE => Ok(a_comparable >= b_comparable),
+            }
         }
-        ValueType::Uint64 => {
-            let a_comparable: Uint64 = get_comparable_value(deps.querier, assertion_config.a)?;
-            let b_comparable: Uint64 = get_comparable_value(deps.querier, assertion_config.b)?;
-            assertion_config.predicate.eval(a_comparable, b_comparable)
-        }
-        ValueType::Uint128 => {
-            let a_comparable: Uint128 = get_comparable_value(deps.querier, assertion_config.a)?;
-            let b_comparable: Uint128 = get_comparable_value(deps.querier, assertion_config.b)?;
-            assertion_config.predicate.eval(a_comparable, b_comparable)
-        }
-        ValueType::Uint256 => {
-            let a_comparable: Uint256 = get_comparable_value(deps.querier, assertion_config.a)?;
-            let b_comparable: Uint256 = get_comparable_value(deps.querier, assertion_config.b)?;
-            assertion_config.predicate.eval(a_comparable, b_comparable)
-        }
-        ValueType::String => {
-            let a_comparable: String = get_comparable_value(deps.querier, assertion_config.a)?;
-            let b_comparable: String = get_comparable_value(deps.querier, assertion_config.b)?;
-            assertion_config.predicate.eval(a_comparable, b_comparable)
-        }
-    };
-
-    Ok(assertion_bool)
+        ValueType::Uint64 => unimplemented!(),
+        ValueType::Uint128 => unimplemented!(),
+        ValueType::Uint256 => unimplemented!(),
+        ValueType::String => unimplemented!(),
+    }
 }
 
-/// prepares a value for assertion evaluation.
-/// handles AssertionValue variants differently:
-/// - if the value is constant -> deserialize the value into the target type `T`
-/// - if the value is variable -> query the storage account slot and perform the
-///   Valence Type query that is configured under `query_info.query`
-fn get_comparable_value<T: PartialOrd + PartialEq + DeserializeOwned>(
+fn fetch_variable_assertion_value(
     querier: QuerierWrapper,
-    value: AssertionValue,
-) -> StdResult<T> {
-    let binary_value = match value {
-        AssertionValue::Variable(query_info) => {
-            let valence_type: ValenceType = querier.query_wasm_smart(
-                &query_info.storage_account,
-                &StorageAccountQueryMsg::QueryValenceType {
-                    key: query_info.storage_slot_key,
-                },
-            )?;
-            valence_type.query(query_info.query)?
-        }
-        AssertionValue::Constant(b64) => b64,
-    };
-    let comparable = from_json(&binary_value)?;
-    Ok(comparable)
+    query_info: QueryInfo,
+) -> StdResult<Binary> {
+    let valence_type: ValenceType = querier.query_wasm_smart(
+        &query_info.storage_account,
+        &StorageAccountQueryMsg::QueryValenceType {
+            key: query_info.storage_slot_key,
+        },
+    )?;
+    let bin_result = valence_type.query(query_info.query)?;
+
+    Ok(bin_result)
 }

@@ -23,18 +23,6 @@ pub enum Predicate {
     GTE,
 }
 
-impl Predicate {
-    pub fn eval<T: PartialOrd + PartialEq>(&self, a: T, b: T) -> bool {
-        match self {
-            Predicate::LT => a < b,
-            Predicate::LTE => a <= b,
-            Predicate::EQ => a == b,
-            Predicate::GT => a > b,
-            Predicate::GTE => a >= b,
-        }
-    }
-}
-
 #[cw_serde]
 pub struct QueryInfo {
     // addr of the storage account
@@ -46,15 +34,15 @@ pub struct QueryInfo {
 }
 
 #[cw_serde]
+
 pub enum AssertionValue {
     // storage account slot query
     Variable(QueryInfo),
-    // b64 encoded constant value
-    Constant(Binary),
+    // serialized constant value
+    Constant(String),
 }
 
-/// supported evaluation types. both assertion values must be of this type
-/// in order to evaluate the condition.
+// type that both values are expected to be
 #[cw_serde]
 pub enum ValueType {
     Decimal,
