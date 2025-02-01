@@ -343,54 +343,52 @@ graph LR
 <p>Middleware Type Registries are responsible for unifying a set of foreign types to be used in Valence Programs.</p>
 <h2 id="valence-types"><a class="header" href="#valence-types">Valence Types</a></h2>
 <p>Valence Types are the canonical representations of various external domain implementations of some types.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-zk-coprocessor"><a class="header" href="#valence-zk-coprocessor">Valence zk-Coprocessor</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-zk-coprocessor"><a class="header" href="#valence-zk-coprocessor">Valence ZK coprocessor</a></h1>
 <blockquote>
-<p>⚠️ <strong>Note:</strong> Valence's zk-Coprocessor is currently in specification stage and evolving rapidly. This document is shared to give partners a preview of our roadmap in the spirit of building in public.</p>
+<p>⚠️ <strong>Note:</strong> Valence's ZK coprocessor is currently in specification stage and evolving rapidly. This document is shared to give partners a preview of our roadmap in the spirit of building in public.</p>
 </blockquote>
-<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
-<p>The Valence zk-Coprocessor is a universal DeFi execution engine. It allows developers to compose programs once and deploy them across multiple blockchains. Additionally, the coprocessor facilitates execution of arbitrary cross-chain messages with a focus on synchronizing state between domains. Using Valence, developers get:</p>
+<p>The Valence ZK coprocessor is a universal DeFi execution engine. It allows developers to compose programs once and deploy them across multiple blockchains. Additionally, the coprocessor facilitates execution of arbitrary cross-chain messages with a focus on synchronizing state between domains. Using Valence, developers can:</p>
 <ol>
-<li>To build once, deploy everywhere. You write your program code in Rust but execution is settled on EVM, Wasm, Move, and SVM chains.</li>
-<li>To introduce no additional trust assumptions. You only trust the consensus of the chains you are already building on.</li>
+<li>Build once, deploy everywhere. Write programs in Rust and settle on one or more EVM, Wasm, Move, or SVM chains.</li>
+<li>Avoid introducing additional trust assumptions. Only trust the consensus of the underlying chains you are building on.</li>
 </ol>
-<p>While the actual execution is straightforward, <strong>the challenge lies in encoding the state data</strong> to enable the ZK program, as a pure function, to utilize the existing state as arguments and produce the modified state output.</p>
-<p>Initially, we can develop an efficient version of this coprocessor approximately at par with creating the state encoder. However, it is crucial to note that each chain will necessitate a separate encoder implementation. The initial version would necessitate users to deploy their custom verification keys along with the state mutation function within the target blockchain. Although the code required for this purpose would be minimal, users would still need to implement their own verification keys and state mutation functions.</p>
-<p>In the long term, we plan to develop a decoder that would automate the state mutation process based on the output of the ZK commitment. This development would require additional engineering resources and is not essential for the initial version launch. Instead, users will be able to perform raw mutations directly, as the correctness of ZK proofs will ensure the validity of messages according to the implemented ZK circuit.</p>
+<p>While the actual execution is straightforward, <em>the challenge lies in encoding state</em>. The ZK program, as a pure function, must be able to to utilize existing state as arguments to produce an evaluated output state.</p>
+<p>Initially, we can develop an efficient version of this coprocessor approximately at par with creating the state encoder. However, it is crucial to note that each chain will necessitate a separate encoder implementation. The initial version will necessitate users to deploy their custom verification keys along with the state mutation function within the target blockchain. Although the code required for this purpose will be minimal, users will still need to implement their own verification keys and state mutation functions.</p>
+<p>Longer term, we plan to develop a decoder that will automate the state mutation process based on the output of the ZK commitment. For this initial version, users will be able to perform raw mutations directly, as the correctness of ZK proofs will ensure the validity of messages according to the implemented ZK circuit.</p>
 <pre class="mermaid">---
-title: zk-Coprocessor overview
+title: ZK coprocessor overview
 ---
 graph TB;
     %% Programs
-    subgraph zk-Coprocessor
-        P1[zk Program 1]
-        P2[zk Program 2]
-        P3[zk Program 3]
+    subgraph ZK coprocessor
+        P1[zk program 1]
+        P2[zk program 2]
+        P3[zk program 3]
     end
 
     %% Chains
-    C1[Chain 1]
-    C2[Chain 2]
-    C3[Chain 3]
+    C1[chain 1]
+    C2[chain 2]
+    C3[chain 3]
 
     P1 &lt;--&gt; C1
     P2 &lt;--&gt; C2
     P3 &lt;--&gt; C3
 </pre>
 <h2 id="zkvm-primer"><a class="header" href="#zkvm-primer">zkVM Primer</a></h2>
-<p>A zero-knowledge virtual machine (zkVM) is a zero-knowledge proof system that allows developers to prove the execution of arbitrary programs, and in our case these programs are written in Rust. Given a Rust program that can be described as a pure function<code>f(x) = y</code>, you can prove the evaluation in the following way:</p>
+<p>A zero-knowledge virtual machine (zkVM) is a zero-knowledge proof system that allows developers to prove the execution of arbitrary programs. In our case these programs are written in Rust. Given a Rust program that can be described as a pure function<code>f(x) = y</code>, one can prove the evaluation in the following way:</p>
 <ol>
-<li>Define <code>f</code> using normal Rust code and compile it as an executable binary</li>
+<li>Define <code>f</code> using normal Rust code and compile the function as an executable binary</li>
 <li>With this executable binary, set up a proving key <code>pk</code> and verifying key <code>vk</code></li>
-<li>Generate a proof <code>p</code> using the zkVM, by calling <code>prove(pk, x)</code>.
-Conceptually, you can think of a zkVM as proving the evaluation of a function f(x) = y by following the steps below:</li>
-<li>Now you can verify the proof <code>p</code> by calling <code>verify(vk, x, y, p)</code></li>
+<li>Generate a proof <code>p</code> that <code>f</code> was evaluated correctly given input <code>x</code> using the zkVM, by calling <code>prove(pk, x)</code></li>
+<li>Now you can verify this proof <code>p</code> by calling <code>verify(vk, x, y, p)</code></li>
 </ol>
-<h2 id="building-the-valence-zk-coprocessor"><a class="header" href="#building-the-valence-zk-coprocessor">Building the Valence zk-Coprocessor</a></h2>
+<h2 id="building-the-valence-zk-coprocessor"><a class="header" href="#building-the-valence-zk-coprocessor">Building the Valence ZK coprocessor</a></h2>
 <p>Let's assume that we have Valence Accounts in each domain. These accounts implement a kv store.</p>
-<p>Every Zero-Knowledge (ZK) computation will follow the format of a pure state transition function; specifically, we input a state <code>A</code>, apply the function <code>f</code> to it, and produce the resulting state <code>B</code> : <code>f(A) = B</code> .
-For the function <code>f</code>, the chosen zero-knowledge Virtual Machine (zkVM) will generate a verifying key <code>K</code>, which remains consistent across all state transition functions.</p>
+<p>Every ZK computation will follow the format of a pure state transition function; specifically, we input a state <code>A</code>, apply the function <code>f</code> to it, and produce the resulting state <code>B</code> : <code>f(A) = B</code> .
+For the function <code>f</code>, the chosen zkVM will generate a verifying key <code>K</code>, which remains consistent across all state transition functions.</p>
 <h3 id="encoding-the-account-state-unary-encoder"><a class="header" href="#encoding-the-account-state-unary-encoder">Encoding the account state: Unary Encoder</a></h3>
-<p>To ensure every state transition computed as a Zero-Knowledge (ZK) proof by the coprocessor is a pure state transition function, we require a method to encode the entire account's state into initial and mutated forms, <code>A</code> and <code>B</code>, respectively, for use in providing the applicable state modifications for the target chain.</p>
+<p>To ensure every state transition computed as a ZK proof by the coprocessor is a pure state transition function, we require a method to encode the entire account's state into initial and mutated forms, <code>A</code> and <code>B</code>, respectively, for use in providing the applicable state modifications for the target chain.</p>
 <p>In essence, let's consider an account with its state containing a map that assigns a balance (u64 value) to each key. A contract execution transferring 100 tokens from key <code>m</code> to <code>n</code> can be achieved by invoking <code>state.transfer(signature, m, n, 100)</code>. This on-chain transfer function may look something like this:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -409,7 +407,7 @@ For the function <code>f</code>, the chosen zero-knowledge Virtual Machine (zkVM
 }
 <span class="boring">}</span></code></pre></pre>
 <p>Here, the pre-transfer state is <code>A</code> and after the transfer, the state is <code>B</code>.</p>
-<p>Let's write a new function called <code>transfer_trusted</code> that leaves signature verification to the zk-Coprocessor.</p>
+<p>Let's write a new function called <code>transfer_trusted</code> that leaves signature verification to the ZK coprocessor.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn transfer_trusted(&amp;mut self, from: Address, to: Address, value: u64) {
@@ -453,12 +451,11 @@ For the function <code>f</code>, the chosen zero-knowledge Virtual Machine (zkVM
     proof.verify(&amp;self.vk, commitment);
 }
 <span class="boring">}</span></code></pre></pre>
-<p>By doing so, we switch from on-chain signature verification to arguments commitment computation, followed by ZK proof verification. Although this is a simplified example, the complexity of signature verification computation can be increased to accommodate any computation supported by zkVMs (namely, any RiscV program). This advantage enables us to process multiple transfers in batches, perform intricate computations, and succinctly verify their correctness.</p>
-<p>We refer to this variant as a <strong>"Unary Encoder"</strong> because we compress the two states of the account, 'current' and 'mutated', into a single Zero-Knowledge (ZK) proof.</p>
-<p>This component will be the responsible for compressing any chain account state into a compatible commitment for the chosen zkVM. The encoding is a one-way function that allows anyone in possession of its pre-image (i.e. inputs to the encoding function) to reconstruct the commitment. This commitment will be transparent to the target chain, enabling its use in composing the block header for verification purposes. This is the aforementioned <code>commitment</code> function.</p>
+<p>By doing so, we switch from on-chain signature verification to computation over committed arguments, followed by ZK proof verification. Although we've presented a simplified example, the same verification process can accommodate any computation supported by a zkVM, enabling us to process multiple transfers in batches, perform intricate computation, and succinctly verify execution correctness. We refer to this pattern as a <strong>"Unary Encoder"</strong> because we compress the two states of the account, 'current' and 'mutated', into a single zero-knowledge proof.</p>
+<p>The Unary Encoder will be the responsible for compressing any chain account state into a compatible commitment for the chosen zkVM (in our case a RISC-V zkVM). The encoding is a one-way function that allows anyone in possession of the pre-image, i.e. inputs to the encoding function, to reconstruct the commitment. This commitment will be transparent to the target chain, enabling use in construction of the block header for verification purposes.</p>
 <h3 id="handling-state-transition-dependencies-across-domains-merkelized-encoder"><a class="header" href="#handling-state-transition-dependencies-across-domains-merkelized-encoder">Handling state transition dependencies across domains: Merkelized Encoder</a></h3>
-<p>Lets assume a hypothetical situation where we aim to achieve decoupled state updates across three distinct chains: Chain1, Chain2, and Chain3. The objective is to generate a unified Zero-Knowledge (ZK) proof that verifies the correctness of the state transitions on all chains.</p>
-<p>Specifically, Chain3 will depend on a mutation from Chain1, while Chain2 operates independently of the mutations on both Chain1 and Chain3.</p>
+<p>Lets assume a hypothetical situation where we aim to achieve decoupled state updates across three distinct chains: <code>chain 1</code>, <code>chain 2</code>, and <code>chain 3</code>. The objective is to generate a unified ZK proof that verifies the correctness of the state transitions on all chains.</p>
+<p>Specifically, <code>chain 3</code> will depend on a mutation from <code>chain 1</code>, while <code>chain 2</code> operates independently of the mutations on both <code>chain 1</code> and <code>chain 3</code>.</p>
 <pre class="mermaid">graph TB
     %% Root node
     r[R]
@@ -474,32 +471,32 @@ For the function <code>f</code>, the chosen zero-knowledge Virtual Machine (zkVM
     zero((0)) --&gt; m2
     
     %% Level 3
-    chain1[[&quot;(S1 --&gt; T1), K1&quot;]] -- Chain1 transition encoding --&gt; c1
-    chain2[[&quot;(S2 --&gt; T2), K2&quot;]] -- Chain2 transition encoding --&gt; c2
-    chain3[[&quot;(S3 --&gt; T3), K3&quot;]] -- Chain3 transition encoding --&gt; c3
+    chain1[&quot;(S1 --&gt; T1), K1&quot;] -- chain 1 transition encoding --&gt; c1
+    chain2[&quot;(S2 --&gt; T2), K2&quot;] -- chain 2 transition encoding --&gt; c2
+    chain3[&quot;(S3 --&gt; T3), K3&quot;] -- chain 3 transition encoding --&gt; c3
 </pre>
-<p>The Merkle Graph above depicts the state transition that can be compressed into a single commitment via Merkelization. Given an encoder with a specialized argument - a Sparse Merkle tree containing encoded state transition values indexed by the program's view key on the target blockchain - we obtain a Merkle Root denoted as <code>R</code>.</p>
+<p>The Merkle Graph above depicts the state transition that can be compressed into a single commitment via Merkelization. Given an encoder with a specialized argument—a Sparse Merkle tree containing encoded state transition values indexed by the program's view key on the target blockchain—we obtain a Merkle Root denoted as <code>R</code>.</p>
 <p>The ZK coprocessor can execute proof computations either sequentially or in parallel. The parallel computation associated with <code>C2</code> operates independently and generates a unary proof of <code>S2 -&gt; T2</code>. Conversely, the proof for <code>C3</code> requires querying <code>T1</code>.</p>
-<p>Since <code>Chain3</code> has a sequential execution, the coprocessor will first process <code>C1</code>, then relay the pre-image of <code>T1</code> to the coprocessor responsible for computing <code>C3</code>. Due to the deterministic nature of unary encoding, the <code>Chain3</code> coprocessor can easily derive <code>T1</code> and validate its foreign state while concurrently processing <code>C3</code>.</p>
-<p>At this point, there is no justification given for Merkelizing the produced proofs - we could as well just hash the entire set of Merkle arguments, and it would work just fine. However, it's worth noting that <code>Chain2</code> doesn't require knowledge of the data <code>(S1, T1, K1, S3, T3, K3)</code>. Including such information in the verification arguments of <code>Chain3</code> would unnecessarily burden its proving process. A Merkle tree is employed here due to its logarithmic verification property: the condensed proof generated for <code>Chain2</code> will only require a Merkle Opening to <code>R</code>, without the excess state data of side chains. Essentially, when generating the Merkelized proof, the <code>Chain2</code> coprocessor, after computing <code>C2</code>, will need only <code>C1</code> and <code>M2</code>, instead of the full Merkle arguments.</p>
-<p>Finally, each chain will receive <code>R</code>, accompanied by its individual state transition arguments, and the Merkle Path leading to <code>R</code> will be proven inside of the circuit.</p>
+<p>Since <code>chain 3</code> has a sequential execution, the coprocessor will first process <code>C1</code>, then relay the pre-image of <code>T1</code> to the coprocessor responsible for computing <code>C3</code>. Due to the deterministic nature of unary encoding, the <code>chain 3</code> coprocessor can easily derive <code>T1</code> and validate its foreign state while concurrently processing <code>C3</code>.</p>
+<p>At this point, there is no justification given for Merkelizing the produced proofs, hashing the entire set of Merkle arguments would work as well. However, it's worth noting that <code>chain 2</code> does not require knowledge of the data <code>(S1, T1, K1, S3, T3, K3)</code>. Including such information in the verification arguments of <code>chain 3</code> would unnecessarily burden its proving process. A Merkle tree is employed here for its logarithmic verification property: the condensed proof generated for <code>chain 2</code> will only require a Merkle opening to <code>R</code>, without requiring excess state data from other chains. Essentially, when generating the Merkelized proof, the <code>chain 2</code> coprocessor, after computing <code>C2</code>, will need only <code>C1</code> and <code>M2</code>, rather than all Merkle arguments.</p>
+<p>Finally, each chain will receive <code>R</code>, accompanied by its individual state transition arguments, and the Merkle path leading to <code>R</code> will be proven inside of the circuit.</p>
 <pre class="mermaid">---
 title: On-chain Proof Verification
 ---
 graph TD;
-	Coprocessor --(R1, T1)--&gt; Chain1
-	Coprocessor --(R2, T2)--&gt; Chain2
-	Coprocessor --(R3, T3, R1, T1, C2)--&gt; Chain3
+	coprocessor --(R1, T1)--&gt; chain 1
+	coprocessor --(R2, T2)--&gt; chain 2
+	coprocessor --(R3, T3, R1, T1, C2)--&gt; chain 3
 </pre>
-<p><code>Chain3</code> will first <code>verify(R3, T3)</code>, then <code>verify(R1, T1)</code>, then it will <code>query(T1)</code>, then compute <code>C1 := encoding(S1, T1)</code>, then compute  <code>C3 := encoding(S3, T3)</code>, and finally will assert <code>R == H(H(C1, C2), H(C3, 0))</code>.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="sparse-merkle-tree"><a class="header" href="#sparse-merkle-tree">Sparse Merkle Tree</a></h1>
-<p>A Sparse Merkle Tree (SMT) is a specialized version of a Merkle Tree, characterized by a leaf index defined by an injective function derived from a predefined argument at the design level. The verification key of a Zero-Knowledge (ZK) circuit is another constant, also injective to the circuit's definition, and can serve as an index for the available programs.</p>
+<p>In this diagram we see <code>chain 3</code> will first <code>verify(R3, T3)</code>, then <code>verify(R1, T1)</code>, then it will <code>query(T1)</code>, then compute <code>C1 := encoding(S1, T1)</code>, then compute  <code>C3 := encoding(S3, T3)</code>, and finally will assert <code>R == H(H(C1, C2), H(C3, 0))</code>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="sparse-merkle-tree"><a class="header" href="#sparse-merkle-tree">Sparse Merkle tree</a></h1>
+<p>A sparse Merkle tree (SMT) is a specialized version of a Merkle tree, characterized by a leaf index defined by an injective function derived from a predefined argument at the design level. The verification key of a ZK circuit is another constant, also injective to the circuit's definition, and can serve as an index for the available programs.</p>
 <p>In the context of a ZK proof being a product of its verification key (alongside other attributes), it allows us to index a proof from a collection of proofs for distinct programs.</p>
 <p>Assuming that we don't reuse the same proof for different purposes during a state transition, as the program will either be raw or recursed, the verifying key is an unique index in such collection.</p>
-<p>This document describes a Sparse Merkle Tree design that employs indexing proofs based on the hash of the verification key.</p>
-<h2 id="merkle-tree"><a class="header" href="#merkle-tree">Merkle Tree</a></h2>
-<p>A Merkle Tree is typically a (binary) tree structure consisting of leaves and nodes. Each node in this tree represents the cryptographic hash of its children, while the leaves hold an arbitrary piece of data – usually the hash value of some variable input.</p>
-<p>For a hash function <code>H</code>, if we insert the data items A, B, C into a Merkle Tree, the resulting structure would look like:</p>
+<p>This document describes a sparse Merkle tree design that employs indexing proofs based on the hash of the verification key.</p>
+<h2 id="merkle-tree"><a class="header" href="#merkle-tree">Merkle tree</a></h2>
+<p>A Merkle tree is typically a (binary) tree structure consisting of leaves and nodes. Each node in this tree represents the cryptographic hash of its children, while the leaves hold an arbitrary piece of data—usually the hash value of some variable input.</p>
+<p>For a hash function <code>H</code>, if we insert the data items A, B, C into a Merkle tree, the resulting structure would look like:</p>
 <pre class="mermaid">graph TB
     %% Root node
     r[&quot;R := H(t10, t11)&quot;]
@@ -515,15 +512,15 @@ graph TD;
     c4[&quot;t03 := 0&quot;] --&gt; m2
 </pre>
 <h3 id="membership-proof"><a class="header" href="#membership-proof">Membership proof</a></h3>
-<p>A Merkle Tree serves as an efficient data structure for validating the membership of a leaf node within a set in logarithmic time, making it especially useful for handling large sets. A Merkle Opening (or Merkle Proof) represents an array of sibling nodes that outline a Merkle Path leading to a commitment Root. If the verifier possesses the root and employs a cryptographic hash function, the pre-image of the hash is non-malleable; in a cryptographic hash, it's unfeasible to discover a set of siblings resulting in the root, except for the valid inputs. Given that the leaf node is known to the verifier, a Merkle Proof will consist of a sequence of hashes leading up to the root. This allows the verifier to compute the root value and compare it with the known Merkle Root, thereby confirming the membership of any provided alleged member without relying on the trustworthiness of the source. Consequently, a single hash commitment ensures that any verifier can securely validate the membership of any proposed member supplied by an untrusted party.</p>
-<p>On the example above, the Merkle Opening for <code>C</code> is the siblings of the path until the root, that is: <code>[t03, t10]</code> . The verifier, that knows <code>R</code> beforehand, will compute:</p>
+<p>A Merkle tree serves as an efficient data structure for validating the membership of a leaf node within a set in logarithmic time, making it especially useful for handling large sets. A Merkle opening (or Merkle proof) represents an array of sibling nodes that outline a Merkle Path leading to a commitment Root. If the verifier possesses the root and employs a cryptographic hash function, the pre-image of the hash is non-malleable; in a cryptographic hash, it's unfeasible to discover a set of siblings resulting in the root, except for the valid inputs. Given that the leaf node is known to the verifier, a Merkle Proof will consist of a sequence of hashes leading up to the root. This allows the verifier to compute the root value and compare it with the known Merkle root, thereby confirming the membership of any provided alleged member without relying on the trustworthiness of the source. Consequently, a single hash commitment ensures that any verifier can securely validate the membership of any proposed member supplied by an untrusted party.</p>
+<p>On the example above, the Merkle opening for <code>C</code> is the siblings of the path until the root, that is: <code>[t03, t10]</code> . The verifier, that knows <code>R</code> beforehand, will compute:</p>
 <ol>
 <li><code>t02 := H(C)</code></li>
 <li><code>t11 := H(t02, t03)</code></li>
 <li><code>R' := H(t10, t11)</code></li>
 </ol>
 <p>If <code>R == R'</code>, then <code>C</code> is a member of the set.</p>
-<p>Note that the depth of the tree is the length of its Merkle Opening, that is: we open up to a node with depth equal to the length of the proof.</p>
+<p>Note that the depth of the tree is the length of its Merkle opening, that is: we open up to a node with depth equal to the length of the proof.</p>
 <h2 id="sparse-data"><a class="header" href="#sparse-data">Sparse Data</a></h2>
 <p>Let's consider a public function <code>f</code> that accepts a member and returns a tuple. This tuple consists of the index within the tree as a <code>u64</code> value, and the hash of the leaf: <code>(i, h) = f(X)</code>.</p>
 <p>For the example above, let’s assume two members:</p>
@@ -545,8 +542,8 @@ graph TD;
     c3[&quot;t02 := 0&quot;] --&gt; m2
     c4[&quot;t03 := a&quot;] --&gt; m2
 </pre>
-<p>The primary distinction of a Sparse Merkle Tree lies in the deterministic leaf index, making it agnostic to input order. In essence, this structure forms an unordered set whose equivalence remains consistent irrespective of the sequence in which items are appended.</p>
-<p>The behavior of the membership proof in this context mirrors that in a traditional Merkle Tree, except that a Sparse Merkle Tree enables the generation of a non-membership proof. To achieve this, we carry out a Merkle Opening at the specified target index, and expect it to be <code>0</code>.</p>
+<p>The primary distinction of a sparse Merkle tree lies in the deterministic leaf index, making it agnostic to input order. In essence, this structure forms an unordered set whose equivalence remains consistent irrespective of the sequence in which items are appended.</p>
+<p>The behavior of the membership proof in this context mirrors that in a traditional Merkle tree, except that a sparse Merkle tree enables the generation of a non-membership proof. To achieve this, we carry out a Merkle opening at the specified target index, and expect it to be <code>0</code>.</p>
 <p>Let’s assume a non-member <code>X</code> to be <code>(0, x) := f(X)</code> . To prove non-membership, we broadcast <code>[b, t11]</code> . To verify the non-membership of <code>X</code>, knowing <code>R</code> and the non-membership proof, we:</p>
 <ol>
 <li><code>(0, x) := f(X)</code></li>
@@ -555,12 +552,12 @@ graph TD;
 </ol>
 <p>If <code>R == R'</code> , then <code>0</code> is at the slot of <code>X</code> . Since we know <code>X</code> to not be the pre-image of <code>0</code> in <code>H</code>, then <code>X</code> is not a member of the tree.</p>
 <h2 id="valence-smt"><a class="header" href="#valence-smt">Valence SMT</a></h2>
-<p>Within the scope of Valence, the Sparse Merkle Tree is designed to utilize the hash of the verifying key generated by the ZK circuit as its index. The tree's leaf data will encompass the proof and input arguments for the ZK program. In this particular implementation, we can consider the input arguments as a generic type, which will be specifically defined during development. These input arguments will constitute the key-value pairs that define a subset of the contract state essential for state transition. The proof will be a vector of bytes.</p>
+<p>Within the scope of Valence, the sparse Merkle tree is designed to utilize the hash of the verifying key generated by the ZK circuit as its index. The tree's leaf data will encompass the proof and input arguments for the ZK program. In this particular implementation, we can consider the input arguments as a generic type, which will be specifically defined during development. These input arguments will constitute the key-value pairs that define a subset of the contract state essential for state transition. The proof will be a vector of bytes.</p>
 <p>The tree depth will be adaptive, representing the smallest feasible value required to traverse from the leaf nodes up to the root, given the number of elements involved. This approach ensures we avoid unnecessary utilization of nodes containing unused entries.</p>
-<p>For instance, if the tree contains two adjacent nodes indexed at <code>[(0,0), (0,1)]</code>, the Merkle Opening proof will have a single element - specifically, the sibling leaf of the validated node.</p>
-<p>In case the tree comprises two nodes with indices <code>[(0,0), (0,2)]</code>, the Merkle Opening will require two elements, allowing for a complete traversal from the leaves to the root.</p>
+<p>For instance, if the tree contains two adjacent nodes indexed at <code>[(0,0), (0,1)]</code>, the Merkle opening proof will have a single element—specifically the sibling leaf of the validated node.</p>
+<p>In case the tree comprises two nodes with indices <code>[(0,0), (0,2)]</code>, the Merkle opening will require two elements, allowing for a complete traversal from the leaves to the root.</p>
 <h3 id="precomputed-empty-subtrees"><a class="header" href="#precomputed-empty-subtrees">Precomputed empty subtrees</a></h3>
-<p>Every Merkle Tree implementation should include a pre-computed set of empty subtrees, based on the selected hash primitive. To avoid unnecessary computational expenditure, it is more efficient to pre-compute the roots of subtrees consisting solely of zeroed leaves. For instance, all the nodes of the following Merkle Tree are constant values for <code>H</code> :</p>
+<p>Every Merkle tree implementation should include a pre-computed set of empty subtrees, based on the selected hash primitive. To avoid unnecessary computational expenditure, it is more efficient to pre-compute the roots of subtrees consisting solely of zeroed leaves. For instance, all the nodes of the following Merkle tree are constant values for <code>H</code> :</p>
 <pre class="mermaid">graph TB
     %% Root node
     r[&quot;R := H(t10, t11)&quot;]
@@ -575,7 +572,7 @@ graph TD;
     c3[&quot;t02 := 0&quot;] --&gt; m2
     c4[&quot;t03 := 0&quot;] --&gt; m2
 </pre>
-<p>Let’s assume we have a long path on a Sparse Merkle Tree with a single leaf <code>X</code> with index 2:</p>
+<p>Let’s assume we have a long path on a sparse Merkle tree with a single leaf <code>X</code> with index 2:</p>
 <pre class="mermaid">graph TB
     %% Root
     r[&quot;R := H(t20, K2)&quot;]
@@ -595,10 +592,10 @@ graph TD;
 <p>It would be a waste to compute <code>(K0, K1, K2)</code> here as they are, respectively, <code>K0 := H(0)</code>, <code>K1 := H(K0, K0)</code>, <code>K2 := (K1, K1)</code>. In other words, they are constant values that should be available and should never have to hit the database backend in order to have their values fetched, nor should they exist as a data node. Whenever the tree queries for a node that doesn't exist on the data backend, it should return the constant precomputed empty subtree for that depth.</p>
 <p>Normally, the trees will support precomputed values up to a certain depth. If we adopt a 16 bits output hash function, we should have 16 precomputed empty subtrees.</p>
 <h3 id="future-upgrades"><a class="header" href="#future-upgrades">Future upgrades</a></h3>
-<p>We don't expect the MVP to be optimized. That is: we should have a working implementation, but not tweaked to our use-case.</p>
+<p>We don't expect the MVP to be optimized. That is, we should have a working implementation, but not yet optimized to specific use-case.</p>
 <ul>
-<li><strong>Hash</strong>: In the context of Sparse Merkle Trees, the MVP could employ a widely-accepted cryptographic hash function as its fundamental building block. For example, the Keccak256, which is native to EVM, could be used due to its broad availability. However, utilizing this hash function may lead to an extensive gap between nodes, potentially resulting in a tree structure with only 2 leaves yet a significant depth, as the hashes of the two verifying keys might be exceptionally far apart. A future improvement would be to choose of a cryptographic hash that keeps the leaf nodes close. One cheap method to achieve this is by taking the initial <code>n</code> bits (e.g., 16) of the hash output and using it as an index, given that any secure cryptographic hash maintains its collision resistance and avalanche effect characteristics across the target security level with the selected number of sampled bits. While we anticipate not dealing with a large number of programs (i.e. a 256-bit number), 16 bits should be more than sufficient for this purpose.</li>
-<li><strong>Data backend</strong>: In typical scenarios, the number of nodes in a proof batch shouldn't be large: 8 bits should suffice to represent the number of programs; for very complex and large batches, 16 bits should suffice. Choosing a Database Backend for a Merkle Tree can be challenging because it involves deciding on storage methodologies and optimizing database seek operations to retrieve nodes from the same path on a single page when possible. However, with a limited number of nodes, a streamlined database backend could suffice, delivering requested nodes without regard for the total page count. Given this performance constraint, we should prioritize compatibility over optimization: the ability to use the same backend across multiple blockchain clients and execution environments is more crucial than fine-tuning something that functions well only under specific conditions.</li>
+<li><strong>Hash</strong>: In the context of sparse Merkle trees, the MVP could employ a widely-accepted cryptographic hash function as its fundamental building block. For example, the Keccak256, which is native to EVM, could be used due to its broad availability. However, utilizing this hash function may lead to an extensive gap between nodes, potentially resulting in a tree structure with only 2 leaves yet a significant depth, as the hashes of the two verifying keys might be exceptionally far apart. A future improvement would be to choose of a cryptographic hash that keeps the leaf nodes close. One cheap method to achieve this is by taking the initial <code>n</code> bits (e.g., 16) of the hash output and using it as an index, given that any secure cryptographic hash maintains its collision resistance and avalanche effect characteristics across the target security level with the selected number of sampled bits. While we anticipate not dealing with a large number of program, (i.e. a 256-bit number, 16 bits should be more than sufficient for this purpose.</li>
+<li><strong>Data backend</strong>: In typical scenarios, the number of nodes in a proof batch shouldn't be large: 8 bits should suffice to represent the number of programs; for very complex and large batches, 16 bits should suffice. Choosing a database backend for a Merkle tree can be challenging because it involves deciding on storage methodologies and optimizing database seek operations to retrieve nodes from the same path on a single page when possible. However, with a limited number of nodes, a streamlined database backend could suffice, delivering requested nodes without regard for the total page count. Given this performance constraint, we should prioritize compatibility over optimization: the ability to use the same backend across multiple blockchain clients and execution environments is more crucial than fine-tuning something that functions well only under specific conditions.</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="authorizations--processors"><a class="header" href="#authorizations--processors">Authorizations &amp; Processors</a></h1>
 <p>The <strong>Authorizations</strong> and <strong>Processor</strong> contracts are foundational pieces of the <strong>Valence Protocol</strong>, as they enable on-chain (and cross-chain) execution of <strong>Valence Programs</strong> and enforce access control to the program's <strong>Subroutines</strong> via <strong>Authorizations</strong>.</p>
@@ -2258,7 +2255,7 @@ graph LR
 <p>The Authorizations component will ensure that either both succeed, or none is executed, thereby ensuring that <strong>funds remain safe at all time</strong> (either remaining in the respective deposit accounts, or transferred to the respective withdraw accounts).</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="crosschain-vaults"><a class="header" href="#crosschain-vaults">Crosschain Vaults</a></h1>
 <p><strong>Note:</strong> <em>This example is still in the design phase and includes new or experimental features of Valence Programs that may not be supported in the current production release.</em></p>
-<h2 id="overview-1"><a class="header" href="#overview-1">Overview</a></h2>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
 <p>You can use Valence Programs to create crosschain vaults. Users interact with a vault on one chain while the tokens are held on another chain where yield is generated.</p>
 <p>Note: In our initial implementation we use Neutron for co-processing and Hyperlane for general message passing between the co-processor and the target domain. Deployment of Valence programs as zk RISC-V co-processors with permissionless message passing will be available in the coming months.</p>
 <p>In this example, we have made the following assumptions:</p>

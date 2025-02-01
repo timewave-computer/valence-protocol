@@ -157,54 +157,52 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="valence-zk-coprocessor"><a class="header" href="#valence-zk-coprocessor">Valence zk-Coprocessor</a></h1>
+                        <h1 id="valence-zk-coprocessor"><a class="header" href="#valence-zk-coprocessor">Valence ZK coprocessor</a></h1>
 <blockquote>
-<p>⚠️ <strong>Note:</strong> Valence's zk-Coprocessor is currently in specification stage and evolving rapidly. This document is shared to give partners a preview of our roadmap in the spirit of building in public.</p>
+<p>⚠️ <strong>Note:</strong> Valence's ZK coprocessor is currently in specification stage and evolving rapidly. This document is shared to give partners a preview of our roadmap in the spirit of building in public.</p>
 </blockquote>
-<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
-<p>The Valence zk-Coprocessor is a universal DeFi execution engine. It allows developers to compose programs once and deploy them across multiple blockchains. Additionally, the coprocessor facilitates execution of arbitrary cross-chain messages with a focus on synchronizing state between domains. Using Valence, developers get:</p>
+<p>The Valence ZK coprocessor is a universal DeFi execution engine. It allows developers to compose programs once and deploy them across multiple blockchains. Additionally, the coprocessor facilitates execution of arbitrary cross-chain messages with a focus on synchronizing state between domains. Using Valence, developers can:</p>
 <ol>
-<li>To build once, deploy everywhere. You write your program code in Rust but execution is settled on EVM, Wasm, Move, and SVM chains.</li>
-<li>To introduce no additional trust assumptions. You only trust the consensus of the chains you are already building on.</li>
+<li>Build once, deploy everywhere. Write programs in Rust and settle on one or more EVM, Wasm, Move, or SVM chains.</li>
+<li>Avoid introducing additional trust assumptions. Only trust the consensus of the underlying chains you are building on.</li>
 </ol>
-<p>While the actual execution is straightforward, <strong>the challenge lies in encoding the state data</strong> to enable the ZK program, as a pure function, to utilize the existing state as arguments and produce the modified state output.</p>
-<p>Initially, we can develop an efficient version of this coprocessor approximately at par with creating the state encoder. However, it is crucial to note that each chain will necessitate a separate encoder implementation. The initial version would necessitate users to deploy their custom verification keys along with the state mutation function within the target blockchain. Although the code required for this purpose would be minimal, users would still need to implement their own verification keys and state mutation functions.</p>
-<p>In the long term, we plan to develop a decoder that would automate the state mutation process based on the output of the ZK commitment. This development would require additional engineering resources and is not essential for the initial version launch. Instead, users will be able to perform raw mutations directly, as the correctness of ZK proofs will ensure the validity of messages according to the implemented ZK circuit.</p>
+<p>While the actual execution is straightforward, <em>the challenge lies in encoding state</em>. The ZK program, as a pure function, must be able to to utilize existing state as arguments to produce an evaluated output state.</p>
+<p>Initially, we can develop an efficient version of this coprocessor approximately at par with creating the state encoder. However, it is crucial to note that each chain will necessitate a separate encoder implementation. The initial version will necessitate users to deploy their custom verification keys along with the state mutation function within the target blockchain. Although the code required for this purpose will be minimal, users will still need to implement their own verification keys and state mutation functions.</p>
+<p>Longer term, we plan to develop a decoder that will automate the state mutation process based on the output of the ZK commitment. For this initial version, users will be able to perform raw mutations directly, as the correctness of ZK proofs will ensure the validity of messages according to the implemented ZK circuit.</p>
 <pre class="mermaid">---
-title: zk-Coprocessor overview
+title: ZK coprocessor overview
 ---
 graph TB;
     %% Programs
-    subgraph zk-Coprocessor
-        P1[zk Program 1]
-        P2[zk Program 2]
-        P3[zk Program 3]
+    subgraph ZK coprocessor
+        P1[zk program 1]
+        P2[zk program 2]
+        P3[zk program 3]
     end
 
     %% Chains
-    C1[Chain 1]
-    C2[Chain 2]
-    C3[Chain 3]
+    C1[chain 1]
+    C2[chain 2]
+    C3[chain 3]
 
     P1 &lt;--&gt; C1
     P2 &lt;--&gt; C2
     P3 &lt;--&gt; C3
 </pre>
 <h2 id="zkvm-primer"><a class="header" href="#zkvm-primer">zkVM Primer</a></h2>
-<p>A zero-knowledge virtual machine (zkVM) is a zero-knowledge proof system that allows developers to prove the execution of arbitrary programs, and in our case these programs are written in Rust. Given a Rust program that can be described as a pure function<code>f(x) = y</code>, you can prove the evaluation in the following way:</p>
+<p>A zero-knowledge virtual machine (zkVM) is a zero-knowledge proof system that allows developers to prove the execution of arbitrary programs. In our case these programs are written in Rust. Given a Rust program that can be described as a pure function<code>f(x) = y</code>, one can prove the evaluation in the following way:</p>
 <ol>
-<li>Define <code>f</code> using normal Rust code and compile it as an executable binary</li>
+<li>Define <code>f</code> using normal Rust code and compile the function as an executable binary</li>
 <li>With this executable binary, set up a proving key <code>pk</code> and verifying key <code>vk</code></li>
-<li>Generate a proof <code>p</code> using the zkVM, by calling <code>prove(pk, x)</code>.
-Conceptually, you can think of a zkVM as proving the evaluation of a function f(x) = y by following the steps below:</li>
-<li>Now you can verify the proof <code>p</code> by calling <code>verify(vk, x, y, p)</code></li>
+<li>Generate a proof <code>p</code> that <code>f</code> was evaluated correctly given input <code>x</code> using the zkVM, by calling <code>prove(pk, x)</code></li>
+<li>Now you can verify this proof <code>p</code> by calling <code>verify(vk, x, y, p)</code></li>
 </ol>
-<h2 id="building-the-valence-zk-coprocessor"><a class="header" href="#building-the-valence-zk-coprocessor">Building the Valence zk-Coprocessor</a></h2>
+<h2 id="building-the-valence-zk-coprocessor"><a class="header" href="#building-the-valence-zk-coprocessor">Building the Valence ZK coprocessor</a></h2>
 <p>Let's assume that we have Valence Accounts in each domain. These accounts implement a kv store.</p>
-<p>Every Zero-Knowledge (ZK) computation will follow the format of a pure state transition function; specifically, we input a state <code>A</code>, apply the function <code>f</code> to it, and produce the resulting state <code>B</code> : <code>f(A) = B</code> .
-For the function <code>f</code>, the chosen zero-knowledge Virtual Machine (zkVM) will generate a verifying key <code>K</code>, which remains consistent across all state transition functions.</p>
+<p>Every ZK computation will follow the format of a pure state transition function; specifically, we input a state <code>A</code>, apply the function <code>f</code> to it, and produce the resulting state <code>B</code> : <code>f(A) = B</code> .
+For the function <code>f</code>, the chosen zkVM will generate a verifying key <code>K</code>, which remains consistent across all state transition functions.</p>
 <h3 id="encoding-the-account-state-unary-encoder"><a class="header" href="#encoding-the-account-state-unary-encoder">Encoding the account state: Unary Encoder</a></h3>
-<p>To ensure every state transition computed as a Zero-Knowledge (ZK) proof by the coprocessor is a pure state transition function, we require a method to encode the entire account's state into initial and mutated forms, <code>A</code> and <code>B</code>, respectively, for use in providing the applicable state modifications for the target chain.</p>
+<p>To ensure every state transition computed as a ZK proof by the coprocessor is a pure state transition function, we require a method to encode the entire account's state into initial and mutated forms, <code>A</code> and <code>B</code>, respectively, for use in providing the applicable state modifications for the target chain.</p>
 <p>In essence, let's consider an account with its state containing a map that assigns a balance (u64 value) to each key. A contract execution transferring 100 tokens from key <code>m</code> to <code>n</code> can be achieved by invoking <code>state.transfer(signature, m, n, 100)</code>. This on-chain transfer function may look something like this:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -223,7 +221,7 @@ For the function <code>f</code>, the chosen zero-knowledge Virtual Machine (zkVM
 }
 <span class="boring">}</span></code></pre></pre>
 <p>Here, the pre-transfer state is <code>A</code> and after the transfer, the state is <code>B</code>.</p>
-<p>Let's write a new function called <code>transfer_trusted</code> that leaves signature verification to the zk-Coprocessor.</p>
+<p>Let's write a new function called <code>transfer_trusted</code> that leaves signature verification to the ZK coprocessor.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn transfer_trusted(&amp;mut self, from: Address, to: Address, value: u64) {
@@ -267,12 +265,11 @@ For the function <code>f</code>, the chosen zero-knowledge Virtual Machine (zkVM
     proof.verify(&amp;self.vk, commitment);
 }
 <span class="boring">}</span></code></pre></pre>
-<p>By doing so, we switch from on-chain signature verification to arguments commitment computation, followed by ZK proof verification. Although this is a simplified example, the complexity of signature verification computation can be increased to accommodate any computation supported by zkVMs (namely, any RiscV program). This advantage enables us to process multiple transfers in batches, perform intricate computations, and succinctly verify their correctness.</p>
-<p>We refer to this variant as a <strong>"Unary Encoder"</strong> because we compress the two states of the account, 'current' and 'mutated', into a single Zero-Knowledge (ZK) proof.</p>
-<p>This component will be the responsible for compressing any chain account state into a compatible commitment for the chosen zkVM. The encoding is a one-way function that allows anyone in possession of its pre-image (i.e. inputs to the encoding function) to reconstruct the commitment. This commitment will be transparent to the target chain, enabling its use in composing the block header for verification purposes. This is the aforementioned <code>commitment</code> function.</p>
+<p>By doing so, we switch from on-chain signature verification to computation over committed arguments, followed by ZK proof verification. Although we've presented a simplified example, the same verification process can accommodate any computation supported by a zkVM, enabling us to process multiple transfers in batches, perform intricate computation, and succinctly verify execution correctness. We refer to this pattern as a <strong>"Unary Encoder"</strong> because we compress the two states of the account, 'current' and 'mutated', into a single zero-knowledge proof.</p>
+<p>The Unary Encoder will be the responsible for compressing any chain account state into a compatible commitment for the chosen zkVM (in our case a RISC-V zkVM). The encoding is a one-way function that allows anyone in possession of the pre-image, i.e. inputs to the encoding function, to reconstruct the commitment. This commitment will be transparent to the target chain, enabling use in construction of the block header for verification purposes.</p>
 <h3 id="handling-state-transition-dependencies-across-domains-merkelized-encoder"><a class="header" href="#handling-state-transition-dependencies-across-domains-merkelized-encoder">Handling state transition dependencies across domains: Merkelized Encoder</a></h3>
-<p>Lets assume a hypothetical situation where we aim to achieve decoupled state updates across three distinct chains: Chain1, Chain2, and Chain3. The objective is to generate a unified Zero-Knowledge (ZK) proof that verifies the correctness of the state transitions on all chains.</p>
-<p>Specifically, Chain3 will depend on a mutation from Chain1, while Chain2 operates independently of the mutations on both Chain1 and Chain3.</p>
+<p>Lets assume a hypothetical situation where we aim to achieve decoupled state updates across three distinct chains: <code>chain 1</code>, <code>chain 2</code>, and <code>chain 3</code>. The objective is to generate a unified ZK proof that verifies the correctness of the state transitions on all chains.</p>
+<p>Specifically, <code>chain 3</code> will depend on a mutation from <code>chain 1</code>, while <code>chain 2</code> operates independently of the mutations on both <code>chain 1</code> and <code>chain 3</code>.</p>
 <pre class="mermaid">graph TB
     %% Root node
     r[R]
@@ -288,24 +285,24 @@ For the function <code>f</code>, the chosen zero-knowledge Virtual Machine (zkVM
     zero((0)) --&gt; m2
     
     %% Level 3
-    chain1[[&quot;(S1 --&gt; T1), K1&quot;]] -- Chain1 transition encoding --&gt; c1
-    chain2[[&quot;(S2 --&gt; T2), K2&quot;]] -- Chain2 transition encoding --&gt; c2
-    chain3[[&quot;(S3 --&gt; T3), K3&quot;]] -- Chain3 transition encoding --&gt; c3
+    chain1[&quot;(S1 --&gt; T1), K1&quot;] -- chain 1 transition encoding --&gt; c1
+    chain2[&quot;(S2 --&gt; T2), K2&quot;] -- chain 2 transition encoding --&gt; c2
+    chain3[&quot;(S3 --&gt; T3), K3&quot;] -- chain 3 transition encoding --&gt; c3
 </pre>
-<p>The Merkle Graph above depicts the state transition that can be compressed into a single commitment via Merkelization. Given an encoder with a specialized argument - a Sparse Merkle tree containing encoded state transition values indexed by the program's view key on the target blockchain - we obtain a Merkle Root denoted as <code>R</code>.</p>
+<p>The Merkle Graph above depicts the state transition that can be compressed into a single commitment via Merkelization. Given an encoder with a specialized argument—a Sparse Merkle tree containing encoded state transition values indexed by the program's view key on the target blockchain—we obtain a Merkle Root denoted as <code>R</code>.</p>
 <p>The ZK coprocessor can execute proof computations either sequentially or in parallel. The parallel computation associated with <code>C2</code> operates independently and generates a unary proof of <code>S2 -&gt; T2</code>. Conversely, the proof for <code>C3</code> requires querying <code>T1</code>.</p>
-<p>Since <code>Chain3</code> has a sequential execution, the coprocessor will first process <code>C1</code>, then relay the pre-image of <code>T1</code> to the coprocessor responsible for computing <code>C3</code>. Due to the deterministic nature of unary encoding, the <code>Chain3</code> coprocessor can easily derive <code>T1</code> and validate its foreign state while concurrently processing <code>C3</code>.</p>
-<p>At this point, there is no justification given for Merkelizing the produced proofs - we could as well just hash the entire set of Merkle arguments, and it would work just fine. However, it's worth noting that <code>Chain2</code> doesn't require knowledge of the data <code>(S1, T1, K1, S3, T3, K3)</code>. Including such information in the verification arguments of <code>Chain3</code> would unnecessarily burden its proving process. A Merkle tree is employed here due to its logarithmic verification property: the condensed proof generated for <code>Chain2</code> will only require a Merkle Opening to <code>R</code>, without the excess state data of side chains. Essentially, when generating the Merkelized proof, the <code>Chain2</code> coprocessor, after computing <code>C2</code>, will need only <code>C1</code> and <code>M2</code>, instead of the full Merkle arguments.</p>
-<p>Finally, each chain will receive <code>R</code>, accompanied by its individual state transition arguments, and the Merkle Path leading to <code>R</code> will be proven inside of the circuit.</p>
+<p>Since <code>chain 3</code> has a sequential execution, the coprocessor will first process <code>C1</code>, then relay the pre-image of <code>T1</code> to the coprocessor responsible for computing <code>C3</code>. Due to the deterministic nature of unary encoding, the <code>chain 3</code> coprocessor can easily derive <code>T1</code> and validate its foreign state while concurrently processing <code>C3</code>.</p>
+<p>At this point, there is no justification given for Merkelizing the produced proofs, hashing the entire set of Merkle arguments would work as well. However, it's worth noting that <code>chain 2</code> does not require knowledge of the data <code>(S1, T1, K1, S3, T3, K3)</code>. Including such information in the verification arguments of <code>chain 3</code> would unnecessarily burden its proving process. A Merkle tree is employed here for its logarithmic verification property: the condensed proof generated for <code>chain 2</code> will only require a Merkle opening to <code>R</code>, without requiring excess state data from other chains. Essentially, when generating the Merkelized proof, the <code>chain 2</code> coprocessor, after computing <code>C2</code>, will need only <code>C1</code> and <code>M2</code>, rather than all Merkle arguments.</p>
+<p>Finally, each chain will receive <code>R</code>, accompanied by its individual state transition arguments, and the Merkle path leading to <code>R</code> will be proven inside of the circuit.</p>
 <pre class="mermaid">---
 title: On-chain Proof Verification
 ---
 graph TD;
-	Coprocessor --(R1, T1)--&gt; Chain1
-	Coprocessor --(R2, T2)--&gt; Chain2
-	Coprocessor --(R3, T3, R1, T1, C2)--&gt; Chain3
+	coprocessor --(R1, T1)--&gt; chain 1
+	coprocessor --(R2, T2)--&gt; chain 2
+	coprocessor --(R3, T3, R1, T1, C2)--&gt; chain 3
 </pre>
-<p><code>Chain3</code> will first <code>verify(R3, T3)</code>, then <code>verify(R1, T1)</code>, then it will <code>query(T1)</code>, then compute <code>C1 := encoding(S1, T1)</code>, then compute  <code>C3 := encoding(S3, T3)</code>, and finally will assert <code>R == H(H(C1, C2), H(C3, 0))</code>.</p>
+<p>In this diagram we see <code>chain 3</code> will first <code>verify(R3, T3)</code>, then <code>verify(R1, T1)</code>, then it will <code>query(T1)</code>, then compute <code>C1 := encoding(S1, T1)</code>, then compute  <code>C3 := encoding(S3, T3)</code>, and finally will assert <code>R == H(H(C1, C2), H(C3, 0))</code>.</p>
 
                     </main>
 
