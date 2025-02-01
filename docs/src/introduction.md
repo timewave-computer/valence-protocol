@@ -16,6 +16,4 @@ Valence Programs are:
 > 1. Give the tokens to a **multisig** to execute actions on the protocol's behalf  
 > 2. Write **custom smart contracts** and deploy them across multiple chains to handle the cross-chain token operations.
 >
-> **Valence Programs** offer a third choice: the protocol does not need to trust a multisig, nor does it need to spend resources writing complex cross-chain logic.
-
-**By using Valence, the protocol can rapidly configure and deploy a secure solution that meets its needs.**
+> **Valence Programs** offer the DeFi protocol a third choice: rapidly configure and deploy a secure solution that meets its needs without trusting a multisig or writing complex smart contracts.
