@@ -167,9 +167,9 @@ Finally, each chain will receive `R`, accompanied by its individual state transi
 title: On-chain Proof Verification
 ---
 graph TD;
-	coprocessor --(R1, T1)--> chain 1
-	coprocessor --(R2, T2)--> chain 2
-	coprocessor --(R3, T3, R1, T1, C2)--> chain 3
+	coprocessor --(R1, T1)--> chain1
+	coprocessor --(R2, T2)--> chain2
+	coprocessor --(R3, T3, R1, T1, C2)--> chain3
 ```
 
 In this diagram we see `chain 3` will first `verify(R3, T3)`, then `verify(R1, T1)`, then it will `query(T1)`, then compute `C1 := encoding(S1, T1)`, then compute  `C3 := encoding(S3, T3)`, and finally will assert `R == H(H(C1, C2), H(C3, 0))`.
