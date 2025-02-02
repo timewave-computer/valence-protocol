@@ -298,9 +298,9 @@ For the function <code>f</code>, the chosen zkVM will generate a verifying key <
 title: On-chain Proof Verification
 ---
 graph TD;
-	coprocessor --(R1, T1)--&gt; chain 1
-	coprocessor --(R2, T2)--&gt; chain 2
-	coprocessor --(R3, T3, R1, T1, C2)--&gt; chain 3
+	coprocessor --(R1, T1)--&gt; chain1
+	coprocessor --(R2, T2)--&gt; chain2
+	coprocessor --(R3, T3, R1, T1, C2)--&gt; chain3
 </pre>
 <p>In this diagram we see <code>chain 3</code> will first <code>verify(R3, T3)</code>, then <code>verify(R1, T1)</code>, then it will <code>query(T1)</code>, then compute <code>C1 := encoding(S1, T1)</code>, then compute  <code>C3 := encoding(S3, T3)</code>, and finally will assert <code>R == H(H(C1, C2), H(C3, 0))</code>.</p>
 
