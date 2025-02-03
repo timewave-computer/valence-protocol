@@ -2469,6 +2469,543 @@ graph
 <li>Fees for gas, bridging, and for entering/exiting the position on Neutron. It is recommend that the vault impose withdraw fee and platform for users.</li>
 <li>How to constrain Strategist behavior to ensure they set redemption rates correctly.</li>
 </ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="testing-your-programs"><a class="header" href="#testing-your-programs">Testing your programs</a></h1>
+<p>Our testing infrastructure is built on several tools that work together to provide a comprehensive local testing environment:</p>
+<h3 id="core-testing-framework"><a class="header" href="#core-testing-framework">Core Testing Framework</a></h3>
+<p>We use <a href="https://github.com/strangelove-ventures/interchaintest/tree/main/local-interchain">local-interchain</a>, a component of the <a href="https://github.com/strangelove-ventures/interchaintest">interchaintest</a> developer toolkit. This allows you to deploy and run chains in a local environment, providing a controlled testing space for your blockchain applications.</p>
+<h3 id="localic-utils"><a class="header" href="#localic-utils">Localic Utils</a></h3>
+<p>To make these tools more accessible in Rust, we've developed <a href="https://github.com/timewave-computer/localic-utils">localic-utils</a>. This Rust library provides convenient interfaces to interact with the local-interchain testing framework.</p>
+<h3 id="program-manager"><a class="header" href="#program-manager">Program Manager</a></h3>
+<p>We provide a tool called <code>Program Manager</code> that helps you manage your programs. We've created all the abstractions and helper functions to create your programs more efficiently together with local-interchain.</p>
+<p>The Program Manager use is optional, it abstracts a lot of functionality and allows creating programs in much less code. But if you want to have more fine-grained control over your programs, we provide helper functions to create and interact with your programs directly without it. In this section, we'll show you two different examples on how to test your programs, one using the Program Manager and the other without it. There are also many more examples each of them for different use cases. They are all in the <code>examples</code> folder of <a href="https://github.com/timewave-computer/valence-protocol/tree/main/local-interchaintest">our local-interchaintest folder</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="initial-testing-set-up"><a class="header" href="#initial-testing-set-up">Initial Testing Set Up</a></h1>
+<p>For testing your programs, no matter if you want to use the manager or not, there is a common set up that needs to be done. This set up is necessary to initialize the testing context with all the required information of the local-interchain environment.</p>
+<h2 id="1-setting-the-testcontext-using-the-testcontextbuilder"><a class="header" href="#1-setting-the-testcontext-using-the-testcontextbuilder">1. Setting the TestContext using the TestContextBuilder</a></h2>
+<p>The <code>TestContext</code> is the interchain environment in which your program will run. Let's say you want to configure the Neutron chain and Osmosis chain, you may set it up as follows:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>    let mut test_ctx = TestContextBuilder::default()
+        .with_unwrap_raw_logs(true)
+        .with_api_url(LOCAL_IC_API_URL)
+        .with_artifacts_dir(VALENCE_ARTIFACTS_PATH)
+        .with_chain(ConfigChainBuilder::default_neutron().build()?)
+        .with_chain(ConfigChainBuilder::default_osmosis().build()?)
+        .with_log_file_path(LOGS_FILE_PATH)
+        .with_transfer_channels(NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_NAME)
+        .build()?;
+<span class="boring">}</span></code></pre></pre>
+<p>This will instantiate a <code>TestContext</code> with two chains, Neutron and Osmosis, that are connected via IBC by providing the <code>transfer_channels</code> parameter. The <code>api_url</code> is the URL of the local-interchain API, and the <code>artifacts_dir</code> is the path where the compiled programs are stored. The <code>log_file_path</code> is the path where the logs will be stored. The most important part here are the chains, which are created using the <code>ConfigChainBuilder</code> with the default configurations for Neutron and Osmosis and the transfer channels between them. We provide builders for most chains but you can also create your own configurations.</p>
+<h2 id="2-custom-chain-specific-setup"><a class="header" href="#2-custom-chain-specific-setup">2. Custom chain-specific setup</a></h2>
+<p>Some chains require additional setup to interact with others. For example, if you are going to use a liquid staking chain like Persistence, you need to register and activate the host zone to allow liquid staking of its native token. We provide helper functions that do this for you, here's an example:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>    info!("Registering host zone...");
+    register_host_zone(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(PERSISTENCE_CHAIN_NAME),
+        NEUTRON_CHAIN_ID,
+        &amp;connection_id,
+        &amp;channel_id,
+        &amp;native_denom,
+        DEFAULT_KEY,
+    )?;
+
+
+    info!("Activating host zone...");
+    activate_host_zone(NEUTRON_CHAIN_ID)?;
+<span class="boring">}</span></code></pre></pre>
+<p>Other examples of this would be deploying Astroport contracts, creating Osmosis pools... We provider helper functions for pretty much all of them and we have examples for all of them in the <code>examples</code> folder.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="example-without-program-manager"><a class="header" href="#example-without-program-manager">Example without Program Manager</a></h1>
+<p>This example demonstrates how to test your program without the Program Manager after your initial testing set up has been completed as described in the <a href="testing/./setup.html">Initial Testing Set Up</a> section.</p>
+<blockquote>
+<p><strong>Use-case</strong>: In this particular example, we will show you how to create a program that liquid stakes NTRN tokens on a Persistence chain directly from a base account without the need of using libraries. Note that this example is just for demonstrating purposes. In a real-world scenario, you would not liquid stake NTRN as it is not a staking token. We also are not using a liquid staking library for this example, although one could be creating for this purpose.</p>
+</blockquote>
+<p>The full code for this example can be found in the <a href="https://github.com/timewave-computer/valence-protocol/blob/main/local-interchaintest/examples/persistence_ls.rs">Persistence Liquid Staking example</a>.</p>
+<ol>
+<li>Set up the authorization contract and processor on the <code>Main Domain</code> (Neutron).</li>
+</ol>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>    let now = SystemTime::now();
+    let salt = hex::encode(
+        now.duration_since(SystemTime::UNIX_EPOCH)?
+            .as_secs()
+            .to_string(),
+    );
+
+    let (authorization_contract_address, _) =
+        set_up_authorization_and_processor(&amp;mut test_ctx, salt.clone())?;
+<span class="boring">}</span></code></pre></pre>
+<p>This code sets up the authorization contract and processor on Neutron. We use a time based salt to ensure that each test run the generated contract addresses are different. The <code>set_up_authorization_and_processor</code> function is a helper function instantiates both the processor and authorization contracts on Neutron and provides the contract addresses to interact with both. As you can see, we are not using the processor on Neutron here, but we are still setting it up.</p>
+<ol start="2">
+<li>Set up an external domain and create a channel to start relaying messages.</li>
+</ol>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>    let processor_on_persistence = set_up_external_domain_with_polytone(
+        &amp;mut test_ctx,
+        PERSISTENCE_CHAIN_NAME,
+        PERSISTENCE_CHAIN_ID,
+        PERSISTENCE_CHAIN_ADMIN_ADDR,
+        LOCAL_CODE_ID_CACHE_PATH_PERSISTENCE,
+        "neutron-persistence",
+        salt,
+        &amp;authorization_contract_address,
+    )?;
+<span class="boring">}</span></code></pre></pre>
+<p>This function does the following:</p>
+<ul>
+<li>Instantiates all the Polytone contracts on both the main domain and the new external domain. The information of the external domain is provided in the function arguments.</li>
+<li>Creates a channel between the Polytone contracts that the relayer will use to relay messages between the authorization contract and the processor.</li>
+<li>Instantiates the Processor contract on the external domain with the correct Polytone information and the authorization contract address.</li>
+<li>Adds the external domain to authorization contract with the Polytone information and the processor address on the external domain.</li>
+</ul>
+<p>After this is done, we can start creating authorizations for that external domain and when we send messages to the authorization contract, the relayer will relay the messages to the processor on the external domain and return the callbacks.</p>
+<ol start="3">
+<li>Create one or more base accounts on a domain.</li>
+</ol>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>    let base_accounts = create_base_accounts(
+        &amp;mut test_ctx,
+        DEFAULT_KEY,
+        PERSISTENCE_CHAIN_NAME,
+        base_account_code_id,
+        PERSISTENCE_CHAIN_ADMIN_ADDR.to_string(),
+        vec![processor_on_persistence.clone()],
+        1,
+        None,
+    );
+    let persistence_base_account = base_accounts.first().unwrap();
+<span class="boring">}</span></code></pre></pre>
+<p>This function creates a base account on the external domain and grants permission to the processor address to execute messages on its behalf. If we were using a library instead, we would be granting permission to the library contract instead of the processor address in the array provided.</p>
+<ol start="4">
+<li>Create the authorization</li>
+</ol>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>    let authorizations = vec![AuthorizationBuilder::new()
+        .with_label("execute")
+        .with_subroutine(
+            AtomicSubroutineBuilder::new()
+                .with_function(
+                    AtomicFunctionBuilder::new()
+                        .with_domain(Domain::External(PERSISTENCE_CHAIN_NAME.to_string()))
+                        .with_contract_address(LibraryAccountType::Addr(
+                            persistence_base_account.clone(),
+                        ))
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "execute_msg".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .build(),
+        )
+        .build()];
+
+    info!("Creating execute authorization...");
+    let create_authorization = valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
+        valence_authorization_utils::msg::PermissionedMsg::CreateAuthorizations { authorizations },
+    );
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &amp;authorization_contract_address,
+        DEFAULT_KEY,
+        &amp;serde_json::to_string(&amp;create_authorization).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+    info!("Execute authorization created!");
+<span class="boring">}</span></code></pre></pre>
+<p>In this code snippet, we are creating an authorization to execute a message on the persistence base account. For this particular example, since we are going to execute a <code>CosmosMsg::Stargate</code> directly on the account passing the protobuf message, we are not going to set up any param restrictions. If we were using a library, we could potentially set up restrictions for the json message that the library would expect.</p>
+<ol start="5">
+<li>Send message to the authorization contract</li>
+</ol>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>info!("Send the messages to the authorization contract...");
+
+    let msg_liquid_stake = MsgLiquidStake {
+        amount: Some(Coin {
+            denom: neutron_on_persistence.clone(),
+            amount: amount_to_liquid_stake.to_string(),
+        }),
+        delegator_address: persistence_base_account.clone(),
+    };
+    #[allow(deprecated)]
+    let liquid_staking_message = CosmosMsg::Stargate {
+        type_url: msg_liquid_stake.to_any().type_url,
+        value: Binary::from(msg_liquid_stake.to_proto_bytes()),
+    };
+
+    let binary = Binary::from(
+        serde_json::to_vec(&amp;valence_account_utils::msg::ExecuteMsg::ExecuteMsg {
+            msgs: vec![liquid_staking_message],
+        })
+        .unwrap(),
+    );
+    let message = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
+    let send_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+            label: "execute".to_string(),
+            messages: vec![message],
+            ttl: None,
+        },
+    );
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &amp;authorization_contract_address,
+        DEFAULT_KEY,
+        &amp;serde_json::to_string(&amp;send_msg).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+<span class="boring">}</span></code></pre></pre>
+<p>In this code snippet, we are sending a message to the authorization contract to execute the liquid staking message on the base account on Persistence. Note that we are using the same label that we used in the authorization creation. This is important because the authorization contract will check if the label matches the one in the authorization. If it does not match, the execution will fail. The authorization contract will send the message to the corresponding Polytone contract that will send it via IBC to the processor on the external domain.</p>
+<ol start="6">
+<li>Tick the processor</li>
+</ol>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>    tick_processor(
+        &amp;mut test_ctx,
+        PERSISTENCE_CHAIN_NAME,
+        DEFAULT_KEY,
+        &amp;processor_on_persistence,
+    );
+    std::thread::sleep(std::time::Duration::from_secs(3));
+<span class="boring">}</span></code></pre></pre>
+<p>The message must now be sitting on the processor on Persistence, therefore we need to tick the processor to trigger the execution. This will execute the message and send a callback with the result to the authorization contract, which completes the full testing cycle.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="example-with-program-manager"><a class="header" href="#example-with-program-manager">Example with Program Manager</a></h1>
+<p>This example demonstrates how to test your program using the Program Manager after your initial testing set up has been completed as described in the <a href="testing/./setup.html">Initial Testing Set Up</a> section.</p>
+<blockquote>
+<p><strong>Use-case:</strong> This example outlines the steps needed to create a program that provides and withdraws liquidity from an Osmosis Concentrated Liquidity pool using two library contracts: a CL Liquidity Provider and a CL Liquidity Withdrawer.</p>
+</blockquote>
+<h2 id="prerequisites-1"><a class="header" href="#prerequisites-1">Prerequisites</a></h2>
+<p>Before proceeding, ensure you have:</p>
+<ul>
+<li>A basic understanding of Osmosis, Neutron, CosmWasm, and Valence</li>
+<li>Completed the initial testing setup as described in the setup section</li>
+<li>Installed all necessary dependencies and have a working development environment</li>
+</ul>
+<h2 id="solution-overview"><a class="header" href="#solution-overview">Solution Overview</a></h2>
+<p>Full working code for this example can be found in the <a href="https://github.com/timewave-computer/valence-protocol/blob/main/local-interchaintest/examples/osmo_cl.rs">Osmosis Concentrated Liquidity example</a>.</p>
+<p>Our solution includes the following:</p>
+<ul>
+<li>We create three accounts on Osmosis
+<ul>
+<li>CL Input holds tokens ready to join the pool</li>
+<li>CL Output holds the position of the pool</li>
+<li>Final Output holds tokens after they've been withdrawn from the pool</li>
+</ul>
+</li>
+<li>We instantiate the Concentrated Liquidity Provider and Concentrated Liquidity Withdrawer libraries on Osmosis
+<ul>
+<li>The Liquidity Provider library will draw tokens from the CL Input account and use them to enter the pool</li>
+<li>The Liquidity Withdrawer library will exit the pool from the position held in the CL Output account and deposit redeemed tokens to the Final Output account</li>
+</ul>
+</li>
+<li>We add two permissionless authorizations on Neutron:
+<ul>
+<li>Provide Liquidity: When executed, it'll call the the provide liquidity function</li>
+<li>Withdraw Liquidity: When executed, it'll call the withdraw liquidity function</li>
+</ul>
+</li>
+</ul>
+<p>The following is a visual representation of the system we are building:</p>
+<pre class="mermaid">graph TD;
+    subgraph Osmosis
+        A1((CL Input))
+        A2((CL Output))
+        A3((Final Output))
+        L1[Liquidity Provider]
+        L2[Liquidity Withdrawer]
+        EP[Processor]
+    end
+
+    subgraph Neutron
+        A[Authorizations]
+        MP[Processor]
+    end
+
+    A1 --&gt; L1 --&gt; A2
+    A2 --&gt; L2 --&gt; A3
+
+    User --Execute Msg--&gt; A --Enqueue Batch --&gt; EP
+    EP --&gt; L1
+    EP --&gt; L2
+</pre>
+<h2 id="code-walkthrough"><a class="header" href="#code-walkthrough">Code walkthrough</a></h2>
+<p>Before we begin, we set up the <code>TestContext</code> as explained in the previous <a href="testing/setup.html">setup section</a>. Then we can move on to steps pertinent to testing this example.</p>
+<h3 id="1-setting-up-the-program"><a class="header" href="#1-setting-up-the-program">1. Setting up the program</a></h3>
+<h4 id="11-set-up-the-concentrated-liquidity-pool-on-osmosis"><a class="header" href="#11-set-up-the-concentrated-liquidity-pool-on-osmosis">1.1 Set up the Concentrated Liquidity pool on Osmosis</a></h4>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let ntrn_on_osmo_denom = test_ctx
+    .get_ibc_denom()
+    .base_denom(NEUTRON_CHAIN_DENOM.to_owned())
+    .src(NEUTRON_CHAIN_NAME)
+    .dest(OSMOSIS_CHAIN_NAME)
+    .get();
+
+let pool_id = setup_cl_pool(&amp;mut test_ctx, &amp;ntrn_on_osmo_denom, OSMOSIS_CHAIN_DENOM)?;
+<span class="boring">}</span></code></pre></pre>
+<p>This sets up a CL pool on Osmosis using NTRN and OSMO as the trading pair.
+Because NTRN on Osmosis will be transferred over IBC, a helper function is used to get the correct denom on Osmosis.</p>
+<h4 id="12-set-up-the-program-config-builder-and-prepare-the-relevant-accounts"><a class="header" href="#12-set-up-the-program-config-builder-and-prepare-the-relevant-accounts">1.2 Set up the Program config builder and prepare the relevant accounts</a></h4>
+<p>The Program Manager uses a builder pattern to construct the program configuration. We set up the three accounts that will be used in the liquidity provision and withdrawal flow.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
+let osmo_domain = Domain::CosmosCosmwasm(OSMOSIS_CHAIN_NAME.to_string());
+let ntrn_domain = Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
+
+// Create account information for LP input, LP output and final (LW) output accounts
+let cl_input_acc_info = AccountInfo::new("cl_input".to_string(), &amp;osmo_domain, AccountType::default());
+let cl_output_acc_info = AccountInfo::new("cl_output".to_string(), &amp;osmo_domain, AccountType::default());
+let final_output_acc_info = AccountInfo::new("final_output".to_string(), &amp;osmo_domain, AccountType::default());
+
+// Add accounts to builder
+let cl_input_acc = builder.add_account(cl_input_acc_info);
+let cl_output_acc = builder.add_account(cl_output_acc_info);
+let final_output_acc = builder.add_account(final_output_acc_info);
+<span class="boring">}</span></code></pre></pre>
+<h4 id="13-configure-the-libraries"><a class="header" href="#13-configure-the-libraries">1.3 Configure the libraries</a></h4>
+<p>Next we configure the libraries for providing and withdrawing liquidity. Each library is configured with input and output accounts and specific parameters for their operation.</p>
+<p>Note how <code>cl_output_acc</code> serves a different purpose for each of those libraries:</p>
+<ul>
+<li>for liquidity provider library it is the output account</li>
+<li>for liquidity withdrawer library it is the input account</li>
+</ul>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Configure Liquidity Provider library
+let cl_lper_config = LibraryConfig::ValenceOsmosisClLper({
+    input_addr: cl_input_acc.clone(),
+    output_addr: cl_output_acc.clone(),
+    lp_config: LiquidityProviderConfig {
+        pool_id: pool_id.into(),
+        pool_asset_1: ntrn_on_osmo_denom.to_string(),
+        pool_asset_2: OSMOSIS_CHAIN_DENOM.to_string(),
+        global_tick_range: TickRange {
+            lower_tick: Int64::from(-1_000_000),
+            upper_tick: Int64::from(1_000_000),
+        },
+    },
+});
+
+// Configure Liquidity Withdrawer library
+let cl_lwer_config = LibraryConfig::ValenceOsmosisClWithdrawer({
+    input_addr: cl_output_acc.clone(),
+    output_addr: final_output_acc.clone(),
+    pool_id: pool_id.into(),
+});
+
+// Add libraries to builder
+let cl_lper_library = builder.add_library(LibraryInfo::new(
+    "test_cl_lper".to_string(),
+    &amp;osmo_domain,
+    cl_lper_config,
+));
+
+let cl_lwer_library = builder.add_library(LibraryInfo::new(
+    "test_cl_lwer".to_string(),
+    &amp;osmo_domain,
+    cl_lwer_config,
+));
+<span class="boring">}</span></code></pre></pre>
+<h4 id="14-create-links-between-accounts-and-libraries"><a class="header" href="#14-create-links-between-accounts-and-libraries">1.4 Create links between accounts and libraries</a></h4>
+<p>Input links (first array in the <code>add_link()</code> call) are meant to enable libraries permission to execute on the specified accounts. Output links specify where the fungible results of a given function execution should be routed to.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Link input account -&gt; liquidity provider -&gt; output account
+builder.add_link(&amp;cl_lper_library, vec![&amp;cl_input_acc], vec![&amp;cl_output_acc]);
+// Link output account -&gt; liquidity withdrawer -&gt; final output account
+builder.add_link(&amp;cl_lwer_library, vec![&amp;cl_output_acc], vec![&amp;final_output_acc]);
+<span class="boring">}</span></code></pre></pre>
+<h4 id="15-create-authorizations"><a class="header" href="#15-create-authorizations">1.5 Create authorizations</a></h4>
+<p>Next we create authorizations for both providing and withdrawing liquidity. Each authorization contains a subroutine that specifies which function to call on which library. By default, calling these subroutines will be permissionless, however using the <code>AuthorizationBuilder</code> we can constrain the authorizations as necessary.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>builder.add_authorization(
+    AuthorizationBuilder::new()
+        .with_label("provide_liquidity")
+        .with_subroutine(
+            AtomicSubroutineBuilder::new()
+                .with_function(cl_lper_function)
+                .build(),
+        )
+        .build(),
+);
+
+builder.add_authorization(
+    AuthorizationBuilder::new()
+        .with_label("withdraw_liquidity")
+        .with_subroutine(
+            AtomicSubroutineBuilder::new()
+                .with_function(cl_lwer_function)
+                .build(),
+        )
+        .build(),
+);
+<span class="boring">}</span></code></pre></pre>
+<h4 id="16-set-up-the-polytone-connections"><a class="header" href="#16-set-up-the-polytone-connections">1.6 Set up the Polytone connections</a></h4>
+<p>In order for cross-domain Programs to be able to communicate between
+different domains, we instantiate the Polytone contracts and save the
+configuration in our Program Manager.</p>
+<p><code>setup_polytone</code> sets up the connection between two domains and therefore expects the following parameters:</p>
+<ul>
+<li>source and destination chain names</li>
+<li>source and destination chain ids</li>
+<li>source and destination chain native denoms</li>
+</ul>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// prior to initializing the manager, we do the middleware plumbing
+setup_polytone(
+    &amp;mut test_ctx,
+    NEUTRON_CHAIN_NAME,
+    OSMOSIS_CHAIN_NAME,
+    NEUTRON_CHAIN_ID,
+    OSMOSIS_CHAIN_ID,
+    NEUTRON_CHAIN_DENOM,
+    OSMOSIS_CHAIN_DENOM,
+)?;
+<span class="boring">}</span></code></pre></pre>
+<h4 id="17-initialize-the-program"><a class="header" href="#17-initialize-the-program">1.7 Initialize the program</a></h4>
+<p>Calling <code>builder.build()</code> here acts as a snapshot of the existing builder state.</p>
+<p>That state is then passed on to the <code>use_manager_init()</code> call, which consumes it and builds the final program configuration before initializing it.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut program_config = builder.build();
+use_manager_init(&amp;mut program_config)?;
+<span class="boring">}</span></code></pre></pre>
+<p>Congratulations! The program is now initialized across the two chains!</p>
+<h3 id="2-executing-the-program"><a class="header" href="#2-executing-the-program">2. Executing the Program</a></h3>
+<p>After the initialization, we are ready to start processing  messages. For a message to be executed, it first needs to be enqueued to the processor.</p>
+<h4 id="21-providing-liquidity"><a class="header" href="#21-providing-liquidity">2.1 Providing Liquidity</a></h4>
+<p>If there are tokens available in the CL Input account, we are ready to provide liquidity. To enqueue provide liquidity message:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// build the processor message for providing liquidity
+let lp_message = ProcessorMessage::CosmwasmExecuteMsg {
+    msg: Binary::from(serde_json::to_vec(
+        &amp;valence_library_utils::msg::ExecuteMsg::&lt;_, ()&gt;::ProcessFunction(
+            valence_osmosis_cl_lper::msg::FunctionMsgs::ProvideLiquidityDefault {
+                bucket_amount: Uint64::new(10),
+            },
+        ),
+    )?),
+};
+
+// wrap the processor message in an authorization module call
+let provide_liquidity_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+    valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+        label: "provide_liquidity".to_string(),
+        messages: vec![lp_message],
+        ttl: None,
+    },
+);
+
+contract_execute(
+    test_ctx
+        .get_request_builder()
+        .get_request_builder(NEUTRON_CHAIN_NAME),
+    &amp;authorization_contract_address,
+    DEFAULT_KEY,
+    &amp;serde_json::to_string(&amp;provide_liquidity_msg)?,
+    GAS_FLAGS,
+)?;
+<span class="boring">}</span></code></pre></pre>
+<p>Now anyone can tick the processor to execute the message. After receiving a <code>tick</code>, the processor will execute the message at the head of the queue and send a callback to the authorization contract with the result.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>contract_execute(
+    test_ctx
+        .get_request_builder()
+        .get_request_builder(OSMOSIS_CHAIN_NAME),
+    &amp;osmo_processor_contract_address,
+    DEFAULT_KEY,
+    &amp;serde_json::to_string(
+        &amp;valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+            valence_processor_utils::msg::PermissionlessMsg::Tick {},
+        ),
+    )?,
+    &amp;format!(
+        "--gas=auto --gas-adjustment=3.0 --fees {}{}",
+        5_000_000, OSMOSIS_CHAIN_DENOM
+    ),
+)?;
+<span class="boring">}</span></code></pre></pre>
+<h4 id="22-withdraw-liquidity"><a class="header" href="#22-withdraw-liquidity">2.2 Withdraw Liquidity</a></h4>
+<p>To enqueue withdraw liquidity message:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// build the processor message for withdrawing liquidity
+let lw_message = ProcessorMessage::CosmwasmExecuteMsg {
+    msg: Binary::from(serde_json::to_vec(
+        &amp;valence_library_utils::msg::ExecuteMsg::&lt;_, ()&gt;::ProcessFunction(
+            valence_osmosis_cl_withdrawer::msg::FunctionMsgs::WithdrawLiquidity {
+                position_id: output_acc_cl_position.position_id.into(),
+                liquidity_amount: Some(liquidity_amount),
+            },
+        ),
+    )?),
+};
+
+// wrap the processor message in an authorization module call
+let withdraw_liquidity_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+    valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+        label: "withdraw_liquidity".to_string(),
+        messages: vec![lw_message],
+        ttl: None,
+    },
+);
+
+contract_execute(
+    test_ctx
+        .get_request_builder()
+        .get_request_builder(NEUTRON_CHAIN_NAME),
+    &amp;authorization_contract_address,
+    DEFAULT_KEY,
+    &amp;serde_json::to_string(&amp;withdraw_liquidity_msg)?,
+    GAS_FLAGS,
+)?;
+<span class="boring">}</span></code></pre></pre>
+<p>The above enqueues the message to withdraw liquidity. The processor will execute it next time it is ticked.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>contract_execute(
+    test_ctx
+        .get_request_builder()
+        .get_request_builder(OSMOSIS_CHAIN_NAME),
+    &amp;osmo_processor_contract_address,
+    DEFAULT_KEY,
+    &amp;serde_json::to_string(
+        &amp;valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+            valence_processor_utils::msg::PermissionlessMsg::Tick {},
+        ),
+    )?,
+    &amp;format!(
+        "--gas=auto --gas-adjustment=3.0 --fees {}{}",
+        5_000_000, OSMOSIS_CHAIN_DENOM
+    ),
+)?;
+<span class="boring">}</span></code></pre></pre>
+<p>This concludes the walkthrough. You have now initialized the program and used it to provide and withdraw liquidity on Osmosis from Neutron!</p>
 
                     </main>
 
