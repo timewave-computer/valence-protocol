@@ -6,5 +6,5 @@ authors     = ["Timewave Labs"]
 description = "Helpers for bridging"
 
 [dependencies]
-cosmwasm-std    = { workspace = true }
-cosmwasm-schema = { workspace = true }
+cosmwasm-std                = { workspace = true }
+cosmwasm-schema             = { workspace = true }

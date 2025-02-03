@@ -25,7 +25,7 @@ use valence_authorization_utils::{
     },
 };
 use valence_bridging_utils::{
-    hyperlane::HandleMsg,
+    hyperlane::{format_address_for_hyperlane, HandleMsg},
     polytone::{Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg},
 };
 use valence_encoder_broker::msg::QueryMsg as EncoderBrokerQueryMsg;
@@ -36,9 +36,7 @@ use valence_processor_utils::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExec
 
 use crate::{
     authorization::Validate,
-    domain::{
-        add_external_domain, create_msg_for_processor, format_address_for_hyperlane, get_domain,
-    },
+    domain::{add_external_domain, create_msg_for_processor, get_domain},
     error::{AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason},
     state::{
         AUTHORIZATIONS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS, FIRST_OWNERSHIP,
