@@ -1,35 +1,51 @@
 use std::{collections::HashMap, env, error::Error, fs};
 
 use localic_std::modules::cosmwasm::contract_instantiate;
-use localic_utils::{
-    utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
-};
-use valence_workflow_manager::{
+use localic_utils::{utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_NAME};
+use valence_program_manager::{
     config::{ChainInfo, GLOBAL_CONFIG},
     error::ManagerResult,
+<<<<<<< HEAD
     init_workflow, update_workflow,
     workflow_config::WorkflowConfig,
     workflow_update::{UpdateResponse, WorkflowConfigUpdate},
+=======
+    init_program, migrate_program,
+    program_config::ProgramConfig,
+    program_migration::{MigrateResponse, ProgramConfigMigrate},
+    program_update::{ProgramConfigUpdate, UpdateResponse},
+    update_program,
+>>>>>>> 0ceed756d867ffd33d4763d6734c405886661022
 };
 
-const LOG_FILE_PATH: &str = "local-interchaintest/configs/logs.json";
+use crate::utils::POLYTONE_ARTIFACTS_PATH;
 
-pub const REGISTRY_NAME: &str = "valence_workflow_registry";
+const LOG_FILE_PATH: &str = "local-interchaintest/configs/logs.json";
+pub const MANAGER_ADMIN_ADDR: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
+
+pub const REGISTRY_NAME: &str = "valence_program_registry";
 pub const AUTHORIZATION_NAME: &str = "valence_authorization";
 pub const PROCESSOR_NAME: &str = "valence_processor";
 pub const BASE_ACCOUNT_NAME: &str = "valence_base_account";
-pub const SPLITTER_NAME: &str = "valence_splitter_service";
-pub const REVERSE_SPLITTER_NAME: &str = "valence_reverse_splitter_service";
-pub const FORWARDER_NAME: &str = "valence_forwarder_service";
-pub const GENERIC_IBC_TRANSFER_NAME: &str = "valence-generic-ibc-transfer-service";
-pub const NEUTRON_IBC_TRANSFER_NAME: &str = "valence-neutron-ibc-transfer-service";
+pub const SPLITTER_NAME: &str = "valence_splitter_library";
+pub const REVERSE_SPLITTER_NAME: &str = "valence_reverse_splitter_library";
+pub const FORWARDER_NAME: &str = "valence_forwarder_library";
+pub const GENERIC_IBC_TRANSFER_NAME: &str = "valence-generic-ibc-transfer-library";
+pub const NEUTRON_IBC_TRANSFER_NAME: &str = "valence-neutron-ibc-transfer-library";
 pub const ASTROPORT_LPER_NAME: &str = "valence_astroport_lper";
 pub const ASTROPORT_WITHDRAWER_NAME: &str = "valence_astroport_withdrawer";
+pub const OSMOSIS_GAMM_LPER_NAME: &str = "valence_osmosis_gamm_lper";
+pub const OSMOSIS_GAMM_LWER_NAME: &str = "valence_osmosis_gamm_withdrawer";
+pub const OSMOSIS_CL_LPER_NAME: &str = "valence_osmosis_cl_lper";
+pub const OSMOSIS_CL_LWER_NAME: &str = "valence_osmosis_cl_withdrawer";
+pub const POLYTONE_NOTE_NAME: &str = "polytone_note";
+pub const POLYTONE_VOICE_NAME: &str = "polytone_voice";
+pub const POLYTONE_PROXY_NAME: &str = "polytone_proxy";
 
-/// Those contracts will always be uploaded because each workflow needs them
+/// Those contracts will always be uploaded because each program needs them
 const BASIC_CONTRACTS: [&str; 2] = [PROCESSOR_NAME, BASE_ACCOUNT_NAME];
 
-/// Setup everything that is needed for the manager to run, including uploading the services
+/// Setup everything that is needed for the manager to run, including uploading the libraries
 ///
 /// You can pass a list of contracts to upload, authorization, processor and base account are always uploaded,
 /// you need to specify the contracts you want to be uploaded for the given test
@@ -89,8 +105,25 @@ pub fn setup_manager(
         for contract_name in contracts.iter() {
             let mut uploader = test_ctx.build_tx_upload_contracts();
             uploader.with_chain_name(chain_name);
-            let (path, contrat_wasm_name, contract_name) =
-                get_contract_path(chain_name, contract_name, artifacts_dir.as_str());
+
+            let (path, contract_wasm_name, contract_name) = match *contract_name {
+                POLYTONE_NOTE_NAME => (
+                    format!("{}/{}.wasm", POLYTONE_ARTIFACTS_PATH, POLYTONE_NOTE_NAME),
+                    POLYTONE_NOTE_NAME,
+                    POLYTONE_NOTE_NAME,
+                ),
+                POLYTONE_VOICE_NAME => (
+                    format!("{}/{}.wasm", POLYTONE_ARTIFACTS_PATH, POLYTONE_VOICE_NAME),
+                    POLYTONE_VOICE_NAME,
+                    POLYTONE_VOICE_NAME,
+                ),
+                POLYTONE_PROXY_NAME => (
+                    format!("{}/{}.wasm", POLYTONE_ARTIFACTS_PATH, POLYTONE_PROXY_NAME),
+                    POLYTONE_PROXY_NAME,
+                    POLYTONE_PROXY_NAME,
+                ),
+                _ => get_contract_path(chain_name, contract_name, artifacts_dir.as_str()),
+            };
 
             // Upload contract
             uploader.send_single_contract(path.as_str()).unwrap();
@@ -98,7 +131,8 @@ pub fn setup_manager(
             // get its code id
             let code_id = test_ctx
                 .get_contract()
-                .contract(contrat_wasm_name)
+                .src(chain_name)
+                .contract(contract_wasm_name)
                 .get_cw()
                 .code_id
                 .unwrap();
@@ -118,11 +152,11 @@ pub fn setup_manager(
             .get_request_builder(NEUTRON_CHAIN_NAME),
         DEFAULT_KEY,
         registry_code_id,
-        &serde_json::to_string(&valence_workflow_registry_utils::InstantiateMsg {
-            admin: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        &serde_json::to_string(&valence_program_registry_utils::InstantiateMsg {
+            admin: MANAGER_ADMIN_ADDR.to_string(),
         })
         .unwrap(),
-        "workflow-registry",
+        "program-registry",
         None,
         "",
     )
@@ -283,12 +317,33 @@ fn parse_gas_price(input: &str) -> String {
 }
 
 /// Helper function to start manager init to hide the tokio block_on
-pub fn use_manager_init(workflow_config: &mut WorkflowConfig) -> ManagerResult<()> {
+pub fn use_manager_init(program_config: &mut ProgramConfig) -> ManagerResult<()> {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
         .unwrap();
-    rt.block_on(init_workflow(workflow_config))
+    rt.block_on(init_program(program_config))
+}
+
+/// Helper function to update manager config to hide the tokio block_on
+pub fn use_manager_update(
+    program_config_update: ProgramConfigUpdate,
+) -> ManagerResult<UpdateResponse> {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    rt.block_on(update_program(program_config_update))
+}
+
+pub fn use_manager_migrate(
+    program_config_migrate: ProgramConfigMigrate,
+) -> ManagerResult<MigrateResponse> {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    rt.block_on(migrate_program(program_config_migrate))
 }
 
 /// Helper function to update manager config to hide the tokio block_on
@@ -303,7 +358,7 @@ pub fn use_manager_update(
 }
 
 pub fn get_global_config(
-) -> tokio::sync::MutexGuard<'static, valence_workflow_manager::config::Config> {
+) -> tokio::sync::MutexGuard<'static, valence_program_manager::config::Config> {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()

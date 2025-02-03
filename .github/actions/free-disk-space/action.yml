@@ -1,0 +1,19 @@
+name: Free disk space
+description: We've run into out-of-disk error when compiling Rust projects, so we free up some space this way.
+
+runs:
+  using: "composite"
+  steps:
+    - name: Free Disk Space
+      uses: jlumbroso/free-disk-space@v1.3.1
+      with:
+        large-packages: false
+        tool-cache: false
+        
+        # all of these default to true, but feel free to set to
+        # "false" if necessary for your workflow
+        android: true
+        dotnet: true
+        haskell: true        
+        docker-images: true
+        swap-storage: true

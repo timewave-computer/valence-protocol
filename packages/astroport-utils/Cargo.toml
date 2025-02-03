@@ -3,7 +3,7 @@ name        = "valence-astroport-utils"
 version     = { workspace = true }
 edition     = { workspace = true }
 authors     = ["Timewave Labs"]
-description = "Utils for astroport services"
+description = "Utils for astroport libraries"
 
 [features]
 default = []
@@ -15,3 +15,4 @@ testing = [
 cosmwasm-std            = { workspace = true }
 cosmwasm-schema         = { workspace = true }
 neutron-test-tube       = { workspace = true, optional = true }
+valence-library-utils   = { workspace = true }

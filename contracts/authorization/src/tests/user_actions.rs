@@ -1,13 +1,11 @@
-use cosmwasm_std::{Binary, Timestamp, Uint128};
+use cosmwasm_std::{Binary, Coin, Timestamp, Uint128};
 use cw_utils::Expiration;
-use neutron_test_tube::{neutron_std::types::cosmos::base::v1beta1::Coin, Account, Module, Wasm};
+use neutron_test_tube::{Account, Module, Wasm};
 use serde_json::json;
 use valence_authorization_utils::{
     authorization::{AuthorizationDuration, AuthorizationModeInfo, PermissionTypeInfo},
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
-    builders::{
-        AtomicActionBuilder, AtomicActionsConfigBuilder, AuthorizationBuilder, JsonBuilder,
-    },
+    builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder, JsonBuilder},
     msg::{ExecuteMsg, PermissionedMsg, PermissionlessMsg, ProcessorMessage},
 };
 
@@ -38,9 +36,9 @@ fn disabled() {
     // We'll create a generic permissionless authorization
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
-        .with_actions_config(
-            AtomicActionsConfigBuilder::new()
-                .with_action(AtomicActionBuilder::new().build())
+        .with_subroutine(
+            AtomicSubroutineBuilder::new()
+                .with_function(AtomicFunctionBuilder::new().build())
                 .build(),
         )
         .build()];
@@ -136,9 +134,9 @@ fn invalid_time() {
         .with_mode(AuthorizationModeInfo::Permissioned(
             PermissionTypeInfo::WithoutCallLimit(vec![setup.owner_addr.to_string()]),
         ))
-        .with_actions_config(
-            AtomicActionsConfigBuilder::new()
-                .with_action(AtomicActionBuilder::new().build())
+        .with_subroutine(
+            AtomicSubroutineBuilder::new()
+                .with_function(AtomicFunctionBuilder::new().build())
                 .build(),
         )
         .build()];
@@ -233,9 +231,9 @@ fn invalid_time() {
         .with_mode(AuthorizationModeInfo::Permissioned(
             PermissionTypeInfo::WithoutCallLimit(vec![setup.owner_addr.to_string()]),
         ))
-        .with_actions_config(
-            AtomicActionsConfigBuilder::new()
-                .with_action(AtomicActionBuilder::new().build())
+        .with_subroutine(
+            AtomicSubroutineBuilder::new()
+                .with_function(AtomicFunctionBuilder::new().build())
                 .build(),
         )
         .build()];
@@ -340,9 +338,9 @@ fn invalid_permission() {
             .with_mode(AuthorizationModeInfo::Permissioned(
                 PermissionTypeInfo::WithoutCallLimit(vec![setup.owner_addr.to_string()]),
             ))
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(AtomicActionBuilder::new().build())
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(AtomicFunctionBuilder::new().build())
                     .build(),
             )
             .build(),
@@ -354,9 +352,9 @@ fn invalid_permission() {
                     Uint128::new(10),
                 )]),
             ))
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(AtomicActionBuilder::new().build())
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(AtomicFunctionBuilder::new().build())
                     .build(),
             )
             .build(),
@@ -428,10 +426,7 @@ fn invalid_permission() {
                 }],
                 ttl: None,
             }),
-            &[Coin {
-                denom: permission_token.clone(),
-                amount: "2".to_string(),
-            }],
+            &[Coin::new(Uint128::new(2), permission_token.clone())],
             &setup.user_accounts[0],
         )
         .unwrap_err();
@@ -461,10 +456,10 @@ fn invalid_messages() {
         // No param restrictions
         AuthorizationBuilder::new()
             .with_label("no-restrictions")
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(
-                        AtomicActionBuilder::new()
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -479,10 +474,10 @@ fn invalid_messages() {
             .build(),
         AuthorizationBuilder::new()
             .with_label("with-restrictions")
-            .with_actions_config(
-                AtomicActionsConfigBuilder::new()
-                    .with_action(
-                        AtomicActionBuilder::new()
+            .with_subroutine(
+                AtomicSubroutineBuilder::new()
+                    .with_function(
+                        AtomicFunctionBuilder::new()
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {

@@ -440,7 +440,7 @@ fn insert_messages(
             id,
             queue_position,
             msgs: messages.clone(),
-            actions_config: authorization.actions_config,
+            subroutine: authorization.subroutine,
             priority,
         },
     ))?;
@@ -540,7 +540,7 @@ fn send_msgs(
         AuthorizationMsg::EnqueueMsgs {
             id,
             msgs: messages.clone(),
-            actions_config: authorization.actions_config,
+            subroutine: authorization.subroutine,
             priority: authorization.priority,
         },
     ))?;
@@ -607,7 +607,7 @@ fn retry_msgs(deps: DepsMut, env: Env, execution_id: u64) -> Result<Response, Co
                 &ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::EnqueueMsgs {
                     id: execution_id,
                     msgs: callback_info.messages.clone(),
-                    actions_config: authorization.actions_config,
+                    subroutine: authorization.subroutine,
                     priority: authorization.priority,
                 }),
             )?;
@@ -683,6 +683,7 @@ fn retry_bridge_creation(
                 timeout_seconds,
                 state: PolytoneProxyState::PendingResponse,
             };
+            EXTERNAL_DOMAINS.save(deps.storage, domain_name.clone(), &external_domain)?;
 
             WasmMsg::Execute {
                 contract_addr: address.to_string(),
@@ -750,8 +751,10 @@ fn process_processor_callback(
                 build_tokenfactory_denom(env.contract.address.as_str(), &authorization.label);
 
             let msg = match callback.execution_result {
-                ExecutionResult::Success | ExecutionResult::PartiallyExecuted(_, _) => {
-                    // If the operation was executed or partially executed, the token will be burned
+                ExecutionResult::Success
+                | ExecutionResult::PartiallyExecuted(_, _)
+                | ExecutionResult::RemovedByOwner => {
+                    // If the operation was executed, partially executed or removed by the owner the token will be burned
                     burn_msg(env.contract.address.to_string(), 1, denom)
                 }
                 _ => {

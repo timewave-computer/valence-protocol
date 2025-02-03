@@ -1,5 +1,5 @@
 use cosmwasm_std::{BlockInfo, Storage};
-use valence_authorization_utils::{action::RetryLogic, authorization::Priority};
+use valence_authorization_utils::{authorization::Priority, function::RetryLogic};
 use valence_processor_utils::{
     processor::{CurrentRetry, MessageBatch},
     queue::QueueMap,

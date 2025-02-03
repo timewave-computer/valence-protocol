@@ -3,9 +3,9 @@ use cosmwasm_std::{Addr, Binary, CosmosMsg, StdError, StdResult, SubMsg, WasmMsg
 use cw_utils::Expiration;
 use serde_json::{json, Value};
 use valence_authorization_utils::{
-    action::Action,
-    authorization::{ActionsConfig, Priority},
+    authorization::{Priority, Subroutine},
     domain::PolytoneProxyState,
+    function::Function,
     msg::ProcessorMessage,
 };
 
@@ -46,24 +46,24 @@ pub struct MessageBatch {
     // Used for the callback
     pub id: u64,
     pub msgs: Vec<ProcessorMessage>,
-    pub actions_config: ActionsConfig,
+    pub subroutine: Subroutine,
     pub priority: Priority,
     pub retry: Option<CurrentRetry>,
 }
 
 impl From<MessageBatch> for Vec<CosmosMsg> {
     fn from(val: MessageBatch) -> Self {
-        match val.actions_config {
-            ActionsConfig::Atomic(config) => process_actions(val.msgs, &config.actions),
-            ActionsConfig::NonAtomic(config) => process_actions(val.msgs, &config.actions),
+        match val.subroutine {
+            Subroutine::Atomic(config) => process_functions(val.msgs, &config.functions),
+            Subroutine::NonAtomic(config) => process_functions(val.msgs, &config.functions),
         }
     }
 }
 
-fn process_actions<A: Action>(msgs: Vec<ProcessorMessage>, actions: &[A]) -> Vec<CosmosMsg> {
+fn process_functions<F: Function>(msgs: Vec<ProcessorMessage>, functions: &[F]) -> Vec<CosmosMsg> {
     msgs.into_iter()
-        .zip(actions)
-        .map(|(msg, action)| create_cosmos_msg(msg, action.get_contract_address().to_owned()))
+        .zip(functions)
+        .map(|(msg, function)| create_cosmos_msg(msg, function.get_contract_address().to_owned()))
         .collect()
 }
 
@@ -89,8 +89,8 @@ impl MessageBatch {
     /// with the next message in the batch or apply the retry logic
     pub fn create_message_by_index(&self, index: usize) -> Vec<SubMsg> {
         let contract_address = self
-            .actions_config
-            .get_contract_address_by_action_index(index);
+            .subroutine
+            .get_contract_address_by_function_index(index);
 
         let submessage =
             SubMsg::reply_always(self.msgs[index].to_wasm_message(&contract_address), self.id);
@@ -98,7 +98,7 @@ impl MessageBatch {
     }
 
     /// Very similar to create_message_by_index, but we append an execution id to the message
-    /// so that the service can know to which ID it has to reply to
+    /// so that the library can know to which ID it has to reply to
     pub fn create_message_by_index_with_execution_id(
         &self,
         index: usize,
@@ -123,8 +123,8 @@ impl MessageBatch {
         ));
 
         let contract_address = self
-            .actions_config
-            .get_contract_address_by_action_index(index);
+            .subroutine
+            .get_contract_address_by_function_index(index);
 
         let submessage =
             SubMsg::reply_always(new_msg.to_wasm_message(&contract_address), execution_id);

@@ -1,8 +1,8 @@
 use cosmwasm_std::{to_json_binary, Addr, BlockInfo, CosmosMsg, Storage, Uint64, WasmMsg};
 use valence_authorization_utils::{
-    action::RetryTimes,
-    authorization::ActionsConfig,
+    authorization::Subroutine,
     callback::ExecutionResult,
+    function::RetryTimes,
     msg::{ExecuteMsg, InternalAuthorizationMsg},
 };
 use valence_polytone_utils::polytone::{CallbackRequest, PolytoneExecuteMsg};
@@ -15,7 +15,7 @@ use crate::{
     error::ContractError,
     queue::{get_queue_map, put_back_into_queue},
     state::{
-        CONFIG, EXECUTION_ID_TO_BATCH, NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX,
+        CONFIG, EXECUTION_ID_TO_BATCH, NON_ATOMIC_BATCH_CURRENT_FUNCTION_INDEX,
         PENDING_POLYTONE_CALLBACKS,
     },
 };
@@ -80,7 +80,7 @@ pub fn handle_successful_non_atomic_callback(
     messages: &mut Vec<CosmosMsg>,
     processor_address: &Addr,
 ) -> Result<(), ContractError> {
-    // Advance to the next action if there is one and if not, provide the successfull callback to the authorization module
+    // Advance to the next function if there is one and if not, provide the successfull callback to the authorization module
     let next_index = index.checked_add(1).expect("Overflow");
     if next_index >= batch.msgs.len() {
         // We finished the batch, we'll provide the successfull callback to the authorization module
@@ -94,12 +94,12 @@ pub fn handle_successful_non_atomic_callback(
         )?);
 
         // Clean up
-        NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.remove(storage, execution_id);
+        NON_ATOMIC_BATCH_CURRENT_FUNCTION_INDEX.remove(storage, execution_id);
         EXECUTION_ID_TO_BATCH.remove(storage, execution_id);
     } else {
-        // We have more actions to process
+        // We have more functions to process
         // Increase the index, reset retries and re-add batch to the queue
-        NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.save(storage, execution_id, &next_index)?;
+        NON_ATOMIC_BATCH_CURRENT_FUNCTION_INDEX.save(storage, execution_id, &next_index)?;
         batch.retry = None;
         let queue = get_queue_map(&batch.priority);
         queue.push_back(storage, batch)?;
@@ -138,14 +138,14 @@ pub fn handle_unsuccessful_callback(
     index: Option<usize>,
     processor_address: &Addr,
 ) -> Result<(), ContractError> {
-    let retry_logic = match &batch.actions_config {
-        ActionsConfig::Atomic(config) => config.retry_logic.clone(),
-        ActionsConfig::NonAtomic(config) => {
+    let retry_logic = match &batch.subroutine {
+        Subroutine::Atomic(config) => config.retry_logic.clone(),
+        Subroutine::NonAtomic(config) => {
             let index = index.unwrap_or_default();
             config
-                .actions
+                .functions
                 .get(index)
-                .and_then(|action| action.retry_logic.clone())
+                .and_then(|function| function.retry_logic.clone())
         }
     };
 
@@ -158,7 +158,7 @@ pub fn handle_unsuccessful_callback(
             match &retry_logic.times {
                 RetryTimes::Amount(max_retries) => {
                     if retry_amounts >= *max_retries {
-                        // We've retried the action the maximum amount of times, we'll provide the error callback to the authorization module
+                        // We've retried the function the maximum amount of times, we'll provide the error callback to the authorization module
                         let execution_result = if index == 0 {
                             ExecutionResult::Rejected(error)
                         } else {
@@ -173,14 +173,14 @@ pub fn handle_unsuccessful_callback(
                             processor_address,
                         )?);
                         // Clean up
-                        NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.remove(storage, execution_id);
+                        NON_ATOMIC_BATCH_CURRENT_FUNCTION_INDEX.remove(storage, execution_id);
                         EXECUTION_ID_TO_BATCH.remove(storage, execution_id);
                     } else {
                         put_back_into_queue(storage, batch, retry_amounts, &retry_logic, block)?;
                     }
                 }
                 RetryTimes::Indefinitely => {
-                    // We'll retry the action indefinitely
+                    // We'll retry the function indefinitely
                     put_back_into_queue(storage, batch, retry_amounts, &retry_logic, block)?;
                 }
             }
@@ -195,7 +195,7 @@ pub fn handle_unsuccessful_callback(
                 processor_address,
             )?);
             // Clean up for non-atomic case
-            NON_ATOMIC_BATCH_CURRENT_ACTION_INDEX.remove(storage, execution_id);
+            NON_ATOMIC_BATCH_CURRENT_FUNCTION_INDEX.remove(storage, execution_id);
             EXECUTION_ID_TO_BATCH.remove(storage, execution_id);
         }
     }

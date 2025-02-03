@@ -3,7 +3,15 @@
 // The content of this file is taken from the 'astroport' crate, specifically version 2.9.5
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Coin, Decimal, StdError, StdResult, Uint128};
+use cosmwasm_std::{Addr, Binary, Coin, Decimal, DepsMut, StdError, StdResult, Uint128};
+use valence_library_utils::error::LibraryError;
+
+pub fn query_pool(deps: &DepsMut, pool_addr: &str) -> Result<Vec<Asset>, LibraryError> {
+    let response: PoolResponse = deps
+        .querier
+        .query_wasm_smart(pool_addr, &PoolQueryMsg::Pool {})?;
+    Ok(response.assets)
+}
 
 /// This struct is used to return a query result with the total amount of LP tokens and assets in a specific pool.
 #[cw_serde]

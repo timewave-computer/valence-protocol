@@ -6,7 +6,7 @@ use std::{
 
 use cosmwasm_std::Uint128;
 use local_interchaintest::utils::{
-    base_account::{approve_service, create_base_accounts},
+    base_account::{approve_library, create_base_accounts},
     GAS_FLAGS, LOGS_FILE_PATH, NTRN_DENOM, VALENCE_ARTIFACTS_PATH,
 };
 use localic_std::modules::{
@@ -19,10 +19,10 @@ use localic_utils::{
 };
 use log::info;
 
-use valence_generic_ibc_transfer_service::msg::{
-    ActionMsgs, IbcTransferAmount, ServiceConfig, ServiceConfigUpdate,
+use valence_generic_ibc_transfer_library::msg::{
+    FunctionMsgs, IbcTransferAmount, LibraryConfig, LibraryConfigUpdate,
 };
-use valence_service_utils::{denoms::UncheckedDenom, ServiceAccountType};
+use valence_library_utils::{denoms::UncheckedDenom, LibraryAccountType};
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -63,7 +63,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .get("valence_base_account")
         .unwrap();
 
-    // Create 1 base accounts on Juno, to be the input account for the IBC transfer service
+    // Create 1 base accounts on Juno, to be the input account for the IBC transfer library
     let base_accounts = create_base_accounts(
         &mut test_ctx,
         DEFAULT_KEY,
@@ -72,6 +72,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         JUNO_CHAIN_ADMIN_ADDR.to_string(),
         vec![],
         1,
+        None,
     );
     let input_account = base_accounts[0].clone();
     info!("Input account: {:?}", input_account);
@@ -98,7 +99,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     .map_or(0, |bal| bal.amount.u128());
     info!("Start input balance: {:?}", start_input_balance);
 
-    // We need a normal account on Neutron to be the output account for the IBC transfer service
+    // We need a normal account on Neutron to be the output account for the IBC transfer library
     let output_account = test_ctx.get_chain(NEUTRON_CHAIN_NAME).admin_addr.clone();
     info!("Output account: {:?}", output_account);
 
@@ -113,36 +114,36 @@ fn main() -> Result<(), Box<dyn Error>> {
     .map_or(0, |bal| bal.amount.u128());
     info!("Start output balance: {:?}", start_output_balance);
 
-    info!("Prepare the IBC transfer service contract");
-    let ibc_transfer_svc_contract_path = format!(
-        "{}/artifacts/valence_generic_ibc_transfer_service.wasm",
+    info!("Prepare the IBC transfer library contract");
+    let ibc_transfer_lib_contract_path = format!(
+        "{}/artifacts/valence_generic_ibc_transfer_library.wasm",
         current_dir.display()
     );
 
     let mut uploader = test_ctx.build_tx_upload_contracts();
     uploader
         .with_chain_name(JUNO_CHAIN_NAME)
-        .send_single_contract(&ibc_transfer_svc_contract_path)?;
+        .send_single_contract(&ibc_transfer_lib_contract_path)?;
 
     // Get the code id
-    let code_id_ibc_transfer_svc = *test_ctx
+    let code_id_ibc_transfer_lib = *test_ctx
         .get_chain(JUNO_CHAIN_NAME)
         .contract_codes
-        .get("valence_generic_ibc_transfer_service")
+        .get("valence_generic_ibc_transfer_library")
         .unwrap();
 
-    info!("Creating IBC transfer service contract");
+    info!("Creating IBC transfer library contract");
     let transfer_amount = 1_000_000_000u128;
-    let ibc_transfer_instantiate_msg = valence_service_utils::msg::InstantiateMsg::<ServiceConfig> {
+    let ibc_transfer_instantiate_msg = valence_library_utils::msg::InstantiateMsg::<LibraryConfig> {
         owner: JUNO_CHAIN_ADMIN_ADDR.to_string(),
         processor: JUNO_CHAIN_ADMIN_ADDR.to_string(),
-        config: ServiceConfig::new(
-            ServiceAccountType::Addr(input_account.clone()),
+        config: LibraryConfig::new(
+            LibraryAccountType::Addr(input_account.clone()),
             output_account.clone(),
             UncheckedDenom::Native(neutron_on_juno_denom.to_string()),
             IbcTransferAmount::FixedAmount(transfer_amount.into()),
             "".to_owned(),
-            valence_generic_ibc_transfer_service::msg::RemoteChainInfo {
+            valence_generic_ibc_transfer_library::msg::RemoteChainInfo {
                 channel_id: test_ctx
                     .get_transfer_channels()
                     .src(JUNO_CHAIN_NAME)
@@ -162,7 +163,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .get_request_builder()
             .get_request_builder(JUNO_CHAIN_NAME),
         DEFAULT_KEY,
-        code_id_ibc_transfer_svc,
+        code_id_ibc_transfer_lib,
         &serde_json::to_string(&ibc_transfer_instantiate_msg).unwrap(),
         "ibc_transfer",
         None,
@@ -170,20 +171,22 @@ fn main() -> Result<(), Box<dyn Error>> {
     )
     .unwrap();
 
-    info!("IBC Transfer service: {}", ibc_transfer.address.clone());
+    info!("IBC Transfer library: {}", ibc_transfer.address.clone());
 
-    // Approve the services for the base account
-    approve_service(
+    // Approve the library for the base account
+    approve_library(
         &mut test_ctx,
         JUNO_CHAIN_NAME,
         DEFAULT_KEY,
         &input_account,
         ibc_transfer.address.clone(),
+        None,
     );
 
     info!("Initiate IBC transfer");
-    let ibc_transfer_msg =
-        &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(ActionMsgs::IbcTransfer {});
+    let ibc_transfer_msg = &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+        FunctionMsgs::IbcTransfer {},
+    );
 
     contract_execute(
         test_ctx
@@ -196,7 +199,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     )
     .unwrap();
 
-    info!("Messages sent to the IBC Transfer service!");
+    info!("Messages sent to the IBC Transfer library!");
     std::thread::sleep(std::time::Duration::from_secs(10));
 
     info!("Verifying balances...");
@@ -226,8 +229,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     // Update config to transfer the input account's full remaining balance
-    info!("Update service configuration...");
-    let new_config = valence_neutron_ibc_transfer_service::msg::ServiceConfigUpdate {
+    info!("Update library configuration...");
+    let new_config = valence_neutron_ibc_transfer_library::msg::LibraryConfigUpdate {
         input_addr: None,
         output_addr: None,
         denom: None,
@@ -237,7 +240,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         denom_to_pfm_map: None,
     };
     let upd_cfg_msg =
-        valence_service_utils::msg::ExecuteMsg::<ActionMsgs, ServiceConfigUpdate>::UpdateConfig {
+        valence_library_utils::msg::ExecuteMsg::<FunctionMsgs, LibraryConfigUpdate>::UpdateConfig {
             new_config,
         };
     contract_execute(
@@ -253,8 +256,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(std::time::Duration::from_secs(10));
 
     info!("Initiate IBC transfer");
-    let ibc_transfer_msg =
-        &valence_service_utils::msg::ExecuteMsg::<_, ()>::ProcessAction(ActionMsgs::IbcTransfer {});
+    let ibc_transfer_msg = &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+        FunctionMsgs::IbcTransfer {},
+    );
 
     contract_execute(
         test_ctx
@@ -267,7 +271,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     )
     .unwrap();
 
-    info!("Messages sent to the IBC Transfer service!");
+    info!("Messages sent to the IBC Transfer library!");
     std::thread::sleep(std::time::Duration::from_secs(10));
 
     info!("Verifying balances...");

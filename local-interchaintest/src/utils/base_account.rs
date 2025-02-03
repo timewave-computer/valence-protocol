@@ -1,18 +1,21 @@
+use cosmwasm_std::Coin;
 use localic_std::modules::cosmwasm::{contract_execute, contract_instantiate};
 use localic_utils::utils::test_context::TestContext;
 use log::info;
 
 use crate::utils::GAS_FLAGS;
 
-/// Creates valence base accounts on a specific chain for our services and returns their contract address
+#[allow(clippy::too_many_arguments)]
+/// Creates valence base accounts on a specific chain for our libraries and returns their contract address
 pub fn create_base_accounts(
     test_ctx: &mut TestContext,
     key: &str,
     chain_name: &str,
     code_id: u64,
     admin: String,
-    approved_services: Vec<String>,
+    approved_libraries: Vec<String>,
     num_accounts: u64,
+    fees: Option<Coin>,
 ) -> Vec<String> {
     info!(
         "Creating {} base accounts on {}...",
@@ -20,7 +23,12 @@ pub fn create_base_accounts(
     );
     let instantiate_msg = valence_account_utils::msg::InstantiateMsg {
         admin,
-        approved_services,
+        approved_libraries,
+    };
+    let flags = if let Some(fees) = fees {
+        format!("--fees {}{}", fees.amount, fees.denom)
+    } else {
+        "".to_string()
     };
     let mut accounts = Vec::new();
     for _ in 0..num_accounts {
@@ -33,7 +41,7 @@ pub fn create_base_accounts(
             &serde_json::to_string(&instantiate_msg).unwrap(),
             "valence_base_account",
             None,
-            "",
+            &flags,
         )
         .unwrap();
 
@@ -43,16 +51,17 @@ pub fn create_base_accounts(
     accounts
 }
 
-/// Approve a service for a base account
-pub fn approve_service(
+/// Approve a library for a base account
+pub fn approve_library(
     test_ctx: &mut TestContext,
     chain_name: &str,
     key: &str,
     base_account: &str,
-    service: String,
+    library: String,
+    flags: Option<String>,
 ) {
-    let approve_msg = valence_account_utils::msg::ExecuteMsg::ApproveService {
-        service: service.clone(),
+    let approve_msg = valence_account_utils::msg::ExecuteMsg::ApproveLibrary {
+        library: library.clone(),
     };
     contract_execute(
         test_ctx
@@ -61,13 +70,24 @@ pub fn approve_service(
         base_account,
         key,
         &serde_json::to_string(&approve_msg).unwrap(),
-        GAS_FLAGS,
+        &format!(
+            "{}{}",
+            GAS_FLAGS,
+            flags
+                .map(|mut s| {
+                    if !s.starts_with(' ') {
+                        s.insert(0, ' ');
+                    }
+                    s
+                })
+                .unwrap_or_default()
+        ),
     )
     .unwrap();
 
     info!(
-        "Approved service {} for base account {}",
-        service, base_account
+        "Approved library {} for base account {}",
+        library, base_account
     );
     std::thread::sleep(std::time::Duration::from_secs(2));
 }

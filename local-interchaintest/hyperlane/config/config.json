@@ -1,0 +1,94 @@
+{
+  "chains": {
+    "ethereum": {
+      "blocks": {
+        "confirmations": 0,
+        "estimateBlockTime": 1,
+        "reorgPeriod": 0
+      },
+      "chainId": 1,
+      "deployer": {
+        "name": "Abacus Works",
+        "url": "https://www.hyperlane.xyz"
+      },
+      "displayName": "Ethereum",
+      "domainId": 1,
+      "gasCurrencyCoinGeckoId": "ethereum",
+      "interchainGasPaymaster": "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318",
+      "mailbox": "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853",
+      "merkleTreeHook": "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6",
+      "name": "ethereum",
+      "nativeToken": {
+        "decimals": 18,
+        "name": "Ether",
+        "symbol": "ETH"
+      },
+      "protocol": "ethereum",
+      "rpcUrls": [
+        {
+          "http": "http://anvil:8545"
+        }
+      ],
+      "technicalStack": "other",
+      "validatorAnnounce": "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e"
+    },
+    "neutron": {
+      "bech32Prefix": "neutron",
+      "blocks": {
+        "confirmations": 1,
+        "estimateBlockTime": 3,
+        "reorgPeriod": 1
+      },
+      "canonicalAsset": "untrn",
+      "chainId": "localneutron-1",
+      "contractAddressBytes": 32,
+      "deployer": {
+        "name": "Abacus Works",
+        "url": "https://www.hyperlane.xyz"
+      },
+      "displayName": "Neutron",
+      "domainId": 1853125230,
+      "gasCurrencyCoinGeckoId": "neutron-3",
+      "gasPrice": {
+        "amount": "0.0075",
+        "denom": "untrn"
+      },
+      "grpcUrls": [
+        {
+          "http": "http://localneutron-1-val-0-neutronic:9090"
+        }
+      ],
+      "interchainGasPaymaster": "0x3aa694d56bdb2179e892f8254c0ba14e3ac2d635fa80211fbdba68134c8d8c57",
+      "isTestnet": false,
+      "mailbox": "0xb48e03a141dde7d46d39084b2b950adb7be409afdd04d03e0f3f3ecee0f8b55a",
+      "merkleTreeHook": "0xe05fe6e172071b54ce1ea6261cc87548f725b5a286dc8c597f219b5166d77670",
+      "name": "neutron",
+      "nativeToken": {
+        "decimals": 6,
+        "denom": "untrn",
+        "name": "Neutron",
+        "symbol": "NTRN"
+      },
+      "protocol": "cosmos",
+      "restUrls": [
+        {
+          "http": "http://localneutron-1-val-0-neutronic:1317"
+        }
+      ],
+      "rpcUrls": [
+        {
+          "http": "http://localneutron-1-val-0-neutronic:26657"
+        }
+      ],
+      "signer": {
+        "key": "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6",
+        "prefix": "neutron",
+        "type": "cosmosKey"
+      },
+      "slip44": 118,
+      "technicalStack": "other",
+      "validatorAnnounce": "0x9ba7993a0d082cbe4197382e6cd3a380a726d3b06bb8bdf4459d0180fe2dc6ef"
+    }
+  },
+  "defaultRpcConsensusType": "fallback"
+}

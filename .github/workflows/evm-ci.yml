@@ -1,0 +1,65 @@
+name: Solidity Contracts
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  FOUNDRY_PROFILE: ci
+
+jobs:
+  check:
+    strategy:
+      fail-fast: true
+
+    name: solidity contracts
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./solidity
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Show Forge version
+        run: |
+          forge --version
+
+      - name: Run Forge fmt
+        run: |
+          forge fmt --check
+        id: fmt
+
+      - name: Run Forge soldeer install
+        run: |
+          forge soldeer install
+        id: soldeer
+
+      - name: Run Forge build
+        run: |
+          forge build --sizes
+        id: build
+
+      - name: Run Forge tests
+        run: |
+          forge test -vvv
+        id: test
+
+      # Add this step to upload artifacts for other CI workflows
+      - name: Upload Forge artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: forge-artifacts
+          path: ./solidity/out/
