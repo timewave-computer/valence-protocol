@@ -69,8 +69,7 @@ pub fn convert_into_encoder_messages(
                     .get_function_by_index(index)
                     .ok_or_else(|| StdError::generic_err("Function index not found"))?;
 
-                let MessageType::EVMCall(_, lib) = &function.message_details().message_type
-                else {
+                let MessageType::EVMCall(_, lib) = &function.message_details().message_type else {
                     return Err(StdError::generic_err("Invalid message type"));
                 };
 

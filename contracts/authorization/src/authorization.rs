@@ -150,8 +150,8 @@ impl Validate for Authorization {
         func: &T,
         external_domain: &Option<ExternalDomain>,
     ) -> Result<(), ContractError> {
-        if let Some(domain) = external_domain {
-            match domain.execution_environment {
+        match external_domain {
+            Some(domain) => match domain.execution_environment {
                 ExecutionEnvironment::Cosmwasm(_) => {
                     if !matches!(
                         func.message_details().message_type,
@@ -172,15 +172,16 @@ impl Validate for Authorization {
                         ));
                     }
                 }
-            }
-        } else {
-            // We are on Main Domain so only Cosmwasm messages are allowed
-            match func.message_details().message_type {
-                MessageType::CosmwasmExecuteMsg | MessageType::CosmwasmMigrateMsg => (),
-                _ => {
-                    return Err(ContractError::Authorization(
-                        AuthorizationErrorReason::InvalidMessageType {},
-                    ));
+            },
+            None => {
+                // We are on Main Domain so only Cosmwasm messages are allowed
+                match func.message_details().message_type {
+                    MessageType::CosmwasmExecuteMsg | MessageType::CosmwasmMigrateMsg => (),
+                    _ => {
+                        return Err(ContractError::Authorization(
+                            AuthorizationErrorReason::InvalidMessageType {},
+                        ));
+                    }
                 }
             }
         }
@@ -196,9 +197,7 @@ impl Validate for Authorization {
         querier: &QuerierWrapper,
     ) -> Result<(), ContractError> {
         // If it's a EVM call, the library must be a valid library on the encoder
-        if let MessageType::EVMCall(encoder, library_name) =
-            &func.message_details().message_type
-        {
+        if let MessageType::EVMCall(encoder, library_name) = &func.message_details().message_type {
             let exists: bool = querier.query_wasm_smart(
                 encoder.broker_address.clone(),
                 &EncoderBrokerQueryMsg::IsValidLibrary {

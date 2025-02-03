@@ -283,13 +283,8 @@ impl PartialEq<MessageType> for ProcessorMessage {
             ) | (
                 ProcessorMessage::CosmwasmMigrateMsg { .. },
                 MessageType::CosmwasmMigrateMsg
-            ) | (
-                ProcessorMessage::EVMCall { .. },
-                MessageType::EVMCall(..)
-            ) | (
-                ProcessorMessage::EVMRawCall { .. },
-                MessageType::EVMRawCall
-            )
+            ) | (ProcessorMessage::EVMCall { .. }, MessageType::EVMCall(..))
+                | (ProcessorMessage::EVMRawCall { .. }, MessageType::EVMRawCall)
         )
     }
 }
