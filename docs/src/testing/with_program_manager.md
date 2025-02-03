@@ -213,7 +213,7 @@ Congratulations! The program is now initialized across the two chains!
 After the initialization, we are ready to start processing  messages. For a message to be executed, it first needs to be enqueued to the processor.
 
 #### 2.1 Providing Liquidity
-If there are tokens available in the CL Input account, we are ready provide liquidity. To enqueue provide liquidity message:
+If there are tokens available in the CL Input account, we are ready to provide liquidity. To enqueue provide liquidity message:
 ```rust
 // build the processor message for providing liquidity
 let lp_message = ProcessorMessage::CosmwasmExecuteMsg {
