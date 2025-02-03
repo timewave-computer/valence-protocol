@@ -321,4 +321,4 @@ contract_execute(
     ),
 )?;
 ```
-This concludes the walkthrough. You have now initialized the program used it to provide and withdraw liquidity on Osmosis from Neutron!
+This concludes the walkthrough. You have now initialized the program and used it to provide and withdraw liquidity on Osmosis from Neutron!
