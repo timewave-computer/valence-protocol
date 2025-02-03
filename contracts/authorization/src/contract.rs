@@ -1117,6 +1117,7 @@ fn process_polytone_callback(
         .add_attribute("action", "process_polytone_callback"))
 }
 
+// HandleMsg is sent by the mailbox, and it contains the callback from the processor in the `body` field of the Msg
 fn process_hyperlane_callback(
     deps: DepsMut,
     _env: Env,
