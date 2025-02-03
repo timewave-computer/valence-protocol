@@ -75,7 +75,7 @@ contract BaseAccountTest is Test {
         assertFalse(account.approvedLibraries(library1));
     }
 
-    function testFail_NonOwnerLibraryManagement() public {
+    function testRevert_NonOwnerLibraryManagement() public {
         vm.prank(library1);
         account.approveLibrary(library2);
     }
@@ -145,14 +145,14 @@ contract BaseAccountTest is Test {
         assertEq(target.getBalance(), transferAmount);
     }
 
-    function testFail_ExecuteFromNonApprovedLibrary() public {
+    function testRevert_ExecuteFromNonApprovedLibrary() public {
         bytes memory callData = abi.encodeWithSelector(TestTarget.setValue.selector, 123);
 
         vm.prank(library2);
         account.execute(address(target), 0, callData);
     }
 
-    function testFail_ExecuteWithInsufficientBalance() public {
+    function testRevert_ExecuteWithInsufficientBalance() public {
         // Try to send 1 ETH when account has 0 balance
         vm.prank(library1);
         account.execute(address(target), 1 ether, "");
