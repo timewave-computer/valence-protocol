@@ -14,8 +14,8 @@ pub enum MessageType {
     CosmwasmExecuteMsg,
     CosmwasmMigrateMsg,
     // Provide the EncoderInfo and the LibraryName that we want to encode the message into
-    SolidityCall(EncoderInfo, String),
-    SolidityRawCall,
+    EVMCall(EncoderInfo, String),
+    EVMRawCall,
 }
 
 #[cw_serde]
@@ -33,7 +33,7 @@ pub enum ParamRestriction {
     MustBeIncluded(Vec<String>),
     CannotBeIncluded(Vec<String>),
     MustBeValue(Vec<String>, Binary),
-    // Used when we are passing the raw bytes to be executed in another domain, e.g. ABI encoded bytes for Solidity
+    // Used when we are passing the raw bytes to be executed in another domain, e.g. ABI encoded bytes for EVM
     // This will restrict that the bytes passed are restricted to this value.
     MustBeBytes(Binary),
 }

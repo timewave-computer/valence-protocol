@@ -32,7 +32,7 @@ pub trait Validate {
         func: &T,
         external_domain: &Option<ExternalDomain>,
     ) -> Result<(), ContractError>;
-    fn validate_solidity_library<T: Function>(
+    fn validate_evm_library<T: Function>(
         &self,
         func: &T,
         querier: &QuerierWrapper,
@@ -97,7 +97,7 @@ impl Validate for Authorization {
     /// - Functions exist
     /// - Domain consistency and registration
     /// - Message type compatibility
-    /// - Library validity for Solidity calls
+    /// - Library validity for EVM calls
     /// - Parameter restrictions
     fn validate_functions<T: Function>(
         &self,
@@ -124,7 +124,7 @@ impl Validate for Authorization {
         for func in functions {
             self.validate_domain(func, domain)?;
             self.validate_message_type(func, &external_domain)?;
-            self.validate_solidity_library(func, &querier)?;
+            self.validate_evm_library(func, &querier)?;
             self.validate_param_restrictions(func)?;
         }
         Ok(())
@@ -143,7 +143,7 @@ impl Validate for Authorization {
 
     /// Validates message type compatibility with execution environment:
     /// - Cosmwasm: Only CosmwasmExecuteMsg/MigrateMsg allowed
-    /// - EVM: Only SolidityRawCall/SolidityCall allowed
+    /// - EVM: Only EVMRawCall/EVMCall allowed
     /// - Main domain: Only CosmwasmExecuteMsg/MigrateMsg allowed
     fn validate_message_type<T: Function>(
         &self,
@@ -165,7 +165,7 @@ impl Validate for Authorization {
                 ExecutionEnvironment::Evm(_, _) => {
                     if !matches!(
                         func.message_details().message_type,
-                        MessageType::SolidityRawCall | MessageType::SolidityCall(_, _)
+                        MessageType::EVMRawCall | MessageType::EVMCall(_, _)
                     ) {
                         return Err(ContractError::Authorization(
                             AuthorizationErrorReason::InvalidMessageType {},
@@ -188,15 +188,15 @@ impl Validate for Authorization {
         Ok(())
     }
 
-    /// For SolidityCall messages:
+    /// For EVMCall messages:
     /// - Verifies library exists in encoder by querying the encoder broker
-    fn validate_solidity_library<T: Function>(
+    fn validate_evm_library<T: Function>(
         &self,
         func: &T,
         querier: &QuerierWrapper,
     ) -> Result<(), ContractError> {
-        // If it's a solidity call, the library must be a valid library on the encoder
-        if let MessageType::SolidityCall(encoder, library_name) =
+        // If it's a EVM call, the library must be a valid library on the encoder
+        if let MessageType::EVMCall(encoder, library_name) =
             &func.message_details().message_type
         {
             let exists: bool = querier.query_wasm_smart(
@@ -216,7 +216,7 @@ impl Validate for Authorization {
     }
 
     /// Validates parameter restrictions:
-    /// - SolidityRawCall: Only MustBeBytes restrictions allowed (maximum 1)
+    /// - EVMRawCall: Only MustBeBytes restrictions allowed (maximum 1)
     /// - Other messages: Cannot have MustBeBytes restrictions
     fn validate_param_restrictions<T: Function>(&self, func: &T) -> Result<(), ContractError> {
         let details = func.message_details();
@@ -226,7 +226,7 @@ impl Validate for Authorization {
         };
 
         match details.message_type {
-            MessageType::SolidityRawCall => {
+            MessageType::EVMRawCall => {
                 if restrictions.len() > 1
                     || (restrictions.len() == 1
                         && !matches!(restrictions[0], ParamRestriction::MustBeBytes(_)))
@@ -351,7 +351,7 @@ impl Validate for Authorization {
             match each_message {
                 ProcessorMessage::CosmwasmExecuteMsg { .. }
                 | ProcessorMessage::CosmwasmMigrateMsg { .. }
-                | ProcessorMessage::SolidityCall { .. } => {
+                | ProcessorMessage::EVMCall { .. } => {
                     // Extract the json from each message
                     let json: Value = serde_json::from_slice(msg.as_slice()).map_err(|e| {
                         ContractError::InvalidJson {
@@ -383,7 +383,7 @@ impl Validate for Authorization {
                         }
                     }
                 }
-                ProcessorMessage::SolidityRawCall { .. } => {
+                ProcessorMessage::EVMRawCall { .. } => {
                     // Check that all the Parameter restrictions are met
                     if let Some(param_restrictions) =
                         &each_function.message_details().message.params_restrictions

@@ -269,8 +269,8 @@ pub enum InternalAuthorizationMsg {
 pub enum ProcessorMessage {
     CosmwasmExecuteMsg { msg: Binary },
     CosmwasmMigrateMsg { code_id: u64, msg: Binary },
-    SolidityCall { msg: Binary },
-    SolidityRawCall { msg: Binary },
+    EVMCall { msg: Binary },
+    EVMRawCall { msg: Binary },
 }
 
 impl PartialEq<MessageType> for ProcessorMessage {
@@ -284,11 +284,11 @@ impl PartialEq<MessageType> for ProcessorMessage {
                 ProcessorMessage::CosmwasmMigrateMsg { .. },
                 MessageType::CosmwasmMigrateMsg
             ) | (
-                ProcessorMessage::SolidityCall { .. },
-                MessageType::SolidityCall(..)
+                ProcessorMessage::EVMCall { .. },
+                MessageType::EVMCall(..)
             ) | (
-                ProcessorMessage::SolidityRawCall { .. },
-                MessageType::SolidityRawCall
+                ProcessorMessage::EVMRawCall { .. },
+                MessageType::EVMRawCall
             )
         )
     }
@@ -299,8 +299,8 @@ impl ProcessorMessage {
         match self {
             ProcessorMessage::CosmwasmExecuteMsg { msg } => msg,
             ProcessorMessage::CosmwasmMigrateMsg { msg, .. } => msg,
-            ProcessorMessage::SolidityCall { msg } => msg,
-            ProcessorMessage::SolidityRawCall { msg } => msg,
+            ProcessorMessage::EVMCall { msg } => msg,
+            ProcessorMessage::EVMRawCall { msg } => msg,
         }
     }
 
@@ -308,8 +308,8 @@ impl ProcessorMessage {
         match self {
             ProcessorMessage::CosmwasmExecuteMsg { msg: msg_ref } => *msg_ref = msg,
             ProcessorMessage::CosmwasmMigrateMsg { msg: msg_ref, .. } => *msg_ref = msg,
-            ProcessorMessage::SolidityCall { msg: msg_ref } => *msg_ref = msg,
-            ProcessorMessage::SolidityRawCall { msg: msg_ref } => *msg_ref = msg,
+            ProcessorMessage::EVMCall { msg: msg_ref } => *msg_ref = msg,
+            ProcessorMessage::EVMRawCall { msg: msg_ref } => *msg_ref = msg,
         }
     }
 
@@ -325,7 +325,7 @@ impl ProcessorMessage {
                 new_code_id: *code_id,
                 msg: msg.clone(),
             }),
-            ProcessorMessage::SolidityCall { .. } | ProcessorMessage::SolidityRawCall { .. } => {
+            ProcessorMessage::EVMCall { .. } | ProcessorMessage::EVMRawCall { .. } => {
                 Err(StdError::generic_err("Msg type not supported"))
             }
         }
