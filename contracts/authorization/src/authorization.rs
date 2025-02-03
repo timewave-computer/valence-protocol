@@ -20,6 +20,11 @@ use crate::{
 
 pub trait Validate {
     fn validate(&self, store: &dyn Storage, querier: QuerierWrapper) -> Result<(), ContractError>;
+    fn validate_subroutine(
+        &self,
+        store: &dyn Storage,
+        querier: QuerierWrapper,
+    ) -> Result<(), ContractError>;
     fn validate_functions<T: Function>(
         &self,
         store: &dyn Storage,
@@ -71,14 +76,8 @@ impl Validate for Authorization {
             ));
         }
 
-        match &self.subroutine {
-            Subroutine::Atomic(config) => {
-                self.validate_functions(store, &config.functions, querier)?
-            }
-            Subroutine::NonAtomic(config) => {
-                self.validate_functions(store, &config.functions, querier)?
-            }
-        }
+        // Validate subroutine
+        self.validate_subroutine(store, querier)?;
 
         // If an authorization is permissionless, it can't have high priority
         if self.mode.eq(&AuthorizationMode::Permissionless)
@@ -89,6 +88,22 @@ impl Validate for Authorization {
             ));
         }
 
+        Ok(())
+    }
+
+    fn validate_subroutine(
+        &self,
+        store: &dyn Storage,
+        querier: QuerierWrapper,
+    ) -> Result<(), ContractError> {
+        match &self.subroutine {
+            Subroutine::Atomic(config) => {
+                self.validate_functions(store, &config.functions, querier)?
+            }
+            Subroutine::NonAtomic(config) => {
+                self.validate_functions(store, &config.functions, querier)?
+            }
+        }
         Ok(())
     }
 
