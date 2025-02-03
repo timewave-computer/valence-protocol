@@ -1,8 +1,8 @@
 # Example without Program Manager
 
-This example demonstrates how to test your program without the Program Manager after your initial testing set up has been done as described in the [Initial Testing Set Up](./setup.md) section.
+This example demonstrates how to test your program without the Program Manager after your initial testing set up has been completed as described in the [Initial Testing Set Up](./setup.md) section.
 
-**Use-case**: In this particular example, we will show you how to create a program that liquid stakes NTRN tokens on a Persistence chain directly from a base account without the need of using libraries. Note: this example is just for demonstrating purposes. In a real-world scenario, you would not liquid stake NTRN. We also are not using a liquid staking library for this example, although one could be creating for this purpose.
+> **Use-case**: In this particular example, we will show you how to create a program that liquid stakes NTRN tokens on a Persistence chain directly from a base account without the need of using libraries. Note that this example is just for demonstrating purposes. In a real-world scenario, you would not liquid stake NTRN as it is not a staking token. We also are not using a liquid staking library for this example, although one could be creating for this purpose.
 
 The full code for this example can be found in the [Persistence Liquid Staking example](https://github.com/timewave-computer/valence-protocol/blob/main/local-interchaintest/examples/persistence_ls.rs).
 
@@ -37,10 +37,9 @@ This code sets up the authorization contract and processor on Neutron. We use a 
     )?;
 ```
 
-This function does a lot of things:
-
-- Instantiates all the polytone contracts on both the main domain and the new external domain. The information of the external domain is provided in the function arguments.
-- Creates a channel between the polytone contracts that the relayer will use to relay messages between the authorization contract and the processor.
+This function does the following:
+- Instantiates all the Polytone contracts on both the main domain and the new external domain. The information of the external domain is provided in the function arguments.
+- Creates a channel between the Polytone contracts that the relayer will use to relay messages between the authorization contract and the processor.
 - Instantiates the Processor contract on the external domain with the correct Polytone information and the authorization contract address.
 - Adds the external domain to authorization contract with the Polytone information and the processor address on the external domain.
 

@@ -1,13 +1,60 @@
 # Example with Program Manager
+This example demonstrates how to test your program using the Program Manager after your initial testing set up has been completed as described in the [Initial Testing Set Up](./setup.md) section.
 
-This example demonstrates how to test your program using the Program Manager after your
-initial testing set up has been done as described in the [Initial Testing Set Up](./setup.md) section.
+> **Use-case:** This example outlines the steps needed to create a program that provides and withdraws liquidity from an Osmosis Concentrated Liquidity pool using two library contracts: a CL Liquidity Provider and a CL Liquidity Withdrawer.
 
-**Use-case**: this example outlines the steps needed to create a program that provides and withdraws liquidity from an Osmosis Concentrated Liquidity pool using two library contracts - a CL Liquidity Provider and a CL Liquidity Withdrawer.
+## Prerequisites
+Before proceeding, ensure you have:
+- A basic understanding of Osmosis, Neutron, CosmWasm, and Valence
+- Completed the initial testing setup as described in the setup section
+- Installed all necessary dependencies and have a working development environment
 
-Full code for this example can be found in the [Osmosis Concentrated Liquidity example](https://github.com/timewave-computer/valence-protocol/blob/main/local-interchaintest/examples/osmo_cl.rs).
+## Solution Overview
+Full working code for this example can be found in the [Osmosis Concentrated Liquidity example](https://github.com/timewave-computer/valence-protocol/blob/main/local-interchaintest/examples/osmo_cl.rs).
 
-1. Set up the Concentrated Liquidity pool on Osmosis
+Our solution includes the following:
+- We create three accounts on Osmosis
+    - CL Input holds tokens ready to join the pool
+    - CL Output holds the position of the pool
+    - Final Output holds tokens after they've been withdrawn from the pool
+- We instantiate the Concentrated Liquidity Provider and Concentrated Liquidity Withdrawer libraries on Osmosis
+    - The Liquidity Provider library will draw tokens from the CL Input account and use them to enter the pool
+    - The Liquidity Withdrawer library will exit the pool from the position held in the CL Output account and deposit redeemed tokens to the Final Output account
+- We add two permissionless authorizations on Neutron:
+    - Provide Liquidity: When executed, it'll call the the provide liquidity function
+    - Withdraw Liquidity: When executed, it'll call the withdraw liquidity function
+
+The following is a visual representation of the system we are building:
+
+```mermaid
+graph TD;
+    subgraph Osmosis
+        A1((CL Input))
+        A2((CL Output))
+        A3((Final Output))
+        L1[Liquidity Provider]
+        L2[Liquidity Withdrawer]
+        EP[Processor]
+    end
+
+    subgraph Neutron
+        A[Authorizations]
+        MP[Processor]
+    end
+
+    A1 --> L1 --> A2
+    A2 --> L2 --> A3
+
+    User --Execute Msg--> A --Enqueue Batch --> EP
+    EP --> L1
+    EP --> L2
+```
+## Code walkthrough
+Before we begin, we set up the `TestContext` as explained in the previous [setup section](setup.md). Then we can move on to steps pertinent to testing this example.
+
+### 1. Setting up the program
+
+#### 1.1 Set up the Concentrated Liquidity pool on Osmosis
 
 ```rust
 let ntrn_on_osmo_denom = test_ctx
@@ -21,10 +68,11 @@ let pool_id = setup_cl_pool(&mut test_ctx, &ntrn_on_osmo_denom, OSMOSIS_CHAIN_DE
 ```
 
 This sets up a CL pool on Osmosis using NTRN and OSMO as the trading pair.
-Because NTRN on Osmosis will be transferred over IBC, a helper function is used
-to get the correct denom.
+Because NTRN on Osmosis will be transferred over IBC, a helper function is used to get the correct denom on Osmosis.
 
-2. Set up the Program config builder and prepare the relevant accounts
+#### 1.2 Set up the Program config builder and prepare the relevant accounts
+
+The Program Manager uses a builder pattern to construct the program configuration. We set up the three accounts that will be used in the liquidity provision and withdrawal flow.
 
 ```rust
 let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
@@ -42,11 +90,13 @@ let cl_output_acc = builder.add_account(cl_output_acc_info);
 let final_output_acc = builder.add_account(final_output_acc_info);
 ```
 
-The Program Manager uses a builder pattern to construct the program configuration.
+#### 1.3 Configure the libraries
 
-Here we set up three accounts that will be used in the liquidity provision and withdrawal flow.
+Next we configure the libraries for providing and withdrawing liquidity. Each library is configured with input and output accounts and specific parameters for their operation.
 
-3. Configure the libraries
+Note how `cl_output_acc` serves a different purpose for each of those libraries:
+- for liquidity provider library it is the output account
+- for liquidity withdrawer library it is the input account
 
 ```rust
 // Configure Liquidity Provider library
@@ -85,16 +135,8 @@ let cl_lwer_library = builder.add_library(LibraryInfo::new(
 ));
 ```
 
-Here we configure two libraries: one for providing liquidity and another for withdrawing it.
-
-Each library is configured with input and output accounts and specific parameters for their operation.
-
-Note how `cl_output_acc` serves a different purpose for each of those libraries:
-- for liquidity provider library it is the output account
-- for liquidity withdrawer library it is the input account
-
-
-4. Create links between accounts and libraries
+#### 1.4 Create links between accounts and libraries
+Input links (first array in the `add_link()` call) are meant to enable libraries permission to execute on the specified accounts. Output links specify where the fungible results of a given function execution should be routed to.
 
 ```rust
 // Link input account -> liquidity provider -> output account
@@ -103,11 +145,8 @@ builder.add_link(&cl_lper_library, vec![&cl_input_acc], vec![&cl_output_acc]);
 builder.add_link(&cl_lwer_library, vec![&cl_output_acc], vec![&final_output_acc]);
 ```
 
-Input links (first array in the `add_link()` call) are meant to enable execution permissions
-on the specified accounts.
-Output links specify where the fungible results of a given function execution should be routed to.
-
-5. Create authorizations
+#### 1.5 Create authorizations
+Next we create authorizations for both providing and withdrawing liquidity. Each authorization contains a subroutine that specifies which function to call on which library. By default, calling these subroutines will be permissionless, however using the `AuthorizationBuilder` we can constrain the authorizations as necessary.
 
 ```rust
 builder.add_authorization(
@@ -133,11 +172,16 @@ builder.add_authorization(
 );
 ```
 
-Here we create authorizations for both providing and withdrawing liquidity.
+#### 1.6 Set up the Polytone connections
+In order for cross-domain Programs to be able to communicate between
+different domains, we instantiate the Polytone contracts and save the
+configuration in our Program Manager.
 
-Each authorization contains a subroutine that specifies which function to call on which library.
+`setup_polytone` sets up the connection between two domains and therefore expects the following parameters:
 
-6. Set up the Polytone connections
+- source and destination chain names
+- source and destination chain ids
+- source and destination chain native denoms
 
 ```rust
 // prior to initializing the manager, we do the middleware plumbing
@@ -151,33 +195,25 @@ setup_polytone(
     OSMOSIS_CHAIN_DENOM,
 )?;
 ```
+#### 1.7 Initialize the program
 
-In order for cross-domain Programs to be able to communicate between
-different domains, we instantiate the Polytone contracts and save the
-configuration in our Program Manager.
+Calling `builder.build()` here acts as a snapshot of the existing builder state.
 
-`setup_polytone` sets up the connection between two domains and therefore expects the following parameters:
-
-- source and destination chain names
-- source and destination chain ids
-- source and destination chain native denoms
-
-7. Initialize the program
+That state is then passed on to the `use_manager_init()` call, which consumes it and builds the final program configuration before initializing it.
 
 ```rust
 let mut program_config = builder.build();
 use_manager_init(&mut program_config)?;
 ```
 
-Calling `builder.build()` here acts as a snapshot of the existing builder state.
+Congratulations! The program is now initialized across the two chains!
 
-That state is then passed on to the `use_manager_init()` call, which consumes it and builds the final program configuration before initializing it.
+### 2. Executing the Program
 
-8. Execute operations
+After the initialization, we are ready to start processing  messages. For a message to be executed, it first needs to be enqueued to the processor.
 
-After the initialization, we are ready to start processing the messages. For a message to be executed, it first needs to be enqueued to the processor.
-
-To enqueue provide liquidity message:
+#### 2.1 Providing Liquidity
+If there are tokens available in the CL Input account, we are ready provide liquidity. To enqueue provide liquidity message:
 ```rust
 // build the processor message for providing liquidity
 let lp_message = ProcessorMessage::CosmwasmExecuteMsg {
@@ -209,6 +245,28 @@ contract_execute(
     GAS_FLAGS,
 )?;
 ```
+
+Now the anyone can ick the processor to execute the message. After receiving a `tick`, the processor will execute the message at the head of the queue and send a callback to the authorization contract.
+
+```rust
+contract_execute(
+    test_ctx
+        .get_request_builder()
+        .get_request_builder(OSMOSIS_CHAIN_NAME),
+    &osmo_processor_contract_address,
+    DEFAULT_KEY,
+    &serde_json::to_string(
+        &valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+            valence_processor_utils::msg::PermissionlessMsg::Tick {},
+        ),
+    )?,
+    &format!(
+        "--gas=auto --gas-adjustment=3.0 --fees {}{}",
+        5_000_000, OSMOSIS_CHAIN_DENOM
+    ),
+)?;
+```
+#### 2.2 Withdraw Liquidity
 
 To enqueue withdraw liquidity message:
 ```rust
@@ -243,8 +301,7 @@ contract_execute(
     GAS_FLAGS,
 )?;
 ```
-
-9. Tick the processor
+The above enqueues the message to withdraw liquidity. The processor will execute it next time it is ticked.
 
 ```rust
 contract_execute(
@@ -264,5 +321,4 @@ contract_execute(
     ),
 )?;
 ```
-
-After receiving a `tick`, the processor will execute the message at the head of the queue and send a callback to the authorization contract.
+This concludes the walkthrough. You have now initialized the program used it to provide and withdraw liquidity on Osmosis from Neutron!

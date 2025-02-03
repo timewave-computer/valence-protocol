@@ -2,7 +2,9 @@
 
 For testing your programs, no matter if you want to use the manager or not, there is a common set up that needs to be done. This set up is necessary to initialize the testing context with all the required information of the local-interchain environment.
 
-1. Setting the TestContext using the TestContextBuilder
+## 1. Setting the TestContext using the TestContextBuilder
+
+The `TestContext` is the interchain environment in which your program will run. Let's say you want to configure the Neutron chain and Osmosis chain, you may set it up as follows:
 
 ```rust
     let mut test_ctx = TestContextBuilder::default()
@@ -18,7 +20,9 @@ For testing your programs, no matter if you want to use the manager or not, ther
 
 This will instantiate a `TestContext` with two chains, Neutron and Osmosis, that are connected via IBC by providing the `transfer_channels` parameter. The `api_url` is the URL of the local-interchain API, and the `artifacts_dir` is the path where the compiled programs are stored. The `log_file_path` is the path where the logs will be stored. The most important part here are the chains, which are created using the `ConfigChainBuilder` with the default configurations for Neutron and Osmosis and the transfer channels between them. We provide builders for most chains but you can also create your own configurations.
 
-2. Some chains require additional setup to interact with others. For example, if you are going to use a liquid staking chain like Persistence, you need to register and activate the host zone to allow liquid staking of its native token. We provide helper functions that do this for you, here's an example:
+## 2. Custom chain-specific setup
+
+Some chains require additional setup to interact with others. For example, if you are going to use a liquid staking chain like Persistence, you need to register and activate the host zone to allow liquid staking of its native token. We provide helper functions that do this for you, here's an example:
 
 ```rust
     info!("Registering host zone...");
