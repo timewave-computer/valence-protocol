@@ -3,7 +3,7 @@ use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
     from_json, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Reply,
-    Response, StdError, StdResult, SubMsg, SubMsgResult, Uint64, WasmMsg,
+    Response, StdResult, SubMsg, SubMsgResult, Uint64, WasmMsg,
 };
 
 use cw_storage_plus::Bound;
@@ -502,7 +502,7 @@ fn execute_atomic(
         ));
     }
 
-    let messages = Into::<Result<Vec<CosmosMsg>, StdError>>::into(batch)?;
+    let messages = Into::<StdResult<Vec<CosmosMsg>>>::into(batch)?;
 
     Ok(Response::new()
         .add_messages(messages)
