@@ -1067,7 +1067,11 @@ fn process_polytone_callback(
             // Get the domain name we are getting the polytone callback for
             let mut external_domain = EXTERNAL_DOMAINS.load(deps.storage, domain_name.clone())?;
             // Only Polytone Note is allowed to send this callback
-            if info.sender != external_domain.get_connector_address() {
+            if info.sender
+                != external_domain
+                    .execution_environment
+                    .get_connector_address()
+            {
                 return Err(ContractError::Unauthorized(
                     UnauthorizedReason::UnauthorizedCallbackSender {},
                 ));
@@ -1077,17 +1081,24 @@ fn process_polytone_callback(
                 Callback::Execute(result) => {
                     // If the result is a timeout, we will update the state of the connector to timeout otherwise we will update to Created
                     if result == Err("timeout".to_string())
-                        && external_domain.get_polytone_proxy_state()
+                        && external_domain
+                            .execution_environment
+                            .get_polytone_proxy_state()
                             == Some(PolytoneProxyState::PendingResponse)
                     {
-                        external_domain.set_polytone_proxy_state(PolytoneProxyState::TimedOut)?
+                        external_domain
+                            .execution_environment
+                            .set_polytone_proxy_state(PolytoneProxyState::TimedOut)?
                     } else {
-                        external_domain.set_polytone_proxy_state(PolytoneProxyState::Created)?
+                        external_domain
+                            .execution_environment
+                            .set_polytone_proxy_state(PolytoneProxyState::Created)?
                     }
                 }
                 Callback::FatalError(error) => {
                     // We should never run out of gas for executing an empty array of messages, but in the case we do we'll log it
                     external_domain
+                        .execution_environment
                         .set_polytone_proxy_state(PolytoneProxyState::UnexpectedError(error))?
                 }
                 // Should never happen because we don't do queries
@@ -1315,8 +1326,12 @@ pub fn store_inprocess_callback(
             let external_domain = EXTERNAL_DOMAINS.load(storage, domain_name.clone())?;
             // The address that will send the callback for that specific processor and the address that can send a timeout
             (
-                external_domain.get_callback_address(),
-                Some(external_domain.get_connector_address()),
+                external_domain.execution_environment.get_callback_address(),
+                Some(
+                    external_domain
+                        .execution_environment
+                        .get_connector_address(),
+                ),
             )
         }
     };
