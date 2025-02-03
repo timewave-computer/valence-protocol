@@ -39,3 +39,4 @@
 - [Testing](./testing/_overview.md)
   - [Initial Testing Set Up](./testing/setup.md)
   - [Example without Program Manager](./testing/without_program_manager.md)
+  - [Example with Program Manager](./testing/with_program_manager.md)

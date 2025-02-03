@@ -171,4 +171,4 @@ In this code snippet, we are sending a message to the authorization contract to 
     std::thread::sleep(std::time::Duration::from_secs(3));
 ```
 
-The message must now be sitting on the processor on Persistence, therefore we need to tick the processor to trigger the execution. This will execute the message and send a callback with the result ot the authorization contract, which completes the full testing cycle.
+The message must now be sitting on the processor on Persistence, therefore we need to tick the processor to trigger the execution. This will execute the message and send a callback with the result to the authorization contract, which completes the full testing cycle.
