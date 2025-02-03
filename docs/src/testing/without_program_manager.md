@@ -157,7 +157,7 @@ info!("Send the messages to the authorization contract...");
     std::thread::sleep(std::time::Duration::from_secs(3));
 ```
 
-In this code snippet, we are sending a message to the authorization contract to execute the liquid staking message on the persistence base account. Note that we are using the same label that we used in the authorization creation. This is important because the authorization contract will check if the label matches the one in the authorization. If it does not match, the execution will fail. The authorization contract will send the message to the corresponding Polytone contract that will send it via IBC to the processor on the external domain.
+In this code snippet, we are sending a message to the authorization contract to execute the liquid staking message on the base account on Persistence. Note that we are using the same label that we used in the authorization creation. This is important because the authorization contract will check if the label matches the one in the authorization. If it does not match, the execution will fail. The authorization contract will send the message to the corresponding Polytone contract that will send it via IBC to the processor on the external domain.
 
 6. Tick the processor
 
@@ -171,4 +171,4 @@ In this code snippet, we are sending a message to the authorization contract to 
     std::thread::sleep(std::time::Duration::from_secs(3));
 ```
 
-The message must now be sitting on the processor on persistence, therefore we need to tick the processor to trigger the execution. This will execute the message and send a callback with the result ot the authorization contract, which completes the full testing cycle.
+The message must now be sitting on the processor on Persistence, therefore we need to tick the processor to trigger the execution. This will execute the message and send a callback with the result ot the authorization contract, which completes the full testing cycle.
