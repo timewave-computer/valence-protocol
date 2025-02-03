@@ -1,5 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Binary;
+use valence_middleware_utils::type_registry::queries::ValencePrimitive;
 
 #[cw_serde]
 pub struct InstantiateMsg {}
@@ -49,19 +50,8 @@ pub struct QueryInfo {
 pub enum AssertionValue {
     // storage account slot query
     Variable(QueryInfo),
-    // b64 encoded constant value
-    Constant(Binary),
-}
-
-/// supported evaluation types. both assertion values must be of this type
-/// in order to evaluate the condition.
-#[cw_serde]
-pub enum ValueType {
-    Decimal,
-    Uint64,
-    Uint128,
-    Uint256,
-    String,
+    // constant valence primitive value
+    Constant(ValencePrimitive),
 }
 
 #[cw_serde]
@@ -69,5 +59,4 @@ pub struct AssertionConfig {
     pub a: AssertionValue,
     pub predicate: Predicate,
     pub b: AssertionValue,
-    pub ty: ValueType,
 }

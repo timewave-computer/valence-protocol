@@ -1,13 +1,13 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, str::FromStr};
 
-use cosmwasm_std::to_json_binary;
+use cosmwasm_std::{to_json_binary, Decimal};
 use valence_middleware_utils::{
     canonical_types::pools::xyk::{ValenceXykPool, XykPoolQuery},
-    type_registry::types::ValenceType,
+    type_registry::{queries::ValencePrimitive, types::ValenceType},
 };
 
 use crate::{
-    msg::{AssertionConfig, AssertionValue, Predicate, QueryInfo, ValueType},
+    msg::{AssertionConfig, AssertionValue, Predicate, QueryInfo},
     testing::{Suite, STORAGE_SLOT_KEY},
 };
 
@@ -25,10 +25,13 @@ fn base_const_assertion() {
     suite.post_valence_type(STORAGE_SLOT_KEY, ValenceType::XykPool(xyk_pool));
 
     let assertion_cfg = AssertionConfig {
-        a: AssertionValue::Constant(to_json_binary("10.0").unwrap()),
+        a: AssertionValue::Constant(ValencePrimitive::Decimal(
+            Decimal::from_str("10.0").unwrap(),
+        )),
         predicate: Predicate::LT,
-        b: AssertionValue::Constant(to_json_binary("20.0").unwrap()),
-        ty: ValueType::Decimal,
+        b: AssertionValue::Constant(ValencePrimitive::Decimal(
+            Decimal::from_str("20.0").unwrap(),
+        )),
     };
 
     match suite.query_assert(assertion_cfg) {
@@ -57,8 +60,9 @@ fn base_variable_assertion() {
             query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
         }),
         predicate: Predicate::LT,
-        b: AssertionValue::Constant(to_json_binary("20.0").unwrap()),
-        ty: ValueType::Decimal,
+        b: AssertionValue::Constant(ValencePrimitive::Decimal(
+            Decimal::from_str("20.0").unwrap(),
+        )),
     };
 
     match suite.query_assert(assertion_cfg) {
@@ -99,7 +103,37 @@ fn double_variable_assertion() {
             storage_slot_key: STORAGE_SLOT_KEY_2.to_string(),
             query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
         }),
-        ty: ValueType::Decimal,
+    };
+
+    match suite.query_assert(assertion_cfg) {
+        Ok(_) => {
+            println!("assertion passed");
+        }
+        Err(e) => panic!("failed: {e}"),
+    }
+}
+
+#[test]
+fn type_mismatch_assertion() {
+    let mut suite = Suite::default();
+
+    let xyk_pool = ValenceXykPool {
+        assets: Suite::default_coins(),
+        total_shares: "10".to_string(),
+        domain_specific_fields: BTreeMap::new(),
+    };
+    suite.post_valence_type(STORAGE_SLOT_KEY, ValenceType::XykPool(xyk_pool));
+
+    let assertion_cfg = AssertionConfig {
+        a: AssertionValue::Variable(QueryInfo {
+            storage_account: suite.storage_account.to_string(),
+            storage_slot_key: STORAGE_SLOT_KEY.to_string(),
+            query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
+        }),
+        predicate: Predicate::LT,
+        b: AssertionValue::Constant(ValencePrimitive::Decimal(
+            Decimal::from_str("20.0").unwrap(),
+        )),
     };
 
     match suite.query_assert(assertion_cfg) {

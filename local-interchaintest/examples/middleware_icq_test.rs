@@ -1,4 +1,4 @@
-use cosmwasm_std::{to_json_binary, Binary, Uint64};
+use cosmwasm_std::{to_json_binary, Binary, Decimal, Uint64};
 use local_interchaintest::utils::{
     base_account::approve_library,
     icq::{generate_icq_relayer_config, start_icq_relayer},
@@ -14,14 +14,15 @@ use localic_std::{
     types::TransactionResponse,
 };
 use log::info;
-use std::{collections::BTreeMap, env, error::Error, time::Duration};
+use std::{collections::BTreeMap, env, error::Error, str::FromStr, time::Duration};
 use valence_library_utils::LibraryAccountType;
-use valence_middleware_asserter::msg::{
-    AssertionConfig, AssertionValue, Predicate, QueryInfo, ValueType,
-};
+use valence_middleware_asserter::msg::{AssertionConfig, AssertionValue, Predicate, QueryInfo};
 use valence_middleware_utils::{
     canonical_types::pools::xyk::XykPoolQuery,
-    type_registry::types::{RegistryInstantiateMsg, RegistryQueryMsg, ValenceType},
+    type_registry::{
+        queries::ValencePrimitive,
+        types::{RegistryInstantiateMsg, RegistryQueryMsg, ValenceType},
+    },
 };
 use valence_neutron_ic_querier::msg::{Config, FunctionMsgs, LibraryConfig, QueryDefinition};
 
@@ -399,8 +400,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
             }),
             predicate: Predicate::LT,
-            b: AssertionValue::Constant(to_json_binary("0.9").unwrap()),
-            ty: ValueType::Decimal,
+            b: AssertionValue::Constant(ValencePrimitive::Decimal(
+                Decimal::from_str("0.9").unwrap(),
+            )),
         },
     );
     match resp {
@@ -419,8 +421,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
             }),
             predicate: Predicate::GT,
-            b: AssertionValue::Constant(to_json_binary("0.9").unwrap()),
-            ty: ValueType::Decimal,
+            b: AssertionValue::Constant(ValencePrimitive::Decimal(
+                Decimal::from_str("0.9").unwrap(),
+            )),
         },
     );
     match resp {

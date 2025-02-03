@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{from_json, to_json_binary, Binary, Coin, StdError, StdResult, Uint128};
+use cosmwasm_std::{from_json, Binary, Coin, StdError, StdResult};
 
-use crate::type_registry::queries::ValenceTypeQuery;
+use crate::type_registry::queries::{ValencePrimitive, ValenceTypeQuery};
 
 #[cw_serde]
 pub struct ValenceBankBalance {
@@ -17,18 +17,18 @@ pub enum BankBalanceQuery {
     // - Uint256
     // make sure to extend the unit tests under contracts/middleware/asserter/src/testing
     // to cover that response type assertions.
-    #[returns(Uint128)]
+    #[returns(ValencePrimitive)]
     GetDenomAmount { denom: String },
 }
 
 impl ValenceTypeQuery for ValenceBankBalance {
-    fn query(&self, msg: Binary) -> StdResult<Binary> {
+    fn query(&self, msg: Binary) -> StdResult<ValencePrimitive> {
         let query_msg: BankBalanceQuery = from_json(&msg)?;
         match query_msg {
             BankBalanceQuery::GetDenomAmount { denom } => {
                 for coin in &self.assets {
                     if coin.denom == denom {
-                        return to_json_binary(&coin.amount);
+                        return Ok(ValencePrimitive::Uint128(coin.amount));
                     }
                 }
                 Err(StdError::generic_err("denom not found"))

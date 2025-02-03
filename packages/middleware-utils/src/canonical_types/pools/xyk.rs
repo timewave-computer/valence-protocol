@@ -1,9 +1,12 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, serde::de::DeserializeOwned, QueryResponses};
-use cosmwasm_std::{ensure, from_json, to_json_binary, Binary, Coin, Decimal, StdError, StdResult};
+use cosmwasm_std::{ensure, from_json, Binary, Coin, Decimal, StdError, StdResult};
 
-use crate::{try_unpack_domain_specific_value, type_registry::queries::ValenceTypeQuery};
+use crate::{
+    try_unpack_domain_specific_value,
+    type_registry::queries::{ValencePrimitive, ValenceTypeQuery},
+};
 
 #[cw_serde]
 pub struct ValenceXykPool {
@@ -27,12 +30,12 @@ pub enum XykPoolQuery {
     // - Uint256
     // make sure to extend the unit tests under contracts/middleware/asserter/src/testing
     // to cover that response type assertions.
-    #[returns(Decimal)]
+    #[returns(ValencePrimitive)]
     GetPrice {},
 }
 
 impl ValenceTypeQuery for ValenceXykPool {
-    fn query(&self, msg: Binary) -> StdResult<Binary> {
+    fn query(&self, msg: Binary) -> StdResult<ValencePrimitive> {
         let query_msg: XykPoolQuery = from_json(&msg)?;
         match query_msg {
             XykPoolQuery::GetPrice {} => {
@@ -53,7 +56,8 @@ impl ValenceTypeQuery for ValenceXykPool {
                 let a = self.assets[0].amount;
                 let b = self.assets[1].amount;
 
-                to_json_binary(&Decimal::from_ratio(a, b))
+                let price = Decimal::from_ratio(a, b);
+                Ok(ValencePrimitive::Decimal(price))
             }
         }
     }
