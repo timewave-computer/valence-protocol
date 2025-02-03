@@ -946,16 +946,16 @@
             "enum": [
               "cosmwasm_execute_msg",
               "cosmwasm_migrate_msg",
-              "solidity_raw_call"
+              "e_v_m_raw_call"
             ]
           },
           {
             "type": "object",
             "required": [
-              "solidity_call"
+              "e_v_m_call"
             ],
             "properties": {
-              "solidity_call": {
+              "e_v_m_call": {
                 "type": "array",
                 "items": [
                   {
@@ -1693,10 +1693,10 @@
           {
             "type": "object",
             "required": [
-              "solidity_call"
+              "e_v_m_call"
             ],
             "properties": {
-              "solidity_call": {
+              "e_v_m_call": {
                 "type": "object",
                 "required": [
                   "msg"
@@ -1714,10 +1714,10 @@
           {
             "type": "object",
             "required": [
-              "solidity_raw_call"
+              "e_v_m_raw_call"
             ],
             "properties": {
-              "solidity_raw_call": {
+              "e_v_m_raw_call": {
                 "type": "object",
                 "required": [
                   "msg"
@@ -2452,16 +2452,16 @@
               "enum": [
                 "cosmwasm_execute_msg",
                 "cosmwasm_migrate_msg",
-                "solidity_raw_call"
+                "e_v_m_raw_call"
               ]
             },
             {
               "type": "object",
               "required": [
-                "solidity_call"
+                "e_v_m_call"
               ],
               "properties": {
-                "solidity_call": {
+                "e_v_m_call": {
                   "type": "array",
                   "items": [
                     {
@@ -3524,10 +3524,10 @@
             {
               "type": "object",
               "required": [
-                "solidity_call"
+                "e_v_m_call"
               ],
               "properties": {
-                "solidity_call": {
+                "e_v_m_call": {
                   "type": "object",
                   "required": [
                     "msg"
@@ -3545,10 +3545,10 @@
             {
               "type": "object",
               "required": [
-                "solidity_raw_call"
+                "e_v_m_raw_call"
               ],
               "properties": {
-                "solidity_raw_call": {
+                "e_v_m_raw_call": {
                   "type": "object",
                   "required": [
                     "msg"
@@ -3872,10 +3872,10 @@
             {
               "type": "object",
               "required": [
-                "solidity_call"
+                "e_v_m_call"
               ],
               "properties": {
-                "solidity_call": {
+                "e_v_m_call": {
                   "type": "object",
                   "required": [
                     "msg"
@@ -3893,10 +3893,10 @@
             {
               "type": "object",
               "required": [
-                "solidity_raw_call"
+                "e_v_m_raw_call"
               ],
               "properties": {
-                "solidity_raw_call": {
+                "e_v_m_raw_call": {
                   "type": "object",
                   "required": [
                     "msg"
