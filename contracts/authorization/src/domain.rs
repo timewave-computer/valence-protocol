@@ -19,7 +19,7 @@ pub fn add_external_domain(
     deps: DepsMut,
     domain: ExternalDomainInfo,
 ) -> Result<ExternalDomain, ContractError> {
-    let external_domain = domain.to_external_domain_validated(deps.api)?;
+    let external_domain = domain.into_external_domain_validated(deps.api)?;
 
     if EXTERNAL_DOMAINS.has(deps.storage, external_domain.name.clone()) {
         return Err(ContractError::ExternalDomainAlreadyExists(

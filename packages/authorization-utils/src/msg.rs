@@ -29,12 +29,6 @@ pub struct ExternalDomainInfo {
     pub processor: String,
 }
 
-impl ExternalDomainInfo {
-    pub fn to_external_domain_validated(self, api: &dyn Api) -> StdResult<ExternalDomain> {
-        self.into_external_domain(api)
-    }
-}
-
 #[cw_serde]
 pub enum ExecutionEnvironmentInfo {
     Cosmwasm(CosmwasmBridgeInfo),
@@ -147,7 +141,7 @@ impl ExecutionEnvironmentInfo {
 }
 
 impl ExternalDomainInfo {
-    pub fn into_external_domain(self, api: &dyn Api) -> StdResult<ExternalDomain> {
+    pub fn into_external_domain_validated(self, api: &dyn Api) -> StdResult<ExternalDomain> {
         Ok(ExternalDomain {
             name: self.name,
             execution_environment: self.execution_environment.into_execution_environment(api)?,
