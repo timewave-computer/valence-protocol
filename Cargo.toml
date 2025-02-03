@@ -90,7 +90,7 @@ valence-authorization-utils    = { path = "packages/authorization-utils" }
 valence-encoder-utils          = { path = "packages/encoder-utils" }
 valence-ibc-utils              = { path = "packages/ibc-utils" }
 valence-macros                 = { path = "packages/valence-macros" }
-valence-bridging-utils         = { path = "packages/bridging-utils" }
+valence-gmp-utils              = { path = "packages/gmp-utils" }
 valence-processor-utils        = { path = "packages/processor-utils" }
 valence-library-base           = { path = "packages/library-base" }
 valence-library-utils          = { path = "packages/library-utils" }

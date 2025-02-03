@@ -20,7 +20,7 @@ cw2                         = { workspace = true }
 cw-ownable                  = { workspace = true }
 valence-authorization-utils = { workspace = true }
 valence-processor-utils     = { workspace = true }
-valence-bridging-utils      = { workspace = true }
+valence-gmp-utils           = { workspace = true }
 valence-encoder-broker      = { workspace = true }
 valence-encoder-utils       = { workspace = true }
 cw-utils                    = { workspace = true }

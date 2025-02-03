@@ -24,13 +24,13 @@ use valence_authorization_utils::{
         PermissionedMsg, PermissionlessMsg, ProcessorMessage, QueryMsg,
     },
 };
-use valence_bridging_utils::{
-    hyperlane::{format_address_for_hyperlane, HandleMsg},
-    polytone::{Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg},
-};
 use valence_encoder_broker::msg::QueryMsg as EncoderBrokerQueryMsg;
 use valence_encoder_utils::msg::{
     convert_into_encoder_messages, ProcessorMessageToDecode, ProcessorMessageToEncode,
+};
+use valence_gmp_utils::{
+    hyperlane::{format_address_for_hyperlane, HandleMsg},
+    polytone::{Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg},
 };
 use valence_processor_utils::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExecuteMsg};
 

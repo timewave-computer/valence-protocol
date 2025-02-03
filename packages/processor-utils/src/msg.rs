@@ -4,7 +4,7 @@ use valence_authorization_utils::{
     authorization::{Priority, Subroutine},
     msg::ProcessorMessage,
 };
-use valence_bridging_utils::polytone::CallbackMessage;
+use valence_gmp_utils::polytone::CallbackMessage;
 
 use crate::{
     callback::PendingPolytoneCallbackInfo,

@@ -4,7 +4,7 @@ use valence_authorization_utils::{
     domain::{CosmwasmBridge, Domain, EvmBridge, ExecutionEnvironment, ExternalDomain},
     msg::ExternalDomainInfo,
 };
-use valence_bridging_utils::{
+use valence_gmp_utils::{
     hyperlane::create_msg_for_hyperlane,
     polytone::{create_msg_for_polytone, CallbackRequest},
 };

@@ -1,9 +1,9 @@
 [package]
-name        = "valence-bridging-utils"
+name        = "valence-gmp-utils"
 version     = { workspace = true }
 edition     = { workspace = true }
 authors     = ["Timewave Labs"]
-description = "Helpers for bridging"
+description = "Helpers for general message passing"
 
 [dependencies]
 cosmwasm-std                = { workspace = true }

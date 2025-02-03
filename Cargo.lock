@@ -6974,9 +6974,9 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "valence-authorization-utils",
- "valence-bridging-utils",
  "valence-encoder-broker",
  "valence-encoder-utils",
+ "valence-gmp-utils",
  "valence-library-utils",
  "valence-processor",
  "valence-processor-utils",
@@ -6992,7 +6992,7 @@ dependencies = [
  "cw-ownable",
  "cw-utils 2.0.0",
  "serde_json",
- "valence-bridging-utils",
+ "valence-gmp-utils",
  "valence-library-utils",
 ]
 
@@ -7016,14 +7016,6 @@ dependencies = [
  "sha2 0.10.8",
  "thiserror 1.0.69",
  "valence-account-utils",
-]
-
-[[package]]
-name = "valence-bridging-utils"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema 2.2.0",
- "cosmwasm-std 2.2.0",
 ]
 
 [[package]]
@@ -7115,6 +7107,14 @@ dependencies = [
  "valence-library-base",
  "valence-library-utils",
  "valence-macros",
+]
+
+[[package]]
+name = "valence-gmp-utils"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.2.0",
+ "cosmwasm-std 2.2.0",
 ]
 
 [[package]]
@@ -7386,7 +7386,7 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "valence-authorization-utils",
- "valence-bridging-utils",
+ "valence-gmp-utils",
  "valence-processor-utils",
 ]
 
@@ -7401,7 +7401,7 @@ dependencies = [
  "serde",
  "serde_json",
  "valence-authorization-utils",
- "valence-bridging-utils",
+ "valence-gmp-utils",
 ]
 
 [[package]]

@@ -46,18 +46,15 @@ impl ExternalDomain {
         }
     }
 
-    pub fn set_polytone_proxy_state(
-        &mut self,
-        state: PolytoneProxyState,
-    ) -> StdResult<()> {
+    pub fn set_polytone_proxy_state(&mut self, state: PolytoneProxyState) -> StdResult<()> {
         match &mut self.execution_environment {
             ExecutionEnvironment::Cosmwasm(CosmwasmBridge::Polytone(polytone_info)) => {
                 polytone_info.polytone_note.state = state;
                 Ok(())
             }
-            ExecutionEnvironment::Evm(_, _) => {
-                Err(StdError::generic_err("EVM domain does not have a polytone proxy state"))
-            }
+            ExecutionEnvironment::Evm(_, _) => Err(StdError::generic_err(
+                "EVM domain does not have a polytone proxy state",
+            )),
         }
     }
 
