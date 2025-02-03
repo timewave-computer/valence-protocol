@@ -3,7 +3,7 @@ use cosmos_sdk_proto::{cosmos::base::v1beta1::Coin, traits::MessageExt};
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     coins, from_json, to_json_binary, Addr, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Empty, Env,
-    MessageInfo, Order, Response, StdError, StdResult, Storage, Uint64, WasmMsg,
+    MessageInfo, Order, Response, StdResult, Storage, Uint64, WasmMsg,
 };
 use cw_ownable::{assert_owner, get_ownership, initialize_owner, is_owner};
 use cw_storage_plus::Bound;
@@ -1080,20 +1080,15 @@ fn process_polytone_callback(
                         && external_domain.get_polytone_proxy_state()
                             == Some(PolytoneProxyState::PendingResponse)
                     {
-                        external_domain
-                            .set_polytone_proxy_state(PolytoneProxyState::TimedOut)
-                            .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?
+                        external_domain.set_polytone_proxy_state(PolytoneProxyState::TimedOut)?
                     } else {
-                        external_domain
-                            .set_polytone_proxy_state(PolytoneProxyState::Created)
-                            .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?
+                        external_domain.set_polytone_proxy_state(PolytoneProxyState::Created)?
                     }
                 }
                 Callback::FatalError(error) => {
                     // We should never run out of gas for executing an empty array of messages, but in the case we do we'll log it
                     external_domain
-                        .set_polytone_proxy_state(PolytoneProxyState::UnexpectedError(error))
-                        .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?
+                        .set_polytone_proxy_state(PolytoneProxyState::UnexpectedError(error))?
                 }
                 // Should never happen because we don't do queries
                 Callback::Query(_) => {

@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, StdError, StdResult};
 
 #[cw_serde]
 pub enum Domain {
@@ -49,14 +49,14 @@ impl ExternalDomain {
     pub fn set_polytone_proxy_state(
         &mut self,
         state: PolytoneProxyState,
-    ) -> Result<(), &'static str> {
+    ) -> StdResult<()> {
         match &mut self.execution_environment {
             ExecutionEnvironment::Cosmwasm(CosmwasmBridge::Polytone(polytone_info)) => {
                 polytone_info.polytone_note.state = state;
                 Ok(())
             }
             ExecutionEnvironment::Evm(_, _) => {
-                Err("EVM domain does not have a polytone proxy state")
+                Err(StdError::generic_err("EVM domain does not have a polytone proxy state"))
             }
         }
     }
