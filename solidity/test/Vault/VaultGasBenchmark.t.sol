@@ -28,7 +28,7 @@ contract VaultGasBenchmarkTest is VaultHelper {
         for (uint256 i = 0; i < numUsers; i++) {
             address newUser = makeAddr(string.concat("user", vm.toString(i)));
             users.push(newUser);
-            
+
             // Setup tokens and approvals
             vm.startPrank(owner);
             token.mint(newUser, INITIAL_USER_BALANCE);
@@ -56,7 +56,7 @@ contract VaultGasBenchmarkTest is VaultHelper {
         uint256 gasStart = gasleft();
         vault.deposit(DEPOSIT_AMOUNT, user);
         uint256 depositGas = gasStart - gasleft();
-        
+
         // Measure withdraw request gas
         gasStart = gasleft();
         vault.withdraw(WITHDRAW_AMOUNT, user, user, MAX_LOSS, false);
@@ -137,7 +137,7 @@ contract VaultGasBenchmarkTest is VaultHelper {
 
         // Track gas usage for different operation combinations
         uint256 gasStart;
-        
+
         // 1. Sequential deposits
         gasStart = gasleft();
         for (uint256 i = 0; i < 5; i++) {
@@ -172,9 +172,12 @@ contract VaultGasBenchmarkTest is VaultHelper {
         console.log("\nGas Costs for Mixed Operations:");
         console.log("Sequential Deposits:", sequentialDepositsGas);
         console.log("Mixed Deposits/Withdraws:", mixedOperationsGas);
-        console.log("Gas Difference:", mixedOperationsGas > sequentialDepositsGas ? 
-            mixedOperationsGas - sequentialDepositsGas : 
-            sequentialDepositsGas - mixedOperationsGas);
+        console.log(
+            "Gas Difference:",
+            mixedOperationsGas > sequentialDepositsGas
+                ? mixedOperationsGas - sequentialDepositsGas
+                : sequentialDepositsGas - mixedOperationsGas
+        );
     }
 
     // Helper to reset test state between batch tests

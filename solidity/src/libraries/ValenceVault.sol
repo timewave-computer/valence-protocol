@@ -335,6 +335,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         if (_lastUpdateTimestamp == block.timestamp) {
             revert InvalidUpdateSameBlock();
         }
+
         if (newRate == 0) {
             revert InvalidRate();
         }
