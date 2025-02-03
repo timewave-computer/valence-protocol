@@ -3,8 +3,9 @@ use cosmwasm_std::{
 };
 use valence_authorization_utils::{
     authorization::{Authorization, Subroutine},
-    callback::PolytoneCallbackMsg,
-    domain::{CosmwasmBridge, Domain, EvmBridge, ExecutionEnvironment, PolytoneNote},
+    domain::{
+        CosmwasmBridge, Domain, EvmBridge, ExecutionEnvironment, ExternalDomain, PolytoneNote,
+    },
     msg::ExternalDomainInfo,
 };
 use valence_bridging_utils::{
@@ -17,12 +18,11 @@ use crate::{
     state::{EXTERNAL_DOMAINS, PROCESSOR_ON_MAIN_DOMAIN},
 };
 
-/// Checks if external domain exists before adding it and creates the message to create the bridge account
-pub fn add_domain(
+/// Saves a validated external domain if it doesn't already exist and returns it
+pub fn add_external_domain(
     deps: DepsMut,
-    callback_receiver: String,
     domain: ExternalDomainInfo,
-) -> Result<Option<CosmosMsg>, ContractError> {
+) -> Result<ExternalDomain, ContractError> {
     let external_domain = domain.to_external_domain_validated(deps.api)?;
 
     if EXTERNAL_DOMAINS.has(deps.storage, external_domain.name.clone()) {
@@ -33,35 +33,7 @@ pub fn add_domain(
 
     EXTERNAL_DOMAINS.save(deps.storage, external_domain.name.clone(), &external_domain)?;
 
-    // Create the message to create the bridge account if it's required
-    let msg = match external_domain.execution_environment {
-        ExecutionEnvironment::Cosmwasm(cosmwasm_bridge) => match cosmwasm_bridge {
-            CosmwasmBridge::Polytone(polytone_connectors) => {
-                // In polytone to create the proxy we can send an empty vector of messages
-                Some(CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: polytone_connectors.polytone_note.address.to_string(),
-                    msg: to_json_binary(&PolytoneExecuteMsg::Execute {
-                        msgs: vec![],
-                        callback: Some(CallbackRequest {
-                            receiver: callback_receiver,
-                            // When we add domain we will return a callback with the name of the domain to know that we are getting the callback when trying to create the proxy
-                            msg: to_json_binary(&PolytoneCallbackMsg::CreateProxy(
-                                external_domain.name,
-                            ))?,
-                        }),
-                        timeout_seconds: Uint64::from(
-                            polytone_connectors.polytone_note.timeout_seconds,
-                        ),
-                    })?,
-                    funds: vec![],
-                }))
-            }
-        },
-        // Not required for any of our EVM bridges
-        ExecutionEnvironment::Evm(_, _) => None,
-    };
-
-    Ok(msg)
+    Ok(external_domain)
 }
 
 pub fn get_domain(authorization: &Authorization) -> Result<Domain, ContractError> {

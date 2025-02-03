@@ -36,7 +36,9 @@ use valence_processor_utils::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExec
 
 use crate::{
     authorization::Validate,
-    domain::{add_domain, create_msg_for_processor, format_address_for_hyperlane, get_domain},
+    domain::{
+        add_external_domain, create_msg_for_processor, format_address_for_hyperlane, get_domain,
+    },
     error::{AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason},
     state::{
         AUTHORIZATIONS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS, FIRST_OWNERSHIP,
@@ -213,9 +215,35 @@ fn add_external_domains(
     external_domains: Vec<ExternalDomainInfo>,
 ) -> Result<Response, ContractError> {
     let mut messages = vec![];
+
     // Save all external domains
     for domain in external_domains {
-        if let Some(msg) = add_domain(deps.branch(), env.contract.address.to_string(), domain)? {
+        let validated_external_domain = add_external_domain(deps.branch(), domain)?;
+
+        // Only create message for Cosmwasm Polytone case
+        if let ExecutionEnvironment::Cosmwasm(cosmwasm_bridge) =
+            validated_external_domain.execution_environment
+        {
+            let CosmwasmBridge::Polytone(polytone_connectors) = cosmwasm_bridge;
+            // In polytone to create the proxy we can send an empty vector of messages
+            let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: polytone_connectors.polytone_note.address.to_string(),
+                msg: to_json_binary(&PolytoneExecuteMsg::Execute {
+                    msgs: vec![],
+                    callback: Some(CallbackRequest {
+                        receiver: env.contract.address.to_string(),
+                        // When we add domain we will return a callback with the name of the domain
+                        // to know that we are getting the callback when trying to create the proxy
+                        msg: to_json_binary(&PolytoneCallbackMsg::CreateProxy(
+                            validated_external_domain.name,
+                        ))?,
+                    }),
+                    timeout_seconds: Uint64::from(
+                        polytone_connectors.polytone_note.timeout_seconds,
+                    ),
+                })?,
+                funds: vec![],
+            });
             messages.push(msg);
         }
     }
