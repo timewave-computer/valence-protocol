@@ -35,6 +35,11 @@ pub const OSMOSIS_CL_LWER_NAME: &str = "valence_osmosis_cl_withdrawer";
 pub const POLYTONE_NOTE_NAME: &str = "polytone_note";
 pub const POLYTONE_VOICE_NAME: &str = "polytone_voice";
 pub const POLYTONE_PROXY_NAME: &str = "polytone_proxy";
+pub const IC_QUERIER_NAME: &str = "valence_neutron_ic_querier";
+pub const MIDDLEWARE_BROKER_NAME: &str = "valence_middleware_broker";
+pub const MIDDLEWARE_OSMOSIS_NAME: &str = "valence_middleware_osmosis";
+pub const STORAGE_ACCOUNT_NAME: &str = "valence_storage_account";
+pub const MIDDLEWARE_ASSERTER_NAME: &str = "valence_middleware_asserter";
 
 /// Those contracts will always be uploaded because each program needs them
 const BASIC_CONTRACTS: [&str; 2] = [PROCESSOR_NAME, BASE_ACCOUNT_NAME];

@@ -54,6 +54,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 /// evaluates the assertion by deserializing both comparison values into a mutual type identified
 /// by `assertion_config.ty` before evaluating the predicate and returning boolean result.
 fn evaluate_assertion(deps: Deps, assertion_config: AssertionConfig) -> StdResult<bool> {
+    // first we fetch the values we want to compare
     let a_cmp = get_comparable_value(deps.querier, assertion_config.a)?;
     let b_cmp = get_comparable_value(deps.querier, assertion_config.b)?;
 
@@ -73,6 +74,7 @@ fn evaluate_assertion(deps: Deps, assertion_config: AssertionConfig) -> StdResul
         (ValencePrimitive::String(a), ValencePrimitive::String(b)) => {
             assertion_config.predicate.eval(a, b)
         }
+        // comparisons can be performed only if both values are of the same type
         _ => return Err(StdError::generic_err("value type mismatch")),
     };
 
