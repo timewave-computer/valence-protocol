@@ -11,21 +11,21 @@ contract VaultUpdateTest is VaultHelper {
     function testUpdateRevertsWithZeroRate() public {
         vm.startPrank(strategist);
         vm.expectRevert(ValenceVault.InvalidRate.selector);
-        vault.update(0, 0);
+        vault.update(0, 0, 0);
         vm.stopPrank();
     }
 
     function testUpdateRevertsWithHighWithdrawFee() public {
         vm.startPrank(strategist);
         vm.expectRevert(ValenceVault.InvalidWithdrawFee.selector);
-        vault.update(BASIS_POINTS, MAX_WITHDRAW_FEE + 1);
+        vault.update(BASIS_POINTS, MAX_WITHDRAW_FEE + 1, 0);
         vm.stopPrank();
     }
 
     function testUpdateRevertsWhenNotStrategist() public {
         vm.startPrank(user);
         vm.expectRevert(ValenceVault.OnlyStrategistAllowed.selector);
-        vault.update(BASIS_POINTS, 0);
+        vault.update(BASIS_POINTS, 0, 0);
         vm.stopPrank();
     }
 
@@ -39,7 +39,7 @@ contract VaultUpdateTest is VaultHelper {
         uint32 newWithdrawFee = 100; // 1%
 
         vm.startPrank(strategist);
-        vault.update(newRate, newWithdrawFee);
+        vault.update(newRate, newWithdrawFee, 0);
         vm.stopPrank();
 
         assertEq(vault.redemptionRate(), newRate);
@@ -49,7 +49,7 @@ contract VaultUpdateTest is VaultHelper {
 
     function testUpdateCollectsAndDistributesFees() public {
         // Setup fees
-        setFees(0, 1000, 2000); // 10% platform fee, 20% performance fee
+        setFees(0, 1000, 2000, 0); // 10% platform fee, 20% performance fee
 
         // Setup initial deposit and state
         uint256 depositAmount = 100000;
@@ -59,7 +59,7 @@ contract VaultUpdateTest is VaultHelper {
 
         // First update to initialize LastUpdateTotalShares
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS, 0);
+        vault.update(BASIS_POINTS, 0, 0);
         vm.stopPrank();
 
         // Move time forward 6 months
@@ -68,7 +68,7 @@ contract VaultUpdateTest is VaultHelper {
         uint256 newRate = BASIS_POINTS + 1000; // 1.10x increase
 
         vm.startPrank(strategist);
-        vault.update(newRate, 0);
+        vault.update(newRate, 0, 0);
         vm.stopPrank();
 
         // Calculate expected platform fees (half year)
@@ -90,7 +90,7 @@ contract VaultUpdateTest is VaultHelper {
 
     function testFeesDistributionRatio() public {
         // Setup fees and initial deposit
-        setFees(0, 1000, 0); // 10% platform fee only
+        setFees(0, 1000, 0, 0); // 10% platform fee only
 
         vm.startPrank(user);
         uint256 depositAmount = 100000;
@@ -99,14 +99,14 @@ contract VaultUpdateTest is VaultHelper {
 
         // First update to initialize LastUpdateTotalShares
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS, 0);
+        vault.update(BASIS_POINTS, 0, 0);
         vm.stopPrank();
 
         // Move time forward 1 year for easy fee calculation
         vm.warp(vm.getBlockTimestamp() + 365 days);
 
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS, 0);
+        vault.update(BASIS_POINTS, 0, 0);
         vm.stopPrank();
 
         // Calculate expected fees
@@ -120,7 +120,7 @@ contract VaultUpdateTest is VaultHelper {
 
     function testUpdateDistributesDepositFees() public {
         // Setup deposit fee
-        setFees(500, 0, 0); // 5% deposit fee only
+        setFees(500, 0, 0, 0); // 5% deposit fee only
 
         // Make deposit to collect fees
         vm.startPrank(user);
@@ -130,7 +130,7 @@ contract VaultUpdateTest is VaultHelper {
 
         // Update should distribute collected deposit fees
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS, 0);
+        vault.update(BASIS_POINTS, 0, 0);
         vm.stopPrank();
 
         // Calculate expected fees
@@ -144,7 +144,7 @@ contract VaultUpdateTest is VaultHelper {
 
     function testUpdateDistributesMultipleFeeTypes() public {
         // Setup multiple fee types
-        setFees(500, 1000, 2000); // 5% deposit, 10% platform, 20% performance fee
+        setFees(500, 1000, 2000, 0); // 5% deposit, 10% platform, 20% performance fee
 
         // Make deposit
         uint256 depositAmount = 100000;
@@ -154,7 +154,7 @@ contract VaultUpdateTest is VaultHelper {
 
         // First update to initialize LastUpdateTotalShares and distribute deposit fees
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS, 0);
+        vault.update(BASIS_POINTS, 0, 0);
         vm.stopPrank();
 
         uint256 depositFees = (depositAmount * 500) / BASIS_POINTS; // 5000
@@ -165,7 +165,7 @@ contract VaultUpdateTest is VaultHelper {
 
         // Update with 10% profit
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS + 1000, 0); // 110% of initial rate
+        vault.update(BASIS_POINTS + 1000, 0, 0); // 110% of initial rate
         vm.stopPrank();
 
         // Calculate platform fees on remaining assets
@@ -182,5 +182,80 @@ contract VaultUpdateTest is VaultHelper {
         assertEq(vault.balanceOf(strategistFeeAccount), expectedStrategistShares, "Strategist shares mismatch");
         assertEq(vault.balanceOf(platformFeeAccount), expectedPlatformShares, "Platform shares mismatch");
         assertEq(vault.feesOwedInAsset(), 0, "Fees owed should be 0");
+    }
+
+    function testHandleWithdrawNetting() public {
+        // Setup initial deposit
+        vm.startPrank(user);
+        vault.deposit(100000, user);
+        vm.stopPrank();
+
+        uint256 nettingAmount = 50000;
+
+        // Prepare to capture the transfer event
+        vm.expectCall(
+            address(token),
+            abi.encodeWithSignature("transfer(address,uint256)", address(withdrawAccount), nettingAmount)
+        );
+
+        vm.startPrank(strategist);
+        vault.update(BASIS_POINTS, 0, nettingAmount);
+        vm.stopPrank();
+    }
+
+    function testUpdateIncrementId() public {
+        // Setup initial state
+        vm.startPrank(user);
+        vault.deposit(100000, user);
+        vm.stopPrank();
+
+        uint64 initialUpdateId = vault.currentUpdateId();
+
+        vm.startPrank(strategist);
+        vault.update(BASIS_POINTS, 0, 0);
+        vm.stopPrank();
+
+        assertEq(vault.currentUpdateId(), initialUpdateId + 1);
+    }
+
+    function testUpdateInfoStorage() public {
+        // Setup initial state
+        vm.startPrank(user);
+        vault.deposit(100000, user);
+        vm.stopPrank();
+
+        uint256 initialRate = BASIS_POINTS;
+        uint256 newRate = BASIS_POINTS + 500; // 1.05x
+        uint64 withdrawFee = 100; // 1%
+        uint256 expectedWithdrawRate = initialRate - withdrawFee;
+
+        vm.startPrank(strategist);
+        vault.update(newRate, withdrawFee, 0);
+        vm.stopPrank();
+
+        (uint256 storedRate, uint64 _withdrawFee, uint256 storedTimestamp) = vault.updateInfos(vault.currentUpdateId());
+        assertEq(storedRate, expectedWithdrawRate);
+        assertEq(withdrawFee, _withdrawFee);
+        assertEq(storedTimestamp, block.timestamp);
+    }
+
+    function testMaxHistoricalRateUpdate() public {
+        // Setup initial state
+        vm.startPrank(user);
+        vault.deposit(100000, user);
+        vm.stopPrank();
+
+        uint256 higherRate = BASIS_POINTS + 500;
+        uint256 lowerRate = BASIS_POINTS + 200;
+
+        // First update with higher rate
+        vm.startPrank(strategist);
+        vault.update(higherRate, 0, 0);
+        assertEq(vault.maxHistoricalRate(), higherRate);
+
+        // Update with lower rate shouldn't change maxHistoricalRate
+        vault.update(lowerRate, 0, 0);
+        assertEq(vault.maxHistoricalRate(), higherRate);
+        vm.stopPrank();
     }
 }

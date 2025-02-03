@@ -52,7 +52,7 @@ contract VaultBasicTest is VaultHelper {
         // Test rate increase (1.5x)
         uint256 increaseRate = (BASIS_POINTS * 15) / 10; // 1.5x
         vm.startPrank(strategist);
-        vault.update(increaseRate, 0);
+        vault.update(increaseRate, 0, 0);
         vm.stopPrank();
 
         // Test asset to share conversion with increased rate
@@ -76,7 +76,7 @@ contract VaultBasicTest is VaultHelper {
         // Test rate decrease (0.8x)
         uint256 decreaseRate = (BASIS_POINTS * 8) / 10; // 0.8x
         vm.startPrank(strategist);
-        vault.update(decreaseRate, 0);
+        vault.update(decreaseRate, 0, 0);
         vm.stopPrank();
 
         // Test asset to share conversion with decreased rate
@@ -105,6 +105,7 @@ contract VaultBasicTest is VaultHelper {
             strategist: strategist,
             depositCap: newDepositCap,
             maxWithdrawFee: MAX_WITHDRAW_FEE,
+            withdrawLockupPeriod: ONE_DAY,
             fees: defaultFees(),
             feeDistribution: defaultDistributionFees()
         });
@@ -117,6 +118,7 @@ contract VaultBasicTest is VaultHelper {
             BaseAccount updatedWithdrawAccount,
             address updatedStrategist,
             uint256 updatedDepositCap,
+            ,
             ,
             ValenceVault.FeeConfig memory updatedFees,
         ) = vault.config();
@@ -138,6 +140,7 @@ contract VaultBasicTest is VaultHelper {
             strategist: strategist,
             depositCap: 5000,
             maxWithdrawFee: MAX_WITHDRAW_FEE,
+            withdrawLockupPeriod: ONE_DAY,
             fees: defaultFees(),
             feeDistribution: defaultDistributionFees()
         });
