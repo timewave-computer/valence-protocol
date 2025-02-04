@@ -237,7 +237,10 @@ pub fn set_up_external_domain_with_polytone(
             &serde_json::to_string(&polytone_note_instantiate_msg).unwrap(),
             "polytone-note-external-domain",
             None,
-            &format!("--fees {}{}", 5000, OSMOSIS_CHAIN_DENOM),
+            &format!(
+                "--gas=auto --gas-adjustment=3.0 --fees {}{}",
+                5_000_000, OSMOSIS_CHAIN_DENOM
+            ),
         )
         .unwrap()
         .address;
@@ -252,7 +255,10 @@ pub fn set_up_external_domain_with_polytone(
             &serde_json::to_string(&external_domain_polytone_voice_instantiate_msg).unwrap(),
             "polytone-voice-external-domain",
             None,
-            &format!("--fees {}{}", 5000, OSMOSIS_CHAIN_DENOM),
+            &format!(
+                "--gas=auto --gas-adjustment=3.0 --fees {}{}",
+                5_000_000, OSMOSIS_CHAIN_DENOM
+            ),
         )
         .unwrap()
         .address;
@@ -418,7 +424,10 @@ pub fn set_up_external_domain_with_polytone(
         .get_cw()
         .code_id
         .unwrap();
-
+    info!(
+        "processor code id on external domain: {:?}",
+        processor_code_id_on_external_domain
+    );
     std::thread::sleep(Duration::from_secs(3));
 
     // Instantiate processor
@@ -429,7 +438,7 @@ pub fn set_up_external_domain_with_polytone(
         .with_code_id(processor_code_id_on_external_domain)
         .with_salt_hex_encoded(&salt)
         .with_msg(serde_json::to_value(processor_instantiate_msg).unwrap())
-        .with_flags(GAS_FLAGS)
+        .with_flags(&format!("--fees {}{}", 5_000_000, OSMOSIS_CHAIN_DENOM))
         .send()
         .unwrap();
 
@@ -464,7 +473,10 @@ pub fn set_up_external_domain_with_polytone(
         authorization_contract,
         DEFAULT_KEY,
         &serde_json::to_string(&add_external_domain_msg).unwrap(),
-        &format!("--fees {}{}", 5000, OSMOSIS_CHAIN_DENOM),
+        &format!(
+            "--gas=auto --gas-adjustment=3.0 --fees {}{}",
+            5_000_000, OSMOSIS_CHAIN_DENOM
+        ),
     )
     .unwrap();
     std::thread::sleep(Duration::from_secs(5));
