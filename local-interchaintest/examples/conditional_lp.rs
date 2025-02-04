@@ -1,25 +1,14 @@
-use cosmwasm_std::{to_json_binary, Binary, Decimal, Uint64};
+use cosmwasm_std::{to_json_binary, Binary, Uint64};
 use local_interchaintest::utils::{
     authorization::{set_up_authorization_and_processor, set_up_external_domain_with_polytone},
-    base_account::{approve_library, create_storage_accounts},
+    base_account::create_storage_accounts,
     icq::{generate_icq_relayer_config, start_icq_relayer},
-    manager::{
-        setup_manager, use_manager_init, IC_QUERIER_NAME, MIDDLEWARE_ASSERTER_NAME,
-        MIDDLEWARE_BROKER_NAME, MIDDLEWARE_OSMOSIS_NAME, OSMOSIS_CL_LPER_NAME,
-        OSMOSIS_GAMM_LPER_NAME, POLYTONE_NOTE_NAME, POLYTONE_PROXY_NAME, POLYTONE_VOICE_NAME,
-        STORAGE_ACCOUNT_NAME,
-    },
     osmosis::gamm::setup_gamm_pool,
-    polytone::setup_polytone,
-    GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_OSMOSIS, LOGS_FILE_PATH, NEUTRON_OSMO_CONFIG_FILE,
-    VALENCE_ARTIFACTS_PATH,
+    GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_OSMOSIS, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
 };
 use localic_std::{
     errors::LocalError,
-    modules::{
-        bank,
-        cosmwasm::{contract_execute, contract_instantiate, contract_query},
-    },
+    modules::cosmwasm::{contract_execute, contract_instantiate, contract_query},
     types::TransactionResponse,
 };
 use log::info;
@@ -28,7 +17,6 @@ use std::{
     env,
     error::Error,
     path::PathBuf,
-    str::FromStr,
     time::{Duration, SystemTime},
 };
 use valence_authorization_utils::{
@@ -36,27 +24,16 @@ use valence_authorization_utils::{
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
 };
 use valence_library_utils::LibraryAccountType;
-use valence_middleware_asserter::msg::{AssertionConfig, AssertionValue, Predicate, QueryInfo};
-use valence_middleware_utils::{
-    canonical_types::pools::xyk::XykPoolQuery,
-    type_registry::{
-        queries::ValencePrimitive,
-        types::{RegistryInstantiateMsg, RegistryQueryMsg, ValenceType},
-    },
+use valence_middleware_asserter::msg::AssertionConfig;
+use valence_middleware_utils::type_registry::types::{
+    RegistryInstantiateMsg, RegistryQueryMsg, ValenceType,
 };
-use valence_neutron_ic_querier::msg::{Config, FunctionMsgs, LibraryConfig, QueryDefinition};
-use valence_program_manager::{
-    account::{AccountInfo, AccountType},
-    domain::Domain,
-    library::LibraryInfo,
-    program_config_builder::ProgramConfigBuilder,
-};
+use valence_neutron_ic_querier::msg::{FunctionMsgs, LibraryConfig, QueryDefinition};
 
 use localic_utils::{
     utils::test_context::TestContext, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
-    GAIA_CHAIN_NAME, LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM,
-    NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_ADMIN_ADDR, OSMOSIS_CHAIN_DENOM,
-    OSMOSIS_CHAIN_ID, OSMOSIS_CHAIN_NAME,
+    LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
+    OSMOSIS_CHAIN_ADMIN_ADDR, OSMOSIS_CHAIN_DENOM, OSMOSIS_CHAIN_ID, OSMOSIS_CHAIN_NAME,
 };
 
 const TARGET_QUERY_LABEL: &str = "gamm_pool";
@@ -113,7 +90,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let (authorization_contract_address, neutron_processor_address) =
         set_up_authorization_and_processor(&mut test_ctx, salt.clone())?;
-    // std::thread::sleep(Duration::from_secs(2));
 
     info!("setting up external domain with polytone...");
     let processor_on_osmosis = set_up_external_domain_with_polytone(

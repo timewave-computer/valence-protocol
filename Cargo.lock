@@ -7468,7 +7468,6 @@ dependencies = [
  "valence-library-base",
  "valence-library-utils",
  "valence-macros",
- "valence-neutron-ic-querier",
  "valence-osmosis-cl-lper",
  "valence-osmosis-cl-withdrawer",
  "valence-osmosis-gamm-lper",
