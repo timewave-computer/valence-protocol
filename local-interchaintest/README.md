@@ -18,6 +18,14 @@ local-ic start neutron_juno --api-port 42069
 
 This will start a local environment with a Gaia chain, a Neutron (using ICS) chain and a Juno chain. The `--api-port` will expose the API on port 42069, we are using this port in our local-ic-utils crate so let's use the same to reuse some of the utils there.
 
+## Optimize Contracts
+
+Use CosmWasm optimizer to optimize contracts and store the results in `./artifacts`
+
+``` bash
+just optimize
+```
+
 ## Running tests
 
 Once you have your tests written, you can run them using the following command from the workspace directory, here I'm running the `polytone` tests that are in the `examples` folder:
