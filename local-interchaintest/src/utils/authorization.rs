@@ -1,13 +1,15 @@
 use std::{env, error::Error, time::Duration};
 
+use cosmwasm_std::{instantiate2_address, HexBinary};
 use cosmwasm_std_old::Uint64;
 use localic_std::{
     modules::cosmwasm::{contract_execute, contract_instantiate, contract_query, CosmWasm},
     relayer::Relayer,
+    types::{ActionHandler, RequestType},
 };
 use localic_utils::{
     utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM,
-    NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_DENOM,
+    NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_DENOM, OSMOSIS_CHAIN_NAME,
 };
 use log::info;
 use serde_json::Value;
@@ -16,6 +18,7 @@ use valence_authorization_utils::{
     msg::{CallbackProxy, Connector, ExternalDomainInfo, PermissionedMsg},
 };
 use valence_processor_utils::msg::PolytoneContracts;
+use valence_program_manager::helpers::{addr_canonicalize, addr_humanize};
 
 use crate::utils::{polytone::salt_for_proxy, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON};
 
@@ -208,11 +211,8 @@ pub fn set_up_external_domain_with_polytone(
         )
         .unwrap()
         .address;
-    info!(
-        "Polytone Note on Neutron: {}",
-        polytone_note_on_neutron_address
-    );
-    std::thread::sleep(Duration::from_secs(1));
+    info!("Polytone Note on Neutron: {polytone_note_on_neutron_address}",);
+
     let polytone_voice_on_neutron_address = polytone_voice_on_neutron
         .instantiate(
             DEFAULT_KEY,
@@ -226,10 +226,7 @@ pub fn set_up_external_domain_with_polytone(
         )
         .unwrap()
         .address;
-    info!(
-        "Polytone Voice on Neutron: {}",
-        polytone_voice_on_neutron_address
-    );
+    info!("Polytone Voice on Neutron: {polytone_voice_on_neutron_address}",);
 
     let polytone_note_on_external_domain_address = polytone_note_on_external_domain
         .instantiate(
@@ -237,35 +234,23 @@ pub fn set_up_external_domain_with_polytone(
             &serde_json::to_string(&polytone_note_instantiate_msg).unwrap(),
             "polytone-note-external-domain",
             None,
-            &format!(
-                "--gas=auto --gas-adjustment=3.0 --fees {}{}",
-                5_000_000, OSMOSIS_CHAIN_DENOM
-            ),
+            &format!("--fees {}{}", 500_000, OSMOSIS_CHAIN_DENOM),
         )
         .unwrap()
         .address;
-    info!(
-        "Polytone Note on {}: {}",
-        chain_name, polytone_note_on_external_domain_address
-    );
-    std::thread::sleep(Duration::from_secs(1));
+    info!("Polytone Note on {chain_name}: {polytone_note_on_external_domain_address}",);
+
     let polytone_voice_on_external_domain_address = polytone_voice_on_external_domain
         .instantiate(
             DEFAULT_KEY,
             &serde_json::to_string(&external_domain_polytone_voice_instantiate_msg).unwrap(),
             "polytone-voice-external-domain",
             None,
-            &format!(
-                "--gas=auto --gas-adjustment=3.0 --fees {}{}",
-                5_000_000, OSMOSIS_CHAIN_DENOM
-            ),
+            &format!("--fees {}{}", 500_000, OSMOSIS_CHAIN_DENOM),
         )
         .unwrap()
         .address;
-    info!(
-        "Polytone Voice on {}: {}",
-        chain_name, polytone_voice_on_external_domain_address
-    );
+    info!("Polytone Voice on {chain_name}: {polytone_voice_on_external_domain_address}",);
 
     info!("Creating WASM connections...");
 
@@ -274,7 +259,6 @@ pub fn set_up_external_domain_with_polytone(
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
     );
-    std::thread::sleep(Duration::from_secs(1));
 
     polytone_note_on_neutron
         .create_wasm_connection(
@@ -292,7 +276,6 @@ pub fn set_up_external_domain_with_polytone(
             "polytone-1",
         )
         .unwrap();
-    std::thread::sleep(Duration::from_secs(1));
 
     polytone_voice_on_neutron
         .create_wasm_connection(
@@ -317,79 +300,91 @@ pub fn set_up_external_domain_with_polytone(
     // Get the connection ids so that we can predict the proxy addresses
     let neutron_channels = relayer.get_channels(NEUTRON_CHAIN_ID).unwrap();
 
-    let connection_id_neutron_to_external_domain =
-        neutron_channels.iter().find_map(|neutron_channel| {
+    let connection_id_neutron_to_external_domain = neutron_channels
+        .iter()
+        .find_map(|neutron_channel| {
             if neutron_channel.port_id
                 == format!("wasm.{}", polytone_note_on_neutron_address.clone())
             {
+                info!(
+                    "there are {} connection hops from neutron to other domain",
+                    neutron_channel.connection_hops.len()
+                );
                 neutron_channel.connection_hops.first().cloned()
             } else {
                 None
             }
-        });
+        })
+        .unwrap();
     info!(
-        "Connection ID of Wasm connection Neutron to {}: {:?}",
-        chain_name, connection_id_neutron_to_external_domain
+        "Connection ID of Wasm connection Neutron to {chain_name}: {connection_id_neutron_to_external_domain}"
     );
 
     let external_domain_channels = relayer.get_channels(chain_id).unwrap();
 
-    let connection_id_external_domain_to_neutron =
-        external_domain_channels
-            .iter()
-            .find_map(|external_domain_channel| {
-                if external_domain_channel.port_id
-                    == format!("wasm.{}", polytone_note_on_external_domain_address.clone())
-                {
-                    external_domain_channel.connection_hops.first().cloned()
-                } else {
-                    None
-                }
-            });
+    let connection_id_external_domain_to_neutron = external_domain_channels
+        .iter()
+        .find_map(|external_domain_channel| {
+            if external_domain_channel.port_id
+                == format!("wasm.{}", polytone_note_on_external_domain_address.clone())
+            {
+                info!(
+                    "there are {} connection hops from other domain to neutron",
+                    external_domain_channel.connection_hops.len()
+                );
+                external_domain_channel.connection_hops.first().cloned()
+            } else {
+                None
+            }
+        })
+        .unwrap();
     info!(
-        "Connection ID of Wasm connection {} to Neutron: {:?}",
-        chain_name, connection_id_external_domain_to_neutron
+        "Connection ID of Wasm connection {chain_name} to Neutron: {connection_id_external_domain_to_neutron}"
     );
 
     let salt_for_proxy_on_external_domain = salt_for_proxy(
-        &connection_id_external_domain_to_neutron.unwrap(),
+        &connection_id_external_domain_to_neutron,
         &format!("wasm.{}", polytone_note_on_neutron_address.clone()),
         authorization_contract,
     );
 
-    // Predict the address the proxy on external_domain for the authorization module
-    let predicted_proxy_address_on_external_domain = test_ctx
-        .get_built_contract_address()
-        .src(chain_name)
-        .creator(&polytone_voice_on_external_domain_address.clone())
-        .contract("polytone_proxy")
-        .salt_hex_encoded(&hex::encode(salt_for_proxy_on_external_domain))
-        .get();
+    let external_proxy_code = polytone_proxy_on_external_domain.code_id.unwrap();
 
-    info!(
-        "Predicted proxy address on {}: {}",
-        chain_name, predicted_proxy_address_on_external_domain
-    );
+    // Predict the address the proxy on external_domain for the authorization module
+    let predicted_proxy_address_on_external_domain = predict_remote_contract_address(
+        test_ctx,
+        external_proxy_code,
+        OSMOSIS_CHAIN_NAME,
+        "osmo",
+        &polytone_voice_on_external_domain_address,
+        &salt_for_proxy_on_external_domain,
+    )
+    .unwrap();
+    info!("Predicted proxy address on {chain_name}: {predicted_proxy_address_on_external_domain}");
 
     // To predict the proxy address on neutron for the processor on external_domain we need to first predict the processor address
-    let predicted_processor_on_external_domain_address = test_ctx
-        .get_built_contract_address()
-        .src(chain_name)
-        .creator(chain_admin_addr)
-        .contract("valence_processor")
-        .salt_hex_encoded(&salt)
-        .get();
+    let predicted_processor_on_external_domain_address = predict_remote_contract_address(
+        test_ctx,
+        1,
+        OSMOSIS_CHAIN_NAME,
+        "osmo",
+        chain_admin_addr,
+        &salt.as_bytes(),
+    )
+    .unwrap();
+
+    // let predicted_processor_on_external_domain_address = test_ctx
+    //     .get_built_contract_address()
+    //     .src(chain_name)
+    //     .creator(chain_admin_addr)
+    //     .contract("valence_processor")
+    //     .salt_hex_encoded(&salt)
+    //     .get();
 
     // Let's now predict the proxy
     let salt_for_proxy_on_neutron = salt_for_proxy(
-        &connection_id_neutron_to_external_domain.unwrap(),
-        &format!(
-            "wasm.{}",
-            polytone_note_on_external_domain
-                .contract_addr
-                .clone()
-                .unwrap()
-        ),
+        &connection_id_neutron_to_external_domain,
+        &format!("wasm.{}", polytone_note_on_external_domain_address),
         &predicted_processor_on_external_domain_address,
     );
     let predicted_proxy_address_on_neutron = test_ctx
@@ -400,10 +395,7 @@ pub fn set_up_external_domain_with_polytone(
         .salt_hex_encoded(&hex::encode(salt_for_proxy_on_neutron))
         .get();
 
-    info!(
-        "Predicted proxy address on Neutron: {}",
-        predicted_proxy_address_on_neutron
-    );
+    info!("Predicted proxy address on Neutron: {predicted_proxy_address_on_neutron}",);
 
     let timeout_seconds = 300;
     // Instantiate the processor on the external domain
@@ -438,7 +430,10 @@ pub fn set_up_external_domain_with_polytone(
         .with_code_id(processor_code_id_on_external_domain)
         .with_salt_hex_encoded(&salt)
         .with_msg(serde_json::to_value(processor_instantiate_msg).unwrap())
-        .with_flags(&format!("--fees {}{}", 5_000_000, OSMOSIS_CHAIN_DENOM))
+        .with_flags(&format!(
+            "--gas=auto --gas-adjustment=3.0 --fees {}{}",
+            5_000_000, OSMOSIS_CHAIN_DENOM
+        ))
         .send()
         .unwrap();
 
@@ -475,13 +470,50 @@ pub fn set_up_external_domain_with_polytone(
         &serde_json::to_string(&add_external_domain_msg).unwrap(),
         &format!(
             "--gas=auto --gas-adjustment=3.0 --fees {}{}",
-            5_000_000, OSMOSIS_CHAIN_DENOM
+            5_000_000, NEUTRON_CHAIN_DENOM
         ),
     )
     .unwrap();
     std::thread::sleep(Duration::from_secs(5));
 
     Ok(predicted_processor_on_external_domain_address)
+}
+
+fn predict_remote_contract_address(
+    test_ctx: &mut TestContext,
+    code_id: u64,
+    chain_name: &str,
+    chain_prefix: &str,
+    creator_addr: &str,
+    salt: &[u8],
+) -> Result<String, Box<dyn Error>> {
+    let resp = test_ctx
+        .get_request_builder()
+        .get_request_builder(chain_name)
+        .query(&format!("q wasm code-info {code_id}"), false);
+
+    info!("code-info response: {:?}", resp);
+    let checksum = if let Some(data_hash) = resp["data_hash"].as_str() {
+        info!("data hash: {:?}", data_hash);
+        HexBinary::from_hex(data_hash).unwrap()
+    } else {
+        panic!("failed to get data hash from response: {:?}", resp);
+    };
+
+    let canonical_predicted_proxy_address_on_external_domain = instantiate2_address(
+        &checksum,
+        &addr_canonicalize(chain_prefix, creator_addr).unwrap(),
+        salt,
+    )
+    .unwrap();
+
+    let predicted_address_on_external_domain = addr_humanize(
+        chain_prefix,
+        &canonical_predicted_proxy_address_on_external_domain,
+    )
+    .unwrap();
+
+    Ok(predicted_address_on_external_domain)
 }
 
 /// queries the authorization contract processor callbacks and tries to confirm that

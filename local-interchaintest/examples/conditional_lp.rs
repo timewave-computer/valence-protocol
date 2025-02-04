@@ -1,4 +1,5 @@
 use cosmwasm_std::{to_json_binary, Binary, Uint64};
+use cosmwasm_std_old::to_json_string;
 use local_interchaintest::utils::{
     authorization::{set_up_authorization_and_processor, set_up_external_domain_with_polytone},
     base_account::create_storage_accounts,
@@ -67,26 +68,28 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let current_dir = env::current_dir()?;
 
-    // with test context set up, we can generate the .env file for the icq relayer
-    generate_icq_relayer_config(
-        &test_ctx,
-        current_dir.clone(),
-        OSMOSIS_CHAIN_NAME.to_string(),
-    )?;
+    // // with test context set up, we can generate the .env file for the icq relayer
+    // generate_icq_relayer_config(
+    //     &test_ctx,
+    //     current_dir.clone(),
+    //     OSMOSIS_CHAIN_NAME.to_string(),
+    // )?;
 
-    // start the icq relayer. this runs in detached mode so we need
-    // to manually kill it before each run for now.
-    start_icq_relayer()?;
+    // // start the icq relayer. this runs in detached mode so we need
+    // // to manually kill it before each run for now.
+    // start_icq_relayer()?;
 
-    info!("sleeping for 10 to allow icq relayer to start...");
-    std::thread::sleep(Duration::from_secs(10));
+    // info!("sleeping for 10 to allow icq relayer to start...");
+    // std::thread::sleep(Duration::from_secs(10));
 
     let now = SystemTime::now();
-    let salt = hex::encode(
-        now.duration_since(SystemTime::UNIX_EPOCH)?
+    let b64_seconds = to_json_string(
+        &now.duration_since(SystemTime::UNIX_EPOCH)?
             .as_secs()
             .to_string(),
-    );
+    )?;
+    let salt = hex::encode(b64_seconds);
+    info!("using salt: {salt}");
 
     let (authorization_contract_address, neutron_processor_address) =
         set_up_authorization_and_processor(&mut test_ctx, salt.clone())?;
