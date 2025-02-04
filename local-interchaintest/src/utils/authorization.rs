@@ -437,10 +437,10 @@ pub fn set_up_external_domain_with_polytone(
                     valence_authorization_utils::msg::ExecutionEnvironmentInfo::Cosmwasm(
                         CosmwasmBridgeInfo::Polytone(PolytoneConnectorsInfo {
                             polytone_note: valence_authorization_utils::msg::PolytoneNoteInfo {
-                                address: polytone_note_on_external_domain_address.clone(),
+                                address: polytone_note_on_neutron_address.clone(),
                                 timeout_seconds,
                             },
-                            polytone_proxy: predicted_proxy_address_on_external_domain.clone(),
+                            polytone_proxy: predicted_proxy_address_on_neutron.clone(),
                         }),
                     ),
                 processor: predicted_processor_on_external_domain_address.clone(),

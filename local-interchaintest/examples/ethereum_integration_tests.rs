@@ -1,12 +1,10 @@
-use std::error::Error;
+use std::{env, error::Error, time::SystemTime};
 
 use alloy::sol;
 use cosmwasm_std_old::HexBinary;
 use hpl_interface::core::mailbox::DispatchMsg;
 use local_interchaintest::utils::{
-    ethereum::set_up_anvil_container,
-    hyperlane::{set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts, set_up_hyperlane},
-    DEFAULT_ANVIL_RPC_ENDPOINT, GAS_FLAGS, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
+    authorization::set_up_authorization_and_processor, ethereum::set_up_anvil_container, hyperlane::{set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts, set_up_hyperlane}, DEFAULT_ANVIL_RPC_ENDPOINT, GAS_FLAGS, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH
 };
 use localic_std::modules::cosmwasm::contract_execute;
 use localic_utils::{
@@ -46,7 +44,25 @@ fn main() -> Result<(), Box<dyn Error>> {
         &eth_hyperlane_contracts,
     )?;
 
-    
+    let now = SystemTime::now();
+    let salt = hex::encode(
+        now.duration_since(SystemTime::UNIX_EPOCH)?
+            .as_secs()
+            .to_string(),
+    );
+
+    let (authorization_contract_address, _) =
+        set_up_authorization_and_processor(&mut test_ctx, salt.clone())?;
+
+    // Since we are going to send messages to EVM, we need to set up the encoder
+    let current_dir = env::current_dir()?;
+    let encoder_broker_path = format!(
+        "{}/artifacts/valence_encoder_broker.wasm",
+        current_dir.display()
+    );
+
+
+
     /*// Create a Test Recipient
     sol!(
         #[sol(rpc)]
