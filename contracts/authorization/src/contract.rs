@@ -1189,6 +1189,20 @@ fn process_hyperlane_callback(
     callback_info.execution_result = execution_result;
     PROCESSOR_CALLBACKS.save(deps.storage, execution_id, &callback_info)?;
 
+    // Reduce the current executions for the label
+    CURRENT_EXECUTIONS.update(
+        deps.storage,
+        callback_info.label.clone(),
+        |current| -> Result<u64, ContractError> {
+            let count = current.unwrap_or_default();
+            if count == 0 {
+                Err(ContractError::CurrentExecutionsIsZero {})
+            } else {
+                Ok(count - 1)
+            }
+        },
+    )?;
+
     Ok(Response::new()
         .add_attribute("action", "process_hyperlane_callback")
         .add_attribute("execution_id", execution_id.to_string()))
