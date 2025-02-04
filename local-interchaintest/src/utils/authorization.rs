@@ -6,8 +6,8 @@ use localic_std::{
     relayer::Relayer,
 };
 use localic_utils::{
-    utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_ID,
-    NEUTRON_CHAIN_NAME,
+    utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM,
+    NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_DENOM,
 };
 use log::info;
 use serde_json::Value;
@@ -201,7 +201,10 @@ pub fn set_up_external_domain_with_polytone(
             &serde_json::to_string(&polytone_note_instantiate_msg).unwrap(),
             "polytone-note-neutron",
             None,
-            "",
+            &format!(
+                "--gas=auto --gas-adjustment=3.0 --fees {}{}",
+                5_000_000, NEUTRON_CHAIN_DENOM
+            ),
         )
         .unwrap()
         .address;
@@ -209,14 +212,17 @@ pub fn set_up_external_domain_with_polytone(
         "Polytone Note on Neutron: {}",
         polytone_note_on_neutron_address
     );
-
+    std::thread::sleep(Duration::from_secs(1));
     let polytone_voice_on_neutron_address = polytone_voice_on_neutron
         .instantiate(
             DEFAULT_KEY,
             &serde_json::to_string(&neutron_polytone_voice_instantiate_msg).unwrap(),
             "polytone-voice-neutron",
             None,
-            "",
+            &format!(
+                "--gas=auto --gas-adjustment=3.0 --fees {}{}",
+                5_000_000, NEUTRON_CHAIN_DENOM
+            ),
         )
         .unwrap()
         .address;
@@ -231,7 +237,7 @@ pub fn set_up_external_domain_with_polytone(
             &serde_json::to_string(&polytone_note_instantiate_msg).unwrap(),
             "polytone-note-external-domain",
             None,
-            "",
+            &format!("--fees {}{}", 5000, OSMOSIS_CHAIN_DENOM),
         )
         .unwrap()
         .address;
@@ -239,14 +245,14 @@ pub fn set_up_external_domain_with_polytone(
         "Polytone Note on {}: {}",
         chain_name, polytone_note_on_external_domain_address
     );
-
+    std::thread::sleep(Duration::from_secs(1));
     let polytone_voice_on_external_domain_address = polytone_voice_on_external_domain
         .instantiate(
             DEFAULT_KEY,
             &serde_json::to_string(&external_domain_polytone_voice_instantiate_msg).unwrap(),
             "polytone-voice-external-domain",
             None,
-            "",
+            &format!("--fees {}{}", 5000, OSMOSIS_CHAIN_DENOM),
         )
         .unwrap()
         .address;
@@ -262,6 +268,7 @@ pub fn set_up_external_domain_with_polytone(
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
     );
+    std::thread::sleep(Duration::from_secs(1));
 
     polytone_note_on_neutron
         .create_wasm_connection(
@@ -279,6 +286,7 @@ pub fn set_up_external_domain_with_polytone(
             "polytone-1",
         )
         .unwrap();
+    std::thread::sleep(Duration::from_secs(1));
 
     polytone_voice_on_neutron
         .create_wasm_connection(
@@ -401,6 +409,7 @@ pub fn set_up_external_domain_with_polytone(
             timeout_seconds,
         }),
     };
+    std::thread::sleep(Duration::from_secs(3));
 
     let processor_code_id_on_external_domain = test_ctx
         .get_contract()
@@ -409,6 +418,8 @@ pub fn set_up_external_domain_with_polytone(
         .get_cw()
         .code_id
         .unwrap();
+
+    std::thread::sleep(Duration::from_secs(3));
 
     // Instantiate processor
     test_ctx
@@ -446,7 +457,6 @@ pub fn set_up_external_domain_with_polytone(
             }],
         },
     );
-
     contract_execute(
         test_ctx
             .get_request_builder()
@@ -454,7 +464,7 @@ pub fn set_up_external_domain_with_polytone(
         authorization_contract,
         DEFAULT_KEY,
         &serde_json::to_string(&add_external_domain_msg).unwrap(),
-        GAS_FLAGS,
+        &format!("--fees {}{}", 5000, OSMOSIS_CHAIN_DENOM),
     )
     .unwrap();
     std::thread::sleep(Duration::from_secs(5));
