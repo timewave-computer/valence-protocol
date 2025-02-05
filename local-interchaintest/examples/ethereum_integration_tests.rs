@@ -6,7 +6,8 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use alloy::primitives::Address;
+use alloy::primitives::{Address, U256};
+use alloy_sol_types_encoder::SolValue;
 use cosmwasm_std::Empty;
 use local_interchaintest::utils::{
     authorization::set_up_authorization_and_processor,
@@ -15,7 +16,7 @@ use local_interchaintest::utils::{
         bech32_to_evm_bytes32, set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts,
         set_up_hyperlane,
     },
-    solidity_contracts::LiteProcessor,
+    solidity_contracts::{BaseAccount, Forwarder, LiteProcessor, MockERC20},
     DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME, ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS,
     LOGS_FILE_PATH, NEUTRON_HYPERLANE_DOMAIN, VALENCE_ARTIFACTS_PATH,
 };
@@ -30,6 +31,9 @@ use valence_authorization_utils::{
     msg::{
         EncoderInfo, EvmBridgeInfo, ExternalDomainInfo, HyperlaneConnectorInfo, PermissionedMsg,
     },
+};
+use valence_encoder_utils::libraries::forwarder::solidity_types::{
+    ForwarderConfig, ForwardingConfig, IntervalType,
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -231,6 +235,101 @@ fn main() -> Result<(), Box<dyn Error>> {
     let builder = lite_processor.paused();
     let paused = eth.rt.block_on(async { builder.call().await })?._0;
     assert!(!paused);
+
+    // Let's create two Valence Base Accounts on Ethereum to test the processor with libraries (in this case the forwarder)
+    info!("Deploying base accounts on Ethereum...");
+    let base_account_tx = BaseAccount::deploy_builder(&eth.provider, accounts[0], vec![])
+        .into_transaction_request()
+        .from(accounts[0]);
+
+    let base_account_1 = eth
+        .send_transaction(base_account_tx.clone())?
+        .contract_address
+        .unwrap();
+    let base_account_2 = eth
+        .send_transaction(base_account_tx.clone())?
+        .contract_address
+        .unwrap();
+
+    info!("Deploying ERC20s on Ethereum...");
+    let token_1_tx =
+        MockERC20::deploy_builder(&eth.provider, "Token1".to_string(), "T1".to_string())
+            .into_transaction_request()
+            .from(accounts[0]);
+    let token_1_address = eth.send_transaction(token_1_tx)?.contract_address.unwrap();
+    let token_1 = MockERC20::new(token_1_address, &eth.provider);
+
+    let token_2_tx =
+        MockERC20::deploy_builder(&eth.provider, "Token2".to_string(), "T2".to_string())
+            .into_transaction_request()
+            .from(accounts[0]);
+    let token_2_address = eth.send_transaction(token_2_tx)?.contract_address.unwrap();
+    let token_2 = MockERC20::new(token_2_address, &eth.provider);
+
+    // Let's mint some token1 to base_account_1 and some token2 to base_account_2
+    let mint_token1_tx = token_1
+        .mint(base_account_1, U256::from(1000))
+        .into_transaction_request()
+        .from(accounts[0]);
+    eth.send_transaction(mint_token1_tx)?;
+    let mint_token2_tx = token_2
+        .mint(base_account_2, U256::from(1000))
+        .into_transaction_request()
+        .from(accounts[0]);
+    eth.send_transaction(mint_token2_tx)?;
+
+    // Now let's deploy the forwarders
+    let forwarder_1_config = ForwarderConfig {
+        inputAccount: alloy_primitives_encoder::Address::from_str(&base_account_1.to_string())?,
+        outputAccount: alloy_primitives_encoder::Address::from_str(&base_account_2.to_string())?,
+        forwardingConfigs: vec![ForwardingConfig {
+            tokenAddress: alloy_primitives_encoder::Address::from_str(
+                &token_1_address.to_string(),
+            )?,
+            maxAmount: 1000,
+        }],
+        intervalType: IntervalType::TIME,
+        minInterval: 0,
+    };
+    let forwarder_1_tx = Forwarder::deploy_builder(
+        &eth.provider,
+        accounts[0],
+        lite_processor_address,
+        forwarder_1_config.abi_encode().into(),
+    )
+    .into_transaction_request()
+    .from(accounts[0]);
+    let forwarder_1_address = eth
+        .send_transaction(forwarder_1_tx)?
+        .contract_address
+        .unwrap();
+    info!("Forwarder 1 deployed at: {}", forwarder_1_address);
+
+    let forwarder_2_config = ForwarderConfig {
+        inputAccount: alloy_primitives_encoder::Address::from_str(&base_account_2.to_string())?,
+        outputAccount: alloy_primitives_encoder::Address::from_str(&base_account_1.to_string())?,
+        forwardingConfigs: vec![ForwardingConfig {
+            tokenAddress: alloy_primitives_encoder::Address::from_str(
+                &token_2_address.to_string(),
+            )?,
+            maxAmount: 1000,
+        }],
+        intervalType: IntervalType::TIME,
+        minInterval: 0,
+    };
+    let forwarder_2_tx = Forwarder::deploy_builder(
+        &eth.provider,
+        accounts[0],
+        lite_processor_address,
+        forwarder_2_config.abi_encode().into(),
+    )
+    .into_transaction_request()
+    .from(accounts[0]);
+    let forwarder_2_address = eth
+        .send_transaction(forwarder_2_tx)?
+        .contract_address
+        .unwrap();
+    info!("Forwarder 2 deployed at: {}", forwarder_2_address);
 
     /*// Create a Test Recipient
     sol!(
