@@ -27,6 +27,12 @@ runs:
       with:
         name: optimized-contracts
         path: ./artifacts
+    
+    - name: Download Forge artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: forge-artifacts
+          path: ./solidity/out/
 
     - name: List downloaded files
       shell: bash
