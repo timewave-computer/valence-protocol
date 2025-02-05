@@ -78,11 +78,7 @@ pub struct ProgramConfig {
     /// The list account data by id
     pub accounts: BTreeMap<Id, AccountInfo>,
     /// The list service data by id
-<<<<<<< HEAD:workflow-manager/src/workflow_config.rs
-    pub services: BTreeMap<Id, ServiceInfo>,
-=======
     pub libraries: BTreeMap<Id, LibraryInfo>,
->>>>>>> 0ceed756d867ffd33d4763d6734c405886661022:program-manager/src/program_config.rs
     /// A list of authorizations
     pub authorizations: Vec<AuthorizationInfo>,
     /// This is the info regarding authorization and processor contracts.
@@ -305,11 +301,8 @@ impl ProgramConfig {
                 InstantiateAccountData::new(*account_id, account.clone(), addr.clone(), salt),
             );
 
-<<<<<<< HEAD:workflow-manager/src/workflow_config.rs
-=======
             // Set active to be true just in case it was given false on init
             account.ty = AccountType::Addr { addr: addr.clone() };
->>>>>>> 0ceed756d867ffd33d4763d6734c405886661022:program-manager/src/program_config.rs
             account.addr = Some(addr);
         }
 

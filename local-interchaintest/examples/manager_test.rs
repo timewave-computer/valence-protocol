@@ -12,7 +12,6 @@ use localic_std::modules::{
     bank,
     cosmwasm::{contract_execute, contract_query},
 };
-use localic_std::modules::cosmwasm::{contract_execute, contract_query};
 use localic_utils::{
     ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
     NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,

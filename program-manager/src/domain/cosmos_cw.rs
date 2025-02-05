@@ -760,11 +760,7 @@ impl Connector for CosmosCosmwasmConnector {
         Ok(())
     }
 
-<<<<<<< HEAD:workflow-manager/src/domain/cosmos_cw.rs
-    async fn save_workflow_config(&mut self, mut config: WorkflowConfig) -> ConnectorResult<()> {
-=======
     async fn save_program_config(&mut self, config: ProgramConfig) -> ConnectorResult<()> {
->>>>>>> 0ceed756d867ffd33d4763d6734c405886661022:program-manager/src/domain/cosmos_cw.rs
         if self.chain_name != *NEUTRON_CHAIN {
             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                 "Should only be implemented on neutron connector"
@@ -772,20 +768,13 @@ impl Connector for CosmosCosmwasmConnector {
             .into());
         }
 
-<<<<<<< HEAD:workflow-manager/src/domain/cosmos_cw.rs
-        for service in config.services.values_mut() {
-            if service.addr.is_none() {
-=======
         for library in config.libraries.values() {
             if library.addr.is_none() {
->>>>>>> 0ceed756d867ffd33d4763d6734c405886661022:program-manager/src/domain/cosmos_cw.rs
                 return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                     "Before saving program config each library must have an address"
                 ))
                 .into());
             }
-
-            service.config = ServiceConfig::None;
         }
 
         let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();
@@ -813,11 +802,7 @@ impl Connector for CosmosCosmwasmConnector {
         Ok(())
     }
 
-<<<<<<< HEAD:workflow-manager/src/domain/cosmos_cw.rs
-    async fn update_workflow_config(&mut self, config: WorkflowConfig) -> ConnectorResult<()> {
-=======
     async fn update_program_config(&mut self, config: ProgramConfig) -> ConnectorResult<()> {
->>>>>>> 0ceed756d867ffd33d4763d6734c405886661022:program-manager/src/domain/cosmos_cw.rs
         if self.chain_name != *NEUTRON_CHAIN {
             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                 "Should only be implemented on neutron connector"
@@ -825,17 +810,10 @@ impl Connector for CosmosCosmwasmConnector {
             .into());
         }
 
-<<<<<<< HEAD:workflow-manager/src/domain/cosmos_cw.rs
-        for service in config.services.values() {
-            if service.addr.is_none() {
-                return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
-                    "Before saving workflow config each service must have an address"
-=======
         for library in config.libraries.values() {
             if library.addr.is_none() {
                 return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                     "Before saving program config each library must have an address"
->>>>>>> 0ceed756d867ffd33d4763d6734c405886661022:program-manager/src/domain/cosmos_cw.rs
                 ))
                 .into());
             }
@@ -843,17 +821,6 @@ impl Connector for CosmosCosmwasmConnector {
 
         let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();
 
-<<<<<<< HEAD:workflow-manager/src/domain/cosmos_cw.rs
-        let workflow_binary =
-            to_json_binary(&config).map_err(CosmosCosmwasmError::CosmwasmStdError)?;
-
-        let msg = to_vec(
-            &valence_workflow_registry_utils::ExecuteMsg::UpdateWorkflow {
-                id: config.id,
-                workflow_config: workflow_binary,
-            },
-        )
-=======
         let program_binary =
             to_json_binary(&config).map_err(CosmosCosmwasmError::CosmwasmStdError)?;
 
@@ -861,7 +828,6 @@ impl Connector for CosmosCosmwasmConnector {
             id: config.id,
             program_config: program_binary,
         })
->>>>>>> 0ceed756d867ffd33d4763d6734c405886661022:program-manager/src/domain/cosmos_cw.rs
         .map_err(CosmosCosmwasmError::SerdeJsonError)?;
 
         let m = MsgExecuteContract {
@@ -878,11 +844,7 @@ impl Connector for CosmosCosmwasmConnector {
         Ok(())
     }
 
-<<<<<<< HEAD:workflow-manager/src/domain/cosmos_cw.rs
-    async fn get_workflow_config(&mut self, id: u64) -> ConnectorResult<WorkflowConfig> {
-=======
     async fn get_program_config(&mut self, id: u64) -> ConnectorResult<ProgramConfig> {
->>>>>>> 0ceed756d867ffd33d4763d6734c405886661022:program-manager/src/domain/cosmos_cw.rs
         if self.chain_name != *NEUTRON_CHAIN {
             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                 "Should only be implemented on neutron connector"
@@ -894,19 +856,11 @@ impl Connector for CosmosCosmwasmConnector {
 
         let query = QuerySmartContractStateRequest {
             address: registry_addr,
-<<<<<<< HEAD:workflow-manager/src/domain/cosmos_cw.rs
-            query_data: to_vec(&valence_workflow_registry_utils::QueryMsg::GetConfig { id })
-                .map_err(CosmosCosmwasmError::SerdeJsonError)?,
-        };
-
-        let res = from_json::<valence_workflow_registry_utils::WorkflowResponse>(
-=======
             query_data: to_vec(&valence_program_registry_utils::QueryMsg::GetConfig { id })
                 .map_err(CosmosCosmwasmError::SerdeJsonError)?,
         };
 
         let res = from_json::<valence_program_registry_utils::ProgramResponse>(
->>>>>>> 0ceed756d867ffd33d4763d6734c405886661022:program-manager/src/domain/cosmos_cw.rs
             &self
                 .wallet
                 .client
@@ -921,11 +875,7 @@ impl Connector for CosmosCosmwasmConnector {
         )
         .map_err(CosmosCosmwasmError::CosmwasmStdError)?;
 
-<<<<<<< HEAD:workflow-manager/src/domain/cosmos_cw.rs
-        Ok(from_json::<WorkflowConfig>(&res.workflow_config)
-=======
         Ok(from_json::<ProgramConfig>(&res.program_config)
->>>>>>> 0ceed756d867ffd33d4763d6734c405886661022:program-manager/src/domain/cosmos_cw.rs
             .map_err(CosmosCosmwasmError::CosmwasmStdError)?)
     }
 }

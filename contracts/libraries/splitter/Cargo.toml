@@ -1,9 +1,5 @@
 [package]
-<<<<<<< HEAD:contracts/services/splitter/Cargo.toml
-name       = "valence-splitter-service"
-=======
 name       = "valence-splitter-library"
->>>>>>> 0ceed756d867ffd33d4763d6734c405886661022:contracts/libraries/splitter/Cargo.toml
 authors    = { workspace = true }
 edition    = { workspace = true }
 license    = { workspace = true }

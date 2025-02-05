@@ -5,17 +5,11 @@ use localic_utils::{utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN
 use valence_program_manager::{
     config::{ChainInfo, GLOBAL_CONFIG},
     error::ManagerResult,
-<<<<<<< HEAD
-    init_workflow, update_workflow,
-    workflow_config::WorkflowConfig,
-    workflow_update::{UpdateResponse, WorkflowConfigUpdate},
-=======
     init_program, migrate_program,
     program_config::ProgramConfig,
     program_migration::{MigrateResponse, ProgramConfigMigrate},
     program_update::{ProgramConfigUpdate, UpdateResponse},
     update_program,
->>>>>>> 0ceed756d867ffd33d4763d6734c405886661022
 };
 
 use crate::utils::POLYTONE_ARTIFACTS_PATH;
@@ -344,17 +338,6 @@ pub fn use_manager_migrate(
         .build()
         .unwrap();
     rt.block_on(migrate_program(program_config_migrate))
-}
-
-/// Helper function to update manager config to hide the tokio block_on
-pub fn use_manager_update(
-    workflow_config_update: WorkflowConfigUpdate,
-) -> ManagerResult<UpdateResponse> {
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-    rt.block_on(update_workflow(workflow_config_update))
 }
 
 pub fn get_global_config(

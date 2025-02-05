@@ -37,12 +37,6 @@ pub fn addr_humanize(prefix: &str, canonical: &CanonicalAddr) -> Result<String, 
     encode::<Bech32>(prefix, canonical.as_slice()).map_err(|_| anyhow!("Bech32 encoding error"))
 }
 
-<<<<<<< HEAD:workflow-manager/src/helpers.rs
-// /// Helper for serde default for bool
-// pub(crate) fn bool_true_default() -> bool {
-//     true
-// }
-=======
 pub async fn get_polytone_info(
     main_chain: &str,
     other_chain: &str,
@@ -54,4 +48,3 @@ pub async fn get_polytone_info(
         .get_polytone_info()
         .clone())
 }
->>>>>>> 0ceed756d867ffd33d4763d6734c405886661022:program-manager/src/helpers.rs
