@@ -7,7 +7,8 @@ use local_interchaintest::utils::{
     authorization::set_up_authorization_and_processor,
     ethereum::set_up_anvil_container,
     hyperlane::{set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts, set_up_hyperlane},
-    DEFAULT_ANVIL_RPC_ENDPOINT, GAS_FLAGS, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
+    DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME, GAS_FLAGS, LOGS_FILE_PATH,
+    VALENCE_ARTIFACTS_PATH,
 };
 use localic_std::modules::cosmwasm::{contract_execute, contract_instantiate};
 use localic_utils::{
@@ -15,6 +16,7 @@ use localic_utils::{
     LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
 };
 use log::info;
+use valence_authorization_utils::msg::{ExternalDomainInfo, PermissionedMsg};
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -57,6 +59,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let (authorization_contract_address, _) =
         set_up_authorization_and_processor(&mut test_ctx, salt.clone())?;
 
+    info!("Setting up encoders ...");
     // Since we are going to send messages to EVM, we need to set up the encoder broker with the evm encoder
     let current_dir = env::current_dir()?;
     let encoder_broker_path = format!(
@@ -113,6 +116,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     )
     .unwrap();
 
+    info!("Setting up Lite Processor on Ethereum");
     /*// Create a Test Recipient
     sol!(
         #[sol(rpc)]

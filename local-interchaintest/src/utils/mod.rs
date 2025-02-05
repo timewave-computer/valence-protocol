@@ -53,3 +53,4 @@ pub const PERSISTENCE_CHAIN_ADMIN_ADDR: &str = "persistence1hj5fveer5cjtn4wd6wst
 pub const ASTROPORT_LP_SUBDENOM: &str = "astroport/share";
 
 pub const DEFAULT_ANVIL_RPC_ENDPOINT: &str = "http://localhost:8545";
+pub const ETHEREUM_CHAIN_NAME: &str = "ethereum";

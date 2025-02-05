@@ -29,3 +29,9 @@ sol!(
     ValidatorAnnounce,
     "./hyperlane/contracts/solidity/ValidatorAnnounce.json",
 );
+
+sol!(
+    #[sol(rpc)]
+    LiteProcessor,
+    "../solidity/out/LiteProcessor.sol/LiteProcessor.json",
+);

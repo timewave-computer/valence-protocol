@@ -73,7 +73,7 @@ abstract contract ProcessorBase {
      */
     function _handlePause() internal {
         paused = true;
-        emit ProcessorEvents.ProcessorPaused();
+        emit ProcessorEvents.ProcessorWasPaused();
     }
 
     /**
@@ -81,7 +81,7 @@ abstract contract ProcessorBase {
      */
     function _handleResume() internal {
         paused = false;
-        emit ProcessorEvents.ProcessorResumed();
+        emit ProcessorEvents.ProcessorWasResumed();
     }
 
     /**
