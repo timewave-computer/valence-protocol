@@ -3870,6 +3870,7 @@ dependencies = [
  "valence-astroport-withdrawer",
  "valence-authorization",
  "valence-authorization-utils",
+ "valence-encoder-broker",
  "valence-forwarder-library",
  "valence-generic-ibc-transfer-library",
  "valence-ibc-utils",

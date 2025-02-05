@@ -1,15 +1,18 @@
-use std::{env, error::Error, time::SystemTime};
+use std::{collections::HashMap, env, error::Error, time::SystemTime};
 
 use alloy::sol;
 use cosmwasm_std_old::HexBinary;
 use hpl_interface::core::mailbox::DispatchMsg;
 use local_interchaintest::utils::{
-    authorization::set_up_authorization_and_processor, ethereum::set_up_anvil_container, hyperlane::{set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts, set_up_hyperlane}, DEFAULT_ANVIL_RPC_ENDPOINT, GAS_FLAGS, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH
+    authorization::set_up_authorization_and_processor,
+    ethereum::set_up_anvil_container,
+    hyperlane::{set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts, set_up_hyperlane},
+    DEFAULT_ANVIL_RPC_ENDPOINT, GAS_FLAGS, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
 };
-use localic_std::modules::cosmwasm::contract_execute;
+use localic_std::modules::cosmwasm::{contract_execute, contract_instantiate};
 use localic_utils::{
     utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
-    LOCAL_IC_API_URL, NEUTRON_CHAIN_NAME,
+    LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
 };
 use log::info;
 
@@ -54,14 +57,61 @@ fn main() -> Result<(), Box<dyn Error>> {
     let (authorization_contract_address, _) =
         set_up_authorization_and_processor(&mut test_ctx, salt.clone())?;
 
-    // Since we are going to send messages to EVM, we need to set up the encoder
+    // Since we are going to send messages to EVM, we need to set up the encoder broker with the evm encoder
     let current_dir = env::current_dir()?;
     let encoder_broker_path = format!(
         "{}/artifacts/valence_encoder_broker.wasm",
         current_dir.display()
     );
+    let evm_encoder_path = format!(
+        "{}/artifacts/valence_evm_encoder_v1.wasm",
+        current_dir.display()
+    );
+    let mut uploader = test_ctx.build_tx_upload_contracts();
+    uploader.send_single_contract(&encoder_broker_path)?;
+    uploader.send_single_contract(&evm_encoder_path)?;
 
+    let code_id_encoder_broker = *test_ctx
+        .get_chain(NEUTRON_CHAIN_NAME)
+        .contract_codes
+        .get("valence_encoder_broker")
+        .unwrap();
+    let code_id_evm_encoder = *test_ctx
+        .get_chain(NEUTRON_CHAIN_NAME)
+        .contract_codes
+        .get("valence_evm_encoder_v1")
+        .unwrap();
 
+    let evm_encoder = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        code_id_evm_encoder,
+        &serde_json::to_string(&{}).unwrap(),
+        "evm_encoder",
+        None,
+        "",
+    )
+    .unwrap();
+
+    let namespace_evm_encoder = "evm_encoder_v1".to_string();
+    let encoder_broker = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        code_id_encoder_broker,
+        &serde_json::to_string(&valence_encoder_broker::msg::InstantiateMsg {
+            encoders: HashMap::from([(namespace_evm_encoder.clone(), evm_encoder.address)]),
+            owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        })
+        .unwrap(),
+        "encoder_broker",
+        None,
+        "",
+    )
+    .unwrap();
 
     /*// Create a Test Recipient
     sol!(
