@@ -1,4 +1,10 @@
-use std::{collections::HashMap, env, error::Error, str::FromStr, time::SystemTime};
+use std::{
+    collections::HashMap,
+    env,
+    error::Error,
+    str::FromStr,
+    time::{Duration, SystemTime},
+};
 
 use alloy::primitives::Address;
 use cosmwasm_std::Empty;
@@ -10,15 +16,21 @@ use local_interchaintest::utils::{
         set_up_hyperlane,
     },
     solidity_contracts::LiteProcessor,
-    DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_HYPERLANE_DOMAIN, LOGS_FILE_PATH,
-    NEUTRON_HYPERLANE_DOMAIN, VALENCE_ARTIFACTS_PATH,
+    DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME, ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS,
+    LOGS_FILE_PATH, NEUTRON_HYPERLANE_DOMAIN, VALENCE_ARTIFACTS_PATH,
 };
-use localic_std::modules::cosmwasm::contract_instantiate;
+use localic_std::modules::cosmwasm::{contract_execute, contract_instantiate};
 use localic_utils::{
     utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
     LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
 };
 use log::info;
+use valence_authorization_utils::{
+    domain::Domain,
+    msg::{
+        EncoderInfo, EvmBridgeInfo, ExternalDomainInfo, HyperlaneConnectorInfo, PermissionedMsg,
+    },
+};
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -137,6 +149,88 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let lite_processor_address = eth.send_transaction(tx)?.contract_address.unwrap();
     info!("Lite Processor deployed at: {}", lite_processor_address);
+
+    info!("Adding EVM external domain to Authorization contract");
+    let add_external_evm_domain_msg =
+        valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
+            PermissionedMsg::AddExternalDomains {
+                external_domains: vec![ExternalDomainInfo {
+                    name: ETHEREUM_CHAIN_NAME.to_string(),
+                    execution_environment:
+                        valence_authorization_utils::msg::ExecutionEnvironmentInfo::Evm(
+                            EncoderInfo {
+                                broker_address: encoder_broker.address,
+                                encoder_version: namespace_evm_encoder,
+                            },
+                            EvmBridgeInfo::Hyperlane(HyperlaneConnectorInfo {
+                                mailbox: neutron_hyperlane_contracts.mailbox.to_string(),
+                                domain_id: ETHEREUM_HYPERLANE_DOMAIN,
+                            }),
+                        ),
+                    processor: lite_processor_address.to_string(),
+                }],
+            },
+        );
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&add_external_evm_domain_msg).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+    std::thread::sleep(Duration::from_secs(3));
+
+    info!("Test pausing the processor...");
+    let pause_processor_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
+        PermissionedMsg::PauseProcessor {
+            domain: Domain::External(ETHEREUM_CHAIN_NAME.to_string()),
+        },
+    );
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&pause_processor_msg).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+    std::thread::sleep(Duration::from_secs(5));
+
+    // Query the processor to verify that it is paused
+    let lite_processor = LiteProcessor::new(lite_processor_address, &eth.provider);
+    let builder = lite_processor.paused();
+    let paused = eth.rt.block_on(async { builder.call().await })?._0;
+    assert!(paused);
+
+    info!("Test resuming the processor...");
+    let resume_processor_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
+        PermissionedMsg::ResumeProcessor {
+            domain: Domain::External(ETHEREUM_CHAIN_NAME.to_string()),
+        },
+    );
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&resume_processor_msg).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+    std::thread::sleep(Duration::from_secs(5));
+
+    // Query the processor to verify that it is resumed
+    let lite_processor = LiteProcessor::new(lite_processor_address, &eth.provider);
+    let builder = lite_processor.paused();
+    let paused = eth.rt.block_on(async { builder.call().await })?._0;
+    assert!(!paused);
 
     /*// Create a Test Recipient
     sol!(
