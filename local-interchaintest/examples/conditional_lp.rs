@@ -1,5 +1,7 @@
-use cosmwasm_std::{to_json_binary, Binary, Uint64};
+use cosmwasm_std::{to_json_binary, Binary, Coin, Uint64};
 use cosmwasm_std_old::to_json_string;
+use cosmwasm_std_old::Coin as BankCoin;
+use local_interchaintest::utils::NTRN_DENOM;
 use local_interchaintest::utils::{
     authorization::{set_up_authorization_and_processor, set_up_external_domain_with_polytone},
     base_account::create_storage_accounts,
@@ -7,12 +9,17 @@ use local_interchaintest::utils::{
     osmosis::gamm::setup_gamm_pool,
     GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_OSMOSIS, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
 };
+
 use localic_std::{
     errors::LocalError,
-    modules::cosmwasm::{contract_execute, contract_instantiate, contract_query},
+    modules::{
+        bank,
+        cosmwasm::{contract_execute, contract_instantiate, contract_query},
+    },
     types::TransactionResponse,
 };
 use log::info;
+use serde_json::Value;
 use std::{
     collections::BTreeMap,
     env,
@@ -21,8 +28,10 @@ use std::{
     time::{Duration, SystemTime},
 };
 use valence_authorization_utils::{
+    authorization::Priority,
     authorization_message::{Message, MessageDetails, MessageType},
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
+    msg::ProcessorMessage,
 };
 use valence_library_utils::LibraryAccountType;
 use valence_middleware_asserter::msg::AssertionConfig;
@@ -30,6 +39,7 @@ use valence_middleware_utils::type_registry::types::{
     RegistryInstantiateMsg, RegistryQueryMsg, ValenceType,
 };
 use valence_neutron_ic_querier::msg::{FunctionMsgs, LibraryConfig, QueryDefinition};
+use valence_processor_utils::processor::MessageBatch;
 
 use localic_utils::{
     utils::test_context::TestContext, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
@@ -69,19 +79,19 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let current_dir = env::current_dir()?;
 
-    // // with test context set up, we can generate the .env file for the icq relayer
-    // generate_icq_relayer_config(
-    //     &test_ctx,
-    //     current_dir.clone(),
-    //     OSMOSIS_CHAIN_NAME.to_string(),
-    // )?;
+    // with test context set up, we can generate the .env file for the icq relayer
+    generate_icq_relayer_config(
+        &test_ctx,
+        current_dir.clone(),
+        OSMOSIS_CHAIN_NAME.to_string(),
+    )?;
 
-    // // start the icq relayer. this runs in detached mode so we need
-    // // to manually kill it before each run for now.
-    // start_icq_relayer()?;
+    // start the icq relayer. this runs in detached mode so we need
+    // to manually kill it before each run for now.
+    start_icq_relayer()?;
 
-    // info!("sleeping for 10 to allow icq relayer to start...");
-    // std::thread::sleep(Duration::from_secs(10));
+    info!("sleeping for 10 to allow icq relayer to start...");
+    std::thread::sleep(Duration::from_secs(10));
 
     let now = SystemTime::now();
     let b64_seconds = to_json_string(
@@ -182,162 +192,140 @@ fn main() -> Result<(), Box<dyn Error>> {
         None,
         "",
     )?;
+    std::thread::sleep(std::time::Duration::from_secs(1));
     info!("icq querier lib address: {}", icq_test_lib.address);
 
+    bank::send(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        &icq_test_lib.address.to_string(),
+        &[BankCoin {
+            denom: NTRN_DENOM.to_string(),
+            amount: 1_000_000u128.into(),
+        }],
+        &BankCoin {
+            denom: NTRN_DENOM.to_string(),
+            amount: cosmwasm_std_old::Uint128::new(5000),
+        },
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    info!("approving IC querier lib on the storage account");
+    approve_library(
+        &mut test_ctx,
+        NEUTRON_CHAIN_NAME,
+        DEFAULT_KEY,
+        neutron_storage_account,
+        icq_test_lib.address.to_string(),
+        None,
+    );
+
+    info!("creating authorizations...");
     create_authorizations(
-        neutron_storage_account.to_string(),
         &mut test_ctx,
         &authorization_contract_address,
+        icq_test_lib.address.to_string(),
+        asserter_addr,
     )?;
+
+    info!("Check processor queue");
+    let items = get_processor_queue_items(
+        &mut test_ctx,
+        NEUTRON_CHAIN_NAME,
+        &neutron_processor_address,
+        Priority::Medium,
+    );
+    println!("Items on neutron processor: {:?}", items);
+
+    info!("sending kv query registration message to authorizations");
+    let kv_query_registration_message_binary = Binary::from(serde_json::to_vec(
+        &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+            FunctionMsgs::RegisterKvQuery {
+                target_query: TARGET_QUERY_LABEL.to_string(),
+            },
+        ),
+    )?);
+
+    let kv_query_registration_message = ProcessorMessage::CosmwasmExecuteMsg {
+        msg: kv_query_registration_message_binary,
+    };
+
+    let send_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+            label: "register_icq".to_string(),
+            messages: vec![kv_query_registration_message],
+            ttl: None,
+        },
+    );
+
+    let tx_resp = contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&send_msg).unwrap(),
+        &format!("{GAS_FLAGS} --fees=100000untrn"),
+    )
+    .unwrap();
+
+    info!("authorization exec response: {:?}", tx_resp);
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    info!("Check processor queue");
+    let items = get_processor_queue_items(
+        &mut test_ctx,
+        NEUTRON_CHAIN_NAME,
+        &neutron_processor_address,
+        Priority::Medium,
+    );
+    println!("Items on neutron processor: {:?}", items);
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    info!("Ticking processor on neutron...");
+    let kvq_tick_response = contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &neutron_processor_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(
+            &valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+                valence_processor_utils::msg::PermissionlessMsg::Tick {},
+            ),
+        )
+        .unwrap(),
+        &format!("{GAS_FLAGS} --fees=1000000untrn"),
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    info!("kvq registration tick response: {:?}", kvq_tick_response);
 
     Ok(())
-}
-
-fn upload_contracts(
-    current_dir: PathBuf,
-    test_ctx: &mut TestContext,
-) -> Result<(), Box<dyn Error>> {
-    info!("uploading contracts to neutron & osmosis...");
-    let mut uploader = test_ctx.build_tx_upload_contracts();
-    let osmosis_type_registry_middleware_path = format!(
-        "{}/artifacts/valence_middleware_osmosis.wasm",
-        current_dir.display()
-    );
-    let osmosis_middleware_broker_path = format!(
-        "{}/artifacts/valence_middleware_broker.wasm",
-        current_dir.display()
-    );
-    let icq_lib_local_path = format!(
-        "{}/artifacts/valence_neutron_ic_querier.wasm",
-        current_dir.display()
-    );
-    let storage_acc_path = format!(
-        "{}/artifacts/valence_storage_account.wasm",
-        current_dir.display()
-    );
-    let asserter_path = format!(
-        "{}/artifacts/valence_middleware_asserter.wasm",
-        current_dir.display()
-    );
-
-    uploader
-        .with_chain_name(NEUTRON_CHAIN_NAME)
-        .send_single_contract(&icq_lib_local_path)?;
-    uploader
-        .with_chain_name(NEUTRON_CHAIN_NAME)
-        .send_single_contract(&osmosis_type_registry_middleware_path)?;
-    uploader
-        .with_chain_name(NEUTRON_CHAIN_NAME)
-        .send_single_contract(&osmosis_middleware_broker_path)?;
-    uploader
-        .with_chain_name(NEUTRON_CHAIN_NAME)
-        .send_single_contract(&storage_acc_path)?;
-    uploader
-        .with_chain_name(NEUTRON_CHAIN_NAME)
-        .send_single_contract(&asserter_path)?;
-
-    Ok(())
-}
-
-fn setup_middleware(
-    test_ctx: &mut TestContext,
-) -> Result<(String, String, String), Box<dyn Error>> {
-    info!("setting up the middleware...");
-    let type_registry_code_id = test_ctx
-        .get_contract()
-        .contract("valence_middleware_osmosis")
-        .get_cw()
-        .code_id
-        .unwrap();
-    let asserter_code_id = test_ctx
-        .get_contract()
-        .contract("valence_middleware_asserter")
-        .get_cw()
-        .code_id
-        .unwrap();
-    let broker_code_id = test_ctx
-        .get_contract()
-        .contract("valence_middleware_broker")
-        .get_cw()
-        .code_id
-        .unwrap();
-
-    let type_registry_contract = contract_instantiate(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        DEFAULT_KEY,
-        type_registry_code_id,
-        &serde_json::to_string(&RegistryInstantiateMsg {})?,
-        "type_registry",
-        None,
-        "",
-    )?;
-    info!(
-        "type_registry_contract address: {}",
-        type_registry_contract.address
-    );
-    std::thread::sleep(Duration::from_secs(3));
-    let asserter_contract = contract_instantiate(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        DEFAULT_KEY,
-        asserter_code_id,
-        &serde_json::to_string(&valence_middleware_asserter::msg::InstantiateMsg {})?,
-        "asserter",
-        None,
-        "",
-    )?;
-
-    info!("asserter_contract address: {}", asserter_contract.address);
-    std::thread::sleep(Duration::from_secs(3));
-    let broker_contract = contract_instantiate(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        DEFAULT_KEY,
-        broker_code_id,
-        &serde_json::to_string(&valence_middleware_broker::msg::InstantiateMsg {})?,
-        "broker",
-        None,
-        "",
-    )?;
-    info!("middleware broker address: {}", broker_contract.address);
-    std::thread::sleep(Duration::from_secs(3));
-
-    set_type_registry(
-        test_ctx,
-        broker_contract.address.to_string(),
-        type_registry_contract.address.to_string(),
-        "26.0.0".to_string(),
-    )?;
-    std::thread::sleep(Duration::from_secs(2));
-
-    Ok((
-        broker_contract.address,
-        asserter_contract.address,
-        type_registry_contract.address,
-    ))
 }
 
 fn create_authorizations(
-    storage_account: String,
     test_ctx: &mut TestContext,
     authorization_contract_address: &str,
+    ic_querier: String,
+    asserter: String,
 ) -> Result<(), Box<dyn Error>> {
     let register_kvq_authorization = AuthorizationBuilder::new()
-        .with_label("register")
+        .with_label("register_icq")
         .with_subroutine(
             AtomicSubroutineBuilder::new()
                 .with_function(
                     AtomicFunctionBuilder::new()
                         .with_domain(valence_authorization_utils::domain::Domain::Main)
-                        .with_contract_address(LibraryAccountType::Addr(storage_account.clone()))
+                        .with_contract_address(LibraryAccountType::Addr(ic_querier.clone()))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
-                                name: "register_kvq".to_string(),
+                                name: "process_function".to_string(),
                                 params_restrictions: None,
                             },
                         })
@@ -348,17 +336,17 @@ fn create_authorizations(
         .build();
 
     let deregister_kvq_authorization = AuthorizationBuilder::new()
-        .with_label("deregister")
+        .with_label("deregister_icq")
         .with_subroutine(
             AtomicSubroutineBuilder::new()
                 .with_function(
                     AtomicFunctionBuilder::new()
                         .with_domain(valence_authorization_utils::domain::Domain::Main)
-                        .with_contract_address(LibraryAccountType::Addr(storage_account.clone()))
+                        .with_contract_address(LibraryAccountType::Addr(ic_querier.clone()))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
-                                name: "deregister_kvq".to_string(),
+                                name: "process_function".to_string(),
                                 params_restrictions: None,
                             },
                         })
@@ -375,11 +363,11 @@ fn create_authorizations(
                 .with_function(
                     AtomicFunctionBuilder::new()
                         .with_domain(valence_authorization_utils::domain::Domain::Main)
-                        .with_contract_address(LibraryAccountType::Addr(storage_account.clone()))
+                        .with_contract_address(LibraryAccountType::Addr(asserter.clone()))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
-                                name: "assert_msg".to_string(),
+                                name: "assert".to_string(),
                                 params_restrictions: None,
                             },
                         })
@@ -388,6 +376,7 @@ fn create_authorizations(
                 .build(),
         )
         .build();
+
     let authorizations = vec![
         register_kvq_authorization,
         deregister_kvq_authorization,
@@ -411,7 +400,30 @@ fn create_authorizations(
     .unwrap();
     std::thread::sleep(std::time::Duration::from_secs(3));
 
+    let query_authorizations_response: Value = serde_json::from_value(
+        contract_query(
+            test_ctx
+                .get_request_builder()
+                .get_request_builder(NEUTRON_CHAIN_NAME),
+            authorization_contract_address,
+            &serde_json::to_string(
+                &valence_authorization_utils::msg::QueryMsg::Authorizations {
+                    start_after: None,
+                    limit: None,
+                },
+            )
+            .unwrap(),
+        )["data"]
+            .clone(),
+    )
+    .unwrap();
+
+    let authorizations = query_authorizations_response.as_array().unwrap();
+
+    assert!(authorizations.len() == 3);
+
     info!("Authorizations created!");
+
     Ok(())
 }
 
@@ -637,4 +649,196 @@ pub fn assert_predicate(
         Ok(val) => Ok(val),
         Err(e) => Err(LocalError::Custom { msg: e.to_string() }),
     }
+}
+
+fn upload_contracts(
+    current_dir: PathBuf,
+    test_ctx: &mut TestContext,
+) -> Result<(), Box<dyn Error>> {
+    info!("uploading contracts to neutron & osmosis...");
+    let mut uploader = test_ctx.build_tx_upload_contracts();
+    let osmosis_type_registry_middleware_path = format!(
+        "{}/artifacts/valence_middleware_osmosis.wasm",
+        current_dir.display()
+    );
+    let osmosis_middleware_broker_path = format!(
+        "{}/artifacts/valence_middleware_broker.wasm",
+        current_dir.display()
+    );
+    let icq_lib_local_path = format!(
+        "{}/artifacts/valence_neutron_ic_querier.wasm",
+        current_dir.display()
+    );
+    let storage_acc_path = format!(
+        "{}/artifacts/valence_storage_account.wasm",
+        current_dir.display()
+    );
+    let asserter_path = format!(
+        "{}/artifacts/valence_middleware_asserter.wasm",
+        current_dir.display()
+    );
+
+    uploader
+        .with_chain_name(NEUTRON_CHAIN_NAME)
+        .send_single_contract(&icq_lib_local_path)?;
+    uploader
+        .with_chain_name(NEUTRON_CHAIN_NAME)
+        .send_single_contract(&osmosis_type_registry_middleware_path)?;
+    uploader
+        .with_chain_name(NEUTRON_CHAIN_NAME)
+        .send_single_contract(&osmosis_middleware_broker_path)?;
+    uploader
+        .with_chain_name(NEUTRON_CHAIN_NAME)
+        .send_single_contract(&storage_acc_path)?;
+    uploader
+        .with_chain_name(NEUTRON_CHAIN_NAME)
+        .send_single_contract(&asserter_path)?;
+
+    Ok(())
+}
+
+fn setup_middleware(
+    test_ctx: &mut TestContext,
+) -> Result<(String, String, String), Box<dyn Error>> {
+    info!("setting up the middleware...");
+    let type_registry_code_id = test_ctx
+        .get_contract()
+        .contract("valence_middleware_osmosis")
+        .get_cw()
+        .code_id
+        .unwrap();
+    let asserter_code_id = test_ctx
+        .get_contract()
+        .contract("valence_middleware_asserter")
+        .get_cw()
+        .code_id
+        .unwrap();
+    let broker_code_id = test_ctx
+        .get_contract()
+        .contract("valence_middleware_broker")
+        .get_cw()
+        .code_id
+        .unwrap();
+
+    let type_registry_contract = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        type_registry_code_id,
+        &serde_json::to_string(&RegistryInstantiateMsg {})?,
+        "type_registry",
+        None,
+        "",
+    )?;
+    info!(
+        "type_registry_contract address: {}",
+        type_registry_contract.address
+    );
+    std::thread::sleep(Duration::from_secs(3));
+    let asserter_contract = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        asserter_code_id,
+        &serde_json::to_string(&valence_middleware_asserter::msg::InstantiateMsg {})?,
+        "asserter",
+        None,
+        "",
+    )?;
+
+    info!("asserter_contract address: {}", asserter_contract.address);
+    std::thread::sleep(Duration::from_secs(3));
+    let broker_contract = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        broker_code_id,
+        &serde_json::to_string(&valence_middleware_broker::msg::InstantiateMsg {})?,
+        "broker",
+        None,
+        "",
+    )?;
+    info!("middleware broker address: {}", broker_contract.address);
+    std::thread::sleep(Duration::from_secs(3));
+
+    set_type_registry(
+        test_ctx,
+        broker_contract.address.to_string(),
+        type_registry_contract.address.to_string(),
+        "26.0.0".to_string(),
+    )?;
+    std::thread::sleep(Duration::from_secs(2));
+
+    Ok((
+        broker_contract.address,
+        asserter_contract.address,
+        type_registry_contract.address,
+    ))
+}
+
+pub fn approve_library(
+    test_ctx: &mut TestContext,
+    chain_name: &str,
+    key: &str,
+    base_account: &str,
+    library: String,
+    flags: Option<String>,
+) {
+    let approve_msg = valence_account_utils::msg::ExecuteMsg::ApproveLibrary {
+        library: library.clone(),
+    };
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(chain_name),
+        base_account,
+        key,
+        &serde_json::to_string(&approve_msg).unwrap(),
+        &format!(
+            "{}{}",
+            GAS_FLAGS,
+            flags
+                .map(|mut s| {
+                    if !s.starts_with(' ') {
+                        s.insert(0, ' ');
+                    }
+                    s
+                })
+                .unwrap_or_default()
+        ),
+    )
+    .unwrap();
+
+    info!(
+        "Approved library {} for base account {}",
+        library, base_account
+    );
+    std::thread::sleep(std::time::Duration::from_secs(2));
+}
+
+pub fn get_processor_queue_items(
+    test_ctx: &mut TestContext,
+    chain_name: &str,
+    processor_address: &str,
+    priority: Priority,
+) -> Vec<MessageBatch> {
+    serde_json::from_value(
+        contract_query(
+            test_ctx
+                .get_request_builder()
+                .get_request_builder(chain_name),
+            processor_address,
+            &serde_json::to_string(&valence_processor_utils::msg::QueryMsg::GetQueue {
+                from: None,
+                to: None,
+                priority,
+            })
+            .unwrap(),
+        )["data"]
+            .clone(),
+    )
+    .unwrap()
 }
