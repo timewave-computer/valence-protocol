@@ -35,6 +35,7 @@ use localic_utils::{
     utils::test_context::TestContext, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
     LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
     OSMOSIS_CHAIN_ADMIN_ADDR, OSMOSIS_CHAIN_DENOM, OSMOSIS_CHAIN_ID, OSMOSIS_CHAIN_NAME,
+    OSMOSIS_CHAIN_PREFIX,
 };
 
 const TARGET_QUERY_LABEL: &str = "gamm_pool";
@@ -100,6 +101,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         OSMOSIS_CHAIN_NAME,
         OSMOSIS_CHAIN_ID,
         OSMOSIS_CHAIN_ADMIN_ADDR,
+        OSMOSIS_CHAIN_DENOM,
+        OSMOSIS_CHAIN_PREFIX,
         LOCAL_CODE_ID_CACHE_PATH_OSMOSIS,
         "neutron-osmosis",
         salt,
@@ -122,9 +125,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let storage_accounts = create_storage_accounts(
         &mut test_ctx,
         DEFAULT_KEY,
-        OSMOSIS_CHAIN_NAME,
+        NEUTRON_CHAIN_NAME,
         storage_acc_code_id,
-        OSMOSIS_CHAIN_ADMIN_ADDR.to_string(),
+        NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         vec![neutron_processor_address.clone()],
         1,
         None,
@@ -143,36 +146,38 @@ fn main() -> Result<(), Box<dyn Error>> {
         .code_id
         .unwrap();
 
-    let query_definitions = BTreeMap::from_iter(vec![(
-        TARGET_QUERY_LABEL.to_string(),
-        QueryDefinition {
-            registry_version: None,
-            type_url: osmosis_std::types::osmosis::gamm::v1beta1::Pool::TYPE_URL.to_string(),
-            update_period: Uint64::new(5),
-            params: BTreeMap::from([("pool_id".to_string(), to_json_binary(&pool_id).unwrap())]),
-            query_id: None,
-        },
-    )]);
+    let icq_lib_instantiate_msg = valence_library_utils::msg::InstantiateMsg::<LibraryConfig> {
+        owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        processor: neutron_processor_address.to_string(),
+        config: LibraryConfig::new(
+            LibraryAccountType::Addr(neutron_storage_account.to_string()),
+            valence_neutron_ic_querier::msg::QuerierConfig {
+                broker_addr: broker_addr.to_string(),
+                connection_id: ntrn_to_osmo_connection_id,
+            },
+            BTreeMap::from_iter(vec![(
+                TARGET_QUERY_LABEL.to_string(),
+                QueryDefinition {
+                    registry_version: None,
+                    type_url: osmosis_std::types::osmosis::gamm::v1beta1::Pool::TYPE_URL
+                        .to_string(),
+                    update_period: Uint64::new(5),
+                    params: BTreeMap::from([(
+                        "pool_id".to_string(),
+                        to_json_binary(&pool_id).unwrap(),
+                    )]),
+                    query_id: None,
+                },
+            )]),
+        ),
+    };
     let icq_test_lib = contract_instantiate(
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
         DEFAULT_KEY,
         neutron_ic_querier_lib_code_id,
-        &serde_json::to_string(
-            &valence_library_utils::msg::InstantiateMsg::<LibraryConfig> {
-                owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-                processor: neutron_processor_address.to_string(),
-                config: LibraryConfig::new(
-                    LibraryAccountType::Addr(neutron_storage_account.to_string()),
-                    valence_neutron_ic_querier::msg::QuerierConfig {
-                        broker_addr: broker_addr.to_string(),
-                        connection_id: ntrn_to_osmo_connection_id,
-                    },
-                    query_definitions,
-                ),
-            },
-        )?,
+        &serde_json::to_string(&icq_lib_instantiate_msg)?,
         "icq_querier_lib",
         None,
         "",

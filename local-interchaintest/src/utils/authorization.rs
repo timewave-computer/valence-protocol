@@ -9,7 +9,7 @@ use localic_std::{
 };
 use localic_utils::{
     utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM,
-    NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_DENOM, OSMOSIS_CHAIN_NAME,
+    NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
 };
 use log::info;
 use serde_json::Value;
@@ -20,7 +20,7 @@ use valence_authorization_utils::{
 use valence_processor_utils::msg::PolytoneContracts;
 use valence_program_manager::helpers::{addr_canonicalize, addr_humanize};
 
-use crate::utils::{polytone::salt_for_proxy, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON};
+use crate::utils::{polytone::salt_for_proxy, LOCAL_CODE_ID_CACHE_PATH_NEUTRON};
 
 use super::POLYTONE_ARTIFACTS_PATH;
 
@@ -127,6 +127,8 @@ pub fn set_up_external_domain_with_polytone(
     chain_name: &str,
     chain_id: &str,
     chain_admin_addr: &str,
+    chain_denom: &str,
+    chain_prefix: &str,
     local_cache: &str,
     path: &str,
     salt: String,
@@ -234,7 +236,7 @@ pub fn set_up_external_domain_with_polytone(
             &serde_json::to_string(&polytone_note_instantiate_msg).unwrap(),
             "polytone-note-external-domain",
             None,
-            &format!("--fees {}{}", 500_000, OSMOSIS_CHAIN_DENOM),
+            &format!("--fees {}{}", 500_000, chain_denom),
         )
         .unwrap()
         .address;
@@ -246,7 +248,7 @@ pub fn set_up_external_domain_with_polytone(
             &serde_json::to_string(&external_domain_polytone_voice_instantiate_msg).unwrap(),
             "polytone-voice-external-domain",
             None,
-            &format!("--fees {}{}", 500_000, OSMOSIS_CHAIN_DENOM),
+            &format!("--fees {}{}", 500_000, chain_denom),
         )
         .unwrap()
         .address;
@@ -354,8 +356,8 @@ pub fn set_up_external_domain_with_polytone(
     let predicted_proxy_address_on_external_domain = predict_remote_contract_address(
         test_ctx,
         external_proxy_code,
-        OSMOSIS_CHAIN_NAME,
-        "osmo",
+        chain_name,
+        chain_prefix,
         &polytone_voice_on_external_domain_address,
         &salt_for_proxy_on_external_domain,
     )
@@ -366,20 +368,12 @@ pub fn set_up_external_domain_with_polytone(
     let predicted_processor_on_external_domain_address = predict_remote_contract_address(
         test_ctx,
         1,
-        OSMOSIS_CHAIN_NAME,
-        "osmo",
+        chain_name,
+        chain_prefix,
         chain_admin_addr,
         &salt.as_bytes(),
     )
     .unwrap();
-
-    // let predicted_processor_on_external_domain_address = test_ctx
-    //     .get_built_contract_address()
-    //     .src(chain_name)
-    //     .creator(chain_admin_addr)
-    //     .contract("valence_processor")
-    //     .salt_hex_encoded(&salt)
-    //     .get();
 
     // Let's now predict the proxy
     let salt_for_proxy_on_neutron = salt_for_proxy(
@@ -432,7 +426,7 @@ pub fn set_up_external_domain_with_polytone(
         .with_msg(serde_json::to_value(processor_instantiate_msg).unwrap())
         .with_flags(&format!(
             "--gas=auto --gas-adjustment=3.0 --fees {}{}",
-            5_000_000, OSMOSIS_CHAIN_DENOM
+            5_000_000, chain_denom
         ))
         .send()
         .unwrap();
