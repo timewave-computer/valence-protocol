@@ -1,6 +1,7 @@
 use std::{collections::HashMap, env, error::Error, str::FromStr, time::SystemTime};
 
 use alloy::primitives::Address;
+use cosmwasm_std::Empty;
 use local_interchaintest::utils::{
     authorization::set_up_authorization_and_processor,
     ethereum::set_up_anvil_container,
@@ -92,7 +93,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .get_request_builder(NEUTRON_CHAIN_NAME),
         DEFAULT_KEY,
         code_id_evm_encoder,
-        &serde_json::to_string(&{}).unwrap(),
+        &serde_json::to_string(&Empty {}).unwrap(),
         "evm_encoder",
         None,
         "",
