@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fs, path::Path};
 
+use alloy::{hex::FromHex, primitives::FixedBytes};
 use localic_std::modules::cosmwasm::{contract_execute, contract_instantiate};
 use localic_utils::{
     utils::{ethereum::EthClient, test_context::TestContext},
@@ -14,7 +15,7 @@ use super::{
         InterchainGasPaymaster, Mailbox, MerkleTreeHook, PausableIsm, ValidatorAnnounce,
     },
     GAS_FLAGS, HYPERLANE_COSMWASM_ARTIFACTS_PATH, HYPERLANE_RELAYER_CONFIG_PATH,
-    LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
+    LOCAL_CODE_ID_CACHE_PATH_NEUTRON, NEUTRON_HYPERLANE_DOMAIN,
 };
 use bollard::{
     container::{Config, CreateContainerOptions},
@@ -44,6 +45,22 @@ pub fn bech32_to_hex_address(bech32_address: &str) -> Result<String, Box<dyn std
     Ok(hex)
 }
 
+/// Converts a bech32 address into a bytes32 equivalent with padded zeroes
+pub fn bech32_to_evm_bytes32(
+    bech32_address: &str,
+) -> Result<FixedBytes<32>, Box<dyn std::error::Error>> {
+    // Decode the bech32 address
+    let (_, data) = bech32::decode(bech32_address)?;
+    // Convert to hex
+    let address_hex = hex::encode(data);
+    // Pad with zeroes to 32 bytes
+    let padded_hex = format!("{:0>64}", address_hex);
+    // Convert to FixedBytes
+    let address_in_bytes32 = FixedBytes::<32>::from_hex(padded_hex)?;
+
+    Ok(address_in_bytes32)
+}
+
 // Function to set up CosmWasm Hyperlane contracts
 // Creates and initializes all required contracts for Hyperlane functionality on a CosmWasm chain
 pub fn set_up_cw_hyperlane_contracts(
@@ -71,7 +88,7 @@ pub fn set_up_cw_hyperlane_contracts(
     let mailbox_instantiate_msg = hpl_interface::core::mailbox::InstantiateMsg {
         hrp: NEUTRON_CHAIN_PREFIX.to_string(),
         owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        domain: 1853125230, // Domain ID of Neutron for Hyperlane
+        domain: NEUTRON_HYPERLANE_DOMAIN,
     };
 
     // Instantiate the mailbox contract

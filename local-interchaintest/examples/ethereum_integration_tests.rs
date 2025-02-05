@@ -1,22 +1,23 @@
-use std::{collections::HashMap, env, error::Error, time::SystemTime};
+use std::{collections::HashMap, env, error::Error, str::FromStr, time::SystemTime};
 
-use alloy::sol;
-use cosmwasm_std_old::HexBinary;
-use hpl_interface::core::mailbox::DispatchMsg;
+use alloy::primitives::Address;
 use local_interchaintest::utils::{
     authorization::set_up_authorization_and_processor,
     ethereum::set_up_anvil_container,
-    hyperlane::{set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts, set_up_hyperlane},
-    DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME, GAS_FLAGS, LOGS_FILE_PATH,
-    VALENCE_ARTIFACTS_PATH,
+    hyperlane::{
+        bech32_to_evm_bytes32, set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts,
+        set_up_hyperlane,
+    },
+    solidity_contracts::LiteProcessor,
+    DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_HYPERLANE_DOMAIN, LOGS_FILE_PATH,
+    NEUTRON_HYPERLANE_DOMAIN, VALENCE_ARTIFACTS_PATH,
 };
-use localic_std::modules::cosmwasm::{contract_execute, contract_instantiate};
+use localic_std::modules::cosmwasm::contract_instantiate;
 use localic_utils::{
     utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
     LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
 };
 use log::info;
-use valence_authorization_utils::msg::{ExternalDomainInfo, PermissionedMsg};
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -38,7 +39,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Upload all Hyperlane contracts to Neutron
     let neutron_hyperlane_contracts = set_up_cw_hyperlane_contracts(&mut test_ctx)?;
     // Deploy all Hyperlane contracts on Ethereum
-    let eth_hyperlane_contracts = set_up_eth_hyperlane_contracts(&eth, 1)?;
+    let eth_hyperlane_contracts = set_up_eth_hyperlane_contracts(&eth, ETHEREUM_HYPERLANE_DOMAIN)?;
 
     set_up_hyperlane(
         "hyperlane-net",
@@ -115,8 +116,27 @@ fn main() -> Result<(), Box<dyn Error>> {
         "",
     )
     .unwrap();
+    info!(
+        "Encoders set up successfully! Broker address: {}",
+        encoder_broker.address
+    );
 
     info!("Setting up Lite Processor on Ethereum");
+    let accounts = eth.get_accounts_addresses()?;
+
+    let tx = LiteProcessor::deploy_builder(
+        &eth.provider,
+        bech32_to_evm_bytes32(&authorization_contract_address)?,
+        Address::from_str(&eth_hyperlane_contracts.mailbox)?,
+        NEUTRON_HYPERLANE_DOMAIN,
+        vec![],
+    )
+    .into_transaction_request()
+    .from(accounts[0]);
+
+    let lite_processor_address = eth.send_transaction(tx)?.contract_address.unwrap();
+    info!("Lite Processor deployed at: {}", lite_processor_address);
+
     /*// Create a Test Recipient
     sol!(
         #[sol(rpc)]

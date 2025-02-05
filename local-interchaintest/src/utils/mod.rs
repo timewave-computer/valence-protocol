@@ -54,3 +54,5 @@ pub const ASTROPORT_LP_SUBDENOM: &str = "astroport/share";
 
 pub const DEFAULT_ANVIL_RPC_ENDPOINT: &str = "http://localhost:8545";
 pub const ETHEREUM_CHAIN_NAME: &str = "ethereum";
+pub const NEUTRON_HYPERLANE_DOMAIN: u32 = 1853125230;
+pub const ETHEREUM_HYPERLANE_DOMAIN: u32 = 1;
