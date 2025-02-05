@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         vec![GAIA_CHAIN_NAME],
         vec![SPLITTER_NAME],
     )?;
-    
+
     let gc = get_global_config();
 
     // Save the config to a file

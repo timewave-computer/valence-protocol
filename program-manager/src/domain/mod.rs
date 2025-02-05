@@ -283,5 +283,4 @@ pub trait Connector: fmt::Debug + Send + Sync {
     async fn get_program_config(&mut self, id: u64) -> ConnectorResult<ProgramConfig> {
         unimplemented!("'get_program_config' should only be implemented on neutron domain");
     }
-
 }
