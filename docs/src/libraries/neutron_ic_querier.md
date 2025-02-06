@@ -247,7 +247,7 @@ Unlike most other libraries, IC querier does not differentiate between input and
 output accounts. There is just an account, and it is the only account that this
 library will be authorized to post its results into.
 
-Storage account association follows the same logic of approve/revoke as in other
+Storage account association follows the same logic of approving/revoking
 libraries. Its configuration is done via `LibraryAccountType`, following
 the same account pattern as other libraries.
 
