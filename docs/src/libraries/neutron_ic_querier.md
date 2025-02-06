@@ -166,7 +166,7 @@ the query registration fee from the caller.
 At that point the query is assigned its unique `query_id` identifier, which is not known in advance.
 This identifier is returned to the caller in the reply.
 
-Once the query is registered, the interchain query relayers performs the following steps:
+Once the query is registered, the interchain query relayers perform the following steps:
 
 1. fetch the specified value from the target domain
 2. post the query result to `interchainqueries` module
