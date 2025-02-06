@@ -263,8 +263,8 @@ pub enum InternalAuthorizationMsg {
 pub enum ProcessorMessage {
     CosmwasmExecuteMsg { msg: Binary },
     CosmwasmMigrateMsg { code_id: u64, msg: Binary },
-    EVMCall { msg: Binary },
-    EVMRawCall { msg: Binary },
+    EvmCall { msg: Binary },
+    EvmRawCall { msg: Binary },
 }
 
 impl PartialEq<MessageType> for ProcessorMessage {
@@ -277,8 +277,8 @@ impl PartialEq<MessageType> for ProcessorMessage {
             ) | (
                 ProcessorMessage::CosmwasmMigrateMsg { .. },
                 MessageType::CosmwasmMigrateMsg
-            ) | (ProcessorMessage::EVMCall { .. }, MessageType::EVMCall(..))
-                | (ProcessorMessage::EVMRawCall { .. }, MessageType::EVMRawCall)
+            ) | (ProcessorMessage::EvmCall { .. }, MessageType::EvmCall(..))
+                | (ProcessorMessage::EvmRawCall { .. }, MessageType::EvmRawCall)
         )
     }
 }
@@ -288,8 +288,8 @@ impl ProcessorMessage {
         match self {
             ProcessorMessage::CosmwasmExecuteMsg { msg } => msg,
             ProcessorMessage::CosmwasmMigrateMsg { msg, .. } => msg,
-            ProcessorMessage::EVMCall { msg } => msg,
-            ProcessorMessage::EVMRawCall { msg } => msg,
+            ProcessorMessage::EvmCall { msg } => msg,
+            ProcessorMessage::EvmRawCall { msg } => msg,
         }
     }
 
@@ -297,8 +297,8 @@ impl ProcessorMessage {
         match self {
             ProcessorMessage::CosmwasmExecuteMsg { msg: msg_ref } => *msg_ref = msg,
             ProcessorMessage::CosmwasmMigrateMsg { msg: msg_ref, .. } => *msg_ref = msg,
-            ProcessorMessage::EVMCall { msg: msg_ref } => *msg_ref = msg,
-            ProcessorMessage::EVMRawCall { msg: msg_ref } => *msg_ref = msg,
+            ProcessorMessage::EvmCall { msg: msg_ref } => *msg_ref = msg,
+            ProcessorMessage::EvmRawCall { msg: msg_ref } => *msg_ref = msg,
         }
     }
 
@@ -314,7 +314,7 @@ impl ProcessorMessage {
                 new_code_id: *code_id,
                 msg: msg.clone(),
             }),
-            ProcessorMessage::EVMCall { .. } | ProcessorMessage::EVMRawCall { .. } => {
+            ProcessorMessage::EvmCall { .. } | ProcessorMessage::EvmRawCall { .. } => {
                 Err(StdError::generic_err("Msg type not supported"))
             }
         }

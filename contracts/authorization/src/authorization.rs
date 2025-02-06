@@ -112,7 +112,7 @@ impl Validate for Authorization {
     /// - Functions exist
     /// - Domain consistency and registration
     /// - Message type compatibility
-    /// - Library validity for EVM calls
+    /// - Library validity for Evm calls
     /// - Parameter restrictions
     fn validate_functions<T: Function>(
         &self,
@@ -158,7 +158,7 @@ impl Validate for Authorization {
 
     /// Validates message type compatibility with execution environment:
     /// - Cosmwasm: Only CosmwasmExecuteMsg/MigrateMsg allowed
-    /// - EVM: Only EVMRawCall/EVMCall allowed
+    /// - Evm: Only EvmRawCall/EvmCall allowed
     /// - Main domain: Only CosmwasmExecuteMsg/MigrateMsg allowed
     fn validate_message_type<T: Function>(
         &self,
@@ -180,7 +180,7 @@ impl Validate for Authorization {
                 ExecutionEnvironment::Evm(_, _) => {
                     if !matches!(
                         func.message_details().message_type,
-                        MessageType::EVMRawCall | MessageType::EVMCall(_, _)
+                        MessageType::EvmRawCall | MessageType::EvmCall(_, _)
                     ) {
                         return Err(ContractError::Authorization(
                             AuthorizationErrorReason::InvalidMessageType {},
@@ -204,15 +204,15 @@ impl Validate for Authorization {
         Ok(())
     }
 
-    /// For EVMCall messages:
+    /// For EvmCall messages:
     /// - Verifies library exists in encoder by querying the encoder broker
     fn validate_evm_library<T: Function>(
         &self,
         func: &T,
         querier: &QuerierWrapper,
     ) -> Result<(), ContractError> {
-        // If it's a EVM call, the library must be a valid library on the encoder
-        if let MessageType::EVMCall(encoder, library_name) = &func.message_details().message_type {
+        // If it's a EvmCall, the library must be a valid library on the encoder
+        if let MessageType::EvmCall(encoder, library_name) = &func.message_details().message_type {
             let exists: bool = querier.query_wasm_smart(
                 encoder.broker_address.clone(),
                 &EncoderBrokerQueryMsg::IsValidLibrary {
@@ -230,7 +230,7 @@ impl Validate for Authorization {
     }
 
     /// Validates parameter restrictions:
-    /// - EVMRawCall: Only MustBeBytes restrictions allowed (maximum 1)
+    /// - EvmRawCall: Only MustBeBytes restrictions allowed (maximum 1)
     /// - Other messages: Cannot have MustBeBytes restrictions
     fn validate_param_restrictions<T: Function>(&self, func: &T) -> Result<(), ContractError> {
         let details = func.message_details();
@@ -240,7 +240,7 @@ impl Validate for Authorization {
         };
 
         match details.message_type {
-            MessageType::EVMRawCall => {
+            MessageType::EvmRawCall => {
                 if restrictions.len() > 1
                     || (restrictions.len() == 1
                         && !matches!(restrictions[0], ParamRestriction::MustBeBytes(_)))
@@ -365,7 +365,7 @@ impl Validate for Authorization {
             match each_message {
                 ProcessorMessage::CosmwasmExecuteMsg { .. }
                 | ProcessorMessage::CosmwasmMigrateMsg { .. }
-                | ProcessorMessage::EVMCall { .. } => {
+                | ProcessorMessage::EvmCall { .. } => {
                     // Extract the json from each message
                     let json: Value = serde_json::from_slice(msg.as_slice()).map_err(|e| {
                         ContractError::InvalidJson {
@@ -397,7 +397,7 @@ impl Validate for Authorization {
                         }
                     }
                 }
-                ProcessorMessage::EVMRawCall { .. } => {
+                ProcessorMessage::EvmRawCall { .. } => {
                     // Check that all the Parameter restrictions are met
                     if let Some(param_restrictions) =
                         &each_function.message_details().message.params_restrictions

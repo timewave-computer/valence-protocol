@@ -63,13 +63,13 @@ pub fn convert_into_encoder_messages(
         .into_iter()
         .enumerate()
         .map(|(index, msg)| match msg {
-            ProcessorMessage::EVMCall { msg } => {
+            ProcessorMessage::EvmCall { msg } => {
                 let function = authorization
                     .subroutine
                     .get_function_by_index(index)
                     .ok_or_else(|| StdError::generic_err("Function index not found"))?;
 
-                let MessageType::EVMCall(_, lib) = &function.message_details().message_type else {
+                let MessageType::EvmCall(_, lib) = &function.message_details().message_type else {
                     return Err(StdError::generic_err("Invalid message type"));
                 };
 
@@ -78,7 +78,7 @@ pub fn convert_into_encoder_messages(
                     data: msg,
                 })
             }
-            ProcessorMessage::EVMRawCall { msg } => Ok(Message {
+            ProcessorMessage::EvmRawCall { msg } => Ok(Message {
                 library: "no_library".to_string(),
                 data: msg,
             }),

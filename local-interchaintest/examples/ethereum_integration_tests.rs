@@ -8,7 +8,7 @@ use std::{
 
 use alloy::primitives::{Address, U256};
 use alloy_sol_types_encoder::SolValue;
-use cosmwasm_std::Empty;
+use cosmwasm_std::{Binary, Empty};
 use local_interchaintest::utils::{
     authorization::set_up_authorization_and_processor,
     ethereum::set_up_anvil_container,
@@ -32,6 +32,7 @@ use valence_authorization_utils::{
     domain::Domain,
     msg::{
         EncoderInfo, EvmBridgeInfo, ExternalDomainInfo, HyperlaneConnectorInfo, PermissionedMsg,
+        ProcessorMessage,
     },
 };
 use valence_encoder_utils::libraries::forwarder::solidity_types::{
@@ -361,7 +362,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             forwarder_1_address.to_string(),
                         ))
                         .with_message_details(MessageDetails {
-                            message_type: MessageType::EVMCall(
+                            message_type: MessageType::EvmCall(
                                 EncoderInfo {
                                     broker_address: encoder_broker.address.clone(),
                                     encoder_version: namespace_evm_encoder.clone(),
@@ -369,7 +370,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 "forwarder".to_string(),
                             ),
                             message: Message {
-                                name: "forward".to_string(),
+                                name: "process_function".to_string(),
                                 params_restrictions: None,
                             },
                         })
@@ -382,7 +383,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             forwarder_2_address.to_string(),
                         ))
                         .with_message_details(MessageDetails {
-                            message_type: MessageType::EVMCall(
+                            message_type: MessageType::EvmCall(
                                 EncoderInfo {
                                     broker_address: encoder_broker.address.clone(),
                                     encoder_version: namespace_evm_encoder.clone(),
@@ -390,7 +391,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 "forwarder".to_string(),
                             ),
                             message: Message {
-                                name: "forward".to_string(),
+                                name: "process_function".to_string(),
                                 params_restrictions: None,
                             },
                         })
@@ -417,6 +418,46 @@ fn main() -> Result<(), Box<dyn Error>> {
     .unwrap();
     std::thread::sleep(std::time::Duration::from_secs(3));
     info!("Authorization created!");
+
+    info!("Send the messages to the authorization contract...");
+    let binary = Binary::from(
+        serde_json::to_vec(
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_forwarder_library::msg::FunctionMsgs::Forward {},
+            ),
+        )
+        .unwrap(),
+    );
+    let message = ProcessorMessage::EvmCall { msg: binary };
+
+    let send_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+            label: "token_swap".to_string(),
+            messages: vec![message.clone(), message],
+            ttl: None,
+        },
+    );
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&send_msg).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(5));
+
+    // Query the base accounts to verify that the tokens were swapped
+    let builder = token_1.balanceOf(base_account_2);
+    let balance = eth.rt.block_on(async { builder.call().await })?._0;
+    assert_eq!(balance, U256::from(1000));
+
+    let builder = token_2.balanceOf(base_account_1);
+    let balance = eth.rt.block_on(async { builder.call().await })?._0;
+    assert_eq!(balance, U256::from(1000));
+    info!("Tokens swapped successfully!");
 
     info!("Integration tests passed successfully!");
 

@@ -14,8 +14,8 @@ pub enum MessageType {
     CosmwasmExecuteMsg,
     CosmwasmMigrateMsg,
     // Provide the EncoderInfo and the LibraryName that we want to encode the message into
-    EVMCall(EncoderInfo, String),
-    EVMRawCall,
+    EvmCall(EncoderInfo, String),
+    EvmRawCall,
 }
 
 #[cw_serde]
