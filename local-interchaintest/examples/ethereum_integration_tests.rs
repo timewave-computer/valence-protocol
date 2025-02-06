@@ -27,6 +27,8 @@ use localic_utils::{
 };
 use log::info;
 use valence_authorization_utils::{
+    authorization_message::{Message, MessageDetails, MessageType},
+    builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
     domain::Domain,
     msg::{
         EncoderInfo, EvmBridgeInfo, ExternalDomainInfo, HyperlaneConnectorInfo, PermissionedMsg,
@@ -35,6 +37,7 @@ use valence_authorization_utils::{
 use valence_encoder_utils::libraries::forwarder::solidity_types::{
     ForwarderConfig, ForwardingConfig, IntervalType,
 };
+use valence_library_utils::LibraryAccountType;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -163,8 +166,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                     execution_environment:
                         valence_authorization_utils::msg::ExecutionEnvironmentInfo::Evm(
                             EncoderInfo {
-                                broker_address: encoder_broker.address,
-                                encoder_version: namespace_evm_encoder,
+                                broker_address: encoder_broker.address.clone(),
+                                encoder_version: namespace_evm_encoder.clone(),
                             },
                             EvmBridgeInfo::Hyperlane(HyperlaneConnectorInfo {
                                 mailbox: neutron_hyperlane_contracts.mailbox.to_string(),
@@ -331,56 +334,89 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap();
     info!("Forwarder 2 deployed at: {}", forwarder_2_address);
 
-    /*// Create a Test Recipient
-    sol!(
-        #[sol(rpc)]
-        TestRecipient,
-        "./hyperlane/contracts/solidity/TestRecipient.json",
-    );
-
-    let accounts = eth.get_accounts_addresses()?;
-
-    let tx = TestRecipient::deploy_builder(&eth.provider)
+    // Now each account needs to approve the forwarders to allow them to spend their tokens
+    info!("Approving forwarders to spend tokens...");
+    let base_account_1_instance = BaseAccount::new(base_account_1, &eth.provider);
+    let base_account_2_instance = BaseAccount::new(base_account_2, &eth.provider);
+    let tx = base_account_1_instance
+        .approveLibrary(forwarder_1_address)
         .into_transaction_request()
         .from(accounts[0]);
+    eth.send_transaction(tx)?;
+    let tx = base_account_2_instance
+        .approveLibrary(forwarder_2_address)
+        .into_transaction_request()
+        .from(accounts[0]);
+    eth.send_transaction(tx)?;
 
-    let test_recipient_address = eth.send_transaction(tx)?.contract_address.unwrap();
+    // Everything is set up, create the authorization
+    let authorizations = vec![AuthorizationBuilder::new()
+        .with_label("token_swap")
+        .with_subroutine(
+            AtomicSubroutineBuilder::new()
+                .with_function(
+                    AtomicFunctionBuilder::new()
+                        .with_domain(Domain::External(ETHEREUM_CHAIN_NAME.to_string()))
+                        .with_contract_address(LibraryAccountType::Addr(
+                            forwarder_1_address.to_string(),
+                        ))
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::EVMCall(
+                                EncoderInfo {
+                                    broker_address: encoder_broker.address.clone(),
+                                    encoder_version: namespace_evm_encoder.clone(),
+                                },
+                                "forwarder".to_string(),
+                            ),
+                            message: Message {
+                                name: "forward".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .with_function(
+                    AtomicFunctionBuilder::new()
+                        .with_domain(Domain::External(ETHEREUM_CHAIN_NAME.to_string()))
+                        .with_contract_address(LibraryAccountType::Addr(
+                            forwarder_2_address.to_string(),
+                        ))
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::EVMCall(
+                                EncoderInfo {
+                                    broker_address: encoder_broker.address.clone(),
+                                    encoder_version: namespace_evm_encoder.clone(),
+                                },
+                                "forwarder".to_string(),
+                            ),
+                            message: Message {
+                                name: "forward".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .build(),
+        )
+        .build()];
 
-    // Remove "0x" prefix if present and ensure proper hex formatting
-    let address_hex = test_recipient_address
-        .to_string()
-        .trim_start_matches("0x")
-        .to_string();
-    // Pad to 32 bytes (64 hex characters) because mailboxes expect 32 bytes addresses with leading zeros
-    let padded_recipient = format!("{:0>64}", address_hex);
-    let msg_body = HexBinary::from_hex(&hex::encode("Hello my friend!"))?;
+    info!("Creating execute authorization...");
+    let create_authorization = valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
+        valence_authorization_utils::msg::PermissionedMsg::CreateAuthorizations { authorizations },
+    );
 
-    let dispatch_msg = hpl_interface::core::mailbox::ExecuteMsg::Dispatch(DispatchMsg {
-        dest_domain: 1,
-        recipient_addr: HexBinary::from_hex(&padded_recipient)?,
-        msg_body: msg_body.clone(),
-        hook: None,
-        metadata: None,
-    });
-
-    // Execute dispatch on mailbox
     contract_execute(
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
-        &neutron_hyperlane_contracts.mailbox,
+        &authorization_contract_address,
         DEFAULT_KEY,
-        &serde_json::to_string(&dispatch_msg).unwrap(),
+        &serde_json::to_string(&create_authorization).unwrap(),
         GAS_FLAGS,
     )
     .unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(10));
-
-    // Check that it was relayed and updated on the Ethereum side
-    let test_recipient = TestRecipient::new(test_recipient_address, &eth.provider);
-    let builder = test_recipient.lastData();
-    let last_data = eth.rt.block_on(async { builder.call().await })?._0;
-    assert_eq!(last_data.to_vec(), msg_body);*/
+    std::thread::sleep(std::time::Duration::from_secs(3));
+    info!("Authorization created!");
 
     info!("Integration tests passed successfully!");
 
