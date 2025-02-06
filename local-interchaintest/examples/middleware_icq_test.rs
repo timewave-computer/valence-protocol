@@ -631,23 +631,17 @@ pub fn assert_predicate(
     test_ctx: &TestContext,
     asserter: String,
     assertion_cfg: AssertionConfig,
-) -> Result<String, LocalError> {
-    let query_response = contract_query(
+) -> Result<TransactionResponse, LocalError> {
+    contract_execute(
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
         &asserter,
-        &serde_json::to_string(&valence_middleware_asserter::msg::QueryMsg::Assert(
-            assertion_cfg,
-        ))
+        DEFAULT_KEY,
+        &serde_json::to_string(&valence_middleware_asserter::msg::ExecuteMsg::Assert {
+            cfg: assertion_cfg,
+        })
         .map_err(|e| LocalError::Custom { msg: e.to_string() })?,
-    )["data"]
-        .clone();
-
-    let resp: Result<String, serde_json::error::Error> = serde_json::from_value(query_response);
-
-    match resp {
-        Ok(val) => Ok(val),
-        Err(e) => Err(LocalError::Custom { msg: e.to_string() }),
-    }
+        "",
+    )
 }

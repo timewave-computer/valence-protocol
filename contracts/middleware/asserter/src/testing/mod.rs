@@ -1,10 +1,10 @@
 pub mod tests;
 
 use crate::msg::{AssertionConfig, InstantiateMsg, QueryMsg};
-use cosmwasm_std::{Addr, Coin, StdResult, Uint128};
-use cw_multi_test::{App, AppResponse, ContractWrapper, Executor};
+use cosmwasm_std::{Addr, Coin, Response, StdResult, Uint128};
+use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use valence_account_utils::msg::InstantiateMsg as StorageAccountInstantiateMsg;
-use valence_middleware_utils::type_registry::types::ValenceType;
+use valence_middleware_utils::{type_registry::types::ValenceType, MiddlewareError};
 use valence_storage_account::msg::ExecuteMsg;
 
 pub const STORAGE_SLOT_KEY: &str = "pool_osmo";
@@ -86,12 +86,13 @@ impl Suite {
             .unwrap()
     }
 
-    fn query_assert(&self, assertion_config: AssertionConfig) -> StdResult<String> {
-        let msg = QueryMsg::Assert(assertion_config);
+    fn assert(&mut self, assertion_config: AssertionConfig) -> AnyResult<AppResponse> {
+        let msg = crate::msg::ExecuteMsg::Assert {
+            cfg: assertion_config,
+        };
 
         self.app
-            .wrap()
-            .query_wasm_smart(self.asserter.clone(), &msg)
+            .execute_contract(self.admin.clone(), self.asserter.clone(), &msg, &[])
     }
 
     fn default_coins() -> Vec<Coin> {

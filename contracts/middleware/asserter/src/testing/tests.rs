@@ -33,8 +33,7 @@ fn base_const_assertion() {
             Decimal::from_str("20.0").unwrap(),
         )),
     };
-
-    match suite.query_assert(assertion_cfg) {
+    match suite.assert(assertion_cfg) {
         Ok(_) => {
             println!("assertion passed");
         }
@@ -65,7 +64,7 @@ fn base_variable_assertion() {
         )),
     };
 
-    match suite.query_assert(assertion_cfg) {
+    match suite.assert(assertion_cfg) {
         Ok(_) => {
             println!("assertion passed");
         }
@@ -104,8 +103,7 @@ fn double_variable_assertion() {
             query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
         }),
     };
-
-    match suite.query_assert(assertion_cfg) {
+    match suite.assert(assertion_cfg) {
         Ok(_) => {
             println!("assertion passed");
         }
@@ -136,7 +134,7 @@ fn type_mismatch_assertion() {
         )),
     };
 
-    match suite.query_assert(assertion_cfg) {
+    match suite.assert(assertion_cfg) {
         Ok(_) => {
             println!("assertion passed");
         }

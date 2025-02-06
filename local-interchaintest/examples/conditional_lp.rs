@@ -1,3 +1,4 @@
+use cosmwasm_std::Decimal;
 use cosmwasm_std::{to_json_binary, Binary, Coin, Uint64};
 use cosmwasm_std_old::to_json_string;
 use cosmwasm_std_old::Coin as BankCoin;
@@ -20,6 +21,7 @@ use localic_std::{
 };
 use log::info;
 use serde_json::Value;
+use std::str::FromStr;
 use std::{
     collections::BTreeMap,
     env,
@@ -35,6 +37,7 @@ use valence_authorization_utils::{
 };
 use valence_library_utils::LibraryAccountType;
 use valence_middleware_asserter::msg::AssertionConfig;
+use valence_middleware_utils::canonical_types::pools::xyk::XykPoolQuery;
 use valence_middleware_utils::type_registry::types::{
     RegistryInstantiateMsg, RegistryQueryMsg, ValenceType,
 };
@@ -346,6 +349,179 @@ fn main() -> Result<(), Box<dyn Error>> {
         query_processor_callbacks_response
     );
 
+    info!("starting with assertions");
+    let assertion_message_binary = Binary::from(serde_json::to_vec(
+        &valence_middleware_asserter::msg::ExecuteMsg::Assert {
+            cfg: AssertionConfig {
+                a: valence_middleware_asserter::msg::AssertionValue::Variable(
+                    valence_middleware_asserter::msg::QueryInfo {
+                        storage_account: neutron_storage_account.to_string(),
+                        storage_slot_key: TARGET_QUERY_LABEL.to_string(),
+                        query: to_json_binary(&XykPoolQuery::GetPrice {})?,
+                    },
+                ),
+                predicate: valence_middleware_asserter::msg::Predicate::LT,
+                b: valence_middleware_asserter::msg::AssertionValue::Constant(
+                    valence_middleware_utils::type_registry::queries::ValencePrimitive::Decimal(
+                        Decimal::from_str("20.0").unwrap(),
+                    ),
+                ),
+            },
+        },
+    )?);
+
+    let assertion_message = ProcessorMessage::CosmwasmExecuteMsg {
+        msg: assertion_message_binary,
+    };
+
+    let send_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+            label: "assert".to_string(),
+            messages: vec![assertion_message],
+            ttl: None,
+        },
+    );
+
+    let tx_resp = contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&send_msg).unwrap(),
+        &format!("{GAS_FLAGS} --fees=100000untrn"),
+    )
+    .unwrap();
+
+    info!("authorization exec response: {:?}", tx_resp);
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    info!("Check processor queue");
+    let items = get_processor_queue_items(
+        &mut test_ctx,
+        NEUTRON_CHAIN_NAME,
+        &neutron_processor_address,
+        Priority::Medium,
+    );
+    println!("Items on neutron processor: {:?}", items);
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    info!("Ticking processor on neutron...");
+    let kvq_tick_response = contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &neutron_processor_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(
+            &valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+                valence_processor_utils::msg::PermissionlessMsg::Tick {},
+            ),
+        )
+        .unwrap(),
+        "--gas=auto --gas-adjustment=5.0 --fees=5000000untrn",
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    info!("assertion tick response: {:?}", kvq_tick_response);
+
+    let assertion_message_binary = Binary::from(serde_json::to_vec(
+        &valence_middleware_asserter::msg::ExecuteMsg::Assert {
+            cfg: AssertionConfig {
+                a: valence_middleware_asserter::msg::AssertionValue::Variable(
+                    valence_middleware_asserter::msg::QueryInfo {
+                        storage_account: neutron_storage_account.to_string(),
+                        storage_slot_key: TARGET_QUERY_LABEL.to_string(),
+                        query: to_json_binary(&XykPoolQuery::GetPrice {})?,
+                    },
+                ),
+                predicate: valence_middleware_asserter::msg::Predicate::GT,
+                b: valence_middleware_asserter::msg::AssertionValue::Constant(
+                    valence_middleware_utils::type_registry::queries::ValencePrimitive::Decimal(
+                        Decimal::from_str("20.0").unwrap(),
+                    ),
+                ),
+            },
+        },
+    )?);
+
+    let assertion_message = ProcessorMessage::CosmwasmExecuteMsg {
+        msg: assertion_message_binary,
+    };
+
+    let send_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+            label: "assert".to_string(),
+            messages: vec![assertion_message],
+            ttl: None,
+        },
+    );
+
+    let tx_resp = contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&send_msg).unwrap(),
+        &format!("{GAS_FLAGS} --fees=100000untrn"),
+    )
+    .unwrap();
+
+    info!("authorization exec response: {:?}", tx_resp);
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    info!("Check processor queue");
+    let items = get_processor_queue_items(
+        &mut test_ctx,
+        NEUTRON_CHAIN_NAME,
+        &neutron_processor_address,
+        Priority::Medium,
+    );
+    println!("Items on neutron processor: {:?}", items);
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    info!("Ticking processor on neutron...");
+    let kvq_tick_response = contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &neutron_processor_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(
+            &valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+                valence_processor_utils::msg::PermissionlessMsg::Tick {},
+            ),
+        )
+        .unwrap(),
+        "--gas=auto --gas-adjustment=5.0 --fees=5000000untrn",
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    info!("assertion tick response: {:?}", kvq_tick_response);
+
+    let query_processor_callbacks_response: Value = serde_json::from_value(
+        contract_query(
+            test_ctx
+                .get_request_builder()
+                .get_request_builder(NEUTRON_CHAIN_NAME),
+            &authorization_contract_address,
+            &serde_json::to_string(
+                &valence_authorization_utils::msg::QueryMsg::ProcessorCallbacks {
+                    start_after: None,
+                    limit: None,
+                },
+            )?,
+        )["data"]
+            .clone(),
+    )?;
+
+    info!(
+        "{NEUTRON_CHAIN_NAME} authorization mod processor callbacks: {:?}",
+        query_processor_callbacks_response
+    );
     Ok(())
 }
 
@@ -611,30 +787,30 @@ pub fn broker_get_canonical(
     Ok(resp)
 }
 
-pub fn assert_predicate(
-    test_ctx: &TestContext,
-    asserter: String,
-    assertion_cfg: AssertionConfig,
-) -> Result<String, LocalError> {
-    let query_response = contract_query(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        &asserter,
-        &serde_json::to_string(&valence_middleware_asserter::msg::QueryMsg::Assert(
-            assertion_cfg,
-        ))
-        .map_err(|e| LocalError::Custom { msg: e.to_string() })?,
-    )["data"]
-        .clone();
+// pub fn assert_predicate(
+//     test_ctx: &TestContext,
+//     asserter: String,
+//     assertion_cfg: AssertionConfig,
+// ) -> Result<String, LocalError> {
+//     let query_response = contract_query(
+//         test_ctx
+//             .get_request_builder()
+//             .get_request_builder(NEUTRON_CHAIN_NAME),
+//         &asserter,
+//         &serde_json::to_string(&valence_middleware_asserter::msg::QueryMsg::Assert(
+//             assertion_cfg,
+//         ))
+//         .map_err(|e| LocalError::Custom { msg: e.to_string() })?,
+//     )["data"]
+//         .clone();
 
-    let resp: Result<String, serde_json::error::Error> = serde_json::from_value(query_response);
+//     let resp: Result<String, serde_json::error::Error> = serde_json::from_value(query_response);
 
-    match resp {
-        Ok(val) => Ok(val),
-        Err(e) => Err(LocalError::Custom { msg: e.to_string() }),
-    }
-}
+//     match resp {
+//         Ok(val) => Ok(val),
+//         Err(e) => Err(LocalError::Custom { msg: e.to_string() }),
+//     }
+// }
 
 fn upload_contracts(
     current_dir: PathBuf,

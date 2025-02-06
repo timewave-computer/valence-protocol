@@ -1,4 +1,4 @@
-use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Binary;
 use valence_middleware_utils::type_registry::queries::ValencePrimitive;
 
@@ -6,14 +6,12 @@ use valence_middleware_utils::type_registry::queries::ValencePrimitive;
 pub struct InstantiateMsg {}
 
 #[cw_serde]
-pub enum ExecuteMsg {}
+pub enum ExecuteMsg {
+    Assert { cfg: AssertionConfig },
+}
 
 #[cw_serde]
-#[derive(QueryResponses)]
-pub enum QueryMsg {
-    #[returns(String)]
-    Assert(AssertionConfig),
-}
+pub enum QueryMsg {}
 
 #[cw_serde]
 pub enum Predicate {

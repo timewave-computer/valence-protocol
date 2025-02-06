@@ -3,8 +3,7 @@ use crate::msg::{AssertionConfig, AssertionValue, ExecuteMsg, InstantiateMsg, Qu
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, QuerierWrapper, Response, StdError,
-    StdResult,
+    Binary, Deps, DepsMut, Env, MessageInfo, QuerierWrapper, Response, StdError, StdResult,
 };
 use cw2::set_contract_version;
 use valence_middleware_utils::{
@@ -33,27 +32,27 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    _msg: ExecuteMsg,
+    msg: ExecuteMsg,
 ) -> Result<Response, MiddlewareError> {
-    unimplemented!()
-}
-
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Assert(assertion_config) => match evaluate_assertion(deps, assertion_config)? {
-            true => to_json_binary("pass"),
-            false => Err(StdError::generic_err("fail")),
+        ExecuteMsg::Assert { cfg } => match evaluate_assertion(deps, cfg)? {
+            true => Ok(Response::default()),
+            false => Err(StdError::generic_err("assertion failed").into()),
         },
     }
 }
 
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(_deps: Deps, _env: Env, _msg: QueryMsg) -> StdResult<Binary> {
+    unimplemented!()
+}
+
 /// evaluates the assertion by deserializing both comparison values into a mutual type identified
 /// by `assertion_config.ty` before evaluating the predicate and returning boolean result.
-fn evaluate_assertion(deps: Deps, assertion_config: AssertionConfig) -> StdResult<bool> {
+fn evaluate_assertion(deps: DepsMut, assertion_config: AssertionConfig) -> StdResult<bool> {
     // first we fetch the values we want to compare
     let a_cmp = get_comparable_value(deps.querier, assertion_config.a)?;
     let b_cmp = get_comparable_value(deps.querier, assertion_config.b)?;
