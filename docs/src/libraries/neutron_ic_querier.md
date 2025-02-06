@@ -108,7 +108,7 @@ This library constructs the query registration message as follows:
     }
 ```
 
-`query_kv_key` here is obtained by querying the associated middleware broker for a given type and query parameters.
+`query_kv_key` here is obtained by querying the associated Middleware Broker for a given type and query parameters.
 
 #### Query Result Message types
 
