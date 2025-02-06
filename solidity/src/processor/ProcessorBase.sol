@@ -119,7 +119,21 @@ abstract contract ProcessorBase {
 
         // Execute each function until one fails
         for (uint8 i = 0; i < nonAtomicSubroutine.functions.length; i++) {
-            (bool success, bytes memory err) = nonAtomicSubroutine.functions[i].contractAddress.call(messages[i]);
+            address targetContract = nonAtomicSubroutine.functions[i].contractAddress;
+            // Check contract existence, need to do this check because in EVM
+            // the .call will still return true even if the contract does not exist
+            // It fails on reverts/requires/out of gas
+            uint256 size;
+            assembly {
+                size := extcodesize(targetContract)
+            }
+            if (size == 0) {
+                succeeded = false;
+                errorData = "Contract does not exist";
+                break;
+            }
+
+            (bool success, bytes memory err) = targetContract.call(messages[i]);
 
             if (success) {
                 executedCount++;
@@ -152,6 +166,18 @@ abstract contract ProcessorBase {
         }
 
         for (uint8 i = 0; i < atomicSubroutine.functions.length; i++) {
+            address targetContract = atomicSubroutine.functions[i].contractAddress;
+            // Check contract existence, need to do this check because in EVM
+            // the .call function will still return true even if the contract does not exist
+            // It fails on reverts/requires/out of gas
+            uint256 size;
+            assembly {
+                size := extcodesize(targetContract)
+            }
+            if (size == 0) {
+                revert("Contract does not exist");
+            }
+
             /**
              * @notice Executes a contract call and forwards any error if the call fails
              * @dev When a contract call fails, Solidity captures the revert data (error)
@@ -163,7 +189,7 @@ abstract contract ProcessorBase {
              *         - Use the length value at the start of err (mload(err))
              *         - Revert with exactly the original error data
              */
-            (bool success, bytes memory err) = atomicSubroutine.functions[i].contractAddress.call(messages[i]);
+            (bool success, bytes memory err) = targetContract.call(messages[i]);
             if (!success) {
                 // Forward the original error data
                 assembly {

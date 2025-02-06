@@ -8,7 +8,7 @@ use cosmwasm_std::{Binary, Timestamp, Uint128};
 use cosmwasm_std_old::Uint64;
 use cw_utils::Expiration;
 use local_interchaintest::utils::{
-    authorization::set_up_authorization_and_processor,
+    authorization::{set_up_authorization_and_processor, verify_authorization_execution_result},
     polytone::salt_for_proxy,
     processor::{get_processor_queue_items, tick_processor},
     relayer::restart_relayer,
@@ -36,7 +36,7 @@ use valence_authorization_utils::{
         PermissionTypeInfo, Priority, Subroutine,
     },
     authorization_message::{Message, MessageDetails, MessageType},
-    callback::{ExecutionResult, ProcessorCallbackInfo},
+    callback::ExecutionResult,
     domain::{CosmwasmBridge, Domain, ExecutionEnvironment, ExternalDomain, PolytoneProxyState},
     function::AtomicFunction,
     msg::{ExternalDomainInfo, PermissionedMsg, PolytoneNoteInfo, ProcessorMessage},
@@ -1102,57 +1102,6 @@ fn verify_proxy_state_on_authorization(
             ExecutionEnvironment::Evm(_, _) => {
                 panic!("No polytone proxy state on EVM bridge!")
             }
-        }
-
-        if attempts % 5 == 0 {
-            // Sometimes the relayer doesn't pick up the changes, so we restart it
-            restart_relayer(test_ctx);
-        }
-
-        if attempts > MAX_ATTEMPTS {
-            panic!("Maximum number of attempts reached. Cancelling execution.");
-        }
-        std::thread::sleep(Duration::from_secs(15));
-    }
-}
-
-fn verify_authorization_execution_result(
-    test_ctx: &mut TestContext,
-    authorization_address: &str,
-    execution_id: u64,
-    expected_result: &ExecutionResult,
-) {
-    let mut attempts = 0;
-    loop {
-        attempts += 1;
-        let callback_info: ProcessorCallbackInfo = serde_json::from_value(
-            contract_query(
-                test_ctx
-                    .get_request_builder()
-                    .get_request_builder(NEUTRON_CHAIN_NAME),
-                authorization_address,
-                &serde_json::to_string(
-                    &valence_authorization_utils::msg::QueryMsg::ProcessorCallback { execution_id },
-                )
-                .unwrap(),
-            )["data"]
-                .clone(),
-        )
-        .unwrap();
-
-        let result_matches = match (expected_result, &callback_info.execution_result) {
-            (ExecutionResult::Rejected(_), ExecutionResult::Rejected(_)) => true,
-            _ => callback_info.execution_result.eq(expected_result),
-        };
-
-        if result_matches {
-            info!("Target execution result reached!");
-            break;
-        } else {
-            info!(
-                "Waiting for the right execution result, current execution result: {:?}",
-                callback_info.execution_result
-            );
         }
 
         if attempts % 5 == 0 {

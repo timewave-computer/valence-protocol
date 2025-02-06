@@ -11,12 +11,21 @@ use alloy_sol_types_encoder::SolValue;
 use cosmwasm_std::{Binary, Empty};
 use cosmwasm_std_old::Coin as BankCoin;
 use local_interchaintest::utils::{
-    authorization::set_up_authorization_and_processor, ethereum::set_up_anvil_container, hyperlane::{
+    authorization::{set_up_authorization_and_processor, verify_authorization_execution_result},
+    ethereum::set_up_anvil_container,
+    hyperlane::{
         bech32_to_evm_bytes32, set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts,
         set_up_hyperlane,
-    }, solidity_contracts::{BaseAccount, Forwarder, LiteProcessor, MockERC20}, DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME, ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS, HYPERLANE_RELAYER_NEUTRON_ADDRESS, LOGS_FILE_PATH, NEUTRON_HYPERLANE_DOMAIN, NTRN_DENOM, VALENCE_ARTIFACTS_PATH
+    },
+    solidity_contracts::{BaseAccount, Forwarder, LiteProcessor, MockERC20},
+    DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME, ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS,
+    HYPERLANE_RELAYER_NEUTRON_ADDRESS, LOGS_FILE_PATH, NEUTRON_HYPERLANE_DOMAIN, NTRN_DENOM,
+    VALENCE_ARTIFACTS_PATH,
 };
-use localic_std::modules::{bank, cosmwasm::{contract_execute, contract_instantiate}};
+use localic_std::modules::{
+    bank,
+    cosmwasm::{contract_execute, contract_instantiate},
+};
 use localic_utils::{
     utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
     LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
@@ -24,7 +33,11 @@ use localic_utils::{
 use log::info;
 use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType},
-    builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
+    builders::{
+        AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder,
+        NonAtomicFunctionBuilder, NonAtomicSubroutineBuilder,
+    },
+    callback::ExecutionResult,
     domain::Domain,
     msg::{
         EncoderInfo, EvmBridgeInfo, ExternalDomainInfo, HyperlaneConnectorInfo, PermissionedMsg,
@@ -224,7 +237,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         GAS_FLAGS,
     )
     .unwrap();
-    std::thread::sleep(Duration::from_secs(5));
+    std::thread::sleep(Duration::from_secs(10));
 
     // Query the processor to verify that it is paused
     let lite_processor = LiteProcessor::new(lite_processor_address, &eth.provider);
@@ -248,7 +261,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         GAS_FLAGS,
     )
     .unwrap();
-    std::thread::sleep(Duration::from_secs(5));
+    std::thread::sleep(Duration::from_secs(10));
 
     // Query the processor to verify that it is resumed
     let lite_processor = LiteProcessor::new(lite_processor_address, &eth.provider);
@@ -463,7 +476,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         GAS_FLAGS,
     )
     .unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(5));
+    std::thread::sleep(std::time::Duration::from_secs(10));
 
     // Query the base accounts to verify that the tokens were swapped
     let builder = token_1.balanceOf(base_account_2);
@@ -474,6 +487,139 @@ fn main() -> Result<(), Box<dyn Error>> {
     let balance = eth.rt.block_on(async { builder.call().await })?._0;
     assert_eq!(balance, U256::from(1000));
     info!("Tokens swapped successfully!");
+
+    // Let's verify that we got the right ExecutionResult in the authorization contract
+    info!("Verify we got the right callback...");
+    verify_authorization_execution_result(
+        &mut test_ctx,
+        &authorization_contract_address,
+        0,
+        &ExecutionResult::Success,
+    );
+
+    // Let's do the same setup now but this time it will be non atomic and the second function will fail
+    info!("Mint new tokens to the first base account...");
+    let mint_token1_tx = token_1
+        .mint(base_account_1, U256::from(1000))
+        .into_transaction_request()
+        .from(accounts[0]);
+    eth.send_transaction(mint_token1_tx)?;
+
+    // Second contract will not exist
+    let authorizations = vec![AuthorizationBuilder::new()
+        .with_label("token_swap2")
+        .with_subroutine(
+            NonAtomicSubroutineBuilder::new()
+                .with_function(
+                    NonAtomicFunctionBuilder::new()
+                        .with_domain(Domain::External(ETHEREUM_CHAIN_NAME.to_string()))
+                        .with_contract_address(LibraryAccountType::Addr(
+                            forwarder_1_address.to_string(),
+                        ))
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::EvmCall(
+                                EncoderInfo {
+                                    broker_address: encoder_broker.address.clone(),
+                                    encoder_version: namespace_evm_encoder.clone(),
+                                },
+                                "forwarder".to_string(),
+                            ),
+                            message: Message {
+                                name: "process_function".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .with_function(
+                    NonAtomicFunctionBuilder::new()
+                        .with_domain(Domain::External(ETHEREUM_CHAIN_NAME.to_string()))
+                        .with_contract_address(LibraryAccountType::Addr(
+                            Address::from_str("0x0000000000000000000000000000000000000001")
+                                .unwrap()
+                                .to_string(),
+                        ))
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::EvmCall(
+                                EncoderInfo {
+                                    broker_address: encoder_broker.address.clone(),
+                                    encoder_version: namespace_evm_encoder.clone(),
+                                },
+                                "forwarder".to_string(),
+                            ),
+                            message: Message {
+                                name: "process_function".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .build(),
+        )
+        .build()];
+
+    info!("Creating authorization...");
+    let create_authorization = valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
+        valence_authorization_utils::msg::PermissionedMsg::CreateAuthorizations { authorizations },
+    );
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&create_authorization).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+    info!("Authorization created!");
+
+    info!("Send the messages to the authorization contract...");
+    let binary = Binary::from(
+        serde_json::to_vec(
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_forwarder_library::msg::FunctionMsgs::Forward {},
+            ),
+        )
+        .unwrap(),
+    );
+    let message = ProcessorMessage::EvmCall { msg: binary };
+
+    let send_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+            label: "token_swap2".to_string(),
+            messages: vec![message.clone(), message],
+            ttl: None,
+        },
+    );
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&send_msg).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(10));
+
+    // Query the base accounts to verify that the tokens were sent from account 1 to account 2
+    let builder = token_1.balanceOf(base_account_2);
+    let balance = eth.rt.block_on(async { builder.call().await })?._0;
+    assert_eq!(balance, U256::from(2000));
+    info!("Tokens sent successfully!");
+
+    // Let's verify that we got the right ExecutionResult in the authorization contract
+    info!("Verify we got the right callback...");
+    verify_authorization_execution_result(
+        &mut test_ctx,
+        &authorization_contract_address,
+        1,
+        &ExecutionResult::PartiallyExecuted(1, "not_checked".to_string()),
+    );
 
     info!("Integration tests passed successfully!");
 

@@ -209,7 +209,7 @@ impl AtomicFunctionBuilder {
 pub struct NonAtomicFunctionBuilder {
     domain: Domain,
     message_details: MessageDetails,
-    contract_address: String,
+    contract_address: LibraryAccountType,
     retry_logic: Option<RetryLogic>,
     callback_confirmation: Option<FunctionCallback>,
 }
@@ -231,19 +231,24 @@ impl NonAtomicFunctionBuilder {
                     params_restrictions: None,
                 },
             },
-            contract_address: "address".to_string(),
+            contract_address: LibraryAccountType::Addr("address".to_string()),
             retry_logic: None,
             callback_confirmation: None,
         }
+    }
+
+    pub fn with_domain(mut self, domain: Domain) -> Self {
+        self.domain = domain;
+        self
     }
 
     pub fn with_message_details(mut self, message_details: MessageDetails) -> Self {
         self.message_details = message_details;
         self
     }
-
-    pub fn with_contract_address(mut self, contract_address: &str) -> Self {
-        self.contract_address = contract_address.to_string();
+    
+    pub fn with_contract_address(mut self, contract_address: LibraryAccountType) -> Self {
+        self.contract_address = contract_address;
         self
     }
 
@@ -261,7 +266,7 @@ impl NonAtomicFunctionBuilder {
         NonAtomicFunction {
             domain: self.domain,
             message_details: self.message_details,
-            contract_address: self.contract_address.as_str().into(),
+            contract_address: self.contract_address,
             retry_logic: self.retry_logic,
             callback_confirmation: self.callback_confirmation,
         }
