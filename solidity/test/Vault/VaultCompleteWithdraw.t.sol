@@ -6,8 +6,11 @@ import {ValenceVault} from "../../src/libraries/ValenceVault.sol";
 import {IERC20} from "@openzeppelin-contracts/token/ERC20/IERC20.sol";
 import {console} from "forge-std/src/console.sol";
 import {VmSafe} from "forge-std/src/Vm.sol";
+import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
 
 contract VaultCompleteWithdrawTest is VaultHelper {
+    using Math for uint256;
+
     address[] users;
     address solver;
     uint256 constant WITHDRAW_AMOUNT = 1000;
@@ -53,15 +56,24 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         vm.stopPrank();
     }
 
+    function testCannotCompleteNonExistentWithdraw() public {
+        vm.expectRevert(ValenceVault.WithdrawRequestNotFound.selector);
+        vault.completeWithdraw(user);
+    }
+
     function testCompleteWithdrawBasicFlow() public {
+        uint256 userVaultBalanceBefore = vault.balanceOf(user);
+        uint256 userAssetBalanceBefore = token.balanceOf(user);
         // Create withdraw request
         vm.startPrank(user);
         vault.withdraw(WITHDRAW_AMOUNT, user, user, MAX_LOSS, false);
         vm.stopPrank();
 
+        assertEq(vault.balanceOf(user), userVaultBalanceBefore - WITHDRAW_AMOUNT, "User should have reduced shares");
+
         // Process update
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS, 0, WITHDRAW_AMOUNT);
+        vault.update(ONE_SHARE, 0, WITHDRAW_AMOUNT);
         vm.stopPrank();
 
         // Fast forward past lockup period
@@ -73,6 +85,10 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         vm.expectEmit(true, true, true, true);
         emit WithdrawCompleted(user, user, WITHDRAW_AMOUNT, shares, user);
 
+        assertEq(
+            token.balanceOf(user), userAssetBalanceBefore, "User should not have more assets before withdraw complete"
+        );
+
         // Complete withdraw
         vm.prank(user);
         vault.completeWithdraw(user);
@@ -80,6 +96,8 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         // Verify request is cleared
         (,,,,,, uint256 sharesAfter) = vault.userWithdrawRequest(user);
         assertEq(sharesAfter, 0, "Shares should be 0 after completion");
+
+        assertEq(token.balanceOf(user), userAssetBalanceBefore + WITHDRAW_AMOUNT, "User should have increased assets");
     }
 
     function testCompleteWithdrawWithSolverFee() public {
@@ -92,7 +110,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // Process update
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS, 0, WITHDRAW_AMOUNT);
+        vault.update(ONE_SHARE, 0, WITHDRAW_AMOUNT);
         vm.stopPrank();
 
         // Fast forward past lockup period
@@ -127,7 +145,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // Process update
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS, 0, WITHDRAW_AMOUNT);
+        vault.update(ONE_SHARE, 0, WITHDRAW_AMOUNT);
         vm.stopPrank();
 
         // Fast forward past lockup period
@@ -152,7 +170,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // Process first update
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS, 0, WITHDRAW_AMOUNT);
+        vault.update(ONE_SHARE, 0, WITHDRAW_AMOUNT);
         vm.stopPrank();
 
         // Fast forward past lockup period
@@ -160,7 +178,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // Update rate with small loss (4% loss)
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS * 96 / 100, 0, 0);
+        vault.update(ONE_SHARE.mulDiv(BASIS_POINTS - 400, BASIS_POINTS), 0, 0);
         vm.stopPrank();
 
         // Should complete successfully as loss is under max
@@ -185,14 +203,14 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         // Process first update with a 1% withdraw fee (100 basis points)
         uint32 withdrawFee = 100; // 1%
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS, withdrawFee, WITHDRAW_AMOUNT);
+        vault.update(ONE_SHARE, withdrawFee, WITHDRAW_AMOUNT);
         vm.stopPrank();
 
         // Fast forward past lockup period
         vm.warp(vm.getBlockTimestamp() + 3 days + 1);
 
         // Update rate with big loss (6% loss)
-        uint32 newRate = BASIS_POINTS * 94 / 100; // 94% of original rate (6% loss)
+        uint256 newRate = ONE_SHARE.mulDiv(BASIS_POINTS - 600, BASIS_POINTS); // 94% of original rate (6% loss)
         vm.startPrank(strategist);
         vault.update(newRate, withdrawFee, 0);
         vm.stopPrank();
@@ -200,7 +218,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         uint256 userSharesBefore = vault.balanceOf(user);
 
         // Calculate expected refunded shares (initialShares - 1% fee)
-        uint256 expectedRefundShares = initialShares * (BASIS_POINTS - withdrawFee) / BASIS_POINTS;
+        uint256 expectedRefundShares = initialShares.mulDiv(BASIS_POINTS - withdrawFee, BASIS_POINTS);
 
         // First try without vm.expectEmit to see what event is actually emitted
         vm.prank(user);
@@ -226,11 +244,6 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         );
     }
 
-    function testCannotCompleteNonExistentWithdraw() public {
-        vm.expectRevert(ValenceVault.WithdrawRequestNotFound.selector);
-        vault.completeWithdraw(user);
-    }
-
     function testCannotCompleteBeforeLockupPeriod() public {
         // Create withdraw request
         vm.startPrank(user);
@@ -239,7 +252,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // Process update
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS, 0, WITHDRAW_AMOUNT);
+        vault.update(ONE_SHARE, 0, WITHDRAW_AMOUNT);
         vm.stopPrank();
 
         // Try to complete before lockup period (should fail)
@@ -257,7 +270,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // Process update
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS, 0, WITHDRAW_AMOUNT);
+        vault.update(ONE_SHARE, 0, WITHDRAW_AMOUNT);
         vm.stopPrank();
 
         // Fast forward past lockup period
@@ -277,7 +290,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // Process update
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS, 0, WITHDRAW_AMOUNT);
+        vault.update(ONE_SHARE, 0, WITHDRAW_AMOUNT);
         vm.stopPrank();
 
         // Fast forward past lockup period
@@ -303,7 +316,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // Process update
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS, 0, WITHDRAW_AMOUNT);
+        vault.update(ONE_SHARE, 0, WITHDRAW_AMOUNT);
         vm.stopPrank();
 
         // Fast forward past lockup period
@@ -330,7 +343,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // Process update for all withdraws
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS, 100, WITHDRAW_AMOUNT * users.length); // 1% fee
+        vault.update(ONE_SHARE, 100, WITHDRAW_AMOUNT * users.length); // 1% fee
         vm.stopPrank();
 
         // Fast forward past lockup period
@@ -356,7 +369,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // First update
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS, 100, WITHDRAW_AMOUNT); // 1% fee
+        vault.update(ONE_SHARE, 100, WITHDRAW_AMOUNT); // 1% fee
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + 1 days);
@@ -367,7 +380,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // Second update with different rate and fee
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS * 98 / 100, 200, WITHDRAW_AMOUNT); // 2% loss and 2% fee
+        vault.update(ONE_SHARE.mulDiv(BASIS_POINTS - 200, BASIS_POINTS), 200, WITHDRAW_AMOUNT); // 2% loss and 2% fee
         vm.stopPrank();
 
         // Fast forward past lockup period
@@ -395,7 +408,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // Update with significant loss (10%)
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS * 90 / 100, 0, WITHDRAW_AMOUNT * users.length);
+        vault.update(ONE_SHARE.mulDiv(BASIS_POINTS - 1000, BASIS_POINTS), 0, WITHDRAW_AMOUNT * users.length);
         vm.stopPrank();
 
         // Fast forward past lockup period
@@ -430,7 +443,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // Process update
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS, 0, WITHDRAW_AMOUNT * users.length);
+        vault.update(ONE_SHARE, 0, WITHDRAW_AMOUNT * users.length);
         vm.stopPrank();
 
         // Fast forward past lockup period
@@ -455,7 +468,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // Process update
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS, 0, WITHDRAW_AMOUNT * users.length);
+        vault.update(ONE_SHARE, 0, WITHDRAW_AMOUNT * users.length);
         vm.stopPrank();
 
         // Fast forward only partially
@@ -496,7 +509,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // Process initial update
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS, 100, WITHDRAW_AMOUNT * 3); // Set 1% withdraw fee
+        vault.update(ONE_SHARE, 100, WITHDRAW_AMOUNT * 3); // Set 1% withdraw fee
         vm.stopPrank();
 
         // Fast forward past lockup period
@@ -504,7 +517,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
         // Update rate with 4% loss (total 5% with 1% fee)
         vm.startPrank(strategist);
-        vault.update(BASIS_POINTS * 96 / 100, 100, 0);
+        vault.update(ONE_SHARE.mulDiv(BASIS_POINTS - 400, BASIS_POINTS), 100, 0);
         vm.stopPrank();
 
         // Store users current share balances
@@ -539,8 +552,8 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         assertTrue(token.balanceOf(users[2]) > initialBalances[2], "Third user should have received assets");
 
         // Verify the exact amounts for users who successfully withdrew
-        uint256 withdrawRate = (BASIS_POINTS * 96 / 100) - 100; // 96% rate - 1% fee
-        uint256 expectedWithdrawAmount = WITHDRAW_AMOUNT * withdrawRate / BASIS_POINTS;
+        uint256 withdrawRate = ONE_SHARE.mulDiv(BASIS_POINTS - 500, BASIS_POINTS); // 96% rate - 1% fee
+        uint256 expectedWithdrawAmount = WITHDRAW_AMOUNT.mulDiv(withdrawRate, ONE_SHARE);
 
         for (uint256 i = 1; i < 3; i++) {
             // Skip first user who got refunded

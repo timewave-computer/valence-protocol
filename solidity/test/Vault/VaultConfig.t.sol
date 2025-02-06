@@ -21,7 +21,7 @@ contract VaultConfigTest is VaultHelper {
             withdrawAccount: withdrawAccount,
             strategist: newStrategist,
             depositCap: 1000000,
-            maxWithdrawFee: 1000, // 10%
+            maxWithdrawFeeBps: 1000, // 10%
             withdrawLockupPeriod: 2 days,
             fees: ValenceVault.FeeConfig({
                 depositFeeBps: 100, // 1%
@@ -171,7 +171,7 @@ contract VaultConfigTest is VaultHelper {
 
         // Test max withdraw fee > 100%
         ValenceVault.VaultConfig memory invalidConfig = _getConfig();
-        invalidConfig.maxWithdrawFee = uint32(BASIS_POINTS + 1);
+        invalidConfig.maxWithdrawFeeBps = uint32(BASIS_POINTS + 1);
 
         vm.expectRevert(ValenceVault.InvalidMaxWithdrawFee.selector);
         vault.updateConfig(abi.encode(invalidConfig));

@@ -7,12 +7,15 @@ import {ValenceVault} from "../../src/libraries/ValenceVault.sol";
 import {IERC20} from "@openzeppelin-contracts/token/ERC20/IERC20.sol";
 import {console} from "forge-std/src/console.sol";
 import {VmSafe} from "forge-std/src/Vm.sol";
+import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
 
 contract VaultSimulationTest is VaultHelper {
+    using Math for uint256;
+
     // Constants for simulation
     uint256 constant SIMULATION_DAYS = 10;
-    uint256 constant DAILY_RATE_INCREASE = 100; // 1% daily increase
-    uint256 constant INITIAL_RATE = 10000; // 100%
+    uint256 internal immutable DAILY_RATE_INCREASE; // 1% daily increase
+    uint256 constant INITIAL_RATE = ONE_SHARE; // 100%
     uint256 constant USER_DEPOSIT_AMOUNT = 10_000;
     uint32 constant MAX_LOSS_BPS = 1000; // 10%
 
@@ -32,6 +35,10 @@ contract VaultSimulationTest is VaultHelper {
     }
 
     FeeTracker public feeTracker;
+
+    constructor() {
+        DAILY_RATE_INCREASE = ONE_SHARE.mulDiv(100, BASIS_POINTS);
+    }
 
     function setUp() public override {
         super.setUp();
@@ -173,7 +180,7 @@ contract VaultSimulationTest is VaultHelper {
 
         // Calculate assets needed for rate increase
         uint256 currentAssets = vault.totalAssets();
-        uint256 assetsNeededForNewRate = (vault.totalSupply() * newRate) / BASIS_POINTS;
+        uint256 assetsNeededForNewRate = vault.totalSupply().mulDiv(newRate, ONE_SHARE);
         if (assetsNeededForNewRate > currentAssets) {
             uint256 additionalAssetsNeeded = assetsNeededForNewRate - currentAssets;
 
@@ -199,10 +206,10 @@ contract VaultSimulationTest is VaultHelper {
             console.log("Netting required:", nettingAmount);
 
             // Process the update with netting
-            vault.update(uint32(newRate), withdrawFee, 0);
+            vault.update(newRate, withdrawFee, nettingAmount);
         } else {
             // Process the update without netting
-            vault.update(uint32(newRate), withdrawFee, 0);
+            vault.update(newRate, withdrawFee, 0);
         }
         vm.stopPrank();
 
@@ -296,15 +303,15 @@ contract VaultSimulationTest is VaultHelper {
     }
 
     function calculateExpectedPlatformFees(uint256 assets, uint256 timeElapsed) internal pure returns (uint256) {
-        return (assets * 500 * timeElapsed) / (10000 * 365 days);
+        return assets.mulDiv(BASIS_POINTS - 500, BASIS_POINTS).mulDiv(timeElapsed, 365 days);
     }
 
     function calculateExpectedPerformanceFees(uint256 profit) internal pure returns (uint256) {
-        return (profit * 1000) / 10000; // 10% of profit
+        return profit.mulDiv(1000, BASIS_POINTS); // 10% of profit
     }
 
     function calculateExpectedDepositFee(uint256 depositAmount) internal pure returns (uint256) {
-        return (depositAmount * 200) / 10000; // 2% of deposit
+        return depositAmount.mulDiv(BASIS_POINTS - 200, BASIS_POINTS); // 2% of deposit
     }
 
     function verifyFinalState() internal view {

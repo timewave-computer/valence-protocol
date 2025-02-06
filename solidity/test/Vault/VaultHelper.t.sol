@@ -17,6 +17,7 @@ abstract contract VaultHelper is Test {
     uint256 internal constant INITIAL_TIMESTAMP = 5000;
     uint256 internal constant INITIAL_BLOCK = 100;
     uint64 internal constant ONE_DAY = 1 days;
+    uint256 internal constant ONE_SHARE = 1e18;
 
     // Contracts
     ValenceVault internal vault;
@@ -60,13 +61,13 @@ abstract contract VaultHelper is Test {
             withdrawAccount: withdrawAccount,
             strategist: strategist,
             depositCap: 0,
-            maxWithdrawFee: MAX_WITHDRAW_FEE,
+            maxWithdrawFeeBps: MAX_WITHDRAW_FEE,
             withdrawLockupPeriod: ONE_DAY * 3,
             fees: defaultFees(),
             feeDistribution: defaultDistributionFees()
         });
 
-        vault = new ValenceVault(owner, abi.encode(config), address(token), "Valence Vault Token", "VVT");
+        vault = new ValenceVault(owner, abi.encode(config), address(token), "Valence Vault Token", "VVT", ONE_SHARE);
 
         // Setup permissions
         depositAccount.approveLibrary(address(vault));
@@ -160,7 +161,7 @@ abstract contract VaultHelper is Test {
             ValenceVault.FeeDistributionConfig memory _feeDistribution,
             uint128 _depositCap,
             uint64 _withdrawLockupPeriod,
-            uint32 _maxWithdrawFee
+            uint32 _maxWithdrawFeeBps
         ) = vault.config();
 
         return ValenceVault.VaultConfig({
@@ -168,7 +169,7 @@ abstract contract VaultHelper is Test {
             withdrawAccount: _withdrawAccount,
             strategist: _strategist,
             depositCap: _depositCap,
-            maxWithdrawFee: _maxWithdrawFee,
+            maxWithdrawFeeBps: _maxWithdrawFeeBps,
             withdrawLockupPeriod: _withdrawLockupPeriod,
             fees: _fees,
             feeDistribution: _feeDistribution
@@ -176,18 +177,16 @@ abstract contract VaultHelper is Test {
     }
 
     function _getPackedValues() internal view returns (ValenceVault.PackedValues memory) {
-        (uint64 positionWithdrawFee, uint64 currentUpdateId, uint64 nextWithdrawRequestId, bool paused) =
-            vault.packedValues();
+        (uint64 currentUpdateId, uint64 nextWithdrawRequestId, bool paused) = vault.packedValues();
 
         return ValenceVault.PackedValues({
-            positionWithdrawFee: positionWithdrawFee,
             currentUpdateId: currentUpdateId,
             nextWithdrawRequestId: nextWithdrawRequestId,
             paused: paused
         });
     }
 
-    function _update(uint32 newRate, uint32 newWithdrawFee, uint256 nettingAmount) public {
+    function _update(uint256 newRate, uint32 newWithdrawFee, uint256 nettingAmount) public {
         // Add block and time
         vm.roll(vm.getBlockNumber() + 1);
         vm.warp(vm.getBlockTimestamp() + 12);

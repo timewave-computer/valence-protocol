@@ -35,14 +35,14 @@ contract WithdrawDebugger is Test {
         }
 
         // Get update info
-        (uint32 withdrawRate,,) = vault.updateInfos(updateId);
+        (uint256 withdrawRate,, uint32 updateWithdrawFee) = vault.updateInfos(updateId);
 
         // Check rates and potential loss
-        uint32 currentRate = vault.redemptionRate();
-        (uint64 positionWithdrawFee,,, bool paused) = vault.packedValues();
+        uint256 currentRate = vault.redemptionRate();
+        (,, bool paused) = vault.packedValues();
 
         if (currentRate < withdrawRate) {
-            uint256 currentWithdrawRate = currentRate - positionWithdrawFee;
+            uint256 currentWithdrawRate = currentRate - updateWithdrawFee;
             uint256 lossBps = ((withdrawRate - currentWithdrawRate) * 10000) / withdrawRate;
 
             if (lossBps > maxLossBps) {
@@ -72,8 +72,8 @@ contract WithdrawDebugger is Test {
             uint256 totalAssets,
             uint256 totalShares,
             uint256 withdrawBalance,
-            uint32 redemptionRate,
-            uint32 maxHistoricalRate
+            uint256 redemptionRate,
+            uint256 maxHistoricalRate
         )
     {
         totalAssets = vault.totalAssets();
