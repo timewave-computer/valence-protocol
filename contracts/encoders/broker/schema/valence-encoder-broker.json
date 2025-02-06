@@ -577,16 +577,16 @@
             "enum": [
               "cosmwasm_execute_msg",
               "cosmwasm_migrate_msg",
-              "e_v_m_raw_call"
+              "evm_raw_call"
             ]
           },
           {
             "type": "object",
             "required": [
-              "e_v_m_call"
+              "evm_call"
             ],
             "properties": {
-              "e_v_m_call": {
+              "evm_call": {
                 "type": "array",
                 "items": [
                   {
