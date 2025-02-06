@@ -692,6 +692,8 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         uint256 _redemptionRate = redemptionRate;
         UpdateInfo memory updateInfo = updateInfos[request.updateId];
         uint256 assetsToWithdraw;
+        BaseAccount depositAccount = config.depositAccount;
+        BaseAccount withdrawAccount = config.withdrawAccount;
 
         // The current withdrawRate is the redemption rate minus the update withdraw fee
         uint256 currentWithdrawRate = _redemptionRate.mulDiv(BASIS_POINTS - updateInfo.withdrawFee, BASIS_POINTS);
@@ -708,9 +710,16 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
                     BASIS_POINTS - updateInfo.withdrawFee, BASIS_POINTS, Math.Rounding.Floor
                 );
 
+                delete userWithdrawRequest[owner];
+
                 // Loss too high, refund shares minus the withdraw fee
                 _mint(owner, refundShares);
-                delete userWithdrawRequest[owner];
+
+                assetsToWithdraw = refundShares.mulDiv(_redemptionRate, ONE_SHARE, Math.Rounding.Floor);
+                bytes memory transferCalldata =
+                    abi.encodeCall(IERC20.transfer, (address(depositAccount), assetsToWithdraw));
+                withdrawAccount.execute(asset(), 0, transferCalldata);
+
                 emit WithdrawCancelled(owner, refundShares, lossBps, request.maxLossBps);
 
                 return WithdrawResult(false, 0, 0, "Loss exceeds maximum");
@@ -730,7 +739,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         bytes memory transferCalldata = abi.encodeCall(IERC20.transfer, (request.receiver, assetsToWithdraw));
 
         // Execute transfer
-        try config.withdrawAccount.execute(asset(), 0, transferCalldata) {
+        try withdrawAccount.execute(asset(), 0, transferCalldata) {
             emit WithdrawCompleted(owner, request.receiver, assetsToWithdraw, request.sharesAmount, msg.sender);
             return WithdrawResult(true, assetsToWithdraw, request.solverFee, "");
         } catch {
