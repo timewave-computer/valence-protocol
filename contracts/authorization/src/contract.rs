@@ -29,7 +29,10 @@ use valence_encoder_utils::msg::{
     convert_into_encoder_messages, ProcessorMessageToDecode, ProcessorMessageToEncode,
 };
 use valence_gmp_utils::{
-    hyperlane::{format_address_for_hyperlane, HandleMsg},
+    hyperlane::{
+        format_address_for_hyperlane, HandleMsg, InterchainSecurityModuleResponse,
+        IsmSpecifierQueryMsg,
+    },
     polytone::{Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg},
 };
 use valence_processor_utils::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExecuteMsg};
@@ -1226,6 +1229,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
         QueryMsg::ProcessorCallback { execution_id } => {
             to_json_binary(&get_processor_callback(deps, execution_id)?)
+        }
+        QueryMsg::IsmSpecifier(IsmSpecifierQueryMsg::InterchainSecurityModule()) => {
+            Ok(to_json_binary(&InterchainSecurityModuleResponse {
+                ism: None,
+            })?)
         }
     }
 }

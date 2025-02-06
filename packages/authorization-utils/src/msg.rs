@@ -1,7 +1,10 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Api, Binary, StdError, StdResult, Uint128, WasmMsg};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query, Expiration};
-use valence_gmp_utils::{hyperlane::HandleMsg, polytone::CallbackMessage};
+use valence_gmp_utils::{
+    hyperlane::{HandleMsg, InterchainSecurityModuleResponse, IsmSpecifierQueryMsg},
+    polytone::CallbackMessage,
+};
 
 use crate::{
     authorization::{Authorization, AuthorizationInfo, Priority},
@@ -348,4 +351,8 @@ pub enum QueryMsg {
     },
     #[returns(ProcessorCallbackInfo)]
     ProcessorCallback { execution_id: u64 },
+
+    // Entry point required to receive Hyperlane messages
+    #[returns(InterchainSecurityModuleResponse)]
+    IsmSpecifier(IsmSpecifierQueryMsg),
 }

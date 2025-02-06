@@ -1,4 +1,4 @@
-use cosmwasm_schema::cw_serde;
+use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{to_json_binary, Addr, Binary, CosmosMsg, HexBinary, StdResult, WasmMsg};
 
 #[cw_serde]
@@ -21,6 +21,18 @@ pub struct HandleMsg {
     pub origin: u32,
     pub sender: HexBinary,
     pub body: HexBinary,
+}
+
+#[cw_serde]
+#[derive(QueryResponses)]
+pub enum IsmSpecifierQueryMsg {
+    #[returns(InterchainSecurityModuleResponse)]
+    InterchainSecurityModule(),
+}
+
+#[cw_serde]
+pub struct InterchainSecurityModuleResponse {
+    pub ism: Option<Addr>,
 }
 
 pub fn create_msg_for_hyperlane(
