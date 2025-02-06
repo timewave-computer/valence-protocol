@@ -246,7 +246,7 @@ impl NonAtomicFunctionBuilder {
         self.message_details = message_details;
         self
     }
-    
+
     pub fn with_contract_address(mut self, contract_address: LibraryAccountType) -> Self {
         self.contract_address = contract_address;
         self
