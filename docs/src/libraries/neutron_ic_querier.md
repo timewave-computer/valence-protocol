@@ -85,8 +85,8 @@ pub struct KVKey {
 }
 ```
 
-`RegisterInterchainQuery` variant can be applied for both *tx*- and *kv*-based queries.
-Given that this library is meant for dealing with *kv*-based queries exclusively,
+`RegisterInterchainQuery` variant can be applied for both *TX*- and *KV*-based queries.
+Given that this library is meant for dealing with *KV*-based queries exclusively,
 `transactions_filter` field is irrelevant.
 
 This library constructs the query registration message as follows:
