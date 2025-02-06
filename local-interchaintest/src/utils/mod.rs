@@ -56,3 +56,5 @@ pub const DEFAULT_ANVIL_RPC_ENDPOINT: &str = "http://localhost:8545";
 pub const ETHEREUM_CHAIN_NAME: &str = "ethereum";
 pub const NEUTRON_HYPERLANE_DOMAIN: u32 = 1853125230;
 pub const ETHEREUM_HYPERLANE_DOMAIN: u32 = 1;
+pub const HYPERLANE_RELAYER_NEUTRON_ADDRESS: &str =
+    "neutron14flvw0x8fstzly79tacgsulxvkpv858qdafme5";

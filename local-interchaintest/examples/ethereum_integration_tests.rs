@@ -9,18 +9,14 @@ use std::{
 use alloy::primitives::{Address, U256};
 use alloy_sol_types_encoder::SolValue;
 use cosmwasm_std::{Binary, Empty};
+use cosmwasm_std_old::Coin as BankCoin;
 use local_interchaintest::utils::{
-    authorization::set_up_authorization_and_processor,
-    ethereum::set_up_anvil_container,
-    hyperlane::{
+    authorization::set_up_authorization_and_processor, ethereum::set_up_anvil_container, hyperlane::{
         bech32_to_evm_bytes32, set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts,
         set_up_hyperlane,
-    },
-    solidity_contracts::{BaseAccount, Forwarder, LiteProcessor, MockERC20},
-    DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME, ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS,
-    LOGS_FILE_PATH, NEUTRON_HYPERLANE_DOMAIN, VALENCE_ARTIFACTS_PATH,
+    }, solidity_contracts::{BaseAccount, Forwarder, LiteProcessor, MockERC20}, DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME, ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS, HYPERLANE_RELAYER_NEUTRON_ADDRESS, LOGS_FILE_PATH, NEUTRON_HYPERLANE_DOMAIN, NTRN_DENOM, VALENCE_ARTIFACTS_PATH
 };
-use localic_std::modules::cosmwasm::{contract_execute, contract_instantiate};
+use localic_std::modules::{bank, cosmwasm::{contract_execute, contract_instantiate}};
 use localic_utils::{
     utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
     LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
@@ -70,6 +66,26 @@ fn main() -> Result<(), Box<dyn Error>> {
         &neutron_hyperlane_contracts,
         &eth_hyperlane_contracts,
     )?;
+
+    // Since we are going to relay callbacks to Neutron, let's fund the Hyperlane relayer account with some tokens
+    info!("Fund relayer account...");
+    bank::send(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        HYPERLANE_RELAYER_NEUTRON_ADDRESS,
+        &[BankCoin {
+            denom: NTRN_DENOM.to_string(),
+            amount: 5_000_000u128.into(),
+        }],
+        &BankCoin {
+            denom: NTRN_DENOM.to_string(),
+            amount: cosmwasm_std_old::Uint128::new(5000),
+        },
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
     let now = SystemTime::now();
     let salt = hex::encode(
@@ -401,7 +417,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         )
         .build()];
 
-    info!("Creating execute authorization...");
+    info!("Creating authorization...");
     let create_authorization = valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
         valence_authorization_utils::msg::PermissionedMsg::CreateAuthorizations { authorizations },
     );
