@@ -203,8 +203,8 @@ scope because of their encoding formats. Result postprocessing is therefore abou
 remote domain data types into [canonical Valence Protocol data types](./../middleware/valence_types.md)
 that can be reasoned about.
 
-> For most cosmos-sdk based chains, KV-storage values are encoded in protobuf. Interpreting
-protobuf from within cosmwasm context is not straightforward and requires explicit conversion
+> For most Cosmos SDK based chains, KV-storage values are encoded in protobuf. Interpreting
+protobuf from within CosmWasm context is not straightforward and requires explicit conversion
 steps. Other domains may store their state in other encoding formats. This library does not
 make any assumptions about the different encoding schemes that remote domains may be subject
 to - instead, that responsibility is handed over to [Valence Middleware](./../middleware/_overview.md).
