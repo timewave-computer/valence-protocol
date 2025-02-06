@@ -39,7 +39,7 @@ contract WithdrawDebugger is Test {
 
         // Check rates and potential loss
         uint256 currentRate = vault.redemptionRate();
-        (,, bool paused) = vault.packedValues();
+        (,,, bool paused) = vault.packedValues();
 
         if (currentRate < withdrawRate) {
             uint256 currentWithdrawRate = currentRate - updateWithdrawFee;

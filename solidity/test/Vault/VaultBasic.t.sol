@@ -117,4 +117,34 @@ contract VaultBasicTest is VaultHelper {
         assertEq(vault.decimals(), token.decimals(), "Incorrect decimals");
         assertEq(vault.asset(), address(token), "Incorrect asset address");
     }
+
+    function testPause() public {
+        // try pause with user, should fail
+        vm.startPrank(user);
+        vm.expectRevert(abi.encodeWithSelector(ValenceVault.OnlyOwnerOrStrategistAllowed.selector));
+        vault.pause();
+        vm.stopPrank();
+
+        // strategist can pause and unpause
+        vm.startPrank(strategist);
+        vault.pause();
+        vault.unpause();
+        vm.stopPrank();
+
+        // owner can pause and unpause
+        vm.startPrank(owner);
+        vault.pause();
+        vault.unpause();
+        vm.stopPrank();
+
+        // Only owner can unpause if he paused it
+        vm.startPrank(owner);
+        vault.pause();
+        vm.stopPrank();
+
+        vm.startPrank(strategist);
+        vm.expectRevert(abi.encodeWithSelector(ValenceVault.OnlyOwnerCanUnpause.selector));
+        vault.unpause();
+        vm.stopPrank();
+    }
 }

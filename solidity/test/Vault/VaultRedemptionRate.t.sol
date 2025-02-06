@@ -225,8 +225,14 @@ contract VaultRedemptionTest is VaultHelper {
             uint256 user2ExpectedShares = shares[1] - (shares[1] / 3); // 2/3 of total shares remaining
             assertEq(user2RemainingShares, user2ExpectedShares, "User2 remaining shares incorrect");
             // Their withdrawal at 110% with 1% fee: (shares[1]/3) * 1.1 * 0.99
-            uint256 user2WithdrawnAmount = (shares[1] / 3).mulDiv(rate110, ONE_SHARE).mulDiv(BASIS_POINTS - 100, BASIS_POINTS);
-            assertApproxEqRel(token.balanceOf(users[1]), user2PreWithdrawBalance + user2WithdrawnAmount, 1e15, "User2 withdrawn amount incorrect");
+            uint256 user2WithdrawnAmount =
+                (shares[1] / 3).mulDiv(rate110, ONE_SHARE).mulDiv(BASIS_POINTS - 100, BASIS_POINTS);
+            assertApproxEqRel(
+                token.balanceOf(users[1]),
+                user2PreWithdrawBalance + user2WithdrawnAmount,
+                1e15,
+                "User2 withdrawn amount incorrect"
+            );
             // Remaining assets at 120%
             uint256 user2RemainingAssets = vault.convertToAssets(user2RemainingShares);
             uint256 user2ExpectedAssets = user2RemainingShares.mulDiv(rate120, ONE_SHARE, Math.Rounding.Floor);
@@ -239,7 +245,7 @@ contract VaultRedemptionTest is VaultHelper {
             assertEq(user3RemainingAssets, 90_000, "User3 final assets incorrect"); // 75,000 * 1.2
 
             // Global state
-            uint256 expectedTotalShares = shares[0]/2 + shares[1] - (shares[1] / 3) + shares[2];
+            uint256 expectedTotalShares = shares[0] / 2 + shares[1] - (shares[1] / 3) + shares[2];
             assertEq(vault.totalSupply(), expectedTotalShares, "Total supply incorrect");
             uint256 expectedTotalAssets = vault.convertToAssets(expectedTotalShares);
             assertEq(vault.totalAssets(), expectedTotalAssets, "Total assets incorrect");

@@ -32,6 +32,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     error WithdrawNotClaimable();
     error SolverFeeTransferFailed();
     error FeeExceedsUint128();
+    error OnlyOwnerCanUnpause();
 
     // Config errors
     error InvalidDepositAccount();
@@ -123,6 +124,10 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         uint64 currentUpdateId;
         // Withdraw request ID counter
         uint64 nextWithdrawRequestId;
+        // who the pauser is, if its 1, then the vault is paused by the owner
+        // and the strategist cannot unpause it.
+        bool pauser;
+        // If the vault is paused or not
         bool paused;
     }
 
@@ -357,7 +362,11 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @param withdrawFeeBps New position withdrawal fee in basis points (1/10000)
      * @param nettingAmount Amount to transfer from deposit to withdraw account for netting
      */
-    function update(uint256 newRate, uint32 withdrawFeeBps, uint256 nettingAmount) external onlyStrategist {
+    function update(uint256 newRate, uint32 withdrawFeeBps, uint256 nettingAmount)
+        external
+        onlyStrategist
+        whenNotPaused
+    {
         uint64 _lastUpdateTimestamp = lastUpdateTimestamp;
         VaultConfig memory _config = config;
 
@@ -404,11 +413,20 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     }
 
     function pause() external onlyOwnerOrStrategist {
+        if (msg.sender == owner()) {
+            packedValues.pauser = true;
+        } else {
+            packedValues.pauser = false;
+        }
+
         packedValues.paused = true;
         emit PausedStateChanged(true);
     }
 
     function unpause() external onlyOwnerOrStrategist {
+        if (packedValues.pauser && msg.sender != owner()) {
+            revert OnlyOwnerCanUnpause();
+        }
         packedValues.paused = false;
         emit PausedStateChanged(false);
     }
