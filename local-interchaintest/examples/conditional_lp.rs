@@ -121,7 +121,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("processor on osmosis: {:?}", processor_on_osmosis);
     upload_contracts(current_dir, &mut test_ctx)?;
 
-    let (broker_addr, asserter_addr, type_registry_addr) = setup_middleware(&mut test_ctx)?;
+    let (broker_addr, asserter_addr, _) = setup_middleware(&mut test_ctx)?;
 
     // set up the storage account
     info!("setting up storage accounts...");
@@ -138,7 +138,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         NEUTRON_CHAIN_NAME,
         storage_acc_code_id,
         NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        vec![neutron_processor_address.clone()],
+        vec![
+            neutron_processor_address.clone(),
+            NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        ],
         1,
         None,
     );
@@ -189,7 +192,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         neutron_ic_querier_lib_code_id,
         &serde_json::to_string(&icq_lib_instantiate_msg)?,
         "icq_querier_lib",
-        None,
+        Some(NEUTRON_CHAIN_ADMIN_ADDR),
         "",
     )?;
     std::thread::sleep(std::time::Duration::from_secs(1));
@@ -211,7 +214,24 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     )
     .unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(3));
+    std::thread::sleep(std::time::Duration::from_secs(2));
+    bank::send(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        &neutron_processor_address.to_string(),
+        &[BankCoin {
+            denom: NTRN_DENOM.to_string(),
+            amount: 1_000_000u128.into(),
+        }],
+        &BankCoin {
+            denom: NTRN_DENOM.to_string(),
+            amount: cosmwasm_std_old::Uint128::new(5000),
+        },
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(2));
 
     info!("approving IC querier lib on the storage account");
     approve_library(
@@ -255,7 +275,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let send_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
         valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
-            label: "register_icq".to_string(),
+            label: "register_kv_query".to_string(),
             messages: vec![kv_query_registration_message],
             ttl: None,
         },
@@ -298,12 +318,33 @@ fn main() -> Result<(), Box<dyn Error>> {
             ),
         )
         .unwrap(),
-        &format!("{GAS_FLAGS} --fees=1000000untrn"),
+        "--gas=auto --gas-adjustment=5.0 --fees=5000000untrn",
     )
     .unwrap();
     std::thread::sleep(std::time::Duration::from_secs(3));
 
     info!("kvq registration tick response: {:?}", kvq_tick_response);
+
+    let query_processor_callbacks_response: Value = serde_json::from_value(
+        contract_query(
+            test_ctx
+                .get_request_builder()
+                .get_request_builder(NEUTRON_CHAIN_NAME),
+            &authorization_contract_address,
+            &serde_json::to_string(
+                &valence_authorization_utils::msg::QueryMsg::ProcessorCallbacks {
+                    start_after: None,
+                    limit: None,
+                },
+            )?,
+        )["data"]
+            .clone(),
+    )?;
+
+    info!(
+        "{NEUTRON_CHAIN_NAME} authorization mod processor callbacks: {:?}",
+        query_processor_callbacks_response
+    );
 
     Ok(())
 }
@@ -315,7 +356,7 @@ fn create_authorizations(
     asserter: String,
 ) -> Result<(), Box<dyn Error>> {
     let register_kvq_authorization = AuthorizationBuilder::new()
-        .with_label("register_icq")
+        .with_label("register_kv_query")
         .with_subroutine(
             AtomicSubroutineBuilder::new()
                 .with_function(
@@ -336,7 +377,7 @@ fn create_authorizations(
         .build();
 
     let deregister_kvq_authorization = AuthorizationBuilder::new()
-        .with_label("deregister_icq")
+        .with_label("deregister_kv_query")
         .with_subroutine(
             AtomicSubroutineBuilder::new()
                 .with_function(
@@ -417,72 +458,16 @@ fn create_authorizations(
             .clone(),
     )
     .unwrap();
-
+    info!(
+        "authorizations created: {:?}",
+        query_authorizations_response.as_array().unwrap()
+    );
     let authorizations = query_authorizations_response.as_array().unwrap();
 
     assert!(authorizations.len() == 3);
 
     info!("Authorizations created!");
 
-    Ok(())
-}
-
-fn send_msgs_to_authorization_contract(
-    storage_account: String,
-    test_ctx: &mut TestContext,
-    authorization_contract_address: &str,
-) -> Result<(), Box<dyn Error>> {
-    info!("Send the messages to the authorization contract...");
-
-    // let register_kvq_fn = FunctionMsgs::RegisterKvQuery { target_query };
-
-    // let tx_execute_msg =
-    //     valence_library_utils::msg::ExecuteMsg::<FunctionMsgs, ()>::ProcessFunction(
-    //         register_kvq_fn,
-    //     );
-
-    // let stringified_msg = serde_json::to_string(&tx_execute_msg)
-    //     .map_err(|e| LocalError::Custom { msg: e.to_string() })?;
-
-    // let msg_liquid_stake = MsgLiquidStake {
-    //     amount: Some(Coin {
-    //         denom: neutron_on_persistence.clone(),
-    //         amount: amount_to_liquid_stake.to_string(),
-    //     }),
-    //     delegator_address: persistence_base_account.clone(),
-    // };
-    // #[allow(deprecated)]
-    // let liquid_staking_message = CosmosMsg::Stargate {
-    //     type_url: msg_liquid_stake.to_any().type_url,
-    //     value: Binary::from(msg_liquid_stake.to_proto_bytes()),
-    // };
-
-    // let binary = Binary::from(
-    //     serde_json::to_vec(&valence_account_utils::msg::ExecuteMsg::ExecuteMsg {
-    //         msgs: vec![liquid_staking_message],
-    //     })
-    //     .unwrap(),
-    // );
-    // let message = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
-    // let send_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
-    //     valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
-    //         label: "execute".to_string(),
-    //         messages: vec![message],
-    //         ttl: None,
-    //     },
-    // );
-
-    // contract_execute(
-    //     test_ctx
-    //         .get_request_builder()
-    //         .get_request_builder(NEUTRON_CHAIN_NAME),
-    //     &authorization_contract_address,
-    //     DEFAULT_KEY,
-    //     &serde_json::to_string(&send_msg).unwrap(),
-    //     GAS_FLAGS,
-    // )
-    // .unwrap();
-    // std::thread::sleep(std::time::Duration::from_secs(3));
     Ok(())
 }
 
@@ -735,7 +720,7 @@ fn setup_middleware(
         "type_registry_contract address: {}",
         type_registry_contract.address
     );
-    std::thread::sleep(Duration::from_secs(3));
+    std::thread::sleep(Duration::from_secs(1));
     let asserter_contract = contract_instantiate(
         test_ctx
             .get_request_builder()
@@ -749,7 +734,7 @@ fn setup_middleware(
     )?;
 
     info!("asserter_contract address: {}", asserter_contract.address);
-    std::thread::sleep(Duration::from_secs(3));
+    std::thread::sleep(Duration::from_secs(1));
     let broker_contract = contract_instantiate(
         test_ctx
             .get_request_builder()
@@ -762,15 +747,16 @@ fn setup_middleware(
         "",
     )?;
     info!("middleware broker address: {}", broker_contract.address);
-    std::thread::sleep(Duration::from_secs(3));
+    std::thread::sleep(Duration::from_secs(1));
 
-    set_type_registry(
+    let resp = set_type_registry(
         test_ctx,
         broker_contract.address.to_string(),
         type_registry_contract.address.to_string(),
         "26.0.0".to_string(),
     )?;
     std::thread::sleep(Duration::from_secs(2));
+    info!("added type registry response: {:?}", resp.tx_hash.unwrap());
 
     Ok((
         broker_contract.address,

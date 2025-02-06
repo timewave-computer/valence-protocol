@@ -4,7 +4,7 @@ use cosmwasm_std::{
     ensure, to_json_binary, BankMsg, Binary, Coin, Deps, DepsMut, Env, MessageInfo, QuerierWrapper,
     QueryRequest, Reply, Response, StdError, StdResult, SubMsg, Uint64, WasmMsg,
 };
-use cw_utils::must_pay;
+use cw_utils::{may_pay, must_pay};
 use neutron_sdk::{
     bindings::{
         msg::{MsgRegisterInterchainQueryResponse, NeutronMsg},
@@ -64,14 +64,14 @@ pub fn update_config(
 
 pub fn process_function(
     deps: ExecuteDeps,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: FunctionMsgs,
     cfg: Config,
 ) -> Result<Response<NeutronMsg>, LibraryError> {
     match msg {
         FunctionMsgs::RegisterKvQuery { target_query } => {
-            register_kv_query(deps, info, cfg, target_query)
+            register_kv_query(deps, env, info, cfg, target_query)
         }
         FunctionMsgs::DeregisterKvQuery { target_query } => {
             deregister_kv_query(deps, info, cfg, target_query)
@@ -122,6 +122,7 @@ fn deregister_kv_query(
 
 fn register_kv_query(
     deps: ExecuteDeps,
+    env: Env,
     info: MessageInfo,
     mut cfg: Config,
     target_query: String,
@@ -139,11 +140,21 @@ fn register_kv_query(
     // the response type being a vector and assert all potential coins
     for fee_coin in icq_registration_fee {
         // get the amount of fee denom paid by the sender
-        let paid_fee_denom_amount = must_pay(&info, &fee_coin.denom)
-            .map_err(|_| StdError::generic_err("sender must pay icq registration fee"))?;
-
+        for coin in info.funds.iter() {
+            // if the sender attached this fee denom, we validate that the amount is sufficient
+            if coin.denom == fee_coin.denom {
+                ensure!(
+                    coin.amount >= fee_coin.amount,
+                    StdError::generic_err("insufficient icq registration fee amount")
+                );
+            }
+        }
+        // if the sender did not pay the fee, the contract must have sufficient funds to cover it
+        let contract_fee_denom_bal = deps
+            .querier
+            .query_balance(env.contract.address.to_string(), fee_coin.denom)?;
         ensure!(
-            paid_fee_denom_amount >= fee_coin.amount,
+            contract_fee_denom_bal.amount >= fee_coin.amount,
             StdError::generic_err("insufficient icq registration fee amount")
         );
     }
