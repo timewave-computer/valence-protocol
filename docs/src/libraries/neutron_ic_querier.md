@@ -360,7 +360,7 @@ Storage account:
 
 1. query the `interchainqueries` module to obtain the raw query result
 associated with the given `query_id`
-2. query the broker to deserialize the proto-encoded result into a rust type
+2. query the broker to deserialize the proto-encoded result into a Rust type
 3. query the broker to canonicalize the native rust type into `ValenceType`
 4. post the resulting canonical type to the associated storage account
 
