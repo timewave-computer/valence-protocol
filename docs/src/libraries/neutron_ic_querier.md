@@ -355,7 +355,7 @@ pub fn sudo(deps: ExecuteDeps, _env: Env, msg: SudoMsg) -> StdResult<Response<Ne
 ```
 
 This function call triggers a set of actions that will process the raw query
-result into a canonical Valence Type before posting it into the associated
+result into a canonical Valence Type before storing it into the associated
 Storage account:
 
 1. query the `interchainqueries` module to obtain the raw query result
