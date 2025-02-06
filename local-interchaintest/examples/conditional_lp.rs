@@ -2,6 +2,8 @@ use cosmwasm_std::Decimal;
 use cosmwasm_std::{to_json_binary, Binary, Coin, Uint64};
 use cosmwasm_std_old::to_json_string;
 use cosmwasm_std_old::Coin as BankCoin;
+use local_interchaintest::utils::base_account::create_base_accounts;
+use local_interchaintest::utils::ibc::send_successful_ibc_transfer;
 use local_interchaintest::utils::NTRN_DENOM;
 use local_interchaintest::utils::{
     authorization::{set_up_authorization_and_processor, set_up_external_domain_with_polytone},
@@ -10,7 +12,6 @@ use local_interchaintest::utils::{
     osmosis::gamm::setup_gamm_pool,
     GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_OSMOSIS, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
 };
-
 use localic_std::{
     errors::LocalError,
     modules::{
@@ -29,6 +30,7 @@ use std::{
     path::PathBuf,
     time::{Duration, SystemTime},
 };
+use valence_authorization_utils::domain::Domain;
 use valence_authorization_utils::{
     authorization::Priority,
     authorization_message::{Message, MessageDetails, MessageType},
@@ -149,10 +151,103 @@ fn main() -> Result<(), Box<dyn Error>> {
         None,
     );
     let neutron_storage_account = storage_accounts.first().unwrap();
-    info!(
-        "neutron storage account address: {:?}",
-        neutron_storage_account
+    info!("neutron storage account address: {neutron_storage_account}",);
+
+    let current_dir: std::path::PathBuf = env::current_dir()?;
+    let base_account_contract_path = format!(
+        "{}/artifacts/valence_base_account.wasm",
+        current_dir.display()
     );
+    let gamm_lper_contract_path = format!(
+        "{}/artifacts/valence_osmosis_gamm_lper.wasm",
+        current_dir.display()
+    );
+    let mut uploader = test_ctx.build_tx_upload_contracts();
+    uploader
+        .with_chain_name(OSMOSIS_CHAIN_NAME)
+        .send_single_contract(&base_account_contract_path)?;
+    uploader
+        .with_chain_name(OSMOSIS_CHAIN_NAME)
+        .send_single_contract(&gamm_lper_contract_path)?;
+
+    let osmosis_base_acc_code_id = test_ctx
+        .get_contract()
+        .src(OSMOSIS_CHAIN_NAME)
+        .contract("valence_base_account")
+        .get_cw()
+        .code_id
+        .unwrap();
+
+    let osmo_base_accounts = create_base_accounts(
+        &mut test_ctx,
+        DEFAULT_KEY,
+        OSMOSIS_CHAIN_NAME,
+        osmosis_base_acc_code_id,
+        OSMOSIS_CHAIN_ADMIN_ADDR.to_string(),
+        vec![processor_on_osmosis.clone()],
+        2,
+        Some(Coin::new(1000000u128, OSMOSIS_CHAIN_DENOM)),
+    );
+    let osmo_input_acc_addr = osmo_base_accounts.first().unwrap();
+    let osmo_output_acc_addr = osmo_base_accounts.get(1).unwrap();
+    info!("osmo_input_acc_addr: {osmo_input_acc_addr}");
+    info!("osmo_output_acc_addr: {osmo_output_acc_addr}");
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    let osmo_gamm_lper_instantiate_msg = valence_library_utils::msg::InstantiateMsg::<
+        valence_osmosis_gamm_lper::msg::LibraryConfig,
+    > {
+        owner: OSMOSIS_CHAIN_ADMIN_ADDR.to_string(),
+        processor: processor_on_osmosis.clone(),
+        config: valence_osmosis_gamm_lper::msg::LibraryConfig::new(
+            LibraryAccountType::Addr(osmo_input_acc_addr.to_string()),
+            LibraryAccountType::Addr(osmo_input_acc_addr.to_string()),
+            valence_osmosis_gamm_lper::msg::LiquidityProviderConfig {
+                pool_id,
+                asset_data: valence_library_utils::liquidity_utils::AssetData {
+                    asset1: OSMOSIS_CHAIN_DENOM.to_string(),
+                    asset2: ntrn_on_osmo_denom.to_string(),
+                },
+            },
+        ),
+    };
+
+    let gamm_lper_code_id = test_ctx
+        .get_contract()
+        .src(OSMOSIS_CHAIN_NAME)
+        .contract("valence_osmosis_gamm_lper")
+        .get_cw()
+        .code_id
+        .unwrap();
+
+    let osmo_gamm_lper_lib = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        DEFAULT_KEY,
+        gamm_lper_code_id,
+        &serde_json::to_string(&osmo_gamm_lper_instantiate_msg)?,
+        "osmo_gamm_lper_lib",
+        Some(OSMOSIS_CHAIN_ADMIN_ADDR),
+        &format!("{GAS_FLAGS} --fees=100000uosmo"),
+    )?;
+
+    let osmo_gamm_lper_addr = osmo_gamm_lper_lib.address.to_string();
+
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    info!("osmo_gamm_lper_addr: {osmo_gamm_lper_addr}");
+
+    send_successful_ibc_transfer(
+        &mut test_ctx,
+        NEUTRON_CHAIN_NAME,
+        OSMOSIS_CHAIN_NAME,
+        100_000_000,
+        NEUTRON_CHAIN_DENOM,
+        &ntrn_on_osmo_denom,
+        osmo_input_acc_addr,
+        10,
+    )?;
+    std::thread::sleep(std::time::Duration::from_secs(2));
 
     // set up the IC querier
     let neutron_ic_querier_lib_code_id = test_ctx
@@ -218,23 +313,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     )
     .unwrap();
     std::thread::sleep(std::time::Duration::from_secs(2));
-    bank::send(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        DEFAULT_KEY,
-        &neutron_processor_address.to_string(),
-        &[BankCoin {
-            denom: NTRN_DENOM.to_string(),
-            amount: 1_000_000u128.into(),
-        }],
-        &BankCoin {
-            denom: NTRN_DENOM.to_string(),
-            amount: cosmwasm_std_old::Uint128::new(5000),
-        },
-    )
-    .unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(2));
 
     info!("approving IC querier lib on the storage account");
     approve_library(
@@ -246,34 +324,34 @@ fn main() -> Result<(), Box<dyn Error>> {
         None,
     );
 
+    info!("approving gamm lper lib on the osmo input acc");
+    approve_library(
+        &mut test_ctx,
+        OSMOSIS_CHAIN_NAME,
+        DEFAULT_KEY,
+        osmo_input_acc_addr,
+        osmo_gamm_lper_addr.to_string(),
+        Some(format!("{GAS_FLAGS} --fees=100000uosmo")),
+    );
+
     info!("creating authorizations...");
     create_authorizations(
         &mut test_ctx,
         &authorization_contract_address,
         icq_test_lib.address.to_string(),
         asserter_addr,
+        osmo_gamm_lper_addr,
     )?;
 
-    info!("Check processor queue");
-    let items = get_processor_queue_items(
-        &mut test_ctx,
-        NEUTRON_CHAIN_NAME,
-        &neutron_processor_address,
-        Priority::Medium,
-    );
-    println!("Items on neutron processor: {:?}", items);
-
     info!("sending kv query registration message to authorizations");
-    let kv_query_registration_message_binary = Binary::from(serde_json::to_vec(
-        &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
-            FunctionMsgs::RegisterKvQuery {
-                target_query: TARGET_QUERY_LABEL.to_string(),
-            },
-        ),
-    )?);
-
     let kv_query_registration_message = ProcessorMessage::CosmwasmExecuteMsg {
-        msg: kv_query_registration_message_binary,
+        msg: Binary::from(serde_json::to_vec(
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                FunctionMsgs::RegisterKvQuery {
+                    target_query: TARGET_QUERY_LABEL.to_string(),
+                },
+            ),
+        )?),
     };
 
     let send_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
@@ -284,7 +362,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
 
-    let tx_resp = contract_execute(
+    contract_execute(
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
@@ -292,20 +370,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         DEFAULT_KEY,
         &serde_json::to_string(&send_msg).unwrap(),
         &format!("{GAS_FLAGS} --fees=100000untrn"),
-    )
-    .unwrap();
-
-    info!("authorization exec response: {:?}", tx_resp);
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
-    info!("Check processor queue");
-    let items = get_processor_queue_items(
-        &mut test_ctx,
-        NEUTRON_CHAIN_NAME,
-        &neutron_processor_address,
-        Priority::Medium,
-    );
-    println!("Items on neutron processor: {:?}", items);
+    )?;
     std::thread::sleep(std::time::Duration::from_secs(3));
 
     info!("Ticking processor on neutron...");
@@ -319,11 +384,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             &valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
                 valence_processor_utils::msg::PermissionlessMsg::Tick {},
             ),
-        )
-        .unwrap(),
+        )?,
         "--gas=auto --gas-adjustment=5.0 --fees=5000000untrn",
-    )
-    .unwrap();
+    )?;
     std::thread::sleep(std::time::Duration::from_secs(3));
 
     info!("kvq registration tick response: {:?}", kvq_tick_response);
@@ -403,7 +466,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         &neutron_processor_address,
         Priority::Medium,
     );
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    let osmo_items = get_processor_queue_items(
+        &mut test_ctx,
+        OSMOSIS_CHAIN_NAME,
+        &processor_on_osmosis,
+        Priority::Medium,
+    );
+    std::thread::sleep(std::time::Duration::from_secs(3));
     println!("Items on neutron processor: {:?}", items);
+    println!("Items on osmosis processor: {:?}", osmo_items);
+
     std::thread::sleep(std::time::Duration::from_secs(3));
 
     info!("Ticking processor on neutron...");
@@ -530,6 +604,7 @@ fn create_authorizations(
     authorization_contract_address: &str,
     ic_querier: String,
     asserter: String,
+    gamm_lper: String,
 ) -> Result<(), Box<dyn Error>> {
     let register_kvq_authorization = AuthorizationBuilder::new()
         .with_label("register_kv_query")
@@ -594,10 +669,32 @@ fn create_authorizations(
         )
         .build();
 
+    let gamm_lper_function = AtomicFunctionBuilder::new()
+        .with_domain(Domain::External(OSMOSIS_CHAIN_NAME.to_string()))
+        .with_contract_address(LibraryAccountType::Addr(gamm_lper))
+        .with_message_details(MessageDetails {
+            message_type: MessageType::CosmwasmExecuteMsg,
+            message: Message {
+                name: "process_function".to_string(),
+                params_restrictions: None,
+            },
+        })
+        .build();
+
+    let gamm_lper_authorization = AuthorizationBuilder::new()
+        .with_label("provide_liquidity")
+        .with_subroutine(
+            AtomicSubroutineBuilder::new()
+                .with_function(gamm_lper_function)
+                .build(),
+        )
+        .build();
+
     let authorizations = vec![
         register_kvq_authorization,
         deregister_kvq_authorization,
         assertion_authorization,
+        gamm_lper_authorization,
     ];
 
     info!("Creating execute authorization...");
@@ -640,7 +737,7 @@ fn create_authorizations(
     );
     let authorizations = query_authorizations_response.as_array().unwrap();
 
-    assert!(authorizations.len() == 3);
+    assert!(authorizations.len() == 4);
 
     info!("Authorizations created!");
 
