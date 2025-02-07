@@ -16,7 +16,7 @@ use localic_std::{
 use log::info;
 use std::{collections::BTreeMap, env, error::Error, str::FromStr, time::Duration};
 use valence_library_utils::LibraryAccountType;
-use valence_middleware_asserter::msg::{AssertionConfig, AssertionValue, Predicate, QueryInfo};
+use valence_middleware_asserter::msg::{AssertionValue, Predicate, QueryInfo};
 use valence_middleware_utils::{
     canonical_types::pools::xyk::XykPoolQuery,
     type_registry::{
@@ -393,17 +393,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     let resp = assert_predicate(
         &test_ctx,
         asserter_contract.address.to_string(),
-        AssertionConfig {
-            a: AssertionValue::Variable(QueryInfo {
-                storage_account: storage_acc_contract.address.to_string(),
-                storage_slot_key: "gamm_pool".to_string(),
-                query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
-            }),
-            predicate: Predicate::LT,
-            b: AssertionValue::Constant(ValencePrimitive::Decimal(
-                Decimal::from_str("0.9").unwrap(),
-            )),
-        },
+        AssertionValue::Variable(QueryInfo {
+            storage_account: storage_acc_contract.address.to_string(),
+            storage_slot_key: "gamm_pool".to_string(),
+            query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
+        }),
+        Predicate::LT,
+        AssertionValue::Constant(ValencePrimitive::Decimal(Decimal::from_str("0.9").unwrap())),
     );
     match resp {
         Ok(val) => info!("success: {:?}", val),
@@ -414,17 +410,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     let resp = assert_predicate(
         &test_ctx,
         asserter_contract.address,
-        AssertionConfig {
-            a: AssertionValue::Variable(QueryInfo {
-                storage_account: storage_acc_contract.address.to_string(),
-                storage_slot_key: "gamm_pool".to_string(),
-                query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
-            }),
-            predicate: Predicate::GT,
-            b: AssertionValue::Constant(ValencePrimitive::Decimal(
-                Decimal::from_str("0.9").unwrap(),
-            )),
-        },
+        AssertionValue::Variable(QueryInfo {
+            storage_account: storage_acc_contract.address.to_string(),
+            storage_slot_key: "gamm_pool".to_string(),
+            query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
+        }),
+        Predicate::GT,
+        AssertionValue::Constant(ValencePrimitive::Decimal(Decimal::from_str("0.9").unwrap())),
     );
     match resp {
         Ok(val) => info!("success: {:?}", val),
@@ -630,7 +622,9 @@ pub fn broker_get_canonical(
 pub fn assert_predicate(
     test_ctx: &TestContext,
     asserter: String,
-    assertion_cfg: AssertionConfig,
+    a: AssertionValue,
+    predicate: Predicate,
+    b: AssertionValue,
 ) -> Result<TransactionResponse, LocalError> {
     contract_execute(
         test_ctx
@@ -639,7 +633,9 @@ pub fn assert_predicate(
         &asserter,
         DEFAULT_KEY,
         &serde_json::to_string(&valence_middleware_asserter::msg::ExecuteMsg::Assert {
-            cfg: assertion_cfg,
+            a,
+            predicate,
+            b,
         })
         .map_err(|e| LocalError::Custom { msg: e.to_string() })?,
         "",

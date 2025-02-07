@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use cosmwasm_schema::{cw_serde, serde::de::DeserializeOwned, QueryResponses};
+use cosmwasm_schema::{cw_serde, serde::de::DeserializeOwned};
 use cosmwasm_std::{ensure, from_json, Binary, Coin, Decimal, StdError, StdResult};
 
 use crate::{
@@ -22,7 +22,6 @@ pub struct ValenceXykPool {
 }
 
 #[cw_serde]
-#[derive(QueryResponses)]
 pub enum XykPoolQuery {
     // IMPORTANT: if you add new variants here that return one of the following response types:
     // - String
@@ -30,8 +29,8 @@ pub enum XykPoolQuery {
     // - Uint256
     // make sure to extend the unit tests under contracts/middleware/asserter/src/testing
     // to cover that response type assertions.
-    #[returns(ValencePrimitive)]
     GetPrice {},
+    GetPoolAssetAmount { target_denom: String },
 }
 
 impl ValenceTypeQuery for ValenceXykPool {
@@ -58,6 +57,18 @@ impl ValenceTypeQuery for ValenceXykPool {
 
                 let price = Decimal::from_ratio(a, b);
                 Ok(ValencePrimitive::Decimal(price))
+            }
+            XykPoolQuery::GetPoolAssetAmount { target_denom } => {
+                // get the coin
+                let target_coin = self
+                    .assets
+                    .iter()
+                    .find(|pool_asset| pool_asset.denom == target_denom);
+
+                match target_coin {
+                    Some(coin) => Ok(ValencePrimitive::Uint128(coin.amount)),
+                    None => Err(StdError::generic_err("target coin not found")),
+                }
             }
         }
     }

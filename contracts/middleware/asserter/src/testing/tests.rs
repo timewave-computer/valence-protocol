@@ -7,7 +7,7 @@ use valence_middleware_utils::{
 };
 
 use crate::{
-    msg::{AssertionConfig, AssertionValue, Predicate, QueryInfo},
+    msg::{AssertionValue, Predicate, QueryInfo},
     testing::{Suite, STORAGE_SLOT_KEY},
 };
 
@@ -24,21 +24,17 @@ fn base_const_assertion() {
     };
     suite.post_valence_type(STORAGE_SLOT_KEY, ValenceType::XykPool(xyk_pool));
 
-    let assertion_cfg = AssertionConfig {
-        a: AssertionValue::Constant(ValencePrimitive::Decimal(
-            Decimal::from_str("10.0").unwrap(),
-        )),
-        predicate: Predicate::LT,
-        b: AssertionValue::Constant(ValencePrimitive::Decimal(
-            Decimal::from_str("20.0").unwrap(),
-        )),
-    };
-    match suite.assert(assertion_cfg) {
-        Ok(_) => {
-            println!("assertion passed");
-        }
-        Err(e) => panic!("failed: {e}"),
-    }
+    assert!(suite
+        .assert(
+            AssertionValue::Constant(ValencePrimitive::Decimal(
+                Decimal::from_str("10.0").unwrap(),
+            )),
+            Predicate::LT,
+            AssertionValue::Constant(ValencePrimitive::Decimal(
+                Decimal::from_str("20.0").unwrap(),
+            )),
+        )
+        .is_ok())
 }
 
 #[test]
@@ -52,24 +48,19 @@ fn base_variable_assertion() {
     };
     suite.post_valence_type(STORAGE_SLOT_KEY, ValenceType::XykPool(xyk_pool));
 
-    let assertion_cfg = AssertionConfig {
-        a: AssertionValue::Variable(QueryInfo {
-            storage_account: suite.storage_account.to_string(),
-            storage_slot_key: STORAGE_SLOT_KEY.to_string(),
-            query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
-        }),
-        predicate: Predicate::LT,
-        b: AssertionValue::Constant(ValencePrimitive::Decimal(
-            Decimal::from_str("20.0").unwrap(),
-        )),
-    };
-
-    match suite.assert(assertion_cfg) {
-        Ok(_) => {
-            println!("assertion passed");
-        }
-        Err(e) => panic!("failed: {e}"),
-    }
+    assert!(suite
+        .assert(
+            AssertionValue::Variable(QueryInfo {
+                storage_account: suite.storage_account.to_string(),
+                storage_slot_key: STORAGE_SLOT_KEY.to_string(),
+                query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
+            }),
+            Predicate::LT,
+            AssertionValue::Constant(ValencePrimitive::Decimal(
+                Decimal::from_str("20.0").unwrap(),
+            )),
+        )
+        .is_ok())
 }
 
 #[test]
@@ -90,25 +81,21 @@ fn double_variable_assertion() {
     };
     suite.post_valence_type(STORAGE_SLOT_KEY_2, ValenceType::XykPool(xyk_pool_2));
 
-    let assertion_cfg = AssertionConfig {
-        a: AssertionValue::Variable(QueryInfo {
-            storage_account: suite.storage_account.to_string(),
-            storage_slot_key: STORAGE_SLOT_KEY.to_string(),
-            query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
-        }),
-        predicate: Predicate::LT,
-        b: AssertionValue::Variable(QueryInfo {
-            storage_account: suite.storage_account.to_string(),
-            storage_slot_key: STORAGE_SLOT_KEY_2.to_string(),
-            query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
-        }),
-    };
-    match suite.assert(assertion_cfg) {
-        Ok(_) => {
-            println!("assertion passed");
-        }
-        Err(e) => panic!("failed: {e}"),
-    }
+    assert!(suite
+        .assert(
+            AssertionValue::Variable(QueryInfo {
+                storage_account: suite.storage_account.to_string(),
+                storage_slot_key: STORAGE_SLOT_KEY.to_string(),
+                query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
+            }),
+            Predicate::LT,
+            AssertionValue::Variable(QueryInfo {
+                storage_account: suite.storage_account.to_string(),
+                storage_slot_key: STORAGE_SLOT_KEY_2.to_string(),
+                query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
+            }),
+        )
+        .is_ok())
 }
 
 #[test]
@@ -122,22 +109,30 @@ fn type_mismatch_assertion() {
     };
     suite.post_valence_type(STORAGE_SLOT_KEY, ValenceType::XykPool(xyk_pool));
 
-    let assertion_cfg = AssertionConfig {
-        a: AssertionValue::Variable(QueryInfo {
-            storage_account: suite.storage_account.to_string(),
-            storage_slot_key: STORAGE_SLOT_KEY.to_string(),
-            query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
-        }),
-        predicate: Predicate::LT,
-        b: AssertionValue::Constant(ValencePrimitive::Decimal(
-            Decimal::from_str("20.0").unwrap(),
-        )),
-    };
+    assert!(suite
+        .assert(
+            AssertionValue::Variable(QueryInfo {
+                storage_account: suite.storage_account.to_string(),
+                storage_slot_key: STORAGE_SLOT_KEY.to_string(),
+                query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
+            }),
+            Predicate::LT,
+            AssertionValue::Constant(ValencePrimitive::Decimal(
+                Decimal::from_str("20.0").unwrap(),
+            )),
+        )
+        .is_ok())
+}
 
-    match suite.assert(assertion_cfg) {
-        Ok(_) => {
-            println!("assertion passed");
-        }
-        Err(e) => panic!("failed: {e}"),
-    }
+#[test]
+fn assertion_string_comparison() {
+    let mut suite = Suite::default();
+
+    assert!(suite
+        .assert(
+            AssertionValue::Constant(ValencePrimitive::String("abc".to_string())),
+            Predicate::LT,
+            AssertionValue::Constant(ValencePrimitive::String("def".to_string())),
+        )
+        .is_ok())
 }

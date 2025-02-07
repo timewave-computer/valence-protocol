@@ -1,5 +1,5 @@
 use cosmwasm_std::{to_json_binary, Binary, Coin, Uint64};
-use cosmwasm_std::{Decimal, Uint128};
+use cosmwasm_std::{to_json_string, Uint128};
 use cosmwasm_std_old::Coin as BankCoin;
 use local_interchaintest::utils::base_account::{approve_library, create_base_accounts};
 use local_interchaintest::utils::NTRN_DENOM;
@@ -21,7 +21,6 @@ use localic_std::{
 };
 use log::info;
 use serde_json::Value;
-use std::str::FromStr;
 use std::{
     collections::BTreeMap,
     env,
@@ -38,7 +37,6 @@ use valence_authorization_utils::{
 use valence_generic_ibc_transfer_library::msg::IbcTransferAmount;
 use valence_library_utils::denoms::UncheckedDenom;
 use valence_library_utils::LibraryAccountType;
-use valence_middleware_asserter::msg::AssertionConfig;
 use valence_middleware_utils::canonical_types::pools::xyk::XykPoolQuery;
 use valence_middleware_utils::type_registry::types::RegistryInstantiateMsg;
 use valence_neutron_ic_querier::msg::{FunctionMsgs, LibraryConfig, QueryDefinition};
@@ -195,29 +193,37 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // 2. Conditional IBC forwarding
     {
+        // we configure the assertion message which will:
+        // - 1. let a = the amount of ntrn tokens in the pool
+        // - 2. let b = 150_000_000
+        // - 3. evaluate: a < b ? return ok for true, err for false
         let assertion_message_binary = Binary::from(serde_json::to_vec(
             &valence_middleware_asserter::msg::ExecuteMsg::Assert {
-                cfg: AssertionConfig {
-                    a: valence_middleware_asserter::msg::AssertionValue::Variable(
-                        valence_middleware_asserter::msg::QueryInfo {
-                            storage_account: neutron_storage_account.to_string(),
-                            storage_slot_key: TARGET_QUERY_LABEL.to_string(),
-                            query: to_json_binary(&XykPoolQuery::GetPrice {})?,
-                        },
+                a: valence_middleware_asserter::msg::AssertionValue::Variable(
+                    valence_middleware_asserter::msg::QueryInfo {
+                        storage_account: neutron_storage_account.to_string(),
+                        storage_slot_key: TARGET_QUERY_LABEL.to_string(),
+                        query: to_json_binary(&XykPoolQuery::GetPoolAssetAmount {
+                            target_denom: ntrn_on_osmo_denom.to_string(),
+                        })?,
+                    },
+                ),
+                predicate: valence_middleware_asserter::msg::Predicate::LT,
+                b: valence_middleware_asserter::msg::AssertionValue::Constant(
+                    valence_middleware_utils::type_registry::queries::ValencePrimitive::Uint128(
+                        Uint128::new(150_000_000),
                     ),
-                    predicate: valence_middleware_asserter::msg::Predicate::LT,
-                    b: valence_middleware_asserter::msg::AssertionValue::Constant(
-                        valence_middleware_utils::type_registry::queries::ValencePrimitive::Decimal(
-                            Decimal::from_str("20.0")?,
-                        ),
-                    ),
-                },
+                ),
             },
         )?);
 
         let assertion_message = ProcessorMessage::CosmwasmExecuteMsg {
             msg: assertion_message_binary,
         };
+
+        // then configure the ibc transfer message which will
+        // route the funds (1_000_000untrn) from the neutron ibc forwarder
+        // library input account to the osmosis gamm lper input account
         let ibc_transfer_message = ProcessorMessage::CosmwasmExecuteMsg {
             msg: Binary::from(serde_json::to_vec(
                 &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
@@ -226,6 +232,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             )?),
         };
 
+        // we send the messages to the processor in order of [assert, transfer].
+        // because the authorization is configured to do atomic subroutines, it will
+        // be processed as follows:
+        // 1. execute the assertion which returns Ok or Err
+        // - Err -> error out and exit
+        // - Ok  -> proceed to second message
+        // 2. execute the ibc transfer
         let send_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
             valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
                 label: CONDITIONAL_IBC_FORWARDING_LABEL.to_string(),

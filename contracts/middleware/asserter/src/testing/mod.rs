@@ -1,6 +1,6 @@
 pub mod tests;
 
-use crate::msg::{AssertionConfig, InstantiateMsg};
+use crate::msg::{AssertionValue, InstantiateMsg, Predicate};
 use cosmwasm_std::{Addr, Coin, Uint128};
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use valence_account_utils::msg::InstantiateMsg as StorageAccountInstantiateMsg;
@@ -86,10 +86,13 @@ impl Suite {
             .unwrap()
     }
 
-    fn assert(&mut self, assertion_config: AssertionConfig) -> AnyResult<AppResponse> {
-        let msg = crate::msg::ExecuteMsg::Assert {
-            cfg: assertion_config,
-        };
+    fn assert(
+        &mut self,
+        a: AssertionValue,
+        predicate: Predicate,
+        b: AssertionValue,
+    ) -> AnyResult<AppResponse> {
+        let msg = crate::msg::ExecuteMsg::Assert { a, predicate, b };
 
         self.app
             .execute_contract(self.admin.clone(), self.asserter.clone(), &msg, &[])

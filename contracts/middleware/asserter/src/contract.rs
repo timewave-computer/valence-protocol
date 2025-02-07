@@ -1,4 +1,4 @@
-use crate::msg::{AssertionConfig, AssertionValue, ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{AssertionValue, ExecuteMsg, InstantiateMsg, Predicate, QueryMsg};
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -38,10 +38,12 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, MiddlewareError> {
     match msg {
-        ExecuteMsg::Assert { cfg } => match evaluate_assertion(deps, cfg)? {
-            true => Ok(Response::default()),
-            false => Err(StdError::generic_err("assertion failed").into()),
-        },
+        ExecuteMsg::Assert { a, predicate, b } => {
+            match evaluate_assertion(deps, a, predicate, b)? {
+                true => Ok(Response::default()),
+                false => Err(StdError::generic_err("assertion failed").into()),
+            }
+        }
     }
 }
 
@@ -52,32 +54,25 @@ pub fn query(_deps: Deps, _env: Env, _msg: QueryMsg) -> StdResult<Binary> {
 
 /// evaluates the assertion by deserializing both comparison values into a mutual type identified
 /// by `assertion_config.ty` before evaluating the predicate and returning boolean result.
-fn evaluate_assertion(deps: DepsMut, assertion_config: AssertionConfig) -> StdResult<bool> {
+fn evaluate_assertion(
+    deps: DepsMut,
+    a: AssertionValue,
+    predicate: Predicate,
+    b: AssertionValue,
+) -> StdResult<bool> {
     // first we fetch the values we want to compare
-    let a_cmp = get_comparable_value(deps.querier, assertion_config.a)?;
-    let b_cmp = get_comparable_value(deps.querier, assertion_config.b)?;
+    let a_cmp = get_comparable_value(deps.querier, a)?;
+    let b_cmp = get_comparable_value(deps.querier, b)?;
 
-    let result = match (a_cmp, b_cmp) {
-        (ValencePrimitive::Decimal(a), ValencePrimitive::Decimal(b)) => {
-            assertion_config.predicate.eval(a, b)
-        }
-        (ValencePrimitive::Uint256(a), ValencePrimitive::Uint256(b)) => {
-            assertion_config.predicate.eval(a, b)
-        }
-        (ValencePrimitive::Uint128(a), ValencePrimitive::Uint128(b)) => {
-            assertion_config.predicate.eval(a, b)
-        }
-        (ValencePrimitive::Uint64(a), ValencePrimitive::Uint64(b)) => {
-            assertion_config.predicate.eval(a, b)
-        }
-        (ValencePrimitive::String(a), ValencePrimitive::String(b)) => {
-            assertion_config.predicate.eval(a, b)
-        }
+    match (a_cmp, b_cmp) {
+        (ValencePrimitive::Decimal(a), ValencePrimitive::Decimal(b)) => Ok(predicate.eval(a, b)),
+        (ValencePrimitive::Uint256(a), ValencePrimitive::Uint256(b)) => Ok(predicate.eval(a, b)),
+        (ValencePrimitive::Uint128(a), ValencePrimitive::Uint128(b)) => Ok(predicate.eval(a, b)),
+        (ValencePrimitive::Uint64(a), ValencePrimitive::Uint64(b)) => Ok(predicate.eval(a, b)),
+        (ValencePrimitive::String(a), ValencePrimitive::String(b)) => Ok(predicate.eval(a, b)),
         // comparisons can be performed only if both values are of the same type
-        _ => return Err(StdError::generic_err("value type mismatch")),
-    };
-
-    Ok(result)
+        _ => Err(StdError::generic_err("variant mismatch")),
+    }
 }
 
 /// prepares a value for assertion evaluation.

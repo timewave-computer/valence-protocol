@@ -7,7 +7,11 @@ pub struct InstantiateMsg {}
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    Assert { cfg: AssertionConfig },
+    Assert {
+        a: AssertionValue,
+        predicate: Predicate,
+        b: AssertionValue,
+    },
 }
 
 #[cw_serde]
@@ -50,11 +54,4 @@ pub enum AssertionValue {
     Variable(QueryInfo),
     // constant valence primitive value
     Constant(ValencePrimitive),
-}
-
-#[cw_serde]
-pub struct AssertionConfig {
-    pub a: AssertionValue,
-    pub predicate: Predicate,
-    pub b: AssertionValue,
 }
