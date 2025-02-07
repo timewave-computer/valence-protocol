@@ -4,7 +4,6 @@ use cosmwasm_std::{
     ensure, to_json_binary, BankMsg, Binary, Coin, Deps, DepsMut, Env, MessageInfo, QuerierWrapper,
     QueryRequest, Reply, Response, StdError, StdResult, SubMsg, Uint64, WasmMsg,
 };
-use cw_utils::{may_pay, must_pay};
 use neutron_sdk::{
     bindings::{
         msg::{MsgRegisterInterchainQueryResponse, NeutronMsg},

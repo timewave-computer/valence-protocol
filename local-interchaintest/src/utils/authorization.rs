@@ -5,7 +5,6 @@ use cosmwasm_std_old::Uint64;
 use localic_std::{
     modules::cosmwasm::{contract_execute, contract_instantiate, contract_query, CosmWasm},
     relayer::Relayer,
-    types::{ActionHandler, RequestType},
 };
 use localic_utils::{
     utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM,

@@ -1,10 +1,10 @@
 pub mod tests;
 
-use crate::msg::{AssertionConfig, InstantiateMsg, QueryMsg};
-use cosmwasm_std::{Addr, Coin, Response, StdResult, Uint128};
+use crate::msg::{AssertionConfig, InstantiateMsg};
+use cosmwasm_std::{Addr, Coin, Uint128};
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use valence_account_utils::msg::InstantiateMsg as StorageAccountInstantiateMsg;
-use valence_middleware_utils::{type_registry::types::ValenceType, MiddlewareError};
+use valence_middleware_utils::type_registry::types::ValenceType;
 use valence_storage_account::msg::ExecuteMsg;
 
 pub const STORAGE_SLOT_KEY: &str = "pool_osmo";

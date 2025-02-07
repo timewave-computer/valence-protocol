@@ -2,8 +2,6 @@ use cosmwasm_std::{to_json_binary, Binary, Coin, Uint64};
 use cosmwasm_std::{Decimal, Uint128};
 use cosmwasm_std_old::Coin as BankCoin;
 use local_interchaintest::utils::base_account::create_base_accounts;
-use local_interchaintest::utils::ibc::send_successful_ibc_transfer;
-use local_interchaintest::utils::processor::tick_processor;
 use local_interchaintest::utils::NTRN_DENOM;
 use local_interchaintest::utils::{
     authorization::{set_up_authorization_and_processor, set_up_external_domain_with_polytone},
@@ -161,7 +159,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(std::time::Duration::from_secs(3));
 
     info!("Ticking processor on neutron to register the KV query...");
-    let kvq_tick_response = contract_execute(
+    contract_execute(
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
@@ -191,51 +189,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
     println!("Items on neutron processor: {:?}", items);
     println!("Items on osmosis processor: {:?}", osmo_items);
-
-    let ntrn_on_osmo_denom = test_ctx
-        .get_ibc_denom()
-        .base_denom(NEUTRON_CHAIN_DENOM.to_owned())
-        .src(NEUTRON_CHAIN_NAME)
-        .dest(OSMOSIS_CHAIN_NAME)
-        .get();
-
-    info!("routing LP subroutine instructions to osmosis processsor...");
-    let lp_message = ProcessorMessage::CosmwasmExecuteMsg {
-        msg: Binary::from(serde_json::to_vec(
-            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
-                valence_osmosis_gamm_lper::msg::FunctionMsgs::ProvideSingleSidedLiquidity {
-                    expected_spot_price: None,
-                    asset: ntrn_on_osmo_denom,
-                    limit: Uint128::new(100_000_000),
-                },
-            ),
-        )?),
-    };
-    let provide_liquidity_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
-        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
-            label: "provide_liquidity".to_string(),
-            messages: vec![lp_message],
-            ttl: None,
-        },
-    );
-
-    contract_execute(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        &authorization_contract_address,
-        DEFAULT_KEY,
-        &serde_json::to_string(&provide_liquidity_msg)?,
-        GAS_FLAGS,
-    )?;
-
-    info!("confirming that osmosis processor enqueued the provide_liquidity_msg...");
-    confirm_remote_domain_processor_queue_length(
-        &mut test_ctx,
-        OSMOSIS_CHAIN_NAME,
-        &processor_on_osmosis,
-        1,
-    );
 
     let assertion_message_binary = Binary::from(serde_json::to_vec(
         &valence_middleware_asserter::msg::ExecuteMsg::Assert {
@@ -318,28 +271,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(std::time::Duration::from_secs(5));
     info!("ibc_forward_tick_response: {:?}", ibc_forward_tick_response);
 
-    let query_processor_callbacks_response: Value = serde_json::from_value(
-        contract_query(
-            test_ctx
-                .get_request_builder()
-                .get_request_builder(NEUTRON_CHAIN_NAME),
-            &authorization_contract_address,
-            &serde_json::to_string(
-                &valence_authorization_utils::msg::QueryMsg::ProcessorCallbacks {
-                    start_after: None,
-                    limit: None,
-                },
-            )?,
-        )["data"]
-            .clone(),
-    )?;
-
-    info!(
-        "{NEUTRON_CHAIN_NAME} authorization mod processor callbacks: {:?}",
-        query_processor_callbacks_response
-    );
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
     let osmo_input_acc_balance = bank::get_balance(
         test_ctx
             .get_request_builder()
@@ -356,6 +287,43 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("osmo_input_acc_balance: {:?}", osmo_input_acc_balance);
     info!("osmo_output_acc_balance: {:?}", osmo_output_acc_balance);
 
+    let ntrn_on_osmo_denom = test_ctx
+        .get_ibc_denom()
+        .base_denom(NEUTRON_CHAIN_DENOM.to_owned())
+        .src(NEUTRON_CHAIN_NAME)
+        .dest(OSMOSIS_CHAIN_NAME)
+        .get();
+
+    info!("routing LP subroutine instructions to osmosis processsor...");
+    let lp_message = ProcessorMessage::CosmwasmExecuteMsg {
+        msg: Binary::from(serde_json::to_vec(
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_osmosis_gamm_lper::msg::FunctionMsgs::ProvideSingleSidedLiquidity {
+                    expected_spot_price: None,
+                    asset: ntrn_on_osmo_denom,
+                    limit: Uint128::new(1_000_000),
+                },
+            ),
+        )?),
+    };
+    let provide_liquidity_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+            label: "provide_liquidity".to_string(),
+            messages: vec![lp_message],
+            ttl: None,
+        },
+    );
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&provide_liquidity_msg)?,
+        GAS_FLAGS,
+    )?;
+
     info!("confirming that osmosis processor enqueued the provide_liquidity_msg...");
     confirm_remote_domain_processor_queue_length(
         &mut test_ctx,
@@ -363,6 +331,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         &processor_on_osmosis,
         1,
     );
+
+    std::thread::sleep(std::time::Duration::from_secs(5));
 
     info!("Ticking processor on osmosis...");
     let osmosis_lp_tick_response = contract_execute(
@@ -377,7 +347,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             ),
         )
         .unwrap(),
-        "--gas=auto --gas-adjustment=5.0 --fees=5000000uosmo",
+        &format!(
+            "--gas=auto --gas-adjustment=3.0 --fees {}{}",
+            5_000_000, OSMOSIS_CHAIN_DENOM
+        ),
     )
     .unwrap();
 
@@ -402,6 +375,29 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("osmo_input_acc_balance: {:?}", osmo_input_acc_balance);
     info!("osmo_output_acc_balance: {:?}", osmo_output_acc_balance);
+
+    std::thread::sleep(std::time::Duration::from_secs(5));
+
+    let query_processor_callbacks_response: Value = serde_json::from_value(
+        contract_query(
+            test_ctx
+                .get_request_builder()
+                .get_request_builder(NEUTRON_CHAIN_NAME),
+            &authorization_contract_address,
+            &serde_json::to_string(
+                &valence_authorization_utils::msg::QueryMsg::ProcessorCallbacks {
+                    start_after: None,
+                    limit: None,
+                },
+            )?,
+        )["data"]
+            .clone(),
+    )?;
+
+    info!(
+        "{NEUTRON_CHAIN_NAME} authorization mod processor callbacks: {:?}",
+        query_processor_callbacks_response
+    );
     Ok(())
 }
 
@@ -415,7 +411,7 @@ fn osmosis_setup(
         .src(NEUTRON_CHAIN_NAME)
         .dest(OSMOSIS_CHAIN_NAME)
         .get();
-    let pool_id = setup_gamm_pool(&mut test_ctx, OSMOSIS_CHAIN_DENOM, &ntrn_on_osmo_denom)?;
+    let pool_id = setup_gamm_pool(test_ctx, OSMOSIS_CHAIN_DENOM, &ntrn_on_osmo_denom)?;
 
     let current_dir: std::path::PathBuf = env::current_dir()?;
     let base_account_contract_path = format!(
@@ -443,7 +439,7 @@ fn osmosis_setup(
         .unwrap();
 
     let osmo_base_accounts = create_base_accounts(
-        &mut test_ctx,
+        test_ctx,
         DEFAULT_KEY,
         OSMOSIS_CHAIN_NAME,
         osmosis_base_acc_code_id,
@@ -469,8 +465,8 @@ fn osmosis_setup(
             valence_osmosis_gamm_lper::msg::LiquidityProviderConfig {
                 pool_id,
                 asset_data: valence_library_utils::liquidity_utils::AssetData {
-                    asset1: OSMOSIS_CHAIN_DENOM.to_string(),
-                    asset2: ntrn_on_osmo_denom.to_string(),
+                    asset1: ntrn_on_osmo_denom.to_string(),
+                    asset2: OSMOSIS_CHAIN_DENOM.to_string(),
                 },
             },
         ),
@@ -500,10 +496,25 @@ fn osmosis_setup(
 
     std::thread::sleep(std::time::Duration::from_secs(1));
     info!("osmo_gamm_lper_addr: {osmo_gamm_lper_addr}");
+    bank::send(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        DEFAULT_KEY,
+        osmo_input_acc_addr,
+        &[BankCoin {
+            denom: OSMOSIS_CHAIN_DENOM.to_string(),
+            amount: 5_100_000u128.into(),
+        }],
+        &BankCoin {
+            denom: OSMOSIS_CHAIN_DENOM.to_string(),
+            amount: cosmwasm_std_old::Uint128::new(5000),
+        },
+    )?;
 
     info!("approving gamm lper lib on the osmo input acc");
     approve_library(
-        &mut test_ctx,
+        test_ctx,
         OSMOSIS_CHAIN_NAME,
         DEFAULT_KEY,
         osmo_input_acc_addr,
@@ -534,7 +545,7 @@ fn neutron_setup(
 
     // with test context set up, we can generate the .env file for the icq relayer
     generate_icq_relayer_config(
-        &test_ctx,
+        test_ctx,
         current_dir.clone(),
         OSMOSIS_CHAIN_NAME.to_string(),
     )?;
@@ -546,7 +557,7 @@ fn neutron_setup(
     info!("sleeping for 10 to allow icq relayer to start...");
     std::thread::sleep(Duration::from_secs(10));
 
-    let (broker_addr, asserter_addr, _) = setup_middleware(&mut test_ctx)?;
+    let (broker_addr, asserter_addr, _) = setup_middleware(test_ctx)?;
 
     // set up the storage account
     info!("setting up storage accounts...");
@@ -558,7 +569,7 @@ fn neutron_setup(
         .unwrap();
 
     let storage_accounts = create_storage_accounts(
-        &mut test_ctx,
+        test_ctx,
         DEFAULT_KEY,
         NEUTRON_CHAIN_NAME,
         storage_acc_code_id,
@@ -640,7 +651,7 @@ fn neutron_setup(
 
     info!("approving IC querier lib on the storage account");
     approve_library(
-        &mut test_ctx,
+        test_ctx,
         NEUTRON_CHAIN_NAME,
         DEFAULT_KEY,
         neutron_storage_account,
@@ -657,7 +668,7 @@ fn neutron_setup(
         .unwrap();
 
     let neutron_base_accounts = create_base_accounts(
-        &mut test_ctx,
+        test_ctx,
         DEFAULT_KEY,
         NEUTRON_CHAIN_NAME,
         neutron_base_acc_code_id,
@@ -725,10 +736,10 @@ fn neutron_setup(
 
     // Approve the library for the base account
     approve_library(
-        &mut test_ctx,
+        test_ctx,
         NEUTRON_CHAIN_NAME,
         DEFAULT_KEY,
-        &neutron_input_acc_addr,
+        neutron_input_acc_addr,
         ibc_transfer.address.clone(),
         None,
     );
