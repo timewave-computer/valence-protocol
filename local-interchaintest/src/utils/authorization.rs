@@ -39,8 +39,6 @@ pub fn set_up_authorization_and_processor(
         current_dir.display()
     );
 
-    info!("{}", authorization_contract_path);
-
     let processor_contract_path =
         format!("{}/artifacts/valence_processor.wasm", current_dir.display());
     uploader
@@ -134,17 +132,6 @@ pub fn set_up_external_domain_with_polytone(
     salt: String,
     authorization_contract: &str,
 ) -> Result<String, Box<dyn Error>> {
-    // Upload the processor contract to the chain
-    let current_dir = env::current_dir()?;
-    let processor_contract_path =
-        format!("{}/artifacts/valence_processor.wasm", current_dir.display());
-
-    info!("Uploading processor contract to {}", chain_name);
-    let mut uploader = test_ctx.build_tx_upload_contracts();
-    uploader
-        .with_chain_name(chain_name)
-        .send_single_contract(&processor_contract_path)?;
-
     info!("Uploading polytone contracts to neutron");
     let mut uploader = test_ctx.build_tx_upload_contracts();
     uploader
@@ -364,16 +351,41 @@ pub fn set_up_external_domain_with_polytone(
     .unwrap();
     info!("Predicted proxy address on {chain_name}: {predicted_proxy_address_on_external_domain}");
 
+    info!("Uploading processor contract to {chain_name}...");
+
+    // Upload the processor contract to the chain
+    let current_dir = env::current_dir()?;
+
+    let processor_contract_path =
+        format!("{}/artifacts/valence_processor.wasm", current_dir.display());
+
+    let mut uploader = test_ctx.build_tx_upload_contracts();
+    uploader
+        .with_chain_name(chain_name)
+        .send_single_contract(&processor_contract_path)?;
+
+    let external_processor_code_id = test_ctx
+        .get_contract()
+        .src(chain_name)
+        .contract("valence_processor")
+        .get_cw()
+        .clone()
+        .code_id
+        .unwrap();
+
     // To predict the proxy address on neutron for the processor on external_domain we need to first predict the processor address
     let predicted_processor_on_external_domain_address = predict_remote_contract_address(
         test_ctx,
-        1,
+        external_processor_code_id,
         chain_name,
         chain_prefix,
         chain_admin_addr,
-        &salt.as_bytes(),
+        hex::decode(&salt).unwrap().as_slice(),
     )
     .unwrap();
+    info!(
+        "Predicted external domain processor addr: {predicted_processor_on_external_domain_address}"
+    );
 
     // Let's now predict the proxy
     let salt_for_proxy_on_neutron = salt_for_proxy(
@@ -403,39 +415,54 @@ pub fn set_up_external_domain_with_polytone(
     };
     std::thread::sleep(Duration::from_secs(3));
 
-    let processor_code_id_on_external_domain = test_ctx
-        .get_contract()
-        .src(chain_name)
-        .contract("valence_processor")
-        .get_cw()
-        .code_id
-        .unwrap();
-    info!(
-        "processor code id on external domain: {:?}",
-        processor_code_id_on_external_domain
-    );
-    std::thread::sleep(Duration::from_secs(3));
-
     // Instantiate processor
-    test_ctx
-        .build_tx_instantiate2()
-        .with_chain_name(chain_name)
-        .with_label("processor")
-        .with_code_id(processor_code_id_on_external_domain)
-        .with_salt_hex_encoded(&salt)
-        .with_msg(serde_json::to_value(processor_instantiate_msg).unwrap())
-        .with_flags(&format!(
-            "--gas=auto --gas-adjustment=3.0 --fees {}{}",
-            5_000_000, chain_denom
-        ))
-        .send()
-        .unwrap();
+    // test_ctx
+    //     .build_tx_instantiate2()
+    //     .with_key(DEFAULT_KEY)
+    //     .with_chain_name(chain_name)
+    //     .with_label("processor")
+    //     .with_code_id(external_processor_code_id)
+    //     .with_salt_hex_encoded(&salt)
+    //     .with_msg(serde_json::to_value(processor_instantiate_msg).unwrap())
+    // .with_flags(&format!(
+    //     "--gas=auto --gas-adjustment=3.0 --fees {}{}",
+    //     5_000_000, chain_denom
+    // ))
+    //     .send()
+    //     .unwrap();
+    // //
+    // let salt_hex = hex::encode(salt.clone());
+    // info!("Salt being used for instantiation (hex): {}", salt_hex);
+    // info!("Original salt (hex): {}", hex::encode(salt.as_bytes()));
 
-    info!("Processor instantiated on {}!", chain_name);
-    info!(
-        "Processor address: {}",
-        predicted_processor_on_external_domain_address
+    let extra_flags = format!(
+        "--gas=auto --gas-adjustment=3.0 --fees {}{}",
+        5_000_000, chain_denom
     );
+    let instantiate2_msg = serde_json::to_value(processor_instantiate_msg)
+        .unwrap()
+        .to_string();
+
+    let processor_instantiation_str = format!(
+        "tx wasm instantiate2 {external_processor_code_id} {instantiate2_msg} {} --label valence_processor --chain-id={chain_id} --no-admin {extra_flags} --from {DEFAULT_KEY}", salt
+    );
+
+    let receipt = test_ctx
+        .get_request_builder()
+        .get_request_builder(chain_name)
+        .tx(&processor_instantiation_str, true)?;
+    test_ctx.guard_tx_errors(
+        chain_name,
+        receipt
+            .get("txhash")
+            .and_then(|receipt| {
+                info!("inst2 external processor resp: {:?}", receipt);
+                receipt.as_str()
+            })
+            .unwrap(),
+    )?;
+
+    info!("Processor instantiated on {chain_name}!");
 
     info!("Adding external domain to the authorization contract...");
     let add_external_domain_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
@@ -474,7 +501,7 @@ pub fn set_up_external_domain_with_polytone(
 }
 
 fn predict_remote_contract_address(
-    test_ctx: &mut TestContext,
+    test_ctx: &TestContext,
     code_id: u64,
     chain_name: &str,
     chain_prefix: &str,
@@ -486,20 +513,16 @@ fn predict_remote_contract_address(
         .get_request_builder(chain_name)
         .query(&format!("q wasm code-info {code_id}"), false);
 
-    info!("code-info response: {:?}", resp);
     let checksum = if let Some(data_hash) = resp["data_hash"].as_str() {
-        info!("data hash: {:?}", data_hash);
         HexBinary::from_hex(data_hash).unwrap()
     } else {
         panic!("failed to get data hash from response: {:?}", resp);
     };
 
-    let canonical_predicted_proxy_address_on_external_domain = instantiate2_address(
-        &checksum,
-        &addr_canonicalize(chain_prefix, creator_addr).unwrap(),
-        salt,
-    )
-    .unwrap();
+    let canonical_creator = addr_canonicalize(chain_prefix, creator_addr)?;
+
+    let canonical_predicted_proxy_address_on_external_domain =
+        instantiate2_address(&checksum, &canonical_creator, salt)?;
 
     let predicted_address_on_external_domain = addr_humanize(
         chain_prefix,
