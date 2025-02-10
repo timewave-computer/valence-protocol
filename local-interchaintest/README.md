@@ -20,6 +20,14 @@ This will start a local environment with a Gaia chain, a Neutron (using ICS) cha
 
 For tests that involve EVM chains, the chains and relayer are started from the test itself so no need to start them manually.
 
+## Optimize Contracts
+
+Use CosmWasm optimizer to optimize contracts and store the results in `./artifacts`
+
+``` bash
+just optimize
+```
+
 ## Running tests
 
 Once you have your tests written, you can run them using the following command from the workspace directory, here I'm running the `polytone` tests that are in the `examples` folder:
