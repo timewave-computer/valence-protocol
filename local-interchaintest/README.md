@@ -18,18 +18,40 @@ local-ic start neutron_juno --api-port 42069
 
 This will start a local environment with a Gaia chain, a Neutron (using ICS) chain and a Juno chain. The `--api-port` will expose the API on port 42069, we are using this port in our local-ic-utils crate so let's use the same to reuse some of the utils there.
 
+
 ## Optimize Contracts
 
 Use CosmWasm optimizer to optimize contracts and store the results in `./artifacts`
 
 ``` bash
 just optimize
+
+## or
+./devtools/optimize.sh
 ```
 
 ## Running tests
+
+Check that the `local-ic start` command created `local-interchaintest/configs/logs.json` with the correct RPC URL mappings. This configuration file is required to run the example tests.
 
 Once you have your tests written, you can run them using the following command from the workspace directory, here I'm running the `polytone` tests that are in the `examples` folder:
 
 ```bash
 cargo run --package local-interchaintest --example polytone
 ```
+
+## Troubleshooting
+`cargo run --package local-interchaintest --example example_file_name`
+
+
+```txt
+Error: LocalInterchain(Custom { msg: "channel_json is not an array" })
+```
+The chains required in the test are not running.
+
+`cargo run --package local-interchaintest --example example_file_name`
+```txt
+called `Result::unwrap()` on an `Err` value: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+```
+Check that `local-interchaintest/configs/logs.json` exists. If it does not, kill all local-ic processes and rerun from `local-interchaintest` directory.
