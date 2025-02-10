@@ -13,7 +13,7 @@ contract WithdrawDebugger is Test {
         returns (bool isClaimable, string memory failureReason)
     {
         // Get the withdrawal request
-        (, uint64 claimTime, uint32 maxLossBps,, uint64 updateId,, uint128 sharesAmount) =
+        (, uint64 claimTime, uint32 maxLossBps,, uint32 updateId,, uint256 sharesAmount) =
             vault.userWithdrawRequest(owner);
 
         // Check if request exists

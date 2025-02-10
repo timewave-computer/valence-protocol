@@ -110,7 +110,7 @@ contract VaultRedemptionTest is VaultHelper {
         vm.stopPrank();
 
         // Verify withdrawal request details
-        (address owner, uint64 claimTime, uint32 maxLossBps, address receiver,,, uint128 sharesAmount) =
+        (address owner, uint64 claimTime, uint32 maxLossBps, address receiver,,, uint256 sharesAmount) =
             vault.userWithdrawRequest(user);
 
         // Convert shares to uint128 for comparison

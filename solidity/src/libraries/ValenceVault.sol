@@ -104,7 +104,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         uint64 claimTime; // Timestamp when request becomes claimable
         uint32 maxLossBps; // Maximum acceptable loss in basis points
         address receiver; // Receiver of the withdrawn assets
-        uint64 updateId; // Next update ID
+        uint32 updateId; // Next update ID
         uint64 solverFee; // Fee for solver completion (only used in solver mapping)
         uint256 sharesAmount; // Amount of shares to be redeemed
     }
@@ -121,7 +121,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      */
     struct PackedValues {
         // Current update ID (increments with each update)
-        uint64 currentUpdateId;
+        uint32 currentUpdateId;
         // Withdraw request ID counter
         uint64 nextWithdrawRequestId;
         // who the pauser is, if its 1, then the vault is paused by the owner
@@ -780,7 +780,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         _burn(owner, shares);
 
         // Create withdrawal request
-        uint64 updateId = _packedValues.currentUpdateId + 1;
+        uint32 updateId = _packedValues.currentUpdateId + 1;
 
         // Update the total to withdraw on next update
         totalAssetsToWithdrawNextUpdate += assetsToWithdraw;

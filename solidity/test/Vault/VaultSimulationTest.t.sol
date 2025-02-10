@@ -230,7 +230,7 @@ contract VaultSimulationTest is VaultHelper {
             address user = users[y];
 
             // Get withdraw request details
-            (, uint64 claimTime,,,,, uint128 sharesAmount) = vault.userWithdrawRequest(user);
+            (, uint64 claimTime,,,,, uint256 sharesAmount) = vault.userWithdrawRequest(user);
 
             if (sharesAmount == 0) {
                 console.log("No withdraw request for user", y);

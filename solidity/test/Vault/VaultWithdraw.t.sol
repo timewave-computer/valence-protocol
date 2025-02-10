@@ -207,7 +207,7 @@ abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
         vm.warp(block.timestamp + 1 days);
 
         // Request should persist
-        (,,,, uint64 newUpdateId,, uint128 newSharesAmount) = vault.userWithdrawRequest(user);
+        (,,,, uint64 newUpdateId,, uint256 newSharesAmount) = vault.userWithdrawRequest(user);
         assertEq(sharesAmount, newSharesAmount, "Request should persist until update");
         assertEq(updateId, newUpdateId, "Update ID should remain unchanged");
 

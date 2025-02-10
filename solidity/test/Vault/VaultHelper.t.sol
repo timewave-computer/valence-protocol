@@ -177,7 +177,7 @@ abstract contract VaultHelper is Test {
     }
 
     function _getPackedValues() internal view returns (ValenceVault.PackedValues memory) {
-        (uint64 currentUpdateId, uint64 nextWithdrawRequestId, bool pauser, bool paused) = vault.packedValues();
+        (uint32 currentUpdateId, uint64 nextWithdrawRequestId, bool pauser, bool paused) = vault.packedValues();
 
         return ValenceVault.PackedValues({
             currentUpdateId: currentUpdateId,
