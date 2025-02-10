@@ -6,10 +6,10 @@ authors     = ["Timewave Labs"]
 description = "Helpers for authorization contract"
 
 [dependencies]
-cosmwasm-std           = { workspace = true }
-cw-utils               = { workspace = true }
-cosmwasm-schema        = { workspace = true }
-cw-ownable             = { workspace = true }
-valence-polytone-utils = { workspace = true }
-valence-library-utils  = { workspace = true }
-serde_json             = { workspace = true }
+cosmwasm-std          = { workspace = true }
+cw-utils              = { workspace = true }
+cosmwasm-schema       = { workspace = true }
+cw-ownable            = { workspace = true }
+valence-gmp-utils     = { workspace = true }
+valence-library-utils = { workspace = true }
+serde_json            = { workspace = true }
