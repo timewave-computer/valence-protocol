@@ -23,7 +23,7 @@
   - [Connectors](./authorizations_processors/connectors.md)
   - [Encoding](./authorizations_processors/encoding.md)
 - [Libraries](./libraries/_overview.md)
-  - [Cosmwasm](./libraries/cosmwasm/_overview.md)
+  - [CosmWasm](./libraries/cosmwasm/_overview.md)
     - [Astroport LPer](./libraries/cosmwasm/astroport_lper.md)
     - [Astroport Withdrawer](./libraries/cosmwasm/astroport_withdrawer.md)
     - [Forwarder](./libraries/cosmwasm/forwarder.md)
