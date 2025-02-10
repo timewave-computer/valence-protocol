@@ -1,24 +1,25 @@
-use cosmwasm_std::{to_json_binary, Binary, CosmosMsg, DepsMut, Storage, Uint64, WasmMsg};
+use cosmwasm_std::{Binary, CosmosMsg, DepsMut, StdResult, Storage, Uint64, WasmMsg};
 use valence_authorization_utils::{
     authorization::{Authorization, Subroutine},
-    callback::PolytoneCallbackMsg,
-    domain::{Connector, Domain},
+    domain::{CosmwasmBridge, Domain, EvmBridge, ExecutionEnvironment, ExternalDomain},
     msg::ExternalDomainInfo,
 };
-use valence_polytone_utils::polytone::{CallbackRequest, PolytoneExecuteMsg};
+use valence_gmp_utils::{
+    hyperlane::create_msg_for_hyperlane,
+    polytone::{create_msg_for_polytone, CallbackRequest},
+};
 
 use crate::{
     error::{AuthorizationErrorReason, ContractError},
     state::{EXTERNAL_DOMAINS, PROCESSOR_ON_MAIN_DOMAIN},
 };
 
-/// Checks if external domain exists before adding it and creates the message to create the bridge account
-pub fn add_domain(
+/// Saves a validated external domain if it doesn't already exist and returns it
+pub fn add_external_domain(
     deps: DepsMut,
-    callback_receiver: String,
-    domain: &ExternalDomainInfo,
-) -> Result<CosmosMsg, ContractError> {
-    let external_domain = domain.to_external_domain_validated(deps.api)?;
+    domain: ExternalDomainInfo,
+) -> Result<ExternalDomain, ContractError> {
+    let external_domain = domain.into_external_domain_validated(deps.api)?;
 
     if EXTERNAL_DOMAINS.has(deps.storage, external_domain.name.clone()) {
         return Err(ContractError::ExternalDomainAlreadyExists(
@@ -28,29 +29,7 @@ pub fn add_domain(
 
     EXTERNAL_DOMAINS.save(deps.storage, external_domain.name.clone(), &external_domain)?;
 
-    // Create the message to create the bridge account
-    let msg = match external_domain.connector {
-        // In polytone to create the proxy we can send an empty vector of messages
-        Connector::PolytoneNote {
-            address,
-            timeout_seconds,
-            ..
-        } => CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: address.to_string(),
-            msg: to_json_binary(&PolytoneExecuteMsg::Execute {
-                msgs: vec![],
-                callback: Some(CallbackRequest {
-                    receiver: callback_receiver,
-                    // When we add domain we will return a callback with the name of the domain to know that we are getting the callback when trying to create the proxy
-                    msg: to_json_binary(&PolytoneCallbackMsg::CreateProxy(external_domain.name))?,
-                }),
-                timeout_seconds: Uint64::from(timeout_seconds),
-            })?,
-            funds: vec![],
-        }),
-    };
-
-    Ok(msg)
+    Ok(external_domain)
 }
 
 pub fn get_domain(authorization: &Authorization) -> Result<Domain, ContractError> {
@@ -72,45 +51,48 @@ pub fn get_domain(authorization: &Authorization) -> Result<Domain, ContractError
     }
 }
 
-pub fn create_msg_for_processor_or_bridge(
+pub fn create_msg_for_processor(
     storage: &dyn Storage,
     execute_msg: Binary,
     domain: &Domain,
     callback_request: Option<CallbackRequest>,
-) -> Result<CosmosMsg, ContractError> {
-    // If the domain is the main domain we will use the processor on the main domain, otherwise we will use polytone to send it to the processor on the external domain
+) -> StdResult<CosmosMsg> {
     match domain {
-        Domain::Main => {
-            let processor = PROCESSOR_ON_MAIN_DOMAIN.load(storage)?;
-            // Simple message for the main domain's processor
-            Ok(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: processor.to_string(),
-                msg: execute_msg,
-                funds: vec![],
-            }))
-        }
-        Domain::External(name) => {
-            let external_domain = EXTERNAL_DOMAINS.load(storage, name.clone())?;
-            match external_domain.connector {
-                // If it has to go through polytone, we will create the message for polytone instead
-                Connector::PolytoneNote {
-                    address,
-                    timeout_seconds,
-                    ..
-                } => Ok(CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: address.to_string(),
-                    msg: to_json_binary(&PolytoneExecuteMsg::Execute {
-                        msgs: vec![CosmosMsg::Wasm(WasmMsg::Execute {
-                            contract_addr: external_domain.processor,
-                            msg: execute_msg,
-                            funds: vec![],
-                        })],
-                        callback: callback_request,
-                        timeout_seconds: Uint64::from(timeout_seconds),
-                    })?,
-                    funds: vec![],
-                })),
+        Domain::Main => create_msg_for_main_domain(storage, execute_msg),
+        Domain::External(external_domain) => {
+            let external_domain = EXTERNAL_DOMAINS.load(storage, external_domain.clone())?;
+            match external_domain.execution_environment {
+                ExecutionEnvironment::Cosmwasm(cosmwasm_bridge) => match cosmwasm_bridge {
+                    CosmwasmBridge::Polytone(polytone_connectors) => create_msg_for_polytone(
+                        polytone_connectors.polytone_note.address.to_string(),
+                        Uint64::from(polytone_connectors.polytone_note.timeout_seconds),
+                        external_domain.processor,
+                        execute_msg,
+                        callback_request,
+                    ),
+                },
+                ExecutionEnvironment::Evm(_, evm_bridge) => match evm_bridge {
+                    EvmBridge::Hyperlane(hyperlane_connector) => create_msg_for_hyperlane(
+                        hyperlane_connector.mailbox,
+                        hyperlane_connector.domain_id,
+                        external_domain.processor,
+                        execute_msg,
+                    ),
+                },
             }
         }
     }
+}
+
+pub fn create_msg_for_main_domain(
+    storage: &dyn Storage,
+    execute_msg: Binary,
+) -> StdResult<CosmosMsg> {
+    let processor = PROCESSOR_ON_MAIN_DOMAIN.load(storage)?;
+    // Simple message for the main domain's processor
+    Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: processor.to_string(),
+        msg: execute_msg,
+        funds: vec![],
+    }))
 }

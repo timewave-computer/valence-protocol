@@ -13,9 +13,7 @@ use valence_authorization_utils::{
     domain::PolytoneProxyState,
     msg::ProcessorMessage,
 };
-use valence_polytone_utils::polytone::{
-    Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg,
-};
+use valence_gmp_utils::polytone::{Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg};
 use valence_processor_utils::{
     callback::{
         PendingCallback, PendingPolytoneCallbackInfo, PolytoneCallbackMsg, PolytoneCallbackState,
@@ -346,7 +344,7 @@ fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
                             },
                         )?;
                     } else {
-                        messages = batch.create_message_by_index(current_index)
+                        messages = batch.create_message_by_index(current_index)?;
                     };
                 }
             }
@@ -501,7 +499,8 @@ fn execute_atomic(
             UnauthorizedReason::NotProcessor {},
         ));
     }
-    let messages: Vec<CosmosMsg> = batch.into();
+
+    let messages = Into::<StdResult<Vec<CosmosMsg>>>::into(batch)?;
 
     Ok(Response::new()
         .add_messages(messages)
