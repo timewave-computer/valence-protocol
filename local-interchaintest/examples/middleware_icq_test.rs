@@ -20,7 +20,7 @@ use valence_middleware_asserter::msg::{AssertionValue, Predicate, QueryInfo};
 use valence_middleware_utils::{
     canonical_types::pools::xyk::XykPoolQuery,
     type_registry::{
-        queries::ValencePrimitive,
+        queries::{ValencePrimitive, ValenceTypeQuery},
         types::{RegistryInstantiateMsg, RegistryQueryMsg, ValenceType},
     },
 };
@@ -320,7 +320,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     match storage_account_value {
         ValenceType::XykPool(valence_xyk_pool) => {
-            let price = valence_xyk_pool.get_price();
+            let query_msg = to_json_binary(&XykPoolQuery::GetPrice {}).unwrap();
+            let price = valence_xyk_pool.query(query_msg).unwrap();
             info!("price: {:?}", price);
         }
         _ => panic!("should be xyk pool"),

@@ -26,7 +26,9 @@ impl Default for Suite {
         let asserter_wrapper = ContractWrapper::new(
             crate::contract::execute,
             crate::contract::instantiate,
-            crate::contract::query,
+            // using valence storage account query fn here as there are no queries
+            // on the asserter but contractwrapper expects one
+            valence_storage_account::contract::query,
         );
         let storage_acc_wrapper = ContractWrapper::new(
             valence_storage_account::contract::execute,
@@ -102,11 +104,11 @@ impl Suite {
         vec![
             Coin {
                 denom: "untrn".to_string(),
-                amount: Uint128::new(1000000),
+                amount: Uint128::new(1_000_000),
             },
             Coin {
                 denom: "uusdc".to_string(),
-                amount: Uint128::new(500000),
+                amount: Uint128::new(500_000),
             },
         ]
     }
@@ -115,11 +117,11 @@ impl Suite {
         vec![
             Coin {
                 denom: "untrn".to_string(),
-                amount: Uint128::new(1200000),
+                amount: Uint128::new(1_200_000),
             },
             Coin {
                 denom: "uusdc".to_string(),
-                amount: Uint128::new(33000),
+                amount: Uint128::new(33_000),
             },
         ]
     }

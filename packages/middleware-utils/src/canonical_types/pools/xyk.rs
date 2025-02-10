@@ -75,27 +75,102 @@ impl ValenceTypeQuery for ValenceXykPool {
 }
 
 impl ValenceXykPool {
-    pub fn get_price(&self) -> StdResult<Decimal> {
-        ensure!(
-            self.assets.len() == 2,
-            StdError::generic_err("price can be calculated iff xyk pool contains exactly 2 assets")
-        );
-
-        ensure!(
-            !self.assets[0].amount.is_zero() && !self.assets[1].amount.is_zero(),
-            StdError::generic_err("price can't be calculated if any of the assets amount is zero")
-        );
-
-        let a = self.assets[0].amount;
-        let b = self.assets[1].amount;
-
-        Ok(Decimal::from_ratio(a, b))
-    }
-
+    // TODO: move this into the ValenceTypeQuery and use generics
     pub fn get_domain_specific_field<T>(&self, key: &str) -> StdResult<T>
     where
         T: DeserializeOwned,
     {
         try_unpack_domain_specific_value(key, &self.domain_specific_fields)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cosmwasm_std::{coin, to_json_binary, Uint128};
+
+    #[test]
+    fn test_get_price_happy() {
+        let pool = ValenceXykPool {
+            assets: vec![coin(100, "token_a"), coin(200, "token_b")],
+            total_shares: "1000".to_string(),
+            domain_specific_fields: BTreeMap::new(),
+        };
+
+        let query_msg = XykPoolQuery::GetPrice {};
+        let result = pool.query(to_json_binary(&query_msg).unwrap()).unwrap();
+        assert_eq!(
+            result,
+            ValencePrimitive::Decimal(Decimal::from_ratio(100u128, 200u128))
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "price can't be calculated if any of the assets amount is zero")]
+    fn test_get_price_asset_0_zero_amount_err() {
+        let pool = ValenceXykPool {
+            assets: vec![coin(0, "token_a"), coin(200, "token_b")],
+            total_shares: "1000".to_string(),
+            domain_specific_fields: BTreeMap::new(),
+        };
+        let query_msg = XykPoolQuery::GetPrice {};
+
+        pool.query(to_json_binary(&query_msg).unwrap()).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "price can't be calculated if any of the assets amount is zero")]
+    fn test_get_price_asset_1_zero_amount_err() {
+        let pool = ValenceXykPool {
+            assets: vec![coin(100, "token_a"), coin(0, "token_b")],
+            total_shares: "1000".to_string(),
+            domain_specific_fields: BTreeMap::new(),
+        };
+        let query_msg = XykPoolQuery::GetPrice {};
+
+        pool.query(to_json_binary(&query_msg).unwrap()).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "price can be calculated iff xyk pool contains exactly 2 assets")]
+    fn test_get_price_single_asset_err() {
+        let pool = ValenceXykPool {
+            assets: vec![coin(100, "token_a")],
+            total_shares: "1000".to_string(),
+            domain_specific_fields: BTreeMap::new(),
+        };
+        let query_msg = XykPoolQuery::GetPrice {};
+
+        pool.query(to_json_binary(&query_msg).unwrap()).unwrap();
+    }
+
+    #[test]
+    fn test_get_pool_asset_amount_happy() {
+        let pool = ValenceXykPool {
+            assets: vec![coin(100, "token_a"), coin(200, "token_b")],
+            total_shares: "1000".to_string(),
+            domain_specific_fields: BTreeMap::new(),
+        };
+
+        let query_msg = XykPoolQuery::GetPoolAssetAmount {
+            target_denom: "token_a".to_string(),
+        };
+        let result = pool.query(to_json_binary(&query_msg).unwrap()).unwrap();
+        assert_eq!(result, ValencePrimitive::Uint128(Uint128::new(100)));
+    }
+
+    #[test]
+    #[should_panic(expected = "target coin not found")]
+    fn test_get_pool_asset_amount_err() {
+        let pool = ValenceXykPool {
+            assets: vec![coin(100, "token_a"), coin(200, "token_b")],
+            total_shares: "1000".to_string(),
+            domain_specific_fields: BTreeMap::new(),
+        };
+
+        let query_msg = XykPoolQuery::GetPoolAssetAmount {
+            target_denom: "non_existent".to_string(),
+        };
+        pool.query(to_json_binary(&query_msg).unwrap()).unwrap();
     }
 }

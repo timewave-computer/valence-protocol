@@ -1,10 +1,8 @@
-use crate::msg::{AssertionValue, ExecuteMsg, InstantiateMsg, Predicate, QueryMsg};
+use crate::msg::{AssertionValue, ExecuteMsg, InstantiateMsg, Predicate};
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{
-    Binary, Deps, DepsMut, Env, MessageInfo, QuerierWrapper, Response, StdError, StdResult,
-};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, QuerierWrapper, Response, StdError, StdResult};
 use cw2::set_contract_version;
 use valence_middleware_utils::{
     type_registry::{
@@ -45,11 +43,6 @@ pub fn execute(
             }
         }
     }
-}
-
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(_deps: Deps, _env: Env, _msg: QueryMsg) -> StdResult<Binary> {
-    unimplemented!()
 }
 
 /// evaluates the assertion by deserializing both comparison values into a mutual type identified

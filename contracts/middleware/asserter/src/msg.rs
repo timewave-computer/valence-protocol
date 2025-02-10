@@ -15,9 +15,6 @@ pub enum ExecuteMsg {
 }
 
 #[cw_serde]
-pub enum QueryMsg {}
-
-#[cw_serde]
 pub enum Predicate {
     LT,
     LTE,
