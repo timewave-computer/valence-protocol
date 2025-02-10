@@ -11,12 +11,13 @@ abstract contract VaultHelper is Test {
     using Math for uint256;
 
     // Constants
-    uint256 internal constant BASIS_POINTS = 10000;
+    uint32 internal constant BASIS_POINTS = 10000;
     uint256 internal constant INITIAL_USER_BALANCE = 100_000_000_000;
     uint32 internal constant MAX_WITHDRAW_FEE = 2000;
     uint256 internal constant INITIAL_TIMESTAMP = 5000;
     uint256 internal constant INITIAL_BLOCK = 100;
     uint64 internal constant ONE_DAY = 1 days;
+    uint256 internal constant ONE_SHARE = 1e18;
 
     // Contracts
     ValenceVault internal vault;
@@ -60,13 +61,13 @@ abstract contract VaultHelper is Test {
             withdrawAccount: withdrawAccount,
             strategist: strategist,
             depositCap: 0,
-            maxWithdrawFee: MAX_WITHDRAW_FEE,
+            maxWithdrawFeeBps: MAX_WITHDRAW_FEE,
             withdrawLockupPeriod: ONE_DAY * 3,
             fees: defaultFees(),
             feeDistribution: defaultDistributionFees()
         });
 
-        vault = new ValenceVault(owner, abi.encode(config), address(token), "Valence Vault Token", "VVT");
+        vault = new ValenceVault(owner, abi.encode(config), address(token), "Valence Vault Token", "VVT", ONE_SHARE);
 
         // Setup permissions
         depositAccount.approveLibrary(address(vault));
@@ -81,6 +82,9 @@ abstract contract VaultHelper is Test {
         vm.startPrank(user);
         token.approve(address(vault), type(uint256).max);
         vm.stopPrank();
+
+        vm.roll(vm.getBlockNumber() + 1);
+        vm.warp(vm.getBlockTimestamp() + 12);
     }
 
     function defaultFees() public pure returns (ValenceVault.FeeConfig memory) {
@@ -101,38 +105,21 @@ abstract contract VaultHelper is Test {
     {
         vm.startPrank(owner);
 
-        (
-            BaseAccount _depositAccount,
-            BaseAccount _withdrawAccount,
-            address _strategist,
-            uint256 _depositCap,
-            uint32 _maxWithdrawFee,
-            uint64 _withdrawLockupPeriod,
-            ValenceVault.FeeConfig memory _fees,
-        ) = vault.config();
-
         ValenceVault.FeeDistributionConfig memory feeDistConfig = ValenceVault.FeeDistributionConfig({
             strategistAccount: strategistAccount,
             platformAccount: platformAccount,
             strategistRatioBps: strategistRatioBps
         });
 
-        ValenceVault.VaultConfig memory newConfig = ValenceVault.VaultConfig({
-            depositAccount: _depositAccount,
-            withdrawAccount: _withdrawAccount,
-            strategist: _strategist,
-            depositCap: _depositCap,
-            maxWithdrawFee: _maxWithdrawFee,
-            withdrawLockupPeriod: _withdrawLockupPeriod,
-            fees: _fees,
-            feeDistribution: feeDistConfig
-        });
+        ValenceVault.VaultConfig memory config = _getConfig();
 
-        vault.updateConfig(abi.encode(newConfig));
+        config.feeDistribution = feeDistConfig;
+
+        vault.updateConfig(abi.encode(config));
         vm.stopPrank();
     }
 
-    function setFees(uint32 depositFee, uint32 platformFee, uint32 performanceFee, uint256 solverCompletionFee)
+    function setFees(uint32 depositFee, uint32 platformFee, uint32 performanceFee, uint64 solverCompletionFee)
         internal
         returns (ValenceVault.FeeConfig memory)
     {
@@ -144,59 +131,67 @@ abstract contract VaultHelper is Test {
             solverCompletionFee: solverCompletionFee
         });
 
-        (
-            BaseAccount _depositAccount,
-            BaseAccount _withdrawAccount,
-            address _strategist,
-            uint256 _depositCap,
-            uint32 _maxWithdrawFee,
-            uint64 _withdrawLockupPeriod,
-            ,
-            ValenceVault.FeeDistributionConfig memory _feeDistribution
-        ) = vault.config();
+        ValenceVault.VaultConfig memory config = _getConfig();
 
-        ValenceVault.VaultConfig memory newConfig = ValenceVault.VaultConfig(
-            _depositAccount,
-            _withdrawAccount,
-            _strategist,
-            _depositCap,
-            _maxWithdrawFee,
-            _withdrawLockupPeriod,
-            feeConfig,
-            _feeDistribution
-        );
+        config.fees = feeConfig;
 
-        vault.updateConfig(abi.encode(newConfig));
+        vault.updateConfig(abi.encode(config));
         vm.stopPrank();
 
         return feeConfig;
     }
 
-    function setDepositCap(uint256 newCap) internal {
+    function setDepositCap(uint128 newCap) internal {
         vm.startPrank(owner);
+        ValenceVault.VaultConfig memory config = _getConfig();
+
+        config.depositCap = newCap;
+
+        vault.updateConfig(abi.encode(config));
+        vm.stopPrank();
+    }
+
+    // Helper function to get current config
+    function _getConfig() internal view returns (ValenceVault.VaultConfig memory) {
         (
             BaseAccount _depositAccount,
             BaseAccount _withdrawAccount,
             address _strategist,
-            ,
-            uint32 _maxWithdrawFee,
-            uint64 _withdrawLockupPeriod,
             ValenceVault.FeeConfig memory _fees,
-            ValenceVault.FeeDistributionConfig memory _feeDistribution
+            ValenceVault.FeeDistributionConfig memory _feeDistribution,
+            uint128 _depositCap,
+            uint64 _withdrawLockupPeriod,
+            uint32 _maxWithdrawFeeBps
         ) = vault.config();
 
-        ValenceVault.VaultConfig memory newConfig = ValenceVault.VaultConfig(
-            _depositAccount,
-            _withdrawAccount,
-            _strategist,
-            newCap,
-            _maxWithdrawFee,
-            _withdrawLockupPeriod,
-            _fees,
-            _feeDistribution
-        );
+        return ValenceVault.VaultConfig({
+            depositAccount: _depositAccount,
+            withdrawAccount: _withdrawAccount,
+            strategist: _strategist,
+            depositCap: _depositCap,
+            maxWithdrawFeeBps: _maxWithdrawFeeBps,
+            withdrawLockupPeriod: _withdrawLockupPeriod,
+            fees: _fees,
+            feeDistribution: _feeDistribution
+        });
+    }
 
-        vault.updateConfig(abi.encode(newConfig));
-        vm.stopPrank();
+    function _getPackedValues() internal view returns (ValenceVault.PackedValues memory) {
+        (uint32 currentUpdateId, uint64 nextWithdrawRequestId, bool pauser, bool paused) = vault.packedValues();
+
+        return ValenceVault.PackedValues({
+            currentUpdateId: currentUpdateId,
+            nextWithdrawRequestId: nextWithdrawRequestId,
+            pauser: pauser,
+            paused: paused
+        });
+    }
+
+    function _update(uint256 newRate, uint32 newWithdrawFee, uint256 nettingAmount) public {
+        // Add block and time
+        vm.roll(vm.getBlockNumber() + 1);
+        vm.warp(vm.getBlockTimestamp() + 12);
+
+        vault.update(newRate, newWithdrawFee, nettingAmount);
     }
 }

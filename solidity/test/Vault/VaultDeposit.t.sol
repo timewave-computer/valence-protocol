@@ -35,7 +35,7 @@ contract ValenceVaultDepositTest is VaultHelper {
     }
 
     function testDepositWithCap() public {
-        uint256 cap = 5000;
+        uint128 cap = 5000;
         setDepositCap(cap);
 
         vm.startPrank(user);
@@ -55,7 +55,7 @@ contract ValenceVaultDepositTest is VaultHelper {
     }
 
     function testMintWithCap() public {
-        uint256 cap = 5000;
+        uint128 cap = 5000;
         setDepositCap(cap);
 
         vm.startPrank(user);
