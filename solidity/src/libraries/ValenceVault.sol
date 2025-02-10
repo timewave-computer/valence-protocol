@@ -106,7 +106,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         address receiver; // Receiver of the withdrawn assets
         uint64 updateId; // Next update ID
         uint64 solverFee; // Fee for solver completion (only used in solver mapping)
-        uint128 sharesAmount; // Amount of shares to be redeemed
+        uint256 sharesAmount; // Amount of shares to be redeemed
     }
 
     // Struct to store information about each update
@@ -155,7 +155,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     // Fees to be collected in asset
     uint128 public feesOwedInAsset;
     // The total amount we should withdraw in the next update
-    uint128 public totalAssetsToWithdrawNextUpdate;
+    uint256 public totalAssetsToWithdrawNextUpdate;
 
     // Separate mappings for the actual requests
     mapping(address => WithdrawRequest) public userWithdrawRequest;
@@ -581,16 +581,13 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     {
         _validateWithdrawParams(receiver, owner, assets, maxLossBps);
 
-        // Calculate shares needed for the requested assets
-        uint256 shares = previewWithdraw(assets);
-
         // Check if assets exceed max withdraw amount
         uint256 maxAssets = maxWithdraw(owner);
         if (assets > maxAssets) {
             revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
         }
 
-        _withdraw(shares, assets, receiver, owner, maxLossBps, allowSolverCompletion);
+        _withdraw(previewWithdraw(assets), assets, receiver, owner, maxLossBps, allowSolverCompletion);
     }
 
     /**
@@ -669,7 +666,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     {
         // Get the withdrawal request
         WithdrawRequest memory request = userWithdrawRequest[owner];
-        uint256 shares = uint256(request.sharesAmount);
+        uint256 shares = request.sharesAmount;
 
         // Check if request exists
         if (shares == 0) {
@@ -786,10 +783,10 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         uint64 updateId = _packedValues.currentUpdateId + 1;
 
         // Update the total to withdraw on next update
-        totalAssetsToWithdrawNextUpdate += uint128(assetsToWithdraw);
+        totalAssetsToWithdrawNextUpdate += assetsToWithdraw;
 
         WithdrawRequest memory request = WithdrawRequest({
-            sharesAmount: uint128(shares),
+            sharesAmount: shares,
             claimTime: uint64(block.timestamp + _withdrawLockupPeriod),
             maxLossBps: maxLossBps,
             solverFee: _solverFee,
@@ -877,7 +874,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     ) internal {
         PackedValues memory _packedValues = packedValues;
         uint256 _redemptionRate = redemptionRate;
-        uint128 _totalAssetsToWithdraw = totalAssetsToWithdrawNextUpdate;
+        uint256 _totalAssetsToWithdraw = totalAssetsToWithdrawNextUpdate;
 
         // Check deposit account balance and validate netting amount
         if (nettingAmount > 0) {
