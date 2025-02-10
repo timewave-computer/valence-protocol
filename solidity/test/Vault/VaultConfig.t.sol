@@ -173,7 +173,7 @@ contract VaultConfigTest is VaultHelper {
         ValenceVault.VaultConfig memory invalidConfig = _getConfig();
         invalidConfig.maxWithdrawFeeBps = uint32(BASIS_POINTS + 1);
 
-        vm.expectRevert(ValenceVault.InvalidMaxWithdrawFee.selector);
+        vm.expectRevert(ValenceVault.InvalidMaxWithdrawFeeBps.selector);
         vault.updateConfig(abi.encode(invalidConfig));
 
         // Test zero lockup period

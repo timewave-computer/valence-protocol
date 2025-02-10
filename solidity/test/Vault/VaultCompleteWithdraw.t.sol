@@ -566,22 +566,22 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         }
     }
 
-   function testWithdrawFundsReturnToDepositOnMaxLossExceeded() public {
+    function testWithdrawFundsReturnToDepositOnMaxLossExceeded() public {
         console.log("Starting test...");
-        
+
         // Setup initial state
-        uint32 withdrawFee = 100;  // 1% fee
+        uint32 withdrawFee = 100; // 1% fee
 
         console.log("Initial balances:");
         console.log("Withdraw Account:", token.balanceOf(address(withdrawAccount)));
         console.log("Deposit Account:", token.balanceOf(address(depositAccount)));
         console.log("User token balance:", token.balanceOf(user));
         console.log("User vault shares:", vault.balanceOf(user));
-        
+
         // Track initial balances
         uint256 withdrawAccountBalanceBefore = token.balanceOf(address(withdrawAccount));
         uint256 depositAccountBalanceBefore = token.balanceOf(address(depositAccount));
-        
+
         console.log("Creating withdraw request...");
         // Create withdraw request
         vm.startPrank(user);
@@ -610,7 +610,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         uint256 newRate = ONE_SHARE.mulDiv(BASIS_POINTS - 600, BASIS_POINTS);
         uint256 loss = WITHDRAW_AMOUNT.mulDiv(600, BASIS_POINTS);
         console.log("New rate:", newRate);
-        
+
         vm.startPrank(strategist);
         vault.update(newRate, withdrawFee, 0);
         vm.stopPrank();
@@ -621,11 +621,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         console.log("Withdraw fee:", withdrawFee);
         console.log("BASIS_POINTS:", BASIS_POINTS);
 
-        uint256 refundShares = sharesToWithdraw.mulDiv(
-            BASIS_POINTS - withdrawFee, 
-            BASIS_POINTS, 
-            Math.Rounding.Floor
-        );
+        uint256 refundShares = sharesToWithdraw.mulDiv(BASIS_POINTS - withdrawFee, BASIS_POINTS, Math.Rounding.Floor);
         console.log("Refund shares calculated:", refundShares);
 
         console.log("Completing withdraw...");
