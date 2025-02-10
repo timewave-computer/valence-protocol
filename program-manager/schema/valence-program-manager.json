@@ -506,6 +506,22 @@
           }
         ]
       },
+      "EncoderInfo": {
+        "type": "object",
+        "required": [
+          "broker_address",
+          "encoder_version"
+        ],
+        "properties": {
+          "broker_address": {
+            "type": "string"
+          },
+          "encoder_version": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "Expiration": {
         "description": "Expiration represents a point in time when some event happens. It can compare with a BlockInfo and will return is_expired() == true once the condition is hit (and for every block in the future)",
         "oneOf": [
@@ -1440,10 +1456,37 @@
         "additionalProperties": false
       },
       "MessageType": {
-        "type": "string",
-        "enum": [
-          "cosmwasm_execute_msg",
-          "cosmwasm_migrate_msg"
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "cosmwasm_execute_msg",
+              "cosmwasm_migrate_msg",
+              "evm_raw_call"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "evm_call"
+            ],
+            "properties": {
+              "evm_call": {
+                "type": "array",
+                "items": [
+                  {
+                    "$ref": "#/definitions/EncoderInfo"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          }
         ]
       },
       "NonAtomicFunction": {
@@ -1664,6 +1707,18 @@
                 ],
                 "maxItems": 2,
                 "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "must_be_bytes"
+            ],
+            "properties": {
+              "must_be_bytes": {
+                "$ref": "#/definitions/Binary"
               }
             },
             "additionalProperties": false

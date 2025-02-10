@@ -18,6 +18,8 @@ local-ic start neutron_juno --api-port 42069
 
 This will start a local environment with a Gaia chain, a Neutron (using ICS) chain and a Juno chain. The `--api-port` will expose the API on port 42069, we are using this port in our local-ic-utils crate so let's use the same to reuse some of the utils there.
 
+For tests that involve EVM chains, the chains and relayer are started from the test itself so no need to start them manually.
+
 ## Optimize Contracts
 
 Use CosmWasm optimizer to optimize contracts and store the results in `./artifacts`

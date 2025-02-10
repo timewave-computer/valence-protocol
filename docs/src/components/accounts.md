@@ -8,9 +8,9 @@ A **Valence Account** is an escrow contract that can hold balances for various s
 Using a simple _token swap program_ as an example: the program receives an amount of **Token A** in an **input account** and will **swap** these **Token A** for **Token B** using a **DEX** on the **same domain** (e.g., Neutron). After the swap operation, the received amount of **Token B** will be temporarily held in a **transfer account** before being transfered to a final **output account** on another domain (e.g., Osmosis).
 
 For this, the program will create the following accounts:
-- A **Valence Account** is created on the **Neutron domain** to act as the **Input account**.
-- A **Valence Account** is created on the **Neutron domain** to act as the **Transfer account**.
-- A **Valence Account** is created on the **Osmosis domain** to act as the **Output account**.
+- A **Valence Base Account** is created on the **Neutron domain** to act as the **Input account**.
+- A **Valence Base Account** is created on the **Neutron domain** to act as the **Transfer account**.
+- A **Valence Base Account** is created on the **Osmosis domain** to act as the **Output account**.
 
 ```mermaid
 ---
@@ -34,4 +34,8 @@ graph LR
 ```
 Note: this is a simplified representation.
 
-**Valence Accounts** do not perform any operation by themselves on the held funds. The operations are performed by **[Valence Libraries](./libraries_and_functions.md)**.
+**Valence Base Accounts** do not perform any operation by themselves on the held funds, the operations are performed by **[Valence Libraries](./libraries_and_functions.md)**.
+
+## Valence Storage Account
+
+TODO
