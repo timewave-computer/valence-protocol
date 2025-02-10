@@ -1080,29 +1080,35 @@ fn process_polytone_callback(
                 ));
             }
 
+            // Ensure we are working with a CosmWasm Polytone environment
+            let polytone_connectors = match &mut external_domain.execution_environment {
+                ExecutionEnvironment::Cosmwasm(CosmwasmBridge::Polytone(polytone_info)) => {
+                    polytone_info
+                }
+                _ => {
+                    // Unreachable
+                    return Err(ContractError::Message(
+                        MessageErrorReason::InvalidPolytoneCallback {},
+                    ));
+                }
+            };
+
             match callback_msg.result {
                 Callback::Execute(result) => {
                     // If the result is a timeout, we will update the state of the connector to timeout otherwise we will update to Created
                     if result == Err("timeout".to_string())
-                        && external_domain
-                            .execution_environment
-                            .get_polytone_proxy_state()
-                            == Some(PolytoneProxyState::PendingResponse)
+                        && polytone_connectors.get_polytone_proxy_state()
+                            == PolytoneProxyState::PendingResponse
                     {
-                        external_domain
-                            .execution_environment
-                            .set_polytone_proxy_state(PolytoneProxyState::TimedOut)?
+                        polytone_connectors.set_polytone_proxy_state(PolytoneProxyState::TimedOut)
                     } else {
-                        external_domain
-                            .execution_environment
-                            .set_polytone_proxy_state(PolytoneProxyState::Created)?
+                        polytone_connectors.set_polytone_proxy_state(PolytoneProxyState::Created)
                     }
                 }
                 Callback::FatalError(error) => {
                     // We should never run out of gas for executing an empty array of messages, but in the case we do we'll log it
-                    external_domain
-                        .execution_environment
-                        .set_polytone_proxy_state(PolytoneProxyState::UnexpectedError(error))?
+                    polytone_connectors
+                        .set_polytone_proxy_state(PolytoneProxyState::UnexpectedError(error))
                 }
                 // Should never happen because we don't do queries
                 Callback::Query(_) => {

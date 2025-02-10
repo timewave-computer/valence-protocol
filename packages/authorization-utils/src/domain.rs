@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, StdError, StdResult};
+use cosmwasm_std::Addr;
 
 #[cw_serde]
 pub enum Domain {
@@ -42,34 +42,6 @@ impl ExecutionEnvironment {
             }
         }
     }
-
-    pub fn get_polytone_proxy_state(&self) -> Option<PolytoneProxyState> {
-        match self {
-            ExecutionEnvironment::Cosmwasm(CosmwasmBridge::Polytone(polytone_info)) => {
-                Some(polytone_info.polytone_note.state.clone())
-            }
-            ExecutionEnvironment::Evm(_, _) => None,
-        }
-    }
-
-    pub fn set_polytone_proxy_state(&mut self, state: PolytoneProxyState) -> StdResult<()> {
-        match self {
-            ExecutionEnvironment::Cosmwasm(CosmwasmBridge::Polytone(polytone_info)) => {
-                polytone_info.polytone_note.state = state;
-                Ok(())
-            }
-            ExecutionEnvironment::Evm(_, _) => Err(StdError::generic_err(
-                "EVM domain does not have a polytone proxy state",
-            )),
-        }
-    }
-
-    pub fn get_encoder(&self) -> Option<&Encoder> {
-        match self {
-            ExecutionEnvironment::Cosmwasm(_) => None,
-            ExecutionEnvironment::Evm(encoder, _) => Some(encoder),
-        }
-    }
 }
 
 #[cw_serde]
@@ -86,6 +58,16 @@ pub enum EvmBridge {
 pub struct PolytoneConnectors {
     pub polytone_note: PolytoneNote,
     pub polytone_proxy: Addr,
+}
+
+impl PolytoneConnectors {
+    pub fn get_polytone_proxy_state(&self) -> PolytoneProxyState {
+        self.polytone_note.state.clone()
+    }
+
+    pub fn set_polytone_proxy_state(&mut self, state: PolytoneProxyState) {
+        self.polytone_note.state = state;
+    }
 }
 
 #[cw_serde]
