@@ -230,9 +230,9 @@ graph LR
 <p>Using a simple <em>token swap program</em> as an example: the program receives an amount of <strong>Token A</strong> in an <strong>input account</strong> and will <strong>swap</strong> these <strong>Token A</strong> for <strong>Token B</strong> using a <strong>DEX</strong> on the <strong>same domain</strong> (e.g., Neutron). After the swap operation, the received amount of <strong>Token B</strong> will be temporarily held in a <strong>transfer account</strong> before being transfered to a final <strong>output account</strong> on another domain (e.g., Osmosis).</p>
 <p>For this, the program will create the following accounts:</p>
 <ul>
-<li>A <strong>Valence Account</strong> is created on the <strong>Neutron domain</strong> to act as the <strong>Input account</strong>.</li>
-<li>A <strong>Valence Account</strong> is created on the <strong>Neutron domain</strong> to act as the <strong>Transfer account</strong>.</li>
-<li>A <strong>Valence Account</strong> is created on the <strong>Osmosis domain</strong> to act as the <strong>Output account</strong>.</li>
+<li>A <strong>Valence Base Account</strong> is created on the <strong>Neutron domain</strong> to act as the <strong>Input account</strong>.</li>
+<li>A <strong>Valence Base Account</strong> is created on the <strong>Neutron domain</strong> to act as the <strong>Transfer account</strong>.</li>
+<li>A <strong>Valence Base Account</strong> is created on the <strong>Osmosis domain</strong> to act as the <strong>Output account</strong>.</li>
 </ul>
 <pre class="mermaid">---
 title: Valence Token Swap Program
@@ -254,7 +254,9 @@ graph LR
   end
 </pre>
 <p>Note: this is a simplified representation.</p>
-<p><strong>Valence Accounts</strong> do not perform any operation by themselves on the held funds. The operations are performed by <strong><a href="components/./libraries_and_functions.html">Valence Libraries</a></strong>.</p>
+<p><strong>Valence Base Accounts</strong> do not perform any operation by themselves on the held funds, the operations are performed by <strong><a href="components/./libraries_and_functions.html">Valence Libraries</a></strong>.</p>
+<h2 id="valence-storage-account"><a class="header" href="#valence-storage-account">Valence Storage Account</a></h2>
+<p>TODO</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="libraries-and-functions"><a class="header" href="#libraries-and-functions">Libraries and Functions</a></h1>
 <p><strong>Valence Libraries</strong> contain the business logic that can be applied to the funds held by <strong>Valence Accounts</strong>. Most often, this logic is about <em>performing operations on tokens</em>, such as splitting, routing, or providing liquidity on a DEX. A <strong>Valence Account</strong> has to first approve (authorize) a <strong>Valence Library</strong> for it to perform operations on that account's balances. <strong>Valence Libraries</strong> expose <strong>Functions</strong> that it supports. <strong>Valence Programs</strong> can be composed of a more or less complex graph of <strong>Valence Accounts</strong> and <strong>Valence Libraries</strong> to form a more or less sophisticated cross-chain workflow. During the course of a <strong>Valence Program</strong>'s execution, <strong>Functions</strong> are called by external parties that trigger the library's operations on the linked accounts.</p>
 <p>A typical pattern for a <strong>Valence Library</strong> is to have one (or more) <strong>input account(s)</strong> and one (or more) <strong>output account(s)</strong>. While many libraries implement this pattern, it is by no means a requirement.</p>
@@ -1622,7 +1624,7 @@ which in turn enables the following functionality:</p>
 <li><code>decode_and_reconstruct</code>, allowing to reconstruct the interchain query result</li>
 </ol>
 <p>Read more about the given type ICQ integration in the <a href="libraries/./../middleware/type_registry.html#neutron-interchain-query-integration">type registry documentation page</a>.</p>
-<h3 id="valence-storage-account"><a class="header" href="#valence-storage-account">Valence Storage account</a></h3>
+<h3 id="valence-storage-account-1"><a class="header" href="#valence-storage-account-1">Valence Storage account</a></h3>
 <p>Results received and meant for further processing by other libraries will be stored in
 <a href="libraries/./../components/storage_account.html">Storage Accounts</a>. Each instance of Neutron
 IC querier will be associated with its own storage account.</p>
