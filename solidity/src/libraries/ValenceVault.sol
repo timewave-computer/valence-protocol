@@ -623,7 +623,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @param owner The owner of the withdrawal request
      */
     function completeWithdraw(address owner) external nonReentrant whenNotPaused {
-        WithdrawResult memory result = _processWithdrawComplete(owner, true);
+        WithdrawResult memory result = _processWithdrawComplete(owner, true, config.depositAccount, config.withdrawAccount);
 
         // Handle solver fee if successful
         if (result.solverFee > 0) {
@@ -640,7 +640,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         uint256 totalSolverFee = 0;
 
         for (uint256 i = 0; i < owners.length; i++) {
-            WithdrawResult memory result = _processWithdrawComplete(owners[i], false);
+            WithdrawResult memory result = _processWithdrawComplete(owners[i], false, config.depositAccount, config.withdrawAccount);
 
             if (!result.success) {
                 emit WithdrawCompletionSkipped(owners[i], result.errorReason);
@@ -663,15 +663,16 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @param revertOnFailure If true, reverts on failure instead of returning result
      * @return result The withdraw completion result
      */
-    function _processWithdrawComplete(address owner, bool revertOnFailure)
+    function _processWithdrawComplete(address owner, bool revertOnFailure, BaseAccount depositAccount, BaseAccount withdrawAccount)
         internal
         returns (WithdrawResult memory result)
     {
         // Get the withdrawal request
         WithdrawRequest memory request = userWithdrawRequest[owner];
+        uint256 shares = uint256(request.sharesAmount);
 
         // Check if request exists
-        if (request.sharesAmount == 0) {
+        if (shares == 0) {
             if (revertOnFailure) revert WithdrawRequestNotFound();
             return WithdrawResult(false, 0, 0, "Request not found");
         }
@@ -692,8 +693,6 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         uint256 _redemptionRate = redemptionRate;
         UpdateInfo memory updateInfo = updateInfos[request.updateId];
         uint256 assetsToWithdraw;
-        BaseAccount depositAccount = config.depositAccount;
-        BaseAccount withdrawAccount = config.withdrawAccount;
 
         // The current withdrawRate is the redemption rate minus the update withdraw fee
         uint256 currentWithdrawRate = _redemptionRate.mulDiv(BASIS_POINTS - updateInfo.withdrawFee, BASIS_POINTS);
@@ -706,7 +705,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
 
             // If the loss is greater than the max loss, refund the shares
             if (lossBps > request.maxLossBps) {
-                uint256 refundShares = uint256(request.sharesAmount).mulDiv(
+                uint256 refundShares = shares.mulDiv(
                     BASIS_POINTS - updateInfo.withdrawFee, BASIS_POINTS, Math.Rounding.Floor
                 );
 
@@ -715,10 +714,11 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
                 // Loss too high, refund shares minus the withdraw fee
                 _mint(owner, refundShares);
 
-                assetsToWithdraw = refundShares.mulDiv(_redemptionRate, ONE_SHARE, Math.Rounding.Floor);
-                bytes memory transferCalldata =
+                assetsToWithdraw = shares.mulDiv(_redemptionRate, ONE_SHARE, Math.Rounding.Floor);
+
+                bytes memory refundTransferCalldata =
                     abi.encodeCall(IERC20.transfer, (address(depositAccount), assetsToWithdraw));
-                withdrawAccount.execute(asset(), 0, transferCalldata);
+                withdrawAccount.execute(asset(), 0, refundTransferCalldata);
 
                 emit WithdrawCancelled(owner, refundShares, lossBps, request.maxLossBps);
 
@@ -726,10 +726,10 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
             }
 
             // If the loss is acceptable, calculate the assets to withdraw
-            assetsToWithdraw = uint256(request.sharesAmount).mulDiv(currentWithdrawRate, ONE_SHARE, Math.Rounding.Floor);
+            assetsToWithdraw = shares.mulDiv(currentWithdrawRate, ONE_SHARE, Math.Rounding.Floor);
         } else {
             assetsToWithdraw =
-                uint256(request.sharesAmount).mulDiv(updateInfo.withdrawRate, ONE_SHARE, Math.Rounding.Floor);
+                shares.mulDiv(updateInfo.withdrawRate, ONE_SHARE, Math.Rounding.Floor);
         }
 
         // Delete request before transfer to prevent reentrancy

@@ -14,6 +14,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
     address[] users;
     address solver;
     uint256 constant WITHDRAW_AMOUNT = 1000;
+    uint256 constant INITIAL_DEPOSIT_AMOUNT = 10000;
     uint32 constant MAX_LOSS = 500; // 5%
     uint256 constant NUM_USERS = 5;
 
@@ -29,7 +30,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         vm.deal(user, 1 ether);
 
         vm.startPrank(user);
-        vault.deposit(10000, user);
+        vault.deposit(INITIAL_DEPOSIT_AMOUNT, user);
         vm.stopPrank();
 
         // Create multiple users and set them up
@@ -44,7 +45,7 @@ contract VaultCompleteWithdrawTest is VaultHelper {
 
             vm.startPrank(newUser);
             token.approve(address(vault), type(uint256).max);
-            vault.deposit(10000, newUser);
+            vault.deposit(INITIAL_DEPOSIT_AMOUNT, newUser);
             vm.stopPrank();
 
             vm.deal(newUser, 1 ether);
@@ -563,6 +564,102 @@ contract VaultCompleteWithdrawTest is VaultHelper {
                 "Withdrawn amount should match exactly"
             );
         }
+    }
+
+   function testWithdrawFundsReturnToDepositOnMaxLossExceeded() public {
+        console.log("Starting test...");
+        
+        // Setup initial state
+        uint32 withdrawFee = 100;  // 1% fee
+
+        console.log("Initial balances:");
+        console.log("Withdraw Account:", token.balanceOf(address(withdrawAccount)));
+        console.log("Deposit Account:", token.balanceOf(address(depositAccount)));
+        console.log("User token balance:", token.balanceOf(user));
+        console.log("User vault shares:", vault.balanceOf(user));
+        
+        // Track initial balances
+        uint256 withdrawAccountBalanceBefore = token.balanceOf(address(withdrawAccount));
+        uint256 depositAccountBalanceBefore = token.balanceOf(address(depositAccount));
+        
+        console.log("Creating withdraw request...");
+        // Create withdraw request
+        vm.startPrank(user);
+        vault.withdraw(WITHDRAW_AMOUNT, user, user, MAX_LOSS, false);
+        vm.stopPrank();
+
+        // Get request details after creation
+        (,,,,,, uint256 sharesToWithdraw) = vault.userWithdrawRequest(user);
+        console.log("Withdraw request created with shares:", sharesToWithdraw);
+
+        console.log("Processing first update...");
+        // Process first update to transfer funds to withdraw account
+        vm.startPrank(strategist);
+        vault.update(ONE_SHARE, withdrawFee, WITHDRAW_AMOUNT);
+        vm.stopPrank();
+
+        console.log("After first update:");
+        console.log("Withdraw Account:", token.balanceOf(address(withdrawAccount)));
+        console.log("Deposit Account:", token.balanceOf(address(depositAccount)));
+
+        // Fast forward past lockup period
+        vm.warp(block.timestamp + 3 days + 1);
+
+        console.log("Updating rate with loss...");
+        // Update rate with 6% loss (exceeds max loss of 5%)
+        uint256 newRate = ONE_SHARE.mulDiv(BASIS_POINTS - 600, BASIS_POINTS);
+        uint256 loss = WITHDRAW_AMOUNT.mulDiv(600, BASIS_POINTS);
+        console.log("New rate:", newRate);
+        
+        vm.startPrank(strategist);
+        vault.update(newRate, withdrawFee, 0);
+        vm.stopPrank();
+
+        // Calculate expected refund
+        console.log("Calculating refund...");
+        console.log("Shares to withdraw:", sharesToWithdraw);
+        console.log("Withdraw fee:", withdrawFee);
+        console.log("BASIS_POINTS:", BASIS_POINTS);
+
+        uint256 refundShares = sharesToWithdraw.mulDiv(
+            BASIS_POINTS - withdrawFee, 
+            BASIS_POINTS, 
+            Math.Rounding.Floor
+        );
+        console.log("Refund shares calculated:", refundShares);
+
+        console.log("Completing withdraw...");
+        // Complete withdraw (should fail due to max loss and refund)
+        vm.prank(user);
+        vault.completeWithdraw(user);
+
+        console.log("Final balances:");
+        console.log("Withdraw Account:", token.balanceOf(address(withdrawAccount)));
+        console.log("Deposit Account:", token.balanceOf(address(depositAccount)));
+        console.log("User shares:", vault.balanceOf(user));
+
+        // Verify changes in account balances
+        assertEq(
+            depositAccountBalanceBefore - token.balanceOf(address(depositAccount)),
+            loss,
+            "Deposit account should receive refunded assets"
+        );
+
+        // The withdraw account should still only have the "loss" in it,
+        // In test the loss is not "lost" to the position
+        assertEq(
+            token.balanceOf(address(withdrawAccount)) - withdrawAccountBalanceBefore,
+            loss,
+            "Withdraw account balance should decrease by refunded amount"
+        );
+
+        // Verify user received refunded shares
+        uint256 userSharesAfterRefund = vault.balanceOf(user);
+        assertEq(
+            userSharesAfterRefund,
+            INITIAL_DEPOSIT_AMOUNT - WITHDRAW_AMOUNT + refundShares,
+            "User should have received correct amount of refunded shares"
+        );
     }
 }
 
