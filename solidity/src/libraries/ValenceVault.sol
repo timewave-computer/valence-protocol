@@ -41,7 +41,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     error InvalidFeeConfiguration();
     error InvalidFeeDistribution();
     error InvalidWithdrawLockupPeriod();
-    error InvalidMaxWithdrawFee();
+    error InvalidMaxWithdrawFeeBps();
     error InvalidPlatformAccount();
     error InvalidStrategistAccount();
 
@@ -252,7 +252,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
             revert InvalidStrategistAccount();
         }
         if (decodedConfig.maxWithdrawFeeBps > BASIS_POINTS) {
-            revert InvalidMaxWithdrawFee();
+            revert InvalidMaxWithdrawFeeBps();
         }
         if (decodedConfig.withdrawLockupPeriod == 0) {
             revert InvalidWithdrawLockupPeriod();
@@ -489,6 +489,8 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @param newRate New redemption rate being set
      * @param currentTotalAssets Current total assets in vault
      * @param currentTotalShares Current total shares
+     * @param platformFeeBps Platform fee in bps
+     * @param _lastUpdateTimestamp Timestamp of the last update
      * @return platformFees Amount of platform fees to collect
      */
     function calculatePlatformFees(
