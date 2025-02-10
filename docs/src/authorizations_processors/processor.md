@@ -1,29 +1,30 @@
 # Processor
 
-The `Processor` will be a contract on each domain of our workflow. It handles the execution queues which contain `Message Batches`. The `Processor` can be `ticked` permissionlessly, which will execute the next `Message Batch` in the queue if this one is executable or rotate it to the back of the queue if it isn't executable yet. The processor will also handle the `Retry` logic for each batch (if the batch is atomic) or function (if the batch is non atomic). After a `Message Batch` has been executed successfully or it reached the maximum amount of retries, it will be removed from the execution queue and the `Processor` will send a callback with the execution information to the `Authorization` contract.
+This version of the processor is currently available for `CosmWasm` Execution Environment only. It contains all the features and full functionality of the processor as described below.
 
-The processors will be instantiated in advance with the correct address that can send messages to them, according to the _InstantiationFlow_ described in the [Assumptions](assumptions.md) section.
+It handles two execution queues: `High` and `Med`, which allow giving different priorities to `Message Batches`. The authorization contract will send the `Message Batches` to the processor specifying the priority of the queue where they should be enqueued.
 
-The `Authorization` contract will be the only address allowed to add list of functions to the execution queues. It will also be allowed to Pause/Resume the `Processor` or to arbitrarily remove functions from the queues or add certain messages at a specific position.
+The `Processor` can be `ticked` permissionlessly, which will trigger the execution of the `Message Batches` in the queues in a `FIFO` manner. It will handle the `Retry` logic for each batch (if the batch is atomic) or function (if the batch is non-atomic). In the particular case that the current batch at the top of the queue is not retriable yet, the processor will rotate it to the back of the queue. After a `Message Batch` has been executed successfully or it reached the maximum amount of retries, it will be removed from the execution queue and the `Processor` will send a callback with the execution information to the `Authorization` contract.
 
-There will be two execution queues: one `High` and one `Med`. This will allow giving different priorities to `Message`.
+The `Authorization` contract will be the only address allowed to add `Message Batches` to the execution queues. It will also be allowed to Pause/Resume the `Processor` or to arbitrarily remove functions from the queues or add certain messages at a specific position in any of them.
 
 ### Execution
 
-When a processor is `Ticked` we will take the first `MessageBatch` from the queue (`High` if there are batches there or `Med` if there aren’t).
+When a processor is `Ticked`, the first `Message Batch` will be taken from the queue (`High` if there are batches there or `Med` if there aren’t).
 After taking them, we will execute them in different ways depending if the batch is `Atomic` or `NonAtomic`.
 
-- For `Atomic` batches, the `Processor` will execute them by sending them to itself and trying to execute them in a `Fire and Forget` manner. If this execution fails, we will check the `RetryLogic` of the batch to decide if they are to be re-queued or not (if not, we will send a callback with `Rejected` status to the authorization contract).
-  If they succeeded we will send a callback with `Executed` status to the Authorization contract.
-- For `NonAtomic` batches, we will execute the functions one by one and applying the RetryLogic individually to each function if they fail. `NonAtomic` functions might also be confirmed via `CallbackConfirmations` in which case we will keep them in a separate Map until we receive that specific callback.
+- For `Atomic` batches, the `Processor` will execute either all of the functions or none of them. If this execution fails, we will check the `RetryLogic` of the batch to decide if the match is to be re-queued or not. If not, we will send a callback with `Rejected(error)` status to the authorization contract).
+  If the execution succeeded we will send a callback with `Executed` status to the Authorization contract.
+
+- For `NonAtomic` batches, we will execute the functions one by one and applying the RetryLogic individually to each function if they fail. `NonAtomic` functions might also be confirmed via `CallbackConfirmations` in which case we will keep them in a separate storage location until we receive that specific callback.
   Each time a function is confirmed, we will re-queue the batch and keep track of what function we have to execute next.
-  If at some point a function uses up all its retries, we will send a callback to the Authorization contract with a `PartiallyExecuted(num_of_functions_executed)` status. If all of them succeed it will be `Executed` and if none of them were it will be `Rejected`.
+  If at some point a function uses up all its retries, we will send a callback to the Authorization contract with a `PartiallyExecuted(num_of_functions_executed, execution_error)` status. If all of them succeed it will be `Executed` and if none of them were it will be `Rejected(error)`.
   For `NonAtomic` batches, we need to tick the processor each time the batch is at the top of the queue to continue, so we will need at least as many ticks as number of functions we have in the batch, and each function has to wait for its turn.
 
 ### Storage
 
-The `Processor` will receive batches of messages from the authorization contract and will enqueue them in a custom storage structure we designed for this purpose, called a `QueueMap`. This structure is a FIFO queue with owner privileges (allows the owner to insert or remove from any position in the queue).
-Each “item” stored in the queue is an object `MessageBatch` that looks like this:
+The `Processor` will receive `Message Batches` from the authorization contract and will enqueue them in a custom storage structure we designed for this purpose, called a `QueueMap`. This structure is a FIFO queue with owner privileges (allows the owner to insert or remove from any position in the queue).
+Each “item” stored in the queue is a `MessageBatch` object that looks like this:
 
 ```rust
 pub struct MessageBatch {

@@ -4,8 +4,8 @@ When the contract is instantiated, it will be provided the following information
 
 - Processor contract on main domain.
 
-- `[(Domain, Connector(Polytone_note_contract), Processor_contract_on_domain, callback_proxy, IBC_Timeout_settings)]`: If it's a cross domain application, an array will be passed with each external domain label and its corresponding connector contracts and proxies that will be instantiated before hand. For each connector, there will be also a proxy corresponding to that external domain because it’s a two-way communication flow and we need to receive callbacks. Additionally, we need a set of `Timeout` settings for the bridge, to know for how long the messages sent through the connector are going to be valid.
+- Owner of the contract.
 
-- Admin of the contract (if different to sender).
+- List of Subowners (if any). Users that can execute the same actions as the owner except adding/removing other subowners.
 
-The instantiation will set up all the processors on each domain so that we can start instantiating the libraries afterwards and providing the correct `Processor` addresses to each of them depending on which domain they are in.
+Once the authorization contract is deployed, we can already start adding and executing authorizations on the domain that the authorization contract was deployed on. To execute functions on other domains, the owner will have to add external domains to the authorization contract with all the information required for the authorization contract to route the messages to that domain.

@@ -8,6 +8,8 @@ For the execution of `NonAtomic` batches, each function in the batch can optiona
 
 If the processor receives the expected callback from the correct address, the batch will move to the next function. If it receives a different callback than expected from that address, the execution of that function will be considered failed and it will be retried (if applicable). In any case, a callback must be received to determine if the function was successful or not.
 
+Note: This functionality is not available on the `LiteProcessor`, as this version of the processor is not able to receive asynchronous callbacks from libraries.
+
 ## Processor Callbacks
 
 Once a Processor batch is executed or it fails and there are no more retries available, the Processor will send a callback to the Authorizations contract with the execution_id of the batch and the result of the execution. All this information will be stored in the `Authorization` contract state so the history of all executions can be queried from it. This is how a `ProcessorCallback` looks like:
