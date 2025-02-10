@@ -356,3 +356,71 @@ pub enum QueryMsg {
     #[returns(InterchainSecurityModuleResponse)]
     IsmSpecifier(IsmSpecifierQueryMsg),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cosmwasm_std::Binary;
+
+    #[test]
+    fn test_cosmwasm_execute_msg_equality() {
+        let msg = ProcessorMessage::CosmwasmExecuteMsg {
+            msg: Binary::from(vec![1, 2, 3]),
+        };
+        let msg_type = MessageType::CosmwasmExecuteMsg;
+        assert!(msg.eq(&msg_type));
+    }
+
+    #[test]
+    fn test_cosmwasm_migrate_msg_equality() {
+        let msg = ProcessorMessage::CosmwasmMigrateMsg {
+            code_id: 1,
+            msg: Binary::from(vec![4, 5, 6]),
+        };
+        let msg_type = MessageType::CosmwasmMigrateMsg;
+        assert!(msg.eq(&msg_type));
+    }
+
+    #[test]
+    fn test_evm_call_equality() {
+        let bin_data = Binary::from(vec![7, 8, 9]);
+        let msg = ProcessorMessage::EvmCall {
+            msg: bin_data.clone(),
+        };
+        let msg_type = MessageType::EvmCall(
+            EncoderInfo {
+                broker_address: "any".to_string(),
+                encoder_version: "any".to_string(),
+            },
+            "library".to_string(),
+        );
+        assert!(msg.eq(&msg_type));
+    }
+
+    #[test]
+    fn test_evm_raw_call_equality() {
+        let msg = ProcessorMessage::EvmRawCall {
+            msg: Binary::from(vec![10, 11, 12]),
+        };
+        let msg_type = MessageType::EvmRawCall;
+        assert!(msg.eq(&msg_type));
+    }
+
+    #[test]
+    fn test_cosmwasm_execute_msg_inequality() {
+        let msg = ProcessorMessage::CosmwasmExecuteMsg {
+            msg: Binary::from(vec![1, 2, 3]),
+        };
+        let msg_type = MessageType::CosmwasmMigrateMsg;
+        assert!(!msg.eq(&msg_type));
+    }
+
+    #[test]
+    fn test_evm_call_inequality() {
+        let msg = ProcessorMessage::EvmCall {
+            msg: Binary::from(vec![7, 8, 9]),
+        };
+        let msg_type = MessageType::EvmRawCall;
+        assert!(!msg.eq(&msg_type));
+    }
+}
