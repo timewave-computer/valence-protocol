@@ -20,6 +20,7 @@
     - [Lite Processor](./authorizations_processors/lite_processor.md)
     - [Execution Environment Differences](./authorizations_processors/execution_environment_differences.md)
   - [Callbacks](./authorizations_processors/callbacks.md)
+  - [Connectors](./authorizations_processors/connectors.md)
   - [Encoding](./authorizations_processors/encoding.md)
 - [Libraries](./libraries/_overview.md)
   - [Cosmwasm](./libraries/cosmwasm/_overview.md)
