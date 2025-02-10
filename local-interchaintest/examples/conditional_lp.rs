@@ -1,5 +1,5 @@
+use cosmwasm_std::Uint128;
 use cosmwasm_std::{to_json_binary, Binary, Coin, Uint64};
-use cosmwasm_std::{to_json_string, Uint128};
 use cosmwasm_std_old::Coin as BankCoin;
 use local_interchaintest::utils::base_account::{approve_library, create_base_accounts};
 use local_interchaintest::utils::NTRN_DENOM;
