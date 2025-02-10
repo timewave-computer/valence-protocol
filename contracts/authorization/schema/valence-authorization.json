@@ -92,6 +92,18 @@
         "additionalProperties": false
       },
       {
+        "type": "object",
+        "required": [
+          "handle"
+        ],
+        "properties": {
+          "handle": {
+            "$ref": "#/definitions/HandleMsg"
+          }
+        },
+        "additionalProperties": false
+      },
+      {
         "description": "Update the contract's ownership. The `action` to be provided can be either to propose transferring ownership to an account, accept a pending ownership transfer, or renounce the ownership permanently.",
         "type": "object",
         "required": [
@@ -408,47 +420,16 @@
         },
         "additionalProperties": false
       },
-      "CallbackProxy": {
+      "CosmwasmBridgeInfo": {
         "oneOf": [
           {
             "type": "object",
             "required": [
-              "polytone_proxy"
+              "polytone"
             ],
             "properties": {
-              "polytone_proxy": {
-                "type": "string"
-              }
-            },
-            "additionalProperties": false
-          }
-        ]
-      },
-      "Connector": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "polytone_note"
-            ],
-            "properties": {
-              "polytone_note": {
-                "type": "object",
-                "required": [
-                  "address",
-                  "timeout_seconds"
-                ],
-                "properties": {
-                  "address": {
-                    "type": "string"
-                  },
-                  "timeout_seconds": {
-                    "type": "integer",
-                    "format": "uint64",
-                    "minimum": 0.0
-                  }
-                },
-                "additionalProperties": false
+              "polytone": {
+                "$ref": "#/definitions/PolytoneConnectorsInfo"
               }
             },
             "additionalProperties": false
@@ -511,6 +492,22 @@
           }
         ]
       },
+      "EncoderInfo": {
+        "type": "object",
+        "required": [
+          "broker_address",
+          "encoder_version"
+        ],
+        "properties": {
+          "broker_address": {
+            "type": "string"
+          },
+          "encoder_version": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ErrorResponse": {
         "type": "object",
         "required": [
@@ -555,10 +552,58 @@
         },
         "additionalProperties": false
       },
-      "ExecutionEnvironment": {
-        "type": "string",
-        "enum": [
-          "cosm_wasm"
+      "EvmBridgeInfo": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "hyperlane"
+            ],
+            "properties": {
+              "hyperlane": {
+                "$ref": "#/definitions/HyperlaneConnectorInfo"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "ExecutionEnvironmentInfo": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "cosmwasm"
+            ],
+            "properties": {
+              "cosmwasm": {
+                "$ref": "#/definitions/CosmwasmBridgeInfo"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "evm"
+            ],
+            "properties": {
+              "evm": {
+                "type": "array",
+                "items": [
+                  {
+                    "$ref": "#/definitions/EncoderInfo"
+                  },
+                  {
+                    "$ref": "#/definitions/EvmBridgeInfo"
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          }
         ]
       },
       "ExecutionResponse": {
@@ -704,21 +749,13 @@
       "ExternalDomainInfo": {
         "type": "object",
         "required": [
-          "callback_proxy",
-          "connector",
           "execution_environment",
           "name",
           "processor"
         ],
         "properties": {
-          "callback_proxy": {
-            "$ref": "#/definitions/CallbackProxy"
-          },
-          "connector": {
-            "$ref": "#/definitions/Connector"
-          },
           "execution_environment": {
-            "$ref": "#/definitions/ExecutionEnvironment"
+            "$ref": "#/definitions/ExecutionEnvironmentInfo"
           },
           "name": {
             "type": "string"
@@ -741,6 +778,50 @@
           },
           "contract_address": {
             "$ref": "#/definitions/Addr"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HandleMsg": {
+        "type": "object",
+        "required": [
+          "body",
+          "origin",
+          "sender"
+        ],
+        "properties": {
+          "body": {
+            "$ref": "#/definitions/HexBinary"
+          },
+          "origin": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          },
+          "sender": {
+            "$ref": "#/definitions/HexBinary"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HexBinary": {
+        "description": "This is a wrapper around Vec<u8> to add hex de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is similar to `cosmwasm_std::Binary` but uses hex. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+        "type": "string"
+      },
+      "HyperlaneConnectorInfo": {
+        "type": "object",
+        "required": [
+          "domain_id",
+          "mailbox"
+        ],
+        "properties": {
+          "domain_id": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          },
+          "mailbox": {
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -859,10 +940,37 @@
         "additionalProperties": false
       },
       "MessageType": {
-        "type": "string",
-        "enum": [
-          "cosmwasm_execute_msg",
-          "cosmwasm_migrate_msg"
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "cosmwasm_execute_msg",
+              "cosmwasm_migrate_msg",
+              "evm_raw_call"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "evm_call"
+            ],
+            "properties": {
+              "evm_call": {
+                "type": "array",
+                "items": [
+                  {
+                    "$ref": "#/definitions/EncoderInfo"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          }
         ]
       },
       "Mint": {
@@ -1051,6 +1159,18 @@
                 ],
                 "maxItems": 2,
                 "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "must_be_bytes"
+            ],
+            "properties": {
+              "must_be_bytes": {
+                "$ref": "#/definitions/Binary"
               }
             },
             "additionalProperties": false
@@ -1479,6 +1599,40 @@
           }
         ]
       },
+      "PolytoneConnectorsInfo": {
+        "type": "object",
+        "required": [
+          "polytone_note",
+          "polytone_proxy"
+        ],
+        "properties": {
+          "polytone_note": {
+            "$ref": "#/definitions/PolytoneNoteInfo"
+          },
+          "polytone_proxy": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PolytoneNoteInfo": {
+        "type": "object",
+        "required": [
+          "address",
+          "timeout_seconds"
+        ],
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "timeout_seconds": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        },
+        "additionalProperties": false
+      },
       "Priority": {
         "type": "string",
         "enum": [
@@ -1527,6 +1681,48 @@
                     "format": "uint64",
                     "minimum": 0.0
                   },
+                  "msg": {
+                    "$ref": "#/definitions/Binary"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "evm_call"
+            ],
+            "properties": {
+              "evm_call": {
+                "type": "object",
+                "required": [
+                  "msg"
+                ],
+                "properties": {
+                  "msg": {
+                    "$ref": "#/definitions/Binary"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "evm_raw_call"
+            ],
+            "properties": {
+              "evm_raw_call": {
+                "type": "object",
+                "required": [
+                  "msg"
+                ],
+                "properties": {
                   "msg": {
                     "$ref": "#/definitions/Binary"
                   }
@@ -1882,6 +2078,18 @@
         "additionalProperties": false
       },
       {
+        "type": "object",
+        "required": [
+          "ism_specifier"
+        ],
+        "properties": {
+          "ism_specifier": {
+            "$ref": "#/definitions/IsmSpecifierQueryMsg"
+          }
+        },
+        "additionalProperties": false
+      },
+      {
         "description": "Query the contract's ownership information",
         "type": "object",
         "required": [
@@ -1895,7 +2103,28 @@
         },
         "additionalProperties": false
       }
-    ]
+    ],
+    "definitions": {
+      "IsmSpecifierQueryMsg": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "interchain_security_module"
+            ],
+            "properties": {
+              "interchain_security_module": {
+                "type": "array",
+                "items": [],
+                "maxItems": 0,
+                "minItems": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
   },
   "migrate": null,
   "sudo": null,
@@ -2088,6 +2317,22 @@
             }
           ]
         },
+        "EncoderInfo": {
+          "type": "object",
+          "required": [
+            "broker_address",
+            "encoder_version"
+          ],
+          "properties": {
+            "broker_address": {
+              "type": "string"
+            },
+            "encoder_version": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
         "Expiration": {
           "description": "Expiration represents a point in time when some event happens. It can compare with a BlockInfo and will return is_expired() == true once the condition is hit (and for every block in the future)",
           "oneOf": [
@@ -2234,10 +2479,37 @@
           "additionalProperties": false
         },
         "MessageType": {
-          "type": "string",
-          "enum": [
-            "cosmwasm_execute_msg",
-            "cosmwasm_migrate_msg"
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "cosmwasm_execute_msg",
+                "cosmwasm_migrate_msg",
+                "evm_raw_call"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "evm_call"
+              ],
+              "properties": {
+                "evm_call": {
+                  "type": "array",
+                  "items": [
+                    {
+                      "$ref": "#/definitions/EncoderInfo"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2
+                }
+              },
+              "additionalProperties": false
+            }
           ]
         },
         "NonAtomicFunction": {
@@ -2348,6 +2620,18 @@
                   ],
                   "maxItems": 2,
                   "minItems": 2
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "must_be_bytes"
+              ],
+              "properties": {
+                "must_be_bytes": {
+                  "$ref": "#/definitions/Binary"
                 }
               },
               "additionalProperties": false
@@ -2496,19 +2780,11 @@
       "title": "ExternalDomain",
       "type": "object",
       "required": [
-        "callback_proxy",
-        "connector",
         "execution_environment",
         "name",
         "processor"
       ],
       "properties": {
-        "callback_proxy": {
-          "$ref": "#/definitions/CallbackProxy"
-        },
-        "connector": {
-          "$ref": "#/definitions/Connector"
-        },
         "execution_environment": {
           "$ref": "#/definitions/ExecutionEnvironment"
         },
@@ -2525,51 +2801,48 @@
           "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
           "type": "string"
         },
-        "CallbackProxy": {
+        "CosmwasmBridge": {
           "oneOf": [
             {
               "type": "object",
               "required": [
-                "polytone_proxy"
+                "polytone"
               ],
               "properties": {
-                "polytone_proxy": {
-                  "$ref": "#/definitions/Addr"
+                "polytone": {
+                  "$ref": "#/definitions/PolytoneConnectors"
                 }
               },
               "additionalProperties": false
             }
           ]
         },
-        "Connector": {
+        "Encoder": {
+          "type": "object",
+          "required": [
+            "broker_address",
+            "encoder_version"
+          ],
+          "properties": {
+            "broker_address": {
+              "$ref": "#/definitions/Addr"
+            },
+            "encoder_version": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "EvmBridge": {
           "oneOf": [
             {
               "type": "object",
               "required": [
-                "polytone_note"
+                "hyperlane"
               ],
               "properties": {
-                "polytone_note": {
-                  "type": "object",
-                  "required": [
-                    "address",
-                    "state",
-                    "timeout_seconds"
-                  ],
-                  "properties": {
-                    "address": {
-                      "$ref": "#/definitions/Addr"
-                    },
-                    "state": {
-                      "$ref": "#/definitions/PolytoneProxyState"
-                    },
-                    "timeout_seconds": {
-                      "type": "integer",
-                      "format": "uint64",
-                      "minimum": 0.0
-                    }
-                  },
-                  "additionalProperties": false
+                "hyperlane": {
+                  "$ref": "#/definitions/HyperlaneConnector"
                 }
               },
               "additionalProperties": false
@@ -2577,10 +2850,98 @@
           ]
         },
         "ExecutionEnvironment": {
-          "type": "string",
-          "enum": [
-            "cosm_wasm"
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "cosmwasm"
+              ],
+              "properties": {
+                "cosmwasm": {
+                  "$ref": "#/definitions/CosmwasmBridge"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "evm"
+              ],
+              "properties": {
+                "evm": {
+                  "type": "array",
+                  "items": [
+                    {
+                      "$ref": "#/definitions/Encoder"
+                    },
+                    {
+                      "$ref": "#/definitions/EvmBridge"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2
+                }
+              },
+              "additionalProperties": false
+            }
           ]
+        },
+        "HyperlaneConnector": {
+          "type": "object",
+          "required": [
+            "domain_id",
+            "mailbox"
+          ],
+          "properties": {
+            "domain_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "mailbox": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        },
+        "PolytoneConnectors": {
+          "type": "object",
+          "required": [
+            "polytone_note",
+            "polytone_proxy"
+          ],
+          "properties": {
+            "polytone_note": {
+              "$ref": "#/definitions/PolytoneNote"
+            },
+            "polytone_proxy": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        },
+        "PolytoneNote": {
+          "type": "object",
+          "required": [
+            "address",
+            "state",
+            "timeout_seconds"
+          ],
+          "properties": {
+            "address": {
+              "$ref": "#/definitions/Addr"
+            },
+            "state": {
+              "$ref": "#/definitions/PolytoneProxyState"
+            },
+            "timeout_seconds": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
         },
         "PolytoneProxyState": {
           "oneOf": [
@@ -2620,51 +2981,48 @@
           "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
           "type": "string"
         },
-        "CallbackProxy": {
+        "CosmwasmBridge": {
           "oneOf": [
             {
               "type": "object",
               "required": [
-                "polytone_proxy"
+                "polytone"
               ],
               "properties": {
-                "polytone_proxy": {
-                  "$ref": "#/definitions/Addr"
+                "polytone": {
+                  "$ref": "#/definitions/PolytoneConnectors"
                 }
               },
               "additionalProperties": false
             }
           ]
         },
-        "Connector": {
+        "Encoder": {
+          "type": "object",
+          "required": [
+            "broker_address",
+            "encoder_version"
+          ],
+          "properties": {
+            "broker_address": {
+              "$ref": "#/definitions/Addr"
+            },
+            "encoder_version": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "EvmBridge": {
           "oneOf": [
             {
               "type": "object",
               "required": [
-                "polytone_note"
+                "hyperlane"
               ],
               "properties": {
-                "polytone_note": {
-                  "type": "object",
-                  "required": [
-                    "address",
-                    "state",
-                    "timeout_seconds"
-                  ],
-                  "properties": {
-                    "address": {
-                      "$ref": "#/definitions/Addr"
-                    },
-                    "state": {
-                      "$ref": "#/definitions/PolytoneProxyState"
-                    },
-                    "timeout_seconds": {
-                      "type": "integer",
-                      "format": "uint64",
-                      "minimum": 0.0
-                    }
-                  },
-                  "additionalProperties": false
+                "hyperlane": {
+                  "$ref": "#/definitions/HyperlaneConnector"
                 }
               },
               "additionalProperties": false
@@ -2672,27 +3030,51 @@
           ]
         },
         "ExecutionEnvironment": {
-          "type": "string",
-          "enum": [
-            "cosm_wasm"
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "cosmwasm"
+              ],
+              "properties": {
+                "cosmwasm": {
+                  "$ref": "#/definitions/CosmwasmBridge"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "evm"
+              ],
+              "properties": {
+                "evm": {
+                  "type": "array",
+                  "items": [
+                    {
+                      "$ref": "#/definitions/Encoder"
+                    },
+                    {
+                      "$ref": "#/definitions/EvmBridge"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2
+                }
+              },
+              "additionalProperties": false
+            }
           ]
         },
         "ExternalDomain": {
           "type": "object",
           "required": [
-            "callback_proxy",
-            "connector",
             "execution_environment",
             "name",
             "processor"
           ],
           "properties": {
-            "callback_proxy": {
-              "$ref": "#/definitions/CallbackProxy"
-            },
-            "connector": {
-              "$ref": "#/definitions/Connector"
-            },
             "execution_environment": {
               "$ref": "#/definitions/ExecutionEnvironment"
             },
@@ -2701,6 +3083,62 @@
             },
             "processor": {
               "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "HyperlaneConnector": {
+          "type": "object",
+          "required": [
+            "domain_id",
+            "mailbox"
+          ],
+          "properties": {
+            "domain_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "mailbox": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        },
+        "PolytoneConnectors": {
+          "type": "object",
+          "required": [
+            "polytone_note",
+            "polytone_proxy"
+          ],
+          "properties": {
+            "polytone_note": {
+              "$ref": "#/definitions/PolytoneNote"
+            },
+            "polytone_proxy": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        },
+        "PolytoneNote": {
+          "type": "object",
+          "required": [
+            "address",
+            "state",
+            "timeout_seconds"
+          ],
+          "properties": {
+            "address": {
+              "$ref": "#/definitions/Addr"
+            },
+            "state": {
+              "$ref": "#/definitions/PolytoneProxyState"
+            },
+            "timeout_seconds": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
             }
           },
           "additionalProperties": false
@@ -2728,6 +3166,30 @@
               "additionalProperties": false
             }
           ]
+        }
+      }
+    },
+    "ism_specifier": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "InterchainSecurityModuleResponse",
+      "type": "object",
+      "properties": {
+        "ism": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
         }
       }
     },
@@ -3115,6 +3577,48 @@
                 }
               },
               "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "evm_call"
+              ],
+              "properties": {
+                "evm_call": {
+                  "type": "object",
+                  "required": [
+                    "msg"
+                  ],
+                  "properties": {
+                    "msg": {
+                      "$ref": "#/definitions/Binary"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "evm_raw_call"
+              ],
+              "properties": {
+                "evm_raw_call": {
+                  "type": "object",
+                  "required": [
+                    "msg"
+                  ],
+                  "properties": {
+                    "msg": {
+                      "$ref": "#/definitions/Binary"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
             }
           ]
         },
@@ -3413,6 +3917,48 @@
                       "format": "uint64",
                       "minimum": 0.0
                     },
+                    "msg": {
+                      "$ref": "#/definitions/Binary"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "evm_call"
+              ],
+              "properties": {
+                "evm_call": {
+                  "type": "object",
+                  "required": [
+                    "msg"
+                  ],
+                  "properties": {
+                    "msg": {
+                      "$ref": "#/definitions/Binary"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "evm_raw_call"
+              ],
+              "properties": {
+                "evm_raw_call": {
+                  "type": "object",
+                  "required": [
+                    "msg"
+                  ],
+                  "properties": {
                     "msg": {
                       "$ref": "#/definitions/Binary"
                     }

@@ -622,7 +622,8 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @param owner The owner of the withdrawal request
      */
     function completeWithdraw(address owner) external nonReentrant whenNotPaused {
-        WithdrawResult memory result = _processWithdrawComplete(owner, true, config.depositAccount, config.withdrawAccount);
+        WithdrawResult memory result =
+            _processWithdrawComplete(owner, true, config.depositAccount, config.withdrawAccount);
 
         // Handle solver fee if successful
         if (result.solverFee > 0) {
@@ -639,7 +640,8 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         uint256 totalSolverFee = 0;
 
         for (uint256 i = 0; i < owners.length; i++) {
-            WithdrawResult memory result = _processWithdrawComplete(owners[i], false, config.depositAccount, config.withdrawAccount);
+            WithdrawResult memory result =
+                _processWithdrawComplete(owners[i], false, config.depositAccount, config.withdrawAccount);
 
             if (!result.success) {
                 emit WithdrawCompletionSkipped(owners[i], result.errorReason);
@@ -662,10 +664,12 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
      * @param revertOnFailure If true, reverts on failure instead of returning result
      * @return result The withdraw completion result
      */
-    function _processWithdrawComplete(address owner, bool revertOnFailure, BaseAccount depositAccount, BaseAccount withdrawAccount)
-        internal
-        returns (WithdrawResult memory result)
-    {
+    function _processWithdrawComplete(
+        address owner,
+        bool revertOnFailure,
+        BaseAccount depositAccount,
+        BaseAccount withdrawAccount
+    ) internal returns (WithdrawResult memory result) {
         // Get the withdrawal request
         WithdrawRequest memory request = userWithdrawRequest[owner];
         uint256 shares = request.sharesAmount;
@@ -704,9 +708,8 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
 
             // If the loss is greater than the max loss, refund the shares
             if (lossBps > request.maxLossBps) {
-                uint256 refundShares = shares.mulDiv(
-                    BASIS_POINTS - updateInfo.withdrawFee, BASIS_POINTS, Math.Rounding.Floor
-                );
+                uint256 refundShares =
+                    shares.mulDiv(BASIS_POINTS - updateInfo.withdrawFee, BASIS_POINTS, Math.Rounding.Floor);
 
                 delete userWithdrawRequest[owner];
 
@@ -727,8 +730,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
             // If the loss is acceptable, calculate the assets to withdraw
             assetsToWithdraw = shares.mulDiv(currentWithdrawRate, ONE_SHARE, Math.Rounding.Floor);
         } else {
-            assetsToWithdraw =
-                shares.mulDiv(updateInfo.withdrawRate, ONE_SHARE, Math.Rounding.Floor);
+            assetsToWithdraw = shares.mulDiv(updateInfo.withdrawRate, ONE_SHARE, Math.Rounding.Floor);
         }
 
         // Delete request before transfer to prevent reentrancy

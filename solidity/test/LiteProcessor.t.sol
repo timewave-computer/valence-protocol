@@ -76,8 +76,8 @@ contract LiteProcessorTest is Test {
         bytes memory message = _encodePauseMessage();
 
         vm.prank(MAILBOX);
-        // Check for ProcessorPaused event
-        emit ProcessorEvents.ProcessorPaused();
+        // Check for ProcessorWasPaused event
+        emit ProcessorEvents.ProcessorWasPaused();
 
         processor.handle(ORIGIN_DOMAIN, AUTH_CONTRACT, message);
         assertTrue(processor.paused());
@@ -88,8 +88,8 @@ contract LiteProcessorTest is Test {
         bytes memory message = _encodePauseMessage();
 
         vm.prank(AUTHORIZED_ADDRESSES[0]);
-        // Check for ProcessorPaused event
-        emit ProcessorEvents.ProcessorPaused();
+        // Check for ProcessorWasPaused event
+        emit ProcessorEvents.ProcessorWasPaused();
 
         processor.handle(ORIGIN_DOMAIN, AUTH_CONTRACT, message);
         assertTrue(processor.paused());
@@ -107,8 +107,8 @@ contract LiteProcessorTest is Test {
         bytes memory resumeMessage = _encodeResumeMessage();
 
         vm.prank(MAILBOX);
-        // Check for ProcessorResumed event
-        emit ProcessorEvents.ProcessorResumed();
+        // Check for ProcessorWasResumed event
+        emit ProcessorEvents.ProcessorWasResumed();
 
         processor.handle(1, AUTH_CONTRACT, resumeMessage);
         assertFalse(processor.paused());

@@ -3842,6 +3842,8 @@ name = "local-interchaintest"
 version = "0.1.0"
 dependencies = [
  "alloy",
+ "alloy-primitives 0.7.7",
+ "alloy-sol-types 0.7.7",
  "bech32 0.11.0",
  "bollard",
  "cosmos-grpc-client",
@@ -3870,6 +3872,8 @@ dependencies = [
  "valence-astroport-withdrawer",
  "valence-authorization",
  "valence-authorization-utils",
+ "valence-encoder-broker",
+ "valence-encoder-utils",
  "valence-forwarder-library",
  "valence-generic-ibc-transfer-library",
  "valence-ibc-utils",
@@ -6974,8 +6978,10 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "valence-authorization-utils",
+ "valence-encoder-broker",
+ "valence-encoder-utils",
+ "valence-gmp-utils",
  "valence-library-utils",
- "valence-polytone-utils",
  "valence-processor",
  "valence-processor-utils",
  "valence-test-library",
@@ -6990,8 +6996,8 @@ dependencies = [
  "cw-ownable",
  "cw-utils 2.0.0",
  "serde_json",
+ "valence-gmp-utils",
  "valence-library-utils",
- "valence-polytone-utils",
 ]
 
 [[package]]
@@ -7105,6 +7111,14 @@ dependencies = [
  "valence-library-base",
  "valence-library-utils",
  "valence-macros",
+]
+
+[[package]]
+name = "valence-gmp-utils"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 2.2.0",
+ "cosmwasm-std 2.2.0",
 ]
 
 [[package]]
@@ -7365,14 +7379,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "valence-polytone-utils"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema 2.2.0",
- "cosmwasm-std 2.2.0",
-]
-
-[[package]]
 name = "valence-processor"
 version = "0.1.0"
 dependencies = [
@@ -7384,7 +7390,7 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "valence-authorization-utils",
- "valence-polytone-utils",
+ "valence-gmp-utils",
  "valence-processor-utils",
 ]
 
@@ -7399,7 +7405,7 @@ dependencies = [
  "serde",
  "serde_json",
  "valence-authorization-utils",
- "valence-polytone-utils",
+ "valence-gmp-utils",
 ]
 
 [[package]]
