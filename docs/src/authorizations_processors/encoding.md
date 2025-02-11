@@ -45,7 +45,7 @@ fn decode(message: ProcessorMessageToDecode) -> StdResult<Binary> {
 ```
 
 As we can see above, the `Encoder` will have a match statement for each type of message that it can encode/decode. The `Encoder` will be able to encode/decode messages for a specific `ExecutionEnvironment`. In the case of `ProcessorMessages` that include messages for a specific library, these messages will include the Library they are targeting. This allows the `Encoder` to apply the encoding/decoding logic for that specific library.
-This `Encoder` will be called internally through the `Authorization` contract when the user sends a message to it. Here is an example of how the flow looks like:
+This `Encoder` will be called internally through the `Authorization` contract when the user sends a message to it. Here is an example of this execution flow:
 
 1. The owner adds an `ExternalDomain` with an `EVM ExecutionEnvironment` to the Authorization contract, specifying the `Encoder Broker` address and the `Encoder Version` to be used.
 2. The owner creates an authorization with a subroutine with an `AtomicFunction` that is of `EvmCall(EncoderInfo, LibraryName)` type.
