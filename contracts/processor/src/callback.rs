@@ -5,7 +5,7 @@ use valence_authorization_utils::{
     function::RetryTimes,
     msg::{ExecuteMsg, InternalAuthorizationMsg},
 };
-use valence_polytone_utils::polytone::{CallbackRequest, PolytoneExecuteMsg};
+use valence_gmp_utils::polytone::{CallbackRequest, PolytoneExecuteMsg};
 use valence_processor_utils::{
     callback::{PendingPolytoneCallbackInfo, PolytoneCallbackMsg, PolytoneCallbackState},
     processor::{Config, MessageBatch, ProcessorDomain},

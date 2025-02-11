@@ -306,6 +306,8 @@ impl ProgramConfig {
             account.addr = Some(addr);
         }
 
+        let mut libraries_salts: BTreeMap<u64, Vec<u8>> = BTreeMap::new();
+
         // We first predict the library addresses
         // Then we update the library configs with the account predicted addresses
         // for all input accounts we add the library address to the approved libraries list
@@ -326,6 +328,8 @@ impl ProgramConfig {
                 "Library id {} with address {} on {}",
                 link.library_id, library_addr, library.domain
             );
+
+            libraries_salts.insert(link.library_id, salt);
 
             let mut patterns =
                 Vec::with_capacity(link.input_accounts_id.len() + link.output_accounts_id.len());
@@ -361,6 +365,9 @@ impl ProgramConfig {
             }
 
             library.config.replace_config(patterns, replace_with)?;
+            library
+                .config
+                .pre_validate_config(domain_connector.get_api())?;
             library.addr = Some(library_addr);
 
             debug!(
@@ -369,9 +376,20 @@ impl ProgramConfig {
             );
 
             self.save_library(link.library_id, &library);
+        }
+
+        // We run over all libraries and instantiate them
+        for (_, link) in self.links.clone().iter() {
+            let library = self.get_library(link.library_id)?;
+
+            let mut domain_connector = connectors.get_or_create_connector(&library.domain).await?;
 
             // Get processor address for this domain
             let processor_addr = self.get_processor_account_on_domain(library.domain.clone())?;
+            let salt = libraries_salts
+                .get(&link.library_id)
+                .expect("Library salt not found")
+                .clone();
 
             // init the library
             domain_connector
@@ -580,12 +598,6 @@ impl ProgramConfig {
             accounts.is_empty(),
             ManagerError::AccountIdNotFoundLibraryConfig(accounts)
         );
-
-        // Run the soft_validate method on each library config
-        for _library in self.libraries.values() {
-            // TODO: mock api for the connector
-            // library.config.soft_validate_config()?;
-        }
 
         Ok(())
     }

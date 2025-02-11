@@ -8,8 +8,8 @@ use crate::{
     account::{AccountType, InstantiateAccountData},
     bridge::PolytoneSingleChainInfo,
     config::{ChainInfo, ConfigError, GLOBAL_CONFIG},
-    helpers::{addr_canonicalize, addr_humanize},
     library::{LibraryConfig, LibraryError},
+    mock_api::MockApi,
     program_config::ProgramConfig,
     NEUTRON_CHAIN,
 };
@@ -26,13 +26,16 @@ use cosmos_grpc_client::{
     cosmrs::bip32::secp256k1::sha2::{digest::Update, Digest, Sha256, Sha512},
     BroadcastMode, Decimal, GrpcClient, ProstMsgNameToAny, Wallet,
 };
-use cosmwasm_std::{from_json, instantiate2_address, to_json_binary};
+use cosmwasm_std::{from_json, instantiate2_address, to_json_binary, Api};
 use futures::future::BoxFuture;
 use serde_json::to_vec;
 use strum::VariantNames;
 use thiserror::Error;
 use tokio::time::sleep;
-use valence_authorization_utils::authorization::AuthorizationInfo;
+use valence_authorization_utils::{
+    authorization::AuthorizationInfo,
+    msg::{CosmwasmBridgeInfo, PolytoneConnectorsInfo},
+};
 
 use super::{Connector, ConnectorResult, POLYTONE_TIMEOUT};
 
@@ -86,7 +89,7 @@ pub struct CosmosCosmwasmConnector {
     wallet: Wallet,
     code_ids: HashMap<String, u64>,
     chain_name: String,
-    prefix: String,
+    api: MockApi,
 }
 
 impl fmt::Debug for CosmosCosmwasmConnector {
@@ -132,7 +135,7 @@ impl CosmosCosmwasmConnector {
             wallet,
             code_ids: code_ids.clone(),
             chain_name: chain_info.name.clone(),
-            prefix: chain_info.prefix.clone(),
+            api: MockApi::new(chain_info.prefix.clone()),
         })
     }
 }
@@ -217,14 +220,20 @@ impl Connector for CosmosCosmwasmConnector {
 
         let addr_canonical = instantiate2_address(
             &checksum,
-            &addr_canonicalize(&self.prefix, self.wallet.account_address.as_str()).unwrap(),
+            &self
+                .api
+                .addr_canonicalize(self.wallet.account_address.as_str())
+                .unwrap(),
             &salt,
         )
         .context("Failed to instantiate2 address")
         .map_err(CosmosCosmwasmError::Error)?;
 
-        let addr =
-            addr_humanize(&self.prefix, &addr_canonical).map_err(CosmosCosmwasmError::Error)?;
+        let addr = self
+            .api
+            .addr_humanize(&addr_canonical)
+            .map_err(CosmosCosmwasmError::CosmwasmStdError)?
+            .to_string();
 
         Ok((addr, salt.to_vec()))
     }
@@ -258,18 +267,20 @@ impl Connector for CosmosCosmwasmConnector {
 
         let addr_canonical = instantiate2_address(
             &checksum,
-            &addr_canonicalize(
-                &self.prefix,
-                receiving_chain_bridge_info.voice_addr.as_str(),
-            )
-            .unwrap(),
+            &self
+                .api
+                .addr_canonicalize(receiving_chain_bridge_info.voice_addr.as_str())
+                .unwrap(),
             &salt,
         )
         .context("Failed to instantiate2 address")
         .map_err(CosmosCosmwasmError::Error)?;
 
-        let addr =
-            addr_humanize(&self.prefix, &addr_canonical).map_err(CosmosCosmwasmError::Error)?;
+        let addr = self
+            .api
+            .addr_humanize(&addr_canonical)
+            .map_err(CosmosCosmwasmError::CosmwasmStdError)?
+            .to_string();
 
         Ok(addr)
     }
@@ -487,16 +498,16 @@ impl Connector for CosmosCosmwasmConnector {
         let external_domain = valence_authorization_utils::msg::ExternalDomainInfo {
             name: domain.to_string(),
             execution_environment:
-                valence_authorization_utils::domain::ExecutionEnvironment::CosmWasm,
-            connector: valence_authorization_utils::msg::Connector::PolytoneNote {
-                address: bridge.note_addr,
-                timeout_seconds: POLYTONE_TIMEOUT,
-            },
-
+                valence_authorization_utils::msg::ExecutionEnvironmentInfo::Cosmwasm(
+                    CosmwasmBridgeInfo::Polytone(PolytoneConnectorsInfo {
+                        polytone_note: valence_authorization_utils::msg::PolytoneNoteInfo {
+                            address: bridge.note_addr,
+                            timeout_seconds: POLYTONE_TIMEOUT,
+                        },
+                        polytone_proxy: processor_bridge_account_addr.clone(),
+                    }),
+                ),
             processor: processor_addr,
-            callback_proxy: valence_authorization_utils::msg::CallbackProxy::PolytoneProxy(
-                processor_bridge_account_addr,
-            ),
         };
 
         let msg = to_vec(
@@ -881,6 +892,10 @@ impl Connector for CosmosCosmwasmConnector {
         Ok(from_json::<ProgramConfig>(&res.program_config)
             .map_err(CosmosCosmwasmError::CosmwasmStdError)?)
     }
+
+    fn get_api(&self) -> &MockApi {
+        &self.api
+    }
 }
 
 // Helpers
@@ -1046,8 +1061,17 @@ impl CosmosCosmwasmConnector {
         )
         .map_err(CosmosCosmwasmError::CosmwasmStdError)?;
 
-        let state = match res.clone().connector {
-            valence_authorization_utils::domain::Connector::PolytoneNote { state, .. } => state,
+        let state = match res.clone().execution_environment {
+            valence_authorization_utils::domain::ExecutionEnvironment::Cosmwasm(
+                cosmwasm_bridge,
+            ) => match cosmwasm_bridge {
+                valence_authorization_utils::domain::CosmwasmBridge::Polytone(
+                    polytone_connectors,
+                ) => polytone_connectors.polytone_note.state,
+            },
+            valence_authorization_utils::domain::ExecutionEnvironment::Evm(_, _) => {
+                return Ok(false)
+            }
         };
 
         match state {

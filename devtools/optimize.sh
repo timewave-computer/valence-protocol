@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 if [[ $(uname -m) =~ "arm64" ]]; then \
     docker run --rm -v "$(pwd)":/code \
