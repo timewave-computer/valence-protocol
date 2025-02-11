@@ -1,8 +1,8 @@
 [package]
 name    = "valence-storage-account"
-version = "0.1.0"
+version = { workspace = true }
+edition = { workspace = true }
 authors = ["Timewave Labs"]
-edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -14,15 +14,15 @@ crate-type = ["cdylib", "rlib"]
 library = []
 
 [dependencies]
-cosmwasm-schema       = { workspace = true }
-cosmwasm-std          = { workspace = true, features = ["stargate"] }
-cw-ownable            = { workspace = true }
-cw-storage-plus       = { workspace = true }
-cw2                   = { workspace = true }
-schemars              = { workspace = true }
-serde                 = { workspace = true }
-thiserror             = { workspace = true }
-valence-account-utils = { workspace = true }
+cosmwasm-schema          = { workspace = true }
+cosmwasm-std             = { workspace = true, features = ["stargate"] }
+cw-ownable               = { workspace = true }
+cw-storage-plus          = { workspace = true }
+cw2                      = { workspace = true }
+schemars                 = { workspace = true }
+serde                    = { workspace = true }
+thiserror                = { workspace = true }
+valence-account-utils    = { workspace = true }
 valence-middleware-utils = { workspace = true }
 
 [dev-dependencies]

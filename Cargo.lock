@@ -7065,7 +7065,7 @@ dependencies = [
 
 [[package]]
 name = "valence-base-account"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7087,7 +7087,7 @@ dependencies = [
 
 [[package]]
 name = "valence-encoder-broker"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7604,7 +7604,7 @@ dependencies = [
 
 [[package]]
 name = "valence-storage-account"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7627,7 +7627,7 @@ dependencies = [
 
 [[package]]
 name = "valence-template-library"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
