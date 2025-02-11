@@ -26,12 +26,34 @@ Use CosmWasm optimizer to optimize contracts and store the results in `./artifac
 
 ``` bash
 just optimize
+
+## or
+./devtools/optimize.sh
 ```
 
 ## Running tests
+
+Check that the `local-ic start` command created `local-interchaintest/configs/logs.json` with the correct RPC URL mappings. This configuration file is required to run the example tests.
 
 Once you have your tests written, you can run them using the following command from the workspace directory, here I'm running the `polytone` tests that are in the `examples` folder:
 
 ```bash
 cargo run --package local-interchaintest --example polytone
 ```
+
+## Troubleshooting
+`cargo run --package local-interchaintest --example example_file_name`
+
+
+```txt
+Error: LocalInterchain(Custom { msg: "channel_json is not an array" })
+```
+The chains required in the test are not running.
+
+`cargo run --package local-interchaintest --example example_file_name`
+```txt
+called `Result::unwrap()` on an `Err` value: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+```
+1. Check that `local-interchaintest/configs/logs.json` exists. If it does not, kill all local-ic processes and rerun from `local-interchaintest` directory.
+2. Check that the `artifacts` folder, and that all contracts used in the example were built. Run `just optimize` if contracts are missing.
