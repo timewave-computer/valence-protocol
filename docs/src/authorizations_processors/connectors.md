@@ -1,6 +1,6 @@
 # Connectors
 
-Connectors are a way for the authorization contract in the `Main Domain` to interact with `External Domains`. When adding an `ExternalDomain` to the Authorization contract, depending on the `ExecutionEnvironment` we must specify the Connector information to be used. These connectors are responsible for receiving the `Message Batches` from the `Authorization` contract and trigger the necessary actions for the relayers to pick them up and deliver them to the `Processor` contract in the `External Domain`. The connector on the `ExternalDomain` will also receive the callbacks with the `ExecutionResult` from the `Processor` contract and send them back to the `Authorization` contract.
+Connectors are a way for the authorization contract in the `Main Domain` to interact with `External Domains`. When adding an `ExternalDomain` to the Authorization contract, depending on the `ExecutionEnvironment` we must specify the Connector information to be used. These connectors are responsible for receiving the `Message Batches` from the `Authorization` contract and trigger the necessary actions for the relayers to pick them up and deliver them to the `Processor` contract in the `External Domain`. The connector on the `ExternalDomain` will also receive callbacks with the `ExecutionResult` from the `Processor` contract and send them back to the `Authorization` contract.
 
 We currently support the following connectors:
 
