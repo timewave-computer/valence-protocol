@@ -2,7 +2,7 @@
 name    = "valence-base-account"
 version = { workspace = true }
 edition = { workspace = true }
-authors = ["Timewave Labs"]
+authors = { workspace = true }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

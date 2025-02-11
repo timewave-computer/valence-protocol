@@ -7529,7 +7529,7 @@ dependencies = [
 
 [[package]]
 name = "valence-program-registry"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7646,7 +7646,7 @@ dependencies = [
 
 [[package]]
 name = "valence-test-dynamic-ratio"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
