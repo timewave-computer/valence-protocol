@@ -80,8 +80,8 @@ valence-osmosis-cl-withdrawer        = { path = "contracts/libraries/osmosis-cl-
 valence-neutron-ic-querier           = { path = "contracts/libraries/neutron-ic-querier", features = ["library"] }
 
 # middleware
-valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = ["library"] }
-valence-middleware-broker  = { path = "contracts/middleware/broker", features = ["library"] }
+valence-middleware-osmosis  = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = ["library"] }
+valence-middleware-broker   = { path = "contracts/middleware/broker", features = ["library"] }
 valence-middleware-asserter = { path = "contracts/middleware/asserter", features = ["library"] }
 
 # our packages

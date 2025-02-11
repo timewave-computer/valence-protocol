@@ -9,17 +9,10 @@ repository = { workspace = true }
 name = "conditional_lp"
 path = "src/conditional_lp.rs"
 
-[[bin]]
-name = "token_swap"
-path = "src/token_swap.rs"
-
-[[bin]]
-name = "two_party_pol_astroport_neutron"
-path = "src/two_party_pol_astroport_neutron.rs"
-
 [dependencies]
 localic-std                          = { git = "https://github.com/strangelove-ventures/interchaintest", branch = "main" }
 localic-utils                        = { git = "https://github.com/timewave-computer/localic-utils", branch = "main" }
+valence-e2e                          = { workspace = true }
 sha2                                 = { workspace = true }
 hex                                  = { workspace = true }
 serde_json                           = { workspace = true }
@@ -70,4 +63,3 @@ hpl-interface                        = { git = "https://github.com/many-things/c
 serde-json-wasm                      = "0.5.2"
 bech32 = "0.11.0"
 bollard = "0.18.1"
-valence-e2e = { path = "../e2e" }
