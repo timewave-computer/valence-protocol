@@ -3,17 +3,17 @@ use std::error::Error;
 use alloy::sol;
 use cosmwasm_std_old::HexBinary;
 use hpl_interface::core::mailbox::DispatchMsg;
-use local_interchaintest::utils::{
-    ethereum::set_up_anvil_container,
-    hyperlane::{set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts, set_up_hyperlane},
-    DEFAULT_ANVIL_RPC_ENDPOINT, GAS_FLAGS, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
-};
 use localic_std::modules::cosmwasm::contract_execute;
 use localic_utils::{
     utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
     LOCAL_IC_API_URL, NEUTRON_CHAIN_NAME,
 };
 use log::info;
+use valence_e2e::utils::{
+    ethereum::set_up_anvil_container,
+    hyperlane::{set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts, set_up_hyperlane},
+    DEFAULT_ANVIL_RPC_ENDPOINT, GAS_FLAGS, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
+};
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();

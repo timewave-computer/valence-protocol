@@ -10,7 +10,7 @@ git clone https://github.com/strangelove-ventures/interchaintest && cd interchai
 
 ## Running your local environment
 
-Run one of the set-up configs we have in the `local-interchaintest/chains` folder. For example, to run the `neutron_juno.json` config, run the following command inside the `local-interchaintest` folder:
+Run one of the set-up configs we have in the `e2e/chains` folder. For example, to run the `neutron_juno.json` config, run the following command inside the `e2e` folder:
 
 ```bash
 local-ic start neutron_juno --api-port 42069
@@ -25,7 +25,7 @@ For tests that involve EVM chains, the chains and relayer are started from the t
 Once you have your tests written, you can run them using the following command from the workspace directory, here I'm running the `polytone` tests that are in the `examples` folder:
 
 ```bash
-cargo run --package local-interchaintest --example polytone
+cargo run --package valence-e2e --example polytone
 ```
 
 ## Neutron ICQ Relayer setup

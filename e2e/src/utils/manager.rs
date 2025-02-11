@@ -14,7 +14,7 @@ use valence_program_manager::{
 
 use crate::utils::POLYTONE_ARTIFACTS_PATH;
 
-const LOG_FILE_PATH: &str = "local-interchaintest/configs/logs.json";
+const LOG_FILE_PATH: &str = "e2e/configs/logs.json";
 pub const MANAGER_ADMIN_ADDR: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
 
 pub const REGISTRY_NAME: &str = "valence_program_registry";
@@ -213,7 +213,7 @@ fn get_chain_infos(chains_file_path: &str) -> HashMap<String, ChainInfo> {
 
     let curr_path = env::current_dir().unwrap();
     let chain_file_path = format!(
-        "{}/local-interchaintest/chains/{}",
+        "{}/e2e/chains/{}",
         curr_path.to_str().unwrap(),
         chains_file_path
     );

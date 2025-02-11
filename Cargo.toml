@@ -12,7 +12,7 @@ members = [
     "contracts/middleware/asserter",
     "packages/*",
     "program-manager",
-    "local-interchaintest",
+    "e2e",
 ]
 resolver = "2"
 

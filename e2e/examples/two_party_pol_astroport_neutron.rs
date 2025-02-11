@@ -2,16 +2,6 @@ use std::{env, error::Error};
 
 use cosmwasm_std::{Binary, Decimal, Uint128};
 use cosmwasm_std_old::Coin;
-use local_interchaintest::utils::{
-    manager::{
-        setup_manager, use_manager_init, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME,
-        FORWARDER_NAME, REVERSE_SPLITTER_NAME, SPLITTER_NAME,
-    },
-    processor::tick_processor,
-    ASTROPORT_LP_SUBDENOM, ASTROPORT_PATH, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
-    LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, NEUTRON_USER_ADDRESS_1, NTRN_DENOM, USER_KEY_1,
-    VALENCE_ARTIFACTS_PATH,
-};
 use localic_std::modules::{
     bank,
     cosmwasm::{contract_execute, contract_instantiate, contract_query},
@@ -32,6 +22,16 @@ use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
     msg::ProcessorMessage,
+};
+use valence_e2e::utils::{
+    manager::{
+        setup_manager, use_manager_init, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME,
+        FORWARDER_NAME, REVERSE_SPLITTER_NAME, SPLITTER_NAME,
+    },
+    processor::tick_processor,
+    ASTROPORT_LP_SUBDENOM, ASTROPORT_PATH, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
+    LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, NEUTRON_USER_ADDRESS_1, NTRN_DENOM, USER_KEY_1,
+    VALENCE_ARTIFACTS_PATH,
 };
 use valence_forwarder_library::msg::{ForwardingConstraints, UncheckedForwardingConfig};
 use valence_library_utils::{

@@ -504,7 +504,7 @@ async fn run_hyperlane_relayer(
     chain1: &str,
     chain2: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let base_dir = std::env::current_dir()?.join("local-interchaintest");
+    let base_dir = std::env::current_dir()?.join("e2e");
 
     let paths = ["hyperlane_db_relayer", "tmp/hyperlane_validator_signatures"];
 

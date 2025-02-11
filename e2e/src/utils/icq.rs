@@ -68,10 +68,7 @@ RELAYER_IGNORE_ERRORS_REGEX=(execute wasm contract failed|failed to build tx que
     );
 
     // create the env file and write the dynamically generated config there
-    let path = current_path
-        .join("local-interchaintest")
-        .join("configs")
-        .join(".env");
+    let path = current_path.join("e2e").join("configs").join(".env");
     let mut file = File::create(path)?;
     file.write_all(env_content.as_bytes())?;
 
@@ -113,7 +110,7 @@ pub fn start_icq_relayer() -> Result<(), Box<dyn std::error::Error>> {
     let mount_point = response[0]["Mounts"][0]["Source"].as_str().unwrap();
 
     // this should be initiated by `just local-ic-run`, so we know the relpath
-    let env_relpath = "local-interchaintest/configs/.env";
+    let env_relpath = "e2e/configs/.env";
 
     let start_icq_relayer_cmd = std::process::Command::new("docker")
         .arg("run")
