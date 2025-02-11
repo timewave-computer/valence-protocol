@@ -1,6 +1,6 @@
 # Encoding
 
-When we are passing messages between the `Authorization` contract and a `Processor` contract on a domain that is not using a `CosmWasm ExecutionEnvironment`, we need to encode the messages in a way that the `Processor` contract and the Libraries it calls can understand them. To do this we created two new contracts: `Encoder Broker` and `Encoder`.
+When messages are passed between the `Authorization` contract and a `Processor` contract on a domain that is not using a `CosmWasm ExecutionEnvironment`, we need to encode the messages in a way that the `Processor` contract and the Libraries it calls can understand them. To do this two new contracts were created: `Encoder Broker` and `Encoder`.
 
 ## Encoder Broker
 
