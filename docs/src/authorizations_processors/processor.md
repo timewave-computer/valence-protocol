@@ -23,7 +23,7 @@ After taking them, we will execute them in different ways depending if the batch
 
 ### Storage
 
-The `Processor` will receive `Message Batches` from the authorization contract and will enqueue them in a custom storage structure we designed for this purpose, called a `QueueMap`. This structure is a FIFO queue with owner privileges (allows the owner to insert or remove from any position in the queue).
+The `Processor` will receive `Message Batches` from the Authorization contract and will enqueue them in a custom storage structure called a `QueueMap`. This structure is a FIFO queue with owner privileges, which allow the owner to insert or remove messages from any position in the queue.
 Each “item” stored in the queue is a `MessageBatch` object that has the following structure:
 
 ```rust
