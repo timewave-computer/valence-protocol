@@ -53,4 +53,4 @@ This `Encoder` will be called internally through the `Authorization` contract wh
 4. The `Encoder Broker` will route the message to the correct `Encoder` contract, which will encode the message for that particular library and return the encoded bytes to the Authorization Contract.
 5. The Authorization contract will send the encoded message to the `Processor` contract on the `ExternalDomain`, which will be able to decode and interpret the message.
 
-We currently have an `Encoder` for `EVM` messages, but more will be added as we add more compatible `ExecutionEnvironments` to the protocol.
+We currently have an `Encoder` for `EVM` messages, however more Encoders will be added as we support additional `ExecutionEnvironments`.
