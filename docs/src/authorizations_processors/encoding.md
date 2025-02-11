@@ -4,7 +4,7 @@ When messages are passed between the `Authorization` contract and a `Processor` 
 
 ## Encoder Broker
 
-The `Encoder Broker` is a very simple contract that will route the messages to the correct `Encoder` contract. It is basically a mapping from `Encoder Version` to `Encoder Contract Address`. The `Encoder Broker` will be instantiated once on the `Main Domain` with an owner that can add/remove these mappings. An example of Mapping can be `"evm_encoder_v1"` to `<encoder_contract_address_on_neutron>`. The `Encoder Broker` has two queries: `Encode` and `Decode`, which routes the message to encode/decode to the `Encoder Version` specified.
+The `Encoder Broker` is a very simple contract that will route the messages to the correct `Encoder` contract. It maps from `Encoder Version` to `Encoder Contract Address`. The `Encoder Broker` will be instantiated once on the `Main Domain` with an owner that can add/remove these mappings. An example of Mapping can be `"evm_encoder_v1"` to `<encoder_contract_address_on_neutron>`. The `Encoder Broker` has two queries: `Encode` and `Decode`, which routes the message to encode/decode to the `Encoder Version` specified.
 
 ## Encoder
 
