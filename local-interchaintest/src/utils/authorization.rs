@@ -419,21 +419,16 @@ pub fn set_up_external_domain_with_polytone(
         5_000_000, chain_denom
     );
 
-    let processor_instantiation_str = format!(
-        "tx wasm instantiate2 {external_processor_code_id} {} {} \
-        --label valence_processor \
-        --chain-id={chain_id} \
-        --no-admin \
-        {extra_flags} \
-        --from {DEFAULT_KEY}",
-        serde_json::to_value(processor_instantiate_msg)?,
-        salt,
-    );
-
     test_ctx
-        .get_request_builder()
-        .get_request_builder(chain_name)
-        .tx(&processor_instantiation_str, true)?;
+        .build_tx_instantiate2()
+        .with_chain_name(chain_name)
+        .with_label("valence_processor")
+        .with_code_id(external_processor_code_id)
+        .with_salt_hex_encoded(&salt)
+        .with_msg(serde_json::to_value(processor_instantiate_msg)?)
+        .with_flags(&extra_flags)
+        .send()
+        .unwrap();
 
     info!("Processor instantiated on {chain_name}!");
 

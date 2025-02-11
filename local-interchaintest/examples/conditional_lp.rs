@@ -540,10 +540,7 @@ fn neutron_setup(
         NEUTRON_CHAIN_NAME,
         storage_acc_code_id,
         NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        vec![
-            neutron_processor_address.to_string(),
-            NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        ],
+        vec![],
         1,
         None,
     );
