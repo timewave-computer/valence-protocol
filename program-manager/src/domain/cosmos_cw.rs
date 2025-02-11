@@ -760,7 +760,7 @@ impl Connector for CosmosCosmwasmConnector {
         Ok(())
     }
 
-    async fn save_program_config(&mut self, config: ProgramConfig) -> ConnectorResult<()> {
+    async fn save_program_config(&mut self, mut config: ProgramConfig) -> ConnectorResult<()> {
         if self.chain_name != *NEUTRON_CHAIN {
             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                 "Should only be implemented on neutron connector"
@@ -768,13 +768,15 @@ impl Connector for CosmosCosmwasmConnector {
             .into());
         }
 
-        for library in config.libraries.values() {
+        for library in config.libraries.values_mut() {
             if library.addr.is_none() {
                 return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                     "Before saving program config each library must have an address"
                 ))
                 .into());
             }
+
+            library.config = LibraryConfig::None;
         }
 
         let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();
