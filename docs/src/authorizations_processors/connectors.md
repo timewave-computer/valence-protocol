@@ -9,7 +9,7 @@ We currently support the following connectors:
 To connect `ExternalDomains` that use `CosmWasm` as `ExecutionEnvironment` we use [Polytone](https://github.com/DA0-DA0/polytone). Polytone is a set of smart contracts that are instantiated on both domains that implement logic to pass messages to each other using IBC. Polytone consists of the following contracts:
 - Polytone Note: contract responsible of sending the messages from the Authorization contract to the Processor contract on the external domain and receiving the callback from the Processor contract on the external domain and sending it back to the Authorization contract.
 - Polytone Voice: contract that receives the message from Polytone Note and instantiates a Polytone Proxy for each sender that will redirect the message to the destination.
-- Polytone Proxy: contract instantiated by Polytone Voice that will be in charge of sending the message received from Polytone Note to the corresponding contract.
+- Polytone Proxy: contract instantiated by Polytone Voice responsible for sending messages received from Polytone Note to the corresponding contract.
 
 To connect the Authorization contract with an External Domain that uses Polytone as a connector, we need to provide the Polytone Note address and the predicted Polytone Proxy addresses for both the Authorization contract (when adding the domain) and the Processor Contract (when instantiating the Processor). A relayer must relay these two channels to make the communication possible.
 
