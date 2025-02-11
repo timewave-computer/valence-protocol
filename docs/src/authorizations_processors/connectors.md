@@ -55,7 +55,7 @@ graph TD
 ### Hyperlane
 
 To connect `ExternalDomains` that use `EVM` as `ExecutionEnvironment` we use [Hyperlane](https://github.com/hyperlane-xyz/hyperlane-monorepo). Hyperlane is a set of smart contracts that are deployed on both domains and communicate with one another using the `Hyperlane Relayer`. The required Hyperlane contracts are the following:
-- Mailbox: contract responsible for receiving the message for another domain and emitting an event with the message to be picked up by the relayer. The mailbox will also receive messages to be executed on a domain from the relayers and will route them to the right destination contract.
+- Mailbox: contract responsible for receiving the message for another domain and emitting an event with the message to be picked up by the relayer. The mailbox will also receive messages to be executed on a domain from the relayers and will route them to the correct destination contract.
 
 To connect the Authorization contract with an External Domain that uses Hyperlane as a connector, we need to provide the Mailbox address for both the Authorization contract (when adding the domain) and the Processor Contract (when instantiating the Processor). A `Hyperlane Relayer` must relay these two domains using the Mailbox addresses to make the communication possible.
 
