@@ -20,7 +20,7 @@ use localic_std::{
     types::TransactionResponse,
 };
 use log::info;
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::{
     collections::BTreeMap,
     env,
@@ -28,6 +28,7 @@ use std::{
     path::PathBuf,
     time::{Duration, SystemTime},
 };
+use valence_authorization_utils::authorization_message::ParamRestriction;
 use valence_authorization_utils::domain::Domain;
 use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType},
@@ -37,6 +38,7 @@ use valence_authorization_utils::{
 use valence_generic_ibc_transfer_library::msg::IbcTransferAmount;
 use valence_library_utils::denoms::UncheckedDenom;
 use valence_library_utils::LibraryAccountType;
+use valence_middleware_asserter::msg::Predicate;
 use valence_middleware_utils::canonical_types::pools::xyk::XykPoolQuery;
 use valence_middleware_utils::type_registry::types::RegistryInstantiateMsg;
 use valence_neutron_ic_querier::msg::{FunctionMsgs, LibraryConfig, QueryDefinition};
@@ -138,6 +140,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         asserter_addr,
         osmo_gamm_lper_addr,
         ibc_forwarder,
+        neutron_storage_account.to_string(),
+        ntrn_on_osmo_denom.to_string(),
     )?;
 
     // setup is now done. the program flow begins.
@@ -729,6 +733,8 @@ fn create_authorizations(
     asserter: String,
     gamm_lper: String,
     ibc_forwarder: String,
+    storage_account: String,
+    denom: String,
 ) -> Result<(), Box<dyn Error>> {
     let register_kvq_authorization = AuthorizationBuilder::new()
         .with_label(REGISTER_KV_QUERY_LABEL)
@@ -784,7 +790,40 @@ fn create_authorizations(
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
                                 name: "assert".to_string(),
-                                params_restrictions: None,
+                                // we apply param restrictions to ensure that funds get forwarded
+                                // to the destination domain under the following conditions
+                                params_restrictions: Some(vec![
+                                    ParamRestriction::MustBeValue(
+                                        vec!["assert".to_string(), "a".to_string()],
+                                        Binary::from(serde_json::to_vec(&json!(
+                                            valence_middleware_asserter::msg::AssertionValue::Variable(
+                                                valence_middleware_asserter::msg::QueryInfo {
+                                                    storage_account,
+                                                    storage_slot_key: TARGET_QUERY_LABEL.to_string(),
+                                                    query: to_json_binary(&XykPoolQuery::GetPoolAssetAmount {
+                                                        target_denom: denom.to_string(),
+                                                    })?,
+                                                },
+                                            )
+                                        ))?)
+                                    ),
+                                    ParamRestriction::MustBeValue(
+                                        vec!["assert".to_string(), "predicate".to_string()],
+                                        Binary::from(serde_json::to_vec(&json!(
+                                            valence_middleware_asserter::msg::Predicate::LT
+                                        ))?)
+                                    ),
+                                    ParamRestriction::MustBeValue(
+                                        vec!["assert".to_string(), "b".to_string()],
+                                        Binary::from(serde_json::to_vec(&json!(
+                                            valence_middleware_asserter::msg::AssertionValue::Constant(
+                                                valence_middleware_utils::type_registry::queries::ValencePrimitive::Uint128(
+                                                    Uint128::new(150_000_000),
+                                                ),
+                                            )
+                                        ))?)
+                                    ),
+                                ]),
                             },
                         })
                         .build(),
