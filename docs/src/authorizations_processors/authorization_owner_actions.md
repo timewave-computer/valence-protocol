@@ -25,7 +25,7 @@
           - `MustBeIncluded`: the parameter must be included in the message.
           - `CannotBeIncluded`: the parameter cannot be included in the message.
           - `MustBeValue`: the parameter must have a specific value.
-        - For all messages that are Raw bytes, we can only apply the `MustBeBytes` restriction, which matches that the bytes sent are the same as the ones provided in restriction, limiting the authorization execution to only one specific message.
+        - For all messages that are raw bytes, we can only apply the `MustBeBytes` restriction, which matches that the bytes sent are the same as the ones provided in restriction, limiting the authorization execution to only one specific message.
 
       - Contract address that will execute it.
 
