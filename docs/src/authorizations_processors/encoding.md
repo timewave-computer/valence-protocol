@@ -51,6 +51,6 @@ This `Encoder` will be called internally through the `Authorization` contract wh
 2. The owner creates an authorization with a subroutine with an `AtomicFunction` that is of `EvmCall(EncoderInfo, LibraryName)` type.
 3. A user executes this authorization passing the message. The `Authorization` contract will route the message to the `Encoder Broker` with the `Encoder Version` specified in `EncoderInfo` and passing the `LibraryName` to be used for the message.
 4. The `Encoder Broker` will route the message to the correct `Encoder` contract, which will encode the message for that particular library and return the encoded bytes to the Authorization Contract.
-5. The Authorization contract will send the encoded message to the `Processor` contract on the `ExternalDomain`, which will be able to decode and understand the message.
+5. The Authorization contract will send the encoded message to the `Processor` contract on the `ExternalDomain`, which will be able to decode and interpret the message.
 
 We currently have an `Encoder` for `EVM` messages, but more will be added as we add more compatible `ExecutionEnvironments` to the protocol.
