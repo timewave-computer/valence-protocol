@@ -17,21 +17,11 @@ library = []
 cosmwasm-std             = { workspace = true }
 cosmwasm-schema          = { workspace = true }
 cw-ownable               = { workspace = true }
-prost                    = { workspace = true, features = ["prost-derive"] }
-prost-types              = { workspace = true }
-neutron-sdk              = { workspace = true }
-serde-json-wasm          = { version = "1.0.0" }
-thiserror                = { workspace = true }
-serde_json               = { workspace = true }
 cw-storage-plus          = { workspace = true }
 valence-middleware-utils = { workspace = true }
-semver                   = { workspace = true }
 cw2                      = { workspace = true }
 valence-storage-account  = { workspace = true }
 
 [dev-dependencies]
-cw-multi-test              = { workspace = true }
-valence-middleware-osmosis = { workspace = true }
-osmosis-std                = { workspace = true }
-osmosis-std-derive         = { workspace = true }
-valence-account-utils     = { workspace = true }
+cw-multi-test         = { workspace = true }
+valence-account-utils = { workspace = true }
