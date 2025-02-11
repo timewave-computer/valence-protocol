@@ -19,7 +19,7 @@ After taking them, we will execute them in different ways depending if the batch
 - For `NonAtomic` batches, we will execute the functions one by one and applying the RetryLogic individually to each function if they fail. `NonAtomic` functions might also be confirmed via `CallbackConfirmations` in which case we will keep them in a separate storage location until we receive that specific callback.
   Each time a function is confirmed, we will re-queue the batch and keep track of what function we have to execute next.
   If at some point a function uses up all its retries, we will send a callback to the Authorization contract with a `PartiallyExecuted(num_of_functions_executed, execution_error)` status. If all of them succeed it will be `Executed` and if none of them were it will be `Rejected(error)`.
-  For `NonAtomic` batches, we need to tick the processor each time the batch is at the top of the queue to continue, so we will need at least as many ticks as number of functions we have in the batch, and each function has to wait for its turn.
+  For `NonAtomic` batches, the processor must be ticked each time the batch is at the top of the queue to continue, so at least as many ticks will be required as the number of functions in the batch.
 
 ### Storage
 
