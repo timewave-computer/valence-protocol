@@ -50,4 +50,11 @@ abstract contract Library is Ownable {
      * @dev Should validate function before applying configuration
      */
     function updateConfig(bytes memory _config) public virtual;
+
+    /// @notice Fallback function that reverts all calls to non-existent functions
+    /// @dev Called when no other function matches the function signature
+    /// @dev Add this to your contract to explicitly fail calls to wrong/non-existent
+    fallback() external {
+        revert("Function not found");
+    }
 }

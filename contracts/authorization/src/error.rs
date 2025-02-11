@@ -38,6 +38,9 @@ pub enum ContractError {
 
     #[error("Unexpected current executions value, cannot be 0")]
     CurrentExecutionsIsZero {},
+
+    #[error("Bridge creation not required")]
+    BridgeCreationNotRequired {},
 }
 
 #[derive(Error, Debug, PartialEq)]
@@ -65,6 +68,15 @@ pub enum AuthorizationErrorReason {
 
     #[error("The authorization has reached its max concurrent executions")]
     MaxConcurrentExecutionsReached {},
+
+    #[error("Param restrictions for this message type are invalid")]
+    InvalidParamRestrictions {},
+
+    #[error("Invalid message type for this execution environment")]
+    InvalidMessageType {},
+
+    #[error("Encoding for library in authorization does not exist")]
+    InvalidLibraryName {},
 }
 
 #[derive(Error, Debug, PartialEq)]
@@ -90,8 +102,8 @@ pub enum UnauthorizedReason {
     #[error("The polytone callback is not for a message initiated by the authorization contract")]
     InvalidPolytoneCallbackInitiator {},
 
-    #[error("The polytone callback was not sent by an unauthorized address")]
-    UnauthorizedPolytoneCallbackSender {},
+    #[error("The callback was not sent by an authorized address")]
+    UnauthorizedCallbackSender {},
 
     #[error("Creation of bridge was not timed out")]
     BridgeCreationNotTimedOut {},

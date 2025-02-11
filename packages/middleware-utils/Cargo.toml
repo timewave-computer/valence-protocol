@@ -1,14 +1,14 @@
 [package]
-name = "valence-middleware-utils"
-version = { workspace = true }
-edition = { workspace = true }
-authors = ["Timewave Labs"]
+name        = "valence-middleware-utils"
+version     = { workspace = true }
+edition     = { workspace = true }
+authors     = { workspace = true }
 description = "valence middleware utilities"
 
 [dependencies]
-cosmwasm-std = { workspace = true }
+cosmwasm-std    = { workspace = true }
 cosmwasm-schema = { workspace = true }
-neutron-sdk = { workspace = true }
-thiserror = { workspace = true }
-prost = { workspace = true }
-semver = { workspace = true }
+neutron-sdk     = { workspace = true }
+thiserror       = { workspace = true }
+prost           = { workspace = true }
+semver          = { workspace = true }
