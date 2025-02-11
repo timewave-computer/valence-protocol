@@ -2,13 +2,13 @@ use std::num::ParseIntError;
 
 use aho_corasick::AhoCorasick;
 
+use cosmwasm_schema::schemars;
 use cosmwasm_schema::schemars::JsonSchema;
 use cosmwasm_std::{to_json_binary, Binary, Empty, StdError};
 use serde::{Deserialize, Serialize};
 use serde_json::to_vec;
 use strum::VariantNames;
 use thiserror::Error;
-use cosmwasm_schema::schemars;
 
 use valence_library_utils::{
     msg::{InstantiateMsg, LibraryConfigValidation},
@@ -70,7 +70,15 @@ impl LibraryInfo {
 /// This is a list of all our libraries we support and their configs.
 #[manager_impl_library_configs]
 #[derive(
-    Debug, Clone, strum::Display, Serialize, Deserialize, VariantNames, PartialEq, Default, JsonSchema
+    Debug,
+    Clone,
+    strum::Display,
+    Serialize,
+    Deserialize,
+    VariantNames,
+    PartialEq,
+    Default,
+    JsonSchema,
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum LibraryConfig {
