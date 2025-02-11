@@ -21,7 +21,7 @@
 
       - MessageDetails: type (e.g. CosmwasmExecuteMsg, EvmCall ...) and message information. Depending on the type of the message that is being sent, we might need to provide additional values and/or only some specific `ParamRestrictions` can be applied:
         - If we are sending messages that are not for a `CosmWasm ExecutionEnvironment` and the message passed doesn't contain Raw bytes for that particular VM (e.g. `EvmRawCall`), we need to provide the `Encoder` information for that message along with the name of the library that the `Encoder` will use to encode that message. For example, if we are sending a message for an `EvmCall` on an EVM domain, we need to provide the address of the `Encoder Broker` and the `version` of the `Encoder` that the broker needs to route the message to along with the name of the library that the `Encoder` will use to encode that message (e.g. `forwarder`).
-        - For all messages that are not Raw bytes (`json` formatted), we can apply any of the following `ParamRestrictions`:
+        - For all messages that are not raw bytes (`json` formatted), we can apply any of the following `ParamRestrictions`:
           - `MustBeIncluded`: the parameter must be included in the message.
           - `CannotBeIncluded`: the parameter cannot be included in the message.
           - `MustBeValue`: the parameter must have a specific value.
