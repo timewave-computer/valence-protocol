@@ -776,6 +776,7 @@ impl Connector for CosmosCosmwasmConnector {
                 .into());
             }
 
+            // Set config to None before saving on-chain
             library.config = LibraryConfig::None;
         }
 
