@@ -2,7 +2,7 @@
 name        = "valence-osmosis-utils"
 version     = { workspace = true }
 edition     = { workspace = true }
-authors     = ["Timewave Labs"]
+authors     = { workspace = true }
 description = "Utils for osmosis libraries"
 
 [features]

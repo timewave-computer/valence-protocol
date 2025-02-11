@@ -3882,7 +3882,7 @@ checksum = "4ee93343901ab17bd981295f2cf0026d4ad018c7c31ba84549a4ddbb47a45104"
 
 [[package]]
 name = "local-interchaintest"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alloy",
  "alloy-primitives 0.7.7",
@@ -6964,7 +6964,7 @@ checksum = "ced87ca4be083373936a67f8de945faa23b6b42384bd5b64434850802c6dccd0"
 
 [[package]]
 name = "valence-account-utils"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -6982,7 +6982,7 @@ dependencies = [
 
 [[package]]
 name = "valence-astroport-lper"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -6998,7 +6998,7 @@ dependencies = [
 
 [[package]]
 name = "valence-astroport-utils"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7008,7 +7008,7 @@ dependencies = [
 
 [[package]]
 name = "valence-astroport-withdrawer"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7024,7 +7024,7 @@ dependencies = [
 
 [[package]]
 name = "valence-authorization"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmos-sdk-proto 0.20.0",
  "cosmwasm-schema 2.2.1",
@@ -7052,7 +7052,7 @@ dependencies = [
 
 [[package]]
 name = "valence-authorization-utils"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7065,7 +7065,7 @@ dependencies = [
 
 [[package]]
 name = "valence-base-account"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7087,7 +7087,7 @@ dependencies = [
 
 [[package]]
 name = "valence-encoder-broker"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7100,7 +7100,7 @@ dependencies = [
 
 [[package]]
 name = "valence-encoder-utils"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alloy-sol-types 0.7.7",
  "cosmwasm-schema 2.2.1",
@@ -7131,7 +7131,7 @@ dependencies = [
 
 [[package]]
 name = "valence-forwarder-library"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7154,7 +7154,7 @@ dependencies = [
 
 [[package]]
 name = "valence-generic-ibc-transfer-library"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7178,7 +7178,7 @@ dependencies = [
 
 [[package]]
 name = "valence-gmp-utils"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7186,7 +7186,7 @@ dependencies = [
 
 [[package]]
 name = "valence-ibc-utils"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmos-sdk-proto 0.20.0",
  "cosmwasm-schema 2.2.1",
@@ -7199,7 +7199,7 @@ dependencies = [
 
 [[package]]
 name = "valence-library-base"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7216,7 +7216,7 @@ dependencies = [
 
 [[package]]
 name = "valence-library-utils"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7238,7 +7238,7 @@ dependencies = [
 
 [[package]]
 name = "valence-macros"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7249,7 +7249,7 @@ dependencies = [
 
 [[package]]
 name = "valence-middleware-broker"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7272,7 +7272,7 @@ dependencies = [
 
 [[package]]
 name = "valence-middleware-osmosis"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7293,7 +7293,7 @@ dependencies = [
 
 [[package]]
 name = "valence-middleware-utils"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7305,7 +7305,7 @@ dependencies = [
 
 [[package]]
 name = "valence-neutron-ibc-transfer-library"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7331,7 +7331,7 @@ dependencies = [
 
 [[package]]
 name = "valence-neutron-ic-querier"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7350,7 +7350,7 @@ dependencies = [
 
 [[package]]
 name = "valence-osmosis-cl-lper"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7373,7 +7373,7 @@ dependencies = [
 
 [[package]]
 name = "valence-osmosis-cl-withdrawer"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7396,7 +7396,7 @@ dependencies = [
 
 [[package]]
 name = "valence-osmosis-gamm-lper"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7413,7 +7413,7 @@ dependencies = [
 
 [[package]]
 name = "valence-osmosis-gamm-withdrawer"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7431,7 +7431,7 @@ dependencies = [
 
 [[package]]
 name = "valence-osmosis-utils"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7443,7 +7443,7 @@ dependencies = [
 
 [[package]]
 name = "valence-processor"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7459,7 +7459,7 @@ dependencies = [
 
 [[package]]
 name = "valence-processor-utils"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7473,7 +7473,7 @@ dependencies = [
 
 [[package]]
 name = "valence-program-manager"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -7529,7 +7529,7 @@ dependencies = [
 
 [[package]]
 name = "valence-program-registry"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7545,7 +7545,7 @@ dependencies = [
 
 [[package]]
 name = "valence-program-registry-utils"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7556,7 +7556,7 @@ dependencies = [
 
 [[package]]
 name = "valence-reverse-splitter-library"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7579,7 +7579,7 @@ dependencies = [
 
 [[package]]
 name = "valence-splitter-library"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7604,7 +7604,7 @@ dependencies = [
 
 [[package]]
 name = "valence-storage-account"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7627,7 +7627,7 @@ dependencies = [
 
 [[package]]
 name = "valence-template-library"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
@@ -7646,7 +7646,7 @@ dependencies = [
 
 [[package]]
 name = "valence-test-dynamic-ratio"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",

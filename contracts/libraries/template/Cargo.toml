@@ -1,8 +1,8 @@
 [package]
 name    = "valence-template-library"
-version = "0.1.0"
-authors = ["Timewave Labs"]
-edition = "2021"
+version = { workspace = true }
+edition = { workspace = true }
+authors = { workspace = true }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
