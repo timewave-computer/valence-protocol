@@ -13,6 +13,7 @@ members = [
     "packages/*",
     "program-manager",
     "e2e",
+    "examples",
 ]
 resolver = "2"
 
@@ -115,3 +116,5 @@ log                  = "0.4.22"
 prost                = { version = "0.13.3", default-features = false }
 prost-types          = { version = "0.13.3", default-features = false }
 semver               = "1.0.24"
+valence-e2e          = { path = "e2e" }
+valence-examples     = { path = "examples" }
