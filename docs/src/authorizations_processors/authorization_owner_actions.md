@@ -48,7 +48,7 @@
 
   ![Authorization Table](../img/authorization_table.png)
 
-- `add_external_domains([external_domains])`: to add an `ExternalDomain` to the authorization contract, the owner will specify what type of `ExecutionEnvironment` it has (e.g. `CosmWasm`, `Evm`...) and all the information required for each type of `ExecutionEnvironment`. For example, if we are adding a domain that uses `CosmWasm` as ExecutionEnvironment, we need to provide all the Polytone information; if we are adding a domain that uses `EVM` as ExecutionEnvironment, we need to provide all the Hyperlane information and the `Encoder` to be used for encoding the messages.
+- `add_external_domains([external_domains])`: to add an `ExternalDomain` to the authorization contract, the owner will specify what type of `ExecutionEnvironment` it has (e.g. `CosmWasm`, `Evm`...) and all the information required for each type of `ExecutionEnvironment`. For example, if we are adding a domain that uses `CosmWasm` as ExecutionEnvironment, we need to provide all the Polytone information; if we are adding a domain that uses `EVM` as ExecutionEnvironment, we need to provide all the Hyperlane information and the `Encoder` to be used for correctly encoding messages in the corresponding format.
 
 - `modify_authorization(label, updated_values)`: can modify certain updatable fields of the authorization: start_time, expiration, max_concurrent_executions and priority.
 
