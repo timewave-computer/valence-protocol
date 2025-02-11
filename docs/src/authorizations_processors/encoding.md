@@ -8,7 +8,7 @@ The `Encoder Broker` is a very simple contract that will route the messages to t
 
 ## Encoder
 
-The `Encoder` is the contract that will encode/decode the messages for a specific `ExecutionEnvironment`. It will be instantiated on the `Main Domain` an added to the `Encoder Broker` with a version/namespace. `Encoders` are defined for a specific `Execution Environment` and have an `Encode` and `Decode` query where we provide the Message to be encoded/decoded. Here is an example of how these queries are performed:
+The `Encoder` is the contract that will encode/decode the messages for a specific `ExecutionEnvironment`. It will be instantiated on the `Main Domain` an added to the `Encoder Broker` with a version. `Encoders` are defined for a specific `Execution Environment` and have an `Encode` and `Decode` query where we provide the Message to be encoded/decoded. Here is an example of how these queries are performed:
 
 ```rust
 fn encode(message: ProcessorMessageToEncode) -> StdResult<Binary> {
