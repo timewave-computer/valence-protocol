@@ -8,7 +8,7 @@ The main difference between the `Lite Processor` and the `Processor` is that the
 
 The `Lite Processor` is not `ticked`, instead it will receive a `Message Batch` from the `Authorization` contract and execute it immediately. Therefore, the execution gas cost will be paid by the relayer of the batch instead of the user who ticks the processor.
 
-This processor does not store batches or uses any queues, instead it will just receive the batch, execute it atomically or non-atomically and send a callback to the `Authorization` contract with the `ExecutionResult`. The only information stored by this processor is the information of the Authorization contract, the information of the Connector (e.g. Hyperlane Mailbox, origin domain id, ...) and the authorized entities that can also execute batches on it without requiring them to be sent from the Main domain.
+This processor does not store batches or use any queue, instead it will simply receive the batch, execute it atomically or non-atomically, and send a callback to the `Authorization` contract with the `ExecutionResult`. The only information stored by this processor is the information of the Authorization contract, the information of the Connector (e.g. Hyperlane Mailbox, origin domain id, ...) and the authorized entities that can also execute batches on it without requiring them to be sent from the main domain.
 
 Since there are no queues, operations like `InsertAt` or `RemoveFrom` queue that the owner of the Authorization Contract may perform on the `Processor` are not available on the `Lite Processor`. Therefore the operations that the `Lite Processor` supports from the Authorization contract are limited to: `Pause`, `Resume` and `SendMsgs`.
 
