@@ -8,7 +8,7 @@ For the execution of `NonAtomic` batches, each function in the batch can optiona
 
 If the processor receives the expected callback from the correct address, the batch will move to the next function. If it receives a different callback than expected from that address, the execution of that function is considered to have failed and it will be retried (if applicable). In either case, a callback must be received to determine if the function was successful or not.
 
-Note: This functionality is not available on the `LiteProcessor`, as this version of the processor is not able to receive asynchronous callbacks from libraries.
+Note: This functionality is not available on the `Lite Processor`, as this version of the processor is not able to receive asynchronous callbacks from libraries.
 
 ## Processor Callbacks
 
