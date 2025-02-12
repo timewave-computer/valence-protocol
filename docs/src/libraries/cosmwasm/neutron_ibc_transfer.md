@@ -1,14 +1,14 @@
-# Valence Generic IBC Transfer library
+# Valence Neutron IBC Transfer library
 
-The **Valence Generic IBC Transfer** library allows to transfer funds over IBC from an **input account** on a source chain to an **output account** on a destination chain. It is typically used as part of a **Valence Program**. In that context, a **Processor** contract will be the main contract interacting with the Forwarder library.
+The **Valence Neutron IBC Transfer** library allows to transfer funds over IBC from an **input account** on **Neutron** to an **output account** on a destination chain. It is typically used as part of a **Valence Program**. In that context, a **Processor** contract will be the main contract interacting with the Forwarder library.
 
-**Note**: this library should not be used on **Neutron**, which requires some fees to be paid to relayers for IBC transfers. For Neutron, prefer using the dedicated (and optimized) **[Neutron IBC Transfer library](./neutron-ibc-transfer.md)** instead.
+Note: this library should not be used on another CosmWasm chain than **Neutron**, which requires some fees to be paid to relayers for IBC transfers. For other CosmWasm chains, prefer using the **[Generic IBC Transfer library](./generic_ibc_transfer.md)** instead.
 
 ## High-level flow
 
 ```mermaid
 ---
-title: Generic IBC Transfer Library
+title: Neutron IBC Transfer Library
 ---
 graph LR
   IA((Input
@@ -16,9 +16,9 @@ graph LR
   OA((Output
 		  Account))
   P[Processor]
-  S[Gen IBC Transfer
+  S[Neutron IBC Transfer
     Library]
-  subgraph Chain 1
+  subgraph Neutron
   P -- 1/IbcTransfer --> S
   S -- 2/Query balances --> IA
   S -- 3/Do Send funds --> IA
@@ -32,7 +32,7 @@ graph LR
 
 | Function    | Parameters | Description |
 |-------------|------------|-------------|
-| **IbcTransfer** | -          | Transfer funds over IBC from an **input account** on a source chain to an **output account** on a destination chain. |
+| **IbcTransfer** | -          | Transfer funds over IBC from an **input account** on **Neutron** to an **output account** on a destination chain. |
 
 ## Configuration
 

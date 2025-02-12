@@ -246,7 +246,7 @@ contract_execute(
 )?;
 ```
 
-Now anyone can tick the processor to execute the message. After receiving a `tick`, the processor will execute the message at the head of the queue and send a callback to the authorization contract with the result.
+Now anyone can tick the processor to execute the message. After receiving a `tick`, the processor will execute the message at the head of the queue and send a callback to the Authorization contract with the result.
 
 ```rust
 contract_execute(
