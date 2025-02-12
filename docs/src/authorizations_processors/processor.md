@@ -6,7 +6,7 @@ It handles two execution queues: `High` and `Med`, which allow giving different 
 
 The `Processor` can be `ticked` permissionlessly, which will trigger execution of the `Message Batches` in the queues in a `FIFO` manner. It will handle the `Retry` logic for each batch (if the batch is atomic) or function (if the batch is non-atomic). In the particular case that the current batch at the top of the queue is not retriable yet, the processor will rotate it to the back of the queue. After a `Message Batch` has been executed successfully or it reached the maximum amount of retries, it will be removed from the execution queue and the `Processor` will send a callback with the execution information to the `Authorization` contract.
 
-The `Authorization` contract will be the only address allowed to add `Message Batches` to the execution queues. It will also be allowed to Pause/Resume the `Processor` or to arbitrarily remove functions from the queues or add certain messages at a specific position in any of them.
+The `Authorization` contract will be the only address allowed to add `Message Batches` to the execution queues. It will also be allowed to pause/resume the `Processor`, to arbitrarily remove functions from queues, or add certain messages at a specific queue position.
 
 ### Execution
 
