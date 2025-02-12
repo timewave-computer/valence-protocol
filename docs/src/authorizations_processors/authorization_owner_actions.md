@@ -1,6 +1,6 @@
 # Owner Functions
 
-- `create_authorizations(vec[Authorization])`: provides an authorization list which is the core information of the authorization contract, it will include all the possible set of functions that can be executed. It will contain the following information:
+- `create_authorizations(vec[Authorization])`: provides an authorization list which is the core information of the Authorization contract, it will include all the possible set of functions that can be executed. It will contain the following information:
 
   - Label: unique name of the authorization. This label will be used to identify the authorization and will be used as subdenom of the tokenfactory token in case it is permissioned. Due to tokenfactory module restrictions, the max length of this field is 44 characters.
     Example: If the label is `withdraw` and only address `neutron123` is allowed to execute this authorization, we will create the token `factory/<contract_addr>/withdraw` and mint one to that address. If `withdraw` was permissionless, there is no need for any token, so it's not created.
@@ -48,7 +48,7 @@
 
   ![Authorization Table](../img/authorization_table.png)
 
-- `add_external_domains([external_domains])`: to add an `ExternalDomain` to the authorization contract, the owner will specify what type of `ExecutionEnvironment` it has (e.g. `CosmWasm`, `Evm`...) and all the information required for each type of `ExecutionEnvironment`. For example, if the owner is adding a domain that uses `CosmWasm` as ExecutionEnvironment, they need to provide all the Polytone information; if they are adding a domain that uses `EVM` as ExecutionEnvironment, they need to provide all the Hyperlane information and the `Encoder` to be used for correctly encoding messages in the corresponding format.
+- `add_external_domains([external_domains])`: to add an `ExternalDomain` to the Authorization contract, the owner will specify what type of `ExecutionEnvironment` it has (e.g. `CosmWasm`, `Evm`...) and all the information required for each type of `ExecutionEnvironment`. For example, if the owner is adding a domain that uses `CosmWasm` as ExecutionEnvironment, they need to provide all the Polytone information; if they are adding a domain that uses `EVM` as ExecutionEnvironment, they need to provide all the Hyperlane information and the `Encoder` to be used for correctly encoding messages in the corresponding format.
 
 - `modify_authorization(label, updated_values)`: can modify certain updatable fields of the authorization: start_time, expiration, max_concurrent_executions and priority.
 
