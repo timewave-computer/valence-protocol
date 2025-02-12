@@ -1,10 +1,10 @@
 # Execution Environment Differences
 
-Depending on the type of `Execution Environment` being used, the behavior of the `Processor` may vary. In this section we will describe the main differences in how the `Processor` behaves in the different `Execution Environments` that we support.
+Depending on the type of `Execution Environment` being used, the behavior of the Processor may vary. In this section we will describe the main differences in how the Processor behaves in the different `Execution Environments` that we support.
 
 ### Execution Success
 
-During the execution of a `Message Batch`, the `Processor` will execute each function of the subroutine of that batch. If the execution for a specific function fails, we will consider the execution failed in case of `Atomic` batches, and we will stop the execution of the next function in case of `NonAtomic` batches.
+During the execution of a `MessageBatch`, the Processor will execute each function of the subroutine of that batch. If the execution for a specific function fails, we will consider the execution failed in case of `Atomic` batches, and we will stop the execution of the next function in case of `NonAtomic` batches.
 
 Currently, in the `CosmWasm` execution environment, a function fails if the `CosmWasm` contract that we are targeting doesn't exist, if the `entry point` of that contract doesn't exist, or if the execution of the contract fails for any reason. On the contract, in the `EVM` execution environment, a function only fails if the contract explicitly fails or reverts.
 

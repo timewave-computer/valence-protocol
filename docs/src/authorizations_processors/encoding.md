@@ -1,6 +1,6 @@
 # Encoding
 
-When messages are passed between the `Authorization` contract and a `Processor` contract on a domain that is not using a `CosmWasm ExecutionEnvironment`, we need to encode the messages in a way that the `Processor` contract and the Libraries it calls can understand them. To do this two new contracts were created: `Encoder Broker` and `Encoder`.
+When messages are passed between the Authorization contract and a Processor contract on a domain that is not using a CosmWasm `ExecutionEnvironment`, we need to encode the messages in a way that the Processor contract and the Libraries it calls can understand them. To do this two new contracts were created: `Encoder Broker` and `Encoder`.
 
 ## Encoder Broker
 
@@ -45,12 +45,12 @@ fn decode(message: ProcessorMessageToDecode) -> StdResult<Binary> {
 ```
 
 As we can see above, the `Encoder` will have a match statement for each type of message that it can encode/decode. The `Encoder` will be able to encode/decode messages for a specific `ExecutionEnvironment`. In the case of `ProcessorMessages` that include messages for a specific library, these messages will include the Library they are targeting. This allows the `Encoder` to apply the encoding/decoding logic for that specific library.
-This `Encoder` will be called internally through the `Authorization` contract when the user sends a message to it. Here is an example of this execution flow:
+This `Encoder` will be called internally through the Authorization contract when the user sends a message to it. Here is an example of this execution flow:
 
 1. The owner adds an `ExternalDomain` with an `EVM ExecutionEnvironment` to the Authorization contract, specifying the `Encoder Broker` address and the `Encoder Version` to be used.
 2. The owner creates an authorization with a subroutine with an `AtomicFunction` that is of `EvmCall(EncoderInfo, LibraryName)` type.
-3. A user executes this authorization passing the message. The `Authorization` contract will route the message to the `Encoder Broker` with the `Encoder Version` specified in `EncoderInfo` and passing the `LibraryName` to be used for the message.
+3. A user executes this authorization passing the message. The Authorization contract will route the message to the `Encoder Broker` with the `Encoder Version` specified in `EncoderInfo` and passing the `LibraryName` to be used for the message.
 4. The `Encoder Broker` will route the message to the correct `Encoder` contract, which will encode the message for that particular library and return the encoded bytes to the Authorization Contract.
-5. The Authorization contract will send the encoded message to the `Processor` contract on the `ExternalDomain`, which will be able to decode and interpret the message.
+5. The Authorization contract will send the encoded message to the Processor contract on the `ExternalDomain`, which will be able to decode and interpret the message.
 
 We currently have an `Encoder` for `EVM` messages, however more Encoders will be added as we support additional `ExecutionEnvironments`.
