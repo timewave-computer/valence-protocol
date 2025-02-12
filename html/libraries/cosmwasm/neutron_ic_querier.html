@@ -165,7 +165,7 @@ KV-based queries enabled by the <code>interchainqueries</code> module on Neutron
 <p>This library requires active <a href="https://github.com/neutron-org/neutron-query-relayer">Neutron ICQ Relayers</a> operating on the specified target route.</p>
 <h3 id="valence-middleware-broker"><a class="header" href="#valence-middleware-broker">Valence Middleware broker</a></h3>
 <p>Each KV-based query requires a correctly encoded key in order to be registered.
-This library obtains the query keys from <a href="./../middleware/broker.html">Valence Middleware brokers</a>,
+This library obtains the query keys from <a href="./../../middleware/broker.html">Valence Middleware brokers</a>,
 which expose particular type registries.</p>
 <p>For a given KV-query to be performed, the underlying type registry must implement <code>IcqIntegration</code> trait
 which in turn enables the following functionality:</p>
@@ -173,10 +173,10 @@ which in turn enables the following functionality:</p>
 <li><code>get_kv_key</code>, enabling the ability to get the correctly encoded <code>KVKey</code> for query registration</li>
 <li><code>decode_and_reconstruct</code>, allowing to reconstruct the interchain query result</li>
 </ol>
-<p>Read more about the given type ICQ integration in the <a href="./../middleware/type_registry.html#neutron-interchain-query-integration">type registry documentation page</a>.</p>
+<p>Read more about the given type ICQ integration in the <a href="./../../middleware/type_registry.html#neutron-interchain-query-integration">type registry documentation page</a>.</p>
 <h3 id="valence-storage-account"><a class="header" href="#valence-storage-account">Valence Storage account</a></h3>
 <p>Results received and meant for further processing by other libraries will be stored in
-<a href="./../components/storage_account.html">Storage Accounts</a>. Each instance of Neutron
+<a href="./../../components/accounts.html#valence-storage-account">Storage Accounts</a>. Each instance of Neutron
 IC querier will be associated with its own storage account.</p>
 <h3 id="query-registration-fee"><a class="header" href="#query-registration-fee">Query registration fee</a></h3>
 <p>Neutron <code>interchainqueries</code> module is configured to escrow a fee in order to register a query.
@@ -327,17 +327,17 @@ operations that adhere to the functionality provided by the <code>interchainquer
 <p>On the other hand, query result postprocessing involves internal Valence Program operations.
 KV-Query query results fetched from remote domains are not readily useful within the Valence
 scope because of their encoding formats. Result postprocessing is therefore about adapting
-remote domain data types into <a href="./../middleware/valence_types.html">canonical Valence Protocol data types</a>
+remote domain data types into <a href="./../../middleware/valence_types.html">canonical Valence Protocol data types</a>
 that can be reasoned about.</p>
 <blockquote>
 <p>For most Cosmos SDK based chains, KV-storage values are encoded in protobuf. Interpreting
 protobuf from within CosmWasm context is not straightforward and requires explicit conversion
 steps. Other domains may store their state in other encoding formats. This library does not
 make any assumptions about the different encoding schemes that remote domains may be subject
-to - instead, that responsibility is handed over to <a href="./../middleware/_overview.html">Valence Middleware</a>.</p>
+to - instead, that responsibility is handed over to <a href="./../../middleware/_overview.html">Valence Middleware</a>.</p>
 </blockquote>
 <p>Final step in result postprocessing is about persisting the canonicalized query results.
-Resulting Valence Types are written into a <a href="./../components/storage_account.html">Storage Account</a>,
+Resulting Valence Types are written into a <a href="./../../components/accounts.html#valence-storage-account">Storage Account</a>,
 making it available for further processing, interpretation, or other types of processing.</p>
 <h2 id="library-lifecycle"><a class="header" href="#library-lifecycle">Library Lifecycle</a></h2>
 <p>With the baseline functionality in mind, there are a few design decisions

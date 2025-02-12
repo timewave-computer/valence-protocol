@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Neutron IBC Transfer - Valence Protocol Documentation</title>
+        <title>Encoding - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -12,21 +12,21 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="../../favicon.svg">
-        <link rel="shortcut icon" href="../../favicon.png">
-        <link rel="stylesheet" href="../../css/variables.css">
-        <link rel="stylesheet" href="../../css/general.css">
-        <link rel="stylesheet" href="../../css/chrome.css">
-        <link rel="stylesheet" href="../../css/print.css" media="print">
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
-        <link rel="stylesheet" href="../../fonts/fonts.css">
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" href="../../highlight.css">
-        <link rel="stylesheet" href="../../tomorrow-night.css">
-        <link rel="stylesheet" href="../../ayu-highlight.css">
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
 
@@ -35,11 +35,11 @@
 
         <!-- Provide site root to javascript -->
         <script>
-            var path_to_root = "../../";
+            var path_to_root = "../";
             var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "ayu" : "light";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc.js"></script>
+        <script src="../toc.js"></script>
     </head>
     <body>
     <div id="body-container">
@@ -91,7 +91,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="../../toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -125,7 +125,7 @@
                     <h1 class="menu-title">Valence Protocol Documentation</h1>
 
                     <div class="right-buttons">
-                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
                         <a href="https://github.com/timewave-computer/valence-protocol" title="Git repository" aria-label="Git repository">
@@ -157,93 +157,66 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="valence-neutron-ibc-transfer-library"><a class="header" href="#valence-neutron-ibc-transfer-library">Valence Neutron IBC Transfer library</a></h1>
-<p>The <strong>Valence Neutron IBC Transfer</strong> library allows to transfer funds over IBC from an <strong>input account</strong> on <strong>Neutron</strong> to an <strong>output account</strong> on a destination chain. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
-<p>Note: this library should not be used on another CosmWasm chain than <strong>Neutron</strong>, which requires some fees to be paid to relayers for IBC transfers. For other CosmWasm chains, prefer using the <strong><a href="./generic-ibc-transfer.html">Generic IBC Transfer library</a></strong> instead.</p>
-<h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
-<pre class="mermaid">---
-title: Neutron IBC Transfer Library
----
-graph LR
-  IA((Input
-      Account))
-  OA((Output
-		  Account))
-  P[Processor]
-  S[Neutron IBC Transfer
-    Library]
-  subgraph Neutron
-  P -- 1/IbcTransfer --&gt; S
-  S -- 2/Query balances --&gt; IA
-  S -- 3/Do Send funds --&gt; IA
-  end
-  subgraph Chain 2
-  IA -- 4/IBC Transfer --&gt; OA
-  end
-</pre>
-<h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>IbcTransfer</strong></td><td>-</td><td>Transfer funds over IBC from an <strong>input account</strong> on <strong>Neutron</strong> to an <strong>output account</strong> on a destination chain.</td></tr>
-</tbody></table>
-</div>
-<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
-<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+                        <h1 id="encoding"><a class="header" href="#encoding">Encoding</a></h1>
+<p>When messages are passed between the Authorization contract and a Processor contract on a domain that is not using a CosmWasm <code>ExecutionEnvironment</code>, we need to encode the messages in a way that the Processor contract and the Libraries it calls can understand them. To do this two new contracts were created: <code>Encoder Broker</code> and <code>Encoder</code>.</p>
+<h2 id="encoder-broker"><a class="header" href="#encoder-broker">Encoder Broker</a></h2>
+<p>The <code>Encoder Broker</code> is a very simple contract that will route the messages to the correct <code>Encoder</code> contract. It maps from <code>Encoder Version</code> to <code>Encoder Contract Address</code>. The <code>Encoder Broker</code> will be instantiated once on the <code>Main Domain</code> with an owner that can add/remove these mappings. An example of Mapping can be <code>"evm_encoder_v1"</code> to <code>&lt;encoder_contract_address_on_neutron&gt;</code>. The <code>Encoder Broker</code> has two queries: <code>Encode</code> and <code>Decode</code>, which routes the message to encode/decode to the <code>Encoder Version</code> specified.</p>
+<h2 id="encoder"><a class="header" href="#encoder">Encoder</a></h2>
+<p>The <code>Encoder</code> is the contract that will encode/decode the messages for a specific <code>ExecutionEnvironment</code>. It will be instantiated on the <code>Main Domain</code> an added to the <code>Encoder Broker</code> with a version. <code>Encoders</code> are defined for a specific <code>ExecutionEnvironment</code> and have an <code>Encode</code> and <code>Decode</code> query where we provide the Message to be encoded/decoded. Here is an example of how these queries are performed:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>struct LibraryConfig {
-  // Account from which the funds are pulled (on the source chain)
-  input_addr: LibraryAccountType,
-  // Account to which the funds are sent (on the destination chain)
-  output_addr: String,
-  // Denom of the token to transfer
-  denom: UncheckedDenom,
-  // Amount to be transferred, either a fixed amount or the whole available balance.
-  amount: IbcTransferAmount,
-  // Memo to be passed in the IBC transfer message.
-  memo: String,
-  // Information about the destination chain.
-  remote_chain_info: RemoteChainInfo,
-  // Denom map for the Packet-Forwarding Middleware, to perform a multi-hop transfer.
-  denom_to_pfm_map: BTreeMap&lt;String, PacketForwardMiddlewareConfig&gt;,
+</span>fn encode(message: ProcessorMessageToEncode) -&gt; StdResult&lt;Binary&gt; {
+    match message {
+        ProcessorMessageToEncode::SendMsgs {
+            execution_id,
+            priority,
+            subroutine,
+            messages,
+        } =&gt; send_msgs::encode(execution_id, priority, subroutine, messages),
+        ProcessorMessageToEncode::InsertMsgs {
+            execution_id,
+            queue_position,
+            priority,
+            subroutine,
+            messages,
+        } =&gt; insert_msgs::encode(execution_id, queue_position, priority, subroutine, messages),
+        ProcessorMessageToEncode::EvictMsgs {
+            queue_position,
+            priority,
+        } =&gt; evict_msgs::encode(queue_position, priority),
+        ProcessorMessageToEncode::Pause {} =&gt; Ok(pause::encode()),
+        ProcessorMessageToEncode::Resume {} =&gt; Ok(resume::encode()),
+    }
 }
 
-// Defines the amount to be transferred, either a fixed amount or the whole available balance.
-enum IbcTransferAmount {
-  // Transfer the full available balance of the input account.
-  FullAmount,
-  // Transfer the specified amount of tokens.
-  FixedAmount(Uint128),
-}
-
-pub struct RemoteChainInfo {
-  // Channel of the IBC connection to be used.
-  channel_id: String,
-  // Port of  the IBC connection to be used.
-  port_id: Option&lt;String&gt;,
-  // Timeout for the IBC transfer.
-  ibc_transfer_timeout: Option&lt;Uint64&gt;,
-}
-
-// Configuration for a multi-hop transfer using the Packet Forwarding Middleware
-struct PacketForwardMiddlewareConfig {
-  // Channel ID from the source chain to the intermediate chain
-  local_to_hop_chain_channel_id: String,
-  // Channel ID from the intermediate to the destination chain
-  hop_to_destination_chain_channel_id: String,
-  // Temporary receiver address on the intermediate chain
-  hop_chain_receiver_address: String,
+fn decode(message: ProcessorMessageToDecode) -&gt; StdResult&lt;Binary&gt; {
+    match message {
+        ProcessorMessageToDecode::HyperlaneCallback { callback } =&gt; {
+            Ok(hyperlane::callback::decode(&amp;callback)?)
+        }
+    }
 }
 <span class="boring">}</span></code></pre></pre>
+<p>As we can see above, the <code>Encoder</code> will have a match statement for each type of message that it can encode/decode. The <code>Encoder</code> will be able to encode/decode messages for a specific <code>ExecutionEnvironment</code>. In the case of <code>ProcessorMessages</code> that include messages for a specific library, these messages will include the Library they are targeting. This allows the <code>Encoder</code> to apply the encoding/decoding logic for that specific library.
+This <code>Encoder</code> will be called internally through the Authorization contract when the user sends a message to it. Here is an example of this execution flow:</p>
+<ol>
+<li>The owner adds an <code>ExternalDomain</code> with an <code>EVM ExecutionEnvironment</code> to the Authorization contract, specifying the <code>Encoder Broker</code> address and the <code>Encoder Version</code> to be used.</li>
+<li>The owner creates an authorization with a subroutine with an <code>AtomicFunction</code> that is of <code>EvmCall(EncoderInfo, LibraryName)</code> type.</li>
+<li>A user executes this authorization passing the message. The Authorization contract will route the message to the <code>Encoder Broker</code> with the <code>Encoder Version</code> specified in <code>EncoderInfo</code> and passing the <code>LibraryName</code> to be used for the message.</li>
+<li>The <code>Encoder Broker</code> will route the message to the correct <code>Encoder</code> contract, which will encode the message for that particular library and return the encoded bytes to the Authorization Contract.</li>
+<li>The Authorization contract will send the encoded message to the Processor contract on the <code>ExternalDomain</code>, which will be able to decode and interpret the message.</li>
+</ol>
+<p>We currently have an <code>Encoder</code> for <code>EVM</code> messages, however more Encoders will be added as we support additional <code>ExecutionEnvironments</code>.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../libraries/cosmwasm/generic_ibc_transfer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../authorizations_processors/connectors.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../../libraries/cosmwasm/osmosis_cl_lper.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../libraries/_overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -253,11 +226,11 @@ struct PacketForwardMiddlewareConfig {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../libraries/cosmwasm/generic_ibc_transfer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../authorizations_processors/connectors.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../../libraries/cosmwasm/osmosis_cl_lper.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../libraries/_overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
@@ -272,17 +245,17 @@ struct PacketForwardMiddlewareConfig {
         </script>
 
 
-        <script src="../../elasticlunr.min.js"></script>
-        <script src="../../mark.min.js"></script>
-        <script src="../../searcher.js"></script>
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
 
-        <script src="../../clipboard.min.js"></script>
-        <script src="../../highlight.js"></script>
-        <script src="../../book.js"></script>
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
 
         <!-- Custom JS scripts -->
-        <script src="../../mermaid.min.js"></script>
-        <script src="../../mermaid-init.js"></script>
+        <script src="../mermaid.min.js"></script>
+        <script src="../mermaid-init.js"></script>
 
 
     </div>

@@ -194,7 +194,7 @@ Valence currently supports CosmWasm and EVM. SVM support coming soon. The rest o
 </li>
 <li>
 <p><strong>Off-chain Execution via ZK Coprocessor</strong>:
-Early specifications exist for the [Valence ZK coprocessor] (/zk-coprocessor/_overview.md). We aim to move as much computation off-chain as possible since off-chain computation is a more scalable approach to building a cross-chain execution environment.</p>
+Early specifications exist for the <a href="components/./../zk-coprocessor/_overview.html">Valence ZK coprocessor</a>. We aim to move as much computation off-chain as possible since off-chain computation is a more scalable approach to building a cross-chain execution environment.</p>
 </li>
 </ol>
 <p>Unless explicitly mentioned, you may assume that documentation and examples in the remaining sections are written with on-chain execution in mind.</p>
@@ -206,7 +206,7 @@ Early specifications exist for the [Valence ZK coprocessor] (/zk-coprocessor/_ov
 <li>The <strong>execution environment</strong>: the environment under which programs (typically smart contracts) can be executed on that particular chain <em>e.g. CosmWasm, EVM, SVM</em>.</li>
 <li>The type of <strong>bridge</strong> used from the <strong>main domain</strong> to other domains <em>e.g. Polytone over IBC, Hyperlane</em>.</li>
 </ol>
-<p>Within a particular ecosystem of blockchains (e.g. Cosmos), the Valence Protocol usually defines one specific domain as the <strong>main domain</strong>, on which some supporting infrastructure components are deployed. Think of it as the <em>home base</em> supporting the execution and operations of Valence Programs. This will be further clarified in the <a href="components/./authorizations_processors/_overview.html">Authorizations &amp; Processors</a> section.</p>
+<p>Within a particular ecosystem of blockchains (e.g. Cosmos), the Valence Protocol usually defines one specific domain as the <strong>main domain</strong>, on which some supporting infrastructure components are deployed. Think of it as the <em>home base</em> supporting the execution and operations of Valence Programs. This will be further clarified in the <a href="components/../authorizations_processors/_overview.html">Authorizations &amp; Processors</a> section.</p>
 <p>Below is a simplified representation of a <em>program transferring tokens</em> from a given <strong>input account</strong> on the <strong>Neutron domain</strong>, a CosmWasm-enabled smart contract platform secured by the Cosmos Hub, to a specified <strong>output account</strong> on the <strong>Osmosis domain</strong>, a well-known DeFi platform in the Cosmos ecosystem.</p>
 <pre class="mermaid">---
 title: Valence Cross-Domain Program
@@ -783,13 +783,13 @@ Here is an example flowchart of how a user interacts with the Authorization cont
 </ul>
 <p><img src="authorizations_processors/../img/user_flowchart.png" alt="User flowchart" /></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="processor-contract"><a class="header" href="#processor-contract">Processor Contract</a></h1>
-<p>The Processor will be a contract on each domain within the program. The Processor handles execution of <code>Message Batches</code> it receives from the Authorization contract.
+<p>The Processor will be a contract on each domain within the program. The Processor handles execution of message batches it receives from the Authorization contract.
 Depending on the Processor type in use, its features will vary. There are currently two types of processors: Lite Processor and Processor. The former is a simplified version of the latter. The Lite Processor has limited functionality to optimize for gas-constrained domains.</p>
 <p>The Processor will be instantiated in advance with the correct address that can send messages to them, according to the <em>InstantiationFlow</em> described in the <a href="authorizations_processors/assumptions.html">Assumptions</a> section.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="processor"><a class="header" href="#processor">Processor</a></h1>
 <p>This version of the processor is currently available for <code>CosmWasm</code> Execution Environment only. It contains all the features and full functionality of the processor as described below.</p>
-<p>It handles two execution queues: <code>High</code> and <code>Med</code>, which allow giving different priorities to <code>Message Batches</code>. The Authorization contract will send the <code>Message Batches</code> to the Processor specifying the priority of the queue where they should be enqueued.</p>
-<p>The Processor can be <code>ticked</code> permissionlessly, which will trigger the execution of the <code>Message Batches</code> in the queues in a <code>FIFO</code> manner. It will handle the <code>Retry</code> logic for each batch (if the batch is atomic) or function (if the batch is non-atomic). In the particular case that the current batch at the top of the queue is not retriable yet, the processor will rotate it to the back of the queue. After a <code>Message Batch</code> has been executed successfully or it reached the maximum amount of retries, it will be removed from the execution queue and the Processor will send a callback with the execution information to the Authorization contract.</p>
+<p>It handles two execution queues: <code>High</code> and <code>Med</code>, which allow giving different priorities to message batches. The Authorization contract will send the message batches to the Processor specifying the priority of the queue where they should be enqueued.</p>
+<p>The Processor can be <code>ticked</code> permissionlessly, which will trigger the execution of the message batches in the queues in a <code>FIFO</code> manner. It will handle the <code>Retry</code> logic for each batch (if the batch is atomic) or function (if the batch is non-atomic). In the particular case that the current batch at the top of the queue is not retriable yet, the processor will rotate it to the back of the queue. After a <code>MessageBatch</code> has been executed successfully or it reached the maximum amount of retries, it will be removed from the execution queue and the Processor will send a callback with the execution information to the Authorization contract.</p>
 <p>The Authorization contract will be the only address allowed to add message batches to the execution queues. It will also be allowed to Pause/Resume the Processor or to arbitrarily remove functions from the queues or add certain messages at a specific position in any of them.</p>
 <h3 id="execution"><a class="header" href="#execution">Execution</a></h3>
 <p>When a processor is <code>Ticked</code>, the first <code>Message Batch</code> will be taken from the queue (<code>High</code> if there are batches there or <code>Med</code> if there aren’t).
@@ -807,7 +807,7 @@ For <code>NonAtomic</code> batches, the processor must be ticked each time the b
 </li>
 </ul>
 <h3 id="storage"><a class="header" href="#storage">Storage</a></h3>
-<p>The Processor will receive <code>Message Batches</code> from the Authorization contract and will enqueue them in a custom storage structure called a <code>QueueMap</code>. This structure is a FIFO queue with owner privileges, which allow the owner to insert or remove messages from any position in the queue.
+<p>The Processor will receive message batches from the Authorization contract and will enqueue them in a custom storage structure called a <code>QueueMap</code>. This structure is a FIFO queue with owner privileges, which allow the owner to insert or remove messages from any position in the queue.
 Each “item” stored in the queue is a <code>MessageBatch</code> object that has the following structure:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -836,7 +836,7 @@ Each “item” stored in the queue is a <code>MessageBatch</code> object that h
 <p>In addition to the limitations above, the Lite Processor does not support retries or function callbacks. This means that the <code>MessageBatch</code> received will be executed only once and the <code>NonAtomic</code> batches can not be confirmed asynchronously because batch execution will be attempted once, non-atomically, the moment it is received.</p>
 <p>In addition to executing batches that come from the Authorization contract, the Lite Processor defines a set of authorized addresses that can send batches to it for execution. Since the Processor can execute batches from any address, we only send a callback if the address that sent the batch is a smart contract. Thus the authorized addresses are in charge of the handling/ignoring of these callbacks.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="execution-environment-differences"><a class="header" href="#execution-environment-differences">Execution Environment Differences</a></h1>
-<p>Depending on the type of <code>Execution Environment</code> being used, the behavior of the Processor may vary. In this section we will describe the main differences in how the Processor behaves in the different <code>Execution Environments</code> that we support.</p>
+<p>Depending on the type of <code>ExecutionEnvironment</code> being used, the behavior of the Processor may vary. In this section we will describe the main differences in how the Processor behaves in the different execution environments that we support.</p>
 <h3 id="execution-success"><a class="header" href="#execution-success">Execution Success</a></h3>
 <p>During the execution of a <code>MessageBatch</code>, the Processor will execute each function of the subroutine of that batch. If the execution for a specific function fails, we will consider the execution failed in case of <code>Atomic</code> batches, and we will stop the execution of the next function in case of <code>NonAtomic</code> batches.</p>
 <p>Currently, in the <code>CosmWasm</code> execution environment, a function fails if the <code>CosmWasm</code> contract that we are targeting doesn't exist, if the <code>entry point</code> of that contract doesn't exist, or if the execution of the contract fails for any reason. On the contract, in the <code>EVM</code> execution environment, a function only fails if the contract explicitly fails or reverts.</p>
@@ -904,7 +904,7 @@ pub enum ExecutionResult {
 <h2 id="bridge-callbacks"><a class="header" href="#bridge-callbacks">Bridge Callbacks</a></h2>
 <p>When messages need to be sent through bridges because we are executing batches on external domains, we need to know if, for example, a timeout happened and keep track of it. For this reason we have callbacks per bridge that we support and specific logic that will be executed if they are received. For <code>Polytone</code> timeouts, we will check if the <code>ttl</code> field has not expired and allow permissionless retries if it's still valid. In case the <code>ttl</code> has expired, we will set the ExecutionResult to timeout and not retriable, then send the authorization token back to the user if the user sent it to execute the authorization.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="connectors"><a class="header" href="#connectors">Connectors</a></h1>
-<p>Connectors are a way for the Authorization contract in the main domain to interact with external domains. When adding an <code>ExternalDomain</code> to the Authorization contract, depending on the <code>ExecutionEnvironment</code> we must specify the Connector information to be used. These connectors are responsible for receiving the <code>Message Batches</code> from the Authorization contract and trigger the necessary actions for the relayers to pick them up and deliver them to the Processor contract in the <code>ExternalDomain</code>. The connector on the <code>ExternalDomain</code> will also receive callbacks with the <code>ExecutionResult</code> from the Processor contract and send them back to the Authorization contract.</p>
+<p>Connectors are a way for the Authorization contract in the main domain to interact with external domains. When adding an <code>ExternalDomain</code> to the Authorization contract, depending on the <code>ExecutionEnvironment</code> we must specify the Connector information to be used. These connectors are responsible for receiving the message batches from the Authorization contract and trigger the necessary actions for the relayers to pick them up and deliver them to the Processor contract in the <code>ExternalDomain</code>. The connector on the <code>ExternalDomain</code> will also receive callbacks with the <code>ExecutionResult</code> from the Processor contract and send them back to the Authorization contract.</p>
 <p>We currently support the following connectors:</p>
 <h3 id="polytone"><a class="header" href="#polytone">Polytone</a></h3>
 <p>To connect <code>ExternalDomains</code> that use <code>CosmWasm</code> as <code>ExecutionEnvironment</code> we use <a href="https://github.com/DA0-DA0/polytone">Polytone</a>. Polytone is a set of smart contracts that are instantiated on both domains that implement logic to pass messages to each other using IBC. Polytone consists of the following contracts:</p>
@@ -992,7 +992,7 @@ pub enum ExecutionResult {
 <h2 id="encoder-broker"><a class="header" href="#encoder-broker">Encoder Broker</a></h2>
 <p>The <code>Encoder Broker</code> is a very simple contract that will route the messages to the correct <code>Encoder</code> contract. It maps from <code>Encoder Version</code> to <code>Encoder Contract Address</code>. The <code>Encoder Broker</code> will be instantiated once on the <code>Main Domain</code> with an owner that can add/remove these mappings. An example of Mapping can be <code>"evm_encoder_v1"</code> to <code>&lt;encoder_contract_address_on_neutron&gt;</code>. The <code>Encoder Broker</code> has two queries: <code>Encode</code> and <code>Decode</code>, which routes the message to encode/decode to the <code>Encoder Version</code> specified.</p>
 <h2 id="encoder"><a class="header" href="#encoder">Encoder</a></h2>
-<p>The <code>Encoder</code> is the contract that will encode/decode the messages for a specific <code>ExecutionEnvironment</code>. It will be instantiated on the <code>Main Domain</code> an added to the <code>Encoder Broker</code> with a version. <code>Encoders</code> are defined for a specific <code>Execution Environment</code> and have an <code>Encode</code> and <code>Decode</code> query where we provide the Message to be encoded/decoded. Here is an example of how these queries are performed:</p>
+<p>The <code>Encoder</code> is the contract that will encode/decode the messages for a specific <code>ExecutionEnvironment</code>. It will be instantiated on the <code>Main Domain</code> an added to the <code>Encoder Broker</code> with a version. <code>Encoders</code> are defined for a specific <code>ExecutionEnvironment</code> and have an <code>Encode</code> and <code>Decode</code> query where we provide the Message to be encoded/decoded. Here is an example of how these queries are performed:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn encode(message: ProcessorMessageToEncode) -&gt; StdResult&lt;Binary&gt; {
@@ -1221,7 +1221,7 @@ pub struct ForwardingConstraints {
 <span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-generic-ibc-transfer-library"><a class="header" href="#valence-generic-ibc-transfer-library">Valence Generic IBC Transfer library</a></h1>
 <p>The <strong>Valence Generic IBC Transfer</strong> library allows to transfer funds over IBC from an <strong>input account</strong> on a source chain to an <strong>output account</strong> on a destination chain. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
-<p><strong>Note</strong>: this library should not be used on <strong>Neutron</strong>, which requires some fees to be paid to relayers for IBC transfers. For Neutron, prefer using the dedicated (and optimized) <strong><a href="libraries/cosmwasm/./neutron-ibc-transfer.html">Neutron IBC Transfer library</a></strong> instead.</p>
+<p><strong>Note</strong>: this library should not be used on <strong>Neutron</strong>, which requires some fees to be paid to relayers for IBC transfers. For Neutron, prefer using the dedicated (and optimized) <strong><a href="libraries/cosmwasm/./neutron_ibc_transfer.html">Neutron IBC Transfer library</a></strong> instead.</p>
 <h2 id="high-level-flow-3"><a class="header" href="#high-level-flow-3">High-level flow</a></h2>
 <pre class="mermaid">---
 title: Generic IBC Transfer Library
@@ -1298,7 +1298,7 @@ struct PacketForwardMiddlewareConfig {
 <span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-neutron-ibc-transfer-library"><a class="header" href="#valence-neutron-ibc-transfer-library">Valence Neutron IBC Transfer library</a></h1>
 <p>The <strong>Valence Neutron IBC Transfer</strong> library allows to transfer funds over IBC from an <strong>input account</strong> on <strong>Neutron</strong> to an <strong>output account</strong> on a destination chain. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
-<p>Note: this library should not be used on another CosmWasm chain than <strong>Neutron</strong>, which requires some fees to be paid to relayers for IBC transfers. For other CosmWasm chains, prefer using the <strong><a href="libraries/cosmwasm/./generic-ibc-transfer.html">Generic IBC Transfer library</a></strong> instead.</p>
+<p>Note: this library should not be used on another CosmWasm chain than <strong>Neutron</strong>, which requires some fees to be paid to relayers for IBC transfers. For other CosmWasm chains, prefer using the <strong><a href="libraries/cosmwasm/./generic_ibc_transfer.html">Generic IBC Transfer library</a></strong> instead.</p>
 <h2 id="high-level-flow-4"><a class="header" href="#high-level-flow-4">High-level flow</a></h2>
 <pre class="mermaid">---
 title: Neutron IBC Transfer Library
@@ -1766,7 +1766,7 @@ KV-based queries enabled by the <code>interchainqueries</code> module on Neutron
 <p>This library requires active <a href="https://github.com/neutron-org/neutron-query-relayer">Neutron ICQ Relayers</a> operating on the specified target route.</p>
 <h3 id="valence-middleware-broker"><a class="header" href="#valence-middleware-broker">Valence Middleware broker</a></h3>
 <p>Each KV-based query requires a correctly encoded key in order to be registered.
-This library obtains the query keys from <a href="libraries/cosmwasm/./../middleware/broker.html">Valence Middleware brokers</a>,
+This library obtains the query keys from <a href="libraries/cosmwasm/./../../middleware/broker.html">Valence Middleware brokers</a>,
 which expose particular type registries.</p>
 <p>For a given KV-query to be performed, the underlying type registry must implement <code>IcqIntegration</code> trait
 which in turn enables the following functionality:</p>
@@ -1774,10 +1774,10 @@ which in turn enables the following functionality:</p>
 <li><code>get_kv_key</code>, enabling the ability to get the correctly encoded <code>KVKey</code> for query registration</li>
 <li><code>decode_and_reconstruct</code>, allowing to reconstruct the interchain query result</li>
 </ol>
-<p>Read more about the given type ICQ integration in the <a href="libraries/cosmwasm/./../middleware/type_registry.html#neutron-interchain-query-integration">type registry documentation page</a>.</p>
+<p>Read more about the given type ICQ integration in the <a href="libraries/cosmwasm/./../../middleware/type_registry.html#neutron-interchain-query-integration">type registry documentation page</a>.</p>
 <h3 id="valence-storage-account-1"><a class="header" href="#valence-storage-account-1">Valence Storage account</a></h3>
 <p>Results received and meant for further processing by other libraries will be stored in
-<a href="libraries/cosmwasm/./../components/storage_account.html">Storage Accounts</a>. Each instance of Neutron
+<a href="libraries/cosmwasm/./../../components/accounts.html#valence-storage-account">Storage Accounts</a>. Each instance of Neutron
 IC querier will be associated with its own storage account.</p>
 <h3 id="query-registration-fee"><a class="header" href="#query-registration-fee">Query registration fee</a></h3>
 <p>Neutron <code>interchainqueries</code> module is configured to escrow a fee in order to register a query.
@@ -1928,17 +1928,17 @@ operations that adhere to the functionality provided by the <code>interchainquer
 <p>On the other hand, query result postprocessing involves internal Valence Program operations.
 KV-Query query results fetched from remote domains are not readily useful within the Valence
 scope because of their encoding formats. Result postprocessing is therefore about adapting
-remote domain data types into <a href="libraries/cosmwasm/./../middleware/valence_types.html">canonical Valence Protocol data types</a>
+remote domain data types into <a href="libraries/cosmwasm/./../../middleware/valence_types.html">canonical Valence Protocol data types</a>
 that can be reasoned about.</p>
 <blockquote>
 <p>For most Cosmos SDK based chains, KV-storage values are encoded in protobuf. Interpreting
 protobuf from within CosmWasm context is not straightforward and requires explicit conversion
 steps. Other domains may store their state in other encoding formats. This library does not
 make any assumptions about the different encoding schemes that remote domains may be subject
-to - instead, that responsibility is handed over to <a href="libraries/cosmwasm/./../middleware/_overview.html">Valence Middleware</a>.</p>
+to - instead, that responsibility is handed over to <a href="libraries/cosmwasm/./../../middleware/_overview.html">Valence Middleware</a>.</p>
 </blockquote>
 <p>Final step in result postprocessing is about persisting the canonicalized query results.
-Resulting Valence Types are written into a <a href="libraries/cosmwasm/./../components/storage_account.html">Storage Account</a>,
+Resulting Valence Types are written into a <a href="libraries/cosmwasm/./../../components/accounts.html#valence-storage-account">Storage Account</a>,
 making it available for further processing, interpretation, or other types of processing.</p>
 <h2 id="library-lifecycle"><a class="header" href="#library-lifecycle">Library Lifecycle</a></h2>
 <p>With the baseline functionality in mind, there are a few design decisions
@@ -2598,10 +2598,10 @@ graph LR
 <p>The program is composed of the following components:</p>
 <ul>
 <li><strong>Party A Deposit account</strong>: a <a href="examples/../components/accounts.html">Valence account</a> which Party A will deposit their tokens into, to be exchanged with Party B's tokens.</li>
-<li><strong>Splitter A</strong>: an instance of the <a href="examples/../libraries/splitter.html">Splitter library</a> that will transfer Party A's tokens from its input account (i.e. the <strong>Party A Deposit account</strong>) to its output account (i.e. the <strong>Party B Withdraw account</strong>) upon execution of its <code>split</code> function.</li>
+<li><strong>Splitter A</strong>: an instance of the <a href="examples/../libraries/cosmwasm/splitter.html">Splitter library</a> that will transfer Party A's tokens from its input account (i.e. the <strong>Party A Deposit account</strong>) to its output account (i.e. the <strong>Party B Withdraw account</strong>) upon execution of its <code>split</code> function.</li>
 <li><strong>Party B Withdraw account</strong>: the account from which Party B can withdraw Party A's tokens after the swap has successfully completed. Note: this can be a <a href="examples/../components/accounts.html">Valence account</a>, but it could also be a regular chain account, or a smart contract.</li>
 <li><strong>Party B Deposit account</strong>:  a <a href="examples/../components/accounts.html">Valence account</a> which Party B will deposit their funds into, to be exchanged with Party A's funds.</li>
-<li><strong>Splitter B</strong>: an instance of the <a href="examples/../libraries/splitter.html">Splitter library</a> that will transfer Party B's tokens from its input account (i.e. the <strong>Party B Deposit account</strong>) to its output account (i.e. the <strong>Party A Withdraw account</strong>) upon execution of its <code>split</code> function.</li>
+<li><strong>Splitter B</strong>: an instance of the <a href="examples/../libraries/cosmwasm/splitter.html">Splitter library</a> that will transfer Party B's tokens from its input account (i.e. the <strong>Party B Deposit account</strong>) to its output account (i.e. the <strong>Party A Withdraw account</strong>) upon execution of its <code>split</code> function.</li>
 <li><strong>Party A Withdraw account</strong>: the account from which Party A can withdraw Party B's tokens after the swap has successfully completed. Note: this can be a <a href="examples/../components/accounts.html">Valence account</a>, but it could also be a regular chain account, or a smart contract.</li>
 </ul>
 <p>The way the program is able to fulfil the requirement for an <em>atomic exchange of tokens</em> between the two parties is done by implementing an <strong>atomic subroutine</strong> composed of two function calls:</p>
@@ -2687,7 +2687,7 @@ graph BT
 <li><strong>Position Withdrawer</strong>: To redeem a position for underlying funds that are then transferred to the Withdraw Account on Neutron.</li>
 <li><strong>Bridge Transfer</strong>: To transfer funds from the Neutron Withdraw Account to the Ethereum Withdraw Account.</li>
 </ul>
-<p>Note that the Accounts mentioned here the standard <a href="examples/../components/accounts.html">Valence Accounts</a>. Th Bridge Transfer library will depend on the token being transferred, but will offer similar functionality to the <a href="examples/../libraries/generic-ibc-transfer.html">IBC Transfer</a> library. The Position Depositor and Withdrawer will depend on the type of position, but can be similar to the <a href="examples/../libraries/astroport-lper.html">Liqudity Provider</a> and <a href="examples/../libraries/astroport-withdrawer.html">Liquidity Withdrawer</a>.</p>
+<p>Note that the Accounts mentioned here the standard <a href="examples/../components/accounts.html">Valence Accounts</a>. Th Bridge Transfer library will depend on the token being transferred, but will offer similar functionality to the <a href="examples/../libraries/cosmwasm/generic_ibc_transfer.html">IBC Transfer</a> library. The Position Depositor and Withdrawer will depend on the type of position, but can be similar to the <a href="examples/../libraries/cosmwasm/astroport_lper.html">Liqudity Provider</a> and <a href="examples/../libraries/cosmwasm/astroport_withdrawer.html">Liquidity Withdrawer</a>.</p>
 <h3 id="vault-contract"><a class="header" href="#vault-contract">Vault Contract</a></h3>
 <p>The Vault contract is a special contract on Ethereum that has an ERC-4626 interface.</p>
 <h4 id="user-methods-to-deposit-funds"><a class="header" href="#user-methods-to-deposit-funds">User methods to deposit funds</a></h4>

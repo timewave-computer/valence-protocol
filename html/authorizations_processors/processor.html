@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Generic IBC Transfer - Valence Protocol Documentation</title>
+        <title>Processor - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -12,21 +12,21 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="../../favicon.svg">
-        <link rel="shortcut icon" href="../../favicon.png">
-        <link rel="stylesheet" href="../../css/variables.css">
-        <link rel="stylesheet" href="../../css/general.css">
-        <link rel="stylesheet" href="../../css/chrome.css">
-        <link rel="stylesheet" href="../../css/print.css" media="print">
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
-        <link rel="stylesheet" href="../../fonts/fonts.css">
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" href="../../highlight.css">
-        <link rel="stylesheet" href="../../tomorrow-night.css">
-        <link rel="stylesheet" href="../../ayu-highlight.css">
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
 
@@ -35,11 +35,11 @@
 
         <!-- Provide site root to javascript -->
         <script>
-            var path_to_root = "../../";
+            var path_to_root = "../";
             var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "ayu" : "light";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc.js"></script>
+        <script src="../toc.js"></script>
     </head>
     <body>
     <div id="body-container">
@@ -91,7 +91,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="../../toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -125,7 +125,7 @@
                     <h1 class="menu-title">Valence Protocol Documentation</h1>
 
                     <div class="right-buttons">
-                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
                         <a href="https://github.com/timewave-computer/valence-protocol" title="Git repository" aria-label="Git repository">
@@ -157,93 +157,56 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="valence-generic-ibc-transfer-library"><a class="header" href="#valence-generic-ibc-transfer-library">Valence Generic IBC Transfer library</a></h1>
-<p>The <strong>Valence Generic IBC Transfer</strong> library allows to transfer funds over IBC from an <strong>input account</strong> on a source chain to an <strong>output account</strong> on a destination chain. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
-<p><strong>Note</strong>: this library should not be used on <strong>Neutron</strong>, which requires some fees to be paid to relayers for IBC transfers. For Neutron, prefer using the dedicated (and optimized) <strong><a href="./neutron-ibc-transfer.html">Neutron IBC Transfer library</a></strong> instead.</p>
-<h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
-<pre class="mermaid">---
-title: Generic IBC Transfer Library
----
-graph LR
-  IA((Input
-      Account))
-  OA((Output
-		  Account))
-  P[Processor]
-  S[Gen IBC Transfer
-    Library]
-  subgraph Chain 1
-  P -- 1/IbcTransfer --&gt; S
-  S -- 2/Query balances --&gt; IA
-  S -- 3/Do Send funds --&gt; IA
-  end
-  subgraph Chain 2
-  IA -- 4/IBC Transfer --&gt; OA
-  end
-</pre>
-<h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>IbcTransfer</strong></td><td>-</td><td>Transfer funds over IBC from an <strong>input account</strong> on a source chain to an <strong>output account</strong> on a destination chain.</td></tr>
-</tbody></table>
-</div>
-<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
-<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+                        <h1 id="processor"><a class="header" href="#processor">Processor</a></h1>
+<p>This version of the processor is currently available for <code>CosmWasm</code> Execution Environment only. It contains all the features and full functionality of the processor as described below.</p>
+<p>It handles two execution queues: <code>High</code> and <code>Med</code>, which allow giving different priorities to message batches. The Authorization contract will send the message batches to the Processor specifying the priority of the queue where they should be enqueued.</p>
+<p>The Processor can be <code>ticked</code> permissionlessly, which will trigger the execution of the message batches in the queues in a <code>FIFO</code> manner. It will handle the <code>Retry</code> logic for each batch (if the batch is atomic) or function (if the batch is non-atomic). In the particular case that the current batch at the top of the queue is not retriable yet, the processor will rotate it to the back of the queue. After a <code>MessageBatch</code> has been executed successfully or it reached the maximum amount of retries, it will be removed from the execution queue and the Processor will send a callback with the execution information to the Authorization contract.</p>
+<p>The Authorization contract will be the only address allowed to add message batches to the execution queues. It will also be allowed to Pause/Resume the Processor or to arbitrarily remove functions from the queues or add certain messages at a specific position in any of them.</p>
+<h3 id="execution"><a class="header" href="#execution">Execution</a></h3>
+<p>When a processor is <code>Ticked</code>, the first <code>Message Batch</code> will be taken from the queue (<code>High</code> if there are batches there or <code>Med</code> if there aren’t).
+After taking them, we will execute them in different ways depending if the batch is <code>Atomic</code> or <code>NonAtomic</code>.</p>
+<ul>
+<li>
+<p>For <code>Atomic</code> batches, the Processor will execute either all functions or none of them. If execution fails, the batch <code>RetryLogic</code> is checked to determine if the match should be re-enqueued. If not, a callback is sent with a <code>Rejected(error)</code> status to the Authorization contract.
+If the execution succeeded we will send a callback with <code>Executed</code> status to the Authorization contract.</p>
+</li>
+<li>
+<p>For <code>NonAtomic</code> batches, we will execute the functions one by one and applying the RetryLogic individually to each function if they fail. <code>NonAtomic</code> functions might also be confirmed via <code>CallbackConfirmations</code> in which case we will keep them in a separate storage location until we receive that specific callback.
+Each time a function is confirmed, we will re-queue the batch and keep track of what function we have to execute next.
+If at some point a function uses up all its retries, the processor will send a callback to the Authorization contract with a <code>PartiallyExecuted(num_of_functions_executed, execution_error)</code> execution result if some succeeded or <code>Rejected(error)</code> if none did. If all functions are executed successfully, an <code>Executed</code> execution result will be sent.
+For <code>NonAtomic</code> batches, the processor must be ticked each time the batch is at the top of the queue to continue, so at least as many ticks will be required as the number of functions in the batch.</p>
+</li>
+</ul>
+<h3 id="storage"><a class="header" href="#storage">Storage</a></h3>
+<p>The Processor will receive message batches from the Authorization contract and will enqueue them in a custom storage structure called a <code>QueueMap</code>. This structure is a FIFO queue with owner privileges, which allow the owner to insert or remove messages from any position in the queue.
+Each “item” stored in the queue is a <code>MessageBatch</code> object that has the following structure:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>struct LibraryConfig {
-  // Account from which the funds are pulled (on the source chain)
-  input_addr: LibraryAccountType,
-  // Account to which the funds are sent (on the destination chain)
-  output_addr: String,
-  // Denom of the token to transfer
-  denom: UncheckedDenom,
-  // Amount to be transferred, either a fixed amount or the whole available balance.
-  amount: IbcTransferAmount,
-  // Memo to be passed in the IBC transfer message.
-  memo: String,
-  // Information about the destination chain.
-  remote_chain_info: RemoteChainInfo,
-  // Denom map for the Packet-Forwarding Middleware, to perform a multi-hop transfer.
-  denom_to_pfm_map: BTreeMap&lt;String, PacketForwardMiddlewareConfig&gt;,
-}
-
-// Defines the amount to be transferred, either a fixed amount or the whole available balance.
-enum IbcTransferAmount {
-  // Transfer the full available balance of the input account.
-  FullAmount,
-  // Transfer the specified amount of tokens.
-  FixedAmount(Uint128),
-}
-
-pub struct RemoteChainInfo {
-  // Channel of the IBC connection to be used.
-  channel_id: String,
-  // Port of  the IBC connection to be used.
-  port_id: Option&lt;String&gt;,
-  // Timeout for the IBC transfer.
-  ibc_transfer_timeout: Option&lt;Uint64&gt;,
-}
-
-// Configuration for a multi-hop transfer using the Packet Forwarding Middleware
-struct PacketForwardMiddlewareConfig {
-  // Channel ID from the source chain to the intermediate chain
-  local_to_hop_chain_channel_id: String,
-  // Channel ID from the intermediate to the destination chain
-  hop_to_destination_chain_channel_id: String,
-  // Temporary receiver address on the intermediate chain
-  hop_chain_receiver_address: String,
+</span>pub struct MessageBatch {
+    pub id: u64,
+    pub msgs: Vec&lt;ProcessorMessage&gt;,
+    pub subroutine: Subroutine,
+    pub priority: Priority,
+    pub retry: Option&lt;CurrentRetry&gt;,
 }
 <span class="boring">}</span></code></pre></pre>
+<ul>
+<li>id: represents the global id of the batch. The Authorization contract, to understand the callbacks that it will receive from each processor, identifies each batch with an id. This id is unique for the entire application.</li>
+<li>msgs: the messages the processor needs to execute for this batch (e.g. a CosmWasm ExecuteMsg or MigrateMsg).</li>
+<li>subroutine: This is the config that the authorization table defines for the execution of these functions. With this field we can know if the functions need to be executed atomically or not atomically, for example, and the retry logic for each batch/function depending on the config type.</li>
+<li>priority (for internal use): batches will be queued in different priority queues when they are received from the Authorization contract. We also keep this priority here because they might need to be re-queued after a failed execution and we need to know where to re-queue them.</li>
+<li>retry (for internal use): we are keeping the current retry we are at (if the execution previously failed) to know when to abort if we exceed the max retry amounts.</li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../libraries/cosmwasm/forwarder.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../authorizations_processors/processor_contract.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../../libraries/cosmwasm/neutron_ibc_transfer.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../authorizations_processors/lite_processor.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -253,11 +216,11 @@ struct PacketForwardMiddlewareConfig {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../libraries/cosmwasm/forwarder.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../authorizations_processors/processor_contract.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../../libraries/cosmwasm/neutron_ibc_transfer.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../authorizations_processors/lite_processor.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
@@ -272,17 +235,17 @@ struct PacketForwardMiddlewareConfig {
         </script>
 
 
-        <script src="../../elasticlunr.min.js"></script>
-        <script src="../../mark.min.js"></script>
-        <script src="../../searcher.js"></script>
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
 
-        <script src="../../clipboard.min.js"></script>
-        <script src="../../highlight.js"></script>
-        <script src="../../book.js"></script>
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
 
         <!-- Custom JS scripts -->
-        <script src="../../mermaid.min.js"></script>
-        <script src="../../mermaid-init.js"></script>
+        <script src="../mermaid.min.js"></script>
+        <script src="../mermaid-init.js"></script>
 
 
     </div>

@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Connectors - Valence Protocol Documentation</title>
+        <title>Domains - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -157,88 +157,29 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="connectors"><a class="header" href="#connectors">Connectors</a></h1>
-<p>Connectors are a way for the Authorization contract in the main domain to interact with external domains. When adding an <code>ExternalDomain</code> to the Authorization contract, depending on the <code>ExecutionEnvironment</code> we must specify the Connector information to be used. These connectors are responsible for receiving the <code>Message Batches</code> from the Authorization contract and trigger the necessary actions for the relayers to pick them up and deliver them to the Processor contract in the <code>ExternalDomain</code>. The connector on the <code>ExternalDomain</code> will also receive callbacks with the <code>ExecutionResult</code> from the Processor contract and send them back to the Authorization contract.</p>
-<p>We currently support the following connectors:</p>
-<h3 id="polytone"><a class="header" href="#polytone">Polytone</a></h3>
-<p>To connect <code>ExternalDomains</code> that use <code>CosmWasm</code> as <code>ExecutionEnvironment</code> we use <a href="https://github.com/DA0-DA0/polytone">Polytone</a>. Polytone is a set of smart contracts that are instantiated on both domains that implement logic to pass messages to each other using IBC. Polytone consists of the following contracts:</p>
-<ul>
-<li>Polytone Note: contract responsible of sending the messages from the Authorization contract to the Processor contract on the external domain and receiving the callback from the Processor contract on the external domain and sending it back to the Authorization contract.</li>
-<li>Polytone Voice: contract that receives the message from Polytone Note and instantiates a Polytone Proxy for each sender that will redirect the message to the destination.</li>
-<li>Polytone Proxy: contract instantiated by Polytone Voice responsible for sending messages received from Polytone Note to the corresponding contract.</li>
-</ul>
-<p>To connect the Authorization contract with an external domain that uses Polytone as a connector, we need to provide the Polytone Note address and the predicted Polytone Proxy addresses for both the Authorization contract (when adding the domain) and the Processor Contract (when instantiating the Processor). An IBC relayer must relay these two channels to enable communication.</p>
-<p>This is the sequence of messages when using Polytone as a connector:</p>
-<pre class="mermaid">graph TD
-  %% Execution Result Sequence
-  subgraph Execution_Sequence [Execution Result Sequence]
-    E2[Processor Contract]
-    D2[Polytone Note on
-    External Domain]
-    C2[Polytone Voice on
-    Main Domain]
-    B2[Polytone Proxy on
-    Main Domain]
-    A2[Authorization Contract]
-    
-    E2 --&gt;|Step 5: Execution Result| D2
-    D2 --&gt;|Step 6: Relayer| C2
-    C2 --&gt;|Step 7: Instantiate &amp; Forward Result| B2
-    B2 --&gt;|Step 8: Execution Result| A2
+                        <h1 id="domains"><a class="header" href="#domains">Domains</a></h1>
+<p>A <strong>domain</strong> is an environment in which the components that form a program (more on these later) can be instantiated (deployed).</p>
+<p><strong>Domains</strong> are defined by <strong>three properties</strong>:</p>
+<ol>
+<li>The <strong>chain</strong>: the blockchain's name <em>e.g. Neutron, Osmosis, Ethereum mainnet</em>.</li>
+<li>The <strong>execution environment</strong>: the environment under which programs (typically smart contracts) can be executed on that particular chain <em>e.g. CosmWasm, EVM, SVM</em>.</li>
+<li>The type of <strong>bridge</strong> used from the <strong>main domain</strong> to other domains <em>e.g. Polytone over IBC, Hyperlane</em>.</li>
+</ol>
+<p>Within a particular ecosystem of blockchains (e.g. Cosmos), the Valence Protocol usually defines one specific domain as the <strong>main domain</strong>, on which some supporting infrastructure components are deployed. Think of it as the <em>home base</em> supporting the execution and operations of Valence Programs. This will be further clarified in the <a href="../authorizations_processors/_overview.html">Authorizations &amp; Processors</a> section.</p>
+<p>Below is a simplified representation of a <em>program transferring tokens</em> from a given <strong>input account</strong> on the <strong>Neutron domain</strong>, a CosmWasm-enabled smart contract platform secured by the Cosmos Hub, to a specified <strong>output account</strong> on the <strong>Osmosis domain</strong>, a well-known DeFi platform in the Cosmos ecosystem.</p>
+<pre class="mermaid">---
+title: Valence Cross-Domain Program
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+		  Account))
+  subgraph Neutron
+  IA
   end
-
-  %% Message Batch Sequence
-  subgraph Batch_Sequence [Message Batch Sequence]
-    A1[Authorization Contract]
-    B1[Polytone Note on
-    Main Domain]
-    C1[Polytone Voice on
-    External Domain]
-    D1[Polytone Proxy on
-    External Domain]
-    E1[Processor Contract]
-    
-    A1 --&gt;|Step 1: Message Batch| B1
-    B1 --&gt;|Step 2: Relayer| C1
-    C1 --&gt;|Step 3: Instantiate &amp; Forward Batch| D1
-    D1 --&gt;|Step 4: Message Batch| E1
-  end
-</pre>
-<h3 id="hyperlane"><a class="header" href="#hyperlane">Hyperlane</a></h3>
-<p>To connect <code>ExternalDomains</code> that use <code>EVM</code> as <code>ExecutionEnvironment</code> we use <a href="https://github.com/hyperlane-xyz/hyperlane-monorepo">Hyperlane</a>. Hyperlane is a set of smart contracts that are deployed on both domains and communicate with one another using the <code>Hyperlane Relayer</code>. The required Hyperlane contracts are the following:</p>
-<ul>
-<li>Mailbox: contract responsible for receiving the message for another domain and emitting an event with the message to be picked up by the relayer. The mailbox will also receive messages to be executed on a domain from the relayers and will route them to the correct destination contract.</li>
-</ul>
-<p>To connect the Authorization contract with an external domain that uses Hyperlane as a connector, we need to provide the Mailbox address for both the Authorization contract (when adding the domain) and the Processor contract (when instantiating the Processor). A Hyperlane Relayer must relay these two domains using the Mailbox addresses to make the communication possible.</p>
-<p>NOTE: There are other Hyperlane contracts that need to be used to set-up Hyperlane, but they are not used in the context of the Authorization contract or the Processor. For more information on how this works, check Hyperlane's documentation or see the <a href="https://github.com/timewave-computer/valence-protocol/blob/main/local-interchaintest/examples/ethereum_integration_tests.rs">Ethereum integration tests</a> we have, where we set up all the required Hyperlane contracts and the relayer in advance before creating our EVM Program.</p>
-<p>This is the sequence of messages when using Hyperlane as a connector:</p>
-<pre class="mermaid">graph TD
-  %% Execution Result Sequence
-  subgraph Execution_Sequence [Execution Result Sequence]
-    E2[Processor Contract]
-    D2[Mailbox on
-    External Domain]
-    C2[Mailbox on
-    Main Domain]
-    B2[Authorization Contract]
-    
-    E2 --&gt;|Step 5: Execution Result| D2
-    D2 --&gt;|Step 6: Relayer| C2
-    C2 --&gt;|Step 7: Execution Result| B2
-  end
-
-  %% Message Batch Sequence
-  subgraph Batch_Sequence [Message Batch Sequence]
-    A1[Authorization Contract]
-    B1[Mailbox on
-    Main Domain]
-    C1[Mailbox on
-    External Domain]
-    D1[Processor Contract]
-    
-    A1 --&gt;|Step 1: Message Batch| B1
-    B1 --&gt;|Step 2: Relayer| C1
-    C1 --&gt;|Step 3: Message Batch| D1
+  subgraph Osmosis
+  IA -- Transfer tokens --&gt; OA
   end
 </pre>
 
@@ -246,11 +187,11 @@
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../authorizations_processors/callbacks.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../components/_overview.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../authorizations_processors/encoding.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../components/accounts.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -260,11 +201,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../authorizations_processors/callbacks.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../components/_overview.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../authorizations_processors/encoding.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../components/accounts.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Processor - Valence Protocol Documentation</title>
+        <title>Processor Contract - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -157,56 +157,20 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="processor"><a class="header" href="#processor">Processor</a></h1>
-<p>This version of the processor is currently available for <code>CosmWasm</code> Execution Environment only. It contains all the features and full functionality of the processor as described below.</p>
-<p>It handles two execution queues: <code>High</code> and <code>Med</code>, which allow giving different priorities to <code>Message Batches</code>. The Authorization contract will send the <code>Message Batches</code> to the Processor specifying the priority of the queue where they should be enqueued.</p>
-<p>The Processor can be <code>ticked</code> permissionlessly, which will trigger the execution of the <code>Message Batches</code> in the queues in a <code>FIFO</code> manner. It will handle the <code>Retry</code> logic for each batch (if the batch is atomic) or function (if the batch is non-atomic). In the particular case that the current batch at the top of the queue is not retriable yet, the processor will rotate it to the back of the queue. After a <code>Message Batch</code> has been executed successfully or it reached the maximum amount of retries, it will be removed from the execution queue and the Processor will send a callback with the execution information to the Authorization contract.</p>
-<p>The Authorization contract will be the only address allowed to add message batches to the execution queues. It will also be allowed to Pause/Resume the Processor or to arbitrarily remove functions from the queues or add certain messages at a specific position in any of them.</p>
-<h3 id="execution"><a class="header" href="#execution">Execution</a></h3>
-<p>When a processor is <code>Ticked</code>, the first <code>Message Batch</code> will be taken from the queue (<code>High</code> if there are batches there or <code>Med</code> if there aren’t).
-After taking them, we will execute them in different ways depending if the batch is <code>Atomic</code> or <code>NonAtomic</code>.</p>
-<ul>
-<li>
-<p>For <code>Atomic</code> batches, the Processor will execute either all functions or none of them. If execution fails, the batch <code>RetryLogic</code> is checked to determine if the match should be re-enqueued. If not, a callback is sent with a <code>Rejected(error)</code> status to the Authorization contract.
-If the execution succeeded we will send a callback with <code>Executed</code> status to the Authorization contract.</p>
-</li>
-<li>
-<p>For <code>NonAtomic</code> batches, we will execute the functions one by one and applying the RetryLogic individually to each function if they fail. <code>NonAtomic</code> functions might also be confirmed via <code>CallbackConfirmations</code> in which case we will keep them in a separate storage location until we receive that specific callback.
-Each time a function is confirmed, we will re-queue the batch and keep track of what function we have to execute next.
-If at some point a function uses up all its retries, the processor will send a callback to the Authorization contract with a <code>PartiallyExecuted(num_of_functions_executed, execution_error)</code> execution result if some succeeded or <code>Rejected(error)</code> if none did. If all functions are executed successfully, an <code>Executed</code> execution result will be sent.
-For <code>NonAtomic</code> batches, the processor must be ticked each time the batch is at the top of the queue to continue, so at least as many ticks will be required as the number of functions in the batch.</p>
-</li>
-</ul>
-<h3 id="storage"><a class="header" href="#storage">Storage</a></h3>
-<p>The Processor will receive <code>Message Batches</code> from the Authorization contract and will enqueue them in a custom storage structure called a <code>QueueMap</code>. This structure is a FIFO queue with owner privileges, which allow the owner to insert or remove messages from any position in the queue.
-Each “item” stored in the queue is a <code>MessageBatch</code> object that has the following structure:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub struct MessageBatch {
-    pub id: u64,
-    pub msgs: Vec&lt;ProcessorMessage&gt;,
-    pub subroutine: Subroutine,
-    pub priority: Priority,
-    pub retry: Option&lt;CurrentRetry&gt;,
-}
-<span class="boring">}</span></code></pre></pre>
-<ul>
-<li>id: represents the global id of the batch. The Authorization contract, to understand the callbacks that it will receive from each processor, identifies each batch with an id. This id is unique for the entire application.</li>
-<li>msgs: the messages the processor needs to execute for this batch (e.g. a CosmWasm ExecuteMsg or MigrateMsg).</li>
-<li>subroutine: This is the config that the authorization table defines for the execution of these functions. With this field we can know if the functions need to be executed atomically or not atomically, for example, and the retry logic for each batch/function depending on the config type.</li>
-<li>priority (for internal use): batches will be queued in different priority queues when they are received from the Authorization contract. We also keep this priority here because they might need to be re-queued after a failed execution and we need to know where to re-queue them.</li>
-<li>retry (for internal use): we are keeping the current retry we are at (if the execution previously failed) to know when to abort if we exceed the max retry amounts.</li>
-</ul>
+                        <h1 id="processor-contract"><a class="header" href="#processor-contract">Processor Contract</a></h1>
+<p>The Processor will be a contract on each domain within the program. The Processor handles execution of message batches it receives from the Authorization contract.
+Depending on the Processor type in use, its features will vary. There are currently two types of processors: Lite Processor and Processor. The former is a simplified version of the latter. The Lite Processor has limited functionality to optimize for gas-constrained domains.</p>
+<p>The Processor will be instantiated in advance with the correct address that can send messages to them, according to the <em>InstantiationFlow</em> described in the <a href="assumptions.html">Assumptions</a> section.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../authorizations_processors/processor_contract.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../authorizations_processors/authorization_user_actions.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../authorizations_processors/lite_processor.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../authorizations_processors/processor.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -216,11 +180,11 @@ Each “item” stored in the queue is a <code>MessageBatch</code> object that h
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../authorizations_processors/processor_contract.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../authorizations_processors/authorization_user_actions.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../authorizations_processors/lite_processor.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../authorizations_processors/processor.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

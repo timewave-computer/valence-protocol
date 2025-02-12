@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Domains - Valence Protocol Documentation</title>
+        <title>Valence Programs - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -157,41 +157,36 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="domains"><a class="header" href="#domains">Domains</a></h1>
-<p>A <strong>domain</strong> is an environment in which the components that form a program (more on these later) can be instantiated (deployed).</p>
-<p><strong>Domains</strong> are defined by <strong>three properties</strong>:</p>
+                        <h1 id="valence-programs"><a class="header" href="#valence-programs">Valence Programs</a></h1>
+<p>There are two ways to execute Valence Programs.</p>
 <ol>
-<li>The <strong>chain</strong>: the blockchain's name <em>e.g. Neutron, Osmosis, Ethereum mainnet</em>.</li>
-<li>The <strong>execution environment</strong>: the environment under which programs (typically smart contracts) can be executed on that particular chain <em>e.g. CosmWasm, EVM, SVM</em>.</li>
-<li>The type of <strong>bridge</strong> used from the <strong>main domain</strong> to other domains <em>e.g. Polytone over IBC, Hyperlane</em>.</li>
+<li>
+<p><strong>On-chain Execution</strong>:
+Valence currently supports CosmWasm and EVM. SVM support coming soon. The rest of this section provides a high-level breakdown of the components that comprise a Valence Program using on-chain coprocessors.</p>
+<ul>
+<li><a href="./domains.html">Domains</a></li>
+<li><a href="./accounts.html">Accounts</a></li>
+<li><a href="./libraries_and_functions.html">Libraries and Functions</a></li>
+<li><a href="./programs_and_authorizations.html">Programs and Authorizations</a></li>
+<li><a href="./middleware.html">Middleware</a></li>
+</ul>
+</li>
+<li>
+<p><strong>Off-chain Execution via ZK Coprocessor</strong>:
+Early specifications exist for the <a href="./../zk-coprocessor/_overview.html">Valence ZK coprocessor</a>. We aim to move as much computation off-chain as possible since off-chain computation is a more scalable approach to building a cross-chain execution environment.</p>
+</li>
 </ol>
-<p>Within a particular ecosystem of blockchains (e.g. Cosmos), the Valence Protocol usually defines one specific domain as the <strong>main domain</strong>, on which some supporting infrastructure components are deployed. Think of it as the <em>home base</em> supporting the execution and operations of Valence Programs. This will be further clarified in the <a href="./authorizations_processors/_overview.html">Authorizations &amp; Processors</a> section.</p>
-<p>Below is a simplified representation of a <em>program transferring tokens</em> from a given <strong>input account</strong> on the <strong>Neutron domain</strong>, a CosmWasm-enabled smart contract platform secured by the Cosmos Hub, to a specified <strong>output account</strong> on the <strong>Osmosis domain</strong>, a well-known DeFi platform in the Cosmos ecosystem.</p>
-<pre class="mermaid">---
-title: Valence Cross-Domain Program
----
-graph LR
-  IA((Input
-      Account))
-  OA((Output
-		  Account))
-  subgraph Neutron
-  IA
-  end
-  subgraph Osmosis
-  IA -- Transfer tokens --&gt; OA
-  end
-</pre>
+<p>Unless explicitly mentioned, you may assume that documentation and examples in the remaining sections are written with on-chain execution in mind.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../components/_overview.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../introduction.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../components/accounts.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../components/domains.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -201,11 +196,11 @@ graph LR
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../components/_overview.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../introduction.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../components/accounts.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../components/domains.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
