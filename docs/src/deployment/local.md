@@ -30,7 +30,7 @@ just optimize
 
 Or
 
-```base
+```bash
 ./devtools/optimize.sh
 ```
 
