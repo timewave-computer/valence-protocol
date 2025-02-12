@@ -60,7 +60,7 @@ After you customize your program, you can deploy it using the following command:
 cargo run -p deploy_program
 ```
 
-By default this will deploy a program to the local enviroment, you can change this by passing the `-c` argument with the wanted enviroment, for example:
+By default this will deploy a program to the local environment, you can change this by passing the `-c` argument with the wanted enviroment, for example:
 
 ```bash
 cargo run -p deploy_program -- -c mainnet
