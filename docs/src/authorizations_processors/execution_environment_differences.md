@@ -12,4 +12,9 @@ To mitigate the differences in behavior between these two execution environments
 
 In `CosmWasm`, execution of a contract will always fail if the entry point does not exist. However, for `EVM` execution, this is not necessarily the case. This is a difference that the owner of the program must take into account when designing and creating their program.
 
-***In summary***: if a function of the subroutine targets a contract that is NOT a `Valence Library` AND the entry point of that contract doesn't exist AND the fallback function is either not defined or doesn't revert, the execution of that function will be considered successful in the `EVM` Execution Environment while it wouldn't be in the `CosmWasm` Execution Environment equivalent.
+**_In summary_**: if a function of the subroutine targets a contract that meets all of the following conditions:
+- It is not a `Valence Library`.
+- The entry point of that contract does not exist.
+- The fallback function is either not defined or doesn't explicitly revert.
+
+The execution of that function will be considered successful in the `EVM` execution environment but not in the `CosmWasm` execution environment equivalent.
