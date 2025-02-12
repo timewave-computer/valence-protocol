@@ -60,12 +60,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
 
     // Export manager config to file
-    exprt_manager_config()?;
+    export_manager_config()?;
 
     Ok(())
 }
 
-fn exprt_manager_config() -> Result<(), Box<dyn Error>> {
+fn export_manager_config() -> Result<(), Box<dyn Error>> {
     let gc = get_global_config();
 
     let t = toml::to_string(&*gc).unwrap();

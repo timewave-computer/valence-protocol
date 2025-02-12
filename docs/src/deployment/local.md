@@ -67,3 +67,11 @@ cargo run -p deploy_program -- -c mainnet
 ```
 
 Options are: `local`, `mainnet` and `testnet`.
+
+## 6. Program Instantiated
+
+After a program was instantiated successfully, you will see a success message in the console and the program config file path that was generated.
+
+The name of the file will end with the program id, for example: `program_1.json`.
+
+You will be able to find this file under the `deployment/results` folder.

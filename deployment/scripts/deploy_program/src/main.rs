@@ -1,17 +1,20 @@
 use clap::{arg, command, Parser};
-use std::fs;
-use std::io::Write;
-use std::path::Path;
 use config::Config as ConfigHelper;
 use localic_utils::{NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME};
 use std::error::Error;
+use std::fs;
+use std::io::Write;
+use std::path::Path;
 use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
 };
 use valence_library_utils::denoms::UncheckedDenom;
 use valence_program_manager::{
-    account::{AccountInfo, AccountType}, library::{LibraryConfig, LibraryInfo}, program_config::ProgramConfig, program_config_builder::ProgramConfigBuilder
+    account::{AccountInfo, AccountType},
+    library::{LibraryConfig, LibraryInfo},
+    program_config::ProgramConfig,
+    program_config_builder::ProgramConfigBuilder,
 };
 use valence_splitter_library::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
 
@@ -195,7 +198,7 @@ async fn set_manager_config(config_path: Configs) -> Result<(), Box<dyn Error>> 
     Ok(())
 }
 
-fn print_result(program_config: ProgramConfig) -> Result<(), Box<dyn Error>>  {
+fn print_result(program_config: ProgramConfig) -> Result<(), Box<dyn Error>> {
     let path_name = "deployment/results";
     let path = Path::new(path_name);
 
@@ -204,15 +207,21 @@ fn print_result(program_config: ProgramConfig) -> Result<(), Box<dyn Error>>  {
     }
 
     // Construct the full file path
-    let file_path = path.join(format!("program-{}.json", program_config.id));
-    
+    let file_name = format!("program-{}.json", program_config.id);
+    let file_path = path.join(file_name.clone());
+
     // Create and write to the file
-    let mut file = fs::File::create(file_path)?;
-    
+    let mut file = fs::File::create(file_path.clone())?;
+
     // Serialize the data to a string
     let content = serde_json::to_string(&program_config)?;
-    
+
     file.write_all(content.as_bytes())?;
-    
+
+    println!(
+        "Program was instantiated successfully and written to: {}",
+        file_path.display()
+    );
+
     Ok(())
 }
