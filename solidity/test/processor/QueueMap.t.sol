@@ -180,16 +180,19 @@ contract QueueMapTest is Test {
     }
 
     // Error Cases Tests
-    function testFailPopEmpty() public {
+    function test_RevertWhen_PopEmpty() public {
+        vm.expectRevert();
         queue.popFront();
     }
 
-    function testFailInsertOutOfBounds() public {
+    function test_RevertWhen_InsertOutOfBounds() public {
         uint256[] memory numbers = new uint256[](1);
+        vm.expectRevert();
         queue.insertAt(1, _encodeStruct(_createTestStruct(1, "test", numbers)));
     }
 
-    function testFailRemoveOutOfBounds() public {
+    function test_RevertWhen_RemoveOutOfBounds() public {
+        vm.expectRevert();
         queue.removeAt(0);
     }
 

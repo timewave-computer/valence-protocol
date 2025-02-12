@@ -45,9 +45,8 @@ true => Ok(Response::default()),
 false => Err(StdError::generic_err("assertion failed").into()),
 ```
 
-Returning an error means that any atomic batches being processed from the
-processor will be aborted, while an `Ok` response will allow the processing
-to continue.
+Returning an error means that any batches being processed from the processor
+will be aborted, while an `Ok` response will allow the processing to continue.
 
 ## API
 

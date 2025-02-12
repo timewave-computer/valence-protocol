@@ -1,6 +1,6 @@
 {
   "contract_name": "valence-middleware-asserter",
-  "contract_version": "0.1.0",
+  "contract_version": "0.2.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -14,17 +14,11 @@
     "oneOf": [
       {
         "type": "object",
-        "required": [
-          "assert"
-        ],
+        "required": ["assert"],
         "properties": {
           "assert": {
             "type": "object",
-            "required": [
-              "a",
-              "b",
-              "predicate"
-            ],
+            "required": ["a", "b", "predicate"],
             "properties": {
               "a": {
                 "$ref": "#/definitions/AssertionValue"
@@ -47,9 +41,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "variable"
-            ],
+            "required": ["variable"],
             "properties": {
               "variable": {
                 "$ref": "#/definitions/QueryInfo"
@@ -59,9 +51,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "constant"
-            ],
+            "required": ["constant"],
             "properties": {
               "constant": {
                 "$ref": "#/definitions/ValencePrimitive"
@@ -81,21 +71,11 @@
       },
       "Predicate": {
         "type": "string",
-        "enum": [
-          "l_t",
-          "l_t_e",
-          "e_q",
-          "g_t",
-          "g_t_e"
-        ]
+        "enum": ["l_t", "l_t_e", "e_q", "g_t", "g_t_e"]
       },
       "QueryInfo": {
         "type": "object",
-        "required": [
-          "query",
-          "storage_account",
-          "storage_slot_key"
-        ],
+        "required": ["query", "storage_account", "storage_slot_key"],
         "properties": {
           "query": {
             "$ref": "#/definitions/Binary"
@@ -126,9 +106,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "decimal"
-            ],
+            "required": ["decimal"],
             "properties": {
               "decimal": {
                 "$ref": "#/definitions/Decimal"
@@ -138,9 +116,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "uint64"
-            ],
+            "required": ["uint64"],
             "properties": {
               "uint64": {
                 "$ref": "#/definitions/Uint64"
@@ -150,9 +126,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "uint128"
-            ],
+            "required": ["uint128"],
             "properties": {
               "uint128": {
                 "$ref": "#/definitions/Uint128"
@@ -162,9 +136,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "uint256"
-            ],
+            "required": ["uint256"],
             "properties": {
               "uint256": {
                 "$ref": "#/definitions/Uint256"
@@ -174,9 +146,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "string"
-            ],
+            "required": ["string"],
             "properties": {
               "string": {
                 "type": "string"

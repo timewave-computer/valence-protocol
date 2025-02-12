@@ -10,6 +10,7 @@ repository = { workspace = true }
 [dependencies]
 cosmwasm-std    = { workspace = true }
 cosmwasm-schema = { workspace = true }
+cosmwasm-crypto = { workspace = true }
 serde           = { workspace = true }
 serde_json      = { workspace = true }
 thiserror       = { workspace = true }
@@ -17,6 +18,7 @@ anyhow          = { workspace = true }
 cw-ownable      = { workspace = true }
 env_logger      = { workspace = true }
 log             = { workspace = true }
+rand_core       = "0.6.4"
 
 valence-library-utils          = { workspace = true }
 valence-macros                 = { workspace = true }
@@ -25,19 +27,21 @@ valence-processor-utils        = { workspace = true }
 valence-program-registry-utils = { workspace = true }
 valence-library-base           = { workspace = true }
 
-valence-splitter-library         = { workspace = true }
-valence-reverse-splitter-library = { workspace = true }
-valence-astroport-lper           = { workspace = true }
-valence-astroport-withdrawer     = { workspace = true }
-valence-account-utils            = { workspace = true }
-valence-authorization            = { workspace = true }
-valence-processor                = { workspace = true }
-valence-program-registry         = { workspace = true }
-valence-forwarder-library        = { workspace = true }
-valence-osmosis-gamm-lper        = { workspace = true }
-valence-osmosis-gamm-withdrawer  = { workspace = true }
-valence-osmosis-cl-lper          = { workspace = true }
-valence-osmosis-cl-withdrawer    = { workspace = true }
+valence-splitter-library             = { workspace = true }
+valence-reverse-splitter-library     = { workspace = true }
+valence-astroport-lper               = { workspace = true }
+valence-astroport-withdrawer         = { workspace = true }
+valence-account-utils                = { workspace = true }
+valence-authorization                = { workspace = true }
+valence-processor                    = { workspace = true }
+valence-program-registry             = { workspace = true }
+valence-forwarder-library            = { workspace = true }
+valence-osmosis-gamm-lper            = { workspace = true }
+valence-osmosis-gamm-withdrawer      = { workspace = true }
+valence-osmosis-cl-lper              = { workspace = true }
+valence-osmosis-cl-withdrawer        = { workspace = true }
+valence-generic-ibc-transfer-library = { workspace = true }
+valence-neutron-ibc-transfer-library = { workspace = true }
 
 tokio              = { workspace = true }
 aho-corasick       = "1.1"

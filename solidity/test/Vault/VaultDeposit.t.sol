@@ -13,26 +13,10 @@ contract ValenceVaultDepositTest is VaultHelper {
 
         vault.deposit(depositAmount, user);
 
-        assertEq(
-            token.balanceOf(address(depositAccount)), 
-            depositAmount, 
-            "Deposit account balance incorrect"
-        );
-        assertEq(
-            token.balanceOf(user), 
-            preBalance - depositAmount, 
-            "User balance not decreased"
-        );
-        assertEq(
-            vault.balanceOf(user), 
-            depositAmount, 
-            "User did not receive shares"
-        );
-        assertEq(
-            vault.totalSupply(), 
-            depositAmount, 
-            "Total supply not updated"
-        );
+        assertEq(token.balanceOf(address(depositAccount)), depositAmount, "Deposit account balance incorrect");
+        assertEq(token.balanceOf(user), preBalance - depositAmount, "User balance not decreased");
+        assertEq(vault.balanceOf(user), depositAmount, "User did not receive shares");
+        assertEq(vault.totalSupply(), depositAmount, "Total supply not updated");
         vm.stopPrank();
     }
 
@@ -43,31 +27,15 @@ contract ValenceVaultDepositTest is VaultHelper {
 
         vault.mint(mintAmount, user);
 
-        assertEq(
-            token.balanceOf(address(depositAccount)), 
-            mintAmount, 
-            "Deposit account balance incorrect"
-        );
-        assertEq(
-            token.balanceOf(user), 
-            preBalance - mintAmount, 
-            "User balance not decreased"
-        );
-        assertEq(
-            vault.balanceOf(user), 
-            mintAmount, 
-            "User did not receive shares"
-        );
-        assertEq(
-            vault.totalSupply(), 
-            mintAmount, 
-            "Total supply not updated"
-        );
+        assertEq(token.balanceOf(address(depositAccount)), mintAmount, "Deposit account balance incorrect");
+        assertEq(token.balanceOf(user), preBalance - mintAmount, "User balance not decreased");
+        assertEq(vault.balanceOf(user), mintAmount, "User did not receive shares");
+        assertEq(vault.totalSupply(), mintAmount, "Total supply not updated");
         vm.stopPrank();
     }
 
     function testDepositWithCap() public {
-        uint256 cap = 5000;
+        uint128 cap = 5000;
         setDepositCap(cap);
 
         vm.startPrank(user);
@@ -81,20 +49,13 @@ contract ValenceVaultDepositTest is VaultHelper {
         assertEq(vault.totalAssets(), cap, "Second deposit failed");
 
         // Test deposit exceeding cap
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ERC4626.ERC4626ExceededMaxDeposit.selector,
-                user,
-                1000,
-                0
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(ERC4626.ERC4626ExceededMaxDeposit.selector, user, 1000, 0));
         vault.deposit(1000, user);
         vm.stopPrank();
     }
 
     function testMintWithCap() public {
-        uint256 cap = 5000;
+        uint128 cap = 5000;
         setDepositCap(cap);
 
         vm.startPrank(user);
@@ -108,21 +69,14 @@ contract ValenceVaultDepositTest is VaultHelper {
         assertEq(vault.totalSupply(), cap, "Second mint failed");
 
         // Test mint exceeding cap
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ERC4626.ERC4626ExceededMaxMint.selector,
-                user,
-                1000,
-                0
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(ERC4626.ERC4626ExceededMaxMint.selector, user, 1000, 0));
         vault.mint(1000, user);
         vm.stopPrank();
     }
 
     function testMultipleDeposits() public {
         vm.startPrank(user);
-        
+
         vault.deposit(1000, user);
         assertEq(vault.totalAssets(), 1000, "First deposit failed");
 
@@ -131,13 +85,13 @@ contract ValenceVaultDepositTest is VaultHelper {
 
         vault.deposit(2500, user);
         assertEq(vault.totalAssets(), 4000, "Third deposit failed");
-        
+
         vm.stopPrank();
     }
 
     function testMultipleMints() public {
         vm.startPrank(user);
-        
+
         vault.mint(1000, user);
         assertEq(vault.totalSupply(), 1000, "First mint failed");
 
@@ -146,7 +100,7 @@ contract ValenceVaultDepositTest is VaultHelper {
 
         vault.mint(2500, user);
         assertEq(vault.totalSupply(), 4000, "Third mint failed");
-        
+
         vm.stopPrank();
     }
 
@@ -156,7 +110,7 @@ contract ValenceVaultDepositTest is VaultHelper {
 
         vm.expectEmit(true, true, true, true);
         emit Deposit(user, user, depositAmount, depositAmount);
-        
+
         vault.deposit(depositAmount, user);
         vm.stopPrank();
     }
@@ -169,26 +123,10 @@ contract ValenceVaultDepositTest is VaultHelper {
 
         vault.deposit(depositAmount, receiver);
 
-        assertEq(
-            token.balanceOf(address(depositAccount)), 
-            depositAmount, 
-            "Deposit account balance incorrect"
-        );
-        assertEq(
-            token.balanceOf(user), 
-            preBalance - depositAmount, 
-            "User balance not decreased"
-        );
-        assertEq(
-            vault.balanceOf(receiver), 
-            depositAmount, 
-            "Receiver did not get shares"
-        );
-        assertEq(
-            vault.balanceOf(user), 
-            0, 
-            "User should not have shares"
-        );
+        assertEq(token.balanceOf(address(depositAccount)), depositAmount, "Deposit account balance incorrect");
+        assertEq(token.balanceOf(user), preBalance - depositAmount, "User balance not decreased");
+        assertEq(vault.balanceOf(receiver), depositAmount, "Receiver did not get shares");
+        assertEq(vault.balanceOf(user), 0, "User should not have shares");
         vm.stopPrank();
     }
 
@@ -200,49 +138,23 @@ contract ValenceVaultDepositTest is VaultHelper {
 
         vault.mint(mintAmount, receiver);
 
-        assertEq(
-            token.balanceOf(address(depositAccount)), 
-            mintAmount, 
-            "Deposit account balance incorrect"
-        );
-        assertEq(
-            token.balanceOf(user), 
-            preBalance - mintAmount, 
-            "User balance not decreased"
-        );
-        assertEq(
-            vault.balanceOf(receiver), 
-            mintAmount, 
-            "Receiver did not get shares"
-        );
-        assertEq(
-            vault.balanceOf(user), 
-            0, 
-            "User should not have shares"
-        );
+        assertEq(token.balanceOf(address(depositAccount)), mintAmount, "Deposit account balance incorrect");
+        assertEq(token.balanceOf(user), preBalance - mintAmount, "User balance not decreased");
+        assertEq(vault.balanceOf(receiver), mintAmount, "Receiver did not get shares");
+        assertEq(vault.balanceOf(user), 0, "User should not have shares");
         vm.stopPrank();
     }
 
     function testDepositToZeroAddress() public {
         vm.startPrank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IERC20Errors.ERC20InvalidReceiver.selector,
-                address(0)
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InvalidReceiver.selector, address(0)));
         vault.deposit(1000, address(0));
         vm.stopPrank();
     }
 
     function testMintToZeroAddress() public {
         vm.startPrank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IERC20Errors.ERC20InvalidReceiver.selector,
-                address(0)
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InvalidReceiver.selector, address(0)));
         vault.mint(1000, address(0));
         vm.stopPrank();
     }

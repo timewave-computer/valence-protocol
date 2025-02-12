@@ -7,12 +7,12 @@ library ProcessorEvents {
     /**
      * @notice Emitted when the processor is paused
      */
-    event ProcessorPaused();
+    event ProcessorWasPaused();
 
     /**
      * @notice Emitted when the processor is resumed
      */
-    event ProcessorResumed();
+    event ProcessorWasResumed();
 
     /**
      * @notice Emitted when a callback is sent to the hyperlane mailbox

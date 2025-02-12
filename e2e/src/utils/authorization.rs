@@ -1,6 +1,6 @@
 use std::{env, error::Error, time::Duration};
 
-use cosmwasm_std::{instantiate2_address, HexBinary};
+use cosmwasm_std::{instantiate2_address, Api, HexBinary};
 use cosmwasm_std_old::Uint64;
 use localic_std::{
     modules::cosmwasm::{contract_execute, contract_instantiate, contract_query, CosmWasm},
@@ -13,15 +13,15 @@ use localic_utils::{
 use log::info;
 use serde_json::Value;
 use valence_authorization_utils::{
-    callback::ProcessorCallbackInfo,
-    msg::{CallbackProxy, Connector, ExternalDomainInfo, PermissionedMsg},
+    callback::{ExecutionResult, ProcessorCallbackInfo},
+    msg::{CosmwasmBridgeInfo, ExternalDomainInfo, PermissionedMsg, PolytoneConnectorsInfo},
 };
 use valence_processor_utils::msg::PolytoneContracts;
-use valence_program_manager::helpers::{addr_canonicalize, addr_humanize};
 
 use crate::utils::{polytone::salt_for_proxy, LOCAL_CODE_ID_CACHE_PATH_NEUTRON};
 
-use super::POLYTONE_ARTIFACTS_PATH;
+use super::{relayer::restart_relayer, POLYTONE_ARTIFACTS_PATH};
+const MAX_ATTEMPTS: u64 = 50;
 
 /// Sets up the authorization contract with its processor on a domain
 pub fn set_up_authorization_and_processor(
@@ -419,21 +419,16 @@ pub fn set_up_external_domain_with_polytone(
         5_000_000, chain_denom
     );
 
-    let processor_instantiation_str = format!(
-        "tx wasm instantiate2 {external_processor_code_id} {} {} \
-        --label valence_processor \
-        --chain-id={chain_id} \
-        --no-admin \
-        {extra_flags} \
-        --from {DEFAULT_KEY}",
-        serde_json::to_value(processor_instantiate_msg)?,
-        salt,
-    );
-
     test_ctx
-        .get_request_builder()
-        .get_request_builder(chain_name)
-        .tx(&processor_instantiation_str, true)?;
+        .build_tx_instantiate2()
+        .with_chain_name(chain_name)
+        .with_label("valence_processor")
+        .with_code_id(external_processor_code_id)
+        .with_salt_hex_encoded(&salt)
+        .with_msg(serde_json::to_value(processor_instantiate_msg)?)
+        .with_flags(&extra_flags)
+        .send()
+        .unwrap();
 
     info!("Processor instantiated on {chain_name}!");
 
@@ -443,15 +438,16 @@ pub fn set_up_external_domain_with_polytone(
             external_domains: vec![ExternalDomainInfo {
                 name: chain_name.to_string(),
                 execution_environment:
-                    valence_authorization_utils::domain::ExecutionEnvironment::CosmWasm,
-                connector: Connector::PolytoneNote {
-                    address: polytone_note_on_neutron_address.clone(),
-                    timeout_seconds,
-                },
+                    valence_authorization_utils::msg::ExecutionEnvironmentInfo::Cosmwasm(
+                        CosmwasmBridgeInfo::Polytone(PolytoneConnectorsInfo {
+                            polytone_note: valence_authorization_utils::msg::PolytoneNoteInfo {
+                                address: polytone_note_on_neutron_address.clone(),
+                                timeout_seconds,
+                            },
+                            polytone_proxy: predicted_proxy_address_on_neutron.clone(),
+                        }),
+                    ),
                 processor: predicted_processor_on_external_domain_address.clone(),
-                callback_proxy: CallbackProxy::PolytoneProxy(
-                    predicted_proxy_address_on_neutron.clone(),
-                ),
             }],
         },
     );
@@ -492,18 +488,17 @@ fn predict_remote_contract_address(
         panic!("failed to get data hash from response: {:?}", resp);
     };
 
-    let canonical_creator = addr_canonicalize(chain_prefix, creator_addr)?;
+    let mock_api = valence_program_manager::mock_api::MockApi::new(chain_prefix.to_string());
+    let canonical_creator = mock_api.addr_canonicalize(creator_addr)?;
 
     let canonical_predicted_proxy_address_on_external_domain =
         instantiate2_address(&checksum, &canonical_creator, salt)?;
 
-    let predicted_address_on_external_domain = addr_humanize(
-        chain_prefix,
-        &canonical_predicted_proxy_address_on_external_domain,
-    )
-    .unwrap();
+    let predicted_address_on_external_domain = mock_api
+        .addr_humanize(&canonical_predicted_proxy_address_on_external_domain)
+        .unwrap();
 
-    Ok(predicted_address_on_external_domain)
+    Ok(predicted_address_on_external_domain.to_string())
 }
 
 /// queries the authorization contract processor callbacks and tries to confirm that
@@ -575,5 +570,61 @@ pub fn confirm_authorizations_callback_state(
         } else {
             std::thread::sleep(std::time::Duration::from_secs(5));
         }
+    }
+}
+
+/// Helper function to verify authorization execution result in a certain amount of tries
+pub fn verify_authorization_execution_result(
+    test_ctx: &mut TestContext,
+    authorization_address: &str,
+    execution_id: u64,
+    expected_result: &ExecutionResult,
+) {
+    let mut attempts = 0;
+    loop {
+        attempts += 1;
+        let callback_info: ProcessorCallbackInfo = serde_json::from_value(
+            contract_query(
+                test_ctx
+                    .get_request_builder()
+                    .get_request_builder(NEUTRON_CHAIN_NAME),
+                authorization_address,
+                &serde_json::to_string(
+                    &valence_authorization_utils::msg::QueryMsg::ProcessorCallback { execution_id },
+                )
+                .unwrap(),
+            )["data"]
+                .clone(),
+        )
+        .unwrap();
+
+        let result_matches = match (expected_result, &callback_info.execution_result) {
+            (ExecutionResult::Rejected(_), ExecutionResult::Rejected(_)) => true,
+            (
+                ExecutionResult::PartiallyExecuted(val1, _),
+                ExecutionResult::PartiallyExecuted(val2, _),
+            ) => val1 == val2,
+            _ => callback_info.execution_result.eq(expected_result),
+        };
+
+        if result_matches {
+            info!("Target execution result reached!");
+            break;
+        } else {
+            info!(
+                "Waiting for the right execution result, current execution result: {:?}",
+                callback_info.execution_result
+            );
+        }
+
+        if attempts % 5 == 0 {
+            // Sometimes the relayer doesn't pick up the changes, so we restart it
+            restart_relayer(test_ctx);
+        }
+
+        if attempts > MAX_ATTEMPTS {
+            panic!("Maximum number of attempts reached. Cancelling execution.");
+        }
+        std::thread::sleep(Duration::from_secs(15));
     }
 }

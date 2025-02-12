@@ -2,6 +2,7 @@ use std::num::ParseIntError;
 
 use aho_corasick::AhoCorasick;
 
+use cosmwasm_schema::schemars;
 use cosmwasm_schema::schemars::JsonSchema;
 use cosmwasm_std::{to_json_binary, Binary, Empty, StdError};
 use serde::{Deserialize, Serialize};
@@ -51,7 +52,6 @@ pub enum LibraryError {
 pub struct LibraryInfo {
     pub name: String,
     pub domain: Domain,
-    #[serde(skip)]
     pub config: LibraryConfig,
     pub addr: Option<String>,
 }
@@ -70,7 +70,15 @@ impl LibraryInfo {
 /// This is a list of all our libraries we support and their configs.
 #[manager_impl_library_configs]
 #[derive(
-    Debug, Clone, strum::Display, Serialize, Deserialize, VariantNames, PartialEq, Default,
+    Debug,
+    Clone,
+    strum::Display,
+    Serialize,
+    Deserialize,
+    VariantNames,
+    PartialEq,
+    Default,
+    JsonSchema,
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum LibraryConfig {
@@ -83,12 +91,12 @@ pub enum LibraryConfig {
     ValenceAstroportWithdrawer(valence_astroport_withdrawer::msg::LibraryConfig),
     ValenceOsmosisGammLper(valence_osmosis_gamm_lper::msg::LibraryConfig),
     ValenceOsmosisGammWithdrawer(valence_osmosis_gamm_withdrawer::msg::LibraryConfig),
+    ValenceGenericIbcTransferLibrary(valence_generic_ibc_transfer_library::msg::LibraryConfig),
+    ValenceNeutronIbcTransferLibrary(valence_neutron_ibc_transfer_library::msg::LibraryConfig),
     ValenceOsmosisClLper(valence_osmosis_cl_lper::msg::LibraryConfig),
     ValenceOsmosisClWithdrawer(valence_osmosis_cl_withdrawer::msg::LibraryConfig),
 }
 
-// TODO: create macro for the methods that work the same over all of the configs
-// We are delegating a lot of the methods to the specific config, so most of the methods can be under the macro
 impl LibraryConfig {
     /// Helper to find account ids in the json string
     fn find_account_ids(ac: AhoCorasick, json: String) -> LibraryResult<Vec<Id>> {

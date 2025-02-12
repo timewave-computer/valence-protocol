@@ -1,6 +1,6 @@
 # Owner Functions
 
-- `create_authorizations(vec[Authorization])`: provides an authorization list which is the core information of the authorization contract, it will include all the possible set of functions that can be executed. It will contain the following information:
+- `create_authorizations(vec[Authorization])`: provides an authorization list which is the core information of the Authorization contract, it will include all the possible set of functions that can be executed. It will contain the following information:
 
   - Label: unique name of the authorization. This label will be used to identify the authorization and will be used as subdenom of the tokenfactory token in case it is permissioned. Due to tokenfactory module restrictions, the max length of this field is 44 characters.
     Example: If the label is `withdraw` and only address `neutron123` is allowed to execute this authorization, we will create the token `factory/<contract_addr>/withdraw` and mint one to that address. If `withdraw` was permissionless, there is no need for any token, so it's not created.
@@ -19,14 +19,21 @@
 
       - Domain of execution (must be the same for all functions in v1).
 
-      - MessageDetails: type (e.g. CosmWasmExecuteMsg) and message (name of the message in the ExecuteMsg json that can be executed with, if applied, three list of parameters: one for `MustBeIncluded`, one for `CannotBeIncluded` and one for `MustBeValue`. (This gives more control over the authorizations. Example: we want one authorization to provide the message with parameters (admin function for that service) but another authorization for the message without any Parameters (user function for that service).
+      - MessageDetails: type (e.g. CosmwasmExecuteMsg, EvmCall ...) and message information. Depending on the type of the message that is being sent, we might need to provide additional values and/or only some specific `ParamRestrictions` can be applied:
+        - If we are sending messages that are not for a `CosmWasm ExecutionEnvironment` and the message passed doesn't contain Raw bytes for that particular VM (e.g. `EvmRawCall`), we need to provide the `Encoder` information for that message along with the name of the library that the `Encoder` will use to encode that message. For example, if we are sending a message for an `EvmCall` on an EVM domain, we need to provide the address of the `Encoder Broker` and the `version` of the `Encoder` that the broker needs to route the message to along with the name of the library that the `Encoder` will use to encode that message (e.g. `forwarder`).
+        - For all messages that are not raw bytes (`json` formatted), we can apply any of the following `ParamRestrictions`:
+          - `MustBeIncluded`: the parameter must be included in the message.
+          - `CannotBeIncluded`: the parameter cannot be included in the message.
+          - `MustBeValue`: the parameter must have a specific value.
+        - For all messages that are raw bytes, we can only apply the `MustBeBytes` restriction, which matches that the bytes sent are the same as the ones provided in restriction, limiting the authorization execution to only one specific message.
+
       - Contract address that will execute it.
 
     - `NonAtomicFunction`: each NonAtomic function has the following parameters:
 
       - Domain of execution
 
-      - MessageDetails (like above).
+      - MessageDetails (same as above).
 
       - Contract address that will execute it.
 
@@ -41,7 +48,7 @@
 
   ![Authorization Table](../img/authorization_table.png)
 
-- `add_external_domains([external_domains])`: if we want to add external domains after instantiation.
+- `add_external_domains([external_domains])`: to add an `ExternalDomain` to the Authorization contract, the owner will specify what type of `ExecutionEnvironment` it has (e.g. `CosmWasm`, `Evm`...) and all the information required for each type of `ExecutionEnvironment`. For example, if the owner is adding a domain that uses `CosmWasm` as ExecutionEnvironment, they need to provide all the Polytone information; if they are adding a domain that uses `EVM` as ExecutionEnvironment, they need to provide all the Hyperlane information and the `Encoder` to be used for correctly encoding messages in the corresponding format.
 
 - `modify_authorization(label, updated_values)`: can modify certain updatable fields of the authorization: start_time, expiration, max_concurrent_executions and priority.
 

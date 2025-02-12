@@ -62,6 +62,9 @@ fn evaluate_assertion(
         (ValencePrimitive::Uint256(a), ValencePrimitive::Uint256(b)) => Ok(predicate.eval(a, b)),
         (ValencePrimitive::Uint128(a), ValencePrimitive::Uint128(b)) => Ok(predicate.eval(a, b)),
         (ValencePrimitive::Uint64(a), ValencePrimitive::Uint64(b)) => Ok(predicate.eval(a, b)),
+        // note: string predicates are evaluated in lexicographical order and are case-sensitive:
+        // - "Z" < "a"
+        // - "Assertion" != "assertion"
         (ValencePrimitive::String(a), ValencePrimitive::String(b)) => Ok(predicate.eval(a, b)),
         // comparisons can be performed only if both values are of the same type
         _ => Err(StdError::generic_err("variant mismatch")),

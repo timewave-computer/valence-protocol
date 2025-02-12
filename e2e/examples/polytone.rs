@@ -28,16 +28,15 @@ use valence_authorization_utils::{
         PermissionTypeInfo, Priority, Subroutine,
     },
     authorization_message::{Message, MessageDetails, MessageType},
-    callback::{ExecutionResult, ProcessorCallbackInfo},
-    domain::{Connector, Domain, ExternalDomain, PolytoneProxyState},
+    callback::ExecutionResult,
+    domain::{CosmwasmBridge, Domain, ExecutionEnvironment, ExternalDomain, PolytoneProxyState},
     function::AtomicFunction,
-    msg::{
-        CallbackProxy, Connector as AuthorizationConnector, ExternalDomainInfo, PermissionedMsg,
-        ProcessorMessage,
-    },
+    msg::{ExternalDomainInfo, PermissionedMsg, PolytoneNoteInfo, ProcessorMessage},
+};
+use valence_e2e::utils::authorization::{
+    set_up_authorization_and_processor, verify_authorization_execution_result,
 };
 use valence_e2e::utils::{
-    authorization::set_up_authorization_and_processor,
     polytone::salt_for_proxy,
     processor::{get_processor_queue_items, tick_processor},
     relayer::restart_relayer,
@@ -367,15 +366,18 @@ fn main() -> Result<(), Box<dyn Error>> {
             external_domains: vec![ExternalDomainInfo {
                 name: "juno".to_string(),
                 execution_environment:
-                    valence_authorization_utils::domain::ExecutionEnvironment::CosmWasm,
-                connector: AuthorizationConnector::PolytoneNote {
-                    address: polytone_note_on_neutron_address.clone(),
-                    timeout_seconds: TIMEOUT_SECONDS,
-                },
+                    valence_authorization_utils::msg::ExecutionEnvironmentInfo::Cosmwasm(
+                        valence_authorization_utils::msg::CosmwasmBridgeInfo::Polytone(
+                            valence_authorization_utils::msg::PolytoneConnectorsInfo {
+                                polytone_note: PolytoneNoteInfo {
+                                    address: polytone_note_on_neutron_address.clone(),
+                                    timeout_seconds: TIMEOUT_SECONDS,
+                                },
+                                polytone_proxy: predicted_proxy_address_on_neutron.clone(),
+                            },
+                        ),
+                    ),
                 processor: predicted_processor_on_juno_address.clone(),
-                callback_proxy: CallbackProxy::PolytoneProxy(
-                    predicted_proxy_address_on_neutron.clone(),
-                ),
             }],
         },
     );
@@ -1085,66 +1087,23 @@ fn verify_proxy_state_on_authorization(
         )
         .unwrap();
 
-        match &external_domains.first().unwrap().connector {
-            Connector::PolytoneNote { state, .. } => {
-                if state.eq(expected_state) {
-                    info!("Target state reached!");
-                    break;
-                } else {
-                    info!("Waiting for the right state, current state: {:?}", state);
+        match &external_domains.first().unwrap().execution_environment {
+            ExecutionEnvironment::Cosmwasm(cosmwasm_bridge) => match cosmwasm_bridge {
+                CosmwasmBridge::Polytone(polytone_connectors) => {
+                    if polytone_connectors.polytone_note.state.eq(expected_state) {
+                        info!("Target state reached!");
+                        break;
+                    } else {
+                        info!(
+                            "Waiting for the right state, current state: {:?}",
+                            polytone_connectors.polytone_note.state
+                        );
+                    }
                 }
+            },
+            ExecutionEnvironment::Evm(_, _) => {
+                panic!("No polytone proxy state on EVM bridge!")
             }
-        }
-
-        if attempts % 5 == 0 {
-            // Sometimes the relayer doesn't pick up the changes, so we restart it
-            restart_relayer(test_ctx);
-        }
-
-        if attempts > MAX_ATTEMPTS {
-            panic!("Maximum number of attempts reached. Cancelling execution.");
-        }
-        std::thread::sleep(Duration::from_secs(15));
-    }
-}
-
-fn verify_authorization_execution_result(
-    test_ctx: &mut TestContext,
-    authorization_address: &str,
-    execution_id: u64,
-    expected_result: &ExecutionResult,
-) {
-    let mut attempts = 0;
-    loop {
-        attempts += 1;
-        let callback_info: ProcessorCallbackInfo = serde_json::from_value(
-            contract_query(
-                test_ctx
-                    .get_request_builder()
-                    .get_request_builder(NEUTRON_CHAIN_NAME),
-                authorization_address,
-                &serde_json::to_string(
-                    &valence_authorization_utils::msg::QueryMsg::ProcessorCallback { execution_id },
-                )
-                .unwrap(),
-            )["data"]
-                .clone(),
-        )
-        .unwrap();
-
-        let result_matches = match (expected_result, &callback_info.execution_result) {
-            (ExecutionResult::Rejected(_), ExecutionResult::Rejected(_)) => true,
-            _ => callback_info.execution_result.eq(expected_result),
-        };
-
-        if result_matches {
-            info!("Target execution result reached!");
-            break;
-        } else {
-            info!(
-                "Waiting for the right execution result, current execution result: {:?}",
-                callback_info.execution_result
-            );
         }
 
         if attempts % 5 == 0 {

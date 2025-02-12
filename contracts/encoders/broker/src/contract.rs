@@ -91,11 +91,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Encode {
             encoder_version,
             message,
-        } => encode(deps, encoder_version, message),
+        } => to_json_binary(&encode(deps, encoder_version, message)?),
         QueryMsg::Decode {
             encoder_version,
             message,
-        } => decode(deps, encoder_version, message),
+        } => to_json_binary(&decode(deps, encoder_version, message)?),
     }
 }
 

@@ -2,7 +2,7 @@
 name        = "valence-astroport-utils"
 version     = { workspace = true }
 edition     = { workspace = true }
-authors     = ["Timewave Labs"]
+authors     = { workspace = true }
 description = "Utils for astroport libraries"
 
 [features]

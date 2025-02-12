@@ -4,10 +4,10 @@ This folder contains the source code for the Valence Programs documentation.
 
 ## Building
 
-1. Install mdbook and mdbook-mermaid:
+1. Install mdbook, mdbook-mermaid and mdbook-linkcheck:
 
 ```bash
-cargo install mdbook mdbook-mermaid
+cargo install mdbook mdbook-mermaid mdbook-linkcheck
 ```
 
 2. Build:
@@ -23,19 +23,19 @@ mdbook build
 - Firefox:
 
 ```bash
-firefox book/index.html                       # Linux
-open -a "Firefox" book/index.html             # OS X
-Start-Process "firefox.exe" .\book\index.html # Windows (PowerShell)
-start firefox.exe .\book\index.html           # Windows (Cmd)
+firefox book/html/index.html                             # Linux
+open -a "Firefox" book/html/index.html                   # OS X
+Start-Process "firefox.exe" .\book\html\index.html       # Windows (PowerShell)
+start firefox.exe .\book\html\index.html                 # Windows (Cmd)
 ```
 
 - Chrome:
 
 ```bash
-google-chrome book/index.html                 # Linux
-open -a "Google Chrome" book/index.html       # OS X
-Start-Process "chrome.exe" .\book\index.html  # Windows (PowerShell)
-start chrome.exe .\book\index.html            # Windows (Cmd)
+google-chrome book/html/index.html                      # Linux
+open -a "Google Chrome" book/index.html                 # OS X
+Start-Process "chrome.exe" .\book\html\index.html       # Windows (PowerShell)
+start chrome.exe .\book\html\index.html                 # Windows (Cmd)
 ```
 
 4. To apply docs changes automatically without rebuilding manually, run:

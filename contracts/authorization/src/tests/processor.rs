@@ -1040,7 +1040,9 @@ fn queue_shifting_when_not_retriable() {
                 NonAtomicSubroutineBuilder::new()
                     .with_function(
                         NonAtomicFunctionBuilder::new()
-                            .with_contract_address(&test_library_contract.clone())
+                            .with_contract_address(LibraryAccountType::Addr(
+                                test_library_contract.clone(),
+                            ))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -1707,7 +1709,9 @@ fn retry_multi_function_non_atomic_batch_until_success() {
             NonAtomicSubroutineBuilder::new()
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_library_contract)
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -1719,7 +1723,9 @@ fn retry_multi_function_non_atomic_batch_until_success() {
                 )
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_library_contract)
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
                         .with_retry_logic(RetryLogic {
                             times: RetryTimes::Indefinitely,
                             interval: Duration::Time(2),
@@ -1735,7 +1741,9 @@ fn retry_multi_function_non_atomic_batch_until_success() {
                 )
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_library_contract)
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -2111,7 +2119,9 @@ fn failed_non_atomic_batch_after_retries() {
             NonAtomicSubroutineBuilder::new()
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_library_contract)
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -2123,7 +2133,9 @@ fn failed_non_atomic_batch_after_retries() {
                 )
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_library_contract)
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
                         .with_retry_logic(RetryLogic {
                             times: RetryTimes::Amount(5),
                             interval: Duration::Time(2),
@@ -2301,7 +2313,9 @@ fn successful_non_atomic_and_atomic_batches_together() {
                 NonAtomicSubroutineBuilder::new()
                     .with_function(
                         NonAtomicFunctionBuilder::new()
-                            .with_contract_address(&test_library_contract.clone())
+                            .with_contract_address(LibraryAccountType::Addr(
+                                test_library_contract.clone(),
+                            ))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -2313,7 +2327,9 @@ fn successful_non_atomic_and_atomic_batches_together() {
                     )
                     .with_function(
                         NonAtomicFunctionBuilder::new()
-                            .with_contract_address(&test_library_contract)
+                            .with_contract_address(LibraryAccountType::Addr(
+                                test_library_contract.clone(),
+                            ))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -2478,7 +2494,9 @@ fn reject_and_confirm_non_atomic_function_with_callback() {
             NonAtomicSubroutineBuilder::new()
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_library_contract)
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -2490,7 +2508,9 @@ fn reject_and_confirm_non_atomic_function_with_callback() {
                 )
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_library_contract)
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
                         .with_retry_logic(RetryLogic {
                             times: RetryTimes::Indefinitely,
                             interval: Duration::Time(2),
@@ -2714,7 +2734,9 @@ fn refund_and_burn_tokens_after_callback() {
             NonAtomicSubroutineBuilder::new()
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_library_contract)
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -2889,7 +2911,9 @@ fn burn_tokens_after_removed_by_owner() {
             NonAtomicSubroutineBuilder::new()
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_library_contract)
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
