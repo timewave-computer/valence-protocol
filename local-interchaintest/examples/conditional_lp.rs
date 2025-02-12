@@ -722,6 +722,7 @@ fn neutron_setup(
     ))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn create_authorizations(
     test_ctx: &mut TestContext,
     authorization_contract_address: &str,
