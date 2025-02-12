@@ -161,9 +161,10 @@
 <p>There are different types of callbacks in our application. Each of them have a specific function and are used in different parts of the application.</p>
 <h2 id="function-callbacks"><a class="header" href="#function-callbacks">Function Callbacks</a></h2>
 <p>For the execution of <code>NonAtomic</code> batches, each function in the batch can optionally be confirmed with a callback from a specific address. When the processor reaches a function that requires a callback, it will inject the execution_id of the batch into the message that is going to be executed on the library, which means that the library needs to be ready to receive that execution_id and know what the expected callback is and from where it has to come from to confirm that function, otherwise that function will stay unconfirmed and the batch will not move to the next function. The callback will be sent to the processor with the execution_id so that the processor can know what function is being confirmed. The processor will then validate that the correct callback was received from the correct address.</p>
-<p>If the processor receives the expected callback from the correct address, the batch will move to the next function. If it receives a different callback than expected from that address, the execution of that function will be considered failed and it will be retried (if applicable). In any case, a callback must be received to determine if the function was successful or not.</p>
+<p>If the processor receives the expected callback from the correct address, the batch will move to the next function. If it receives a different callback than expected from that address, the execution of that function is considered to have failed and it will be retried (if applicable). In either case, a callback must be received to determine if the function was successful or not.</p>
+<p>Note: This functionality is not available on the Lite Processor, as this version of the processor is not able to receive asynchronous callbacks from libraries.</p>
 <h2 id="processor-callbacks"><a class="header" href="#processor-callbacks">Processor Callbacks</a></h2>
-<p>Once a Processor batch is executed or it fails and there are no more retries available, the Processor will send a callback to the Authorizations contract with the execution_id of the batch and the result of the execution. All this information will be stored in the <code>Authorization</code> contract state so the history of all executions can be queried from it. This is how a <code>ProcessorCallback</code> looks like:</p>
+<p>Once a Processor batch is executed or it fails and there are no more retries available, the Processor will send a callback to the Authorizations contract with the execution_id of the batch and the result of the execution. All this information will be stored in the Authorization contract state so the history of all executions can be queried from it. This is how a <code>ProcessorCallback</code> looks like:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct ProcessorCallbackInfo {
@@ -215,11 +216,11 @@ pub enum ExecutionResult {
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../authorizations_processors/authorization_user_actions.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../authorizations_processors/execution_environment_differences.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../libraries/_overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../authorizations_processors/connectors.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -229,11 +230,11 @@ pub enum ExecutionResult {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../authorizations_processors/authorization_user_actions.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../authorizations_processors/execution_environment_differences.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../libraries/_overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../authorizations_processors/connectors.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

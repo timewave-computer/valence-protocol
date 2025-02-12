@@ -160,10 +160,10 @@
                         <h1 id="user-actions"><a class="header" href="#user-actions">User Actions</a></h1>
 <ul>
 <li>
-<p><code>send_msgs(label, vec[ProcessorMessage])</code>: users can run an authorization with a specific label. If the authorization is <code>Permissioned</code>, the authorization contract will check if they are allowed to execute it by checking that the user has the token in its wallet if it's <code>Permissioned (without limit)</code> or that the user sent the token along with the messages if it's <code>Permissioned (with limit)</code>. Along with the authorization label, the user will provide an array of encoded messages, together with the message type (e.g. <code>CosmwasmExecuteMsg</code>) and any other parameters for that specific ProcessorMessage (e.g. for a <code>CosmwasmMigrateMsg</code> we need to also pass a code_id). The contract will then check that the messages match the ones defined in the authorization (and in the correct order) and that all Parameters restrictions, if applied, are correct.</p>
-<p>If all checks are correct, the contract will route the messages to the correct <code>Processor</code> with an <code>execution_id</code> for the processor to callback with. This <code>execution_id</code> is unique for the entire application.
-If the execution of all the actions are confirmed via a callback, we will burn the token and if they fail, we will send the token back.
-Here is an example flowchart of how a user interacts with the authorization contract to execute messages in a service sitting on a domain:</p>
+<p><code>send_msgs(label, vec[ProcessorMessage])</code>: users can run an authorization with a specific label. If the authorization is <code>Permissioned (without limit)</code>, the Authorization contract will check if their account is allowed to execute by checking that the account holds the token in its wallet. If the authorization is <code>Permissioned (with limit)</code> the account must attach the authorization token to the contract execution. Along with the authorization label, the user will provide an array of encoded messages, together with the message type (e.g. <code>CosmwasmExecuteMsg</code>, <code>EvmCall</code>, etc.) and any other parameters for that specific ProcessorMessage (e.g. for a <code>CosmwasmMigrateMsg</code> we need to also pass a code_id). The contract will then check that the messages match those defined in the authorization, that the messages appear in correct order, and that any applied parameter restrictions are correct.</p>
+<p>If all checks are correct, the contract will route the messages to the correct Processor with an <code>execution_id</code> for the processor to callback with. This <code>execution_id</code> is unique for the entire application.
+If execution of all actions is confirmed via a callback, the authorization token is burned. If execution fails, the token is sent back.
+Here is an example flowchart of how a user interacts with the Authorization contract to execute functions on an external CosmWasm domain that is connected to the main domain with Polytone:</p>
 </li>
 </ul>
 <p><img src="../img/user_flowchart.png" alt="User flowchart" /></p>
@@ -176,7 +176,7 @@ Here is an example flowchart of how a user interacts with the authorization cont
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../authorizations_processors/callbacks.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../authorizations_processors/processor_contract.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -190,7 +190,7 @@ Here is an example flowchart of how a user interacts with the authorization cont
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../authorizations_processors/callbacks.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../authorizations_processors/processor_contract.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

@@ -160,7 +160,7 @@
                         <h1 id="owner-functions"><a class="header" href="#owner-functions">Owner Functions</a></h1>
 <ul>
 <li>
-<p><code>create_authorizations(vec[Authorization])</code>: provides an authorization list which is the core information of the authorization contract, it will include all the possible set of functions that can be executed. It will contain the following information:</p>
+<p><code>create_authorizations(vec[Authorization])</code>: provides an authorization list which is the core information of the Authorization contract, it will include all the possible set of functions that can be executed. It will contain the following information:</p>
 <ul>
 <li>
 <p>Label: unique name of the authorization. This label will be used to identify the authorization and will be used as subdenom of the tokenfactory token in case it is permissioned. Due to tokenfactory module restrictions, the max length of this field is 44 characters.
@@ -188,7 +188,18 @@ Example: If the label is <code>withdraw</code> and only address <code>neutron123
 <p>Domain of execution (must be the same for all functions in v1).</p>
 </li>
 <li>
-<p>MessageDetails: type (e.g. CosmWasmExecuteMsg) and message (name of the message in the ExecuteMsg json that can be executed with, if applied, three list of parameters: one for <code>MustBeIncluded</code>, one for <code>CannotBeIncluded</code> and one for <code>MustBeValue</code>. (This gives more control over the authorizations. Example: we want one authorization to provide the message with parameters (admin function for that service) but another authorization for the message without any Parameters (user function for that service).</p>
+<p>MessageDetails: type (e.g. CosmwasmExecuteMsg, EvmCall ...) and message information. Depending on the type of the message that is being sent, we might need to provide additional values and/or only some specific <code>ParamRestrictions</code> can be applied:</p>
+<ul>
+<li>If we are sending messages that are not for a <code>CosmWasm ExecutionEnvironment</code> and the message passed doesn't contain Raw bytes for that particular VM (e.g. <code>EvmRawCall</code>), we need to provide the <code>Encoder</code> information for that message along with the name of the library that the <code>Encoder</code> will use to encode that message. For example, if we are sending a message for an <code>EvmCall</code> on an EVM domain, we need to provide the address of the <code>Encoder Broker</code> and the <code>version</code> of the <code>Encoder</code> that the broker needs to route the message to along with the name of the library that the <code>Encoder</code> will use to encode that message (e.g. <code>forwarder</code>).</li>
+<li>For all messages that are not raw bytes (<code>json</code> formatted), we can apply any of the following <code>ParamRestrictions</code>:
+<ul>
+<li><code>MustBeIncluded</code>: the parameter must be included in the message.</li>
+<li><code>CannotBeIncluded</code>: the parameter cannot be included in the message.</li>
+<li><code>MustBeValue</code>: the parameter must have a specific value.</li>
+</ul>
+</li>
+<li>For all messages that are raw bytes, we can only apply the <code>MustBeBytes</code> restriction, which matches that the bytes sent are the same as the ones provided in restriction, limiting the authorization execution to only one specific message.</li>
+</ul>
 </li>
 <li>
 <p>Contract address that will execute it.</p>
@@ -202,7 +213,7 @@ Example: If the label is <code>withdraw</code> and only address <code>neutron123
 <p>Domain of execution</p>
 </li>
 <li>
-<p>MessageDetails (like above).</p>
+<p>MessageDetails (same as above).</p>
 </li>
 <li>
 <p>Contract address that will execute it.</p>
@@ -226,7 +237,7 @@ All authorizations will have an initial state of <code>Enabled</code> .</p>
 <p><img src="../img/authorization_table.png" alt="Authorization Table" /></p>
 </li>
 <li>
-<p><code>add_external_domains([external_domains])</code>: if we want to add external domains after instantiation.</p>
+<p><code>add_external_domains([external_domains])</code>: to add an <code>ExternalDomain</code> to the Authorization contract, the owner will specify what type of <code>ExecutionEnvironment</code> it has (e.g. <code>CosmWasm</code>, <code>Evm</code>...) and all the information required for each type of <code>ExecutionEnvironment</code>. For example, if the owner is adding a domain that uses <code>CosmWasm</code> as ExecutionEnvironment, they need to provide all the Polytone information; if they are adding a domain that uses <code>EVM</code> as ExecutionEnvironment, they need to provide all the Hyperlane information and the <code>Encoder</code> to be used for correctly encoding messages in the corresponding format.</p>
 </li>
 <li>
 <p><code>modify_authorization(label, updated_values)</code>: can modify certain updatable fields of the authorization: start_time, expiration, max_concurrent_executions and priority.</p>

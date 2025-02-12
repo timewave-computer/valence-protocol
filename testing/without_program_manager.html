@@ -164,7 +164,7 @@
 </blockquote>
 <p>The full code for this example can be found in the <a href="https://github.com/timewave-computer/valence-protocol/blob/main/local-interchaintest/examples/persistence_ls.rs">Persistence Liquid Staking example</a>.</p>
 <ol>
-<li>Set up the authorization contract and processor on the <code>Main Domain</code> (Neutron).</li>
+<li>Set up the Authorization contract and processor on the <code>Main Domain</code> (Neutron).</li>
 </ol>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -178,7 +178,7 @@
     let (authorization_contract_address, _) =
         set_up_authorization_and_processor(&amp;mut test_ctx, salt.clone())?;
 <span class="boring">}</span></code></pre></pre>
-<p>This code sets up the authorization contract and processor on Neutron. We use a time based salt to ensure that each test run the generated contract addresses are different. The <code>set_up_authorization_and_processor</code> function is a helper function instantiates both the processor and authorization contracts on Neutron and provides the contract addresses to interact with both. As you can see, we are not using the processor on Neutron here, but we are still setting it up.</p>
+<p>This code sets up the Authorization contract and processor on Neutron. We use a time based salt to ensure that each test run the generated contract addresses are different. The <code>set_up_authorization_and_processor</code> function is a helper function instantiates both the Processor and Authorization contracts on Neutron and provides the contract addresses to interact with both. As you can see, we are not using the Processor on Neutron here, but we are still setting it up.</p>
 <ol start="2">
 <li>Set up an external domain and create a channel to start relaying messages.</li>
 </ol>
@@ -198,11 +198,11 @@
 <p>This function does the following:</p>
 <ul>
 <li>Instantiates all the Polytone contracts on both the main domain and the new external domain. The information of the external domain is provided in the function arguments.</li>
-<li>Creates a channel between the Polytone contracts that the relayer will use to relay messages between the authorization contract and the processor.</li>
-<li>Instantiates the Processor contract on the external domain with the correct Polytone information and the authorization contract address.</li>
-<li>Adds the external domain to authorization contract with the Polytone information and the processor address on the external domain.</li>
+<li>Creates a channel between the Polytone contracts that the relayer will use to relay messages between the Authorization contract and the processor.</li>
+<li>Instantiates the Processor contract on the external domain with the correct Polytone information and the Authorization contract address.</li>
+<li>Adds the external domain to Authorization contract with the Polytone information and the processor address on the external domain.</li>
 </ul>
-<p>After this is done, we can start creating authorizations for that external domain and when we send messages to the authorization contract, the relayer will relay the messages to the processor on the external domain and return the callbacks.</p>
+<p>After this is done, we can start creating authorizations for that external domain and when we send messages to the Authorization contract, the relayer will relay the messages to the processor on the external domain and return the callbacks.</p>
 <ol start="3">
 <li>Create one or more base accounts on a domain.</li>
 </ol>
@@ -269,7 +269,7 @@
 <span class="boring">}</span></code></pre></pre>
 <p>In this code snippet, we are creating an authorization to execute a message on the persistence base account. For this particular example, since we are going to execute a <code>CosmosMsg::Stargate</code> directly on the account passing the protobuf message, we are not going to set up any param restrictions. If we were using a library, we could potentially set up restrictions for the json message that the library would expect.</p>
 <ol start="5">
-<li>Send message to the authorization contract</li>
+<li>Send message to the Authorization contract</li>
 </ol>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -315,7 +315,7 @@
     .unwrap();
     std::thread::sleep(std::time::Duration::from_secs(3));
 <span class="boring">}</span></code></pre></pre>
-<p>In this code snippet, we are sending a message to the authorization contract to execute the liquid staking message on the base account on Persistence. Note that we are using the same label that we used in the authorization creation. This is important because the authorization contract will check if the label matches the one in the authorization. If it does not match, the execution will fail. The authorization contract will send the message to the corresponding Polytone contract that will send it via IBC to the processor on the external domain.</p>
+<p>In this code snippet, we are sending a message to the Authorization contract to execute the liquid staking message on the base account on Persistence. Note that we are using the same label that we used in the authorization creation. This is important because the Authorization contract will check if the label matches the one in the authorization. If it does not match, the execution will fail. The Authorization contract will send the message to the corresponding Polytone contract that will send it via IBC to the processor on the external domain.</p>
 <ol start="6">
 <li>Tick the processor</li>
 </ol>
@@ -329,7 +329,7 @@
     );
     std::thread::sleep(std::time::Duration::from_secs(3));
 <span class="boring">}</span></code></pre></pre>
-<p>The message must now be sitting on the processor on Persistence, therefore we need to tick the processor to trigger the execution. This will execute the message and send a callback with the result to the authorization contract, which completes the full testing cycle.</p>
+<p>The message must now be sitting on the processor on Persistence, therefore we need to tick the processor to trigger the execution. This will execute the message and send a callback with the result to the Authorization contract, which completes the full testing cycle.</p>
 
                     </main>
 

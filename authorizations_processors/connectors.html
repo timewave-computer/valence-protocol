@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Astroport LPer - Valence Protocol Documentation</title>
+        <title>Connectors - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -157,85 +157,100 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="astroport-lper-library"><a class="header" href="#astroport-lper-library">Astroport LPer library</a></h1>
-<p>The <strong>Valence Astroport LPer library</strong> library allows to <strong>provide liquidity</strong> into an <strong>Astroport Liquidity Pool</strong> from an <strong>input account</strong> and deposit the <strong>LP tokens</strong> into an <strong>output account</strong>.</p>
-<h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
-<pre class="mermaid">---
-title: Astroport Liquidity Provider
----
-graph LR
-  IA((Input
-      Account))
-  OA((Output
-		  Account))
-  P[Processor]
-  S[Astroport
-      Liquidity
-      Provider]
-  AP[Astroport
-     Pool]
-  P -- 1/Provide Liquidity --&gt; S
-  S -- 2/Query balances --&gt; IA
-  S -- 3/Compute amounts --&gt; S
-  S -- 4/Do Provide Liquidity --&gt; IA
-  IA -- 5/Provide Liquidity
-				  [Tokens] --&gt; AP
-  AP -- 5'/Transfer LP Tokens --&gt; OA
+                        <h1 id="connectors"><a class="header" href="#connectors">Connectors</a></h1>
+<p>Connectors are a way for the Authorization contract in the main domain to interact with external domains. When adding an <code>ExternalDomain</code> to the Authorization contract, depending on the <code>ExecutionEnvironment</code> we must specify the Connector information to be used. These connectors are responsible for receiving the <code>Message Batches</code> from the Authorization contract and trigger the necessary actions for the relayers to pick them up and deliver them to the Processor contract in the <code>ExternalDomain</code>. The connector on the <code>ExternalDomain</code> will also receive callbacks with the <code>ExecutionResult</code> from the Processor contract and send them back to the Authorization contract.</p>
+<p>We currently support the following connectors:</p>
+<h3 id="polytone"><a class="header" href="#polytone">Polytone</a></h3>
+<p>To connect <code>ExternalDomains</code> that use <code>CosmWasm</code> as <code>ExecutionEnvironment</code> we use <a href="https://github.com/DA0-DA0/polytone">Polytone</a>. Polytone is a set of smart contracts that are instantiated on both domains that implement logic to pass messages to each other using IBC. Polytone consists of the following contracts:</p>
+<ul>
+<li>Polytone Note: contract responsible of sending the messages from the Authorization contract to the Processor contract on the external domain and receiving the callback from the Processor contract on the external domain and sending it back to the Authorization contract.</li>
+<li>Polytone Voice: contract that receives the message from Polytone Note and instantiates a Polytone Proxy for each sender that will redirect the message to the destination.</li>
+<li>Polytone Proxy: contract instantiated by Polytone Voice responsible for sending messages received from Polytone Note to the corresponding contract.</li>
+</ul>
+<p>To connect the Authorization contract with an external domain that uses Polytone as a connector, we need to provide the Polytone Note address and the predicted Polytone Proxy addresses for both the Authorization contract (when adding the domain) and the Processor Contract (when instantiating the Processor). An IBC relayer must relay these two channels to enable communication.</p>
+<p>This is the sequence of messages when using Polytone as a connector:</p>
+<pre class="mermaid">graph TD
+  %% Execution Result Sequence
+  subgraph Execution_Sequence [Execution Result Sequence]
+    E2[Processor Contract]
+    D2[Polytone Note on
+    External Domain]
+    C2[Polytone Voice on
+    Main Domain]
+    B2[Polytone Proxy on
+    Main Domain]
+    A2[Authorization Contract]
+    
+    E2 --&gt;|Step 5: Execution Result| D2
+    D2 --&gt;|Step 6: Relayer| C2
+    C2 --&gt;|Step 7: Instantiate &amp; Forward Result| B2
+    B2 --&gt;|Step 8: Execution Result| A2
+  end
 
+  %% Message Batch Sequence
+  subgraph Batch_Sequence [Message Batch Sequence]
+    A1[Authorization Contract]
+    B1[Polytone Note on
+    Main Domain]
+    C1[Polytone Voice on
+    External Domain]
+    D1[Polytone Proxy on
+    External Domain]
+    E1[Processor Contract]
+    
+    A1 --&gt;|Step 1: Message Batch| B1
+    B1 --&gt;|Step 2: Relayer| C1
+    C1 --&gt;|Step 3: Instantiate &amp; Forward Batch| D1
+    D1 --&gt;|Step 4: Message Batch| E1
+  end
 </pre>
-<h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>ProvideDoubleSidedLiquidity</strong></td><td><code>expected_pool_ratio_range: Option&lt;DecimalRange&gt;</code></td><td>Provide double-sided liquidity to the pre-configured <strong>Astroport Pool</strong> from the <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>. Abort it the pool ratio is not within the <code>expected_pool_ratio</code> range (if specified).</td></tr>
-<tr><td><strong>ProvideSingleSidedLiquidity</strong></td><td><code>asset: String</code><br><code>limit: Option&lt;Uint128&gt;</code><br><code>expected_pool_ratio_range: Option&lt;DecimalRange&gt;</code></td><td>Provide single-sided liquidity for the specified <code>asset</code> to the pre-configured <strong>Astroport Pool</strong> from the <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>. Abort it the pool ratio is not within the <code>expected_pool_ratio</code> range (if specified).</td></tr>
-</tbody></table>
-</div>
-<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
-<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub struct LibraryConfig {
-    // Account from which the funds are LPed
-    pub input_addr: LibraryAccountType,
-    // Account to which the LP tokens are forwarded
-    pub output_addr: LibraryAccountType,
-    // Pool address
-    pub pool_addr: String,
-    // LP configuration
-    pub lp_config: LiquidityProviderConfig,
-}
+<h3 id="hyperlane"><a class="header" href="#hyperlane">Hyperlane</a></h3>
+<p>To connect <code>ExternalDomains</code> that use <code>EVM</code> as <code>ExecutionEnvironment</code> we use <a href="https://github.com/hyperlane-xyz/hyperlane-monorepo">Hyperlane</a>. Hyperlane is a set of smart contracts that are deployed on both domains and communicate with one another using the <code>Hyperlane Relayer</code>. The required Hyperlane contracts are the following:</p>
+<ul>
+<li>Mailbox: contract responsible for receiving the message for another domain and emitting an event with the message to be picked up by the relayer. The mailbox will also receive messages to be executed on a domain from the relayers and will route them to the correct destination contract.</li>
+</ul>
+<p>To connect the Authorization contract with an external domain that uses Hyperlane as a connector, we need to provide the Mailbox address for both the Authorization contract (when adding the domain) and the Processor contract (when instantiating the Processor). A Hyperlane Relayer must relay these two domains using the Mailbox addresses to make the communication possible.</p>
+<p>NOTE: There are other Hyperlane contracts that need to be used to set-up Hyperlane, but they are not used in the context of the Authorization contract or the Processor. For more information on how this works, check Hyperlane's documentation or see the <a href="https://github.com/timewave-computer/valence-protocol/blob/main/local-interchaintest/examples/ethereum_integration_tests.rs">Ethereum integration tests</a> we have, where we set up all the required Hyperlane contracts and the relayer in advance before creating our EVM Program.</p>
+<p>This is the sequence of messages when using Hyperlane as a connector:</p>
+<pre class="mermaid">graph TD
+  %% Execution Result Sequence
+  subgraph Execution_Sequence [Execution Result Sequence]
+    E2[Processor Contract]
+    D2[Mailbox on
+    External Domain]
+    C2[Mailbox on
+    Main Domain]
+    B2[Authorization Contract]
+    
+    E2 --&gt;|Step 5: Execution Result| D2
+    D2 --&gt;|Step 6: Relayer| C2
+    C2 --&gt;|Step 7: Execution Result| B2
+  end
 
-pub struct LiquidityProviderConfig {
-    // Pool type, old Astroport pools use Cw20 lp tokens and new pools use native tokens, so we specify here what kind of token we are going to get.
-    // We also provide the PairType structure of the right Astroport version that we are going to use for each scenario
-    pub pool_type: PoolType,
-    // Denoms of both native assets we are going to provide liquidity for
-    pub asset_data: AssetData,
-    // Slippage tolerance
-    pub slippage_tolerance: Option&lt;Decimal&gt;,
-}
-
-#[cw_serde]
-pub enum PoolType {
-    NativeLpToken(valence_astroport_utils::astroport_native_lp_token::PairType),
-    Cw20LpToken(valence_astroport_utils::astroport_cw20_lp_token::PairType),
-}
-
-
-pub struct AssetData {
-    pub asset1: String,
-    pub asset2: String,
-}
-<span class="boring">}</span></code></pre></pre>
+  %% Message Batch Sequence
+  subgraph Batch_Sequence [Message Batch Sequence]
+    A1[Authorization Contract]
+    B1[Mailbox on
+    Main Domain]
+    C1[Mailbox on
+    External Domain]
+    D1[Processor Contract]
+    
+    A1 --&gt;|Step 1: Message Batch| B1
+    B1 --&gt;|Step 2: Relayer| C1
+    C1 --&gt;|Step 3: Message Batch| D1
+  end
+</pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../libraries/_overview.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../authorizations_processors/callbacks.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../libraries/astroport_withdrawer.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../authorizations_processors/encoding.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -245,11 +260,11 @@ pub struct AssetData {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../libraries/_overview.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../authorizations_processors/callbacks.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../libraries/astroport_withdrawer.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../authorizations_processors/encoding.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

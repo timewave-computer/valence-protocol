@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Authorizations &amp; Processors - Valence Protocol Documentation</title>
+        <title>Authorization &amp; Processors - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -157,29 +157,16 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="authorizations--processors"><a class="header" href="#authorizations--processors">Authorizations &amp; Processors</a></h1>
-<p>The <strong>Authorizations</strong> and <strong>Processor</strong> contracts are foundational pieces of the <strong>Valence Protocol</strong>, as they enable on-chain (and cross-chain) execution of <strong>Valence Programs</strong> and enforce access control to the program's <strong>Subroutines</strong> via <strong>Authorizations</strong>.</p>
+                        <h1 id="authorization--processors"><a class="header" href="#authorization--processors">Authorization &amp; Processors</a></h1>
+<p>The <strong>Authorization</strong> and <strong>Processor</strong> contracts are foundational pieces of the <strong>Valence Protocol</strong>, as they enable on-chain (and cross-chain) execution of <strong>Valence Programs</strong> and enforce access control to the program's <strong>Subroutines</strong> via <strong>Authorizations</strong>.</p>
 <p>This section explains the rationale for these contracts and shares insights into their technical implementation, as well as how end-users can interact with <strong>Valence Programs</strong> via <strong>Authorizations</strong>.</p>
 <h2 id="rationale"><a class="header" href="#rationale">Rationale</a></h2>
 <ul>
 <li>To have a general purpose set of smart contracts that provide users with a single point of entry to interact with the Valence Program, which can have libraries and accounts deployed on multiple chains.</li>
 <li>To have all the user authorizations for multiple domains in a single place, making it very easy to control the application.</li>
-<li>To have a single address (<code>Processor</code>) that will execute the messages for all the contracts in a domain using execution queues.</li>
-<li>To only tick a single contract (<code>Processor</code>) that will go through the queues to route and execute the messages.</li>
+<li>To have a single address (Processor) that will execute the messages for all the contracts in a domain using execution queues.</li>
+<li>To only tick a single contract (Processor) that will go through the queues to route and execute the messages.</li>
 <li>To create, edit, or remove different application permissions with ease.</li>
-</ul>
-<h2 id="technical-deep-dive"><a class="header" href="#technical-deep-dive">Technical deep-dive:</a></h2>
-<ul>
-<li><a href="./assumptions.html">Assumptions</a></li>
-<li><a href="./processor.html">Processor Contract</a></li>
-<li><a href="./authorization.html">Authorization Contract</a>
-<ul>
-<li><a href="./authorization_instantiation.html">Instantiation</a></li>
-<li><a href="./authorization_owner_actions.html">Owner Actions</a></li>
-<li><a href="./authorization_user_actions.html">User Actions</a></li>
-</ul>
-</li>
-<li><a href="./callbacks.html">Callbacks</a></li>
 </ul>
 
                     </main>

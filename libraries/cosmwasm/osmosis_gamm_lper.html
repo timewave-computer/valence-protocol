@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Osmosis CL LPer - Valence Protocol Documentation</title>
+        <title>Osmosis GAMM LPer - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -12,21 +12,21 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="../favicon.svg">
-        <link rel="shortcut icon" href="../favicon.png">
-        <link rel="stylesheet" href="../css/variables.css">
-        <link rel="stylesheet" href="../css/general.css">
-        <link rel="stylesheet" href="../css/chrome.css">
-        <link rel="stylesheet" href="../css/print.css" media="print">
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
-        <link rel="stylesheet" href="../fonts/fonts.css">
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" href="../highlight.css">
-        <link rel="stylesheet" href="../tomorrow-night.css">
-        <link rel="stylesheet" href="../ayu-highlight.css">
+        <link rel="stylesheet" href="../../highlight.css">
+        <link rel="stylesheet" href="../../tomorrow-night.css">
+        <link rel="stylesheet" href="../../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
 
@@ -35,11 +35,11 @@
 
         <!-- Provide site root to javascript -->
         <script>
-            var path_to_root = "../";
+            var path_to_root = "../../";
             var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "ayu" : "light";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc.js"></script>
+        <script src="../../toc.js"></script>
     </head>
     <body>
     <div id="body-container">
@@ -91,7 +91,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../../toc.html"></iframe>
             </noscript>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -125,7 +125,7 @@
                     <h1 class="menu-title">Valence Protocol Documentation</h1>
 
                     <div class="right-buttons">
-                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
                         <a href="https://github.com/timewave-computer/valence-protocol" title="Git repository" aria-label="Git repository">
@@ -157,69 +157,36 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="osmosis-cl-lper-library"><a class="header" href="#osmosis-cl-lper-library">Osmosis CL LPer library</a></h1>
-<p>The <strong>Valence Osmosis CL LPer library</strong> library allows to <strong>create concentrated liquidity
-positions</strong> on <strong>Osmosis</strong> from an <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into an <strong>output account</strong>.</p>
+                        <h1 id="osmosis-gamm-lper-library"><a class="header" href="#osmosis-gamm-lper-library">Osmosis GAMM LPer library</a></h1>
+<p>The <strong>Valence Osmosis GAMM LPer library</strong> library allows to <strong>join a pool</strong> on <strong>Osmosis</strong>, using the <strong>GAMM module</strong> (Generalized Automated Market Maker), from an <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into an <strong>output account</strong>.</p>
 <h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
 <pre class="mermaid">---
-title: Osmosis CL Liquidity Provider
+title: Osmosis GAMM Liquidity Provider
 ---
 graph LR
   IA((Input
       Account))
   OA((Output
-		  Account))
+          Account))
   P[Processor]
-  S[Osmosis CL
+  S[Osmosis GAMM
       Liquidity
       Provider]
-  AP[Osmosis CL
+  AP[Osmosis
      Pool]
-  P -- 1/Provide Liquidity --&gt; S
+  P -- 1/Join Pool --&gt; S
   S -- 2/Query balances --&gt; IA
-  S -- 3/Configure target
-    range --&gt; S
-  S -- 4/Do Provide Liquidity --&gt; IA
-  IA -- 5/Provide Liquidity
-				  [Tokens] --&gt; AP
-  AP -- 5'/Transfer LP Tokens --&gt; OA
+  S -- 3/Compute amounts --&gt; S
+  S -- 4/Do Join Pool --&gt; IA
+  IA -- 5/Join Pool
+                  [Tokens] --&gt; AP
+  AP -- 5'/Transfer LP tokens --&gt; OA
 
 </pre>
-<h2 id="concentrated-liquidity-position-creation"><a class="header" href="#concentrated-liquidity-position-creation">Concentrated Liquidity Position creation</a></h2>
-<p>Because of the way CL positions are created, there are two ways to achieve it:</p>
-<h3 id="default"><a class="header" href="#default">Default</a></h3>
-<p>Default position creation centers around the idea of creating a position
-with respect to the currently active tick of the pool.</p>
-<p>This method expects a single parameter, <code>bucket_amount</code>, which describes
-how many <em>buckets</em> of the pool should be taken into account to both sides
-of the price curve.</p>
-<p>Consider a situation where the current tick is 125, and the configured
-tick spacing is 10.</p>
-<p>If this method is called with <code>bucket_amount</code> set to 5, the following logic
-will be performed:</p>
-<ul>
-<li>find the current bucket range, which is 120 to 130</li>
-<li>extend the current bucket ranges by 5 buckets to both sides, meaning
-that the range "to the left" will be extended by 5 * 10 = 50, and the
-range "to the right" will be extended by 5 * 10 = 50, resulting in the covered
-range from 120 - 50 = 70 to 130 + 50 = 180, giving the position tick range of (70, 180).</li>
-</ul>
-<h3 id="custom"><a class="header" href="#custom">Custom</a></h3>
-<p>Custom position creation allows for more fine-grained control over the
-way the position is created.</p>
-<p>This approach expects users to specify the following parameters:</p>
-<ul>
-<li><code>tick_range</code>, which describes the price range to be covered</li>
-<li><code>token_min_amount_0</code> and <code>token_min_amount_1</code> which are optional
-parameters that describe the minimum amount of tokens that should be
-provided to the pool.</li>
-</ul>
-<p>With this flexibility a wide variety of positions can be created, such as
-those that are entirely single-sided.</p>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>ProvideLiquidityDefault</strong></td><td><code>bucket_amount: Uint64</code></td><td>Create a position on the pre-configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, following the <a href="#default">Default approach</a> described above, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>.</td></tr>
-<tr><td><strong>ProvideLiquidityCustom</strong></td><td><code>tick_range: TickRange</code><br><code>token_min_amount_0: Option&lt;Uint128&gt;</code><br><code>token_min_amount_1: Option&lt;Uint128&gt;</code></td><td>Create a position on the pre-configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, following the <a href="#custom">Custom approach</a> described above, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>.</td></tr>
+<tr><td><strong>ProvideDoubleSidedLiquidity</strong></td><td><code>expected_spot_price: Option&lt;DecimalRange&gt;</code></td><td>Provide double-sided liquidity to the pre-configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>. Abort it the spot price is not within the <code>expected_spot_price</code> range (if specified).</td></tr>
+<tr><td><strong>ProvideSingleSidedLiquidity</strong></td><td><code>asset: String</code><br><code>limit: Option&lt;Uint128&gt;</code><br><code>expected_spot_price: Option&lt;DecimalRange&gt;</code></td><td>Provide single-sided liquidity for the specified <code>asset</code> to the pre-configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>. Abort it the spot price is not within the <code>expected_spot_price</code> range (if specified).</td></tr>
 </tbody></table>
 </div>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
@@ -236,14 +203,12 @@ those that are entirely single-sided.</p>
 }
 
 pub struct LiquidityProviderConfig {
-    // ID of the Osmosis CL pool
+    // ID of the Osmosis pool
     pub pool_id: Uint64,
     // Pool asset 1 
     pub pool_asset_1: String,
     // Pool asset 2
     pub pool_asset_2: String,
-    // Pool global price range
-    pub global_tick_range: TickRange,
 }
 <span class="boring">}</span></code></pre></pre>
 
@@ -251,11 +216,11 @@ pub struct LiquidityProviderConfig {
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../libraries/neutron_ibc_transfer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../libraries/cosmwasm/osmosis_cl_withdrawer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../libraries/osmosis_cl_withdrawer.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../libraries/cosmwasm/osmosis_gamm_withdrawer.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -265,11 +230,11 @@ pub struct LiquidityProviderConfig {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../libraries/neutron_ibc_transfer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../libraries/cosmwasm/osmosis_cl_withdrawer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../libraries/osmosis_cl_withdrawer.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../libraries/cosmwasm/osmosis_gamm_withdrawer.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
@@ -284,17 +249,17 @@ pub struct LiquidityProviderConfig {
         </script>
 
 
-        <script src="../elasticlunr.min.js"></script>
-        <script src="../mark.min.js"></script>
-        <script src="../searcher.js"></script>
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
 
-        <script src="../clipboard.min.js"></script>
-        <script src="../highlight.js"></script>
-        <script src="../book.js"></script>
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
 
         <!-- Custom JS scripts -->
-        <script src="../mermaid.min.js"></script>
-        <script src="../mermaid-init.js"></script>
+        <script src="../../mermaid.min.js"></script>
+        <script src="../../mermaid-init.js"></script>
 
 
     </div>

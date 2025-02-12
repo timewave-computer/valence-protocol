@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Assumptions - Valence Protocol Documentation</title>
+        <title>Processor Contract - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -157,45 +157,20 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="assumptions"><a class="header" href="#assumptions">Assumptions</a></h1>
-<ul>
-<li>
-<p><strong>Funds</strong>: You cannot send funds with the messages.</p>
-</li>
-<li>
-<p><strong>Bridging</strong>: We are assuming that messages can be sent and confirmed bidirectionally between domains. The Authorization contract on the main domain communicates with the processor in a different domain in one direction and the callback confirming the correct or failed execution in the other direction.</p>
-</li>
-<li>
-<p><strong>Instantiation</strong>: All these contracts can be instantiated beforehand and off-chain having predictable addresses. Here is an example instantiation flow using Polytone:</p>
-<ul>
-<li>Predict <code>authorization</code> contract address.</li>
-<li>Instantiate polytone contracts &amp; set up relayers.</li>
-<li>Predict <code>proxy</code> contract address for the <code>authorization</code> contract on each external domain.</li>
-<li>Predict <code>proxy</code> contract address on the main domain for each processor on external domains.</li>
-<li>Instantiate all <code>processors</code>. The sender on external domains will be the predicted <code>proxy</code> and on the main domain it will be the Authorization contract iself.</li>
-<li>Instantiate Authorization contract with all the processors and their predicted proxies for external domains and the processor on the main domain.</li>
-</ul>
-</li>
-<li>
-<p><strong>Relaying</strong>: Relayers will be running once everything is instantiated.</p>
-</li>
-<li>
-<p><strong>Tokenfactory</strong>: The main domain has the token factory module with no token creation fee so that we can create and mint these nonfungible tokens with no additional cost.</p>
-</li>
-<li>
-<p><strong>Domains</strong>: In the current version, actions in each authorization will be limited to a single domain.</p>
-</li>
-</ul>
+                        <h1 id="processor-contract"><a class="header" href="#processor-contract">Processor Contract</a></h1>
+<p>The Processor will be a contract on each domain within the program. The Processor handles execution of <code>Message Batches</code> it receives from the Authorization contract.
+Depending on the Processor type in use, its features will vary. There are currently two types of processors: Lite Processor and Processor. The former is a simplified version of the latter. The Lite Processor has limited functionality to optimize for gas-constrained domains.</p>
+<p>The Processor will be instantiated in advance with the correct address that can send messages to them, according to the <em>InstantiationFlow</em> described in the <a href="assumptions.html">Assumptions</a> section.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../authorizations_processors/_overview.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../authorizations_processors/authorization_user_actions.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../authorizations_processors/authorization_contract.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../authorizations_processors/processor.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -205,11 +180,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../authorizations_processors/_overview.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../authorizations_processors/authorization_user_actions.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../authorizations_processors/authorization_contract.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../authorizations_processors/processor.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

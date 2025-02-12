@@ -602,29 +602,16 @@ graph TD;
 <li><strong>Hash</strong>: In the context of sparse Merkle trees, the MVP could employ a widely-accepted cryptographic hash function as its fundamental building block. For example, the Keccak256, which is native to EVM, could be used due to its broad availability. However, utilizing this hash function may lead to an extensive gap between nodes, potentially resulting in a tree structure with only 2 leaves yet a significant depth, as the hashes of the two verifying keys might be exceptionally far apart. A future improvement would be to choose of a cryptographic hash that keeps the leaf nodes close. One cheap method to achieve this is by taking the initial <code>n</code> bits (e.g., 16) of the hash output and using it as an index, given that any secure cryptographic hash maintains its collision resistance and avalanche effect characteristics across the target security level with the selected number of sampled bits. While we anticipate not dealing with a large number of program, (i.e. a 256-bit number, 16 bits should be more than sufficient for this purpose.</li>
 <li><strong>Data backend</strong>: In typical scenarios, the number of nodes in a proof batch shouldn't be large: 8 bits should suffice to represent the number of programs; for very complex and large batches, 16 bits should suffice. Choosing a database backend for a Merkle tree can be challenging because it involves deciding on storage methodologies and optimizing database seek operations to retrieve nodes from the same path on a single page when possible. However, with a limited number of nodes, a streamlined database backend could suffice, delivering requested nodes without regard for the total page count. Given this performance constraint, we should prioritize compatibility over optimization: the ability to use the same backend across multiple blockchain clients and execution environments is more crucial than fine-tuning something that functions well only under specific conditions.</li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="authorizations--processors"><a class="header" href="#authorizations--processors">Authorizations &amp; Processors</a></h1>
-<p>The <strong>Authorizations</strong> and <strong>Processor</strong> contracts are foundational pieces of the <strong>Valence Protocol</strong>, as they enable on-chain (and cross-chain) execution of <strong>Valence Programs</strong> and enforce access control to the program's <strong>Subroutines</strong> via <strong>Authorizations</strong>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="authorization--processors"><a class="header" href="#authorization--processors">Authorization &amp; Processors</a></h1>
+<p>The <strong>Authorization</strong> and <strong>Processor</strong> contracts are foundational pieces of the <strong>Valence Protocol</strong>, as they enable on-chain (and cross-chain) execution of <strong>Valence Programs</strong> and enforce access control to the program's <strong>Subroutines</strong> via <strong>Authorizations</strong>.</p>
 <p>This section explains the rationale for these contracts and shares insights into their technical implementation, as well as how end-users can interact with <strong>Valence Programs</strong> via <strong>Authorizations</strong>.</p>
 <h2 id="rationale"><a class="header" href="#rationale">Rationale</a></h2>
 <ul>
 <li>To have a general purpose set of smart contracts that provide users with a single point of entry to interact with the Valence Program, which can have libraries and accounts deployed on multiple chains.</li>
 <li>To have all the user authorizations for multiple domains in a single place, making it very easy to control the application.</li>
-<li>To have a single address (<code>Processor</code>) that will execute the messages for all the contracts in a domain using execution queues.</li>
-<li>To only tick a single contract (<code>Processor</code>) that will go through the queues to route and execute the messages.</li>
+<li>To have a single address (Processor) that will execute the messages for all the contracts in a domain using execution queues.</li>
+<li>To only tick a single contract (Processor) that will go through the queues to route and execute the messages.</li>
 <li>To create, edit, or remove different application permissions with ease.</li>
-</ul>
-<h2 id="technical-deep-dive"><a class="header" href="#technical-deep-dive">Technical deep-dive:</a></h2>
-<ul>
-<li><a href="authorizations_processors/./assumptions.html">Assumptions</a></li>
-<li><a href="authorizations_processors/./processor.html">Processor Contract</a></li>
-<li><a href="authorizations_processors/./authorization.html">Authorization Contract</a>
-<ul>
-<li><a href="authorizations_processors/./authorization_instantiation.html">Instantiation</a></li>
-<li><a href="authorizations_processors/./authorization_owner_actions.html">Owner Actions</a></li>
-<li><a href="authorizations_processors/./authorization_user_actions.html">User Actions</a></li>
-</ul>
-</li>
-<li><a href="authorizations_processors/./callbacks.html">Callbacks</a></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="assumptions"><a class="header" href="#assumptions">Assumptions</a></h1>
 <ul>
@@ -632,7 +619,7 @@ graph TD;
 <p><strong>Funds</strong>: You cannot send funds with the messages.</p>
 </li>
 <li>
-<p><strong>Bridging</strong>: We are assuming that messages can be sent and confirmed bidirectionally between domains. The authorization contract on the main domain communicates with the processor in a different domain in one direction and the callback confirming the correct or failed execution in the other direction.</p>
+<p><strong>Bridging</strong>: We are assuming that messages can be sent and confirmed bidirectionally between domains. The Authorization contract on the main domain communicates with the processor in a different domain in one direction and the callback confirming the correct or failed execution in the other direction.</p>
 </li>
 <li>
 <p><strong>Instantiation</strong>: All these contracts can be instantiated beforehand and off-chain having predictable addresses. Here is an example instantiation flow using Polytone:</p>
@@ -641,8 +628,8 @@ graph TD;
 <li>Instantiate polytone contracts &amp; set up relayers.</li>
 <li>Predict <code>proxy</code> contract address for the <code>authorization</code> contract on each external domain.</li>
 <li>Predict <code>proxy</code> contract address on the main domain for each processor on external domains.</li>
-<li>Instantiate all <code>processors</code>. The sender on external domains will be the predicted <code>proxy</code> and on the main domain it will be the authorization contract iself.</li>
-<li>Instantiate authorization contract with all the processors and their predicted proxies for external domains and the processor on the main domain.</li>
+<li>Instantiate all <code>processors</code>. The sender on external domains will be the predicted <code>proxy</code> and on the main domain it will be the Authorization contract iself.</li>
+<li>Instantiate Authorization contract with all the processors and their predicted proxies for external domains and the processor on the main domain.</li>
 </ul>
 </li>
 <li>
@@ -655,44 +642,8 @@ graph TD;
 <p><strong>Domains</strong>: In the current version, actions in each authorization will be limited to a single domain.</p>
 </li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="processor"><a class="header" href="#processor">Processor</a></h1>
-<p>The <code>Processor</code> will be a contract on each domain of our workflow. It handles the execution queues which contain <code>Message Batches</code>. The <code>Processor</code> can be <code>ticked</code> permissionlessly, which will execute the next <code>Message Batch</code> in the queue if this one is executable or rotate it to the back of the queue if it isn't executable yet. The processor will also handle the <code>Retry</code> logic for each batch (if the batch is atomic) or function (if the batch is non atomic). After a <code>Message Batch</code> has been executed successfully or it reached the maximum amount of retries, it will be removed from the execution queue and the <code>Processor</code> will send a callback with the execution information to the <code>Authorization</code> contract.</p>
-<p>The processors will be instantiated in advance with the correct address that can send messages to them, according to the <em>InstantiationFlow</em> described in the <a href="authorizations_processors/assumptions.html">Assumptions</a> section.</p>
-<p>The <code>Authorization</code> contract will be the only address allowed to add list of functions to the execution queues. It will also be allowed to Pause/Resume the <code>Processor</code> or to arbitrarily remove functions from the queues or add certain messages at a specific position.</p>
-<p>There will be two execution queues: one <code>High</code> and one <code>Med</code>. This will allow giving different priorities to <code>Message</code>.</p>
-<h3 id="execution"><a class="header" href="#execution">Execution</a></h3>
-<p>When a processor is <code>Ticked</code> we will take the first <code>MessageBatch</code> from the queue (<code>High</code> if there are batches there or <code>Med</code> if there aren’t).
-After taking them, we will execute them in different ways depending if the batch is <code>Atomic</code> or <code>NonAtomic</code>.</p>
-<ul>
-<li>For <code>Atomic</code> batches, the <code>Processor</code> will execute them by sending them to itself and trying to execute them in a <code>Fire and Forget</code> manner. If this execution fails, we will check the <code>RetryLogic</code> of the batch to decide if they are to be re-queued or not (if not, we will send a callback with <code>Rejected</code> status to the authorization contract).
-If they succeeded we will send a callback with <code>Executed</code> status to the Authorization contract.</li>
-<li>For <code>NonAtomic</code> batches, we will execute the functions one by one and applying the RetryLogic individually to each function if they fail. <code>NonAtomic</code> functions might also be confirmed via <code>CallbackConfirmations</code> in which case we will keep them in a separate Map until we receive that specific callback.
-Each time a function is confirmed, we will re-queue the batch and keep track of what function we have to execute next.
-If at some point a function uses up all its retries, we will send a callback to the Authorization contract with a <code>PartiallyExecuted(num_of_functions_executed)</code> status. If all of them succeed it will be <code>Executed</code> and if none of them were it will be <code>Rejected</code>.
-For <code>NonAtomic</code> batches, we need to tick the processor each time the batch is at the top of the queue to continue, so we will need at least as many ticks as number of functions we have in the batch, and each function has to wait for its turn.</li>
-</ul>
-<h3 id="storage"><a class="header" href="#storage">Storage</a></h3>
-<p>The <code>Processor</code> will receive batches of messages from the authorization contract and will enqueue them in a custom storage structure we designed for this purpose, called a <code>QueueMap</code>. This structure is a FIFO queue with owner privileges (allows the owner to insert or remove from any position in the queue).
-Each “item” stored in the queue is an object <code>MessageBatch</code> that looks like this:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub struct MessageBatch {
-    pub id: u64,
-    pub msgs: Vec&lt;ProcessorMessage&gt;,
-    pub subroutine: Subroutine,
-    pub priority: Priority,
-    pub retry: Option&lt;CurrentRetry&gt;,
-}
-<span class="boring">}</span></code></pre></pre>
-<ul>
-<li>id: represents the global id of the batch. The <code>Authorization</code> contract, to understand the callbacks that it will receive from each processor, identifies each batch with an id. This id is unique for the entire application.</li>
-<li>msgs: the messages the processor needs to execute for this batch (e.g. a CosmWasm ExecuteMsg or MigrateMsg).</li>
-<li>subroutine: This is the config that the authorization table defines for the execution of these functions. With this field we can know if the functions need to be executed atomically or not atomically, for example, and the retry logic for each batch/function depending on the config type.</li>
-<li>priority (for internal use): batches will be queued in different priority queues when they are received from the authorization contract. We also keep this priority here because they might need to be re-queued after a failed execution and we need to know where to re-queue them.</li>
-<li>retry (for internal use): we are keeping the current retry we are at (if the execution previously failed) to know when to abort if we exceed the max retry amounts.</li>
-</ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="authorization"><a class="header" href="#authorization">Authorization</a></h1>
-<p>The authorization contract will be a single contract deployed on the main domain and that will define the authorizations of the top-level application, which can include libraries in different domains (chains). For each domain, there will be one Processor (with its corresponding execution queues). The <code>Authorization</code> contract will connect to all of the <code>Processors</code> using a connector (e.g. Polytone, Hyperlane…) and will route the <code>Message Batches</code> to be executed to the right domain. At the same time, for each external domain, we will have a proxy contract in the main domain which will receive the callbacks sent from the processor on the external domain with the <code>ExecutionResult</code> of the <code>Message Batch</code>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="authorization-contract"><a class="header" href="#authorization-contract">Authorization Contract</a></h1>
+<p>The Authorization contract will be a single contract deployed on the main domain and that will define the authorizations of the top-level application, which can include libraries in different domains (chains). For each domain, there will be one Processor in charge of executing the functions on the libraries. The Authorization contract will connect to all of the Processor contracts using a connector (e.g. Polytone Note, Hyperlane Mailbox…) and will route the message batches to be executed to the right domain. At the same time, for each external domain, we will have a proxy contract (e.g. Polytone Proxy, Hyperlane Mailbox...) in the main domain which will receive the callbacks sent from the processor on the external domain with the <code>ExecutionResult</code> of the <code>MessageBatch</code>.</p>
 <p>The contract will be instantiated once at the very beginning and will be used during the entire top-level application lifetime. Users will never interact with the individual Smart Contracts of each workflow, but with the Authorization contract directly.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="instantiation"><a class="header" href="#instantiation">Instantiation</a></h1>
 <p>When the contract is instantiated, it will be provided the following information:</p>
@@ -701,17 +652,17 @@ Each “item” stored in the queue is an object <code>MessageBatch</code> that 
 <p>Processor contract on main domain.</p>
 </li>
 <li>
-<p><code>[(Domain, Connector(Polytone_note_contract), Processor_contract_on_domain, callback_proxy, IBC_Timeout_settings)]</code>: If it's a cross domain application, an array will be passed with each external domain label and its corresponding connector contracts and proxies that will be instantiated before hand. For each connector, there will be also a proxy corresponding to that external domain because it’s a two-way communication flow and we need to receive callbacks. Additionally, we need a set of <code>Timeout</code> settings for the bridge, to know for how long the messages sent through the connector are going to be valid.</p>
+<p>Owner of the contract.</p>
 </li>
 <li>
-<p>Admin of the contract (if different to sender).</p>
+<p>List of subowners (if any). Users that can execute the same actions as the owner except adding/removing other subowners.</p>
 </li>
 </ul>
-<p>The instantiation will set up all the processors on each domain so that we can start instantiating the libraries afterwards and providing the correct <code>Processor</code> addresses to each of them depending on which domain they are in.</p>
+<p>Once the Authorization contract is deployed, we can already start adding and executing authorizations on the domain that the Authorization contract was deployed on. To execute functions on other domains, the owner will have to add external domains to the Authorization contract with all the information required for the Authorization contract to route the messages to that domain.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="owner-functions"><a class="header" href="#owner-functions">Owner Functions</a></h1>
 <ul>
 <li>
-<p><code>create_authorizations(vec[Authorization])</code>: provides an authorization list which is the core information of the authorization contract, it will include all the possible set of functions that can be executed. It will contain the following information:</p>
+<p><code>create_authorizations(vec[Authorization])</code>: provides an authorization list which is the core information of the Authorization contract, it will include all the possible set of functions that can be executed. It will contain the following information:</p>
 <ul>
 <li>
 <p>Label: unique name of the authorization. This label will be used to identify the authorization and will be used as subdenom of the tokenfactory token in case it is permissioned. Due to tokenfactory module restrictions, the max length of this field is 44 characters.
@@ -739,7 +690,18 @@ Example: If the label is <code>withdraw</code> and only address <code>neutron123
 <p>Domain of execution (must be the same for all functions in v1).</p>
 </li>
 <li>
-<p>MessageDetails: type (e.g. CosmWasmExecuteMsg) and message (name of the message in the ExecuteMsg json that can be executed with, if applied, three list of parameters: one for <code>MustBeIncluded</code>, one for <code>CannotBeIncluded</code> and one for <code>MustBeValue</code>. (This gives more control over the authorizations. Example: we want one authorization to provide the message with parameters (admin function for that service) but another authorization for the message without any Parameters (user function for that service).</p>
+<p>MessageDetails: type (e.g. CosmwasmExecuteMsg, EvmCall ...) and message information. Depending on the type of the message that is being sent, we might need to provide additional values and/or only some specific <code>ParamRestrictions</code> can be applied:</p>
+<ul>
+<li>If we are sending messages that are not for a <code>CosmWasm ExecutionEnvironment</code> and the message passed doesn't contain Raw bytes for that particular VM (e.g. <code>EvmRawCall</code>), we need to provide the <code>Encoder</code> information for that message along with the name of the library that the <code>Encoder</code> will use to encode that message. For example, if we are sending a message for an <code>EvmCall</code> on an EVM domain, we need to provide the address of the <code>Encoder Broker</code> and the <code>version</code> of the <code>Encoder</code> that the broker needs to route the message to along with the name of the library that the <code>Encoder</code> will use to encode that message (e.g. <code>forwarder</code>).</li>
+<li>For all messages that are not raw bytes (<code>json</code> formatted), we can apply any of the following <code>ParamRestrictions</code>:
+<ul>
+<li><code>MustBeIncluded</code>: the parameter must be included in the message.</li>
+<li><code>CannotBeIncluded</code>: the parameter cannot be included in the message.</li>
+<li><code>MustBeValue</code>: the parameter must have a specific value.</li>
+</ul>
+</li>
+<li>For all messages that are raw bytes, we can only apply the <code>MustBeBytes</code> restriction, which matches that the bytes sent are the same as the ones provided in restriction, limiting the authorization execution to only one specific message.</li>
+</ul>
 </li>
 <li>
 <p>Contract address that will execute it.</p>
@@ -753,7 +715,7 @@ Example: If the label is <code>withdraw</code> and only address <code>neutron123
 <p>Domain of execution</p>
 </li>
 <li>
-<p>MessageDetails (like above).</p>
+<p>MessageDetails (same as above).</p>
 </li>
 <li>
 <p>Contract address that will execute it.</p>
@@ -777,7 +739,7 @@ All authorizations will have an initial state of <code>Enabled</code> .</p>
 <p><img src="authorizations_processors/../img/authorization_table.png" alt="Authorization Table" /></p>
 </li>
 <li>
-<p><code>add_external_domains([external_domains])</code>: if we want to add external domains after instantiation.</p>
+<p><code>add_external_domains([external_domains])</code>: to add an <code>ExternalDomain</code> to the Authorization contract, the owner will specify what type of <code>ExecutionEnvironment</code> it has (e.g. <code>CosmWasm</code>, <code>Evm</code>...) and all the information required for each type of <code>ExecutionEnvironment</code>. For example, if the owner is adding a domain that uses <code>CosmWasm</code> as ExecutionEnvironment, they need to provide all the Polytone information; if they are adding a domain that uses <code>EVM</code> as ExecutionEnvironment, they need to provide all the Hyperlane information and the <code>Encoder</code> to be used for correctly encoding messages in the corresponding format.</p>
 </li>
 <li>
 <p><code>modify_authorization(label, updated_values)</code>: can modify certain updatable fields of the authorization: start_time, expiration, max_concurrent_executions and priority.</p>
@@ -813,20 +775,88 @@ All authorizations will have an initial state of <code>Enabled</code> .</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="user-actions"><a class="header" href="#user-actions">User Actions</a></h1>
 <ul>
 <li>
-<p><code>send_msgs(label, vec[ProcessorMessage])</code>: users can run an authorization with a specific label. If the authorization is <code>Permissioned</code>, the authorization contract will check if they are allowed to execute it by checking that the user has the token in its wallet if it's <code>Permissioned (without limit)</code> or that the user sent the token along with the messages if it's <code>Permissioned (with limit)</code>. Along with the authorization label, the user will provide an array of encoded messages, together with the message type (e.g. <code>CosmwasmExecuteMsg</code>) and any other parameters for that specific ProcessorMessage (e.g. for a <code>CosmwasmMigrateMsg</code> we need to also pass a code_id). The contract will then check that the messages match the ones defined in the authorization (and in the correct order) and that all Parameters restrictions, if applied, are correct.</p>
-<p>If all checks are correct, the contract will route the messages to the correct <code>Processor</code> with an <code>execution_id</code> for the processor to callback with. This <code>execution_id</code> is unique for the entire application.
-If the execution of all the actions are confirmed via a callback, we will burn the token and if they fail, we will send the token back.
-Here is an example flowchart of how a user interacts with the authorization contract to execute messages in a service sitting on a domain:</p>
+<p><code>send_msgs(label, vec[ProcessorMessage])</code>: users can run an authorization with a specific label. If the authorization is <code>Permissioned (without limit)</code>, the Authorization contract will check if their account is allowed to execute by checking that the account holds the token in its wallet. If the authorization is <code>Permissioned (with limit)</code> the account must attach the authorization token to the contract execution. Along with the authorization label, the user will provide an array of encoded messages, together with the message type (e.g. <code>CosmwasmExecuteMsg</code>, <code>EvmCall</code>, etc.) and any other parameters for that specific ProcessorMessage (e.g. for a <code>CosmwasmMigrateMsg</code> we need to also pass a code_id). The contract will then check that the messages match those defined in the authorization, that the messages appear in correct order, and that any applied parameter restrictions are correct.</p>
+<p>If all checks are correct, the contract will route the messages to the correct Processor with an <code>execution_id</code> for the processor to callback with. This <code>execution_id</code> is unique for the entire application.
+If execution of all actions is confirmed via a callback, the authorization token is burned. If execution fails, the token is sent back.
+Here is an example flowchart of how a user interacts with the Authorization contract to execute functions on an external CosmWasm domain that is connected to the main domain with Polytone:</p>
 </li>
 </ul>
 <p><img src="authorizations_processors/../img/user_flowchart.png" alt="User flowchart" /></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="processor-contract"><a class="header" href="#processor-contract">Processor Contract</a></h1>
+<p>The Processor will be a contract on each domain within the program. The Processor handles execution of <code>Message Batches</code> it receives from the Authorization contract.
+Depending on the Processor type in use, its features will vary. There are currently two types of processors: Lite Processor and Processor. The former is a simplified version of the latter. The Lite Processor has limited functionality to optimize for gas-constrained domains.</p>
+<p>The Processor will be instantiated in advance with the correct address that can send messages to them, according to the <em>InstantiationFlow</em> described in the <a href="authorizations_processors/assumptions.html">Assumptions</a> section.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="processor"><a class="header" href="#processor">Processor</a></h1>
+<p>This version of the processor is currently available for <code>CosmWasm</code> Execution Environment only. It contains all the features and full functionality of the processor as described below.</p>
+<p>It handles two execution queues: <code>High</code> and <code>Med</code>, which allow giving different priorities to <code>Message Batches</code>. The Authorization contract will send the <code>Message Batches</code> to the Processor specifying the priority of the queue where they should be enqueued.</p>
+<p>The Processor can be <code>ticked</code> permissionlessly, which will trigger the execution of the <code>Message Batches</code> in the queues in a <code>FIFO</code> manner. It will handle the <code>Retry</code> logic for each batch (if the batch is atomic) or function (if the batch is non-atomic). In the particular case that the current batch at the top of the queue is not retriable yet, the processor will rotate it to the back of the queue. After a <code>Message Batch</code> has been executed successfully or it reached the maximum amount of retries, it will be removed from the execution queue and the Processor will send a callback with the execution information to the Authorization contract.</p>
+<p>The Authorization contract will be the only address allowed to add message batches to the execution queues. It will also be allowed to Pause/Resume the Processor or to arbitrarily remove functions from the queues or add certain messages at a specific position in any of them.</p>
+<h3 id="execution"><a class="header" href="#execution">Execution</a></h3>
+<p>When a processor is <code>Ticked</code>, the first <code>Message Batch</code> will be taken from the queue (<code>High</code> if there are batches there or <code>Med</code> if there aren’t).
+After taking them, we will execute them in different ways depending if the batch is <code>Atomic</code> or <code>NonAtomic</code>.</p>
+<ul>
+<li>
+<p>For <code>Atomic</code> batches, the Processor will execute either all functions or none of them. If execution fails, the batch <code>RetryLogic</code> is checked to determine if the match should be re-enqueued. If not, a callback is sent with a <code>Rejected(error)</code> status to the Authorization contract.
+If the execution succeeded we will send a callback with <code>Executed</code> status to the Authorization contract.</p>
+</li>
+<li>
+<p>For <code>NonAtomic</code> batches, we will execute the functions one by one and applying the RetryLogic individually to each function if they fail. <code>NonAtomic</code> functions might also be confirmed via <code>CallbackConfirmations</code> in which case we will keep them in a separate storage location until we receive that specific callback.
+Each time a function is confirmed, we will re-queue the batch and keep track of what function we have to execute next.
+If at some point a function uses up all its retries, the processor will send a callback to the Authorization contract with a <code>PartiallyExecuted(num_of_functions_executed, execution_error)</code> execution result if some succeeded or <code>Rejected(error)</code> if none did. If all functions are executed successfully, an <code>Executed</code> execution result will be sent.
+For <code>NonAtomic</code> batches, the processor must be ticked each time the batch is at the top of the queue to continue, so at least as many ticks will be required as the number of functions in the batch.</p>
+</li>
+</ul>
+<h3 id="storage"><a class="header" href="#storage">Storage</a></h3>
+<p>The Processor will receive <code>Message Batches</code> from the Authorization contract and will enqueue them in a custom storage structure called a <code>QueueMap</code>. This structure is a FIFO queue with owner privileges, which allow the owner to insert or remove messages from any position in the queue.
+Each “item” stored in the queue is a <code>MessageBatch</code> object that has the following structure:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct MessageBatch {
+    pub id: u64,
+    pub msgs: Vec&lt;ProcessorMessage&gt;,
+    pub subroutine: Subroutine,
+    pub priority: Priority,
+    pub retry: Option&lt;CurrentRetry&gt;,
+}
+<span class="boring">}</span></code></pre></pre>
+<ul>
+<li>id: represents the global id of the batch. The Authorization contract, to understand the callbacks that it will receive from each processor, identifies each batch with an id. This id is unique for the entire application.</li>
+<li>msgs: the messages the processor needs to execute for this batch (e.g. a CosmWasm ExecuteMsg or MigrateMsg).</li>
+<li>subroutine: This is the config that the authorization table defines for the execution of these functions. With this field we can know if the functions need to be executed atomically or not atomically, for example, and the retry logic for each batch/function depending on the config type.</li>
+<li>priority (for internal use): batches will be queued in different priority queues when they are received from the Authorization contract. We also keep this priority here because they might need to be re-queued after a failed execution and we need to know where to re-queue them.</li>
+<li>retry (for internal use): we are keeping the current retry we are at (if the execution previously failed) to know when to abort if we exceed the max retry amounts.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="lite-processor"><a class="header" href="#lite-processor">Lite Processor</a></h1>
+<p>This is a simplified version of the <a href="authorizations_processors/processor.html">Processor</a> contract, with more limited functionality that is optimized for specific domains where gas costs are critical. This version of the processor is currently available for <code>EVM</code> execution environments only.</p>
+<p>The main difference between the Lite Processor and the Processor is that the former does not store message batches, but instead executes messages directly when received. The Lite Processor does not handle retries, function callbacks, or queues. More details can be found below.</p>
+<h3 id="execution-1"><a class="header" href="#execution-1">Execution</a></h3>
+<p>The Lite Processor is not <code>ticked</code>, instead it will receive a <code>MessageBatch</code> from the Authorization contract and execute it immediately. Therefore, the execution gas cost will be paid by the relayer of the batch instead of the user who ticks the processor.</p>
+<p>This processor does not store batches or use any queue, instead it will simply receive the batch, execute it atomically or non-atomically, and send a callback to the Authorization contract with the <code>ExecutionResult</code>. The only information stored by this processor is the information of the Authorization contract, the information of the Connector (e.g. Hyperlane Mailbox, origin domain id, ...) and the authorized entities that can also execute batches on it without requiring them to be sent from the main domain.</p>
+<p>Since there are no queues, operations like <code>InsertAt</code> or <code>RemoveFrom</code> queue that the owner of the Authorization Contract may perform on the Processor are not available on the Lite Processor. Therefore the operations that the Lite Processor supports from the Authorization contract are limited to: <code>Pause</code>, <code>Resume</code> and <code>SendMsgs</code>.</p>
+<p>In addition to the limitations above, the Lite Processor does not support retries or function callbacks. This means that the <code>MessageBatch</code> received will be executed only once and the <code>NonAtomic</code> batches can not be confirmed asynchronously because batch execution will be attempted once, non-atomically, the moment it is received.</p>
+<p>In addition to executing batches that come from the Authorization contract, the Lite Processor defines a set of authorized addresses that can send batches to it for execution. Since the Processor can execute batches from any address, we only send a callback if the address that sent the batch is a smart contract. Thus the authorized addresses are in charge of the handling/ignoring of these callbacks.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="execution-environment-differences"><a class="header" href="#execution-environment-differences">Execution Environment Differences</a></h1>
+<p>Depending on the type of <code>Execution Environment</code> being used, the behavior of the Processor may vary. In this section we will describe the main differences in how the Processor behaves in the different <code>Execution Environments</code> that we support.</p>
+<h3 id="execution-success"><a class="header" href="#execution-success">Execution Success</a></h3>
+<p>During the execution of a <code>MessageBatch</code>, the Processor will execute each function of the subroutine of that batch. If the execution for a specific function fails, we will consider the execution failed in case of <code>Atomic</code> batches, and we will stop the execution of the next function in case of <code>NonAtomic</code> batches.</p>
+<p>Currently, in the <code>CosmWasm</code> execution environment, a function fails if the <code>CosmWasm</code> contract that we are targeting doesn't exist, if the <code>entry point</code> of that contract doesn't exist, or if the execution of the contract fails for any reason. On the contract, in the <code>EVM</code> execution environment, a function only fails if the contract explicitly fails or reverts.</p>
+<p>To mitigate the differences in behavior between these two execution environments, an <code>EVM</code> Processor check was included to check if the contract indeed exists and fail execution if the contract does not exist. Behavior was also added in the <code>EVM</code> libraries to revert if the execution of the contract enters the fallback function, which is not allowed in the system. Nevertheless, since Processors are not restricted to <code>Valence Libraries</code> but can call any contract, no guarantee can be made that the contract targeted will fail if an entry point does not exist, because the fallback function might not be defined or might not revert.</p>
+<p>In <code>CosmWasm</code>, execution of a contract will always fail if the entry point does not exist. However, for <code>EVM</code> execution, this is not necessarily the case. This is a difference that the owner of the program must take into account when designing and creating their program.</p>
+<p><strong><em>In summary</em></strong>: if a function of the subroutine targets a contract that meets all of the following conditions:</p>
+<ul>
+<li>It is not a <code>Valence Library</code>.</li>
+<li>The entry point of that contract does not exist.</li>
+<li>The fallback function is either not defined or doesn't explicitly revert.</li>
+</ul>
+<p>The execution of that function will be considered successful in the <code>EVM</code> execution environment but not in the <code>CosmWasm</code> execution environment equivalent.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="callbacks"><a class="header" href="#callbacks">Callbacks</a></h1>
 <p>There are different types of callbacks in our application. Each of them have a specific function and are used in different parts of the application.</p>
 <h2 id="function-callbacks"><a class="header" href="#function-callbacks">Function Callbacks</a></h2>
 <p>For the execution of <code>NonAtomic</code> batches, each function in the batch can optionally be confirmed with a callback from a specific address. When the processor reaches a function that requires a callback, it will inject the execution_id of the batch into the message that is going to be executed on the library, which means that the library needs to be ready to receive that execution_id and know what the expected callback is and from where it has to come from to confirm that function, otherwise that function will stay unconfirmed and the batch will not move to the next function. The callback will be sent to the processor with the execution_id so that the processor can know what function is being confirmed. The processor will then validate that the correct callback was received from the correct address.</p>
-<p>If the processor receives the expected callback from the correct address, the batch will move to the next function. If it receives a different callback than expected from that address, the execution of that function will be considered failed and it will be retried (if applicable). In any case, a callback must be received to determine if the function was successful or not.</p>
+<p>If the processor receives the expected callback from the correct address, the batch will move to the next function. If it receives a different callback than expected from that address, the execution of that function is considered to have failed and it will be retried (if applicable). In either case, a callback must be received to determine if the function was successful or not.</p>
+<p>Note: This functionality is not available on the Lite Processor, as this version of the processor is not able to receive asynchronous callbacks from libraries.</p>
 <h2 id="processor-callbacks"><a class="header" href="#processor-callbacks">Processor Callbacks</a></h2>
-<p>Once a Processor batch is executed or it fails and there are no more retries available, the Processor will send a callback to the Authorizations contract with the execution_id of the batch and the result of the execution. All this information will be stored in the <code>Authorization</code> contract state so the history of all executions can be queried from it. This is how a <code>ProcessorCallback</code> looks like:</p>
+<p>Once a Processor batch is executed or it fails and there are no more retries available, the Processor will send a callback to the Authorizations contract with the execution_id of the batch and the result of the execution. All this information will be stored in the Authorization contract state so the history of all executions can be queried from it. This is how a <code>ProcessorCallback</code> looks like:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct ProcessorCallbackInfo {
@@ -873,23 +903,144 @@ pub enum ExecutionResult {
 <p>The key information from here is the <code>label</code>, to identify the authorization that was executed; the <code>messages</code>, to identify what the user sent; and the <code>execution_result</code>, to know if the execution was successful, partially successful or rejected.</p>
 <h2 id="bridge-callbacks"><a class="header" href="#bridge-callbacks">Bridge Callbacks</a></h2>
 <p>When messages need to be sent through bridges because we are executing batches on external domains, we need to know if, for example, a timeout happened and keep track of it. For this reason we have callbacks per bridge that we support and specific logic that will be executed if they are received. For <code>Polytone</code> timeouts, we will check if the <code>ttl</code> field has not expired and allow permissionless retries if it's still valid. In case the <code>ttl</code> has expired, we will set the ExecutionResult to timeout and not retriable, then send the authorization token back to the user if the user sent it to execute the authorization.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="libraries"><a class="header" href="#libraries">Libraries</a></h1>
-<p>This section contains a detailed description of the various libraries that can be used to rapidly build Valence cross-chain programs.</p>
-<p><strong>Valence Protocol libraries</strong>:</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="connectors"><a class="header" href="#connectors">Connectors</a></h1>
+<p>Connectors are a way for the Authorization contract in the main domain to interact with external domains. When adding an <code>ExternalDomain</code> to the Authorization contract, depending on the <code>ExecutionEnvironment</code> we must specify the Connector information to be used. These connectors are responsible for receiving the <code>Message Batches</code> from the Authorization contract and trigger the necessary actions for the relayers to pick them up and deliver them to the Processor contract in the <code>ExternalDomain</code>. The connector on the <code>ExternalDomain</code> will also receive callbacks with the <code>ExecutionResult</code> from the Processor contract and send them back to the Authorization contract.</p>
+<p>We currently support the following connectors:</p>
+<h3 id="polytone"><a class="header" href="#polytone">Polytone</a></h3>
+<p>To connect <code>ExternalDomains</code> that use <code>CosmWasm</code> as <code>ExecutionEnvironment</code> we use <a href="https://github.com/DA0-DA0/polytone">Polytone</a>. Polytone is a set of smart contracts that are instantiated on both domains that implement logic to pass messages to each other using IBC. Polytone consists of the following contracts:</p>
 <ul>
-<li><a href="libraries/./astroport_lper.html">Astroport LPer</a></li>
-<li><a href="libraries/./astroport_withdrawer.html">Astroport Withdrawer</a></li>
-<li><a href="libraries/./forwarder.html">Forwarder</a></li>
-<li><a href="libraries/./generic_ibc_transfer.html">Generic IBC Transfer</a></li>
-<li><a href="libraries/./neutron_ibc_transfer.html">Neutron IBC Transfer</a></li>
-<li><a href="libraries/./osmosis_cl_lper.html">Osmosis CL LPer</a></li>
-<li><a href="libraries/./osmosis_cl_withdrawer.html">Osmosis CL Withdrawer</a></li>
-<li><a href="libraries/./osmosis_gamm_lper.html">Osmosis GAMM LPer</a></li>
-<li><a href="libraries/./osmosis_gamm_withdrawer.html">Osmosis GAMM Withdrawer</a></li>
-<li><a href="libraries/./reverse_splitter.html">Reverse Splitter</a></li>
-<li><a href="libraries/./splitter.html">Splitter</a></li>
-<li><a href="libraries/./neutron_ic_querier.html">Neutron Interchain Querier</a></li>
+<li>Polytone Note: contract responsible of sending the messages from the Authorization contract to the Processor contract on the external domain and receiving the callback from the Processor contract on the external domain and sending it back to the Authorization contract.</li>
+<li>Polytone Voice: contract that receives the message from Polytone Note and instantiates a Polytone Proxy for each sender that will redirect the message to the destination.</li>
+<li>Polytone Proxy: contract instantiated by Polytone Voice responsible for sending messages received from Polytone Note to the corresponding contract.</li>
 </ul>
+<p>To connect the Authorization contract with an external domain that uses Polytone as a connector, we need to provide the Polytone Note address and the predicted Polytone Proxy addresses for both the Authorization contract (when adding the domain) and the Processor Contract (when instantiating the Processor). An IBC relayer must relay these two channels to enable communication.</p>
+<p>This is the sequence of messages when using Polytone as a connector:</p>
+<pre class="mermaid">graph TD
+  %% Execution Result Sequence
+  subgraph Execution_Sequence [Execution Result Sequence]
+    E2[Processor Contract]
+    D2[Polytone Note on
+    External Domain]
+    C2[Polytone Voice on
+    Main Domain]
+    B2[Polytone Proxy on
+    Main Domain]
+    A2[Authorization Contract]
+    
+    E2 --&gt;|Step 5: Execution Result| D2
+    D2 --&gt;|Step 6: Relayer| C2
+    C2 --&gt;|Step 7: Instantiate &amp; Forward Result| B2
+    B2 --&gt;|Step 8: Execution Result| A2
+  end
+
+  %% Message Batch Sequence
+  subgraph Batch_Sequence [Message Batch Sequence]
+    A1[Authorization Contract]
+    B1[Polytone Note on
+    Main Domain]
+    C1[Polytone Voice on
+    External Domain]
+    D1[Polytone Proxy on
+    External Domain]
+    E1[Processor Contract]
+    
+    A1 --&gt;|Step 1: Message Batch| B1
+    B1 --&gt;|Step 2: Relayer| C1
+    C1 --&gt;|Step 3: Instantiate &amp; Forward Batch| D1
+    D1 --&gt;|Step 4: Message Batch| E1
+  end
+</pre>
+<h3 id="hyperlane"><a class="header" href="#hyperlane">Hyperlane</a></h3>
+<p>To connect <code>ExternalDomains</code> that use <code>EVM</code> as <code>ExecutionEnvironment</code> we use <a href="https://github.com/hyperlane-xyz/hyperlane-monorepo">Hyperlane</a>. Hyperlane is a set of smart contracts that are deployed on both domains and communicate with one another using the <code>Hyperlane Relayer</code>. The required Hyperlane contracts are the following:</p>
+<ul>
+<li>Mailbox: contract responsible for receiving the message for another domain and emitting an event with the message to be picked up by the relayer. The mailbox will also receive messages to be executed on a domain from the relayers and will route them to the correct destination contract.</li>
+</ul>
+<p>To connect the Authorization contract with an external domain that uses Hyperlane as a connector, we need to provide the Mailbox address for both the Authorization contract (when adding the domain) and the Processor contract (when instantiating the Processor). A Hyperlane Relayer must relay these two domains using the Mailbox addresses to make the communication possible.</p>
+<p>NOTE: There are other Hyperlane contracts that need to be used to set-up Hyperlane, but they are not used in the context of the Authorization contract or the Processor. For more information on how this works, check Hyperlane's documentation or see the <a href="https://github.com/timewave-computer/valence-protocol/blob/main/local-interchaintest/examples/ethereum_integration_tests.rs">Ethereum integration tests</a> we have, where we set up all the required Hyperlane contracts and the relayer in advance before creating our EVM Program.</p>
+<p>This is the sequence of messages when using Hyperlane as a connector:</p>
+<pre class="mermaid">graph TD
+  %% Execution Result Sequence
+  subgraph Execution_Sequence [Execution Result Sequence]
+    E2[Processor Contract]
+    D2[Mailbox on
+    External Domain]
+    C2[Mailbox on
+    Main Domain]
+    B2[Authorization Contract]
+    
+    E2 --&gt;|Step 5: Execution Result| D2
+    D2 --&gt;|Step 6: Relayer| C2
+    C2 --&gt;|Step 7: Execution Result| B2
+  end
+
+  %% Message Batch Sequence
+  subgraph Batch_Sequence [Message Batch Sequence]
+    A1[Authorization Contract]
+    B1[Mailbox on
+    Main Domain]
+    C1[Mailbox on
+    External Domain]
+    D1[Processor Contract]
+    
+    A1 --&gt;|Step 1: Message Batch| B1
+    B1 --&gt;|Step 2: Relayer| C1
+    C1 --&gt;|Step 3: Message Batch| D1
+  end
+</pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="encoding"><a class="header" href="#encoding">Encoding</a></h1>
+<p>When messages are passed between the Authorization contract and a Processor contract on a domain that is not using a CosmWasm <code>ExecutionEnvironment</code>, we need to encode the messages in a way that the Processor contract and the Libraries it calls can understand them. To do this two new contracts were created: <code>Encoder Broker</code> and <code>Encoder</code>.</p>
+<h2 id="encoder-broker"><a class="header" href="#encoder-broker">Encoder Broker</a></h2>
+<p>The <code>Encoder Broker</code> is a very simple contract that will route the messages to the correct <code>Encoder</code> contract. It maps from <code>Encoder Version</code> to <code>Encoder Contract Address</code>. The <code>Encoder Broker</code> will be instantiated once on the <code>Main Domain</code> with an owner that can add/remove these mappings. An example of Mapping can be <code>"evm_encoder_v1"</code> to <code>&lt;encoder_contract_address_on_neutron&gt;</code>. The <code>Encoder Broker</code> has two queries: <code>Encode</code> and <code>Decode</code>, which routes the message to encode/decode to the <code>Encoder Version</code> specified.</p>
+<h2 id="encoder"><a class="header" href="#encoder">Encoder</a></h2>
+<p>The <code>Encoder</code> is the contract that will encode/decode the messages for a specific <code>ExecutionEnvironment</code>. It will be instantiated on the <code>Main Domain</code> an added to the <code>Encoder Broker</code> with a version. <code>Encoders</code> are defined for a specific <code>Execution Environment</code> and have an <code>Encode</code> and <code>Decode</code> query where we provide the Message to be encoded/decoded. Here is an example of how these queries are performed:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn encode(message: ProcessorMessageToEncode) -&gt; StdResult&lt;Binary&gt; {
+    match message {
+        ProcessorMessageToEncode::SendMsgs {
+            execution_id,
+            priority,
+            subroutine,
+            messages,
+        } =&gt; send_msgs::encode(execution_id, priority, subroutine, messages),
+        ProcessorMessageToEncode::InsertMsgs {
+            execution_id,
+            queue_position,
+            priority,
+            subroutine,
+            messages,
+        } =&gt; insert_msgs::encode(execution_id, queue_position, priority, subroutine, messages),
+        ProcessorMessageToEncode::EvictMsgs {
+            queue_position,
+            priority,
+        } =&gt; evict_msgs::encode(queue_position, priority),
+        ProcessorMessageToEncode::Pause {} =&gt; Ok(pause::encode()),
+        ProcessorMessageToEncode::Resume {} =&gt; Ok(resume::encode()),
+    }
+}
+
+fn decode(message: ProcessorMessageToDecode) -&gt; StdResult&lt;Binary&gt; {
+    match message {
+        ProcessorMessageToDecode::HyperlaneCallback { callback } =&gt; {
+            Ok(hyperlane::callback::decode(&amp;callback)?)
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<p>As we can see above, the <code>Encoder</code> will have a match statement for each type of message that it can encode/decode. The <code>Encoder</code> will be able to encode/decode messages for a specific <code>ExecutionEnvironment</code>. In the case of <code>ProcessorMessages</code> that include messages for a specific library, these messages will include the Library they are targeting. This allows the <code>Encoder</code> to apply the encoding/decoding logic for that specific library.
+This <code>Encoder</code> will be called internally through the Authorization contract when the user sends a message to it. Here is an example of this execution flow:</p>
+<ol>
+<li>The owner adds an <code>ExternalDomain</code> with an <code>EVM ExecutionEnvironment</code> to the Authorization contract, specifying the <code>Encoder Broker</code> address and the <code>Encoder Version</code> to be used.</li>
+<li>The owner creates an authorization with a subroutine with an <code>AtomicFunction</code> that is of <code>EvmCall(EncoderInfo, LibraryName)</code> type.</li>
+<li>A user executes this authorization passing the message. The Authorization contract will route the message to the <code>Encoder Broker</code> with the <code>Encoder Version</code> specified in <code>EncoderInfo</code> and passing the <code>LibraryName</code> to be used for the message.</li>
+<li>The <code>Encoder Broker</code> will route the message to the correct <code>Encoder</code> contract, which will encode the message for that particular library and return the encoded bytes to the Authorization Contract.</li>
+<li>The Authorization contract will send the encoded message to the Processor contract on the <code>ExternalDomain</code>, which will be able to decode and interpret the message.</li>
+</ol>
+<p>We currently have an <code>Encoder</code> for <code>EVM</code> messages, however more Encoders will be added as we support additional <code>ExecutionEnvironments</code>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="libraries"><a class="header" href="#libraries">Libraries</a></h1>
+<p>This section contains a detailed description of the various libraries that can be used to rapidly build Valence cross-chain programs for each execution environment.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="cosmwasm-libraries"><a class="header" href="#cosmwasm-libraries">CosmWasm Libraries</a></h1>
+<p>This section contains a detailed description of all the libraries that can be used in CosmWasm execution environments.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="astroport-lper-library"><a class="header" href="#astroport-lper-library">Astroport LPer library</a></h1>
 <p>The <strong>Valence Astroport LPer library</strong> library allows to <strong>provide liquidity</strong> into an <strong>Astroport Liquidity Pool</strong> from an <strong>input account</strong> and deposit the <strong>LP tokens</strong> into an <strong>output account</strong>.</p>
 <h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
@@ -1070,7 +1221,7 @@ pub struct ForwardingConstraints {
 <span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-generic-ibc-transfer-library"><a class="header" href="#valence-generic-ibc-transfer-library">Valence Generic IBC Transfer library</a></h1>
 <p>The <strong>Valence Generic IBC Transfer</strong> library allows to transfer funds over IBC from an <strong>input account</strong> on a source chain to an <strong>output account</strong> on a destination chain. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
-<p><strong>Note</strong>: this library should not be used on <strong>Neutron</strong>, which requires some fees to be paid to relayers for IBC transfers. For Neutron, prefer using the dedicated (and optimized) <strong><a href="libraries/./neutron-ibc-transfer.html">Neutron IBC Transfer library</a></strong> instead.</p>
+<p><strong>Note</strong>: this library should not be used on <strong>Neutron</strong>, which requires some fees to be paid to relayers for IBC transfers. For Neutron, prefer using the dedicated (and optimized) <strong><a href="libraries/cosmwasm/./neutron-ibc-transfer.html">Neutron IBC Transfer library</a></strong> instead.</p>
 <h2 id="high-level-flow-3"><a class="header" href="#high-level-flow-3">High-level flow</a></h2>
 <pre class="mermaid">---
 title: Generic IBC Transfer Library
@@ -1147,7 +1298,7 @@ struct PacketForwardMiddlewareConfig {
 <span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-neutron-ibc-transfer-library"><a class="header" href="#valence-neutron-ibc-transfer-library">Valence Neutron IBC Transfer library</a></h1>
 <p>The <strong>Valence Neutron IBC Transfer</strong> library allows to transfer funds over IBC from an <strong>input account</strong> on <strong>Neutron</strong> to an <strong>output account</strong> on a destination chain. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
-<p>Note: this library should not be used on another CosmWasm chain than <strong>Neutron</strong>, which requires some fees to be paid to relayers for IBC transfers. For other CosmWasm chains, prefer using the <strong><a href="libraries/./generic-ibc-transfer.html">Generic IBC Transfer library</a></strong> instead.</p>
+<p>Note: this library should not be used on another CosmWasm chain than <strong>Neutron</strong>, which requires some fees to be paid to relayers for IBC transfers. For other CosmWasm chains, prefer using the <strong><a href="libraries/cosmwasm/./generic-ibc-transfer.html">Generic IBC Transfer library</a></strong> instead.</p>
 <h2 id="high-level-flow-4"><a class="header" href="#high-level-flow-4">High-level flow</a></h2>
 <pre class="mermaid">---
 title: Neutron IBC Transfer Library
@@ -1283,8 +1434,8 @@ provided to the pool.</li>
 those that are entirely single-sided.</p>
 <h2 id="functions-5"><a class="header" href="#functions-5">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>ProvideLiquidityDefault</strong></td><td><code>bucket_amount: Uint64</code></td><td>Create a position on the pre-configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, following the <a href="libraries/osmosis_cl_lper.html#default">Default approach</a> described above, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>.</td></tr>
-<tr><td><strong>ProvideLiquidityCustom</strong></td><td><code>tick_range: TickRange</code><br><code>token_min_amount_0: Option&lt;Uint128&gt;</code><br><code>token_min_amount_1: Option&lt;Uint128&gt;</code></td><td>Create a position on the pre-configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, following the <a href="libraries/osmosis_cl_lper.html#custom">Custom approach</a> described above, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>.</td></tr>
+<tr><td><strong>ProvideLiquidityDefault</strong></td><td><code>bucket_amount: Uint64</code></td><td>Create a position on the pre-configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, following the <a href="libraries/cosmwasm/osmosis_cl_lper.html#default">Default approach</a> described above, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>.</td></tr>
+<tr><td><strong>ProvideLiquidityCustom</strong></td><td><code>tick_range: TickRange</code><br><code>token_min_amount_0: Option&lt;Uint128&gt;</code><br><code>token_min_amount_1: Option&lt;Uint128&gt;</code></td><td>Create a position on the pre-configured <strong>Osmosis Pool</strong> from the <strong>input account</strong>, following the <a href="libraries/cosmwasm/osmosis_cl_lper.html#custom">Custom approach</a> described above, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>.</td></tr>
 </tbody></table>
 </div>
 <h2 id="configuration-5"><a class="header" href="#configuration-5">Configuration</a></h2>
@@ -1615,7 +1766,7 @@ KV-based queries enabled by the <code>interchainqueries</code> module on Neutron
 <p>This library requires active <a href="https://github.com/neutron-org/neutron-query-relayer">Neutron ICQ Relayers</a> operating on the specified target route.</p>
 <h3 id="valence-middleware-broker"><a class="header" href="#valence-middleware-broker">Valence Middleware broker</a></h3>
 <p>Each KV-based query requires a correctly encoded key in order to be registered.
-This library obtains the query keys from <a href="libraries/./../middleware/broker.html">Valence Middleware brokers</a>,
+This library obtains the query keys from <a href="libraries/cosmwasm/./../middleware/broker.html">Valence Middleware brokers</a>,
 which expose particular type registries.</p>
 <p>For a given KV-query to be performed, the underlying type registry must implement <code>IcqIntegration</code> trait
 which in turn enables the following functionality:</p>
@@ -1623,10 +1774,10 @@ which in turn enables the following functionality:</p>
 <li><code>get_kv_key</code>, enabling the ability to get the correctly encoded <code>KVKey</code> for query registration</li>
 <li><code>decode_and_reconstruct</code>, allowing to reconstruct the interchain query result</li>
 </ol>
-<p>Read more about the given type ICQ integration in the <a href="libraries/./../middleware/type_registry.html#neutron-interchain-query-integration">type registry documentation page</a>.</p>
+<p>Read more about the given type ICQ integration in the <a href="libraries/cosmwasm/./../middleware/type_registry.html#neutron-interchain-query-integration">type registry documentation page</a>.</p>
 <h3 id="valence-storage-account-1"><a class="header" href="#valence-storage-account-1">Valence Storage account</a></h3>
 <p>Results received and meant for further processing by other libraries will be stored in
-<a href="libraries/./../components/storage_account.html">Storage Accounts</a>. Each instance of Neutron
+<a href="libraries/cosmwasm/./../components/storage_account.html">Storage Accounts</a>. Each instance of Neutron
 IC querier will be associated with its own storage account.</p>
 <h3 id="query-registration-fee"><a class="header" href="#query-registration-fee">Query registration fee</a></h3>
 <p>Neutron <code>interchainqueries</code> module is configured to escrow a fee in order to register a query.
@@ -1777,17 +1928,17 @@ operations that adhere to the functionality provided by the <code>interchainquer
 <p>On the other hand, query result postprocessing involves internal Valence Program operations.
 KV-Query query results fetched from remote domains are not readily useful within the Valence
 scope because of their encoding formats. Result postprocessing is therefore about adapting
-remote domain data types into <a href="libraries/./../middleware/valence_types.html">canonical Valence Protocol data types</a>
+remote domain data types into <a href="libraries/cosmwasm/./../middleware/valence_types.html">canonical Valence Protocol data types</a>
 that can be reasoned about.</p>
 <blockquote>
 <p>For most Cosmos SDK based chains, KV-storage values are encoded in protobuf. Interpreting
 protobuf from within CosmWasm context is not straightforward and requires explicit conversion
 steps. Other domains may store their state in other encoding formats. This library does not
 make any assumptions about the different encoding schemes that remote domains may be subject
-to - instead, that responsibility is handed over to <a href="libraries/./../middleware/_overview.html">Valence Middleware</a>.</p>
+to - instead, that responsibility is handed over to <a href="libraries/cosmwasm/./../middleware/_overview.html">Valence Middleware</a>.</p>
 </blockquote>
 <p>Final step in result postprocessing is about persisting the canonicalized query results.
-Resulting Valence Types are written into a <a href="libraries/./../components/storage_account.html">Storage Account</a>,
+Resulting Valence Types are written into a <a href="libraries/cosmwasm/./../components/storage_account.html">Storage Account</a>,
 making it available for further processing, interpretation, or other types of processing.</p>
 <h2 id="library-lifecycle"><a class="header" href="#library-lifecycle">Library Lifecycle</a></h2>
 <p>With the baseline functionality in mind, there are a few design decisions
@@ -1958,6 +2109,76 @@ graph LR
 <p>Valence Middleware is being actively developed. More elaborate examples
 of this library will be added here in the future.</p>
 </blockquote>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="evm-libraries"><a class="header" href="#evm-libraries">EVM Libraries</a></h1>
+<p>This section contains a detailed description of all the libraries that can be used in EVM Execution Environments.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-forwarder-library-1"><a class="header" href="#valence-forwarder-library-1">Valence Forwarder Library</a></h1>
+<p>The <strong>Valence Forwarder</strong> library allows to <strong>continuously forward funds</strong> from an <strong>input account</strong> to an <strong>output account</strong>, following some time <strong>constraints</strong>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
+<h2 id="high-level-flow-11"><a class="header" href="#high-level-flow-11">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Forwarder Library
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+		  Account))
+  P[Processor]
+  S[Forwarder
+    Library]
+  P -- 1/Forward --&gt; S
+  S -- 2/Query balances --&gt; IA
+  S -- 3/Do Send funds --&gt; IA
+  IA -- 4/Send funds --&gt; OA
+</pre>
+<h2 id="functions-11"><a class="header" href="#functions-11">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>Forward</strong></td><td>-</td><td>Forward funds from the configured <strong>input account</strong> to the <strong>output account</strong>, according to the <strong>forwarding configs</strong> &amp; <strong>min interval</strong>.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration-11"><a class="header" href="#configuration-11">Configuration</a></h2>
+<p>The library is configured on deployment using the <code>ForwarderConfig</code> type.</p>
+<pre><code class="language-solidity">    /**
+     * @dev Configuration for a single token forwarding rule
+     * @param tokenAddress Address of token to forward (0x0 for native coin)
+     * @param maxAmount Maximum amount to forward per execution
+     */
+    struct ForwardingConfig {
+        address tokenAddress;
+        uint128 maxAmount;
+    }
+
+    /**
+     * @dev Interval type for forwarding: time-based or block-based
+     */
+    enum IntervalType {
+        TIME,
+        BLOCKS
+    }
+
+    /**
+     * @dev Main configuration struct
+     * @param inputAccount Source account
+     * @param outputAccount Destination account
+     * @param forwardingConfigs Array of token forwarding rules
+     * @param intervalType Whether to use time or block intervals
+     * @param minInterval Minimum interval between forwards
+     */
+    struct ForwarderConfig {
+        Account inputAccount;
+        Account outputAccount;
+        ForwardingConfig[] forwardingConfigs;
+        IntervalType intervalType;
+        uint64 minInterval;
+    }
+
+    /**
+     * @dev Tracks last execution time/block
+     */
+    struct LastExecution {
+        uint64 blockHeight;
+        uint64 timestamp;
+    }
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="middleware"><a class="header" href="#middleware">Middleware</a></h1>
 <p>This section contains a description of the Valence Protocol middleware design.</p>
 <p><strong>Valence Protocol Middleware components</strong>:</p>
@@ -2659,7 +2880,7 @@ graph
 </blockquote>
 <p>The full code for this example can be found in the <a href="https://github.com/timewave-computer/valence-protocol/blob/main/local-interchaintest/examples/persistence_ls.rs">Persistence Liquid Staking example</a>.</p>
 <ol>
-<li>Set up the authorization contract and processor on the <code>Main Domain</code> (Neutron).</li>
+<li>Set up the Authorization contract and processor on the <code>Main Domain</code> (Neutron).</li>
 </ol>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -2673,7 +2894,7 @@ graph
     let (authorization_contract_address, _) =
         set_up_authorization_and_processor(&amp;mut test_ctx, salt.clone())?;
 <span class="boring">}</span></code></pre></pre>
-<p>This code sets up the authorization contract and processor on Neutron. We use a time based salt to ensure that each test run the generated contract addresses are different. The <code>set_up_authorization_and_processor</code> function is a helper function instantiates both the processor and authorization contracts on Neutron and provides the contract addresses to interact with both. As you can see, we are not using the processor on Neutron here, but we are still setting it up.</p>
+<p>This code sets up the Authorization contract and processor on Neutron. We use a time based salt to ensure that each test run the generated contract addresses are different. The <code>set_up_authorization_and_processor</code> function is a helper function instantiates both the Processor and Authorization contracts on Neutron and provides the contract addresses to interact with both. As you can see, we are not using the Processor on Neutron here, but we are still setting it up.</p>
 <ol start="2">
 <li>Set up an external domain and create a channel to start relaying messages.</li>
 </ol>
@@ -2693,11 +2914,11 @@ graph
 <p>This function does the following:</p>
 <ul>
 <li>Instantiates all the Polytone contracts on both the main domain and the new external domain. The information of the external domain is provided in the function arguments.</li>
-<li>Creates a channel between the Polytone contracts that the relayer will use to relay messages between the authorization contract and the processor.</li>
-<li>Instantiates the Processor contract on the external domain with the correct Polytone information and the authorization contract address.</li>
-<li>Adds the external domain to authorization contract with the Polytone information and the processor address on the external domain.</li>
+<li>Creates a channel between the Polytone contracts that the relayer will use to relay messages between the Authorization contract and the processor.</li>
+<li>Instantiates the Processor contract on the external domain with the correct Polytone information and the Authorization contract address.</li>
+<li>Adds the external domain to Authorization contract with the Polytone information and the processor address on the external domain.</li>
 </ul>
-<p>After this is done, we can start creating authorizations for that external domain and when we send messages to the authorization contract, the relayer will relay the messages to the processor on the external domain and return the callbacks.</p>
+<p>After this is done, we can start creating authorizations for that external domain and when we send messages to the Authorization contract, the relayer will relay the messages to the processor on the external domain and return the callbacks.</p>
 <ol start="3">
 <li>Create one or more base accounts on a domain.</li>
 </ol>
@@ -2764,7 +2985,7 @@ graph
 <span class="boring">}</span></code></pre></pre>
 <p>In this code snippet, we are creating an authorization to execute a message on the persistence base account. For this particular example, since we are going to execute a <code>CosmosMsg::Stargate</code> directly on the account passing the protobuf message, we are not going to set up any param restrictions. If we were using a library, we could potentially set up restrictions for the json message that the library would expect.</p>
 <ol start="5">
-<li>Send message to the authorization contract</li>
+<li>Send message to the Authorization contract</li>
 </ol>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -2810,7 +3031,7 @@ graph
     .unwrap();
     std::thread::sleep(std::time::Duration::from_secs(3));
 <span class="boring">}</span></code></pre></pre>
-<p>In this code snippet, we are sending a message to the authorization contract to execute the liquid staking message on the base account on Persistence. Note that we are using the same label that we used in the authorization creation. This is important because the authorization contract will check if the label matches the one in the authorization. If it does not match, the execution will fail. The authorization contract will send the message to the corresponding Polytone contract that will send it via IBC to the processor on the external domain.</p>
+<p>In this code snippet, we are sending a message to the Authorization contract to execute the liquid staking message on the base account on Persistence. Note that we are using the same label that we used in the authorization creation. This is important because the Authorization contract will check if the label matches the one in the authorization. If it does not match, the execution will fail. The Authorization contract will send the message to the corresponding Polytone contract that will send it via IBC to the processor on the external domain.</p>
 <ol start="6">
 <li>Tick the processor</li>
 </ol>
@@ -2824,7 +3045,7 @@ graph
     );
     std::thread::sleep(std::time::Duration::from_secs(3));
 <span class="boring">}</span></code></pre></pre>
-<p>The message must now be sitting on the processor on Persistence, therefore we need to tick the processor to trigger the execution. This will execute the message and send a callback with the result to the authorization contract, which completes the full testing cycle.</p>
+<p>The message must now be sitting on the processor on Persistence, therefore we need to tick the processor to trigger the execution. This will execute the message and send a callback with the result to the Authorization contract, which completes the full testing cycle.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="example-with-program-manager"><a class="header" href="#example-with-program-manager">Example with Program Manager</a></h1>
 <p>This example demonstrates how to test your program using the Program Manager after your initial testing set up has been completed as described in the <a href="testing/./setup.html">Initial Testing Set Up</a> section.</p>
 <blockquote>
@@ -3066,7 +3287,7 @@ contract_execute(
     GAS_FLAGS,
 )?;
 <span class="boring">}</span></code></pre></pre>
-<p>Now anyone can tick the processor to execute the message. After receiving a <code>tick</code>, the processor will execute the message at the head of the queue and send a callback to the authorization contract with the result.</p>
+<p>Now anyone can tick the processor to execute the message. After receiving a <code>tick</code>, the processor will execute the message at the head of the queue and send a callback to the Authorization contract with the result.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>contract_execute(

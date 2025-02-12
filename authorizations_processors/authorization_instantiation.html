@@ -164,19 +164,19 @@
 <p>Processor contract on main domain.</p>
 </li>
 <li>
-<p><code>[(Domain, Connector(Polytone_note_contract), Processor_contract_on_domain, callback_proxy, IBC_Timeout_settings)]</code>: If it's a cross domain application, an array will be passed with each external domain label and its corresponding connector contracts and proxies that will be instantiated before hand. For each connector, there will be also a proxy corresponding to that external domain because it’s a two-way communication flow and we need to receive callbacks. Additionally, we need a set of <code>Timeout</code> settings for the bridge, to know for how long the messages sent through the connector are going to be valid.</p>
+<p>Owner of the contract.</p>
 </li>
 <li>
-<p>Admin of the contract (if different to sender).</p>
+<p>List of subowners (if any). Users that can execute the same actions as the owner except adding/removing other subowners.</p>
 </li>
 </ul>
-<p>The instantiation will set up all the processors on each domain so that we can start instantiating the libraries afterwards and providing the correct <code>Processor</code> addresses to each of them depending on which domain they are in.</p>
+<p>Once the Authorization contract is deployed, we can already start adding and executing authorizations on the domain that the Authorization contract was deployed on. To execute functions on other domains, the owner will have to add external domains to the Authorization contract with all the information required for the Authorization contract to route the messages to that domain.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../authorizations_processors/authorization.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../authorizations_processors/authorization_contract.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
@@ -190,7 +190,7 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../authorizations_processors/authorization.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../authorizations_processors/authorization_contract.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 

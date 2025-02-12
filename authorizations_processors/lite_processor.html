@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Assumptions - Valence Protocol Documentation</title>
+        <title>Lite Processor - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -157,45 +157,25 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="assumptions"><a class="header" href="#assumptions">Assumptions</a></h1>
-<ul>
-<li>
-<p><strong>Funds</strong>: You cannot send funds with the messages.</p>
-</li>
-<li>
-<p><strong>Bridging</strong>: We are assuming that messages can be sent and confirmed bidirectionally between domains. The Authorization contract on the main domain communicates with the processor in a different domain in one direction and the callback confirming the correct or failed execution in the other direction.</p>
-</li>
-<li>
-<p><strong>Instantiation</strong>: All these contracts can be instantiated beforehand and off-chain having predictable addresses. Here is an example instantiation flow using Polytone:</p>
-<ul>
-<li>Predict <code>authorization</code> contract address.</li>
-<li>Instantiate polytone contracts &amp; set up relayers.</li>
-<li>Predict <code>proxy</code> contract address for the <code>authorization</code> contract on each external domain.</li>
-<li>Predict <code>proxy</code> contract address on the main domain for each processor on external domains.</li>
-<li>Instantiate all <code>processors</code>. The sender on external domains will be the predicted <code>proxy</code> and on the main domain it will be the Authorization contract iself.</li>
-<li>Instantiate Authorization contract with all the processors and their predicted proxies for external domains and the processor on the main domain.</li>
-</ul>
-</li>
-<li>
-<p><strong>Relaying</strong>: Relayers will be running once everything is instantiated.</p>
-</li>
-<li>
-<p><strong>Tokenfactory</strong>: The main domain has the token factory module with no token creation fee so that we can create and mint these nonfungible tokens with no additional cost.</p>
-</li>
-<li>
-<p><strong>Domains</strong>: In the current version, actions in each authorization will be limited to a single domain.</p>
-</li>
-</ul>
+                        <h1 id="lite-processor"><a class="header" href="#lite-processor">Lite Processor</a></h1>
+<p>This is a simplified version of the <a href="processor.html">Processor</a> contract, with more limited functionality that is optimized for specific domains where gas costs are critical. This version of the processor is currently available for <code>EVM</code> execution environments only.</p>
+<p>The main difference between the Lite Processor and the Processor is that the former does not store message batches, but instead executes messages directly when received. The Lite Processor does not handle retries, function callbacks, or queues. More details can be found below.</p>
+<h3 id="execution"><a class="header" href="#execution">Execution</a></h3>
+<p>The Lite Processor is not <code>ticked</code>, instead it will receive a <code>MessageBatch</code> from the Authorization contract and execute it immediately. Therefore, the execution gas cost will be paid by the relayer of the batch instead of the user who ticks the processor.</p>
+<p>This processor does not store batches or use any queue, instead it will simply receive the batch, execute it atomically or non-atomically, and send a callback to the Authorization contract with the <code>ExecutionResult</code>. The only information stored by this processor is the information of the Authorization contract, the information of the Connector (e.g. Hyperlane Mailbox, origin domain id, ...) and the authorized entities that can also execute batches on it without requiring them to be sent from the main domain.</p>
+<p>Since there are no queues, operations like <code>InsertAt</code> or <code>RemoveFrom</code> queue that the owner of the Authorization Contract may perform on the Processor are not available on the Lite Processor. Therefore the operations that the Lite Processor supports from the Authorization contract are limited to: <code>Pause</code>, <code>Resume</code> and <code>SendMsgs</code>.</p>
+<p>In addition to the limitations above, the Lite Processor does not support retries or function callbacks. This means that the <code>MessageBatch</code> received will be executed only once and the <code>NonAtomic</code> batches can not be confirmed asynchronously because batch execution will be attempted once, non-atomically, the moment it is received.</p>
+<p>In addition to executing batches that come from the Authorization contract, the Lite Processor defines a set of authorized addresses that can send batches to it for execution. Since the Processor can execute batches from any address, we only send a callback if the address that sent the batch is a smart contract. Thus the authorized addresses are in charge of the handling/ignoring of these callbacks.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../authorizations_processors/_overview.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../authorizations_processors/processor.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../authorizations_processors/authorization_contract.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../authorizations_processors/execution_environment_differences.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -205,11 +185,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../authorizations_processors/_overview.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../authorizations_processors/processor.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../authorizations_processors/authorization_contract.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../authorizations_processors/execution_environment_differences.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
