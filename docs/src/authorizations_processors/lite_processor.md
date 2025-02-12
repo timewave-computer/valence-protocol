@@ -2,7 +2,7 @@
 
 This is a simplified version of the [Processor](processor.md) contract, with more limited functionality that is optimized for specific domains where gas costs are critical. This version of the processor is currently available for `EVM` execution environments only.
 
-The main difference between the `Lite Processor` and the `Processor` is that it doesn't store `Message Batches` but instead executes them directly when they are sent to it, without handling retries, function callbacks or queues. More details below.
+The main difference between the `Lite Processor` and the `Processor` is that the former does not store `Message Batches`, but instead executes messages directly when received. The `Lite Processor` does not handle retries, function callbacks, or queues. More details can be found below.
 
 ### Execution
 
