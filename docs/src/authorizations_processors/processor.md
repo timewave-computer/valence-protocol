@@ -14,7 +14,7 @@ When a processor is `Ticked`, the first `Message Batch` will be reaped from the 
 After taking them, we will execute them in different ways depending if the batch is `Atomic` or `NonAtomic`.
 
 - For `Atomic` batches, the `Processor` will execute either all functions or none of them. If execution fails, the batch `RetryLogic` is checked to determine if the match should be re-enqueued. If not, a callback is sent with a `Rejected(error)` status to the authorization contract.
-  If the execution succeeded we will send a callback with `Executed` status to the Authorization contract.
+  If the execution succeeded a callback is sent with `Executed` status to the Authorization contract.
 
 - For `NonAtomic` batches, we will execute the functions one by one and applying the RetryLogic individually to each function if they fail. `NonAtomic` functions might also be confirmed via `CallbackConfirmations` in which case we will keep them in a separate storage location until we receive that specific callback.
   Each time a function is confirmed, we will re-queue the batch and keep track of what function we have to execute next.
