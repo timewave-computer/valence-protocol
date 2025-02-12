@@ -3299,11 +3299,13 @@
       "title": "ProcessorCallbackInfo",
       "type": "object",
       "required": [
+        "created_at",
         "domain",
         "execution_id",
         "execution_result",
         "initiator",
         "label",
+        "last_updated_at",
         "messages",
         "processor_callback_address"
       ],
@@ -3317,6 +3319,11 @@
               "type": "null"
             }
           ]
+        },
+        "created_at": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
         },
         "domain": {
           "$ref": "#/definitions/Domain"
@@ -3334,6 +3341,11 @@
         },
         "label": {
           "type": "string"
+        },
+        "last_updated_at": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
         },
         "messages": {
           "type": "array",
@@ -3818,11 +3830,13 @@
         "ProcessorCallbackInfo": {
           "type": "object",
           "required": [
+            "created_at",
             "domain",
             "execution_id",
             "execution_result",
             "initiator",
             "label",
+            "last_updated_at",
             "messages",
             "processor_callback_address"
           ],
@@ -3836,6 +3850,11 @@
                   "type": "null"
                 }
               ]
+            },
+            "created_at": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
             },
             "domain": {
               "$ref": "#/definitions/Domain"
@@ -3853,6 +3872,11 @@
             },
             "label": {
               "type": "string"
+            },
+            "last_updated_at": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
             },
             "messages": {
               "type": "array",

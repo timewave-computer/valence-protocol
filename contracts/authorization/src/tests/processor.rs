@@ -138,6 +138,22 @@ fn user_enqueing_messages() {
     )
     .unwrap();
 
+    // The created_at and last_updated_at timestamps for this entry should be the same as it was just created
+    let query_callbacks = wasm
+        .query::<QueryMsg, Vec<ProcessorCallbackInfo>>(
+            &authorization_contract,
+            &QueryMsg::ProcessorCallbacks {
+                start_after: None,
+                limit: None,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(
+        query_callbacks[0].created_at,
+        query_callbacks[0].last_updated_at
+    );
+
     // This should have enqueued one message in the medium priority queue, and none in the high priority queue
     let query_med_prio_queue = wasm
         .query::<ProcessorQueryMsg, Vec<MessageBatch>>(
@@ -2468,6 +2484,7 @@ fn successful_non_atomic_and_atomic_batches_together() {
             confirmed_callback.execution_result,
             ExecutionResult::Success
         );
+        assert!(confirmed_callback.last_updated_at > confirmed_callback.created_at);
     }
 }
 

@@ -561,6 +561,7 @@ fn insert_messages(
 
     store_inprocess_callback(
         deps.storage,
+        env.block.time.seconds(),
         id,
         OperationInitiator::Owner,
         domain,
@@ -705,6 +706,7 @@ fn send_msgs(
 
     store_inprocess_callback(
         deps.storage,
+        env.block.time.seconds(),
         id,
         OperationInitiator::User(info.sender),
         domain,
@@ -757,6 +759,8 @@ fn retry_msgs(deps: DepsMut, env: Env, execution_id: u64) -> Result<Response, Co
             )?;
             // Update the state
             callback_info.execution_result = ExecutionResult::InProcess;
+            // Update the last_updated_at timestamp
+            callback_info.last_updated_at = env.block.time.seconds();
             // Create the callback again
             let callback_request = CallbackRequest {
                 receiver: env.contract.address.to_string(),
@@ -783,6 +787,8 @@ fn retry_msgs(deps: DepsMut, env: Env, execution_id: u64) -> Result<Response, Co
             ) {
                 // Update the state to not retriable anymore
                 callback_info.execution_result = ExecutionResult::Timeout(false);
+                // Update the last_updated_at timestamp
+                callback_info.last_updated_at = env.block.time.seconds();
 
                 let denom =
                     build_tokenfactory_denom(env.contract.address.as_str(), &callback_info.label);
@@ -879,6 +885,8 @@ fn process_processor_callback(
 
     // Update the result
     callback.execution_result = execution_result;
+    // Update the last_updated_at timestamp
+    callback.last_updated_at = env.block.time.seconds();
     PROCESSOR_CALLBACKS.save(deps.storage, execution_id, &callback)?;
 
     // Reduce the current executions for the label
@@ -1013,6 +1021,8 @@ fn process_polytone_callback(
                                     ExecutionResult::UnexpectedError(error)
                                 };
 
+                                // Update the last_updated_at timestamp
+                                callback_info.last_updated_at = env.block.time.seconds();
                                 // Save the callback update
                                 PROCESSOR_CALLBACKS.save(
                                     deps.storage,
@@ -1041,6 +1051,8 @@ fn process_polytone_callback(
                 Callback::FatalError(error) => {
                     callback_info.execution_result = ExecutionResult::UnexpectedError(error);
 
+                    // Update the last_updated_at timestamp
+                    callback_info.last_updated_at = env.block.time.seconds();
                     // Save the callback update
                     PROCESSOR_CALLBACKS.save(deps.storage, execution_id, &callback_info)?;
 
@@ -1129,7 +1141,7 @@ fn process_polytone_callback(
 // HandleMsg is sent by the mailbox, and it contains the callback from the processor in the `body` field of the Msg
 fn process_hyperlane_callback(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     handle_msg: HandleMsg,
 ) -> Result<Response, ContractError> {
@@ -1196,6 +1208,7 @@ fn process_hyperlane_callback(
     // Update the information
     let mut callback_info = PROCESSOR_CALLBACKS.load(deps.storage, execution_id)?;
     callback_info.execution_result = execution_result;
+    callback_info.last_updated_at = env.block.time.seconds();
     PROCESSOR_CALLBACKS.save(deps.storage, execution_id, &callback_info)?;
 
     // Reduce the current executions for the label
@@ -1340,8 +1353,10 @@ pub fn get_and_increase_execution_id(storage: &mut dyn Storage) -> StdResult<u64
 }
 
 /// Store the pending callback
+#[allow(clippy::too_many_arguments)]
 pub fn store_inprocess_callback(
     storage: &mut dyn Storage,
+    current_timestamp: u64,
     id: u64,
     initiator: OperationInitiator,
     domain: Domain,
@@ -1367,6 +1382,8 @@ pub fn store_inprocess_callback(
 
     let callback = ProcessorCallbackInfo {
         execution_id: id,
+        created_at: current_timestamp,
+        last_updated_at: current_timestamp,
         initiator,
         bridge_callback_address,
         processor_callback_address,

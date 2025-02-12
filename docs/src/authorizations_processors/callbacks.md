@@ -18,6 +18,10 @@ Once a Processor batch is executed or it fails and there are no more retries ava
 pub struct ProcessorCallbackInfo {
     // Execution ID that the callback was for
     pub execution_id: u64,
+    // Timestamp of entry creation
+    pub created_at: u64,
+    // Timestamp of last update of this entry
+    pub last_updated_at: u64,
     // Who started this operation, used for tokenfactory actions
     pub initiator: OperationInitiator,
     // Address that can send a bridge timeout or success for the message (if applied)
