@@ -1,6 +1,6 @@
 # Processor
 
-This version of the processor is currently available for `CosmWasm` Execution Environment only. It contains all the features and full functionality of the processor as described below.
+This version of the Processor is currently available for `CosmWasm` execution environments only. It contains all features and functionality described below.
 
 It handles two execution queues: `High` and `Med`, which allow giving different priorities to `Message Batches`. The authorization contract will send the `Message Batches` to the Processor specifying the priority of the queue where they should be enqueued.
 
