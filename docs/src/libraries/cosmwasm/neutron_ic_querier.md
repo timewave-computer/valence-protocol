@@ -25,7 +25,7 @@ Read more about the given type ICQ integration in the [type registry documentati
 ### Valence Storage account
 
 Results received and meant for further processing by other libraries will be stored in 
-[Storage Accounts](./../components/storage_account.md). Each instance of Neutron
+[Storage Accounts](./../../components/accounts.md#valence-storage-account). Each instance of Neutron
 IC querier will be associated with its own storage account.
 
 ### Query registration fee
@@ -200,17 +200,17 @@ operations that adhere to the functionality provided by the `interchainqueries` 
 On the other hand, query result postprocessing involves internal Valence Program operations.
 KV-Query query results fetched from remote domains are not readily useful within the Valence
 scope because of their encoding formats. Result postprocessing is therefore about adapting
-remote domain data types into [canonical Valence Protocol data types](./../middleware/valence_types.md)
+remote domain data types into [canonical Valence Protocol data types](./../../middleware/valence_types.md)
 that can be reasoned about.
 
 > For most Cosmos SDK based chains, KV-storage values are encoded in protobuf. Interpreting
 protobuf from within CosmWasm context is not straightforward and requires explicit conversion
 steps. Other domains may store their state in other encoding formats. This library does not
 make any assumptions about the different encoding schemes that remote domains may be subject
-to - instead, that responsibility is handed over to [Valence Middleware](./../middleware/_overview.md).
+to - instead, that responsibility is handed over to [Valence Middleware](./../../middleware/_overview.md).
 
 Final step in result postprocessing is about persisting the canonicalized query results.
-Resulting Valence Types are written into a [Storage Account](./../components/storage_account.md),
+Resulting Valence Types are written into a [Storage Account](./../../components/accounts.md#valence-storage-account),
 making it available for further processing, interpretation, or other types of processing.
 
 ## Library Lifecycle
