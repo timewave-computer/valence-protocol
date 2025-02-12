@@ -7,7 +7,7 @@ This library is effectively a wrapper around the `interchainqueries` module on N
 
 This library is coupled with some other libraries and assumes functioning infrastructure (ICQ-relayer).
 
-To learn more about its prerequisites, see [its documentation entry](https://docs.valence.zone/libraries/neutron_ic_querier.html#prerequisites).
+To learn more about its prerequisites, see [its documentation entry](https://docs.valence.zone/libraries/cosmwasm/neutron_ic_querier.html#prerequisites).
 
 ## Library configuration
 

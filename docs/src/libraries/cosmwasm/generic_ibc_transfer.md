@@ -2,7 +2,7 @@
 
 The **Valence Generic IBC Transfer** library allows to transfer funds over IBC from an **input account** on a source chain to an **output account** on a destination chain. It is typically used as part of a **Valence Program**. In that context, a **Processor** contract will be the main contract interacting with the Forwarder library.
 
-**Note**: this library should not be used on **Neutron**, which requires some fees to be paid to relayers for IBC transfers. For Neutron, prefer using the dedicated (and optimized) **[Neutron IBC Transfer library](./neutron-ibc-transfer.md)** instead.
+**Note**: this library should not be used on **Neutron**, which requires some fees to be paid to relayers for IBC transfers. For Neutron, prefer using the dedicated (and optimized) **[Neutron IBC Transfer library](./neutron_ibc_transfer.md)** instead.
 
 ## High-level flow
 

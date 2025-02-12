@@ -11,7 +11,9 @@ default-theme         = "light"
 preferred-light-theme = "light"
 preferred-dark-theme  = "ayu"
 additional-js         = ["mermaid.min.js", "mermaid-init.js"]
-mathjax-support = true
+mathjax-support       = true
+
+[output.linkcheck]
 
 [preprocessor.mermaid]
 command = "mdbook-mermaid"
