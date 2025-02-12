@@ -38,7 +38,6 @@ use valence_authorization_utils::{
 use valence_generic_ibc_transfer_library::msg::IbcTransferAmount;
 use valence_library_utils::denoms::UncheckedDenom;
 use valence_library_utils::LibraryAccountType;
-use valence_middleware_asserter::msg::Predicate;
 use valence_middleware_utils::canonical_types::pools::xyk::XykPoolQuery;
 use valence_middleware_utils::type_registry::types::RegistryInstantiateMsg;
 use valence_neutron_ic_querier::msg::{FunctionMsgs, LibraryConfig, QueryDefinition};

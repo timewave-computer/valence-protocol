@@ -1,6 +1,6 @@
 use std::{env, error::Error, time::Duration};
 
-use cosmwasm_std::{instantiate2_address, HexBinary};
+use cosmwasm_std::{instantiate2_address, Api, HexBinary};
 use cosmwasm_std_old::Uint64;
 use localic_std::{
     modules::cosmwasm::{contract_execute, contract_instantiate, contract_query, CosmWasm},
@@ -17,7 +17,6 @@ use valence_authorization_utils::{
     msg::{CosmwasmBridgeInfo, ExternalDomainInfo, PermissionedMsg, PolytoneConnectorsInfo},
 };
 use valence_processor_utils::msg::PolytoneContracts;
-use valence_program_manager::helpers::{addr_canonicalize, addr_humanize};
 
 use crate::utils::{polytone::salt_for_proxy, LOCAL_CODE_ID_CACHE_PATH_NEUTRON};
 
@@ -488,19 +487,17 @@ fn predict_remote_contract_address(
     } else {
         panic!("failed to get data hash from response: {:?}", resp);
     };
-
-    let canonical_creator = addr_canonicalize(chain_prefix, creator_addr)?;
+    let mock_api = valence_program_manager::mock_api::MockApi::new(chain_prefix.to_string());
+    let canonical_creator = mock_api.addr_canonicalize(creator_addr)?;
 
     let canonical_predicted_proxy_address_on_external_domain =
         instantiate2_address(&checksum, &canonical_creator, salt)?;
 
-    let predicted_address_on_external_domain = addr_humanize(
-        chain_prefix,
-        &canonical_predicted_proxy_address_on_external_domain,
-    )
-    .unwrap();
+    let predicted_address_on_external_domain = mock_api
+        .addr_humanize(&canonical_predicted_proxy_address_on_external_domain)
+        .unwrap();
 
-    Ok(predicted_address_on_external_domain)
+    Ok(predicted_address_on_external_domain.to_string())
 }
 
 /// queries the authorization contract processor callbacks and tries to confirm that
