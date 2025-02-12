@@ -54,7 +54,7 @@ cargo run -p generate_local_ic_config -- -c neutron_juno
 
 To deploy a program, you can use the `deploy_program` script. In (deploy_program)[deployment/scripts/deploy_program/src/main.rs] you will find an example to a built program using our program builder, you can customize this to build your own program.
 
-After you customized your program, you can deploy it using the following command:
+After you customize your program, you can deploy it using the following command:
 
 ```bash
 cargo run -p deploy_program
