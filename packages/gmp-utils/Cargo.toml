@@ -2,7 +2,7 @@
 name        = "valence-gmp-utils"
 version     = { workspace = true }
 edition     = { workspace = true }
-authors     = ["Timewave Labs"]
+authors     = { workspace = true }
 description = "Helpers for general message passing"
 
 [dependencies]
