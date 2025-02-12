@@ -1,0 +1,22 @@
+[package]
+name       = "generate_local_ic_config"
+edition    = { workspace = true }
+license    = { workspace = true }
+version    = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+localic-std             = { git = "https://github.com/strangelove-ventures/interchaintest", branch = "main" }
+localic-utils           = { git = "https://github.com/timewave-computer/localic-utils", branch = "main" }
+sha2                    = { workspace = true }
+hex                     = { workspace = true }
+serde_json              = { workspace = true }
+env_logger              = { workspace = true }
+log                     = { workspace = true }
+rand                    = "0.8.5"
+cosmos-grpc-client      = "3.0.1"
+valence-program-manager = { workspace = true }
+tokio                   = { workspace = true }
+toml                    = "0.8.19"
+local-interchaintest    = { workspace = true }
+clap                    = { workspace = true }

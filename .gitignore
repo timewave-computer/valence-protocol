@@ -26,3 +26,5 @@ local-interchaintest/configs
 local-interchaintest/code_id_cache*
 local-interchaintest/tmp
 local-interchaintest/hyperlane_db_relayer
+
+deployment/results

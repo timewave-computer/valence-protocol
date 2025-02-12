@@ -1,0 +1,28 @@
+[chains.gaia]
+name = "gaia"
+rpc = "http://0.0.0.0:35269"
+grpc = "http://0.0.0.0:40725"
+prefix = "cosmos"
+gas_price = "0"
+gas_denom = "uatom"
+coin_type = 118
+
+[chains.neutron]
+name = "neutron"
+rpc = "http://0.0.0.0:41349"
+grpc = "http://0.0.0.0:42079"
+prefix = "neutron"
+gas_price = "0.0"
+gas_denom = "untrn"
+coin_type = 118
+
+[contracts.code_ids.neutron]
+valence_splitter_library = 13
+valence_base_account = 15
+valence_authorization = 11
+valence_processor = 14
+
+[bridges]
+
+[general]
+registry_addr = "neutron1lnfn4f9gpz8fmvquarmuph62wmss3qwh92j98z4y4q4x566stkms8m44qd"

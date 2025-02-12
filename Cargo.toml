@@ -12,6 +12,7 @@ members = [
     "packages/*",
     "program-manager",
     "local-interchaintest",
+    "deployment/scripts/*",
 ]
 resolver = "2"
 
@@ -78,6 +79,7 @@ valence-osmosis-cl-lper              = { path = "contracts/libraries/osmosis-cl-
 valence-osmosis-cl-withdrawer        = { path = "contracts/libraries/osmosis-cl-withdrawer", features = ["library"] }
 valence-encoder-broker               = { path = "contracts/encoders/broker", features = ["library"] }
 valence-neutron-ic-querier           = { path = "contracts/libraries/neutron-ic-querier", features = ["library"] }
+local-interchaintest                 = { path = "local-interchaintest/" }
 
 # middleware
 valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = ["library"] }
@@ -115,3 +117,6 @@ log                  = "0.4.22"
 prost                = { version = "0.13.3", default-features = false }
 prost-types          = { version = "0.13.3", default-features = false }
 semver               = "1.0.24"
+clap                 = { version = "4.5.13", features = ["derive"] }
+config               = { version = "0.15.8", features = ["toml"] }
+glob                 = "0.3"
