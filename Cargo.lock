@@ -3922,6 +3922,7 @@ dependencies = [
  "valence-generic-ibc-transfer-library",
  "valence-ibc-utils",
  "valence-library-utils",
+ "valence-middleware-asserter",
  "valence-middleware-broker",
  "valence-middleware-osmosis",
  "valence-middleware-utils",
@@ -7246,6 +7247,21 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.98",
+]
+
+[[package]]
+name = "valence-middleware-asserter"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-multi-test",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "cw2 2.0.0",
+ "valence-account-utils",
+ "valence-middleware-utils",
+ "valence-storage-account",
 ]
 
 [[package]]

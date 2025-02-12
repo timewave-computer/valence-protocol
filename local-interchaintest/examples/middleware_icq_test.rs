@@ -1,4 +1,4 @@
-use cosmwasm_std::{to_json_binary, Binary, Uint64};
+use cosmwasm_std::{to_json_binary, Binary, Decimal, Uint64};
 use local_interchaintest::utils::{
     base_account::approve_library,
     icq::{generate_icq_relayer_config, start_icq_relayer},
@@ -14,10 +14,15 @@ use localic_std::{
     types::TransactionResponse,
 };
 use log::info;
-use std::{collections::BTreeMap, env, error::Error, time::Duration};
+use std::{collections::BTreeMap, env, error::Error, str::FromStr, time::Duration};
 use valence_library_utils::LibraryAccountType;
-use valence_middleware_utils::type_registry::types::{
-    RegistryInstantiateMsg, RegistryQueryMsg, ValenceType,
+use valence_middleware_asserter::msg::{AssertionValue, Predicate, QueryInfo};
+use valence_middleware_utils::{
+    canonical_types::pools::xyk::XykPoolQuery,
+    type_registry::{
+        queries::{ValencePrimitive, ValenceTypeQuery},
+        types::{RegistryInstantiateMsg, RegistryQueryMsg, ValenceType},
+    },
 };
 use valence_neutron_ic_querier::msg::{Config, FunctionMsgs, LibraryConfig, QueryDefinition};
 
@@ -83,6 +88,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         "{}/artifacts/valence_storage_account.wasm",
         current_dir.display()
     );
+    let asserter_path = format!(
+        "{}/artifacts/valence_middleware_asserter.wasm",
+        current_dir.display()
+    );
 
     info!("sleeping for 10 to allow icq relayer to start...");
     std::thread::sleep(Duration::from_secs(10));
@@ -99,6 +108,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     uploader
         .with_chain_name(NEUTRON_CHAIN_NAME)
         .send_single_contract(&storage_acc_path)?;
+    uploader
+        .with_chain_name(NEUTRON_CHAIN_NAME)
+        .send_single_contract(&asserter_path)?;
 
     let ntrn_to_osmo_connection_id = test_ctx
         .get_connections()
@@ -129,6 +141,28 @@ fn main() -> Result<(), Box<dyn Error>> {
         "type_registry_contract address: {}",
         type_registry_contract.address
     );
+    std::thread::sleep(Duration::from_secs(3));
+
+    // set up the asserter
+    let asserter_code_id = test_ctx
+        .get_contract()
+        .contract("valence_middleware_asserter")
+        .get_cw()
+        .code_id
+        .unwrap();
+    let asserter_contract = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        asserter_code_id,
+        &serde_json::to_string(&valence_middleware_asserter::msg::InstantiateMsg {})?,
+        "asserter",
+        None,
+        "",
+    )?;
+
+    info!("asserter_contract address: {}", asserter_contract.address);
     std::thread::sleep(Duration::from_secs(3));
 
     // set up the broker
@@ -271,7 +305,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("querying results...");
     let storage_account_value = query_storage_account(
         &test_ctx,
-        storage_acc_contract.address,
+        storage_acc_contract.address.to_string(),
         TARGET_QUERY_LABEL.to_string(),
     )?;
 
@@ -286,7 +320,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     match storage_account_value {
         ValenceType::XykPool(valence_xyk_pool) => {
-            let price = valence_xyk_pool.get_price();
+            let query_msg = to_json_binary(&XykPoolQuery::GetPrice {}).unwrap();
+            let price = valence_xyk_pool.query(query_msg).unwrap();
             info!("price: {:?}", price);
         }
         _ => panic!("should be xyk pool"),
@@ -354,6 +389,40 @@ fn main() -> Result<(), Box<dyn Error>> {
         1000000
     );
 
+    info!("asserting with the asserter. storage account slot price: 0.833");
+    info!("assert (slot < 0.9) ?..");
+    let resp = assert_predicate(
+        &test_ctx,
+        asserter_contract.address.to_string(),
+        AssertionValue::Variable(QueryInfo {
+            storage_account: storage_acc_contract.address.to_string(),
+            storage_slot_key: "gamm_pool".to_string(),
+            query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
+        }),
+        Predicate::LT,
+        AssertionValue::Constant(ValencePrimitive::Decimal(Decimal::from_str("0.9").unwrap())),
+    );
+    match resp {
+        Ok(val) => info!("success: {:?}", val),
+        Err(e) => info!("error: {:?}", e),
+    }
+
+    info!("assert (slot > 0.9) ?..");
+    let resp = assert_predicate(
+        &test_ctx,
+        asserter_contract.address,
+        AssertionValue::Variable(QueryInfo {
+            storage_account: storage_acc_contract.address.to_string(),
+            storage_slot_key: "gamm_pool".to_string(),
+            query: to_json_binary(&XykPoolQuery::GetPrice {}).unwrap(),
+        }),
+        Predicate::GT,
+        AssertionValue::Constant(ValencePrimitive::Decimal(Decimal::from_str("0.9").unwrap())),
+    );
+    match resp {
+        Ok(val) => info!("success: {:?}", val),
+        Err(e) => info!("error: {:?}", e),
+    }
     Ok(())
 }
 
@@ -549,4 +618,27 @@ pub fn broker_get_canonical(
     let resp: ValenceType = serde_json::from_value(query_response).unwrap();
 
     Ok(resp)
+}
+
+pub fn assert_predicate(
+    test_ctx: &TestContext,
+    asserter: String,
+    a: AssertionValue,
+    predicate: Predicate,
+    b: AssertionValue,
+) -> Result<TransactionResponse, LocalError> {
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &asserter,
+        DEFAULT_KEY,
+        &serde_json::to_string(&valence_middleware_asserter::msg::ExecuteMsg::Assert {
+            a,
+            predicate,
+            b,
+        })
+        .map_err(|e| LocalError::Custom { msg: e.to_string() })?,
+        "",
+    )
 }

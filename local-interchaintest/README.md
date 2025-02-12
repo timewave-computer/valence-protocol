@@ -35,3 +35,17 @@ Once you have your tests written, you can run them using the following command f
 ```bash
 cargo run --package local-interchaintest --example polytone
 ```
+
+## Neutron ICQ Relayer setup
+
+For tests involving interchain queries, an additional setup step is needed
+to enable the query relayer functionality.
+
+This can be achieved by cloning the official repository and building
+the docker image:
+
+```sh
+git clone git@github.com:neutron-org/neutron-query-relayer.git
+cd neutron-query-relayer
+make build-docker
+```

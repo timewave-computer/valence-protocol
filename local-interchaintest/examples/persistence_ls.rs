@@ -93,6 +93,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         PERSISTENCE_CHAIN_NAME,
         PERSISTENCE_CHAIN_ID,
         PERSISTENCE_CHAIN_ADMIN_ADDR,
+        PERSISTENCE_CHAIN_DENOM,
+        PERSISTENCE_CHAIN_PREFIX,
         LOCAL_CODE_ID_CACHE_PATH_PERSISTENCE,
         "neutron-persistence",
         salt,
