@@ -10,7 +10,7 @@ The `Authorization` contract will be the only address allowed to add `Message Ba
 
 ### Execution
 
-When a processor is `Ticked`, the first `Message Batch` will be taken from the queue (`High` if there are batches there or `Med` if there aren’t).
+When a processor is `Ticked`, the first `Message Batch` will be reaped from the queue (`High` if there are batches, otherwise`Med`).
 After taking them, we will execute them in different ways depending if the batch is `Atomic` or `NonAtomic`.
 
 - For `Atomic` batches, the `Processor` will execute either all functions or none of them. If execution fails, the batch `RetryLogic` is checked to determine if the match should be re-enqueued. If not, a callback is sent with a `Rejected(error)` status to the authorization contract.
