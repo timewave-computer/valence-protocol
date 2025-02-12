@@ -12,7 +12,7 @@ This library requires active [Neutron ICQ Relayers](https://github.com/neutron-o
 ### Valence Middleware broker
 
 Each KV-based query requires a correctly encoded key in order to be registered.
-This library obtains the query keys from [Valence Middleware brokers](./../middleware/broker.md),
+This library obtains the query keys from [Valence Middleware brokers](./../../middleware/broker.md),
 which expose particular type registries.
 
 For a given KV-query to be performed, the underlying type registry must implement `IcqIntegration` trait
@@ -20,7 +20,7 @@ which in turn enables the following functionality:
 1. `get_kv_key`, enabling the ability to get the correctly encoded `KVKey` for query registration
 2. `decode_and_reconstruct`, allowing to reconstruct the interchain query result
 
-Read more about the given type ICQ integration in the [type registry documentation page](./../middleware/type_registry.md#neutron-interchain-query-integration).
+Read more about the given type ICQ integration in the [type registry documentation page](./../../middleware/type_registry.md#neutron-interchain-query-integration).
 
 ### Valence Storage account
 
