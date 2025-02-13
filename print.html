@@ -930,7 +930,7 @@ pub enum ExecutionResult {
     B2[Polytone Proxy on
     Main Domain]
     A2[Authorization Contract]
-    
+
     E2 --&gt;|Step 5: Execution Result| D2
     D2 --&gt;|Step 6: Relayer| C2
     C2 --&gt;|Step 7: Instantiate &amp; Forward Result| B2
@@ -947,7 +947,7 @@ pub enum ExecutionResult {
     D1[Polytone Proxy on
     External Domain]
     E1[Processor Contract]
-    
+
     A1 --&gt;|Step 1: Message Batch| B1
     B1 --&gt;|Step 2: Relayer| C1
     C1 --&gt;|Step 3: Instantiate &amp; Forward Batch| D1
@@ -960,7 +960,7 @@ pub enum ExecutionResult {
 <li>Mailbox: contract responsible for receiving the message for another domain and emitting an event with the message to be picked up by the relayer. The mailbox will also receive messages to be executed on a domain from the relayers and will route them to the correct destination contract.</li>
 </ul>
 <p>To connect the Authorization contract with an external domain that uses Hyperlane as a connector, we need to provide the Mailbox address for both the Authorization contract (when adding the domain) and the Processor contract (when instantiating the Processor). A Hyperlane Relayer must relay these two domains using the Mailbox addresses to make the communication possible.</p>
-<p>NOTE: There are other Hyperlane contracts that need to be used to set-up Hyperlane, but they are not used in the context of the Authorization contract or the Processor. For more information on how this works, check Hyperlane's documentation or see the <a href="https://github.com/timewave-computer/valence-protocol/blob/main/local-interchaintest/examples/ethereum_integration_tests.rs">Ethereum integration tests</a> we have, where we set up all the required Hyperlane contracts and the relayer in advance before creating our EVM Program.</p>
+<p>NOTE: There are other Hyperlane contracts that need to be used to set-up Hyperlane, but they are not used in the context of the Authorization contract or the Processor. For more information on how this works, check Hyperlane's documentation or see the <a href="https://github.com/timewave-computer/valence-protocol/blob/main/e2e/examples/ethereum_integration_tests.rs">Ethereum integration tests</a> we have, where we set up all the required Hyperlane contracts and the relayer in advance before creating our EVM Program.</p>
 <p>This is the sequence of messages when using Hyperlane as a connector:</p>
 <pre class="mermaid">graph TD
   %% Execution Result Sequence
@@ -971,7 +971,7 @@ pub enum ExecutionResult {
     C2[Mailbox on
     Main Domain]
     B2[Authorization Contract]
-    
+
     E2 --&gt;|Step 5: Execution Result| D2
     D2 --&gt;|Step 6: Relayer| C2
     C2 --&gt;|Step 7: Execution Result| B2
@@ -985,7 +985,7 @@ pub enum ExecutionResult {
     C1[Mailbox on
     External Domain]
     D1[Processor Contract]
-    
+
     A1 --&gt;|Step 1: Message Batch| B1
     B1 --&gt;|Step 2: Relayer| C1
     C1 --&gt;|Step 3: Message Batch| D1
@@ -2841,7 +2841,7 @@ graph
 <p>To make these tools more accessible in Rust, we've developed <a href="https://github.com/timewave-computer/localic-utils">localic-utils</a>. This Rust library provides convenient interfaces to interact with the local-interchain testing framework.</p>
 <h3 id="program-manager"><a class="header" href="#program-manager">Program Manager</a></h3>
 <p>We provide a tool called <code>Program Manager</code> that helps you manage your programs. We've created all the abstractions and helper functions to create your programs more efficiently together with local-interchain.</p>
-<p>The Program Manager use is optional, it abstracts a lot of functionality and allows creating programs in much less code. But if you want to have more fine-grained control over your programs, we provide helper functions to create and interact with your programs directly without it. In this section, we'll show you two different examples on how to test your programs, one using the Program Manager and the other without it. There are also many more examples each of them for different use cases. They are all in the <code>examples</code> folder of <a href="https://github.com/timewave-computer/valence-protocol/tree/main/local-interchaintest">our local-interchaintest folder</a>.</p>
+<p>The Program Manager use is optional, it abstracts a lot of functionality and allows creating programs in much less code. But if you want to have more fine-grained control over your programs, we provide helper functions to create and interact with your programs directly without it. In this section, we'll show you two different examples on how to test your programs, one using the Program Manager and the other without it. There are also many more examples each of them for different use cases. They are all in the <code>examples</code> folder of <a href="https://github.com/timewave-computer/valence-protocol/tree/main/e2e">our e2e folder</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="initial-testing-set-up"><a class="header" href="#initial-testing-set-up">Initial Testing Set Up</a></h1>
 <p>For testing your programs, no matter if you want to use the manager or not, there is a common set up that needs to be done. This set up is necessary to initialize the testing context with all the required information of the local-interchain environment.</p>
 <h2 id="1-setting-the-testcontext-using-the-testcontextbuilder"><a class="header" href="#1-setting-the-testcontext-using-the-testcontextbuilder">1. Setting the TestContext using the TestContextBuilder</a></h2>
@@ -2885,7 +2885,7 @@ graph
 <blockquote>
 <p><strong>Use-case</strong>: In this particular example, we will show you how to create a program that liquid stakes NTRN tokens on a Persistence chain directly from a base account without the need of using libraries. Note that this example is just for demonstrating purposes. In a real-world scenario, you would not liquid stake NTRN as it is not a staking token. We also are not using a liquid staking library for this example, although one could be creating for this purpose.</p>
 </blockquote>
-<p>The full code for this example can be found in the <a href="https://github.com/timewave-computer/valence-protocol/blob/main/local-interchaintest/examples/persistence_ls.rs">Persistence Liquid Staking example</a>.</p>
+<p>The full code for this example can be found in the <a href="https://github.com/timewave-computer/valence-protocol/blob/main/e2e/examples/persistence_ls.rs">Persistence Liquid Staking example</a>.</p>
 <ol>
 <li>Set up the Authorization contract and processor on the <code>Main Domain</code> (Neutron).</li>
 </ol>
@@ -3066,7 +3066,7 @@ graph
 <li>Installed all necessary dependencies and have a working development environment</li>
 </ul>
 <h2 id="solution-overview"><a class="header" href="#solution-overview">Solution Overview</a></h2>
-<p>Full working code for this example can be found in the <a href="https://github.com/timewave-computer/valence-protocol/blob/main/local-interchaintest/examples/osmo_cl.rs">Osmosis Concentrated Liquidity example</a>.</p>
+<p>Full working code for this example can be found in the <a href="https://github.com/timewave-computer/valence-protocol/blob/main/e2e/examples/osmo_cl.rs">Osmosis Concentrated Liquidity example</a>.</p>
 <p>Our solution includes the following:</p>
 <ul>
 <li>We create three accounts on Osmosis

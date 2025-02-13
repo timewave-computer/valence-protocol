@@ -180,7 +180,7 @@
     B2[Polytone Proxy on
     Main Domain]
     A2[Authorization Contract]
-    
+
     E2 --&gt;|Step 5: Execution Result| D2
     D2 --&gt;|Step 6: Relayer| C2
     C2 --&gt;|Step 7: Instantiate &amp; Forward Result| B2
@@ -197,7 +197,7 @@
     D1[Polytone Proxy on
     External Domain]
     E1[Processor Contract]
-    
+
     A1 --&gt;|Step 1: Message Batch| B1
     B1 --&gt;|Step 2: Relayer| C1
     C1 --&gt;|Step 3: Instantiate &amp; Forward Batch| D1
@@ -210,7 +210,7 @@
 <li>Mailbox: contract responsible for receiving the message for another domain and emitting an event with the message to be picked up by the relayer. The mailbox will also receive messages to be executed on a domain from the relayers and will route them to the correct destination contract.</li>
 </ul>
 <p>To connect the Authorization contract with an external domain that uses Hyperlane as a connector, we need to provide the Mailbox address for both the Authorization contract (when adding the domain) and the Processor contract (when instantiating the Processor). A Hyperlane Relayer must relay these two domains using the Mailbox addresses to make the communication possible.</p>
-<p>NOTE: There are other Hyperlane contracts that need to be used to set-up Hyperlane, but they are not used in the context of the Authorization contract or the Processor. For more information on how this works, check Hyperlane's documentation or see the <a href="https://github.com/timewave-computer/valence-protocol/blob/main/local-interchaintest/examples/ethereum_integration_tests.rs">Ethereum integration tests</a> we have, where we set up all the required Hyperlane contracts and the relayer in advance before creating our EVM Program.</p>
+<p>NOTE: There are other Hyperlane contracts that need to be used to set-up Hyperlane, but they are not used in the context of the Authorization contract or the Processor. For more information on how this works, check Hyperlane's documentation or see the <a href="https://github.com/timewave-computer/valence-protocol/blob/main/e2e/examples/ethereum_integration_tests.rs">Ethereum integration tests</a> we have, where we set up all the required Hyperlane contracts and the relayer in advance before creating our EVM Program.</p>
 <p>This is the sequence of messages when using Hyperlane as a connector:</p>
 <pre class="mermaid">graph TD
   %% Execution Result Sequence
@@ -221,7 +221,7 @@
     C2[Mailbox on
     Main Domain]
     B2[Authorization Contract]
-    
+
     E2 --&gt;|Step 5: Execution Result| D2
     D2 --&gt;|Step 6: Relayer| C2
     C2 --&gt;|Step 7: Execution Result| B2
@@ -235,7 +235,7 @@
     C1[Mailbox on
     External Domain]
     D1[Processor Contract]
-    
+
     A1 --&gt;|Step 1: Message Batch| B1
     B1 --&gt;|Step 2: Relayer| C1
     C1 --&gt;|Step 3: Message Batch| D1
