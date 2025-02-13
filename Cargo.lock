@@ -7504,18 +7504,12 @@ dependencies = [
  "polytone-note",
  "polytone-voice",
  "rand 0.8.5",
- "serde-json-wasm 0.5.2",
  "serde_json",
  "sha2 0.10.8",
- "tokio",
  "valence-account-utils",
- "valence-astroport-lper",
- "valence-astroport-utils",
- "valence-astroport-withdrawer",
  "valence-authorization-utils",
  "valence-e2e",
  "valence-forwarder-library",
- "valence-generic-ibc-transfer-library",
  "valence-ibc-utils",
  "valence-library-utils",
  "valence-neutron-ibc-transfer-library",
@@ -7529,7 +7523,6 @@ dependencies = [
  "valence-program-registry-utils",
  "valence-reverse-splitter-library",
  "valence-splitter-library",
- "valence-test-icq-lib",
 ]
 
 [[package]]
