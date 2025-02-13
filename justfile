@@ -12,3 +12,6 @@ disconnect-hyperlane-network:
 
 run-example program:
     RUST_LOG=debug cargo run --package valence-program-examples --bin {{program}}
+
+run-e2e test:
+    RUST_LOG=debug cargo run --package valence-e2e --example {{test}}

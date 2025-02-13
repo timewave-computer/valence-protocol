@@ -12,7 +12,7 @@ familiar with the contents of that directory.
 Under `/src` you will find the following Valence Program examples:
 - `osmo_cl`: creation and liquidation of a Concentrated Liquidity position on Osmosis
 - `osmo_gamm`: creation and liquidation of a GAMM (xyk) position on Osmosis
-- `token_swap`: token swap between two parties
+- `token_swap`: token swap between two parties on Neutron
 
 ## Running the examples locally
 
