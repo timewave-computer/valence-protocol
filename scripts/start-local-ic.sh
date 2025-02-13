@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-cd local-interchaintest
+cd e2e
 
 CHAIN_CONFIG=$1
 MAX_ATTEMPTS=10

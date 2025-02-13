@@ -1,4 +1,4 @@
-name: Run a local-ic test
+name: Run a local-ic example Valence Program
 
 inputs:
   chain-config: # id of input
@@ -52,11 +52,11 @@ runs:
       shell: bash
       run: ./scripts/start-local-ic.sh ${{ inputs.chain-config }}
 
-    - name: Run local-ic test
+    - name: Run local-ic example
       shell: bash
       env:
         RUST_LOG: debug
-      run: cargo run --package valence-e2e --example ${{ inputs.test-name }}
+      run: cargo run --package valence-program-examples --bin ${{ inputs.test-name }}
 
     - name: Cleanup
       shell: bash

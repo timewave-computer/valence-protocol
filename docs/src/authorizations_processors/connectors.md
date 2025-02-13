@@ -27,7 +27,7 @@ graph TD
     B2[Polytone Proxy on
     Main Domain]
     A2[Authorization Contract]
-    
+
     E2 -->|Step 5: Execution Result| D2
     D2 -->|Step 6: Relayer| C2
     C2 -->|Step 7: Instantiate & Forward Result| B2
@@ -44,7 +44,7 @@ graph TD
     D1[Polytone Proxy on
     External Domain]
     E1[Processor Contract]
-    
+
     A1 -->|Step 1: Message Batch| B1
     B1 -->|Step 2: Relayer| C1
     C1 -->|Step 3: Instantiate & Forward Batch| D1
@@ -59,7 +59,7 @@ To connect `ExternalDomains` that use `EVM` as `ExecutionEnvironment` we use [Hy
 
 To connect the Authorization contract with an external domain that uses Hyperlane as a connector, we need to provide the Mailbox address for both the Authorization contract (when adding the domain) and the Processor contract (when instantiating the Processor). A Hyperlane Relayer must relay these two domains using the Mailbox addresses to make the communication possible.
 
-NOTE: There are other Hyperlane contracts that need to be used to set-up Hyperlane, but they are not used in the context of the Authorization contract or the Processor. For more information on how this works, check Hyperlane's documentation or see the [Ethereum integration tests](https://github.com/timewave-computer/valence-protocol/blob/main/local-interchaintest/examples/ethereum_integration_tests.rs) we have, where we set up all the required Hyperlane contracts and the relayer in advance before creating our EVM Program.
+NOTE: There are other Hyperlane contracts that need to be used to set-up Hyperlane, but they are not used in the context of the Authorization contract or the Processor. For more information on how this works, check Hyperlane's documentation or see the [Ethereum integration tests](https://github.com/timewave-computer/valence-protocol/blob/main/e2e/examples/ethereum_integration_tests.rs) we have, where we set up all the required Hyperlane contracts and the relayer in advance before creating our EVM Program.
 
 This is the sequence of messages when using Hyperlane as a connector:
 
@@ -73,7 +73,7 @@ graph TD
     C2[Mailbox on
     Main Domain]
     B2[Authorization Contract]
-    
+
     E2 -->|Step 5: Execution Result| D2
     D2 -->|Step 6: Relayer| C2
     C2 -->|Step 7: Execution Result| B2
@@ -87,7 +87,7 @@ graph TD
     C1[Mailbox on
     External Domain]
     D1[Processor Contract]
-    
+
     A1 -->|Step 1: Message Batch| B1
     B1 -->|Step 2: Relayer| C1
     C1 -->|Step 3: Message Batch| D1

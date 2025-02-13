@@ -21,8 +21,8 @@
 contracts/**/schema/raw
 program-manager/schema/raw
 
-# local-interchaintest
-local-interchaintest/configs
-local-interchaintest/code_id_cache*
-local-interchaintest/tmp
-local-interchaintest/hyperlane_db_relayer
+# e2e
+e2e/configs
+e2e/code_id_cache*
+e2e/tmp
+e2e/hyperlane_db_relayer
