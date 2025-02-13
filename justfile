@@ -9,3 +9,6 @@ disconnect-hyperlane-network:
         docker network disconnect hyperlane-net $container
     done
     docker network rm hyperlane-net
+
+run-example program:
+    RUST_LOG=debug cargo run --package valence-program-examples --bin {{program}}

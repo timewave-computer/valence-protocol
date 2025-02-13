@@ -13,156 +13,110 @@ members = [
     "packages/*",
     "program-manager",
     "e2e",
+    "examples"
 ]
 resolver = "2"
 
 [workspace.package]
-authors = ["Timewave Labs"]
-edition = "2021"
-license = "Apache-2.0"
-version = "0.2.0"
+authors    = ["Timewave Labs"]
+edition    = "2021"
+license    = "Apache-2.0"
+version    = "0.2.0"
 repository = "https://github.com/timewave-computer/valence-protocol"
 
 [profile.release]
-opt-level = 3
-debug = false
-rpath = false
-lto = true
+opt-level        = 3
+debug            = false
+rpath            = false
+lto              = true
 debug-assertions = false
-codegen-units = 1
-panic = 'abort'
-incremental = false
-overflow-checks = true
+codegen-units    = 1
+panic            = 'abort'
+incremental      = false
+overflow-checks  = true
 
 [workspace.dependencies]
-anyhow = "1.0.86"
-cosmwasm-std = { version = "2.1.3" }
+anyhow          = "1.0.86"
+cosmwasm-std    = { version = "2.1.3" }
 cosmwasm-schema = "2.1.3"
 cosmwasm-crypto = "2.1.3"
-cw-denom = { package = "cw-denom", git = "https://github.com/DA0-DA0/dao-contracts", branch = "cw-std-2" }
-cw-ownable = "2.0.0"
-cw-utils = "2.0.0"
+cw-denom        = { package = "cw-denom", git = "https://github.com/DA0-DA0/dao-contracts", branch = "cw-std-2" }
+cw-ownable      = "2.0.0"
+cw-utils        = "2.0.0"
 cw-storage-plus = "2.0.0"
-cw2 = "2.0.0"
-getset = "0.1.3"
-itertools = "0.13.0"
+cw2             = "2.0.0"
+getset          = "0.1.3"
+itertools       = "0.13.0"
 # TODO: replace neutron-sdk and cosmos-sdk-proto for neutron-std when we can test with 2.0 (neutron-std adds cosmwasm_2_0 feature)
-neutron-sdk = "0.11.0"
-cosmos-sdk-proto = { version = "0.20.0", default-features = false }
-schemars = "0.8.16"
-serde = { version = "1.0.207", default-features = false, features = ["derive"] }
-serde_json = "1.0.125"
-sha2 = "0.10.8"
-thiserror = "1.0.63"
-osmosis-std = "0.26.0"
+neutron-sdk        = "0.11.0"
+cosmos-sdk-proto   = { version = "0.20.0", default-features = false }
+schemars           = "0.8.16"
+serde              = { version = "1.0.207", default-features = false, features = ["derive"] }
+serde_json         = "1.0.125"
+sha2               = "0.10.8"
+thiserror          = "1.0.63"
+osmosis-std        = "0.26.0"
 osmosis-std-derive = "0.26.0"
 
 # our contracts
-valence-authorization = { path = "contracts/authorization", features = [
-    "library",
-] }
-valence-base-account = { path = "contracts/accounts/base_account", features = [
-    "library",
-] }
-valence-storage-account = { path = "contracts/accounts/storage_account", features = [
-    "library",
-] }
-valence-processor = { path = "contracts/processor", features = ["library"] }
-valence-splitter-library = { path = "contracts/libraries/splitter", features = [
-    "library",
-] }
-valence-test-dynamic-ratio = { path = "contracts/testing/test-dynamic-ratio", features = [
-    "library",
-] }
-valence-test-library = { path = "contracts/testing/test-library", features = [
-    "library",
-] }
-valence-test-icq-lib = { path = "contracts/testing/test-icq-lib", features = [
-    "library",
-] }
-valence-workflow-registry = { path = "contracts/workflow-registry", features = [
-    "library",
-] }
-valence-astroport-lper = { path = "contracts/libraries/astroport-lper", features = [
-    "library",
-] }
-valence-forwarder-library = { path = "contracts/libraries/forwarder", features = [
-    "library",
-] }
-valence-astroport-withdrawer = { path = "contracts/libraries/astroport-withdrawer", features = [
-    "library",
-] }
-valence-generic-ibc-transfer-library = { path = "contracts/libraries/generic-ibc-transfer", features = [
-    "library",
-] }
-valence-neutron-ibc-transfer-library = { path = "contracts/libraries/neutron-ibc-transfer", features = [
-    "library",
-] }
-valence-reverse-splitter-library = { path = "contracts/libraries/reverse-splitter", features = [
-    "library",
-] }
-valence-osmosis-gamm-lper = { path = "contracts/libraries/osmosis-gamm-lper", features = [
-    "library",
-] }
-valence-osmosis-gamm-withdrawer = { path = "contracts/libraries/osmosis-gamm-withdrawer", features = [
-    "library",
-] }
-valence-osmosis-cl-lper = { path = "contracts/libraries/osmosis-cl-lper", features = [
-    "library",
-] }
-valence-osmosis-cl-withdrawer = { path = "contracts/libraries/osmosis-cl-withdrawer", features = [
-    "library",
-] }
-valence-encoder-broker = { path = "contracts/encoders/broker", features = [
-    "library",
-] }
-valence-neutron-ic-querier = { path = "contracts/libraries/neutron-ic-querier", features = [
-    "library",
-] }
+valence-authorization                = { path = "contracts/authorization", features = ["library"] }
+valence-base-account                 = { path = "contracts/accounts/base_account", features = ["library"] }
+valence-storage-account              = { path = "contracts/accounts/storage_account", features = ["library"] }
+valence-processor                    = { path = "contracts/processor", features = ["library"] }
+valence-splitter-library             = { path = "contracts/libraries/splitter", features = ["library"] }
+valence-test-dynamic-ratio           = { path = "contracts/testing/test-dynamic-ratio", features = ["library"] }
+valence-test-library                 = { path = "contracts/testing/test-library", features = ["library"] }
+valence-test-icq-lib                 = { path = "contracts/testing/test-icq-lib", features = ["library"] }
+valence-workflow-registry            = { path = "contracts/workflow-registry", features = ["library"] }
+valence-astroport-lper               = { path = "contracts/libraries/astroport-lper", features = ["library"] }
+valence-forwarder-library            = { path = "contracts/libraries/forwarder", features = ["library"] }
+valence-astroport-withdrawer         = { path = "contracts/libraries/astroport-withdrawer", features = ["library"] }
+valence-generic-ibc-transfer-library = { path = "contracts/libraries/generic-ibc-transfer", features = ["library"] }
+valence-neutron-ibc-transfer-library = { path = "contracts/libraries/neutron-ibc-transfer", features = ["library"] }
+valence-reverse-splitter-library     = { path = "contracts/libraries/reverse-splitter", features = ["library"] }
+valence-osmosis-gamm-lper            = { path = "contracts/libraries/osmosis-gamm-lper", features = ["library"] }
+valence-osmosis-gamm-withdrawer      = { path = "contracts/libraries/osmosis-gamm-withdrawer", features = ["library"] }
+valence-osmosis-cl-lper              = { path = "contracts/libraries/osmosis-cl-lper", features = ["library"] }
+valence-osmosis-cl-withdrawer        = { path = "contracts/libraries/osmosis-cl-withdrawer", features = ["library"] }
+valence-encoder-broker               = { path = "contracts/encoders/broker", features = ["library"] }
+valence-neutron-ic-querier           = { path = "contracts/libraries/neutron-ic-querier", features = ["library"] }
 
 # middleware
-valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = [
-    "library",
-] }
-valence-middleware-broker = { path = "contracts/middleware/broker", features = [
-    "library",
-] }
-valence-middleware-asserter = { path = "contracts/middleware/asserter", features = [
-    "library",
-] }
+valence-middleware-osmosis  = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = ["library"] }
+valence-middleware-broker   = { path = "contracts/middleware/broker", features = ["library"] }
+valence-middleware-asserter = { path = "contracts/middleware/asserter", features = ["library"] }
 
 # our packages
-valence-account-utils = { path = "packages/account-utils" }
-valence-astroport-utils = { path = "packages/astroport-utils" }
-valence-osmosis-utils = { path = "packages/osmosis-utils" }
-valence-authorization-utils = { path = "packages/authorization-utils" }
-valence-encoder-utils = { path = "packages/encoder-utils" }
-valence-ibc-utils = { path = "packages/ibc-utils" }
-valence-macros = { path = "packages/valence-macros" }
-valence-gmp-utils = { path = "packages/gmp-utils" }
-valence-processor-utils = { path = "packages/processor-utils" }
-valence-library-base = { path = "packages/library-base" }
-valence-library-utils = { path = "packages/library-utils" }
+valence-account-utils          = { path = "packages/account-utils" }
+valence-astroport-utils        = { path = "packages/astroport-utils" }
+valence-osmosis-utils          = { path = "packages/osmosis-utils" }
+valence-authorization-utils    = { path = "packages/authorization-utils" }
+valence-encoder-utils          = { path = "packages/encoder-utils" }
+valence-ibc-utils              = { path = "packages/ibc-utils" }
+valence-macros                 = { path = "packages/valence-macros" }
+valence-gmp-utils              = { path = "packages/gmp-utils" }
+valence-processor-utils        = { path = "packages/processor-utils" }
+valence-library-base           = { path = "packages/library-base" }
+valence-library-utils          = { path = "packages/library-utils" }
 valence-program-registry-utils = { path = "packages/program-registry-utils" }
-valence-program-manager = { path = "program-manager" }
-valence-program-registry = { path = "contracts/program-registry", features = [
-    "library",
-] }
-valence-middleware-utils = { path = "packages/middleware-utils" }
+valence-program-manager        = { path = "program-manager" }
+valence-program-registry       = { path = "contracts/program-registry", features = ["library"] }
+valence-middleware-utils       = { path = "packages/middleware-utils" }
 
 # dev-dependencies
-cw-multi-test = { version = "2.1.1", features = ["cosmwasm_1_4"] }
-cw20 = { version = "2.0.0" }
-cw20-base = { version = "2.0.0" }
-hex = "0.4.3"
-localic-utils = { git = "https://github.com/timewave-computer/localic-utils", branch = "main" }
+cw-multi-test        = { version = "2.1.1", features = ["cosmwasm_1_4"] }
+cw20                 = { version = "2.0.0" }
+cw20-base            = { version = "2.0.0" }
+hex                  = "0.4.3"
+localic-utils        = { git = "https://github.com/timewave-computer/localic-utils", branch = "main" }
 margined-neutron-std = "5.0.0"
-neutron-test-tube = "5.0.0"
-tokio = "1.40.0"
-osmosis-test-tube = "26.0.1"
-env_logger = "0.11.5"
-log = "0.4.22"
-prost = { version = "0.13.3", default-features = false }
-prost-types = { version = "0.13.3", default-features = false }
-semver = "1.0.24"
-valence-e2e = { path = "e2e" }
+neutron-test-tube    = "5.0.0"
+tokio                = "1.40.0"
+osmosis-test-tube    = "26.0.1"
+env_logger           = "0.11.5"
+log                  = "0.4.22"
+prost                = { version = "0.13.3", default-features = false }
+prost-types          = { version = "0.13.3", default-features = false }
+semver               = "1.0.24"
+valence-e2e          = { path = "e2e" }
+valence-examples     = { path = "examples" }
