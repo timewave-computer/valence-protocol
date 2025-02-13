@@ -9,7 +9,13 @@ repository = { workspace = true }
 name = "token_swap"
 path = "src/token_swap.rs"
 
-# TODO: add osmosis LP
+[[bin]]
+name = "osmo_cl"
+path = "src/osmo_cl.rs"
+
+[[bin]]
+name = "osmo_gamm"
+path = "src/osmo_gamm.rs"
 
 [dependencies]
 localic-std                          = { git = "https://github.com/strangelove-ventures/interchaintest", branch = "main" }
