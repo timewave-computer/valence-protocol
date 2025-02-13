@@ -144,7 +144,7 @@ pub mod concentrated_liquidity {
 
         // osmosisd tx concentratedliquidity create-position [pool-id] [lower-tick] [upper-tick] [tokens-provided] [token-min-amount0] [token-min-amount1] [flags]
         let lp_cmd = format!(
-            "tx concentratedliquidity create-position {pool_id} [-10000] 10000 1500000{denom_1},1500000{denom_2} 0 0 --from={} --fees=5000uosmo --gas auto --gas-adjustment 1.3 --output=json",
+            "tx concentratedliquidity create-position {pool_id} [-10000] 10000 1500000{denom_1},1500000{denom_2} 0 0 --from={} --fees=50000uosmo --gas auto --gas-adjustment 1.3 --output=json",
             DEFAULT_KEY
         );
 
