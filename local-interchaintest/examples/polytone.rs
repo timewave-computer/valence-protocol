@@ -594,6 +594,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         subroutine: Subroutine::Atomic(AtomicSubroutine {
             functions: vec![function.clone()],
             retry_logic: None,
+            expiration_time: None,
         }),
         priority: None,
     };
@@ -634,6 +635,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     authorization.subroutine = Subroutine::Atomic(AtomicSubroutine {
         functions: vec![function.clone()],
         retry_logic: None,
+        expiration_time: None,
     });
 
     contract_execute(

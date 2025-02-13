@@ -39,6 +39,7 @@ impl AuthorizationBuilder {
             subroutine: Subroutine::Atomic(AtomicSubroutine {
                 functions: vec![],
                 retry_logic: None,
+                expiration_time: None,
             }),
             priority: None,
         }
@@ -95,6 +96,7 @@ impl AuthorizationBuilder {
 pub struct AtomicSubroutineBuilder {
     functions: Vec<AtomicFunction>,
     retry_logic: Option<RetryLogic>,
+    expiration_time: Option<u64>,
 }
 
 impl Default for AtomicSubroutineBuilder {
@@ -108,6 +110,7 @@ impl AtomicSubroutineBuilder {
         AtomicSubroutineBuilder {
             functions: vec![],
             retry_logic: None,
+            expiration_time: None,
         }
     }
 
@@ -121,16 +124,23 @@ impl AtomicSubroutineBuilder {
         self
     }
 
+    pub fn with_expiration_time(mut self, expiration_time: u64) -> Self {
+        self.expiration_time = Some(expiration_time);
+        self
+    }
+
     pub fn build(self) -> Subroutine {
         Subroutine::Atomic(AtomicSubroutine {
             functions: self.functions,
             retry_logic: self.retry_logic,
+            expiration_time: self.expiration_time,
         })
     }
 }
 
 pub struct NonAtomicSubroutineBuilder {
     functions: Vec<NonAtomicFunction>,
+    expiration_time: Option<u64>,
 }
 
 impl Default for NonAtomicSubroutineBuilder {
@@ -141,7 +151,7 @@ impl Default for NonAtomicSubroutineBuilder {
 
 impl NonAtomicSubroutineBuilder {
     pub fn new() -> Self {
-        NonAtomicSubroutineBuilder { functions: vec![] }
+        NonAtomicSubroutineBuilder { functions: vec![], expiration_time: None }
     }
 
     pub fn with_function(mut self, function: NonAtomicFunction) -> Self {
@@ -149,9 +159,15 @@ impl NonAtomicSubroutineBuilder {
         self
     }
 
+    pub fn with_expiration_time(mut self, expiration_time: u64) -> Self {
+        self.expiration_time = Some(expiration_time);
+        self
+    }
+
     pub fn build(self) -> Subroutine {
         Subroutine::NonAtomic(NonAtomicSubroutine {
             functions: self.functions,
+            expiration_time: self.expiration_time,
         })
     }
 }

@@ -118,6 +118,7 @@ fn test_send_msgs() {
     let atomic_subroutine = AtomicSubroutine {
         functions: vec![atomic_function],
         retry_logic,
+        expiration_time: None,
     };
 
     let subroutine = Subroutine::Atomic(atomic_subroutine);
@@ -223,6 +224,7 @@ fn test_insert_msgs() {
 
     let non_atomic_subroutine = NonAtomicSubroutine {
         functions: vec![non_atomic_function],
+        expiration_time: None,
     };
 
     let subroutine = Subroutine::NonAtomic(non_atomic_subroutine);
@@ -397,6 +399,7 @@ fn test_send_msgs_with_different_retry_logic() {
         let atomic_subroutine = AtomicSubroutine {
             functions: vec![atomic_function],
             retry_logic: Some(retry_logic),
+            expiration_time: None,
         };
 
         let send_msgs = ProcessorMessageToEncode::SendMsgs {

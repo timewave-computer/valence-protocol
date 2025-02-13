@@ -2044,6 +2044,7 @@ fn failed_atomic_batch_after_retries() {
                     subroutine: Subroutine::Atomic(AtomicSubroutine {
                         functions: vec![],
                         retry_logic: None,
+                        expiration_time: None,
                     }),
                     priority: Priority::Medium,
                     retry: None,
