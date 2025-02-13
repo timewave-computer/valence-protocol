@@ -4,7 +4,7 @@ This example demonstrates how to test your program without the Program Manager a
 
 > **Use-case**: In this particular example, we will show you how to create a program that liquid stakes NTRN tokens on a Persistence chain directly from a base account without the need of using libraries. Note that this example is just for demonstrating purposes. In a real-world scenario, you would not liquid stake NTRN as it is not a staking token. We also are not using a liquid staking library for this example, although one could be creating for this purpose.
 
-The full code for this example can be found in the [Persistence Liquid Staking example](https://github.com/timewave-computer/valence-protocol/blob/main/local-interchaintest/examples/persistence_ls.rs).
+The full code for this example can be found in the [Persistence Liquid Staking example](https://github.com/timewave-computer/valence-protocol/blob/main/e2e/examples/persistence_ls.rs).
 
 1. Set up the Authorization contract and processor on the `Main Domain` (Neutron).
 
