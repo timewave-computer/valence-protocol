@@ -1,10 +1,4 @@
 use cosmwasm_std::{to_json_binary, Binary, Decimal, Uint64};
-use local_interchaintest::utils::{
-    base_account::approve_library,
-    icq::{generate_icq_relayer_config, start_icq_relayer},
-    osmosis::gamm::setup_gamm_pool,
-    LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
-};
 use localic_std::{
     errors::LocalError,
     modules::{
@@ -15,6 +9,12 @@ use localic_std::{
 };
 use log::info;
 use std::{collections::BTreeMap, env, error::Error, str::FromStr, time::Duration};
+use valence_e2e::utils::{
+    base_account::approve_library,
+    icq::{generate_icq_relayer_config, start_icq_relayer},
+    osmosis::gamm::setup_gamm_pool,
+    LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
+};
 use valence_library_utils::LibraryAccountType;
 use valence_middleware_asserter::msg::{AssertionValue, Predicate, QueryInfo};
 use valence_middleware_utils::{

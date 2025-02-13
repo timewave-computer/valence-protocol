@@ -1,16 +1,6 @@
 use cosmwasm_std::Uint128;
 use cosmwasm_std::{to_json_binary, Binary, Coin, Uint64};
 use cosmwasm_std_old::Coin as BankCoin;
-use local_interchaintest::utils::base_account::{approve_library, create_base_accounts};
-use local_interchaintest::utils::NTRN_DENOM;
-use local_interchaintest::utils::{
-    authorization::{set_up_authorization_and_processor, set_up_external_domain_with_polytone},
-    base_account::create_storage_accounts,
-    icq::{generate_icq_relayer_config, start_icq_relayer},
-    osmosis::gamm::setup_gamm_pool,
-    processor::confirm_remote_domain_processor_queue_length,
-    GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_OSMOSIS, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
-};
 use localic_std::{
     errors::LocalError,
     modules::{
@@ -34,6 +24,16 @@ use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType},
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
     msg::ProcessorMessage,
+};
+use valence_e2e::utils::base_account::{approve_library, create_base_accounts};
+use valence_e2e::utils::NTRN_DENOM;
+use valence_e2e::utils::{
+    authorization::{set_up_authorization_and_processor, set_up_external_domain_with_polytone},
+    base_account::create_storage_accounts,
+    icq::{generate_icq_relayer_config, start_icq_relayer},
+    osmosis::gamm::setup_gamm_pool,
+    processor::confirm_remote_domain_processor_queue_length,
+    GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_OSMOSIS, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
 };
 use valence_generic_ibc_transfer_library::msg::IbcTransferAmount;
 use valence_library_utils::denoms::UncheckedDenom;

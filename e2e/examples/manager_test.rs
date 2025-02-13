@@ -2,12 +2,6 @@ use std::{collections::BTreeMap, error::Error};
 
 use cosmwasm_std::{Coin, CosmosMsg, WasmMsg};
 use cosmwasm_std_old::Coin as BankCoin;
-use local_interchaintest::utils::{
-    manager::{
-        setup_manager, use_manager_init, use_manager_migrate, use_manager_update, SPLITTER_NAME,
-    },
-    GAS_FLAGS, LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, NTRN_DENOM, VALENCE_ARTIFACTS_PATH,
-};
 use localic_std::modules::{
     bank,
     cosmwasm::{contract_execute, contract_query},
@@ -22,6 +16,12 @@ use valence_authorization::contract::build_tokenfactory_denom;
 use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
+};
+use valence_e2e::utils::{
+    manager::{
+        setup_manager, use_manager_init, use_manager_migrate, use_manager_update, SPLITTER_NAME,
+    },
+    GAS_FLAGS, LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, NTRN_DENOM, VALENCE_ARTIFACTS_PATH,
 };
 use valence_library_utils::{denoms::UncheckedDenom, GetId, Id, LibraryAccountType};
 use valence_program_manager::{

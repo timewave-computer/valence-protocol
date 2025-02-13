@@ -7,14 +7,6 @@ use std::{
 use cosmwasm_std::{Binary, Timestamp, Uint128};
 use cosmwasm_std_old::Uint64;
 use cw_utils::Expiration;
-use local_interchaintest::utils::{
-    authorization::{set_up_authorization_and_processor, verify_authorization_execution_result},
-    polytone::salt_for_proxy,
-    processor::{get_processor_queue_items, tick_processor},
-    relayer::restart_relayer,
-    GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_JUNO, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
-    NEUTRON_USER_ADDRESS_1, POLYTONE_ARTIFACTS_PATH, USER_KEY_1, VALENCE_ARTIFACTS_PATH,
-};
 use localic_std::{
     modules::{
         bank,
@@ -40,6 +32,14 @@ use valence_authorization_utils::{
     domain::{CosmwasmBridge, Domain, ExecutionEnvironment, ExternalDomain, PolytoneProxyState},
     function::AtomicFunction,
     msg::{ExternalDomainInfo, PermissionedMsg, PolytoneNoteInfo, ProcessorMessage},
+};
+use valence_e2e::utils::{
+    authorization::{set_up_authorization_and_processor, verify_authorization_execution_result},
+    polytone::salt_for_proxy,
+    processor::{get_processor_queue_items, tick_processor},
+    relayer::restart_relayer,
+    GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_JUNO, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
+    NEUTRON_USER_ADDRESS_1, POLYTONE_ARTIFACTS_PATH, USER_KEY_1, VALENCE_ARTIFACTS_PATH,
 };
 
 use valence_library_utils::LibraryAccountType;

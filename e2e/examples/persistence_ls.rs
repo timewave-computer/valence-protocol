@@ -1,16 +1,6 @@
 use std::{env, error::Error, time::SystemTime};
 
 use cosmwasm_std::{Binary, CosmosMsg};
-use local_interchaintest::utils::{
-    authorization::{set_up_authorization_and_processor, set_up_external_domain_with_polytone},
-    base_account::create_base_accounts,
-    ibc::send_successful_ibc_transfer,
-    persistence::{activate_host_zone, register_host_zone},
-    processor::{get_processor_queue_items, tick_processor},
-    GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_PERSISTENCE, LOGS_FILE_PATH, PERSISTENCE_CHAIN_ADMIN_ADDR,
-    PERSISTENCE_CHAIN_DENOM, PERSISTENCE_CHAIN_ID, PERSISTENCE_CHAIN_NAME,
-    PERSISTENCE_CHAIN_PREFIX, VALENCE_ARTIFACTS_PATH,
-};
 use localic_std::modules::{bank, cosmwasm::contract_execute};
 use localic_utils::{
     types::config::ConfigChain, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
@@ -26,6 +16,16 @@ use valence_authorization_utils::{
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
     domain::Domain,
     msg::ProcessorMessage,
+};
+use valence_e2e::utils::{
+    authorization::{set_up_authorization_and_processor, set_up_external_domain_with_polytone},
+    base_account::create_base_accounts,
+    ibc::send_successful_ibc_transfer,
+    persistence::{activate_host_zone, register_host_zone},
+    processor::{get_processor_queue_items, tick_processor},
+    GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_PERSISTENCE, LOGS_FILE_PATH, PERSISTENCE_CHAIN_ADMIN_ADDR,
+    PERSISTENCE_CHAIN_DENOM, PERSISTENCE_CHAIN_ID, PERSISTENCE_CHAIN_NAME,
+    PERSISTENCE_CHAIN_PREFIX, VALENCE_ARTIFACTS_PATH,
 };
 use valence_library_utils::LibraryAccountType;
 

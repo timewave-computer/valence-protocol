@@ -1,4 +1,7 @@
-use local_interchaintest::utils::{
+use localic_std::modules::cosmwasm::contract_instantiate;
+use log::info;
+use std::{env, error::Error, time::Duration};
+use valence_e2e::utils::{
     icq::{
         generate_icq_relayer_config, query_catchall_logs, register_kvq_balances_query,
         start_icq_relayer,
@@ -6,9 +9,6 @@ use local_interchaintest::utils::{
     osmosis::gamm::setup_gamm_pool,
     LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
 };
-use localic_std::modules::cosmwasm::contract_instantiate;
-use log::info;
-use std::{env, error::Error, time::Duration};
 use valence_test_icq_lib::msg::InstantiateMsg;
 
 use localic_utils::{

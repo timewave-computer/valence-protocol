@@ -10,18 +10,6 @@ use alloy::primitives::{Address, U256};
 use alloy_sol_types_encoder::{SolCall, SolValue};
 use cosmwasm_std::{Binary, Empty};
 use cosmwasm_std_old::Coin as BankCoin;
-use local_interchaintest::utils::{
-    authorization::{set_up_authorization_and_processor, verify_authorization_execution_result},
-    ethereum::set_up_anvil_container,
-    hyperlane::{
-        bech32_to_evm_bytes32, set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts,
-        set_up_hyperlane,
-    },
-    solidity_contracts::{BaseAccount, Forwarder, LiteProcessor, MockERC20},
-    DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME, ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS,
-    HYPERLANE_RELAYER_NEUTRON_ADDRESS, LOGS_FILE_PATH, NEUTRON_HYPERLANE_DOMAIN, NTRN_DENOM,
-    VALENCE_ARTIFACTS_PATH,
-};
 use localic_std::modules::{
     bank,
     cosmwasm::{contract_execute, contract_instantiate},
@@ -43,6 +31,18 @@ use valence_authorization_utils::{
         EncoderInfo, EvmBridgeInfo, ExternalDomainInfo, HyperlaneConnectorInfo, PermissionedMsg,
         ProcessorMessage,
     },
+};
+use valence_e2e::utils::{
+    authorization::{set_up_authorization_and_processor, verify_authorization_execution_result},
+    ethereum::set_up_anvil_container,
+    hyperlane::{
+        bech32_to_evm_bytes32, set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts,
+        set_up_hyperlane,
+    },
+    solidity_contracts::{BaseAccount, Forwarder, LiteProcessor, MockERC20},
+    DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME, ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS,
+    HYPERLANE_RELAYER_NEUTRON_ADDRESS, LOGS_FILE_PATH, NEUTRON_HYPERLANE_DOMAIN, NTRN_DENOM,
+    VALENCE_ARTIFACTS_PATH,
 };
 use valence_encoder_utils::libraries::forwarder::solidity_types::{
     forwardCall, ForwarderConfig, ForwardingConfig, IntervalType,

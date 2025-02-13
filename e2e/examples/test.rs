@@ -1,9 +1,5 @@
 use std::error::Error;
 
-use local_interchaintest::utils::{
-    manager::{setup_manager, use_manager_init, SPLITTER_NAME},
-    LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
-};
 use localic_utils::{
     ConfigChainBuilder, TestContextBuilder, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
     NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
@@ -11,6 +7,10 @@ use localic_utils::{
 use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
+};
+use valence_e2e::utils::{
+    manager::{setup_manager, use_manager_init, SPLITTER_NAME},
+    LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
 };
 use valence_library_utils::denoms::UncheckedDenom;
 use valence_program_manager::{

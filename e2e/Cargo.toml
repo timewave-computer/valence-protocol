@@ -1,5 +1,5 @@
 [package]
-name       = "local-interchaintest"
+name       = "valence-e2e"
 edition    = { workspace = true }
 license    = { workspace = true }
 version    = { workspace = true }

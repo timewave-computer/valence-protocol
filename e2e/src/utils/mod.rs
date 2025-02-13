@@ -20,23 +20,19 @@ pub const NEUTRON_OSMO_CONFIG_FILE: &str = "neutron_osmosis.json";
 // Path of all valence contracts
 pub const VALENCE_ARTIFACTS_PATH: &str = "artifacts";
 // We keep the polytone contracts here for our tests
-pub const POLYTONE_ARTIFACTS_PATH: &str = "local-interchaintest/polytone_contracts";
+pub const POLYTONE_ARTIFACTS_PATH: &str = "e2e/polytone_contracts";
 // We keep the cosmwasm hyperlane contracts here to set up hyperlane on a cosmwasm chain
-pub const HYPERLANE_COSMWASM_ARTIFACTS_PATH: &str =
-    "local-interchaintest/hyperlane/contracts/cosmwasm";
-pub const HYPERLANE_RELAYER_CONFIG_PATH: &str = "local-interchaintest/hyperlane/config/config.json";
+pub const HYPERLANE_COSMWASM_ARTIFACTS_PATH: &str = "e2e/hyperlane/contracts/cosmwasm";
+pub const HYPERLANE_RELAYER_CONFIG_PATH: &str = "e2e/hyperlane/config/config.json";
 // Where we are keeping the astroport contracts for all our tests
 pub const ASTROPORT_PATH: &str = "packages/astroport-utils/contracts";
 // When spinning up local-ic, this is where the logs files will be stored, we used this to cache code_ids for a specific local-ic instance
-pub const LOGS_FILE_PATH: &str = "local-interchaintest/configs/logs.json";
+pub const LOGS_FILE_PATH: &str = "e2e/configs/logs.json";
 
-pub const LOCAL_CODE_ID_CACHE_PATH_NEUTRON: &str =
-    "local-interchaintest/code_id_cache_neutron.json";
-pub const LOCAL_CODE_ID_CACHE_PATH_JUNO: &str = "local-interchaintest/code_id_cache_juno.json";
-pub const LOCAL_CODE_ID_CACHE_PATH_PERSISTENCE: &str =
-    "local-interchaintest/code_id_cache_persistence.json";
-pub const LOCAL_CODE_ID_CACHE_PATH_OSMOSIS: &str =
-    "local-interchaintest/code_id_cache_osmosis.json";
+pub const LOCAL_CODE_ID_CACHE_PATH_NEUTRON: &str = "e2e/code_id_cache_neutron.json";
+pub const LOCAL_CODE_ID_CACHE_PATH_JUNO: &str = "e2e/code_id_cache_juno.json";
+pub const LOCAL_CODE_ID_CACHE_PATH_PERSISTENCE: &str = "e2e/code_id_cache_persistence.json";
+pub const LOCAL_CODE_ID_CACHE_PATH_OSMOSIS: &str = "e2e/code_id_cache_osmosis.json";
 
 pub const GAS_FLAGS: &str = "--gas=auto --gas-adjustment=3.0";
 pub const NTRN_DENOM: &str = "untrn";

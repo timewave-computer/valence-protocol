@@ -1,10 +1,10 @@
 use std::{env, error::Error, fs};
 
-use local_interchaintest::utils::{
+use localic_utils::{ConfigChainBuilder, TestContextBuilder, GAIA_CHAIN_NAME, LOCAL_IC_API_URL};
+use valence_e2e::utils::{
     manager::{get_global_config, setup_manager, SPLITTER_NAME},
     LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
 };
-use localic_utils::{ConfigChainBuilder, TestContextBuilder, GAIA_CHAIN_NAME, LOCAL_IC_API_URL};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut test_ctx = TestContextBuilder::default()
@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Save the config to a file
     let curr_path = env::current_dir()?;
     let config_dev_path = format!(
-        "{}/local-interchaintest/configs/config_dev.toml",
+        "{}/e2e/configs/config_dev.toml",
         curr_path.to_str().unwrap()
     );
 

@@ -5,10 +5,6 @@ use std::{
 };
 
 use cosmwasm_std_old::Coin as BankCoin;
-use local_interchaintest::utils::{
-    base_account::{approve_library, create_base_accounts},
-    GAS_FLAGS, LOGS_FILE_PATH, NTRN_DENOM, VALENCE_ARTIFACTS_PATH,
-};
 use localic_std::modules::{
     bank,
     cosmwasm::{contract_execute, contract_instantiate},
@@ -18,6 +14,10 @@ use localic_utils::{
     NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
 };
 use log::info;
+use valence_e2e::utils::{
+    base_account::{approve_library, create_base_accounts},
+    GAS_FLAGS, LOGS_FILE_PATH, NTRN_DENOM, VALENCE_ARTIFACTS_PATH,
+};
 
 use valence_generic_ibc_transfer_library::msg::{IbcTransferAmount, LibraryConfigUpdate};
 use valence_library_utils::{denoms::UncheckedDenom, LibraryAccountType};
