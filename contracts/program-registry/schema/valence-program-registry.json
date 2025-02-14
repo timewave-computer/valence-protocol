@@ -272,12 +272,101 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_all_configs"
+        ],
+        "properties": {
+          "get_all_configs": {
+            "type": "object",
+            "properties": {
+              "end": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint64",
+                "minimum": 0.0
+              },
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Get the last reserved id",
+        "type": "object",
+        "required": [
+          "get_last_id"
+        ],
+        "properties": {
+          "get_last_id": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ]
   },
   "migrate": null,
   "sudo": null,
   "responses": {
+    "get_all_configs": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Nullable_ProgramResponse",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ProgramResponse"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "definitions": {
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+          "type": "string"
+        },
+        "ProgramResponse": {
+          "type": "object",
+          "required": [
+            "id",
+            "program_config"
+          ],
+          "properties": {
+            "id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "program_config": {
+              "$ref": "#/definitions/Binary"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
     "get_config": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "ProgramResponse",
@@ -339,6 +428,13 @@
           "additionalProperties": false
         }
       }
+    },
+    "get_last_id": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "uint64",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
     }
   }
 }
