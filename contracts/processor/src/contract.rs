@@ -123,7 +123,7 @@ pub fn execute(
                     subroutine,
                     priority,
                     expiration_time,
-                } => enqueue_messages(deps, id, msgs, subroutine, priority, expiration_time),
+                } => enqueue_messages(deps, env, id, msgs, subroutine, priority, expiration_time),
                 AuthorizationMsg::EvictMsgs {
                     queue_position,
                     priority,
@@ -137,6 +137,7 @@ pub fn execute(
                     expiration_time,
                 } => insert_messages(
                     deps,
+                    env,
                     queue_position,
                     id,
                     msgs,
@@ -191,12 +192,31 @@ fn resume_processor(deps: DepsMut) -> Result<Response, ContractError> {
 /// Adds the messages to the back of the corresponding queue
 fn enqueue_messages(
     deps: DepsMut,
+    env: Env,
     id: u64,
     msgs: Vec<ProcessorMessage>,
     subroutine: Subroutine,
     priority: Priority,
     expiration_time: Option<u64>,
 ) -> Result<Response, ContractError> {
+    // If it's already expired we won't even add it to the queue and send the callback
+    if let Some(expiration_time) = expiration_time {
+        if expiration_time < env.block.time.seconds() {
+            let config = CONFIG.load(deps.storage)?;
+            let callback_msg = create_callback_message(
+                deps.storage,
+                &config,
+                id,
+                ExecutionResult::Expired(0),
+                &env.contract.address,
+            )?;
+            return Ok(Response::new()
+                .add_message(callback_msg)
+                .add_attribute("method", "enqueue_messages")
+                .add_attribute("action", "expired_batch"));
+        }
+    }
+
     let queue = get_queue_map(&priority);
 
     let message_batch = MessageBatch {
@@ -251,6 +271,7 @@ fn evict_messages(
 /// Insert a set of messages in a specific position of the queue
 fn insert_messages(
     deps: DepsMut,
+    env: Env,
     queue_position: u64,
     id: u64,
     msgs: Vec<ProcessorMessage>,
@@ -258,6 +279,24 @@ fn insert_messages(
     priority: Priority,
     expiration_time: Option<u64>,
 ) -> Result<Response, ContractError> {
+    // If it's already expired we won't even add it to the queue and send the callback
+    if let Some(expiration_time) = expiration_time {
+        if expiration_time < env.block.time.seconds() {
+            let config = CONFIG.load(deps.storage)?;
+            let callback_msg = create_callback_message(
+                deps.storage,
+                &config,
+                id,
+                ExecutionResult::Expired(0),
+                &env.contract.address,
+            )?;
+            return Ok(Response::new()
+                .add_message(callback_msg)
+                .add_attribute("method", "enqueue_messages")
+                .add_attribute("action", "expired_batch"));
+        }
+    }
+
     let mut queue = get_queue_map(&priority);
 
     let message_batch = MessageBatch {
