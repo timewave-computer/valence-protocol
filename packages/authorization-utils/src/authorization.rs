@@ -143,6 +143,13 @@ impl Subroutine {
             }
         }
     }
+
+    pub fn get_expiration_time(&self) -> Option<u64> {
+        match self {
+            Subroutine::Atomic(config) => config.expiration_time,
+            Subroutine::NonAtomic(config) => config.expiration_time,
+        }
+    }
 }
 
 #[cw_serde]

@@ -507,6 +507,11 @@ fn insert_messages(
 
     let domain = get_domain(&authorization)?;
     let id = get_and_increase_execution_id(deps.storage)?;
+    let expiration_time = authorization
+        .subroutine
+        .get_expiration_time()
+        .map(|time| time + env.block.time.seconds());
+
     let insert_msgs =
         ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::InsertMsgs {
             id,
@@ -514,6 +519,7 @@ fn insert_messages(
             msgs: messages.clone(),
             subroutine: authorization.subroutine.clone(),
             priority: priority.clone(),
+            expiration_time,
         });
 
     let execute_msg_binary = match domain.clone() {
@@ -654,12 +660,18 @@ fn send_msgs(
     let domain = get_domain(&authorization)?;
     // Get the ID we are going to use for the execution (used to process callbacks)
     let id = get_and_increase_execution_id(deps.storage)?;
+    // Calculate batch expiration time if Subroutine has one
+    let expiration_time = authorization
+        .subroutine
+        .get_expiration_time()
+        .map(|time| time + env.block.time.seconds());
     // Message for the processor
     let send_msgs = ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::EnqueueMsgs {
         id,
         msgs: messages.clone(),
         subroutine: authorization.subroutine.clone(),
         priority: authorization.priority.clone(),
+        expiration_time,
     });
 
     let execute_msg_binary = match domain.clone() {
@@ -749,12 +761,18 @@ fn retry_msgs(deps: DepsMut, env: Env, execution_id: u64) -> Result<Response, Co
                 callback_info.label.clone(),
                 &current_executions.checked_add(1).expect("Overflow"),
             )?;
+            // Calculate batch expiration time if Subroutine has one
+            let expiration_time = authorization
+                .subroutine
+                .get_expiration_time()
+                .map(|time| time + env.block.time.seconds());
             let execute_msg_binary = to_json_binary(
                 &ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::EnqueueMsgs {
                     id: execution_id,
                     msgs: callback_info.messages.clone(),
                     subroutine: authorization.subroutine,
                     priority: authorization.priority,
+                    expiration_time,
                 }),
             )?;
             // Update the state

@@ -151,7 +151,10 @@ impl Default for NonAtomicSubroutineBuilder {
 
 impl NonAtomicSubroutineBuilder {
     pub fn new() -> Self {
-        NonAtomicSubroutineBuilder { functions: vec![], expiration_time: None }
+        NonAtomicSubroutineBuilder {
+            functions: vec![],
+            expiration_time: None,
+        }
     }
 
     pub fn with_function(mut self, function: NonAtomicFunction) -> Self {

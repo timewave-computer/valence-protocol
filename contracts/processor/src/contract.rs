@@ -122,7 +122,8 @@ pub fn execute(
                     msgs,
                     subroutine,
                     priority,
-                } => enqueue_messages(deps, id, msgs, subroutine, priority),
+                    expiration_time,
+                } => enqueue_messages(deps, id, msgs, subroutine, priority, expiration_time),
                 AuthorizationMsg::EvictMsgs {
                     queue_position,
                     priority,
@@ -133,7 +134,16 @@ pub fn execute(
                     msgs,
                     subroutine,
                     priority,
-                } => insert_messages(deps, queue_position, id, msgs, subroutine, priority),
+                    expiration_time,
+                } => insert_messages(
+                    deps,
+                    queue_position,
+                    id,
+                    msgs,
+                    subroutine,
+                    priority,
+                    expiration_time,
+                ),
                 AuthorizationMsg::Pause {} => pause_processor(deps),
                 AuthorizationMsg::Resume {} => resume_processor(deps),
             }
@@ -185,6 +195,7 @@ fn enqueue_messages(
     msgs: Vec<ProcessorMessage>,
     subroutine: Subroutine,
     priority: Priority,
+    expiration_time: Option<u64>,
 ) -> Result<Response, ContractError> {
     let queue = get_queue_map(&priority);
 
@@ -193,6 +204,7 @@ fn enqueue_messages(
         msgs,
         subroutine,
         priority,
+        expiration_time,
         retry: None,
     };
     queue.push_back(deps.storage, &message_batch)?;
@@ -244,6 +256,7 @@ fn insert_messages(
     msgs: Vec<ProcessorMessage>,
     subroutine: Subroutine,
     priority: Priority,
+    expiration_time: Option<u64>,
 ) -> Result<Response, ContractError> {
     let mut queue = get_queue_map(&priority);
 
@@ -252,6 +265,7 @@ fn insert_messages(
         msgs,
         subroutine,
         priority,
+        expiration_time,
         retry: None,
     };
 
@@ -280,6 +294,35 @@ fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let messages;
     match message_batch {
         Some(batch) => {
+            // Let's check first if the batch is expired, if that's the case we'll send an Expired callback
+            if let Some(expiration_time) = batch.expiration_time {
+                if expiration_time <= env.block.time.seconds() {
+                    let config = CONFIG.load(deps.storage)?;
+                    let functions_executed = match &batch.subroutine {
+                        Subroutine::Atomic(_) => 0,
+                        Subroutine::NonAtomic(_) => {
+                            let index = NON_ATOMIC_BATCH_CURRENT_FUNCTION_INDEX
+                                .may_load(deps.storage, batch.id)?;
+                            index.unwrap_or_default()
+                        }
+                    };
+                    // Clean up
+                    NON_ATOMIC_BATCH_CURRENT_FUNCTION_INDEX.remove(deps.storage, batch.id);
+                    EXECUTION_ID_TO_BATCH.remove(deps.storage, batch.id);
+                    let callback_msg = create_callback_message(
+                        deps.storage,
+                        &config,
+                        batch.id,
+                        ExecutionResult::Expired(functions_executed),
+                        &env.contract.address,
+                    )?;
+                    return Ok(Response::new()
+                        .add_message(callback_msg)
+                        .add_attribute("method", "tick")
+                        .add_attribute("action", "expired_batch"));
+                }
+            }
+
             // First we check if the current batch or function to be executed is retriable, if it isn't we'll just push it back to the end of the queue
             // If the retry_cooldown has not passed yet, we'll push the batch back to the queue and wait for the next tick
             if let Some(current_retry) = batch.retry.clone() {
