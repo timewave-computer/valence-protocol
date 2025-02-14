@@ -258,12 +258,12 @@ fn evict_messages(
             )?;
             Ok(Response::new()
                 .add_message(callback_msg)
-                .add_attribute("method", "remove_messages")
+                .add_attribute("method", "evict_messages")
                 .add_attribute("messages_removed", batch.msgs.len().to_string()))
         }
         // It doesn't even exist, we do nothing
         None => Ok(Response::new()
-            .add_attribute("method", "remove_messages")
+            .add_attribute("method", "evict_messages")
             .add_attribute("messages_removed", "0")),
     }
 }
@@ -293,7 +293,7 @@ fn insert_messages(
             )?;
             return Ok(Response::new()
                 .add_message(callback_msg)
-                .add_attribute("method", "enqueue_messages")
+                .add_attribute("method", "insert_messages")
                 .add_attribute("action", "expired_batch"));
         }
     }
@@ -312,7 +312,7 @@ fn insert_messages(
     queue.insert_at(deps.storage, queue_position, &message_batch)?;
     EXECUTION_ID_TO_BATCH.save(deps.storage, id, &message_batch)?;
 
-    Ok(Response::new().add_attribute("method", "add_messages"))
+    Ok(Response::new().add_attribute("method", "insert_messages"))
 }
 
 fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
