@@ -13,7 +13,7 @@
 
   - MaxConcurrentExecutions (default 1): to avoid DDoS attacks and to clog the execution queues, we will allow certain authorizations subroutines to be present a maximum amount of times (default 1 unless overwritten) in the execution queue.
 
-  - Subroutine: set of functions in a specific order to be executed. Subroutines can be of two types: `Atomic` or `NonAtomic`. For the `Atomic` subroutines, we will provide an array of `Atomic` functions and an optional `RetryLogic` for the entire subroutine. For the `NonAtomic` subroutines we will just provide an array of `NonAtomic` functions.
+  - Subroutine: set of functions in a specific order to be executed. Subroutines can be of two types: `Atomic` or `NonAtomic`. For the `Atomic` subroutines, we will provide an array of `Atomic` functions, an optional `expiration_time` and an optional `RetryLogic` for the entire subroutine. For the `NonAtomic` subroutines we will just provide an array of `NonAtomic` functions and an optional `expiration_time`. The `expiration_time` defines how long messages that are executing a subroutine will be valid for once they are sent from the authorization contract. This is particularly useful for domains that use relayers without timeouts (e.g. Hyperlane). If the `expiration_time` is not provided, the relayer can go down for an indefinite amount of time and the messages will still be valid and execute when it's back up. If the `expiration_time` is provided, the messages will be valid for that amount of time and if the relayer is down for longer than that, the messages will be considered expired once the execution is attempted in the Processor contract, returning an `Expired` result.
 
     - `AtomicFunction`: each Atomic function has the following parameters:
 
