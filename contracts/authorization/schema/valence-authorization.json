@@ -199,6 +199,14 @@
           "functions"
         ],
         "properties": {
+          "expiration_time": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          },
           "functions": {
             "type": "array",
             "items": {
@@ -688,6 +696,20 @@
           {
             "type": "object",
             "required": [
+              "expired"
+            ],
+            "properties": {
+              "expired": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
               "unexpected_error"
             ],
             "properties": {
@@ -1051,6 +1073,14 @@
           "functions"
         ],
         "properties": {
+          "expiration_time": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          },
           "functions": {
             "type": "array",
             "items": {
@@ -2167,6 +2197,14 @@
             "functions"
           ],
           "properties": {
+            "expiration_time": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
             "functions": {
               "type": "array",
               "items": {
@@ -2558,6 +2596,14 @@
             "functions"
           ],
           "properties": {
+            "expiration_time": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
             "functions": {
               "type": "array",
               "items": {
@@ -3460,6 +3506,20 @@
             {
               "type": "object",
               "required": [
+                "expired"
+              ],
+              "properties": {
+                "expired": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
                 "unexpected_error"
               ],
               "properties": {
@@ -3740,6 +3800,20 @@
               "properties": {
                 "timeout": {
                   "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "expired"
+              ],
+              "properties": {
+                "expired": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0.0
                 }
               },
               "additionalProperties": false
