@@ -77,9 +77,6 @@ pub enum AuthorizationErrorReason {
 
     #[error("Encoding for library in authorization does not exist")]
     InvalidLibraryName {},
-
-    #[error("Expiration time of a subroutine can't be 0")]
-    InvalidExpirationTime {},
 }
 
 #[derive(Error, Debug, PartialEq)]

@@ -507,10 +507,10 @@ fn insert_messages(
 
     let domain = get_domain(&authorization)?;
     let id = get_and_increase_execution_id(deps.storage)?;
-    let expiration_time = authorization
-        .subroutine
-        .get_expiration_time()
-        .map(|time| time + env.block.time.seconds());
+    let expiration_time = authorization.subroutine.get_expiration_time().map(|time| {
+        time.checked_add(env.block.time.seconds())
+            .expect("Overflow")
+    });
 
     let insert_msgs =
         ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::InsertMsgs {
@@ -542,6 +542,7 @@ fn insert_messages(
                                 queue_position,
                                 priority,
                                 subroutine: authorization.subroutine,
+                                expiration_time,
                                 messages: encoder_messages,
                             },
                         },
@@ -661,10 +662,10 @@ fn send_msgs(
     // Get the ID we are going to use for the execution (used to process callbacks)
     let id = get_and_increase_execution_id(deps.storage)?;
     // Calculate batch expiration time if Subroutine has one
-    let expiration_time = authorization
-        .subroutine
-        .get_expiration_time()
-        .map(|time| time + env.block.time.seconds());
+    let expiration_time = authorization.subroutine.get_expiration_time().map(|time| {
+        time.checked_add(env.block.time.seconds())
+            .expect("Overflow")
+    });
     // Message for the processor
     let send_msgs = ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::EnqueueMsgs {
         id,
@@ -693,6 +694,7 @@ fn send_msgs(
                                 execution_id: id,
                                 priority: authorization.priority,
                                 subroutine: authorization.subroutine,
+                                expiration_time,
                                 messages: encoder_messages,
                             },
                         },
@@ -762,10 +764,10 @@ fn retry_msgs(deps: DepsMut, env: Env, execution_id: u64) -> Result<Response, Co
                 &current_executions.checked_add(1).expect("Overflow"),
             )?;
             // Calculate batch expiration time if Subroutine has one
-            let expiration_time = authorization
-                .subroutine
-                .get_expiration_time()
-                .map(|time| time + env.block.time.seconds());
+            let expiration_time = authorization.subroutine.get_expiration_time().map(|time| {
+                time.checked_add(env.block.time.seconds())
+                    .expect("Overflow")
+            });
             let execute_msg_binary = to_json_binary(
                 &ProcessorExecuteMsg::AuthorizationModuleAction(AuthorizationMsg::EnqueueMsgs {
                     id: execution_id,

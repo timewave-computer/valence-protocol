@@ -3201,49 +3201,7 @@ fn expired_atomic_batch() {
     let test_library_contract =
         store_and_instantiate_test_library(&wasm, &setup.owner_accounts[0], None);
 
-    // We'll create an authorization with 1 function with an invalid expiration time (0) to check that it cant be created
-    let authorizations = vec![AuthorizationBuilder::new()
-        .with_label("permissionless")
-        .with_subroutine(
-            AtomicSubroutineBuilder::new()
-                .with_expiration_time(0)
-                .with_function(
-                    AtomicFunctionBuilder::new()
-                        .with_contract_address(LibraryAccountType::Addr(
-                            test_library_contract.clone(),
-                        ))
-                        .with_message_details(MessageDetails {
-                            message_type: MessageType::CosmwasmExecuteMsg,
-                            message: Message {
-                                name: "will_succeed".to_string(),
-                                params_restrictions: None,
-                            },
-                        })
-                        .build(),
-                )
-                .build(),
-        )
-        .build()];
-
-    // Create the authorization and send the messages
-    let error = wasm
-        .execute::<ExecuteMsg>(
-            &authorization_contract,
-            &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations {
-                authorizations,
-            }),
-            &[],
-            &setup.owner_accounts[0],
-        )
-        .unwrap_err();
-
-    assert!(error.to_string().contains(
-        ContractError::Authorization(AuthorizationErrorReason::InvalidExpirationTime {})
-            .to_string()
-            .as_str()
-    ));
-
-    // Let's create it with a valid expiration time
+    // Let's create it with expiration time
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
         .with_subroutine(
@@ -3353,7 +3311,7 @@ fn expired_non_atomic_batch() {
     let test_library_contract =
         store_and_instantiate_test_library(&wasm, &setup.owner_accounts[0], None);
 
-    // We'll create an authorization with 2 functions that succeed
+    // We'll create an authorization with 2 functions that succeed and expiration time
     let authorizations = vec![AuthorizationBuilder::new()
         .with_label("permissionless")
         .with_subroutine(

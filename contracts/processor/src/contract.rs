@@ -296,7 +296,7 @@ fn process_tick(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         Some(batch) => {
             // Let's check first if the batch is expired, if that's the case we'll send an Expired callback
             if let Some(expiration_time) = batch.expiration_time {
-                if expiration_time <= env.block.time.seconds() {
+                if expiration_time < env.block.time.seconds() {
                     let config = CONFIG.load(deps.storage)?;
                     let functions_executed = match &batch.subroutine {
                         Subroutine::Atomic(_) => 0,

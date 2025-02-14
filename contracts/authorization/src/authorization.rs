@@ -96,14 +96,6 @@ impl Validate for Authorization {
         store: &dyn Storage,
         querier: QuerierWrapper,
     ) -> Result<(), ContractError> {
-        if let Some(expiration_time) = self.subroutine.get_expiration_time() {
-            if expiration_time == 0 {
-                return Err(ContractError::Authorization(
-                    AuthorizationErrorReason::InvalidExpirationTime {},
-                ));
-            }
-        }
-
         match &self.subroutine {
             Subroutine::Atomic(config) => {
                 self.validate_functions(store, &config.functions, querier)?
