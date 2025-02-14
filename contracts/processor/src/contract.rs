@@ -269,6 +269,7 @@ fn evict_messages(
 }
 
 /// Insert a set of messages in a specific position of the queue
+#[allow(clippy::too_many_arguments)]
 fn insert_messages(
     deps: DepsMut,
     env: Env,
