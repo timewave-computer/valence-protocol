@@ -28,6 +28,15 @@ pub enum QueryMsg {
     /// returns None if there is no backup
     #[returns(Option<ProgramResponse>)]
     GetConfigBackup { id: u64 },
+    #[returns(Option<ProgramResponse>)]
+    GetAllConfigs {
+        start: Option<u64>,
+        end: Option<u64>,
+        limit: Option<u32>,
+    },
+    /// Get the last reserved id
+    #[returns(u64)]
+    GetLastId {},
 }
 
 #[cw_serde]
