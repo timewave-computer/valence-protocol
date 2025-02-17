@@ -681,7 +681,7 @@ Example: If the label is <code>withdraw</code> and only address <code>neutron123
 <p>MaxConcurrentExecutions (default 1): to avoid DDoS attacks and to clog the execution queues, we will allow certain authorizations subroutines to be present a maximum amount of times (default 1 unless overwritten) in the execution queue.</p>
 </li>
 <li>
-<p>Subroutine: set of functions in a specific order to be executed. Subroutines can be of two types: <code>Atomic</code> or <code>NonAtomic</code>. For the <code>Atomic</code> subroutines, we will provide an array of <code>Atomic</code> functions and an optional <code>RetryLogic</code> for the entire subroutine. For the <code>NonAtomic</code> subroutines we will just provide an array of <code>NonAtomic</code> functions.</p>
+<p>Subroutine: set of functions in a specific order to be executed. Subroutines can be of two types: <code>Atomic</code> or <code>NonAtomic</code>. For the <code>Atomic</code> subroutines, we will provide an array of <code>Atomic</code> functions, an optional <code>expiration_time</code> and an optional <code>RetryLogic</code> for the entire subroutine. For the <code>NonAtomic</code> subroutines we will just provide an array of <code>NonAtomic</code> functions and an optional <code>expiration_time</code>. The <code>expiration_time</code> defines how long messages that are executing a subroutine will be valid for once they are sent from the authorization contract. This is particularly useful for domains that use relayers without timeouts (e.g. Hyperlane). If the <code>expiration_time</code> is not provided, the relayer can go down for an indefinite amount of time and the messages will still be valid and execute when it's back up. If the <code>expiration_time</code> is provided, the messages will be valid for that amount of time, by adding the current block timestamp to the <code>expiration_time</code>, and if the relayer is down for longer than that, the messages will be considered expired once the execution is attempted in the Processor contract, returning an <code>Expired</code> result.</p>
 <ul>
 <li>
 <p><code>AtomicFunction</code>: each Atomic function has the following parameters:</p>
@@ -793,7 +793,8 @@ Depending on the Processor type in use, its features will vary. There are curren
 <p>The Authorization contract will be the only address allowed to add message batches to the execution queues. It will also be allowed to Pause/Resume the Processor or to arbitrarily remove functions from the queues or add certain messages at a specific position in any of them.</p>
 <h3 id="execution"><a class="header" href="#execution">Execution</a></h3>
 <p>When a processor is <code>Ticked</code>, the first <code>Message Batch</code> will be taken from the queue (<code>High</code> if there are batches there or <code>Med</code> if there aren’t).
-After taking them, we will execute them in different ways depending if the batch is <code>Atomic</code> or <code>NonAtomic</code>.</p>
+After taking the <code>Message Batch</code>, the processor will first check if the batch is expired. If that's the case, the processor will discard the batch and return an <code>Expired(executed_functions)</code> <code>ExecutionResult</code> to the Authorization contract. There might be a case that the batch is <code>NonAtomic</code> and it's already partially executed, therefore the processor also returns the number of functions that were executed before the expiration.
+If the batch has not expired, the processor will execute the batch according to whether it is <code>Atomic</code> or <code>NonAtomic</code>.</p>
 <ul>
 <li>
 <p>For <code>Atomic</code> batches, the Processor will execute either all functions or none of them. If execution fails, the batch <code>RetryLogic</code> is checked to determine if the match should be re-enqueued. If not, a callback is sent with a <code>Rejected(error)</code> status to the Authorization contract.
@@ -830,7 +831,8 @@ Each “item” stored in the queue is a <code>MessageBatch</code> object that h
 <p>This is a simplified version of the <a href="authorizations_processors/processor.html">Processor</a> contract, with more limited functionality that is optimized for specific domains where gas costs are critical. This version of the processor is currently available for <code>EVM</code> execution environments only.</p>
 <p>The main difference between the Lite Processor and the Processor is that the former does not store message batches, but instead executes messages directly when received. The Lite Processor does not handle retries, function callbacks, or queues. More details can be found below.</p>
 <h3 id="execution-1"><a class="header" href="#execution-1">Execution</a></h3>
-<p>The Lite Processor is not <code>ticked</code>, instead it will receive a <code>MessageBatch</code> from the Authorization contract and execute it immediately. Therefore, the execution gas cost will be paid by the relayer of the batch instead of the user who ticks the processor.</p>
+<p>The Lite Processor is not <code>ticked</code>, instead it will receive a <code>MessageBatch</code> from the Authorization contract and execute it immediately. Therefore, the execution gas cost will be paid by the relayer of the batch instead of the user who ticks the processor.
+There might be a case that the <code>MessageBatch</code> received is already expired, which can happen if the relayer was not working or was slow to send the batch. In this case, the Processor will discard the batch and return an <code>Expired(0)</code> <code>ExecutionResult</code> to the Authorization contract.</p>
 <p>This processor does not store batches or use any queue, instead it will simply receive the batch, execute it atomically or non-atomically, and send a callback to the Authorization contract with the <code>ExecutionResult</code>. The only information stored by this processor is the information of the Authorization contract, the information of the Connector (e.g. Hyperlane Mailbox, origin domain id, ...) and the authorized entities that can also execute batches on it without requiring them to be sent from the main domain.</p>
 <p>Since there are no queues, operations like <code>InsertAt</code> or <code>RemoveFrom</code> queue that the owner of the Authorization Contract may perform on the Processor are not available on the Lite Processor. Therefore the operations that the Lite Processor supports from the Authorization contract are limited to: <code>Pause</code>, <code>Resume</code> and <code>SendMsgs</code>.</p>
 <p>In addition to the limitations above, the Lite Processor does not support retries or function callbacks. This means that the <code>MessageBatch</code> received will be executed only once and the <code>NonAtomic</code> batches can not be confirmed asynchronously because batch execution will be attempted once, non-atomically, the moment it is received.</p>
@@ -884,6 +886,7 @@ Each “item” stored in the queue is a <code>MessageBatch</code> object that h
     pub execution_result: ExecutionResult,
 }
 
+#[cw_serde]
 pub enum ExecutionResult {
     InProcess,
     // Everthing executed successfully
@@ -900,6 +903,9 @@ pub enum ExecutionResult {
     // true - retriable
     // false - not retriable
     Timeout(bool),
+    // Expired - happens when the batch wasn't executed in time according to the subroutine configuration
+    // Indicates how many functions were executed (non-atomic batches might have executed some functions before the expiration)
+    Expired(usize),
     // Unexpected error that should never happen but we'll store it here if it ever does
     UnexpectedError(String),
 }

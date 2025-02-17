@@ -164,7 +164,8 @@
 <p>The Authorization contract will be the only address allowed to add message batches to the execution queues. It will also be allowed to Pause/Resume the Processor or to arbitrarily remove functions from the queues or add certain messages at a specific position in any of them.</p>
 <h3 id="execution"><a class="header" href="#execution">Execution</a></h3>
 <p>When a processor is <code>Ticked</code>, the first <code>Message Batch</code> will be taken from the queue (<code>High</code> if there are batches there or <code>Med</code> if there aren’t).
-After taking them, we will execute them in different ways depending if the batch is <code>Atomic</code> or <code>NonAtomic</code>.</p>
+After taking the <code>Message Batch</code>, the processor will first check if the batch is expired. If that's the case, the processor will discard the batch and return an <code>Expired(executed_functions)</code> <code>ExecutionResult</code> to the Authorization contract. There might be a case that the batch is <code>NonAtomic</code> and it's already partially executed, therefore the processor also returns the number of functions that were executed before the expiration.
+If the batch has not expired, the processor will execute the batch according to whether it is <code>Atomic</code> or <code>NonAtomic</code>.</p>
 <ul>
 <li>
 <p>For <code>Atomic</code> batches, the Processor will execute either all functions or none of them. If execution fails, the batch <code>RetryLogic</code> is checked to determine if the match should be re-enqueued. If not, a callback is sent with a <code>Rejected(error)</code> status to the Authorization contract.
