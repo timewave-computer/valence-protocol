@@ -84,11 +84,20 @@ jobs:
           name: forge-artifacts
           path: ./solidity/out/
 
+      - name: Install Taplo CLI
+        run: |
+          curl -sL https://github.com/tamasfe/taplo/releases/latest/download/taplo-cli-linux-x86_64.gz | gunzip > taplo
+          chmod +x taplo
+          mv taplo /usr/local/bin/
+
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
 
       - name: Run clippy
         run: cargo clippy --all-targets --verbose -- -D warnings
+
+      - name: Run taplo (toml fmt)
+        run: ./devtools/toml_fmt.sh --check
 
       - name: Optimize contracts
         run: |

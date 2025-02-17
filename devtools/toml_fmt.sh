@@ -17,12 +17,9 @@ toml_fmt() {
     indent_string = "    "
     reorder_keys = false
 EOF
-    echo "created temp file"
-    echo "flag: $flag"
+
     # run the formatter with provided flag (if provided)
     taplo fmt $flag --config /tmp/taplo.toml
-
-    ls
 
     # remove the temp config
     rm /tmp/taplo.toml
