@@ -8,12 +8,7 @@ repository = { workspace = true }
 
 [features]
 default = []
-testing = [
-    "dep:cw-multi-test",
-    "dep:cw20",
-    "dep:cw20-base",
-    "dep:sha2",
-]
+testing = ["dep:cw-multi-test", "dep:cw20", "dep:cw20-base", "dep:sha2"]
 
 [dependencies]
 cosmwasm-schema = { workspace = true }
@@ -26,7 +21,7 @@ thiserror       = { workspace = true }
 valence-macros  = { workspace = true }
 
 # Testing dependencies
-cw-multi-test        = { workspace = true, optional = true }
-cw20                 = { workspace = true, optional = true }
-cw20-base            = { workspace = true, optional = true }
-sha2                 = { workspace = true, optional = true }
+cw-multi-test = { workspace = true, optional = true }
+cw20          = { workspace = true, optional = true }
+cw20-base     = { workspace = true, optional = true }
+sha2          = { workspace = true, optional = true }

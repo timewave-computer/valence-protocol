@@ -19,4 +19,4 @@ cosmwasm-schema  = { workspace = true }
 serde            = { workspace = true }
 
 # Optional dependencies
-neutron-sdk      = { workspace = true, optional = true }
+neutron-sdk = { workspace = true, optional = true }

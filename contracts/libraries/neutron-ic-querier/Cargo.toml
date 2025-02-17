@@ -14,16 +14,16 @@ crate-type = ["cdylib", "rlib"]
 library = []
 
 [dependencies]
-cosmwasm-std                = { workspace = true }
-cosmwasm-schema             = { workspace = true }
-cw-ownable                  = { workspace = true }
-valence-storage-account     = { workspace = true }
-valence-macros              = { workspace = true }
-valence-library-utils       = { workspace = true }
-valence-library-base        = { workspace = true }
-neutron-sdk                 = { workspace = true }
-serde-json-wasm             = { version = "1.0.0", default-features = false }
-cw-storage-plus             = { workspace = true }
-valence-middleware-broker   = { workspace = true }
-valence-middleware-utils    = { workspace = true }
-cw-utils                    = { workspace = true }
+cosmwasm-std              = { workspace = true }
+cosmwasm-schema           = { workspace = true }
+cw-ownable                = { workspace = true }
+valence-storage-account   = { workspace = true }
+valence-macros            = { workspace = true }
+valence-library-utils     = { workspace = true }
+valence-library-base      = { workspace = true }
+neutron-sdk               = { workspace = true }
+serde-json-wasm           = { version = "1.0.0", default-features = false }
+cw-storage-plus           = { workspace = true }
+valence-middleware-broker = { workspace = true }
+valence-middleware-utils  = { workspace = true }
+cw-utils                  = { workspace = true }

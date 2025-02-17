@@ -19,12 +19,11 @@ gas_denom = "ujuno"
 coin_type = "118"
 
 [chains.neutron]
-name      = "neutron"
-rpc       = "https://neutron-testnet-rpc.polkachu.com:443"
-grpc      = "https://grpc-falcron.pion-1.ntrn.tech:80"
+name = "neutron"
+rpc  = "https://neutron-testnet-rpc.polkachu.com:443"
+grpc = "https://grpc-falcron.pion-1.ntrn.tech:80"
 # grpc      = "https://neutron-testnet-rpc.polkachu.com:19190"
 prefix    = "neutron"
 gas_price = "0.055"
 gas_denom = "untrn"
 coin_type = "118"
-

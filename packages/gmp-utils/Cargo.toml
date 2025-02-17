@@ -6,5 +6,5 @@ authors     = { workspace = true }
 description = "Helpers for general message passing"
 
 [dependencies]
-cosmwasm-std                = { workspace = true }
-cosmwasm-schema             = { workspace = true }
+cosmwasm-std    = { workspace = true }
+cosmwasm-schema = { workspace = true }
