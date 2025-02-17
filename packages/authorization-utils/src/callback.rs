@@ -54,6 +54,9 @@ pub enum ExecutionResult {
     // true - retriable
     // false - not retriable
     Timeout(bool),
+    // Expired - happens when the batch wasn't executed in time according to the subroutine configuration
+    // Indicates how many functions were executed (non-atomic batches might have executed some functions before the expiration)
+    Expired(usize),
     // Unexpected error that should never happen but we'll store it here if it ever does
     UnexpectedError(String),
 }

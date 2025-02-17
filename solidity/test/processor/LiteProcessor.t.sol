@@ -156,6 +156,7 @@ contract LiteProcessorTest is Test {
                 subroutineType: IProcessorMessageTypes.SubroutineType.Atomic,
                 subroutine: bytes("")
             }),
+            expirationTime: 0,
             messages: new bytes[](0)
         });
 

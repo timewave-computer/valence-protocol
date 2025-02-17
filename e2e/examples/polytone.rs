@@ -594,6 +594,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         subroutine: Subroutine::Atomic(AtomicSubroutine {
             functions: vec![function.clone()],
             retry_logic: None,
+            expiration_time: None,
         }),
         priority: None,
     };
@@ -634,6 +635,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     authorization.subroutine = Subroutine::Atomic(AtomicSubroutine {
         functions: vec![function.clone()],
         retry_logic: None,
+        expiration_time: None,
     });
 
     contract_execute(
@@ -728,7 +730,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             &valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
                 valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
                     label: "label".to_string(),
-                    messages: vec![ProcessorMessage::CosmwasmExecuteMsg { msg }],
+                    messages: vec![ProcessorMessage::CosmwasmExecuteMsg { msg: msg.clone() }],
                     ttl: Some(Expiration::AtTime(Timestamp::from_seconds(
                         SystemTime::now()
                             .duration_since(SystemTime::UNIX_EPOCH)?
@@ -1006,6 +1008,74 @@ fn main() -> Result<(), Box<dyn Error>> {
         &predicted_authorization_contract_address,
         1,
         &ExecutionResult::Rejected("anything".to_string()),
+    );
+
+    // Let's create an authorization that we will force to expire the moment the batch is received by the processor
+    info!("Creating an authorization that will expire immediately after the batch is received by the processor...");
+    authorization.subroutine = Subroutine::Atomic(AtomicSubroutine {
+        functions: vec![function.clone()],
+        retry_logic: None,
+        expiration_time: Some(5),
+    });
+    authorization.label = "expire".to_string();
+    authorization.mode = AuthorizationModeInfo::Permissionless;
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &predicted_authorization_contract_address.clone(),
+        DEFAULT_KEY,
+        &serde_json::to_string(
+            &valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
+                PermissionedMsg::CreateAuthorizations {
+                    authorizations: vec![authorization.clone()],
+                },
+            ),
+        )
+        .unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+    std::thread::sleep(Duration::from_secs(3));
+
+    // Stop relayer before sending
+    test_ctx.stop_relayer();
+
+    // Send the messages
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &predicted_authorization_contract_address.clone(),
+        USER_KEY_1,
+        &serde_json::to_string(
+            &valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+                valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+                    label: "expire".to_string(),
+                    messages: vec![ProcessorMessage::CosmwasmExecuteMsg { msg: msg.clone() }],
+                    ttl: None,
+                },
+            ),
+        )
+        .unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+
+    // Wait for expiration_time to pass
+    std::thread::sleep(Duration::from_secs(6));
+
+    // Start the relayer again
+    restart_relayer(&mut test_ctx);
+
+    // The message will be received by the processor that will confirm it's already expired and return the callback immediately
+    info!("Querying the result in the authorization contract...");
+    verify_authorization_execution_result(
+        &mut test_ctx,
+        &predicted_authorization_contract_address,
+        3,
+        &ExecutionResult::Expired(0),
     );
 
     info!("All polytone tests passed!");

@@ -48,6 +48,7 @@ pub struct MessageBatch {
     pub msgs: Vec<ProcessorMessage>,
     pub subroutine: Subroutine,
     pub priority: Priority,
+    pub expiration_time: Option<u64>,
     pub retry: Option<CurrentRetry>,
 }
 

@@ -118,6 +118,7 @@ fn test_send_msgs() {
     let atomic_subroutine = AtomicSubroutine {
         functions: vec![atomic_function],
         retry_logic,
+        expiration_time: None,
     };
 
     let subroutine = Subroutine::Atomic(atomic_subroutine);
@@ -126,6 +127,7 @@ fn test_send_msgs() {
         execution_id: 1,
         priority: Priority::Medium,
         subroutine,
+        expiration_time: Some(1000),
         messages,
     };
 
@@ -154,6 +156,7 @@ fn test_send_msgs() {
         decoded_send_msgs.priority,
         crate::solidity_types::Priority::Medium
     );
+    assert_eq!(decoded_send_msgs.expirationTime, 1000);
     assert_eq!(decoded_send_msgs.messages.len(), 2);
 
     let subroutine = crate::solidity_types::AtomicSubroutine::abi_decode(
@@ -223,6 +226,7 @@ fn test_insert_msgs() {
 
     let non_atomic_subroutine = NonAtomicSubroutine {
         functions: vec![non_atomic_function],
+        expiration_time: None,
     };
 
     let subroutine = Subroutine::NonAtomic(non_atomic_subroutine);
@@ -233,6 +237,7 @@ fn test_insert_msgs() {
         queue_position: 5, // Insert at position 5
         priority: Priority::High,
         subroutine,
+        expiration_time: None,
         messages,
     };
 
@@ -264,6 +269,7 @@ fn test_insert_msgs() {
         decoded_insert_msgs.priority,
         crate::solidity_types::Priority::High
     );
+    assert_eq!(decoded_insert_msgs.expirationTime, 0);
     assert_eq!(decoded_insert_msgs.messages.len(), 1);
 }
 
@@ -397,12 +403,14 @@ fn test_send_msgs_with_different_retry_logic() {
         let atomic_subroutine = AtomicSubroutine {
             functions: vec![atomic_function],
             retry_logic: Some(retry_logic),
+            expiration_time: None,
         };
 
         let send_msgs = ProcessorMessageToEncode::SendMsgs {
             execution_id: 1,
             priority: Priority::Medium,
             subroutine: Subroutine::Atomic(atomic_subroutine),
+            expiration_time: Some(5),
             messages: messages.clone(),
         };
 
@@ -424,6 +432,7 @@ fn test_send_msgs_with_different_retry_logic() {
             decoded_send_msgs.priority,
             crate::solidity_types::Priority::Medium
         );
+        assert_eq!(decoded_send_msgs.expirationTime, 5);
     }
 }
 
