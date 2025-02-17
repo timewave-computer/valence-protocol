@@ -48,7 +48,7 @@ The default chain config that is used in this script is the `neutron.json` confi
 Example with `neutron_juno.json` chain config:
 
 ```bash
-cargo run -p generate_local_ic_config -- -c neutron_juno
+cargo run -p generate_local_ic_config -- -c neutron_juno.json
 ```
 
 ## 5. Build program config

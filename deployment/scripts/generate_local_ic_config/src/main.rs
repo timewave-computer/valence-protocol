@@ -1,7 +1,8 @@
 use clap::{arg, command, Parser};
 use std::{error::Error, fs};
 
-use local_interchaintest::utils::{
+use localic_utils::{ConfigChainBuilder, TestContextBuilder, GAIA_CHAIN_NAME, LOCAL_IC_API_URL};
+use valence_e2e::utils::{
     manager::{
         get_global_config, setup_manager, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME,
         FORWARDER_NAME, GENERIC_IBC_TRANSFER_NAME, NEUTRON_IBC_TRANSFER_NAME, OSMOSIS_CL_LPER_NAME,
@@ -10,7 +11,6 @@ use local_interchaintest::utils::{
     },
     NEUTRON_CONFIG_FILE,
 };
-use localic_utils::{ConfigChainBuilder, TestContextBuilder, GAIA_CHAIN_NAME, LOCAL_IC_API_URL};
 
 pub const LOGS_FILE_PATH: &str = "local-interchaintest/configs/logs.json";
 pub const VALENCE_ARTIFACTS_PATH: &str = "artifacts";

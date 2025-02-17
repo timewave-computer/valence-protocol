@@ -18,5 +18,5 @@ cosmos-grpc-client      = "3.0.1"
 valence-program-manager = { workspace = true }
 tokio                   = { workspace = true }
 toml                    = "0.8.19"
-local-interchaintest    = { workspace = true }
+valence-e2e             = { workspace = true }
 clap                    = { workspace = true }

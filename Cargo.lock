@@ -3103,7 +3103,6 @@ dependencies = [
  "cosmos-grpc-client",
  "env_logger 0.11.6",
  "hex",
- "local-interchaintest",
  "localic-std",
  "localic-utils",
  "log",
@@ -3112,6 +3111,7 @@ dependencies = [
  "sha2 0.10.8",
  "tokio",
  "toml",
+ "valence-e2e",
  "valence-program-manager",
 ]
 

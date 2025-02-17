@@ -7,7 +7,7 @@ use std::path::Path;
 use valence_program_manager::program_config::ProgramConfig;
 
 #[derive(Debug, Clone, clap::ValueEnum, Default)]
-pub enum Configs {
+pub enum Config {
     Testnet,
     Mainnet,
     #[default]
@@ -19,7 +19,7 @@ pub enum Configs {
 struct Args {
     /// Enviroment config to use
     #[arg(short, long)]
-    manager_config: Configs,
+    target_env: Config,
     /// Path to the program config file
     #[arg(short, long, default_value = "deployment/output_program/program.json")]
     program_config_path: String,
@@ -29,7 +29,7 @@ struct Args {
 async fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
-    set_manager_config(args.manager_config).await?;
+    set_manager_config(args.target_env).await?;
 
     // Read program config from file
     let mut program_config = get_program_config(args.program_config_path);
@@ -38,7 +38,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     valence_program_manager::init_program(&mut program_config).await?;
 
     // Print instantiated program to file
-    print_result(program_config)?;
+    write_result(program_config)?;
 
     Ok(())
 }
@@ -48,11 +48,9 @@ pub fn get_program_config(path: String) -> ProgramConfig {
     serde_json::from_str::<ProgramConfig>(&content).expect("Failed to parse into ProgramConfig")
 }
 
-pub fn get_config(
-    path: Configs,
-) -> Result<valence_program_manager::config::Config, Box<dyn Error>> {
+pub fn get_config(path: Config) -> Result<valence_program_manager::config::Config, Box<dyn Error>> {
     match path {
-        Configs::Testnet => ConfigHelper::builder()
+        Config::Testnet => ConfigHelper::builder()
             .add_source(
                 glob::glob("deployment/configs/testnet/*")
                     .unwrap()
@@ -83,7 +81,7 @@ pub fn get_config(
             .build()?
             .try_deserialize()
             .map_err(|e| e.into()),
-        Configs::Mainnet => ConfigHelper::builder()
+        Config::Mainnet => ConfigHelper::builder()
             .add_source(
                 glob::glob("deployment/configs/mainnet/*")
                     .unwrap()
@@ -114,7 +112,7 @@ pub fn get_config(
             .build()?
             .try_deserialize()
             .map_err(|e| e.into()),
-        Configs::Local => ConfigHelper::builder()
+        Config::Local => ConfigHelper::builder()
             .add_source(config::File::with_name("deployment/configs/local/config"))
             .build()?
             .try_deserialize()
@@ -122,7 +120,7 @@ pub fn get_config(
     }
 }
 
-async fn set_manager_config(config_path: Configs) -> Result<(), Box<dyn Error>> {
+async fn set_manager_config(config_path: Config) -> Result<(), Box<dyn Error>> {
     // Read the config
     let config = get_config(config_path)?;
 
@@ -132,7 +130,7 @@ async fn set_manager_config(config_path: Configs) -> Result<(), Box<dyn Error>> 
     Ok(())
 }
 
-fn print_result(program_config: ProgramConfig) -> Result<(), Box<dyn Error>> {
+fn write_result(program_config: ProgramConfig) -> Result<(), Box<dyn Error>> {
     let path_name = "deployment/results";
     let path = Path::new(path_name);
 
