@@ -15,7 +15,7 @@ use super::{
         InterchainGasPaymaster, Mailbox, MerkleTreeHook, PausableIsm, ValidatorAnnounce,
     },
     GAS_FLAGS, HYPERLANE_COSMWASM_ARTIFACTS_PATH, HYPERLANE_RELAYER_CONFIG_PATH,
-    LOCAL_CODE_ID_CACHE_PATH_NEUTRON, NEUTRON_HYPERLANE_DOMAIN,
+    HYPERLANE_RELAYER_CONTAINER_NAME, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, NEUTRON_HYPERLANE_DOMAIN,
 };
 use bollard::{
     container::{Config, CreateContainerOptions},
@@ -469,12 +469,9 @@ async fn add_containers_to_network(
 
 /// Stop and remove any existing Hyperlane relayer container
 async fn stop_existing_relayer(docker: &Docker) -> Result<(), Box<dyn std::error::Error>> {
-    // Define relayer container name
-    let relayer_name = "hyperlane-relayer";
-
     // Set up filter to find relayer container
     let mut filters = HashMap::new();
-    filters.insert("name", vec![relayer_name]);
+    filters.insert("name", vec![HYPERLANE_RELAYER_CONTAINER_NAME]);
 
     let options = ListContainersOptions {
         all: true,
@@ -589,7 +586,7 @@ async fn run_hyperlane_relayer(
     };
 
     let options = CreateContainerOptions {
-        name: "hyperlane-relayer",
+        name: HYPERLANE_RELAYER_CONTAINER_NAME,
         platform: None,
     };
 

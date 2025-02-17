@@ -143,6 +143,13 @@ impl Subroutine {
             }
         }
     }
+
+    pub fn get_expiration_time(&self) -> Option<u64> {
+        match self {
+            Subroutine::Atomic(config) => config.expiration_time,
+            Subroutine::NonAtomic(config) => config.expiration_time,
+        }
+    }
 }
 
 #[cw_serde]
@@ -150,11 +157,15 @@ pub struct AtomicSubroutine {
     pub functions: Vec<AtomicFunction>,
     // Used for Atomic batches, if we don't specify retry logic then the functions won't be retried.
     pub retry_logic: Option<RetryLogic>,
+    // How long that a batch for this subroutine will be valid once it's sent from the authorization contract, in seconds.
+    pub expiration_time: Option<u64>,
 }
 
 #[cw_serde]
 pub struct NonAtomicSubroutine {
     pub functions: Vec<NonAtomicFunction>,
+    // How long that a batch for this subroutine will be valid once it's sent from the authorization contract, in seconds.
+    pub expiration_time: Option<u64>,
 }
 
 #[cw_serde]

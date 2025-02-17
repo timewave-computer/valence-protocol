@@ -170,6 +170,7 @@ interface IProcessorMessageTypes {
      * @param queuePosition Position in the queue where messages should be inserted
      * @param priority Processing priority for these messages
      * @param subroutine The subroutine to execute for these messages
+     * @param expirationTime The block timestamp when these messages expire
      * @param messages Array of encoded messages to process
      */
     struct InsertMsgs {
@@ -177,6 +178,7 @@ interface IProcessorMessageTypes {
         uint64 queuePosition;
         Priority priority;
         Subroutine subroutine;
+        uint64 expirationTime;
         bytes[] messages;
     }
 
@@ -185,12 +187,14 @@ interface IProcessorMessageTypes {
      * @param executionId Unique identifier for this execution
      * @param priority Processing priority for these messages
      * @param subroutine The subroutine for these messages
+     * @param expirationTime The block timestamp when these messages expire
      * @param messages Array of encoded messages to process
      */
     struct SendMsgs {
         uint64 executionId;
         Priority priority;
         Subroutine subroutine;
+        uint64 expirationTime;
         bytes[] messages;
     }
 

@@ -43,6 +43,7 @@ pub enum AuthorizationMsg {
         msgs: Vec<ProcessorMessage>,
         subroutine: Subroutine,
         priority: Priority,
+        expiration_time: Option<u64>,
     },
     EvictMsgs {
         queue_position: u64,
@@ -54,6 +55,7 @@ pub enum AuthorizationMsg {
         msgs: Vec<ProcessorMessage>,
         subroutine: Subroutine,
         priority: Priority,
+        expiration_time: Option<u64>,
     },
     Pause {},
     Resume {},

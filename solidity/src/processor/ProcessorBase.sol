@@ -96,9 +96,14 @@ abstract contract ProcessorBase {
         bytes[] memory messages
     ) internal returns (IProcessor.SubroutineResult memory) {
         try this._executeAtomicSubroutine(atomicSubroutine, messages) returns (uint256 totalExecuted) {
-            return IProcessor.SubroutineResult({succeeded: true, executedCount: totalExecuted, errorData: ""});
+            return IProcessor.SubroutineResult({
+                succeeded: true,
+                expired: false,
+                executedCount: totalExecuted,
+                errorData: ""
+            });
         } catch (bytes memory err) {
-            return IProcessor.SubroutineResult({succeeded: false, executedCount: 0, errorData: err});
+            return IProcessor.SubroutineResult({succeeded: false, expired: false, executedCount: 0, errorData: err});
         }
     }
 
@@ -144,7 +149,12 @@ abstract contract ProcessorBase {
             }
         }
 
-        return IProcessor.SubroutineResult({succeeded: succeeded, executedCount: executedCount, errorData: errorData});
+        return IProcessor.SubroutineResult({
+            succeeded: succeeded,
+            expired: false,
+            executedCount: executedCount,
+            errorData: errorData
+        });
     }
 
     /**
@@ -235,11 +245,14 @@ abstract contract ProcessorBase {
     {
         // Determine the execution result based on the following rules:
         // - If succeeded = true -> Success (all operations completed)
-        // - If succeeded = false and executedCount = 0 -> Rejected (nothing executed)
-        // - If succeeded = false and executedCount > 0 -> PartiallyExecuted (some operations completed)
+        // - If succeeded = false and expired = true -> Expired (some operations might have been completed)
+        // - If succeeded = false, expired = false and executedCount = 0 -> Rejected (nothing executed)
+        // - If succeeded = false, expired = false and executedCount > 0 -> PartiallyExecuted (some operations completed)
         IProcessor.ExecutionResult executionResult;
         if (subroutineResult.succeeded) {
             executionResult = IProcessor.ExecutionResult.Success;
+        } else if (subroutineResult.expired) {
+            executionResult = IProcessor.ExecutionResult.Expired;
         } else if (subroutineResult.executedCount == 0) {
             executionResult = IProcessor.ExecutionResult.Rejected;
         } else {
