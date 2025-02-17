@@ -1,6 +1,6 @@
 # Execution Environment Differences
 
-Depending on the type of `Execution Environment` being used, the behavior of the Processor may vary. In this section we will describe the main differences in how the Processor behaves in the different `Execution Environments` that we support.
+Depending on the type of `ExecutionEnvironment` being used, the behavior of the Processor may vary. In this section we will describe the main differences in how the Processor behaves in the different execution environments that we support.
 
 ### Execution Success
 

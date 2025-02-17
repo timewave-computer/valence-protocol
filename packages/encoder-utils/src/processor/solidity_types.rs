@@ -86,6 +86,7 @@ sol! {
         uint64 queuePosition;
         Priority priority;
         Subroutine subroutine;
+        uint64 expirationTime;
         bytes[] messages; // ABI encoded messages
     }
 
@@ -93,6 +94,7 @@ sol! {
         uint64 executionId;
         Priority priority;
         Subroutine subroutine;
+        uint64 expirationTime;
         bytes[] messages; // ABI encoded messages
     }
 
@@ -103,6 +105,7 @@ sol! {
 
     struct SubroutineResult {
         bool succeeded;
+        bool expired;
         uint256 executedCount;
         bytes errorData;
     }
@@ -117,7 +120,8 @@ sol! {
     enum ExecutionResult {
         Success,
         Rejected,
-        PartiallyExecuted
+        PartiallyExecuted,
+        Expired
     }
 
     struct RejectedResult {
@@ -127,6 +131,10 @@ sol! {
     struct PartiallyExecutedResult {
         uint256 executedCount;
         bytes errorData;
+    }
+
+    struct ExpiredResult {
+        uint256 executedCount;
     }
 }
 
@@ -157,6 +165,11 @@ impl From<Callback> for valence_authorization_utils::msg::InternalAuthorizationM
                     valence_authorization_utils::callback::ExecutionResult::PartiallyExecuted(
                         msg.executedCount.to(),
                         msg.data.to_string(),
+                    )
+                }
+                ExecutionResult::Expired => {
+                    valence_authorization_utils::callback::ExecutionResult::Expired(
+                        msg.executedCount.to(),
                     )
                 }
                 ExecutionResult::__Invalid => unreachable!(),

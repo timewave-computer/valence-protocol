@@ -5,11 +5,13 @@ interface IProcessor {
     /**
      * @notice Result of a subroutine execution
      * @param succeeded Whether all functions executed successfully
+     * @param expired Whether the execution failed because it expired
      * @param executedCount Number of successfully executed functions before failure or completion. For atomic subroutines, this will be the total count if all succeeded
      * @param errorData The error data from the last failed function, empty if all succeeded
      */
     struct SubroutineResult {
         bool succeeded;
+        bool expired;
         uint256 executedCount;
         bytes errorData;
     }
@@ -33,11 +35,13 @@ interface IProcessor {
      * @param Success Indicates that all functions were executed
      * @param Rejected Indicates that nothing was executed
      * @param PartiallyExecuted Indicates that the execution was partially successful (some functions executed, only for non-atomic subroutines)
+     * @param Expired Indicates that the execution was not before the expiration time
      */
     enum ExecutionResult {
         Success,
         Rejected,
-        PartiallyExecuted
+        PartiallyExecuted,
+        Expired
     }
 
     /**
@@ -58,5 +62,14 @@ interface IProcessor {
     struct PartiallyExecutedResult {
         uint256 executedCount;
         bytes errorData;
+    }
+
+    /**
+     * @notice Represents the details of an expired execution result
+     * @dev This struct stores information about the expiration of the execution
+     * @param executedCount The number of functions that were executed before expiration
+     */
+    struct ExpiredResult {
+        uint256 executedCount;
     }
 }

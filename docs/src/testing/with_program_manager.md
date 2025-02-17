@@ -10,7 +10,7 @@ Before proceeding, ensure you have:
 - Installed all necessary dependencies and have a working development environment
 
 ## Solution Overview
-Full working code for this example can be found in the [Osmosis Concentrated Liquidity example](https://github.com/timewave-computer/valence-protocol/blob/main/local-interchaintest/examples/osmo_cl.rs).
+Full working code for this example can be found in the [Osmosis Concentrated Liquidity example](https://github.com/timewave-computer/valence-protocol/blob/main/e2e/examples/osmo_cl.rs).
 
 Our solution includes the following:
 - We create three accounts on Osmosis

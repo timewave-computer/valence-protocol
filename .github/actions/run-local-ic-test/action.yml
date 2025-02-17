@@ -1,11 +1,11 @@
 name: Run a local-ic test
 
 inputs:
-  chain-config:  # id of input
-    description: 'Chain config to use for the test'
+  chain-config: # id of input
+    description: "Chain config to use for the test"
     required: true
   test-name:
-    description: 'Name of the test to run'
+    description: "Name of the test to run"
     required: true
 
 runs:
@@ -27,7 +27,7 @@ runs:
       with:
         name: optimized-contracts
         path: ./artifacts
-    
+
     - name: Download Forge artifacts
       uses: actions/download-artifact@v4
       with:
@@ -36,7 +36,7 @@ runs:
 
     - name: List downloaded files
       shell: bash
-      run: ls -l ./artifacts      
+      run: ls -l ./artifacts
 
     - name: Download local-ic artifact
       uses: actions/download-artifact@v4
@@ -56,7 +56,7 @@ runs:
       shell: bash
       env:
         RUST_LOG: debug
-      run: cargo run --package local-interchaintest --example ${{ inputs.test-name }}
+      run: cargo run --package valence-e2e --example ${{ inputs.test-name }}
 
     - name: Cleanup
       shell: bash

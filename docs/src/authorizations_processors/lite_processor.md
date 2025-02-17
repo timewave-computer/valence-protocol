@@ -7,6 +7,7 @@ The main difference between the Lite Processor and the Processor is that the for
 ### Execution
 
 The Lite Processor is not `ticked`, instead it will receive a `MessageBatch` from the Authorization contract and execute it immediately. Therefore, the execution gas cost will be paid by the relayer of the batch instead of the user who ticks the processor.
+There might be a case that the `MessageBatch` received is already expired, which can happen if the relayer was not working or was slow to send the batch. In this case, the Processor will discard the batch and return an `Expired(0)` `ExecutionResult` to the Authorization contract.
 
 This processor does not store batches or use any queue, instead it will simply receive the batch, execute it atomically or non-atomically, and send a callback to the Authorization contract with the `ExecutionResult`. The only information stored by this processor is the information of the Authorization contract, the information of the Connector (e.g. Hyperlane Mailbox, origin domain id, ...) and the authorized entities that can also execute batches on it without requiring them to be sent from the main domain.
 

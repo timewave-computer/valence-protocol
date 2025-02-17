@@ -18,7 +18,7 @@ The script will generate a config file that can be used by the manager to work w
 
 This script is used to build the program config using the program builder.
 
-In order to use it, you need to modify `my_program.rs` anto include your custom program logic, and run the script.
+In order to use it, you need to modify `my_program.rs` to include your custom program logic, and run the script.
 
 The script will output the program config in a JSON format in `output_program/program.json`.
 

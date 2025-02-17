@@ -44,6 +44,9 @@ Active Valence types provide the interface for integrating remote domain represe
 of the same underlying concepts. Remote types can be integrated into Valence Protocol
 if and only if there is an enabled Valence Type representing the same underlying primitive.
 
+> TODO: start a dedicated section for each Valence Type
+
+
 Currently enabled Valence types are:
 - XYK pool
 - Balance response

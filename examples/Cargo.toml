@@ -1,0 +1,51 @@
+[package]
+name       = "valence-program-examples"
+edition    = { workspace = true }
+license    = { workspace = true }
+version    = { workspace = true }
+repository = { workspace = true }
+
+[[bin]]
+name = "token_swap"
+path = "src/token_swap.rs"
+
+[[bin]]
+name = "osmo_cl"
+path = "src/osmo_cl.rs"
+
+[[bin]]
+name = "osmo_gamm"
+path = "src/osmo_gamm.rs"
+
+[dependencies]
+localic-std                          = { git = "https://github.com/strangelove-ventures/interchaintest", branch = "main" }
+localic-utils                        = { git = "https://github.com/timewave-computer/localic-utils", branch = "main" }
+sha2                                 = { workspace = true }
+hex                                  = { workspace = true }
+serde_json                           = { workspace = true }
+env_logger                           = { workspace = true }
+log                                  = { workspace = true }
+rand                                 = "0.8.5"
+polytone-note                        = { git = "https://github.com/DA0-DA0/polytone", rev = "f70440a" }
+polytone-voice                       = { git = "https://github.com/DA0-DA0/polytone", rev = "f70440a" }
+cosmwasm-std                         = { workspace = true }
+cosmwasm-std-old                     = { package = "cosmwasm-std", version = "1.5.7" }
+cw-utils                             = { workspace = true }
+valence-authorization-utils          = { workspace = true }
+valence-processor-utils              = { workspace = true }
+valence-account-utils                = { workspace = true }
+valence-library-utils                = { workspace = true }
+valence-splitter-library             = { workspace = true }
+valence-reverse-splitter-library     = { workspace = true }
+valence-forwarder-library            = { workspace = true }
+valence-program-manager              = { workspace = true }
+valence-program-registry-utils       = { workspace = true }
+valence-ibc-utils                    = { workspace = true }
+valence-neutron-ibc-transfer-library = { workspace = true }
+valence-osmosis-gamm-lper            = { workspace = true }
+valence-osmosis-gamm-withdrawer      = { workspace = true }
+valence-osmosis-cl-lper              = { workspace = true }
+valence-osmosis-cl-withdrawer        = { workspace = true }
+valence-osmosis-utils                = { workspace = true }
+osmosis-std                          = { workspace = true }
+valence-e2e                          = { workspace = true }

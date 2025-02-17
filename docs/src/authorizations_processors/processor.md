@@ -2,16 +2,17 @@
 
 This version of the processor is currently available for `CosmWasm` Execution Environment only. It contains all the features and full functionality of the processor as described below.
 
-It handles two execution queues: `High` and `Med`, which allow giving different priorities to `Message Batches`. The Authorization contract will send the `Message Batches` to the Processor specifying the priority of the queue where they should be enqueued.
+It handles two execution queues: `High` and `Med`, which allow giving different priorities to message batches. The Authorization contract will send the message batches to the Processor specifying the priority of the queue where they should be enqueued.
 
-The Processor can be `ticked` permissionlessly, which will trigger the execution of the `Message Batches` in the queues in a `FIFO` manner. It will handle the `Retry` logic for each batch (if the batch is atomic) or function (if the batch is non-atomic). In the particular case that the current batch at the top of the queue is not retriable yet, the processor will rotate it to the back of the queue. After a `Message Batch` has been executed successfully or it reached the maximum amount of retries, it will be removed from the execution queue and the Processor will send a callback with the execution information to the Authorization contract.
+The Processor can be `ticked` permissionlessly, which will trigger the execution of the message batches in the queues in a `FIFO` manner. It will handle the `Retry` logic for each batch (if the batch is atomic) or function (if the batch is non-atomic). In the particular case that the current batch at the top of the queue is not retriable yet, the processor will rotate it to the back of the queue. After a `MessageBatch` has been executed successfully or it reached the maximum amount of retries, it will be removed from the execution queue and the Processor will send a callback with the execution information to the Authorization contract.
 
 The Authorization contract will be the only address allowed to add message batches to the execution queues. It will also be allowed to Pause/Resume the Processor or to arbitrarily remove functions from the queues or add certain messages at a specific position in any of them.
 
 ### Execution
 
 When a processor is `Ticked`, the first `Message Batch` will be taken from the queue (`High` if there are batches there or `Med` if there aren’t).
-After taking them, we will execute them in different ways depending if the batch is `Atomic` or `NonAtomic`.
+After taking the `Message Batch`, the processor will first check if the batch is expired. If that's the case, the processor will discard the batch and return an `Expired(executed_functions)` `ExecutionResult` to the Authorization contract. There might be a case that the batch is `NonAtomic` and it's already partially executed, therefore the processor also returns the number of functions that were executed before the expiration.
+If the batch has not expired, the processor will execute the batch according to whether it is `Atomic` or `NonAtomic`.
 
 - For `Atomic` batches, the Processor will execute either all functions or none of them. If execution fails, the batch `RetryLogic` is checked to determine if the match should be re-enqueued. If not, a callback is sent with a `Rejected(error)` status to the Authorization contract.
   If the execution succeeded we will send a callback with `Executed` status to the Authorization contract.
@@ -23,7 +24,7 @@ After taking them, we will execute them in different ways depending if the batch
 
 ### Storage
 
-The Processor will receive `Message Batches` from the Authorization contract and will enqueue them in a custom storage structure called a `QueueMap`. This structure is a FIFO queue with owner privileges, which allow the owner to insert or remove messages from any position in the queue.
+The Processor will receive message batches from the Authorization contract and will enqueue them in a custom storage structure called a `QueueMap`. This structure is a FIFO queue with owner privileges, which allow the owner to insert or remove messages from any position in the queue.
 Each “item” stored in the queue is a `MessageBatch` object that has the following structure:
 
 ```rust

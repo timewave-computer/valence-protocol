@@ -9,9 +9,11 @@ members = [
     "contracts/program-registry",
     "contracts/middleware/type-registries/osmosis/osmo-26-0-0",
     "contracts/middleware/broker",
+    "contracts/middleware/asserter",
     "packages/*",
     "program-manager",
-    "local-interchaintest",
+    "e2e",
+    "examples",
     "deployment/scripts/*",
 ]
 resolver = "2"
@@ -82,8 +84,9 @@ valence-neutron-ic-querier           = { path = "contracts/libraries/neutron-ic-
 local-interchaintest                 = { path = "local-interchaintest/" }
 
 # middleware
-valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = ["library"] }
-valence-middleware-broker  = { path = "contracts/middleware/broker", features = ["library"] }
+valence-middleware-osmosis  = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = ["library"] }
+valence-middleware-broker   = { path = "contracts/middleware/broker", features = ["library"] }
+valence-middleware-asserter = { path = "contracts/middleware/asserter", features = ["library"] }
 
 # our packages
 valence-account-utils          = { path = "packages/account-utils" }
@@ -117,6 +120,8 @@ log                  = "0.4.22"
 prost                = { version = "0.13.3", default-features = false }
 prost-types          = { version = "0.13.3", default-features = false }
 semver               = "1.0.24"
+valence-e2e          = { path = "e2e" }
+valence-examples     = { path = "examples" }
 clap                 = { version = "4.5.13", features = ["derive"] }
 config               = { version = "0.15.8", features = ["toml"] }
 glob                 = "0.3"
