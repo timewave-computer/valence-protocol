@@ -1,6 +1,6 @@
 # Deployment
 
-This section contains a detailed explanation of how to deploy programs on different enviroments.
+This section contains a detailed explanation of how to deploy programs on different environments.
 
-**Enviroments**
+**Environments**
 - [Local](./local.md)
