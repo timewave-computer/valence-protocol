@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
 pub enum Bridge {
     /// This is the details we need for the bridge to predict the address of the proxy
     /// https://github.com/DA0-DA0/polytone/blob/main/contracts/main/voice/src/contract.rs#L186
@@ -16,6 +17,25 @@ pub enum Bridge {
 /// should always and only hold 2 elements, where the key is the
 /// chain name and the value is the bridge info between those 2 chains.
 pub type PolytoneBridgeInfo = HashMap<String, PolytoneSingleChainInfo>;
+
+impl<'de> Deserialize<'de> for Bridge {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        // First deserialize into an intermediate structure
+        #[derive(Deserialize)]
+        struct BridgeIntermediate {
+            polytone: PolytoneBridgeInfo,
+        }
+
+        // Parse into the intermediate structure first
+        let intermediate = BridgeIntermediate::deserialize(deserializer)?;
+
+        // Then return the Bridge enum
+        Ok(Bridge::Polytone(intermediate.polytone))
+    }
+}
 
 /// This struct represent the data that we need for polytone in a single chain
 #[derive(Debug, Clone, Serialize, Deserialize)]
