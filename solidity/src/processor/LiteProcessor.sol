@@ -107,6 +107,13 @@ contract LiteProcessor is IMessageRecipient, ProcessorBase {
             abi.decode(decodedMessage.message, (IProcessorMessageTypes.SendMsgs));
 
         IProcessor.SubroutineResult memory result;
+        // Check if there is an expiration time and if there is, if it already passed
+        if (sendMsgs.expirationTime != 0 && sendMsgs.expirationTime < block.timestamp) {
+            result =
+                IProcessor.SubroutineResult({succeeded: false, expired: true, executedCount: 0, errorData: bytes("")});
+            _buildAndSendCallback(msg.sender, sendMsgs.executionId, result);
+            return;
+        }
 
         if (sendMsgs.subroutine.subroutineType == IProcessorMessageTypes.SubroutineType.Atomic) {
             IProcessorMessageTypes.AtomicSubroutine memory atomicSubroutine =

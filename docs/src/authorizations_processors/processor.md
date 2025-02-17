@@ -11,7 +11,8 @@ The Authorization contract will be the only address allowed to add message batch
 ### Execution
 
 When a processor is `Ticked`, the first `Message Batch` will be taken from the queue (`High` if there are batches there or `Med` if there aren’t).
-After taking them, we will execute them in different ways depending if the batch is `Atomic` or `NonAtomic`.
+After taking the `Message Batch`, the processor will first check if the batch is expired. If that's the case, the processor will discard the batch and return an `Expired(executed_functions)` `ExecutionResult` to the Authorization contract. There might be a case that the batch is `NonAtomic` and it's already partially executed, therefore the processor also returns the number of functions that were executed before the expiration.
+If the batch has not expired, the processor will execute the batch according to whether it is `Atomic` or `NonAtomic`.
 
 - For `Atomic` batches, the Processor will execute either all functions or none of them. If execution fails, the batch `RetryLogic` is checked to determine if the match should be re-enqueued. If not, a callback is sent with a `Rejected(error)` status to the Authorization contract.
   If the execution succeeded we will send a callback with `Executed` status to the Authorization contract.

@@ -821,6 +821,93 @@ fn main() -> Result<(), Box<dyn Error>> {
         &ExecutionResult::Success,
     );
 
+    // Let's create an authorization that will expire
+    let authorizations = vec![AuthorizationBuilder::new()
+        .with_label("expired")
+        .with_subroutine(
+            AtomicSubroutineBuilder::new()
+                .with_expiration_time(0)
+                .with_function(
+                    AtomicFunctionBuilder::new()
+                        .with_domain(Domain::External(ETHEREUM_CHAIN_NAME.to_string()))
+                        .with_contract_address(LibraryAccountType::Addr(
+                            forwarder_1_address.to_string(),
+                        ))
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::EvmCall(
+                                EncoderInfo {
+                                    broker_address: encoder_broker.address.clone(),
+                                    encoder_version: namespace_evm_encoder.clone(),
+                                },
+                                "forwarder".to_string(),
+                            ),
+                            message: Message {
+                                name: "process_function".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .build(),
+        )
+        .build()];
+
+    info!("Creating authorization...");
+    let create_authorization = valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
+        valence_authorization_utils::msg::PermissionedMsg::CreateAuthorizations { authorizations },
+    );
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&create_authorization).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+    info!("Authorization created!");
+
+    info!("Send the messages to the authorization contract...");
+    let binary = Binary::from(
+        serde_json::to_vec(
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_forwarder_library::msg::FunctionMsgs::Forward {},
+            ),
+        )
+        .unwrap(),
+    );
+    let message = ProcessorMessage::EvmCall { msg: binary };
+
+    let send_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+            label: "expired".to_string(),
+            messages: vec![message],
+            ttl: None,
+        },
+    );
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&send_msg).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(10));
+
+    // Let's verify that we got the right ExecutionResult in the authorization contract
+    info!("Verify we got the right callback...");
+    verify_authorization_execution_result(
+        &mut test_ctx,
+        &authorization_contract_address,
+        4,
+        &ExecutionResult::Expired(0),
+    );
+
     info!("Integration tests passed successfully!");
 
     Ok(())
