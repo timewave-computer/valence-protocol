@@ -28,3 +28,5 @@ local-interchaintest/tmp
 local-interchaintest/hyperlane_db_relayer
 
 deployment/results
+deployment/results/configs/local
+deployment/output_program

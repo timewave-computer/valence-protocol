@@ -1,5 +1,5 @@
 [package]
-name       = "deploy_program"
+name       = "build_program"
 edition    = { workspace = true }
 license    = { workspace = true }
 version    = { workspace = true }
@@ -13,8 +13,4 @@ valence-program-manager     = { workspace = true }
 valence-splitter-library    = { workspace = true }
 valence-authorization-utils = { workspace = true }
 valence-library-utils       = { workspace = true }
-tokio                       = { workspace = true }
-toml                        = "0.8.19"
 clap                        = { workspace = true }
-glob                        = { workspace = true }
-config                      = { workspace = true }
