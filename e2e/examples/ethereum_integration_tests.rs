@@ -237,7 +237,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         GAS_FLAGS,
     )
     .unwrap();
-    std::thread::sleep(Duration::from_secs(10));
+    std::thread::sleep(Duration::from_secs(30));
 
     // Query the processor to verify that it is paused
     let lite_processor = LiteProcessor::new(lite_processor_address, &eth.provider);
@@ -261,7 +261,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         GAS_FLAGS,
     )
     .unwrap();
-    std::thread::sleep(Duration::from_secs(10));
+    std::thread::sleep(Duration::from_secs(30));
 
     // Query the processor to verify that it is resumed
     let lite_processor = LiteProcessor::new(lite_processor_address, &eth.provider);
@@ -476,7 +476,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         GAS_FLAGS,
     )
     .unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(10));
+    std::thread::sleep(std::time::Duration::from_secs(30));
 
     // Query the base accounts to verify that the tokens were swapped
     let builder = token_1.balanceOf(base_account_2);
@@ -604,7 +604,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         GAS_FLAGS,
     )
     .unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(10));
+    std::thread::sleep(std::time::Duration::from_secs(30));
 
     // Query the base accounts to verify that the tokens were sent from account 1 to account 2
     let builder = token_1.balanceOf(base_account_2);
@@ -699,7 +699,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         GAS_FLAGS,
     )
     .unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(10));
+    std::thread::sleep(std::time::Duration::from_secs(30));
 
     // Let's verify that we got the right ExecutionResult in the authorization contract
     info!("Verify we got the right callback...");
@@ -801,7 +801,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         GAS_FLAGS,
     )
     .unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(10));
+    std::thread::sleep(std::time::Duration::from_secs(30));
 
     // Query the base accounts to verify that the tokens were swapped
     let builder = token_1.balanceOf(base_account_2);
@@ -897,7 +897,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         GAS_FLAGS,
     )
     .unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(10));
+    std::thread::sleep(std::time::Duration::from_secs(30));
 
     // Let's verify that we got the right ExecutionResult in the authorization contract
     info!("Verify we got the right callback...");

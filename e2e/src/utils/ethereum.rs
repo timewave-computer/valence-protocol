@@ -2,9 +2,13 @@ use std::{collections::HashMap, error::Error};
 
 use bollard::{
     container::{Config, CreateContainerOptions, ListContainersOptions, StartContainerOptions},
+    image::CreateImageOptions,
     Docker,
 };
-use log::info;
+use futures_util::StreamExt;
+use log::{error, info};
+
+const ANVIL_IMAGE_URL: &str = "ghcr.io/foundry-rs/foundry:latest";
 
 pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
     // Connect to the Docker daemon
@@ -25,8 +29,35 @@ pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
+    // Pull image if it doesn't exist
+    let mut pull_stream = docker.create_image(
+        Some(CreateImageOptions {
+            from_image: ANVIL_IMAGE_URL,
+            ..Default::default()
+        }),
+        None,
+        None,
+    );
+
+    // Pull the image and process the progress stream
+    info!("Pulling image: {}", ANVIL_IMAGE_URL);
+
+    while let Some(result) = pull_stream.next().await {
+        match result {
+            Ok(output) => {
+                if let Some(status) = output.status {
+                    info!("Status: {}", status);
+                }
+                if let Some(progress) = output.progress {
+                    info!("Progress: {}", progress);
+                }
+            }
+            Err(e) => error!("Error pulling image: {}", e),
+        }
+    }
+
     let config = Config {
-        image: Some("ghcr.io/foundry-rs/foundry:latest"),
+        image: Some(ANVIL_IMAGE_URL),
         cmd: Some(vec!["anvil"]),
         env: Some(vec!["ANVIL_IP_ADDR=0.0.0.0"]),
         exposed_ports: {
