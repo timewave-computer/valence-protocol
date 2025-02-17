@@ -28,5 +28,5 @@ e2e/tmp
 e2e/hyperlane_db_relayer
 
 deployment/results
-deployment/results/configs/local
+deployment/configs/local
 deployment/output_program

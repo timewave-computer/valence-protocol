@@ -1,18 +1,14 @@
 use clap::{arg, command, Parser};
-use std::{error::Error, fs};
+use std::{error::Error, fs, path::Path};
 
 use localic_utils::{ConfigChainBuilder, TestContextBuilder, GAIA_CHAIN_NAME, LOCAL_IC_API_URL};
 use valence_e2e::utils::{
     manager::{
-        get_global_config, setup_manager, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME,
-        FORWARDER_NAME, GENERIC_IBC_TRANSFER_NAME, NEUTRON_IBC_TRANSFER_NAME, OSMOSIS_CL_LPER_NAME,
-        OSMOSIS_CL_LWER_NAME, OSMOSIS_GAMM_LPER_NAME, OSMOSIS_GAMM_LWER_NAME, POLYTONE_NOTE_NAME,
-        POLYTONE_PROXY_NAME, POLYTONE_VOICE_NAME, REVERSE_SPLITTER_NAME, SPLITTER_NAME,
+        get_global_config, setup_manager, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME, FORWARDER_NAME, GENERIC_IBC_TRANSFER_NAME, LOG_FILE_PATH, NEUTRON_IBC_TRANSFER_NAME, OSMOSIS_CL_LPER_NAME, OSMOSIS_CL_LWER_NAME, OSMOSIS_GAMM_LPER_NAME, OSMOSIS_GAMM_LWER_NAME, POLYTONE_NOTE_NAME, POLYTONE_PROXY_NAME, POLYTONE_VOICE_NAME, REVERSE_SPLITTER_NAME, SPLITTER_NAME
     },
     NEUTRON_CONFIG_FILE,
 };
 
-pub const LOGS_FILE_PATH: &str = "local-interchaintest/configs/logs.json";
 pub const VALENCE_ARTIFACTS_PATH: &str = "artifacts";
 
 #[derive(Parser, Debug)]
@@ -31,10 +27,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_api_url(LOCAL_IC_API_URL)
         .with_artifacts_dir(VALENCE_ARTIFACTS_PATH)
         .with_chain(ConfigChainBuilder::default_neutron().build()?)
-        .with_log_file_path(LOGS_FILE_PATH)
+        .with_chain(ConfigChainBuilder::default_juno().build()?)
+        // .with_chain(ConfigChainBuilder::default_osmosis().build()?)
+        // .with_chain(ConfigChainBuilder::default_stride().build()?)
+        .with_log_file_path(LOG_FILE_PATH)
         .build()?;
 
-    // Setup local enviroment
+    // Setup local environment
     setup_manager(
         &mut test_ctx,
         args.chain_config
@@ -68,7 +67,16 @@ fn main() -> Result<(), Box<dyn Error>> {
 fn export_manager_config() -> Result<(), Box<dyn Error>> {
     let gc = get_global_config();
 
+    let path_name = "deployment/configs/local/";
+    let path = Path::new(path_name);
+
+    if !path.exists() {
+        fs::create_dir_all(path_name)?;
+    }
+
+    let file_path = path.join("config.toml");
+
     let t = toml::to_string(&*gc).unwrap();
-    fs::write("deployment/configs/local/config.toml", t)?;
+    fs::write(file_path, t)?;
     Ok(())
 }

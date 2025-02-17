@@ -14,7 +14,7 @@ use valence_program_manager::{
 
 use crate::utils::POLYTONE_ARTIFACTS_PATH;
 
-const LOG_FILE_PATH: &str = "e2e/configs/logs.json";
+pub const LOG_FILE_PATH: &str = "e2e/configs/logs.json";
 pub const MANAGER_ADMIN_ADDR: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
 
 pub const REGISTRY_NAME: &str = "valence_program_registry";
@@ -24,8 +24,8 @@ pub const BASE_ACCOUNT_NAME: &str = "valence_base_account";
 pub const SPLITTER_NAME: &str = "valence_splitter_library";
 pub const REVERSE_SPLITTER_NAME: &str = "valence_reverse_splitter_library";
 pub const FORWARDER_NAME: &str = "valence_forwarder_library";
-pub const GENERIC_IBC_TRANSFER_NAME: &str = "valence-generic-ibc-transfer-library";
-pub const NEUTRON_IBC_TRANSFER_NAME: &str = "valence-neutron-ibc-transfer-library";
+pub const GENERIC_IBC_TRANSFER_NAME: &str = "valence_generic_ibc_transfer_library";
+pub const NEUTRON_IBC_TRANSFER_NAME: &str = "valence_neutron_ibc_transfer_library";
 pub const ASTROPORT_LPER_NAME: &str = "valence_astroport_lper";
 pub const ASTROPORT_WITHDRAWER_NAME: &str = "valence_astroport_withdrawer";
 pub const OSMOSIS_GAMM_LPER_NAME: &str = "valence_osmosis_gamm_lper";
@@ -79,12 +79,14 @@ pub fn setup_manager(
 
     let authorization_code_id = test_ctx
         .get_contract()
+        .src(NEUTRON_CHAIN_NAME)
         .contract(AUTHORIZATION_NAME)
         .get_cw()
         .code_id
         .unwrap();
     let registry_code_id = test_ctx
         .get_contract()
+        .src(NEUTRON_CHAIN_NAME)
         .contract(REGISTRY_NAME)
         .get_cw()
         .code_id
