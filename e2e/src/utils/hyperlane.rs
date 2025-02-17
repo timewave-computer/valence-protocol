@@ -30,7 +30,7 @@ use bollard::{
     secret::EndpointSettings,
 };
 
-const HYPERLANE_RELAYER_IMAGE: &str = "gcr.io/abacus-labs-dev/hyperlane-agent:agents-v1.0.0";
+const HYPERLANE_RELAYER_IMAGE_URL: &str = "gcr.io/abacus-labs-dev/hyperlane-agent:agents-v1.0.0";
 
 pub struct HyperlaneContracts {
     pub mailbox: String,
@@ -572,7 +572,7 @@ async fn run_hyperlane_relayer(
     // Pull image if it doesn't exist
     let mut pull_stream = docker.create_image(
         Some(CreateImageOptions {
-            from_image: HYPERLANE_RELAYER_IMAGE,
+            from_image: HYPERLANE_RELAYER_IMAGE_URL,
             ..Default::default()
         }),
         None,
@@ -580,7 +580,7 @@ async fn run_hyperlane_relayer(
     );
 
     // Pull the image and process the progress stream
-    info!("Pulling image: {}", HYPERLANE_RELAYER_IMAGE);
+    info!("Pulling image: {}", HYPERLANE_RELAYER_IMAGE_URL);
     while let Some(result) = pull_stream.next().await {
         match result {
             Ok(output) => {
@@ -596,7 +596,7 @@ async fn run_hyperlane_relayer(
     }
 
     let config = Config {
-        image: Some(HYPERLANE_RELAYER_IMAGE),
+        image: Some(HYPERLANE_RELAYER_IMAGE_URL),
         cmd: Some(vec![
             "./relayer",
             "--db",
