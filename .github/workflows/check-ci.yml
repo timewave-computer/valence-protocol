@@ -329,7 +329,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run ethereum e2e tests
-        uses: "./.github/actions/run-local-ic-example"
+        uses: "./.github/actions/run-local-ic-test"
         with:
           chain-config: "neutron"
           test-name: "ethereum_integration_tests"
