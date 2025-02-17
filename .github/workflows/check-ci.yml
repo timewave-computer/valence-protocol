@@ -319,3 +319,17 @@ jobs:
         with:
           chain-config: "neutron_osmosis"
           test-name: "osmo_cl"
+
+  local-ic-ethereum-e2e-tests:
+    needs: [build, setup-local-ic]
+    name: Ethereum e2e tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run ethereum e2e tests
+        uses: "./.github/actions/run-local-ic-example"
+        with:
+          chain-config: "neutron"
+          test-name: "ethereum_integration_tests"
