@@ -8,13 +8,7 @@ repository = { workspace = true }
 
 [features]
 default = []
-testing = [
-    "dep:cw-multi-test",
-    "dep:cw20",
-    "dep:cw20-base",
-    "dep:sha2",
-    "dep:valence-base-account",
-]
+testing = ["dep:cw-multi-test", "dep:cw20", "dep:cw20-base", "dep:sha2", "dep:valence-base-account"]
 
 [dependencies]
 cosmwasm-schema       = { workspace = true }

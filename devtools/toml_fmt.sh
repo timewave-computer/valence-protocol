@@ -11,7 +11,7 @@ toml_fmt() {
     align_comments = true
     array_auto_expand = true
     array_auto_collapse = true
-    compact_arrays = false
+    compact_arrays = true
     compact_inline_tables = false
     column_width = 120
     indent_string = "    "
