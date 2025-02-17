@@ -1,6 +1,7 @@
 use std::{collections::HashMap, fs, path::Path};
 
 use alloy::{hex::FromHex, primitives::FixedBytes};
+use futures_util::StreamExt;
 use localic_std::modules::cosmwasm::{contract_execute, contract_instantiate};
 use localic_utils::{
     utils::{ethereum::EthClient, test_context::TestContext},
@@ -19,6 +20,7 @@ use super::{
 };
 use bollard::{
     container::{Config, CreateContainerOptions},
+    image::CreateImageOptions,
     secret::{HostConfig, Mount, MountTypeEnum},
     Docker,
 };
@@ -27,6 +29,8 @@ use bollard::{
     network::{ConnectNetworkOptions, CreateNetworkOptions, ListNetworksOptions},
     secret::EndpointSettings,
 };
+
+const HYPERLANE_RELAYER_IMAGE: &str = "gcr.io/abacus-labs-dev/hyperlane-agent:agents-v1.0.0";
 
 pub struct HyperlaneContracts {
     pub mailbox: String,
@@ -564,8 +568,34 @@ async fn run_hyperlane_relayer(
     let config_files = format!("CONFIG_FILES={}", config_path_str);
     let relay_chains = format!("{},{}", chain1, chain2);
 
+    // Pull image if it doesn't exist
+    let mut pull_stream = docker.create_image(
+        Some(CreateImageOptions {
+            from_image: HYPERLANE_RELAYER_IMAGE,
+            ..Default::default()
+        }),
+        None,
+        None,
+    );
+
+    // Pull the image and process the progress stream
+    info!("Pulling image: {}", HYPERLANE_RELAYER_IMAGE);
+    while let Some(result) = pull_stream.next().await {
+        match result {
+            Ok(output) => {
+                if let Some(status) = output.status {
+                    info!("Status: {}", status);
+                }
+                if let Some(progress) = output.progress {
+                    info!("Progress: {}", progress);
+                }
+            }
+            Err(e) => error!("Error pulling image: {}", e),
+        }
+    }
+
     let config = Config {
-        image: Some("gcr.io/abacus-labs-dev/hyperlane-agent:agents-v1.0.0"),
+        image: Some(HYPERLANE_RELAYER_IMAGE),
         cmd: Some(vec![
             "./relayer",
             "--db",

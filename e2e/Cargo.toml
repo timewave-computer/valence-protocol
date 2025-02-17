@@ -62,4 +62,5 @@ hpl-interface                        = { git = "https://github.com/many-things/c
 serde-json-wasm                      = "0.5.2"
 bech32                               = "0.11.0"
 bollard                              = "0.18.1"
+futures-util                         = "0.3"
 toml                                 = "0.8.19"
