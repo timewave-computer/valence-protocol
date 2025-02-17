@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, path::Path};
+use std::{collections::HashMap, fs, os::unix::fs::PermissionsExt, path::Path};
 
 use alloy::{hex::FromHex, primitives::FixedBytes};
 use futures_util::StreamExt;
@@ -533,6 +533,7 @@ async fn run_hyperlane_relayer(
             fs::remove_dir_all(&full_path)?;
         }
         std::fs::create_dir_all(&full_path)?;
+        std::fs::set_permissions(&full_path, fs::Permissions::from_mode(0o777))?;
     }
 
     let config_path = base_dir.join("hyperlane/config/config.json");
