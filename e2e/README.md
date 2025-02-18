@@ -8,24 +8,6 @@ Before you can run the tests, you need to install Local interchain. This is a on
 git clone https://github.com/strangelove-ventures/interchaintest && cd interchaintest/local-interchain && make install
 ```
 
-## Build Solidity contracts
-
-Before running the tests you need to build the Solidity contracts because the artifacts are needed at compile time, to do this:
-
-1. Install Foundry:
-
-```bash
-curl -L https://foundry.paradigm.xyz | bash
-```
-
-and follow the instructions.
-
-2. Install the dependencies and build the contracts:
-
-```bash
-cd solidity && forge soldeer install && forge build
-```
-
 ## Running your local environment
 
 Run one of the set-up configs we have in the `e2e/chains` folder. For example, to run the `neutron_juno.json` config, run the following command inside the `e2e` folder:
@@ -38,9 +20,9 @@ This will start a local environment with a Gaia chain, a Neutron (using ICS) cha
 
 For tests that involve EVM chains, the chains and relayer are started from the test itself so no need to start them manually.
 
-## Optimize CosmWasm Contracts
+## Build and optimize all contracts
 
-Use CosmWasm optimizer to optimize CosmWasm contracts and store the results in `./artifacts`
+Uses CosmWasm optimizer to optimize CosmWasm contracts and store the results in `./artifacts` and Foundry to build the contracts and store them in `./solidity/out`
 
 ```bash
 just optimize
