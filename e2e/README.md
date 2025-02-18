@@ -76,7 +76,7 @@ make build-docker
 ## Troubleshooting
 
 ```bash
-cargo run --package local-interchaintest --example example_file_name`
+cargo run --package valence-e2e --example example_file_name`
 ```
 
 ```txt
@@ -86,7 +86,7 @@ Error: LocalInterchain(Custom { msg: "channel_json is not an array" })
 The chains required in the test are not running.
 
 ```bash
-cargo run --package local-interchaintest --example example_file_name`
+cargo run --package valence-e2e --example example_file_name`
 ```
 
 ```txt
@@ -94,5 +94,5 @@ called `Result::unwrap()` on an `Err` value: Os { code: 2, kind: NotFound, messa
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 ```
 
-1. Check that `local-interchaintest/configs/logs.json` exists. If it does not, kill all local-ic processes and rerun from `local-interchaintest` directory.
+1. Check that `e2e/configs/logs.json` exists. If it does not, kill all local-ic processes and rerun from `e2e` directory.
 2. Check that the `artifacts` folder, and that all contracts used in the example were built. Run `just optimize` if contracts are missing.
