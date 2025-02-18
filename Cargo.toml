@@ -81,7 +81,6 @@ valence-osmosis-cl-lper              = { path = "contracts/libraries/osmosis-cl-
 valence-osmosis-cl-withdrawer        = { path = "contracts/libraries/osmosis-cl-withdrawer", features = ["library"] }
 valence-encoder-broker               = { path = "contracts/encoders/broker", features = ["library"] }
 valence-neutron-ic-querier           = { path = "contracts/libraries/neutron-ic-querier", features = ["library"] }
-local-interchaintest                 = { path = "local-interchaintest/" }
 
 # middleware
 valence-middleware-osmosis  = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = ["library"] }

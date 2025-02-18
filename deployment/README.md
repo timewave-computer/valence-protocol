@@ -14,7 +14,7 @@ In order to build the manager config we need 3 things:
 
 The script will generate a config file that can be used by the manager to work with local interchain chains.
 
-## build program
+## Build program
 
 This script is used to build the program config using the program builder.
 
@@ -22,7 +22,7 @@ In order to use it, you need to modify `my_program.rs` to include your custom pr
 
 The script will output the program config in a JSON format in `output_program/program.json`.
 
-## deploy program
+## Deploy program
 
 To deploy a program we need `manager_config` and `program_config`.
 

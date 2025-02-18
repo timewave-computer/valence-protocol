@@ -12,7 +12,7 @@ git clone https://github.com/strangelove-ventures/interchaintest && cd interchai
 
 ## 2. Running your local environment
 
-Run one of the set-up configs we have in the `local-interchaintest/chains` folder. For example, to run the `neutron.json` config, run the following command inside the `local-interchaintest` folder:
+Run one of the set-up configs we have in the `e2e/chains` folder. For example, to run the `neutron.json` config, run the following command inside the `e2e` folder:
 
 ```bash
 local-ic start neutron --api-port 42069
