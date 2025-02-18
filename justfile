@@ -13,5 +13,11 @@ disconnect-hyperlane-network:
 run-example program:
     RUST_LOG=debug cargo run --package valence-program-examples --bin {{program}}
 
-run-e2e test:
-    RUST_LOG=debug cargo run --package valence-e2e --example {{test}}
+precommit:
+    cargo fmt --all -- --check
+    cargo clippy --all-targets --verbose -- -D warnings
+    just toml_fmt --check
+    ./devtools/schema.sh
+
+toml_fmt flag="":
+    ./devtools/toml_fmt.sh {{flag}}
