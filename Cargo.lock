@@ -7168,6 +7168,7 @@ dependencies = [
  "cosmwasm-std 2.2.1",
  "cw-utils 2.0.0",
  "env_logger 0.11.6",
+ "futures-util",
  "hex",
  "hpl-interface",
  "localic-std",
