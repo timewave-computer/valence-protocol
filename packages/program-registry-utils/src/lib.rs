@@ -28,7 +28,7 @@ pub enum QueryMsg {
     /// returns None if there is no backup
     #[returns(Option<ProgramResponse>)]
     GetConfigBackup { id: u64 },
-    #[returns(Option<ProgramResponse>)]
+    #[returns(Vec<ProgramResponse>)]
     GetAllConfigs {
         start: Option<u64>,
         end: Option<u64>,

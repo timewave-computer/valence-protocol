@@ -140,6 +140,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             let configs = PROGRAMS
                 .range(deps.storage, start, end, cosmwasm_std::Order::Ascending)
                 .take(limit)
+                .map(|item| item.map(|(id, program_config)| ProgramResponse { id, program_config }))
                 .collect::<Result<Vec<_>, _>>()?;
 
             to_json_binary(&configs)
