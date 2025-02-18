@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Deserializer, Serialize};
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "type", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
 pub enum Bridge {
     /// This is the details we need for the bridge to predict the address of the proxy
     /// https://github.com/DA0-DA0/polytone/blob/main/contracts/main/voice/src/contract.rs#L186

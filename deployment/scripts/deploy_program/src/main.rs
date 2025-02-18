@@ -18,7 +18,7 @@ pub enum Config {
 #[command(version, about, long_about = None)]
 struct Args {
     /// Enviroment config to use
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "local")]
     target_env: Config,
     /// Path to the program config file
     #[arg(short, long, default_value = "deployment/output_program/program.json")]

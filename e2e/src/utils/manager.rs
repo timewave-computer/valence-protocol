@@ -77,6 +77,8 @@ pub fn setup_manager(
     uploader.send_single_contract(&authorization_contract_path)?;
     uploader.send_single_contract(&registry_contract_path)?;
 
+    // drop(uploader);
+
     let authorization_code_id = test_ctx
         .get_contract()
         .src(NEUTRON_CHAIN_NAME)
