@@ -10,13 +10,14 @@ git clone https://github.com/strangelove-ventures/interchaintest && cd interchai
 
 ## Build Solidity contracts
 
-Before running the tests, you need to build the solidity contracts, because the artifacts are needed at compile time, to do this:
+Before running the tests you need to build the Solidity contracts because the artifacts are needed at compile time, to do this:
 
 1. Install Foundry:
 
 ```bash
 curl -L https://foundry.paradigm.xyz | bash
 ```
+
 and follow the instructions.
 
 2. Install the dependencies and build the contracts:
@@ -37,11 +38,11 @@ This will start a local environment with a Gaia chain, a Neutron (using ICS) cha
 
 For tests that involve EVM chains, the chains and relayer are started from the test itself so no need to start them manually.
 
-## Optimize Contracts
+## Optimize CosmWasm Contracts
 
-Use CosmWasm optimizer to optimize contracts and store the results in `./artifacts`
+Use CosmWasm optimizer to optimize CosmWasm contracts and store the results in `./artifacts`
 
-``` bash
+```bash
 just optimize
 
 ## or
