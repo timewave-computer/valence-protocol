@@ -8,7 +8,7 @@ Before you can run the tests, you need to install Local interchain. This is a on
 git clone https://github.com/strangelove-ventures/interchaintest && cd interchaintest/local-interchain && make install
 ```
 
-## Build solidity contracts
+## Build Solidity contracts
 
 Before running the tests, you need to build the solidity contracts, because the artifacts are needed at compile time, to do this:
 
