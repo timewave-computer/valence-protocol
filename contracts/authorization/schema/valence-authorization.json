@@ -1,6 +1,6 @@
 {
   "contract_name": "valence-authorization",
-  "contract_version": "0.1.0",
+  "contract_version": "0.2.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -199,6 +199,14 @@
           "functions"
         ],
         "properties": {
+          "expiration_time": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          },
           "functions": {
             "type": "array",
             "items": {
@@ -688,6 +696,20 @@
           {
             "type": "object",
             "required": [
+              "expired"
+            ],
+            "properties": {
+              "expired": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
               "unexpected_error"
             ],
             "properties": {
@@ -1051,6 +1073,14 @@
           "functions"
         ],
         "properties": {
+          "expiration_time": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          },
           "functions": {
             "type": "array",
             "items": {
@@ -2167,6 +2197,14 @@
             "functions"
           ],
           "properties": {
+            "expiration_time": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
             "functions": {
               "type": "array",
               "items": {
@@ -2558,6 +2596,14 @@
             "functions"
           ],
           "properties": {
+            "expiration_time": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
             "functions": {
               "type": "array",
               "items": {
@@ -3299,11 +3345,13 @@
       "title": "ProcessorCallbackInfo",
       "type": "object",
       "required": [
+        "created_at",
         "domain",
         "execution_id",
         "execution_result",
         "initiator",
         "label",
+        "last_updated_at",
         "messages",
         "processor_callback_address"
       ],
@@ -3317,6 +3365,11 @@
               "type": "null"
             }
           ]
+        },
+        "created_at": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
         },
         "domain": {
           "$ref": "#/definitions/Domain"
@@ -3334,6 +3387,11 @@
         },
         "label": {
           "type": "string"
+        },
+        "last_updated_at": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
         },
         "messages": {
           "type": "array",
@@ -3441,6 +3499,20 @@
               "properties": {
                 "timeout": {
                   "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "expired"
+              ],
+              "properties": {
+                "expired": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0.0
                 }
               },
               "additionalProperties": false
@@ -3735,6 +3807,20 @@
             {
               "type": "object",
               "required": [
+                "expired"
+              ],
+              "properties": {
+                "expired": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
                 "unexpected_error"
               ],
               "properties": {
@@ -3818,11 +3904,13 @@
         "ProcessorCallbackInfo": {
           "type": "object",
           "required": [
+            "created_at",
             "domain",
             "execution_id",
             "execution_result",
             "initiator",
             "label",
+            "last_updated_at",
             "messages",
             "processor_callback_address"
           ],
@@ -3836,6 +3924,11 @@
                   "type": "null"
                 }
               ]
+            },
+            "created_at": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
             },
             "domain": {
               "$ref": "#/definitions/Domain"
@@ -3853,6 +3946,11 @@
             },
             "label": {
               "type": "string"
+            },
+            "last_updated_at": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
             },
             "messages": {
               "type": "array",

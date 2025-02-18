@@ -23,6 +23,7 @@ pub enum ProcessorMessageToEncode {
         execution_id: u64,
         priority: Priority,
         subroutine: Subroutine,
+        expiration_time: Option<u64>,
         messages: Vec<Message>,
     },
     InsertMsgs {
@@ -30,6 +31,7 @@ pub enum ProcessorMessageToEncode {
         queue_position: u64,
         priority: Priority,
         subroutine: Subroutine,
+        expiration_time: Option<u64>,
         messages: Vec<Message>,
     },
     EvictMsgs {

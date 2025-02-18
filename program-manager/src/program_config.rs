@@ -295,6 +295,7 @@ impl ProgramConfig {
                 account_id, addr, account.domain
             );
 
+            // TODO: We only need the salt, can simplify here
             account_instantiate_datas.insert(
                 *account_id,
                 InstantiateAccountData::new(*account_id, account.clone(), addr.clone(), salt),

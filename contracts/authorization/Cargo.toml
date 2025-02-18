@@ -2,7 +2,7 @@
 name        = "valence-authorization"
 version     = { workspace = true }
 edition     = { workspace = true }
-authors     = ["Timewave Labs"]
+authors     = { workspace = true }
 description = "CosmWasm Smart Contract that will contain the authorization table that defines execution permissions in the program"
 
 [lib]

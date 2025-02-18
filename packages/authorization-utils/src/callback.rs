@@ -8,6 +8,10 @@ use crate::{domain::Domain, msg::ProcessorMessage};
 pub struct ProcessorCallbackInfo {
     // Execution ID that the callback was for
     pub execution_id: u64,
+    // Timestamp of entry creation
+    pub created_at: u64,
+    // Timestamp of last update of this entry
+    pub last_updated_at: u64,
     // Who started this operation, used for tokenfactory actions
     pub initiator: OperationInitiator,
     // Address that can send a bridge timeout or success for the message (if applied)
@@ -50,6 +54,9 @@ pub enum ExecutionResult {
     // true - retriable
     // false - not retriable
     Timeout(bool),
+    // Expired - happens when the batch wasn't executed in time according to the subroutine configuration
+    // Indicates how many functions were executed (non-atomic batches might have executed some functions before the expiration)
+    Expired(usize),
     // Unexpected error that should never happen but we'll store it here if it ever does
     UnexpectedError(String),
 }

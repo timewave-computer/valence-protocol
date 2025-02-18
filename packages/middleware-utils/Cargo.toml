@@ -2,7 +2,7 @@
 name        = "valence-middleware-utils"
 version     = { workspace = true }
 edition     = { workspace = true }
-authors     = ["Timewave Labs"]
+authors     = { workspace = true }
 description = "valence middleware utilities"
 
 [dependencies]

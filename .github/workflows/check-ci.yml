@@ -84,8 +84,17 @@ jobs:
           name: forge-artifacts
           path: ./solidity/out/
 
+      - name: Install Taplo CLI
+        run: |
+          curl -sL https://github.com/tamasfe/taplo/releases/download/0.9.3/taplo-full-linux-x86_64.gz | gunzip > taplo
+          chmod +x taplo
+          mv taplo /usr/local/bin/
+
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
+
+      - name: Run taplo (toml fmt)
+        run: ./devtools/toml_fmt.sh --check
 
       - name: Run clippy
         run: cargo clippy --all-targets --verbose -- -D warnings
@@ -203,7 +212,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run token_swap example
-        uses: "./.github/actions/run-local-ic-test"
+        uses: "./.github/actions/run-local-ic-example"
         with:
           chain-config: "neutron"
           test-name: "token_swap"
@@ -301,7 +310,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run osmo gamm lp & lw tests
-        uses: "./.github/actions/run-local-ic-test"
+        uses: "./.github/actions/run-local-ic-example"
         with:
           chain-config: "neutron_osmosis"
           test-name: "osmo_gamm"
@@ -315,7 +324,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run osmo cl lp & lw tests
-        uses: "./.github/actions/run-local-ic-test"
+        uses: "./.github/actions/run-local-ic-example"
         with:
           chain-config: "neutron_osmosis"
           test-name: "osmo_cl"

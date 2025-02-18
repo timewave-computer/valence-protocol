@@ -6,16 +6,22 @@ There are different types of callbacks in our application. Each of them have a s
 
 For the execution of `NonAtomic` batches, each function in the batch can optionally be confirmed with a callback from a specific address. When the processor reaches a function that requires a callback, it will inject the execution_id of the batch into the message that is going to be executed on the library, which means that the library needs to be ready to receive that execution_id and know what the expected callback is and from where it has to come from to confirm that function, otherwise that function will stay unconfirmed and the batch will not move to the next function. The callback will be sent to the processor with the execution_id so that the processor can know what function is being confirmed. The processor will then validate that the correct callback was received from the correct address.
 
-If the processor receives the expected callback from the correct address, the batch will move to the next function. If it receives a different callback than expected from that address, the execution of that function will be considered failed and it will be retried (if applicable). In any case, a callback must be received to determine if the function was successful or not.
+If the processor receives the expected callback from the correct address, the batch will move to the next function. If it receives a different callback than expected from that address, the execution of that function is considered to have failed and it will be retried (if applicable). In either case, a callback must be received to determine if the function was successful or not.
+
+Note: This functionality is not available on the Lite Processor, as this version of the processor is not able to receive asynchronous callbacks from libraries.
 
 ## Processor Callbacks
 
-Once a Processor batch is executed or it fails and there are no more retries available, the Processor will send a callback to the Authorizations contract with the execution_id of the batch and the result of the execution. All this information will be stored in the `Authorization` contract state so the history of all executions can be queried from it. This is how a `ProcessorCallback` looks like:
+Once a Processor batch is executed or it fails and there are no more retries available, the Processor will send a callback to the Authorizations contract with the execution_id of the batch and the result of the execution. All this information will be stored in the Authorization contract state so the history of all executions can be queried from it. This is how a `ProcessorCallback` looks like:
 
 ```rust
 pub struct ProcessorCallbackInfo {
     // Execution ID that the callback was for
     pub execution_id: u64,
+    // Timestamp of entry creation
+    pub created_at: u64,
+    // Timestamp of last update of this entry
+    pub last_updated_at: u64,
     // Who started this operation, used for tokenfactory actions
     pub initiator: OperationInitiator,
     // Address that can send a bridge timeout or success for the message (if applied)
@@ -34,6 +40,7 @@ pub struct ProcessorCallbackInfo {
     pub execution_result: ExecutionResult,
 }
 
+#[cw_serde]
 pub enum ExecutionResult {
     InProcess,
     // Everthing executed successfully
@@ -50,6 +57,9 @@ pub enum ExecutionResult {
     // true - retriable
     // false - not retriable
     Timeout(bool),
+    // Expired - happens when the batch wasn't executed in time according to the subroutine configuration
+    // Indicates how many functions were executed (non-atomic batches might have executed some functions before the expiration)
+    Expired(usize),
     // Unexpected error that should never happen but we'll store it here if it ever does
     UnexpectedError(String),
 }

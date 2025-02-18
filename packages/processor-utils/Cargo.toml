@@ -2,7 +2,7 @@
 name        = "valence-processor-utils"
 version     = { workspace = true }
 edition     = { workspace = true }
-authors     = ["Timewave Labs"]
+authors     = { workspace = true }
 description = "Helpers for processor contract"
 
 [dependencies]

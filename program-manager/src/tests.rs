@@ -249,6 +249,7 @@ mod test {
                         contract_address: LibraryAccountType::LibraryId(1),
                     }],
                     retry_logic: None,
+                    expiration_time: None,
                 }),
                 priority: None,
             },

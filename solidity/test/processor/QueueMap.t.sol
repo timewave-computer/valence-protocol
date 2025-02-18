@@ -18,6 +18,21 @@ contract QueueMapTest is Test {
 
     event QueueOperation(string operation, bytes data);
 
+    // Add an external helper function that calls queue.insertAt
+    function externalInsertAt(uint256 index, bytes calldata data) external {
+        queue.insertAt(index, data);
+    }
+
+    // Add an external helper function that calls queue.removeAt
+    function externalRemoveAt(uint256 index) external {
+        queue.removeAt(index);
+    }
+
+    // Add an external helper function that calls queue.popFront
+    function externalPopFront() external {
+        queue.popFront();
+    }
+
     function setUp() public {
         queue = QueueMap.createQueue("TEST_QUEUE");
     }
@@ -182,18 +197,18 @@ contract QueueMapTest is Test {
     // Error Cases Tests
     function test_RevertWhen_PopEmpty() public {
         vm.expectRevert();
-        queue.popFront();
+        this.externalPopFront();
     }
 
     function test_RevertWhen_InsertOutOfBounds() public {
         uint256[] memory numbers = new uint256[](1);
         vm.expectRevert();
-        queue.insertAt(1, _encodeStruct(_createTestStruct(1, "test", numbers)));
+        this.externalInsertAt(1, _encodeStruct(_createTestStruct(1, "test", numbers)));
     }
 
     function test_RevertWhen_RemoveOutOfBounds() public {
         vm.expectRevert();
-        queue.removeAt(0);
+        this.externalRemoveAt(0);
     }
 
     // Large Data Tests

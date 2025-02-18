@@ -115,6 +115,14 @@
           "functions"
         ],
         "properties": {
+          "expiration_time": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          },
           "functions": {
             "type": "array",
             "items": {
@@ -408,6 +416,14 @@
           "functions"
         ],
         "properties": {
+          "expiration_time": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          },
           "functions": {
             "type": "array",
             "items": {
@@ -542,6 +558,14 @@
                     "format": "uint64",
                     "minimum": 0.0
                   },
+                  "expiration_time": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
                   "messages": {
                     "type": "array",
                     "items": {
@@ -578,6 +602,14 @@
                 "properties": {
                   "execution_id": {
                     "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
+                  "expiration_time": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
                     "format": "uint64",
                     "minimum": 0.0
                   },

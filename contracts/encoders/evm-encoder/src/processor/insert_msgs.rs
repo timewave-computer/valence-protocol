@@ -13,6 +13,7 @@ pub fn encode(
     queue_position: u64,
     priority: Priority,
     subroutine: Subroutine,
+    expiration_time: Option<u64>,
     messages: Vec<Message>,
 ) -> StdResult<Binary> {
     let message = InsertMsgs {
@@ -20,6 +21,7 @@ pub fn encode(
         queuePosition: queue_position,
         priority: priority.into(),
         subroutine: encode_subroutine(subroutine)?,
+        expirationTime: expiration_time.unwrap_or(0),
         messages: messages
             .iter()
             .map(|m| {

@@ -1,6 +1,6 @@
 {
   "contract_name": "valence-encoder-broker",
-  "contract_version": "0.1.0",
+  "contract_version": "0.2.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -357,6 +357,14 @@
           "functions"
         ],
         "properties": {
+          "expiration_time": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          },
           "functions": {
             "type": "array",
             "items": {
@@ -650,6 +658,14 @@
           "functions"
         ],
         "properties": {
+          "expiration_time": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          },
           "functions": {
             "type": "array",
             "items": {
@@ -784,6 +800,14 @@
                     "format": "uint64",
                     "minimum": 0.0
                   },
+                  "expiration_time": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
                   "messages": {
                     "type": "array",
                     "items": {
@@ -820,6 +844,14 @@
                 "properties": {
                   "execution_id": {
                     "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
+                  "expiration_time": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
                     "format": "uint64",
                     "minimum": 0.0
                   },

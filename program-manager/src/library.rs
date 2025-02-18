@@ -2,6 +2,7 @@ use std::num::ParseIntError;
 
 use aho_corasick::AhoCorasick;
 
+use cosmwasm_schema::schemars;
 use cosmwasm_schema::schemars::JsonSchema;
 use cosmwasm_std::{to_json_binary, Binary, Empty, StdError};
 use serde::{Deserialize, Serialize};
@@ -51,7 +52,6 @@ pub enum LibraryError {
 pub struct LibraryInfo {
     pub name: String,
     pub domain: Domain,
-    #[serde(skip)]
     pub config: LibraryConfig,
     pub addr: Option<String>,
 }
@@ -70,7 +70,15 @@ impl LibraryInfo {
 /// This is a list of all our libraries we support and their configs.
 #[manager_impl_library_configs]
 #[derive(
-    Debug, Clone, strum::Display, Serialize, Deserialize, VariantNames, PartialEq, Default,
+    Debug,
+    Clone,
+    strum::Display,
+    Serialize,
+    Deserialize,
+    VariantNames,
+    PartialEq,
+    Default,
+    JsonSchema,
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum LibraryConfig {

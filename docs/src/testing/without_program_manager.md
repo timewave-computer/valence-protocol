@@ -4,9 +4,9 @@ This example demonstrates how to test your program without the Program Manager a
 
 > **Use-case**: In this particular example, we will show you how to create a program that liquid stakes NTRN tokens on a Persistence chain directly from a base account without the need of using libraries. Note that this example is just for demonstrating purposes. In a real-world scenario, you would not liquid stake NTRN as it is not a staking token. We also are not using a liquid staking library for this example, although one could be creating for this purpose.
 
-The full code for this example can be found in the [Persistence Liquid Staking example](https://github.com/timewave-computer/valence-protocol/blob/main/local-interchaintest/examples/persistence_ls.rs).
+The full code for this example can be found in the [Persistence Liquid Staking example](https://github.com/timewave-computer/valence-protocol/blob/main/e2e/examples/persistence_ls.rs).
 
-1. Set up the authorization contract and processor on the `Main Domain` (Neutron).
+1. Set up the Authorization contract and processor on the `Main Domain` (Neutron).
 
 ```rust
     let now = SystemTime::now();
@@ -20,7 +20,7 @@ The full code for this example can be found in the [Persistence Liquid Staking e
         set_up_authorization_and_processor(&mut test_ctx, salt.clone())?;
 ```
 
-This code sets up the authorization contract and processor on Neutron. We use a time based salt to ensure that each test run the generated contract addresses are different. The `set_up_authorization_and_processor` function is a helper function instantiates both the processor and authorization contracts on Neutron and provides the contract addresses to interact with both. As you can see, we are not using the processor on Neutron here, but we are still setting it up.
+This code sets up the Authorization contract and processor on Neutron. We use a time based salt to ensure that each test run the generated contract addresses are different. The `set_up_authorization_and_processor` function is a helper function instantiates both the Processor and Authorization contracts on Neutron and provides the contract addresses to interact with both. As you can see, we are not using the Processor on Neutron here, but we are still setting it up.
 
 2. Set up an external domain and create a channel to start relaying messages.
 
@@ -39,11 +39,11 @@ This code sets up the authorization contract and processor on Neutron. We use a 
 
 This function does the following:
 - Instantiates all the Polytone contracts on both the main domain and the new external domain. The information of the external domain is provided in the function arguments.
-- Creates a channel between the Polytone contracts that the relayer will use to relay messages between the authorization contract and the processor.
-- Instantiates the Processor contract on the external domain with the correct Polytone information and the authorization contract address.
-- Adds the external domain to authorization contract with the Polytone information and the processor address on the external domain.
+- Creates a channel between the Polytone contracts that the relayer will use to relay messages between the Authorization contract and the processor.
+- Instantiates the Processor contract on the external domain with the correct Polytone information and the Authorization contract address.
+- Adds the external domain to Authorization contract with the Polytone information and the processor address on the external domain.
 
-After this is done, we can start creating authorizations for that external domain and when we send messages to the authorization contract, the relayer will relay the messages to the processor on the external domain and return the callbacks.
+After this is done, we can start creating authorizations for that external domain and when we send messages to the Authorization contract, the relayer will relay the messages to the processor on the external domain and return the callbacks.
 
 3. Create one or more base accounts on a domain.
 
@@ -110,7 +110,7 @@ This function creates a base account on the external domain and grants permissio
 
 In this code snippet, we are creating an authorization to execute a message on the persistence base account. For this particular example, since we are going to execute a `CosmosMsg::Stargate` directly on the account passing the protobuf message, we are not going to set up any param restrictions. If we were using a library, we could potentially set up restrictions for the json message that the library would expect.
 
-5. Send message to the authorization contract
+5. Send message to the Authorization contract
 
 ```rust
 info!("Send the messages to the authorization contract...");
@@ -156,7 +156,7 @@ info!("Send the messages to the authorization contract...");
     std::thread::sleep(std::time::Duration::from_secs(3));
 ```
 
-In this code snippet, we are sending a message to the authorization contract to execute the liquid staking message on the base account on Persistence. Note that we are using the same label that we used in the authorization creation. This is important because the authorization contract will check if the label matches the one in the authorization. If it does not match, the execution will fail. The authorization contract will send the message to the corresponding Polytone contract that will send it via IBC to the processor on the external domain.
+In this code snippet, we are sending a message to the Authorization contract to execute the liquid staking message on the base account on Persistence. Note that we are using the same label that we used in the authorization creation. This is important because the Authorization contract will check if the label matches the one in the authorization. If it does not match, the execution will fail. The Authorization contract will send the message to the corresponding Polytone contract that will send it via IBC to the processor on the external domain.
 
 6. Tick the processor
 
@@ -170,4 +170,4 @@ In this code snippet, we are sending a message to the authorization contract to 
     std::thread::sleep(std::time::Duration::from_secs(3));
 ```
 
-The message must now be sitting on the processor on Persistence, therefore we need to tick the processor to trigger the execution. This will execute the message and send a callback with the result to the authorization contract, which completes the full testing cycle.
+The message must now be sitting on the processor on Persistence, therefore we need to tick the processor to trigger the execution. This will execute the message and send a callback with the result to the Authorization contract, which completes the full testing cycle.

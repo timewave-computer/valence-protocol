@@ -12,12 +12,14 @@ pub fn encode(
     execution_id: u64,
     priority: Priority,
     subroutine: Subroutine,
+    expiration_time: Option<u64>,
     messages: Vec<Message>,
 ) -> StdResult<Binary> {
     let message = SendMsgs {
         executionId: execution_id,
         priority: priority.into(),
         subroutine: encode_subroutine(subroutine)?,
+        expirationTime: expiration_time.unwrap_or(0),
         messages: messages
             .iter()
             .map(|m| {

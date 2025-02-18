@@ -9,9 +9,11 @@ members = [
     "contracts/program-registry",
     "contracts/middleware/type-registries/osmosis/osmo-26-0-0",
     "contracts/middleware/broker",
+    "contracts/middleware/asserter",
     "packages/*",
     "program-manager",
-    "local-interchaintest",
+    "e2e",
+    "examples",
 ]
 resolver = "2"
 
@@ -19,7 +21,7 @@ resolver = "2"
 authors    = ["Timewave Labs"]
 edition    = "2021"
 license    = "Apache-2.0"
-version    = "0.1.0"
+version    = "0.2.0"
 repository = "https://github.com/timewave-computer/valence-protocol"
 
 [profile.release]
@@ -80,8 +82,11 @@ valence-encoder-broker               = { path = "contracts/encoders/broker", fea
 valence-neutron-ic-querier           = { path = "contracts/libraries/neutron-ic-querier", features = ["library"] }
 
 # middleware
-valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = ["library"] }
-valence-middleware-broker  = { path = "contracts/middleware/broker", features = ["library"] }
+valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = [
+    "library",
+] }
+valence-middleware-broker = { path = "contracts/middleware/broker", features = ["library"] }
+valence-middleware-asserter = { path = "contracts/middleware/asserter", features = ["library"] }
 
 # our packages
 valence-account-utils          = { path = "packages/account-utils" }
@@ -115,3 +120,5 @@ log                  = "0.4.22"
 prost                = { version = "0.13.3", default-features = false }
 prost-types          = { version = "0.13.3", default-features = false }
 semver               = "1.0.24"
+valence-e2e          = { path = "e2e" }
+valence-examples     = { path = "examples" }
