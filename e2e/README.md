@@ -79,7 +79,6 @@ make build-docker
 cargo run --package local-interchaintest --example example_file_name`
 ```
 
-
 ```txt
 Error: LocalInterchain(Custom { msg: "channel_json is not an array" })
 ```
