@@ -7,9 +7,7 @@ description = "Utils for osmosis libraries"
 
 [features]
 default = []
-testing = [
-    "dep:osmosis-test-tube",
-]
+testing = ["dep:osmosis-test-tube"]
 
 [dependencies]
 cosmwasm-std          = { workspace = true }
