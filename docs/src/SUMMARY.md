@@ -41,3 +41,5 @@
   - [Example without Program Manager](./testing/without_program_manager.md)
   - [Example with Program Manager](./testing/with_program_manager.md)
 - [Security](./security.md)
+- [Deployment](./deployment/_overview.md)
+  - [Local Deployment](./deployment/local.md)
