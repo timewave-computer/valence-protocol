@@ -1,49 +1,53 @@
 { lib
 , buildGoModule
-, fetchFromGitHub
+, fetchCrate
 , patchelf
+, pname ? "libosmosistesttube"
+, version ? "26.0.1"
+, crateName ? "osmosis-test-tube"
+, srcHash ? "sha256-yt7fv9kDVA5kJkrDWnzjEkKzIOvl+nvafq2Z8d79Rw8="
+, vendorHash ? "sha256-T+tf6G63BOOEn9s89mRPtDqC24JsG05TPpPQdcEhDBE="
 }:
 let
-  src = fetchFromGitHub {
-    owner = "osmosis-labs";
-    repo = "test-tube";
-    rev = "a68e939";
-    hash = "sha256-eU+wZRZ+qQehigT8HYF61leW0s2+yw2qvZve4FXLRZ8=";
-    sparseCheckout = [ "packages/osmosis-test-tube/libosmosistesttube/" ];
+  src = fetchCrate {
+    pname = crateName;
+    inherit version;
+    hash = srcHash;
   };
 in
 buildGoModule {
-  inherit src;
-  pname = "libosmosistesttube";
-  version = "unstable-2024-10-22";
-  sourceRoot = "${src.name}/packages/osmosis-test-tube/libosmosistesttube/";
+  inherit pname version src vendorHash;
+
+  sourceRoot = "${src.name}/${pname}";
 
   ldflags = [ "-w" ];
 
   buildPhase = ''
     runHook preBuild
 
-    go build -buildmode=c-shared -ldflags -w -o libosmosistesttube.so main.go
+    go build -buildmode=c-shared -ldflags -w -o ${pname}.so main.go
 
     mkdir libwasmvm
-    cp $GOPATH/pkg/mod/github.com/\!cosm\!wasm/wasmvm/v2@v2.1.2/internal/api/*.so libwasmvm/
+    cp $GOPATH/pkg/mod/github.com/\!cosm\!wasm/wasmvm/v2@*/internal/api/*.so libwasmvm/
 
     runHook postBuild
   '';
 
   postInstall = ''
-    mkdir -p $out/lib/
+    mkdir -p $out/lib $out/include
 
     mv libwasmvm $out/lib/wasmvm
-    chmod +x $out/lib/wasmvm/*
 
-    mv libosmosistesttube.so $out/lib/
+    mv ${pname}.so $out/lib/
+    mv ${pname}.h $out/include/
+
     # Remove reference to libwasmvm in GOPATH in RPATH and replace with libwasmvm in $out/lib/wasmvm
-    RPATH=$(patchelf --print-rpath $out/lib/libosmosistesttube.so | sed 's/^.*wasmvm[^:]*://'):$out/lib/wasmvm
-    patchelf --set-rpath $RPATH $out/lib/libosmosistesttube.so
+    RPATH=$(patchelf --print-rpath $out/lib/${pname}.so | sed 's/^.*wasmvm[^:]*://'):$out/lib/wasmvm
+    patchelf --set-rpath $RPATH $out/lib/${pname}.so
+
+    chmod +x $out/lib/* $out/lib/wasmvm/*
   '';
 
 
   proxyVendor = true; # Ensures dependencies are vendored correctly.
-  vendorHash = "sha256-T+tf6G63BOOEn9s89mRPtDqC24JsG05TPpPQdcEhDBE=";
 }
