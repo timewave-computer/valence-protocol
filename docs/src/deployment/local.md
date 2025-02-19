@@ -10,11 +10,12 @@ Before you can run the tests, you need to install local interchain. This is a on
 git clone https://github.com/strangelove-ventures/interchaintest && cd interchaintest/local-interchain && make install
 ```
 
-## 2. Running your local environment
+## 2. Running chains locally
 
-Run one of the set-up configs we have in the `e2e/chains` folder. For example, to run the `neutron.json` config, run the following command inside the `e2e` folder:
+Run one of the set-up configs we have in the `e2e/chains` folder. For example, to run the `neutron.json` config, run the following command from the `e2e` folder:
 
 ```bash
+cd e2e
 local-ic start neutron --api-port 42069
 ```
 
@@ -22,15 +23,12 @@ This will start a local environment with a Gaia chain and a Neutron (using ICS) 
 
 ## 3. Optimize Contracts
 
-Use CosmWasm optimizer to optimize contracts and store the results in `./artifacts`
+From the root directory, use CosmWasm optimizer to optimize contracts. The output will be stored in `./artifacts`
 
 ```bash
 just optimize
 ```
-
 Or
-
-```bash
 ```bash
 ./devtools/optimize.sh
 ```
