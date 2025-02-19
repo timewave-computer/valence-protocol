@@ -138,6 +138,22 @@ fn user_enqueing_messages() {
     )
     .unwrap();
 
+    // The created_at and last_updated_at timestamps for this entry should be the same as it was just created
+    let query_callbacks = wasm
+        .query::<QueryMsg, Vec<ProcessorCallbackInfo>>(
+            &authorization_contract,
+            &QueryMsg::ProcessorCallbacks {
+                start_after: None,
+                limit: None,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(
+        query_callbacks[0].created_at,
+        query_callbacks[0].last_updated_at
+    );
+
     // This should have enqueued one message in the medium priority queue, and none in the high priority queue
     let query_med_prio_queue = wasm
         .query::<ProcessorQueryMsg, Vec<MessageBatch>>(
@@ -1040,7 +1056,9 @@ fn queue_shifting_when_not_retriable() {
                 NonAtomicSubroutineBuilder::new()
                     .with_function(
                         NonAtomicFunctionBuilder::new()
-                            .with_contract_address(&test_library_contract.clone())
+                            .with_contract_address(LibraryAccountType::Addr(
+                                test_library_contract.clone(),
+                            ))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -1707,7 +1725,9 @@ fn retry_multi_function_non_atomic_batch_until_success() {
             NonAtomicSubroutineBuilder::new()
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_library_contract)
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -1719,7 +1739,9 @@ fn retry_multi_function_non_atomic_batch_until_success() {
                 )
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_library_contract)
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
                         .with_retry_logic(RetryLogic {
                             times: RetryTimes::Indefinitely,
                             interval: Duration::Time(2),
@@ -1735,7 +1757,9 @@ fn retry_multi_function_non_atomic_batch_until_success() {
                 )
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_library_contract)
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -2020,8 +2044,10 @@ fn failed_atomic_batch_after_retries() {
                     subroutine: Subroutine::Atomic(AtomicSubroutine {
                         functions: vec![],
                         retry_logic: None,
+                        expiration_time: None,
                     }),
                     priority: Priority::Medium,
+                    expiration_time: None,
                     retry: None,
                 },
             }),
@@ -2111,7 +2137,9 @@ fn failed_non_atomic_batch_after_retries() {
             NonAtomicSubroutineBuilder::new()
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_library_contract)
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -2123,7 +2151,9 @@ fn failed_non_atomic_batch_after_retries() {
                 )
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_library_contract)
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
                         .with_retry_logic(RetryLogic {
                             times: RetryTimes::Amount(5),
                             interval: Duration::Time(2),
@@ -2301,7 +2331,9 @@ fn successful_non_atomic_and_atomic_batches_together() {
                 NonAtomicSubroutineBuilder::new()
                     .with_function(
                         NonAtomicFunctionBuilder::new()
-                            .with_contract_address(&test_library_contract.clone())
+                            .with_contract_address(LibraryAccountType::Addr(
+                                test_library_contract.clone(),
+                            ))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -2313,7 +2345,9 @@ fn successful_non_atomic_and_atomic_batches_together() {
                     )
                     .with_function(
                         NonAtomicFunctionBuilder::new()
-                            .with_contract_address(&test_library_contract)
+                            .with_contract_address(LibraryAccountType::Addr(
+                                test_library_contract.clone(),
+                            ))
                             .with_message_details(MessageDetails {
                                 message_type: MessageType::CosmwasmExecuteMsg,
                                 message: Message {
@@ -2452,6 +2486,7 @@ fn successful_non_atomic_and_atomic_batches_together() {
             confirmed_callback.execution_result,
             ExecutionResult::Success
         );
+        assert!(confirmed_callback.last_updated_at > confirmed_callback.created_at);
     }
 }
 
@@ -2478,7 +2513,9 @@ fn reject_and_confirm_non_atomic_function_with_callback() {
             NonAtomicSubroutineBuilder::new()
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_library_contract)
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -2490,7 +2527,9 @@ fn reject_and_confirm_non_atomic_function_with_callback() {
                 )
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_library_contract)
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
                         .with_retry_logic(RetryLogic {
                             times: RetryTimes::Indefinitely,
                             interval: Duration::Time(2),
@@ -2714,7 +2753,9 @@ fn refund_and_burn_tokens_after_callback() {
             NonAtomicSubroutineBuilder::new()
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_library_contract)
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -2889,7 +2930,9 @@ fn burn_tokens_after_removed_by_owner() {
             NonAtomicSubroutineBuilder::new()
                 .with_function(
                     NonAtomicFunctionBuilder::new()
-                        .with_contract_address(&test_library_contract)
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
                         .with_message_details(MessageDetails {
                             message_type: MessageType::CosmwasmExecuteMsg,
                             message: Message {
@@ -3140,4 +3183,246 @@ fn migration() {
         .unwrap();
 
     assert!(query_condition);
+}
+
+#[test]
+fn expired_atomic_batch() {
+    let setup = NeutronTestAppBuilder::new().build().unwrap();
+
+    let wasm = Wasm::new(&setup.app);
+
+    let (authorization_contract, processor_contract) =
+        store_and_instantiate_authorization_with_processor_contract(
+            &setup.app,
+            &setup.owner_accounts[0],
+            setup.owner_addr.to_string(),
+            vec![setup.subowner_addr.to_string()],
+        );
+    let test_library_contract =
+        store_and_instantiate_test_library(&wasm, &setup.owner_accounts[0], None);
+
+    // Let's create it with expiration time
+    let authorizations = vec![AuthorizationBuilder::new()
+        .with_label("permissionless")
+        .with_subroutine(
+            AtomicSubroutineBuilder::new()
+                .with_expiration_time(5)
+                .with_function(
+                    AtomicFunctionBuilder::new()
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "will_succeed".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .build(),
+        )
+        .build()];
+
+    // Create the authorization and send the messages
+    wasm.execute::<ExecuteMsg>(
+        &authorization_contract,
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
+        &[],
+        &setup.owner_accounts[0],
+    )
+    .unwrap();
+
+    // Let's send the message
+    let binary = Binary::from(
+        serde_json::to_vec(&TestLibraryExecuteMsg::WillSucceed { execution_id: None }).unwrap(),
+    );
+    let message = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
+
+    wasm.execute::<ExecuteMsg>(
+        &authorization_contract,
+        &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
+            label: "permissionless".to_string(),
+            messages: vec![message],
+            ttl: None,
+        }),
+        &[],
+        &setup.user_accounts[0],
+    )
+    .unwrap();
+
+    // Wait for the expiration time to pass
+    setup.app.increase_time(10);
+
+    // Ticking the processor will make the batch fail and send an Expired callback
+    wasm.execute::<ProcessorExecuteMsg>(
+        &processor_contract,
+        &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
+        &[],
+        &setup.owner_accounts[0],
+    )
+    .unwrap();
+
+    // Check that it was removed from the queue and we got the callback
+    let query_med_prio_queue = wasm
+        .query::<ProcessorQueryMsg, Vec<MessageBatch>>(
+            &processor_contract,
+            &ProcessorQueryMsg::GetQueue {
+                from: None,
+                to: None,
+                priority: Priority::Medium,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(query_med_prio_queue.len(), 0);
+
+    let query_callbacks = wasm
+        .query::<QueryMsg, Vec<ProcessorCallbackInfo>>(
+            &authorization_contract,
+            &QueryMsg::ProcessorCallbacks {
+                start_after: None,
+                limit: None,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(query_callbacks.len(), 1);
+    assert_eq!(
+        query_callbacks[0].execution_result,
+        ExecutionResult::Expired(0)
+    );
+}
+
+#[test]
+fn expired_non_atomic_batch() {
+    let setup = NeutronTestAppBuilder::new().build().unwrap();
+
+    let wasm = Wasm::new(&setup.app);
+
+    let (authorization_contract, processor_contract) =
+        store_and_instantiate_authorization_with_processor_contract(
+            &setup.app,
+            &setup.owner_accounts[0],
+            setup.owner_addr.to_string(),
+            vec![setup.subowner_addr.to_string()],
+        );
+    let test_library_contract =
+        store_and_instantiate_test_library(&wasm, &setup.owner_accounts[0], None);
+
+    // We'll create an authorization with 2 functions that succeed and expiration time
+    let authorizations = vec![AuthorizationBuilder::new()
+        .with_label("permissionless")
+        .with_subroutine(
+            NonAtomicSubroutineBuilder::new()
+                .with_expiration_time(10)
+                .with_function(
+                    NonAtomicFunctionBuilder::new()
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "will_succeed".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .with_function(
+                    NonAtomicFunctionBuilder::new()
+                        .with_contract_address(LibraryAccountType::Addr(
+                            test_library_contract.clone(),
+                        ))
+                        .with_message_details(MessageDetails {
+                            message_type: MessageType::CosmwasmExecuteMsg,
+                            message: Message {
+                                name: "will_succeed".to_string(),
+                                params_restrictions: None,
+                            },
+                        })
+                        .build(),
+                )
+                .build(),
+        )
+        .build()];
+
+    // Create the authorization
+    wasm.execute::<ExecuteMsg>(
+        &authorization_contract,
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateAuthorizations { authorizations }),
+        &[],
+        &setup.owner_accounts[0],
+    )
+    .unwrap();
+
+    // Send the messages
+    let binary = Binary::from(
+        serde_json::to_vec(&TestLibraryExecuteMsg::WillSucceed { execution_id: None }).unwrap(),
+    );
+    let message = ProcessorMessage::CosmwasmExecuteMsg { msg: binary };
+
+    wasm.execute::<ExecuteMsg>(
+        &authorization_contract,
+        &ExecuteMsg::PermissionlessAction(PermissionlessMsg::SendMsgs {
+            label: "permissionless".to_string(),
+            messages: vec![message.clone(), message],
+            ttl: None,
+        }),
+        &[],
+        &setup.user_accounts[0],
+    )
+    .unwrap();
+
+    // Tick the processor one time to make the first function succeed
+    wasm.execute::<ProcessorExecuteMsg>(
+        &processor_contract,
+        &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
+        &[],
+        &setup.owner_accounts[0],
+    )
+    .unwrap();
+
+    // Wait for the expiration time to pass
+    setup.app.increase_time(15);
+
+    // Ticking the processor now will make the rest of the batch fail and send an Expired callback
+    wasm.execute::<ProcessorExecuteMsg>(
+        &processor_contract,
+        &ProcessorExecuteMsg::PermissionlessAction(ProcessorPermissionlessMsg::Tick {}),
+        &[],
+        &setup.owner_accounts[0],
+    )
+    .unwrap();
+
+    // Check that it was removed from the queue and we got the callback
+    let query_med_prio_queue = wasm
+        .query::<ProcessorQueryMsg, Vec<MessageBatch>>(
+            &processor_contract,
+            &ProcessorQueryMsg::GetQueue {
+                from: None,
+                to: None,
+                priority: Priority::Medium,
+            },
+        )
+        .unwrap();
+    assert_eq!(query_med_prio_queue.len(), 0);
+
+    let query_callbacks = wasm
+        .query::<QueryMsg, Vec<ProcessorCallbackInfo>>(
+            &authorization_contract,
+            &QueryMsg::ProcessorCallbacks {
+                start_after: None,
+                limit: None,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(query_callbacks.len(), 1);
+    assert_eq!(
+        query_callbacks[0].execution_result,
+        ExecutionResult::Expired(1)
+    );
 }

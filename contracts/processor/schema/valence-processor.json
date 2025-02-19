@@ -1,6 +1,6 @@
 {
   "contract_name": "valence-processor",
-  "contract_version": "0.1.0",
+  "contract_version": "0.2.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -134,6 +134,14 @@
           "functions"
         ],
         "properties": {
+          "expiration_time": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          },
           "functions": {
             "type": "array",
             "items": {
@@ -187,6 +195,14 @@
                   "subroutine"
                 ],
                 "properties": {
+                  "expiration_time": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
                   "id": {
                     "type": "integer",
                     "format": "uint64",
@@ -253,6 +269,14 @@
                   "subroutine"
                 ],
                 "properties": {
+                  "expiration_time": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
                   "id": {
                     "type": "integer",
                     "format": "uint64",
@@ -461,6 +485,22 @@
             "additionalProperties": false
           }
         ]
+      },
+      "EncoderInfo": {
+        "type": "object",
+        "required": [
+          "broker_address",
+          "encoder_version"
+        ],
+        "properties": {
+          "broker_address": {
+            "type": "string"
+          },
+          "encoder_version": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       },
       "ErrorResponse": {
         "type": "object",
@@ -717,6 +757,14 @@
           "subroutine"
         ],
         "properties": {
+          "expiration_time": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          },
           "id": {
             "type": "integer",
             "format": "uint64",
@@ -764,10 +812,37 @@
         "additionalProperties": false
       },
       "MessageType": {
-        "type": "string",
-        "enum": [
-          "cosmwasm_execute_msg",
-          "cosmwasm_migrate_msg"
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "cosmwasm_execute_msg",
+              "cosmwasm_migrate_msg",
+              "evm_raw_call"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "evm_call"
+            ],
+            "properties": {
+              "evm_call": {
+                "type": "array",
+                "items": [
+                  {
+                    "$ref": "#/definitions/EncoderInfo"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          }
         ]
       },
       "MsgResponse": {
@@ -832,6 +907,14 @@
           "functions"
         ],
         "properties": {
+          "expiration_time": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          },
           "functions": {
             "type": "array",
             "items": {
@@ -894,6 +977,18 @@
                 ],
                 "maxItems": 2,
                 "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "must_be_bytes"
+            ],
+            "properties": {
+              "must_be_bytes": {
+                "$ref": "#/definitions/Binary"
               }
             },
             "additionalProperties": false
@@ -1001,6 +1096,48 @@
                     "format": "uint64",
                     "minimum": 0.0
                   },
+                  "msg": {
+                    "$ref": "#/definitions/Binary"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "evm_call"
+            ],
+            "properties": {
+              "evm_call": {
+                "type": "object",
+                "required": [
+                  "msg"
+                ],
+                "properties": {
+                  "msg": {
+                    "$ref": "#/definitions/Binary"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "evm_raw_call"
+            ],
+            "properties": {
+              "evm_raw_call": {
+                "type": "object",
+                "required": [
+                  "msg"
+                ],
+                "properties": {
                   "msg": {
                     "$ref": "#/definitions/Binary"
                   }
@@ -1468,6 +1605,14 @@
             "functions"
           ],
           "properties": {
+            "expiration_time": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
             "functions": {
               "type": "array",
               "items": {
@@ -1564,6 +1709,22 @@
               "additionalProperties": false
             }
           ]
+        },
+        "EncoderInfo": {
+          "type": "object",
+          "required": [
+            "broker_address",
+            "encoder_version"
+          ],
+          "properties": {
+            "broker_address": {
+              "type": "string"
+            },
+            "encoder_version": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
         },
         "Expiration": {
           "description": "Expiration represents a point in time when some event happens. It can compare with a BlockInfo and will return is_expired() == true once the condition is hit (and for every block in the future)",
@@ -1703,6 +1864,14 @@
             "subroutine"
           ],
           "properties": {
+            "expiration_time": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
             "id": {
               "type": "integer",
               "format": "uint64",
@@ -1750,10 +1919,37 @@
           "additionalProperties": false
         },
         "MessageType": {
-          "type": "string",
-          "enum": [
-            "cosmwasm_execute_msg",
-            "cosmwasm_migrate_msg"
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "cosmwasm_execute_msg",
+                "cosmwasm_migrate_msg",
+                "evm_raw_call"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "evm_call"
+              ],
+              "properties": {
+                "evm_call": {
+                  "type": "array",
+                  "items": [
+                    {
+                      "$ref": "#/definitions/EncoderInfo"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2
+                }
+              },
+              "additionalProperties": false
+            }
           ]
         },
         "NonAtomicFunction": {
@@ -1802,6 +1998,14 @@
             "functions"
           ],
           "properties": {
+            "expiration_time": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
             "functions": {
               "type": "array",
               "items": {
@@ -1867,6 +2071,18 @@
                 }
               },
               "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "must_be_bytes"
+              ],
+              "properties": {
+                "must_be_bytes": {
+                  "$ref": "#/definitions/Binary"
+                }
+              },
+              "additionalProperties": false
             }
           ]
         },
@@ -1918,6 +2134,48 @@
                       "format": "uint64",
                       "minimum": 0.0
                     },
+                    "msg": {
+                      "$ref": "#/definitions/Binary"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "evm_call"
+              ],
+              "properties": {
+                "evm_call": {
+                  "type": "object",
+                  "required": [
+                    "msg"
+                  ],
+                  "properties": {
+                    "msg": {
+                      "$ref": "#/definitions/Binary"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "evm_raw_call"
+              ],
+              "properties": {
+                "evm_raw_call": {
+                  "type": "object",
+                  "required": [
+                    "msg"
+                  ],
+                  "properties": {
                     "msg": {
                       "$ref": "#/definitions/Binary"
                     }
@@ -2095,6 +2353,20 @@
             {
               "type": "object",
               "required": [
+                "expired"
+              ],
+              "properties": {
+                "expired": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
                 "unexpected_error"
               ],
               "properties": {
@@ -2193,6 +2465,20 @@
               "properties": {
                 "timeout": {
                   "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "expired"
+              ],
+              "properties": {
+                "expired": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0.0
                 }
               },
               "additionalProperties": false

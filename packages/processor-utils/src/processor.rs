@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Binary, CosmosMsg, StdError, StdResult, SubMsg, WasmMsg};
+use cosmwasm_std::{Addr, Binary, CosmosMsg, StdError, StdResult, SubMsg};
 use cw_utils::Expiration;
 use serde_json::{json, Value};
 use valence_authorization_utils::{
@@ -48,10 +48,11 @@ pub struct MessageBatch {
     pub msgs: Vec<ProcessorMessage>,
     pub subroutine: Subroutine,
     pub priority: Priority,
+    pub expiration_time: Option<u64>,
     pub retry: Option<CurrentRetry>,
 }
 
-impl From<MessageBatch> for Vec<CosmosMsg> {
+impl From<MessageBatch> for Result<Vec<CosmosMsg>, StdError> {
     fn from(val: MessageBatch) -> Self {
         match val.subroutine {
             Subroutine::Atomic(config) => process_functions(val.msgs, &config.functions),
@@ -60,41 +61,35 @@ impl From<MessageBatch> for Vec<CosmosMsg> {
     }
 }
 
-fn process_functions<F: Function>(msgs: Vec<ProcessorMessage>, functions: &[F]) -> Vec<CosmosMsg> {
+fn process_functions<F: Function>(
+    msgs: Vec<ProcessorMessage>,
+    functions: &[F],
+) -> Result<Vec<CosmosMsg>, StdError> {
     msgs.into_iter()
         .zip(functions)
         .map(|(msg, function)| create_cosmos_msg(msg, function.get_contract_address().to_owned()))
         .collect()
 }
 
-fn create_cosmos_msg(msg: ProcessorMessage, contract_address: String) -> CosmosMsg {
-    match msg {
-        ProcessorMessage::CosmwasmExecuteMsg { msg } => CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: contract_address,
-            msg,
-            funds: vec![],
-        }),
-        ProcessorMessage::CosmwasmMigrateMsg { code_id, msg } => {
-            CosmosMsg::Wasm(WasmMsg::Migrate {
-                contract_addr: contract_address,
-                new_code_id: code_id,
-                msg,
-            })
-        }
-    }
+fn create_cosmos_msg(
+    msg: ProcessorMessage,
+    contract_address: String,
+) -> Result<CosmosMsg, StdError> {
+    Ok(CosmosMsg::Wasm(msg.to_wasm_message(&contract_address)?))
 }
 
 impl MessageBatch {
     /// This is used for non-atomic batches. We need to catch the reply always because we need to know if the message was successful to continue
     /// with the next message in the batch or apply the retry logic
-    pub fn create_message_by_index(&self, index: usize) -> Vec<SubMsg> {
+    pub fn create_message_by_index(&self, index: usize) -> Result<Vec<SubMsg>, StdError> {
         let contract_address = self
             .subroutine
             .get_contract_address_by_function_index(index);
-
-        let submessage =
-            SubMsg::reply_always(self.msgs[index].to_wasm_message(&contract_address), self.id);
-        vec![submessage]
+        let submessage = SubMsg::reply_always(
+            self.msgs[index].to_wasm_message(&contract_address)?,
+            self.id,
+        );
+        Ok(vec![submessage])
     }
 
     /// Very similar to create_message_by_index, but we append an execution id to the message
@@ -127,7 +122,7 @@ impl MessageBatch {
             .get_contract_address_by_function_index(index);
 
         let submessage =
-            SubMsg::reply_always(new_msg.to_wasm_message(&contract_address), execution_id);
+            SubMsg::reply_always(new_msg.to_wasm_message(&contract_address)?, execution_id);
         Ok(vec![submessage])
     }
 }

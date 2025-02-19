@@ -2,9 +2,9 @@ name: build and test
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 # Ensures that only a single workflow per PR will run at a time. Cancels in-progress jobs if new commit is pushed.
 concurrency:
@@ -12,11 +12,62 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  FOUNDRY_PROFILE: ci
   RUSTFLAGS: "-Dwarnings"
   GO_VERSION: 1.21
 
 jobs:
+  solidity:
+    strategy:
+      fail-fast: true
+
+    name: solidity contracts
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./solidity
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Show Forge version
+        run: |
+          forge --version
+
+      - name: Run Forge fmt
+        run: |
+          forge fmt --check
+        id: fmt
+
+      - name: Run Forge soldeer install
+        run: |
+          forge soldeer install
+        id: soldeer
+
+      - name: Run Forge build
+        run: |
+          forge build --sizes
+        id: build
+
+      - name: Run Forge tests
+        run: |
+          forge test -vvv
+        id: test
+
+      # Add this step to upload artifacts for other CI workflows
+      - name: Upload Forge artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: forge-artifacts
+          path: ./solidity/out/
   build:
+    needs: [solidity]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,8 +78,23 @@ jobs:
           cache-on-failure: true
           shared-key: ${{ github.event.pull_request.number || github.ref }}
 
+      - name: Download Forge artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: forge-artifacts
+          path: ./solidity/out/
+
+      - name: Install Taplo CLI
+        run: |
+          curl -sL https://github.com/tamasfe/taplo/releases/download/0.9.3/taplo-full-linux-x86_64.gz | gunzip > taplo
+          chmod +x taplo
+          mv taplo /usr/local/bin/
+
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
+
+      - name: Run taplo (toml fmt)
+        run: ./devtools/toml_fmt.sh --check
 
       - name: Run clippy
         run: cargo clippy --all-targets --verbose -- -D warnings
@@ -97,6 +163,12 @@ jobs:
           name: optimized-contracts
           path: ./artifacts
 
+      - name: Download Forge artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: forge-artifacts
+          path: ./solidity/out/
+
       - name: List downloaded files
         run: ls -l ./artifacts
 
@@ -118,7 +190,7 @@ jobs:
           path: ~/go/bin/local-ic
 
   local-ic-polytone:
-    needs: [build,setup-local-ic]
+    needs: [build, setup-local-ic]
     name: authorization & processor polytone integration test
     runs-on: ubuntu-latest
     steps:
@@ -128,11 +200,11 @@ jobs:
       - name: Run polytone example
         uses: "./.github/actions/run-local-ic-test"
         with:
-          chain-config: 'neutron_juno'
-          test-name: 'polytone'
+          chain-config: "neutron_juno"
+          test-name: "polytone"
 
   local-ic-token-swap:
-    needs: [build,setup-local-ic]
+    needs: [build, setup-local-ic]
     name: token swap e2e test
     runs-on: ubuntu-latest
     steps:
@@ -140,13 +212,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run token_swap example
-        uses: "./.github/actions/run-local-ic-test"
+        uses: "./.github/actions/run-local-ic-example"
         with:
-          chain-config: 'neutron'
-          test-name: 'token_swap'
+          chain-config: "neutron"
+          test-name: "token_swap"
 
   local-ic-2-party-pol-astroport-neutron:
-    needs: [build,setup-local-ic]
+    needs: [build, setup-local-ic]
     name: 2 party POL Astroport on Neutron e2e test
     runs-on: ubuntu-latest
     steps:
@@ -156,11 +228,11 @@ jobs:
       - name: Run 2 party POL Astroport on Neutron example
         uses: "./.github/actions/run-local-ic-test"
         with:
-          chain-config: 'neutron'
-          test-name: 'two_party_pol_astroport_neutron'
+          chain-config: "neutron"
+          test-name: "two_party_pol_astroport_neutron"
 
   local-ic-ibc-transfer-ntrn-juno:
-    needs: [build,setup-local-ic]
+    needs: [build, setup-local-ic]
     name: IBC transfer NTRN->JUNO e2e test
     runs-on: ubuntu-latest
     steps:
@@ -170,11 +242,11 @@ jobs:
       - name: Run IBC transfer NTRN->JUNO example
         uses: "./.github/actions/run-local-ic-test"
         with:
-          chain-config: 'neutron_juno'
-          test-name: 'ibc_transfer_ntrn_juno'
+          chain-config: "neutron_juno"
+          test-name: "ibc_transfer_ntrn_juno"
 
   local-ic-ibc-transfer-juno-ntrn:
-    needs: [build,setup-local-ic]
+    needs: [build, setup-local-ic]
     name: IBC transfer JUNO->NTRN e2e test
     runs-on: ubuntu-latest
     steps:
@@ -184,11 +256,11 @@ jobs:
       - name: Run IBC transfer JUNO->NTRN example
         uses: "./.github/actions/run-local-ic-test"
         with:
-          chain-config: 'neutron_juno'
-          test-name: 'ibc_transfer_juno_ntrn'
+          chain-config: "neutron_juno"
+          test-name: "ibc_transfer_juno_ntrn"
 
   local-ic-ibc-transfer-ntrn-juno-gaia-pfm:
-    needs: [build,setup-local-ic]
+    needs: [build, setup-local-ic]
     name: IBC transfer NTRN->JUNO->GAIA PFM e2e test
     runs-on: ubuntu-latest
     steps:
@@ -198,11 +270,11 @@ jobs:
       - name: Run IBC transfer NTRN->JUNO->GAIA PFM example
         uses: "./.github/actions/run-local-ic-test"
         with:
-          chain-config: 'neutron_juno'
-          test-name: 'ibc_transfer_ntrn_juno_gaia_pfm'
+          chain-config: "neutron_juno"
+          test-name: "ibc_transfer_ntrn_juno_gaia_pfm"
 
   local-ic-ibc-transfer-osmo-ntrn:
-    needs: [build,setup-local-ic]
+    needs: [build, setup-local-ic]
     name: IBC transfer OSMO->NTRN e2e test
     runs-on: ubuntu-latest
     steps:
@@ -212,11 +284,11 @@ jobs:
       - name: Run IBC transfer OSMO->NTRN example
         uses: "./.github/actions/run-local-ic-test"
         with:
-          chain-config: 'neutron_osmosis'
-          test-name: 'ibc_transfer_osmo_ntrn'
+          chain-config: "neutron_osmosis"
+          test-name: "ibc_transfer_osmo_ntrn"
 
   local-ic-ibc-transfer-osmo-juno-gaia-pfm:
-    needs: [build,setup-local-ic]
+    needs: [build, setup-local-ic]
     name: IBC transfer OSMO->JUNO->GAIA PFM e2e test
     runs-on: ubuntu-latest
     steps:
@@ -226,11 +298,11 @@ jobs:
       - name: Run IBC transfer OSMO->JUNO->GAIA PFM example
         uses: "./.github/actions/run-local-ic-test"
         with:
-          chain-config: 'juno_osmosis'
-          test-name: 'ibc_transfer_osmo_juno_gaia_pfm'
+          chain-config: "juno_osmosis"
+          test-name: "ibc_transfer_osmo_juno_gaia_pfm"
 
   local-ic-osmo-gamm-tests:
-    needs: [build,setup-local-ic]
+    needs: [build, setup-local-ic]
     name: Osmosis GAMM e2e lp -> lw run
     runs-on: ubuntu-latest
     steps:
@@ -238,13 +310,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run osmo gamm lp & lw tests
-        uses: "./.github/actions/run-local-ic-test"
+        uses: "./.github/actions/run-local-ic-example"
         with:
-          chain-config: 'neutron_osmosis'
-          test-name: 'osmo_gamm'
+          chain-config: "neutron_osmosis"
+          test-name: "osmo_gamm"
 
   local-ic-osmo-cl-tests:
-    needs: [build,setup-local-ic]
+    needs: [build, setup-local-ic]
     name: Osmosis concentrated liquidity e2e lp -> lw run
     runs-on: ubuntu-latest
     steps:
@@ -252,7 +324,21 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run osmo cl lp & lw tests
+        uses: "./.github/actions/run-local-ic-example"
+        with:
+          chain-config: "neutron_osmosis"
+          test-name: "osmo_cl"
+
+  local-ic-ethereum-e2e-tests:
+    needs: [build, setup-local-ic]
+    name: Ethereum e2e tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run ethereum e2e tests
         uses: "./.github/actions/run-local-ic-test"
         with:
-          chain-config: 'neutron_osmosis'
-          test-name: 'osmo_cl'
+          chain-config: "neutron"
+          test-name: "ethereum_integration_tests"

@@ -2,7 +2,7 @@
 name        = "valence-processor"
 version     = { workspace = true }
 edition     = { workspace = true }
-authors     = ["Timewave Labs"]
+authors     = { workspace = true }
 description = "CosmWasm Smart Contract that executes the messages on each library/account of the program by iterating over queues when ticked"
 
 [lib]
@@ -19,6 +19,6 @@ thiserror                   = { workspace = true }
 cw2                         = { workspace = true }
 valence-processor-utils     = { workspace = true }
 valence-authorization-utils = { workspace = true }
-valence-polytone-utils      = { workspace = true }
+valence-gmp-utils           = { workspace = true }
 cw-utils                    = { workspace = true }
 serde_json                  = { workspace = true }

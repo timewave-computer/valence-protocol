@@ -39,6 +39,7 @@ impl AuthorizationBuilder {
             subroutine: Subroutine::Atomic(AtomicSubroutine {
                 functions: vec![],
                 retry_logic: None,
+                expiration_time: None,
             }),
             priority: None,
         }
@@ -95,6 +96,7 @@ impl AuthorizationBuilder {
 pub struct AtomicSubroutineBuilder {
     functions: Vec<AtomicFunction>,
     retry_logic: Option<RetryLogic>,
+    expiration_time: Option<u64>,
 }
 
 impl Default for AtomicSubroutineBuilder {
@@ -108,6 +110,7 @@ impl AtomicSubroutineBuilder {
         AtomicSubroutineBuilder {
             functions: vec![],
             retry_logic: None,
+            expiration_time: None,
         }
     }
 
@@ -121,16 +124,23 @@ impl AtomicSubroutineBuilder {
         self
     }
 
+    pub fn with_expiration_time(mut self, expiration_time: u64) -> Self {
+        self.expiration_time = Some(expiration_time);
+        self
+    }
+
     pub fn build(self) -> Subroutine {
         Subroutine::Atomic(AtomicSubroutine {
             functions: self.functions,
             retry_logic: self.retry_logic,
+            expiration_time: self.expiration_time,
         })
     }
 }
 
 pub struct NonAtomicSubroutineBuilder {
     functions: Vec<NonAtomicFunction>,
+    expiration_time: Option<u64>,
 }
 
 impl Default for NonAtomicSubroutineBuilder {
@@ -141,7 +151,10 @@ impl Default for NonAtomicSubroutineBuilder {
 
 impl NonAtomicSubroutineBuilder {
     pub fn new() -> Self {
-        NonAtomicSubroutineBuilder { functions: vec![] }
+        NonAtomicSubroutineBuilder {
+            functions: vec![],
+            expiration_time: None,
+        }
     }
 
     pub fn with_function(mut self, function: NonAtomicFunction) -> Self {
@@ -149,9 +162,15 @@ impl NonAtomicSubroutineBuilder {
         self
     }
 
+    pub fn with_expiration_time(mut self, expiration_time: u64) -> Self {
+        self.expiration_time = Some(expiration_time);
+        self
+    }
+
     pub fn build(self) -> Subroutine {
         Subroutine::NonAtomic(NonAtomicSubroutine {
             functions: self.functions,
+            expiration_time: self.expiration_time,
         })
     }
 }
@@ -209,7 +228,7 @@ impl AtomicFunctionBuilder {
 pub struct NonAtomicFunctionBuilder {
     domain: Domain,
     message_details: MessageDetails,
-    contract_address: String,
+    contract_address: LibraryAccountType,
     retry_logic: Option<RetryLogic>,
     callback_confirmation: Option<FunctionCallback>,
 }
@@ -231,10 +250,15 @@ impl NonAtomicFunctionBuilder {
                     params_restrictions: None,
                 },
             },
-            contract_address: "address".to_string(),
+            contract_address: LibraryAccountType::Addr("address".to_string()),
             retry_logic: None,
             callback_confirmation: None,
         }
+    }
+
+    pub fn with_domain(mut self, domain: Domain) -> Self {
+        self.domain = domain;
+        self
     }
 
     pub fn with_message_details(mut self, message_details: MessageDetails) -> Self {
@@ -242,8 +266,8 @@ impl NonAtomicFunctionBuilder {
         self
     }
 
-    pub fn with_contract_address(mut self, contract_address: &str) -> Self {
-        self.contract_address = contract_address.to_string();
+    pub fn with_contract_address(mut self, contract_address: LibraryAccountType) -> Self {
+        self.contract_address = contract_address;
         self
     }
 
@@ -261,7 +285,7 @@ impl NonAtomicFunctionBuilder {
         NonAtomicFunction {
             domain: self.domain,
             message_details: self.message_details,
-            contract_address: self.contract_address.as_str().into(),
+            contract_address: self.contract_address,
             retry_logic: self.retry_logic,
             callback_confirmation: self.callback_confirmation,
         }

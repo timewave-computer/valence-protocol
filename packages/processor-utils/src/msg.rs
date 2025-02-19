@@ -4,7 +4,7 @@ use valence_authorization_utils::{
     authorization::{Priority, Subroutine},
     msg::ProcessorMessage,
 };
-use valence_polytone_utils::polytone::CallbackMessage;
+use valence_gmp_utils::polytone::CallbackMessage;
 
 use crate::{
     callback::PendingPolytoneCallbackInfo,
@@ -43,6 +43,7 @@ pub enum AuthorizationMsg {
         msgs: Vec<ProcessorMessage>,
         subroutine: Subroutine,
         priority: Priority,
+        expiration_time: Option<u64>,
     },
     EvictMsgs {
         queue_position: u64,
@@ -54,6 +55,7 @@ pub enum AuthorizationMsg {
         msgs: Vec<ProcessorMessage>,
         subroutine: Subroutine,
         priority: Priority,
+        expiration_time: Option<u64>,
     },
     Pause {},
     Resume {},

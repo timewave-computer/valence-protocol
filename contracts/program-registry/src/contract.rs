@@ -2,6 +2,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
+use cw_storage_plus::Bound;
 
 use crate::state::{PROGRAMS, PROGRAMS_BACKUP};
 use crate::{error::ContractError, state::LAST_ID};
@@ -132,8 +133,18 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             });
             to_json_binary(&program)
         }
+        QueryMsg::GetAllConfigs { start, end, limit } => {
+            let start = start.map(Bound::inclusive);
+            let end = end.map(Bound::exclusive);
+            let limit = limit.unwrap_or(10) as usize;
+            let configs = PROGRAMS
+                .range(deps.storage, start, end, cosmwasm_std::Order::Ascending)
+                .take(limit)
+                .map(|item| item.map(|(id, program_config)| ProgramResponse { id, program_config }))
+                .collect::<Result<Vec<_>, _>>()?;
+
+            to_json_binary(&configs)
+        }
+        QueryMsg::GetLastId {} => to_json_binary(&LAST_ID.load(deps.storage)?),
     }
 }
-
-#[cfg(test)]
-mod tests {}

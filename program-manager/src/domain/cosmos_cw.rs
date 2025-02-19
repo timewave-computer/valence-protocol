@@ -32,7 +32,10 @@ use serde_json::to_vec;
 use strum::VariantNames;
 use thiserror::Error;
 use tokio::time::sleep;
-use valence_authorization_utils::authorization::AuthorizationInfo;
+use valence_authorization_utils::{
+    authorization::AuthorizationInfo,
+    msg::{CosmwasmBridgeInfo, PolytoneConnectorsInfo},
+};
 
 use super::{Connector, ConnectorResult, POLYTONE_TIMEOUT};
 
@@ -495,16 +498,16 @@ impl Connector for CosmosCosmwasmConnector {
         let external_domain = valence_authorization_utils::msg::ExternalDomainInfo {
             name: domain.to_string(),
             execution_environment:
-                valence_authorization_utils::domain::ExecutionEnvironment::CosmWasm,
-            connector: valence_authorization_utils::msg::Connector::PolytoneNote {
-                address: bridge.note_addr,
-                timeout_seconds: POLYTONE_TIMEOUT,
-            },
-
+                valence_authorization_utils::msg::ExecutionEnvironmentInfo::Cosmwasm(
+                    CosmwasmBridgeInfo::Polytone(PolytoneConnectorsInfo {
+                        polytone_note: valence_authorization_utils::msg::PolytoneNoteInfo {
+                            address: bridge.note_addr,
+                            timeout_seconds: POLYTONE_TIMEOUT,
+                        },
+                        polytone_proxy: processor_bridge_account_addr.clone(),
+                    }),
+                ),
             processor: processor_addr,
-            callback_proxy: valence_authorization_utils::msg::CallbackProxy::PolytoneProxy(
-                processor_bridge_account_addr,
-            ),
         };
 
         let msg = to_vec(
@@ -768,7 +771,7 @@ impl Connector for CosmosCosmwasmConnector {
         Ok(())
     }
 
-    async fn save_program_config(&mut self, config: ProgramConfig) -> ConnectorResult<()> {
+    async fn save_program_config(&mut self, mut config: ProgramConfig) -> ConnectorResult<()> {
         if self.chain_name != *NEUTRON_CHAIN {
             return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                 "Should only be implemented on neutron connector"
@@ -776,13 +779,16 @@ impl Connector for CosmosCosmwasmConnector {
             .into());
         }
 
-        for library in config.libraries.values() {
+        for library in config.libraries.values_mut() {
             if library.addr.is_none() {
                 return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
                     "Before saving program config each library must have an address"
                 ))
                 .into());
             }
+
+            // Set config to None before saving on-chain
+            library.config = LibraryConfig::None;
         }
 
         let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();
@@ -1055,8 +1061,17 @@ impl CosmosCosmwasmConnector {
         )
         .map_err(CosmosCosmwasmError::CosmwasmStdError)?;
 
-        let state = match res.clone().connector {
-            valence_authorization_utils::domain::Connector::PolytoneNote { state, .. } => state,
+        let state = match res.clone().execution_environment {
+            valence_authorization_utils::domain::ExecutionEnvironment::Cosmwasm(
+                cosmwasm_bridge,
+            ) => match cosmwasm_bridge {
+                valence_authorization_utils::domain::CosmwasmBridge::Polytone(
+                    polytone_connectors,
+                ) => polytone_connectors.polytone_note.state,
+            },
+            valence_authorization_utils::domain::ExecutionEnvironment::Evm(_, _) => {
+                return Ok(false)
+            }
         };
 
         match state {

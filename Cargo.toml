@@ -2,13 +2,19 @@
 members = [
     "contracts/accounts/*",
     "contracts/libraries/*",
+    "contracts/encoders/*",
     "contracts/authorization",
     "contracts/processor",
     "contracts/testing/*",
     "contracts/program-registry",
+    "contracts/middleware/type-registries/osmosis/osmo-26-0-0",
+    "contracts/middleware/broker",
+    "contracts/middleware/asserter",
     "packages/*",
     "program-manager",
-    "local-interchaintest",
+    "e2e",
+    "examples",
+    "deployment/scripts/*",
 ]
 resolver = "2"
 
@@ -16,7 +22,7 @@ resolver = "2"
 authors    = ["Timewave Labs"]
 edition    = "2021"
 license    = "Apache-2.0"
-version    = "0.1.0"
+version    = "0.2.0"
 repository = "https://github.com/timewave-computer/valence-protocol"
 
 [profile.release]
@@ -56,6 +62,7 @@ osmosis-std-derive = "0.26.0"
 # our contracts
 valence-authorization                = { path = "contracts/authorization", features = ["library"] }
 valence-base-account                 = { path = "contracts/accounts/base_account", features = ["library"] }
+valence-storage-account              = { path = "contracts/accounts/storage_account", features = ["library"] }
 valence-processor                    = { path = "contracts/processor", features = ["library"] }
 valence-splitter-library             = { path = "contracts/libraries/splitter", features = ["library"] }
 valence-test-dynamic-ratio           = { path = "contracts/testing/test-dynamic-ratio", features = ["library"] }
@@ -72,21 +79,32 @@ valence-osmosis-gamm-lper            = { path = "contracts/libraries/osmosis-gam
 valence-osmosis-gamm-withdrawer      = { path = "contracts/libraries/osmosis-gamm-withdrawer", features = ["library"] }
 valence-osmosis-cl-lper              = { path = "contracts/libraries/osmosis-cl-lper", features = ["library"] }
 valence-osmosis-cl-withdrawer        = { path = "contracts/libraries/osmosis-cl-withdrawer", features = ["library"] }
+valence-encoder-broker               = { path = "contracts/encoders/broker", features = ["library"] }
+valence-neutron-ic-querier           = { path = "contracts/libraries/neutron-ic-querier", features = ["library"] }
+
+# middleware
+valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = [
+    "library",
+] }
+valence-middleware-broker = { path = "contracts/middleware/broker", features = ["library"] }
+valence-middleware-asserter = { path = "contracts/middleware/asserter", features = ["library"] }
 
 # our packages
 valence-account-utils          = { path = "packages/account-utils" }
 valence-astroport-utils        = { path = "packages/astroport-utils" }
 valence-osmosis-utils          = { path = "packages/osmosis-utils" }
 valence-authorization-utils    = { path = "packages/authorization-utils" }
+valence-encoder-utils          = { path = "packages/encoder-utils" }
 valence-ibc-utils              = { path = "packages/ibc-utils" }
 valence-macros                 = { path = "packages/valence-macros" }
-valence-polytone-utils         = { path = "packages/polytone-utils" }
+valence-gmp-utils              = { path = "packages/gmp-utils" }
 valence-processor-utils        = { path = "packages/processor-utils" }
 valence-library-base           = { path = "packages/library-base" }
 valence-library-utils          = { path = "packages/library-utils" }
 valence-program-registry-utils = { path = "packages/program-registry-utils" }
 valence-program-manager        = { path = "program-manager" }
 valence-program-registry       = { path = "contracts/program-registry", features = ["library"] }
+valence-middleware-utils       = { path = "packages/middleware-utils" }
 
 # dev-dependencies
 cw-multi-test        = { version = "2.1.1", features = ["cosmwasm_1_4"] }
@@ -100,3 +118,11 @@ tokio                = "1.40.0"
 osmosis-test-tube    = "26.0.1"
 env_logger           = "0.11.5"
 log                  = "0.4.22"
+prost                = { version = "0.13.3", default-features = false }
+prost-types          = { version = "0.13.3", default-features = false }
+semver               = "1.0.24"
+valence-e2e          = { path = "e2e" }
+valence-examples     = { path = "examples" }
+clap                 = { version = "4.5.13", features = ["derive"] }
+config               = { version = "0.15.8", features = ["toml"] }
+glob                 = "0.3"

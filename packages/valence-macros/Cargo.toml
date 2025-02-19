@@ -2,7 +2,7 @@
 name        = "valence-macros"
 version     = { workspace = true }
 edition     = { workspace = true }
-authors     = ["Timewave Labs"]
+authors     = { workspace = true }
 description = "Macros for Valence libraries and accounts"
 license     = { workspace = true }
 
