@@ -25,3 +25,7 @@ Middleware Type Registries are responsible for unifying a set of foreign types t
 ## Valence Types
 
 Valence Types are the canonical representations of various external domain implementations of some types.
+
+## Valence Asserter
+
+Valence Asserter enables Valence Programs to assert specific predicates during runtime. This is useful for programs that wish to enable conditional execution of a given function as long as some predicate evaluates to `true`.

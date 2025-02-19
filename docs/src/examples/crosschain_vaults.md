@@ -15,7 +15,7 @@ In this example, we have made the following assumptions:
 - The redemption rate that tells us how many tokens can be redeemed per shares is given by: \\( R = \frac{TotalAssets}{TotalIssuedShares} = \frac{TotalInVault + TotalInTransit + TotalInPostion}{TotalIssuedShares}\\)
 - A permissioned actor called the "Strategist" is authorized to transport funds from Ethereum to Neutron where they are locked in some DeFi protocol. And vice-versa, the Strategist can withdraw from the position so the funds are redeemable on Ethereum. The redemption rate must be adjusted by the Strategist accordingly.
 
-```mermaid 
+```mermaid
 ---
 title: Crosschain Vaults Overview
 ---
@@ -76,7 +76,7 @@ On Neutron, we'll need Accounts for:
 - **Withdraw**: To hold the tokens that are withdrawn from the position. Tokens from this pool can be bridged back to Ethereum.
 
 We'll need the following Libraries on Ethereum:
-- **Bridge Transfer**: To transfer funds from the Ethereum Deposit Account to the Neutron Deposit Account. 
+- **Bridge Transfer**: To transfer funds from the Ethereum Deposit Account to the Neutron Deposit Account.
 - **Forwarder**: To transfer funds between the Deposit and Withdraw Accounts on Ethereum. Two instances of the Library will be required.
 
 We'll need the following Libraries on Neutron:
@@ -84,13 +84,13 @@ We'll need the following Libraries on Neutron:
 - **Position Withdrawer**: To redeem a position for underlying funds that are then transferred to the Withdraw Account on Neutron.
 - **Bridge Transfer**: To transfer funds from the Neutron Withdraw Account to the Ethereum Withdraw Account.
 
-Note that the Accounts mentioned here the standard [Valence Accounts](../components/accounts.md). Th Bridge Transfer library will depend on the token being transferred, but will offer similar functionality to the [IBC Transfer](../libraries/cosmwasm/generic_ibc_transfer.md) library. The Position Depositor and Withdrawer will depend on the type of position, but can be similar to the [Liqudity Provider](../libraries/cosmwasm/astroport_lper.md) and [Liquidity Withdrawer](../libraries/cosmwasm/astroport_withdrawer.md).
+Note that the Accounts mentioned here are the standard [Valence Base Accounts](../components/base_accounts.md). Th Bridge Transfer library will depend on the token being transferred, but will offer similar functionality to the [IBC Transfer](../libraries/cosmwasm/generic_ibc_transfer.md) library. The Position Depositor and Withdrawer will depend on the type of position, but can be similar to the [Liqudity Provider](../libraries/cosmwasm/astroport_lper.md) and [Liquidity Withdrawer](../libraries/cosmwasm/astroport_withdrawer.md).
 
 ### Vault Contract
 The Vault contract is a special contract on Ethereum that has an ERC-4626 interface.
 
 #### User methods to deposit funds
-- **Deposit**: Deposit funds into the registered Deposit Account. Receive shares back based on the redemption rate. 
+- **Deposit**: Deposit funds into the registered Deposit Account. Receive shares back based on the redemption rate.
 	```
 	Deposit {
 		amount: Uint256,
@@ -105,7 +105,7 @@ The Vault contract is a special contract on Ethereum that has an ERC-4626 interf
 	}
 	```
 
-```mermaid 
+```mermaid
 ---
 title: User Deposit and Share Mint Flow
 ---
@@ -116,7 +116,7 @@ graph LR
 		EV(Vault)
 		ED((Deposit))
 	end
-	
+
 	User -- 1/ Deposit Tokens --> EV
 	EV -- 2/ Send Shares --> User
 	EV -- 3/ Send Tokens --> ED
@@ -145,7 +145,7 @@ After the `Epoch` has completed, a user may complete the withdrawal by executing
 
 - **CompleteWithdraw**: Pop the `WithdrawRecord`. Pull funds from the Withdraw Account and send to user. Burn the user's deposited shares.
 
-```mermaid 
+```mermaid
 ---
 title: User Withdraw Flow
 ---
@@ -163,7 +163,7 @@ graph RL
 ### Strategist methods to manage the vault
 The vault validates that the Processor is making calls to it. On Neutron, the Authorization contract limits the calls to be made only by a trusted Strategist. The Authorization contract can further constrain when or how Strategist actions can be taken.
 
-- **Update**: The strategist can update the current redemption rate. 
+- **Update**: The strategist can update the current redemption rate.
   ```
   Update {
 	rate: Uint256

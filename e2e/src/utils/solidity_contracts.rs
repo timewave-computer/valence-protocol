@@ -38,7 +38,7 @@ sol!(
     "../solidity/out/LiteProcessor.sol/LiteProcessor.json",
 );
 
-// Valence Accounts
+// Valence Base Accounts
 sol!(
     #[sol(rpc)]
     BaseAccount,

@@ -44,7 +44,7 @@ A zero-knowledge virtual machine (zkVM) is a zero-knowledge proof system that al
 
 ## Building the Valence ZK coprocessor
 
-Let's assume that we have Valence Accounts in each domain. These accounts implement a kv store.
+Let's assume that we have Valence Base Accounts in each domain. These accounts implement a kv store.
 
 Every ZK computation will follow the format of a pure state transition function; specifically, we input a state `A`, apply the function `f` to it, and produce the resulting state `B` : `f(A) = B` .
 For the function `f`, the chosen zkVM will generate a verifying key `K`, which remains consistent across all state transition functions.
@@ -96,7 +96,7 @@ fn program(mut state: State, encoder: Encoder, arguments: Arguments) -> Commitme
 
 	let arguments = encoder.commitment(arugment)
     let finalized = encoder.commitment(state)
-    let output = encoder.commitment(initial, arguments, finalized) 
+    let output = encoder.commitment(initial, arguments, finalized)
 
     encoder.commitment(initial, arguments, output)
 }
@@ -135,17 +135,17 @@ Specifically, `chain 3` will depend on a mutation from `chain 1`, while `chain 2
 graph TB
     %% Root node
     r[R]
-    
+
     %% Level 1
     m1[M1] --> r
     m2[M2] --> r
-    
+
     %% Level 2
     c1[C1] --> m1
     c2[C2] --> m1
     c3[C3] --> m2
     zero((0)) --> m2
-    
+
     %% Level 3
     chain1["(S1 --> T1), K1"] -- chain 1 transition encoding --> c1
     chain2["(S2 --> T2), K2"] -- chain 2 transition encoding --> c2

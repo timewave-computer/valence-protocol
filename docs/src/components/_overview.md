@@ -5,7 +5,8 @@ There are two ways to execute Valence Programs.
 1. **On-chain Execution**:
 Valence currently supports CosmWasm and EVM. SVM support coming soon. The rest of this section provides a high-level breakdown of the components that comprise a Valence Program using on-chain coprocessors.
     - [Domains](./domains.md)
-    - [Accounts](./accounts.md)
+    - [Base Accounts](./base_accounts.md)
+    - [Storage Accounts](./storage_accounts.md)
     - [Libraries and Functions](./libraries_and_functions.md)
     - [Programs and Authorizations](./programs_and_authorizations.md)
     - [Middleware](./middleware.md)
