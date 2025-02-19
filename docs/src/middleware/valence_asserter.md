@@ -21,7 +21,7 @@ Each function call that the configured program wishes to execute only if a certa
 be placed in a message batch and prepended with an assertion message.
 This way, when the message batch is being processed, any assertions that do not evaluate to true (return an `Err`) will
 prevent later messages from executing as expected. If the batch is *atomic*, the whole batch will abort.
-If the batch is *non-atomic*, various [authorization](./../authorizations_processors/authorization.md) configuration
+If the batch is *non-atomic*, various [authorization](./../authorizations_processors/authorization_contract.md) configuration
 options will dictate the further behavior.
 
 ## High-level flow
@@ -44,32 +44,43 @@ graph LR
 
 | Function    | Parameters | Description | Return Value |
 |-------------|------------|-------------|--------------|
-| **Assert** | `a: AssertionValue`<br>`predicate: Predicate`<br>`b: AssertionValue`<br>`ty: ValueType` | Evaluate the given predicate *R(a, b)*.<br>If *a* or *b* are variables, they get fetched using the configuartion specified in the respective `QueryInfo`.<br>If either of them are constants, they get deserialized into `ty` directly.<br>Both *a* and *b* must be deserializable into the same type `ty`. |- predicate evaluates to true: `Ok(String)`<br>- predicate evaluates to false: `Err` |
+| **Assert** | `a: AssertionValue`<br>`predicate: Predicate`<br>`b: AssertionValue` | Evaluate the given predicate *R(a, b)*.<br>If *a* or *b* are variables, they get fetched using the configuartion specified in the respective `QueryInfo`.<br>Both *a* and *b* must be deserializable into the same type. |- predicate evaluates to true: `Ok()`<br>- predicate evaluates to false: `Err` |
 
 
 ## Design
 
 Assertions to be performed are expressed as *R(a, b)*, where:
 
-- *a* and *b* are values of the same type `ty`
+- *a* and *b* are values of the same type
 - *R* is the predicate that applies to *a* and *b*
 
 Valence Asserter design should enable such predicate evaluations to be performed in a generic manner within Valence Programs.
 
-### Comparison values
+### Assertion values
+
+Assertion values are defined as follows:
+
+```rust
+pub enum AssertionValue {
+    // storage account slot query
+    Variable(QueryInfo),
+    // constant valence primitive value
+    Constant(ValencePrimitive),
+}
+```
 
 Two values are required for any comparison. Both *a* and *b* can be configured to be obtained in one of two ways:
 
-1. Constant value
-2. Variable value
+1. Constant value (known before program instantiation)
+2. Variable value (known during program runtime)
 
 Any combination of these values can be used for a given assertion:
 
-- constant-constant (unlikely but perhaps there are cases where this may be desired)
+- constant-constant (unlikely)
 - constant-variable
 - variable-variable
 
-#### variable values
+#### `Variable` assertion values
 
 Variable assertion values are meant to be used for information that can only become known during runtime.
 
@@ -77,27 +88,61 @@ Such values will be obtained from Valence Types, which expose their own set of q
 
 Valence Types reside in their dedicated storage slots in [Storage Accounts](./../components/storage_account.md).
 
-#### constant values
+Valence Asserter uses the following type in order to obtain the Valence Type and query its state:
+
+```rust
+pub struct QueryInfo {
+    // addr of the storage account
+    pub storage_account: String,
+    // key to access the value in the storage account
+    pub storage_slot_key: String,
+    // b64 encoded query
+    pub query: Binary,
+}
+```
+
+#### `Constant` assertion values
 
 Constant assertion values are meant to be used for assertions where one of the operands is known before runtime.
 
+Valence Asserter expects constant values to be passed using the `ValencePrimitive` enum which wraps around the standard `cosmwasm_std` types:
+
+```rust
+pub enum ValencePrimitive {
+    Decimal(cosmwasm_std::Decimal),
+    Uint64(cosmwasm_std::Uint64),
+    Uint128(cosmwasm_std::Uint128),
+    Uint256(cosmwasm_std::Uint256),
+    String(String),
+}
+```
+
 ### Predicates
 
-In a broad sense, predicates *R* should follow the logic outlined by `std::cmp::{PartialEq, Eq, PartialOrd, Ord}`.
-This means enabling the following operators:
+Predicates *R* are specified with the following type:
 
-- `<`
-- `<=`
-- `==`
-- `>`
-- `>=`
+```rust
+pub enum Predicate {
+    LT,  // <
+    LTE, // <=
+    EQ,  // ==
+    GT,  // >
+    GTE, // >=
+}
+```
+
+In the context of Valence Asserter, the predicate treats `a` as the left-hand-side and `b` as the right-hand-side variables (`a < b`).
+
+> While comparison of numeric types is pretty straightforward, it is important to note that string predicates are evaluated in lexicographical order and are case sensitive:
+> - "Z" < "a"
+> - "Assertion" != "assertion"
 
 ### Example
 
 Consider that a Valence Program wants to provide liquidity to a liquidity pool if and only if
 the pool price is above `10.0`.
 
-Pool price can be obtained by querying a `ValenceXykPool` variant which exposes the following query variant:
+Pool price can be obtained by querying a `ValenceXykPool` variant which exposes the following query:
 
 ```rust
 ValenceXykQuery::GetPrice {} -> Decimal
@@ -127,52 +172,5 @@ Thefore the assertion message may look as follows:
   "b": {
     "constant": "10.0",
   },
-  "ty": "decimal"
-}
-```
-
-## Type definitions
-
-The following types are introduced:
-
-```rust
-pub enum Predicate {
-    LT,
-    LTE,
-    EQ,
-    GT,
-    GTE,
-}
-
-pub struct QueryInfo {
-    // addr of the storage account
-    storage_account: String,
-    // key to access the value in the storage account
-    storage_slot_key: String,
-    // b64 encoded query
-    query: Binary,
-}
-
-pub enum AssertionValue {
-    // storage account slot query
-    Variable(QueryInfo),
-    // b64 encoded constant value
-    Constant(Binary),
-}
-
-// type that both values are expected to be
-pub enum ValueType {
-    Decimal,
-    Uint64,
-    Uint128,
-    Uint256,
-    String,
-}
-
-pub struct AssertionConfig {
-    a: AssertionValue,
-    predicate: Predicate,
-    b: AssertionValue,
-    ty: ValueType,
 }
 ```

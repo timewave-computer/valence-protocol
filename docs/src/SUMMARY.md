@@ -4,6 +4,7 @@
 - [Valence Programs](./components/_overview.md)
   - [Domains](./components/domains.md)
   - [Accounts](./components/accounts.md)
+  - [Storage Accounts](./components/storage_account.md)
   - [Libraries and Functions](./components/libraries_and_functions.md)
   - [Programs and Authorizations](./components/programs_and_authorizations.md)
   - [Middleware](./components/middleware.md)
