@@ -21,11 +21,11 @@ local-ic start neutron --api-port 42069
 
 This will start a local environment with a Gaia chain and a Neutron (using ICS) chain. The `--api-port` will expose the API on port 42069, we are using this port in our local-ic-utils crate so let's use the same to reuse some of the utils there.
 
-This process also writes each chains API endpoints to `e2e/chains/configs/logs.json`, which the deployment scripts will use to determine a chains RPC endpoint.
+This process also writes the API endpoints of each chain to `e2e/chains/configs/logs.json`. The setup script will use this file to determine which RPCs to use.
 
 ## 3. Optimize Contracts
 
-From the root directory, use CosmWasm optimizer to optimize contracts. The output will be written to an `artifacts` in the project root.
+From the root directory, use CosmWasm optimizer to optimize contracts. The output will be written to an `artifacts` folder in the project root.
 
 ```bash
 just optimize
