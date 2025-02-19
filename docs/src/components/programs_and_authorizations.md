@@ -1,6 +1,6 @@
 # Programs and Authorizations
 
-A **Valence Program** is an instance of the **Valence Protocol**. It is a particular arrangement and configuration of [accounts](./accounts.md) and [libraries](./libraries_and_functions.md) across multiple [domains](./domains.md) (e.g., a POL (protocol-owned liquidity) lending relationship between two parties). Similarly to how a _library_ exposes executable _functions_, programs are associated with a set of executable **Subroutines**.
+A **Valence Program** is an instance of the **Valence Protocol**. It is a particular arrangement and configuration of [Base Accounts](./base_accounts.md) and [libraries](./libraries_and_functions.md) across multiple [domains](./domains.md) (e.g., a POL (protocol-owned liquidity) lending relationship between two parties). Similarly to how a _library_ exposes executable _functions_, programs are associated with a set of executable **Subroutines**.
 
 A **Subroutine** is a vector of **Functions**. A **Subroutine** can call out to one or more **Function(s)** from a single library, or from different libraries. A **Subroutine** is limited to **one execution domain** (i.e., **Subroutines** cannot use functions from libraries instantiated on multiple domains).
 

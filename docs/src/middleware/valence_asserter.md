@@ -86,7 +86,7 @@ Variable assertion values are meant to be used for information that can only bec
 
 Such values will be obtained from Valence Types, which expose their own set of queries.
 
-Valence Types reside in their dedicated storage slots in [Storage Accounts](./../components/storage_account.md).
+Valence Types reside in their dedicated storage slots in [Storage Accounts](./../components/storage_accounts.md).
 
 Valence Asserter uses the following type in order to obtain the Valence Type and query its state:
 

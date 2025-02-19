@@ -6,7 +6,7 @@ objects.
 Like all other accounts, Storage Accounts follow the same pattern of approving and revoking
 authorized libraries from being able to post Valence Types into a given account.
 
-While regular Valence accounts are meant for storage of fungible tokens, Valence Storage
+While regular Valence (Base) accounts are meant for storage of fungible tokens, Valence Storage
 accounts are meant for storage of non-fungible objects.
 
 ## API
@@ -37,7 +37,7 @@ for a key that already exists will override its previous value and act as an upd
 
 ### Query Methods
 
-Once a given type had been posted into the storage account using `StoreValenceType` call, it becomes available
+Once a given type has been posted into the storage account using `StoreValenceType` call, it becomes available
 for querying.
 
 Storage account exposes the following `QueryMsg`:
