@@ -3,7 +3,10 @@ use std::str::FromStr;
 use alloy_primitives::{address, Address, Bytes};
 use alloy_sol_types::SolValue;
 use cosmwasm_std::{Binary, StdError, StdResult};
-use libraries::forwarder::{self};
+use libraries::{
+    cctp_transfer,
+    forwarder::{self},
+};
 use strum::EnumString;
 use valence_authorization_utils::authorization::Subroutine;
 use valence_encoder_utils::processor::solidity_types;
@@ -22,6 +25,7 @@ pub enum EVMLibrary {
     // This one is reserved for when the user sends ABI raw bytes to a contract that is not one of our libraries
     NoLibrary,
     Forwarder,
+    CctpTransfer,
 }
 
 impl EVMLibrary {
@@ -49,6 +53,7 @@ impl EVMLibrary {
             // When raw bytes are sent we don't do any checks here and just forward the message.
             EVMLibrary::NoLibrary => Ok(msg.to_vec()),
             EVMLibrary::Forwarder => forwarder::encode(msg),
+            EVMLibrary::CctpTransfer => cctp_transfer::encode(msg),
         }
     }
 }
