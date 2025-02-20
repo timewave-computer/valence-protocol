@@ -68,7 +68,6 @@ valence-splitter-library             = { path = "contracts/libraries/splitter", 
 valence-test-dynamic-ratio           = { path = "contracts/testing/test-dynamic-ratio", features = ["library"] }
 valence-test-library                 = { path = "contracts/testing/test-library", features = ["library"] }
 valence-test-icq-lib                 = { path = "contracts/testing/test-icq-lib", features = ["library"] }
-valence-workflow-registry            = { path = "contracts/workflow-registry", features = ["library"] }
 valence-astroport-lper               = { path = "contracts/libraries/astroport-lper", features = ["library"] }
 valence-forwarder-library            = { path = "contracts/libraries/forwarder", features = ["library"] }
 valence-astroport-withdrawer         = { path = "contracts/libraries/astroport-withdrawer", features = ["library"] }
@@ -80,6 +79,7 @@ valence-osmosis-gamm-withdrawer      = { path = "contracts/libraries/osmosis-gam
 valence-osmosis-cl-lper              = { path = "contracts/libraries/osmosis-cl-lper", features = ["library"] }
 valence-osmosis-cl-withdrawer        = { path = "contracts/libraries/osmosis-cl-withdrawer", features = ["library"] }
 valence-encoder-broker               = { path = "contracts/encoders/broker", features = ["library"] }
+valence-evm-encoder-v1               = { path = "contracts/encoders/evm", features = ["library"] }
 valence-neutron-ic-querier           = { path = "contracts/libraries/neutron-ic-querier", features = ["library"] }
 
 # middleware

@@ -3,43 +3,40 @@
 , pkgs
 , crane
 , stdenv
+, coreutils
+, findutils
 , openssl
 , libclang
 , clang
 , llvm
+, lld
+, binaryen
 , libosmosistesttube
 , libntrntesttube
 , buildWasmBindgenCli
 , fetchCrate
 , rustPlatform
 , libiconv
+, pname
+, cargoPackages
 }:
 let
-
-  # rustToolchainFor = p: p.rust-bin.stable.latest.default.override {
-  #   # Set the build targets supported by the toolchain,
-  #   # wasm32-unknown-unknown is required for trunk
-  #   targets = [ "wasm32-unknown-unknown" ];
-  # };
-  craneLib = (crane.mkLib pkgs); #.overrideToolchain rustToolchainFor;
+  craneLib = (crane.mkLib pkgs);
 
   src = craneLib.cleanCargoSource self;
 
-  # Common arguments can be set here to avoid repeating them later
   commonBaseArgs = {
-    pname = "valence-protocol";
-    inherit src;
+    inherit pname src;
     strictDeps = true;
     doCheck = false;
-
-    # We must force the target, otherwise cargo will attempt to use your native target
 
     OPENSSL_NO_VENDOR = 1;
     OPENSSL_LIB_DIR = lib.makeLibraryPath [ openssl ];
     OPENSSL_DIR = lib.getDev openssl;
     LIBCLANG_PATH = lib.makeLibraryPath [ libclang ];
+    CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
 
-    cargoExtraArgs = "--lib --locked";
+    cargoExtraArgs = "-p ${lib.concatStringsSep " -p " cargoPackages} --lib --locked";
 
     buildInputs = [
       libosmosistesttube
@@ -51,40 +48,27 @@ let
     ];
 
     nativeBuildInputs = [
+      coreutils
+      findutils
       clang
       llvm
+      lld
+      binaryen # for wasm-opt
     ];
 
     # Additional environment variables can be set directly
     # MY_CUSTOM_VAR = "some value";
   };
 
-  getTestTubeInfo = name: if name == "neutron-test-tube" then
-    { package = libntrntesttube; name = "libntrntesttube"; }
-    else
-    { package = libosmosistesttube; name = "libosmosistesttube"; };
-
   cargoVendorDir = craneLib.vendorCargoDeps (commonBaseArgs // {
     overrideVendorCargoPackage = p: drv:
-      if lib.elem p.name [ "osmosis-test-tube" "neutron-test-tube" ] then
+      if p.name == "osmosis-test-tube" then
         drv.overrideAttrs (_: {
-          preInstall = let info = getTestTubeInfo p.name; in ''
-            sed -i '/let out_dir =.*/a \
-            Command::new("cp") \
-              .arg("-f") \
-              .arg("${info.package}/include/${info.name}.h") \
-              .arg(out_dir.join("${info.name}.h")) \
-              .spawn().unwrap().wait().unwrap();' \
-              build.rs
-
-            sed -i '/let out_dir =.*/a \
-            Command::new("cp") \
-              .arg("-f") \
-              .arg("${info.package}/lib/${info.name}.so") \
-              .arg(out_dir.join("${info.name}.so")) \
-              .spawn().unwrap().wait().unwrap();' \
-              build.rs
-          '';
+          preInstall = libosmosistesttube.fixCargoBuildScript;
+        })
+      else if p.name == "neutron-test-tube" then
+        drv.overrideAttrs (_: {
+          preInstall = libntrntesttube.fixCargoBuildScript;
         })
       else if p.name == "injective-protobuf" then
         # injective-protobuf custom build script is unnecessary
@@ -122,5 +106,21 @@ let
 in
 craneLib.buildPackage (commonArgs // {
   inherit cargoArtifacts wasm-bindgen-cli;
-  CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
+  passthru = { inherit cargoArtifacts; };
+  # Based on CosmWasm optimizer optimize.sh
+  postInstall = ''
+    for WASM in $out/lib/*.wasm; do
+      [ -e "$WASM" ] || continue # https://superuser.com/a/519493
+
+      OUT_FILENAME=$(basename "$WASM")
+      echo "Optimizing $OUT_FILENAME ..."
+      # --signext-lowering is needed to support blockchains runnning CosmWasm < 1.3. It can be removed eventually
+      wasm-opt -Os --signext-lowering "$WASM" -o "$out/$OUT_FILENAME"
+    done
+
+    rm -rf $out/lib
+
+    echo "Post-processing artifacts..."
+    sha256sum -- $out/*.wasm | tee $out/checksums.txt
+  '';
 })

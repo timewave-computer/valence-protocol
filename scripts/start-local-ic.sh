@@ -7,7 +7,7 @@ ATTEMPT=1
 SUCCESS=false
 
 while [[ "$SUCCESS" = false && "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]]; do
-  local-ic start $CHAIN_CONFIG --api-port 42069 &
+  local-ic start "$CHAIN_CONFIG" --api-port 42069 &
   curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
   echo "$(date): Successfully queried Local-IC"
   sleep 10
