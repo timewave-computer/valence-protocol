@@ -1,5 +1,4 @@
-{ self
-, lib
+{ lib
 , pkgs
 , crane
 , stdenv
@@ -17,16 +16,20 @@
 , fetchCrate
 , rustPlatform
 , libiconv
-, pname
-, cargoPackages
 }:
 let
   craneLib = (crane.mkLib pkgs);
 
-  src = craneLib.cleanCargoSource self;
+  src = craneLib.cleanCargoSource ../.;
+
+  cargoTOML = builtins.fromTOML (builtins.readFile ../Cargo.toml);
+  contracts = builtins.attrNames (lib.filterAttrs (name: value:
+    lib.hasPrefix "valence" name && lib.hasPrefix "contracts" value.path
+  ) cargoTOML.workspace.dependencies);
 
   commonBaseArgs = {
-    inherit pname src;
+    pname = "valence-cosmwasm-contracts";
+    inherit src;
     strictDeps = true;
     doCheck = false;
 
@@ -36,7 +39,7 @@ let
     LIBCLANG_PATH = lib.makeLibraryPath [ libclang ];
     CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
 
-    cargoExtraArgs = "-p ${lib.concatStringsSep " -p " cargoPackages} --lib --locked";
+    cargoExtraArgs = "-p ${lib.concatStringsSep " -p " contracts} --lib --locked";
 
     buildInputs = [
       libosmosistesttube
@@ -87,25 +90,9 @@ let
 
   cargoArtifacts = craneLib.buildDepsOnly commonArgs;
 
-  wasm-bindgen-cli = buildWasmBindgenCli rec {
-    src = fetchCrate {
-      pname = "wasm-bindgen-cli";
-      version = "0.2.95";
-      hash = "sha256-prMIreQeAcbJ8/g3+pMp1Wp9H5u+xLqxRxL+34hICss=";
-      # hash = lib.fakeHash;
-    };
-
-    cargoDeps = rustPlatform.fetchCargoVendor {
-      inherit src;
-      inherit (src) pname version;
-      hash = "sha256-+h87/onAdpG0Jmeuy0Wd2djLFOAyaE52cAfxDVVcgP8=";
-      # hash = lib.fakeHash;
-    };
-  };
-
 in
 craneLib.buildPackage (commonArgs // {
-  inherit cargoArtifacts wasm-bindgen-cli;
+  inherit cargoArtifacts;
   passthru = { inherit cargoArtifacts; };
   # Based on CosmWasm optimizer optimize.sh
   postInstall = ''

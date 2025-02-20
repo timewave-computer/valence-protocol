@@ -11,8 +11,7 @@
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-
+    foundry.url = "github:shazow/foundry.nix";
   };
 
   outputs = inputs@{ self, flake-parts, ... }:
@@ -24,8 +23,9 @@
           inherit system;
           overlays = [
             inputs.rust-overlay.overlays.default
+            inputs.foundry.overlay
             (final: prev: config.packages // {
-              inherit self;
+              workspaceRoot = ./.;
               inherit (inputs) crane;
             })
           ];
@@ -33,28 +33,14 @@
         imports = [
           ./nix/devshell.nix
         ];
-        packages = let
-          cargoTOML = builtins.fromTOML (builtins.readFile ./Cargo.toml);
-          contracts = lib.filterAttrs
-            (n: v: lib.hasPrefix "valence" n && lib.hasPrefix "contracts" v.path)
-            cargoTOML.workspace.dependencies;
-        buildValenceContract = pkgs.callPackage ./nix/pkgs/valence-contract.nix;
-        in lib.mapAttrs (pname: value: buildValenceContract {
-          inherit pname;
-          cargoPackages = [ pname ];
-        }) contracts
-        // {
-          valence-contracts = buildValenceContract {
-            pname = "valence-contracts";
-            cargoPackages = lib.attrNames contracts;
-          };
-          local-ic = pkgs.callPackage ./nix/pkgs/local-ic.nix {
+        packages = {
+          cosmwasm-contracts = pkgs.callPackage ./nix/cosmwasm-contracts.nix { };
+          solidity-contracts = pkgs.callPackage ./nix/pkgs/solidity-contracts.nix { };
+          local-ic = pkgs.callPackage ./nix/local-ic.nix {
             localICStartScriptPath = ./scripts/start-local-ic.sh;
           };
-          libosmosistesttube = pkgs.callPackage ./nix/pkgs/libosmosistesttube.nix { };
-          libntrntesttube = pkgs.callPackage ./nix/pkgs/libntrntesttube.nix {
-            inherit (config.packages) libosmosistesttube;
-          };
+          libosmosistesttube = pkgs.callPackage ./nix/libosmosistesttube.nix { };
+          libntrntesttube = pkgs.callPackage ./nix/libntrntesttube.nix { };
         };
       };
     };

@@ -16,6 +16,7 @@
       rust-analyzer
       cargo
       clang
+      foundry-bin
     ];
     commands = [
       {
