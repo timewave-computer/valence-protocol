@@ -220,3 +220,60 @@ pub enum FactoryQueries {
         asset_infos: Vec<AssetInfo>,
     },
 }
+
+// The content of this file is taken from the 'astroport' crate, specifically version 5.7.0
+
+#[cw_serde]
+pub struct NativeCoinRegistryInstantiateMsg {
+    /// Address allowed to change contract parameters
+    pub owner: String,
+}
+
+#[cw_serde]
+pub enum NativeCoinRegistryExecuteMsg {
+    /// Adds or updates native assets with specified precisions.
+    /// Only the current owner can execute this.
+    /// Sender doesn't need to send any tokens.
+    Add { native_coins: Vec<(String, u8)> },
+    // emitting the rest
+}
+
+/// This structure holds concentrated pool parameters.
+#[cw_serde]
+pub struct ConcentratedPoolParams {
+    /// Amplification coefficient affects trades close to price_scale
+    pub amp: Decimal,
+    /// Affects how gradual the curve changes from constant sum to constant product
+    /// as price moves away from price scale. Low values mean more gradual.
+    pub gamma: Decimal,
+    /// The minimum fee, charged when pool is fully balanced
+    pub mid_fee: Decimal,
+    /// The maximum fee, charged when pool is imbalanced
+    pub out_fee: Decimal,
+    /// Parameter that defines how gradual the fee changes from fee_mid to fee_out
+    /// based on distance from price_scale.
+    pub fee_gamma: Decimal,
+    /// Minimum profit before initiating a new repeg
+    pub repeg_profit_threshold: Decimal,
+    /// Minimum amount to change price_scale when repegging.
+    pub min_price_scale_delta: Decimal,
+    /// 1 x\[0] = price_scale * x\[1].
+    pub price_scale: Decimal,
+    /// Half-time used for calculating the price oracle.
+    pub ma_half_time: u64,
+    /// Whether asset balances are tracked over blocks or not.
+    /// They will not be tracked if the parameter is ignored.
+    /// It can not be disabled later once enabled.
+    pub track_asset_balances: Option<bool>,
+    /// The config for swap fee sharing
+    pub fee_share: Option<FeeShareConfig>,
+}
+
+/// Holds the configuration for fee sharing
+#[cw_serde]
+pub struct FeeShareConfig {
+    /// The fee shared with the address
+    pub bps: u16,
+    /// The share is sent to this address on every swap
+    pub recipient: Addr,
+}
