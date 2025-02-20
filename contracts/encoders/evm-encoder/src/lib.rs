@@ -3,10 +3,7 @@ use std::str::FromStr;
 use alloy_primitives::{address, Address, Bytes};
 use alloy_sol_types::SolValue;
 use cosmwasm_std::{Binary, StdError, StdResult};
-use libraries::{
-    cctp_transfer,
-    forwarder::{self},
-};
+use libraries::{cctp_transfer, forwarder};
 use strum::EnumString;
 use valence_authorization_utils::authorization::Subroutine;
 use valence_encoder_utils::processor::solidity_types;
