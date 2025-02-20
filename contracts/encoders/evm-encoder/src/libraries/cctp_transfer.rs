@@ -10,7 +10,7 @@ use crate::parse_address;
 
 use super::{get_update_ownership_call, get_update_processor_call};
 
-// We need to define a new config that will be used to encode the message because the one from the CW library is not the same as the one from the Solidity library
+// We need to define a config and functions for this library as we don't have a CosmWasm equivalent
 #[cw_serde]
 /// Struct representing the library configuration.
 pub struct LibraryConfig {
