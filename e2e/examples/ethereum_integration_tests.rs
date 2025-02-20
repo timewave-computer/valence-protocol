@@ -16,7 +16,7 @@ use localic_std::modules::{
 };
 use localic_utils::{
     utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
-    LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
+    LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 use log::info;
 use valence_authorization_utils::{
@@ -41,7 +41,7 @@ use valence_e2e::utils::{
     },
     solidity_contracts::{BaseAccount, Forwarder, LiteProcessor, MockERC20},
     DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME, ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS,
-    HYPERLANE_RELAYER_NEUTRON_ADDRESS, LOGS_FILE_PATH, NEUTRON_HYPERLANE_DOMAIN, NTRN_DENOM,
+    HYPERLANE_RELAYER_NEUTRON_ADDRESS, LOGS_FILE_PATH, NEUTRON_HYPERLANE_DOMAIN,
     VALENCE_ARTIFACTS_PATH,
 };
 use valence_encoder_utils::libraries::forwarder::solidity_types::{
@@ -89,11 +89,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         DEFAULT_KEY,
         HYPERLANE_RELAYER_NEUTRON_ADDRESS,
         &[BankCoin {
-            denom: NTRN_DENOM.to_string(),
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
             amount: 5_000_000u128.into(),
         }],
         &BankCoin {
-            denom: NTRN_DENOM.to_string(),
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
             amount: cosmwasm_std_old::Uint128::new(5000),
         },
     )

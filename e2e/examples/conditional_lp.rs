@@ -26,7 +26,6 @@ use valence_authorization_utils::{
     msg::ProcessorMessage,
 };
 use valence_e2e::utils::base_account::{approve_library, create_base_accounts};
-use valence_e2e::utils::NTRN_DENOM;
 use valence_e2e::utils::{
     authorization::{set_up_authorization_and_processor, set_up_external_domain_with_polytone},
     base_account::create_storage_accounts,
@@ -597,11 +596,11 @@ fn neutron_setup(
         DEFAULT_KEY,
         &ic_querier_lib.address.to_string(),
         &[BankCoin {
-            denom: NTRN_DENOM.to_string(),
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
             amount: 1_000_000u128.into(),
         }],
         &BankCoin {
-            denom: NTRN_DENOM.to_string(),
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
             amount: cosmwasm_std_old::Uint128::new(5000),
         },
     )?;
@@ -659,7 +658,7 @@ fn neutron_setup(
         config: valence_neutron_ibc_transfer_library::msg::LibraryConfig::new(
             LibraryAccountType::Addr(neutron_input_acc_addr.clone()),
             osmo_input_acc.to_string(),
-            UncheckedDenom::Native(NTRN_DENOM.to_string()),
+            UncheckedDenom::Native(NEUTRON_CHAIN_DENOM.to_string()),
             IbcTransferAmount::FixedAmount(transfer_amount.into()),
             "".to_owned(),
             valence_neutron_ibc_transfer_library::msg::RemoteChainInfo {
@@ -704,11 +703,11 @@ fn neutron_setup(
         DEFAULT_KEY,
         &neutron_input_acc_addr.to_string(),
         &[BankCoin {
-            denom: NTRN_DENOM.to_string(),
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
             amount: 100_000_000_000u128.into(),
         }],
         &BankCoin {
-            denom: NTRN_DENOM.to_string(),
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
             amount: cosmwasm_std_old::Uint128::new(5000),
         },
     )?;

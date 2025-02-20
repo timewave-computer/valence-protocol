@@ -1,7 +1,10 @@
-use std::{env, error::Error, str::FromStr};
+use std::{env, error::Error, str::FromStr, time::Duration};
 
 use cosmwasm_std::{to_json_binary, Decimal};
-use localic_std::modules::cosmwasm::{contract_execute, contract_instantiate, contract_query};
+use localic_std::modules::{
+    bank,
+    cosmwasm::{contract_execute, contract_instantiate, contract_query},
+};
 use localic_utils::{
     utils::{ethereum::EthClient, test_context::TestContext},
     ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
@@ -24,7 +27,7 @@ use valence_e2e::utils::{
     ethereum::set_up_anvil_container,
     manager::{setup_manager, use_manager_init, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME},
     ASTROPORT_PATH, DEFAULT_ANVIL_RPC_ENDPOINT, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
-    LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, NTRN_DENOM, VALENCE_ARTIFACTS_PATH,
+    LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
 };
 use valence_library_utils::liquidity_utils::AssetData;
 use valence_program_manager::{
@@ -130,7 +133,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let astro_cl_pool_asset_data = AssetData {
-        asset1: NTRN_DENOM.to_string(),
+        asset1: NEUTRON_CHAIN_DENOM.to_string(),
         asset2: token.clone(),
     };
 
@@ -207,26 +210,25 @@ fn main() -> Result<(), Box<dyn Error>> {
         })
         .build();
 
-    builder.add_authorization(
-        AuthorizationBuilder::new()
-            .with_label("provide_liquidity")
-            .with_subroutine(
-                AtomicSubroutineBuilder::new()
-                    .with_function(astro_lper_function)
-                    .build(),
-            )
-            .build(),
-    );
-    builder.add_authorization(
-        AuthorizationBuilder::new()
-            .with_label("withdraw_liquidity")
-            .with_subroutine(
-                AtomicSubroutineBuilder::new()
-                    .with_function(astro_lwer_function)
-                    .build(),
-            )
-            .build(),
-    );
+    let astro_lper_subroutine = AtomicSubroutineBuilder::new()
+        .with_function(astro_lper_function)
+        .build();
+
+    let astro_lwer_subroutine = AtomicSubroutineBuilder::new()
+        .with_function(astro_lwer_function)
+        .build();
+
+    let astro_lper_authorization = AuthorizationBuilder::new()
+        .with_label("provide_liquidity")
+        .with_subroutine(astro_lper_subroutine)
+        .build();
+    let astro_lwer_authorization = AuthorizationBuilder::new()
+        .with_label("withdraw_liquidity")
+        .with_subroutine(astro_lwer_subroutine)
+        .build();
+
+    builder.add_authorization(astro_lper_authorization);
+    builder.add_authorization(astro_lwer_authorization);
 
     let mut program_config = builder.build();
 
@@ -252,6 +254,39 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("DEPOSIT ACCOUNT\t: {deposit_acc_addr}");
     info!("POSITION ACCOUNT\t: {position_acc_addr}");
     info!("WITHDRAW ACCOUNT\t: {withdraw_acc_addr}");
+
+    info!("funding the input account...");
+    bank::send(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        &deposit_acc_addr,
+        &[
+            cosmwasm_std_old::Coin {
+                denom: token.to_string(),
+                amount: 1_000_000u128.into(),
+            },
+            cosmwasm_std_old::Coin {
+                denom: NEUTRON_CHAIN_DENOM.to_string(),
+                amount: 1_200_000u128.into(),
+            },
+        ],
+        &cosmwasm_std_old::Coin {
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
+            amount: 1_000_000u128.into(),
+        },
+    )?;
+
+    std::thread::sleep(Duration::from_secs(3));
+
+    let input_acc_balances = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &deposit_acc_addr,
+    );
+    info!("input_acc_balances: {:?}", input_acc_balances);
 
     // setup eth side:
     // 1. base account
@@ -397,7 +432,7 @@ fn setup_astroport_cl_pool(
     info!("Create the pool...");
     let pool_assets = vec![
         AssetInfo::NativeToken {
-            denom: NTRN_DENOM.to_string(),
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
         },
         AssetInfo::NativeToken {
             denom: denom.clone(),

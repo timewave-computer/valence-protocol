@@ -8,7 +8,7 @@ use localic_std::modules::{
 };
 use localic_utils::{
     ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
-    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
+    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 use rand::{distributions::Alphanumeric, Rng};
 use serde_json::Value;
@@ -21,7 +21,7 @@ use valence_e2e::utils::{
     manager::{
         setup_manager, use_manager_init, use_manager_migrate, use_manager_update, SPLITTER_NAME,
     },
-    GAS_FLAGS, LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, NTRN_DENOM, VALENCE_ARTIFACTS_PATH,
+    GAS_FLAGS, LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
 };
 use valence_library_utils::{denoms::UncheckedDenom, GetId, Id, LibraryAccountType};
 use valence_program_manager::{
@@ -162,7 +162,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             amount: swap_amount.into(),
         }],
         &BankCoin {
-            denom: NTRN_DENOM.to_string(),
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
             amount: cosmwasm_std_old::Uint128::new(5000),
         },
     )
