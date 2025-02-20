@@ -277,3 +277,20 @@ pub struct FeeShareConfig {
     /// The share is sent to this address on every swap
     pub recipient: Addr,
 }
+
+#[cw_serde]
+pub enum ConcentratedLiquidityExecuteMsg {
+    /// ProvideLiquidity allows someone to provide liquidity in the pool
+    ProvideLiquidity {
+        /// The assets available in the pool
+        assets: Vec<Asset>,
+        /// The slippage tolerance that allows liquidity provision only if the price in the pool doesn't move too much
+        slippage_tolerance: Option<Decimal>,
+        /// Determines whether the LP tokens minted for the user is auto_staked in the Incentives contract
+        auto_stake: Option<bool>,
+        /// The receiver of LP tokens
+        receiver: Option<String>,
+        min_lp_to_receive: Option<Uint128>,
+    },
+    // emit the rest
+}

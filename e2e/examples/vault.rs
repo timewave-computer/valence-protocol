@@ -1,6 +1,6 @@
 use std::{env, error::Error, str::FromStr, time::Duration};
 
-use cosmwasm_std::{to_json_binary, Decimal};
+use cosmwasm_std::{coin, to_json_binary, Binary, Decimal, Uint128};
 use localic_std::modules::{
     bank,
     cosmwasm::{contract_execute, contract_instantiate, contract_query},
@@ -15,17 +15,20 @@ use rand::{distributions::Alphanumeric, Rng};
 use serde_json::Value;
 use valence_astroport_lper::msg::LiquidityProviderConfig;
 use valence_astroport_utils::astroport_native_lp_token::{
-    AssetInfo, ConcentratedPoolParams, FactoryInstantiateMsg, FactoryQueryMsg,
-    NativeCoinRegistryExecuteMsg, NativeCoinRegistryInstantiateMsg, PairConfig, PairType,
+    Asset, AssetInfo, ConcentratedLiquidityExecuteMsg, ConcentratedPoolParams,
+    FactoryInstantiateMsg, FactoryQueryMsg, NativeCoinRegistryExecuteMsg,
+    NativeCoinRegistryInstantiateMsg, PairConfig, PairType,
 };
 use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType},
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
     domain::Domain,
+    msg::ProcessorMessage,
 };
 use valence_e2e::utils::{
     ethereum::set_up_anvil_container,
     manager::{setup_manager, use_manager_init, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME},
+    processor::tick_processor,
     ASTROPORT_PATH, DEFAULT_ANVIL_RPC_ENDPOINT, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
     LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
 };
@@ -280,20 +283,145 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     std::thread::sleep(Duration::from_secs(3));
 
-    let input_acc_balances = bank::get_balance(
+    log_neutron_acc_balances(
+        &mut test_ctx,
+        &deposit_acc_addr,
+        &position_acc_addr,
+        &withdraw_acc_addr,
+    );
+
+    // Get authorization and processor contract addresses
+    let authorization_contract_address =
+        program_config.authorization_data.authorization_addr.clone();
+    let ntrn_processor_contract_address = program_config
+        .get_processor_addr(&ntrn_domain.to_string())
+        .unwrap();
+
+    info!("authorization contract address: {authorization_contract_address}");
+    info!("ntrn processor contract address: {ntrn_processor_contract_address}");
+
+    let lp_message = ProcessorMessage::CosmwasmExecuteMsg {
+        msg: Binary::from(serde_json::to_vec(
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_astroport_lper::msg::FunctionMsgs::ProvideDoubleSidedLiquidity {
+                    expected_pool_ratio_range: None,
+                },
+            ),
+        )?),
+    };
+    let provide_liquidity_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+            label: "provide_liquidity".to_string(),
+            messages: vec![lp_message],
+            ttl: None,
+        },
+    );
+
+    contract_execute(
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
-        &deposit_acc_addr,
-    );
-    info!("input_acc_balances: {:?}", input_acc_balances);
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&provide_liquidity_msg)?,
+        GAS_FLAGS,
+    )?;
+    std::thread::sleep(std::time::Duration::from_secs(2));
 
+    tick_processor(
+        &mut test_ctx,
+        NEUTRON_CHAIN_NAME,
+        DEFAULT_KEY,
+        &ntrn_processor_contract_address,
+    );
+    std::thread::sleep(std::time::Duration::from_secs(2));
+
+    log_neutron_acc_balances(
+        &mut test_ctx,
+        &deposit_acc_addr,
+        &position_acc_addr,
+        &withdraw_acc_addr,
+    );
+
+    info!("pushing withdraw liquidity message to processor...");
+    let lw_message = ProcessorMessage::CosmwasmExecuteMsg {
+        msg: Binary::from(serde_json::to_vec(
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_astroport_withdrawer::msg::FunctionMsgs::WithdrawLiquidity {
+                    expected_pool_ratio_range: None,
+                },
+            ),
+        )?),
+    };
+    let withdraw_liquidity_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+            label: "withdraw_liquidity".to_string(),
+            messages: vec![lw_message],
+            ttl: None,
+        },
+    );
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&withdraw_liquidity_msg)?,
+        GAS_FLAGS,
+    )?;
+    std::thread::sleep(std::time::Duration::from_secs(2));
+
+    info!("ticking processor to withdraw liquidity");
+    tick_processor(
+        &mut test_ctx,
+        NEUTRON_CHAIN_NAME,
+        DEFAULT_KEY,
+        &ntrn_processor_contract_address,
+    );
+    std::thread::sleep(std::time::Duration::from_secs(2));
+
+    log_neutron_acc_balances(
+        &mut test_ctx,
+        &deposit_acc_addr,
+        &position_acc_addr,
+        &withdraw_acc_addr,
+    );
     // setup eth side:
     // 1. base account
     // 2. vault
     // 3. lite processor
 
     Ok(())
+}
+
+fn log_neutron_acc_balances(
+    test_ctx: &mut TestContext,
+    deposit_acc: &str,
+    position_acc: &str,
+    withdraw_acc: &str,
+) {
+    let deposit_acc_bal = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        deposit_acc,
+    );
+    let position_acc_bal = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        position_acc,
+    );
+    let withdraw_acc_bal = bank::get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        withdraw_acc,
+    );
+    info!("DEPOSIT ACC BAL\t: {:?}", deposit_acc_bal);
+    info!("POSITION ACC BAL\t: {:?}", position_acc_bal);
+    info!("WITHDRAW ACC BAL\t: {:?}", withdraw_acc_bal);
 }
 
 fn deploy_astroport_contracts(
@@ -397,7 +525,7 @@ fn setup_astroport_cl_pool(
             code_id: pair_code_id,
             pair_type: PairType::Custom("concentrated".to_string()),
             total_fee_bps: 0u16,
-            maker_fee_bps: 5000,
+            maker_fee_bps: 0,
             is_disabled: false,
             is_generator_disabled: false,
             permissioned: false,
@@ -453,7 +581,7 @@ fn setup_astroport_cl_pool(
         fee_share: None,
     };
 
-    let create_pair_rx = contract_execute(
+    contract_execute(
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
@@ -468,11 +596,8 @@ fn setup_astroport_cl_pool(
         )
         .unwrap(),
         GAS_FLAGS,
-    );
-    match create_pair_rx {
-        Ok(x) => println!("{:?}", x),
-        Err(e) => println!("{:?}", e),
-    };
+    )
+    .unwrap();
     std::thread::sleep(std::time::Duration::from_secs(3));
 
     let query_pool_response: Value = serde_json::from_value(
@@ -494,6 +619,48 @@ fn setup_astroport_cl_pool(
     let lp_token = query_pool_response["liquidity_token"].as_str().unwrap();
 
     info!("Pool created successfully! Pool address: {pool_addr}, LP token: {lp_token}");
+    let asset_a = coin(799_000_000, NEUTRON_CHAIN_DENOM);
+    let asset_b = coin(999_000_000, denom.clone());
+    let assets = vec![
+        Asset {
+            info: AssetInfo::NativeToken {
+                denom: asset_a.denom.to_string(),
+            },
+            amount: asset_a.amount,
+        },
+        Asset {
+            info: AssetInfo::NativeToken {
+                denom: asset_b.denom.to_string(),
+            },
+            amount: asset_b.amount,
+        },
+    ];
+
+    let initial_lp_msg = ConcentratedLiquidityExecuteMsg::ProvideLiquidity {
+        assets,
+        slippage_tolerance: None,
+        auto_stake: None,
+        receiver: None,
+        min_lp_to_receive: None,
+    };
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        pool_addr,
+        DEFAULT_KEY,
+        &serde_json::to_string(&initial_lp_msg).unwrap(),
+        &format!(
+            "--amount {}{},{}{} --gas 1000000",
+            asset_a.amount.u128(),
+            asset_a.denom,
+            asset_b.amount.u128(),
+            asset_b.denom
+        ),
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
     Ok((pool_addr.to_string(), lp_token.to_string()))
 }
