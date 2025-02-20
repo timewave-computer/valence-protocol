@@ -35,11 +35,7 @@ interface ITokenMessenger {
      * @param amount amount of minted tokens
      * @param mintToken contract address of minted token
      */
-    event MintAndWithdraw(
-        address indexed mintRecipient,
-        uint256 amount,
-        address indexed mintToken
-    );
+    event MintAndWithdraw(address indexed mintRecipient, uint256 amount, address indexed mintToken);
 
     /**
      * @notice Emitted when a remote TokenMessenger is added
@@ -86,12 +82,9 @@ interface ITokenMessenger {
      * @param burnToken address of contract to burn deposited tokens, on local domain
      * @return _nonce unique nonce reserved by message
      */
-    function depositForBurn(
-        uint256 amount,
-        uint32 destinationDomain,
-        bytes32 mintRecipient,
-        address burnToken
-    ) external returns (uint64 _nonce);
+    function depositForBurn(uint256 amount, uint32 destinationDomain, bytes32 mintRecipient, address burnToken)
+        external
+        returns (uint64 _nonce);
 
     /**
      * @notice Deposits and burns tokens from sender to be minted on destination domain. The mint
@@ -162,9 +155,7 @@ interface ITokenMessenger {
      * @param messageBody The message body bytes.
      * @return success Bool, true if successful.
      */
-    function handleReceiveMessage(
-        uint32 remoteDomain,
-        bytes32 sender,
-        bytes calldata messageBody
-    ) external returns (bool);
+    function handleReceiveMessage(uint32 remoteDomain, bytes32 sender, bytes calldata messageBody)
+        external
+        returns (bool);
 }
