@@ -35,7 +35,7 @@
         ];
         packages = {
           cosmwasm-contracts = pkgs.callPackage ./nix/cosmwasm-contracts.nix { };
-          solidity-contracts = pkgs.callPackage ./nix/pkgs/solidity-contracts.nix { };
+          solidity-contracts = pkgs.callPackage ./nix/solidity-contracts.nix { };
           local-ic = pkgs.callPackage ./nix/local-ic.nix {
             localICStartScriptPath = ./scripts/start-local-ic.sh;
           };
