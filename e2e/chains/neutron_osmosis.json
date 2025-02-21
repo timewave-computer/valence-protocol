@@ -16,9 +16,7 @@
       "gas_adjustment": 1.3,
       "number_vals": 1,
       "number_node": 0,
-      "ibc_paths": [
-        "gaia-osmosis"
-      ],
+      "ibc_paths": ["gaia-osmosis"],
       "debugging": true,
       "block_time": "1s",
       "genesis": {
@@ -89,9 +87,7 @@
       "number_vals": 1,
       "number_node": 0,
       "ics_consumer_link": "localcosmos-1",
-      "ibc_paths": [
-        "neutron-osmosis"
-      ],
+      "ibc_paths": ["neutron-osmosis"],
       "debugging": true,
       "block_time": "1s",
       "genesis": {
@@ -106,15 +102,11 @@
           },
           {
             "key": "app_state.ccvconsumer.params.reward_denoms",
-            "value": [
-              "untrn"
-            ]
+            "value": ["untrn"]
           },
           {
             "key": "app_state.ccvconsumer.params.provider_reward_denoms",
-            "value": [
-              "uatom"
-            ]
+            "value": ["uatom"]
           },
           {
             "key": "app_state.globalfee.params.minimum_gas_prices",
@@ -199,9 +191,7 @@
       "gas_adjustment": 2,
       "number_vals": 1,
       "number_node": 0,
-      "ibc_paths": [
-        "gaia-osmosis", "neutron-osmosis"
-      ],
+      "ibc_paths": ["gaia-osmosis", "neutron-osmosis"],
       "debugging": true,
       "block_time": "1s",
       "genesis": {

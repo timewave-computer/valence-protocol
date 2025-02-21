@@ -181,8 +181,8 @@
       "binary": "junod",
       "bech32_prefix": "juno",
       "docker_image": {
-        "repository": "ghcr.io/strangelove-ventures/heighliner/juno",
-        "version": "v24.0.0"
+        "repository": "ghcr.io/cosmoscontracts/juno",
+        "version": "v28.0.0"
       },
       "gas_prices": "0%DENOM%",
       "chain_type": "cosmos",
@@ -196,10 +196,6 @@
       "debugging": true,
       "genesis": {
         "modify": [
-          {
-            "key": "consensus_params.block.max_gas",
-            "value": "100000000"
-          },
           {
             "key": "app_state.gov.params.voting_period",
             "value": "15s"
