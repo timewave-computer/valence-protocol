@@ -196,7 +196,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // 2. Conditional IBC forwarding
     //
-    // This is the core of this example program where conditional execution is demonstrated.
+    // This is the core of the example program where conditional execution is demonstrated.
     //
     // Configuration below sets up the following:
     // 1. Construct a processor message which will assert that the amount of neutron tokens
