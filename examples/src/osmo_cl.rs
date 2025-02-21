@@ -1,9 +1,5 @@
 use std::{error::Error, str::FromStr, time::Duration};
 
-////////////////////////////////////////////
-// DECLARE TEST ENVIRONMENT CONFIGURATION //
-////////////////////////////////////////////
-
 // import e2e test utilities
 use cosmwasm_std::{Binary, Decimal256, Int64, Uint64};
 use valence_e2e::utils::{
@@ -234,13 +230,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         .clone()
         .unwrap();
 
-    // log addresses of the input accounts
     info!("input_acc_addr: {input_acc_addr}");
     info!("output_acc_addr: {output_acc_addr}");
     info!("final_output_acc_addr: {final_output_acc_addr}");
 
     // fund the input account on Osmosis with NTRN and OSMO
-    info!("funding the input account...");
+    info!("funding the input account on Osmosis with NTRN and OSMO...");
     bank::send(
         test_ctx
             .get_request_builder()
@@ -265,7 +260,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(Duration::from_secs(3));
 
     // fund the output account with NTRN
-    // send the token to the output account
     bank::send(
         test_ctx
             .get_request_builder()
