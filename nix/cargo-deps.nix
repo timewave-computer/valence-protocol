@@ -11,6 +11,9 @@
 }:
 let
   commonArgs = {
+    src = craneLib.cleanCargoSource ../.;
+    inherit cargoVendorDir;
+
     OPENSSL_NO_VENDOR = 1;
     OPENSSL_LIB_DIR = lib.makeLibraryPath [ openssl ];
     OPENSSL_DIR = lib.getDev openssl;
@@ -26,8 +29,6 @@ let
   };
 in
 craneLib.buildDepsOnly (commonArgs // {
-  inherit cargoVendorDir;
-  src = craneLib.cleanCargoSource ../.;
   pname = "valence";
   strictDeps = true;
   doCheck = false;

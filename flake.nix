@@ -36,7 +36,6 @@
                   lib.hasPrefix "valence" name && lib.hasPrefix "contracts" value.path
                 ) cargoTOML.workspace.dependencies);
               buildValencePackage = pkgs.callPackage ./nix/build-package.nix;
-
             })
           ];
         };
@@ -46,11 +45,11 @@
         packages = {
           valence-cosmwasm-contracts = pkgs.callPackage ./nix/cosmwasm-contracts.nix { };
           valence-solidity-contracts = pkgs.callPackage ./nix/solidity-contracts.nix { };
-          valence-program-examples = pkgs.buildvalencePackage {
+          valence-program-examples = pkgs.buildValencePackage {
             pname = "valence-program-examples";
             cargoArgs = "--bins";
           };
-          valence-e2e = pkgs.buildvalencePackage {
+          valence-e2e = pkgs.buildValencePackage {
             pname = "valence-e2e";
             cargoArgs = "--examples";
           };
@@ -62,13 +61,12 @@
         };
         checks = {
           nextest = pkgs.craneLib.cargoNextest (pkgs.cargoDeps.commonArgs // {
-            src = pkgs.craneLib.cleanCargoSource ./.;
             pname = "valence";
-            cargoArtifacts = cargoDeps;
-            inherit cargoVendorDir;
+            cargoArtifacts = pkgs.cargoDeps;
           });
-          clippy = craneLib.cargoClippy (commonArgs // {
-            inherit cargoArtifacts;
+          clippy = pkgs.craneLib.cargoClippy (pkgs.cargoDeps.commonArgs // {
+            pname = "valence";
+            cargoArtifacts = pkgs.cargoDeps;
             cargoClippyExtraArgs = "--all-targets --verbose -- --deny warnings";
           });
         };

@@ -3,8 +3,8 @@
 , cargoVendorDir
 , cargoDeps
 , pname
-, cargoArgs
-, drvArgs
+, cargoArgs ? ""
+, drvArgs ? { }
 }:
 craneLib.buildPackage ({
   inherit cargoVendorDir;
