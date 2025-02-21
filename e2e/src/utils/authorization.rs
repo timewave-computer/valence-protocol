@@ -469,7 +469,7 @@ pub fn set_up_external_domain_with_polytone(
     Ok(predicted_processor_on_external_domain_address)
 }
 
-fn predict_remote_contract_address(
+pub fn predict_remote_contract_address(
     test_ctx: &TestContext,
     code_id: u64,
     chain_name: &str,

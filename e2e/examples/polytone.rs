@@ -16,8 +16,9 @@ use localic_std::{
 };
 use localic_utils::{
     utils::test_context::TestContext, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
-    GAIA_CHAIN_NAME, JUNO_CHAIN_ADMIN_ADDR, JUNO_CHAIN_ID, JUNO_CHAIN_NAME, LOCAL_IC_API_URL,
-    NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
+    GAIA_CHAIN_NAME, LOCAL_IC_API_URL, NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
+    OSMOSIS_CHAIN_ADMIN_ADDR, OSMOSIS_CHAIN_DENOM, OSMOSIS_CHAIN_ID, OSMOSIS_CHAIN_NAME,
+    OSMOSIS_CHAIN_PREFIX,
 };
 use log::info;
 use serde_json::json;
@@ -34,11 +35,14 @@ use valence_authorization_utils::{
     msg::{ExternalDomainInfo, PermissionedMsg, PolytoneNoteInfo, ProcessorMessage},
 };
 use valence_e2e::utils::{
-    authorization::{set_up_authorization_and_processor, verify_authorization_execution_result},
+    authorization::{
+        predict_remote_contract_address, set_up_authorization_and_processor,
+        verify_authorization_execution_result,
+    },
     polytone::salt_for_proxy,
     processor::{get_processor_queue_items, tick_processor},
     relayer::restart_relayer,
-    GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_JUNO, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
+    GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOCAL_CODE_ID_CACHE_PATH_OSMOSIS, LOGS_FILE_PATH,
     NEUTRON_USER_ADDRESS_1, POLYTONE_ARTIFACTS_PATH, USER_KEY_1, VALENCE_ARTIFACTS_PATH,
 };
 
@@ -61,13 +65,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_artifacts_dir(VALENCE_ARTIFACTS_PATH)
         .with_chain(ConfigChainBuilder::default_neutron().build()?)
         .with_chain(ConfigChainBuilder::default_gaia().build()?)
-        .with_chain(ConfigChainBuilder::default_juno().build()?)
+        .with_chain(ConfigChainBuilder::default_osmosis().build()?)
         .with_log_file_path(LOGS_FILE_PATH)
         .with_transfer_channels(NEUTRON_CHAIN_NAME, GAIA_CHAIN_NAME)
-        .with_transfer_channels(NEUTRON_CHAIN_NAME, JUNO_CHAIN_NAME)
+        .with_transfer_channels(NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_NAME)
         .build()?;
 
-    // Upload the authorization contract to Neutron and the processor to both Neutron and Juno
+    // Upload the authorization contract to Neutron and the processor to both Neutron and Osmosis
 
     // We need to predict the authorization contract address in advance for the processor contract on the main domain
     // We'll use the current time as a salt so we can run this test multiple times locally without getting conflicts
@@ -81,25 +85,25 @@ fn main() -> Result<(), Box<dyn Error>> {
     let (predicted_authorization_contract_address, _) =
         set_up_authorization_and_processor(&mut test_ctx, salt.clone())?;
 
-    // Upload the processor contract to Juno
+    // Upload the processor contract to Osmosis
     let current_dir = env::current_dir()?;
     let processor_contract_path =
         format!("{}/artifacts/valence_processor.wasm", current_dir.display());
 
     let mut uploader = test_ctx.build_tx_upload_contracts();
     uploader
-        .with_chain_name(JUNO_CHAIN_NAME)
+        .with_chain_name(OSMOSIS_CHAIN_NAME)
         .send_single_contract(&processor_contract_path)?;
 
-    // Upload all Polytone contracts to both Neutron and Juno
+    // Upload all Polytone contracts to both Neutron and Osmosis
     let mut uploader = test_ctx.build_tx_upload_contracts();
     uploader
         .send_with_local_cache(POLYTONE_ARTIFACTS_PATH, LOCAL_CODE_ID_CACHE_PATH_NEUTRON)
         .unwrap();
 
     uploader
-        .with_chain_name(JUNO_CHAIN_NAME)
-        .send_with_local_cache(POLYTONE_ARTIFACTS_PATH, LOCAL_CODE_ID_CACHE_PATH_JUNO)
+        .with_chain_name(OSMOSIS_CHAIN_NAME)
+        .send_with_local_cache(POLYTONE_ARTIFACTS_PATH, LOCAL_CODE_ID_CACHE_PATH_OSMOSIS)
         .unwrap();
 
     // Before setting up the external domains and the processor on the external domain, we are going to set up polytone and predict the proxy addresses on both sides
@@ -109,21 +113,21 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let polytone_proxy_on_neutron = test_ctx.get_contract().contract("polytone_proxy").get_cw();
 
-    let mut polytone_note_on_juno = test_ctx
+    let mut polytone_note_on_osmosis = test_ctx
         .get_contract()
-        .src(JUNO_CHAIN_NAME)
+        .src(OSMOSIS_CHAIN_NAME)
         .contract("polytone_note")
         .get_cw();
 
-    let mut polytone_voice_on_juno = test_ctx
+    let mut polytone_voice_on_osmosis = test_ctx
         .get_contract()
-        .src(JUNO_CHAIN_NAME)
+        .src(OSMOSIS_CHAIN_NAME)
         .contract("polytone_voice")
         .get_cw();
 
-    let polytone_proxy_on_juno = test_ctx
+    let polytone_proxy_on_osmosis = test_ctx
         .get_contract()
-        .src(JUNO_CHAIN_NAME)
+        .src(OSMOSIS_CHAIN_NAME)
         .contract("polytone_proxy")
         .get_cw();
 
@@ -138,13 +142,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         contract_addr_len: None,
     };
 
-    let juno_polytone_voice_instantiate_msg = polytone_voice::msg::InstantiateMsg {
-        proxy_code_id: Uint64::new(polytone_proxy_on_juno.code_id.unwrap()),
+    let osmosis_polytone_voice_instantiate_msg = polytone_voice::msg::InstantiateMsg {
+        proxy_code_id: Uint64::new(polytone_proxy_on_osmosis.code_id.unwrap()),
         block_max_gas: Uint64::new(3010000),
         contract_addr_len: None,
     };
 
     info!("Instantiating polytone contracts on both domains...");
+    let osmosis_gas_flags = &format!("{GAS_FLAGS} --fees {}{}", 5_000_000, OSMOSIS_CHAIN_DENOM);
 
     let polytone_note_on_neutron_address = polytone_note_on_neutron
         .instantiate(
@@ -176,29 +181,35 @@ fn main() -> Result<(), Box<dyn Error>> {
         polytone_voice_on_neutron_address
     );
 
-    let polytone_note_on_juno_address = polytone_note_on_juno
+    let polytone_note_on_osmosis_address = polytone_note_on_osmosis
         .instantiate(
             DEFAULT_KEY,
             &serde_json::to_string(&polytone_note_instantiate_msg).unwrap(),
-            "polytone-note-juno",
+            "polytone-note-osmosis",
             None,
-            "",
+            osmosis_gas_flags,
         )
         .unwrap()
         .address;
-    info!("Polytone Note on Juno: {}", polytone_note_on_juno_address);
+    info!(
+        "Polytone Note on Osmosis: {}",
+        polytone_note_on_osmosis_address
+    );
 
-    let polytone_voice_on_juno_address = polytone_voice_on_juno
+    let polytone_voice_on_osmosis_address = polytone_voice_on_osmosis
         .instantiate(
             DEFAULT_KEY,
-            &serde_json::to_string(&juno_polytone_voice_instantiate_msg).unwrap(),
-            "polytone-voice-juno",
+            &serde_json::to_string(&osmosis_polytone_voice_instantiate_msg).unwrap(),
+            "polytone-voice-osmosis",
             None,
-            "",
+            osmosis_gas_flags,
         )
         .unwrap()
         .address;
-    info!("Polytone Voice on Juno: {}", polytone_voice_on_juno_address);
+    info!(
+        "Polytone Voice on Osmosis: {}",
+        polytone_voice_on_osmosis_address
+    );
 
     info!("Creating WASM connections...");
 
@@ -211,14 +222,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     polytone_note_on_neutron
         .create_wasm_connection(
             &relayer,
-            "neutron-juno",
+            "neutron-osmosis",
             &CosmWasm::new_from_existing(
                 test_ctx
                     .get_request_builder()
-                    .get_request_builder(JUNO_CHAIN_NAME),
+                    .get_request_builder(OSMOSIS_CHAIN_NAME),
                 None,
                 None,
-                Some(polytone_voice_on_juno_address.clone()),
+                Some(polytone_voice_on_osmosis_address.clone()),
             ),
             "unordered",
             "polytone-1",
@@ -228,14 +239,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     polytone_voice_on_neutron
         .create_wasm_connection(
             &relayer,
-            "neutron-juno",
+            "neutron-osmosis",
             &CosmWasm::new_from_existing(
                 test_ctx
                     .get_request_builder()
-                    .get_request_builder(JUNO_CHAIN_NAME),
+                    .get_request_builder(OSMOSIS_CHAIN_NAME),
                 None,
                 None,
-                Some(polytone_note_on_juno_address.clone()),
+                Some(polytone_note_on_osmosis_address.clone()),
             ),
             "unordered",
             "polytone-1",
@@ -248,7 +259,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Get the connection ids so that we can predict the proxy addresses
     let neutron_channels = relayer.get_channels(NEUTRON_CHAIN_ID).unwrap();
 
-    let connection_id_neutron_to_juno = neutron_channels.iter().find_map(|neutron_channel| {
+    let connection_id_neutron_to_osmosis = neutron_channels.iter().find_map(|neutron_channel| {
         if neutron_channel.port_id == format!("wasm.{}", polytone_note_on_neutron_address.clone()) {
             neutron_channel.connection_hops.first().cloned()
         } else {
@@ -256,61 +267,78 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     });
     info!(
-        "Connection ID of Wasm connection Neutron to Juno: {:?}",
-        connection_id_neutron_to_juno
+        "Connection ID of Wasm connection Neutron to Osmosis: {:?}",
+        connection_id_neutron_to_osmosis
     );
 
-    let juno_channels = relayer.get_channels(JUNO_CHAIN_ID).unwrap();
+    let osmosis_channels = relayer.get_channels(OSMOSIS_CHAIN_ID).unwrap();
 
-    let connection_id_juno_to_neutron = juno_channels.iter().find_map(|juno_channel| {
-        if juno_channel.port_id == format!("wasm.{}", polytone_note_on_juno_address.clone()) {
-            juno_channel.connection_hops.first().cloned()
+    let connection_id_osmosis_to_neutron = osmosis_channels.iter().find_map(|osmosis_channel| {
+        if osmosis_channel.port_id == format!("wasm.{}", polytone_note_on_osmosis_address.clone()) {
+            osmosis_channel.connection_hops.first().cloned()
         } else {
             None
         }
     });
     info!(
-        "Connection ID of Wasm connection Juno to Neutron: {:?}",
-        connection_id_juno_to_neutron
+        "Connection ID of Wasm connection Osmosis to Neutron: {:?}",
+        connection_id_osmosis_to_neutron
     );
 
-    let salt_for_proxy_on_juno = salt_for_proxy(
-        &connection_id_juno_to_neutron.unwrap(),
+    let salt_for_proxy_on_osmosis = salt_for_proxy(
+        &connection_id_osmosis_to_neutron.unwrap(),
         &format!("wasm.{}", polytone_note_on_neutron_address.clone()),
         &predicted_authorization_contract_address,
     );
 
-    // Predict the address the proxy on juno for the authorization module
-    let predicted_proxy_address_on_juno = test_ctx
-        .get_built_contract_address()
-        .src(JUNO_CHAIN_NAME)
-        .creator(&polytone_voice_on_juno_address.clone())
-        .contract("polytone_proxy")
-        .salt_hex_encoded(&hex::encode(salt_for_proxy_on_juno))
-        .get();
+    // Predict the address the proxy on Osmosis for the authorization module
+    let predicted_proxy_address_on_osmosis = predict_remote_contract_address(
+        &test_ctx,
+        polytone_proxy_on_osmosis.code_id.unwrap(),
+        OSMOSIS_CHAIN_NAME,
+        OSMOSIS_CHAIN_PREFIX,
+        &polytone_voice_on_osmosis_address,
+        &salt_for_proxy_on_osmosis,
+    )
+    .unwrap();
 
     info!(
-        "Predicted proxy address on Juno: {}",
-        predicted_proxy_address_on_juno
+        "Predicted proxy address on Osmosis: {}",
+        predicted_proxy_address_on_osmosis
     );
 
-    // To predict the proxy address on neutron for the processor on juno we need to first predict the processor address
-    let predicted_processor_on_juno_address = test_ctx
-        .get_built_contract_address()
-        .src(JUNO_CHAIN_NAME)
-        .creator(JUNO_CHAIN_ADMIN_ADDR)
+    let processor_code_id_on_osmosis = test_ctx
+        .get_contract()
+        .src(OSMOSIS_CHAIN_NAME)
         .contract("valence_processor")
-        .salt_hex_encoded(&salt)
-        .get();
+        .get_cw()
+        .code_id
+        .unwrap();
+
+    // To predict the proxy address on neutron for the processor on Osmosis we need to first predict the processor address
+    let predicted_processor_on_osmosis_address = predict_remote_contract_address(
+        &test_ctx,
+        processor_code_id_on_osmosis,
+        OSMOSIS_CHAIN_NAME,
+        OSMOSIS_CHAIN_PREFIX,
+        OSMOSIS_CHAIN_ADMIN_ADDR,
+        hex::decode(&salt).unwrap().as_slice(),
+    )
+    .unwrap();
+
+    info!(
+        "Predicted processor address on Osmosis: {}",
+        predicted_processor_on_osmosis_address
+    );
 
     // Let's now predict the proxy
     let salt_for_proxy_on_neutron = salt_for_proxy(
-        &connection_id_neutron_to_juno.unwrap(),
+        &connection_id_neutron_to_osmosis.unwrap(),
         &format!(
             "wasm.{}",
-            polytone_note_on_juno.contract_addr.clone().unwrap()
+            polytone_note_on_osmosis.contract_addr.clone().unwrap()
         ),
-        &predicted_processor_on_juno_address,
+        &predicted_processor_on_osmosis_address,
     );
     let predicted_proxy_address_on_neutron = test_ctx
         .get_built_contract_address()
@@ -329,8 +357,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let processor_instantiate_msg = valence_processor_utils::msg::InstantiateMsg {
         authorization_contract: predicted_authorization_contract_address.clone(),
         polytone_contracts: Some(PolytoneContracts {
-            polytone_proxy_address: predicted_proxy_address_on_juno.clone(),
-            polytone_note_address: polytone_note_on_juno_address.clone(),
+            polytone_proxy_address: predicted_proxy_address_on_osmosis.clone(),
+            polytone_note_address: polytone_note_on_osmosis_address.clone(),
             timeout_seconds: TIMEOUT_SECONDS,
         }),
     };
@@ -338,23 +366,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Before instantiating the processor and adding the external domain we are going to stop the relayer to force timeouts
     test_ctx.stop_relayer();
 
-    let processor_code_id_on_juno = test_ctx
-        .get_contract()
-        .src(JUNO_CHAIN_NAME)
-        .contract("valence_processor")
-        .get_cw()
-        .code_id
-        .unwrap();
-
     // Instantiate processor
     test_ctx
         .build_tx_instantiate2()
-        .with_chain_name(JUNO_CHAIN_NAME)
+        .with_chain_name(OSMOSIS_CHAIN_NAME)
         .with_label("processor")
-        .with_code_id(processor_code_id_on_juno)
+        .with_code_id(processor_code_id_on_osmosis)
         .with_salt_hex_encoded(&salt)
         .with_msg(serde_json::to_value(processor_instantiate_msg).unwrap())
-        .with_flags(GAS_FLAGS)
+        .with_flags(osmosis_gas_flags)
         .send()
         .unwrap();
 
@@ -362,7 +382,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let add_external_domain_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
         PermissionedMsg::AddExternalDomains {
             external_domains: vec![ExternalDomainInfo {
-                name: "juno".to_string(),
+                name: "osmosis".to_string(),
                 execution_environment:
                     valence_authorization_utils::msg::ExecutionEnvironmentInfo::Cosmwasm(
                         valence_authorization_utils::msg::CosmwasmBridgeInfo::Polytone(
@@ -375,7 +395,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             },
                         ),
                     ),
-                processor: predicted_processor_on_juno_address.clone(),
+                processor: predicted_processor_on_osmosis_address.clone(),
             }],
         },
     );
@@ -400,7 +420,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // The proxy creation from the processor should have timed out
     verify_proxy_state_on_processor(
         &mut test_ctx,
-        &predicted_processor_on_juno_address,
+        &predicted_processor_on_osmosis_address,
         &PolytoneProxyState::TimedOut,
     );
 
@@ -419,11 +439,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let retry_proxy_creation_msg_on_authorization_contract =
         valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
             valence_authorization_utils::msg::PermissionlessMsg::RetryBridgeCreation {
-                domain_name: "juno".to_string(),
+                domain_name: "osmosis".to_string(),
             },
         );
 
-    let retry_proxy_creation_on_juno_processor =
+    let retry_proxy_creation_on_osmosis_processor =
         valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
             valence_processor_utils::msg::PermissionlessMsg::RetryBridgeCreation {},
         );
@@ -442,17 +462,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     contract_execute(
         test_ctx
             .get_request_builder()
-            .get_request_builder(JUNO_CHAIN_NAME),
-        &predicted_processor_on_juno_address,
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        &predicted_processor_on_osmosis_address,
         DEFAULT_KEY,
-        &serde_json::to_string(&retry_proxy_creation_on_juno_processor).unwrap(),
-        GAS_FLAGS,
+        &serde_json::to_string(&retry_proxy_creation_on_osmosis_processor).unwrap(),
+        osmosis_gas_flags,
     )
     .unwrap();
 
     verify_proxy_state_on_processor(
         &mut test_ctx,
-        &predicted_processor_on_juno_address,
+        &predicted_processor_on_osmosis_address,
         &PolytoneProxyState::PendingResponse,
     );
 
@@ -471,7 +491,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // The proxy creation from the processor should have timed out
     verify_proxy_state_on_processor(
         &mut test_ctx,
-        &predicted_processor_on_juno_address,
+        &predicted_processor_on_osmosis_address,
         &PolytoneProxyState::TimedOut,
     );
 
@@ -487,11 +507,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let retry_proxy_creation_msg_on_authorization_contract =
         valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
             valence_authorization_utils::msg::PermissionlessMsg::RetryBridgeCreation {
-                domain_name: "juno".to_string(),
+                domain_name: "osmosis".to_string(),
             },
         );
 
-    let retry_proxy_creation_on_juno_processor =
+    let retry_proxy_creation_on_osmosis_processor =
         valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
             valence_processor_utils::msg::PermissionlessMsg::RetryBridgeCreation {},
         );
@@ -510,18 +530,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     contract_execute(
         test_ctx
             .get_request_builder()
-            .get_request_builder(JUNO_CHAIN_NAME),
-        &predicted_processor_on_juno_address,
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        &predicted_processor_on_osmosis_address,
         DEFAULT_KEY,
-        &serde_json::to_string(&retry_proxy_creation_on_juno_processor).unwrap(),
-        GAS_FLAGS,
+        &serde_json::to_string(&retry_proxy_creation_on_osmosis_processor).unwrap(),
+        osmosis_gas_flags,
     )
     .unwrap();
 
     // Now both proxies should be created
     verify_proxy_state_on_processor(
         &mut test_ctx,
-        &predicted_processor_on_juno_address,
+        &predicted_processor_on_osmosis_address,
         &PolytoneProxyState::Created,
     );
 
@@ -547,16 +567,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     )
     .unwrap();
 
-    assert_eq!(remote_address, predicted_proxy_address_on_juno);
+    assert_eq!(remote_address, predicted_proxy_address_on_osmosis);
 
     let remote_address: String = serde_json::from_value(
         contract_query(
             test_ctx
                 .get_request_builder()
-                .get_request_builder(JUNO_CHAIN_NAME),
-            &polytone_note_on_juno_address,
+                .get_request_builder(OSMOSIS_CHAIN_NAME),
+            &polytone_note_on_osmosis_address,
             &serde_json::to_string(&polytone_note::msg::QueryMsg::RemoteAddress {
-                local_address: predicted_processor_on_juno_address.clone(),
+                local_address: predicted_processor_on_osmosis_address.clone(),
             })
             .unwrap(),
         )["data"]
@@ -571,7 +591,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // First we are going to try to add an authorization with an function for an invalid domain, which should fail
     let mut function = AtomicFunction {
-        domain: Domain::External("osmosis".to_string()),
+        domain: Domain::External("juno".to_string()),
         message_details: MessageDetails {
             message_type: MessageType::CosmwasmExecuteMsg,
             message: Message {
@@ -624,14 +644,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     .unwrap_err();
 
     assert!(error.to_string().contains(
-        ContractError::DomainIsNotRegistered("osmosis".to_string())
+        ContractError::DomainIsNotRegistered("juno".to_string())
             .to_string()
             .as_str()
     ));
 
     info!("Creating a valid authorization...");
 
-    function.domain = Domain::External("juno".to_string());
+    function.domain = Domain::External("osmosis".to_string());
     authorization.subroutine = Subroutine::Atomic(AtomicSubroutine {
         functions: vec![function.clone()],
         retry_logic: None,
@@ -916,8 +936,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         attempts += 1;
         batches = get_processor_queue_items(
             &mut test_ctx,
-            JUNO_CHAIN_NAME,
-            &predicted_processor_on_juno_address,
+            OSMOSIS_CHAIN_NAME,
+            &predicted_processor_on_osmosis_address,
             Priority::Medium,
         );
 
@@ -945,9 +965,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Ticking the processor to trigger sending the callback...");
     tick_processor(
         &mut test_ctx,
-        JUNO_CHAIN_NAME,
+        OSMOSIS_CHAIN_NAME,
         DEFAULT_KEY,
-        &predicted_processor_on_juno_address,
+        &predicted_processor_on_osmosis_address,
     );
 
     // Wait enough time to force the time out
@@ -964,7 +984,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         attempts += 1;
         callback_info = get_processor_pending_polytone_callback(
             &mut test_ctx,
-            &predicted_processor_on_juno_address,
+            &predicted_processor_on_osmosis_address,
             1,
         );
 
@@ -989,8 +1009,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     contract_execute(
         test_ctx
             .get_request_builder()
-            .get_request_builder(JUNO_CHAIN_NAME),
-        &predicted_processor_on_juno_address,
+            .get_request_builder(OSMOSIS_CHAIN_NAME),
+        &predicted_processor_on_osmosis_address,
         DEFAULT_KEY,
         &serde_json::to_string(
             &valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
@@ -998,7 +1018,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             ),
         )
         .unwrap(),
-        GAS_FLAGS,
+        osmosis_gas_flags,
     )
     .unwrap();
 
@@ -1095,7 +1115,7 @@ fn verify_proxy_state_on_processor(
             contract_query(
                 test_ctx
                     .get_request_builder()
-                    .get_request_builder(JUNO_CHAIN_NAME),
+                    .get_request_builder(OSMOSIS_CHAIN_NAME),
                 processor_address,
                 &serde_json::to_string(&valence_processor_utils::msg::QueryMsg::Config {}).unwrap(),
             )["data"]
@@ -1195,7 +1215,7 @@ fn get_processor_pending_polytone_callback(
         contract_query(
             test_ctx
                 .get_request_builder()
-                .get_request_builder(JUNO_CHAIN_NAME),
+                .get_request_builder(OSMOSIS_CHAIN_NAME),
             processor_address,
             &serde_json::to_string(
                 &valence_processor_utils::msg::QueryMsg::PendingPolytoneCallback { execution_id },
