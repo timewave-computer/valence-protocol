@@ -17,6 +17,7 @@
       cargo
       clang
       foundry-bin
+      taplo
     ];
     commands = [
       {

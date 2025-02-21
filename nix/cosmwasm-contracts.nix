@@ -1,6 +1,5 @@
 { lib
-, pkgs
-, crane
+, craneLib
 , stdenv
 , coreutils
 , findutils
@@ -16,45 +15,37 @@
 , fetchCrate
 , rustPlatform
 , libiconv
+, cargoVendorDir
+, contractNames
 }:
 let
-  craneLib = (crane.mkLib pkgs);
-
   src = craneLib.cleanCargoSource ../.;
 
-  cargoTOML = builtins.fromTOML (builtins.readFile ../Cargo.toml);
-  contracts = builtins.attrNames (lib.filterAttrs (name: value:
-    lib.hasPrefix "valence" name && lib.hasPrefix "contracts" value.path
-  ) cargoTOML.workspace.dependencies);
-
-  commonBaseArgs = {
+  commonArgs = {
     pname = "valence-cosmwasm-contracts";
-    inherit src;
+    inherit src cargoVendorDir;
     strictDeps = true;
     doCheck = false;
 
-    OPENSSL_NO_VENDOR = 1;
-    OPENSSL_LIB_DIR = lib.makeLibraryPath [ openssl ];
-    OPENSSL_DIR = lib.getDev openssl;
-    LIBCLANG_PATH = lib.makeLibraryPath [ libclang ];
+    # OPENSSL_NO_VENDOR = 1;
+    # OPENSSL_LIB_DIR = lib.makeLibraryPath [ openssl ];
+    # OPENSSL_DIR = lib.getDev openssl;
+    # LIBCLANG_PATH = lib.makeLibraryPath [ libclang ];
     CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
 
-    cargoExtraArgs = "-p ${lib.concatStringsSep " -p " contracts} --lib --locked";
+    cargoExtraArgs = "-p ${lib.concatStringsSep " -p " contractNames} --lib --locked";
 
-    buildInputs = [
-      libosmosistesttube
-      libntrntesttube
-      # Add additional build inputs here
-    ] ++ lib.optionals stdenv.isDarwin [
-      # Additional darwin specific inputs can be set here
-      libiconv
-    ];
+    # buildInputs = [
+    # ] ++ lib.optionals stdenv.isDarwin [
+    #   # Additional darwin specific inputs can be set here
+    #   libiconv
+    # ];
 
     nativeBuildInputs = [
       coreutils
       findutils
-      clang
-      llvm
+      # clang
+      # llvm
       lld
       binaryen # for wasm-opt
     ];
@@ -62,31 +53,6 @@ let
     # Additional environment variables can be set directly
     # MY_CUSTOM_VAR = "some value";
   };
-
-  cargoVendorDir = craneLib.vendorCargoDeps (commonBaseArgs // {
-    overrideVendorCargoPackage = p: drv:
-      if p.name == "osmosis-test-tube" then
-        drv.overrideAttrs (_: {
-          preInstall = libosmosistesttube.fixCargoBuildScript;
-        })
-      else if p.name == "neutron-test-tube" then
-        drv.overrideAttrs (_: {
-          preInstall = libntrntesttube.fixCargoBuildScript;
-        })
-      else if p.name == "injective-protobuf" then
-        # injective-protobuf custom build script is unnecessary
-        # and tries to write in vendor dir which is a read-only filesystem
-        drv.overrideAttrs (_: {
-          preInstall = ''
-            rm build.rs
-          '';
-        })
-      else
-        drv
-      ;
-  });
-
-  commonArgs = commonBaseArgs // { inherit cargoVendorDir; };
 
   cargoArtifacts = craneLib.buildDepsOnly commonArgs;
 

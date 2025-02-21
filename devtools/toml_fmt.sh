@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 toml_fmt() {
     # if no flags are provided we default to empty

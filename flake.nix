@@ -25,8 +25,17 @@
             inputs.rust-overlay.overlays.default
             inputs.foundry.overlay
             (final: prev: config.packages // {
-              workspaceRoot = ./.;
+              craneLib = inputs.crane.mkLib pkgs;
               inherit (inputs) crane;
+              cargoVendorDir = final.callPackage ./nix/cargo-vendor-dir.nix { };
+              cargoDeps = final.callPackage ./nix/cargo-deps.nix { };
+              contractNames = let
+                cargoTOML = builtins.fromTOML (builtins.readFile ./Cargo.toml);
+              in
+                builtins.attrNames (lib.filterAttrs (name: value:
+                  lib.hasPrefix "valence" name && lib.hasPrefix "contracts" value.path
+                ) cargoTOML.workspace.dependencies);
+
             })
           ];
         };
@@ -36,12 +45,20 @@
         packages = {
           cosmwasm-contracts = pkgs.callPackage ./nix/cosmwasm-contracts.nix { };
           solidity-contracts = pkgs.callPackage ./nix/solidity-contracts.nix { };
+          schemas = pkgs.callPackage ./nix/schemas.nix { };
           local-ic = pkgs.callPackage ./nix/local-ic.nix {
             localICStartScriptPath = ./scripts/start-local-ic.sh;
           };
           libosmosistesttube = pkgs.callPackage ./nix/libosmosistesttube.nix { };
           libntrntesttube = pkgs.callPackage ./nix/libntrntesttube.nix { };
         };
+        apps = lib.listToAttrs (lib.map (name: {
+          name = "${name}-schema";
+          # flake-parts requires derivation to be in program attribute
+          value.program = pkgs.callPackage ./nix/schema.nix {
+            name = name;
+          };
+        }) pkgs.contractNames);
       };
     };
 }
