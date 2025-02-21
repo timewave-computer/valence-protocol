@@ -1,1 +1,1 @@
-pub mod osmo_gamm;
+pub mod osmo_gamm_test;
