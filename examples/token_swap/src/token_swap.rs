@@ -13,10 +13,10 @@ use valence_program_manager::{
 };
 use valence_splitter_library::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
 
-/// Returns a `ProgramConfig` for a program that atomically swap tokens 
-/// between two program controlled accounts on a given domain. 
-/// This `ProgramConfig` can be used to deploy and configure the program. 
-/// The accompanying token_swap_test.rs demonstrates local deployment and testing of 
+/// Returns a `ProgramConfig` for a program that atomically swap tokens
+/// between two program controlled accounts on a given domain.
+/// This `ProgramConfig` can be used to deploy and configure the program.
+/// The accompanying token_swap_test.rs demonstrates local deployment and testing of
 /// this program.
 ///
 /// # Arguments
@@ -55,7 +55,7 @@ pub fn my_atomic_token_swap_program(
     // Valence provides a splitter library that can send tokens from 1 accounts to N other
     // accounts. In the atomic swap example, two instances of the library are configured.
 
-    // The first splitter instance is configured to send a fixed `swap_amount_token1` from 
+    // The first splitter instance is configured to send a fixed `swap_amount_token1` from
     // the first account to the second account.
     let library_1 = program_config_builder.add_library(LibraryInfo::new(
         "splitter_1".to_string(),
@@ -129,7 +129,7 @@ pub fn my_atomic_token_swap_program(
     // and give the authority token to the `authorized_swap_party`. This party
     // is given the ability to invoke the `atomic_subroutine` created previously.
     // The `PermissionTypeInfo::WithoutCallLimit` signifies that the party can invoke
-    // the subroutine an indefinite number of times.  
+    // the subroutine an indefinite number of times.
     let authorization = AuthorizationBuilder::new()
         .with_label("atomic_swap")
         .with_mode(AuthorizationModeInfo::Permissioned(
@@ -139,7 +139,7 @@ pub fn my_atomic_token_swap_program(
         .build();
 
     program_config_builder.add_authorization(authorization);
-    
+
     // The program config is built.
     program_config_builder.build()
 }

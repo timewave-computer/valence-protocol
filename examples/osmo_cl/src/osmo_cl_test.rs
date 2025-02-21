@@ -21,8 +21,8 @@ use valence_e2e::utils::{
 use localic_std::modules::{bank, cosmwasm::contract_execute};
 use localic_utils::{
     ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
-    NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_DENOM,
-    OSMOSIS_CHAIN_ID, OSMOSIS_CHAIN_NAME,
+    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
+    OSMOSIS_CHAIN_DENOM, OSMOSIS_CHAIN_ID, OSMOSIS_CHAIN_NAME,
 };
 use log::info;
 use valence_authorization_utils::msg::ProcessorMessage;
@@ -89,11 +89,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut program_config = osmo_cl_example::osmo_cl::my_osmosis_cl_program(
         osmo_domain.clone(),
-        pool_id,                 // target pool id
-        &ntrn_on_osmo_denom,     // denom_1
-        OSMOSIS_CHAIN_DENOM,     // denom_2
-        Int64::from(-1_000_000), // lower tick
-        Int64::from(1_000_000),  // upper tick
+        NEUTRON_CHAIN_ADMIN_ADDR.to_string(), // owner
+        pool_id,                              // target pool id
+        &ntrn_on_osmo_denom,                  // denom_1
+        OSMOSIS_CHAIN_DENOM,                  // denom_2
+        Int64::from(-1_000_000),              // lower tick
+        Int64::from(1_000_000),               // upper tick
     )?;
 
     /////////////////////

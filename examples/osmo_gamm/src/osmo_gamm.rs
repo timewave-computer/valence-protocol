@@ -6,7 +6,7 @@ use std::error::Error;
 
 // import e2e test utilities
 
-use localic_utils::{NEUTRON_CHAIN_ADMIN_ADDR, OSMOSIS_CHAIN_NAME};
+use localic_utils::OSMOSIS_CHAIN_NAME;
 use log::info;
 use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType},
@@ -23,11 +23,12 @@ use valence_program_manager::{
 
 pub fn my_osmosis_gamm_program(
     osmo_domain: valence_program_manager::domain::Domain,
+    owner: String,
     pool_id: u64,
     denom_1: &str,
     denom_2: &str,
 ) -> Result<ProgramConfig, Box<dyn Error>> {
-    let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
+    let mut builder = ProgramConfigBuilder::new(owner);
 
     let gamm_input_acc_info = AccountInfo::new(
         "gamm_input".to_string(),
