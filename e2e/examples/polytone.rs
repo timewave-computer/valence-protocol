@@ -968,6 +968,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         OSMOSIS_CHAIN_NAME,
         DEFAULT_KEY,
         &predicted_processor_on_osmosis_address,
+        osmosis_gas_flags,
     );
 
     // Wait enough time to force the time out
