@@ -77,8 +77,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut program_config = osmo_gamm_example::osmo_gamm::my_osmosis_gamm_program(
         osmo_domain.clone(),
         pool_id,
-        OSMOSIS_CHAIN_DENOM,
         &ntrn_on_osmo_denom,
+        OSMOSIS_CHAIN_DENOM,
     )?;
 
     info!("initializing manager...");

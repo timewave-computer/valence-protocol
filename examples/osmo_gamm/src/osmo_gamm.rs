@@ -77,17 +77,19 @@ pub fn my_osmosis_gamm_program(
         },
     };
 
-    let gamm_lper_library = builder.add_library(LibraryInfo::new(
+    let gamm_lper_library_info = LibraryInfo::new(
         "test_gamm_lp".to_string(),
         &osmo_domain,
         LibraryConfig::ValenceOsmosisGammLper(gamm_lper_config),
-    ));
+    );
+    let gamm_lper_library = builder.add_library(gamm_lper_library_info);
 
-    let gamm_lwer_library = builder.add_library(LibraryInfo::new(
+    let gamm_lwer_library_info = LibraryInfo::new(
         "test_gamm_lw".to_string(),
         &osmo_domain,
         LibraryConfig::ValenceOsmosisGammWithdrawer(gamm_lwer_config),
-    ));
+    );
+    let gamm_lwer_library = builder.add_library(gamm_lwer_library_info);
 
     // establish the input_acc -> lper_lib -> output_acc link
     builder.add_link(
@@ -126,26 +128,26 @@ pub fn my_osmosis_gamm_program(
         })
         .build();
 
-    builder.add_authorization(
-        AuthorizationBuilder::new()
-            .with_label("provide_liquidity")
-            .with_subroutine(
-                AtomicSubroutineBuilder::new()
-                    .with_function(gamm_lper_function)
-                    .build(),
-            )
-            .build(),
-    );
-    builder.add_authorization(
-        AuthorizationBuilder::new()
-            .with_label("withdraw_liquidity")
-            .with_subroutine(
-                AtomicSubroutineBuilder::new()
-                    .with_function(gamm_lwer_function)
-                    .build(),
-            )
-            .build(),
-    );
+    let gamm_lper_atomic_subroutine = AtomicSubroutineBuilder::new()
+        .with_function(gamm_lper_function)
+        .build();
+
+    let gamm_lper_authorization = AuthorizationBuilder::new()
+        .with_label("provide_liquidity")
+        .with_subroutine(gamm_lper_atomic_subroutine)
+        .build();
+
+    let gamm_lwer_atomic_subroutine = AtomicSubroutineBuilder::new()
+        .with_function(gamm_lwer_function)
+        .build();
+
+    let gamm_lwer_authorization = AuthorizationBuilder::new()
+        .with_label("withdraw_liquidity")
+        .with_subroutine(gamm_lwer_atomic_subroutine)
+        .build();
+
+    builder.add_authorization(gamm_lper_authorization);
+    builder.add_authorization(gamm_lwer_authorization);
 
     Ok(builder.build())
 }
