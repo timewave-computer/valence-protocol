@@ -61,7 +61,16 @@
           libntrntesttube = pkgs.callPackage ./nix/libntrntesttube.nix { };
         };
         checks = {
-          nextest = pkgs.callPackage ./nix/nextest.nix { };
+          nextest = pkgs.craneLib.cargoNextest (pkgs.cargoDeps.commonArgs // {
+            src = pkgs.craneLib.cleanCargoSource ./.;
+            pname = "valence";
+            cargoArtifacts = cargoDeps;
+            inherit cargoVendorDir;
+          });
+          clippy = craneLib.cargoClippy (commonArgs // {
+            inherit cargoArtifacts;
+            cargoClippyExtraArgs = "--all-targets --verbose -- --deny warnings";
+          });
         };
         apps = lib.listToAttrs (lib.map (pname: {
           name = "${pname}-schema";

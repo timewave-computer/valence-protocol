@@ -86,9 +86,6 @@ jobs:
       - name: Run taplo (toml fmt)
         run: ./devtools/toml_fmt.sh --check
 
-      - name: Run clippy
-        run: cargo clippy --all-targets --verbose -- -D warnings
-
       - name: Optimize contracts
         run: |
           nix build -vL .#valence-cosmwasm-contracts --out-link artifacts
@@ -155,7 +152,7 @@ jobs:
       - name: List artifacts
         run: ls -l ./artifacts
 
-      - name: Run cargo and nix tests
+      - name: Run nextest, clippy and nix tests
         # nextest check derivation runs cargo tests
         run: nix flake check -vL
         env:
