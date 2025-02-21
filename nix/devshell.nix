@@ -18,6 +18,7 @@
       clang
       foundry-bin
       taplo
+      toml-cli
     ];
     commands = [
       {
