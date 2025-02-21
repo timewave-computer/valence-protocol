@@ -159,7 +159,7 @@ jobs:
           RUST_BACKTRACE: 1
 
   local-ic-polytone:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: authorization & processor polytone integration test
     runs-on: ubuntu-latest
     steps:
@@ -173,7 +173,7 @@ jobs:
           test-name: "polytone"
 
   local-ic-token-swap:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: token swap e2e test
     runs-on: ubuntu-latest
     steps:
@@ -187,7 +187,7 @@ jobs:
           example-name: "token_swap"
 
   local-ic-2-party-pol-astroport-neutron:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: 2 party POL Astroport on Neutron e2e test
     runs-on: ubuntu-latest
     steps:
@@ -201,7 +201,7 @@ jobs:
           test-name: "two_party_pol_astroport_neutron"
 
   local-ic-ibc-transfer-ntrn-juno:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: IBC transfer NTRN->JUNO e2e test
     runs-on: ubuntu-latest
     steps:
@@ -215,7 +215,7 @@ jobs:
           test-name: "ibc_transfer_ntrn_juno"
 
   local-ic-ibc-transfer-juno-ntrn:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: IBC transfer JUNO->NTRN e2e test
     runs-on: ubuntu-latest
     steps:
@@ -229,7 +229,7 @@ jobs:
           test-name: "ibc_transfer_juno_ntrn"
 
   local-ic-ibc-transfer-ntrn-juno-gaia-pfm:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: IBC transfer NTRN->JUNO->GAIA PFM e2e test
     runs-on: ubuntu-latest
     steps:
@@ -243,7 +243,7 @@ jobs:
           test-name: "ibc_transfer_ntrn_juno_gaia_pfm"
 
   local-ic-ibc-transfer-osmo-ntrn:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: IBC transfer OSMO->NTRN e2e test
     runs-on: ubuntu-latest
     steps:
@@ -257,7 +257,7 @@ jobs:
           test-name: "ibc_transfer_osmo_ntrn"
 
   local-ic-ibc-transfer-osmo-juno-gaia-pfm:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: IBC transfer OSMO->JUNO->GAIA PFM e2e test
     runs-on: ubuntu-latest
     steps:
@@ -271,7 +271,7 @@ jobs:
           test-name: "ibc_transfer_osmo_juno_gaia_pfm"
 
   local-ic-osmo-gamm-tests:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: Osmosis GAMM e2e lp -> lw run
     runs-on: ubuntu-latest
     steps:
@@ -285,7 +285,7 @@ jobs:
           example-name: "osmo_gamm"
 
   local-ic-osmo-cl-tests:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: Osmosis concentrated liquidity e2e lp -> lw run
     runs-on: ubuntu-latest
     steps:
@@ -299,7 +299,7 @@ jobs:
           example-name: "osmo_cl"
 
   local-ic-ethereum-e2e-tests:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: Ethereum e2e tests
     runs-on: ubuntu-latest
     steps:
