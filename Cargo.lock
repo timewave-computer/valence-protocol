@@ -6609,6 +6609,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
+name = "token-swap-example"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-std 1.5.10",
+ "cosmwasm-std 2.2.1",
+ "cw-utils 2.0.0",
+ "env_logger 0.11.6",
+ "hex",
+ "localic-std",
+ "localic-utils",
+ "log",
+ "rand 0.8.5",
+ "serde_json",
+ "sha2 0.10.8",
+ "valence-account-utils",
+ "valence-authorization-utils",
+ "valence-e2e",
+ "valence-library-utils",
+ "valence-processor-utils",
+ "valence-program-manager",
+ "valence-program-registry-utils",
+ "valence-splitter-library",
+]
+
+[[package]]
 name = "tokio"
 version = "1.43.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7617,43 +7642,6 @@ dependencies = [
  "serde_json",
  "valence-authorization-utils",
  "valence-gmp-utils",
-]
-
-[[package]]
-name = "valence-program-examples"
-version = "0.2.0"
-dependencies = [
- "cosmwasm-std 1.5.10",
- "cosmwasm-std 2.2.1",
- "cw-utils 2.0.0",
- "env_logger 0.11.6",
- "hex",
- "localic-std",
- "localic-utils",
- "log",
- "osmosis-std",
- "polytone-note",
- "polytone-voice",
- "rand 0.8.5",
- "serde_json",
- "sha2 0.10.8",
- "valence-account-utils",
- "valence-authorization-utils",
- "valence-e2e",
- "valence-forwarder-library",
- "valence-ibc-utils",
- "valence-library-utils",
- "valence-neutron-ibc-transfer-library",
- "valence-osmosis-cl-lper",
- "valence-osmosis-cl-withdrawer",
- "valence-osmosis-gamm-lper",
- "valence-osmosis-gamm-withdrawer",
- "valence-osmosis-utils",
- "valence-processor-utils",
- "valence-program-manager",
- "valence-program-registry-utils",
- "valence-reverse-splitter-library",
- "valence-splitter-library",
 ]
 
 [[package]]

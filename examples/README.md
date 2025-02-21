@@ -23,8 +23,8 @@ See the [e2e README](../e2e/README.md) for instructions on how that can be done.
 Once `local-ic` is available in your path and is running the correct set of nodes,
 examples can be executed by running `just run-example <example>`.
 
-For instance, in order to run the `osmo_cl` Program, execute the following:
+For instance, in order to run the `token-swap-example` Program, execute the following:
 
 ```just
-just run-example osmo_cl
+just run-example token-swap-example
 ```

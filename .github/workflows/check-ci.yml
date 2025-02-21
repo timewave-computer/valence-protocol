@@ -215,7 +215,7 @@ jobs:
         uses: "./.github/actions/run-local-ic-example"
         with:
           chain-config: "neutron"
-          test-name: "token_swap"
+          test-name: "token-swap-example"
 
   local-ic-2-party-pol-astroport-neutron:
     needs: [build, setup-local-ic]
