@@ -204,7 +204,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // 2. Construct a processor message which will perform an IBC transfer from Neutron to Osmosis
     // 3. Send the messages to the processor in order of `[assert, transfer]`.
     //
-    // After the configuration is complete, ticking the processor will start by executing
+    // After configuration is complete, ticking the processor begins with execution of
     // the assertion message:
     // - If the assertion returns `Ok`, the processor will proceed to execute the IBC transfer message
     // - If the assertion returns `Err`, the processor will error out and exit
