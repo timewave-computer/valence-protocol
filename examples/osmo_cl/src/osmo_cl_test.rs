@@ -1,9 +1,4 @@
 use std::{error::Error, str::FromStr, time::Duration};
-
-////////////////////////////////////////////
-// DECLARE TEST ENVIRONMENT CONFIGURATION //
-////////////////////////////////////////////
-
 // import e2e test utilities
 use cosmwasm_std::{Binary, Decimal256, Int64, Uint64};
 use valence_e2e::utils::{
@@ -30,7 +25,7 @@ use valence_authorization_utils::msg::ProcessorMessage;
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    // initialize chains
+    // Set up the Neutron and Osmosis chains with a transfer channel
     let mut test_ctx = TestContextBuilder::default()
         .with_unwrap_raw_logs(true)
         .with_api_url(LOCAL_IC_API_URL)
@@ -41,7 +36,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_transfer_channels(NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_NAME)
         .build()?;
 
-    // get the IBC denom for the Neutron token on Osmosis
+    // Get the IBC denom of NTRN on Osmosis
     let ntrn_on_osmo_denom = test_ctx
         .get_ibc_denom()
         .base_denom(NEUTRON_CHAIN_DENOM.to_owned())
@@ -49,14 +44,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         .dest(OSMOSIS_CHAIN_NAME)
         .get();
 
-    // setup the CL pool on Osmosis
+    // Setup the CL pool on Osmosis
     let pool_id = setup_cl_pool(&mut test_ctx, &ntrn_on_osmo_denom, OSMOSIS_CHAIN_DENOM)?;
 
-    /////////////////////////////////
-    // CREATE PROGRAM CONFIGURATION //
-    /////////////////////////////////
-
-    // provide environment context to config
+    // Provide environment context to config
     setup_manager(
         &mut test_ctx,
         NEUTRON_OSMO_CONFIG_FILE,
@@ -70,7 +61,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         ],
     )?;
 
-    // configure the polytone connections (middleware plumbing)
+    // Configure the Polytone connection. Polytone is required to transport
+    // program messages from one domain to the other. Note the token denoms are
+    // required as there is a fee associated with instantiating Polytone on each chain.
     setup_polytone(
         &mut test_ctx,
         NEUTRON_CHAIN_NAME,
@@ -87,6 +80,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let osmo_domain =
         valence_program_manager::domain::Domain::CosmosCosmwasm(OSMOSIS_CHAIN_NAME.to_string());
 
+    // Build the program configuration
     let mut program_config = osmo_cl_example::osmo_cl::my_osmosis_cl_program(
         osmo_domain.clone(),
         NEUTRON_CHAIN_ADMIN_ADDR.to_string(), // owner
@@ -97,13 +91,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         Int64::from(1_000_000),               // upper tick
     )?;
 
-    /////////////////////
-    // DECLARE PROGRAM //
-    /////////////////////
-
-    info!("initializing manager...");
+    info!("Initialize the program...");
     use_manager_init(&mut program_config)?;
 
+    // Retrieved the instantiated accounts from the chain
     let input_acc_addr = program_config.get_account(0u64)?.addr.clone().unwrap();
     let output_acc_addr = program_config.get_account(1u64)?.addr.clone().unwrap();
     let final_output_acc_addr = program_config.get_account(2u64)?.addr.clone().unwrap();
@@ -113,7 +104,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("output_acc_addr: {output_acc_addr}");
     info!("final_output_acc_addr: {final_output_acc_addr}");
 
-    // fund the input account on Osmosis with NTRN and OSMO
+    // Fund the input account on Osmosis with NTRN and OSMO
     info!("funding the input account...");
     bank::send(
         test_ctx
@@ -138,27 +129,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
     std::thread::sleep(Duration::from_secs(3));
 
-    // fund the output account with NTRN
-    // send the token to the output account
-    bank::send(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(OSMOSIS_CHAIN_NAME),
-        DEFAULT_KEY,
-        &output_acc_addr,
-        &[cosmwasm_std_old::Coin {
-            denom: OSMOSIS_CHAIN_DENOM.to_string(),
-            amount: 10_000u128.into(),
-        }],
-        &cosmwasm_std_old::Coin {
-            denom: OSMOSIS_CHAIN_DENOM.to_string(),
-            amount: 5_000u128.into(),
-        },
-    )?;
-
-    std::thread::sleep(Duration::from_secs(3));
-
-    // get the balances of the input account
+    // Log the balances of the input account
     let input_acc_balances = bank::get_balance(
         test_ctx
             .get_request_builder()
@@ -181,7 +152,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("osmo processor contract address: {osmo_processor_contract_address}");
     info!("ntrn processor contract address: {ntrn_processor_contract_address}");
 
-    // create the provide liquidity message
+    // Create the provide liquidity message
     let lp_message = ProcessorMessage::CosmwasmExecuteMsg {
         msg: Binary::from(serde_json::to_vec(
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
