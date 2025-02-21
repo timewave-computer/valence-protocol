@@ -19,6 +19,7 @@ use valence_e2e::utils::{
 use valence_library_utils::LibraryAccountType;
 use valence_splitter_library::msg::FunctionMsgs;
 
+#[allow(dead_code)]
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 

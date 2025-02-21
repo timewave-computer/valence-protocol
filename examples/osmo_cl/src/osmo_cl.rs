@@ -164,6 +164,7 @@ pub fn my_osmosis_cl_program(
     Ok(builder.build())
 }
 
+#[allow(dead_code)]
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
