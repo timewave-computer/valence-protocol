@@ -199,7 +199,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // This is the core of the example program where conditional execution is demonstrated.
     //
     // Configuration below sets up the following:
-    // 1. Construct a processor message which will assert that the amount of neutron tokens
+    // 1. Construct a processor message asserting that the amount of Neutron tokens
     // in a given osmosis pool is less than 150_000_000.
     // 2. Construct a processor message which will perform an IBC transfer from neutron to osmosis.
     // 3. Send the messages to the processor in order of `[assert, transfer]`.
