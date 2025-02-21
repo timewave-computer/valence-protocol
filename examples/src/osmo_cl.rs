@@ -1,5 +1,10 @@
 use std::{error::Error, str::FromStr, time::Duration};
 
+////////////////////////////////////////////
+// DECLARE TEST ENVIRONMENT CONFIGURATION //
+////////////////////////////////////////////
+
+// import e2e test utilities
 use cosmwasm_std::{Binary, Decimal256, Int64, Uint64};
 use valence_e2e::utils::{
     authorization::confirm_authorizations_callback_state,
@@ -36,6 +41,7 @@ use valence_program_manager::{
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
+    // initialize chains
     let mut test_ctx = TestContextBuilder::default()
         .with_unwrap_raw_logs(true)
         .with_api_url(LOCAL_IC_API_URL)
@@ -46,6 +52,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_transfer_channels(NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_NAME)
         .build()?;
 
+    // get the IBC denom for the Neutron token on Osmosis
     let ntrn_on_osmo_denom = test_ctx
         .get_ibc_denom()
         .base_denom(NEUTRON_CHAIN_DENOM.to_owned())
@@ -53,8 +60,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         .dest(OSMOSIS_CHAIN_NAME)
         .get();
 
+    // setup the CL pool on Osmosis
     let pool_id = setup_cl_pool(&mut test_ctx, &ntrn_on_osmo_denom, OSMOSIS_CHAIN_DENOM)?;
 
+    /////////////////////////////////
+    // CREATE PROGRAM CONFIGURATION //
+    /////////////////////////////////
+
+    // provide environment context to config
     setup_manager(
         &mut test_ctx,
         NEUTRON_OSMO_CONFIG_FILE,
@@ -79,12 +92,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         OSMOSIS_CHAIN_DENOM,
     )?;
 
+    // initialize program config builder
     let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
     let osmo_domain =
         valence_program_manager::domain::Domain::CosmosCosmwasm(OSMOSIS_CHAIN_NAME.to_string());
     let ntrn_domain =
         valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
 
+    // initialize accounts for the CL program
     let cl_input_acc_info =
         AccountInfo::new("cl_input".to_string(), &osmo_domain, AccountType::default());
     let cl_output_acc_info = AccountInfo::new(
@@ -98,10 +113,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         AccountType::default(),
     );
 
+    // add accounts to the program config builder
     let cl_input_acc = builder.add_account(cl_input_acc_info);
     let cl_output_acc = builder.add_account(cl_output_acc_info);
     let final_output_acc = builder.add_account(final_output_acc_info);
 
+    // initialize the CL lper config
     let cl_lper_config = valence_osmosis_cl_lper::msg::LibraryConfig {
         input_addr: cl_input_acc.clone(),
         output_addr: cl_output_acc.clone(),
@@ -116,12 +133,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     };
 
+    // initialize the CL withdrawer config
     let cl_lwer_config = valence_osmosis_cl_withdrawer::msg::LibraryConfig {
         input_addr: cl_output_acc.clone(),
         output_addr: final_output_acc.clone(),
         pool_id: pool_id.into(),
     };
 
+    // add the CL lper (deposit and withdraw) libraries to the program config builder
     let cl_lper_library = builder.add_library(LibraryInfo::new(
         "test_cl_lper".to_string(),
         &osmo_domain,
@@ -167,6 +186,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         })
         .build();
 
+    // setup authorizations
     builder.add_authorization(
         AuthorizationBuilder::new()
             .with_label("provide_liquidity")
@@ -188,7 +208,12 @@ fn main() -> Result<(), Box<dyn Error>> {
             .build(),
     );
 
+    // build the program config
     let mut program_config = builder.build();
+
+    /////////////////////
+    // DECLARE PROGRAM //
+    /////////////////////
 
     info!("initializing manager...");
     use_manager_init(&mut program_config)?;
@@ -209,10 +234,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         .clone()
         .unwrap();
 
+    // log addresses of the input accounts
     info!("input_acc_addr: {input_acc_addr}");
     info!("output_acc_addr: {output_acc_addr}");
     info!("final_output_acc_addr: {final_output_acc_addr}");
 
+    // fund the input account on Osmosis with NTRN and OSMO
     info!("funding the input account...");
     bank::send(
         test_ctx
@@ -237,6 +264,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
     std::thread::sleep(Duration::from_secs(3));
 
+    // fund the output account with NTRN
+    // send the token to the output account
     bank::send(
         test_ctx
             .get_request_builder()
@@ -255,6 +284,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     std::thread::sleep(Duration::from_secs(3));
 
+    // get the balances of the input account
     let input_acc_balances = bank::get_balance(
         test_ctx
             .get_request_builder()
@@ -277,6 +307,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("osmo processor contract address: {osmo_processor_contract_address}");
     info!("ntrn processor contract address: {ntrn_processor_contract_address}");
 
+    // create the provide liquidity message
     let lp_message = ProcessorMessage::CosmwasmExecuteMsg {
         msg: Binary::from(serde_json::to_vec(
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
@@ -294,6 +325,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
 
+    // execute provide liquidity message
     contract_execute(
         test_ctx
             .get_request_builder()
@@ -354,6 +386,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // output acc should now own one CL position
     assert_eq!(output_acc_cl_positions.positions.len(), 1);
 
+    // get the CL position
     let output_acc_cl_position = output_acc_cl_positions
         .positions
         .first()
@@ -372,6 +405,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let liquidity_amount = Decimal256::from_str(&output_acc_cl_position.liquidity)?;
 
+    // create withdraw liquidity message
     let lw_message = ProcessorMessage::CosmwasmExecuteMsg {
         msg: Binary::from(serde_json::to_vec(
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
@@ -390,6 +424,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
 
+    // execute withdraw liquidity
     contract_execute(
         test_ctx
             .get_request_builder()

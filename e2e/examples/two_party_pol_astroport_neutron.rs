@@ -804,6 +804,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         NEUTRON_CHAIN_NAME,
         DEFAULT_KEY,
         &processor_contract_address,
+        GAS_FLAGS,
     );
     std::thread::sleep(std::time::Duration::from_secs(2));
 
@@ -893,6 +894,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         NEUTRON_CHAIN_NAME,
         DEFAULT_KEY,
         &processor_contract_address,
+        GAS_FLAGS,
     );
     std::thread::sleep(std::time::Duration::from_secs(2));
 
@@ -953,6 +955,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         NEUTRON_CHAIN_NAME,
         DEFAULT_KEY,
         &processor_contract_address,
+        GAS_FLAGS,
     );
 
     info!("Verifying available LP tokens account...");
@@ -1034,6 +1037,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         NEUTRON_CHAIN_NAME,
         DEFAULT_KEY,
         &processor_contract_address,
+        GAS_FLAGS,
     );
 
     info!("Verifying final balances...");

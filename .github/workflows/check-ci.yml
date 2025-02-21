@@ -200,7 +200,7 @@ jobs:
       - name: Run polytone example
         uses: "./.github/actions/run-local-ic-test"
         with:
-          chain-config: "neutron_juno"
+          chain-config: "neutron_osmosis"
           test-name: "polytone"
 
   local-ic-token-swap:
