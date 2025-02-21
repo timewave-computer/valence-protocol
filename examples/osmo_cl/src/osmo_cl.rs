@@ -27,7 +27,7 @@ use valence_program_manager::{
 /// * `domain` - the domain of type `Domain` on which the liquidity is provided (i.e., Osmosis)
 /// * `owner` - the owner of the deployed program
 /// * `pool_id` - the id of the concentrated liquidity pool
-/// * `denom_1` - first token in the token pair of the pool 
+/// * `denom_1` - first token in the token pair of the pool
 /// * `denom_2` - second token in the token pair of the pool
 /// * `lower_tick` - liquidity is provided between two ticks: lower and upper
 /// * `upper_tick` - liquidity is provided between two ticks: lower and upper
@@ -69,9 +69,9 @@ pub fn my_osmosis_cl_program(
     let cl_output_acc = builder.add_account(cl_output_acc_info);
     let final_output_acc = builder.add_account(final_output_acc_info);
 
-    // This program uses two libraries. Osmosis Liquidity Provider and 
+    // This program uses two libraries. Osmosis Liquidity Provider and
     // Osmosis Liquidity Withdrawer.
-    
+
     // First, the Osmosis Concentrated Liquidity Provider config struct is
     // created
     let cl_lper_config = valence_osmosis_cl_lper::msg::LibraryConfig {
