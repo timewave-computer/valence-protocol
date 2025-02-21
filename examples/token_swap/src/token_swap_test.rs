@@ -1,16 +1,23 @@
 use std::error::Error;
 
 use cosmwasm_std::Binary;
+use cosmwasm_std_old::Coin as BankCoin;
 use localic_std::modules::{bank, cosmwasm::contract_execute};
-use localic_utils::{ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME};
+use localic_utils::{
+    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
+    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
+};
 use log::info;
 use rand::{distributions::Alphanumeric, Rng};
-use valence_authorization_utils::msg::ProcessorMessage;
-use valence_e2e::utils::{manager::{setup_manager, use_manager_init, SPLITTER_NAME}, processor::tick_processor, GAS_FLAGS, LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, VALENCE_ARTIFACTS_PATH};
-use valence_library_utils::LibraryAccountType;
-use cosmwasm_std_old::Coin as BankCoin;
-use valence_splitter_library::msg::FunctionMsgs;
 use token_swap_example::token_swap::my_atomic_token_swap_program;
+use valence_authorization_utils::msg::ProcessorMessage;
+use valence_e2e::utils::{
+    manager::{setup_manager, use_manager_init, SPLITTER_NAME},
+    processor::tick_processor,
+    GAS_FLAGS, LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
+};
+use valence_library_utils::LibraryAccountType;
+use valence_splitter_library::msg::FunctionMsgs;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
