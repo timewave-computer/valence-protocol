@@ -201,7 +201,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Configuration below sets up the following:
     // 1. Construct a processor message which will assert that the amount of neutron tokens
     // in a given osmosis pool is less than 150_000_000.
-    // 2. Construct a processor message which will perform an IBC transfer.
+    // 2. Construct a processor message which will perform an IBC transfer from neutron to osmosis.
     // 3. Send the messages to the processor in order of `[assert, transfer]`.
     //
     // After the configuration is complete, ticking the processor will start by executing
