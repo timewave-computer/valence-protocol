@@ -68,6 +68,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         ],
     )?;
 
+    // configure the polytone connections (middleware plumbing)
+    setup_polytone(
+        &mut test_ctx,
+        NEUTRON_CHAIN_NAME,
+        OSMOSIS_CHAIN_NAME,
+        NEUTRON_CHAIN_ID,
+        OSMOSIS_CHAIN_ID,
+        NEUTRON_CHAIN_DENOM,
+        OSMOSIS_CHAIN_DENOM,
+    )?;
+
     let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
     let osmo_domain =
         valence_program_manager::domain::Domain::CosmosCosmwasm(OSMOSIS_CHAIN_NAME.to_string());
@@ -178,17 +189,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let mut program_config = builder.build();
-
-    // prior to initializing the manager, we do the middleware plumbing
-    setup_polytone(
-        &mut test_ctx,
-        NEUTRON_CHAIN_NAME,
-        OSMOSIS_CHAIN_NAME,
-        NEUTRON_CHAIN_ID,
-        OSMOSIS_CHAIN_ID,
-        NEUTRON_CHAIN_DENOM,
-        OSMOSIS_CHAIN_DENOM,
-    )?;
 
     info!("initializing manager...");
     use_manager_init(&mut program_config)?;
