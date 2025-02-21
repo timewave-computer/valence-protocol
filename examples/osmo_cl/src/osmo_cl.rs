@@ -39,7 +39,7 @@ use valence_program_manager::{
     program_config_builder::ProgramConfigBuilder,
 };
 
-fn my_osmosis_cl_program(
+pub fn my_osmosis_cl_program(
     osmo_domain: valence_program_manager::domain::Domain,
     pool_id: u64,
     denom_1: &str,
