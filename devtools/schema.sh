@@ -7,7 +7,12 @@ process_directory() {
         cd "$1"
         # Delete old one if it exists
         rm -rf schema
-        cargo schema
+        if [[ "$USE_NIX" = true ]]; then
+            CRATE_NAME=$(toml get -r Cargo.toml package.name)
+            nix run ".#$CRATE_NAME"
+        else
+            cargo schema
+        fi
         rm -rf schema/raw
         cd - >/dev/null
     fi

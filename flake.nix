@@ -35,6 +35,7 @@
                 builtins.attrNames (lib.filterAttrs (name: value:
                   lib.hasPrefix "valence" name && lib.hasPrefix "contracts" value.path
                 ) cargoTOML.workspace.dependencies);
+              buildValencePackage = pkgs.callPackage ./nix/build-package.nix;
 
             })
           ];
@@ -43,22 +44,34 @@
           ./nix/devshell.nix
         ];
         packages = {
-          cosmwasm-contracts = pkgs.callPackage ./nix/cosmwasm-contracts.nix { };
-          solidity-contracts = pkgs.callPackage ./nix/solidity-contracts.nix { };
-          schemas = pkgs.callPackage ./nix/schemas.nix { };
+          valence-cosmwasm-contracts = pkgs.callPackage ./nix/cosmwasm-contracts.nix { };
+          valence-solidity-contracts = pkgs.callPackage ./nix/solidity-contracts.nix { };
+          valence-program-examples = pkgs.buildvalencePackage {
+            pname = "valence-program-examples";
+            cargoArgs = "--bins";
+          };
+          valence-e2e = pkgs.buildvalencePackage {
+            pname = "valence-e2e";
+            cargoArgs = "--examples";
+          };
           local-ic = pkgs.callPackage ./nix/local-ic.nix {
             localICStartScriptPath = ./scripts/start-local-ic.sh;
           };
           libosmosistesttube = pkgs.callPackage ./nix/libosmosistesttube.nix { };
           libntrntesttube = pkgs.callPackage ./nix/libntrntesttube.nix { };
         };
-        apps = lib.listToAttrs (lib.map (name: {
-          name = "${name}-schema";
+        checks = {
+          nextest = pkgs.callPackage ./nix/nextest.nix { };
+        };
+        apps = lib.listToAttrs (lib.map (pname: {
+          name = "${pname}-schema";
           # flake-parts requires derivation to be in program attribute
-          value.program = pkgs.callPackage ./nix/schema.nix {
-            name = name;
+          value.program = pkgs.buildValencePackage {
+            pname = pname;
+            cargoArgs = "--bin schema";
+            drvArgs.meta.mainProgram = "schema";
           };
-        }) pkgs.contractNames);
+        }) (pkgs.contractNames ++ [ "valence-program-manager" ]));
       };
     };
 }
