@@ -298,6 +298,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         NEUTRON_CHAIN_NAME,
         DEFAULT_KEY,
         &processor_contract_address,
+        GAS_FLAGS,
     );
 
     info!("Verifying balances...");

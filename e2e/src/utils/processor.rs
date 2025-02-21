@@ -4,8 +4,6 @@ use log::info;
 use valence_authorization_utils::authorization::Priority;
 use valence_processor_utils::processor::MessageBatch;
 
-use super::GAS_FLAGS;
-
 /// queries the remote domain processor queue and tries to confirm that the queue length
 /// matches `len`.
 /// retries for 10 times with a 5 second sleep in between. fails after 10 retries.
@@ -41,6 +39,7 @@ pub fn tick_processor(
     chain_name: &str,
     key: &str,
     processor_address: &str,
+    flags: &str,
 ) {
     info!("Ticking processor on {}...", chain_name);
     contract_execute(
@@ -55,7 +54,7 @@ pub fn tick_processor(
             ),
         )
         .unwrap(),
-        GAS_FLAGS,
+        flags,
     )
     .unwrap();
 
