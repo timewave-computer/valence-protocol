@@ -266,6 +266,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         PERSISTENCE_CHAIN_NAME,
         DEFAULT_KEY,
         &processor_on_persistence,
+        GAS_FLAGS,
     );
     std::thread::sleep(std::time::Duration::from_secs(3));
 
