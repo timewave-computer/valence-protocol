@@ -1,5 +1,4 @@
 use localic_utils::OSMOSIS_CHAIN_NAME;
-use log::info;
 use std::error::Error;
 use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType},
