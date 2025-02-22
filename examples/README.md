@@ -28,11 +28,12 @@ graph LR;
     A22 --> S2 --> A21
 ```
 
+#### Testing the Token Swap
 In the [test file](token_swap/src/token_swap_test.rs), the Neutron chain is setup and the program is configured and deployed. Then the two accounts are funded. Finally an authorized party invokes the subroutine to execute the swap. The final balances are asserted to be correctly swapped.
 
 ### Osmosis Concentrated Liquidity Provisioning
 
-The [Osmosis CL](osmo_cl/src/osmo_cl.rs) program demonstrates creation of a liquidity position on Osmosis that is held in a program controlled account. The liquidity from this position can can be then withdrawn at a later date by invoking a subroutine. It also demonstrates:
+The [Osmosis CL](osmo_cl/src/osmo_cl.rs) program demonstrates creation of a liquidity position on Osmosis that is held in a program controlled account. The liquidity from this position can then be withdrawn at a later date by invoking a subroutine. It also demonstrates:
 * **Use of the Osmosis Concentrated [LPer](../contracts/libraries/osmosis-cl-lper/README.md) and [Withdrawer](../contracts/libraries/osmosis-cl-withdrawer/README.md) libraries**. These libraries can be configured to provide and withdraw liquidity to concentrated liquidity pools on Osmosis.
 * **Invocation and execution on separate chains**. The subroutines to provide and withdraw liquidity are invoked on Neutron while the concentrated liquidity position is held on Osmosis.
 
@@ -56,10 +57,14 @@ graph LR;
     end
     AO --> LW--> AF
 ```
-
+#### Testing the Liquidity Provisioning
 In the [test file](osmo_cl/src/osmo_cl_test.rs), the Neutron and Osmosis chains are first configured with a transfer channel between them. Contracts for Polytone (a message passing protocol over IBC) are initialized; Polytone is used by Valence Programs to send messages between domains that support IBC and CosmWasm. The Osmosis pool is configured. The input account is funded with OSMO tokens and NTRN tokens that are transferred from the Neutron chain.
 
 The Provide Liquidity subroutine is invoked on Neutron and following this, the test asserts that the concentrated liquidity position is created. Then the Withdraw Liquidity subroutine is invoked and the test asserts that the final account holds the balance of the withdrawn liquidity.
+
+### Osmosis GAMM Liquidity Provisioning
+
+The [Osmosis GAMM](osmo_gamm/src/osmo_gamm.rs) program demonstrates creation of a liquidity position on a GAMM (Generalized Automated Market Maker) type pool on Osmosis. It is similar to the previously described Osmosis Concentrated Liquidity Provisioning example. However, it uses the Osmosis [GAMM Liquidity Provider](../contracts/libraries/osmosis-gamm-lper/README.md) and [Withdrawer](../contracts/libraries/osmosis-gamm-withdrawer/README.md) libraries.
 
 ## Running the examples locally
 
