@@ -31,10 +31,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+      - uses: nixbuild/nix-quick-install-action@v29
+
+      - name: Restore and cache Nix store
+        uses: nix-community/cache-nix-action@v6
         with:
-          version: stable
+          # restore and save a cache using this key
+          primary-key: solidity-${{ runner.os }}-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'flake.nix', 'flake.lock') }}
+          # if there's no cache hit, restore a cache by this prefix
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+
+      - uses: nicknovitski/nix-develop@v1
 
       - name: Show Forge version
         run: |
@@ -45,50 +52,33 @@ jobs:
           forge fmt --check
         id: fmt
 
-      - name: Run Forge soldeer install
+      - name: Run Forge build and tests
+        # nix derivation includes forge tests in checkPhase
         run: |
-          forge soldeer install
-        id: soldeer
-
-      - name: Run Forge build
-        run: |
-          forge build --sizes
+          nix build -vL .#valence-solidity-contracts --out-link out
         id: build
 
-      - name: Run Forge tests
-        run: |
-          forge test -vvv
-        id: test
-
-      # Add this step to upload artifacts for other CI workflows
-      - name: Upload Forge artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: forge-artifacts
-          path: ./solidity/out/
   build:
     needs: [solidity]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache Build artifacts
-        uses: Swatinem/rust-cache@v2.7.5
-        with:
-          cache-on-failure: true
-          shared-key: ${{ github.event.pull_request.number || github.ref }}
+      - uses: nixbuild/nix-quick-install-action@v29
 
-      - name: Download Forge artifacts
-        uses: actions/download-artifact@v4
+      - name: Restore and cache Nix store
+        uses: nix-community/cache-nix-action@v6
         with:
-          name: forge-artifacts
-          path: ./solidity/out/
+          # restore and save a cache using this key
+          primary-key: solidity-${{ runner.os }}-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'flake.nix', 'flake.lock') }}
+          # if there's no cache hit, restore a cache by this prefix
+          restore-prefixes-first-match: nix-${{ runner.os }}-
 
-      - name: Install Taplo CLI
+      - uses: nicknovitski/nix-develop@v1
+
+      - name: Pull forge build from cache
         run: |
-          curl -sL https://github.com/tamasfe/taplo/releases/download/0.9.3/taplo-full-linux-x86_64.gz | gunzip > taplo
-          chmod +x taplo
-          mv taplo /usr/local/bin/
+          nix build -vL .#valence-solidity-contracts --out-link solidity/out
 
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
@@ -96,24 +86,12 @@ jobs:
       - name: Run taplo (toml fmt)
         run: ./devtools/toml_fmt.sh --check
 
-      - name: Run clippy
-        run: cargo clippy --all-targets --verbose -- -D warnings
-
       - name: Optimize contracts
         run: |
-          docker run --user $(id -u):$(id -g) --rm \
-          -v .:/code -v ./target:/target \
-          -v ./target:/usr/local/cargo/registry cosmwasm/optimizer:0.16.0
+          nix build -vL .#valence-cosmwasm-contracts --out-link artifacts
 
       - name: List artifact contents
         run: ls -l ./artifacts
-
-      - name: Upload wasm artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: optimized-contracts
-          path: ./artifacts/*.wasm
-          if-no-files-found: error
 
   schema-checks:
     needs: [build]
@@ -121,14 +99,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache Build artifacts
-        uses: Swatinem/rust-cache@v2.7.5
+      - uses: nixbuild/nix-quick-install-action@v29
+
+      - name: Restore and cache Nix store
+        uses: nix-community/cache-nix-action@v6
         with:
-          cache-on-failure: true
-          shared-key: ${{ github.event.pull_request.number || github.ref }}
+          # restore and save a cache using this key
+          primary-key: solidity-${{ runner.os }}-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'flake.nix', 'flake.lock') }}
+          # if there's no cache hit, restore a cache by this prefix
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+
+      - uses: nicknovitski/nix-develop@v1
 
       - name: Generate contract schemas
         run: ./devtools/schema.sh
+        env:
+          USE_NIX: true
 
       - name: Show schema changes
         run: git status --porcelain
@@ -146,51 +132,34 @@ jobs:
       - name: Free Disk Space
         uses: "./.github/actions/free-disk-space"
 
-      - name: Cache Build artifacts
-        uses: Swatinem/rust-cache@v2.7.5
-        with:
-          cache-on-failure: true
-          shared-key: ${{ github.event.pull_request.number || github.ref }}
+      - uses: nixbuild/nix-quick-install-action@v29
 
-      - name: Get cargo
-        uses: actions-rs/toolchain@v1
+      - name: Restore and cache Nix store
+        uses: nix-community/cache-nix-action@v6
         with:
-          toolchain: stable
+          # restore and save a cache using this key
+          primary-key: solidity-${{ runner.os }}-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'flake.nix', 'flake.lock') }}
+          # if there's no cache hit, restore a cache by this prefix
+          restore-prefixes-first-match: nix-${{ runner.os }}-
 
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: optimized-contracts
-          path: ./artifacts
+      - uses: nicknovitski/nix-develop@v1
 
-      - name: Download Forge artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: forge-artifacts
-          path: ./solidity/out/
+      - name: Pull WASM and Forge artifacts
+        run: |
+          nix build -vL .#valence-cosmwasm-contracts --out-link artifacts
+          nix build -vL .#valence-solidity-contracts --out-link solidity/out
 
-      - name: List downloaded files
+      - name: List artifacts
         run: ls -l ./artifacts
 
-      - name: Run tests
-        run: cargo test --verbose
+      - name: Run nextest, clippy and nix tests
+        # nextest check derivation runs cargo tests
+        run: nix flake check -vL
         env:
           RUST_BACKTRACE: 1
 
-  setup-local-ic:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install local-ic
-        run: git clone https://github.com/strangelove-ventures/interchaintest && cd interchaintest/local-interchain && make install
-
-      - name: Upload local-ic artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: local-ic
-          path: ~/go/bin/local-ic
-
   local-ic-polytone:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: authorization & processor polytone integration test
     runs-on: ubuntu-latest
     steps:
@@ -204,7 +173,7 @@ jobs:
           test-name: "polytone"
 
   local-ic-token-swap:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: token swap e2e test
     runs-on: ubuntu-latest
     steps:
@@ -212,13 +181,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run token_swap example
-        uses: "./.github/actions/run-local-ic-example"
+        uses: "./.github/actions/run-local-ic-test"
         with:
           chain-config: "neutron"
-          test-name: "token_swap"
+          example-name: "token_swap"
 
   local-ic-2-party-pol-astroport-neutron:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: 2 party POL Astroport on Neutron e2e test
     runs-on: ubuntu-latest
     steps:
@@ -232,7 +201,7 @@ jobs:
           test-name: "two_party_pol_astroport_neutron"
 
   local-ic-ibc-transfer-ntrn-juno:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: IBC transfer NTRN->JUNO e2e test
     runs-on: ubuntu-latest
     steps:
@@ -246,7 +215,7 @@ jobs:
           test-name: "ibc_transfer_ntrn_juno"
 
   local-ic-ibc-transfer-juno-ntrn:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: IBC transfer JUNO->NTRN e2e test
     runs-on: ubuntu-latest
     steps:
@@ -260,7 +229,7 @@ jobs:
           test-name: "ibc_transfer_juno_ntrn"
 
   local-ic-ibc-transfer-ntrn-juno-gaia-pfm:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: IBC transfer NTRN->JUNO->GAIA PFM e2e test
     runs-on: ubuntu-latest
     steps:
@@ -274,7 +243,7 @@ jobs:
           test-name: "ibc_transfer_ntrn_juno_gaia_pfm"
 
   local-ic-ibc-transfer-osmo-ntrn:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: IBC transfer OSMO->NTRN e2e test
     runs-on: ubuntu-latest
     steps:
@@ -288,7 +257,7 @@ jobs:
           test-name: "ibc_transfer_osmo_ntrn"
 
   local-ic-ibc-transfer-osmo-juno-gaia-pfm:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: IBC transfer OSMO->JUNO->GAIA PFM e2e test
     runs-on: ubuntu-latest
     steps:
@@ -302,7 +271,7 @@ jobs:
           test-name: "ibc_transfer_osmo_juno_gaia_pfm"
 
   local-ic-osmo-gamm-tests:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: Osmosis GAMM e2e lp -> lw run
     runs-on: ubuntu-latest
     steps:
@@ -310,13 +279,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run osmo gamm lp & lw tests
-        uses: "./.github/actions/run-local-ic-example"
+        uses: "./.github/actions/run-local-ic-test"
         with:
           chain-config: "neutron_osmosis"
-          test-name: "osmo_gamm"
+          example-name: "osmo_gamm"
 
   local-ic-osmo-cl-tests:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: Osmosis concentrated liquidity e2e lp -> lw run
     runs-on: ubuntu-latest
     steps:
@@ -324,13 +293,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run osmo cl lp & lw tests
-        uses: "./.github/actions/run-local-ic-example"
+        uses: "./.github/actions/run-local-ic"
         with:
           chain-config: "neutron_osmosis"
-          test-name: "osmo_cl"
+          example-name: "osmo_cl"
 
   local-ic-ethereum-e2e-tests:
-    needs: [build, setup-local-ic]
+    needs: [build]
     name: Ethereum e2e tests
     runs-on: ubuntu-latest
     steps:
