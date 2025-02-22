@@ -56,7 +56,7 @@ runs:
       shell: bash
       env:
         RUST_LOG: debug
-      run: cargo run --package valence-program-examples --bin ${{ inputs.test-name }}
+      run: cargo run --package ${{ inputs.test-name }}
 
     - name: Cleanup
       shell: bash

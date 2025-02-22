@@ -195,6 +195,29 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     // 2. Conditional IBC forwarding
+    //
+    // This is the core of the example program where conditional execution is demonstrated.
+    //
+    // Configuration below sets up the following:
+    // 1. Construct a processor message asserting that the amount of Neutron tokens
+    // in a given Osmosis pool is less than 150_000_000.
+    // 2. Construct a processor message which will perform an IBC transfer from Neutron to Osmosis
+    // 3. Send the messages to the processor in order of `[assert, transfer]`.
+    //
+    // After configuration is complete, ticking the processor begins with execution of
+    // the assertion message:
+    // - If the assertion returns `Ok`, the processor will proceed to execute the IBC transfer message
+    // - If the assertion returns `Err`, the processor will error out and exit
+    //
+    // More generally, Valence Programs can use this pattern to achieve logical branching and cross-chain
+    // error handling. For example, consider the condition `if a > b, do x, else do y`.
+    //
+    // This can be configured by defining two sets of messages with complementary (negated) assertions:
+    //   1. `[assert a > b, do x]`
+    //   2. `[assert a <= b, do y]`
+    //
+    // The processor will attempt to execute both sets of messages but because `eval(a > b)` can
+    // never equal `eval(a <= b)`, only `x` or `y` can be executed (but never both).
     {
         // we configure the assertion message which will:
         // - 1. let a = the amount of ntrn tokens in the pool

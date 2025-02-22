@@ -20,19 +20,9 @@ use localic_utils::{
     OSMOSIS_CHAIN_DENOM, OSMOSIS_CHAIN_ID, OSMOSIS_CHAIN_NAME,
 };
 use log::info;
-use valence_authorization_utils::{
-    authorization_message::{Message, MessageDetails, MessageType},
-    builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
-    domain::Domain,
-    msg::ProcessorMessage,
-};
-use valence_library_utils::liquidity_utils::AssetData;
-use valence_program_manager::{
-    account::{AccountInfo, AccountType},
-    library::{LibraryConfig, LibraryInfo},
-    program_config_builder::ProgramConfigBuilder,
-};
+use valence_authorization_utils::msg::ProcessorMessage;
 
+#[allow(dead_code)]
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
@@ -68,133 +58,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ],
     )?;
 
-    let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
-    let osmo_domain =
-        valence_program_manager::domain::Domain::CosmosCosmwasm(OSMOSIS_CHAIN_NAME.to_string());
-    let ntrn_domain =
-        valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
-
-    let gamm_input_acc_info = AccountInfo::new(
-        "gamm_input".to_string(),
-        &osmo_domain,
-        AccountType::default(),
-    );
-    let gamm_output_acc_info = AccountInfo::new(
-        "gamm_output".to_string(),
-        &osmo_domain,
-        AccountType::default(),
-    );
-    let final_output_acc_info = AccountInfo::new(
-        "final_output".to_string(),
-        &osmo_domain,
-        AccountType::default(),
-    );
-
-    let gamm_input_acc = builder.add_account(gamm_input_acc_info);
-    let gamm_output_acc = builder.add_account(gamm_output_acc_info);
-    let final_output_acc = builder.add_account(final_output_acc_info);
-
-    info!("gamm input acc: {:?}", gamm_input_acc);
-    info!("gamm output acc: {:?}", gamm_output_acc);
-    info!("final output acc: {:?}", final_output_acc);
-
-    let gamm_lper_config = valence_osmosis_gamm_lper::msg::LibraryConfig {
-        input_addr: gamm_input_acc.clone(),
-        output_addr: gamm_output_acc.clone(),
-        lp_config: valence_osmosis_gamm_lper::msg::LiquidityProviderConfig {
-            pool_id,
-            asset_data: AssetData {
-                asset1: ntrn_on_osmo_denom.to_string(),
-                asset2: OSMOSIS_CHAIN_DENOM.to_string(),
-            },
-        },
-    };
-
-    let gamm_lwer_config = valence_osmosis_gamm_withdrawer::msg::LibraryConfig {
-        input_addr: gamm_output_acc.clone(),
-        output_addr: final_output_acc.clone(),
-        lw_config: valence_osmosis_gamm_withdrawer::msg::LiquidityWithdrawerConfig {
-            pool_id,
-            asset_data: AssetData {
-                asset1: ntrn_on_osmo_denom.to_string(),
-                asset2: OSMOSIS_CHAIN_DENOM.to_string(),
-            },
-        },
-    };
-
-    let gamm_lper_library = builder.add_library(LibraryInfo::new(
-        "test_gamm_lp".to_string(),
-        &osmo_domain,
-        LibraryConfig::ValenceOsmosisGammLper(gamm_lper_config),
-    ));
-
-    let gamm_lwer_library = builder.add_library(LibraryInfo::new(
-        "test_gamm_lw".to_string(),
-        &osmo_domain,
-        LibraryConfig::ValenceOsmosisGammWithdrawer(gamm_lwer_config),
-    ));
-
-    // establish the input_acc -> lper_lib -> output_acc link
-    builder.add_link(
-        &gamm_lper_library,
-        vec![&gamm_input_acc],
-        vec![&gamm_output_acc],
-    );
-    // establish the output_acc -> lwer_lib -> final_output_acc link
-    builder.add_link(
-        &gamm_lwer_library,
-        vec![&gamm_output_acc],
-        vec![&final_output_acc],
-    );
-
-    let gamm_lper_function = AtomicFunctionBuilder::new()
-        .with_domain(Domain::External(OSMOSIS_CHAIN_NAME.to_string()))
-        .with_contract_address(gamm_lper_library.clone())
-        .with_message_details(MessageDetails {
-            message_type: MessageType::CosmwasmExecuteMsg,
-            message: Message {
-                name: "process_function".to_string(),
-                params_restrictions: None,
-            },
-        })
-        .build();
-
-    let gamm_lwer_function = AtomicFunctionBuilder::new()
-        .with_domain(Domain::External(OSMOSIS_CHAIN_NAME.to_string()))
-        .with_contract_address(gamm_lwer_library.clone())
-        .with_message_details(MessageDetails {
-            message_type: MessageType::CosmwasmExecuteMsg,
-            message: Message {
-                name: "process_function".to_string(),
-                params_restrictions: None,
-            },
-        })
-        .build();
-
-    builder.add_authorization(
-        AuthorizationBuilder::new()
-            .with_label("provide_liquidity")
-            .with_subroutine(
-                AtomicSubroutineBuilder::new()
-                    .with_function(gamm_lper_function)
-                    .build(),
-            )
-            .build(),
-    );
-    builder.add_authorization(
-        AuthorizationBuilder::new()
-            .with_label("withdraw_liquidity")
-            .with_subroutine(
-                AtomicSubroutineBuilder::new()
-                    .with_function(gamm_lwer_function)
-                    .build(),
-            )
-            .build(),
-    );
-
-    let mut program_config = builder.build();
-
-    // prior to initializing the manager, we do the middleware plumbing
+    // configure the polytone connections (middleware plumbing)
     setup_polytone(
         &mut test_ctx,
         NEUTRON_CHAIN_NAME,
@@ -205,24 +69,25 @@ fn main() -> Result<(), Box<dyn Error>> {
         OSMOSIS_CHAIN_DENOM,
     )?;
 
+    let osmo_domain =
+        valence_program_manager::domain::Domain::CosmosCosmwasm(OSMOSIS_CHAIN_NAME.to_string());
+    let ntrn_domain =
+        valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
+
+    let mut program_config = osmo_gamm_example::osmo_gamm::my_osmosis_gamm_program(
+        osmo_domain.clone(),
+        NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        pool_id,
+        &ntrn_on_osmo_denom,
+        OSMOSIS_CHAIN_DENOM,
+    )?;
+
     info!("initializing manager...");
     use_manager_init(&mut program_config)?;
 
-    let input_acc_addr = program_config
-        .get_account(gamm_input_acc)?
-        .addr
-        .clone()
-        .unwrap();
-    let output_acc_addr = program_config
-        .get_account(gamm_output_acc)?
-        .addr
-        .clone()
-        .unwrap();
-    let final_output_acc_addr = program_config
-        .get_account(final_output_acc)?
-        .addr
-        .clone()
-        .unwrap();
+    let input_acc_addr = program_config.get_account(0u64)?.addr.clone().unwrap();
+    let output_acc_addr = program_config.get_account(1u64)?.addr.clone().unwrap();
+    let final_output_acc_addr = program_config.get_account(2u64)?.addr.clone().unwrap();
 
     info!("input_acc_addr: {input_acc_addr}");
     info!("output_acc_addr: {output_acc_addr}");
