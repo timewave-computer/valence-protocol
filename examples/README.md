@@ -2,8 +2,8 @@
 
 This directory contains a set of simple Valence Programs meant to provide an overview of the Valence Protocol in action.
 
-Each example program comes with an accompanying test file that demonstrates the program behavior. The tests spin up one or more local chains using the utilities provided in the [e2e](../e2e) directory. If you wish to start developing your own Valence Programs, it is recommended to get
-familiar with the contents of that directory.
+Each example program comes with an accompanying test file that demonstrates the program behavior. The tests spin up one or more local chains using the utilities provided in the [e2e](../e2e) directory. If you wish to start developing your own Valence Programs, it is recommended to first
+build familiarity with the contents of that directory.
 
 ## Available examples
 
@@ -29,6 +29,37 @@ graph LR;
 ```
 
 In the [test file](token_swap/src/token_swap_test.rs), the Neutron chain is setup and the program is configured and deployed. Then the two accounts are funded. Finally an authorized party invokes the subroutine to execute the swap. The final balances are asserted to be correctly swapped.
+
+### Osmosis Concentrated Liquidity Provisioning
+
+The [Osmosis CL](osmo_cl/src/osmo_cl.rs) program demonstrates creation of a liquidity position on Osmosis that is held in a program controlled account. The liquidity from this position can can be then withdrawn at a later date by invoking a subroutine. It also demonstrates:
+* **Use of the Osmosis Concentrated [LPer](../contracts/libraries/osmosis-cl-lper/README.md) and [Withdrawer](../contracts/libraries/osmosis-cl-withdrawer/README.md) libraries**. These libraries can be configured to provide and withdraw liquidity to concentrated liquidity pools on Osmosis.
+* **Invocation and execution on separate chains**. The subroutines to provide and withdraw liquidity are invoked on Neutron while the concentrated liquidity position is held on Osmosis.
+
+This program can be extended to add additional subroutines, for example, to permissionlessly rebalance the liquidity in the position, or to send the withdrawn tokens to a different chain.
+
+```mermaid
+graph LR;
+    LP(Liquidity Provider)
+    LW(Liquidity Withdrawer)
+    AI((Input))
+    AO((Output))
+    AF((Final))
+
+    subgraph Provide_Liquidity_Subroutine
+        LP
+    end
+    AI --> LP --> AO
+
+    subgraph Withdraw_Liquidity_Subroutine
+        LW
+    end
+    AO --> LW--> AF
+```
+
+In the [test file](osmo_cl/src/osmo_cl_test.rs), the Neutron and Osmosis chains are first configured with a transfer channel between them. Contracts for Polytone (a message passing protocol over IBC) are initialized; Polytone is used by Valence Programs to send messages between domains that support IBC and CosmWasm. The Osmosis pool is configured. The input account is funded with OSMO tokens and NTRN tokens that are transferred from the Neutron chain.
+
+The Provide Liquidity subroutine is invoked on Neutron and following this, the test asserts that the concentrated liquidity position is created. Then the Withdraw Liquidity subroutine is invoked and the test asserts that the final account holds the balance of the withdrawn liquidity.
 
 ## Running the examples locally
 
