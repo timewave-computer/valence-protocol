@@ -48,10 +48,16 @@
           valence-program-examples = pkgs.buildValencePackage {
             pname = "valence-program-examples";
             cargoArgs = "--bins";
+            drvArgs.preBuild = ''
+              ln -s ${pkgs.valence-solidity-contracts} solidity/out
+            '';
           };
           valence-e2e = pkgs.buildValencePackage {
             pname = "valence-e2e";
             cargoArgs = "--examples";
+            drvArgs.preBuild = ''
+              ln -s ${pkgs.valence-solidity-contracts} solidity/out
+            '';
           };
           local-ic = pkgs.callPackage ./nix/local-ic.nix {
             localICStartScriptPath = ./scripts/start-local-ic.sh;

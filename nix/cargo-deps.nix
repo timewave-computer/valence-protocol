@@ -1,6 +1,7 @@
 { lib
 , craneLib
 , cargoVendorDir
+, pkg-config
 , coreutils
 , findutils
 , openssl
@@ -14,12 +15,14 @@ let
     src = craneLib.cleanCargoSource ../.;
     inherit cargoVendorDir;
 
-    OPENSSL_NO_VENDOR = 1;
-    OPENSSL_LIB_DIR = lib.makeLibraryPath [ openssl ];
-    OPENSSL_DIR = lib.getDev openssl;
     LIBCLANG_PATH = lib.makeLibraryPath [ libclang ];
 
+    buildInputs = [
+      openssl
+    ];
+
     nativeBuildInputs = [
+      pkg-config
       coreutils
       findutils
       clang
@@ -32,6 +35,8 @@ craneLib.buildDepsOnly (commonArgs // {
   pname = "valence";
   strictDeps = true;
   doCheck = false;
+
+  cargoExtraArgs = "--workspace --all-targets";
 
   passthru = { inherit commonArgs; };
 

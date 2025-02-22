@@ -9,7 +9,7 @@ process_directory() {
         rm -rf schema
         if [[ "$USE_NIX" = true ]]; then
             CRATE_NAME=$(toml get -r Cargo.toml package.name)
-            nix run ".#$CRATE_NAME"
+            nix run ".#$CRATE_NAME-schema"
         else
             cargo schema
         fi

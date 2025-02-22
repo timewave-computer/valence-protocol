@@ -6,9 +6,8 @@
 , cargoArgs ? ""
 , drvArgs ? { }
 }:
-craneLib.buildPackage ({
-  inherit cargoVendorDir;
-  pname = "pname";
+craneLib.buildPackage (cargoDeps.commonArgs // {
+  inherit pname cargoVendorDir;
 
   src = craneLib.cleanCargoSource ../.;
   cargoArtifacts = cargoDeps;

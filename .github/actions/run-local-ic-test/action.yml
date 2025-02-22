@@ -39,15 +39,14 @@ runs:
       shell: bash
       env:
         RUST_LOG: debug
--     run: cargo run --package valence-program-examples --bin ${{ inputs.test-name }}
+      run: nix shell .#valence-program-examples --command ${{ inputs.test-name }}
 
     - name: Run local-ic test
       if: ${{ inputs.test-name != '' }}
       shell: bash
       env:
         RUST_LOG: debug
-      run: cargo run --package valence-e2e --example ${{ inputs.example-name }}
-
+      run: nix shell .#valence-e2e --command ${{ inputs.example-name }}
 
     - name: Cleanup
       shell: bash
