@@ -1,9 +1,4 @@
 use std::{error::Error, str::FromStr, time::Duration};
-
-////////////////////////////////////////////
-// DECLARE TEST ENVIRONMENT CONFIGURATION //
-////////////////////////////////////////////
-
 // import e2e test utilities
 use cosmwasm_std::{Binary, Decimal256, Int64, Uint64};
 use valence_e2e::utils::{
@@ -25,23 +20,12 @@ use localic_utils::{
     OSMOSIS_CHAIN_DENOM, OSMOSIS_CHAIN_ID, OSMOSIS_CHAIN_NAME,
 };
 use log::info;
-use valence_authorization_utils::{
-    authorization_message::{Message, MessageDetails, MessageType},
-    builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
-    domain::Domain,
-    msg::ProcessorMessage,
-};
-use valence_osmosis_utils::utils::cl_utils::TickRange;
-use valence_program_manager::{
-    account::{AccountInfo, AccountType},
-    library::{LibraryConfig, LibraryInfo},
-    program_config_builder::ProgramConfigBuilder,
-};
+use valence_authorization_utils::msg::ProcessorMessage;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    // initialize chains
+    // Set up the Neutron and Osmosis chains with a transfer channel
     let mut test_ctx = TestContextBuilder::default()
         .with_unwrap_raw_logs(true)
         .with_api_url(LOCAL_IC_API_URL)
@@ -52,7 +36,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_transfer_channels(NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_NAME)
         .build()?;
 
-    // get the IBC denom for the Neutron token on Osmosis
+    // Get the IBC denom of NTRN on Osmosis
     let ntrn_on_osmo_denom = test_ctx
         .get_ibc_denom()
         .base_denom(NEUTRON_CHAIN_DENOM.to_owned())
@@ -60,14 +44,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         .dest(OSMOSIS_CHAIN_NAME)
         .get();
 
-    // setup the CL pool on Osmosis
+    // Setup the CL pool on Osmosis
     let pool_id = setup_cl_pool(&mut test_ctx, &ntrn_on_osmo_denom, OSMOSIS_CHAIN_DENOM)?;
 
-    /////////////////////////////////
-    // CREATE PROGRAM CONFIGURATION //
-    /////////////////////////////////
-
-    // provide environment context to config
+    // Provide environment context to config
     setup_manager(
         &mut test_ctx,
         NEUTRON_OSMO_CONFIG_FILE,
@@ -81,7 +61,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         ],
     )?;
 
-    // configure the polytone connections (middleware plumbing)
+    // Configure the Polytone connection. Polytone is required to transport
+    // program messages from one domain to the other. Note the token denoms are
+    // required as there is a fee associated with instantiating Polytone on each chain.
     setup_polytone(
         &mut test_ctx,
         NEUTRON_CHAIN_NAME,
@@ -92,154 +74,37 @@ fn main() -> Result<(), Box<dyn Error>> {
         OSMOSIS_CHAIN_DENOM,
     )?;
 
-    // initialize program config builder
-    let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
-    let osmo_domain =
-        valence_program_manager::domain::Domain::CosmosCosmwasm(OSMOSIS_CHAIN_NAME.to_string());
     let ntrn_domain =
         valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
 
-    // initialize accounts for the CL program
-    let cl_input_acc_info =
-        AccountInfo::new("cl_input".to_string(), &osmo_domain, AccountType::default());
-    let cl_output_acc_info = AccountInfo::new(
-        "cl_output".to_string(),
-        &osmo_domain,
-        AccountType::default(),
-    );
-    let final_output_acc_info = AccountInfo::new(
-        "final_output".to_string(),
-        &osmo_domain,
-        AccountType::default(),
-    );
+    let osmo_domain =
+        valence_program_manager::domain::Domain::CosmosCosmwasm(OSMOSIS_CHAIN_NAME.to_string());
 
-    // add accounts to the program config builder
-    let cl_input_acc = builder.add_account(cl_input_acc_info);
-    let cl_output_acc = builder.add_account(cl_output_acc_info);
-    let final_output_acc = builder.add_account(final_output_acc_info);
+    // Build the program configuration
+    let mut program_config = osmo_cl_example::osmo_cl::my_osmosis_cl_program(
+        osmo_domain.clone(),
+        NEUTRON_CHAIN_ADMIN_ADDR.to_string(), // owner
+        pool_id,                              // target pool id
+        &ntrn_on_osmo_denom,                  // denom_1
+        OSMOSIS_CHAIN_DENOM,                  // denom_2
+        Int64::from(-1_000_000),              // lower tick
+        Int64::from(1_000_000),               // upper tick
+    )?;
 
-    // initialize the CL lper config
-    let cl_lper_config = valence_osmosis_cl_lper::msg::LibraryConfig {
-        input_addr: cl_input_acc.clone(),
-        output_addr: cl_output_acc.clone(),
-        lp_config: valence_osmosis_cl_lper::msg::LiquidityProviderConfig {
-            pool_id: pool_id.into(),
-            pool_asset_1: ntrn_on_osmo_denom.to_string(),
-            pool_asset_2: OSMOSIS_CHAIN_DENOM.to_string(),
-            global_tick_range: TickRange {
-                lower_tick: Int64::from(-1_000_000),
-                upper_tick: Int64::from(1_000_000),
-            },
-        },
-    };
-
-    // initialize the CL withdrawer config
-    let cl_lwer_config = valence_osmosis_cl_withdrawer::msg::LibraryConfig {
-        input_addr: cl_output_acc.clone(),
-        output_addr: final_output_acc.clone(),
-        pool_id: pool_id.into(),
-    };
-
-    // add the CL lper (deposit and withdraw) libraries to the program config builder
-    let cl_lper_library = builder.add_library(LibraryInfo::new(
-        "test_cl_lper".to_string(),
-        &osmo_domain,
-        LibraryConfig::ValenceOsmosisClLper(cl_lper_config),
-    ));
-
-    let cl_lwer_library = builder.add_library(LibraryInfo::new(
-        "test_cl_lwer".to_string(),
-        &osmo_domain,
-        LibraryConfig::ValenceOsmosisClWithdrawer(cl_lwer_config),
-    ));
-
-    // establish the input_acc -> lper_lib -> output_acc link
-    builder.add_link(&cl_lper_library, vec![&cl_input_acc], vec![&cl_output_acc]);
-    // establish the output_acc -> lwer_lib -> final_output_acc link
-    builder.add_link(
-        &cl_lwer_library,
-        vec![&cl_output_acc],
-        vec![&final_output_acc],
-    );
-
-    let cl_lper_function = AtomicFunctionBuilder::new()
-        .with_domain(Domain::External(OSMOSIS_CHAIN_NAME.to_string()))
-        .with_contract_address(cl_lper_library.clone())
-        .with_message_details(MessageDetails {
-            message_type: MessageType::CosmwasmExecuteMsg,
-            message: Message {
-                name: "process_function".to_string(),
-                params_restrictions: None,
-            },
-        })
-        .build();
-
-    let cl_lwer_function = AtomicFunctionBuilder::new()
-        .with_domain(Domain::External(OSMOSIS_CHAIN_NAME.to_string()))
-        .with_contract_address(cl_lwer_library.clone())
-        .with_message_details(MessageDetails {
-            message_type: MessageType::CosmwasmExecuteMsg,
-            message: Message {
-                name: "process_function".to_string(),
-                params_restrictions: None,
-            },
-        })
-        .build();
-
-    // setup authorizations
-    builder.add_authorization(
-        AuthorizationBuilder::new()
-            .with_label("provide_liquidity")
-            .with_subroutine(
-                AtomicSubroutineBuilder::new()
-                    .with_function(cl_lper_function)
-                    .build(),
-            )
-            .build(),
-    );
-    builder.add_authorization(
-        AuthorizationBuilder::new()
-            .with_label("withdraw_liquidity")
-            .with_subroutine(
-                AtomicSubroutineBuilder::new()
-                    .with_function(cl_lwer_function)
-                    .build(),
-            )
-            .build(),
-    );
-
-    // build the program config
-    let mut program_config = builder.build();
-
-    /////////////////////
-    // DECLARE PROGRAM //
-    /////////////////////
-
-    info!("initializing manager...");
+    info!("Initialize the program...");
     use_manager_init(&mut program_config)?;
 
-    let input_acc_addr = program_config
-        .get_account(cl_input_acc)?
-        .addr
-        .clone()
-        .unwrap();
-    let output_acc_addr = program_config
-        .get_account(cl_output_acc)?
-        .addr
-        .clone()
-        .unwrap();
-    let final_output_acc_addr = program_config
-        .get_account(final_output_acc)?
-        .addr
-        .clone()
-        .unwrap();
+    // Retrieved the instantiated accounts from the chain
+    let input_acc_addr = program_config.get_account(0u64)?.addr.clone().unwrap();
+    let output_acc_addr = program_config.get_account(1u64)?.addr.clone().unwrap();
+    let final_output_acc_addr = program_config.get_account(2u64)?.addr.clone().unwrap();
 
     // log addresses of the input accounts
     info!("input_acc_addr: {input_acc_addr}");
     info!("output_acc_addr: {output_acc_addr}");
     info!("final_output_acc_addr: {final_output_acc_addr}");
 
-    // fund the input account on Osmosis with NTRN and OSMO
+    // Fund the input account on Osmosis with NTRN and OSMO
     info!("funding the input account...");
     bank::send(
         test_ctx
@@ -264,27 +129,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
     std::thread::sleep(Duration::from_secs(3));
 
-    // fund the output account with NTRN
-    // send the token to the output account
-    bank::send(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(OSMOSIS_CHAIN_NAME),
-        DEFAULT_KEY,
-        &output_acc_addr,
-        &[cosmwasm_std_old::Coin {
-            denom: OSMOSIS_CHAIN_DENOM.to_string(),
-            amount: 10_000u128.into(),
-        }],
-        &cosmwasm_std_old::Coin {
-            denom: OSMOSIS_CHAIN_DENOM.to_string(),
-            amount: 5_000u128.into(),
-        },
-    )?;
-
-    std::thread::sleep(Duration::from_secs(3));
-
-    // get the balances of the input account
+    // Log the balances of the input account
     let input_acc_balances = bank::get_balance(
         test_ctx
             .get_request_builder()
@@ -307,7 +152,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("osmo processor contract address: {osmo_processor_contract_address}");
     info!("ntrn processor contract address: {ntrn_processor_contract_address}");
 
-    // create the provide liquidity message
+    // Create the provide liquidity message
     let lp_message = ProcessorMessage::CosmwasmExecuteMsg {
         msg: Binary::from(serde_json::to_vec(
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
