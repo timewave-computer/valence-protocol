@@ -40,7 +40,7 @@ graph LR
 
 ## Configuration
 
-The library is configured on deployment using the `CCTPTransferConfig` type.
+The library is configured on deployment using the `CCTPTransferConfig` type. A list of the supported CCTP destination domains that can be used in the `destinationDomain` field can be found [here](https://developers.circle.com/stablecoins/supported-domains).
 
 ```solidity
     /**
