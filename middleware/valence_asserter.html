@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Valence Types - Valence Protocol Documentation</title>
+        <title>Valence Asserter - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -157,59 +157,163 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="valence-types"><a class="header" href="#valence-types">Valence Types</a></h1>
-<p><strong>Valence Types</strong> are a set of canonical type wrappers to be used inside
-Valence Programs.</p>
-<p>Primary operational domain of Valence Protocol will need to consume, interpret,
-and otherwise manipulate data from external domains. For that reason, canonical
-representations of such types are defined in order to form an abstraction layer
-that all Valence Programs can reason about.</p>
-<h2 id="canonical-type-integrations"><a class="header" href="#canonical-type-integrations">Canonical Type integrations</a></h2>
-<p>Canonical types to be used in Valence Programs are enabled by the Valence Protocol.</p>
-<p>For instance, consider Astroport XYK and Osmosis GAMM pool types. These are two
-distinct data types that represent the same underlying concept - a constant product
-pool.</p>
-<p>These types can be unified in the Valence Protocol context by being mapped to and
-from the following Valence Type definition:</p>
+                        <h1 id="valence-asserter"><a class="header" href="#valence-asserter">Valence Asserter</a></h1>
+<p><strong>Valence Asserters</strong> provide the means to assert boolean conditions about <a href="./valence_types.html">Valence Types</a>.</p>
+<p>Each Valence Type variant may provide different assertion queries. To offer a unified API, Valence Asserter
+remains agnostic to the underlying type being queried and provides a common gateway to all available types.</p>
+<h2 id="motivation"><a class="header" href="#motivation">Motivation</a></h2>
+<p>Primary use case for Valence Type assertions is to enable <strong>conditional execution</strong> of functions.
+A basic example of this may be expressed as "<em>provide liquidity if and only if the pool price is greater than X</em>".</p>
+<p>While specific conditions like this could be internalized in each function that is to be executed, Valence Asserter
+aims to:</p>
+<ul>
+<li>enable such assertions to be performed prior to any library function (system level)</li>
+<li>not limit the assertions to a particular condition (generalize)</li>
+</ul>
+<p>With the following goals satisfied, arbitrary assertions can be performed on the <a href="./../authorizations_processors/processor.html">processor</a> level.</p>
+<p>Each function call that the configured program wishes to execute only if a certain condition is met can then
+be placed in a message batch and prepended with an assertion message.
+This way, when the message batch is being processed, any assertions that do not evaluate to true (return an <code>Err</code>) will
+prevent later messages from executing as expected. If the batch is <em>atomic</em>, the whole batch will abort.
+If the batch is <em>non-atomic</em>, various <a href="./../authorizations_processors/authorization_contract.html">authorization</a> configuration
+options will dictate the further behavior.</p>
+<h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Forwarder Library
+---
+graph LR
+  IA((Storage Account))
+  P[Processor]
+  S[Valence Asserter]
+  P -- 1/Assert --&gt; S
+  S -- 2/Query storage slot(s) --&gt; IA
+  S -- 3/Evaluate the predicate --&gt; S
+  S -- 4/Return OK/ERR --&gt; P
+</pre>
+<h2 id="api"><a class="header" href="#api">API</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th><th>Return Value</th></tr></thead><tbody>
+<tr><td><strong>Assert</strong></td><td><code>a: AssertionValue</code><br><code>predicate: Predicate</code><br><code>b: AssertionValue</code></td><td>Evaluate the given predicate <em>R(a, b)</em>.<br>If <em>a</em> or <em>b</em> are variables, they get fetched using the configuartion specified in the respective <code>QueryInfo</code>.<br>Both <em>a</em> and <em>b</em> must be deserializable into the same type.</td><td>- predicate evaluates to true: <code>Ok()</code><br>- predicate evaluates to false: <code>Err</code></td></tr>
+</tbody></table>
+</div>
+<h2 id="design"><a class="header" href="#design">Design</a></h2>
+<p>Assertions to be performed are expressed as <em>R(a, b)</em>, where:</p>
+<ul>
+<li><em>a</em> and <em>b</em> are values of the same type</li>
+<li><em>R</em> is the predicate that applies to <em>a</em> and <em>b</em></li>
+</ul>
+<p>Valence Asserter design should enable such predicate evaluations to be performed in a generic manner within Valence Programs.</p>
+<h3 id="assertion-values"><a class="header" href="#assertion-values">Assertion values</a></h3>
+<p>Assertion values are defined as follows:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub struct ValenceXykPool {
-    /// assets in the pool
-    pub assets: Vec&lt;Coin&gt;,
-
-    /// total amount of shares issued
-    pub total_shares: String,
-
-    /// any other fields that are unique to the external pool type
-    /// being represented by this struct
-    pub domain_specific_fields: BTreeMap&lt;String, Binary&gt;,
+</span>pub enum AssertionValue {
+    // storage account slot query
+    Variable(QueryInfo),
+    // constant valence primitive value
+    Constant(ValencePrimitive),
 }
 <span class="boring">}</span></code></pre></pre>
-<p>For a remote type to be integrated into the Valence Protocol means that there are
-available adapters that map between the canonical and original type definitions.</p>
-<p>These adapters can be implemented by following the design outlined by <a href="./type_registry.html"><em>type registries</em></a>.</p>
-<h2 id="active-valence-types"><a class="header" href="#active-valence-types">Active Valence Types</a></h2>
-<p>Active Valence types provide the interface for integrating remote domain representations
-of the same underlying concepts. Remote types can be integrated into Valence Protocol
-if and only if there is an enabled Valence Type representing the same underlying primitive.</p>
-<blockquote>
-<p>TODO: start a dedicated section for each Valence Type</p>
-</blockquote>
-<p>Currently enabled Valence types are:</p>
+<p>Two values are required for any comparison. Both <em>a</em> and <em>b</em> can be configured to be obtained in one of two ways:</p>
+<ol>
+<li>Constant value (known before program instantiation)</li>
+<li>Variable value (known during program runtime)</li>
+</ol>
+<p>Any combination of these values can be used for a given assertion:</p>
 <ul>
-<li>XYK pool</li>
-<li>Balance response</li>
+<li>constant-constant (unlikely)</li>
+<li>constant-variable</li>
+<li>variable-variable</li>
 </ul>
+<h4 id="variable-assertion-values"><a class="header" href="#variable-assertion-values"><code>Variable</code> assertion values</a></h4>
+<p>Variable assertion values are meant to be used for information that can only become known during runtime.</p>
+<p>Such values will be obtained from Valence Types, which expose their own set of queries.</p>
+<p>Valence Types reside in their dedicated storage slots in <a href="./../components/storage_accounts.html">Storage Accounts</a>.</p>
+<p>Valence Asserter uses the following type in order to obtain the Valence Type and query its state:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct QueryInfo {
+    // addr of the storage account
+    pub storage_account: String,
+    // key to access the value in the storage account
+    pub storage_slot_key: String,
+    // b64 encoded query
+    pub query: Binary,
+}
+<span class="boring">}</span></code></pre></pre>
+<h4 id="constant-assertion-values"><a class="header" href="#constant-assertion-values"><code>Constant</code> assertion values</a></h4>
+<p>Constant assertion values are meant to be used for assertions where one of the operands is known before runtime.</p>
+<p>Valence Asserter expects constant values to be passed using the <code>ValencePrimitive</code> enum which wraps around the standard <code>cosmwasm_std</code> types:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum ValencePrimitive {
+    Decimal(cosmwasm_std::Decimal),
+    Uint64(cosmwasm_std::Uint64),
+    Uint128(cosmwasm_std::Uint128),
+    Uint256(cosmwasm_std::Uint256),
+    String(String),
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="predicates"><a class="header" href="#predicates">Predicates</a></h3>
+<p>Predicates <em>R</em> are specified with the following type:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum Predicate {
+    LT,  // &lt;
+    LTE, // &lt;=
+    EQ,  // ==
+    GT,  // &gt;
+    GTE, // &gt;=
+}
+<span class="boring">}</span></code></pre></pre>
+<p>In the context of Valence Asserter, the predicate treats <code>a</code> as the left-hand-side and <code>b</code> as the right-hand-side variables (<code>a &lt; b</code>).</p>
+<blockquote>
+<p>While comparison of numeric types is pretty straightforward, it is important to note that string predicates are evaluated in lexicographical order and are case sensitive:</p>
+<ul>
+<li>"Z" &lt; "a"</li>
+<li>"Assertion" != "assertion"</li>
+</ul>
+</blockquote>
+<h3 id="example"><a class="header" href="#example">Example</a></h3>
+<p>Consider that a Valence Program wants to provide liquidity to a liquidity pool if and only if
+the pool price is above <code>10.0</code>.</p>
+<p>Pool price can be obtained by querying a <code>ValenceXykPool</code> variant which exposes the following query:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>ValenceXykQuery::GetPrice {} -&gt; Decimal
+<span class="boring">}</span></code></pre></pre>
+<p>The program is configured to store the respective <code>ValenceXykPool</code> in a Storage Account with address
+<code>neutron123...</code>, under storage slot <code>pool</code>.</p>
+<p>Filling in the blanks of <em>R(a, b)</em>, we have:</p>
+<ul>
+<li>variable <code>a</code> is obtained with the <code>GetPrice {}</code> query of <code>neutron123...</code> storage slot <code>pool</code></li>
+<li>predicate <code>R</code> is known in advance: <code>&gt;</code></li>
+<li>constant <code>b</code> is known in advance: <code>10.0</code></li>
+</ul>
+<p>Thefore the assertion message may look as follows:</p>
+<pre><code class="language-json">"assert": {
+  "a": {
+    "variable": {
+      "storage_account": "neutron123...",
+      "storage_slot": "pool",
+      "query": b64("GetPrice {}"),
+    }
+  },
+  "predicate": Predicate::GT,
+  "b": {
+    "constant": "10.0",
+  },
+}
+</code></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../middleware/type_registry.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../middleware/valence_types.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../middleware/valence_asserter.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../examples/_overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -219,11 +323,11 @@ if and only if there is an enabled Valence Type representing the same underlying
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../middleware/type_registry.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../middleware/valence_types.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../middleware/valence_asserter.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../examples/_overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

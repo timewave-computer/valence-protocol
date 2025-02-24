@@ -176,12 +176,12 @@ graph LR
 </pre>
 <p>The program is composed of the following components:</p>
 <ul>
-<li><strong>Party A Deposit account</strong>: a <a href="../components/accounts.html">Valence account</a> which Party A will deposit their tokens into, to be exchanged with Party B's tokens.</li>
+<li><strong>Party A Deposit account</strong>: a <a href="../components/base_accounts.html">Valence Base account</a> which Party A will deposit their tokens into, to be exchanged with Party B's tokens.</li>
 <li><strong>Splitter A</strong>: an instance of the <a href="../libraries/cosmwasm/splitter.html">Splitter library</a> that will transfer Party A's tokens from its input account (i.e. the <strong>Party A Deposit account</strong>) to its output account (i.e. the <strong>Party B Withdraw account</strong>) upon execution of its <code>split</code> function.</li>
-<li><strong>Party B Withdraw account</strong>: the account from which Party B can withdraw Party A's tokens after the swap has successfully completed. Note: this can be a <a href="../components/accounts.html">Valence account</a>, but it could also be a regular chain account, or a smart contract.</li>
-<li><strong>Party B Deposit account</strong>:  a <a href="../components/accounts.html">Valence account</a> which Party B will deposit their funds into, to be exchanged with Party A's funds.</li>
+<li><strong>Party B Withdraw account</strong>: the account from which Party B can withdraw Party A's tokens after the swap has successfully completed. Note: this can be a <a href="../components/base_accounts.html">Valence Base account</a>, but it could also be a regular chain account, or a smart contract.</li>
+<li><strong>Party B Deposit account</strong>:  a <a href="../components/base_accounts.html">Valence Base account</a> which Party B will deposit their funds into, to be exchanged with Party A's funds.</li>
 <li><strong>Splitter B</strong>: an instance of the <a href="../libraries/cosmwasm/splitter.html">Splitter library</a> that will transfer Party B's tokens from its input account (i.e. the <strong>Party B Deposit account</strong>) to its output account (i.e. the <strong>Party A Withdraw account</strong>) upon execution of its <code>split</code> function.</li>
-<li><strong>Party A Withdraw account</strong>: the account from which Party A can withdraw Party B's tokens after the swap has successfully completed. Note: this can be a <a href="../components/accounts.html">Valence account</a>, but it could also be a regular chain account, or a smart contract.</li>
+<li><strong>Party A Withdraw account</strong>: the account from which Party A can withdraw Party B's tokens after the swap has successfully completed. Note: this can be a <a href="../components/base_accounts.html">Valence Base account</a>, but it could also be a regular chain account, or a smart contract.</li>
 </ul>
 <p>The way the program is able to fulfil the requirement for an <em>atomic exchange of tokens</em> between the two parties is done by implementing an <strong>atomic subroutine</strong> composed of two function calls:</p>
 <ol>

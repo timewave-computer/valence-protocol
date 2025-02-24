@@ -198,7 +198,7 @@ graph TB;
 <li>Now you can verify this proof <code>p</code> by calling <code>verify(vk, x, y, p)</code></li>
 </ol>
 <h2 id="building-the-valence-zk-coprocessor"><a class="header" href="#building-the-valence-zk-coprocessor">Building the Valence ZK coprocessor</a></h2>
-<p>Let's assume that we have Valence Accounts in each domain. These accounts implement a kv store.</p>
+<p>Let's assume that we have Valence Base Accounts in each domain. These accounts implement a kv store.</p>
 <p>Every ZK computation will follow the format of a pure state transition function; specifically, we input a state <code>A</code>, apply the function <code>f</code> to it, and produce the resulting state <code>B</code> : <code>f(A) = B</code> .
 For the function <code>f</code>, the chosen zkVM will generate a verifying key <code>K</code>, which remains consistent across all state transition functions.</p>
 <h3 id="encoding-the-account-state-unary-encoder"><a class="header" href="#encoding-the-account-state-unary-encoder">Encoding the account state: Unary Encoder</a></h3>
@@ -243,7 +243,7 @@ For the function <code>f</code>, the chosen zkVM will generate a verifying key <
 
 	let arguments = encoder.commitment(arugment)
     let finalized = encoder.commitment(state)
-    let output = encoder.commitment(initial, arguments, finalized) 
+    let output = encoder.commitment(initial, arguments, finalized)
 
     encoder.commitment(initial, arguments, output)
 }
@@ -273,17 +273,17 @@ For the function <code>f</code>, the chosen zkVM will generate a verifying key <
 <pre class="mermaid">graph TB
     %% Root node
     r[R]
-    
+
     %% Level 1
     m1[M1] --&gt; r
     m2[M2] --&gt; r
-    
+
     %% Level 2
     c1[C1] --&gt; m1
     c2[C2] --&gt; m1
     c3[C3] --&gt; m2
     zero((0)) --&gt; m2
-    
+
     %% Level 3
     chain1[&quot;(S1 --&gt; T1), K1&quot;] -- chain 1 transition encoding --&gt; c1
     chain2[&quot;(S2 --&gt; T2), K2&quot;] -- chain 2 transition encoding --&gt; c2

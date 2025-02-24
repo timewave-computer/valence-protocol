@@ -176,7 +176,7 @@ which in turn enables the following functionality:</p>
 <p>Read more about the given type ICQ integration in the <a href="./../../middleware/type_registry.html#neutron-interchain-query-integration">type registry documentation page</a>.</p>
 <h3 id="valence-storage-account"><a class="header" href="#valence-storage-account">Valence Storage account</a></h3>
 <p>Results received and meant for further processing by other libraries will be stored in
-<a href="./../../components/accounts.html#valence-storage-account">Storage Accounts</a>. Each instance of Neutron
+<a href="./../../components/base_accounts.html">Storage Accounts</a>. Each instance of Neutron
 IC querier will be associated with its own storage account.</p>
 <h3 id="query-registration-fee"><a class="header" href="#query-registration-fee">Query registration fee</a></h3>
 <p>Neutron <code>interchainqueries</code> module is configured to escrow a fee in order to register a query.
@@ -337,7 +337,7 @@ make any assumptions about the different encoding schemes that remote domains ma
 to - instead, that responsibility is handed over to <a href="./../../middleware/_overview.html">Valence Middleware</a>.</p>
 </blockquote>
 <p>Final step in result postprocessing is about persisting the canonicalized query results.
-Resulting Valence Types are written into a <a href="./../../components/accounts.html#valence-storage-account">Storage Account</a>,
+Resulting Valence Types are written into a <a href="./../../components/base_accounts.html">Storage Account</a>,
 making it available for further processing, interpretation, or other types of processing.</p>
 <h2 id="library-lifecycle"><a class="header" href="#library-lifecycle">Library Lifecycle</a></h2>
 <p>With the baseline functionality in mind, there are a few design decisions
