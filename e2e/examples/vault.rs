@@ -1,6 +1,8 @@
-use std::{env, error::Error, str::FromStr, time::Duration};
+use std::{collections::HashMap, env, error::Error, str::FromStr, time::Duration};
 
-use cosmwasm_std::{coin, to_json_binary, Binary, Decimal, Uint128};
+use alloy::primitives::Address;
+use cosmwasm_std::{coin, to_json_binary, Binary, Decimal, Empty};
+use cosmwasm_std_old::Coin as BankCoin;
 use localic_std::modules::{
     bank,
     cosmwasm::{contract_execute, contract_instantiate, contract_query},
@@ -10,6 +12,7 @@ use localic_utils::{
     ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
     NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
+
 use log::info;
 use rand::{distributions::Alphanumeric, Rng};
 use serde_json::Value;
@@ -27,96 +30,32 @@ use valence_authorization_utils::{
 };
 use valence_e2e::utils::{
     ethereum::set_up_anvil_container,
+    hyperlane::{
+        bech32_to_evm_bytes32, set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts,
+        set_up_hyperlane, HyperlaneContracts,
+    },
     manager::{setup_manager, use_manager_init, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME},
     processor::tick_processor,
-    ASTROPORT_PATH, DEFAULT_ANVIL_RPC_ENDPOINT, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
-    LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
+    solidity_contracts::LiteProcessor,
+    ASTROPORT_PATH, DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS,
+    HYPERLANE_RELAYER_NEUTRON_ADDRESS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
+    NEUTRON_CONFIG_FILE, NEUTRON_HYPERLANE_DOMAIN, VALENCE_ARTIFACTS_PATH,
 };
 use valence_library_utils::liquidity_utils::AssetData;
 use valence_program_manager::{
     account::{AccountInfo, AccountType},
     library::LibraryInfo,
+    program_config::ProgramConfig,
     program_config_builder::ProgramConfigBuilder,
 };
 
-fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::init();
-
-    // Start anvil container
-    let rt = tokio::runtime::Runtime::new()?;
-    rt.block_on(set_up_anvil_container())?;
-
-    let eth = EthClient::new(DEFAULT_ANVIL_RPC_ENDPOINT)?;
-
-    let mut test_ctx = TestContextBuilder::default()
-        .with_unwrap_raw_logs(true)
-        .with_api_url(LOCAL_IC_API_URL)
-        .with_artifacts_dir(VALENCE_ARTIFACTS_PATH)
-        .with_chain(ConfigChainBuilder::default_neutron().build()?)
-        .with_log_file_path(LOGS_FILE_PATH)
-        .build()?;
-
-    info!("creating subdenom to pair with NTRN");
-    // Let's create a token to pair it with NTRN
-    let token_subdenom: String = rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(10)
-        .map(char::from)
-        .collect();
-
-    test_ctx
-        .build_tx_create_tokenfactory_token()
-        .with_subdenom(&token_subdenom)
-        .send()?;
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
-    let token = test_ctx
-        .get_tokenfactory_denom()
-        .creator(NEUTRON_CHAIN_ADMIN_ADDR)
-        .subdenom(token_subdenom)
-        .get();
-
-    // Mint some of the token
-    test_ctx
-        .build_tx_mint_tokenfactory_token()
-        .with_amount(1_000_000_000)
-        .with_denom(&token)
-        .send()
-        .unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
-    // setup astroport
-    let (
-        astroport_factory_code_id,
-        astroport_pair_concentrated_code_id,
-        astroport_token_code_id,
-        astroport_coin_registry_code_id,
-    ) = deploy_astroport_contracts(&mut test_ctx)?;
-
-    let (pool_addr, lp_token) = setup_astroport_cl_pool(
-        &mut test_ctx,
-        astroport_pair_concentrated_code_id,
-        astroport_token_code_id,
-        astroport_factory_code_id,
-        astroport_coin_registry_code_id,
-        token.to_string(),
-    )?;
-
-    // setup neutron side:
-    // 1. authorizations
-    // 2. processor
-    // 3. astroport LP & LW
-    // 4. base account
-    setup_manager(
-        &mut test_ctx,
-        NEUTRON_CONFIG_FILE,
-        vec![GAIA_CHAIN_NAME],
-        vec![ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME],
-    )?;
-
+pub fn my_evm_vault_program(
+    ntrn_domain: valence_program_manager::domain::Domain,
+    asset_1: &str,
+    asset_2: &str,
+    pool_addr: &str,
+) -> Result<ProgramConfig, Box<dyn Error>> {
     let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
-    let ntrn_domain =
-        valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
 
     let deposit_account_info =
         AccountInfo::new("deposit".to_string(), &ntrn_domain, AccountType::default());
@@ -136,8 +75,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let astro_cl_pool_asset_data = AssetData {
-        asset1: NEUTRON_CHAIN_DENOM.to_string(),
-        asset2: token.clone(),
+        asset1: asset_1.to_string(),
+        asset2: asset_2.to_string(),
     };
 
     let astro_lp_config = LiquidityProviderConfig {
@@ -233,50 +172,241 @@ fn main() -> Result<(), Box<dyn Error>> {
     builder.add_authorization(astro_lper_authorization);
     builder.add_authorization(astro_lwer_authorization);
 
-    let mut program_config = builder.build();
+    let program_config = builder.build();
+
+    Ok(program_config)
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    env_logger::init();
+
+    // Start anvil container
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(set_up_anvil_container())?;
+
+    let eth = EthClient::new(DEFAULT_ANVIL_RPC_ENDPOINT)?;
+
+    let mut test_ctx = TestContextBuilder::default()
+        .with_unwrap_raw_logs(true)
+        .with_api_url(LOCAL_IC_API_URL)
+        .with_artifacts_dir(VALENCE_ARTIFACTS_PATH)
+        .with_chain(ConfigChainBuilder::default_neutron().build()?)
+        .with_log_file_path(LOGS_FILE_PATH)
+        .build()?;
+
+    let (eth_hyperlane_contracts, ntrn_hyperlane_contracts) =
+        hyperlane_plumbing(&mut test_ctx, &eth)?;
+
+    info!("creating subdenom to pair with NTRN");
+    // Let's create a token to pair it with NTRN
+    let token_subdenom: String = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(10)
+        .map(char::from)
+        .collect();
+
+    test_ctx
+        .build_tx_create_tokenfactory_token()
+        .with_subdenom(&token_subdenom)
+        .send()?;
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    let token = test_ctx
+        .get_tokenfactory_denom()
+        .creator(NEUTRON_CHAIN_ADMIN_ADDR)
+        .subdenom(token_subdenom)
+        .get();
+
+    // Mint some of the token
+    test_ctx
+        .build_tx_mint_tokenfactory_token()
+        .with_amount(1_000_000_000)
+        .with_denom(&token)
+        .send()
+        .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    // setup astroport
+    let (
+        astroport_factory_code_id,
+        astroport_pair_concentrated_code_id,
+        astroport_token_code_id,
+        astroport_coin_registry_code_id,
+    ) = deploy_astroport_contracts(&mut test_ctx)?;
+
+    let (pool_addr, lp_token) = setup_astroport_cl_pool(
+        &mut test_ctx,
+        astroport_pair_concentrated_code_id,
+        astroport_token_code_id,
+        astroport_factory_code_id,
+        astroport_coin_registry_code_id,
+        token.to_string(),
+    )?;
+
+    // setup neutron side:
+    // 1. authorizations
+    // 2. processor
+    // 3. astroport LP & LW
+    // 4. base account
+    setup_manager(
+        &mut test_ctx,
+        NEUTRON_CONFIG_FILE,
+        vec![GAIA_CHAIN_NAME],
+        vec![ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME],
+    )?;
+
+    let ntrn_domain =
+        valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
+
+    let mut program_config =
+        my_evm_vault_program(ntrn_domain.clone(), NEUTRON_CHAIN_DENOM, &token, &pool_addr)?;
 
     info!("initializing manager...");
     use_manager_init(&mut program_config)?;
 
-    let deposit_acc_addr = program_config
-        .get_account(deposit_acc)?
-        .addr
-        .clone()
-        .unwrap();
-    let position_acc_addr = program_config
-        .get_account(position_acc)?
-        .addr
-        .clone()
-        .unwrap();
-    let withdraw_acc_addr = program_config
-        .get_account(withdraw_acc)?
-        .addr
-        .clone()
-        .unwrap();
+    let deposit_acc_addr = program_config.get_account(0u64)?.addr.clone().unwrap();
+    let position_acc_addr = program_config.get_account(1u64)?.addr.clone().unwrap();
+    let withdraw_acc_addr = program_config.get_account(2u64)?.addr.clone().unwrap();
 
     info!("DEPOSIT ACCOUNT\t: {deposit_acc_addr}");
     info!("POSITION ACCOUNT\t: {position_acc_addr}");
     info!("WITHDRAW ACCOUNT\t: {withdraw_acc_addr}");
 
+    let authorization_contract_address =
+        program_config.authorization_data.authorization_addr.clone();
+
+    let ntrn_processor_contract_address = program_config
+        .get_processor_addr(&ntrn_domain.to_string())
+        .unwrap();
+
+    info!("authorization contract address: {authorization_contract_address}");
+    info!("ntrn processor contract address: {ntrn_processor_contract_address}");
+
+    test_neutron_side_flow(
+        &mut test_ctx,
+        &deposit_acc_addr,
+        &position_acc_addr,
+        &withdraw_acc_addr,
+        NEUTRON_CHAIN_DENOM,
+        &token,
+        &authorization_contract_address,
+        &ntrn_processor_contract_address,
+    )?;
+
+    // setup eth side:
+    // 1. base account
+    // 2. vault
+    // 3. lite processor
+
+    info!("Setting up encoders ...");
+    // Since we are going to send messages to EVM, we need to set up the encoder broker with the evm encoder
+    let current_dir = env::current_dir()?;
+    let encoder_broker_path = format!(
+        "{}/artifacts/valence_encoder_broker.wasm",
+        current_dir.display()
+    );
+    let evm_encoder_path = format!(
+        "{}/artifacts/valence_evm_encoder_v1.wasm",
+        current_dir.display()
+    );
+    let mut uploader = test_ctx.build_tx_upload_contracts();
+    uploader.send_single_contract(&encoder_broker_path)?;
+    uploader.send_single_contract(&evm_encoder_path)?;
+
+    let code_id_encoder_broker = *test_ctx
+        .get_chain(NEUTRON_CHAIN_NAME)
+        .contract_codes
+        .get("valence_encoder_broker")
+        .unwrap();
+    let code_id_evm_encoder = *test_ctx
+        .get_chain(NEUTRON_CHAIN_NAME)
+        .contract_codes
+        .get("valence_evm_encoder_v1")
+        .unwrap();
+
+    let evm_encoder = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        code_id_evm_encoder,
+        &serde_json::to_string(&Empty {}).unwrap(),
+        "evm_encoder",
+        None,
+        "",
+    )
+    .unwrap();
+
+    let namespace_evm_encoder = "evm_encoder_v1".to_string();
+    let encoder_broker = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        code_id_encoder_broker,
+        &serde_json::to_string(&valence_encoder_broker::msg::InstantiateMsg {
+            encoders: HashMap::from([(namespace_evm_encoder.clone(), evm_encoder.address)]),
+            owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        })
+        .unwrap(),
+        "encoder_broker",
+        None,
+        "",
+    )
+    .unwrap();
+    info!(
+        "Encoders set up successfully! Broker address: {}",
+        encoder_broker.address
+    );
+
+    info!("Setting up Lite Processor on Ethereum");
+    let accounts = eth.get_accounts_addresses()?;
+
+    let tx = LiteProcessor::deploy_builder(
+        &eth.provider,
+        bech32_to_evm_bytes32(&authorization_contract_address)?,
+        Address::from_str(&eth_hyperlane_contracts.mailbox)?,
+        NEUTRON_HYPERLANE_DOMAIN,
+        vec![],
+    )
+    .into_transaction_request()
+    .from(accounts[0]);
+
+    let lite_processor_address = eth.send_transaction(tx)?.contract_address.unwrap();
+    info!("Lite Processor deployed at: {}", lite_processor_address);
+
+    Ok(())
+}
+
+fn test_neutron_side_flow(
+    test_ctx: &mut TestContext,
+    deposit_acc_addr: &str,
+    position_acc_addr: &str,
+    withdraw_acc_addr: &str,
+    denom_1: &str,
+    denom_2: &str,
+    authorizations_addr: &str,
+    ntrn_processor_addr: &str,
+) -> Result<(), Box<dyn Error>> {
     info!("funding the input account...");
     bank::send(
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
         DEFAULT_KEY,
-        &deposit_acc_addr,
+        deposit_acc_addr,
         &[
             cosmwasm_std_old::Coin {
-                denom: token.to_string(),
+                denom: denom_2.to_string(),
                 amount: 1_000_000u128.into(),
             },
             cosmwasm_std_old::Coin {
-                denom: NEUTRON_CHAIN_DENOM.to_string(),
+                denom: denom_1.to_string(),
                 amount: 1_200_000u128.into(),
             },
         ],
         &cosmwasm_std_old::Coin {
-            denom: NEUTRON_CHAIN_DENOM.to_string(),
+            denom: denom_1.to_string(),
             amount: 1_000_000u128.into(),
         },
     )?;
@@ -284,21 +414,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(Duration::from_secs(3));
 
     log_neutron_acc_balances(
-        &mut test_ctx,
-        &deposit_acc_addr,
-        &position_acc_addr,
-        &withdraw_acc_addr,
+        test_ctx,
+        deposit_acc_addr,
+        position_acc_addr,
+        withdraw_acc_addr,
     );
-
-    // Get authorization and processor contract addresses
-    let authorization_contract_address =
-        program_config.authorization_data.authorization_addr.clone();
-    let ntrn_processor_contract_address = program_config
-        .get_processor_addr(&ntrn_domain.to_string())
-        .unwrap();
-
-    info!("authorization contract address: {authorization_contract_address}");
-    info!("ntrn processor contract address: {ntrn_processor_contract_address}");
 
     let lp_message = ProcessorMessage::CosmwasmExecuteMsg {
         msg: Binary::from(serde_json::to_vec(
@@ -321,7 +441,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
-        &authorization_contract_address,
+        authorizations_addr,
         DEFAULT_KEY,
         &serde_json::to_string(&provide_liquidity_msg)?,
         GAS_FLAGS,
@@ -329,18 +449,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(std::time::Duration::from_secs(2));
 
     tick_processor(
-        &mut test_ctx,
+        test_ctx,
         NEUTRON_CHAIN_NAME,
         DEFAULT_KEY,
-        &ntrn_processor_contract_address,
+        ntrn_processor_addr,
+        GAS_FLAGS,
     );
     std::thread::sleep(std::time::Duration::from_secs(2));
 
     log_neutron_acc_balances(
-        &mut test_ctx,
-        &deposit_acc_addr,
-        &position_acc_addr,
-        &withdraw_acc_addr,
+        test_ctx,
+        deposit_acc_addr,
+        position_acc_addr,
+        withdraw_acc_addr,
     );
 
     info!("pushing withdraw liquidity message to processor...");
@@ -365,7 +486,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
-        &authorization_contract_address,
+        authorizations_addr,
         DEFAULT_KEY,
         &serde_json::to_string(&withdraw_liquidity_msg)?,
         GAS_FLAGS,
@@ -374,23 +495,20 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("ticking processor to withdraw liquidity");
     tick_processor(
-        &mut test_ctx,
+        test_ctx,
         NEUTRON_CHAIN_NAME,
         DEFAULT_KEY,
-        &ntrn_processor_contract_address,
+        ntrn_processor_addr,
+        GAS_FLAGS,
     );
     std::thread::sleep(std::time::Duration::from_secs(2));
 
     log_neutron_acc_balances(
-        &mut test_ctx,
-        &deposit_acc_addr,
-        &position_acc_addr,
-        &withdraw_acc_addr,
+        test_ctx,
+        deposit_acc_addr,
+        position_acc_addr,
+        withdraw_acc_addr,
     );
-    // setup eth side:
-    // 1. base account
-    // 2. vault
-    // 3. lite processor
 
     Ok(())
 }
@@ -663,4 +781,49 @@ fn setup_astroport_cl_pool(
     std::thread::sleep(std::time::Duration::from_secs(3));
 
     Ok((pool_addr.to_string(), lp_token.to_string()))
+}
+
+fn hyperlane_plumbing(
+    test_ctx: &mut TestContext,
+    eth: &EthClient,
+) -> Result<(HyperlaneContracts, HyperlaneContracts), Box<dyn Error>> {
+    info!("uploading cosmwasm hyperlane contracts...");
+    // Upload all Hyperlane contracts to Neutron
+    let neutron_hyperlane_contracts = set_up_cw_hyperlane_contracts(test_ctx)?;
+
+    info!("uploading evm hyperlane conrtacts...");
+    // Deploy all Hyperlane contracts on Ethereum
+    let eth_hyperlane_contracts = set_up_eth_hyperlane_contracts(eth, ETHEREUM_HYPERLANE_DOMAIN)?;
+
+    info!("setting up hyperlane connection Neutron <> Ethereum");
+    set_up_hyperlane(
+        "hyperlane-net",
+        vec!["localneutron-1-val-0-neutronic", "anvil"],
+        "neutron",
+        "ethereum",
+        &neutron_hyperlane_contracts,
+        &eth_hyperlane_contracts,
+    )?;
+
+    // Since we are going to relay callbacks to Neutron, let's fund the Hyperlane relayer account with some tokens
+    info!("Fund relayer account...");
+    bank::send(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        HYPERLANE_RELAYER_NEUTRON_ADDRESS,
+        &[BankCoin {
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
+            amount: 5_000_000u128.into(),
+        }],
+        &BankCoin {
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
+            amount: cosmwasm_std_old::Uint128::new(5000),
+        },
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    Ok((eth_hyperlane_contracts, neutron_hyperlane_contracts))
 }
