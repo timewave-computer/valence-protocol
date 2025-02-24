@@ -21,7 +21,7 @@ thiserror         = { workspace = true }
 valence-macros    = { workspace = true }
 neutron-sdk       = { workspace = true }
 cosmos-sdk-proto  = { workspace = true }
-valence-ibc-utils = { workspace = true, features = ["neutron"] }
+valence-ibc-utils = { workspace = true }
 prost-types       = { version = "0.12.6", default-features = false }
 
 # Testing dependencies
