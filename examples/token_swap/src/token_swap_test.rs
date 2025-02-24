@@ -2,7 +2,6 @@ use std::error::Error;
 
 use cosmwasm_std::Binary;
 use cosmwasm_std_old::Coin as BankCoin;
-
 use localic_std::modules::{bank, cosmwasm::contract_execute};
 use localic_utils::{
     ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
@@ -10,24 +9,17 @@ use localic_utils::{
 };
 use log::info;
 use rand::{distributions::Alphanumeric, Rng};
-use valence_authorization_utils::{
-    authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
-    builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
-    msg::ProcessorMessage,
-};
+use token_swap_example::token_swap::my_atomic_token_swap_program;
+use valence_authorization_utils::msg::ProcessorMessage;
 use valence_e2e::utils::{
     manager::{setup_manager, use_manager_init, SPLITTER_NAME},
     processor::tick_processor,
     GAS_FLAGS, LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
 };
-use valence_library_utils::denoms::UncheckedDenom;
-use valence_program_manager::{
-    account::{AccountInfo, AccountType},
-    library::{LibraryConfig, LibraryInfo},
-    program_config_builder::ProgramConfigBuilder,
-};
-use valence_splitter_library::msg::{FunctionMsgs, UncheckedSplitAmount, UncheckedSplitConfig};
+use valence_library_utils::LibraryAccountType;
+use valence_splitter_library::msg::FunctionMsgs;
 
+#[allow(dead_code)]
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
@@ -78,99 +70,20 @@ fn main() -> Result<(), Box<dyn Error>> {
         .subdenom(token2_subdenom)
         .get();
 
-    let swap_amount = 1_000_000_000;
-
-    let mut program_config_builder =
-        ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
     let neutron_domain =
         valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
+    let swap_amount_token1 = 500_000_000;
+    let swap_amount_token2 = 1_000_000_000;
 
-    let account_1 = program_config_builder.add_account(AccountInfo::new(
-        "base_account_1".to_string(),
-        &neutron_domain,
-        AccountType::default(),
-    ));
-
-    let account_2 = program_config_builder.add_account(AccountInfo::new(
-        "base_account_2".to_string(),
-        &neutron_domain,
-        AccountType::default(),
-    ));
-
-    let library_1 = program_config_builder.add_library(LibraryInfo::new(
-        "splitter_1".to_string(),
-        &neutron_domain,
-        LibraryConfig::ValenceSplitterLibrary(valence_splitter_library::msg::LibraryConfig {
-            input_addr: account_1.clone(),
-            splits: vec![UncheckedSplitConfig {
-                denom: UncheckedDenom::Native(token1.to_string()),
-                account: account_2.clone(),
-                amount: UncheckedSplitAmount::FixedAmount(swap_amount.into()),
-            }],
-        }),
-    ));
-
-    let library_2 = program_config_builder.add_library(LibraryInfo::new(
-        "splitter_2".to_string(),
-        &neutron_domain,
-        LibraryConfig::ValenceSplitterLibrary(valence_splitter_library::msg::LibraryConfig {
-            input_addr: account_2.clone(),
-            splits: vec![UncheckedSplitConfig {
-                denom: UncheckedDenom::Native(token2.to_string()),
-                account: account_1.clone(),
-                amount: UncheckedSplitAmount::FixedAmount(swap_amount.into()),
-            }],
-        }),
-    ));
-
-    program_config_builder.add_link(&library_1, vec![&account_1], vec![&account_2]);
-    program_config_builder.add_link(&library_2, vec![&account_2], vec![&account_1]);
-
-    program_config_builder.add_authorization(
-        AuthorizationBuilder::new()
-            .with_label("swap")
-            .with_subroutine(
-                AtomicSubroutineBuilder::new()
-                    .with_function(
-                        AtomicFunctionBuilder::new()
-                            .with_contract_address(library_1)
-                            .with_message_details(MessageDetails {
-                                message_type: MessageType::CosmwasmExecuteMsg,
-                                message: Message {
-                                    name: "process_function".to_string(),
-                                    params_restrictions: Some(vec![
-                                        ParamRestriction::MustBeIncluded(vec![
-                                            "process_function".to_string(),
-                                            "split".to_string(),
-                                        ]),
-                                    ]),
-                                },
-                            })
-                            .build(),
-                    )
-                    .with_function(
-                        AtomicFunctionBuilder::new()
-                            .with_contract_address(library_2)
-                            .with_message_details(MessageDetails {
-                                message_type: MessageType::CosmwasmExecuteMsg,
-                                message: Message {
-                                    name: "process_function".to_string(),
-                                    params_restrictions: Some(vec![
-                                        ParamRestriction::MustBeIncluded(vec![
-                                            "process_function".to_string(),
-                                            "split".to_string(),
-                                        ]),
-                                    ]),
-                                },
-                            })
-                            .build(),
-                    )
-                    .build(),
-            )
-            .build(),
+    let mut program_config = my_atomic_token_swap_program(
+        neutron_domain.clone(),
+        NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        token1.clone(),
+        token2.clone(),
+        swap_amount_token1,
+        swap_amount_token2,
+        NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
     );
-
-    let mut program_config = program_config_builder.build();
 
     // Verify config is ok before we upload all contracts
     program_config.verify_new_config()?;
@@ -195,13 +108,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         .get_processor_addr(&neutron_domain.to_string())
         .unwrap();
     let base_account_1 = program_config
-        .get_account(account_1)
+        .get_account(LibraryAccountType::AccountId(0))
         .unwrap()
         .addr
         .clone()
         .unwrap();
     let base_account_2 = program_config
-        .get_account(account_2)
+        .get_account(LibraryAccountType::AccountId(1))
         .unwrap()
         .addr
         .clone()
@@ -210,7 +123,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Mint some of each token and send it to the base accounts
     test_ctx
         .build_tx_mint_tokenfactory_token()
-        .with_amount(swap_amount)
+        .with_amount(swap_amount_token1)
         .with_denom(&token1)
         .send()
         .unwrap();
@@ -224,7 +137,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &base_account_1,
         &[BankCoin {
             denom: token1.clone(),
-            amount: swap_amount.into(),
+            amount: swap_amount_token1.into(),
         }],
         &BankCoin {
             denom: NEUTRON_CHAIN_DENOM.to_string(),
@@ -236,7 +149,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     test_ctx
         .build_tx_mint_tokenfactory_token()
-        .with_amount(swap_amount)
+        .with_amount(swap_amount_token2)
         .with_denom(&token2)
         .send()
         .unwrap();
@@ -249,7 +162,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &base_account_2,
         &[BankCoin {
             denom: token2.clone(),
-            amount: swap_amount.into(),
+            amount: swap_amount_token2.into(),
         }],
         &BankCoin {
             denom: NEUTRON_CHAIN_DENOM.to_string(),
@@ -272,7 +185,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let send_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
         valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
-            label: "swap".to_string(),
+            label: "atomic_swap".to_string(),
             messages: vec![message.clone(), message],
             ttl: None,
         },
@@ -298,6 +211,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         NEUTRON_CHAIN_NAME,
         DEFAULT_KEY,
         &processor_contract_address,
+        GAS_FLAGS,
     );
 
     info!("Verifying balances...");
@@ -309,7 +223,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
     assert!(token_balances
         .iter()
-        .any(|balance| balance.denom == token2 && balance.amount.u128() == swap_amount));
+        .any(|balance| balance.denom == token2 && balance.amount.u128() == swap_amount_token2));
 
     let token_balances = bank::get_balance(
         test_ctx
@@ -320,7 +234,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     assert!(token_balances
         .iter()
-        .any(|balance| balance.denom == token1 && balance.amount.u128() == swap_amount));
+        .any(|balance| balance.denom == token1 && balance.amount.u128() == swap_amount_token1));
 
     info!("Token swap successful!");
     Ok(())

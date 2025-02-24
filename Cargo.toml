@@ -13,7 +13,7 @@ members = [
     "packages/*",
     "program-manager",
     "e2e",
-    "examples",
+    "examples/*",
     "deployment/scripts/*",
 ]
 resolver = "2"
