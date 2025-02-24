@@ -19,7 +19,7 @@ toml_fmt() {
 EOF
 
     # run the formatter with provided flag (if provided)
-    taplo fmt $flag --config /tmp/taplo.toml
+    taplo fmt $flag --config /tmp/taplo.toml --check
 
     # remove the temp config
     rm /tmp/taplo.toml

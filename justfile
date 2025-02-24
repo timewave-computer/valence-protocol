@@ -16,9 +16,6 @@ run-example program:
 run-e2e test:
     RUST_LOG=debug cargo run --package valence-e2e --example {{test}}
 
-run-e2e test:
-    RUST_LOG=debug cargo run --package valence-e2e --example {{test}}
-
 precommit:
     cargo fmt --all -- --check
     cargo clippy --all-targets --verbose -- -D warnings
