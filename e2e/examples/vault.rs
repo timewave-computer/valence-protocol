@@ -1,6 +1,9 @@
 use std::{collections::HashMap, env, error::Error, str::FromStr, time::Duration};
 
-use alloy::primitives::Address;
+use alloy::{
+    primitives::{Address, U256},
+    sol_types::SolValue,
+};
 use cosmwasm_std::{coin, to_json_binary, Addr, Binary, Decimal, Empty};
 use cosmwasm_std_old::Coin as BankCoin;
 use localic_std::modules::{
@@ -39,7 +42,10 @@ use valence_e2e::utils::{
     },
     manager::{setup_manager, use_manager_init, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME},
     processor::tick_processor,
-    solidity_contracts::{BaseAccount, LiteProcessor, ValenceVault},
+    solidity_contracts::{
+        BaseAccount, LiteProcessor, MockERC20,
+        ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
+    },
     ASTROPORT_PATH, DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME, ETHEREUM_HYPERLANE_DOMAIN,
     GAS_FLAGS, HYPERLANE_RELAYER_NEUTRON_ADDRESS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
     NEUTRON_CONFIG_FILE, NEUTRON_HYPERLANE_DOMAIN, VALENCE_ARTIFACTS_PATH,
@@ -364,16 +370,58 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("ETH deposit acc: {:?}", eth_deposit_acc);
     info!("ETH withdraw acc: {:?}", eth_withdraw_acc);
 
-    // info!("Deploying Valence Vault on Ethereum...");
-    // let vault_tx = ValenceVault::deploy_builder(
-    //     &eth.provider,
-    //     accounts[0],
-    //     config,
-    //     underlying,
-    //     vaultTokenName,
-    //     vaultTokenSymbol,
-    //     startingRate,
-    // );
+    info!("Deploying ERC20s on Ethereum...");
+    let evm_vault_deposit_token_tx =
+        MockERC20::deploy_builder(&eth.provider, "TestUSDC".to_string(), "TUSD".to_string())
+            .into_transaction_request()
+            .from(accounts[0]);
+    let valence_vault_deposit_token_address = eth
+        .send_transaction(evm_vault_deposit_token_tx)?
+        .contract_address
+        .unwrap();
+    let valence_vault_deposit_token =
+        MockERC20::new(valence_vault_deposit_token_address, &eth.provider);
+
+    info!("Deploying Valence Vault on Ethereum...");
+    let fee_config = FeeConfig {
+        depositFeeBps: 0,        // No deposit fee
+        platformFeeBps: 1000,    // 10% yearly platform fee
+        performanceFeeBps: 2000, // 20% performance fee
+        solverCompletionFee: 0,  // No solver completion fee
+    };
+
+    let fee_distribution = FeeDistributionConfig {
+        strategistAccount: accounts[1], // Strategist fee recipient
+        platformAccount: accounts[2],   // Platform fee recipient
+        strategistRatioBps: 5000,       // 50% to strategist
+    };
+
+    let vault_config = VaultConfig {
+        depositAccount: eth_deposit_acc,
+        withdrawAccount: eth_withdraw_acc,
+        strategist: accounts[0],
+        fees: fee_config,
+        feeDistribution: fee_distribution,
+        depositCap: 0,               // No cap (for real)
+        withdrawLockupPeriod: 86400, // 1 day lockup
+        maxWithdrawFeeBps: 100,      // 1% max withdraw fee
+    };
+
+    info!("Deploying Valence Vault on Ethereum...");
+    let vault_tx = ValenceVault::deploy_builder(
+        &eth.provider,
+        accounts[0],                            // owner
+        vault_config.abi_encode().into(),       // encoded config
+        *valence_vault_deposit_token.address(), // underlying token
+        "Valence Test Vault".to_string(),       // vault token name
+        "vTEST".to_string(),                    // vault token symbol
+        U256::from(1e18),                       // 1:1 starting rate
+    )
+    .into_transaction_request()
+    .from(accounts[0]);
+
+    let vault_address = eth.send_transaction(vault_tx)?.contract_address.unwrap();
+    info!("Vault deployed at: {}", vault_address);
 
     // test the neutron side flow
     // test_neutron_side_flow(
