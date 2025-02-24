@@ -14,3 +14,8 @@ valence-splitter-library    = { workspace = true }
 valence-authorization-utils = { workspace = true }
 valence-library-utils       = { workspace = true }
 clap                        = { workspace = true }
+valence-astroport-lper               = { workspace = true }
+valence-astroport-withdrawer         = { workspace = true }
+valence-astroport-utils              = { workspace = true }
+rand                                 = "0.8.5"
+valence-e2e = { path = "../../../e2e" }

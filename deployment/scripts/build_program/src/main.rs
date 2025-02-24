@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let program = my_program();
 
     // Print instantiated program to file
-    save_config_to_json_file(program)?;
+    save_config_to_json_file(program?)?;
 
     Ok(())
 }
