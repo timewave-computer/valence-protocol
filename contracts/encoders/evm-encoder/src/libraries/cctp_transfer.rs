@@ -1,6 +1,6 @@
 use alloy_sol_types::{SolCall, SolValue};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Binary, StdError, StdResult, Uint128};
+use cosmwasm_std::{Binary, StdError, StdResult, Uint256};
 use valence_encoder_utils::libraries::{
     cctp_transfer::solidity_types::transferCall, updateConfigCall,
 };
@@ -19,7 +19,7 @@ pub struct LibraryConfig {
     /// The mint recipient for the library. Bytes32 representation of the address in solidity.
     pub mint_recipient: Binary,
     /// Amount to transfer. Setting this to 0 will transfer the entire balance.
-    pub amount: Uint128,
+    pub amount: Uint256,
     /// The destination domain to transfer to
     pub destination_domain: u32,
     /// The address of the token to transfer.
@@ -67,7 +67,7 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
             // Build config struct
             let config =
                 valence_encoder_utils::libraries::cctp_transfer::solidity_types::CCTPTransferConfig {
-                    amount: alloy_primitives::U256::from(new_config.amount_to_transfer.u128()),
+                    amount: alloy_primitives::U256::from_be_bytes(new_config.amount.to_be_bytes()),
                     mintRecipient: alloy_primitives::FixedBytes::<32>::from(mint_recipient_fixed),
                     inputAccount: input_account,
                     destinationDomain: new_config.destination_domain,
