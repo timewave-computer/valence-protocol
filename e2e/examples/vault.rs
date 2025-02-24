@@ -4,7 +4,7 @@ use alloy::{
     primitives::{Address, U256},
     sol_types::SolValue,
 };
-use cosmwasm_std::{coin, to_json_binary, Addr, Binary, Decimal, Empty};
+use cosmwasm_std::{coin, to_json_binary, Binary, Decimal, Empty};
 use cosmwasm_std_old::Coin as BankCoin;
 use localic_std::modules::{
     bank,
@@ -59,6 +59,10 @@ use valence_program_manager::{
 };
 
 const EVM_ENCODER_NAMESPACE: &str = "evm_encoder_v1";
+const PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "provide_liquidity";
+const WITHDRAW_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "withdraw_liquidity";
+const ASTROPORT_CONCENTRATED_PAIR_TYPE: &str = "concentrated";
+const SECONDS_IN_DAY: u64 = 86_400;
 
 pub fn my_evm_vault_program(
     ntrn_domain: valence_program_manager::domain::Domain,
@@ -82,7 +86,7 @@ pub fn my_evm_vault_program(
     let withdraw_acc = builder.add_account(withdraw_account_info);
 
     let astro_cl_pair_type = valence_astroport_utils::astroport_native_lp_token::PairType::Custom(
-        "concentrated".to_string(),
+        ASTROPORT_CONCENTRATED_PAIR_TYPE.to_string(),
     );
 
     let astro_cl_pool_asset_data = AssetData {
@@ -172,11 +176,11 @@ pub fn my_evm_vault_program(
         .build();
 
     let astro_lper_authorization = AuthorizationBuilder::new()
-        .with_label("provide_liquidity")
+        .with_label(PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL)
         .with_subroutine(astro_lper_subroutine)
         .build();
     let astro_lwer_authorization = AuthorizationBuilder::new()
-        .with_label("withdraw_liquidity")
+        .with_label(WITHDRAW_LIQUIDITY_AUTHORIZATIONS_LABEL)
         .with_subroutine(astro_lwer_subroutine)
         .build();
 
@@ -196,6 +200,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     rt.block_on(set_up_anvil_container())?;
 
     let eth = EthClient::new(DEFAULT_ANVIL_RPC_ENDPOINT)?;
+    let accounts = eth.get_accounts_addresses()?;
 
     let mut test_ctx = TestContextBuilder::default()
         .with_unwrap_raw_logs(true)
@@ -205,37 +210,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_log_file_path(LOGS_FILE_PATH)
         .build()?;
 
+    let token = create_counterparty_denom(&mut test_ctx)?;
+
     let (eth_hyperlane_contracts, ntrn_hyperlane_contracts) =
         hyperlane_plumbing(&mut test_ctx, &eth)?;
-
-    info!("creating subdenom to pair with NTRN");
-    // Let's create a token to pair it with NTRN
-    let token_subdenom: String = rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(10)
-        .map(char::from)
-        .collect();
-
-    test_ctx
-        .build_tx_create_tokenfactory_token()
-        .with_subdenom(&token_subdenom)
-        .send()?;
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
-    let token = test_ctx
-        .get_tokenfactory_denom()
-        .creator(NEUTRON_CHAIN_ADMIN_ADDR)
-        .subdenom(token_subdenom)
-        .get();
-
-    // Mint some of the token
-    test_ctx
-        .build_tx_mint_tokenfactory_token()
-        .with_amount(1_000_000_000)
-        .with_denom(&token)
-        .send()
-        .unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(3));
 
     // setup astroport
     let (
@@ -245,7 +223,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         astroport_coin_registry_code_id,
     ) = deploy_astroport_contracts(&mut test_ctx)?;
 
-    let (pool_addr, lp_token) = setup_astroport_cl_pool(
+    let (pool_addr, _lp_token) = setup_astroport_cl_pool(
         &mut test_ctx,
         astroport_pair_concentrated_code_id,
         astroport_token_code_id,
@@ -275,36 +253,34 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("initializing manager...");
     use_manager_init(&mut program_config)?;
 
+    info!("fetching manager build artifacts...");
     let deposit_acc_addr = program_config.get_account(0u64)?.addr.clone().unwrap();
     let position_acc_addr = program_config.get_account(1u64)?.addr.clone().unwrap();
     let withdraw_acc_addr = program_config.get_account(2u64)?.addr.clone().unwrap();
-
-    info!("DEPOSIT ACCOUNT\t: {deposit_acc_addr}");
-    info!("POSITION ACCOUNT\t: {position_acc_addr}");
-    info!("WITHDRAW ACCOUNT\t: {withdraw_acc_addr}");
-
-    let authorization_contract_address =
-        program_config.authorization_data.authorization_addr.clone();
-
+    let authorization_contract_address = program_config
+        .authorization_data
+        .authorization_addr
+        .to_string();
     let ntrn_processor_contract_address = program_config
         .get_processor_addr(&ntrn_domain.to_string())
         .unwrap();
 
-    info!("authorization contract address: {authorization_contract_address}");
-    info!("ntrn processor contract address: {ntrn_processor_contract_address}");
+    info!("NTRN DEPOSIT ACC\t: {deposit_acc_addr}");
+    info!("NTRN POSITION ACC\t: {position_acc_addr}");
+    info!("NTRN WITHDRAW ACC\t: {withdraw_acc_addr}");
+    info!("NTRN AUTHORIZATIONS\t: {authorization_contract_address}");
+    info!("NTRN PROCESSOR\t: {ntrn_processor_contract_address}");
 
     // setup eth side:
     // 0. encoders
     // 1. lite processor
     // 2. base accounts
     // 3. vault
-
     info!("Setting up encoders ...");
     let evm_encoder = setup_valence_evm_encoder_v1(&mut test_ctx)?;
-    let encoder_broker = setup_valence_encoder_broker(&mut test_ctx, evm_encoder.to_string())?;
+    let _encoder_broker = setup_valence_encoder_broker(&mut test_ctx, evm_encoder.to_string())?;
 
     info!("Setting up Lite Processor on Ethereum");
-    let accounts = eth.get_accounts_addresses()?;
 
     let tx = LiteProcessor::deploy_builder(
         &eth.provider,
@@ -318,6 +294,53 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let lite_processor_address = eth.send_transaction(tx)?.contract_address.unwrap();
     info!("Lite Processor deployed at: {}", lite_processor_address);
+
+    // Let's create two Valence Base Accounts on Ethereum to test the processor with libraries (in this case the forwarder)
+    info!("Deploying base accounts on Ethereum...");
+    let base_account_tx = BaseAccount::deploy_builder(&eth.provider, accounts[0], vec![])
+        .into_transaction_request()
+        .from(accounts[0]);
+
+    let eth_deposit_acc = eth
+        .send_transaction(base_account_tx.clone())?
+        .contract_address
+        .unwrap();
+    let eth_withdraw_acc = eth
+        .send_transaction(base_account_tx.clone())?
+        .contract_address
+        .unwrap();
+    info!("ETH deposit acc: {eth_deposit_acc}");
+    info!("ETH withdraw acc: {eth_withdraw_acc}");
+
+    info!("Deploying ERC20s on Ethereum...");
+    let evm_vault_deposit_token_tx =
+        MockERC20::deploy_builder(&eth.provider, "TestUSDC".to_string(), "TUSD".to_string())
+            .into_transaction_request()
+            .from(accounts[0]);
+    let valence_vault_deposit_token_address = eth
+        .send_transaction(evm_vault_deposit_token_tx)?
+        .contract_address
+        .unwrap();
+    let valence_vault_deposit_token =
+        MockERC20::new(valence_vault_deposit_token_address, &eth.provider);
+
+    info!("deploying Valence Vault on Ethereum...");
+    let vault_config = setup_vault_config(&accounts, eth_deposit_acc, eth_withdraw_acc);
+
+    let vault_tx = ValenceVault::deploy_builder(
+        &eth.provider,
+        accounts[0],                            // owner
+        vault_config.abi_encode().into(),       // encoded config
+        *valence_vault_deposit_token.address(), // underlying token
+        "Valence Test Vault".to_string(),       // vault token name
+        "vTEST".to_string(),                    // vault token symbol
+        U256::from(1e18), // placeholder, tbd what a reasonable value should be here
+    )
+    .into_transaction_request()
+    .from(accounts[0]);
+
+    let vault_address = eth.send_transaction(vault_tx)?.contract_address.unwrap();
+    info!("Vault deployed at: {vault_address}");
 
     info!("Adding EVM external domain to Authorization contract");
     let add_external_evm_domain_msg =
@@ -353,36 +376,26 @@ fn main() -> Result<(), Box<dyn Error>> {
     .unwrap();
     std::thread::sleep(Duration::from_secs(3));
 
-    // Let's create two Valence Base Accounts on Ethereum to test the processor with libraries (in this case the forwarder)
-    info!("Deploying base accounts on Ethereum...");
-    let base_account_tx = BaseAccount::deploy_builder(&eth.provider, accounts[0], vec![])
-        .into_transaction_request()
-        .from(accounts[0]);
+    // test the neutron side flow
+    test_neutron_side_flow(
+        &mut test_ctx,
+        &deposit_acc_addr,
+        &position_acc_addr,
+        &withdraw_acc_addr,
+        NEUTRON_CHAIN_DENOM,
+        &token,
+        &authorization_contract_address,
+        &ntrn_processor_contract_address,
+    )?;
 
-    let eth_deposit_acc = eth
-        .send_transaction(base_account_tx.clone())?
-        .contract_address
-        .unwrap();
-    let eth_withdraw_acc = eth
-        .send_transaction(base_account_tx.clone())?
-        .contract_address
-        .unwrap();
-    info!("ETH deposit acc: {:?}", eth_deposit_acc);
-    info!("ETH withdraw acc: {:?}", eth_withdraw_acc);
+    Ok(())
+}
 
-    info!("Deploying ERC20s on Ethereum...");
-    let evm_vault_deposit_token_tx =
-        MockERC20::deploy_builder(&eth.provider, "TestUSDC".to_string(), "TUSD".to_string())
-            .into_transaction_request()
-            .from(accounts[0]);
-    let valence_vault_deposit_token_address = eth
-        .send_transaction(evm_vault_deposit_token_tx)?
-        .contract_address
-        .unwrap();
-    let valence_vault_deposit_token =
-        MockERC20::new(valence_vault_deposit_token_address, &eth.provider);
-
-    info!("Deploying Valence Vault on Ethereum...");
+fn setup_vault_config(
+    accounts: &[Address],
+    eth_deposit_acc: Address,
+    eth_withdraw_acc: Address,
+) -> VaultConfig {
     let fee_config = FeeConfig {
         depositFeeBps: 0,        // No deposit fee
         platformFeeBps: 1000,    // 10% yearly platform fee
@@ -396,46 +409,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         strategistRatioBps: 5000,       // 50% to strategist
     };
 
-    let vault_config = VaultConfig {
+    VaultConfig {
         depositAccount: eth_deposit_acc,
         withdrawAccount: eth_withdraw_acc,
         strategist: accounts[0],
         fees: fee_config,
         feeDistribution: fee_distribution,
-        depositCap: 0,               // No cap (for real)
-        withdrawLockupPeriod: 86400, // 1 day lockup
-        maxWithdrawFeeBps: 100,      // 1% max withdraw fee
-    };
-
-    info!("Deploying Valence Vault on Ethereum...");
-    let vault_tx = ValenceVault::deploy_builder(
-        &eth.provider,
-        accounts[0],                            // owner
-        vault_config.abi_encode().into(),       // encoded config
-        *valence_vault_deposit_token.address(), // underlying token
-        "Valence Test Vault".to_string(),       // vault token name
-        "vTEST".to_string(),                    // vault token symbol
-        U256::from(1e18),                       // 1:1 starting rate
-    )
-    .into_transaction_request()
-    .from(accounts[0]);
-
-    let vault_address = eth.send_transaction(vault_tx)?.contract_address.unwrap();
-    info!("Vault deployed at: {}", vault_address);
-
-    // test the neutron side flow
-    // test_neutron_side_flow(
-    //     &mut test_ctx,
-    //     &deposit_acc_addr,
-    //     &position_acc_addr,
-    //     &withdraw_acc_addr,
-    //     NEUTRON_CHAIN_DENOM,
-    //     &token,
-    //     &authorization_contract_address,
-    //     &ntrn_processor_contract_address,
-    // )?;
-
-    Ok(())
+        depositCap: 0,                        // No cap (for real)
+        withdrawLockupPeriod: SECONDS_IN_DAY, // 1 day lockup
+        maxWithdrawFeeBps: 100,               // 1% max withdraw fee
+    }
 }
 
 fn setup_valence_encoder_broker(
@@ -472,13 +455,12 @@ fn setup_valence_encoder_broker(
         None,
         "",
     )
-    .unwrap();
-    info!(
-        "Encoders set up successfully! Broker address: {}",
-        encoder_broker.address
-    );
+    .unwrap()
+    .address;
 
-    Ok(encoder_broker.address)
+    info!("EVM broker: {encoder_broker}");
+
+    Ok(encoder_broker)
 }
 
 fn setup_valence_evm_encoder_v1(test_ctx: &mut TestContext) -> Result<String, Box<dyn Error>> {
@@ -508,11 +490,12 @@ fn setup_valence_evm_encoder_v1(test_ctx: &mut TestContext) -> Result<String, Bo
         None,
         "",
     )
-    .unwrap();
+    .unwrap()
+    .address;
 
-    info!("EVM encoder: {:?}", evm_encoder.address);
+    info!("EVM encoder: {evm_encoder}");
 
-    Ok(evm_encoder.address)
+    Ok(evm_encoder)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -569,7 +552,7 @@ fn test_neutron_side_flow(
     };
     let provide_liquidity_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
         valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
-            label: "provide_liquidity".to_string(),
+            label: PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL.to_string(),
             messages: vec![lp_message],
             ttl: None,
         },
@@ -614,7 +597,7 @@ fn test_neutron_side_flow(
     };
     let withdraw_liquidity_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
         valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
-            label: "withdraw_liquidity".to_string(),
+            label: WITHDRAW_LIQUIDITY_AUTHORIZATIONS_LABEL.to_string(),
             messages: vec![lw_message],
             ttl: None,
         },
@@ -779,7 +762,7 @@ fn setup_astroport_cl_pool(
     let astroport_factory_instantiate_msg = FactoryInstantiateMsg {
         pair_configs: vec![PairConfig {
             code_id: pair_code_id,
-            pair_type: PairType::Custom("concentrated".to_string()),
+            pair_type: PairType::Custom(ASTROPORT_CONCENTRATED_PAIR_TYPE.to_string()),
             total_fee_bps: 0u16,
             maker_fee_bps: 0,
             is_disabled: false,
@@ -845,7 +828,7 @@ fn setup_astroport_cl_pool(
         DEFAULT_KEY,
         &serde_json::to_string(
             &valence_astroport_utils::astroport_native_lp_token::FactoryExecuteMsg::CreatePair {
-                pair_type: PairType::Custom("concentrated".to_string()),
+                pair_type: PairType::Custom(ASTROPORT_CONCENTRATED_PAIR_TYPE.to_string()),
                 asset_infos: pool_assets.clone(),
                 init_params: Some(to_json_binary(&default_params).unwrap()),
             },
@@ -919,6 +902,39 @@ fn setup_astroport_cl_pool(
     std::thread::sleep(std::time::Duration::from_secs(3));
 
     Ok((pool_addr.to_string(), lp_token.to_string()))
+}
+
+fn create_counterparty_denom(test_ctx: &mut TestContext) -> Result<String, Box<dyn Error>> {
+    info!("creating subdenom to pair with NTRN");
+    // Let's create a token to pair it with NTRN
+    let token_subdenom: String = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(10)
+        .map(char::from)
+        .collect();
+
+    test_ctx
+        .build_tx_create_tokenfactory_token()
+        .with_subdenom(&token_subdenom)
+        .send()?;
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    let token = test_ctx
+        .get_tokenfactory_denom()
+        .creator(NEUTRON_CHAIN_ADMIN_ADDR)
+        .subdenom(token_subdenom)
+        .get();
+
+    // Mint some of the token
+    test_ctx
+        .build_tx_mint_tokenfactory_token()
+        .with_amount(1_000_000_000)
+        .with_denom(&token)
+        .send()
+        .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    Ok(token)
 }
 
 fn hyperlane_plumbing(
