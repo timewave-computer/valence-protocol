@@ -7,7 +7,7 @@ use neutron_sdk::bindings::types::ProtobufAny;
 pub struct InstantiateMsg {
     pub admin: String, // Initial owner of the contract
     pub approved_libraries: Vec<String>,
-    pub remote_chain_information: RemoteChainInformation, // Remote chain information required to register the ICA and send messages to it
+    pub remote_domain_information: RemoteDomainInfo, // Remote domain information required to register the ICA and send messages to it
 }
 
 #[cw_ownable_execute]
@@ -27,10 +27,12 @@ pub enum QueryMsg {
     ListApprovedLibraries {}, // Get list of approved libraries
     #[returns(IcaState)]
     IcaState {}, // Get the state of the ICA
+    #[returns(RemoteDomainInfo)]
+    RemoteDomainInfo {}, // Get the remote domain information
 }
 
 #[cw_serde]
-pub struct RemoteChainInformation {
+pub struct RemoteDomainInfo {
     pub connection_id: String,
     pub ica_timeout: Uint64,
 }

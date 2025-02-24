@@ -11,7 +11,7 @@ use valence_account_utils::{error::ContractError, ica::OpenAckVersion};
 
 use crate::{
     msg::{ExecuteMsg, IcaInformation, IcaState, InstantiateMsg, QueryMsg},
-    state::{APPROVED_LIBRARIES, ICA_STATE},
+    state::{APPROVED_LIBRARIES, ICA_STATE, REMOTE_DOMAIN_INFO},
 };
 
 // version info for migration info
@@ -34,6 +34,7 @@ pub fn instantiate(
         APPROVED_LIBRARIES.save(deps.storage, deps.api.addr_validate(library)?, &Empty {})
     })?;
 
+    REMOTE_DOMAIN_INFO.save(deps.storage, &msg.remote_domain_information)?;
     ICA_STATE.save(deps.storage, &IcaState::NotCreated)?;
 
     Ok(Response::new()
@@ -71,7 +72,7 @@ mod execute {
 
     use crate::{
         msg::IcaState,
-        state::{APPROVED_LIBRARIES, ICA_STATE, REMOTE_CHAIN_INFO},
+        state::{APPROVED_LIBRARIES, ICA_STATE, REMOTE_DOMAIN_INFO},
     };
 
     use super::INTERCHAIN_ACCOUNT_ID;
@@ -118,7 +119,7 @@ mod execute {
             });
         }
 
-        let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
+        let remote_domain_info = REMOTE_DOMAIN_INFO.load(deps.storage)?;
         let ica_registration_fee = query_ica_registration_fee(deps.querier)?;
 
         // Check that we have enough to cover the registration fee
@@ -135,7 +136,7 @@ mod execute {
 
         let register_ica_msg = register_ica_msg(
             env.contract.address.into_string(),
-            remote_chain_info.connection_id,
+            remote_domain_info.connection_id,
             INTERCHAIN_ACCOUNT_ID.to_string(),
             ica_registration_fee,
         );
@@ -162,7 +163,7 @@ mod execute {
         );
 
         // Get the Remote Chain Information
-        let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
+        let remote_domain_info = REMOTE_DOMAIN_INFO.load(deps.storage)?;
 
         // Get the IBC fee
         let ibc_fee = min_ntrn_ibc_fee(
@@ -174,11 +175,11 @@ mod execute {
         // Create the SubmitTx msg
         let submit_tx = submit_tx(
             env.contract.address.into_string(),
-            remote_chain_info.connection_id,
+            remote_domain_info.connection_id,
             INTERCHAIN_ACCOUNT_ID.to_string(),
             msgs,
             "".to_string(),
-            remote_chain_info.ica_timeout.u64(),
+            remote_domain_info.ica_timeout.u64(),
             ibc_fee,
         );
 
@@ -221,6 +222,10 @@ pub fn query(deps: Deps<NeutronQuery>, _env: Env, msg: QueryMsg) -> StdResult<Bi
         QueryMsg::IcaState {} => {
             let state = ICA_STATE.load(deps.storage)?;
             to_json_binary(&state)
+        }
+        QueryMsg::RemoteDomainInfo {} => {
+            let remote_domain_info = REMOTE_DOMAIN_INFO.load(deps.storage)?;
+            to_json_binary(&remote_domain_info)
         }
     }
 }
