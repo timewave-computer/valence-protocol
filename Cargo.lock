@@ -7419,7 +7419,6 @@ dependencies = [
 name = "valence-interchain-account"
 version = "0.2.0"
 dependencies = [
- "cosmos-sdk-proto 0.20.0",
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
  "cw-ownable",
