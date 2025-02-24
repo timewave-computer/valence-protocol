@@ -2,11 +2,13 @@ use cosmos_sdk_proto::{cosmos::base::v1beta1::Coin as ProtoCoin, traits::Message
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Binary, Coin, CosmosMsg, QuerierWrapper, QueryRequest, StdResult, Uint64};
 use neutron_sdk::{
-    bindings::{msg::IbcFee, query::NeutronQuery, types::ProtobufAny},
-    proto_types::neutron::interchaintxs::v1::{MsgRegisterInterchainAccount, MsgSubmitTx},
+    bindings::{query::NeutronQuery, types::ProtobufAny},
+    proto_types::neutron::{
+        feerefunder::Fee,
+        interchaintxs::v1::{MsgRegisterInterchainAccount, MsgSubmitTx},
+    },
 };
 use prost_types::Any;
-use valence_ibc_utils::neutron::get_transfer_fee;
 
 #[cw_serde]
 pub struct OpenAckVersion {
@@ -81,7 +83,7 @@ pub fn submit_tx(
     msgs: Vec<ProtobufAny>,
     memo: String,
     timeout: u64,
-    ibc_fee: IbcFee,
+    fee: Fee,
 ) -> CosmosMsg {
     // Transform the messages into what MsgSubmitTx expects
     let any_msgs: Vec<Any> = msgs
@@ -92,9 +94,6 @@ pub fn submit_tx(
         })
         .collect();
 
-    // Get the proto transfer fee
-    let transfer_fee = get_transfer_fee(ibc_fee);
-
     let msg_submit_tx = MsgSubmitTx {
         from_address: sender.to_string(),
         interchain_account_id,
@@ -102,7 +101,7 @@ pub fn submit_tx(
         msgs: any_msgs,
         memo,
         timeout,
-        fee: Some(transfer_fee),
+        fee: Some(fee),
     };
 
     #[allow(deprecated)]

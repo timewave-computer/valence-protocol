@@ -68,7 +68,7 @@ mod execute {
         error::{ContractError, UnauthorizedReason},
         ica::{query_ica_registration_fee, register_ica_msg, submit_tx},
     };
-    use valence_ibc_utils::neutron::min_ntrn_ibc_fee;
+    use valence_ibc_utils::neutron::{get_transfer_fee, min_ntrn_ibc_fee};
 
     use crate::{
         msg::IcaState,
@@ -172,6 +172,9 @@ mod execute {
                 .min_fee,
         );
 
+        // Get the proto fee
+        let transfer_fee = get_transfer_fee(ibc_fee);
+
         // Create the SubmitTx msg
         let submit_tx = submit_tx(
             env.contract.address.into_string(),
@@ -180,7 +183,7 @@ mod execute {
             msgs,
             "".to_string(),
             remote_domain_info.ica_timeout.u64(),
-            ibc_fee,
+            transfer_fee,
         );
 
         // Send the message
