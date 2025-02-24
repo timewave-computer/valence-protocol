@@ -22,7 +22,7 @@ cw2                   = { workspace = true }
 schemars              = { workspace = true }
 serde                 = { workspace = true }
 thiserror             = { workspace = true }
-valence-account-utils = { workspace = true }
 neutron-sdk           = { workspace = true }
 serde_json            = { workspace = true }
 valence-ibc-utils     = { workspace = true, features = ["neutron"] }
+valence-account-utils = { workspace = true, features = ["neutron"] }
