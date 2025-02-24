@@ -25,7 +25,7 @@ Read more about the given type ICQ integration in the [type registry documentati
 ### Valence Storage account
 
 Results received and meant for further processing by other libraries will be stored in
-[Storage Accounts](./../../components/base_accounts.md). Each instance of Neutron
+[Storage Accounts](../../accounts/storage_accounts.md). Each instance of Neutron
 IC querier will be associated with its own storage account.
 
 ### Query registration fee
@@ -210,7 +210,7 @@ make any assumptions about the different encoding schemes that remote domains ma
 to - instead, that responsibility is handed over to [Valence Middleware](./../../middleware/_overview.md).
 
 Final step in result postprocessing is about persisting the canonicalized query results.
-Resulting Valence Types are written into a [Storage Account](./../../components/base_accounts.md),
+Resulting Valence Types are written into a [Storage Account](../../accounts/storage_accounts.md),
 making it available for further processing, interpretation, or other types of processing.
 
 ## Library Lifecycle

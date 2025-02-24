@@ -34,4 +34,4 @@ graph LR
 ```
 Note: this is a simplified representation.
 
-**Valence Base Accounts** do not perform any operation by themselves on the held funds, the operations are performed by **[Valence Libraries](./libraries_and_functions.md)**.
+**Valence Base Accounts** do not perform any operation by themselves on the held funds, the operations are performed by **[Valence Libraries](../components//libraries_and_functions.md)**.

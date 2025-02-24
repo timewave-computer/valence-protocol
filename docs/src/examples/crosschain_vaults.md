@@ -84,7 +84,7 @@ We'll need the following Libraries on Neutron:
 - **Position Withdrawer**: To redeem a position for underlying funds that are then transferred to the Withdraw Account on Neutron.
 - **Bridge Transfer**: To transfer funds from the Neutron Withdraw Account to the Ethereum Withdraw Account.
 
-Note that the Accounts mentioned here are the standard [Valence Base Accounts](../components/base_accounts.md). Th Bridge Transfer library will depend on the token being transferred, but will offer similar functionality to the [IBC Transfer](../libraries/cosmwasm/generic_ibc_transfer.md) library. The Position Depositor and Withdrawer will depend on the type of position, but can be similar to the [Liqudity Provider](../libraries/cosmwasm/astroport_lper.md) and [Liquidity Withdrawer](../libraries/cosmwasm/astroport_withdrawer.md).
+Note that the Accounts mentioned here are the standard [Valence Base Accounts](../accounts/base_accounts.md). Th Bridge Transfer library will depend on the token being transferred, but will offer similar functionality to the [IBC Transfer](../libraries/cosmwasm/generic_ibc_transfer.md) library. The Position Depositor and Withdrawer will depend on the type of position, but can be similar to the [Liqudity Provider](../libraries/cosmwasm/astroport_lper.md) and [Liquidity Withdrawer](../libraries/cosmwasm/astroport_withdrawer.md).
 
 ### Vault Contract
 The Vault contract is a special contract on Ethereum that has an ERC-4626 interface.
