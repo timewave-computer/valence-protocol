@@ -45,7 +45,7 @@ The library is configured on deployment using the `CCTPTransferConfig` type. A l
 ```solidity
     /**
      * @dev Configuration struct for token transfer parameters.
-     * @param amountToTransfer The number of tokens to transfer. If set to 0, the entire balance is transferred.
+     * @param amount The number of tokens to transfer. If set to 0, the entire balance is transferred.
      * @param mintRecipient The recipient address (in bytes32 format) on the destination chain where tokens will be minted.
      * @param inputAccount The account from which tokens will be debited.
      * @param destinationDomain The domain identifier for the destination chain.
@@ -53,7 +53,7 @@ The library is configured on deployment using the `CCTPTransferConfig` type. A l
      * @param transferToken The ERC20 token address that will be transferred.
      */
     struct CCTPTransferConfig {
-        uint256 amountToTransfer; // If we want to transfer all tokens, we can set this to 0.
+        uint256 amount; // If we want to transfer all tokens, we can set this to 0.
         bytes32 mintRecipient;
         Account inputAccount;
         uint32 destinationDomain;

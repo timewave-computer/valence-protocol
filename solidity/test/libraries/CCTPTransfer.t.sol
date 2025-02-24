@@ -35,7 +35,7 @@ contract CCTPTransferTest is Test {
 
         // Create a valid configuration.
         CCTPTransfer.CCTPTransferConfig memory validConfig = CCTPTransfer.CCTPTransferConfig({
-            amountToTransfer: 1000,
+            amount: 1000,
             mintRecipient: mintRecipient,
             inputAccount: inputAccount,
             destinationDomain: destinationDomain,
@@ -51,7 +51,7 @@ contract CCTPTransferTest is Test {
 
     function testUpdateConfigFailsZeroTokenMessenger() public {
         CCTPTransfer.CCTPTransferConfig memory invalidConfig = CCTPTransfer.CCTPTransferConfig({
-            amountToTransfer: 100,
+            amount: 100,
             mintRecipient: mintRecipient,
             inputAccount: inputAccount,
             destinationDomain: destinationDomain,
@@ -66,7 +66,7 @@ contract CCTPTransferTest is Test {
 
     function testUpdateConfigFailsZeroTransferToken() public {
         CCTPTransfer.CCTPTransferConfig memory invalidConfig = CCTPTransfer.CCTPTransferConfig({
-            amountToTransfer: 100,
+            amount: 100,
             mintRecipient: mintRecipient,
             inputAccount: inputAccount,
             destinationDomain: destinationDomain,
@@ -81,7 +81,7 @@ contract CCTPTransferTest is Test {
 
     function testUpdateConfigFailsZeroInputAccount() public {
         CCTPTransfer.CCTPTransferConfig memory invalidConfig = CCTPTransfer.CCTPTransferConfig({
-            amountToTransfer: 100,
+            amount: 100,
             mintRecipient: mintRecipient,
             inputAccount: ValenceAccount(payable(address(0))), // Zero address (invalid)
             destinationDomain: destinationDomain,

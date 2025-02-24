@@ -14,7 +14,7 @@ import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
 contract CCTPTransfer is Library {
     /**
      * @dev Configuration struct for token transfer parameters.
-     * @param amountToTransfer The number of tokens to transfer. If set to 0, the entire balance is transferred.
+     * @param amount The number of tokens to transfer. If set to 0, the entire balance is transferred.
      * @param mintRecipient The recipient address (in bytes32 format) on the destination chain where tokens will be minted.
      * @param inputAccount The account from which tokens will be debited.
      * @param destinationDomain The domain identifier for the destination chain.
@@ -22,7 +22,7 @@ contract CCTPTransfer is Library {
      * @param transferToken The ERC20 token address that will be transferred.
      */
     struct CCTPTransferConfig {
-        uint256 amountToTransfer; // If we want to transfer all tokens, we can set this to 0.
+        uint256 amount; // If we want to transfer all tokens, we can set this to 0.
         bytes32 mintRecipient;
         Account inputAccount;
         uint32 destinationDomain;
@@ -99,22 +99,22 @@ contract CCTPTransfer is Library {
 
         // Check the token balance of the input account.
         uint256 balance = IERC20(_config.transferToken).balanceOf(address(_config.inputAccount));
-        if (balance == 0 || balance < _config.amountToTransfer) {
+        if (balance == 0 || balance < _config.amount) {
             revert("Insufficient balance");
         }
 
         // Determine the amount to transfer:
-        // If amountToTransfer is greater than 0, use that value; otherwise, transfer the full balance.
-        uint256 _amountToTransfer = _config.amountToTransfer > 0 ? _config.amountToTransfer : balance;
+        // If amount is greater than 0, use that value; otherwise, transfer the full balance.
+        uint256 _amount = _config.amount > 0 ? _config.amount : balance;
 
         // Encode the approval call: this allows the CCTP Token Messenger to spend the tokens.
         bytes memory encodedApproveCall =
-            abi.encodeCall(IERC20.approve, (address(_config.cctpTokenMessenger), _amountToTransfer));
+            abi.encodeCall(IERC20.approve, (address(_config.cctpTokenMessenger), _amount));
 
         // Encode the transfer call: deposit tokens for burning, which triggers the cross-chain transfer.
         bytes memory encodedTransferCall = abi.encodeCall(
             ITokenMessenger.depositForBurn,
-            (_amountToTransfer, _config.destinationDomain, _config.mintRecipient, _config.transferToken)
+            (_amount, _config.destinationDomain, _config.mintRecipient, _config.transferToken)
         );
 
         // Execute the approval call on the input account.

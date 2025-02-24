@@ -18,8 +18,8 @@ pub struct LibraryConfig {
     pub input_addr: LibraryAccountType,
     /// The mint recipient for the library. Bytes32 representation of the address in solidity.
     pub mint_recipient: Binary,
-    /// Amount to transfer
-    pub amount_to_transfer: Uint128,
+    /// Amount to transfer. Setting this to 0 will transfer the entire balance.
+    pub amount: Uint128,
     /// The destination domain to transfer to
     pub destination_domain: u32,
     /// The address of the token to transfer.
@@ -67,7 +67,7 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
             // Build config struct
             let config =
                 valence_encoder_utils::libraries::cctp_transfer::solidity_types::CCTPTransferConfig {
-                    amountToTransfer: alloy_primitives::U256::from(new_config.amount_to_transfer.u128()),
+                    amount: alloy_primitives::U256::from(new_config.amount_to_transfer.u128()),
                     mintRecipient: alloy_primitives::FixedBytes::<32>::from(mint_recipient_fixed),
                     inputAccount: input_account,
                     destinationDomain: new_config.destination_domain,

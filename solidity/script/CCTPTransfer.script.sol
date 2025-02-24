@@ -17,7 +17,7 @@ contract CCTPTransferScript is Script {
     address processor = address(2);
     CCTPTransfer public cctpTransfer;
     BaseAccount inputAccount;
-    uint256 amountToTransfer = 100000;
+    uint256 amount = 100000;
 
     function run() external {
         // Create a fork of mainnet and switch to it
@@ -40,7 +40,7 @@ contract CCTPTransferScript is Script {
 
         // Deploy a new CCTPTransfer contract
         CCTPTransfer.CCTPTransferConfig memory validConfig = CCTPTransfer.CCTPTransferConfig({
-            amountToTransfer: amountToTransfer,
+            amount: amount,
             mintRecipient: bytes32(uint256(0x3)),
             inputAccount: inputAccount,
             destinationDomain: 5,
@@ -65,7 +65,7 @@ contract CCTPTransferScript is Script {
         // Get the balance after the transfer of the inputAccount
         uint256 balanceAfter = usdc.balanceOf(address(inputAccount));
 
-        // Assert that the balance of the inputAccount has decreased by the amountToTransfer
-        assert(balanceBefore - balanceAfter == amountToTransfer);
+        // Assert that the balance of the inputAccount has decreased by the amount
+        assert(balanceBefore - balanceAfter == amount);
     }
 }
