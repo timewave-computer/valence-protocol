@@ -108,8 +108,7 @@ contract CCTPTransfer is Library {
         uint256 _amount = _config.amount > 0 ? _config.amount : balance;
 
         // Encode the approval call: this allows the CCTP Token Messenger to spend the tokens.
-        bytes memory encodedApproveCall =
-            abi.encodeCall(IERC20.approve, (address(_config.cctpTokenMessenger), _amount));
+        bytes memory encodedApproveCall = abi.encodeCall(IERC20.approve, (address(_config.cctpTokenMessenger), _amount));
 
         // Encode the transfer call: deposit tokens for burning, which triggers the cross-chain transfer.
         bytes memory encodedTransferCall = abi.encodeCall(
