@@ -44,7 +44,7 @@ pub struct RemoteDomainInfo {
 }
 ```
 
-In this message, the the `connection_id` of the remote domain and the timeout for the ICA messages are specified.
+In this message, the `connection_id` of the remote domain and the timeout for the ICA messages are specified.
 
 ### Execute Methods
 
