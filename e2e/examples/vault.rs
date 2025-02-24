@@ -1,7 +1,7 @@
 use std::{collections::HashMap, env, error::Error, str::FromStr, time::Duration};
 
 use alloy::primitives::Address;
-use cosmwasm_std::{coin, to_json_binary, Binary, Decimal, Empty};
+use cosmwasm_std::{coin, to_json_binary, Addr, Binary, Decimal, Empty};
 use cosmwasm_std_old::Coin as BankCoin;
 use localic_std::modules::{
     bank,
@@ -26,7 +26,10 @@ use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType},
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
     domain::Domain,
-    msg::ProcessorMessage,
+    msg::{
+        EncoderInfo, EvmBridgeInfo, ExternalDomainInfo, HyperlaneConnectorInfo, PermissionedMsg,
+        ProcessorMessage,
+    },
 };
 use valence_e2e::utils::{
     ethereum::set_up_anvil_container,
@@ -36,9 +39,9 @@ use valence_e2e::utils::{
     },
     manager::{setup_manager, use_manager_init, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME},
     processor::tick_processor,
-    solidity_contracts::LiteProcessor,
-    ASTROPORT_PATH, DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS,
-    HYPERLANE_RELAYER_NEUTRON_ADDRESS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
+    solidity_contracts::{BaseAccount, LiteProcessor, ValenceVault},
+    ASTROPORT_PATH, DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME, ETHEREUM_HYPERLANE_DOMAIN,
+    GAS_FLAGS, HYPERLANE_RELAYER_NEUTRON_ADDRESS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
     NEUTRON_CONFIG_FILE, NEUTRON_HYPERLANE_DOMAIN, VALENCE_ARTIFACTS_PATH,
 };
 use valence_library_utils::liquidity_utils::AssetData;
@@ -48,6 +51,8 @@ use valence_program_manager::{
     program_config::ProgramConfig,
     program_config_builder::ProgramConfigBuilder,
 };
+
+const EVM_ENCODER_NAMESPACE: &str = "evm_encoder_v1";
 
 pub fn my_evm_vault_program(
     ntrn_domain: valence_program_manager::domain::Domain,
@@ -282,42 +287,162 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("authorization contract address: {authorization_contract_address}");
     info!("ntrn processor contract address: {ntrn_processor_contract_address}");
 
-    test_neutron_side_flow(
-        &mut test_ctx,
-        &deposit_acc_addr,
-        &position_acc_addr,
-        &withdraw_acc_addr,
-        NEUTRON_CHAIN_DENOM,
-        &token,
-        &authorization_contract_address,
-        &ntrn_processor_contract_address,
-    )?;
-
     // setup eth side:
-    // 1. base account
-    // 2. vault
-    // 3. lite processor
+    // 0. encoders
+    // 1. lite processor
+    // 2. base accounts
+    // 3. vault
 
     info!("Setting up encoders ...");
-    // Since we are going to send messages to EVM, we need to set up the encoder broker with the evm encoder
+    let evm_encoder = setup_valence_evm_encoder_v1(&mut test_ctx)?;
+    let encoder_broker = setup_valence_encoder_broker(&mut test_ctx, evm_encoder.to_string())?;
+
+    info!("Setting up Lite Processor on Ethereum");
+    let accounts = eth.get_accounts_addresses()?;
+
+    let tx = LiteProcessor::deploy_builder(
+        &eth.provider,
+        bech32_to_evm_bytes32(&authorization_contract_address)?,
+        Address::from_str(&eth_hyperlane_contracts.mailbox)?,
+        NEUTRON_HYPERLANE_DOMAIN,
+        vec![accounts[0]],
+    )
+    .into_transaction_request()
+    .from(accounts[0]);
+
+    let lite_processor_address = eth.send_transaction(tx)?.contract_address.unwrap();
+    info!("Lite Processor deployed at: {}", lite_processor_address);
+
+    info!("Adding EVM external domain to Authorization contract");
+    let add_external_evm_domain_msg =
+        valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
+            PermissionedMsg::AddExternalDomains {
+                external_domains: vec![ExternalDomainInfo {
+                    name: ETHEREUM_CHAIN_NAME.to_string(),
+                    execution_environment:
+                        valence_authorization_utils::msg::ExecutionEnvironmentInfo::Evm(
+                            EncoderInfo {
+                                broker_address: evm_encoder.clone(),
+                                encoder_version: EVM_ENCODER_NAMESPACE.to_string(),
+                            },
+                            EvmBridgeInfo::Hyperlane(HyperlaneConnectorInfo {
+                                mailbox: ntrn_hyperlane_contracts.mailbox.to_string(),
+                                domain_id: ETHEREUM_HYPERLANE_DOMAIN,
+                            }),
+                        ),
+                    processor: lite_processor_address.to_string(),
+                }],
+            },
+        );
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&add_external_evm_domain_msg).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+    std::thread::sleep(Duration::from_secs(3));
+
+    // Let's create two Valence Base Accounts on Ethereum to test the processor with libraries (in this case the forwarder)
+    info!("Deploying base accounts on Ethereum...");
+    let base_account_tx = BaseAccount::deploy_builder(&eth.provider, accounts[0], vec![])
+        .into_transaction_request()
+        .from(accounts[0]);
+
+    let eth_deposit_acc = eth
+        .send_transaction(base_account_tx.clone())?
+        .contract_address
+        .unwrap();
+    let eth_withdraw_acc = eth
+        .send_transaction(base_account_tx.clone())?
+        .contract_address
+        .unwrap();
+    info!("ETH deposit acc: {:?}", eth_deposit_acc);
+    info!("ETH withdraw acc: {:?}", eth_withdraw_acc);
+
+    // info!("Deploying Valence Vault on Ethereum...");
+    // let vault_tx = ValenceVault::deploy_builder(
+    //     &eth.provider,
+    //     accounts[0],
+    //     config,
+    //     underlying,
+    //     vaultTokenName,
+    //     vaultTokenSymbol,
+    //     startingRate,
+    // );
+
+    // test the neutron side flow
+    // test_neutron_side_flow(
+    //     &mut test_ctx,
+    //     &deposit_acc_addr,
+    //     &position_acc_addr,
+    //     &withdraw_acc_addr,
+    //     NEUTRON_CHAIN_DENOM,
+    //     &token,
+    //     &authorization_contract_address,
+    //     &ntrn_processor_contract_address,
+    // )?;
+
+    Ok(())
+}
+
+fn setup_valence_encoder_broker(
+    test_ctx: &mut TestContext,
+    evm_encoder: String,
+) -> Result<String, Box<dyn Error>> {
     let current_dir = env::current_dir()?;
     let encoder_broker_path = format!(
         "{}/artifacts/valence_encoder_broker.wasm",
         current_dir.display()
     );
-    let evm_encoder_path = format!(
-        "{}/artifacts/valence_evm_encoder_v1.wasm",
-        current_dir.display()
-    );
+
     let mut uploader = test_ctx.build_tx_upload_contracts();
     uploader.send_single_contract(&encoder_broker_path)?;
-    uploader.send_single_contract(&evm_encoder_path)?;
 
     let code_id_encoder_broker = *test_ctx
         .get_chain(NEUTRON_CHAIN_NAME)
         .contract_codes
         .get("valence_encoder_broker")
         .unwrap();
+
+    let encoder_broker = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        code_id_encoder_broker,
+        &serde_json::to_string(&valence_encoder_broker::msg::InstantiateMsg {
+            encoders: HashMap::from([(EVM_ENCODER_NAMESPACE.to_string(), evm_encoder)]),
+            owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        })
+        .unwrap(),
+        "encoder_broker",
+        None,
+        "",
+    )
+    .unwrap();
+    info!(
+        "Encoders set up successfully! Broker address: {}",
+        encoder_broker.address
+    );
+
+    Ok(encoder_broker.address)
+}
+
+fn setup_valence_evm_encoder_v1(test_ctx: &mut TestContext) -> Result<String, Box<dyn Error>> {
+    let current_dir = env::current_dir()?;
+
+    let evm_encoder_path = format!(
+        "{}/artifacts/valence_evm_encoder_v1.wasm",
+        current_dir.display()
+    );
+    let mut uploader = test_ctx.build_tx_upload_contracts();
+    uploader.send_single_contract(&evm_encoder_path)?;
+
     let code_id_evm_encoder = *test_ctx
         .get_chain(NEUTRON_CHAIN_NAME)
         .contract_codes
@@ -337,47 +462,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     )
     .unwrap();
 
-    let namespace_evm_encoder = "evm_encoder_v1".to_string();
-    let encoder_broker = contract_instantiate(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        DEFAULT_KEY,
-        code_id_encoder_broker,
-        &serde_json::to_string(&valence_encoder_broker::msg::InstantiateMsg {
-            encoders: HashMap::from([(namespace_evm_encoder.clone(), evm_encoder.address)]),
-            owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        })
-        .unwrap(),
-        "encoder_broker",
-        None,
-        "",
-    )
-    .unwrap();
-    info!(
-        "Encoders set up successfully! Broker address: {}",
-        encoder_broker.address
-    );
+    info!("EVM encoder: {:?}", evm_encoder.address);
 
-    info!("Setting up Lite Processor on Ethereum");
-    let accounts = eth.get_accounts_addresses()?;
-
-    let tx = LiteProcessor::deploy_builder(
-        &eth.provider,
-        bech32_to_evm_bytes32(&authorization_contract_address)?,
-        Address::from_str(&eth_hyperlane_contracts.mailbox)?,
-        NEUTRON_HYPERLANE_DOMAIN,
-        vec![],
-    )
-    .into_transaction_request()
-    .from(accounts[0]);
-
-    let lite_processor_address = eth.send_transaction(tx)?.contract_address.unwrap();
-    info!("Lite Processor deployed at: {}", lite_processor_address);
-
-    Ok(())
+    Ok(evm_encoder.address)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn test_neutron_side_flow(
     test_ctx: &mut TestContext,
     deposit_acc_addr: &str,

@@ -52,6 +52,13 @@ sol!(
     "../solidity/out/Forwarder.sol/Forwarder.json",
 );
 
+// Valence ERC4626-based vault
+sol!(
+    #[sol(rpc)]
+    ValenceVault,
+    "../solidity/out/ValenceVault.sol/ValenceVault.json",
+);
+
 // Testing utils
 sol!(
     #[sol(rpc)]
