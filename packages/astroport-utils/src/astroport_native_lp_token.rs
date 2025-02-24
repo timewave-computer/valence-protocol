@@ -221,7 +221,7 @@ pub enum FactoryQueries {
     },
 }
 
-// The content of this file is taken from the 'astroport' crate, specifically version 5.7.0
+// following type definitions follow astroport-core @ 5.7.0
 
 #[cw_serde]
 pub struct NativeCoinRegistryInstantiateMsg {
