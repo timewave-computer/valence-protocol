@@ -108,11 +108,53 @@ contract CCTPTransferTest is Test {
         cctpTransfer.transfer();
     }
 
+    function testTransferFailsNothingToTransfer() public {
+        // Use 0 as amount to indicate we are transferring everything
+        CCTPTransfer.CCTPTransferConfig memory validConfig = CCTPTransfer.CCTPTransferConfig({
+            amount: 0,
+            mintRecipient: mintRecipient,
+            inputAccount: inputAccount,
+            destinationDomain: destinationDomain,
+            cctpTokenMessenger: ITokenMessenger(address(stubTokenMessenger)),
+            transferToken: address(token)
+        });
+        bytes memory configBytes = abi.encode(validConfig);
+        vm.prank(owner);
+        cctpTransfer = new CCTPTransfer(owner, processor, configBytes);
+
+        vm.prank(processor);
+        vm.expectRevert("Nothing to transfer");
+        cctpTransfer.transfer();
+    }
+
     function testTransferSucceedsWithSufficientBalance() public {
         // Set the dummy token balance for the dummy account higher than the required amount.
         token.mint(address(inputAccount), 1500);
         vm.prank(processor);
         // This call should succeed because the balance is sufficient.
+        cctpTransfer.transfer();
+    }
+
+    function testTransferSucceedsWithSufficientBalanceAndFullAmount() public {
+        // Use 0 as amount to indicate we are transferring everything
+        CCTPTransfer.CCTPTransferConfig memory validConfig = CCTPTransfer.CCTPTransferConfig({
+            amount: 0,
+            mintRecipient: mintRecipient,
+            inputAccount: inputAccount,
+            destinationDomain: destinationDomain,
+            cctpTokenMessenger: ITokenMessenger(address(stubTokenMessenger)),
+            transferToken: address(token)
+        });
+        bytes memory configBytes = abi.encode(validConfig);
+        vm.prank(owner);
+        cctpTransfer = new CCTPTransfer(owner, processor, configBytes);
+        // Approve the token transfer library.
+        vm.prank(owner);
+        inputAccount.approveLibrary(address(cctpTransfer));
+
+        // Mint some tokens to the input account.
+        token.mint(address(inputAccount), 50);
+        vm.prank(processor);
         cctpTransfer.transfer();
     }
 }

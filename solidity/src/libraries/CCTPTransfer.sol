@@ -99,7 +99,9 @@ contract CCTPTransfer is Library {
 
         // Check the token balance of the input account.
         uint256 balance = IERC20(_config.transferToken).balanceOf(address(_config.inputAccount));
-        if (balance == 0 || balance < _config.amount) {
+        if (balance == 0 && _config.amount == 0) {
+            revert("Nothing to transfer");
+        } else if (balance == 0 || balance < _config.amount) {
             revert("Insufficient balance");
         }
 
