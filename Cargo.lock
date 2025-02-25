@@ -7855,6 +7855,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-strategist-utils"
+version = "0.2.0"
+dependencies = [
+ "async-trait",
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "valence-template-library"
 version = "0.2.0"
 dependencies = [
