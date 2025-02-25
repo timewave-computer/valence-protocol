@@ -8,7 +8,7 @@ use localic_std::modules::{
 };
 use localic_utils::{
     ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
-    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
+    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 use log::info;
 use rand::{distributions::Alphanumeric, Rng};
@@ -30,7 +30,7 @@ use valence_e2e::utils::{
     },
     processor::tick_processor,
     ASTROPORT_LP_SUBDENOM, ASTROPORT_PATH, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
-    LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, NEUTRON_USER_ADDRESS_1, NTRN_DENOM, USER_KEY_1,
+    LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, NEUTRON_USER_ADDRESS_1, USER_KEY_1,
     VALENCE_ARTIFACTS_PATH,
 };
 use valence_forwarder_library::msg::{ForwardingConstraints, UncheckedForwardingConfig};
@@ -153,7 +153,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Create the pool...");
     let pool_assets = vec![
         AssetInfo::NativeToken {
-            denom: NTRN_DENOM.to_string(),
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
         },
         AssetInfo::NativeToken {
             denom: token.clone(),
@@ -210,7 +210,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             assets: vec![
                 Asset {
                     info: AssetInfo::NativeToken {
-                        denom: NTRN_DENOM.to_string(),
+                        denom: NEUTRON_CHAIN_DENOM.to_string(),
                     },
                     amount: Uint128::new(ntrn_deposit),
                 },
@@ -238,7 +238,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             token_deposit,
             token.clone(),
             ntrn_deposit,
-            NTRN_DENOM,
+            NEUTRON_CHAIN_DENOM,
             GAS_FLAGS
         ),
     )
@@ -290,7 +290,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             factor: None,
                         },
                         valence_reverse_splitter_library::msg::UncheckedSplitConfig {
-                            denom: UncheckedDenom::Native(NTRN_DENOM.to_string()),
+                            denom: UncheckedDenom::Native(NEUTRON_CHAIN_DENOM.to_string()),
                             account: LibraryAccountType::AccountId(2),
                             amount:
                                 valence_reverse_splitter_library::msg::UncheckedSplitAmount::FixedAmount(
@@ -299,7 +299,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             factor: None,
                         }
                     ],
-                    base_denom: UncheckedDenom::Native(NTRN_DENOM.to_string()),
+                    base_denom: UncheckedDenom::Native(NEUTRON_CHAIN_DENOM.to_string()),
                 },
             ),
             addr: None,
@@ -321,7 +321,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             max_amount: Uint128::new(lp_amount),
                         },
                         UncheckedForwardingConfig {
-                            denom: UncheckedDenom::Native(NTRN_DENOM.to_string()),
+                            denom: UncheckedDenom::Native(NEUTRON_CHAIN_DENOM.to_string()),
                             max_amount: Uint128::new(lp_amount),
                         },
                     ],
@@ -347,7 +347,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             valence_astroport_utils::astroport_native_lp_token::PairType::Xyk {},
                         ),
                         asset_data: AssetData {
-                            asset1: NTRN_DENOM.to_string(),
+                            asset1: NEUTRON_CHAIN_DENOM.to_string(),
                             asset2: token.clone(),
                         },
                         max_spread: None,
@@ -414,7 +414,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 valence_astroport_utils::astroport_native_lp_token::PairType::Xyk {  },
                             ),
                             asset_data: AssetData {
-                                asset1: NTRN_DENOM.to_string(),
+                                asset1: NEUTRON_CHAIN_DENOM.to_string(),
                                 asset2: token.clone(),
                             },
                         },
@@ -441,7 +441,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             ),
                         },
                         valence_splitter_library::msg::UncheckedSplitConfig {
-                            denom: UncheckedDenom::Native(NTRN_DENOM.to_string()),
+                            denom: UncheckedDenom::Native(NEUTRON_CHAIN_DENOM.to_string()),
                             account: LibraryAccountType::AccountId(10),
                             amount: valence_splitter_library::msg::UncheckedSplitAmount::FixedRatio(
                                 Decimal::percent(100),
@@ -742,7 +742,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             amount: lp_amount.into(),
         }],
         &Coin {
-            denom: NTRN_DENOM.to_string(),
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
             amount: cosmwasm_std_old::Uint128::new(5000),
         },
     )
@@ -756,11 +756,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         DEFAULT_KEY,
         &neutron_depositor,
         &[Coin {
-            denom: NTRN_DENOM.to_string(),
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
             amount: lp_amount.into(),
         }],
         &Coin {
-            denom: NTRN_DENOM.to_string(),
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
             amount: cosmwasm_std_old::Uint128::new(5000),
         },
     )
@@ -827,9 +827,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     assert!(balance
         .iter()
         .any(|balance| balance.denom == token && balance.amount.u128() == lp_amount));
-    assert!(balance
-        .iter()
-        .any(|balance| balance.denom == *NTRN_DENOM && balance.amount.u128() == lp_amount));
+    assert!(
+        balance
+            .iter()
+            .any(|balance| balance.denom == *NEUTRON_CHAIN_DENOM
+                && balance.amount.u128() == lp_amount)
+    );
 
     info!("Sending messages to provide liquidity...");
     let binary1 = Binary::from(
@@ -858,7 +861,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         serde_json::to_vec(
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
                 valence_astroport_lper::msg::FunctionMsgs::ProvideSingleSidedLiquidity {
-                    asset: NTRN_DENOM.to_string(),
+                    asset: NEUTRON_CHAIN_DENOM.to_string(),
                     limit: None,
                     expected_pool_ratio_range: None,
                 },
@@ -1073,7 +1076,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     assert!(tokenfactory_token_balance.len() == 1);
     assert!(neutron_balance.len() == 1);
     assert!(tokenfactory_token_balance[0].denom == token);
-    assert!(neutron_balance[0].denom == *NTRN_DENOM);
+    assert!(neutron_balance[0].denom == *NEUTRON_CHAIN_DENOM);
 
     info!("Finished Two Party Single Domain (Neutron) Astroport POL tests!");
 

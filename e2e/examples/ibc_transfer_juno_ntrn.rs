@@ -11,12 +11,12 @@ use localic_std::modules::{
 };
 use localic_utils::{
     ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, JUNO_CHAIN_ADMIN_ADDR, JUNO_CHAIN_NAME,
-    LOCAL_IC_API_URL, NEUTRON_CHAIN_NAME,
+    LOCAL_IC_API_URL, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 use log::info;
 use valence_e2e::utils::{
     base_account::{approve_library, create_base_accounts},
-    GAS_FLAGS, LOGS_FILE_PATH, NTRN_DENOM, VALENCE_ARTIFACTS_PATH,
+    GAS_FLAGS, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
 };
 
 use valence_generic_ibc_transfer_library::msg::{
@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let neutron_on_juno_denom = test_ctx
         .get_ibc_denom()
-        .base_denom(NTRN_DENOM.to_owned())
+        .base_denom(NEUTRON_CHAIN_DENOM.to_owned())
         .src(NEUTRON_CHAIN_NAME)
         .dest(JUNO_CHAIN_NAME)
         .get();
@@ -83,7 +83,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_chain_name(NEUTRON_CHAIN_NAME)
         .with_amount(1_000_000_000_000u128)
         .with_recipient(&input_account)
-        .with_denom(NTRN_DENOM)
+        .with_denom(NEUTRON_CHAIN_DENOM)
         .send()
         .unwrap();
     std::thread::sleep(std::time::Duration::from_secs(3));
@@ -110,7 +110,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &output_account,
     )
     .iter()
-    .find(|bal| bal.denom == NTRN_DENOM)
+    .find(|bal| bal.denom == NEUTRON_CHAIN_DENOM)
     .map_or(0, |bal| bal.amount.u128());
     info!("Start output balance: {:?}", start_output_balance);
 
@@ -221,7 +221,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &output_account,
     )
     .iter()
-    .find(|bal| bal.denom == NTRN_DENOM)
+    .find(|bal| bal.denom == NEUTRON_CHAIN_DENOM)
     .map_or(0, |bal| bal.amount.u128());
     assert_eq!(
         end_output_balance,
@@ -295,7 +295,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &output_account,
     )
     .iter()
-    .find(|bal| bal.denom == NTRN_DENOM)
+    .find(|bal| bal.denom == NEUTRON_CHAIN_DENOM)
     .map_or(0, |bal| bal.amount.u128());
     assert_eq!(
         end_output_balance,
