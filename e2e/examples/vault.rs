@@ -248,8 +248,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     let ntrn_domain =
         valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
 
-    let mut program_config =
-        my_evm_vault_program(ntrn_domain.clone(), NEUTRON_CHAIN_DENOM, &token, &pool_addr)?;
+    let mut program_config = my_evm_vault_program(
+        ntrn_domain.clone(),
+        NEUTRON_CHAIN_DENOM,
+        &token,
+        &pool_addr,
+        NEUTRON_CHAIN_ADMIN_ADDR,
+    )?;
 
     info!("initializing manager...");
     use_manager_init(&mut program_config)?;
