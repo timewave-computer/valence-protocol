@@ -69,8 +69,9 @@ pub fn my_evm_vault_program(
     asset_1: &str,
     asset_2: &str,
     pool_addr: &str,
+    owner: &str,
 ) -> Result<ProgramConfig, Box<dyn Error>> {
-    let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
+    let mut builder = ProgramConfigBuilder::new(owner.to_string());
 
     let deposit_account_info =
         AccountInfo::new("deposit".to_string(), &ntrn_domain, AccountType::default());
@@ -278,7 +279,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // 3. vault
     info!("Setting up encoders ...");
     let evm_encoder = setup_valence_evm_encoder_v1(&mut test_ctx)?;
-    let _encoder_broker = setup_valence_encoder_broker(&mut test_ctx, evm_encoder.to_string())?;
+    let encoder_broker = setup_valence_encoder_broker(&mut test_ctx, evm_encoder.to_string())?;
 
     info!("Setting up Lite Processor on Ethereum");
 
@@ -351,7 +352,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     execution_environment:
                         valence_authorization_utils::msg::ExecutionEnvironmentInfo::Evm(
                             EncoderInfo {
-                                broker_address: evm_encoder.clone(),
+                                broker_address: encoder_broker,
                                 encoder_version: EVM_ENCODER_NAMESPACE.to_string(),
                             },
                             EvmBridgeInfo::Hyperlane(HyperlaneConnectorInfo {

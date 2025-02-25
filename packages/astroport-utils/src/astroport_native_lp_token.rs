@@ -292,5 +292,5 @@ pub enum ConcentratedLiquidityExecuteMsg {
         receiver: Option<String>,
         min_lp_to_receive: Option<Uint128>,
     },
-    // emit the rest
+    // omit the rest
 }
