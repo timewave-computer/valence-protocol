@@ -6,7 +6,9 @@ use super::{error::StrategistError, transaction::TransactionResponse};
 
 #[async_trait]
 pub trait BaseClient {
-    async fn query_balance(&self, address: &str) -> Result<u128, StrategistError>;
+    async fn latest_block_height(&self) -> Result<u64, StrategistError>;
+
+    async fn query_balance(&self, address: &str, denom: &str) -> Result<u128, StrategistError>;
 
     async fn query_contract_state<T: DeserializeOwned>(
         &self,
