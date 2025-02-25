@@ -41,6 +41,7 @@
     - [Neutron Interchain Querier](./libraries/cosmwasm/neutron_ic_querier.md)
   - [EVM](./libraries/evm/_overview.md)
     - [Forwarder](./libraries/evm/forwarder.md)
+    - [CCTP Transfer](./libraries/evm/cctp_transfer.md)
 - [Middleware](./middleware/_overview.md)
   - [Broker](./middleware/broker.md)
   - [Type Registry](./middleware/type_registry.md)

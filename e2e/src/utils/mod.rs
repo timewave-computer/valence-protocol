@@ -35,7 +35,6 @@ pub const LOCAL_CODE_ID_CACHE_PATH_PERSISTENCE: &str = "e2e/code_id_cache_persis
 pub const LOCAL_CODE_ID_CACHE_PATH_OSMOSIS: &str = "e2e/code_id_cache_osmosis.json";
 
 pub const GAS_FLAGS: &str = "--gas=auto --gas-adjustment=3.0";
-pub const NTRN_DENOM: &str = "untrn";
 
 pub const NEUTRON_USER_ADDRESS_1: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
 pub const USER_KEY_1: &str = "acc1";

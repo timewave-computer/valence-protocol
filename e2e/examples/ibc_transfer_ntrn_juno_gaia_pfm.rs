@@ -13,12 +13,12 @@ use localic_std::modules::{
 use localic_utils::{
     types::ibc::get_multihop_ibc_denom, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
     GAIA_CHAIN_DENOM, GAIA_CHAIN_NAME, JUNO_CHAIN_ADMIN_ADDR, JUNO_CHAIN_NAME, LOCAL_IC_API_URL,
-    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
+    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 use log::info;
 use valence_e2e::utils::{
     base_account::{approve_library, create_base_accounts},
-    GAS_FLAGS, LOGS_FILE_PATH, NTRN_DENOM, VALENCE_ARTIFACTS_PATH,
+    GAS_FLAGS, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
 };
 
 use valence_generic_ibc_transfer_library::msg::IbcTransferAmount;
@@ -83,11 +83,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         DEFAULT_KEY,
         &input_account,
         &[BankCoin {
-            denom: NTRN_DENOM.to_string(),
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
             amount: 10_000_000u128.into(),
         }],
         &BankCoin {
-            denom: NTRN_DENOM.to_string(),
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
             amount: cosmwasm_std_old::Uint128::new(5000),
         },
     )

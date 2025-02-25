@@ -11,12 +11,12 @@ use localic_std::modules::{
 };
 use localic_utils::{
     ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, JUNO_CHAIN_NAME, LOCAL_IC_API_URL,
-    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
+    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 use log::info;
 use valence_e2e::utils::{
     base_account::{approve_library, create_base_accounts},
-    GAS_FLAGS, LOGS_FILE_PATH, NTRN_DENOM, VALENCE_ARTIFACTS_PATH,
+    GAS_FLAGS, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
 };
 
 use valence_generic_ibc_transfer_library::msg::{IbcTransferAmount, LibraryConfigUpdate};
@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let neutron_on_juno_denom = test_ctx
         .get_ibc_denom()
-        .base_denom(NTRN_DENOM.to_owned())
+        .base_denom(NEUTRON_CHAIN_DENOM.to_owned())
         .src(NEUTRON_CHAIN_NAME)
         .dest(JUNO_CHAIN_NAME)
         .get();
@@ -83,11 +83,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         DEFAULT_KEY,
         &input_account,
         &[BankCoin {
-            denom: NTRN_DENOM.to_string(),
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
             amount: 1_000_000_000_000u128.into(),
         }],
         &BankCoin {
-            denom: NTRN_DENOM.to_string(),
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
             amount: cosmwasm_std_old::Uint128::new(5000),
         },
     )
@@ -101,7 +101,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &input_account,
     )
     .iter()
-    .find(|bal| bal.denom == NTRN_DENOM)
+    .find(|bal| bal.denom == NEUTRON_CHAIN_DENOM)
     .map_or(0, |bal| bal.amount.u128());
     info!("Start input balance: {:?}", start_input_balance);
 
@@ -146,7 +146,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         config: LibraryConfig::new(
             LibraryAccountType::Addr(input_account.clone()),
             output_account.clone(),
-            UncheckedDenom::Native(NTRN_DENOM.to_string()),
+            UncheckedDenom::Native(NEUTRON_CHAIN_DENOM.to_string()),
             IbcTransferAmount::FixedAmount(transfer_amount.into()),
             "".to_owned(),
             valence_neutron_ibc_transfer_library::msg::RemoteChainInfo {
@@ -218,7 +218,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &input_account,
     )
     .iter()
-    .find(|bal| bal.denom == NTRN_DENOM)
+    .find(|bal| bal.denom == NEUTRON_CHAIN_DENOM)
     .map_or(0, |bal| bal.amount.u128());
     assert_eq!(
         end_input_balance,
@@ -294,7 +294,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &input_account,
     )
     .iter()
-    .find(|bal| bal.denom == NTRN_DENOM)
+    .find(|bal| bal.denom == NEUTRON_CHAIN_DENOM)
     .map_or(0, |bal| bal.amount.u128());
     assert_eq!(end_input_balance, ibc_fee / 2);
 
