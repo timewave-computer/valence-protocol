@@ -5,6 +5,7 @@ use valence_encoder_utils::libraries::{
     renounceOwnershipCall, transferOwnershipCall, updateProcessorCall,
 };
 
+pub mod cctp_transfer;
 pub mod forwarder;
 
 // Function calls that are common to all libraries
