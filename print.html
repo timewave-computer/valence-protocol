@@ -2245,6 +2245,60 @@ graph LR
         uint64 timestamp;
     }
 </code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-cctp-transfer-library"><a class="header" href="#valence-cctp-transfer-library">Valence CCTP Transfer library</a></h1>
+<p>The <strong>Valence CCTP Transfer</strong> library allows to <strong>transfer funds</strong> from an <strong>input account</strong> to a <strong>mint recipient</strong> using the <a href="https://developers.circle.com/stablecoins/cctp-getting-started">Cross-Chain Transfer Protocol (CCTP) v1</a>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the CCTP Transfer library.</p>
+<h2 id="high-level-flow-12"><a class="header" href="#high-level-flow-12">High-level flow</a></h2>
+<pre class="mermaid">---
+title: CCTP Transfer Library
+---
+graph LR
+  IA((Input Account))
+  CCTPR((CCTP Relayer))
+  MR((Mint Recipient))
+  TM((CCTP Token Messenger))
+  P[Processor]
+  S[CCTP Transfer Library]
+
+  subgraph DEST[ Destination Domain ]
+    CCTPR -- 7/Mint tokens --&gt; MR
+  end
+
+  subgraph EVM[ EVM Domain ]
+    P -- 1/Forward --&gt; S
+    S -- 2/Query balances --&gt; IA
+    S -- 3/Do approve and call depositForBurn --&gt; IA
+    IA -- 4/ERC-20 approve --&gt; TM
+    IA -- 5/Call depositForBurn --&gt; TM
+    TM -- 6/Burn tokens and emit event --&gt; TM
+  end
+
+  EVM --- DEST
+</pre>
+<h2 id="functions-12"><a class="header" href="#functions-12">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>Transfer</strong></td><td>-</td><td>Transfer funds from the configured <strong>input account</strong> to the <strong>mint recipient</strong> on the <strong>destination domain</strong>.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration-12"><a class="header" href="#configuration-12">Configuration</a></h2>
+<p>The library is configured on deployment using the <code>CCTPTransferConfig</code> type. A list of the supported CCTP destination domains that can be used in the <code>destinationDomain</code> field can be found <a href="https://developers.circle.com/stablecoins/supported-domains">here</a>.</p>
+<pre><code class="language-solidity">    /**
+     * @dev Configuration struct for token transfer parameters.
+     * @param amount The number of tokens to transfer. If set to 0, the entire balance is transferred.
+     * @param mintRecipient The recipient address (in bytes32 format) on the destination chain where tokens will be minted.
+     * @param inputAccount The account from which tokens will be debited.
+     * @param destinationDomain The domain identifier for the destination chain.
+     * @param cctpTokenMessenger The CCTP Token Messenger contract.
+     * @param transferToken The ERC20 token address that will be transferred.
+     */
+    struct CCTPTransferConfig {
+        uint256 amount; // If we want to transfer all tokens, we can set this to 0.
+        bytes32 mintRecipient;
+        Account inputAccount;
+        uint32 destinationDomain;
+        ITokenMessenger cctpTokenMessenger;
+        address transferToken;
+    }
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="middleware"><a class="header" href="#middleware">Middleware</a></h1>
 <p>This section contains a description of the Valence Protocol middleware design.</p>
 <p><strong>Valence Protocol Middleware components</strong>:</p>
@@ -2662,7 +2716,7 @@ This way, when the message batch is being processed, any assertions that do not 
 prevent later messages from executing as expected. If the batch is <em>atomic</em>, the whole batch will abort.
 If the batch is <em>non-atomic</em>, various <a href="middleware/./../authorizations_processors/authorization_contract.html">authorization</a> configuration
 options will dictate the further behavior.</p>
-<h2 id="high-level-flow-12"><a class="header" href="#high-level-flow-12">High-level flow</a></h2>
+<h2 id="high-level-flow-13"><a class="header" href="#high-level-flow-13">High-level flow</a></h2>
 <pre class="mermaid">---
 title: Forwarder Library
 ---

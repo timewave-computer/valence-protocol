@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Forwarder - Valence Protocol Documentation</title>
+        <title>CCTP Transfer - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -157,72 +157,58 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="valence-forwarder-library"><a class="header" href="#valence-forwarder-library">Valence Forwarder Library</a></h1>
-<p>The <strong>Valence Forwarder</strong> library allows to <strong>continuously forward funds</strong> from an <strong>input account</strong> to an <strong>output account</strong>, following some time <strong>constraints</strong>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
+                        <h1 id="valence-cctp-transfer-library"><a class="header" href="#valence-cctp-transfer-library">Valence CCTP Transfer library</a></h1>
+<p>The <strong>Valence CCTP Transfer</strong> library allows to <strong>transfer funds</strong> from an <strong>input account</strong> to a <strong>mint recipient</strong> using the <a href="https://developers.circle.com/stablecoins/cctp-getting-started">Cross-Chain Transfer Protocol (CCTP) v1</a>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the CCTP Transfer library.</p>
 <h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
 <pre class="mermaid">---
-title: Forwarder Library
+title: CCTP Transfer Library
 ---
 graph LR
-  IA((Input
-      Account))
-  OA((Output
-		  Account))
+  IA((Input Account))
+  CCTPR((CCTP Relayer))
+  MR((Mint Recipient))
+  TM((CCTP Token Messenger))
   P[Processor]
-  S[Forwarder
-    Library]
-  P -- 1/Forward --&gt; S
-  S -- 2/Query balances --&gt; IA
-  S -- 3/Do Send funds --&gt; IA
-  IA -- 4/Send funds --&gt; OA
+  S[CCTP Transfer Library]
+
+  subgraph DEST[ Destination Domain ]
+    CCTPR -- 7/Mint tokens --&gt; MR
+  end
+
+  subgraph EVM[ EVM Domain ]
+    P -- 1/Forward --&gt; S
+    S -- 2/Query balances --&gt; IA
+    S -- 3/Do approve and call depositForBurn --&gt; IA
+    IA -- 4/ERC-20 approve --&gt; TM
+    IA -- 5/Call depositForBurn --&gt; TM
+    TM -- 6/Burn tokens and emit event --&gt; TM
+  end
+
+  EVM --- DEST
 </pre>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>Forward</strong></td><td>-</td><td>Forward funds from the configured <strong>input account</strong> to the <strong>output account</strong>, according to the <strong>forwarding configs</strong> &amp; <strong>min interval</strong>.</td></tr>
+<tr><td><strong>Transfer</strong></td><td>-</td><td>Transfer funds from the configured <strong>input account</strong> to the <strong>mint recipient</strong> on the <strong>destination domain</strong>.</td></tr>
 </tbody></table>
 </div>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
-<p>The library is configured on deployment using the <code>ForwarderConfig</code> type.</p>
+<p>The library is configured on deployment using the <code>CCTPTransferConfig</code> type. A list of the supported CCTP destination domains that can be used in the <code>destinationDomain</code> field can be found <a href="https://developers.circle.com/stablecoins/supported-domains">here</a>.</p>
 <pre><code class="language-solidity">    /**
-     * @dev Configuration for a single token forwarding rule
-     * @param tokenAddress Address of token to forward (0x0 for native coin)
-     * @param maxAmount Maximum amount to forward per execution
+     * @dev Configuration struct for token transfer parameters.
+     * @param amount The number of tokens to transfer. If set to 0, the entire balance is transferred.
+     * @param mintRecipient The recipient address (in bytes32 format) on the destination chain where tokens will be minted.
+     * @param inputAccount The account from which tokens will be debited.
+     * @param destinationDomain The domain identifier for the destination chain.
+     * @param cctpTokenMessenger The CCTP Token Messenger contract.
+     * @param transferToken The ERC20 token address that will be transferred.
      */
-    struct ForwardingConfig {
-        address tokenAddress;
-        uint128 maxAmount;
-    }
-
-    /**
-     * @dev Interval type for forwarding: time-based or block-based
-     */
-    enum IntervalType {
-        TIME,
-        BLOCKS
-    }
-
-    /**
-     * @dev Main configuration struct
-     * @param inputAccount Source account
-     * @param outputAccount Destination account
-     * @param forwardingConfigs Array of token forwarding rules
-     * @param intervalType Whether to use time or block intervals
-     * @param minInterval Minimum interval between forwards
-     */
-    struct ForwarderConfig {
+    struct CCTPTransferConfig {
+        uint256 amount; // If we want to transfer all tokens, we can set this to 0.
+        bytes32 mintRecipient;
         Account inputAccount;
-        Account outputAccount;
-        ForwardingConfig[] forwardingConfigs;
-        IntervalType intervalType;
-        uint64 minInterval;
-    }
-
-    /**
-     * @dev Tracks last execution time/block
-     */
-    struct LastExecution {
-        uint64 blockHeight;
-        uint64 timestamp;
+        uint32 destinationDomain;
+        ITokenMessenger cctpTokenMessenger;
+        address transferToken;
     }
 </code></pre>
 
@@ -230,11 +216,11 @@ graph LR
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../libraries/evm/_overview.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../libraries/evm/forwarder.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../../libraries/evm/cctp_transfer.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../middleware/_overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -244,11 +230,11 @@ graph LR
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../libraries/evm/_overview.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../libraries/evm/forwarder.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../../libraries/evm/cctp_transfer.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../middleware/_overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
