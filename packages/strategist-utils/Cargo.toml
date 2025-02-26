@@ -26,3 +26,11 @@ cosmos-sdk-proto = { version = "0.26.1", features = [
 ]}
 tonic = { version = "0.12.3", features = ["transport"] }
 valence-processor-utils = { workspace = true }
+# alloy-sol-types             = "0.7.7"
+# alloy-primitives            = "0.7.7"
+# alloy-provider = "0.11.1"
+# alloy-signer = "0.11.1"
+# alloy-json-rpc = "0.11.1"
+hex = "0.4.3"
+localic-utils = { workspace = true }
+alloy          = { version = "0.11.1", features = ["full"] }
