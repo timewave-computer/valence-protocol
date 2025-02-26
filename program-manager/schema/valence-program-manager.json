@@ -846,6 +846,18 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "ValenceDropLiquidStaker"
+            ],
+            "properties": {
+              "ValenceDropLiquidStaker": {
+                "$ref": "#/definitions/LibraryConfig12"
+              }
+            },
+            "additionalProperties": false
           }
         ]
       },
@@ -885,6 +897,30 @@
           },
           "pool_id": {
             "$ref": "#/definitions/Uint64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LibraryConfig12": {
+        "type": "object",
+        "required": [
+          "denom",
+          "input_addr",
+          "liquid_staker_addr",
+          "output_addr"
+        ],
+        "properties": {
+          "denom": {
+            "type": "string"
+          },
+          "input_addr": {
+            "$ref": "#/definitions/LibraryAccountType"
+          },
+          "liquid_staker_addr": {
+            "type": "string"
+          },
+          "output_addr": {
+            "$ref": "#/definitions/LibraryAccountType"
           }
         },
         "additionalProperties": false
@@ -1239,6 +1275,18 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "ValenceDropLiquidStaker"
+            ],
+            "properties": {
+              "ValenceDropLiquidStaker": {
+                "$ref": "#/definitions/LibraryConfigUpdate12"
+              }
+            },
+            "additionalProperties": false
           }
         ]
       },
@@ -1305,6 +1353,44 @@
             "anyOf": [
               {
                 "$ref": "#/definitions/Uint64"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "LibraryConfigUpdate12": {
+        "type": "object",
+        "properties": {
+          "denom": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "input_addr": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "liquid_staker_addr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "output_addr": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
               },
               {
                 "type": "null"

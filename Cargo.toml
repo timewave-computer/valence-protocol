@@ -81,6 +81,7 @@ valence-osmosis-cl-lper              = { path = "contracts/libraries/osmosis-cl-
 valence-osmosis-cl-withdrawer        = { path = "contracts/libraries/osmosis-cl-withdrawer", features = ["library"] }
 valence-encoder-broker               = { path = "contracts/encoders/broker", features = ["library"] }
 valence-neutron-ic-querier           = { path = "contracts/libraries/neutron-ic-querier", features = ["library"] }
+valence-drop-liquid-staker           = { path = "contracts/libraries/drop-liquid-staker", features = ["library"] }
 
 # middleware
 valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = [
@@ -105,6 +106,7 @@ valence-program-registry-utils = { path = "packages/program-registry-utils" }
 valence-program-manager        = { path = "program-manager" }
 valence-program-registry       = { path = "contracts/program-registry", features = ["library"] }
 valence-middleware-utils       = { path = "packages/middleware-utils" }
+valence-liquid-staking-utils   = { path = "packages/liquid-staking-utils" }
 
 # dev-dependencies
 cw-multi-test        = { version = "2.1.1", features = ["cosmwasm_1_4"] }
