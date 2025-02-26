@@ -1,5 +1,6 @@
 use async_trait::async_trait;
-use serde::de::DeserializeOwned;
+use cosmrs::Coin;
+use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 
 use super::{error::StrategistError, transaction::TransactionResponse};
@@ -24,10 +25,10 @@ pub trait BaseClient {
         options: Option<String>,
     ) -> Result<TransactionResponse, StrategistError>;
 
-    async fn execute_transaction(
+    async fn execute_wasm<T: Serialize + Send + 'static>(
         &self,
-        to: &str,
-        data: Vec<u8>,
-        options: Option<String>,
+        contract: &str,
+        msg: T,
+        funds: Vec<Coin>,
     ) -> Result<TransactionResponse, StrategistError>;
 }

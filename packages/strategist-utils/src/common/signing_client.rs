@@ -1,11 +1,11 @@
 use bip32::{Language, Mnemonic};
 use cosmos_sdk_proto::cosmos::{
     auth::v1beta1::QueryAccountInfoRequest,
-    tx::v1beta1::{BroadcastMode, BroadcastTxRequest, BroadcastTxResponse},
+    tx::v1beta1::{BroadcastMode, BroadcastTxRequest},
 };
 use cosmrs::{
     crypto::{secp256k1::SigningKey, PublicKey},
-    tx::{self, Fee, Msg, Raw, SignDoc, SignerInfo},
+    tx::{self, Fee, SignDoc, SignerInfo},
     AccountId, Any, Coin,
 };
 use tonic::transport::Channel;
@@ -75,9 +75,9 @@ impl SigningClient {
         let fee = Fee::from_amount_and_gas(
             Coin {
                 denom: "untrn".parse().unwrap(),
-                amount: 100_000,
+                amount: 500_000,
             },
-            100_000u64,
+            500_000u64,
         );
 
         let tx_body = tx::BodyBuilder::new().msg(msg).memo("test memo").finish();
@@ -102,11 +102,4 @@ impl SigningClient {
 
         Ok(broadcast_tx_request)
     }
-
-    // pub async fn broadcast_tx() -> Result<BroadcastTxResponse, StrategistError> {
-    //     let request = BroadcastTxRequest {
-    //         tx_bytes: ,
-    //         mode: BroadcastMode::Block.into(),
-    //     };
-    // }
 }

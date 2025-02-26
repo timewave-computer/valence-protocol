@@ -25,3 +25,4 @@ cosmos-sdk-proto = { version = "0.26.1", features = [
     "grpc",
 ]}
 tonic = { version = "0.12.3", features = ["transport"] }
+valence-processor-utils = { workspace = true }

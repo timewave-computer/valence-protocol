@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use cosmos_sdk_proto::cosmos::bank::v1beta1::QueryBalanceResponse;
 use cosmrs::{
     bank::MsgSend,
+    cosmwasm::MsgExecuteContract,
     proto::{
         cosmos::{
             bank::v1beta1::QueryBalanceRequest,
@@ -18,10 +19,10 @@ use cosmrs::{
         },
         cosmwasm::wasm::v1::QuerySmartContractStateRequest,
     },
-    tx::{self, Fee, Msg, SignDoc, SignerInfo},
+    tx::Msg,
     AccountId, Coin,
 };
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use tonic::{transport::Channel, Request};
 
@@ -45,10 +46,10 @@ impl NeutronClient {
 
     pub async fn get_grpc_channel(&self) -> Result<Channel, StrategistError> {
         Channel::from_shared(self.grpc_url.clone())
-            .map_err(|e| StrategistError::ClientError("failed to build channel".to_string()))?
+            .map_err(|_| StrategistError::ClientError("failed to build channel".to_string()))?
             .connect()
             .await
-            .map_err(|e| StrategistError::ClientError("failed to connect to channel".to_string()))
+            .map_err(|_| StrategistError::ClientError("failed to connect to channel".to_string()))
     }
 
     pub async fn get_signing_client(&self) -> Result<SigningClient, StrategistError> {
@@ -180,13 +181,36 @@ impl BaseClient for NeutronClient {
         }
     }
 
-    async fn execute_transaction(
+    async fn execute_wasm<T: Serialize + Send + 'static>(
         &self,
-        to: &str,
-        data: Vec<u8>,
-        options: Option<String>,
+        contract: &str,
+        msg: T,
+        funds: Vec<Coin>,
     ) -> Result<TransactionResponse, StrategistError> {
-        unimplemented!()
+        let signing_client = self.get_signing_client().await?;
+        let channel = self.get_grpc_channel().await?;
+
+        let msg_bytes = serde_json::to_vec(&msg).unwrap();
+        let wasm_tx = MsgExecuteContract {
+            sender: signing_client.address.clone(),
+            contract: AccountId::from_str(contract).unwrap(),
+            msg: msg_bytes,
+            funds,
+        }
+        .to_any()
+        .unwrap();
+
+        let raw_tx = signing_client.create_tx(wasm_tx).await.unwrap();
+
+        let mut client =
+            cosmos_sdk_proto::cosmos::tx::v1beta1::service_client::ServiceClient::new(channel);
+
+        let broadcast_tx_response = client.broadcast_tx(raw_tx).await.unwrap().into_inner();
+
+        match broadcast_tx_response.tx_response {
+            Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),
+            None => Err(StrategistError::TransactionError("failed".to_string())),
+        }
     }
 }
 
@@ -208,12 +232,12 @@ mod tests {
         "neutron1tdwtzvhep8nwxyy4pyry520lncshum9wshyvpv2w393nmf75jxjsyfq4ll";
 
     // update during dev to a real one for mainnet testing
-    const CHAIN_ID: &str = "neutron-1";
-    const GRPC_URL: &str = "-";
-    const GRPC_PORT: &str = "-";
-    const NEUTRON_DAO_ADDR: &str =
+    const _CHAIN_ID: &str = "neutron-1";
+    const _GRPC_URL: &str = "-";
+    const _GRPC_PORT: &str = "-";
+    const _NEUTRON_DAO_ADDR: &str =
         "neutron1suhgf5svhu4usrurvxzlgn54ksxmn8gljarjtxqnapv8kjnp4nrstdxvff";
-    const MNEMONIC: &str = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry";
+    const _MNEMONIC: &str = "-";
 
     #[tokio::test]
     async fn test_latest_block_height() {
@@ -280,7 +304,7 @@ mod tests {
 
         let pre_transfer_balance = client.query_balance(LOCAL_ALT_ADDR, "untrn").await.unwrap();
 
-        let resp = client
+        client
             .transfer(LOCAL_ALT_ADDR, 100_000, "untrn", None)
             .await
             .unwrap();
@@ -290,5 +314,26 @@ mod tests {
         let post_transfer_balance = client.query_balance(LOCAL_ALT_ADDR, "untrn").await.unwrap();
 
         assert_eq!(pre_transfer_balance + 100_000, post_transfer_balance);
+    }
+
+    #[tokio::test]
+    async fn test_execute_wasm() {
+        let client = NeutronClient::new(
+            LOCAL_GRPC_URL,
+            LOCAL_GRPC_PORT,
+            LOCAL_MNEMONIC,
+            LOCAL_CHAIN_ID,
+        );
+
+        let processor_tick_msg = valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+            valence_processor_utils::msg::PermissionlessMsg::Tick {},
+        );
+
+        let resp = client
+            .execute_wasm(LOCAL_PROCESSOR_ADDR, processor_tick_msg, vec![])
+            .await
+            .unwrap();
+
+        println!("response: {:?}", resp);
     }
 }

@@ -8108,6 +8108,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tonic 0.12.3",
+ "valence-processor-utils",
 ]
 
 [[package]]
