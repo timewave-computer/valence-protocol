@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>EVM - Valence Protocol Documentation</title>
+        <title>Drop Liquid Staker - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -157,18 +157,59 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="evm-libraries"><a class="header" href="#evm-libraries">EVM Libraries</a></h1>
-<p>This section contains a detailed description of all the libraries that can be used in EVM Execution Environments.</p>
+                        <h1 id="valence-drop-liquid-staker-library"><a class="header" href="#valence-drop-liquid-staker-library">Valence Drop Liquid Staker library</a></h1>
+<p>The <strong>Valence Drop Liquid Staker</strong> library allows to <strong>liquid stake</strong> an asset from an <strong>input account</strong> in the <a href="https://docs.drop.money/">Drop protocol</a> and deposit the liquid staking derivate into the <strong>output account</strong>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
+<h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Drop Liquid Staker Library
+---
+graph LR
+  IA((Input
+      Account))
+  CC((Drop Core
+      Contract))
+  OA((Output
+      Account))
+  P[Processor]
+  S[Drop Liquid Staker
+      Library]
+  P -- 1/Liquid Stake --&gt; S
+  S -- 2/Query balance --&gt; IA
+  S -- 3/Do Liquid 
+  Stake funds --&gt; IA
+  IA -- 4/Liquid Stake
+   funds --&gt; CC
+  CC -- 5/Send LS 
+  derivative --&gt; OA
+</pre>
+<h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>LiquidStake</strong></td><td>ref (Optional): <a href="https://docs.drop.money/integrations/referral">referral address</a></td><td>Liquid stakes the balance of the <strong>input account</strong> into the <strong>drop core contract</strong> and deposits LS derivative into the <strong>output account</strong>.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LibraryConfig {
+    pub input_addr: LibraryAccountType,
+    pub output_addr: LibraryAccountType,
+    // Address of the liquid staker contract (drop core contract)
+    pub liquid_staker_addr: String,
+    // Denom of the asset we are going to liquid stake
+    pub denom: String,
+}
+<span class="boring">}</span></code></pre></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../libraries/cosmwasm/drop_liquid_staker.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../libraries/cosmwasm/neutron_ic_querier.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../../libraries/evm/forwarder.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../libraries/evm/_overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -178,11 +219,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../libraries/cosmwasm/drop_liquid_staker.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../libraries/cosmwasm/neutron_ic_querier.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../../libraries/evm/forwarder.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../libraries/evm/_overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
