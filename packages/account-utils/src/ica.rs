@@ -51,16 +51,13 @@ pub fn register_ica_msg(
     sender: String,
     connection_id: String,
     interchain_account_id: String,
-    ica_registration_fee: Vec<Coin>,
+    ica_registration_fee: &Coin,
 ) -> CosmosMsg {
     // Transform the coins to the ProtoCoin type
-    let register_fee: Vec<ProtoCoin> = ica_registration_fee
-        .into_iter()
-        .map(|coin| ProtoCoin {
-            denom: coin.denom,
-            amount: coin.amount.to_string(),
-        })
-        .collect();
+    let register_fee = vec![ProtoCoin {
+        denom: ica_registration_fee.denom.to_string(),
+        amount: ica_registration_fee.amount.to_string(),
+    }];
 
     let msg_register_interchain_account = MsgRegisterInterchainAccount {
         from_address: sender,

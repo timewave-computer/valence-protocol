@@ -123,22 +123,22 @@ mod execute {
         let ica_registration_fee = query_ica_registration_fee(deps.querier)?;
 
         // Check that we have enough to cover the registration fee
-        ensure!(
-            ica_registration_fee.iter().all(|coin| {
-                deps.querier
-                    .query_balance(&env.contract.address, &coin.denom)
-                    .unwrap_or_default()
-                    .amount
-                    >= coin.amount
-            }),
-            ContractError::NotEnoughBalanceForIcaRegistration
-        );
+        let registration_fee = ica_registration_fee.iter().find(|coin| {
+            deps.querier
+                .query_balance(&env.contract.address, &coin.denom)
+                .unwrap_or_default()
+                .amount
+                >= coin.amount
+        });
+
+        let fee_to_attach =
+            registration_fee.ok_or_else(|| ContractError::NotEnoughBalanceForIcaRegistration)?;
 
         let register_ica_msg = register_ica_msg(
             env.contract.address.into_string(),
             remote_domain_info.connection_id,
             INTERCHAIN_ACCOUNT_ID.to_string(),
-            ica_registration_fee,
+            fee_to_attach,
         );
 
         // Update the state to InProgress
