@@ -1909,9 +1909,7 @@ version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "462e1f6a8e005acc8835d32d60cbd7973ed65ea2a8d8473830e675f050956427"
 dependencies = [
- "informalsystems-pbjson",
  "prost 0.13.5",
- "serde",
  "tendermint-proto 0.40.1",
  "tonic 0.12.3",
 ]
@@ -1976,7 +1974,6 @@ dependencies = [
  "tendermint 0.40.1",
  "tendermint-rpc 0.40.1",
  "thiserror 1.0.69",
- "tokio",
 ]
 
 [[package]]
@@ -3926,16 +3923,6 @@ checksum = "8c9c992b02b5b4c94ea26e32fe5bccb7aa7d9f390ab5c1221ff895bc7ea8b652"
 dependencies = [
  "equivalent",
  "hashbrown 0.15.2",
- "serde",
-]
-
-[[package]]
-name = "informalsystems-pbjson"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9aa4a0980c8379295100d70854354e78df2ee1c6ca0f96ffe89afeb3140e3a3d"
-dependencies = [
- "base64 0.21.7",
  "serde",
 ]
 
@@ -8119,6 +8106,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tonic 0.12.3",
 ]
 
 [[package]]

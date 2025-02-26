@@ -18,14 +18,10 @@ cosmrs = { version = "0.21.1", features = [
     "cosmwasm",
     "rpc",
     "grpc",
-    "dev",
-    "grpc-core",
 ]}
 cosmos-sdk-proto = { version = "0.26.1", features = [
     "grpc-transport",
     "grpc",
-    "default",
-    "std",
-    "serde",
-    "cosmwasm",
+    # "default",
 ]}
+tonic = { version = "0.12.3", features = ["transport"] }
