@@ -95,7 +95,7 @@ pub enum LibraryConfig {
     ValenceNeutronIbcTransferLibrary(valence_neutron_ibc_transfer_library::msg::LibraryConfig),
     ValenceOsmosisClLper(valence_osmosis_cl_lper::msg::LibraryConfig),
     ValenceOsmosisClWithdrawer(valence_osmosis_cl_withdrawer::msg::LibraryConfig),
-    ValenceDropLiquidStaker(valence_drop_liquid_staker::msg::LibraryConfig)
+    ValenceDropLiquidStaker(valence_drop_liquid_staker::msg::LibraryConfig),
 }
 
 impl LibraryConfig {

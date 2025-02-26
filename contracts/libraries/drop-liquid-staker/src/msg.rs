@@ -22,7 +22,9 @@ pub enum QueryMsg {}
 pub struct LibraryConfig {
     pub input_addr: LibraryAccountType,
     pub output_addr: LibraryAccountType,
+    // Address of the liquid staker contract (drop core contract)
     pub liquid_staker_addr: String,
+    // Denom of the asset we are going to liquid stake
     pub denom: String,
 }
 
