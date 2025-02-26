@@ -7243,13 +7243,12 @@ dependencies = [
  "cosmwasm-std 2.2.1",
  "cw-ownable",
  "cw-storage-plus 2.0.0",
- "cw-utils 2.0.0",
- "itertools 0.13.0",
  "schemars",
  "serde",
  "thiserror 1.0.69",
  "valence-library-base",
  "valence-library-utils",
+ "valence-liquidstaking-utils",
  "valence-macros",
 ]
 
@@ -7764,6 +7763,7 @@ dependencies = [
  "valence-astroport-withdrawer",
  "valence-authorization",
  "valence-authorization-utils",
+ "valence-drop-liquid-staker",
  "valence-forwarder-library",
  "valence-generic-ibc-transfer-library",
  "valence-library-base",

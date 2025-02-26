@@ -1,7 +1,7 @@
 use cosmwasm_schema::write_api;
 
+use valence_drop_liquid_staker::msg::{FunctionMsgs, LibraryConfig, LibraryConfigUpdate, QueryMsg};
 use valence_library_utils::msg::{ExecuteMsg, InstantiateMsg};
-use valence_splitter_library::msg::{FunctionMsgs, LibraryConfig, LibraryConfigUpdate, QueryMsg};
 
 fn main() {
     write_api! {

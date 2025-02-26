@@ -23,6 +23,7 @@ pub struct LibraryConfig {
     pub input_addr: LibraryAccountType,
     pub output_addr: LibraryAccountType,
     pub liquid_staker_addr: String,
+    pub denom: String,
 }
 
 impl LibraryConfig {
@@ -30,11 +31,13 @@ impl LibraryConfig {
         input_addr: impl Into<LibraryAccountType>,
         output_addr: impl Into<LibraryAccountType>,
         liquid_staker_addr: String,
+        denom: String,
     ) -> Self {
         LibraryConfig {
             input_addr: input_addr.into(),
             output_addr: output_addr.into(),
             liquid_staker_addr,
+            denom,
         }
     }
 
@@ -61,6 +64,7 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
             input_addr,
             output_addr,
             liquid_staker_addr,
+            denom: self.denom.clone(),
         })
     }
 }
@@ -79,9 +83,14 @@ impl LibraryConfigUpdate {
             config.output_addr = output_addr.to_addr(deps.api)?;
         }
 
-        // Finally update liquid_staker_addr (if needed)
+        // Next update liquid_staker_addr (if needed)
         if let Some(liquid_staker_addr) = self.liquid_staker_addr {
             config.liquid_staker_addr = deps.api.addr_validate(&liquid_staker_addr)?;
+        }
+
+        // Next update denom (if needed)
+        if let Some(denom) = self.denom {
+            config.denom = denom;
         }
 
         valence_library_base::save_config(deps.storage, &config)?;
@@ -91,17 +100,24 @@ impl LibraryConfigUpdate {
 
 #[cw_serde]
 pub struct Config {
-    input_addr: Addr,
-    output_addr: Addr,
-    liquid_staker_addr: Addr,
+    pub input_addr: Addr,
+    pub output_addr: Addr,
+    pub liquid_staker_addr: Addr,
+    pub denom: String,
 }
 
 impl Config {
-    pub fn new(input_addr: Addr, output_addr: Addr, liquid_staker_addr: Addr) -> Self {
+    pub fn new(
+        input_addr: Addr,
+        output_addr: Addr,
+        liquid_staker_addr: Addr,
+        denom: String,
+    ) -> Self {
         Config {
             input_addr,
             output_addr,
             liquid_staker_addr,
+            denom,
         }
     }
 }

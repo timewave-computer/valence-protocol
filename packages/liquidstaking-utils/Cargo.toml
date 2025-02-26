@@ -3,7 +3,7 @@ name        = "valence-liquidstaking-utils"
 version     = { workspace = true }
 edition     = { workspace = true }
 authors     = { workspace = true }
-description = "Helpers for liquidstaking integrations"
+description = "Helpers for liquid staking integrations"
 
 [dependencies]
 cosmwasm-std    = { workspace = true }
