@@ -7,7 +7,7 @@ use valence_macros::{valence_library_query, ValenceLibraryInterface};
 
 #[cw_serde]
 pub enum FunctionMsgs {
-    Stake {},
+    LiquidStake { r#ref: Option<String> },
 }
 
 #[valence_library_query]

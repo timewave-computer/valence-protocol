@@ -18,18 +18,18 @@ graph LR
   P[Processor]
   S[Drop Liquid Staker
       Library]
-  P -- 1/Stake --> S
+  P -- 1/Liquid Stake --> S
   S -- 2/Query balance --> IA
   S -- 3/Do Stake funds --> IA
-  IA -- 4/Stake funds --> CC
+  IA -- 4/Liquid Stake funds --> CC
   CC -- 5/Send LS derivative --> OA
 ```
 
 ## Functions
 
-| Function  | Parameters | Description                                                                                                                         |
-| --------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| **Stake** | -          | Stakes the balance of the **input account** into the **drop core contract** and deposits LS derivative into the **output account**. |
+| Function        | Parameters                                                                        | Description                                                                                                                                |
+| --------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **LiquidStake** | ref (Optional): [referral address](https://docs.drop.money/integrations/referral) | Liquid stakes the balance of the **input account** into the **drop core contract** and deposits LS derivative into the **output account**. |
 
 ## Configuration
 

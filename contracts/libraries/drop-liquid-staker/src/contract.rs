@@ -42,7 +42,7 @@ pub fn execute(
 mod functions {
     use cosmwasm_std::{to_json_binary, CosmosMsg, DepsMut, Env, MessageInfo, Response, WasmMsg};
     use valence_library_utils::{error::LibraryError, execute_on_behalf_of};
-    use valence_liquidstaking_utils::drop::LiquidStakerExecuteMsg;
+    use valence_liquid_staking_utils::drop::LiquidStakerExecuteMsg;
 
     use crate::msg::{Config, FunctionMsgs};
 
@@ -54,7 +54,7 @@ mod functions {
         cfg: Config,
     ) -> Result<Response, LibraryError> {
         match msg {
-            FunctionMsgs::Stake {} => {
+            FunctionMsgs::LiquidStake { r#ref } => {
                 // We will query the balance of the input address and stake the entire balance
                 // to the liquid staker address.
                 let balance = deps
@@ -72,7 +72,7 @@ mod functions {
                     contract_addr: cfg.liquid_staker_addr.to_string(),
                     msg: to_json_binary(&LiquidStakerExecuteMsg::Bond {
                         receiver: Some(cfg.output_addr.to_string()),
-                        r#ref: None,
+                        r#ref,
                     })?,
                     funds: vec![balance],
                 });

@@ -18,7 +18,7 @@ graph LR
   P[Processor]
   S[Drop Liquid Staker
       Library]
-  P -- 1/Stake --> S
+  P -- 1/LiquidStake --> S
   S -- 2/Query balance --> IA
   S -- 3/Do Stake funds --> IA
   IA -- 4/Stake funds --> CC
