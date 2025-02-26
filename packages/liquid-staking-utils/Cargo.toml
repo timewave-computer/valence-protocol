@@ -1,5 +1,5 @@
 [package]
-name        = "valence-liquidstaking-utils"
+name        = "valence-liquid-staking-utils"
 version     = { workspace = true }
 edition     = { workspace = true }
 authors     = { workspace = true }
