@@ -20,9 +20,12 @@ graph LR
       Library]
   P -- 1/Liquid Stake --> S
   S -- 2/Query balance --> IA
-  S -- 3/Do Stake funds --> IA
-  IA -- 4/Liquid Stake funds --> CC
-  CC -- 5/Send LS derivative --> OA
+  S -- 3/Do Liquid 
+  Stake funds --> IA
+  IA -- 4/Liquid Stake
+   funds --> CC
+  CC -- 5/Send LS 
+  derivative --> OA
 ```
 
 ## Functions
