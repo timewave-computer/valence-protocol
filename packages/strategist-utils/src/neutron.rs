@@ -1,31 +1,45 @@
+use std::str::FromStr;
+
 use crate::common::{
-    base_client::BaseClient, error::StrategistError, transaction::TransactionResponse,
+    base_client::BaseClient, error::StrategistError, signing_client::SigningClient,
+    transaction::TransactionResponse,
 };
 use async_trait::async_trait;
 
 use cosmos_sdk_proto::cosmos::bank::v1beta1::QueryBalanceResponse;
-use cosmrs::proto::{
-    cosmos::{
-        bank::v1beta1::QueryBalanceRequest,
-        base::tendermint::v1beta1::{
-            service_client::ServiceClient as TendermintServiceClient, GetLatestBlockRequest,
+use cosmrs::{
+    bank::MsgSend,
+    proto::{
+        cosmos::{
+            bank::v1beta1::QueryBalanceRequest,
+            base::tendermint::v1beta1::{
+                service_client::ServiceClient as TendermintServiceClient, GetLatestBlockRequest,
+            },
         },
-        tx::v1beta1::{service_client::ServiceClient as TxServiceClient, BroadcastTxRequest},
+        cosmwasm::wasm::v1::QuerySmartContractStateRequest,
     },
-    cosmwasm::wasm::v1::QuerySmartContractStateRequest,
+    tx::{self, Fee, Msg, SignDoc, SignerInfo},
+    AccountId, Coin,
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tonic::{transport::Channel, Request};
 
+const CHAIN_PREFIX: &str = "neutron";
+const CHAIN_ID: &str = "neutron-1";
+
 pub struct NeutronClient {
     grpc_url: String,
+    mnemonic: String,
+    chain_id: String,
 }
 
 impl NeutronClient {
-    pub fn new(rpc_url: &str, rpc_port: &str) -> Self {
+    pub fn new(rpc_url: &str, rpc_port: &str, mnemonic: &str, chain_id: &str) -> Self {
         Self {
             grpc_url: format!("{rpc_url}:{rpc_port}"),
+            mnemonic: mnemonic.to_string(),
+            chain_id: chain_id.to_string(),
         }
     }
 
@@ -35,6 +49,12 @@ impl NeutronClient {
             .connect()
             .await
             .map_err(|e| StrategistError::ClientError("failed to connect to channel".to_string()))
+    }
+
+    pub async fn get_signing_client(&self) -> Result<SigningClient, StrategistError> {
+        let channel = self.get_grpc_channel().await?;
+
+        SigningClient::from_mnemonic(channel, &self.mnemonic, CHAIN_PREFIX, &self.chain_id).await
     }
 }
 
@@ -124,6 +144,42 @@ impl BaseClient for NeutronClient {
         Ok(parsed)
     }
 
+    async fn transfer(
+        &self,
+        to: &str,
+        amount: u128,
+        denom: &str,
+        options: Option<String>,
+    ) -> Result<TransactionResponse, StrategistError> {
+        let signing_client = self.get_signing_client().await?;
+        let channel = self.get_grpc_channel().await?;
+
+        let amount = Coin {
+            denom: denom.parse().unwrap(),
+            amount,
+        };
+
+        let transfer_msg = MsgSend {
+            from_address: signing_client.address.clone(),
+            to_address: AccountId::from_str(to).unwrap(),
+            amount: vec![amount],
+        }
+        .to_any()
+        .unwrap();
+
+        let raw_tx = signing_client.create_tx(transfer_msg).await.unwrap();
+
+        let mut client =
+            cosmos_sdk_proto::cosmos::tx::v1beta1::service_client::ServiceClient::new(channel);
+
+        let broadcast_tx_response = client.broadcast_tx(raw_tx).await.unwrap().into_inner();
+
+        match broadcast_tx_response.tx_response {
+            Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),
+            None => Err(StrategistError::TransactionError("failed".to_string())),
+        }
+    }
+
     async fn execute_transaction(
         &self,
         to: &str,
@@ -136,15 +192,37 @@ impl BaseClient for NeutronClient {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
+    use tokio::time::sleep;
+
     use super::*;
 
-    const GRPC_URL: &str = "-"; // update during dev to a real one
-    const GRPC_PORT: &str = "19190";
+    const LOCAL_GRPC_URL: &str = "http://127.0.0.1";
+    const LOCAL_GRPC_PORT: &str = "42977";
+    const LOCAL_MNEMONIC: &str = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry";
+    const LOCAL_SIGNER_ADDR: &str = "neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky";
+    const LOCAL_ALT_ADDR: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
+    const LOCAL_CHAIN_ID: &str = "localneutron-1";
+    const LOCAL_PROCESSOR_ADDR: &str =
+        "neutron1tdwtzvhep8nwxyy4pyry520lncshum9wshyvpv2w393nmf75jxjsyfq4ll";
+
+    // update during dev to a real one for mainnet testing
+    const CHAIN_ID: &str = "neutron-1";
+    const GRPC_URL: &str = "-";
+    const GRPC_PORT: &str = "-";
     const NEUTRON_DAO_ADDR: &str =
         "neutron1suhgf5svhu4usrurvxzlgn54ksxmn8gljarjtxqnapv8kjnp4nrstdxvff";
+    const MNEMONIC: &str = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry";
+
     #[tokio::test]
     async fn test_latest_block_height() {
-        let client = NeutronClient::new(GRPC_URL, GRPC_PORT);
+        let client = NeutronClient::new(
+            LOCAL_GRPC_URL,
+            LOCAL_GRPC_PORT,
+            LOCAL_MNEMONIC,
+            LOCAL_CHAIN_ID,
+        );
 
         let block_height = client
             .latest_block_height()
@@ -156,26 +234,61 @@ mod tests {
 
     #[tokio::test]
     async fn test_query_balance() {
-        let client = NeutronClient::new(GRPC_URL, GRPC_PORT);
+        let client = NeutronClient::new(
+            LOCAL_GRPC_URL,
+            LOCAL_GRPC_PORT,
+            LOCAL_MNEMONIC,
+            LOCAL_CHAIN_ID,
+        );
         let balance = client
-            .query_balance(NEUTRON_DAO_ADDR, "untrn")
+            .query_balance(LOCAL_SIGNER_ADDR, "untrn")
             .await
             .unwrap();
 
-        println!("balance: {}", balance);
+        assert_ne!(balance, 0);
     }
 
     #[tokio::test]
     async fn test_query_contract_state() {
-        let client = NeutronClient::new(GRPC_URL, GRPC_PORT);
+        let client = NeutronClient::new(
+            LOCAL_GRPC_URL,
+            LOCAL_GRPC_PORT,
+            LOCAL_MNEMONIC,
+            LOCAL_CHAIN_ID,
+        );
 
         let query_data = serde_json::json!({
           "config": {}
         });
 
         let state: Value = client
-            .query_contract_state(NEUTRON_DAO_ADDR, query_data)
+            .query_contract_state(LOCAL_PROCESSOR_ADDR, query_data)
             .await
             .unwrap();
+
+        println!("state: {:?}", state);
+    }
+
+    #[tokio::test]
+    async fn test_transfer() {
+        let client = NeutronClient::new(
+            LOCAL_GRPC_URL,
+            LOCAL_GRPC_PORT,
+            LOCAL_MNEMONIC,
+            LOCAL_CHAIN_ID,
+        );
+
+        let pre_transfer_balance = client.query_balance(LOCAL_ALT_ADDR, "untrn").await.unwrap();
+
+        let resp = client
+            .transfer(LOCAL_ALT_ADDR, 100_000, "untrn", None)
+            .await
+            .unwrap();
+
+        sleep(Duration::from_secs(3)).await;
+
+        let post_transfer_balance = client.query_balance(LOCAL_ALT_ADDR, "untrn").await.unwrap();
+
+        assert_eq!(pre_transfer_balance + 100_000, post_transfer_balance);
     }
 }

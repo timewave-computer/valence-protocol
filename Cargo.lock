@@ -8099,6 +8099,7 @@ name = "valence-strategist-utils"
 version = "0.2.0"
 dependencies = [
  "async-trait",
+ "bip32",
  "cosmos-sdk-proto 0.26.1",
  "cosmrs 0.21.1",
  "cosmwasm-schema 2.2.1",

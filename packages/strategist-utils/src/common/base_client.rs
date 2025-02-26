@@ -16,6 +16,14 @@ pub trait BaseClient {
         query_data: Value,
     ) -> Result<T, StrategistError>;
 
+    async fn transfer(
+        &self,
+        to: &str,
+        amount: u128,
+        denom: &str,
+        options: Option<String>,
+    ) -> Result<TransactionResponse, StrategistError>;
+
     async fn execute_transaction(
         &self,
         to: &str,
