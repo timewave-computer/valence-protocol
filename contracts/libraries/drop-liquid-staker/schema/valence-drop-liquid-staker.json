@@ -271,11 +271,19 @@
           {
             "type": "object",
             "required": [
-              "stake"
+              "liquid_stake"
             ],
             "properties": {
-              "stake": {
+              "liquid_stake": {
                 "type": "object",
+                "properties": {
+                  "ref": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
                 "additionalProperties": false
               }
             },
