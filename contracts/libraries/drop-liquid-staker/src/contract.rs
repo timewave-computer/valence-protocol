@@ -82,7 +82,7 @@ mod functions {
 
                 Ok(Response::new()
                     .add_message(input_account_msgs)
-                    .add_attribute("method", "stake"))
+                    .add_attribute("method", "liquid_stake"))
             }
         }
     }
