@@ -4,6 +4,8 @@ use localic_utils::{
     ConfigChainBuilder, TestContextBuilder, LOCAL_IC_API_URL,
     NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME, DEFAULT_KEY
 };
+use cosmwasm_std::{Binary, Decimal, Uint128};
+use cosmwasm_std_old::Coin;
 use localic_std::modules::{
     cosmwasm::{contract_execute, contract_instantiate, contract_query},
 };
@@ -30,6 +32,7 @@ use valence_astroport_withdrawer::msg::LiquidityWithdrawerConfig;
 use valence_library_utils::{
      liquidity_utils::AssetData,
 };
+use valence_astroport_utils::astroport_native_lp_token::Asset;
 
 // three accounts. let's call them input account, position account, output account
 // two libraries. astroport liquidity provider and astroport withdrawer
@@ -105,7 +108,7 @@ pub(crate) fn my_program() -> Result<ProgramConfig, Box<dyn Error>> {
         DEFAULT_KEY,
         astroport_factory_code_id,
         &serde_json::to_string(&astroport_factory_instantiate_msg).unwrap(),
-        "processor",
+        "astroport_factory",
         None,
         "",
     )
@@ -184,6 +187,52 @@ pub(crate) fn my_program() -> Result<ProgramConfig, Box<dyn Error>> {
     let pool_addr = query_pool_response["contract_addr"].as_str().unwrap();
     let lp_token = query_pool_response["liquidity_token"].as_str().unwrap();
 
+    // set up pool
+    println!("Pool address: {}", pool_addr);
+    let ntrn_deposit = 250000000;
+    let token_deposit = 500000000;
+    let provide_liquidity_msg =
+        valence_astroport_utils::astroport_native_lp_token::ExecuteMsg::ProvideLiquidity {
+            assets: vec![
+                Asset {
+                    info: AssetInfo::NativeToken {
+                        denom: NTRN_DENOM.to_string(),
+                    },
+                    amount: Uint128::new(ntrn_deposit),
+                },
+                Asset {
+                    info: AssetInfo::NativeToken {
+                        denom: token.clone(),
+                    },
+                    amount: Uint128::new(token_deposit),
+                },
+            ],
+            slippage_tolerance: None,
+            auto_stake: None,
+            receiver: None,
+            min_lp_to_receive: None,
+        };
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        pool_addr,
+        DEFAULT_KEY,
+        &serde_json::to_string(&provide_liquidity_msg).unwrap(),
+        &format!(
+            "--amount {}{},{}{} {}",
+            token_deposit,
+            token.clone(),
+            ntrn_deposit,
+            NTRN_DENOM,
+            GAS_FLAGS
+        ),
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+   
+    
     let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
     let neutron_domain =
         valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
@@ -313,6 +362,6 @@ pub(crate) fn my_program() -> Result<ProgramConfig, Box<dyn Error>> {
             .build()
     );
 
-   Ok(builder.build())
+     Ok(builder.build())
     
 }

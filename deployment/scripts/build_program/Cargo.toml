@@ -19,3 +19,5 @@ valence-astroport-withdrawer         = { workspace = true }
 valence-astroport-utils              = { workspace = true }
 rand                                 = "0.8.5"
 valence-e2e = { path = "../../../e2e" }
+cosmwasm-std                         = { workspace = true }
+cosmwasm-std-old                     = { package = "cosmwasm-std", version = "1.5.7" }
