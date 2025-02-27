@@ -1,6 +1,6 @@
 # Valence Drop Liquid Unstaker library
 
-The **Valence Drop Liquid Unstaker** library allows to **liquid unstake** an asset from an **input account** from the [Drop protocol](https://docs.drop.money/) and to **withdraw** the claim once it's withdrawable and deposit the asset into the **output account**. It is typically used as part of a **Valence Program**. In that context, a **Processor** contract will be the main contract interacting with the Forwarder library.
+The **Valence Drop Liquid Unstaker** library allows liquid staked tokens (e.g., dNTRN or dATOM) to be redeem for underlying assets (e.g., NTRN or ATOM) through the [Drop protocol](https://docs.drop.money/). The liquid staked asset must be available in the **input account**. When the library's function to redeem the staked assets (`LiquidUnstake`) is invoked, the library issues a withdraw request to the Drop protocol generating a tokenized voucher that is held by the input account. This tokenized voucher can be used to claim the underlying assets (represented as an NFT). Note that the underlying assets are not withdrawn immediately, as the Drop protocol unstakes assets asynchronously. At a later time, when the underlying assets are available for withdraw, the library's claim function can be invoked with the voucher as an argument. This function will withdraw the underlying assets and deposit them into the **output account**.
 
 ## High-level flow
 
