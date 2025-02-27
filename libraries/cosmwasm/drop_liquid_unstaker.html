@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Drop Liquid Staker - Valence Protocol Documentation</title>
+        <title>Drop Liquid Unstaker - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -157,34 +157,46 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="valence-drop-liquid-staker-library"><a class="header" href="#valence-drop-liquid-staker-library">Valence Drop Liquid Staker library</a></h1>
-<p>The <strong>Valence Drop Liquid Staker</strong> library allows to <strong>liquid stake</strong> an asset from an <strong>input account</strong> in the <a href="https://docs.drop.money/">Drop protocol</a> and deposit the liquid staking derivate into the <strong>output account</strong>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
+                        <h1 id="valence-drop-liquid-unstaker-library"><a class="header" href="#valence-drop-liquid-unstaker-library">Valence Drop Liquid Unstaker library</a></h1>
+<p>The <strong>Valence Drop Liquid Unstaker</strong> library allows liquid staked tokens (e.g., dNTRN or dATOM) to be redeemed for underlying assets (e.g., NTRN or ATOM) through the <a href="https://docs.drop.money/">Drop protocol</a>. The liquid staked asset must be available in the <strong>input account</strong>. When the library's function to redeem the staked assets (<code>LiquidUnstake</code>) is invoked, the library issues a withdraw request to the Drop protocol generating a tokenized voucher that is held by the input account. This tokenized voucher can be used to claim the underlying assets (represented as an NFT). Note that the underlying assets are not withdrawn immediately, as the Drop protocol unstakes assets asynchronously. At a later time, when the underlying assets are available for withdrawal, the library's claim function can be invoked with the voucher as an argument. This function will withdraw the underlying assets and deposit them into the <strong>output account</strong>.</p>
 <h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
 <pre class="mermaid">---
-title: Drop Liquid Staker Library
+title: Drop Liquid Unstaker Library - Unstake Flow
 ---
 graph LR
-  IA((Input
-      Account))
-  CC((Drop Core
-      Contract))
-  OA((Output
-      Account))
-  P[Processor]
-  S[Drop Liquid Staker
-      Library]
-  P -- 1/Liquid Stake --&gt; S
-  S -- 2/Query balance --&gt; IA
-  S -- 3/Do Liquid 
-  Stake funds --&gt; IA
-  IA -- 4/Liquid Stake
-   funds --&gt; CC
-  CC -- 5/Send LS 
-  derivative --&gt; OA
+    IA((Input Account))
+    CC((Drop Core Contract))
+    P2[Processor]
+    S2[Drop Liquid
+    Unstaker Library]
+    P2 -- &quot;1/Unstake&quot; --&gt; S2
+    S2 -- &quot;2/Query balance&quot; --&gt; IA
+    S2 -- &quot;3/Do Unstake funds&quot; --&gt; IA
+    IA -- &quot;4/Unstake funds&quot; --&gt; CC
+    CC -- &quot;5/Send NFT voucher&quot; --&gt; IA
+</pre>
+<pre class="mermaid">---
+title: Drop Liquid Unstaker Library - Withdraw Flow
+---
+graph LR
+    IA((Input Account))
+    WW((Withdrawal Manager
+    Contract))
+    P1[Processor]
+    S1[Drop Liquid
+    Unstaker Library]
+    OA((Output Account))
+    P1 -- &quot;1/Withdraw (token_id)&quot; --&gt; S1
+    S1 -- &quot;2/Check ownership&quot; --&gt; IA
+    S1 -- &quot;3/Do Withdraw&quot; --&gt; IA
+    IA -- &quot;4/Send NFT voucher with
+    ReceiveMsg&quot; --&gt; WW
+    WW -- &quot;5/Send unstaked funds&quot; --&gt; OA
 </pre>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>LiquidStake</strong></td><td>ref (Optional): <a href="https://docs.drop.money/integrations/referral">referral address</a></td><td>Liquid stakes the balance of the <strong>input account</strong> into the <strong>drop core contract</strong> and deposits LS derivative into the <strong>output account</strong>.</td></tr>
+<tr><td><strong>Unstake</strong></td><td></td><td>Unstakes the balance of the <strong>input account</strong> from the <strong>drop core contract</strong> and deposits the <strong>voucher</strong> into the <strong>input account</strong>.</td></tr>
+<tr><td><strong>Withdraw</strong></td><td>token_id</td><td>Withdraws the voucher with <strong>token_id</strong> identifier from the <strong>input account</strong> and deposits the unstaked assets into the <strong>output account</strong>.</td></tr>
 </tbody></table>
 </div>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
@@ -194,9 +206,13 @@ graph LR
 </span>pub struct LibraryConfig {
     pub input_addr: LibraryAccountType,
     pub output_addr: LibraryAccountType,
-    // Address of the liquid staker contract (drop core contract)
-    pub liquid_staker_addr: String,
-    // Denom of the asset we are going to liquid stake
+    // Address of the liquid unstaker contract (drop core contract)
+    pub liquid_unstaker_addr: String,
+    // Address of the withdrawal_manager_addr (drop withdrawal manager)
+    pub withdrawal_manager_addr: String,
+    // Address of the voucher NFT contract that we get after unstaking and we use for the withdraw
+    pub voucher_addr: String,
+    // Denom of the asset we are going to unstake
     pub denom: String,
 }
 <span class="boring">}</span></code></pre></pre>
@@ -205,11 +221,11 @@ graph LR
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../libraries/cosmwasm/neutron_ic_querier.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../libraries/cosmwasm/drop_liquid_staker.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../../libraries/cosmwasm/drop_liquid_unstaker.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../libraries/evm/_overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -219,11 +235,11 @@ graph LR
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../libraries/cosmwasm/neutron_ic_querier.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../libraries/cosmwasm/drop_liquid_staker.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../../libraries/cosmwasm/drop_liquid_unstaker.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../libraries/evm/_overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

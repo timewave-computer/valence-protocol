@@ -2218,11 +2218,70 @@ graph LR
     pub denom: String,
 }
 <span class="boring">}</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-drop-liquid-unstaker-library"><a class="header" href="#valence-drop-liquid-unstaker-library">Valence Drop Liquid Unstaker library</a></h1>
+<p>The <strong>Valence Drop Liquid Unstaker</strong> library allows liquid staked tokens (e.g., dNTRN or dATOM) to be redeemed for underlying assets (e.g., NTRN or ATOM) through the <a href="https://docs.drop.money/">Drop protocol</a>. The liquid staked asset must be available in the <strong>input account</strong>. When the library's function to redeem the staked assets (<code>LiquidUnstake</code>) is invoked, the library issues a withdraw request to the Drop protocol generating a tokenized voucher that is held by the input account. This tokenized voucher can be used to claim the underlying assets (represented as an NFT). Note that the underlying assets are not withdrawn immediately, as the Drop protocol unstakes assets asynchronously. At a later time, when the underlying assets are available for withdrawal, the library's claim function can be invoked with the voucher as an argument. This function will withdraw the underlying assets and deposit them into the <strong>output account</strong>.</p>
+<h2 id="high-level-flow-12"><a class="header" href="#high-level-flow-12">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Drop Liquid Unstaker Library - Unstake Flow
+---
+graph LR
+    IA((Input Account))
+    CC((Drop Core Contract))
+    P2[Processor]
+    S2[Drop Liquid
+    Unstaker Library]
+    P2 -- &quot;1/Unstake&quot; --&gt; S2
+    S2 -- &quot;2/Query balance&quot; --&gt; IA
+    S2 -- &quot;3/Do Unstake funds&quot; --&gt; IA
+    IA -- &quot;4/Unstake funds&quot; --&gt; CC
+    CC -- &quot;5/Send NFT voucher&quot; --&gt; IA
+</pre>
+<pre class="mermaid">---
+title: Drop Liquid Unstaker Library - Withdraw Flow
+---
+graph LR
+    IA((Input Account))
+    WW((Withdrawal Manager
+    Contract))
+    P1[Processor]
+    S1[Drop Liquid
+    Unstaker Library]
+    OA((Output Account))
+    P1 -- &quot;1/Withdraw (token_id)&quot; --&gt; S1
+    S1 -- &quot;2/Check ownership&quot; --&gt; IA
+    S1 -- &quot;3/Do Withdraw&quot; --&gt; IA
+    IA -- &quot;4/Send NFT voucher with
+    ReceiveMsg&quot; --&gt; WW
+    WW -- &quot;5/Send unstaked funds&quot; --&gt; OA
+</pre>
+<h2 id="functions-12"><a class="header" href="#functions-12">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>Unstake</strong></td><td></td><td>Unstakes the balance of the <strong>input account</strong> from the <strong>drop core contract</strong> and deposits the <strong>voucher</strong> into the <strong>input account</strong>.</td></tr>
+<tr><td><strong>Withdraw</strong></td><td>token_id</td><td>Withdraws the voucher with <strong>token_id</strong> identifier from the <strong>input account</strong> and deposits the unstaked assets into the <strong>output account</strong>.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration-12"><a class="header" href="#configuration-12">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LibraryConfig {
+    pub input_addr: LibraryAccountType,
+    pub output_addr: LibraryAccountType,
+    // Address of the liquid unstaker contract (drop core contract)
+    pub liquid_unstaker_addr: String,
+    // Address of the withdrawal_manager_addr (drop withdrawal manager)
+    pub withdrawal_manager_addr: String,
+    // Address of the voucher NFT contract that we get after unstaking and we use for the withdraw
+    pub voucher_addr: String,
+    // Denom of the asset we are going to unstake
+    pub denom: String,
+}
+<span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="evm-libraries"><a class="header" href="#evm-libraries">EVM Libraries</a></h1>
 <p>This section contains a detailed description of all the libraries that can be used in EVM Execution Environments.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-forwarder-library-1"><a class="header" href="#valence-forwarder-library-1">Valence Forwarder Library</a></h1>
 <p>The <strong>Valence Forwarder</strong> library allows to <strong>continuously forward funds</strong> from an <strong>input account</strong> to an <strong>output account</strong>, following some time <strong>constraints</strong>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
-<h2 id="high-level-flow-12"><a class="header" href="#high-level-flow-12">High-level flow</a></h2>
+<h2 id="high-level-flow-13"><a class="header" href="#high-level-flow-13">High-level flow</a></h2>
 <pre class="mermaid">---
 title: Forwarder Library
 ---
@@ -2239,12 +2298,12 @@ graph LR
   S -- 3/Do Send funds --&gt; IA
   IA -- 4/Send funds --&gt; OA
 </pre>
-<h2 id="functions-12"><a class="header" href="#functions-12">Functions</a></h2>
+<h2 id="functions-13"><a class="header" href="#functions-13">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>Forward</strong></td><td>-</td><td>Forward funds from the configured <strong>input account</strong> to the <strong>output account</strong>, according to the <strong>forwarding configs</strong> &amp; <strong>min interval</strong>.</td></tr>
 </tbody></table>
 </div>
-<h2 id="configuration-12"><a class="header" href="#configuration-12">Configuration</a></h2>
+<h2 id="configuration-13"><a class="header" href="#configuration-13">Configuration</a></h2>
 <p>The library is configured on deployment using the <code>ForwarderConfig</code> type.</p>
 <pre><code class="language-solidity">    /**
      * @dev Configuration for a single token forwarding rule
@@ -2290,7 +2349,7 @@ graph LR
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-cctp-transfer-library"><a class="header" href="#valence-cctp-transfer-library">Valence CCTP Transfer library</a></h1>
 <p>The <strong>Valence CCTP Transfer</strong> library allows to <strong>transfer funds</strong> from an <strong>input account</strong> to a <strong>mint recipient</strong> using the <a href="https://developers.circle.com/stablecoins/cctp-getting-started">Cross-Chain Transfer Protocol (CCTP) v1</a>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the CCTP Transfer library.</p>
-<h2 id="high-level-flow-13"><a class="header" href="#high-level-flow-13">High-level flow</a></h2>
+<h2 id="high-level-flow-14"><a class="header" href="#high-level-flow-14">High-level flow</a></h2>
 <pre class="mermaid">---
 title: CCTP Transfer Library
 ---
@@ -2317,12 +2376,12 @@ graph LR
 
   EVM --- DEST
 </pre>
-<h2 id="functions-13"><a class="header" href="#functions-13">Functions</a></h2>
+<h2 id="functions-14"><a class="header" href="#functions-14">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>Transfer</strong></td><td>-</td><td>Transfer funds from the configured <strong>input account</strong> to the <strong>mint recipient</strong> on the <strong>destination domain</strong>.</td></tr>
 </tbody></table>
 </div>
-<h2 id="configuration-13"><a class="header" href="#configuration-13">Configuration</a></h2>
+<h2 id="configuration-14"><a class="header" href="#configuration-14">Configuration</a></h2>
 <p>The library is configured on deployment using the <code>CCTPTransferConfig</code> type. A list of the supported CCTP destination domains that can be used in the <code>destinationDomain</code> field can be found <a href="https://developers.circle.com/stablecoins/supported-domains">here</a>.</p>
 <pre><code class="language-solidity">    /**
      * @dev Configuration struct for token transfer parameters.
@@ -2759,7 +2818,7 @@ This way, when the message batch is being processed, any assertions that do not 
 prevent later messages from executing as expected. If the batch is <em>atomic</em>, the whole batch will abort.
 If the batch is <em>non-atomic</em>, various <a href="middleware/./../authorizations_processors/authorization_contract.html">authorization</a> configuration
 options will dictate the further behavior.</p>
-<h2 id="high-level-flow-14"><a class="header" href="#high-level-flow-14">High-level flow</a></h2>
+<h2 id="high-level-flow-15"><a class="header" href="#high-level-flow-15">High-level flow</a></h2>
 <pre class="mermaid">---
 title: Forwarder Library
 ---
