@@ -97,7 +97,7 @@ mod functions {
                 // Create the claim message
                 let claim_msg = create_send_nft_with_hook_msg(
                     cfg.voucher_addr.to_string(),
-                    cfg.claimer_addr.to_string(),
+                    cfg.withdrawal_manager_addr.to_string(),
                     token_id,
                     cfg.output_addr.to_string(),
                 )?;

@@ -51,8 +51,8 @@ pub struct LibraryConfig {
     pub output_addr: LibraryAccountType,
     // Address of the liquid unstaker contract (drop core contract)
     pub liquid_unstaker_addr: String,
-    // Address of the claimer contract (drop withdrawal manager)
-    pub claimer_addr: String,
+    // Address of the withdrawal_manager_addr (drop withdrawal manager)
+    pub withdrawal_manager_addr: String,
     // Address of the voucher NFT contract that we get after unstaking and we use for the claim
     pub voucher_addr: String,
     // Denom of the asset we are going to liquid unstake

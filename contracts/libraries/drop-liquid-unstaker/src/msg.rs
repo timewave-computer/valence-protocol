@@ -25,8 +25,8 @@ pub struct LibraryConfig {
     pub output_addr: LibraryAccountType,
     // Address of the liquid unstaker contract (drop core contract)
     pub liquid_unstaker_addr: String,
-    // Address of the claimer contract (drop withdrawal manager)
-    pub claimer_addr: String,
+    // Address of the withdrawal_manager_addr (drop withdrawal manager)
+    pub withdrawal_manager_addr: String,
     // Address of the voucher NFT contract that we get after unstaking and we use for the claim
     pub voucher_addr: String,
     // Denom of the asset we are going to liquid unstake
@@ -38,7 +38,7 @@ impl LibraryConfig {
         input_addr: impl Into<LibraryAccountType>,
         output_addr: impl Into<LibraryAccountType>,
         liquid_unstaker_addr: String,
-        claimer_addr: String,
+        withdrawal_manager_addr: String,
         voucher_addr: String,
         denom: String,
     ) -> Self {
@@ -46,7 +46,7 @@ impl LibraryConfig {
             input_addr: input_addr.into(),
             output_addr: output_addr.into(),
             liquid_unstaker_addr,
-            claimer_addr,
+            withdrawal_manager_addr,
             voucher_addr,
             denom,
         }
@@ -60,14 +60,14 @@ impl LibraryConfig {
         let output_addr = self.output_addr.to_addr(api)?;
         let liquid_unstaker_addr = api.addr_validate(&self.liquid_unstaker_addr)?;
         let voucher_addr = api.addr_validate(&self.voucher_addr)?;
-        let claimer_addr = api.addr_validate(&self.claimer_addr)?;
+        let withdrawal_manager_addr = api.addr_validate(&self.withdrawal_manager_addr)?;
 
         Ok((
             input_addr,
             output_addr,
             liquid_unstaker_addr,
             voucher_addr,
-            claimer_addr,
+            withdrawal_manager_addr,
         ))
     }
 }
@@ -80,7 +80,7 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
     }
 
     fn validate(&self, deps: Deps) -> Result<Config, LibraryError> {
-        let (input_addr, output_addr, liquid_unstaker_addr, voucher_addr, claimer_addr) =
+        let (input_addr, output_addr, liquid_unstaker_addr, voucher_addr, withdrawal_manager_addr) =
             self.do_validate(deps.api)?;
 
         Ok(Config {
@@ -88,7 +88,7 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
             output_addr,
             liquid_unstaker_addr,
             voucher_addr,
-            claimer_addr,
+            withdrawal_manager_addr,
             denom: self.denom.clone(),
         })
     }
@@ -113,9 +113,9 @@ impl LibraryConfigUpdate {
             config.liquid_unstaker_addr = deps.api.addr_validate(&liquid_unstaker_addr)?;
         }
 
-        // Next update claimer_addr (if needed)
-        if let Some(claimer_addr) = self.claimer_addr {
-            config.claimer_addr = deps.api.addr_validate(&claimer_addr)?;
+        // Next update withdrawal_manager_addr (if needed)
+        if let Some(withdrawal_manager_addr) = self.withdrawal_manager_addr {
+            config.withdrawal_manager_addr = deps.api.addr_validate(&withdrawal_manager_addr)?;
         }
 
         // Next update denom (if needed)
@@ -134,7 +134,7 @@ pub struct Config {
     pub output_addr: Addr,
     pub liquid_unstaker_addr: Addr,
     pub voucher_addr: Addr,
-    pub claimer_addr: Addr,
+    pub withdrawal_manager_addr: Addr,
     pub denom: String,
 }
 
@@ -144,7 +144,7 @@ impl Config {
         output_addr: Addr,
         liquid_unstaker_addr: Addr,
         voucher_addr: Addr,
-        claimer_addr: Addr,
+        withdrawal_manager_addr: Addr,
         denom: String,
     ) -> Self {
         Config {
@@ -152,7 +152,7 @@ impl Config {
             output_addr,
             liquid_unstaker_addr,
             voucher_addr,
-            claimer_addr,
+            withdrawal_manager_addr,
             denom,
         }
     }

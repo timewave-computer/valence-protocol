@@ -72,17 +72,14 @@
       "LibraryConfig": {
         "type": "object",
         "required": [
-          "claimer_addr",
           "denom",
           "input_addr",
           "liquid_unstaker_addr",
           "output_addr",
-          "voucher_addr"
+          "voucher_addr",
+          "withdrawal_manager_addr"
         ],
         "properties": {
-          "claimer_addr": {
-            "type": "string"
-          },
           "denom": {
             "type": "string"
           },
@@ -96,6 +93,9 @@
             "$ref": "#/definitions/LibraryAccountType"
           },
           "voucher_addr": {
+            "type": "string"
+          },
+          "withdrawal_manager_addr": {
             "type": "string"
           }
         },
@@ -360,12 +360,6 @@
       "LibraryConfigUpdate": {
         "type": "object",
         "properties": {
-          "claimer_addr": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "denom": {
             "type": [
               "string",
@@ -399,6 +393,12 @@
             ]
           },
           "voucher_addr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "withdrawal_manager_addr": {
             "type": [
               "string",
               "null"
@@ -491,17 +491,14 @@
       "title": "Config",
       "type": "object",
       "required": [
-        "claimer_addr",
         "denom",
         "input_addr",
         "liquid_unstaker_addr",
         "output_addr",
-        "voucher_addr"
+        "voucher_addr",
+        "withdrawal_manager_addr"
       ],
       "properties": {
-        "claimer_addr": {
-          "$ref": "#/definitions/Addr"
-        },
         "denom": {
           "type": "string"
         },
@@ -515,6 +512,9 @@
           "$ref": "#/definitions/Addr"
         },
         "voucher_addr": {
+          "$ref": "#/definitions/Addr"
+        },
+        "withdrawal_manager_addr": {
           "$ref": "#/definitions/Addr"
         }
       },
@@ -537,17 +537,14 @@
       "title": "LibraryConfig",
       "type": "object",
       "required": [
-        "claimer_addr",
         "denom",
         "input_addr",
         "liquid_unstaker_addr",
         "output_addr",
-        "voucher_addr"
+        "voucher_addr",
+        "withdrawal_manager_addr"
       ],
       "properties": {
-        "claimer_addr": {
-          "type": "string"
-        },
         "denom": {
           "type": "string"
         },
@@ -561,6 +558,9 @@
           "$ref": "#/definitions/LibraryAccountType"
         },
         "voucher_addr": {
+          "type": "string"
+        },
+        "withdrawal_manager_addr": {
           "type": "string"
         }
       },
