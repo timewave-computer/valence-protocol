@@ -1,9 +1,11 @@
+use std::f64::consts::TAU;
 use std::str::FromStr;
 
 use crate::common::{
     base_client::BaseClient, error::StrategistError, transaction::TransactionResponse,
 };
-use alloy::network::Ethereum;
+use alloy::contract::{CallBuilder, CallDecoder};
+use alloy::network::{Ethereum, Network};
 use alloy::primitives::Address;
 use alloy::providers::{
     fillers::{BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller},
@@ -12,6 +14,7 @@ use alloy::providers::{
 use alloy::rpc::types::{TransactionReceipt, TransactionRequest};
 use alloy::sol_types::SolCall;
 use alloy::transports::http::{Client, Http};
+use alloy::transports::Transport;
 use cosmrs::Coin;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
@@ -51,17 +54,28 @@ impl EthereumClient {
         Ok(provider)
     }
 
-    async fn query(
+    async fn query<T, P, D, N>(
         &self,
-        tx: TransactionRequest,
-    ) -> Result<lastUpdateTimestampReturn, StrategistError> {
+        builder: CallBuilder<T, P, D, N>,
+    ) -> Result<D::CallOutput, StrategistError>
+    where
+        T: Transport + Clone,
+        P: Provider<T, N>,
+        N: Network,
+        D: CallDecoder,
+        N::TransactionRequest: Into<TransactionRequest>,
+        CallBuilder<T, P, D, N>: Clone,
+    {
         let client = self.get_client().await?;
 
-        let resp = client.call(&tx).await.unwrap();
+        let tx_request: TransactionRequest = builder.clone().into_transaction_request().into();
 
-        let resp = ValenceVault::lastUpdateTimestampCall::abi_decode_returns(&resp, true).unwrap();
+        let raw_response = client.call(&tx_request).await.unwrap();
 
-        Ok(resp)
+        // Decode the output using the decoder embedded in the builder.
+        let decoded = builder.decode_output(raw_response, true).unwrap();
+
+        Ok(decoded)
     }
 
     async fn execute_tx(
@@ -131,8 +145,7 @@ impl BaseClient for EthereumClient {
 
 #[cfg(test)]
 mod tests {
-    use alloy::{network::TransactionBuilder, primitives::U256, sol_types::SolCall};
-    use tonic::IntoRequest;
+    use alloy::{network::TransactionBuilder, primitives::U256};
     use valence_e2e::utils::solidity_contracts::{
         MockERC20,
         ValenceVault::{self},
@@ -239,17 +252,20 @@ mod tests {
     async fn test_eth_query_contract_states() {
         let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC, TEST_CHAIN_ID);
         let provider = client.get_client().await.unwrap();
+        let accounts = provider.get_accounts().await.unwrap();
 
         let contract_addr = Address::from_str(TEST_CONTRACT_ADDR).unwrap();
 
         let valence_vault = ValenceVault::new(contract_addr, provider);
 
-        let query_request = valence_vault
-            .lastUpdateTimestamp()
-            .into_transaction_request();
+        let req = valence_vault.lastUpdateTimestamp();
 
-        let response = client.query(query_request).await.unwrap();
+        let response = client.query(req).await.unwrap();
 
-        println!("resp: {:?}", response._0);
+        assert_ne!(0, response._0);
+
+        let req = valence_vault.balanceOf(accounts[0]);
+        let response = client.query(req).await.unwrap();
+        assert_eq!(U256::from(0), response._0);
     }
 }
