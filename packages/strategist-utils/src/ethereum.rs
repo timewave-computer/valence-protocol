@@ -1,13 +1,18 @@
+use std::marker::PhantomData;
 use std::str::FromStr;
 
 use crate::common::{
     base_client::BaseClient, error::StrategistError, transaction::TransactionResponse,
 };
+use alloy::contract::CallBuilder;
+use alloy::network::Ethereum;
 use alloy::primitives::Address;
 use alloy::providers::{
     fillers::{BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller},
     Identity, Provider, ProviderBuilder, RootProvider,
 };
+use alloy::rpc::types::{TransactionReceipt, TransactionRequest};
+use alloy::transports::http::{Client, Http};
 use cosmrs::Coin;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
@@ -19,6 +24,16 @@ pub struct EthereumClient {
     chain_id: u64,
 }
 
+type CustomProvider = FillProvider<
+    JoinFill<
+        Identity,
+        JoinFill<GasFiller, JoinFill<BlobGasFiller, JoinFill<NonceFiller, ChainIdFiller>>>,
+    >,
+    RootProvider<Http<Client>>,
+    Http<Client>,
+    Ethereum,
+>;
+
 impl EthereumClient {
     pub fn new(rpc_url: &str, mnemonic: &str, chain_id: u64) -> Self {
         Self {
@@ -28,20 +43,52 @@ impl EthereumClient {
         }
     }
 
-    async fn get_client(
-        &self,
-    ) -> Result<
-        FillProvider<
-            JoinFill<
-                Identity,
-                JoinFill<GasFiller, JoinFill<BlobGasFiller, JoinFill<NonceFiller, ChainIdFiller>>>,
-            >,
-            RootProvider,
-        >,
-        StrategistError,
-    > {
-        let provider = ProviderBuilder::new().on_http(self.rpc_url.parse().unwrap());
+    async fn get_client(&self) -> Result<CustomProvider, StrategistError> {
+        let provider = ProviderBuilder::new()
+            .with_recommended_fillers()
+            // .wallet(wallet)
+            .on_http(self.rpc_url.parse().unwrap());
         Ok(provider)
+    }
+
+    async fn query(
+        &self,
+        sender: &str,
+        tx_request: TransactionRequest,
+    ) -> Result<(), StrategistError> {
+        let client = self.get_client().await?;
+        let sender = Address::from_str(sender).unwrap();
+        let tx = tx_request.from(sender);
+        let tx_response = client
+            .send_transaction(tx)
+            .await
+            .unwrap()
+            .watch()
+            .await
+            .unwrap();
+
+        println!("query tx response: {:?}", tx_response);
+
+        Ok(())
+    }
+
+    async fn execute_tx(
+        &self,
+        tx: TransactionRequest,
+    ) -> Result<TransactionReceipt, StrategistError> {
+        let client = self.get_client().await?;
+
+        let tx_response = client
+            .send_transaction(tx)
+            .await
+            .unwrap()
+            .get_receipt()
+            .await
+            .unwrap();
+
+        println!("execute tx response: {:?}", tx_response);
+
+        Ok(tx_response)
     }
 }
 
@@ -92,6 +139,17 @@ impl BaseClient for EthereumClient {
 
 #[cfg(test)]
 mod tests {
+    use alloy::{
+        contract::CallBuilder, network::TransactionBuilder, primitives::U256, sol_types::SolValue,
+    };
+    use valence_e2e::utils::solidity_contracts::{
+        MockERC20,
+        ValenceVault::{
+            self, lastUpdateTimestampCall, totalSupplyReturn, FeeConfig, FeeDistributionConfig,
+            ValenceVaultInstance, VaultConfig,
+        },
+    };
+
     use super::*;
 
     // These would be replaced with actual test values
@@ -100,22 +158,124 @@ mod tests {
     const TEST_CHAIN_ID: u64 = 31337;
     const TEST_ADDR_1: &str = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
     const TEST_ADDR_2: &str = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+    const TEST_CONTRACT_ADDR: &str = "0x610178dA211FEF7D417bC0e6FeD39F05609AD788";
 
     #[tokio::test]
     async fn test_eth_latest_block_height() {
         let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC, TEST_CHAIN_ID);
 
         let block_number = client.latest_block_height().await.unwrap();
-
-        println!("block number: {:?}", block_number);
+        assert_ne!(block_number, 0);
     }
 
     #[tokio::test]
     async fn test_eth_query_balance() {
         let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC, TEST_CHAIN_ID);
+        let provider = client.get_client().await.unwrap();
+        let accounts = provider.get_accounts().await.unwrap();
 
-        let balance = client.query_balance(TEST_ADDR_1, "").await.unwrap();
+        let balance = client
+            .query_balance(&accounts[0].to_string(), "")
+            .await
+            .unwrap();
 
-        println!("balance: {:?}", balance);
+        assert_ne!(balance, 0);
+    }
+
+    #[tokio::test]
+    async fn test_eth_transfer() {
+        let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC, TEST_CHAIN_ID);
+        let provider = client.get_client().await.unwrap();
+        let accounts = provider.get_accounts().await.unwrap();
+
+        let pre_balance = client
+            .query_balance(accounts[1].to_string().as_str(), "")
+            .await
+            .unwrap();
+
+        let transfer_request = TransactionRequest::default()
+            .with_to(accounts[1])
+            .with_value(U256::from(200))
+            .from(accounts[0]);
+
+        client.execute_tx(transfer_request).await.unwrap();
+
+        let post_balance = client
+            .query_balance(accounts[1].to_string().as_str(), "")
+            .await
+            .unwrap();
+
+        assert_eq!(pre_balance + 200, post_balance);
+    }
+
+    #[tokio::test]
+    async fn test_eth_erc20_transfer() {
+        let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC, TEST_CHAIN_ID);
+        let provider = client.get_client().await.unwrap();
+        let accounts = provider.get_accounts().await.unwrap();
+
+        let token_1_tx =
+            MockERC20::deploy_builder(&provider, "Token1".to_string(), "T1".to_string())
+                .into_transaction_request()
+                .from(accounts[0]);
+
+        let token_addr = client
+            .execute_tx(token_1_tx)
+            .await
+            .unwrap()
+            .contract_address
+            .unwrap();
+
+        let token_1 = MockERC20::new(token_addr, provider);
+
+        let mint_token1_tx = token_1
+            .mint(accounts[0], U256::from(1000))
+            .into_transaction_request()
+            .from(accounts[0]);
+
+        client.execute_tx(mint_token1_tx).await.unwrap();
+
+        let pre_balance = token_1.balanceOf(accounts[1]).call().await.unwrap()._0;
+
+        let transfer_request_builder = token_1
+            .transfer(accounts[1], U256::from(200))
+            .from(accounts[0])
+            .into_transaction_request();
+
+        client.execute_tx(transfer_request_builder).await.unwrap();
+
+        let post_balance = token_1.balanceOf(accounts[1]).call().await.unwrap()._0;
+
+        assert_eq!(pre_balance + U256::from(200), post_balance);
+    }
+
+    #[tokio::test]
+    async fn test_eth_query_contract_states() {
+        let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC, TEST_CHAIN_ID);
+        let provider = client.get_client().await.unwrap();
+        let accounts = provider.get_accounts().await.unwrap();
+
+        let contract_addr = Address::from_str(TEST_CONTRACT_ADDR).unwrap();
+
+        println!("accounts: {:?}", accounts);
+
+        let valence_vault = ValenceVault::new(contract_addr, provider);
+
+        let builder = valence_vault.lastUpdateTimestamp();
+
+        let response = builder.call().await.unwrap();
+        println!("response: {:?}", response._0);
+    }
+
+    #[tokio::test]
+    async fn test_transfer_native() {
+        let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC, TEST_CHAIN_ID);
+
+        let response = client
+            .transfer(TEST_ADDR_2, 100, "ETH", None)
+            .await
+            .unwrap();
+
+        println!("response: {:?}", response);
     }
 }
