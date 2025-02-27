@@ -7,8 +7,8 @@ use valence_macros::{valence_library_query, ValenceLibraryInterface};
 
 #[cw_serde]
 pub enum FunctionMsgs {
-    LiquidUnstake {},
-    Claim { token_id: String }, // Token ID of the NFT Voucher to claim
+    Unstake {},
+    Withdraw { token_id: String }, // Token ID of the NFT Voucher to withdraw
 }
 
 #[valence_library_query]
@@ -27,9 +27,9 @@ pub struct LibraryConfig {
     pub liquid_unstaker_addr: String,
     // Address of the withdrawal_manager_addr (drop withdrawal manager)
     pub withdrawal_manager_addr: String,
-    // Address of the voucher NFT contract that we get after unstaking and we use for the claim
+    // Address of the voucher NFT contract that we get after unstaking and we use for the withdraw
     pub voucher_addr: String,
-    // Denom of the asset we are going to liquid unstake
+    // Denom of the asset we are going to unstake
     pub denom: String,
 }
 

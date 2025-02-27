@@ -58,7 +58,7 @@ mod functions {
         cfg: Config,
     ) -> Result<Response, LibraryError> {
         match msg {
-            FunctionMsgs::LiquidUnstake {} => {
+            FunctionMsgs::Unstake {} => {
                 // We will query the balance of the input address and unstake the entire balance
                 // to the liquid unstaker address.
                 let balance = deps
@@ -85,7 +85,7 @@ mod functions {
                     .add_message(input_account_msgs)
                     .add_attribute("method", "liquid_unstake"))
             }
-            FunctionMsgs::Claim { token_id } => {
+            FunctionMsgs::Withdraw { token_id } => {
                 // Verify that voucher belongs to input account
                 verify_voucher_ownership(
                     deps.branch(),
@@ -94,20 +94,20 @@ mod functions {
                     token_id.clone(),
                 )?;
 
-                // Create the claim message
-                let claim_msg = create_send_nft_with_hook_msg(
+                // Create the withdraw message
+                let withdraw_msg = create_send_nft_with_hook_msg(
                     cfg.voucher_addr.to_string(),
                     cfg.withdrawal_manager_addr.to_string(),
                     token_id,
                     cfg.output_addr.to_string(),
                 )?;
 
-                // Wrap the claim msg to be executed on behalf of the input account
-                let input_account_msgs = execute_on_behalf_of(vec![claim_msg], &cfg.input_addr)?;
+                // Wrap the withdraw msg to be executed on behalf of the input account
+                let input_account_msgs = execute_on_behalf_of(vec![withdraw_msg], &cfg.input_addr)?;
 
                 Ok(Response::new()
                     .add_message(input_account_msgs)
-                    .add_attribute("method", "claim"))
+                    .add_attribute("method", "withdraw"))
             }
         }
     }

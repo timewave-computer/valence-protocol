@@ -6,7 +6,7 @@ The **Valence Drop Liquid Unstaker** library allows liquid staked tokens (e.g., 
 
 ```mermaid
 ---
-title: Drop Liquid Unstaker Library - LiquidUnstake Flow
+title: Drop Liquid Unstaker Library - Unstake Flow
 ---
 graph LR
     IA((Input Account))
@@ -14,16 +14,16 @@ graph LR
     P2[Processor]
     S2[Drop Liquid
     Unstaker Library]
-    P2 -- "1/Liquid Unstake" --> S2
+    P2 -- "1/Unstake" --> S2
     S2 -- "2/Query balance" --> IA
-    S2 -- "3/Do Liquid Unstake funds" --> IA
-    IA -- "4/Liquid Unstake funds" --> CC
+    S2 -- "3/Do Unstake funds" --> IA
+    IA -- "4/Unstake funds" --> CC
     CC -- "5/Send NFT voucher" --> IA
 ```
 
 ```mermaid
 ---
-title: Drop Liquid Unstaker Library - Claim Flow
+title: Drop Liquid Unstaker Library - Withdraw Flow
 ---
 graph LR
     IA((Input Account))
@@ -33,9 +33,9 @@ graph LR
     S1[Drop Liquid
     Unstaker Library]
     OA((Output Account))
-    P1 -- "1/Claim (token_id)" --> S1
+    P1 -- "1/Withdraw (token_id)" --> S1
     S1 -- "2/Check ownership" --> IA
-    S1 -- "3/Do Claim" --> IA
+    S1 -- "3/Do Withdraw" --> IA
     IA -- "4/Send NFT voucher with
     ReceiveMsg" --> WW
     WW -- "5/Send unstaked funds" --> OA
@@ -43,10 +43,10 @@ graph LR
 
 ## Functions
 
-| Function          | Parameters | Description                                                                                                                                   |
-| ----------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| **LiquidUnstake** |            | Liquid unstakes the balance of the **input account** from the **drop core contract** and deposits the **voucher** into the **input account**. |
-| **Claim**         | token_id   | Claims the voucher with the **token_id** from the **input account** and deposits the unstaked assets into the **output account**.             |
+| Function     | Parameters | Description                                                                                                                                 |
+| ------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Unstake**  |            | Unstakes the balance of the **input account** from the **drop core contract** and deposits the **voucher** into the **input account**.      |
+| **Withdraw** | token_id   | Withdraws the voucher with **token_id** identifier from the **input account** and deposits the unstaked assets into the **output account**. |
 
 ## Configuration
 
@@ -60,9 +60,9 @@ pub struct LibraryConfig {
     pub liquid_unstaker_addr: String,
     // Address of the withdrawal_manager_addr (drop withdrawal manager)
     pub withdrawal_manager_addr: String,
-    // Address of the voucher NFT contract that we get after unstaking and we use for the claim
+    // Address of the voucher NFT contract that we get after unstaking and we use for the withdraw
     pub voucher_addr: String,
-    // Denom of the asset we are going to liquid unstake
+    // Denom of the asset we are going to unstake
     pub denom: String,
 }
 ```
