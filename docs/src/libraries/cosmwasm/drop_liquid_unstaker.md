@@ -12,7 +12,7 @@ graph LR
     IA((Input Account))
     CC((Drop Core Contract))
     P2[Processor]
-    S2[Drop Liquid 
+    S2[Drop Liquid
     Unstaker Library]
     P2 -- "1/Liquid Unstake" --> S2
     S2 -- "2/Query balance" --> IA
@@ -30,7 +30,7 @@ graph LR
     WW((Withdrawal Manager
     Contract))
     P1[Processor]
-    S1[Drop Liquid 
+    S1[Drop Liquid
     Unstaker Library]
     OA((Output Account))
     P1 -- "1/Claim (token_id)" --> S1
@@ -40,6 +40,13 @@ graph LR
     ReceiveMsg" --> WW
     WW -- "5/Send unstaked funds" --> OA
 ```
+
+## Functions
+
+| Function          | Parameters | Description                                                                                                                                   |
+| ----------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| **LiquidUnstake** |            | Liquid unstakes the balance of the **input account** from the **drop core contract** and deposits the **voucher** into the **input account**. |
+| **Claim**         | token_id   | Claims the voucher with the **token_id** from the **input account** and deposits the unstaked assets into the **output account**.             |
 
 ## Configuration
 
