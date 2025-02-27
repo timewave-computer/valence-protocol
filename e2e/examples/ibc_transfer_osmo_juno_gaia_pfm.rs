@@ -184,7 +184,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         processor: OSMOSIS_CHAIN_ADMIN_ADDR.to_string(),
         config: LibraryConfig::with_pfm_map(
             LibraryAccountType::Addr(input_account.clone()),
-            output_account.clone(),
+            LibraryAccountType::Addr(output_account.clone()),
             UncheckedDenom::Native(atom_on_osmo_via_juno.clone()),
             IbcTransferAmount::FixedAmount(transfer_amount.into()),
             "".to_owned(),

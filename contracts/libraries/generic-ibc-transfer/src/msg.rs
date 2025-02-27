@@ -29,7 +29,7 @@ pub enum QueryMsg {}
 #[derive(ValenceLibraryInterface)]
 pub struct LibraryConfig {
     pub input_addr: LibraryAccountType,
-    pub output_addr: String,
+    pub output_addr: LibraryAccountType,
     pub denom: UncheckedDenom,
     pub amount: IbcTransferAmount,
     pub memo: String,
@@ -61,7 +61,7 @@ impl RemoteChainInfo {
 impl LibraryConfig {
     pub fn new(
         input_addr: LibraryAccountType,
-        output_addr: String,
+        output_addr: LibraryAccountType,
         denom: UncheckedDenom,
         amount: IbcTransferAmount,
         memo: String,
@@ -80,7 +80,7 @@ impl LibraryConfig {
 
     pub fn with_pfm_map(
         input_addr: LibraryAccountType,
-        output_addr: String,
+        output_addr: LibraryAccountType,
         denom: UncheckedDenom,
         amount: IbcTransferAmount,
         memo: String,
@@ -143,7 +143,7 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
         Ok(Config {
             input_addr,
             // Can't validate output address as it's on another chain
-            output_addr: Addr::unchecked(self.output_addr.clone()),
+            output_addr: self.output_addr.to_string()?,
             denom: self
                 .denom
                 .clone()
@@ -169,7 +169,7 @@ impl LibraryConfigUpdate {
         }
 
         if let Some(output_addr) = self.output_addr {
-            config.output_addr = Addr::unchecked(output_addr);
+            config.output_addr = output_addr.to_string()?;
         }
 
         if let Some(denom) = self.denom {
@@ -224,7 +224,7 @@ pub struct Config {
     #[getset(get = "pub", set)]
     input_addr: Addr,
     #[getset(get = "pub", set)]
-    output_addr: Addr,
+    output_addr: String,
     #[getset(get = "pub", set)]
     denom: CheckedDenom,
     #[getset(get = "pub", set)]
@@ -240,7 +240,7 @@ pub struct Config {
 impl Config {
     pub fn new(
         input_addr: Addr,
-        output_addr: Addr,
+        output_addr: String,
         denom: CheckedDenom,
         amount: IbcTransferAmount,
         memo: String,
@@ -259,7 +259,7 @@ impl Config {
 
     pub fn with_pfm_map(
         input_addr: Addr,
-        output_addr: Addr,
+        output_addr: String,
         denom: CheckedDenom,
         amount: IbcTransferAmount,
         memo: String,

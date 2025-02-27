@@ -43,7 +43,7 @@ struct LibraryConfig {
   // Account from which the funds are pulled (on the source chain)
   input_addr: LibraryAccountType,
   // Account to which the funds are sent (on the destination chain)
-  output_addr: String,
+  output_addr: LibraryAccountType,
   // Denom of the token to transfer
   denom: UncheckedDenom,
   // Amount to be transferred, either a fixed amount or the whole available balance.
