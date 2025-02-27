@@ -10,11 +10,13 @@ use alloy::providers::{
     Identity, Provider, ProviderBuilder, RootProvider,
 };
 use alloy::rpc::types::{TransactionReceipt, TransactionRequest};
+use alloy::sol_types::SolCall;
 use alloy::transports::http::{Client, Http};
 use cosmrs::Coin;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use tonic::async_trait;
+use valence_e2e::utils::solidity_contracts::ValenceVault::{self, lastUpdateTimestampReturn};
 
 pub struct EthereumClient {
     rpc_url: String,
@@ -51,23 +53,15 @@ impl EthereumClient {
 
     async fn query(
         &self,
-        sender: &str,
-        tx_request: TransactionRequest,
-    ) -> Result<(), StrategistError> {
+        tx: TransactionRequest,
+    ) -> Result<lastUpdateTimestampReturn, StrategistError> {
         let client = self.get_client().await?;
-        let sender = Address::from_str(sender).unwrap();
-        let tx = tx_request.from(sender);
-        let tx_response = client
-            .send_transaction(tx)
-            .await
-            .unwrap()
-            .watch()
-            .await
-            .unwrap();
 
-        println!("query tx response: {:?}", tx_response);
+        let resp = client.call(&tx).await.unwrap();
 
-        Ok(())
+        let resp = ValenceVault::lastUpdateTimestampCall::abi_decode_returns(&resp, true).unwrap();
+
+        Ok(resp)
     }
 
     async fn execute_tx(
@@ -137,7 +131,8 @@ impl BaseClient for EthereumClient {
 
 #[cfg(test)]
 mod tests {
-    use alloy::{network::TransactionBuilder, primitives::U256};
+    use alloy::{network::TransactionBuilder, primitives::U256, sol_types::SolCall};
+    use tonic::IntoRequest;
     use valence_e2e::utils::solidity_contracts::{
         MockERC20,
         ValenceVault::{self},
@@ -149,8 +144,6 @@ mod tests {
     const TEST_RPC_URL: &str = "http://127.0.0.1:8545";
     const TEST_MNEMONIC: &str = "test test test test test test test test test test test junk";
     const TEST_CHAIN_ID: u64 = 31337;
-    const TEST_ADDR_1: &str = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
-    const TEST_ADDR_2: &str = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
     const TEST_CONTRACT_ADDR: &str = "0x610178dA211FEF7D417bC0e6FeD39F05609AD788";
 
     #[tokio::test]
@@ -246,29 +239,17 @@ mod tests {
     async fn test_eth_query_contract_states() {
         let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC, TEST_CHAIN_ID);
         let provider = client.get_client().await.unwrap();
-        let accounts = provider.get_accounts().await.unwrap();
 
         let contract_addr = Address::from_str(TEST_CONTRACT_ADDR).unwrap();
 
-        println!("accounts: {:?}", accounts);
-
         let valence_vault = ValenceVault::new(contract_addr, provider);
 
-        let builder = valence_vault.lastUpdateTimestamp();
+        let query_request = valence_vault
+            .lastUpdateTimestamp()
+            .into_transaction_request();
 
-        let response = builder.call().await.unwrap();
-        println!("response: {:?}", response._0);
-    }
+        let response = client.query(query_request).await.unwrap();
 
-    #[tokio::test]
-    async fn test_transfer_native() {
-        let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC, TEST_CHAIN_ID);
-
-        let response = client
-            .transfer(TEST_ADDR_2, 100, "ETH", None)
-            .await
-            .unwrap();
-
-        println!("response: {:?}", response);
+        println!("resp: {:?}", response._0);
     }
 }
