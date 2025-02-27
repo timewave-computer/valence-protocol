@@ -858,6 +858,18 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "ValenceDropLiquidUnstaker"
+            ],
+            "properties": {
+              "ValenceDropLiquidUnstaker": {
+                "$ref": "#/definitions/LibraryConfig13"
+              }
+            },
+            "additionalProperties": false
           }
         ]
       },
@@ -921,6 +933,38 @@
           },
           "output_addr": {
             "$ref": "#/definitions/LibraryAccountType"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LibraryConfig13": {
+        "type": "object",
+        "required": [
+          "denom",
+          "input_addr",
+          "liquid_unstaker_addr",
+          "output_addr",
+          "voucher_addr",
+          "withdrawal_manager_addr"
+        ],
+        "properties": {
+          "denom": {
+            "type": "string"
+          },
+          "input_addr": {
+            "$ref": "#/definitions/LibraryAccountType"
+          },
+          "liquid_unstaker_addr": {
+            "type": "string"
+          },
+          "output_addr": {
+            "$ref": "#/definitions/LibraryAccountType"
+          },
+          "voucher_addr": {
+            "type": "string"
+          },
+          "withdrawal_manager_addr": {
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -1287,6 +1331,18 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "ValenceDropLiquidUnstaker"
+            ],
+            "properties": {
+              "ValenceDropLiquidUnstaker": {
+                "$ref": "#/definitions/LibraryConfigUpdate13"
+              }
+            },
+            "additionalProperties": false
           }
         ]
       },
@@ -1395,6 +1451,56 @@
               {
                 "type": "null"
               }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "LibraryConfigUpdate13": {
+        "type": "object",
+        "properties": {
+          "denom": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "input_addr": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "liquid_unstaker_addr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "output_addr": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "voucher_addr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "withdrawal_manager_addr": {
+            "type": [
+              "string",
+              "null"
             ]
           }
         },

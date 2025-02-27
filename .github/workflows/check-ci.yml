@@ -103,7 +103,7 @@ jobs:
         run: |
           docker run --user $(id -u):$(id -g) --rm \
           -v .:/code -v ./target:/target \
-          -v ./target:/usr/local/cargo/registry cosmwasm/optimizer:0.16.0
+          -v ./target:/usr/local/cargo/registry cosmwasm/optimizer:0.16.1
 
       - name: List artifact contents
         run: ls -l ./artifacts
