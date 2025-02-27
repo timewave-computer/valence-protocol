@@ -1,10 +1,8 @@
-use std::marker::PhantomData;
 use std::str::FromStr;
 
 use crate::common::{
     base_client::BaseClient, error::StrategistError, transaction::TransactionResponse,
 };
-use alloy::contract::CallBuilder;
 use alloy::network::Ethereum;
 use alloy::primitives::Address;
 use alloy::providers::{
@@ -139,15 +137,10 @@ impl BaseClient for EthereumClient {
 
 #[cfg(test)]
 mod tests {
-    use alloy::{
-        contract::CallBuilder, network::TransactionBuilder, primitives::U256, sol_types::SolValue,
-    };
+    use alloy::{network::TransactionBuilder, primitives::U256};
     use valence_e2e::utils::solidity_contracts::{
         MockERC20,
-        ValenceVault::{
-            self, lastUpdateTimestampCall, totalSupplyReturn, FeeConfig, FeeDistributionConfig,
-            ValenceVaultInstance, VaultConfig,
-        },
+        ValenceVault::{self},
     };
 
     use super::*;
