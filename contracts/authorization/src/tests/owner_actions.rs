@@ -23,14 +23,7 @@ use valence_processor_utils::msg::{
     ExecuteMsg as ProcessorExecuteMsg, PermissionlessMsg as ProcessorPermissionlessMsg,
 };
 
-use crate::{
-    contract::build_tokenfactory_denom,
-    error::{AuthorizationErrorReason, ContractError, UnauthorizedReason},
-    tests::{
-        builders::NeutronTestAppBuilder,
-        helpers::store_and_instantiate_authorization_with_processor_contract,
-    },
-};
+
 
 #[test]
 fn contract_instantiation() {
