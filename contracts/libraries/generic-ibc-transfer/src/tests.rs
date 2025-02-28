@@ -24,7 +24,7 @@ struct IbcTransferTestSuite {
     #[getset(get)]
     input_addr: Addr,
     #[getset(get)]
-    output_addr: Addr,
+    output_addr: String,
     #[getset(get)]
     input_balance: Option<(u128, String)>,
 }
@@ -41,7 +41,7 @@ impl IbcTransferTestSuite {
         let mut inner = LibraryTestSuiteBase::new();
 
         let input_addr = inner.get_contract_addr(inner.account_code_id(), "input_account");
-        let output_addr = inner.api().addr_make("output_account");
+        let output_addr = inner.api().addr_make("output_account").to_string();
 
         // Template contract
         let ibc_transfer_code = ContractWrapper::new(
@@ -96,7 +96,7 @@ impl IbcTransferTestSuite {
     ) -> LibraryConfig {
         LibraryConfig::new(
             valence_library_utils::LibraryAccountType::Addr(self.input_addr().to_string()),
-            self.output_addr().to_string(),
+            valence_library_utils::LibraryAccountType::Addr(self.output_addr().to_string()),
             valence_library_utils::denoms::UncheckedDenom::Native(denom),
             amount,
             memo,
@@ -343,7 +343,7 @@ fn update_config_with_valid_config() {
 
     // Update config: swap input and output addresses
     cfg.input_addr = LibraryAccountType::Addr(suite.output_addr().to_string());
-    cfg.output_addr = suite.input_addr().to_string();
+    cfg.output_addr = LibraryAccountType::Addr(suite.input_addr().to_string());
     cfg.amount = IbcTransferAmount::FixedAmount(ONE_MILLION.into());
     cfg.memo = "Chancellor on brink of second bailout for banks.".to_string();
 
@@ -355,8 +355,8 @@ fn update_config_with_valid_config() {
     assert_eq!(
         lib_cfg,
         Config::new(
-            suite.output_addr().clone(),
-            suite.input_addr().clone(),
+            Addr::unchecked(suite.output_addr().clone()),
+            suite.input_addr().clone().to_string(),
             CheckedDenom::Native(NTRN.into()),
             IbcTransferAmount::FixedAmount(ONE_MILLION.into()),
             "Chancellor on brink of second bailout for banks.".to_string(),

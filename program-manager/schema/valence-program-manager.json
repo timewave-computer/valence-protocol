@@ -1172,7 +1172,7 @@
             "type": "string"
           },
           "output_addr": {
-            "type": "string"
+            "$ref": "#/definitions/LibraryAccountType"
           },
           "remote_chain_info": {
             "$ref": "#/definitions/RemoteChainInfo"
@@ -1814,9 +1814,13 @@
             ]
           },
           "output_addr": {
-            "type": [
-              "string",
-              "null"
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "remote_chain_info": {
