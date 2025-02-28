@@ -1,4 +1,3 @@
-use std::f64::consts::TAU;
 use std::str::FromStr;
 
 use crate::common::{
@@ -7,23 +6,26 @@ use crate::common::{
 use alloy::contract::{CallBuilder, CallDecoder};
 use alloy::network::{Ethereum, Network};
 use alloy::primitives::Address;
+
 use alloy::providers::{
     fillers::{BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller},
     Identity, Provider, ProviderBuilder, RootProvider,
 };
+
 use alloy::rpc::types::{TransactionReceipt, TransactionRequest};
-use alloy::sol_types::SolCall;
+
 use alloy::transports::http::{Client, Http};
 use alloy::transports::Transport;
+use alloy_signer_local::coins_bip39::English;
+use alloy_signer_local::{MnemonicBuilder, PrivateKeySigner};
 use cosmrs::Coin;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use tonic::async_trait;
-use valence_e2e::utils::solidity_contracts::ValenceVault::{self, lastUpdateTimestampReturn};
 
 pub struct EthereumClient {
     rpc_url: String,
-    mnemonic: String,
+    wallet: PrivateKeySigner,
     chain_id: u64,
 }
 
@@ -38,18 +40,27 @@ type CustomProvider = FillProvider<
 >;
 
 impl EthereumClient {
-    pub fn new(rpc_url: &str, mnemonic: &str, chain_id: u64) -> Self {
-        Self {
+    pub fn new(rpc_url: &str, mnemonic: &str, chain_id: u64) -> Result<Self, StrategistError> {
+        let builder = MnemonicBuilder::<English>::default().phrase(mnemonic);
+
+        let wallet = builder
+            .index(0)
+            .unwrap()
+            .build()
+            .map_err(|e| StrategistError::ParseError(e.to_string()))?;
+
+        println!("wallet: {}", wallet.address());
+
+        Ok(Self {
             rpc_url: rpc_url.to_string(),
-            mnemonic: mnemonic.to_string(),
+            wallet,
             chain_id,
-        }
+        })
     }
 
     async fn get_client(&self) -> Result<CustomProvider, StrategistError> {
         let provider = ProviderBuilder::new()
             .with_recommended_fillers()
-            // .wallet(wallet)
             .on_http(self.rpc_url.parse().unwrap());
         Ok(provider)
     }
@@ -72,7 +83,6 @@ impl EthereumClient {
 
         let raw_response = client.call(&tx_request).await.unwrap();
 
-        // Decode the output using the decoder embedded in the builder.
         let decoded = builder.decode_output(raw_response, true).unwrap();
 
         Ok(decoded)
@@ -85,7 +95,7 @@ impl EthereumClient {
         let client = self.get_client().await?;
 
         let tx_response = client
-            .send_transaction(tx)
+            .send_transaction(tx.from(self.wallet.address()))
             .await
             .unwrap()
             .get_receipt()
@@ -161,7 +171,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_eth_latest_block_height() {
-        let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC, TEST_CHAIN_ID);
+        let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC, TEST_CHAIN_ID).unwrap();
 
         let block_number = client.latest_block_height().await.unwrap();
         assert_ne!(block_number, 0);
@@ -169,7 +179,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_eth_query_balance() {
-        let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC, TEST_CHAIN_ID);
+        let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC, TEST_CHAIN_ID).unwrap();
         let provider = client.get_client().await.unwrap();
         let accounts = provider.get_accounts().await.unwrap();
 
@@ -183,7 +193,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_eth_transfer() {
-        let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC, TEST_CHAIN_ID);
+        let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC, TEST_CHAIN_ID).unwrap();
         let provider = client.get_client().await.unwrap();
         let accounts = provider.get_accounts().await.unwrap();
 
@@ -194,8 +204,7 @@ mod tests {
 
         let transfer_request = TransactionRequest::default()
             .with_to(accounts[1])
-            .with_value(U256::from(200))
-            .from(accounts[0]);
+            .with_value(U256::from(200));
 
         client.execute_tx(transfer_request).await.unwrap();
 
@@ -209,14 +218,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_eth_erc20_transfer() {
-        let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC, TEST_CHAIN_ID);
+        let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC, TEST_CHAIN_ID).unwrap();
         let provider = client.get_client().await.unwrap();
         let accounts = provider.get_accounts().await.unwrap();
 
         let token_1_tx =
             MockERC20::deploy_builder(&provider, "Token1".to_string(), "T1".to_string())
-                .into_transaction_request()
-                .from(accounts[0]);
+                .into_transaction_request();
 
         let token_addr = client
             .execute_tx(token_1_tx)
@@ -229,28 +237,28 @@ mod tests {
 
         let mint_token1_tx = token_1
             .mint(accounts[0], U256::from(1000))
-            .into_transaction_request()
-            .from(accounts[0]);
+            .into_transaction_request();
 
         client.execute_tx(mint_token1_tx).await.unwrap();
 
-        let pre_balance = token_1.balanceOf(accounts[1]).call().await.unwrap()._0;
+        let pre_balance_call = token_1.balanceOf(accounts[1]);
+        let pre_balance = client.query(pre_balance_call).await.unwrap()._0;
 
         let transfer_request_builder = token_1
             .transfer(accounts[1], U256::from(200))
-            .from(accounts[0])
             .into_transaction_request();
 
         client.execute_tx(transfer_request_builder).await.unwrap();
 
-        let post_balance = token_1.balanceOf(accounts[1]).call().await.unwrap()._0;
+        let post_balance_call = token_1.balanceOf(accounts[1]);
+        let post_balance = client.query(post_balance_call).await.unwrap()._0;
 
         assert_eq!(pre_balance + U256::from(200), post_balance);
     }
 
     #[tokio::test]
     async fn test_eth_query_contract_states() {
-        let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC, TEST_CHAIN_ID);
+        let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC, TEST_CHAIN_ID).unwrap();
         let provider = client.get_client().await.unwrap();
         let accounts = provider.get_accounts().await.unwrap();
 
