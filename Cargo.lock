@@ -2275,6 +2275,17 @@ dependencies = [
 
 [[package]]
 name = "cw-storage-plus"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9b6f91c0b94481a3e9ef1ceb183c37d00764f8751e39b45fc09f4d9b970d469"
+dependencies = [
+ "cosmwasm-std 1.5.10",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "cw-storage-plus"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d5ff29294ee99373e2cd5fd21786a3c0ced99a52fec2ca347d565489c61b723c"
@@ -2293,6 +2304,21 @@ dependencies = [
  "cosmwasm-std 2.2.1",
  "schemars",
  "serde",
+]
+
+[[package]]
+name = "cw-utils"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6a84c6c1c0acc3616398eba50783934bd6c964bad6974241eaee3460c8f5b26"
+dependencies = [
+ "cosmwasm-schema 1.5.10",
+ "cosmwasm-std 1.5.10",
+ "cw2 0.16.0",
+ "schemars",
+ "semver 1.0.25",
+ "serde",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -2321,6 +2347,19 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "cw2"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "91398113b806f4d2a8d5f8d05684704a20ffd5968bf87e3473e1973710b884ad"
+dependencies = [
+ "cosmwasm-schema 1.5.10",
+ "cosmwasm-std 1.5.10",
+ "cw-storage-plus 0.16.0",
+ "schemars",
+ "serde",
 ]
 
 [[package]]
@@ -2411,6 +2450,49 @@ dependencies = [
  "semver 1.0.25",
  "serde",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "cw721"
+version = "0.16.0"
+source = "git+https://github.com/CosmWasm/cw-nfts?tag=v0.16.0#2cad1d3e15e0a34d466a0b51e02c58b82ebe5ecd"
+dependencies = [
+ "cosmwasm-schema 1.5.10",
+ "cosmwasm-std 1.5.10",
+ "cw-utils 0.16.0",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "cw721"
+version = "0.20.0"
+source = "git+https://github.com/public-awesome/cw-nfts?rev=99dbf7e#99dbf7ee89fd1e13f72380e92ff95a456183b35d"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "cw-utils 2.0.0",
+ "cw2 2.0.0",
+ "cw721 0.16.0",
+ "schemars",
+ "serde",
+ "thiserror 1.0.69",
+ "url",
+]
+
+[[package]]
+name = "cw721-base"
+version = "0.20.0"
+source = "git+https://github.com/public-awesome/cw-nfts?rev=99dbf7e#99dbf7ee89fd1e13f72380e92ff95a456183b35d"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-ownable",
+ "cw2 2.0.0",
+ "cw721 0.20.0",
+ "serde",
 ]
 
 [[package]]
@@ -7240,6 +7322,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-drop-liquid-staker"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "schemars",
+ "serde",
+ "thiserror 1.0.69",
+ "valence-library-base",
+ "valence-library-utils",
+ "valence-liquid-staking-utils",
+ "valence-macros",
+]
+
+[[package]]
+name = "valence-drop-liquid-unstaker"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "cw721 0.20.0",
+ "cw721-base",
+ "schemars",
+ "serde",
+ "thiserror 1.0.69",
+ "valence-library-base",
+ "valence-library-utils",
+ "valence-liquid-staking-utils",
+ "valence-macros",
+]
+
+[[package]]
 name = "valence-e2e"
 version = "0.2.0"
 dependencies = [
@@ -7470,6 +7588,14 @@ dependencies = [
  "valence-account-utils",
  "valence-base-account",
  "valence-macros",
+]
+
+[[package]]
+name = "valence-liquid-staking-utils"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
 ]
 
 [[package]]
@@ -7760,6 +7886,8 @@ dependencies = [
  "valence-astroport-withdrawer",
  "valence-authorization",
  "valence-authorization-utils",
+ "valence-drop-liquid-staker",
+ "valence-drop-liquid-unstaker",
  "valence-forwarder-library",
  "valence-generic-ibc-transfer-library",
  "valence-library-base",

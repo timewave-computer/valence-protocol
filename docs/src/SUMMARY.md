@@ -39,6 +39,8 @@
     - [Reverse Splitter](./libraries/cosmwasm/reverse_splitter.md)
     - [Splitter](./libraries/cosmwasm/splitter.md)
     - [Neutron Interchain Querier](./libraries/cosmwasm/neutron_ic_querier.md)
+    - [Drop Liquid Staker](./libraries/cosmwasm/drop_liquid_staker.md)
+    - [Drop Liquid Unstaker](./libraries/cosmwasm/drop_liquid_unstaker.md)
   - [EVM](./libraries/evm/_overview.md)
     - [Forwarder](./libraries/evm/forwarder.md)
     - [CCTP Transfer](./libraries/evm/cctp_transfer.md)
