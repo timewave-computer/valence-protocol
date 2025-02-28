@@ -1,6 +1,8 @@
 use alloy::rpc::types::{TransactionReceipt, TransactionRequest};
 use tonic::async_trait;
 
+pub mod errors;
+
 use crate::common::error::StrategistError;
 
 use alloy::network::Ethereum;

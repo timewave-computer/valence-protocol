@@ -3,7 +3,9 @@ use cosmrs::Coin;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 
-use super::{error::StrategistError, transaction::TransactionResponse};
+pub mod errors;
+
+use crate::common::{error::StrategistError, transaction::TransactionResponse};
 
 #[async_trait]
 pub trait BaseClient {

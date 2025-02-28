@@ -1,8 +1,10 @@
 use std::str::FromStr;
 
-use crate::common::{
-    base_client::BaseClient, error::StrategistError, signing_client::SigningClient,
-    transaction::TransactionResponse,
+use crate::{
+    common::{
+        error::StrategistError, signing_client::SigningClient, transaction::TransactionResponse,
+    },
+    cosmos::BaseClient,
 };
 use async_trait::async_trait;
 
@@ -45,11 +47,11 @@ impl NeutronClient {
     }
 
     pub async fn get_grpc_channel(&self) -> Result<Channel, StrategistError> {
-        Channel::from_shared(self.grpc_url.clone())
+        Ok(Channel::from_shared(self.grpc_url.clone())
             .map_err(|_| StrategistError::ClientError("failed to build channel".to_string()))?
             .connect()
             .await
-            .map_err(|_| StrategistError::ClientError("failed to connect to channel".to_string()))
+            .unwrap())
     }
 
     pub async fn get_signing_client(&self) -> Result<SigningClient, StrategistError> {
@@ -68,8 +70,7 @@ impl BaseClient for NeutronClient {
 
         let response = tendermint_client
             .get_latest_block(GetLatestBlockRequest {})
-            .await
-            .map_err(|e| StrategistError::QueryError(e.to_string()))?
+            .await?
             .into_inner();
 
         let sdk_block = response
@@ -99,8 +100,7 @@ impl BaseClient for NeutronClient {
 
         let response: QueryBalanceResponse = bank_client
             .balance(Request::new(request))
-            .await
-            .map_err(|e| StrategistError::QueryError(e.to_string()))?
+            .await?
             .into_inner();
 
         let coin = response
@@ -135,8 +135,7 @@ impl BaseClient for NeutronClient {
 
         let response = wasm_client
             .smart_contract_state(Request::new(request))
-            .await
-            .map_err(|e| StrategistError::QueryError(e.to_string()))?
+            .await?
             .into_inner();
 
         let parsed: T = serde_json::from_slice(&response.data)
@@ -156,24 +155,24 @@ impl BaseClient for NeutronClient {
         let channel = self.get_grpc_channel().await?;
 
         let amount = Coin {
-            denom: denom.parse().unwrap(),
+            denom: denom.parse()?,
             amount,
         };
 
         let transfer_msg = MsgSend {
             from_address: signing_client.address.clone(),
-            to_address: AccountId::from_str(to).unwrap(),
+            to_address: AccountId::from_str(to)?,
             amount: vec![amount],
         }
         .to_any()
         .unwrap();
 
-        let raw_tx = signing_client.create_tx(transfer_msg).await.unwrap();
+        let raw_tx = signing_client.create_tx(transfer_msg).await?;
 
         let mut client =
             cosmos_sdk_proto::cosmos::tx::v1beta1::service_client::ServiceClient::new(channel);
 
-        let broadcast_tx_response = client.broadcast_tx(raw_tx).await.unwrap().into_inner();
+        let broadcast_tx_response = client.broadcast_tx(raw_tx).await?.into_inner();
 
         match broadcast_tx_response.tx_response {
             Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),
@@ -193,19 +192,19 @@ impl BaseClient for NeutronClient {
         let msg_bytes = serde_json::to_vec(&msg).unwrap();
         let wasm_tx = MsgExecuteContract {
             sender: signing_client.address.clone(),
-            contract: AccountId::from_str(contract).unwrap(),
+            contract: AccountId::from_str(contract)?,
             msg: msg_bytes,
             funds,
         }
         .to_any()
         .unwrap();
 
-        let raw_tx = signing_client.create_tx(wasm_tx).await.unwrap();
+        let raw_tx = signing_client.create_tx(wasm_tx).await?;
 
         let mut client =
             cosmos_sdk_proto::cosmos::tx::v1beta1::service_client::ServiceClient::new(channel);
 
-        let broadcast_tx_response = client.broadcast_tx(raw_tx).await.unwrap().into_inner();
+        let broadcast_tx_response = client.broadcast_tx(raw_tx).await?.into_inner();
 
         match broadcast_tx_response.tx_response {
             Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),

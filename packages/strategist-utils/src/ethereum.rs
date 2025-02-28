@@ -10,6 +10,7 @@ use alloy::providers::{Provider, ProviderBuilder};
 
 use alloy::rpc::types::{TransactionReceipt, TransactionRequest};
 
+use alloy::transports::http::reqwest;
 use alloy::transports::Transport;
 use alloy_signer_local::coins_bip39::English;
 use alloy_signer_local::{MnemonicBuilder, PrivateKeySigner};
@@ -24,11 +25,7 @@ impl EthereumClient {
     pub fn new(rpc_url: &str, mnemonic: &str) -> Result<Self, StrategistError> {
         let builder = MnemonicBuilder::<English>::default().phrase(mnemonic);
 
-        let wallet = builder
-            .index(0)
-            .unwrap()
-            .build()
-            .map_err(|e| StrategistError::ParseError(e.to_string()))?;
+        let wallet = builder.index(0)?.build()?;
 
         println!("wallet: {}", wallet.address());
 
@@ -54,9 +51,9 @@ impl EthereumClient {
 
         let tx_request: TransactionRequest = builder.clone().into_transaction_request().into();
 
-        let raw_response = client.call(&tx_request).await.unwrap();
+        let raw_response = client.call(&tx_request).await?;
 
-        let decoded = builder.decode_output(raw_response, true).unwrap();
+        let decoded = builder.decode_output(raw_response, true)?;
 
         Ok(decoded)
     }
@@ -65,15 +62,21 @@ impl EthereumClient {
 #[async_trait]
 impl EvmBaseClient for EthereumClient {
     async fn get_request_provider(&self) -> Result<CustomProvider, StrategistError> {
+        let url: reqwest::Url = match self.rpc_url.parse() {
+            Ok(resp) => resp,
+            Err(e) => return Err(StrategistError::ParseError(e.to_string())),
+        };
+
         let provider = ProviderBuilder::new()
             .with_recommended_fillers()
-            .on_http(self.rpc_url.parse().unwrap());
+            .on_http(url);
         Ok(provider)
     }
 
     async fn latest_block_height(&self) -> Result<u64, StrategistError> {
         let client = self.get_request_provider().await?;
-        let block = client.get_block_number().await.unwrap();
+
+        let block = client.get_block_number().await?;
 
         Ok(block)
     }
@@ -81,9 +84,10 @@ impl EvmBaseClient for EthereumClient {
     async fn query_balance(&self, address: &str) -> Result<u128, StrategistError> {
         let client = self.get_request_provider().await?;
 
-        let addr = Address::from_str(address).unwrap();
-        let balance = client.get_balance(addr).await.unwrap();
-        Ok(balance.to_string().parse().unwrap())
+        let addr = Address::from_str(address)?;
+        let balance = client.get_balance(addr).await?;
+
+        Ok(balance.to_string().parse()?)
     }
 
     async fn execute_tx(
@@ -94,13 +98,9 @@ impl EvmBaseClient for EthereumClient {
 
         let tx_response = client
             .send_transaction(tx.from(self.wallet.address()))
-            .await
-            .unwrap()
+            .await?
             .get_receipt()
-            .await
-            .unwrap();
-
-        println!("execute tx response: {:?}", tx_response);
+            .await?;
 
         Ok(tx_response)
     }
