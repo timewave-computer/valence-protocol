@@ -15,7 +15,7 @@ use localic_std::modules::{
 };
 use localic_utils::{
     ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, JUNO_CHAIN_NAME, LOCAL_IC_API_URL,
-    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
+    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 use log::info;
 
@@ -145,8 +145,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         config: LibraryConfig::new(
             LibraryAccountType::Addr(input_account.clone()),
-            output_account.clone(),
-            UncheckedDenom::Native(NTRN_DENOM.to_string()),
+            LibraryAccountType::Addr(output_account.clone()),
+            UncheckedDenom::Native(NEUTRON_CHAIN_DENOM.to_string()),
             IbcTransferAmount::FixedAmount(transfer_amount.into()),
             "".to_owned(),
             valence_neutron_ibc_transfer_library::msg::RemoteChainInfo {
