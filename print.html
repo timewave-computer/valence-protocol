@@ -2219,7 +2219,7 @@ graph LR
 }
 <span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-drop-liquid-unstaker-library"><a class="header" href="#valence-drop-liquid-unstaker-library">Valence Drop Liquid Unstaker library</a></h1>
-<p>The <strong>Valence Drop Liquid Unstaker</strong> library allows liquid staked tokens (e.g., dNTRN or dATOM) to be redeemed for underlying assets (e.g., NTRN or ATOM) through the <a href="https://docs.drop.money/">Drop protocol</a>. The liquid staked asset must be available in the <strong>input account</strong>. When the library's function to redeem the staked assets (<code>LiquidUnstake</code>) is invoked, the library issues a withdraw request to the Drop protocol generating a tokenized voucher that is held by the input account. This tokenized voucher can be used to claim the underlying assets (represented as an NFT). Note that the underlying assets are not withdrawn immediately, as the Drop protocol unstakes assets asynchronously. At a later time, when the underlying assets are available for withdrawal, the library's claim function can be invoked with the voucher as an argument. This function will withdraw the underlying assets and deposit them into the <strong>output account</strong>.</p>
+<p>The <strong>Valence Drop Liquid Unstaker</strong> library allows liquid staked tokens (e.g., dNTRN or dATOM) to be redeemed for underlying assets (e.g., NTRN or ATOM) through the <a href="https://docs.drop.money/">Drop protocol</a>. The liquid staked asset must be available in the <strong>input account</strong>. When the library's function to redeem the staked assets (<code>Unstake</code>) is invoked, the library issues a withdraw request to the Drop protocol generating a tokenized voucher that is held by the input account. This tokenized voucher can be used to claim the underlying assets (represented as an NFT). Note that the underlying assets are not withdrawn immediately, as the Drop protocol unstakes assets asynchronously. At a later time, when the underlying assets are available for withdrawal, the library's claim function can be invoked with the voucher as an argument. This function will withdraw the underlying assets and deposit them into the <strong>output account</strong>.</p>
 <h2 id="high-level-flow-12"><a class="header" href="#high-level-flow-12">High-level flow</a></h2>
 <pre class="mermaid">---
 title: Drop Liquid Unstaker Library - Unstake Flow
@@ -3114,7 +3114,7 @@ graph LR
 </code></pre>
 </li>
 </ul>
-<p>Withdraws are subject to a lockup period after the user has initiated a redemption. During this time the redemption rate may change. Users can specify an acceptable loss in case the the redemption rate decreases using the <code>max_loss_bps</code> parameter.</p>
+<p>Withdraws are subject to a lockup period after the user has initiated a redemption. During this time the redemption rate may change. Users can specify an acceptable loss in case the redemption rate decreases using the <code>max_loss_bps</code> parameter.</p>
 <p>After the <code>Epoch</code> has completed, a user may complete the withdrawal by executing the following message:</p>
 <ul>
 <li><strong>CompleteWithdraw</strong>: Pop the <code>WithdrawRecord</code>. Pull funds from the Withdraw Account and send to user. Burn the user's deposited shares.</li>
@@ -3450,7 +3450,7 @@ graph
 </li>
 <li>We add two permissionless authorizations on Neutron:
 <ul>
-<li>Provide Liquidity: When executed, it'll call the the provide liquidity function</li>
+<li>Provide Liquidity: When executed, it'll call the provide liquidity function</li>
 <li>Withdraw Liquidity: When executed, it'll call the withdraw liquidity function</li>
 </ul>
 </li>

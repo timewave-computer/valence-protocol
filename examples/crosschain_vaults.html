@@ -288,7 +288,7 @@ graph LR
 </code></pre>
 </li>
 </ul>
-<p>Withdraws are subject to a lockup period after the user has initiated a redemption. During this time the redemption rate may change. Users can specify an acceptable loss in case the the redemption rate decreases using the <code>max_loss_bps</code> parameter.</p>
+<p>Withdraws are subject to a lockup period after the user has initiated a redemption. During this time the redemption rate may change. Users can specify an acceptable loss in case the redemption rate decreases using the <code>max_loss_bps</code> parameter.</p>
 <p>After the <code>Epoch</code> has completed, a user may complete the withdrawal by executing the following message:</p>
 <ul>
 <li><strong>CompleteWithdraw</strong>: Pop the <code>WithdrawRecord</code>. Pull funds from the Withdraw Account and send to user. Burn the user's deposited shares.</li>
