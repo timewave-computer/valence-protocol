@@ -2245,7 +2245,7 @@ fn failed_non_atomic_batch_after_retries() {
         .unwrap();
 
     assert_eq!(query_callbacks.len(), 1);
-    // In this case the the first function was successful so we will receive a partially executed result with the amount functions that were successfully executed
+    // In this case the first function was successful so we will receive a partially executed result with the amount functions that were successfully executed
     assert!(matches!(
         query_callbacks[0].execution_result,
         ExecutionResult::PartiallyExecuted(1, _)
