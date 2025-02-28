@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::common::error::StrategistError;
-use crate::evm::{CustomProvider, EvmBaseClient};
+use crate::evm::base_client::{CustomProvider, EvmBaseClient};
 use alloy::contract::{CallBuilder, CallDecoder};
 use alloy::network::Network;
 use alloy::primitives::Address;

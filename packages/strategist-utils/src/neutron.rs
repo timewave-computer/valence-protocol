@@ -4,7 +4,7 @@ use crate::{
     common::{
         error::StrategistError, signing_client::SigningClient, transaction::TransactionResponse,
     },
-    cosmos::BaseClient,
+    cosmos::base_client::BaseClient,
 };
 use async_trait::async_trait;
 
