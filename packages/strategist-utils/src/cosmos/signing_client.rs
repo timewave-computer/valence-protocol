@@ -10,7 +10,7 @@ use cosmrs::{
 };
 use tonic::transport::Channel;
 
-use super::error::StrategistError;
+use crate::common::error::StrategistError;
 
 pub struct SigningClient {
     pub signing_key: SigningKey,
@@ -30,16 +30,14 @@ impl SigningClient {
         prefix: &str,
         chain_id: &str,
     ) -> Result<Self, StrategistError> {
-        let mnemonic = Mnemonic::new(mnemonic, Language::English)
-            .map_err(|e| StrategistError::ParseError(e.to_string()))?;
+        let mnemonic = Mnemonic::new(mnemonic, Language::English)?;
 
         let seed = mnemonic.to_seed("");
 
-        let signing_key = SigningKey::derive_from_path(seed, &DERIVATION_PATH.parse().unwrap())
-            .map_err(|e| StrategistError::ParseError(e.to_string()))?;
+        let signing_key = SigningKey::derive_from_path(seed, &DERIVATION_PATH.parse()?)?;
 
         let public_key = signing_key.public_key();
-        let sender_account_id = public_key.account_id(prefix).unwrap();
+        let sender_account_id = public_key.account_id(prefix)?;
 
         let mut client =
             cosmos_sdk_proto::cosmos::auth::v1beta1::query_client::QueryClient::new(channel);
@@ -48,18 +46,12 @@ impl SigningClient {
             .account_info(QueryAccountInfoRequest {
                 address: sender_account_id.to_string(),
             })
-            .await
-            .map_err(|e| StrategistError::QueryError(e.to_string()))?
+            .await?
             .into_inner();
 
-        let base_account = match account_info_resp.info {
-            Some(base_acc) => base_acc,
-            None => {
-                return Err(StrategistError::QueryError(
-                    "failed to get base account".to_string(),
-                ))
-            }
-        };
+        let base_account = account_info_resp
+            .info
+            .ok_or_else(|| StrategistError::QueryError("failed to get base account".to_string()))?;
 
         Ok(SigningClient {
             signing_key,
@@ -74,7 +66,7 @@ impl SigningClient {
     pub async fn create_tx(&self, msg: Any) -> Result<BroadcastTxRequest, StrategistError> {
         let fee = Fee::from_amount_and_gas(
             Coin {
-                denom: "untrn".parse().unwrap(),
+                denom: "untrn".parse()?,
                 amount: 500_000,
             },
             500_000u64,
@@ -88,15 +80,14 @@ impl SigningClient {
         let sign_doc = SignDoc::new(
             &tx_body,
             &auth_info,
-            &self.chain_id.parse().unwrap(),
+            &self.chain_id.parse()?,
             self.account_number,
-        )
-        .unwrap();
+        )?;
 
-        let tx_raw = sign_doc.sign(&self.signing_key).unwrap();
+        let tx_raw = sign_doc.sign(&self.signing_key)?;
 
         let broadcast_tx_request = BroadcastTxRequest {
-            tx_bytes: tx_raw.to_bytes().unwrap(),
+            tx_bytes: tx_raw.to_bytes()?,
             mode: BroadcastMode::Sync.into(),
         };
 

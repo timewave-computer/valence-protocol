@@ -1,10 +1,8 @@
 use std::str::FromStr;
 
 use crate::{
-    common::{
-        error::StrategistError, signing_client::SigningClient, transaction::TransactionResponse,
-    },
-    cosmos::{base_client::BaseClient, wasm_client::WasmClient},
+    common::{error::StrategistError, transaction::TransactionResponse},
+    cosmos::{base_client::BaseClient, signing_client::SigningClient, wasm_client::WasmClient},
 };
 use async_trait::async_trait;
 

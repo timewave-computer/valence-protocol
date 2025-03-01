@@ -28,3 +28,15 @@ impl From<serde_json::error::Error> for StrategistError {
         StrategistError::ParseError(value.to_string())
     }
 }
+
+impl From<bip32::Error> for StrategistError {
+    fn from(value: bip32::Error) -> Self {
+        StrategistError::ParseError(value.to_string())
+    }
+}
+
+impl From<cosmrs::tendermint::Error> for StrategistError {
+    fn from(value: cosmrs::tendermint::Error) -> Self {
+        StrategistError::ParseError(value.to_string())
+    }
+}
