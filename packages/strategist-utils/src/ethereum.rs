@@ -1,114 +1,53 @@
-use std::str::FromStr;
-
 use crate::common::error::StrategistError;
-use crate::evm::base_client::{CustomProvider, EvmBaseClient};
-use alloy::contract::{CallBuilder, CallDecoder};
-use alloy::network::Network;
-use alloy::primitives::Address;
+use crate::evm::base_client::EvmBaseClient;
+use crate::evm::request_provider_client::RequestProviderClient;
 
-use alloy::providers::{Provider, ProviderBuilder};
-
-use alloy::rpc::types::{TransactionReceipt, TransactionRequest};
-
-use alloy::transports::http::reqwest;
-use alloy::transports::Transport;
 use alloy_signer_local::coins_bip39::English;
 use alloy_signer_local::{MnemonicBuilder, PrivateKeySigner};
 use tonic::async_trait;
 
 pub struct EthereumClient {
     rpc_url: String,
-    wallet: PrivateKeySigner,
+    signer: PrivateKeySigner,
 }
 
 impl EthereumClient {
     pub fn new(rpc_url: &str, mnemonic: &str) -> Result<Self, StrategistError> {
         let builder = MnemonicBuilder::<English>::default().phrase(mnemonic);
 
-        let wallet = builder.index(0)?.build()?;
-
-        println!("wallet: {}", wallet.address());
+        let signer = builder.index(0)?.build()?;
 
         Ok(Self {
             rpc_url: rpc_url.to_string(),
-            wallet,
+            signer,
         })
-    }
-
-    #[allow(dead_code)]
-    async fn query<T: Transport + Clone, P, D, N>(
-        &self,
-        builder: CallBuilder<T, P, D, N>,
-    ) -> Result<D::CallOutput, StrategistError>
-    where
-        P: Provider<T, N>,
-        N: Network,
-        D: CallDecoder,
-        N::TransactionRequest: Into<TransactionRequest>,
-        CallBuilder<T, P, D, N>: Clone,
-    {
-        let client = self.get_request_provider().await?;
-
-        let tx_request: TransactionRequest = builder.clone().into_transaction_request().into();
-
-        let raw_response = client.call(&tx_request).await?;
-
-        let decoded = builder.decode_output(raw_response, true)?;
-
-        Ok(decoded)
     }
 }
 
 #[async_trait]
-impl EvmBaseClient for EthereumClient {
-    async fn get_request_provider(&self) -> Result<CustomProvider, StrategistError> {
-        let url: reqwest::Url = match self.rpc_url.parse() {
-            Ok(resp) => resp,
-            Err(e) => return Err(StrategistError::ParseError(e.to_string())),
-        };
+impl EvmBaseClient for EthereumClient {}
 
-        let provider = ProviderBuilder::new()
-            .with_recommended_fillers()
-            .on_http(url);
-        Ok(provider)
+#[async_trait]
+impl RequestProviderClient for EthereumClient {
+    fn rpc_url(&self) -> String {
+        self.rpc_url.clone()
     }
 
-    async fn latest_block_height(&self) -> Result<u64, StrategistError> {
-        let client = self.get_request_provider().await?;
-
-        let block = client.get_block_number().await?;
-
-        Ok(block)
-    }
-
-    async fn query_balance(&self, address: &str) -> Result<u128, StrategistError> {
-        let client = self.get_request_provider().await?;
-
-        let addr = Address::from_str(address)?;
-        let balance = client.get_balance(addr).await?;
-
-        Ok(balance.to_string().parse()?)
-    }
-
-    async fn execute_tx(
-        &self,
-        tx: TransactionRequest,
-    ) -> Result<TransactionReceipt, StrategistError> {
-        let client = self.get_request_provider().await?;
-
-        let tx_response = client
-            .send_transaction(tx.from(self.wallet.address()))
-            .await?
-            .get_receipt()
-            .await?;
-
-        Ok(tx_response)
+    fn signer(&self) -> PrivateKeySigner {
+        self.signer.clone()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use alloy::{network::TransactionBuilder, primitives::U256};
+    use std::str::FromStr;
+
+    use alloy::{
+        network::TransactionBuilder,
+        primitives::{Address, U256},
+        providers::Provider,
+        rpc::types::TransactionRequest,
+    };
     use valence_e2e::utils::solidity_contracts::{
         MockERC20,
         ValenceVault::{self},
@@ -133,25 +72,23 @@ mod tests {
     #[tokio::test]
     async fn test_eth_query_balance() {
         let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC).unwrap();
-        let provider = client.get_request_provider().await.unwrap();
-        let accounts = provider.get_accounts().await.unwrap();
+        let accounts = client.get_provider_accounts().await.unwrap();
 
         let balance = client
             .query_balance(&accounts[0].to_string())
             .await
             .unwrap();
 
-        assert_ne!(balance, 0);
+        assert_ne!(balance, U256::from(0));
     }
 
     #[tokio::test]
     async fn test_eth_transfer() {
         let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC).unwrap();
-        let provider = client.get_request_provider().await.unwrap();
-        let accounts = provider.get_accounts().await.unwrap();
+        let accounts = client.get_provider_accounts().await.unwrap();
 
         let pre_balance = client
-            .query_balance(accounts[1].to_string().as_str())
+            .query_balance(&accounts[1].to_string())
             .await
             .unwrap();
 
@@ -162,11 +99,11 @@ mod tests {
         client.execute_tx(transfer_request).await.unwrap();
 
         let post_balance = client
-            .query_balance(accounts[1].to_string().as_str())
+            .query_balance(&accounts[1].to_string())
             .await
             .unwrap();
 
-        assert_eq!(pre_balance + 200, post_balance);
+        assert_eq!(pre_balance + U256::from(200), post_balance);
     }
 
     #[tokio::test]
