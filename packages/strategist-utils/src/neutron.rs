@@ -6,7 +6,9 @@ use crate::{
 };
 use async_trait::async_trait;
 
-use cosmos_sdk_proto::cosmos::bank::v1beta1::QueryBalanceResponse;
+use cosmos_sdk_proto::cosmos::{
+    bank::v1beta1::QueryBalanceResponse, base::abci::v1beta1::TxResponse, tx::v1beta1::GetTxRequest,
+};
 use cosmrs::{
     bank::MsgSend,
     cosmwasm::MsgExecuteContract,
@@ -32,14 +34,22 @@ pub struct NeutronClient {
     grpc_url: String,
     mnemonic: String,
     chain_id: String,
+    fee_denom: String,
 }
 
 impl NeutronClient {
-    pub fn new(rpc_url: &str, rpc_port: &str, mnemonic: &str, chain_id: &str) -> Self {
+    pub fn new(
+        rpc_url: &str,
+        rpc_port: &str,
+        mnemonic: &str,
+        chain_id: &str,
+        fee_denom: &str,
+    ) -> Self {
         Self {
             grpc_url: format!("{rpc_url}:{rpc_port}"),
             mnemonic: mnemonic.to_string(),
             chain_id: chain_id.to_string(),
+            fee_denom: fee_denom.to_string(),
         }
     }
 
@@ -86,7 +96,7 @@ impl BaseClient for NeutronClient {
     async fn query_balance(&self, address: &str, denom: &str) -> Result<u128, StrategistError> {
         let channel = self.get_grpc_channel().await?;
 
-        let mut bank_client =
+        let mut grpc_client =
             cosmrs::proto::cosmos::bank::v1beta1::query_client::QueryClient::new(channel);
 
         let request = QueryBalanceRequest {
@@ -94,7 +104,7 @@ impl BaseClient for NeutronClient {
             denom: denom.to_string(),
         };
 
-        let response: QueryBalanceResponse = bank_client
+        let response: QueryBalanceResponse = grpc_client
             .balance(Request::new(request))
             .await?
             .into_inner();
@@ -130,17 +140,51 @@ impl BaseClient for NeutronClient {
         }
         .to_any()?;
 
-        let raw_tx = signing_client.create_tx(transfer_msg).await?;
+        let raw_tx = signing_client
+            .create_tx(transfer_msg, &self.fee_denom, 500_000, 500_000u64, None)
+            .await?;
 
-        let mut client =
+        let mut grpc_client =
             cosmos_sdk_proto::cosmos::tx::v1beta1::service_client::ServiceClient::new(channel);
 
-        let broadcast_tx_response = client.broadcast_tx(raw_tx).await?.into_inner();
+        let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
 
         match broadcast_tx_response.tx_response {
             Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),
             None => Err(StrategistError::TransactionError("failed".to_string())),
         }
+    }
+
+    async fn poll_for_tx(&self, tx_hash: &str) -> Result<TxResponse, StrategistError> {
+        let channel = self.get_grpc_channel().await?;
+
+        let mut grpc_client =
+            cosmos_sdk_proto::cosmos::tx::v1beta1::service_client::ServiceClient::new(channel);
+
+        let request = GetTxRequest {
+            hash: tx_hash.to_string(),
+        };
+
+        // using tokio for timing utils instead of system to not block the entire thread.
+        //
+        // this could be changed to sleep between requests if it turns out
+        // to hit the node too hard. now for 5 seconds it will keep on firing
+        // requests repeatedly.
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(100));
+        for _ in 1..20 {
+            interval.tick().await;
+            let rx = grpc_client.get_tx(request.clone()).await;
+            if let Ok(response) = rx {
+                let r = response.into_inner();
+                if let Some(tx_response) = r.tx_response {
+                    return Ok(tx_response);
+                }
+            }
+        }
+
+        Err(StrategistError::QueryError(
+            "failed to confirm tx".to_string(),
+        ))
     }
 }
 
@@ -153,7 +197,7 @@ impl WasmClient for NeutronClient {
     ) -> Result<T, StrategistError> {
         let channel = self.get_grpc_channel().await?;
 
-        let mut wasm_client =
+        let mut grpc_client =
             cosmrs::proto::cosmwasm::wasm::v1::query_client::QueryClient::new(channel);
 
         let bin_query = serde_json::to_vec(&query_data)?;
@@ -163,7 +207,7 @@ impl WasmClient for NeutronClient {
             query_data: bin_query,
         };
 
-        let response = wasm_client
+        let response = grpc_client
             .smart_contract_state(Request::new(request))
             .await?
             .into_inner();
@@ -192,12 +236,14 @@ impl WasmClient for NeutronClient {
         }
         .to_any()?;
 
-        let raw_tx = signing_client.create_tx(wasm_tx).await?;
+        let raw_tx = signing_client
+            .create_tx(wasm_tx, &self.fee_denom, 500_000, 500_000u64, None)
+            .await?;
 
-        let mut client =
+        let mut grpc_client =
             cosmos_sdk_proto::cosmos::tx::v1beta1::service_client::ServiceClient::new(channel);
 
-        let broadcast_tx_response = client.broadcast_tx(raw_tx).await?.into_inner();
+        let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
 
         match broadcast_tx_response.tx_response {
             Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),
@@ -208,9 +254,8 @@ impl WasmClient for NeutronClient {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
 
-    use tokio::time::sleep;
+    use localic_utils::NEUTRON_CHAIN_DENOM;
 
     use super::*;
 
@@ -238,6 +283,7 @@ mod tests {
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
+            NEUTRON_CHAIN_DENOM,
         );
 
         let block_height = client
@@ -255,6 +301,7 @@ mod tests {
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
+            NEUTRON_CHAIN_DENOM,
         );
         let balance = client
             .query_balance(LOCAL_SIGNER_ADDR, "untrn")
@@ -271,6 +318,7 @@ mod tests {
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
+            NEUTRON_CHAIN_DENOM,
         );
 
         let query = valence_processor_utils::msg::QueryMsg::Config {};
@@ -293,16 +341,17 @@ mod tests {
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
+            NEUTRON_CHAIN_DENOM,
         );
 
         let pre_transfer_balance = client.query_balance(LOCAL_ALT_ADDR, "untrn").await.unwrap();
 
-        client
+        let rx = client
             .transfer(LOCAL_ALT_ADDR, 100_000, "untrn", None)
             .await
             .unwrap();
 
-        sleep(Duration::from_secs(5)).await;
+        client.poll_for_tx(&rx.hash).await.unwrap();
 
         let post_transfer_balance = client.query_balance(LOCAL_ALT_ADDR, "untrn").await.unwrap();
 
@@ -316,17 +365,20 @@ mod tests {
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
+            NEUTRON_CHAIN_DENOM,
         );
 
         let processor_tick_msg = valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
             valence_processor_utils::msg::PermissionlessMsg::Tick {},
         );
 
-        let resp = client
+        let rx = client
             .execute_wasm(LOCAL_PROCESSOR_ADDR, processor_tick_msg, vec![])
             .await
             .unwrap();
 
-        assert!(resp.success);
+        let response = client.poll_for_tx(&rx.hash).await.unwrap();
+
+        assert!(response.height > 0);
     }
 }

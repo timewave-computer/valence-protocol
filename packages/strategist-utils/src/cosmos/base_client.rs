@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use cosmos_sdk_proto::cosmos::base::abci::v1beta1::TxResponse;
 
 use crate::common::{error::StrategistError, transaction::TransactionResponse};
 
@@ -15,4 +16,6 @@ pub trait BaseClient {
         denom: &str,
         options: Option<String>,
     ) -> Result<TransactionResponse, StrategistError>;
+
+    async fn poll_for_tx(&self, tx_hash: &str) -> Result<TxResponse, StrategistError>;
 }

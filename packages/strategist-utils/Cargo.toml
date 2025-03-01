@@ -35,7 +35,6 @@ alloy = { version = "0.9.2", features = [
     "signer-keystore",
     "signer-mnemonic",
     "signers",
-    # "signer-local",
 ] }
 alloy_signer_local = { package = "alloy-signer-local", version = "0.9.2", features = [
     "mnemonic",

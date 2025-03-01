@@ -63,16 +63,25 @@ impl SigningClient {
         })
     }
 
-    pub async fn create_tx(&self, msg: Any) -> Result<BroadcastTxRequest, StrategistError> {
+    pub async fn create_tx(
+        &self,
+        msg: Any,
+        chain_denom: &str,
+        fee_amount: u128,
+        gas_limit: impl Into<u64>,
+        memo: Option<&str>,
+    ) -> Result<BroadcastTxRequest, StrategistError> {
         let fee = Fee::from_amount_and_gas(
             Coin {
-                denom: "untrn".parse()?,
-                amount: 500_000,
+                denom: chain_denom.parse()?,
+                amount: fee_amount,
             },
-            500_000u64,
+            gas_limit,
         );
 
-        let tx_body = tx::BodyBuilder::new().msg(msg).memo("test memo").finish();
+        let memo = memo.unwrap_or_default();
+
+        let tx_body = tx::BodyBuilder::new().msg(msg).memo(memo).finish();
 
         let auth_info =
             SignerInfo::single_direct(Some(self.public_key), self.sequence).auth_info(fee);
