@@ -14,7 +14,7 @@ pub trait BaseClient {
     async fn query_contract_state<T: DeserializeOwned>(
         &self,
         contract_address: &str,
-        query_data: Value,
+        query_data: (impl Serialize + Send),
     ) -> Result<T, StrategistError>;
 
     async fn transfer(

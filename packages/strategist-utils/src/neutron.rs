@@ -25,7 +25,6 @@ use cosmrs::{
     AccountId, Coin,
 };
 use serde::{de::DeserializeOwned, Serialize};
-use serde_json::Value;
 use tonic::{transport::Channel, Request};
 
 const CHAIN_PREFIX: &str = "neutron";
@@ -114,7 +113,7 @@ impl BaseClient for NeutronClient {
     async fn query_contract_state<T: DeserializeOwned>(
         &self,
         contract_address: &str,
-        query_data: Value,
+        query_data: (impl Serialize + Send),
     ) -> Result<T, StrategistError> {
         let channel = self.get_grpc_channel().await?;
 
@@ -273,12 +272,10 @@ mod tests {
             LOCAL_CHAIN_ID,
         );
 
-        let query_data = serde_json::json!({
-          "config": {}
-        });
+        let query = valence_processor_utils::msg::QueryMsg::Config {};
 
-        let state: Value = client
-            .query_contract_state(LOCAL_PROCESSOR_ADDR, query_data)
+        let state: valence_processor_utils::processor::Config = client
+            .query_contract_state(LOCAL_PROCESSOR_ADDR, query)
             .await
             .unwrap();
 
