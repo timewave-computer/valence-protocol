@@ -81,8 +81,7 @@ impl BaseClient for NeutronClient {
             .header
             .ok_or_else(|| StrategistError::QueryError("no header in sdk_block".to_string()))?;
 
-        let height = u64::try_from(block_header.height)
-            .map_err(|_| StrategistError::ParseError("failed to get height".to_string()))?;
+        let height = u64::try_from(block_header.height)?;
 
         Ok(height)
     }
@@ -107,10 +106,7 @@ impl BaseClient for NeutronClient {
             .balance
             .ok_or_else(|| StrategistError::QueryError("No balance returned".to_string()))?;
 
-        let amount = coin
-            .amount
-            .parse::<u128>()
-            .map_err(|e| StrategistError::ParseError(e.to_string()))?;
+        let amount = coin.amount.parse::<u128>()?;
 
         Ok(amount)
     }
@@ -125,8 +121,7 @@ impl BaseClient for NeutronClient {
         let mut wasm_client =
             cosmrs::proto::cosmwasm::wasm::v1::query_client::QueryClient::new(channel);
 
-        let bin_query = serde_json::to_vec(&query_data)
-            .map_err(|e| StrategistError::ParseError(e.to_string()))?;
+        let bin_query = serde_json::to_vec(&query_data)?;
 
         let request = QuerySmartContractStateRequest {
             address: contract_address.to_string(),
@@ -138,8 +133,7 @@ impl BaseClient for NeutronClient {
             .await?
             .into_inner();
 
-        let parsed: T = serde_json::from_slice(&response.data)
-            .map_err(|e| StrategistError::ParseError(e.to_string()))?;
+        let parsed: T = serde_json::from_slice(&response.data)?;
 
         Ok(parsed)
     }
@@ -164,8 +158,7 @@ impl BaseClient for NeutronClient {
             to_address: AccountId::from_str(to)?,
             amount: vec![amount],
         }
-        .to_any()
-        .unwrap();
+        .to_any()?;
 
         let raw_tx = signing_client.create_tx(transfer_msg).await?;
 
@@ -189,15 +182,15 @@ impl BaseClient for NeutronClient {
         let signing_client = self.get_signing_client().await?;
         let channel = self.get_grpc_channel().await?;
 
-        let msg_bytes = serde_json::to_vec(&msg).unwrap();
+        let msg_bytes = serde_json::to_vec(&msg)?;
+
         let wasm_tx = MsgExecuteContract {
             sender: signing_client.address.clone(),
             contract: AccountId::from_str(contract)?,
             msg: msg_bytes,
             funds,
         }
-        .to_any()
-        .unwrap();
+        .to_any()?;
 
         let raw_tx = signing_client.create_tx(wasm_tx).await?;
 
