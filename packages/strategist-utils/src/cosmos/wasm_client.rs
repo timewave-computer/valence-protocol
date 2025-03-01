@@ -47,7 +47,6 @@ pub trait WasmClient: GrpcSigningClient {
         &self,
         contract: &str,
         msg: T,
-        fee_denom: &str,
         funds: Vec<Coin>,
     ) -> Result<TransactionResponse, StrategistError> {
         let signing_client = self.get_signing_client().await?;
@@ -64,7 +63,7 @@ pub trait WasmClient: GrpcSigningClient {
         .to_any()?;
 
         let raw_tx = signing_client
-            .create_tx(wasm_tx, fee_denom, 500_000, 500_000u64, None)
+            .create_tx(wasm_tx, &self.chain_denom(), 500_000, 500_000u64, None)
             .await?;
 
         let mut grpc_client =

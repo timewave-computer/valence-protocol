@@ -28,7 +28,6 @@ pub trait BaseClient: GrpcSigningClient {
         to: &str,
         amount: u128,
         denom: &str,
-        fee_denom: &str,
     ) -> Result<TransactionResponse, StrategistError> {
         let signing_client = self.get_signing_client().await?;
         let channel = self.get_grpc_channel().await?;
@@ -46,7 +45,7 @@ pub trait BaseClient: GrpcSigningClient {
         .to_any()?;
 
         let raw_tx = signing_client
-            .create_tx(transfer_msg, fee_denom, 500_000, 500_000u64, None)
+            .create_tx(transfer_msg, &self.chain_denom(), 500_000, 500_000u64, None)
             .await?;
 
         let mut grpc_client =
@@ -131,7 +130,6 @@ pub trait BaseClient: GrpcSigningClient {
             match rx {
                 Ok(response) => {
                     let r = response.into_inner();
-                    println!("{:?}", r.tx_response);
                     if let Some(tx_response) = r.tx_response {
                         return Ok(tx_response);
                     }

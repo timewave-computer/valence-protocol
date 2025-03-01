@@ -1,29 +1,30 @@
-use crate::{
-    common::error::StrategistError,
-    cosmos::{
-        base_client::BaseClient, grpc_client::GrpcSigningClient, signing_client::SigningClient,
-        wasm_client::WasmClient,
-    },
+use crate::cosmos::{
+    base_client::BaseClient, grpc_client::GrpcSigningClient, wasm_client::WasmClient,
 };
 use async_trait::async_trait;
 
-use tonic::transport::Channel;
-
 const CHAIN_PREFIX: &str = "neutron";
-const CHAIN_ID: &str = "neutron-1";
 
 pub struct NeutronClient {
     grpc_url: String,
     mnemonic: String,
     chain_id: String,
+    chain_denom: String,
 }
 
 impl NeutronClient {
-    pub fn new(rpc_url: &str, rpc_port: &str, mnemonic: &str, chain_id: &str) -> Self {
+    pub fn new(
+        rpc_url: &str,
+        rpc_port: &str,
+        mnemonic: &str,
+        chain_id: &str,
+        chain_denom: &str,
+    ) -> Self {
         Self {
             grpc_url: format!("{rpc_url}:{rpc_port}"),
             mnemonic: mnemonic.to_string(),
             chain_id: chain_id.to_string(),
+            chain_denom: chain_denom.to_string(),
         }
     }
 }
@@ -36,18 +37,24 @@ impl WasmClient for NeutronClient {}
 
 #[async_trait]
 impl GrpcSigningClient for NeutronClient {
-    async fn get_grpc_channel(&self) -> Result<Channel, StrategistError> {
-        Ok(Channel::from_shared(self.grpc_url.clone())
-            .map_err(|_| StrategistError::ClientError("failed to build channel".to_string()))?
-            .connect()
-            .await
-            .unwrap())
+    fn grpc_url(&self) -> String {
+        self.grpc_url.to_string()
     }
 
-    async fn get_signing_client(&self) -> Result<SigningClient, StrategistError> {
-        let channel = self.get_grpc_channel().await?;
+    fn mnemonic(&self) -> String {
+        self.mnemonic.to_string()
+    }
 
-        SigningClient::from_mnemonic(channel, &self.mnemonic, CHAIN_PREFIX, &self.chain_id).await
+    fn chain_prefix(&self) -> String {
+        CHAIN_PREFIX.to_string()
+    }
+
+    fn chain_id(&self) -> String {
+        self.chain_id.to_string()
+    }
+
+    fn chain_denom(&self) -> String {
+        self.chain_denom.to_string()
     }
 }
 
@@ -82,6 +89,7 @@ mod tests {
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
+            NEUTRON_CHAIN_DENOM,
         );
 
         let block_height = client
@@ -100,6 +108,7 @@ mod tests {
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
+            NEUTRON_CHAIN_DENOM,
         );
         let balance = client
             .query_balance(LOCAL_SIGNER_ADDR, "untrn")
@@ -116,6 +125,7 @@ mod tests {
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
+            NEUTRON_CHAIN_DENOM,
         );
 
         let query = valence_processor_utils::msg::QueryMsg::Config {};
@@ -138,6 +148,7 @@ mod tests {
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
+            NEUTRON_CHAIN_DENOM,
         );
 
         let pre_transfer_balance = client
@@ -146,12 +157,7 @@ mod tests {
             .unwrap();
 
         let rx = client
-            .transfer(
-                LOCAL_ALT_ADDR,
-                100_000,
-                NEUTRON_CHAIN_DENOM,
-                NEUTRON_CHAIN_DENOM,
-            )
+            .transfer(LOCAL_ALT_ADDR, 100_000, NEUTRON_CHAIN_DENOM)
             .await
             .unwrap();
 
@@ -172,6 +178,7 @@ mod tests {
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
+            NEUTRON_CHAIN_DENOM,
         );
 
         let processor_tick_msg = valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
@@ -179,12 +186,7 @@ mod tests {
         );
 
         let rx = client
-            .execute_wasm(
-                LOCAL_PROCESSOR_ADDR,
-                processor_tick_msg,
-                NEUTRON_CHAIN_DENOM,
-                vec![],
-            )
+            .execute_wasm(LOCAL_PROCESSOR_ADDR, processor_tick_msg, vec![])
             .await
             .unwrap();
 
