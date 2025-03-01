@@ -4,7 +4,7 @@ use crate::{
     common::{
         error::StrategistError, signing_client::SigningClient, transaction::TransactionResponse,
     },
-    cosmos::base_client::BaseClient,
+    cosmos::{base_client::BaseClient, wasm_client::WasmClient},
 };
 use async_trait::async_trait;
 
@@ -110,33 +110,6 @@ impl BaseClient for NeutronClient {
         Ok(amount)
     }
 
-    async fn query_contract_state<T: DeserializeOwned>(
-        &self,
-        contract_address: &str,
-        query_data: (impl Serialize + Send),
-    ) -> Result<T, StrategistError> {
-        let channel = self.get_grpc_channel().await?;
-
-        let mut wasm_client =
-            cosmrs::proto::cosmwasm::wasm::v1::query_client::QueryClient::new(channel);
-
-        let bin_query = serde_json::to_vec(&query_data)?;
-
-        let request = QuerySmartContractStateRequest {
-            address: contract_address.to_string(),
-            query_data: bin_query,
-        };
-
-        let response = wasm_client
-            .smart_contract_state(Request::new(request))
-            .await?
-            .into_inner();
-
-        let parsed: T = serde_json::from_slice(&response.data)?;
-
-        Ok(parsed)
-    }
-
     async fn transfer(
         &self,
         to: &str,
@@ -170,6 +143,36 @@ impl BaseClient for NeutronClient {
             Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),
             None => Err(StrategistError::TransactionError("failed".to_string())),
         }
+    }
+}
+
+#[async_trait]
+impl WasmClient for NeutronClient {
+    async fn query_contract_state<T: DeserializeOwned>(
+        &self,
+        contract_address: &str,
+        query_data: (impl Serialize + Send),
+    ) -> Result<T, StrategistError> {
+        let channel = self.get_grpc_channel().await?;
+
+        let mut wasm_client =
+            cosmrs::proto::cosmwasm::wasm::v1::query_client::QueryClient::new(channel);
+
+        let bin_query = serde_json::to_vec(&query_data)?;
+
+        let request = QuerySmartContractStateRequest {
+            address: contract_address.to_string(),
+            query_data: bin_query,
+        };
+
+        let response = wasm_client
+            .smart_contract_state(Request::new(request))
+            .await?
+            .into_inner();
+
+        let parsed: T = serde_json::from_slice(&response.data)?;
+
+        Ok(parsed)
     }
 
     async fn execute_wasm<T: Serialize + Send + 'static>(
@@ -214,13 +217,13 @@ mod tests {
     use super::*;
 
     const LOCAL_GRPC_URL: &str = "http://127.0.0.1";
-    const LOCAL_GRPC_PORT: &str = "42977";
+    const LOCAL_GRPC_PORT: &str = "40231";
     const LOCAL_MNEMONIC: &str = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry";
     const LOCAL_SIGNER_ADDR: &str = "neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky";
     const LOCAL_ALT_ADDR: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
     const LOCAL_CHAIN_ID: &str = "localneutron-1";
     const LOCAL_PROCESSOR_ADDR: &str =
-        "neutron1tdwtzvhep8nwxyy4pyry520lncshum9wshyvpv2w393nmf75jxjsyfq4ll";
+        "neutron12p7twsmksqw8lhj98hlxld7hxfl3tmwn6853ggtsalzm2ryx7ylsrmdfr6";
 
     // update during dev to a real one for mainnet testing
     const _CHAIN_ID: &str = "neutron-1";
@@ -244,7 +247,7 @@ mod tests {
             .await
             .expect("Failed to get latest block height");
 
-        println!("latest block height: {}", block_height);
+        assert!(block_height > 0);
     }
 
     #[tokio::test]
@@ -260,7 +263,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_ne!(balance, 0);
+        assert!(balance > 0);
     }
 
     #[tokio::test]
@@ -279,7 +282,10 @@ mod tests {
             .await
             .unwrap();
 
-        println!("state: {:?}", state);
+        assert_eq!(
+            state.state,
+            valence_processor_utils::processor::State::Active
+        );
     }
 
     #[tokio::test]
@@ -298,7 +304,7 @@ mod tests {
             .await
             .unwrap();
 
-        sleep(Duration::from_secs(3)).await;
+        sleep(Duration::from_secs(5)).await;
 
         let post_transfer_balance = client.query_balance(LOCAL_ALT_ADDR, "untrn").await.unwrap();
 
@@ -323,6 +329,6 @@ mod tests {
             .await
             .unwrap();
 
-        println!("response: {:?}", resp);
+        assert!(resp.success);
     }
 }

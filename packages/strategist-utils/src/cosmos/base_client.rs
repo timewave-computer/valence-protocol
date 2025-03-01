@@ -1,7 +1,4 @@
 use async_trait::async_trait;
-use cosmrs::Coin;
-use serde::{de::DeserializeOwned, Serialize};
-use serde_json::Value;
 
 use crate::common::{error::StrategistError, transaction::TransactionResponse};
 
@@ -11,24 +8,11 @@ pub trait BaseClient {
 
     async fn query_balance(&self, address: &str, denom: &str) -> Result<u128, StrategistError>;
 
-    async fn query_contract_state<T: DeserializeOwned>(
-        &self,
-        contract_address: &str,
-        query_data: (impl Serialize + Send),
-    ) -> Result<T, StrategistError>;
-
     async fn transfer(
         &self,
         to: &str,
         amount: u128,
         denom: &str,
         options: Option<String>,
-    ) -> Result<TransactionResponse, StrategistError>;
-
-    async fn execute_wasm<T: Serialize + Send + 'static>(
-        &self,
-        contract: &str,
-        msg: T,
-        funds: Vec<Coin>,
     ) -> Result<TransactionResponse, StrategistError>;
 }
