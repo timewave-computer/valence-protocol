@@ -1,8 +1,7 @@
 use tonic::async_trait;
 
-use crate::{
-    common::{error::StrategistError, transaction::TransactionResponse},
-    cosmos::{base_client::BaseClient, grpc_client::GrpcSigningClient, wasm_client::WasmClient},
+use crate::cosmos::{
+    base_client::BaseClient, grpc_client::GrpcSigningClient, wasm_client::WasmClient,
 };
 
 const CHAIN_PREFIX: &str = "osmo";

@@ -3,7 +3,7 @@ use std::str::FromStr;
 use async_trait::async_trait;
 use cosmos_sdk_proto::cosmos::{
     bank::v1beta1::{QueryBalanceRequest, QueryBalanceResponse},
-    base::abci::v1beta1::TxResponse,
+    base::{abci::v1beta1::TxResponse, tendermint::v1beta1::Header},
     tx::v1beta1::GetTxRequest,
 };
 
@@ -62,7 +62,7 @@ pub trait BaseClient: GrpcSigningClient {
         }
     }
 
-    async fn latest_block_height(&self) -> Result<u64, StrategistError> {
+    async fn latest_block_header(&self) -> Result<Header, StrategistError> {
         let channel = self.get_grpc_channel().await?;
 
         let mut tendermint_client = TendermintServiceClient::new(channel);
@@ -80,9 +80,7 @@ pub trait BaseClient: GrpcSigningClient {
             .header
             .ok_or_else(|| StrategistError::QueryError("no header in sdk_block".to_string()))?;
 
-        let height = u64::try_from(block_header.height)?;
-
-        Ok(height)
+        Ok(block_header)
     }
 
     async fn query_balance(&self, address: &str, denom: &str) -> Result<u128, StrategistError> {
@@ -162,26 +160,10 @@ pub trait BaseClient: GrpcSigningClient {
         timeout_seconds: u64,
     ) -> Result<TransactionResponse, StrategistError> {
         let signing_client = self.get_signing_client().await?;
-        let channel = self.get_grpc_channel().await?;
 
-        let mut tendermint_client =
-            cosmos_sdk_proto::cosmos::base::tendermint::v1beta1::service_client::ServiceClient::new(
-                channel,
-            );
+        let latest_block_header = self.latest_block_header().await?;
 
-        let response = tendermint_client
-            .get_latest_block(
-                cosmos_sdk_proto::cosmos::base::tendermint::v1beta1::GetLatestBlockRequest {},
-            )
-            .await
-            .unwrap()
-            .into_inner();
-
-        let sdk_block = response.sdk_block.unwrap();
-
-        let block_header = sdk_block.header.unwrap();
-
-        let current_time = block_header.time.unwrap();
+        let current_time = latest_block_header.time.unwrap();
 
         let current_seconds = current_time.seconds as u64;
         let timeout_seconds = current_seconds + timeout_seconds;

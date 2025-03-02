@@ -42,27 +42,11 @@ impl BaseClient for NeutronClient {
         channel_id: String,
         timeout_seconds: u64,
     ) -> Result<TransactionResponse, StrategistError> {
+        let latest_block_header = self.latest_block_header().await?;
+
         let signing_client = self.get_signing_client().await?;
-        let channel = self.get_grpc_channel().await?;
 
-        let mut tendermint_client =
-            cosmos_sdk_proto::cosmos::base::tendermint::v1beta1::service_client::ServiceClient::new(
-                channel,
-            );
-
-        let response = tendermint_client
-            .get_latest_block(
-                cosmos_sdk_proto::cosmos::base::tendermint::v1beta1::GetLatestBlockRequest {},
-            )
-            .await
-            .unwrap()
-            .into_inner();
-
-        let sdk_block = response.sdk_block.unwrap();
-
-        let block_header = sdk_block.header.unwrap();
-
-        let current_time = block_header.time.unwrap();
+        let current_time = latest_block_header.time.unwrap();
 
         let current_seconds = current_time.seconds as u64;
         let timeout_seconds = current_seconds + timeout_seconds;
@@ -174,9 +158,10 @@ mod tests {
         );
 
         let block_height = client
-            .latest_block_height()
+            .latest_block_header()
             .await
-            .expect("Failed to get latest block height");
+            .expect("Failed to get latest block height")
+            .height;
 
         println!("block height: {block_height}");
         assert!(block_height > 0);
