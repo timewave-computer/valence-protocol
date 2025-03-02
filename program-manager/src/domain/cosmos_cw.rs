@@ -19,7 +19,7 @@ use cosmos_grpc_client::{
     cosmos_sdk_proto::{
         cosmos::tx::v1beta1::{GetTxRequest, GetTxResponse},
         cosmwasm::wasm::v1::{
-            MsgExecuteContract, MsgInstantiateContract2, QueryCodeRequest,
+            MsgExecuteContract, MsgInstantiateContract2, MsgUpdateAdmin, QueryCodeRequest,
             QueryContractInfoRequest, QuerySmartContractStateRequest,
         },
     },
@@ -416,6 +416,7 @@ impl Connector for CosmosCosmwasmConnector {
         authorization_addr: String,
         owner: String,
     ) -> ConnectorResult<()> {
+        // Change owner in authorization contract
         let msg = to_vec(
             &valence_authorization_utils::msg::ExecuteMsg::UpdateOwnership(
                 cw_ownable::Action::TransferOwnership {
@@ -435,6 +436,16 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         // Broadcast the tx and wait for it to finalize (or error)
+        self.broadcast_tx(m, "change_authorization_owner").await?;
+
+        // Change the admin of the authorization contract as well
+        let m = MsgUpdateAdmin {
+            sender: self.wallet.account_address.clone(),
+            new_admin: owner,
+            contract: authorization_addr,
+        }
+        .build_any();
+
         self.broadcast_tx(m, "change_authorization_owner").await?;
 
         Ok(())
