@@ -269,7 +269,7 @@ mod test {
         let binary = to_json_binary(&config).unwrap();
         let program_config = from_json::<ProgramConfig>(&binary).unwrap();
 
-        // After parsing, workflow config should have no library config
+        // After parsing, program config should have no library config
         let lib = program_config
             .libraries
             .first_key_value()
