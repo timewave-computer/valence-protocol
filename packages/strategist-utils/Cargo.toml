@@ -17,11 +17,14 @@ async-trait = "0.1.77"
 bip32 = { version = "0.5", features = ["bip39"] }
 cosmrs = { version = "0.21.1", features = ["cosmwasm", "rpc", "grpc"] }
 cosmos-sdk-proto = { version = "0.26.1", features = ["grpc-transport", "grpc"] }
+
 tonic = { version = "0.12.3", features = ["transport"] }
 valence-processor-utils = { workspace = true }
 hex = "0.4.3"
 localic-utils = { workspace = true }
 valence-e2e = { workspace = true }
+neutron-std = "5.1.2"
+ibc = "0.57.0"
 
 alloy = { version = "0.9.2", features = [
     "eips",

@@ -57,8 +57,10 @@ pub trait EvmBaseClient: RequestProviderClient {
     ) -> Result<TransactionReceipt, StrategistError> {
         let client = self.get_request_provider().await?;
 
+        let signed_tx = tx.from(self.signer().address());
+
         let tx_response = client
-            .send_transaction(tx.from(self.signer().address()))
+            .send_transaction(signed_tx)
             .await?
             .get_receipt()
             .await?;

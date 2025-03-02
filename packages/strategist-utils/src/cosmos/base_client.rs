@@ -7,10 +7,13 @@ use cosmos_sdk_proto::cosmos::{
     tx::v1beta1::GetTxRequest,
 };
 
-use cosmrs::proto::cosmos::base::tendermint::v1beta1::{
-    service_client::ServiceClient as TendermintServiceClient, GetLatestBlockRequest,
-};
 use cosmrs::{bank::MsgSend, tx::Msg, AccountId, Coin};
+use cosmrs::{
+    proto::cosmos::base::tendermint::v1beta1::{
+        service_client::ServiceClient as TendermintServiceClient, GetLatestBlockRequest,
+    },
+    Any,
+};
 use tonic::Request;
 
 use crate::common::{error::StrategistError, transaction::TransactionResponse};
@@ -148,5 +151,70 @@ pub trait BaseClient: GrpcSigningClient {
         Err(StrategistError::QueryError(
             "failed to confirm tx".to_string(),
         ))
+    }
+
+    async fn ibc_transfer(
+        &self,
+        to: String,
+        denom: String,
+        amount: String,
+        channel_id: String,
+        timeout_seconds: u64,
+    ) -> Result<TransactionResponse, StrategistError> {
+        let signing_client = self.get_signing_client().await?;
+        let channel = self.get_grpc_channel().await?;
+
+        let mut tendermint_client =
+            cosmos_sdk_proto::cosmos::base::tendermint::v1beta1::service_client::ServiceClient::new(
+                channel,
+            );
+
+        let response = tendermint_client
+            .get_latest_block(
+                cosmos_sdk_proto::cosmos::base::tendermint::v1beta1::GetLatestBlockRequest {},
+            )
+            .await
+            .unwrap()
+            .into_inner();
+
+        let sdk_block = response.sdk_block.unwrap();
+
+        let block_header = sdk_block.header.unwrap();
+
+        let current_time = block_header.time.unwrap();
+
+        let current_seconds = current_time.seconds as u64;
+        let timeout_seconds = current_seconds + timeout_seconds;
+        let timeout_nanos = (timeout_seconds * 1_000_000_000) + current_time.nanos as u64;
+
+        let ibc_transfer_msg = ibc::apps::transfer::types::proto::transfer::v1::MsgTransfer {
+            source_port: "transfer".to_string(),
+            source_channel: channel_id,
+            token: Some(cosmos_sdk_proto::cosmos::base::v1beta1::Coin { denom, amount }),
+            sender: signing_client.address.to_string(),
+            receiver: to,
+            timeout_height: None,
+            timeout_timestamp: timeout_nanos,
+            memo: "hi".to_string(),
+        };
+
+        let any_msg = Any::from_msg(&ibc_transfer_msg).unwrap();
+
+        let raw_tx = signing_client
+            .create_tx(any_msg, &self.chain_denom(), 200_000, 500_000u64, None)
+            .await
+            .unwrap();
+
+        let channel = self.get_grpc_channel().await?;
+
+        let mut grpc_client =
+            cosmos_sdk_proto::cosmos::tx::v1beta1::service_client::ServiceClient::new(channel);
+
+        let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
+
+        match broadcast_tx_response.tx_response {
+            Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),
+            None => Err(StrategistError::TransactionError("failed".to_string())),
+        }
     }
 }
