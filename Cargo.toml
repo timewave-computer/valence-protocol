@@ -46,6 +46,8 @@ cw-ownable      = "2.0.0"
 cw-utils        = "2.0.0"
 cw-storage-plus = "2.0.0"
 cw2             = "2.0.0"
+cw721           = { git = "https://github.com/public-awesome/cw-nfts", rev = "99dbf7e" }
+cw721-base      = { git = "https://github.com/public-awesome/cw-nfts", rev = "99dbf7e" }
 getset          = "0.1.3"
 itertools       = "0.13.0"
 # TODO: replace neutron-sdk and cosmos-sdk-proto for neutron-std when we can test with 2.0 (neutron-std adds cosmwasm_2_0 feature)
@@ -81,6 +83,8 @@ valence-osmosis-cl-lper              = { path = "contracts/libraries/osmosis-cl-
 valence-osmosis-cl-withdrawer        = { path = "contracts/libraries/osmosis-cl-withdrawer", features = ["library"] }
 valence-encoder-broker               = { path = "contracts/encoders/broker", features = ["library"] }
 valence-neutron-ic-querier           = { path = "contracts/libraries/neutron-ic-querier", features = ["library"] }
+valence-drop-liquid-staker           = { path = "contracts/libraries/drop-liquid-staker", features = ["library"] }
+valence-drop-liquid-unstaker         = { path = "contracts/libraries/drop-liquid-unstaker", features = ["library"] }
 
 # middleware
 valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = [
@@ -106,6 +110,7 @@ valence-program-manager        = { path = "program-manager" }
 valence-program-registry       = { path = "contracts/program-registry", features = ["library"] }
 valence-middleware-utils       = { path = "packages/middleware-utils" }
 valence-strategist-utils       = { path = "packages/strategist-utils", features = ["library"] }
+valence-liquid-staking-utils   = { path = "packages/liquid-staking-utils" }
 
 # dev-dependencies
 cw-multi-test        = { version = "2.1.1", features = ["cosmwasm_1_4"] }

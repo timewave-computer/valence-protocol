@@ -70,7 +70,7 @@ pub fn my_atomic_token_swap_program(
         }),
     ));
     // The second splitter instance is configured to send a fixed `swap_amount_token2`
-    // from the second account to the the first account.
+    // from the second account to the first account.
     let library_2 = program_config_builder.add_library(LibraryInfo::new(
         "splitter_2".to_string(),
         &domain,

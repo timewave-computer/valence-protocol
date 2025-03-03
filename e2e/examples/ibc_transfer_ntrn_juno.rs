@@ -145,7 +145,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         config: LibraryConfig::new(
             LibraryAccountType::Addr(input_account.clone()),
-            output_account.clone(),
+            LibraryAccountType::Addr(output_account.clone()),
             UncheckedDenom::Native(NEUTRON_CHAIN_DENOM.to_string()),
             IbcTransferAmount::FixedAmount(transfer_amount.into()),
             "".to_owned(),

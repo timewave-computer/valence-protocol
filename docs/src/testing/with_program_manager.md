@@ -21,7 +21,7 @@ Our solution includes the following:
     - The Liquidity Provider library will draw tokens from the CL Input account and use them to enter the pool
     - The Liquidity Withdrawer library will exit the pool from the position held in the CL Output account and deposit redeemed tokens to the Final Output account
 - We add two permissionless authorizations on Neutron:
-    - Provide Liquidity: When executed, it'll call the the provide liquidity function
+    - Provide Liquidity: When executed, it'll call the provide liquidity function
     - Withdraw Liquidity: When executed, it'll call the withdraw liquidity function
 
 The following is a visual representation of the system we are building:

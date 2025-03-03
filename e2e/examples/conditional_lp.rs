@@ -680,7 +680,7 @@ fn neutron_setup(
         processor: neutron_processor_address.to_string(),
         config: valence_neutron_ibc_transfer_library::msg::LibraryConfig::new(
             LibraryAccountType::Addr(neutron_input_acc_addr.clone()),
-            osmo_input_acc.to_string(),
+            LibraryAccountType::Addr(osmo_input_acc.to_string()),
             UncheckedDenom::Native(NEUTRON_CHAIN_DENOM.to_string()),
             IbcTransferAmount::FixedAmount(transfer_amount.into()),
             "".to_owned(),

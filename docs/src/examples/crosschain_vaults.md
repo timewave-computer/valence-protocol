@@ -139,7 +139,7 @@ graph LR
 	}
 	```
 
-Withdraws are subject to a lockup period after the user has initiated a redemption. During this time the redemption rate may change. Users can specify an acceptable loss in case the the redemption rate decreases using the `max_loss_bps` parameter.
+Withdraws are subject to a lockup period after the user has initiated a redemption. During this time the redemption rate may change. Users can specify an acceptable loss in case the redemption rate decreases using the `max_loss_bps` parameter.
 
 After the `Epoch` has completed, a user may complete the withdrawal by executing the following message:
 

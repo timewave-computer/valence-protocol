@@ -853,7 +853,7 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         // Broadcast the tx and wait for it to finalize (or error)
-        self.broadcast_tx(m, "update_workflow_config").await?;
+        self.broadcast_tx(m, "update_program_config").await?;
 
         Ok(())
     }
@@ -882,7 +882,7 @@ impl Connector for CosmosCosmwasmConnector {
                 .wasm
                 .smart_contract_state(query)
                 .await
-                .context("Failed to query the workflow config from registry")
+                .context("Failed to query the program config from registry")
                 .map_err(CosmosCosmwasmError::Error)?
                 .into_inner()
                 .data,
