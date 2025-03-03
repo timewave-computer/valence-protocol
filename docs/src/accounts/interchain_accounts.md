@@ -1,6 +1,7 @@
 # Interchain Accounts
 
 A **Valence Interchain Account** is a contract that creates an [ICS-27 Interchain Account](https://ibc.cosmos.network/v8/apps/interchain-accounts/overview/) over IBC on a different domain. It will then send protobuf messages to the ICA over IBC for them to be executed remotely. It's specifically designed to interact with other chains in the Cosmos ecosystem, and more in particular with chains that don't support smart contracts.
+To use this account contract, the remote chain must have ICA host functionality enabled and should have an allowlist that includes the messages being executed.
 
 **Valence Interchain Accounts** are created (i.e., instantiated) on **Neutron** and bound to a specific **Valence Program**. **Valence Programs** will typically use these accounts to trigger remote execution of messages on other domains.
 
