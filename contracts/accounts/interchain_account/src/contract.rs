@@ -7,7 +7,8 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use neutron_sdk::{bindings::query::NeutronQuery, sudo::msg::SudoMsg};
 
-use valence_account_utils::{error::ContractError, ica::OpenAckVersion};
+use valence_account_utils::error::ContractError;
+use valence_ibc_utils::neutron::OpenAckVersion;
 
 use crate::{
     msg::{ExecuteMsg, IcaInformation, IcaState, InstantiateMsg, QueryMsg},
@@ -65,11 +66,10 @@ mod execute {
         bindings::{query::NeutronQuery, types::ProtobufAny},
         query::min_ibc_fee::query_min_ibc_fee,
     };
-    use valence_account_utils::{
-        error::{ContractError, UnauthorizedReason},
-        ica::{query_ica_registration_fee, register_ica_msg, submit_tx},
+    use valence_account_utils::error::{ContractError, UnauthorizedReason};
+    use valence_ibc_utils::neutron::{
+        get_transfer_fee, min_ntrn_ibc_fee, query_ica_registration_fee, register_ica_msg, submit_tx,
     };
-    use valence_ibc_utils::neutron::{get_transfer_fee, min_ntrn_ibc_fee};
 
     use crate::{
         msg::IcaState,

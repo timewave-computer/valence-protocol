@@ -7198,7 +7198,6 @@ checksum = "ced87ca4be083373936a67f8de945faa23b6b42384bd5b64434850802c6dccd0"
 name = "valence-account-utils"
 version = "0.2.0"
 dependencies = [
- "cosmos-sdk-proto 0.20.0",
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
  "cw-multi-test",
@@ -7206,13 +7205,10 @@ dependencies = [
  "cw-utils 2.0.0",
  "cw20 2.0.0",
  "cw20-base 2.0.0",
- "neutron-sdk",
- "prost-types 0.12.6",
  "serde",
  "serde_json",
  "sha2 0.10.8",
  "thiserror 1.0.69",
- "valence-ibc-utils",
  "valence-macros",
 ]
 
@@ -8063,6 +8059,7 @@ dependencies = [
  "serde-json-wasm 1.0.1",
  "serde_json",
  "thiserror 1.0.69",
+ "valence-ibc-utils",
  "valence-processor-utils",
 ]
 

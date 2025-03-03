@@ -8,7 +8,6 @@ repository = { workspace = true }
 
 [features]
 default = []
-neutron = ["dep:neutron-sdk"]
 testing = ["dep:cw-multi-test", "dep:cw20", "dep:cw20-base", "dep:sha2"]
 
 [dependencies]
@@ -20,12 +19,6 @@ serde             = { workspace = true }
 serde_json        = { workspace = true }
 thiserror         = { workspace = true }
 valence-macros    = { workspace = true }
-cosmos-sdk-proto  = { workspace = true }
-valence-ibc-utils = { workspace = true }
-prost-types       = { version = "0.12.6", default-features = false }
-
-# Optional dependencies
-neutron-sdk = { workspace = true, optional = true }
 
 # Testing dependencies
 cw-multi-test = { workspace = true, optional = true }

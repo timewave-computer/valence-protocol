@@ -28,3 +28,4 @@ serde                   = { workspace = true }
 osmosis-std             = { workspace = true }
 prost                   = { workspace = true }
 prost-types             = { workspace = true }
+valence-ibc-utils       = { workspace = true, features = ["neutron"] }
