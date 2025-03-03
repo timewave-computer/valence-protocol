@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Uint64;
+use cosmwasm_std::{StdError, StdResult, Uint64};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query};
 use neutron_sdk::bindings::types::ProtobufAny;
 
@@ -35,6 +35,19 @@ pub enum QueryMsg {
 pub struct RemoteDomainInfo {
     pub connection_id: String,
     pub ica_timeout: Uint64,
+}
+
+impl RemoteDomainInfo {
+    pub fn validate(&self) -> StdResult<()> {
+        if self.connection_id.is_empty() {
+            return Err(StdError::generic_err("connection_id cannot be empty"));
+        }
+        if self.ica_timeout.is_zero() {
+            return Err(StdError::generic_err("ica_timeout cannot be zero"));
+        }
+
+        Ok(())
+    }
 }
 
 #[cw_serde]

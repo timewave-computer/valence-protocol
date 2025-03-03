@@ -34,6 +34,7 @@ pub fn instantiate(
         APPROVED_LIBRARIES.save(deps.storage, deps.api.addr_validate(library)?, &Empty {})
     })?;
 
+    msg.remote_domain_information.validate()?;
     REMOTE_DOMAIN_INFO.save(deps.storage, &msg.remote_domain_information)?;
     ICA_STATE.save(deps.storage, &IcaState::NotCreated)?;
 
