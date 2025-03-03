@@ -8493,6 +8493,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-chain-client-utils"
+version = "0.2.0"
+dependencies = [
+ "alloy",
+ "alloy-primitives 0.7.7",
+ "alloy-signer-local",
+ "alloy-sol-types 0.7.7",
+ "async-trait",
+ "bip32",
+ "cosmos-sdk-proto 0.26.1",
+ "cosmrs 0.21.1",
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "hex",
+ "ibc",
+ "localic-utils",
+ "neutron-std",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tonic 0.12.3",
+ "valence-e2e",
+ "valence-processor-utils",
+]
+
+[[package]]
 name = "valence-drop-liquid-staker"
 version = "0.2.0"
 dependencies = [
@@ -9155,32 +9181,6 @@ dependencies = [
  "thiserror 1.0.69",
  "valence-account-utils",
  "valence-middleware-utils",
-]
-
-[[package]]
-name = "valence-strategist-utils"
-version = "0.2.0"
-dependencies = [
- "alloy",
- "alloy-primitives 0.7.7",
- "alloy-signer-local",
- "alloy-sol-types 0.7.7",
- "async-trait",
- "bip32",
- "cosmos-sdk-proto 0.26.1",
- "cosmrs 0.21.1",
- "cosmwasm-schema 2.2.1",
- "cosmwasm-std 2.2.1",
- "hex",
- "ibc",
- "localic-utils",
- "neutron-std",
- "serde",
- "serde_json",
- "tokio",
- "tonic 0.12.3",
- "valence-e2e",
- "valence-processor-utils",
 ]
 
 [[package]]

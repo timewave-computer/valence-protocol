@@ -1,4 +1,4 @@
-# Strategist Utils
+# Chain client Utils
 
 This directory contains various utilities for interacting with chains from an off-chain client.
 

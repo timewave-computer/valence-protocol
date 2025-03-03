@@ -109,7 +109,7 @@ valence-program-registry-utils = { path = "packages/program-registry-utils" }
 valence-program-manager        = { path = "program-manager" }
 valence-program-registry       = { path = "contracts/program-registry", features = ["library"] }
 valence-middleware-utils       = { path = "packages/middleware-utils" }
-valence-strategist-utils       = { path = "packages/strategist-utils", features = ["library"] }
+valence-chain-client-utils     = { path = "packages/chain-client-utils", features = ["library"] }
 valence-liquid-staking-utils   = { path = "packages/liquid-staking-utils" }
 
 # dev-dependencies

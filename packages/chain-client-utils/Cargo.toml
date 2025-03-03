@@ -1,5 +1,5 @@
 [package]
-name = "valence-strategist-utils"
+name = "valence-chain-client-utils"
 edition = { workspace = true }
 license = { workspace = true }
 version = { workspace = true }
