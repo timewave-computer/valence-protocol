@@ -5,7 +5,7 @@ use alloy::{
     hex::FromHexError,
     primitives::AddressError,
     providers::PendingTransactionError,
-    transports::{http::reqwest, RpcError, TransportErrorKind},
+    transports::{RpcError, TransportErrorKind},
 };
 use alloy_signer_local::LocalSignerError;
 

@@ -4,7 +4,7 @@ use crate::common::error::StrategistError;
 use alloy::contract::{CallBuilder, CallDecoder};
 use alloy::network::Ethereum;
 use alloy::network::Network;
-use alloy::primitives::{Address, U256};
+use alloy::primitives::{Address, Bytes, U256};
 use alloy::providers::{
     fillers::{BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller},
     Identity, RootProvider,
@@ -27,6 +27,41 @@ pub type CustomProvider = FillProvider<
     Http<Client>,
     Ethereum,
 >;
+
+pub trait EvmQueryRequest: Clone {
+    /// decoded output type for this query
+    type Output;
+
+    /// every query request must be convertible to a transaction request
+    fn get_tx_request(&self) -> TransactionRequest;
+
+    /// decode the raw bytes of the EVM call into the output type
+    fn decode_response(&self, bytes: Bytes) -> Result<Self::Output, StrategistError>;
+}
+
+// this is a bit loaded but I couldn't find a way around it if we want to
+// keep the query devex clean and avoid decoding the responses manually
+impl<T, P, D, N> EvmQueryRequest for CallBuilder<T, P, D, N>
+where
+    T: Transport + Clone + Send + Sync,
+    P: Provider<T, N> + Send + Sync,
+    D: CallDecoder,
+    D::CallOutput: Send + Sync,
+    N::TransactionRequest: Into<TransactionRequest>,
+    N: Network,
+    CallBuilder<T, P, D, N>: Clone,
+{
+    type Output = D::CallOutput;
+
+    fn get_tx_request(&self) -> TransactionRequest {
+        self.clone().into_transaction_request().into()
+    }
+
+    fn decode_response(&self, raw: Bytes) -> Result<Self::Output, StrategistError> {
+        let resp = self.decode_output(raw, true)?;
+        Ok(resp)
+    }
+}
 
 /// base client trait with default implementations for evm based clients.
 ///
@@ -68,26 +103,17 @@ pub trait EvmBaseClient: RequestProviderClient {
         Ok(tx_response)
     }
 
-    async fn query<'a, T, P, D, N>(
-        &'a self,
-        builder: CallBuilder<T, P, D, N>,
-    ) -> Result<D::CallOutput, StrategistError>
-    where
-        T: Transport + Clone + Send + Sync + 'static,
-        P: Provider<T, N> + Send + Sync + 'a,
-        N: Network + Send + Sync + 'static,
-        D: CallDecoder + Send + Sync + 'static,
-        N::TransactionRequest: Into<TransactionRequest> + Send,
-        CallBuilder<T, P, D, N>: Clone + Send + 'a,
-        D::CallOutput: Send,
-    {
+    async fn query<Q: EvmQueryRequest + Send>(
+        &self,
+        builder: Q,
+    ) -> Result<Q::Output, StrategistError> {
         let client = self.get_request_provider().await?;
 
-        let tx_request: TransactionRequest = builder.clone().into_transaction_request().into();
+        let tx_request: TransactionRequest = builder.get_tx_request();
 
         let raw_response = client.call(&tx_request).await?;
 
-        let decoded = builder.decode_output(raw_response, true)?;
+        let decoded = builder.decode_response(raw_response)?;
 
         Ok(decoded)
     }
