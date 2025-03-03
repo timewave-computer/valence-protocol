@@ -338,7 +338,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // For migration, we just want to just the migrate functionlity, so here are the steps we gonna take:
     // We have some "stuck" funds in our input account of the old program
-    // Create the same workflow as above, same services and accounts
+    // Create the same program as above, same services and accounts
     // Migrate from old to new, with sending funds from the old input account to the new one
 
     // Create the new program

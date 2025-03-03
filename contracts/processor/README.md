@@ -1,6 +1,6 @@
 # Processor Contract
 
-The Processor will be a contract that will be sitting on each domain and, when ticked (entry point that will check the execution queues and see if there is any set of functions pending to be executed), will take the next list of functions in the queue and execute it for the workflow on that domain. It will also be in charge of dealing with the `Retry` logic for each message in the function list. If the list of functions executes successfully or we’ve gone through the entire `Retry` logic for any of the messages and they couldn’t be executed, they will be removed from the corresponding queue.
+The Processor will be a contract that will be sitting on each domain and, when ticked (entry point that will check the execution queues and see if there is any set of functions pending to be executed), will take the next list of functions in the queue and execute it for the program on that domain. It will also be in charge of dealing with the `Retry` logic for each message in the function list. If the list of functions executes successfully or we’ve gone through the entire `Retry` logic for any of the messages and they couldn’t be executed, they will be removed from the corresponding queue.
 
 The processors will be instantiated in advanced with the correct address that can send messages to it according to the flowchart defined in the previous section.
 
