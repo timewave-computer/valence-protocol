@@ -114,10 +114,15 @@ mod execute {
     ) -> Result<Response, ContractError> {
         // First we verify that we are in the correct state to allow ICA creation
         let state = ICA_STATE.load(deps.storage)?;
-        if state.ne(&IcaState::NotCreated) || state.ne(&IcaState::Closed) {
-            return Err(ContractError::InvalidIcaState {
-                current_state: state.to_string(),
-            });
+        match state {
+            IcaState::NotCreated | IcaState::Closed => {
+                // Valid state: continue execution.
+            }
+            _ => {
+                return Err(ContractError::InvalidIcaState {
+                    current_state: state.to_string(),
+                });
+            }
         }
 
         let remote_domain_info = REMOTE_DOMAIN_INFO.load(deps.storage)?;
