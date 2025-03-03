@@ -1,5 +1,6 @@
 use std::num::TryFromIntError;
 
+use cosmos_sdk_proto::prost::EncodeError;
 use cosmrs::ErrorReport;
 use tonic::Status;
 
@@ -37,6 +38,12 @@ impl From<bip32::Error> for StrategistError {
 
 impl From<cosmrs::tendermint::Error> for StrategistError {
     fn from(value: cosmrs::tendermint::Error) -> Self {
+        StrategistError::ParseError(value.to_string())
+    }
+}
+
+impl From<EncodeError> for StrategistError {
+    fn from(value: EncodeError) -> Self {
         StrategistError::ParseError(value.to_string())
     }
 }

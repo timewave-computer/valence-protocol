@@ -1,6 +1,9 @@
 use crate::{
     common::{error::StrategistError, transaction::TransactionResponse},
-    cosmos::{base_client::BaseClient, grpc_client::GrpcSigningClient, wasm_client::WasmClient},
+    cosmos::{
+        base_client::BaseClient, grpc_client::GrpcSigningClient, wasm_client::WasmClient,
+        CosmosServiceClient, ProtoTimestamp,
+    },
 };
 use async_trait::async_trait;
 use localic_utils::NEUTRON_CHAIN_DENOM;
@@ -42,15 +45,19 @@ impl BaseClient for NeutronClient {
         channel_id: String,
         timeout_seconds: u64,
     ) -> Result<TransactionResponse, StrategistError> {
+        // first we query the latest block header to respect the chain time for timeouts
         let latest_block_header = self.latest_block_header().await?;
 
+        let mut current_time: ProtoTimestamp = latest_block_header
+            .time
+            .ok_or_else(|| StrategistError::QueryError("No time in block header".to_string()))?
+            .into();
+
+        current_time.extend_by_seconds(timeout_seconds)?;
+
+        let timeout_nanos = current_time.to_nanos()?;
+
         let signing_client = self.get_signing_client().await?;
-
-        let current_time = latest_block_header.time.unwrap();
-
-        let current_seconds = current_time.seconds as u64;
-        let timeout_seconds = current_seconds + timeout_seconds;
-        let timeout_nanos = (timeout_seconds * 1_000_000_000) + current_time.nanos as u64;
 
         let ibc_transfer_msg = neutron_std::types::ibc::applications::transfer::v1::MsgTransfer {
             source_port: "transfer".to_string(),
@@ -67,6 +74,7 @@ impl BaseClient for NeutronClient {
         }
         .to_any();
 
+        // convert to cosmrs::Any
         let valid_any = cosmrs::Any {
             type_url: ibc_transfer_msg.type_url,
             value: ibc_transfer_msg.value,
@@ -79,8 +87,7 @@ impl BaseClient for NeutronClient {
 
         let channel = self.get_grpc_channel().await?;
 
-        let mut grpc_client =
-            cosmos_sdk_proto::cosmos::tx::v1beta1::service_client::ServiceClient::new(channel);
+        let mut grpc_client = CosmosServiceClient::new(channel);
 
         let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
 
@@ -121,14 +128,17 @@ impl GrpcSigningClient for NeutronClient {
 mod tests {
     use std::time::Duration;
 
-    use localic_utils::{NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, OSMOSIS_CHAIN_ADMIN_ADDR};
+    use localic_utils::{
+        NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, OSMOSIS_CHAIN_ADMIN_ADDR,
+        OSMOSIS_CHAIN_DENOM,
+    };
 
     use crate::osmosis::OsmosisClient;
 
     use super::*;
 
     const LOCAL_GRPC_URL: &str = "http://127.0.0.1";
-    const LOCAL_GRPC_PORT: &str = "40571";
+    const LOCAL_GRPC_PORT: &str = "39381";
     const LOCAL_MNEMONIC: &str = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry";
     const LOCAL_SIGNER_ADDR: &str = "neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky";
     const LOCAL_ALT_ADDR: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
@@ -273,10 +283,10 @@ mod tests {
 
         let osmosis_client = OsmosisClient::new(
             LOCAL_GRPC_URL,
-            "43093",
+            "45355",
             LOCAL_MNEMONIC,
             "localosmosis-1",
-            "uosmo",
+            OSMOSIS_CHAIN_DENOM,
         );
 
         let osmo_balance_0 = osmosis_client
@@ -288,7 +298,7 @@ mod tests {
         let tx_response = client
             .ibc_transfer(
                 OSMOSIS_CHAIN_ADMIN_ADDR.to_string(),
-                "untrn".to_string(),
+                NEUTRON_CHAIN_DENOM.to_string(),
                 "100000".to_string(),
                 "channel-0".to_string(),
                 5,

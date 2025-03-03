@@ -16,14 +16,15 @@ pub trait RequestProviderClient {
     fn signer(&self) -> PrivateKeySigner;
 
     async fn get_request_provider(&self) -> Result<CustomProvider, StrategistError> {
-        let url: reqwest::Url = match self.rpc_url().parse() {
-            Ok(resp) => resp,
-            Err(e) => return Err(StrategistError::ParseError(e.to_string())),
-        };
+        let url: reqwest::Url = self
+            .rpc_url()
+            .parse()
+            .map_err(|_| StrategistError::ParseError("failed to parse url".to_string()))?;
 
         let provider = ProviderBuilder::new()
             .with_recommended_fillers()
             .on_http(url);
+
         Ok(provider)
     }
 

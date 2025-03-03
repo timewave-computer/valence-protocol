@@ -18,7 +18,9 @@ use tonic::Request;
 
 use crate::common::{error::StrategistError, transaction::TransactionResponse};
 
-use super::grpc_client::GrpcSigningClient;
+use super::{grpc_client::GrpcSigningClient, BankQueryClient, CosmosServiceClient, ProtoTimestamp};
+
+pub const NANOS_IN_SECOND: u64 = 1_000_000_000;
 
 /// base client trait with default implementations for cosmos-sdk based clients.
 ///
@@ -51,8 +53,7 @@ pub trait BaseClient: GrpcSigningClient {
             .create_tx(transfer_msg, &self.chain_denom(), 500_000, 500_000u64, None)
             .await?;
 
-        let mut grpc_client =
-            cosmos_sdk_proto::cosmos::tx::v1beta1::service_client::ServiceClient::new(channel);
+        let mut grpc_client = CosmosServiceClient::new(channel);
 
         let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
 
@@ -86,8 +87,7 @@ pub trait BaseClient: GrpcSigningClient {
     async fn query_balance(&self, address: &str, denom: &str) -> Result<u128, StrategistError> {
         let channel = self.get_grpc_channel().await?;
 
-        let mut grpc_client =
-            cosmrs::proto::cosmos::bank::v1beta1::query_client::QueryClient::new(channel);
+        let mut grpc_client = BankQueryClient::new(channel);
 
         let request = QueryBalanceRequest {
             address: address.to_string(),
@@ -112,8 +112,7 @@ pub trait BaseClient: GrpcSigningClient {
     async fn poll_for_tx(&self, tx_hash: &str) -> Result<TxResponse, StrategistError> {
         let channel = self.get_grpc_channel().await?;
 
-        let mut grpc_client =
-            cosmos_sdk_proto::cosmos::tx::v1beta1::service_client::ServiceClient::new(channel);
+        let mut grpc_client = CosmosServiceClient::new(channel);
 
         let request = GetTxRequest {
             hash: tx_hash.to_string(),
@@ -159,15 +158,19 @@ pub trait BaseClient: GrpcSigningClient {
         channel_id: String,
         timeout_seconds: u64,
     ) -> Result<TransactionResponse, StrategistError> {
-        let signing_client = self.get_signing_client().await?;
-
+        // first we query the latest block header to respect the chain time for timeouts
         let latest_block_header = self.latest_block_header().await?;
 
-        let current_time = latest_block_header.time.unwrap();
+        let mut current_time: ProtoTimestamp = latest_block_header
+            .time
+            .ok_or_else(|| StrategistError::QueryError("No time in block header".to_string()))?
+            .into();
 
-        let current_seconds = current_time.seconds as u64;
-        let timeout_seconds = current_seconds + timeout_seconds;
-        let timeout_nanos = (timeout_seconds * 1_000_000_000) + current_time.nanos as u64;
+        current_time.extend_by_seconds(timeout_seconds)?;
+
+        let timeout_nanos = current_time.to_nanos()?;
+
+        let signing_client = self.get_signing_client().await?;
 
         let ibc_transfer_msg = ibc::apps::transfer::types::proto::transfer::v1::MsgTransfer {
             source_port: "transfer".to_string(),
@@ -180,17 +183,15 @@ pub trait BaseClient: GrpcSigningClient {
             memo: "hi".to_string(),
         };
 
-        let any_msg = Any::from_msg(&ibc_transfer_msg).unwrap();
+        let any_msg = Any::from_msg(&ibc_transfer_msg)?;
 
         let raw_tx = signing_client
             .create_tx(any_msg, &self.chain_denom(), 200_000, 500_000u64, None)
-            .await
-            .unwrap();
+            .await?;
 
         let channel = self.get_grpc_channel().await?;
 
-        let mut grpc_client =
-            cosmos_sdk_proto::cosmos::tx::v1beta1::service_client::ServiceClient::new(channel);
+        let mut grpc_client = CosmosServiceClient::new(channel);
 
         let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
 

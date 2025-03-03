@@ -100,6 +100,8 @@ impl SigningClient {
             mode: BroadcastMode::Sync.into(),
         };
 
+        // TODO: we may want to increment the sequence number here manually if things start failing
+
         Ok(broadcast_tx_request)
     }
 }

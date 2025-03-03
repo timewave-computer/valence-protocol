@@ -7,7 +7,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use crate::common::{error::StrategistError, transaction::TransactionResponse};
 use tonic::Request;
 
-use super::grpc_client::GrpcSigningClient;
+use super::{grpc_client::GrpcSigningClient, CosmosServiceClient, WasmQueryClient};
 
 use cosmrs::{
     cosmwasm::MsgExecuteContract, proto::cosmwasm::wasm::v1::QuerySmartContractStateRequest,
@@ -23,8 +23,7 @@ pub trait WasmClient: GrpcSigningClient {
     ) -> Result<T, StrategistError> {
         let channel = self.get_grpc_channel().await?;
 
-        let mut grpc_client =
-            cosmrs::proto::cosmwasm::wasm::v1::query_client::QueryClient::new(channel);
+        let mut grpc_client = WasmQueryClient::new(channel);
 
         let bin_query = serde_json::to_vec(&query_data)?;
 
@@ -43,10 +42,10 @@ pub trait WasmClient: GrpcSigningClient {
         Ok(parsed)
     }
 
-    async fn execute_wasm<T: Serialize + Send + 'static>(
+    async fn execute_wasm(
         &self,
         contract: &str,
-        msg: T,
+        msg: (impl Serialize + Send),
         funds: Vec<Coin>,
     ) -> Result<TransactionResponse, StrategistError> {
         let signing_client = self.get_signing_client().await?;
@@ -66,8 +65,7 @@ pub trait WasmClient: GrpcSigningClient {
             .create_tx(wasm_tx, &self.chain_denom(), 500_000, 500_000u64, None)
             .await?;
 
-        let mut grpc_client =
-            cosmos_sdk_proto::cosmos::tx::v1beta1::service_client::ServiceClient::new(channel);
+        let mut grpc_client = CosmosServiceClient::new(channel);
 
         let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
 
