@@ -14,6 +14,8 @@ pub(crate) type WasmQueryClient<T> =
     cosmrs::proto::cosmwasm::wasm::v1::query_client::QueryClient<T>;
 pub(crate) type BankQueryClient<T> =
     cosmrs::proto::cosmos::bank::v1beta1::query_client::QueryClient<T>;
+pub(crate) type AuthQueryClient<T> =
+    cosmos_sdk_proto::cosmos::auth::v1beta1::query_client::QueryClient<T>;
 
 pub struct ProtoTimestamp(cosmos_sdk_proto::Timestamp);
 

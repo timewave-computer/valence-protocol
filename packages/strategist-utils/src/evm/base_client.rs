@@ -66,7 +66,7 @@ where
 /// base client trait with default implementations for evm based clients.
 ///
 /// for chains which are somehow unique in their common module implementations,
-/// these function definitions can be overridden to match that of the chain.
+/// these function definitions can be overridden to match the custom chain logic.
 #[async_trait]
 pub trait EvmBaseClient: RequestProviderClient {
     async fn latest_block_height(&self) -> Result<u64, StrategistError> {

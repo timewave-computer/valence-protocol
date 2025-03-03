@@ -14,6 +14,10 @@ use cosmrs::{
     tx::Msg, AccountId,
 };
 
+/// wasm funcionality trait with default implementations for cosmos-sdk based clients.
+///
+/// for chains which are somehow unique in their wasm module implementations,
+/// these function definitions can be overridden to match that of the chain.
 #[async_trait]
 pub trait WasmClient: GrpcSigningClient {
     async fn query_contract_state<T: DeserializeOwned>(

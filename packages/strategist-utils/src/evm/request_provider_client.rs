@@ -10,6 +10,9 @@ use crate::common::error::StrategistError;
 
 use super::base_client::CustomProvider;
 
+/// trait for evm-based clients to enable signing and request provider functionality.
+/// each implementation must provide getters for the rpc url and signer which are used
+/// to build the provider and sign transactions.
 #[async_trait]
 pub trait RequestProviderClient {
     fn rpc_url(&self) -> String;

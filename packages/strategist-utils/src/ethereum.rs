@@ -58,7 +58,6 @@ mod tests {
     // These would be replaced with actual test values
     const TEST_RPC_URL: &str = "http://127.0.0.1:8545";
     const TEST_MNEMONIC: &str = "test test test test test test test test test test test junk";
-    // const TEST_CHAIN_ID: u64 = 31337;
     const TEST_CONTRACT_ADDR: &str = "0x610178dA211FEF7D417bC0e6FeD39F05609AD788";
 
     #[tokio::test]

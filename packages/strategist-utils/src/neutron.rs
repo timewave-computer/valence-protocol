@@ -44,6 +44,7 @@ impl BaseClient for NeutronClient {
         amount: String,
         channel_id: String,
         timeout_seconds: u64,
+        memo: Option<String>,
     ) -> Result<TransactionResponse, StrategistError> {
         // first we query the latest block header to respect the chain time for timeouts
         let latest_block_header = self.latest_block_header().await?;
@@ -70,7 +71,7 @@ impl BaseClient for NeutronClient {
             receiver: to.to_string(),
             timeout_height: None,
             timeout_timestamp: timeout_nanos,
-            memo: "hi".to_string(),
+            memo: memo.unwrap_or_default(),
         }
         .to_any();
 
@@ -233,7 +234,7 @@ mod tests {
             .unwrap();
 
         let rx = client
-            .transfer(LOCAL_ALT_ADDR, 100_000, NEUTRON_CHAIN_DENOM)
+            .transfer(LOCAL_ALT_ADDR, 100_000, NEUTRON_CHAIN_DENOM, None)
             .await
             .unwrap();
 
@@ -302,6 +303,7 @@ mod tests {
                 "100000".to_string(),
                 "channel-0".to_string(),
                 5,
+                None,
             )
             .await
             .unwrap();
@@ -326,6 +328,7 @@ mod tests {
                 "100000".to_string(),
                 "channel-0".to_string(),
                 5,
+                None,
             )
             .await
             .unwrap();

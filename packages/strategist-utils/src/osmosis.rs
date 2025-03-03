@@ -6,6 +6,7 @@ use crate::cosmos::{
 
 const CHAIN_PREFIX: &str = "osmo";
 
+/// client for interacting with the osmosis chain
 pub struct OsmosisClient {
     grpc_url: String,
     mnemonic: String,
@@ -30,9 +31,11 @@ impl OsmosisClient {
     }
 }
 
+/// osmosis is a base cosmos chain
 #[async_trait]
 impl BaseClient for OsmosisClient {}
 
+/// osmosis has a wasm module
 #[async_trait]
 impl WasmClient for OsmosisClient {}
 

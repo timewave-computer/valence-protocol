@@ -12,6 +12,11 @@ use tonic::transport::Channel;
 
 use crate::common::error::StrategistError;
 
+use super::AuthQueryClient;
+
+const DERIVATION_PATH: &str = "m/44'/118'/0'/0/0";
+
+/// struct that holds any signing-related information for a cosmos-sdk client
 pub struct SigningClient {
     pub signing_key: SigningKey,
     pub address: AccountId,
@@ -21,9 +26,9 @@ pub struct SigningClient {
     pub public_key: PublicKey,
 }
 
-const DERIVATION_PATH: &str = "m/44'/118'/0'/0/0";
-
 impl SigningClient {
+    /// builds a signing client to operate on the given channel, prefix and chain id.
+    /// signs messages with the provided mnemonic.
     pub async fn from_mnemonic(
         channel: Channel,
         mnemonic: &str,
@@ -39,8 +44,7 @@ impl SigningClient {
         let public_key = signing_key.public_key();
         let sender_account_id = public_key.account_id(prefix)?;
 
-        let mut client =
-            cosmos_sdk_proto::cosmos::auth::v1beta1::query_client::QueryClient::new(channel);
+        let mut client = AuthQueryClient::new(channel);
 
         let account_info_resp = client
             .account_info(QueryAccountInfoRequest {
@@ -63,6 +67,7 @@ impl SigningClient {
         })
     }
 
+    /// creates a transaction and signs it with the signing key
     pub async fn create_tx(
         &self,
         msg: Any,
@@ -79,9 +84,10 @@ impl SigningClient {
             gas_limit,
         );
 
-        let memo = memo.unwrap_or_default();
-
-        let tx_body = tx::BodyBuilder::new().msg(msg).memo(memo).finish();
+        let tx_body = tx::BodyBuilder::new()
+            .msg(msg)
+            .memo(memo.unwrap_or_default())
+            .finish();
 
         let auth_info =
             SignerInfo::single_direct(Some(self.public_key), self.sequence).auth_info(fee);
@@ -100,7 +106,8 @@ impl SigningClient {
             mode: BroadcastMode::Sync.into(),
         };
 
-        // TODO: we may want to increment the sequence number here manually if things start failing
+        // TODO: in the future we can consider auto-incrementing the account sequence number here.
+        // for now txs are signed with the account sequence number that gets fetched just in time.
 
         Ok(broadcast_tx_request)
     }

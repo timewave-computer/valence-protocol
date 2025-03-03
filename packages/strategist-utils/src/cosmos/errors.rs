@@ -47,3 +47,9 @@ impl From<EncodeError> for StrategistError {
         StrategistError::ParseError(value.to_string())
     }
 }
+
+impl From<tonic::transport::Error> for StrategistError {
+    fn from(value: tonic::transport::Error) -> Self {
+        StrategistError::ClientError(value.to_string())
+    }
+}

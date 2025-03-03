@@ -25,7 +25,7 @@ pub const NANOS_IN_SECOND: u64 = 1_000_000_000;
 /// base client trait with default implementations for cosmos-sdk based clients.
 ///
 /// for chains which are somehow unique in their common module implementations,
-/// these function definitions can be overridden to match that of the chain.
+/// these function definitions can be overridden to match the custom chain logic.
 #[async_trait]
 pub trait BaseClient: GrpcSigningClient {
     async fn transfer(
@@ -33,6 +33,7 @@ pub trait BaseClient: GrpcSigningClient {
         to: &str,
         amount: u128,
         denom: &str,
+        memo: Option<&str>,
     ) -> Result<TransactionResponse, StrategistError> {
         let signing_client = self.get_signing_client().await?;
         let channel = self.get_grpc_channel().await?;
@@ -50,7 +51,7 @@ pub trait BaseClient: GrpcSigningClient {
         .to_any()?;
 
         let raw_tx = signing_client
-            .create_tx(transfer_msg, &self.chain_denom(), 500_000, 500_000u64, None)
+            .create_tx(transfer_msg, &self.chain_denom(), 500_000, 500_000u64, memo)
             .await?;
 
         let mut grpc_client = CosmosServiceClient::new(channel);
@@ -157,6 +158,7 @@ pub trait BaseClient: GrpcSigningClient {
         amount: String,
         channel_id: String,
         timeout_seconds: u64,
+        memo: Option<String>,
     ) -> Result<TransactionResponse, StrategistError> {
         // first we query the latest block header to respect the chain time for timeouts
         let latest_block_header = self.latest_block_header().await?;
@@ -180,7 +182,7 @@ pub trait BaseClient: GrpcSigningClient {
             receiver: to,
             timeout_height: None,
             timeout_timestamp: timeout_nanos,
-            memo: "hi".to_string(),
+            memo: memo.unwrap_or_default(),
         };
 
         let any_msg = Any::from_msg(&ibc_transfer_msg)?;
