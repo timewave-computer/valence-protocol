@@ -121,7 +121,7 @@ pub fn ibc_send_message(
     })
 }
 
-fn min_ntrn_ibc_fee(fee: IbcFee) -> IbcFee {
+pub fn min_ntrn_ibc_fee(fee: IbcFee) -> IbcFee {
     IbcFee {
         recv_fee: fee.recv_fee,
         ack_fee: fee
@@ -137,7 +137,7 @@ fn min_ntrn_ibc_fee(fee: IbcFee) -> IbcFee {
     }
 }
 
-fn flatten_ntrn_ibc_fee(ibc_fee: &IbcFee) -> Uint128 {
+pub fn flatten_ntrn_ibc_fee(ibc_fee: &IbcFee) -> Uint128 {
     let mut total = Uint128::zero();
 
     for coin in &ibc_fee.recv_fee {
@@ -155,7 +155,7 @@ fn flatten_ntrn_ibc_fee(ibc_fee: &IbcFee) -> Uint128 {
     total
 }
 
-fn get_transfer_fee(ibc_fee: IbcFee) -> neutron_sdk::proto_types::neutron::feerefunder::Fee {
+pub fn get_transfer_fee(ibc_fee: IbcFee) -> neutron_sdk::proto_types::neutron::feerefunder::Fee {
     neutron_sdk::proto_types::neutron::feerefunder::Fee {
         recv_fee: ibc_fee
             .recv_fee
