@@ -188,7 +188,7 @@ mod execute {
             INTERCHAIN_ACCOUNT_ID.to_string(),
             msgs,
             "".to_string(),
-            remote_domain_info.ica_timeout.u64(),
+            remote_domain_info.ica_timeout_seconds.u64(),
             transfer_fee,
         );
 

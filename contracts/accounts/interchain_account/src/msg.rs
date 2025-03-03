@@ -34,7 +34,7 @@ pub enum QueryMsg {
 #[cw_serde]
 pub struct RemoteDomainInfo {
     pub connection_id: String,
-    pub ica_timeout: Uint64,
+    pub ica_timeout_seconds: Uint64, // relative timeout in seconds after which the packet times out
 }
 
 impl RemoteDomainInfo {
@@ -42,8 +42,8 @@ impl RemoteDomainInfo {
         if self.connection_id.is_empty() {
             return Err(StdError::generic_err("connection_id cannot be empty"));
         }
-        if self.ica_timeout.is_zero() {
-            return Err(StdError::generic_err("ica_timeout cannot be zero"));
+        if self.ica_timeout_seconds.is_zero() {
+            return Err(StdError::generic_err("ica_timeout_seconds cannot be zero"));
         }
 
         Ok(())

@@ -31,13 +31,13 @@
         "type": "object",
         "required": [
           "connection_id",
-          "ica_timeout"
+          "ica_timeout_seconds"
         ],
         "properties": {
           "connection_id": {
             "type": "string"
           },
-          "ica_timeout": {
+          "ica_timeout_seconds": {
             "$ref": "#/definitions/Uint64"
           }
         },
@@ -505,13 +505,13 @@
       "type": "object",
       "required": [
         "connection_id",
-        "ica_timeout"
+        "ica_timeout_seconds"
       ],
       "properties": {
         "connection_id": {
           "type": "string"
         },
-        "ica_timeout": {
+        "ica_timeout_seconds": {
           "$ref": "#/definitions/Uint64"
         }
       },

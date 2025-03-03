@@ -41,7 +41,7 @@ pub struct InstantiateMsg {
 
 pub struct RemoteDomainInfo {
     pub connection_id: String,
-    pub ica_timeout: Uint64,
+    pub ica_timeout_seconds: Uint64, // relative timeout in seconds after which the packet times out
 }
 ```
 
