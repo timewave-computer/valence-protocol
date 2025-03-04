@@ -186,8 +186,7 @@ Without Valence Programs, the protocol would have two choices:</p>
 Valence currently supports CosmWasm and EVM. SVM support coming soon. The rest of this section provides a high-level breakdown of the components that comprise a Valence Program using on-chain coprocessors.</p>
 <ul>
 <li><a href="components/./domains.html">Domains</a></li>
-<li><a href="components/./base_accounts.html">Base Accounts</a></li>
-<li><a href="components/./storage_accounts.html">Storage Accounts</a></li>
+<li><a href="components/../accounts/_overview.html">Accounts</a></li>
 <li><a href="components/./libraries_and_functions.html">Libraries and Functions</a></li>
 <li><a href="components/./programs_and_authorizations.html">Programs and Authorizations</a></li>
 <li><a href="components/./middleware.html">Middleware</a></li>
@@ -224,8 +223,10 @@ graph LR
   IA -- Transfer tokens --&gt; OA
   end
 </pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-accounts"><a class="header" href="#valence-accounts">Valence Accounts</a></h1>
+<p>Valence Programs usually perform operations on tokens accross multiple domains. To ensure that the funds remain safe throughout a program's execution, Valence Programs rely on a primitive called Valence Accounts. Additionally, Valence Accounts can also be used to store data that is not directly related to tokens.</p>
+<p>In this section we will introduce all the different types of Valence Accounts and explain their purpose.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="base-accounts"><a class="header" href="#base-accounts">Base Accounts</a></h1>
-<p><strong>Valence Programs</strong> usually perform operations on tokens accross multiple domains. To ensure that the funds remain safe throughout a program's execution, Valence Programs rely on a primitive called <strong>Valence Base Accounts</strong>.</p>
 <p>A <strong>Valence Base Account</strong> is an escrow contract that can hold balances for various supported token types (e.g., in Cosmos <code>ics-20</code> or <code>cw-20</code>) and ensure that only a restricted set of operations can be performed on the held tokens.
 <strong>Valence Base Accounts</strong> are created (i.e., instantiated) on a specific <strong>domain</strong> and bound to a specific <strong>Valence Program</strong>. <strong>Valence Programs</strong> will typically use multiple accounts during the program's lifecycle for different purposes. <strong>Valence Base Accounts</strong> are generic by nature; their use in forming a program is entirely up to the program's creator.</p>
 <p>Using a simple <em>token swap program</em> as an example: the program receives an amount of <strong>Token A</strong> in an <strong>input account</strong> and will <strong>swap</strong> these <strong>Token A</strong> for <strong>Token B</strong> using a <strong>DEX</strong> on the <strong>same domain</strong> (e.g., Neutron). After the swap operation, the received amount of <strong>Token B</strong> will be temporarily held in a <strong>transfer account</strong> before being transfered to a final <strong>output account</strong> on another domain (e.g., Osmosis).</p>
@@ -255,7 +256,7 @@ graph LR
   end
 </pre>
 <p>Note: this is a simplified representation.</p>
-<p><strong>Valence Base Accounts</strong> do not perform any operation by themselves on the held funds, the operations are performed by <strong><a href="components/./libraries_and_functions.html">Valence Libraries</a></strong>.</p>
+<p><strong>Valence Base Accounts</strong> do not perform any operation by themselves on the held funds, the operations are performed by <strong><a href="accounts/../components/libraries_and_functions.html">Valence Libraries</a></strong>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-storage-account"><a class="header" href="#valence-storage-account">Valence Storage Account</a></h1>
 <p>The Valence Storage Account is a type of Valence account that can store Valence Type data
 objects.</p>
@@ -298,11 +299,91 @@ for querying.</p>
     QueryValenceType { key: String },
 }
 <span class="boring">}</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="interchain-accounts"><a class="header" href="#interchain-accounts">Interchain Accounts</a></h1>
+<p>A <strong>Valence Interchain Account</strong> is a contract that creates an <a href="https://ibc.cosmos.network/v8/apps/interchain-accounts/overview/">ICS-27 Interchain Account</a> over IBC on a different domain. It will then send protobuf messages to the ICA over IBC for them to be executed remotely. It's specifically designed to interact with other chains in the Cosmos ecosystem, and more in particular with chains that don't support smart contracts.
+To use this account contract, the remote chain must have ICA host functionality enabled and should have an allowlist that includes the messages being executed.</p>
+<p><strong>Valence Interchain Accounts</strong> are created (i.e., instantiated) on <strong>Neutron</strong> and bound to a specific <strong>Valence Program</strong>. <strong>Valence Programs</strong> will typically use these accounts to trigger remote execution of messages on other domains.</p>
+<p>As a simple example, consider a <strong>Valence Program</strong> that needs to bridge USDC from Cosmos to Ethereum via the <a href="https://www.noble.xyz/">Noble Chain</a>. Noble doesn't support CosmWasm or any other execution environment, so the <strong>Valence Program</strong> will use a <strong>Valence Interchain Account</strong> to first, create an ICA on Noble, and then send a message to the ICA to interact with the corresponding native module on Noble with the funds previously sent to the ICA.</p>
+<p>For this, the program will create a <strong>Valence Interchain Account</strong> on the <strong>Neutron domain</strong> to create an ICA on the <strong>Noble domain</strong>:</p>
+<pre class="mermaid">---
+title: Valence Interchain Account
+---
+graph LR
+    subgraph Neutron
+      IA[Interchain Account]
+    end
+    subgraph Noble
+      OA[Cosmos ICA]
+    end
+    IA -- &quot;MsgDepositForBurn
+    protobuf&quot; --&gt; OA
+</pre>
+<p><strong>Valence Interchain Accounts</strong> do not perform any operation by themselves, the operations are performed by <strong><a href="accounts/../components/libraries_and_functions.html">Valence Libraries</a></strong>.</p>
+<h2 id="api-1"><a class="header" href="#api-1">API</a></h2>
+<h3 id="instantiation"><a class="header" href="#instantiation">Instantiation</a></h3>
+<p><strong>Valence Interchain Accounts</strong> are instantiated with the following message:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct InstantiateMsg {
+    pub admin: String, // Initial owner of the contract
+    pub approved_libraries: Vec&lt;String&gt;,
+    pub remote_domain_information: RemoteDomainInfo, // Remote domain information required to register the ICA and send messages to it
+}
+
+pub struct RemoteDomainInfo {
+    pub connection_id: String,
+    pub ica_timeout_seconds: Uint64, // relative timeout in seconds after which the packet times out
+}
+<span class="boring">}</span></code></pre></pre>
+<p>In this message, the <code>connection_id</code> of the remote domain and the timeout for the ICA messages are specified.</p>
+<h3 id="execute-methods-1"><a class="header" href="#execute-methods-1">Execute Methods</a></h3>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum ExecuteMsg {
+    ApproveLibrary { library: String }, // Add library to approved list (only admin)
+    RemoveLibrary { library: String },  // Remove library from approved list (only admin)
+    ExecuteIcaMsg { msgs: Vec&lt;ProtobufAny&gt; }, // Execute a protobuf message on the ICA
+    RegisterIca {},                     // Register the ICA on the remote chain
+}
+<span class="boring">}</span></code></pre></pre>
+<p>Library approval and removal follow the same implementation as that of the fund accounts.</p>
+<p><code>ExecuteIcaMsg</code> is a list of protobuf messages that will be sent to the ICA on the remote chain. Each message contains
+the <code>type_url</code> and the protobuf encoded bytes to be delivered.</p>
+<p><code>RegisterIca</code> is a permissionless call that will register the ICA on the remote chain. This call requires the
+<strong>Valence Interchain Account</strong> to not have another ICA created and open on the remote chain.</p>
+<h3 id="query-methods-1"><a class="header" href="#query-methods-1">Query Methods</a></h3>
+<p>Interchain account exposes the following <code>QueryMsg</code>:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum QueryMsg {
+    #[returns(Vec&lt;String&gt;)]
+    ListApprovedLibraries {}, // Get list of approved libraries
+    #[returns(IcaState)]
+    IcaState {}, // Get the state of the ICA
+    #[returns(RemoteDomainInfo)]
+    RemoteDomainInfo {}, // Get the remote domain information
+}
+
+pub enum IcaState {
+    NotCreated, // Not created yet
+    Closed,     // Was created but closed, so creation should be retriggered
+    InProgress, // Creation is in progress, waiting for confirmation
+    Created(IcaInformation),
+}
+
+pub struct IcaInformation {
+    pub address: String,
+    pub port_id: String,
+    pub controller_connection_id: String,
+}
+<span class="boring">}</span></code></pre></pre>
+<p>There are two specific queries for the <strong>Valence Interchain Account</strong>. The first one is <code>IcaState</code> which returns the state of the ICA. The second one is <code>RemoteDomainInfo</code> which returns the remote domain information that was provided during instantiation.
+ICAs can only be registered if the <code>IcaState</code> is <code>NotCreated</code> or <code>Closed</code>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="libraries-and-functions"><a class="header" href="#libraries-and-functions">Libraries and Functions</a></h1>
 <p><strong>Valence Libraries</strong> contain the business logic that can be applied to the funds held by <strong>Valence Base Accounts</strong>. Most often, this logic is about <em>performing operations on tokens</em>, such as splitting, routing, or providing liquidity on a DEX. A <strong>Valence Base Account</strong> has to first approve (authorize) a <strong>Valence Library</strong> for it to perform operations on that account's balances. <strong>Valence Libraries</strong> expose <strong>Functions</strong> that it supports. <strong>Valence Programs</strong> can be composed of a more or less complex graph of <strong>Valence Base Accounts</strong> and <strong>Valence Libraries</strong> to form a more or less sophisticated cross-chain workflow. During the course of a <strong>Valence Program</strong>'s execution, <strong>Functions</strong> are called by external parties that trigger the library's operations on the linked accounts.</p>
 <p>A typical pattern for a <strong>Valence Library</strong> is to have one (or more) <strong>input account(s)</strong> and one (or more) <strong>output account(s)</strong>. While many libraries implement this pattern, it is by no means a requirement.</p>
 <p><strong>Valence Libraries</strong> play a critical role in integrating <strong>Valence Programs</strong> with existing decentralized apps and services that can be found in many blockchain ecosystems (e.g., DEXes, liquid staking, etc.).</p>
-<p>Now that we know accounts cannot perform any operations by themselves, we need to revisit the <em>token swap program</em> example (mentioned on the <a href="components/./base_accounts.html">Base Accounts</a> page) and bring <strong>Valence Libraries</strong> into the picture: the program receives an amount of <strong>Token A</strong> in an <strong>input account</strong>, and a <strong>Token Swap</strong> library exposes a <strong>swap</strong> function that, when called, will perform a swap operation of <strong>Token A</strong> held by the <strong>input account</strong> for <strong>Token B</strong> using a <strong>DEX</strong> on the <strong>same domain</strong> (e.g., Neutron), and transfer them to the <strong>transfer account</strong>. A <strong>Token Transfer</strong> library that exposes a <strong>transfer</strong> function will transfer the <strong>Token B</strong> amount (when the function is called) to a final <strong>output account</strong> on another domain (e.g. Osmosis). In this scenario, the <strong>DEX</strong> is an existing service found on the host domain (e.g. <strong>Astroport</strong> on <strong>Neutron</strong>), so it is not part of the <strong>Valence Protocol</strong>.</p>
+<p>Now that we know accounts cannot perform any operations by themselves, we need to revisit the <em>token swap program</em> example (mentioned on the <a href="components/../accounts/base_accounts.html">Base Accounts</a> page) and bring <strong>Valence Libraries</strong> into the picture: the program receives an amount of <strong>Token A</strong> in an <strong>input account</strong>, and a <strong>Token Swap</strong> library exposes a <strong>swap</strong> function that, when called, will perform a swap operation of <strong>Token A</strong> held by the <strong>input account</strong> for <strong>Token B</strong> using a <strong>DEX</strong> on the <strong>same domain</strong> (e.g., Neutron), and transfer them to the <strong>transfer account</strong>. A <strong>Token Transfer</strong> library that exposes a <strong>transfer</strong> function will transfer the <strong>Token B</strong> amount (when the function is called) to a final <strong>output account</strong> on another domain (e.g. Osmosis). In this scenario, the <strong>DEX</strong> is an existing service found on the host domain (e.g. <strong>Astroport</strong> on <strong>Neutron</strong>), so it is not part of the <strong>Valence Protocol</strong>.</p>
 <p>The program is then composed of the following accounts &amp; libraries:</p>
 <ul>
 <li>A <strong>Valence Base Account</strong> is created on the <strong>Neutron domain</strong> to act as the <strong>input account</strong>.</li>
@@ -342,7 +423,7 @@ graph LR
 <p>This example highlights the crucial role that <strong>Valence Libraries</strong> play for integrating <strong>Valence Programs</strong> with pre-existing decentralized apps and services.</p>
 <p>However, one thing remains unclear in this example: how are <strong>Functions</strong> called? This is where <a href="components/./programs_and_authorizations.html">Programs and Authorizations</a> come into the picture.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="programs-and-authorizations"><a class="header" href="#programs-and-authorizations">Programs and Authorizations</a></h1>
-<p>A <strong>Valence Program</strong> is an instance of the <strong>Valence Protocol</strong>. It is a particular arrangement and configuration of <a href="components/./base_accounts.html">Base Accounts</a> and <a href="components/./libraries_and_functions.html">libraries</a> across multiple <a href="components/./domains.html">domains</a> (e.g., a POL (protocol-owned liquidity) lending relationship between two parties). Similarly to how a <em>library</em> exposes executable <em>functions</em>, programs are associated with a set of executable <strong>Subroutines</strong>.</p>
+<p>A <strong>Valence Program</strong> is an instance of the <strong>Valence Protocol</strong>. It is a particular arrangement and configuration of <a href="components/../accounts/_overview.html">Accounts</a> and <a href="components/./libraries_and_functions.html">libraries</a> across multiple <a href="components/./domains.html">domains</a> (e.g., a POL (protocol-owned liquidity) lending relationship between two parties). Similarly to how a <em>library</em> exposes executable <em>functions</em>, programs are associated with a set of executable <strong>Subroutines</strong>.</p>
 <p>A <strong>Subroutine</strong> is a vector of <strong>Functions</strong>. A <strong>Subroutine</strong> can call out to one or more <strong>Function(s)</strong> from a single library, or from different libraries. A <strong>Subroutine</strong> is limited to <strong>one execution domain</strong> (i.e., <strong>Subroutines</strong> cannot use functions from libraries instantiated on multiple domains).</p>
 <p>A <strong>Subroutine</strong> can be:</p>
 <ul>
@@ -688,7 +769,7 @@ graph TD;
 <div style="break-before: page; page-break-before: always;"></div><h1 id="authorization-contract"><a class="header" href="#authorization-contract">Authorization Contract</a></h1>
 <p>The Authorization contract will be a single contract deployed on the main domain and that will define the authorizations of the top-level application, which can include libraries in different domains (chains). For each domain, there will be one Processor in charge of executing the functions on the libraries. The Authorization contract will connect to all of the Processor contracts using a connector (e.g. Polytone Note, Hyperlane Mailbox…) and will route the message batches to be executed to the right domain. At the same time, for each external domain, we will have a proxy contract (e.g. Polytone Proxy, Hyperlane Mailbox...) in the main domain which will receive the callbacks sent from the processor on the external domain with the <code>ExecutionResult</code> of the <code>MessageBatch</code>.</p>
 <p>The contract will be instantiated once at the very beginning and will be used during the entire top-level application lifetime. Users will never interact with the individual Smart Contracts of each program, but with the Authorization contract directly.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="instantiation"><a class="header" href="#instantiation">Instantiation</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="instantiation-1"><a class="header" href="#instantiation-1">Instantiation</a></h1>
 <p>When the contract is instantiated, it will be provided the following information:</p>
 <ul>
 <li>
@@ -1843,7 +1924,7 @@ which in turn enables the following functionality:</p>
 <p>Read more about the given type ICQ integration in the <a href="libraries/cosmwasm/./../../middleware/type_registry.html#neutron-interchain-query-integration">type registry documentation page</a>.</p>
 <h3 id="valence-storage-account-1"><a class="header" href="#valence-storage-account-1">Valence Storage account</a></h3>
 <p>Results received and meant for further processing by other libraries will be stored in
-<a href="libraries/cosmwasm/./../../components/base_accounts.html">Storage Accounts</a>. Each instance of Neutron
+<a href="libraries/cosmwasm/../../accounts/storage_accounts.html">Storage Accounts</a>. Each instance of Neutron
 IC querier will be associated with its own storage account.</p>
 <h3 id="query-registration-fee"><a class="header" href="#query-registration-fee">Query registration fee</a></h3>
 <p>Neutron <code>interchainqueries</code> module is configured to escrow a fee in order to register a query.
@@ -2004,7 +2085,7 @@ make any assumptions about the different encoding schemes that remote domains ma
 to - instead, that responsibility is handed over to <a href="libraries/cosmwasm/./../../middleware/_overview.html">Valence Middleware</a>.</p>
 </blockquote>
 <p>Final step in result postprocessing is about persisting the canonicalized query results.
-Resulting Valence Types are written into a <a href="libraries/cosmwasm/./../../components/base_accounts.html">Storage Account</a>,
+Resulting Valence Types are written into a <a href="libraries/cosmwasm/../../accounts/storage_accounts.html">Storage Account</a>,
 making it available for further processing, interpretation, or other types of processing.</p>
 <h2 id="library-lifecycle"><a class="header" href="#library-lifecycle">Library Lifecycle</a></h2>
 <p>With the baseline functionality in mind, there are a few design decisions
@@ -2453,7 +2534,7 @@ to be used for a given request, by default, the most up to date type registry is
 <p>Two aforementioned properties reduce the amount of work needed to upkeep the integrations
 across active Valence Programs: updating one broker with the latest version of a
 given domain will immediately become available for all Valence Programs using it.</p>
-<h2 id="api-1"><a class="header" href="#api-1">API</a></h2>
+<h2 id="api-2"><a class="header" href="#api-2">API</a></h2>
 <p>Broker interface is agnostic to the type registries it indexes. A single query is
 exposed:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -2477,7 +2558,7 @@ kept up to date.</p>
 <p>Once a registry is deployed, it is expected to remain unchanged.
 If a type change is needed, a new registry should be compiled, deployed,
 and registered into the broker to offer the missing or updated functionality.</p>
-<h2 id="api-2"><a class="header" href="#api-2">API</a></h2>
+<h2 id="api-3"><a class="header" href="#api-3">API</a></h2>
 <p>All type registry instances must implement the same interface defined in middleware-utils.</p>
 <p>Type registries function in a read-only manner - all of their functionality is exposed
 with the <code>RegistryQueryMsg</code>. Currently, the following primitive conversions are enabled:</p>
@@ -2831,7 +2912,7 @@ graph LR
   S -- 3/Evaluate the predicate --&gt; S
   S -- 4/Return OK/ERR --&gt; P
 </pre>
-<h2 id="api-3"><a class="header" href="#api-3">API</a></h2>
+<h2 id="api-4"><a class="header" href="#api-4">API</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th><th>Return Value</th></tr></thead><tbody>
 <tr><td><strong>Assert</strong></td><td><code>a: AssertionValue</code><br><code>predicate: Predicate</code><br><code>b: AssertionValue</code></td><td>Evaluate the given predicate <em>R(a, b)</em>.<br>If <em>a</em> or <em>b</em> are variables, they get fetched using the configuartion specified in the respective <code>QueryInfo</code>.<br>Both <em>a</em> and <em>b</em> must be deserializable into the same type.</td><td>- predicate evaluates to true: <code>Ok()</code><br>- predicate evaluates to false: <code>Err</code></td></tr>
 </tbody></table>
@@ -2868,7 +2949,7 @@ graph LR
 <h4 id="variable-assertion-values"><a class="header" href="#variable-assertion-values"><code>Variable</code> assertion values</a></h4>
 <p>Variable assertion values are meant to be used for information that can only become known during runtime.</p>
 <p>Such values will be obtained from Valence Types, which expose their own set of queries.</p>
-<p>Valence Types reside in their dedicated storage slots in <a href="middleware/./../components/storage_accounts.html">Storage Accounts</a>.</p>
+<p>Valence Types reside in their dedicated storage slots in <a href="middleware/../accounts/storage_accounts.html">Storage Accounts</a>.</p>
 <p>Valence Asserter uses the following type in order to obtain the Valence Type and query its state:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -2970,12 +3051,12 @@ graph LR
 </pre>
 <p>The program is composed of the following components:</p>
 <ul>
-<li><strong>Party A Deposit account</strong>: a <a href="examples/../components/base_accounts.html">Valence Base account</a> which Party A will deposit their tokens into, to be exchanged with Party B's tokens.</li>
+<li><strong>Party A Deposit account</strong>: a <a href="examples/../accounts/base_accounts.html">Valence Base account</a> which Party A will deposit their tokens into, to be exchanged with Party B's tokens.</li>
 <li><strong>Splitter A</strong>: an instance of the <a href="examples/../libraries/cosmwasm/splitter.html">Splitter library</a> that will transfer Party A's tokens from its input account (i.e. the <strong>Party A Deposit account</strong>) to its output account (i.e. the <strong>Party B Withdraw account</strong>) upon execution of its <code>split</code> function.</li>
-<li><strong>Party B Withdraw account</strong>: the account from which Party B can withdraw Party A's tokens after the swap has successfully completed. Note: this can be a <a href="examples/../components/base_accounts.html">Valence Base account</a>, but it could also be a regular chain account, or a smart contract.</li>
-<li><strong>Party B Deposit account</strong>:  a <a href="examples/../components/base_accounts.html">Valence Base account</a> which Party B will deposit their funds into, to be exchanged with Party A's funds.</li>
+<li><strong>Party B Withdraw account</strong>: the account from which Party B can withdraw Party A's tokens after the swap has successfully completed. Note: this can be a <a href="examples/../accounts/base_accounts.html">Valence Base account</a>, but it could also be a regular chain account, or a smart contract.</li>
+<li><strong>Party B Deposit account</strong>:  a <a href="examples/../accounts/base_accounts.html">Valence Base account</a> which Party B will deposit their funds into, to be exchanged with Party A's funds.</li>
 <li><strong>Splitter B</strong>: an instance of the <a href="examples/../libraries/cosmwasm/splitter.html">Splitter library</a> that will transfer Party B's tokens from its input account (i.e. the <strong>Party B Deposit account</strong>) to its output account (i.e. the <strong>Party A Withdraw account</strong>) upon execution of its <code>split</code> function.</li>
-<li><strong>Party A Withdraw account</strong>: the account from which Party A can withdraw Party B's tokens after the swap has successfully completed. Note: this can be a <a href="examples/../components/base_accounts.html">Valence Base account</a>, but it could also be a regular chain account, or a smart contract.</li>
+<li><strong>Party A Withdraw account</strong>: the account from which Party A can withdraw Party B's tokens after the swap has successfully completed. Note: this can be a <a href="examples/../accounts/base_accounts.html">Valence Base account</a>, but it could also be a regular chain account, or a smart contract.</li>
 </ul>
 <p>The way the program is able to fulfil the requirement for an <em>atomic exchange of tokens</em> between the two parties is done by implementing an <strong>atomic subroutine</strong> composed of two function calls:</p>
 <ol>
@@ -3060,7 +3141,7 @@ graph BT
 <li><strong>Position Withdrawer</strong>: To redeem a position for underlying funds that are then transferred to the Withdraw Account on Neutron.</li>
 <li><strong>Bridge Transfer</strong>: To transfer funds from the Neutron Withdraw Account to the Ethereum Withdraw Account.</li>
 </ul>
-<p>Note that the Accounts mentioned here are the standard <a href="examples/../components/base_accounts.html">Valence Base Accounts</a>. Th Bridge Transfer library will depend on the token being transferred, but will offer similar functionality to the <a href="examples/../libraries/cosmwasm/generic_ibc_transfer.html">IBC Transfer</a> library. The Position Depositor and Withdrawer will depend on the type of position, but can be similar to the <a href="examples/../libraries/cosmwasm/astroport_lper.html">Liqudity Provider</a> and <a href="examples/../libraries/cosmwasm/astroport_withdrawer.html">Liquidity Withdrawer</a>.</p>
+<p>Note that the Accounts mentioned here are the standard <a href="examples/../accounts/base_accounts.html">Valence Base Accounts</a>. The Bridge Transfer library will depend on the token being transferred, but will offer similar functionality to the <a href="examples/../libraries/cosmwasm/generic_ibc_transfer.html">IBC Transfer</a> library. The Position Depositor and Withdrawer will depend on the type of position, but can be similar to the <a href="examples/../libraries/cosmwasm/astroport_lper.html">Liqudity Provider</a> and <a href="examples/../libraries/cosmwasm/astroport_withdrawer.html">Liquidity Withdrawer</a>.</p>
 <h3 id="vault-contract"><a class="header" href="#vault-contract">Vault Contract</a></h3>
 <p>The Vault contract is a special contract on Ethereum that has an ERC-4626 interface.</p>
 <h4 id="user-methods-to-deposit-funds"><a class="header" href="#user-methods-to-deposit-funds">User methods to deposit funds</a></h4>

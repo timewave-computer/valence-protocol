@@ -161,7 +161,7 @@
 <p><strong>Valence Libraries</strong> contain the business logic that can be applied to the funds held by <strong>Valence Base Accounts</strong>. Most often, this logic is about <em>performing operations on tokens</em>, such as splitting, routing, or providing liquidity on a DEX. A <strong>Valence Base Account</strong> has to first approve (authorize) a <strong>Valence Library</strong> for it to perform operations on that account's balances. <strong>Valence Libraries</strong> expose <strong>Functions</strong> that it supports. <strong>Valence Programs</strong> can be composed of a more or less complex graph of <strong>Valence Base Accounts</strong> and <strong>Valence Libraries</strong> to form a more or less sophisticated cross-chain workflow. During the course of a <strong>Valence Program</strong>'s execution, <strong>Functions</strong> are called by external parties that trigger the library's operations on the linked accounts.</p>
 <p>A typical pattern for a <strong>Valence Library</strong> is to have one (or more) <strong>input account(s)</strong> and one (or more) <strong>output account(s)</strong>. While many libraries implement this pattern, it is by no means a requirement.</p>
 <p><strong>Valence Libraries</strong> play a critical role in integrating <strong>Valence Programs</strong> with existing decentralized apps and services that can be found in many blockchain ecosystems (e.g., DEXes, liquid staking, etc.).</p>
-<p>Now that we know accounts cannot perform any operations by themselves, we need to revisit the <em>token swap program</em> example (mentioned on the <a href="./base_accounts.html">Base Accounts</a> page) and bring <strong>Valence Libraries</strong> into the picture: the program receives an amount of <strong>Token A</strong> in an <strong>input account</strong>, and a <strong>Token Swap</strong> library exposes a <strong>swap</strong> function that, when called, will perform a swap operation of <strong>Token A</strong> held by the <strong>input account</strong> for <strong>Token B</strong> using a <strong>DEX</strong> on the <strong>same domain</strong> (e.g., Neutron), and transfer them to the <strong>transfer account</strong>. A <strong>Token Transfer</strong> library that exposes a <strong>transfer</strong> function will transfer the <strong>Token B</strong> amount (when the function is called) to a final <strong>output account</strong> on another domain (e.g. Osmosis). In this scenario, the <strong>DEX</strong> is an existing service found on the host domain (e.g. <strong>Astroport</strong> on <strong>Neutron</strong>), so it is not part of the <strong>Valence Protocol</strong>.</p>
+<p>Now that we know accounts cannot perform any operations by themselves, we need to revisit the <em>token swap program</em> example (mentioned on the <a href="../accounts/base_accounts.html">Base Accounts</a> page) and bring <strong>Valence Libraries</strong> into the picture: the program receives an amount of <strong>Token A</strong> in an <strong>input account</strong>, and a <strong>Token Swap</strong> library exposes a <strong>swap</strong> function that, when called, will perform a swap operation of <strong>Token A</strong> held by the <strong>input account</strong> for <strong>Token B</strong> using a <strong>DEX</strong> on the <strong>same domain</strong> (e.g., Neutron), and transfer them to the <strong>transfer account</strong>. A <strong>Token Transfer</strong> library that exposes a <strong>transfer</strong> function will transfer the <strong>Token B</strong> amount (when the function is called) to a final <strong>output account</strong> on another domain (e.g. Osmosis). In this scenario, the <strong>DEX</strong> is an existing service found on the host domain (e.g. <strong>Astroport</strong> on <strong>Neutron</strong>), so it is not part of the <strong>Valence Protocol</strong>.</p>
 <p>The program is then composed of the following accounts &amp; libraries:</p>
 <ul>
 <li>A <strong>Valence Base Account</strong> is created on the <strong>Neutron domain</strong> to act as the <strong>input account</strong>.</li>
@@ -205,7 +205,7 @@ graph LR
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../components/storage_accounts.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../accounts/interchain_accounts.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
@@ -219,7 +219,7 @@ graph LR
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../components/storage_accounts.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../accounts/interchain_accounts.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
