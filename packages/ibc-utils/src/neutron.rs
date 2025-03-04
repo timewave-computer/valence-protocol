@@ -1,13 +1,17 @@
 use std::collections::BTreeMap;
 
-use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::traits::MessageExt;
+use cosmos_sdk_proto::{cosmos::base::v1beta1::Coin, Any};
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    to_json_string, Addr, Binary, CosmosMsg, DepsMut, Env, StdError, StdResult, Uint128,
+    to_json_string, Addr, Binary, CosmosMsg, DepsMut, Env, QuerierWrapper, QueryRequest, StdError,
+    StdResult, Uint128, Uint64,
 };
 use cw_denom::CheckedDenom;
+use neutron_sdk::proto_types::neutron::interchaintxs::v1::MsgSubmitTx;
 use neutron_sdk::{
-    bindings::{msg::IbcFee, query::NeutronQuery},
+    bindings::{msg::IbcFee, query::NeutronQuery, types::ProtobufAny},
+    proto_types::neutron::{feerefunder::Fee, interchaintxs::v1::MsgRegisterInterchainAccount},
     query::min_ibc_fee::query_min_ibc_fee,
 };
 
@@ -121,7 +125,7 @@ pub fn ibc_send_message(
     })
 }
 
-fn min_ntrn_ibc_fee(fee: IbcFee) -> IbcFee {
+pub fn min_ntrn_ibc_fee(fee: IbcFee) -> IbcFee {
     IbcFee {
         recv_fee: fee.recv_fee,
         ack_fee: fee
@@ -137,7 +141,7 @@ fn min_ntrn_ibc_fee(fee: IbcFee) -> IbcFee {
     }
 }
 
-fn flatten_ntrn_ibc_fee(ibc_fee: &IbcFee) -> Uint128 {
+pub fn flatten_ntrn_ibc_fee(ibc_fee: &IbcFee) -> Uint128 {
     let mut total = Uint128::zero();
 
     for coin in &ibc_fee.recv_fee {
@@ -155,7 +159,7 @@ fn flatten_ntrn_ibc_fee(ibc_fee: &IbcFee) -> Uint128 {
     total
 }
 
-fn get_transfer_fee(ibc_fee: IbcFee) -> neutron_sdk::proto_types::neutron::feerefunder::Fee {
+pub fn get_transfer_fee(ibc_fee: IbcFee) -> neutron_sdk::proto_types::neutron::feerefunder::Fee {
     neutron_sdk::proto_types::neutron::feerefunder::Fee {
         recv_fee: ibc_fee
             .recv_fee
@@ -181,5 +185,111 @@ fn get_transfer_fee(ibc_fee: IbcFee) -> neutron_sdk::proto_types::neutron::feere
                 amount: c.amount.to_string(),
             })
             .collect(),
+    }
+}
+
+#[cw_serde]
+pub struct Transfer {
+    pub recipient: String,
+    pub sender: String,
+    pub denom: String,
+    pub amount: String,
+}
+
+#[cw_serde]
+pub struct OpenAckVersion {
+    pub version: String,
+    pub controller_connection_id: String,
+    pub host_connection_id: String,
+    pub address: String,
+    pub encoding: String,
+    pub tx_type: String,
+}
+
+#[cw_serde]
+pub struct Params {
+    pub msg_submit_tx_max_messages: Uint64,
+    pub register_fee: Vec<cosmwasm_std::Coin>,
+}
+
+#[cw_serde]
+pub struct QueryParamsResponse {
+    pub params: Params,
+}
+
+pub fn get_ictxs_module_params_query_msg() -> QueryRequest<NeutronQuery> {
+    #[allow(deprecated)]
+    QueryRequest::Stargate {
+        path: "/neutron.interchaintxs.v1.Query/Params".to_string(),
+        data: Binary::new(vec![]),
+    }
+}
+
+pub fn query_ica_registration_fee(
+    querier: QuerierWrapper<'_, NeutronQuery>,
+) -> StdResult<Vec<cosmwasm_std::Coin>> {
+    let query_msg = get_ictxs_module_params_query_msg();
+    let response: QueryParamsResponse = querier.query(&query_msg)?;
+    Ok(response.params.register_fee)
+}
+
+pub fn register_ica_msg(
+    sender: String,
+    connection_id: String,
+    interchain_account_id: String,
+    ica_registration_fee: &cosmwasm_std::Coin,
+) -> CosmosMsg {
+    // Transform the coins to the ProtoCoin type
+    let register_fee = vec![Coin {
+        denom: ica_registration_fee.denom.to_string(),
+        amount: ica_registration_fee.amount.to_string(),
+    }];
+
+    let msg_register_interchain_account = MsgRegisterInterchainAccount {
+        from_address: sender,
+        connection_id,
+        interchain_account_id,
+        register_fee,
+    };
+
+    #[allow(deprecated)]
+    CosmosMsg::Stargate {
+        type_url: "/neutron.interchaintxs.v1.MsgRegisterInterchainAccount".to_string(),
+        value: Binary::from(msg_register_interchain_account.to_bytes().unwrap()),
+    }
+}
+
+pub fn submit_tx(
+    sender: String,
+    connection_id: String,
+    interchain_account_id: String,
+    msgs: Vec<ProtobufAny>,
+    memo: String,
+    timeout: u64,
+    fee: Fee,
+) -> CosmosMsg {
+    // Transform the messages into what MsgSubmitTx expects
+    let any_msgs: Vec<Any> = msgs
+        .into_iter()
+        .map(|msg| Any {
+            type_url: msg.type_url,
+            value: msg.value.to_vec(),
+        })
+        .collect();
+
+    let msg_submit_tx = MsgSubmitTx {
+        from_address: sender.to_string(),
+        interchain_account_id,
+        connection_id,
+        msgs: any_msgs,
+        memo,
+        timeout,
+        fee: Some(fee),
+    };
+
+    #[allow(deprecated)]
+    CosmosMsg::Stargate {
+        type_url: "/neutron.interchaintxs.v1.MsgSubmitTx".to_string(),
+        value: Binary::from(msg_submit_tx.to_bytes().unwrap()),
     }
 }

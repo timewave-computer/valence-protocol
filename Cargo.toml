@@ -64,6 +64,7 @@ osmosis-std-derive = "0.26.0"
 # our contracts
 valence-authorization                = { path = "contracts/authorization", features = ["library"] }
 valence-base-account                 = { path = "contracts/accounts/base_account", features = ["library"] }
+valence-interchain-account           = { path = "contracts/accounts/interchain_account", features = ["library"] }
 valence-storage-account              = { path = "contracts/accounts/storage_account", features = ["library"] }
 valence-processor                    = { path = "contracts/processor", features = ["library"] }
 valence-splitter-library             = { path = "contracts/libraries/splitter", features = ["library"] }

@@ -15,9 +15,6 @@ pub enum ContractError {
 
     #[error("Cannot register ICA in {} state", current_state)]
     InvalidIcaState { current_state: String },
-
-    #[error("Not enough balance to pay the ICA registration fee")]
-    NotEnoughBalanceForIcaRegistration,
 }
 
 #[derive(Error, Debug, PartialEq)]

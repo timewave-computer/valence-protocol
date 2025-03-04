@@ -35,8 +35,9 @@ use prost::Message as _;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json_wasm;
+use valence_ibc_utils::neutron::Transfer;
 
-use crate::state::{Transfer, CATCHALL, RECIPIENT_TXS, TRANSFERS};
+use crate::state::{CATCHALL, RECIPIENT_TXS, TRANSFERS};
 
 const MAX_ALLOWED_MESSAGES: usize = 20;
 

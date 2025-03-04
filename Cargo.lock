@@ -7530,6 +7530,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-interchain-account"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "cw2 2.0.0",
+ "neutron-sdk",
+ "schemars",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "valence-account-utils",
+ "valence-ibc-utils",
+]
+
+[[package]]
 name = "valence-library-base"
 version = "0.2.0"
 dependencies = [
@@ -8041,6 +8059,7 @@ dependencies = [
  "serde-json-wasm 1.0.1",
  "serde_json",
  "thiserror 1.0.69",
+ "valence-ibc-utils",
  "valence-processor-utils",
 ]
 
