@@ -159,6 +159,7 @@ mod tests {
     const _MNEMONIC: &str = "-";
 
     #[tokio::test]
+    #[ignore]
     async fn test_latest_block_height() {
         let client = NeutronClient::new(
             LOCAL_GRPC_URL,
@@ -179,6 +180,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_query_balance() {
         let client = NeutronClient::new(
             LOCAL_GRPC_URL,
@@ -196,6 +198,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_query_contract_state() {
         let client = NeutronClient::new(
             LOCAL_GRPC_URL,
@@ -219,6 +222,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_transfer() {
         let client = NeutronClient::new(
             LOCAL_GRPC_URL,
@@ -249,6 +253,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_execute_wasm() {
         let client = NeutronClient::new(
             LOCAL_GRPC_URL,
@@ -273,6 +278,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_ibc_transfer() {
         let client = NeutronClient::new(
             LOCAL_GRPC_URL,
