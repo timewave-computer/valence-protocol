@@ -155,8 +155,10 @@ impl Connector for CosmosCosmwasmConnector {
         let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();
 
         // Execute a message to reserve the program id
-        let msg = to_vec(&valence_program_registry_utils::ExecuteMsg::ReserveId {})
-            .map_err(CosmosCosmwasmError::SerdeJsonError)?;
+        let msg = to_vec(&valence_program_registry_utils::ExecuteMsg::ReserveId {
+            addr: self.wallet.account_address.clone(),
+        })
+        .map_err(CosmosCosmwasmError::SerdeJsonError)?;
 
         let m = MsgExecuteContract {
             sender: self.wallet.account_address.clone(),
@@ -812,6 +814,7 @@ impl Connector for CosmosCosmwasmConnector {
 
         let msg = to_vec(&valence_program_registry_utils::ExecuteMsg::SaveProgram {
             id: config.id,
+            owner: config.owner.clone(),
             program_config: program_binary,
         })
         .map_err(CosmosCosmwasmError::SerdeJsonError)?;
@@ -867,7 +870,7 @@ impl Connector for CosmosCosmwasmConnector {
         .build_any();
 
         // Broadcast the tx and wait for it to finalize (or error)
-        self.broadcast_tx(m, "update_workflow_config").await?;
+        self.broadcast_tx(m, "update_program_config").await?;
 
         Ok(())
     }
@@ -896,7 +899,7 @@ impl Connector for CosmosCosmwasmConnector {
                 .wasm
                 .smart_contract_state(query)
                 .await
-                .context("Failed to query the workflow config from registry")
+                .context("Failed to query the program config from registry")
                 .map_err(CosmosCosmwasmError::Error)?
                 .into_inner()
                 .data,

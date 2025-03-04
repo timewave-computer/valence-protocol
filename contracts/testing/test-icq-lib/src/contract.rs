@@ -1,6 +1,6 @@
 use crate::icq;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use crate::state::{OpenAckVersion, CATCHALL};
+use crate::state::CATCHALL;
 use cosmos_sdk_proto::cosmos::base::abci::v1beta1::TxMsgData;
 use cosmos_sdk_proto::prost::Message;
 #[cfg(not(feature = "library"))]
@@ -19,6 +19,7 @@ use neutron_sdk::{
     sudo::msg::SudoMsg,
     NeutronResult,
 };
+use valence_ibc_utils::neutron::OpenAckVersion;
 
 pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 pub const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");

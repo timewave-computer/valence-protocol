@@ -64,6 +64,7 @@ osmosis-std-derive = "0.26.0"
 # our contracts
 valence-authorization                = { path = "contracts/authorization", features = ["library"] }
 valence-base-account                 = { path = "contracts/accounts/base_account", features = ["library"] }
+valence-interchain-account           = { path = "contracts/accounts/interchain_account", features = ["library"] }
 valence-storage-account              = { path = "contracts/accounts/storage_account", features = ["library"] }
 valence-processor                    = { path = "contracts/processor", features = ["library"] }
 valence-splitter-library             = { path = "contracts/libraries/splitter", features = ["library"] }
@@ -109,6 +110,7 @@ valence-program-registry-utils = { path = "packages/program-registry-utils" }
 valence-program-manager        = { path = "program-manager" }
 valence-program-registry       = { path = "contracts/program-registry", features = ["library"] }
 valence-middleware-utils       = { path = "packages/middleware-utils" }
+valence-chain-client-utils     = { path = "packages/chain-client-utils", features = ["library"] }
 valence-liquid-staking-utils   = { path = "packages/liquid-staking-utils" }
 
 # dev-dependencies
