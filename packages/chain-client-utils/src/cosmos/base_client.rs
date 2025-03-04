@@ -18,9 +18,10 @@ use tonic::Request;
 
 use crate::common::{error::StrategistError, transaction::TransactionResponse};
 
-use super::{grpc_client::GrpcSigningClient, BankQueryClient, CosmosServiceClient, ProtoTimestamp};
-
-pub const NANOS_IN_SECOND: u64 = 1_000_000_000;
+use super::{
+    grpc_client::GrpcSigningClient, proto_timestamp::ProtoTimestamp, BankQueryClient,
+    CosmosServiceClient,
+};
 
 /// base client trait with default implementations for cosmos-sdk based clients.
 ///
@@ -52,7 +53,6 @@ pub trait BaseClient: GrpcSigningClient {
 
         let simulation_response = self.simulate_tx(transfer_msg.clone()).await?;
         let fee = self.get_tx_fee(simulation_response)?;
-        println!("tx fee built: {:?}", fee);
 
         let raw_tx = signing_client.create_tx(transfer_msg, fee, memo).await?;
 
@@ -165,10 +165,7 @@ pub trait BaseClient: GrpcSigningClient {
         // first we query the latest block header to respect the chain time for timeouts
         let latest_block_header = self.latest_block_header().await?;
 
-        let mut current_time: ProtoTimestamp = latest_block_header
-            .time
-            .ok_or_else(|| StrategistError::QueryError("No time in block header".to_string()))?
-            .into();
+        let mut current_time = ProtoTimestamp::try_from(latest_block_header)?;
 
         current_time.extend_by_seconds(timeout_seconds)?;
 

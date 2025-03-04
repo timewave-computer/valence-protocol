@@ -61,7 +61,7 @@ mod tests {
     const TEST_CONTRACT_ADDR: &str = "0x610178dA211FEF7D417bC0e6FeD39F05609AD788";
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires local anvil instance"]
     async fn test_eth_latest_block_height() {
         let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC).unwrap();
 
@@ -70,7 +70,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires local anvil instance"]
     async fn test_eth_query_balance() {
         let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC).unwrap();
         let accounts = client.get_provider_accounts().await.unwrap();
@@ -84,7 +84,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires local anvil instance"]
     async fn test_eth_transfer() {
         let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC).unwrap();
         let accounts = client.get_provider_accounts().await.unwrap();
@@ -109,7 +109,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires local anvil instance"]
     async fn test_eth_erc20_transfer_and_query() {
         let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC).unwrap();
         let provider = client.get_request_provider().await.unwrap();
@@ -150,7 +150,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires local anvil instance"]
     async fn test_eth_query_contract_states() {
         let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC).unwrap();
         let provider = client.get_request_provider().await.unwrap();

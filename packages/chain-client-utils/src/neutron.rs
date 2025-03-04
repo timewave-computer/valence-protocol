@@ -1,8 +1,8 @@
 use crate::{
     common::{error::StrategistError, transaction::TransactionResponse},
     cosmos::{
-        base_client::BaseClient, grpc_client::GrpcSigningClient, wasm_client::WasmClient,
-        CosmosServiceClient, ProtoTimestamp,
+        base_client::BaseClient, grpc_client::GrpcSigningClient, proto_timestamp::ProtoTimestamp,
+        wasm_client::WasmClient, CosmosServiceClient,
     },
 };
 use async_trait::async_trait;
@@ -52,10 +52,7 @@ impl BaseClient for NeutronClient {
         // first we query the latest block header to respect the chain time for timeouts
         let latest_block_header = self.latest_block_header().await?;
 
-        let mut current_time: ProtoTimestamp = latest_block_header
-            .time
-            .ok_or_else(|| StrategistError::QueryError("No time in block header".to_string()))?
-            .into();
+        let mut current_time = ProtoTimestamp::try_from(latest_block_header)?;
 
         current_time.extend_by_seconds(timeout_seconds)?;
 
