@@ -34,8 +34,10 @@ use valence_authorization_utils::{
         ProcessorMessage,
     },
 };
-use valence_chain_client_utils::evm::{
-    base_client::EvmBaseClient, request_provider_client::RequestProviderClient,
+use valence_chain_client_utils::{
+    ethereum::EthereumClient,
+    evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
+    neutron::NeutronClient,
 };
 use valence_e2e::utils::{
     ethereum::set_up_anvil_container,
@@ -210,7 +212,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     )
     .unwrap();
 
-    let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
     let eth_accounts = rt.block_on(async { eth_client.get_provider_accounts().await.unwrap() });
     let eth_admin_acc = eth_accounts[0];
 
@@ -299,10 +300,112 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Setting up Lite Processor on Ethereum");
 
+    let (lite_processor_address, vault_address) = eth_side_setup(
+        rt,
+        eth_client,
+        authorization_contract_address.clone(),
+        eth_hyperlane_contracts.mailbox.to_string(),
+        eth_accounts,
+        eth_admin_acc,
+    )?;
+
+    info!("Adding EVM external domain to Authorization contract");
+
+    let authorization_exec_env_info =
+        valence_authorization_utils::msg::ExecutionEnvironmentInfo::Evm(
+            EncoderInfo {
+                broker_address: encoder_broker,
+                encoder_version: EVM_ENCODER_NAMESPACE.to_string(),
+            },
+            EvmBridgeInfo::Hyperlane(HyperlaneConnectorInfo {
+                mailbox: ntrn_hyperlane_contracts.mailbox.to_string(),
+                domain_id: ETHEREUM_HYPERLANE_DOMAIN,
+            }),
+        );
+
+    let external_domain_info = ExternalDomainInfo {
+        name: ETHEREUM_CHAIN_NAME.to_string(),
+        execution_environment: authorization_exec_env_info,
+        processor: lite_processor_address.to_string(),
+    };
+
+    let add_external_evm_domain_msg =
+        valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
+            PermissionedMsg::AddExternalDomains {
+                external_domains: vec![external_domain_info],
+            },
+        );
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorization_contract_address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&add_external_evm_domain_msg).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+    std::thread::sleep(Duration::from_secs(3));
+
+    // test the neutron side flow
+    test_neutron_side_flow(
+        &mut test_ctx,
+        &deposit_acc_addr,
+        &position_acc_addr,
+        &withdraw_acc_addr,
+        NEUTRON_CHAIN_DENOM,
+        &token,
+        &authorization_contract_address,
+        &ntrn_processor_contract_address,
+    )?;
+
+    Ok(())
+}
+
+mod vault {
+    use std::error::Error;
+
+    use alloy::primitives::U256;
+
+    pub fn pause() -> Result<(), Box<dyn Error>> {
+        Ok(())
+    }
+
+    pub fn unpause() -> Result<(), Box<dyn Error>> {
+        Ok(())
+    }
+
+    pub fn query_vault_shares() -> Result<U256, Box<dyn Error>> {
+        Ok(U256::from(0))
+    }
+
+    pub fn query_vault_pending_withdrawals() -> Result<U256, Box<dyn Error>> {
+        Ok(U256::from(0))
+    }
+
+    pub fn update() -> Result<(), Box<dyn Error>> {
+        // query both neutron and eth sides
+        // find netting amount
+        // update
+        Ok(())
+    }
+}
+
+fn eth_side_setup(
+    rt: tokio::runtime::Runtime,
+    eth_client: EthereumClient,
+    authorization_contract_address: String,
+    eth_mailbox: String,
+    eth_accounts: Vec<Address>,
+    eth_admin_acc: Address,
+) -> Result<(Address, Address), Box<dyn Error>> {
+    let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+
     let tx = LiteProcessor::deploy_builder(
         &eth_rp,
         bech32_to_evm_bytes32(&authorization_contract_address)?,
-        Address::from_str(&eth_hyperlane_contracts.mailbox)?,
+        Address::from_str(&eth_mailbox)?,
         NEUTRON_HYPERLANE_DOMAIN,
         vec![eth_admin_acc],
     )
@@ -315,8 +418,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Let's create two Valence Base Accounts on Ethereum to test the processor with libraries (in this case the forwarder)
     info!("Deploying base accounts on Ethereum...");
-    let base_account_tx = BaseAccount::deploy_builder(&eth.provider, eth_admin_acc, vec![])
-        .into_transaction_request();
+    let base_account_tx =
+        BaseAccount::deploy_builder(&eth_rp, eth_admin_acc, vec![]).into_transaction_request();
 
     let eth_deposit_rx = rt.block_on(async {
         eth_client
@@ -353,7 +456,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let vault_config = setup_vault_config(&eth_accounts, eth_deposit_acc, eth_withdraw_acc);
 
     let vault_tx = ValenceVault::deploy_builder(
-        &eth.provider,
+        &eth_rp,
         eth_admin_acc,                          // owner
         vault_config.abi_encode().into(),       // encoded config
         *valence_vault_deposit_token.address(), // underlying token
@@ -368,53 +471,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let vault_address = vault_rx.contract_address.unwrap();
     info!("Vault deployed at: {vault_address}");
 
-    info!("Adding EVM external domain to Authorization contract");
-    let add_external_evm_domain_msg =
-        valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
-            PermissionedMsg::AddExternalDomains {
-                external_domains: vec![ExternalDomainInfo {
-                    name: ETHEREUM_CHAIN_NAME.to_string(),
-                    execution_environment:
-                        valence_authorization_utils::msg::ExecutionEnvironmentInfo::Evm(
-                            EncoderInfo {
-                                broker_address: encoder_broker,
-                                encoder_version: EVM_ENCODER_NAMESPACE.to_string(),
-                            },
-                            EvmBridgeInfo::Hyperlane(HyperlaneConnectorInfo {
-                                mailbox: ntrn_hyperlane_contracts.mailbox.to_string(),
-                                domain_id: ETHEREUM_HYPERLANE_DOMAIN,
-                            }),
-                        ),
-                    processor: lite_processor_address.to_string(),
-                }],
-            },
-        );
-
-    contract_execute(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        &authorization_contract_address,
-        DEFAULT_KEY,
-        &serde_json::to_string(&add_external_evm_domain_msg).unwrap(),
-        GAS_FLAGS,
-    )
-    .unwrap();
-    std::thread::sleep(Duration::from_secs(3));
-
-    // test the neutron side flow
-    test_neutron_side_flow(
-        &mut test_ctx,
-        &deposit_acc_addr,
-        &position_acc_addr,
-        &withdraw_acc_addr,
-        NEUTRON_CHAIN_DENOM,
-        &token,
-        &authorization_contract_address,
-        &ntrn_processor_contract_address,
-    )?;
-
-    Ok(())
+    Ok((lite_processor_address, vault_address))
 }
 
 fn setup_vault_config(
