@@ -75,8 +75,11 @@ impl BaseClient for NeutronClient {
             value: ibc_transfer_msg.value,
         };
 
+        let simulation_response = self.simulate_tx(valid_any.clone()).await?;
+        let fee = self.get_tx_fee(simulation_response)?;
+
         let raw_tx = signing_client
-            .create_tx(valid_any, &self.chain_denom(), 200_000, 500_000u64, None)
+            .create_tx(valid_any, fee, None)
             .await
             .unwrap();
 
@@ -211,7 +214,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "requires local neutron grpc node active"]
+    // #[ignore = "requires local neutron grpc node active"]
     async fn test_transfer() {
         let client = NeutronClient::new(
             LOCAL_GRPC_URL,
@@ -265,7 +268,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "requires local neutron & osmosis grpc nodes active"]
+    // #[ignore = "requires local neutron & osmosis grpc nodes active"]
     async fn test_ibc_transfer() {
         let client = NeutronClient::new(
             LOCAL_GRPC_URL,

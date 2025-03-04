@@ -71,19 +71,9 @@ impl SigningClient {
     pub async fn create_tx(
         &self,
         msg: Any,
-        chain_denom: &str,
-        fee_amount: u128,
-        gas_limit: impl Into<u64>,
+        fee: Fee,
         memo: Option<&str>,
     ) -> Result<BroadcastTxRequest, StrategistError> {
-        let fee = Fee::from_amount_and_gas(
-            Coin {
-                denom: chain_denom.parse()?,
-                amount: fee_amount,
-            },
-            gas_limit,
-        );
-
         let tx_body = tx::BodyBuilder::new()
             .msg(msg)
             .memo(memo.unwrap_or_default())

@@ -65,9 +65,10 @@ pub trait WasmClient: GrpcSigningClient {
         }
         .to_any()?;
 
-        let raw_tx = signing_client
-            .create_tx(wasm_tx, &self.chain_denom(), 500_000, 500_000u64, None)
-            .await?;
+        let simulation_response = self.simulate_tx(wasm_tx.clone()).await?;
+        let fee = self.get_tx_fee(simulation_response)?;
+
+        let raw_tx = signing_client.create_tx(wasm_tx, fee, None).await?;
 
         let mut grpc_client = CosmosServiceClient::new(channel);
 
