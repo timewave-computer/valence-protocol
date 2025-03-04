@@ -4,17 +4,21 @@ use async_trait::async_trait;
 use cosmos_sdk_proto::cosmos::{
     bank::v1beta1::{QueryBalanceRequest, QueryBalanceResponse},
     base::{abci::v1beta1::TxResponse, tendermint::v1beta1::Header},
-    tx::v1beta1::GetTxRequest,
+    tx::v1beta1::{GetTxRequest, SimulateRequest, SimulateResponse},
 };
 
-use cosmrs::{bank::MsgSend, tx::Msg, AccountId, Coin};
+use cosmrs::{
+    bank::MsgSend,
+    tx::{Fee, MessageExt, Msg},
+    AccountId, Coin, Denom,
+};
 use cosmrs::{
     proto::cosmos::base::tendermint::v1beta1::{
         service_client::ServiceClient as TendermintServiceClient, GetLatestBlockRequest,
     },
     Any,
 };
-use tonic::Request;
+use tonic::{IntoRequest, Request};
 
 use crate::common::{error::StrategistError, transaction::TransactionResponse};
 
@@ -187,6 +191,8 @@ pub trait BaseClient: GrpcSigningClient {
 
         let any_msg = Any::from_msg(&ibc_transfer_msg)?;
 
+        let simulation_response = self.simulate_tx(any_msg.clone()).await?;
+
         let raw_tx = signing_client
             .create_tx(any_msg, &self.chain_denom(), 200_000, 500_000u64, None)
             .await?;
@@ -201,5 +207,42 @@ pub trait BaseClient: GrpcSigningClient {
             Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),
             None => Err(StrategistError::TransactionError("failed".to_string())),
         }
+    }
+
+    async fn simulate_tx(&self, msg: Any) -> Result<SimulateResponse, StrategistError> {
+        let channel = self.get_grpc_channel().await?;
+        let signer = self.get_signing_client().await?;
+
+        let mut grpc_client = CosmosServiceClient::new(channel);
+
+        let tx_body = cosmrs::tx::BodyBuilder::new().msg(msg).finish();
+        let auth_info =
+            cosmrs::tx::SignerInfo::single_direct(Some(signer.public_key), signer.sequence)
+                .auth_info(cosmrs::tx::Fee::from_amount_and_gas(
+                    Coin {
+                        denom: self.chain_denom().parse()?,
+                        amount: 0,
+                    },
+                    0u64,
+                ));
+
+        let sign_doc = cosmrs::tx::SignDoc::new(
+            &tx_body,
+            &auth_info,
+            &signer.chain_id.parse()?,
+            signer.account_number,
+        )?;
+
+        let tx_raw = sign_doc.sign(&signer.signing_key)?;
+
+        let request = SimulateRequest {
+            // tx is deprecated so always None
+            tx: None,
+            tx_bytes: tx_raw.to_bytes()?,
+        };
+
+        let sim_response = grpc_client.simulate(request).await?.into_inner();
+
+        Ok(sim_response)
     }
 }

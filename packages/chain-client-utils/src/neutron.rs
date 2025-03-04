@@ -128,7 +128,7 @@ mod tests {
     use super::*;
 
     const LOCAL_GRPC_URL: &str = "http://127.0.0.1";
-    const LOCAL_GRPC_PORT: &str = "39381";
+    const LOCAL_GRPC_PORT: &str = "55615";
     const LOCAL_MNEMONIC: &str = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry";
     const LOCAL_ALT_ADDR: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
     const LOCAL_CHAIN_ID: &str = "localneutron-1";
@@ -276,7 +276,7 @@ mod tests {
 
         let osmosis_client = OsmosisClient::new(
             LOCAL_GRPC_URL,
-            "45355",
+            "55567",
             LOCAL_MNEMONIC,
             "localosmosis-1",
             "uosmo",
