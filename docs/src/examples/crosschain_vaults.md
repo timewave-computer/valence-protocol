@@ -34,7 +34,7 @@ While we have chosen Ethereum and Neutron as examples here, one could similarly 
 
 ## Implementing Crosschain Vaults as a Valence Program
 
-Recall that Valence Programs are comprised of Libraries and Accounts. Libraries are a collection of Functions that perform token oprations on the Accounts. Since there are two chains here, Libraries and Accounts will exist on both chains.
+Recall that Valence Programs are comprised of Libraries and Accounts. Libraries are a collection of Functions that perform token operations on the Accounts. Since there are two chains here, Libraries and Accounts will exist on both chains.
 
 Since gas is cheaper on Neutron than on Ethereum, computationally expensive operations, such as constraining the Strategist actions will be done on Neutron. Authorized messages will then be executed by each chain's Processor. Hyperlane is used to pass messages from the Authorization contract on Neutron to the Processor on Ethereum.
 
@@ -84,7 +84,7 @@ We'll need the following Libraries on Neutron:
 - **Position Withdrawer**: To redeem a position for underlying funds that are then transferred to the Withdraw Account on Neutron.
 - **Bridge Transfer**: To transfer funds from the Neutron Withdraw Account to the Ethereum Withdraw Account.
 
-Note that the Accounts mentioned here are the standard [Valence Base Accounts](../accounts/base_accounts.md). The Bridge Transfer library will depend on the token being transferred, but will offer similar functionality to the [IBC Transfer](../libraries/cosmwasm/generic_ibc_transfer.md) library. The Position Depositor and Withdrawer will depend on the type of position, but can be similar to the [Liqudity Provider](../libraries/cosmwasm/astroport_lper.md) and [Liquidity Withdrawer](../libraries/cosmwasm/astroport_withdrawer.md).
+Note that the Accounts mentioned here are the standard [Valence Base Accounts](../accounts/base_accounts.md). The Bridge Transfer library will depend on the token being transferred, but will offer similar functionality to the [IBC Transfer](../libraries/cosmwasm/generic_ibc_transfer.md) library. The Position Depositor and Withdrawer will depend on the type of position, but can be similar to the [Liquidity Provider](../libraries/cosmwasm/astroport_lper.md) and [Liquidity Withdrawer](../libraries/cosmwasm/astroport_withdrawer.md).
 
 ### Vault Contract
 The Vault contract is a special contract on Ethereum that has an ERC-4626 interface.
@@ -206,7 +206,7 @@ graph RL
 	end
 	subgraph Neutron
 		NPH((Position Holder))
-		NW((Widthdraw))
+		NW((Withdraw))
 		NT(Bridge Transfer)
 		NPW(Position Withdrawer)
 	end
@@ -229,6 +229,6 @@ graph
 ```
 
 ## Design notes
-This is a simplified design to demonstrate how a cross-chain vault can be implemented with Valence Programs. Production deployments will need to consider additional factors not covered here including:
+This is a simplified design to demonstrate how a crosschain vault can be implemented with Valence Programs. Production deployments will need to consider additional factors not covered here including:
 - Fees for gas, bridging, and for entering/exiting the position on Neutron. It is recommend that the vault impose withdraw fee and platform for users.
 - How to constrain Strategist behavior to ensure they set redemption rates correctly.
