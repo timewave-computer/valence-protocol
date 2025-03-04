@@ -8506,7 +8506,6 @@ dependencies = [
  "cosmrs 0.21.1",
  "hex",
  "ibc",
- "localic-utils",
  "neutron-std",
  "serde",
  "serde_json",

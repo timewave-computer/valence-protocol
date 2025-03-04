@@ -9,7 +9,7 @@ repository = { workspace = true }
 
 [dependencies]
 # generic imports
-localic-utils = { workspace = true }
+# localic-utils = { workspace = true }
 valence-e2e   = { workspace = true }
 tokio         = "1.43.0"
 async-trait   = "0.1.77"

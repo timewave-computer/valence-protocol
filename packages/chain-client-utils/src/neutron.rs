@@ -6,9 +6,9 @@ use crate::{
     },
 };
 use async_trait::async_trait;
-use localic_utils::NEUTRON_CHAIN_DENOM;
 
 const CHAIN_PREFIX: &str = "neutron";
+const CHAIN_DENOM: &str = "untrn";
 
 pub struct NeutronClient {
     grpc_url: String,
@@ -18,18 +18,12 @@ pub struct NeutronClient {
 }
 
 impl NeutronClient {
-    pub fn new(
-        rpc_url: &str,
-        rpc_port: &str,
-        mnemonic: &str,
-        chain_id: &str,
-        chain_denom: &str,
-    ) -> Self {
+    pub fn new(rpc_url: &str, rpc_port: &str, mnemonic: &str, chain_id: &str) -> Self {
         Self {
             grpc_url: format!("{rpc_url}:{rpc_port}"),
             mnemonic: mnemonic.to_string(),
             chain_id: chain_id.to_string(),
-            chain_denom: chain_denom.to_string(),
+            chain_denom: CHAIN_DENOM.to_string(),
         }
     }
 }
@@ -82,7 +76,7 @@ impl BaseClient for NeutronClient {
         };
 
         let raw_tx = signing_client
-            .create_tx(valid_any, NEUTRON_CHAIN_DENOM, 200_000, 500_000u64, None)
+            .create_tx(valid_any, &self.chain_denom(), 200_000, 500_000u64, None)
             .await
             .unwrap();
 
@@ -129,11 +123,6 @@ impl GrpcSigningClient for NeutronClient {
 mod tests {
     use std::time::Duration;
 
-    use localic_utils::{
-        NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, OSMOSIS_CHAIN_ADMIN_ADDR,
-        OSMOSIS_CHAIN_DENOM,
-    };
-
     use crate::osmosis::OsmosisClient;
 
     use super::*;
@@ -141,7 +130,6 @@ mod tests {
     const LOCAL_GRPC_URL: &str = "http://127.0.0.1";
     const LOCAL_GRPC_PORT: &str = "39381";
     const LOCAL_MNEMONIC: &str = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry";
-    const LOCAL_SIGNER_ADDR: &str = "neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky";
     const LOCAL_ALT_ADDR: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
     const LOCAL_CHAIN_ID: &str = "localneutron-1";
     const LOCAL_PROCESSOR_ADDR: &str =
@@ -159,14 +147,13 @@ mod tests {
     const _MNEMONIC: &str = "-";
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires local neutron grpc node active"]
     async fn test_latest_block_height() {
         let client = NeutronClient::new(
             LOCAL_GRPC_URL,
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
-            NEUTRON_CHAIN_DENOM,
         );
 
         let block_height = client
@@ -180,32 +167,34 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires local neutron grpc node active"]
     async fn test_query_balance() {
         let client = NeutronClient::new(
             LOCAL_GRPC_URL,
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
-            NEUTRON_CHAIN_DENOM,
         );
-        let balance = client
-            .query_balance(LOCAL_SIGNER_ADDR, "untrn")
+        let admin_addr = client
+            .get_signing_client()
             .await
-            .unwrap();
+            .unwrap()
+            .address
+            .to_string();
+
+        let balance = client.query_balance(&admin_addr, "untrn").await.unwrap();
 
         assert!(balance > 0);
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires local neutron grpc node active"]
     async fn test_query_contract_state() {
         let client = NeutronClient::new(
             LOCAL_GRPC_URL,
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
-            NEUTRON_CHAIN_DENOM,
         );
 
         let query = valence_processor_utils::msg::QueryMsg::Config {};
@@ -222,30 +211,29 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires local neutron grpc node active"]
     async fn test_transfer() {
         let client = NeutronClient::new(
             LOCAL_GRPC_URL,
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
-            NEUTRON_CHAIN_DENOM,
         );
 
         let pre_transfer_balance = client
-            .query_balance(LOCAL_ALT_ADDR, NEUTRON_CHAIN_DENOM)
+            .query_balance(LOCAL_ALT_ADDR, CHAIN_DENOM)
             .await
             .unwrap();
 
         let rx = client
-            .transfer(LOCAL_ALT_ADDR, 100_000, NEUTRON_CHAIN_DENOM, None)
+            .transfer(LOCAL_ALT_ADDR, 100_000, CHAIN_DENOM, None)
             .await
             .unwrap();
 
         client.poll_for_tx(&rx.hash).await.unwrap();
 
         let post_transfer_balance = client
-            .query_balance(LOCAL_ALT_ADDR, NEUTRON_CHAIN_DENOM)
+            .query_balance(LOCAL_ALT_ADDR, CHAIN_DENOM)
             .await
             .unwrap();
 
@@ -253,14 +241,13 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires local neutron grpc node active"]
     async fn test_execute_wasm() {
         let client = NeutronClient::new(
             LOCAL_GRPC_URL,
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
-            NEUTRON_CHAIN_DENOM,
         );
 
         let processor_tick_msg = valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
@@ -278,14 +265,13 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires local neutron & osmosis grpc nodes active"]
     async fn test_ibc_transfer() {
         let client = NeutronClient::new(
             LOCAL_GRPC_URL,
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
-            NEUTRON_CHAIN_DENOM,
         );
 
         let osmosis_client = OsmosisClient::new(
@@ -293,19 +279,25 @@ mod tests {
             "45355",
             LOCAL_MNEMONIC,
             "localosmosis-1",
-            OSMOSIS_CHAIN_DENOM,
+            "uosmo",
         );
 
+        let osmo_signer = osmosis_client.get_signing_client().await.unwrap();
+        let ntrn_signer = client.get_signing_client().await.unwrap();
+
+        let osmo_admin_addr = osmo_signer.address.to_string();
+        let ntrn_admin_addr = ntrn_signer.address.to_string();
+
         let osmo_balance_0 = osmosis_client
-            .query_balance(OSMOSIS_CHAIN_ADMIN_ADDR, NEUTRON_ON_OSMO)
+            .query_balance(&osmo_admin_addr, NEUTRON_ON_OSMO)
             .await
             .unwrap();
         println!("osmo_balance_0: {osmo_balance_0}");
 
         let tx_response = client
             .ibc_transfer(
-                OSMOSIS_CHAIN_ADMIN_ADDR.to_string(),
-                NEUTRON_CHAIN_DENOM.to_string(),
+                osmo_admin_addr.to_string(),
+                client.chain_denom().to_string(),
                 "100000".to_string(),
                 "channel-0".to_string(),
                 5,
@@ -319,7 +311,7 @@ mod tests {
         tokio::time::sleep(Duration::from_secs(5)).await;
 
         let osmo_balance_1 = osmosis_client
-            .query_balance(OSMOSIS_CHAIN_ADMIN_ADDR, NEUTRON_ON_OSMO)
+            .query_balance(&osmo_admin_addr, NEUTRON_ON_OSMO)
             .await
             .unwrap();
         println!("osmo_balance_1: {osmo_balance_1}");
@@ -329,7 +321,7 @@ mod tests {
 
         let osmo_rx = osmosis_client
             .ibc_transfer(
-                NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+                ntrn_admin_addr.to_string(),
                 NEUTRON_ON_OSMO.to_string(),
                 "100000".to_string(),
                 "channel-0".to_string(),
@@ -344,7 +336,7 @@ mod tests {
         tokio::time::sleep(Duration::from_secs(5)).await;
 
         let osmo_balance_2 = osmosis_client
-            .query_balance(OSMOSIS_CHAIN_ADMIN_ADDR, NEUTRON_ON_OSMO)
+            .query_balance(&osmo_admin_addr, NEUTRON_ON_OSMO)
             .await
             .unwrap();
         println!("osmo_balance_2: {osmo_balance_2}");
