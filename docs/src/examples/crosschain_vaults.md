@@ -42,7 +42,7 @@ Since gas is cheaper on Neutron than on Ethereum, computationally expensive oper
 ---
 title: Program Control
 ---
-graph BT
+graph TD
 	Strategist
 	subgraph Ethereum
 		EP(Processor)
