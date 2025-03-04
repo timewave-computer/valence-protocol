@@ -422,7 +422,7 @@ impl Connector for CosmosCosmwasmConnector {
         let msg = to_vec(
             &valence_authorization_utils::msg::ExecuteMsg::UpdateOwnership(
                 cw_ownable::Action::TransferOwnership {
-                    new_owner: owner,
+                    new_owner: owner.clone(),
                     expiry: None,
                 },
             ),
@@ -431,7 +431,7 @@ impl Connector for CosmosCosmwasmConnector {
 
         let m = MsgExecuteContract {
             sender: self.wallet.account_address.clone(),
-            contract: authorization_addr,
+            contract: authorization_addr.clone(),
             msg,
             funds: vec![],
         }
