@@ -8588,6 +8588,7 @@ dependencies = [
  "valence-astroport-withdrawer",
  "valence-authorization",
  "valence-authorization-utils",
+ "valence-chain-client-utils",
  "valence-encoder-broker",
  "valence-encoder-utils",
  "valence-forwarder-library",

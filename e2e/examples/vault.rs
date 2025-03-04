@@ -34,6 +34,9 @@ use valence_authorization_utils::{
         ProcessorMessage,
     },
 };
+use valence_chain_client_utils::evm::{
+    base_client::EvmBaseClient, request_provider_client::RequestProviderClient,
+};
 use valence_e2e::utils::{
     ethereum::set_up_anvil_container,
     hyperlane::{
@@ -201,7 +204,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     rt.block_on(set_up_anvil_container())?;
 
     let eth = EthClient::new(DEFAULT_ANVIL_RPC_ENDPOINT)?;
-    let accounts = eth.get_accounts_addresses()?;
+    let eth_client = valence_chain_client_utils::ethereum::EthereumClient::new(
+        DEFAULT_ANVIL_RPC_ENDPOINT,
+        "test test test test test test test test test test test junk",
+    )
+    .unwrap();
+
+    let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+    let eth_accounts = rt.block_on(async { eth_client.get_provider_accounts().await.unwrap() });
+    let eth_admin_acc = eth_accounts[0];
 
     let mut test_ctx = TestContextBuilder::default()
         .with_unwrap_raw_logs(true)
@@ -289,63 +300,72 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("Setting up Lite Processor on Ethereum");
 
     let tx = LiteProcessor::deploy_builder(
-        &eth.provider,
+        &eth_rp,
         bech32_to_evm_bytes32(&authorization_contract_address)?,
         Address::from_str(&eth_hyperlane_contracts.mailbox)?,
         NEUTRON_HYPERLANE_DOMAIN,
-        vec![accounts[0]],
+        vec![eth_admin_acc],
     )
-    .into_transaction_request()
-    .from(accounts[0]);
+    .into_transaction_request();
 
-    let lite_processor_address = eth.send_transaction(tx)?.contract_address.unwrap();
+    let lite_processor_rx = rt.block_on(async { eth_client.execute_tx(tx).await.unwrap() });
+
+    let lite_processor_address = lite_processor_rx.contract_address.unwrap();
     info!("Lite Processor deployed at: {}", lite_processor_address);
 
     // Let's create two Valence Base Accounts on Ethereum to test the processor with libraries (in this case the forwarder)
     info!("Deploying base accounts on Ethereum...");
-    let base_account_tx = BaseAccount::deploy_builder(&eth.provider, accounts[0], vec![])
-        .into_transaction_request()
-        .from(accounts[0]);
+    let base_account_tx = BaseAccount::deploy_builder(&eth.provider, eth_admin_acc, vec![])
+        .into_transaction_request();
 
-    let eth_deposit_acc = eth
-        .send_transaction(base_account_tx.clone())?
-        .contract_address
-        .unwrap();
-    let eth_withdraw_acc = eth
-        .send_transaction(base_account_tx.clone())?
-        .contract_address
-        .unwrap();
+    let eth_deposit_rx = rt.block_on(async {
+        eth_client
+            .execute_tx(base_account_tx.clone())
+            .await
+            .unwrap()
+    });
+    let eth_withdraw_rx =
+        rt.block_on(async { eth_client.execute_tx(base_account_tx).await.unwrap() });
+
+    let eth_deposit_acc = eth_deposit_rx.contract_address.unwrap();
+    let eth_withdraw_acc = eth_withdraw_rx.contract_address.unwrap();
+
     info!("ETH deposit acc: {eth_deposit_acc}");
     info!("ETH withdraw acc: {eth_withdraw_acc}");
 
     info!("Deploying ERC20s on Ethereum...");
     let evm_vault_deposit_token_tx =
-        MockERC20::deploy_builder(&eth.provider, "TestUSDC".to_string(), "TUSD".to_string())
-            .into_transaction_request()
-            .from(accounts[0]);
-    let valence_vault_deposit_token_address = eth
-        .send_transaction(evm_vault_deposit_token_tx)?
-        .contract_address
-        .unwrap();
-    let valence_vault_deposit_token =
-        MockERC20::new(valence_vault_deposit_token_address, &eth.provider);
+        MockERC20::deploy_builder(&eth_rp, "TestUSDC".to_string(), "TUSD".to_string())
+            .into_transaction_request();
+
+    let evm_vault_deposit_token_rx = rt.block_on(async {
+        eth_client
+            .execute_tx(evm_vault_deposit_token_tx)
+            .await
+            .unwrap()
+    });
+
+    let valence_vault_deposit_token_address = evm_vault_deposit_token_rx.contract_address.unwrap();
+
+    let valence_vault_deposit_token = MockERC20::new(valence_vault_deposit_token_address, &eth_rp);
 
     info!("deploying Valence Vault on Ethereum...");
-    let vault_config = setup_vault_config(&accounts, eth_deposit_acc, eth_withdraw_acc);
+    let vault_config = setup_vault_config(&eth_accounts, eth_deposit_acc, eth_withdraw_acc);
 
     let vault_tx = ValenceVault::deploy_builder(
         &eth.provider,
-        accounts[0],                            // owner
+        eth_admin_acc,                          // owner
         vault_config.abi_encode().into(),       // encoded config
         *valence_vault_deposit_token.address(), // underlying token
         "Valence Test Vault".to_string(),       // vault token name
         "vTEST".to_string(),                    // vault token symbol
         U256::from(1e18), // placeholder, tbd what a reasonable value should be here
     )
-    .into_transaction_request()
-    .from(accounts[0]);
+    .into_transaction_request();
 
-    let vault_address = eth.send_transaction(vault_tx)?.contract_address.unwrap();
+    let vault_rx = rt.block_on(async { eth_client.execute_tx(vault_tx).await.unwrap() });
+
+    let vault_address = vault_rx.contract_address.unwrap();
     info!("Vault deployed at: {vault_address}");
 
     info!("Adding EVM external domain to Authorization contract");
