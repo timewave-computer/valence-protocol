@@ -3,25 +3,18 @@ use std::str::FromStr;
 use async_trait::async_trait;
 use cosmos_sdk_proto::cosmos::{
     bank::v1beta1::{QueryBalanceRequest, QueryBalanceResponse},
-    base::{
-        abci::v1beta1::{SimulationResponse, TxResponse},
-        tendermint::v1beta1::Header,
-    },
-    tx::v1beta1::{GetTxRequest, SimulateRequest, SimulateResponse},
+    base::{abci::v1beta1::TxResponse, tendermint::v1beta1::Header},
+    tx::v1beta1::GetTxRequest,
 };
 
-use cosmrs::{
-    bank::MsgSend,
-    tx::{Fee, MessageExt, Msg},
-    AccountId, Coin, Denom,
-};
+use cosmrs::{bank::MsgSend, tx::Msg, AccountId, Coin};
 use cosmrs::{
     proto::cosmos::base::tendermint::v1beta1::{
         service_client::ServiceClient as TendermintServiceClient, GetLatestBlockRequest,
     },
     Any,
 };
-use tonic::{IntoRequest, Request};
+use tonic::Request;
 
 use crate::common::{error::StrategistError, transaction::TransactionResponse};
 
@@ -59,6 +52,7 @@ pub trait BaseClient: GrpcSigningClient {
 
         let simulation_response = self.simulate_tx(transfer_msg.clone()).await?;
         let fee = self.get_tx_fee(simulation_response)?;
+        println!("tx fee built: {:?}", fee);
 
         let raw_tx = signing_client.create_tx(transfer_msg, fee, memo).await?;
 

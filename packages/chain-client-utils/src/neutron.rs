@@ -15,16 +15,25 @@ pub struct NeutronClient {
     mnemonic: String,
     chain_id: String,
     chain_denom: String,
+    gas_price: f64,
 }
 
 impl NeutronClient {
-    pub fn new(rpc_url: &str, rpc_port: &str, mnemonic: &str, chain_id: &str) -> Self {
-        Self {
+    pub async fn new(
+        rpc_url: &str,
+        rpc_port: &str,
+        mnemonic: &str,
+        chain_id: &str,
+    ) -> Result<Self, StrategistError> {
+        let avg_gas_price = Self::query_chain_gas_config("neutron", CHAIN_DENOM).await?;
+
+        Ok(Self {
             grpc_url: format!("{rpc_url}:{rpc_port}"),
             mnemonic: mnemonic.to_string(),
             chain_id: chain_id.to_string(),
             chain_denom: CHAIN_DENOM.to_string(),
-        }
+            gas_price: avg_gas_price,
+        })
     }
 }
 
@@ -120,6 +129,14 @@ impl GrpcSigningClient for NeutronClient {
     fn chain_denom(&self) -> String {
         self.chain_denom.to_string()
     }
+
+    fn gas_price(&self) -> f64 {
+        self.gas_price
+    }
+
+    fn gas_adjustment(&self) -> f64 {
+        1.8
+    }
 }
 
 #[cfg(test)]
@@ -131,7 +148,7 @@ mod tests {
     use super::*;
 
     const LOCAL_GRPC_URL: &str = "http://127.0.0.1";
-    const LOCAL_GRPC_PORT: &str = "55615";
+    const LOCAL_GRPC_PORT: &str = "39381";
     const LOCAL_MNEMONIC: &str = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry";
     const LOCAL_ALT_ADDR: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
     const LOCAL_CHAIN_ID: &str = "localneutron-1";
@@ -157,7 +174,9 @@ mod tests {
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
-        );
+        )
+        .await
+        .unwrap();
 
         let block_height = client
             .latest_block_header()
@@ -177,7 +196,10 @@ mod tests {
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
-        );
+        )
+        .await
+        .unwrap();
+
         let admin_addr = client
             .get_signing_client()
             .await
@@ -198,7 +220,9 @@ mod tests {
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
-        );
+        )
+        .await
+        .unwrap();
 
         let query = valence_processor_utils::msg::QueryMsg::Config {};
 
@@ -214,14 +238,16 @@ mod tests {
     }
 
     #[tokio::test]
-    // #[ignore = "requires local neutron grpc node active"]
+    #[ignore = "requires local neutron grpc node active"]
     async fn test_transfer() {
         let client = NeutronClient::new(
             LOCAL_GRPC_URL,
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
-        );
+        )
+        .await
+        .unwrap();
 
         let pre_transfer_balance = client
             .query_balance(LOCAL_ALT_ADDR, CHAIN_DENOM)
@@ -251,7 +277,9 @@ mod tests {
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
-        );
+        )
+        .await
+        .unwrap();
 
         let processor_tick_msg = valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
             valence_processor_utils::msg::PermissionlessMsg::Tick {},
@@ -268,22 +296,21 @@ mod tests {
     }
 
     #[tokio::test]
-    // #[ignore = "requires local neutron & osmosis grpc nodes active"]
+    #[ignore = "requires local neutron & osmosis grpc nodes active"]
     async fn test_ibc_transfer() {
         let client = NeutronClient::new(
             LOCAL_GRPC_URL,
             LOCAL_GRPC_PORT,
             LOCAL_MNEMONIC,
             LOCAL_CHAIN_ID,
-        );
+        )
+        .await
+        .unwrap();
 
-        let osmosis_client = OsmosisClient::new(
-            LOCAL_GRPC_URL,
-            "55567",
-            LOCAL_MNEMONIC,
-            "localosmosis-1",
-            "uosmo",
-        );
+        let osmosis_client =
+            OsmosisClient::new(LOCAL_GRPC_URL, "45355", LOCAL_MNEMONIC, "localosmosis-1")
+                .await
+                .unwrap();
 
         let osmo_signer = osmosis_client.get_signing_client().await.unwrap();
         let ntrn_signer = client.get_signing_client().await.unwrap();

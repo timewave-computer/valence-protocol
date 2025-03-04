@@ -1,10 +1,12 @@
 use tonic::async_trait;
 
-use crate::cosmos::{
-    base_client::BaseClient, grpc_client::GrpcSigningClient, wasm_client::WasmClient,
+use crate::{
+    common::error::StrategistError,
+    cosmos::{base_client::BaseClient, grpc_client::GrpcSigningClient, wasm_client::WasmClient},
 };
 
 const CHAIN_PREFIX: &str = "osmo";
+const CHAIN_DENOM: &str = "uosmo";
 
 /// client for interacting with the osmosis chain
 pub struct OsmosisClient {
@@ -12,22 +14,27 @@ pub struct OsmosisClient {
     mnemonic: String,
     chain_id: String,
     chain_denom: String,
+    chain_prefix: String,
+    gas_price: f64,
 }
 
 impl OsmosisClient {
-    pub fn new(
+    pub async fn new(
         rpc_url: &str,
         rpc_port: &str,
         mnemonic: &str,
         chain_id: &str,
-        chain_denom: &str,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, StrategistError> {
+        let avg_gas_price = Self::query_chain_gas_config("osmosis", CHAIN_DENOM).await?;
+
+        Ok(Self {
             grpc_url: format!("{rpc_url}:{rpc_port}"),
             mnemonic: mnemonic.to_string(),
             chain_id: chain_id.to_string(),
-            chain_denom: chain_denom.to_string(),
-        }
+            chain_denom: CHAIN_DENOM.to_string(),
+            chain_prefix: CHAIN_PREFIX.to_string(),
+            gas_price: avg_gas_price,
+        })
     }
 }
 
@@ -50,7 +57,7 @@ impl GrpcSigningClient for OsmosisClient {
     }
 
     fn chain_prefix(&self) -> String {
-        CHAIN_PREFIX.to_string()
+        self.chain_prefix.to_string()
     }
 
     fn chain_id(&self) -> String {
@@ -59,5 +66,13 @@ impl GrpcSigningClient for OsmosisClient {
 
     fn chain_denom(&self) -> String {
         self.chain_denom.to_string()
+    }
+
+    fn gas_price(&self) -> f64 {
+        self.gas_price
+    }
+
+    fn gas_adjustment(&self) -> f64 {
+        1.8
     }
 }

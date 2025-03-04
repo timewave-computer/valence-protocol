@@ -1,5 +1,6 @@
 use std::num::TryFromIntError;
 
+use alloy::transports::http::reqwest;
 use cosmos_sdk_proto::prost::EncodeError;
 use cosmrs::ErrorReport;
 use tonic::Status;
@@ -50,6 +51,12 @@ impl From<EncodeError> for StrategistError {
 
 impl From<tonic::transport::Error> for StrategistError {
     fn from(value: tonic::transport::Error) -> Self {
+        StrategistError::ClientError(value.to_string())
+    }
+}
+
+impl From<reqwest::Error> for StrategistError {
+    fn from(value: reqwest::Error) -> Self {
         StrategistError::ClientError(value.to_string())
     }
 }

@@ -6,7 +6,7 @@ use cosmos_sdk_proto::cosmos::{
 use cosmrs::{
     crypto::{secp256k1::SigningKey, PublicKey},
     tx::{self, Fee, SignDoc, SignerInfo},
-    AccountId, Any, Coin,
+    AccountId, Any,
 };
 use tonic::transport::Channel;
 
