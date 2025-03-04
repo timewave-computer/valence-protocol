@@ -185,12 +185,12 @@ graph LR
 </pre>
 <p>While we have chosen Ethereum and Neutron as examples here, one could similarly construct such vaults between any two chains as long as they are supported by Valence Programs.</p>
 <h2 id="implementing-crosschain-vaults-as-a-valence-program"><a class="header" href="#implementing-crosschain-vaults-as-a-valence-program">Implementing Crosschain Vaults as a Valence Program</a></h2>
-<p>Recall that Valence Programs are comprised of Libraries and Accounts. Libraries are a collection of Functions that perform token oprations on the Accounts. Since there are two chains here, Libraries and Accounts will exist on both chains.</p>
+<p>Recall that Valence Programs are comprised of Libraries and Accounts. Libraries are a collection of Functions that perform token operations on the Accounts. Since there are two chains here, Libraries and Accounts will exist on both chains.</p>
 <p>Since gas is cheaper on Neutron than on Ethereum, computationally expensive operations, such as constraining the Strategist actions will be done on Neutron. Authorized messages will then be executed by each chain's Processor. Hyperlane is used to pass messages from the Authorization contract on Neutron to the Processor on Ethereum.</p>
 <pre class="mermaid">---
 title: Program Control
 ---
-graph BT
+graph TD
 	Strategist
 	subgraph Ethereum
 		EP(Processor)
@@ -234,7 +234,7 @@ graph BT
 <li><strong>Position Withdrawer</strong>: To redeem a position for underlying funds that are then transferred to the Withdraw Account on Neutron.</li>
 <li><strong>Bridge Transfer</strong>: To transfer funds from the Neutron Withdraw Account to the Ethereum Withdraw Account.</li>
 </ul>
-<p>Note that the Accounts mentioned here are the standard <a href="../accounts/base_accounts.html">Valence Base Accounts</a>. The Bridge Transfer library will depend on the token being transferred, but will offer similar functionality to the <a href="../libraries/cosmwasm/generic_ibc_transfer.html">IBC Transfer</a> library. The Position Depositor and Withdrawer will depend on the type of position, but can be similar to the <a href="../libraries/cosmwasm/astroport_lper.html">Liqudity Provider</a> and <a href="../libraries/cosmwasm/astroport_withdrawer.html">Liquidity Withdrawer</a>.</p>
+<p>Note that the Accounts mentioned here are the standard <a href="../accounts/base_accounts.html">Valence Base Accounts</a>. The Bridge Transfer library will depend on the token being transferred, but will offer similar functionality to the <a href="../libraries/cosmwasm/generic_ibc_transfer.html">IBC Transfer</a> library. The Position Depositor and Withdrawer will depend on the type of position, but can be similar to the <a href="../libraries/cosmwasm/astroport_lper.html">Liquidity Provider</a> and <a href="../libraries/cosmwasm/astroport_withdrawer.html">Liquidity Withdrawer</a>.</p>
 <h3 id="vault-contract"><a class="header" href="#vault-contract">Vault Contract</a></h3>
 <p>The Vault contract is a special contract on Ethereum that has an ERC-4626 interface.</p>
 <h4 id="user-methods-to-deposit-funds"><a class="header" href="#user-methods-to-deposit-funds">User methods to deposit funds</a></h4>
@@ -348,7 +348,7 @@ graph RL
 	end
 	subgraph Neutron
 		NPH((Position Holder))
-		NW((Widthdraw))
+		NW((Withdraw))
 		NT(Bridge Transfer)
 		NPW(Position Withdrawer)
 	end
@@ -368,7 +368,7 @@ graph
 	ED --&gt; FDW --&gt; EW
 </pre>
 <h2 id="design-notes"><a class="header" href="#design-notes">Design notes</a></h2>
-<p>This is a simplified design to demonstrate how a cross-chain vault can be implemented with Valence Programs. Production deployments will need to consider additional factors not covered here including:</p>
+<p>This is a simplified design to demonstrate how a crosschain vault can be implemented with Valence Programs. Production deployments will need to consider additional factors not covered here including:</p>
 <ul>
 <li>Fees for gas, bridging, and for entering/exiting the position on Neutron. It is recommend that the vault impose withdraw fee and platform for users.</li>
 <li>How to constrain Strategist behavior to ensure they set redemption rates correctly.</li>
