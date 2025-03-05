@@ -8,7 +8,7 @@ use persistence_std::types::pstake::liquidstakeibc::v1beta1::{KvUpdate, MsgUpdat
 use serde_json::Value;
 use tokio::runtime::Runtime;
 
-use crate::utils::file::get_grpc_address_and_port;
+use crate::utils::file::get_grpc_address_and_port_from_logs;
 
 use super::{
     ADMIN_MNEMONIC, PERSISTENCE_CHAIN_ADMIN_ADDR, PERSISTENCE_CHAIN_DENOM, PERSISTENCE_CHAIN_ID,
@@ -41,7 +41,8 @@ pub fn register_host_zone(
 pub fn activate_host_zone(target_chain_id: &str) -> Result<(), Box<dyn Error>> {
     // Because of RPC on local-ic escaping the " character and Persistence being strict in wanting exactly the precise JSON payload, I'm using gRPC instead
     // Open and parse the logs file
-    let (target_grpc_address, target_port) = get_grpc_address_and_port(PERSISTENCE_CHAIN_ID)?;
+    let (target_grpc_address, target_port) =
+        get_grpc_address_and_port_from_logs(PERSISTENCE_CHAIN_ID)?;
 
     // Send the activation via gRPC
     let rt = Runtime::new()?;

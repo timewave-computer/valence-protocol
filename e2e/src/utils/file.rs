@@ -35,7 +35,7 @@ pub fn get_grpc_address_from_logs(target_chain_id: &str) -> Result<String, Box<d
     Err(format!("Chain with ID '{}' not found in logs file", target_chain_id).into())
 }
 
-pub fn get_grpc_address_and_port(
+pub fn get_grpc_address_and_port_from_logs(
     target_chain_id: &str,
 ) -> Result<(String, String), Box<dyn Error>> {
     // Get the gRPC address from the logs file

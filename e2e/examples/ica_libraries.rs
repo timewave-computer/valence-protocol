@@ -6,7 +6,7 @@ use localic_utils::{
 };
 use valence_chain_client_utils::noble::NobleClient;
 use valence_e2e::utils::{
-    file::get_grpc_address_and_port, noble::set_up_noble, ADMIN_MNEMONIC, LOGS_FILE_PATH,
+    file::get_grpc_address_and_port_from_logs, noble::set_up_noble, ADMIN_MNEMONIC, LOGS_FILE_PATH,
     NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME,
     NOBLE_CHAIN_PREFIX, VALENCE_ARTIFACTS_PATH,
 };
@@ -35,7 +35,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let rt = tokio::runtime::Runtime::new()?;
     // Get the grpc url and the port for the noble chain
-    let (grpc_url, grpc_port) = get_grpc_address_and_port(NOBLE_CHAIN_ID)?;
+    let (grpc_url, grpc_port) = get_grpc_address_and_port_from_logs(NOBLE_CHAIN_ID)?;
 
     let noble_client = rt.block_on(async {
         NobleClient::new(
