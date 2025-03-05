@@ -62,6 +62,7 @@ use valence_program_manager::{
     program_config::ProgramConfig,
     program_config_builder::ProgramConfigBuilder,
 };
+use vault::perform_vault_update;
 
 const EVM_ENCODER_NAMESPACE: &str = "evm_encoder_v1";
 const PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "provide_liquidity";
@@ -289,14 +290,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("NTRN AUTHORIZATIONS\t: {authorization_contract_address}");
     info!("NTRN PROCESSOR\t: {ntrn_processor_contract_address}");
 
+    // info!("Setting up encoders ...");
+    // let evm_encoder = setup_valence_evm_encoder_v1(&mut test_ctx)?;
+    // let encoder_broker = setup_valence_encoder_broker(&mut test_ctx, evm_encoder.to_string())?;
+
     // setup eth side:
     // 0. encoders
     // 1. lite processor
     // 2. base accounts
     // 3. vault
-    info!("Setting up encoders ...");
-    let evm_encoder = setup_valence_evm_encoder_v1(&mut test_ctx)?;
-    let encoder_broker = setup_valence_encoder_broker(&mut test_ctx, evm_encoder.to_string())?;
 
     info!("Setting up Lite Processor on Ethereum");
 
@@ -372,44 +374,117 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("ETH ADMIN ACC BAL\t: {admin_acc_bal}");
 
-    info!("trying to deposit into the vault...");
+    vault::query_vault_config(*valence_vault.address(), &rt, &eth_client);
+    let vault_total_assets =
+        vault::query_vault_total_assets(*valence_vault.address(), &rt, &eth_client);
+    let vault_total_supply =
+        vault::query_vault_total_supply(*valence_vault.address(), &rt, &eth_client);
+    let admin_vault_bal =
+        vault::query_vault_balance_of(*valence_vault.address(), &rt, &eth_client, eth_admin_acc);
 
-    let deposit_rx = rt.block_on(async {
+    info!("vault total assets: {:?}", vault_total_assets._0);
+    info!("vault total supply: {:?}", vault_total_supply._0);
+    info!("admin vault balance: {:?}", admin_vault_bal._0);
+
+    info!("Approving token for vault...");
+    rt.block_on(async {
         eth_client
             .execute_tx(
-                valence_vault
-                    .deposit(U256::from(5_000_000), eth_admin_acc)
+                valence_vault_deposit_token
+                    .approve(*valence_vault.address(), U256::MAX)
                     .into_transaction_request(),
             )
             .await
             .unwrap()
     });
 
-    info!("vault deposit response: {:?}", deposit_rx.inner);
+    let initial_token_balance = rt.block_on(async {
+        eth_client
+            .query(valence_vault_deposit_token.balanceOf(eth_admin_acc))
+            .await
+            .unwrap()
+            ._0
+    });
 
-    // let admin_acc_bal = rt.block_on(async {
-    //     eth_client
-    //         .query(valence_vault_deposit_token.balanceOf(eth_admin_acc))
-    //         .await
-    //         .unwrap()
-    //         ._0
-    // });
+    let initial_vault_shares = rt.block_on(async {
+        eth_client
+            .query(valence_vault.balanceOf(eth_admin_acc))
+            .await
+            .unwrap()
+            ._0
+    });
 
-    // info!("ETH ADMIN ACC BAL\t: {admin_acc_bal}");
-    // test the neutron side flow
-    // test_neutron_side_flow(
-    //     &mut test_ctx,
-    //     &deposit_acc_addr,
-    //     &position_acc_addr,
-    //     &withdraw_acc_addr,
-    //     NEUTRON_CHAIN_DENOM,
-    //     &token,
-    //     &authorization_contract_address,
-    //     &ntrn_processor_contract_address,
-    //     &encoder_broker,
-    //     &ntrn_hyperlane_contracts.mailbox.to_string(),
-    //     &lite_processor_address.to_string(),
-    // )?;
+    let initial_deposit_account_balance = rt.block_on(async {
+        let config = eth_client.query(valence_vault.config()).await.unwrap();
+        eth_client
+            .query(valence_vault_deposit_token.balanceOf(config.depositAccount))
+            .await
+            .unwrap()
+            ._0
+    });
+
+    info!("Initial token balance: {}", initial_token_balance);
+    info!("Initial vault shares: {}", initial_vault_shares);
+    info!(
+        "Initial deposit account balance: {}",
+        initial_deposit_account_balance
+    );
+
+    let deposit_amount = U256::from(5_000_000);
+    // Perform deposit
+    info!("Depositing {} tokens to vault...", deposit_amount);
+    rt.block_on(async {
+        eth_client
+            .execute_tx(
+                valence_vault
+                    .deposit(deposit_amount, eth_admin_acc)
+                    .into_transaction_request(),
+            )
+            .await
+            .unwrap()
+    });
+
+    let final_token_balance = rt.block_on(async {
+        eth_client
+            .query(valence_vault_deposit_token.balanceOf(eth_admin_acc))
+            .await
+            .unwrap()
+            ._0
+    });
+
+    let final_vault_shares = rt.block_on(async {
+        eth_client
+            .query(valence_vault.balanceOf(eth_admin_acc))
+            .await
+            .unwrap()
+            ._0
+    });
+
+    let final_deposit_account_balance = rt.block_on(async {
+        let config = eth_client.query(valence_vault.config()).await.unwrap();
+        eth_client
+            .query(valence_vault_deposit_token.balanceOf(config.depositAccount))
+            .await
+            .unwrap()
+            ._0
+    });
+
+    info!("vault token balance: {final_token_balance}",);
+    info!("vault shares: {final_vault_shares}",);
+    info!("vault deposit account balance: {final_deposit_account_balance}",);
+
+    info!("performing vault update...");
+    let netting_amount = U256::from(0);
+    let withdraw_fee_bps = 1;
+    perform_vault_update(
+        *valence_vault.address(),
+        U256::from(1),
+        withdraw_fee_bps,
+        netting_amount,
+        &rt,
+        &eth_client,
+    )
+    .unwrap();
 
     Ok(())
 }
@@ -429,13 +504,119 @@ pub mod vault {
     use valence_e2e::utils::{
         solidity_contracts::{
             BaseAccount, LiteProcessor,
-            MockERC20::{self, MockERC20Instance},
+            MockERC20::{self},
             ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
         },
         NEUTRON_HYPERLANE_DOMAIN,
     };
 
     use crate::SECONDS_IN_DAY;
+
+    pub fn perform_vault_update(
+        vault_addr: Address,
+        new_rate: U256,
+        withdraw_fee_bps: u32,
+        netting_amount: U256,
+        rt: &tokio::runtime::Runtime,
+        eth_client: &EthereumClient,
+    ) -> Result<(), Box<dyn Error>> {
+        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+        let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
+
+        let config = rt.block_on(async { eth_client.query(valence_vault.config()).await.unwrap() });
+
+        let start_rate = rt.block_on(async {
+            eth_client
+                .query(valence_vault.redemptionRate())
+                .await
+                .unwrap()
+                ._0
+        });
+        let prev_max_rate = rt.block_on(async {
+            eth_client
+                .query(valence_vault.maxHistoricalRate())
+                .await
+                .unwrap()
+                ._0
+        });
+
+        let prev_total_assets = rt.block_on(async {
+            eth_client
+                .query(valence_vault.totalAssets())
+                .await
+                .unwrap()
+                ._0
+        });
+
+        info!("Vault start rate: {start_rate}");
+        info!("Vault current max historical rate: {prev_max_rate}");
+        info!("Vault current total assets: {prev_total_assets}");
+        info!(
+            "Updating vault with new rate: {new_rate}, withdraw fee: {withdraw_fee_bps}bps, netting: {netting_amount}"
+        );
+
+        let update_result = rt.block_on(async {
+            eth_client
+                .execute_tx(
+                    valence_vault
+                        .update(new_rate, withdraw_fee_bps, netting_amount)
+                        .into_transaction_request(),
+                )
+                .await
+        });
+
+        if let Err(e) = &update_result {
+            info!("Update failed: {:?}", e);
+            panic!("failed to update vault");
+        }
+
+        let new_redemption_rate = rt.block_on(async {
+            eth_client
+                .query(valence_vault.redemptionRate())
+                .await
+                .unwrap()
+                ._0
+        });
+        let new_max_historical_rate = rt.block_on(async {
+            eth_client
+                .query(valence_vault.maxHistoricalRate())
+                .await
+                .unwrap()
+                ._0
+        });
+
+        let new_total_assets = rt.block_on(async {
+            eth_client
+                .query(valence_vault.totalAssets())
+                .await
+                .unwrap()
+                ._0
+        });
+
+        info!("Vault new redemption rate: {new_redemption_rate}");
+        info!("Vault new max historical rate: {new_max_historical_rate}");
+        info!("Vault new total assets: {new_total_assets}");
+
+        assert_eq!(
+            new_redemption_rate, new_rate,
+            "Redemption rate should be updated to the new rate"
+        );
+
+        // Verify max historical rate was updated if needed
+        if new_rate > prev_max_rate {
+            assert_eq!(
+                new_max_historical_rate, new_rate,
+                "Max historical rate should be updated when new rate is higher"
+            );
+        } else {
+            assert_eq!(
+                new_max_historical_rate, prev_max_rate,
+                "Max historical rate should remain unchanged when new rate is not higher"
+            );
+        }
+
+        Ok(())
+    }
 
     pub fn setup_vault_config(
         accounts: &[Address],
@@ -475,12 +656,57 @@ pub mod vault {
         Ok(())
     }
 
-    pub fn query_vault_shares() -> Result<U256, Box<dyn Error>> {
-        Ok(U256::from(0))
+    pub fn query_vault_config(
+        vault_addr: Address,
+        rt: &tokio::runtime::Runtime,
+        eth_client: &EthereumClient,
+    ) -> ValenceVault::configReturn {
+        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+        let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
+
+        let config = rt.block_on(async { eth_client.query(valence_vault.config()).await.unwrap() });
+
+        info!("VAULT CONFIG config: {:?}", config);
+        config
     }
 
-    pub fn query_vault_pending_withdrawals() -> Result<U256, Box<dyn Error>> {
-        Ok(U256::from(0))
+    pub fn query_vault_total_assets(
+        vault_addr: Address,
+        rt: &tokio::runtime::Runtime,
+        eth_client: &EthereumClient,
+    ) -> ValenceVault::totalAssetsReturn {
+        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+        let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
+
+        rt.block_on(async { eth_client.query(valence_vault.totalAssets()).await.unwrap() })
+    }
+
+    pub fn query_vault_total_supply(
+        vault_addr: Address,
+        rt: &tokio::runtime::Runtime,
+        eth_client: &EthereumClient,
+    ) -> ValenceVault::totalSupplyReturn {
+        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+        let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
+
+        rt.block_on(async { eth_client.query(valence_vault.totalSupply()).await.unwrap() })
+    }
+
+    pub fn query_vault_balance_of(
+        vault_addr: Address,
+        rt: &tokio::runtime::Runtime,
+        eth_client: &EthereumClient,
+        addr: Address,
+    ) -> ValenceVault::balanceOfReturn {
+        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+        let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
+
+        rt.block_on(async {
+            eth_client
+                .query(valence_vault.balanceOf(addr))
+                .await
+                .unwrap()
+        })
     }
 
     pub fn update() -> Result<(), Box<dyn Error>> {
@@ -608,25 +834,25 @@ fn eth_side_setup(
     eth_admin_acc: Address,
 ) -> Result<(Address, Address, Address, Address, Address), Box<dyn Error>> {
     let lite_processor_address = vault::setup_lite_processor(
-        &rt,
-        &eth_client,
+        rt,
+        eth_client,
         eth_admin_acc,
         eth_mailbox.as_str(),
         authorization_contract_address.as_str(),
     )?;
 
     // Let's create two Valence Base Accounts on Ethereum to test the processor with libraries (in this case the forwarder)
-    let eth_deposit_acc = vault::setup_valence_account(&rt, &eth_client, eth_admin_acc)?;
-    let eth_withdraw_acc = vault::setup_valence_account(&rt, &eth_client, eth_admin_acc)?;
+    let eth_deposit_acc = vault::setup_valence_account(rt, eth_client, eth_admin_acc)?;
+    let eth_withdraw_acc = vault::setup_valence_account(rt, eth_client, eth_admin_acc)?;
 
     info!("ETH deposit acc: {eth_deposit_acc}");
     info!("ETH withdraw acc: {eth_withdraw_acc}");
 
-    let deposit_erc20_addr = vault::setup_deposit_erc20(&rt, &eth_client)?;
+    let deposit_erc20_addr = vault::setup_deposit_erc20(rt, eth_client)?;
 
     let vault_address = vault::setup_valence_vault(
-        &rt,
-        &eth_client,
+        rt,
+        eth_client,
         &eth_accounts,
         eth_admin_acc,
         eth_deposit_acc,
