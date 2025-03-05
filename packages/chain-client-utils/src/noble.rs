@@ -70,10 +70,7 @@ impl NobleClient {
 
         let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
 
-        match broadcast_tx_response.tx_response {
-            Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),
-            None => Err(StrategistError::TransactionError("failed".to_string())),
-        }
+        TransactionResponse::try_from(broadcast_tx_response.tx_response)
     }
 
     pub async fn configure_minter_controller(
@@ -103,10 +100,7 @@ impl NobleClient {
 
         let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
 
-        match broadcast_tx_response.tx_response {
-            Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),
-            None => Err(StrategistError::TransactionError("failed".to_string())),
-        }
+        TransactionResponse::try_from(broadcast_tx_response.tx_response)
     }
 
     pub async fn configure_minter(
@@ -140,10 +134,7 @@ impl NobleClient {
 
         let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
 
-        match broadcast_tx_response.tx_response {
-            Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),
-            None => Err(StrategistError::TransactionError("failed".to_string())),
-        }
+        TransactionResponse::try_from(broadcast_tx_response.tx_response)
     }
 
     pub async fn add_remote_token_messenger(
@@ -173,10 +164,7 @@ impl NobleClient {
 
         let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
 
-        match broadcast_tx_response.tx_response {
-            Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),
-            None => Err(StrategistError::TransactionError("failed".to_string())),
-        }
+        TransactionResponse::try_from(broadcast_tx_response.tx_response)
     }
 
     pub async fn link_token_pair(
@@ -208,10 +196,7 @@ impl NobleClient {
 
         let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
 
-        match broadcast_tx_response.tx_response {
-            Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),
-            None => Err(StrategistError::TransactionError("failed".to_string())),
-        }
+        TransactionResponse::try_from(broadcast_tx_response.tx_response)
     }
 }
 
