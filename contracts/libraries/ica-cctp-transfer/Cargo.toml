@@ -14,15 +14,15 @@ crate-type = ["cdylib", "rlib"]
 library = []
 
 [dependencies]
-cosmwasm-schema            = { workspace = true }
-cosmwasm-std               = { workspace = true }
-cw-ownable                 = { workspace = true }
-cw-storage-plus            = { workspace = true }
-schemars                   = { workspace = true }
-serde                      = { workspace = true }
-thiserror                  = { workspace = true }
-valence-macros             = { workspace = true }
-valence-library-utils      = { workspace = true, features = ["neutron"] }
-valence-library-base       = { workspace = true }
-prost                      = { workspace = true }
-neutron-sdk                = { workspace = true }
+cosmwasm-schema       = { workspace = true }
+cosmwasm-std          = { workspace = true }
+cw-ownable            = { workspace = true }
+cw-storage-plus       = { workspace = true }
+schemars              = { workspace = true }
+serde                 = { workspace = true }
+thiserror             = { workspace = true }
+valence-macros        = { workspace = true }
+valence-library-utils = { workspace = true, features = ["neutron"] }
+valence-library-base  = { workspace = true }
+prost                 = { workspace = true, features = ["derive"] }
+neutron-sdk           = { workspace = true }
