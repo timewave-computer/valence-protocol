@@ -300,73 +300,172 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Setting up Lite Processor on Ethereum");
 
-    let (lite_processor_address, vault_address) = eth_side_setup(
-        rt,
-        eth_client,
+    let (
+        lite_processor_address,
+        vault_address,
+        vault_deposit_token_address,
+        deposit_acc_addr,
+        withdraw_acc_addr,
+    ) = eth_side_setup(
+        &rt,
+        &eth_client,
         authorization_contract_address.clone(),
         eth_hyperlane_contracts.mailbox.to_string(),
         eth_accounts,
         eth_admin_acc,
     )?;
 
-    info!("Adding EVM external domain to Authorization contract");
+    let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
 
-    let authorization_exec_env_info =
-        valence_authorization_utils::msg::ExecutionEnvironmentInfo::Evm(
-            EncoderInfo {
-                broker_address: encoder_broker,
-                encoder_version: EVM_ENCODER_NAMESPACE.to_string(),
-            },
-            EvmBridgeInfo::Hyperlane(HyperlaneConnectorInfo {
-                mailbox: ntrn_hyperlane_contracts.mailbox.to_string(),
-                domain_id: ETHEREUM_HYPERLANE_DOMAIN,
-            }),
-        );
+    let valence_vault_deposit_token = MockERC20::new(vault_deposit_token_address, &eth_rp);
+    let valence_vault = ValenceVault::new(vault_address, &eth_rp);
+    let eth_deposit_acc = BaseAccount::new(deposit_acc_addr, &eth_rp);
+    let eth_withdraw_acc = BaseAccount::new(withdraw_acc_addr, &eth_rp);
 
-    let external_domain_info = ExternalDomainInfo {
-        name: ETHEREUM_CHAIN_NAME.to_string(),
-        execution_environment: authorization_exec_env_info,
-        processor: lite_processor_address.to_string(),
-    };
+    let deposit_acc_bal = rt.block_on(async {
+        eth_client
+            .query(valence_vault_deposit_token.balanceOf(deposit_acc_addr))
+            .await
+            .unwrap()
+            ._0
+    });
 
-    let add_external_evm_domain_msg =
-        valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
-            PermissionedMsg::AddExternalDomains {
-                external_domains: vec![external_domain_info],
-            },
-        );
+    let withdraw_acc_bal = rt.block_on(async {
+        eth_client
+            .query(valence_vault_deposit_token.balanceOf(withdraw_acc_addr))
+            .await
+            .unwrap()
+            ._0
+    });
 
-    contract_execute(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        &authorization_contract_address,
-        DEFAULT_KEY,
-        &serde_json::to_string(&add_external_evm_domain_msg).unwrap(),
-        GAS_FLAGS,
-    )
-    .unwrap();
-    std::thread::sleep(Duration::from_secs(3));
+    let admin_acc_bal = rt.block_on(async {
+        eth_client
+            .query(valence_vault_deposit_token.balanceOf(eth_admin_acc))
+            .await
+            .unwrap()
+            ._0
+    });
 
+    info!("ETH DEPOSIT ACC BAL\t: {deposit_acc_bal}");
+    info!("ETH WITHDRAW ACC BAL\t: {withdraw_acc_bal}");
+    info!("ETH ADMIN ACC BAL\t: {admin_acc_bal}");
+
+    info!("funding some accounts with the vault deposit token...");
+    rt.block_on(async {
+        eth_client
+            .execute_tx(
+                valence_vault_deposit_token
+                    .mint(eth_admin_acc, U256::from(10_000_000))
+                    .into_transaction_request(),
+            )
+            .await
+            .unwrap()
+    });
+
+    let admin_acc_bal = rt.block_on(async {
+        eth_client
+            .query(valence_vault_deposit_token.balanceOf(eth_admin_acc))
+            .await
+            .unwrap()
+            ._0
+    });
+
+    info!("ETH ADMIN ACC BAL\t: {admin_acc_bal}");
+
+    info!("trying to deposit into the vault...");
+
+    let deposit_rx = rt.block_on(async {
+        eth_client
+            .execute_tx(
+                valence_vault
+                    .deposit(U256::from(5_000_000), eth_admin_acc)
+                    .into_transaction_request(),
+            )
+            .await
+            .unwrap()
+    });
+
+    info!("vault deposit response: {:?}", deposit_rx.inner);
+
+    // let admin_acc_bal = rt.block_on(async {
+    //     eth_client
+    //         .query(valence_vault_deposit_token.balanceOf(eth_admin_acc))
+    //         .await
+    //         .unwrap()
+    //         ._0
+    // });
+
+    // info!("ETH ADMIN ACC BAL\t: {admin_acc_bal}");
     // test the neutron side flow
-    test_neutron_side_flow(
-        &mut test_ctx,
-        &deposit_acc_addr,
-        &position_acc_addr,
-        &withdraw_acc_addr,
-        NEUTRON_CHAIN_DENOM,
-        &token,
-        &authorization_contract_address,
-        &ntrn_processor_contract_address,
-    )?;
+    // test_neutron_side_flow(
+    //     &mut test_ctx,
+    //     &deposit_acc_addr,
+    //     &position_acc_addr,
+    //     &withdraw_acc_addr,
+    //     NEUTRON_CHAIN_DENOM,
+    //     &token,
+    //     &authorization_contract_address,
+    //     &ntrn_processor_contract_address,
+    //     &encoder_broker,
+    //     &ntrn_hyperlane_contracts.mailbox.to_string(),
+    //     &lite_processor_address.to_string(),
+    // )?;
 
     Ok(())
 }
 
-mod vault {
-    use std::error::Error;
+pub mod vault {
+    use std::{error::Error, str::FromStr};
 
-    use alloy::primitives::U256;
+    use alloy::{
+        primitives::{Address, U256},
+        sol_types::SolValue,
+    };
+    use log::info;
+    use valence_chain_client_utils::{
+        ethereum::EthereumClient,
+        evm::{base_client::EvmBaseClient as _, request_provider_client::RequestProviderClient},
+    };
+    use valence_e2e::utils::{
+        solidity_contracts::{
+            BaseAccount, LiteProcessor,
+            MockERC20::{self, MockERC20Instance},
+            ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
+        },
+        NEUTRON_HYPERLANE_DOMAIN,
+    };
+
+    use crate::SECONDS_IN_DAY;
+
+    pub fn setup_vault_config(
+        accounts: &[Address],
+        eth_deposit_acc: Address,
+        eth_withdraw_acc: Address,
+    ) -> VaultConfig {
+        let fee_config = FeeConfig {
+            depositFeeBps: 0,        // No deposit fee
+            platformFeeBps: 1000,    // 10% yearly platform fee
+            performanceFeeBps: 2000, // 20% performance fee
+            solverCompletionFee: 0,  // No solver completion fee
+        };
+
+        let fee_distribution = FeeDistributionConfig {
+            strategistAccount: accounts[1], // Strategist fee recipient
+            platformAccount: accounts[2],   // Platform fee recipient
+            strategistRatioBps: 5000,       // 50% to strategist
+        };
+
+        VaultConfig {
+            depositAccount: eth_deposit_acc,
+            withdrawAccount: eth_withdraw_acc,
+            strategist: accounts[0],
+            fees: fee_config,
+            feeDistribution: fee_distribution,
+            depositCap: 0,                        // No cap (for real)
+            withdrawLockupPeriod: SECONDS_IN_DAY, // 1 day lockup
+            maxWithdrawFeeBps: 100,               // 1% max withdraw fee
+        }
+    }
 
     pub fn pause() -> Result<(), Box<dyn Error>> {
         Ok(())
@@ -390,118 +489,158 @@ mod vault {
         // update
         Ok(())
     }
+
+    pub fn setup_deposit_erc20(
+        rt: &tokio::runtime::Runtime,
+        eth_client: &EthereumClient,
+    ) -> Result<Address, Box<dyn Error>> {
+        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+
+        info!("Deploying ERC20s on Ethereum...");
+        let evm_vault_deposit_token_tx =
+            MockERC20::deploy_builder(&eth_rp, "TestUSDC".to_string(), "TUSD".to_string())
+                .into_transaction_request();
+
+        let evm_vault_deposit_token_rx = rt.block_on(async {
+            valence_chain_client_utils::evm::base_client::EvmBaseClient::execute_tx(
+                eth_client,
+                evm_vault_deposit_token_tx,
+            )
+            .await
+            .unwrap()
+        });
+
+        let valence_vault_deposit_token_address =
+            evm_vault_deposit_token_rx.contract_address.unwrap();
+
+        Ok(valence_vault_deposit_token_address)
+    }
+
+    pub fn setup_valence_account(
+        rt: &tokio::runtime::Runtime,
+        eth_client: &EthereumClient,
+        admin: Address,
+    ) -> Result<Address, Box<dyn Error>> {
+        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+
+        info!("Deploying base account on Ethereum...");
+        let base_account_tx =
+            BaseAccount::deploy_builder(&eth_rp, admin, vec![]).into_transaction_request();
+
+        let base_account_rx = rt.block_on(async {
+            eth_client
+                .execute_tx(base_account_tx.clone())
+                .await
+                .unwrap()
+        });
+
+        let base_account_addr = base_account_rx.contract_address.unwrap();
+
+        Ok(base_account_addr)
+    }
+
+    pub fn setup_lite_processor(
+        rt: &tokio::runtime::Runtime,
+        eth_client: &EthereumClient,
+        admin: Address,
+        mailbox: &str,
+        authorization_contract_address: &str,
+    ) -> Result<Address, Box<dyn Error>> {
+        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+
+        let tx = LiteProcessor::deploy_builder(
+            &eth_rp,
+            valence_e2e::utils::hyperlane::bech32_to_evm_bytes32(authorization_contract_address)?,
+            Address::from_str(mailbox)?,
+            NEUTRON_HYPERLANE_DOMAIN,
+            vec![admin],
+        )
+        .into_transaction_request();
+
+        let lite_processor_rx = rt.block_on(async { eth_client.execute_tx(tx).await.unwrap() });
+
+        let lite_processor_address = lite_processor_rx.contract_address.unwrap();
+        info!("Lite Processor deployed at: {}", lite_processor_address);
+
+        Ok(lite_processor_address)
+    }
+
+    pub fn setup_valence_vault(
+        rt: &tokio::runtime::Runtime,
+        eth_client: &EthereumClient,
+        eth_accounts: &Vec<Address>,
+        admin: Address,
+        eth_deposit_acc: Address,
+        eth_withdraw_acc: Address,
+        vault_deposit_token_addr: Address,
+    ) -> Result<Address, Box<dyn Error>> {
+        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+
+        info!("deploying Valence Vault on Ethereum...");
+        let vault_config = setup_vault_config(eth_accounts, eth_deposit_acc, eth_withdraw_acc);
+
+        let vault_tx = ValenceVault::deploy_builder(
+            &eth_rp,
+            admin,                            // owner
+            vault_config.abi_encode().into(), // encoded config
+            vault_deposit_token_addr,         // underlying token
+            "Valence Test Vault".to_string(), // vault token name
+            "vTEST".to_string(),              // vault token symbol
+            U256::from(1e18), // placeholder, tbd what a reasonable value should be here
+        )
+        .into_transaction_request();
+
+        let vault_rx = rt.block_on(async { eth_client.execute_tx(vault_tx).await.unwrap() });
+
+        let vault_address = vault_rx.contract_address.unwrap();
+        info!("Vault deployed at: {vault_address}");
+
+        Ok(vault_address)
+    }
 }
 
 fn eth_side_setup(
-    rt: tokio::runtime::Runtime,
-    eth_client: EthereumClient,
+    rt: &tokio::runtime::Runtime,
+    eth_client: &EthereumClient,
     authorization_contract_address: String,
     eth_mailbox: String,
     eth_accounts: Vec<Address>,
     eth_admin_acc: Address,
-) -> Result<(Address, Address), Box<dyn Error>> {
-    let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
-
-    let tx = LiteProcessor::deploy_builder(
-        &eth_rp,
-        bech32_to_evm_bytes32(&authorization_contract_address)?,
-        Address::from_str(&eth_mailbox)?,
-        NEUTRON_HYPERLANE_DOMAIN,
-        vec![eth_admin_acc],
-    )
-    .into_transaction_request();
-
-    let lite_processor_rx = rt.block_on(async { eth_client.execute_tx(tx).await.unwrap() });
-
-    let lite_processor_address = lite_processor_rx.contract_address.unwrap();
-    info!("Lite Processor deployed at: {}", lite_processor_address);
+) -> Result<(Address, Address, Address, Address, Address), Box<dyn Error>> {
+    let lite_processor_address = vault::setup_lite_processor(
+        &rt,
+        &eth_client,
+        eth_admin_acc,
+        eth_mailbox.as_str(),
+        authorization_contract_address.as_str(),
+    )?;
 
     // Let's create two Valence Base Accounts on Ethereum to test the processor with libraries (in this case the forwarder)
-    info!("Deploying base accounts on Ethereum...");
-    let base_account_tx =
-        BaseAccount::deploy_builder(&eth_rp, eth_admin_acc, vec![]).into_transaction_request();
-
-    let eth_deposit_rx = rt.block_on(async {
-        eth_client
-            .execute_tx(base_account_tx.clone())
-            .await
-            .unwrap()
-    });
-    let eth_withdraw_rx =
-        rt.block_on(async { eth_client.execute_tx(base_account_tx).await.unwrap() });
-
-    let eth_deposit_acc = eth_deposit_rx.contract_address.unwrap();
-    let eth_withdraw_acc = eth_withdraw_rx.contract_address.unwrap();
+    let eth_deposit_acc = vault::setup_valence_account(&rt, &eth_client, eth_admin_acc)?;
+    let eth_withdraw_acc = vault::setup_valence_account(&rt, &eth_client, eth_admin_acc)?;
 
     info!("ETH deposit acc: {eth_deposit_acc}");
     info!("ETH withdraw acc: {eth_withdraw_acc}");
 
-    info!("Deploying ERC20s on Ethereum...");
-    let evm_vault_deposit_token_tx =
-        MockERC20::deploy_builder(&eth_rp, "TestUSDC".to_string(), "TUSD".to_string())
-            .into_transaction_request();
+    let deposit_erc20_addr = vault::setup_deposit_erc20(&rt, &eth_client)?;
 
-    let evm_vault_deposit_token_rx = rt.block_on(async {
-        eth_client
-            .execute_tx(evm_vault_deposit_token_tx)
-            .await
-            .unwrap()
-    });
+    let vault_address = vault::setup_valence_vault(
+        &rt,
+        &eth_client,
+        &eth_accounts,
+        eth_admin_acc,
+        eth_deposit_acc,
+        eth_withdraw_acc,
+        deposit_erc20_addr,
+    )?;
 
-    let valence_vault_deposit_token_address = evm_vault_deposit_token_rx.contract_address.unwrap();
-
-    let valence_vault_deposit_token = MockERC20::new(valence_vault_deposit_token_address, &eth_rp);
-
-    info!("deploying Valence Vault on Ethereum...");
-    let vault_config = setup_vault_config(&eth_accounts, eth_deposit_acc, eth_withdraw_acc);
-
-    let vault_tx = ValenceVault::deploy_builder(
-        &eth_rp,
-        eth_admin_acc,                          // owner
-        vault_config.abi_encode().into(),       // encoded config
-        *valence_vault_deposit_token.address(), // underlying token
-        "Valence Test Vault".to_string(),       // vault token name
-        "vTEST".to_string(),                    // vault token symbol
-        U256::from(1e18), // placeholder, tbd what a reasonable value should be here
-    )
-    .into_transaction_request();
-
-    let vault_rx = rt.block_on(async { eth_client.execute_tx(vault_tx).await.unwrap() });
-
-    let vault_address = vault_rx.contract_address.unwrap();
-    info!("Vault deployed at: {vault_address}");
-
-    Ok((lite_processor_address, vault_address))
-}
-
-fn setup_vault_config(
-    accounts: &[Address],
-    eth_deposit_acc: Address,
-    eth_withdraw_acc: Address,
-) -> VaultConfig {
-    let fee_config = FeeConfig {
-        depositFeeBps: 0,        // No deposit fee
-        platformFeeBps: 1000,    // 10% yearly platform fee
-        performanceFeeBps: 2000, // 20% performance fee
-        solverCompletionFee: 0,  // No solver completion fee
-    };
-
-    let fee_distribution = FeeDistributionConfig {
-        strategistAccount: accounts[1], // Strategist fee recipient
-        platformAccount: accounts[2],   // Platform fee recipient
-        strategistRatioBps: 5000,       // 50% to strategist
-    };
-
-    VaultConfig {
-        depositAccount: eth_deposit_acc,
-        withdrawAccount: eth_withdraw_acc,
-        strategist: accounts[0],
-        fees: fee_config,
-        feeDistribution: fee_distribution,
-        depositCap: 0,                        // No cap (for real)
-        withdrawLockupPeriod: SECONDS_IN_DAY, // 1 day lockup
-        maxWithdrawFeeBps: 100,               // 1% max withdraw fee
-    }
+    Ok((
+        lite_processor_address,
+        vault_address,
+        deposit_erc20_addr,
+        eth_deposit_acc,
+        eth_withdraw_acc,
+    ))
 }
 
 fn setup_valence_encoder_broker(
@@ -591,7 +730,49 @@ fn test_neutron_side_flow(
     denom_2: &str,
     authorizations_addr: &str,
     ntrn_processor_addr: &str,
+    encoder_broker: &str,
+    ntrn_mailbox: &str,
+    lite_processor_address: &str,
 ) -> Result<(), Box<dyn Error>> {
+    info!("Adding EVM external domain to Authorization contract");
+
+    let authorization_exec_env_info =
+        valence_authorization_utils::msg::ExecutionEnvironmentInfo::Evm(
+            EncoderInfo {
+                broker_address: encoder_broker.to_string(),
+                encoder_version: EVM_ENCODER_NAMESPACE.to_string(),
+            },
+            EvmBridgeInfo::Hyperlane(HyperlaneConnectorInfo {
+                mailbox: ntrn_mailbox.to_string(),
+                domain_id: ETHEREUM_HYPERLANE_DOMAIN,
+            }),
+        );
+
+    let external_domain_info = ExternalDomainInfo {
+        name: ETHEREUM_CHAIN_NAME.to_string(),
+        execution_environment: authorization_exec_env_info,
+        processor: lite_processor_address.to_string(),
+    };
+
+    let add_external_evm_domain_msg =
+        valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
+            PermissionedMsg::AddExternalDomains {
+                external_domains: vec![external_domain_info],
+            },
+        );
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &authorizations_addr,
+        DEFAULT_KEY,
+        &serde_json::to_string(&add_external_evm_domain_msg).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+    std::thread::sleep(Duration::from_secs(3));
+
     info!("funding the input account...");
     bank::send(
         test_ctx
