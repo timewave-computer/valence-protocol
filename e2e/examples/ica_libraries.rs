@@ -4,10 +4,10 @@ use localic_utils::{
     types::config::ConfigChain, ConfigChainBuilder, TestContextBuilder, LOCAL_IC_API_URL,
     NEUTRON_CHAIN_NAME,
 };
-use valence_chain_client_utils::{cosmos::base_client::BaseClient, noble::NobleClient};
+use valence_chain_client_utils::noble::NobleClient;
 use valence_e2e::utils::{
-    ADMIN_MNEMONIC, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID,
-    NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, VALENCE_ARTIFACTS_PATH,
+    noble::set_up_noble, ADMIN_MNEMONIC, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM,
+    NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, VALENCE_ARTIFACTS_PATH,
 };
 
 const UUSDC_DENOM: &str = "uusdc";
@@ -45,35 +45,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap()
     });
 
-    let module_account =
-        rt.block_on(async { noble_client.query_module_account("cctp").await.unwrap() });
-
-    println!("Module account: {:?}", module_account);
-
-    // Let's mint some USDC tokens
-    let tx_response = rt.block_on(async {
-        noble_client
-            .mint_fiat(
-                NOBLE_CHAIN_ADMIN_ADDR,
-                NOBLE_CHAIN_ADMIN_ADDR,
-                "1000000",
-                UUSDC_DENOM,
-            )
-            .await
-            .unwrap()
-    });
-
-    println!("Tx response: {:?}", tx_response);
-
-    // Check balance
-    let balance = rt.block_on(async {
-        noble_client
-            .query_balance(NOBLE_CHAIN_ADMIN_ADDR, UUSDC_DENOM)
-            .await
-            .unwrap()
-    });
-
-    println!("Balance: {:?}", balance);
+    // Set up our noble environment to allow for testing
+    rt.block_on(set_up_noble(&noble_client, 0, UUSDC_DENOM));
 
     Ok(())
 }

@@ -5,6 +5,7 @@ pub mod hyperlane;
 pub mod ibc;
 pub mod icq;
 pub mod manager;
+pub mod noble;
 pub mod osmosis;
 pub mod persistence;
 pub mod polytone;

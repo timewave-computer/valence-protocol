@@ -75,6 +75,181 @@ impl NobleClient {
             None => Err(StrategistError::TransactionError("failed".to_string())),
         }
     }
+
+    pub async fn configure_minter_controller(
+        &self,
+        sender: &str,
+        controller: &str,
+        minter: &str,
+    ) -> Result<TransactionResponse, StrategistError> {
+        let signing_client = self.get_signing_client().await?;
+
+        let configure_minter_controller_msg = MsgConfigureMinterController {
+            from: sender.to_string(),
+            controller: controller.to_string(),
+            minter: minter.to_string(),
+        };
+
+        let any_msg = Any::from_msg(&configure_minter_controller_msg)?;
+
+        let simulation_response = self.simulate_tx(any_msg.clone()).await?;
+        let fee = self.get_tx_fee(simulation_response)?;
+
+        let raw_tx = signing_client.create_tx(any_msg, fee, None).await?;
+
+        let channel = self.get_grpc_channel().await?;
+
+        let mut grpc_client = CosmosServiceClient::new(channel);
+
+        let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
+
+        match broadcast_tx_response.tx_response {
+            Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),
+            None => Err(StrategistError::TransactionError("failed".to_string())),
+        }
+    }
+
+    pub async fn configure_minter(
+        &self,
+        sender: &str,
+        address: &str,
+        allowance: &str,
+        denom: &str,
+    ) -> Result<TransactionResponse, StrategistError> {
+        let signing_client = self.get_signing_client().await?;
+
+        let configure_minter_msg = MsgConfigureMinter {
+            from: sender.to_string(),
+            address: address.to_string(),
+            allowance: Some(cosmos_sdk_proto::cosmos::base::v1beta1::Coin {
+                denom: denom.to_string(),
+                amount: allowance.to_string(),
+            }),
+        };
+
+        let any_msg = Any::from_msg(&configure_minter_msg)?;
+
+        let simulation_response = self.simulate_tx(any_msg.clone()).await?;
+        let fee = self.get_tx_fee(simulation_response)?;
+
+        let raw_tx = signing_client.create_tx(any_msg, fee, None).await?;
+
+        let channel = self.get_grpc_channel().await?;
+
+        let mut grpc_client = CosmosServiceClient::new(channel);
+
+        let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
+
+        match broadcast_tx_response.tx_response {
+            Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),
+            None => Err(StrategistError::TransactionError("failed".to_string())),
+        }
+    }
+
+    pub async fn add_remote_token_messenger(
+        &self,
+        signer: &str,
+        domain_id: u32,
+        address: &[u8],
+    ) -> Result<TransactionResponse, StrategistError> {
+        let signing_client = self.get_signing_client().await?;
+
+        let add_remote_token_messenger_msg = MsgAddRemoteTokenMessenger {
+            from: signer.to_string(),
+            domain_id,
+            address: address.to_vec(),
+        };
+
+        let any_msg = Any::from_msg(&add_remote_token_messenger_msg)?;
+
+        let simulation_response = self.simulate_tx(any_msg.clone()).await?;
+        let fee = self.get_tx_fee(simulation_response)?;
+
+        let raw_tx = signing_client.create_tx(any_msg, fee, None).await?;
+
+        let channel = self.get_grpc_channel().await?;
+
+        let mut grpc_client = CosmosServiceClient::new(channel);
+
+        let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
+
+        match broadcast_tx_response.tx_response {
+            Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),
+            None => Err(StrategistError::TransactionError("failed".to_string())),
+        }
+    }
+
+    pub async fn link_token_pair(
+        &self,
+        signer: &str,
+        remote_domain: u32,
+        remote_token: &[u8],
+        local_token: &str,
+    ) -> Result<TransactionResponse, StrategistError> {
+        let signing_client = self.get_signing_client().await?;
+
+        let link_token_pair_msg = MsgLinkTokenPair {
+            from: signer.to_string(),
+            remote_domain,
+            remote_token: remote_token.to_vec(),
+            local_token: local_token.to_string(),
+        };
+
+        let any_msg = Any::from_msg(&link_token_pair_msg)?;
+
+        let simulation_response = self.simulate_tx(any_msg.clone()).await?;
+        let fee = self.get_tx_fee(simulation_response)?;
+
+        let raw_tx = signing_client.create_tx(any_msg, fee, None).await?;
+
+        let channel = self.get_grpc_channel().await?;
+
+        let mut grpc_client = CosmosServiceClient::new(channel);
+
+        let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
+
+        match broadcast_tx_response.tx_response {
+            Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),
+            None => Err(StrategistError::TransactionError("failed".to_string())),
+        }
+    }
+
+    pub async fn deposit_for_burn(
+        &self,
+        signer: &str,
+        amount: &str,
+        destination_domain: u32,
+        mint_recipient: &[u8],
+        burn_token: &str,
+    ) -> Result<TransactionResponse, StrategistError> {
+        let signing_client = self.get_signing_client().await?;
+
+        let deposit_for_burn_msg = MsgDepositForBurn {
+            from: signer.to_string(),
+            amount: amount.to_string(),
+            destination_domain,
+            mint_recipient: mint_recipient.to_vec(),
+            burn_token: burn_token.to_string(),
+        };
+
+        let any_msg = Any::from_msg(&deposit_for_burn_msg)?;
+
+        let simulation_response = self.simulate_tx(any_msg.clone()).await?;
+        let fee = self.get_tx_fee(simulation_response)?;
+
+        let raw_tx = signing_client.create_tx(any_msg, fee, None).await?;
+
+        let channel = self.get_grpc_channel().await?;
+
+        let mut grpc_client = CosmosServiceClient::new(channel);
+
+        let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
+
+        match broadcast_tx_response.tx_response {
+            Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),
+            None => Err(StrategistError::TransactionError("failed".to_string())),
+        }
+    }
 }
 
 /// noble is a base cosmos chain
@@ -113,6 +288,7 @@ impl GrpcSigningClient for NobleClient {
 }
 
 // Proto definitions to interact with noble
+
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct MsgMint {
@@ -131,9 +307,143 @@ impl ::prost::Name for MsgMint {
     const NAME: &'static str = "MsgMint";
     const PACKAGE: &'static str = "circle.fiattokenfactory.v1";
     fn full_name() -> ::prost::alloc::string::String {
-        "ibc.applications.transfer.v1.MsgMint".into()
+        "circle.fiattokenfactory.v1.MsgMint".into()
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/circle.fiattokenfactory.v1.MsgMint".into()
+    }
+}
+
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MsgConfigureMinterController {
+    /// the sender address
+    #[prost(string, tag = "1")]
+    pub from: ::prost::alloc::string::String,
+    /// the controller address
+    #[prost(string, tag = "2")]
+    pub controller: ::prost::alloc::string::String,
+    /// the minter address
+    #[prost(string, tag = "3")]
+    pub minter: ::prost::alloc::string::String,
+}
+
+impl ::prost::Name for MsgConfigureMinterController {
+    const NAME: &'static str = "MsgConfigureMinterController";
+    const PACKAGE: &'static str = "circle.fiattokenfactory.v1";
+    fn full_name() -> ::prost::alloc::string::String {
+        "circle.fiattokenfactory.v1.MsgConfigureMinterController".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/circle.fiattokenfactory.v1.MsgConfigureMinterController".into()
+    }
+}
+
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MsgConfigureMinter {
+    /// the sender address
+    #[prost(string, tag = "1")]
+    pub from: ::prost::alloc::string::String,
+    /// the minter address
+    #[prost(string, tag = "2")]
+    pub address: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "3")]
+    /// how much the minter can mint
+    pub allowance: ::core::option::Option<cosmos_sdk_proto::cosmos::base::v1beta1::Coin>,
+}
+
+impl ::prost::Name for MsgConfigureMinter {
+    const NAME: &'static str = "MsgConfigureMinter";
+    const PACKAGE: &'static str = "circle.fiattokenfactory.v1";
+    fn full_name() -> ::prost::alloc::string::String {
+        "circle.fiattokenfactory.v1.MsgConfigureMinter".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/circle.fiattokenfactory.v1.MsgConfigureMinter".into()
+    }
+}
+
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MsgAddRemoteTokenMessenger {
+    /// the signer address
+    #[prost(string, tag = "1")]
+    pub from: ::prost::alloc::string::String,
+    /// the domain ID
+    #[prost(uint32, tag = "2")]
+    pub domain_id: u32,
+    /// the remote token messenger address
+    #[prost(bytes, tag = "3")]
+    pub address: ::prost::alloc::vec::Vec<u8>,
+}
+
+impl ::prost::Name for MsgAddRemoteTokenMessenger {
+    const NAME: &'static str = "MsgAddRemoteTokenMessenger";
+    const PACKAGE: &'static str = "circle.cctp.v1";
+    fn full_name() -> ::prost::alloc::string::String {
+        "circle.cctp.v1.MsgAddRemoteTokenMessenger".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/circle.cctp.v1.MsgAddRemoteTokenMessenger".into()
+    }
+}
+
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MsgLinkTokenPair {
+    /// the signer address
+    #[prost(string, tag = "1")]
+    pub from: ::prost::alloc::string::String,
+    /// the remote domain ID
+    #[prost(uint32, tag = "2")]
+    pub remote_domain: u32,
+    /// the remote token address
+    #[prost(bytes, tag = "3")]
+    pub remote_token: ::prost::alloc::vec::Vec<u8>,
+    /// the local token denom
+    #[prost(string, tag = "4")]
+    pub local_token: ::prost::alloc::string::String,
+}
+
+impl ::prost::Name for MsgLinkTokenPair {
+    const NAME: &'static str = "MsgLinkTokenPair";
+    const PACKAGE: &'static str = "circle.cctp.v1";
+    fn full_name() -> ::prost::alloc::string::String {
+        "circle.cctp.v1.MsgLinkTokenPair".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/circle.cctp.v1.MsgLinkTokenPair".into()
+    }
+}
+
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MsgDepositForBurn {
+    /// the signer address
+    #[prost(string, tag = "1")]
+    pub from: ::prost::alloc::string::String,
+    /// the amount to bridge
+    #[prost(string, tag = "2")]
+    pub amount: ::prost::alloc::string::String,
+    /// the destination domain
+    #[prost(uint32, tag = "3")]
+    pub destination_domain: u32,
+    /// the mint recipient address
+    #[prost(bytes, tag = "4")]
+    pub mint_recipient: ::prost::alloc::vec::Vec<u8>,
+    /// the token denom that is being bridged
+    #[prost(string, tag = "5")]
+    pub burn_token: ::prost::alloc::string::String,
+}
+
+impl ::prost::Name for MsgDepositForBurn {
+    const NAME: &'static str = "MsgDepositForBurn";
+    const PACKAGE: &'static str = "circle.cctp.v1";
+    fn full_name() -> ::prost::alloc::string::String {
+        "circle.cctp.v1.MsgDepositForBurn".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/circle.cctp.v1.MsgDepositForBurn".into()
     }
 }
