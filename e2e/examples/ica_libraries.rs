@@ -35,8 +35,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let rt = tokio::runtime::Runtime::new()?;
     let noble_client = rt.block_on(async {
         NobleClient::new(
-            "http://127.0.0.1",
-            "45717",
+            "http://0.0.0.0",
+            "38237",
             ADMIN_MNEMONIC,
             NOBLE_CHAIN_ID,
             NOBLE_CHAIN_DENOM,

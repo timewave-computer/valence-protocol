@@ -27,7 +27,7 @@ pub async fn set_up_noble(noble_client: &NobleClient, domain_id: u32, denom: &st
         .await
         .unwrap();
     info!("Minter controller configured response: {:?}", tx_response);
-    std::thread::sleep(std::time::Duration::from_secs(3));
+    noble_client.poll_for_tx(&tx_response.hash).await.unwrap();
 
     // Then we configure the module account as a minter with a big mint allowance
     let tx_response = noble_client
@@ -40,7 +40,7 @@ pub async fn set_up_noble(noble_client: &NobleClient, domain_id: u32, denom: &st
         .await
         .unwrap();
     info!("Minter configured response: {:?}", tx_response);
-    std::thread::sleep(std::time::Duration::from_secs(3));
+    noble_client.poll_for_tx(&tx_response.hash).await.unwrap();
 
     // Add a remote token messenger address for the domain_id
     // Any address will do as we just want to test the burn functionality
@@ -50,13 +50,13 @@ pub async fn set_up_noble(noble_client: &NobleClient, domain_id: u32, denom: &st
 
     match tx_response {
         Ok(response) => {
+            noble_client.poll_for_tx(&response.hash).await.unwrap();
             info!("Remote token messenger added response: {:?}", response);
         }
         Err(_) => {
             info!("Remote token messenger already added!");
         }
     }
-    std::thread::sleep(std::time::Duration::from_secs(3));
 
     // Link the local token with a remote token
     // Any remote token will do for testing
@@ -65,11 +65,11 @@ pub async fn set_up_noble(noble_client: &NobleClient, domain_id: u32, denom: &st
         .await;
     match tx_response {
         Ok(response) => {
+            noble_client.poll_for_tx(&response.hash).await.unwrap();
             info!("Token pair linked response: {:?}", response);
         }
         Err(_) => {
             info!("Token pair already linked!");
         }
     }
-    std::thread::sleep(std::time::Duration::from_secs(3));
 }
