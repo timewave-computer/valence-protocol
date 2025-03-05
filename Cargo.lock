@@ -8730,6 +8730,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-ica-cctp-transfer"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "neutron-sdk",
+ "prost 0.13.5",
+ "schemars",
+ "serde",
+ "thiserror 1.0.69",
+ "valence-interchain-account",
+ "valence-library-base",
+ "valence-library-utils",
+ "valence-macros",
+]
+
+[[package]]
 name = "valence-interchain-account"
 version = "0.2.0"
 dependencies = [
@@ -8777,12 +8796,14 @@ dependencies = [
  "cw-utils 2.0.0",
  "cw20 2.0.0",
  "cw20-base 2.0.0",
+ "neutron-sdk",
  "serde",
  "serde_json",
  "sha2 0.10.8",
  "thiserror 1.0.69",
  "valence-account-utils",
  "valence-base-account",
+ "valence-interchain-account",
  "valence-macros",
 ]
 

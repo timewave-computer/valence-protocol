@@ -49,7 +49,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap()
     });
 
-    // Set up our noble environment to allow for testing
+    // Set up our noble environment to allow for testing on domain_id 0 and with USDC as the bridging denom
     rt.block_on(set_up_noble(&noble_client, 0, UUSDC_DENOM));
 
     Ok(())

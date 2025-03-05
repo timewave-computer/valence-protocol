@@ -213,43 +213,6 @@ impl NobleClient {
             None => Err(StrategistError::TransactionError("failed".to_string())),
         }
     }
-
-    pub async fn deposit_for_burn(
-        &self,
-        signer: &str,
-        amount: &str,
-        destination_domain: u32,
-        mint_recipient: &[u8],
-        burn_token: &str,
-    ) -> Result<TransactionResponse, StrategistError> {
-        let signing_client = self.get_signing_client().await?;
-
-        let deposit_for_burn_msg = MsgDepositForBurn {
-            from: signer.to_string(),
-            amount: amount.to_string(),
-            destination_domain,
-            mint_recipient: mint_recipient.to_vec(),
-            burn_token: burn_token.to_string(),
-        };
-
-        let any_msg = Any::from_msg(&deposit_for_burn_msg)?;
-
-        let simulation_response = self.simulate_tx(any_msg.clone()).await?;
-        let fee = self.get_tx_fee(simulation_response)?;
-
-        let raw_tx = signing_client.create_tx(any_msg, fee, None).await?;
-
-        let channel = self.get_grpc_channel().await?;
-
-        let mut grpc_client = CosmosServiceClient::new(channel);
-
-        let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
-
-        match broadcast_tx_response.tx_response {
-            Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),
-            None => Err(StrategistError::TransactionError("failed".to_string())),
-        }
-    }
 }
 
 /// noble is a base cosmos chain
@@ -414,36 +377,5 @@ impl ::prost::Name for MsgLinkTokenPair {
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/circle.cctp.v1.MsgLinkTokenPair".into()
-    }
-}
-
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct MsgDepositForBurn {
-    /// the signer address
-    #[prost(string, tag = "1")]
-    pub from: ::prost::alloc::string::String,
-    /// the amount to bridge
-    #[prost(string, tag = "2")]
-    pub amount: ::prost::alloc::string::String,
-    /// the destination domain
-    #[prost(uint32, tag = "3")]
-    pub destination_domain: u32,
-    /// the mint recipient address
-    #[prost(bytes, tag = "4")]
-    pub mint_recipient: ::prost::alloc::vec::Vec<u8>,
-    /// the token denom that is being bridged
-    #[prost(string, tag = "5")]
-    pub burn_token: ::prost::alloc::string::String,
-}
-
-impl ::prost::Name for MsgDepositForBurn {
-    const NAME: &'static str = "MsgDepositForBurn";
-    const PACKAGE: &'static str = "circle.cctp.v1";
-    fn full_name() -> ::prost::alloc::string::String {
-        "circle.cctp.v1.MsgDepositForBurn".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/circle.cctp.v1.MsgDepositForBurn".into()
     }
 }
