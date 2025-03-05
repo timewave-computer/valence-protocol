@@ -55,6 +55,7 @@ sol!(
 // Valence ERC4626-based vault
 sol!(
     #[sol(rpc)]
+    #[derive(Debug, PartialEq, Eq)]
     ValenceVault,
     "../solidity/out/ValenceVault.sol/ValenceVault.json",
 );
