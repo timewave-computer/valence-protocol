@@ -23,6 +23,7 @@ valence-processor-utils = { workspace = true }
 hex = "0.4.3"
 neutron-std = "5.1.2"
 ibc = "0.57.0"
+prost = "0.13.5"
 
 # evm-specific imports
 alloy_signer_local = { package = "alloy-signer-local", version = "0.9.2", features = [

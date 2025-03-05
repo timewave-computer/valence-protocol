@@ -55,6 +55,7 @@ valence-middleware-broker            = { workspace = true }
 valence-middleware-osmosis           = { workspace = true }
 valence-middleware-utils             = { workspace = true }
 valence-middleware-asserter          = { workspace = true }
+valence-chain-client-utils           = { workspace = true }
 alloy                                = { version = "0.9.2", features = ["full"] }
 alloy_primitives_encoder             = { package = "alloy-primitives", version = "0.7.7" }
 alloy_sol_types_encoder              = { package = "alloy-sol-types", version = "0.7.7" }
