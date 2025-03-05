@@ -14,6 +14,7 @@ use crate::{
         CosmwasmBridge, Domain, Encoder, EvmBridge, ExecutionEnvironment, ExternalDomain,
         HyperlaneConnector, PolytoneConnectors, PolytoneNote, PolytoneProxyState,
     },
+    zk::{self, VerifyingKey},
 };
 
 #[cw_serde]
@@ -265,6 +266,7 @@ pub enum InternalAuthorizationMsg {
 #[cw_serde]
 pub enum ProcessorMessage {
     CosmwasmExecuteMsg { msg: Binary },
+    CosmwasmExecuteZKMsg { msg: Binary, proof: Binary },
     CosmwasmMigrateMsg { code_id: u64, msg: Binary },
     EvmCall { msg: Binary },
     EvmRawCall { msg: Binary },
@@ -290,6 +292,7 @@ impl ProcessorMessage {
     pub fn get_msg(&self) -> &Binary {
         match self {
             ProcessorMessage::CosmwasmExecuteMsg { msg } => msg,
+            ProcessorMessage::CosmwasmExecuteZKMsg { msg, .. } => msg,
             ProcessorMessage::CosmwasmMigrateMsg { msg, .. } => msg,
             ProcessorMessage::EvmCall { msg } => msg,
             ProcessorMessage::EvmRawCall { msg } => msg,
@@ -299,6 +302,7 @@ impl ProcessorMessage {
     pub fn set_msg(&mut self, msg: Binary) {
         match self {
             ProcessorMessage::CosmwasmExecuteMsg { msg: msg_ref } => *msg_ref = msg,
+            ProcessorMessage::CosmwasmExecuteZKMsg { msg: msg_ref, .. } => *msg_ref = msg,
             ProcessorMessage::CosmwasmMigrateMsg { msg: msg_ref, .. } => *msg_ref = msg,
             ProcessorMessage::EvmCall { msg: msg_ref } => *msg_ref = msg,
             ProcessorMessage::EvmRawCall { msg: msg_ref } => *msg_ref = msg,
@@ -312,6 +316,11 @@ impl ProcessorMessage {
                 msg: msg.clone(),
                 funds: vec![],
             }),
+            ProcessorMessage::CosmwasmExecuteZKMsg { msg, .. } => Ok(WasmMsg::Execute {
+                contract_addr: contract_addr.to_string(),
+                msg: msg.clone(),
+                funds: vec![],
+            }),
             ProcessorMessage::CosmwasmMigrateMsg { code_id, msg } => Ok(WasmMsg::Migrate {
                 contract_addr: contract_addr.to_string(),
                 new_code_id: *code_id,
@@ -320,6 +329,15 @@ impl ProcessorMessage {
             ProcessorMessage::EvmCall { .. } | ProcessorMessage::EvmRawCall { .. } => {
                 Err(StdError::generic_err("Msg type not supported"))
             }
+        }
+    }
+
+    pub fn verify_zk_proof(&self, vk: &VerifyingKey) -> bool {
+        match self {
+            Self::CosmwasmExecuteZKMsg { msg, proof } => {
+                zk::verify_proof(vk, proof.as_slice(), msg.as_slice())
+            }
+            _ => false,
         }
     }
 }

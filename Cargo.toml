@@ -38,6 +38,9 @@ overflow-checks  = true
 
 [workspace.dependencies]
 anyhow          = "1.0.86"
+ark-bn254       = "0.4.0"
+ark-groth16     = "0.4.0"
+ark-serialize   = "0.4.0"
 cosmwasm-std    = { version = "2.1.3" }
 cosmwasm-schema = "2.1.3"
 cosmwasm-crypto = "2.1.3"

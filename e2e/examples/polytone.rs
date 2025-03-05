@@ -617,6 +617,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             expiration_time: None,
         }),
         priority: None,
+        zk_vk: None,
     };
     let tokenfactory_token = format!(
         "factory/{}/label",

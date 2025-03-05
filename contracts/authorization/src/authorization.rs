@@ -332,6 +332,16 @@ impl Validate for Authorization {
     }
 
     fn validate_messages(&self, messages: &[ProcessorMessage]) -> Result<(), ContractError> {
+        // if the contract has a verifying key, then only processor messages that
+        // contains proofs are allowed
+        if let Some(vk) = &self.zk_vk {
+            for m in messages {
+                if !m.verify_zk_proof(vk) {
+                    return Err(ContractError::ZKProofVerificationError);
+                }
+            }
+        }
+
         match &self.subroutine {
             Subroutine::Atomic(config) => {
                 Self::validate_messages_generic(messages, &config.functions)?
@@ -364,6 +374,7 @@ impl Validate for Authorization {
             // If it's raw bytes we are going to validate the raw bytes
             match each_message {
                 ProcessorMessage::CosmwasmExecuteMsg { .. }
+                | ProcessorMessage::CosmwasmExecuteZKMsg { .. }
                 | ProcessorMessage::CosmwasmMigrateMsg { .. }
                 | ProcessorMessage::EvmCall { .. } => {
                     // Extract the json from each message
