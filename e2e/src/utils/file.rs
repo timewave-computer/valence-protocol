@@ -35,7 +35,9 @@ pub fn get_grpc_address_from_logs(target_chain_id: &str) -> Result<String, Box<d
     Err(format!("Chain with ID '{}' not found in logs file", target_chain_id).into())
 }
 
-pub fn get_grpc_address_and_port(target_chain_id: &str) -> Result<(String, u16), Box<dyn Error>> {
+pub fn get_grpc_address_and_port(
+    target_chain_id: &str,
+) -> Result<(String, String), Box<dyn Error>> {
     // Get the gRPC address from the logs file
     let grpc_address = get_grpc_address_from_logs(target_chain_id)?;
 
@@ -50,8 +52,5 @@ pub fn get_grpc_address_and_port(target_chain_id: &str) -> Result<(String, u16),
     // Prepend "http://" to the address part
     let http_address = format!("http://{}", parts[0]);
 
-    // Parse the port part into a u16 integer
-    let port = parts[1].parse::<u16>()?;
-
-    Ok((http_address, port))
+    Ok((http_address, parts[1].to_string()))
 }
