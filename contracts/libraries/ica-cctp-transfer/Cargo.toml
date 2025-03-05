@@ -24,6 +24,5 @@ thiserror                  = { workspace = true }
 valence-macros             = { workspace = true }
 valence-library-utils      = { workspace = true, features = ["neutron"] }
 valence-library-base       = { workspace = true }
-valence-interchain-account = { workspace = true, features = ["library"] }
 prost                      = { workspace = true }
 neutron-sdk                = { workspace = true }

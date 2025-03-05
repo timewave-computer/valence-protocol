@@ -8742,7 +8742,6 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror 1.0.69",
- "valence-interchain-account",
  "valence-library-base",
  "valence-library-utils",
  "valence-macros",
