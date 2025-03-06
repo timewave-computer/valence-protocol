@@ -33,40 +33,35 @@ pub fn instantiate(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::ReserveId {} => execute::reserve_id(deps, &info),
-        ExecuteMsg::SaveProgram { id, program_config } => {
-            execute::save_program(deps, &info, id, program_config)
-        }
+        ExecuteMsg::ReserveId { addr } => execute::reserve_id(deps, addr),
+        ExecuteMsg::SaveProgram {
+            id,
+            owner,
+            program_config,
+        } => execute::save_program(deps, &info, id, owner, program_config),
         ExecuteMsg::UpdateProgram { id, program_config } => {
             execute::update_program(deps, &info, id, program_config)
-        }
-        ExecuteMsg::UpdateOwnership(ownership_action) => {
-            cw_ownable::update_ownership(deps, &env.block, &info.sender, ownership_action)?;
-
-            Ok(Response::new().add_attribute("method", "update_ownership"))
         }
     }
 }
 
 mod execute {
     use cosmwasm_std::{Binary, DepsMut, MessageInfo, Response};
-    use cw_ownable::assert_owner;
 
     use crate::{
-        state::{LAST_ID, PROGRAMS, PROGRAMS_BACKUP},
+        state::{LAST_ID, PROGRAMS, PROGRAMS_BACKUP, PROGRAMS_OWNERS},
         ContractError,
     };
 
-    pub fn reserve_id(deps: DepsMut, info: &MessageInfo) -> Result<Response, ContractError> {
-        assert_owner(deps.storage, &info.sender)?;
-
+    pub fn reserve_id(deps: DepsMut, addr: String) -> Result<Response, ContractError> {
         let id = LAST_ID.load(deps.storage)? + 1;
         LAST_ID.save(deps.storage, &id)?;
+        PROGRAMS_OWNERS.save(deps.storage, id, &deps.api.addr_validate(&addr)?)?;
 
         Ok(Response::new()
             .add_attribute("method", "reserve_id")
@@ -77,15 +72,23 @@ mod execute {
         deps: DepsMut,
         info: &MessageInfo,
         id: u64,
+        owner: String,
         program_config: Binary,
     ) -> Result<Response, ContractError> {
-        assert_owner(deps.storage, &info.sender)?;
+        // When id reserved, only that reserver can save program to this id
+        let id_temp_owner = PROGRAMS_OWNERS.load(deps.storage, id)?;
+        if id_temp_owner != info.sender {
+            return Err(ContractError::UnauthorizedToSave(id_temp_owner.to_string()));
+        }
 
         if PROGRAMS.has(deps.storage, id) {
             return Err(ContractError::ProgramAlreadyExists(id));
         } else {
             PROGRAMS.save(deps.storage, id, &program_config)?;
         }
+
+        // After saving program, update owner so only the owner will be able to update this program
+        PROGRAMS_OWNERS.save(deps.storage, id, &deps.api.addr_validate(&owner)?)?;
 
         Ok(Response::new()
             .add_attribute("method", "get_id")
@@ -98,7 +101,12 @@ mod execute {
         id: u64,
         program_config: Binary,
     ) -> Result<Response, ContractError> {
-        assert_owner(deps.storage, &info.sender)?;
+        let program_owner = PROGRAMS_OWNERS.load(deps.storage, id)?;
+        if program_owner != info.sender {
+            return Err(ContractError::UnauthorizedToUpdate(
+                program_owner.to_string(),
+            ));
+        }
 
         match PROGRAMS.may_load(deps.storage, id)? {
             Some(previous_program) => {
