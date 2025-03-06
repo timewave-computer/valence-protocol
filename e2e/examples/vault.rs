@@ -1,9 +1,6 @@
 use std::{collections::HashMap, env, error::Error, str::FromStr, time::Duration};
 
-use alloy::{
-    primitives::{Address, U256},
-    sol_types::SolValue,
-};
+use alloy::primitives::{Address, U256};
 use cosmwasm_std::{coin, to_json_binary, Binary, Decimal, Empty};
 use cosmwasm_std_old::Coin as BankCoin;
 use localic_std::modules::{
@@ -16,7 +13,7 @@ use localic_utils::{
     NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 
-use log::info;
+use log::{info, warn};
 use rand::{distributions::Alphanumeric, Rng};
 use serde_json::Value;
 use valence_astroport_lper::msg::LiquidityProviderConfig;
@@ -37,7 +34,6 @@ use valence_authorization_utils::{
 use valence_chain_client_utils::{
     ethereum::EthereumClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
-    neutron::NeutronClient,
 };
 use valence_e2e::utils::{
     ethereum::set_up_anvil_container,
@@ -48,12 +44,12 @@ use valence_e2e::utils::{
     manager::{setup_manager, use_manager_init, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME},
     processor::tick_processor,
     solidity_contracts::{
-        BaseAccount, LiteProcessor, MockERC20,
-        ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
+        BaseAccount, MockERC20,
+        ValenceVault::{self},
     },
     ASTROPORT_PATH, DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME, ETHEREUM_HYPERLANE_DOMAIN,
     GAS_FLAGS, HYPERLANE_RELAYER_NEUTRON_ADDRESS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
-    NEUTRON_CONFIG_FILE, NEUTRON_HYPERLANE_DOMAIN, VALENCE_ARTIFACTS_PATH,
+    NEUTRON_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
 };
 use valence_library_utils::liquidity_utils::AssetData;
 use valence_program_manager::{
@@ -62,7 +58,7 @@ use valence_program_manager::{
     program_config::ProgramConfig,
     program_config_builder::ProgramConfigBuilder,
 };
-use vault::perform_vault_update;
+use vault::vault_update;
 
 const EVM_ENCODER_NAMESPACE: &str = "evm_encoder_v1";
 const PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "provide_liquidity";
@@ -476,7 +472,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("performing vault update...");
     let netting_amount = U256::from(0);
     let withdraw_fee_bps = 1;
-    perform_vault_update(
+    vault_update(
         *valence_vault.address(),
         U256::from(1),
         withdraw_fee_bps,
@@ -485,6 +481,47 @@ fn main() -> Result<(), Box<dyn Error>> {
         &eth_client,
     )
     .unwrap();
+
+    info!("pausing the vault...");
+    vault::pause(*valence_vault.address(), &rt, &eth_client)?;
+
+    info!("attempting to deposit to paused vault...");
+    info!("Depositing {deposit_amount} tokens to vault...");
+    rt.block_on(async {
+        match eth_client
+            .execute_tx(
+                valence_vault
+                    .deposit(deposit_amount, eth_admin_acc)
+                    .into_transaction_request(),
+            )
+            .await
+        {
+            Ok(resp) => warn!("deposit to paused vault succeeded: {:?}", resp),
+            Err(err) => info!("failed to deposit; vault is paused: {:?}", err),
+        }
+    });
+
+    info!("resuming the vault...");
+    vault::unpause(*valence_vault.address(), &rt, &eth_client)?;
+
+    info!("attempting to deposit to active vault...");
+    info!("Depositing {deposit_amount} tokens to vault...");
+    rt.block_on(async {
+        match eth_client
+            .execute_tx(
+                valence_vault
+                    .deposit(deposit_amount, eth_admin_acc)
+                    .into_transaction_request(),
+            )
+            .await
+        {
+            Ok(resp) => warn!(
+                "deposit to paused vault succeeded: {:?}",
+                resp.transaction_hash
+            ),
+            Err(err) => info!("failed to deposit; vault is paused: {:?}", err),
+        }
+    });
 
     Ok(())
 }
@@ -512,7 +549,7 @@ pub mod vault {
 
     use crate::SECONDS_IN_DAY;
 
-    pub fn perform_vault_update(
+    pub fn vault_update(
         vault_addr: Address,
         new_rate: U256,
         withdraw_fee_bps: u32,
@@ -524,6 +561,7 @@ pub mod vault {
         let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
 
         let config = rt.block_on(async { eth_client.query(valence_vault.config()).await.unwrap() });
+        info!("pre-update vault config: {:?}", config);
 
         let start_rate = rt.block_on(async {
             eth_client
@@ -593,6 +631,8 @@ pub mod vault {
                 ._0
         });
 
+        let config = rt.block_on(async { eth_client.query(valence_vault.config()).await.unwrap() });
+        info!("Vault new config: {:?}", config);
         info!("Vault new redemption rate: {new_redemption_rate}");
         info!("Vault new max historical rate: {new_max_historical_rate}");
         info!("Vault new total assets: {new_total_assets}");
@@ -631,8 +671,8 @@ pub mod vault {
         };
 
         let fee_distribution = FeeDistributionConfig {
-            strategistAccount: accounts[1], // Strategist fee recipient
-            platformAccount: accounts[2],   // Platform fee recipient
+            strategistAccount: accounts[0], // Strategist fee recipient
+            platformAccount: accounts[1],   // Platform fee recipient
             strategistRatioBps: 5000,       // 50% to strategist
         };
 
@@ -648,11 +688,43 @@ pub mod vault {
         }
     }
 
-    pub fn pause() -> Result<(), Box<dyn Error>> {
+    pub fn pause(
+        vault_addr: Address,
+        rt: &tokio::runtime::Runtime,
+        eth_client: &EthereumClient,
+    ) -> Result<(), Box<dyn Error>> {
+        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+        let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
+
+        let pause_rx = rt.block_on(async {
+            eth_client
+                .execute_tx(valence_vault.pause().into_transaction_request())
+                .await
+                .unwrap()
+        });
+
+        info!("Vault paused: {:?}", pause_rx.inner);
+
         Ok(())
     }
 
-    pub fn unpause() -> Result<(), Box<dyn Error>> {
+    pub fn unpause(
+        vault_addr: Address,
+        rt: &tokio::runtime::Runtime,
+        eth_client: &EthereumClient,
+    ) -> Result<(), Box<dyn Error>> {
+        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+        let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
+
+        let pause_rx = rt.block_on(async {
+            eth_client
+                .execute_tx(valence_vault.unpause().into_transaction_request())
+                .await
+                .unwrap()
+        });
+
+        info!("Vault paused: {:?}", pause_rx.inner);
+
         Ok(())
     }
 
@@ -794,7 +866,7 @@ pub mod vault {
     pub fn setup_valence_vault(
         rt: &tokio::runtime::Runtime,
         eth_client: &EthereumClient,
-        eth_accounts: &Vec<Address>,
+        eth_accounts: &[Address],
         admin: Address,
         eth_deposit_acc: Address,
         eth_withdraw_acc: Address,
@@ -991,7 +1063,7 @@ fn test_neutron_side_flow(
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
-        &authorizations_addr,
+        authorizations_addr,
         DEFAULT_KEY,
         &serde_json::to_string(&add_external_evm_domain_msg).unwrap(),
         GAS_FLAGS,
