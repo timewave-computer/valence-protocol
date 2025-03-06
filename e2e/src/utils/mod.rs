@@ -11,6 +11,7 @@ pub mod polytone;
 pub mod processor;
 pub mod relayer;
 pub mod solidity_contracts;
+pub mod vault;
 
 // Local-ic chain configs files
 pub const NEUTRON_CONFIG_FILE: &str = "neutron.json";
