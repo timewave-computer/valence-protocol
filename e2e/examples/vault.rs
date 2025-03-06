@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, error::Error, str::FromStr, time::Duration};
+use std::{collections::HashMap, env, error::Error, str::FromStr, thread::sleep, time::Duration};
 
 use alloy::primitives::{Address, U256};
 use cosmwasm_std::{coin, to_json_binary, Binary, Decimal, Empty};
@@ -65,6 +65,12 @@ const PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "provide_liquidity";
 const WITHDRAW_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "withdraw_liquidity";
 const ASTROPORT_CONCENTRATED_PAIR_TYPE: &str = "concentrated";
 const SECONDS_IN_DAY: u64 = 86_400;
+
+macro_rules! async_run {
+    ($rt:expr, $($body:tt)*) => {
+        $rt.block_on(async { $($body)* })
+    }
+}
 
 pub fn my_evm_vault_program(
     ntrn_domain: valence_program_manager::domain::Domain,
@@ -209,8 +215,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     )
     .unwrap();
 
-    let eth_accounts = rt.block_on(async { eth_client.get_provider_accounts().await.unwrap() });
+    let eth_accounts = async_run!(rt, { eth_client.get_provider_accounts().await.unwrap() });
     let eth_admin_acc = eth_accounts[0];
+    let eth_user_acc = eth_accounts[2];
 
     let mut test_ctx = TestContextBuilder::default()
         .with_unwrap_raw_logs(true)
@@ -301,7 +308,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let (
         lite_processor_address,
         vault_address,
-        vault_deposit_token_address,
+        usdc_token_address,
         deposit_acc_addr,
         withdraw_acc_addr,
     ) = eth_side_setup(
@@ -313,80 +320,84 @@ fn main() -> Result<(), Box<dyn Error>> {
         eth_admin_acc,
     )?;
 
-    let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+    let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
 
-    let valence_vault_deposit_token = MockERC20::new(vault_deposit_token_address, &eth_rp);
+    let usdc_token = MockERC20::new(usdc_token_address, &eth_rp);
     let valence_vault = ValenceVault::new(vault_address, &eth_rp);
-    let eth_deposit_acc = BaseAccount::new(deposit_acc_addr, &eth_rp);
-    let eth_withdraw_acc = BaseAccount::new(withdraw_acc_addr, &eth_rp);
 
-    let deposit_acc_bal = rt.block_on(async {
-        eth_client
-            .query(valence_vault_deposit_token.balanceOf(deposit_acc_addr))
-            .await
-            .unwrap()
-            ._0
-    });
-
-    let withdraw_acc_bal = rt.block_on(async {
-        eth_client
-            .query(valence_vault_deposit_token.balanceOf(withdraw_acc_addr))
-            .await
-            .unwrap()
-            ._0
-    });
-
-    let admin_acc_bal = rt.block_on(async {
-        eth_client
-            .query(valence_vault_deposit_token.balanceOf(eth_admin_acc))
-            .await
-            .unwrap()
-            ._0
-    });
-
-    info!("ETH DEPOSIT ACC BAL\t: {deposit_acc_bal}");
-    info!("ETH WITHDRAW ACC BAL\t: {withdraw_acc_bal}");
-    info!("ETH ADMIN ACC BAL\t: {admin_acc_bal}");
-
-    info!("funding some accounts with the vault deposit token...");
-    rt.block_on(async {
+    info!("funding eth user with 1_000_000USDC...");
+    async_run!(rt, {
         eth_client
             .execute_tx(
-                valence_vault_deposit_token
-                    .mint(eth_admin_acc, U256::from(10_000_000))
+                usdc_token
+                    .mint(eth_user_acc, U256::from(1_000_000))
                     .into_transaction_request(),
             )
             .await
             .unwrap()
     });
+    async_run!(rt, {
+        let client = eth_client.get_request_provider().await.unwrap();
 
-    let admin_acc_bal = rt.block_on(async {
-        eth_client
-            .query(valence_vault_deposit_token.balanceOf(eth_admin_acc))
+        let signed_tx = usdc_token
+            .approve(*valence_vault.address(), U256::MAX)
+            .into_transaction_request()
+            .from(eth_user_acc);
+
+        let tx_response = alloy::providers::Provider::send_transaction(&client, signed_tx)
             .await
             .unwrap()
-            ._0
+            .get_receipt()
+            .await
+            .unwrap();
+
+        info!(
+            "user approved vault to spend usdc: {:?}",
+            tx_response.transaction_hash
+        );
     });
 
-    info!("ETH ADMIN ACC BAL\t: {admin_acc_bal}");
+    async_run!(rt, {
+        info!("Approving vault as library for deposit and withdraw accounts...");
+
+        let deposit_account = BaseAccount::new(deposit_acc_addr, &eth_rp);
+        eth_client
+            .execute_tx(
+                deposit_account
+                    .approveLibrary(*valence_vault.address())
+                    .into_transaction_request(),
+            )
+            .await
+            .unwrap();
+
+        let withdraw_account = BaseAccount::new(withdraw_acc_addr, &eth_rp);
+        eth_client
+            .execute_tx(
+                withdraw_account
+                    .approveLibrary(*valence_vault.address())
+                    .into_transaction_request(),
+            )
+            .await
+            .unwrap();
+    });
 
     vault::query_vault_config(*valence_vault.address(), &rt, &eth_client);
     let vault_total_assets =
         vault::query_vault_total_assets(*valence_vault.address(), &rt, &eth_client);
     let vault_total_supply =
         vault::query_vault_total_supply(*valence_vault.address(), &rt, &eth_client);
-    let admin_vault_bal =
-        vault::query_vault_balance_of(*valence_vault.address(), &rt, &eth_client, eth_admin_acc);
+    let user_vault_bal =
+        vault::query_vault_balance_of(*valence_vault.address(), &rt, &eth_client, eth_user_acc);
 
     info!("vault total assets: {:?}", vault_total_assets._0);
     info!("vault total supply: {:?}", vault_total_supply._0);
-    info!("admin vault balance: {:?}", admin_vault_bal._0);
+    info!("user vault balance: {:?}", user_vault_bal._0);
 
     info!("Approving token for vault...");
-    rt.block_on(async {
+    async_run!(rt, {
         eth_client
             .execute_tx(
-                valence_vault_deposit_token
+                usdc_token
                     .approve(*valence_vault.address(), U256::MAX)
                     .into_transaction_request(),
             )
@@ -394,87 +405,54 @@ fn main() -> Result<(), Box<dyn Error>> {
             .unwrap()
     });
 
-    let initial_token_balance = rt.block_on(async {
-        eth_client
-            .query(valence_vault_deposit_token.balanceOf(eth_admin_acc))
-            .await
-            .unwrap()
-            ._0
+    let deposit_amount = U256::from(500_000);
+
+    info!("User depositing {deposit_amount}USDC tokens to vault...");
+    async_run!(rt, {
+        let client = eth_client.get_request_provider().await.unwrap();
+        let signed_tx = valence_vault
+            .deposit(deposit_amount, eth_user_acc)
+            .into_transaction_request()
+            .from(eth_user_acc);
+
+        match alloy::providers::Provider::send_transaction(&client, signed_tx).await {
+            Ok(resp) => {
+                let receipt = resp.get_receipt().await.unwrap();
+                info!("deposit success: {:?}", receipt.transaction_hash)
+            }
+            Err(e) => {
+                warn!("deposit failed: {:?}", e);
+                panic!("Failed to deposit initial tokens");
+            }
+        }
     });
 
-    let initial_vault_shares = rt.block_on(async {
-        eth_client
-            .query(valence_vault.balanceOf(eth_admin_acc))
-            .await
-            .unwrap()
-            ._0
-    });
-
-    let initial_deposit_account_balance = rt.block_on(async {
-        let config = eth_client.query(valence_vault.config()).await.unwrap();
-        eth_client
-            .query(valence_vault_deposit_token.balanceOf(config.depositAccount))
-            .await
-            .unwrap()
-            ._0
-    });
-
-    info!("Initial token balance: {}", initial_token_balance);
-    info!("Initial vault shares: {}", initial_vault_shares);
-    info!(
-        "Initial deposit account balance: {}",
-        initial_deposit_account_balance
-    );
-
-    let deposit_amount = U256::from(5_000_000);
-    // Perform deposit
-    info!("Depositing {} tokens to vault...", deposit_amount);
-    rt.block_on(async {
-        eth_client
-            .execute_tx(
-                valence_vault
-                    .deposit(deposit_amount, eth_admin_acc)
-                    .into_transaction_request(),
-            )
-            .await
-            .unwrap()
-    });
-
-    let final_token_balance = rt.block_on(async {
-        eth_client
-            .query(valence_vault_deposit_token.balanceOf(eth_admin_acc))
-            .await
-            .unwrap()
-            ._0
-    });
-
-    let final_vault_shares = rt.block_on(async {
-        eth_client
-            .query(valence_vault.balanceOf(eth_admin_acc))
-            .await
-            .unwrap()
-            ._0
-    });
-
-    let final_deposit_account_balance = rt.block_on(async {
-        let config = eth_client.query(valence_vault.config()).await.unwrap();
-        eth_client
-            .query(valence_vault_deposit_token.balanceOf(config.depositAccount))
-            .await
-            .unwrap()
-            ._0
-    });
-
-    info!("vault token balance: {final_token_balance}",);
-    info!("vault shares: {final_vault_shares}",);
-    info!("vault deposit account balance: {final_deposit_account_balance}",);
+    log_eth_balances(
+        &eth_client,
+        &rt,
+        valence_vault.address(),
+        &usdc_token_address,
+        &deposit_acc_addr,
+        &withdraw_acc_addr,
+        &eth_user_acc,
+    )
+    .unwrap();
 
     info!("performing vault update...");
+
+    let current_rate = async_run!(rt, {
+        eth_client
+            .query(valence_vault.redemptionRate())
+            .await
+            .unwrap()
+            ._0
+    });
     let netting_amount = U256::from(0);
+
     let withdraw_fee_bps = 1;
     vault_update(
         *valence_vault.address(),
-        U256::from(1),
+        current_rate,
         withdraw_fee_bps,
         netting_amount,
         &rt,
@@ -486,18 +464,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     vault::pause(*valence_vault.address(), &rt, &eth_client)?;
 
     info!("attempting to deposit to paused vault...");
-    info!("Depositing {deposit_amount} tokens to vault...");
-    rt.block_on(async {
-        match eth_client
-            .execute_tx(
-                valence_vault
-                    .deposit(deposit_amount, eth_admin_acc)
-                    .into_transaction_request(),
-            )
-            .await
-        {
-            Ok(resp) => warn!("deposit to paused vault succeeded: {:?}", resp),
-            Err(err) => info!("failed to deposit; vault is paused: {:?}", err),
+    info!("User depositing {deposit_amount}USDC tokens to vault...");
+    async_run!(rt, {
+        let client = eth_client.get_request_provider().await.unwrap();
+
+        let signed_tx = valence_vault
+            .deposit(deposit_amount, eth_user_acc)
+            .into_transaction_request()
+            .from(eth_user_acc);
+
+        match alloy::providers::Provider::send_transaction(&client, signed_tx).await {
+            Ok(resp) => warn!(
+                "deposit to paused vault succeeded: {:?}",
+                resp.get_receipt().await.unwrap().transaction_hash
+            ),
+            Err(_) => info!("failed to deposit; vault is paused"),
         }
     });
 
@@ -506,21 +487,246 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("attempting to deposit to active vault...");
     info!("Depositing {deposit_amount} tokens to vault...");
-    rt.block_on(async {
-        match eth_client
+    async_run!(rt, {
+        let client = eth_client.get_request_provider().await.unwrap();
+
+        let signed_tx = valence_vault
+            .deposit(deposit_amount, eth_user_acc)
+            .into_transaction_request()
+            .from(eth_user_acc);
+
+        match alloy::providers::Provider::send_transaction(&client, signed_tx).await {
+            Ok(resp) => info!(
+                "deposit to paused vault succeeded: {:?}",
+                resp.get_receipt().await.unwrap().transaction_hash
+            ),
+            Err(_) => warn!("failed to deposit"),
+        }
+    });
+
+    log_eth_balances(
+        &eth_client,
+        &rt,
+        valence_vault.address(),
+        &usdc_token_address,
+        &deposit_acc_addr,
+        &withdraw_acc_addr,
+        &eth_user_acc,
+    )
+    .unwrap();
+
+    async_run!(rt, {
+        info!("minting some tokens into admin acc for withdraw prep...");
+        eth_client
             .execute_tx(
-                valence_vault
-                    .deposit(deposit_amount, eth_admin_acc)
+                usdc_token
+                    .mint(eth_admin_acc, deposit_amount * U256::from(5))
                     .into_transaction_request(),
             )
             .await
-        {
-            Ok(resp) => warn!(
-                "deposit to paused vault succeeded: {:?}",
-                resp.transaction_hash
-            ),
-            Err(err) => info!("failed to deposit; vault is paused: {:?}", err),
+            .unwrap();
+
+        info!("transferring tokens from admin to withdraw account...");
+        eth_client
+            .execute_tx(
+                usdc_token
+                    .transfer(withdraw_acc_addr, deposit_amount * U256::from(5))
+                    .into_transaction_request(),
+            )
+            .await
+            .unwrap();
+
+        let withdraw_account = BaseAccount::new(withdraw_acc_addr, &eth_rp);
+
+        let approve_calldata = usdc_token
+            .approve(*valence_vault.address(), U256::MAX)
+            .calldata()
+            .clone();
+
+        eth_client
+            .execute_tx(
+                withdraw_account
+                    .execute(usdc_token_address, U256::from(0), approve_calldata)
+                    .into_transaction_request(),
+            )
+            .await
+            .unwrap();
+
+        let allowance = eth_client
+            .query(usdc_token.allowance(withdraw_acc_addr, *valence_vault.address()))
+            .await
+            .unwrap();
+
+        info!("Withdraw account has approved vault for: {}", allowance._0);
+
+        info!("asserting that vault is approved by the withdraw account...");
+
+        let withdraw_account = BaseAccount::new(withdraw_acc_addr, &eth_rp);
+
+        let is_approved = eth_client
+            .query(withdraw_account.approvedLibraries(*valence_vault.address()))
+            .await
+            .unwrap();
+
+        info!(
+            "vault approved as library for withdraw account: {}",
+            is_approved._0
+        );
+        let bal = eth_client
+            .query(usdc_token.balanceOf(withdraw_acc_addr))
+            .await
+            .unwrap()
+            ._0;
+        info!("ETH WITHDRAW ACC USDC BAL\t: {bal}");
+    });
+
+    log_eth_balances(
+        &eth_client,
+        &rt,
+        valence_vault.address(),
+        &usdc_token_address,
+        &deposit_acc_addr,
+        &withdraw_acc_addr,
+        &eth_user_acc,
+    )
+    .unwrap();
+
+    info!("User initiates shares redeemal...");
+
+    let user_shares = async_run!(rt, {
+        eth_client
+            .query(valence_vault.balanceOf(eth_user_acc))
+            .await
+            .unwrap()
+            ._0
+    });
+
+    async_run!(rt, {
+        let client = eth_client.get_request_provider().await.unwrap();
+        let signed_tx = valence_vault
+            .redeem_0(user_shares, eth_user_acc, eth_user_acc, 10_000, true)
+            .into_transaction_request()
+            .from(eth_user_acc);
+        match alloy::providers::Provider::send_transaction(&client, signed_tx).await {
+            Ok(resp) => {
+                let receipt = resp.get_receipt().await.unwrap();
+                info!("redeem request response: {:?}", receipt.transaction_hash);
+            }
+            Err(e) => warn!("redeem request error: {:?}", e),
         }
+    });
+
+    async_run!(rt, {
+        let active_withdraws = eth_client
+            .query(valence_vault.hasActiveWithdraw(eth_user_acc))
+            .await
+            .unwrap();
+        info!("user active withdraws: {:?}", active_withdraws._0);
+        let user_withdraw_request = eth_client
+            .query(valence_vault.userWithdrawRequest(eth_user_acc))
+            .await
+            .unwrap();
+        info!("user active withdraw request: {:?}", user_withdraw_request);
+    });
+
+    log_eth_balances(
+        &eth_client,
+        &rt,
+        valence_vault.address(),
+        &usdc_token_address,
+        &deposit_acc_addr,
+        &withdraw_acc_addr,
+        &eth_user_acc,
+    )
+    .unwrap();
+
+    sleep(Duration::from_secs(3));
+
+    info!("user attempts to finalize the withdrawal...");
+    async_run!(rt, {
+        let client = eth_client.get_request_provider().await.unwrap();
+
+        let signed_tx = valence_vault
+            .completeWithdraw(eth_user_acc)
+            .into_transaction_request()
+            .from(eth_user_acc);
+
+        match alloy::providers::Provider::send_transaction(&client, signed_tx).await {
+            Ok(resp) => {
+                let receipt = resp.get_receipt().await.unwrap();
+                info!(
+                    "complete withdrawal request response: {:?}",
+                    receipt.transaction_hash
+                );
+            }
+            Err(e) => warn!("complete withdrawal request error: {:?}", e),
+        };
+        let active_withdraws = eth_client
+            .query(valence_vault.hasActiveWithdraw(eth_user_acc))
+            .await
+            .unwrap();
+        info!("user active withdraws: {:?}", active_withdraws._0);
+        let user_withdraw_request = eth_client
+            .query(valence_vault.userWithdrawRequest(eth_user_acc))
+            .await
+            .unwrap();
+        info!("user active withdraw request: {:?}", user_withdraw_request);
+    });
+
+    log_eth_balances(
+        &eth_client,
+        &rt,
+        valence_vault.address(),
+        &usdc_token_address,
+        &deposit_acc_addr,
+        &withdraw_acc_addr,
+        &eth_user_acc,
+    )
+    .unwrap();
+
+    Ok(())
+}
+
+fn log_eth_balances(
+    eth_client: &EthereumClient,
+    rt: &tokio::runtime::Runtime,
+    vault_addr: &Address,
+    vault_deposit_token: &Address,
+    deposit_acc_addr: &Address,
+    withdraw_acc_addr: &Address,
+    depositor_addr: &Address,
+) -> Result<(), Box<dyn Error>> {
+    async_run!(rt, {
+        let eth_rp = eth_client.get_request_provider().await.unwrap();
+
+        let usdc_token = MockERC20::new(*vault_deposit_token, &eth_rp);
+        let valence_vault = ValenceVault::new(*vault_addr, &eth_rp);
+
+        let (
+            depositor_usdc_bal,
+            depositor_vault_bal,
+            withdraw_acc_usdc_bal,
+            deposit_acc_usdc_bal,
+            vault_total_supply,
+        ) = tokio::join!(
+            eth_client.query(usdc_token.balanceOf(*depositor_addr)),
+            eth_client.query(valence_vault.balanceOf(*depositor_addr)),
+            eth_client.query(usdc_token.balanceOf(*withdraw_acc_addr)),
+            eth_client.query(usdc_token.balanceOf(*deposit_acc_addr)),
+            eth_client.query(valence_vault.totalSupply()),
+        );
+
+        let depositor_usdc_bal = depositor_usdc_bal.unwrap()._0;
+        let depositor_vault_bal = depositor_vault_bal.unwrap()._0;
+        let withdraw_acc_usdc_bal = withdraw_acc_usdc_bal.unwrap()._0;
+        let deposit_acc_usdc_bal = deposit_acc_usdc_bal.unwrap()._0;
+        let vault_total_supply = vault_total_supply.unwrap()._0;
+
+        info!("USER SHARES\t\t: {depositor_vault_bal}");
+        info!("USER USDC\t\t: {depositor_usdc_bal}");
+        info!("WITHDRAW ACC USDC\t: {withdraw_acc_usdc_bal}");
+        info!("DEPOSIT ACC USDC\t: {deposit_acc_usdc_bal}");
+        info!("VAULT TOTAL SUPPLY\t: {vault_total_supply}");
     });
 
     Ok(())
@@ -533,7 +739,7 @@ pub mod vault {
         primitives::{Address, U256},
         sol_types::SolValue,
     };
-    use log::info;
+    use log::{info, warn};
     use valence_chain_client_utils::{
         ethereum::EthereumClient,
         evm::{base_client::EvmBaseClient as _, request_provider_client::RequestProviderClient},
@@ -557,20 +763,20 @@ pub mod vault {
         rt: &tokio::runtime::Runtime,
         eth_client: &EthereumClient,
     ) -> Result<(), Box<dyn Error>> {
-        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+        let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
         let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
 
-        let config = rt.block_on(async { eth_client.query(valence_vault.config()).await.unwrap() });
+        let config = async_run!(rt, eth_client.query(valence_vault.config()).await.unwrap());
         info!("pre-update vault config: {:?}", config);
 
-        let start_rate = rt.block_on(async {
+        let start_rate = async_run!(rt, {
             eth_client
                 .query(valence_vault.redemptionRate())
                 .await
                 .unwrap()
                 ._0
         });
-        let prev_max_rate = rt.block_on(async {
+        let prev_max_rate = async_run!(rt, {
             eth_client
                 .query(valence_vault.maxHistoricalRate())
                 .await
@@ -578,7 +784,7 @@ pub mod vault {
                 ._0
         });
 
-        let prev_total_assets = rt.block_on(async {
+        let prev_total_assets = async_run!(rt, {
             eth_client
                 .query(valence_vault.totalAssets())
                 .await
@@ -593,7 +799,7 @@ pub mod vault {
             "Updating vault with new rate: {new_rate}, withdraw fee: {withdraw_fee_bps}bps, netting: {netting_amount}"
         );
 
-        let update_result = rt.block_on(async {
+        let update_result = async_run!(rt, {
             eth_client
                 .execute_tx(
                     valence_vault
@@ -608,14 +814,14 @@ pub mod vault {
             panic!("failed to update vault");
         }
 
-        let new_redemption_rate = rt.block_on(async {
+        let new_redemption_rate = async_run!(rt, {
             eth_client
                 .query(valence_vault.redemptionRate())
                 .await
                 .unwrap()
                 ._0
         });
-        let new_max_historical_rate = rt.block_on(async {
+        let new_max_historical_rate = async_run!(rt, {
             eth_client
                 .query(valence_vault.maxHistoricalRate())
                 .await
@@ -623,7 +829,7 @@ pub mod vault {
                 ._0
         });
 
-        let new_total_assets = rt.block_on(async {
+        let new_total_assets = async_run!(rt, {
             eth_client
                 .query(valence_vault.totalAssets())
                 .await
@@ -631,7 +837,7 @@ pub mod vault {
                 ._0
         });
 
-        let config = rt.block_on(async { eth_client.query(valence_vault.config()).await.unwrap() });
+        let config = async_run!(rt, eth_client.query(valence_vault.config()).await.unwrap());
         info!("Vault new config: {:?}", config);
         info!("Vault new redemption rate: {new_redemption_rate}");
         info!("Vault new max historical rate: {new_max_historical_rate}");
@@ -682,9 +888,10 @@ pub mod vault {
             strategist: accounts[0],
             fees: fee_config,
             feeDistribution: fee_distribution,
-            depositCap: 0,                        // No cap (for real)
-            withdrawLockupPeriod: SECONDS_IN_DAY, // 1 day lockup
-            maxWithdrawFeeBps: 100,               // 1% max withdraw fee
+            depositCap: 0, // No cap (for real)
+            withdrawLockupPeriod: 1,
+            // withdrawLockupPeriod: SECONDS_IN_DAY, // 1 day lockup
+            maxWithdrawFeeBps: 100, // 1% max withdraw fee
         }
     }
 
@@ -693,17 +900,25 @@ pub mod vault {
         rt: &tokio::runtime::Runtime,
         eth_client: &EthereumClient,
     ) -> Result<(), Box<dyn Error>> {
-        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
-        let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
+        async_run!(rt, {
+            let eth_rp = eth_client.get_request_provider().await.unwrap();
+            let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
 
-        let pause_rx = rt.block_on(async {
-            eth_client
+            match eth_client
                 .execute_tx(valence_vault.pause().into_transaction_request())
                 .await
-                .unwrap()
-        });
+            {
+                Ok(_) => info!("vault paused!"),
+                Err(_) => warn!("failed to pause the vault!"),
+            };
 
-        info!("Vault paused: {:?}", pause_rx.inner);
+            let packed_vals = eth_client
+                .query(valence_vault.packedValues())
+                .await
+                .unwrap();
+
+            assert!(packed_vals.paused, "vault should be paused");
+        });
 
         Ok(())
     }
@@ -713,17 +928,23 @@ pub mod vault {
         rt: &tokio::runtime::Runtime,
         eth_client: &EthereumClient,
     ) -> Result<(), Box<dyn Error>> {
-        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
-        let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
-
-        let pause_rx = rt.block_on(async {
-            eth_client
+        async_run!(rt, {
+            let eth_rp = eth_client.get_request_provider().await.unwrap();
+            let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
+            match eth_client
                 .execute_tx(valence_vault.unpause().into_transaction_request())
                 .await
-                .unwrap()
-        });
+            {
+                Ok(_) => info!("vault resumed!"),
+                Err(_) => warn!("failed to resume the vault!"),
+            };
+            let packed_vals = eth_client
+                .query(valence_vault.packedValues())
+                .await
+                .unwrap();
 
-        info!("Vault paused: {:?}", pause_rx.inner);
+            assert!(!packed_vals.paused, "vault should be unpaused");
+        });
 
         Ok(())
     }
@@ -733,10 +954,12 @@ pub mod vault {
         rt: &tokio::runtime::Runtime,
         eth_client: &EthereumClient,
     ) -> ValenceVault::configReturn {
-        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
-        let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
+        let config = async_run!(rt, {
+            let eth_rp = eth_client.get_request_provider().await.unwrap();
+            let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
 
-        let config = rt.block_on(async { eth_client.query(valence_vault.config()).await.unwrap() });
+            eth_client.query(valence_vault.config()).await.unwrap()
+        });
 
         info!("VAULT CONFIG config: {:?}", config);
         config
@@ -747,10 +970,12 @@ pub mod vault {
         rt: &tokio::runtime::Runtime,
         eth_client: &EthereumClient,
     ) -> ValenceVault::totalAssetsReturn {
-        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+        let eth_rp = async_run!(rt, { eth_client.get_request_provider().await.unwrap() });
         let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
 
-        rt.block_on(async { eth_client.query(valence_vault.totalAssets()).await.unwrap() })
+        async_run!(rt, {
+            eth_client.query(valence_vault.totalAssets()).await.unwrap()
+        })
     }
 
     pub fn query_vault_total_supply(
@@ -758,10 +983,12 @@ pub mod vault {
         rt: &tokio::runtime::Runtime,
         eth_client: &EthereumClient,
     ) -> ValenceVault::totalSupplyReturn {
-        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+        let eth_rp = async_run!(rt, { eth_client.get_request_provider().await.unwrap() });
         let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
 
-        rt.block_on(async { eth_client.query(valence_vault.totalSupply()).await.unwrap() })
+        async_run!(rt, {
+            eth_client.query(valence_vault.totalSupply()).await.unwrap()
+        })
     }
 
     pub fn query_vault_balance_of(
@@ -770,10 +997,10 @@ pub mod vault {
         eth_client: &EthereumClient,
         addr: Address,
     ) -> ValenceVault::balanceOfReturn {
-        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+        let eth_rp = async_run!(rt, { eth_client.get_request_provider().await.unwrap() });
         let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
 
-        rt.block_on(async {
+        async_run!(rt, {
             eth_client
                 .query(valence_vault.balanceOf(addr))
                 .await
@@ -792,14 +1019,14 @@ pub mod vault {
         rt: &tokio::runtime::Runtime,
         eth_client: &EthereumClient,
     ) -> Result<Address, Box<dyn Error>> {
-        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+        let eth_rp = async_run!(rt, { eth_client.get_request_provider().await.unwrap() });
 
         info!("Deploying ERC20s on Ethereum...");
         let evm_vault_deposit_token_tx =
             MockERC20::deploy_builder(&eth_rp, "TestUSDC".to_string(), "TUSD".to_string())
                 .into_transaction_request();
 
-        let evm_vault_deposit_token_rx = rt.block_on(async {
+        let evm_vault_deposit_token_rx = async_run!(rt, {
             valence_chain_client_utils::evm::base_client::EvmBaseClient::execute_tx(
                 eth_client,
                 evm_vault_deposit_token_tx,
@@ -819,13 +1046,13 @@ pub mod vault {
         eth_client: &EthereumClient,
         admin: Address,
     ) -> Result<Address, Box<dyn Error>> {
-        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+        let eth_rp = async_run!(rt, { eth_client.get_request_provider().await.unwrap() });
 
         info!("Deploying base account on Ethereum...");
         let base_account_tx =
             BaseAccount::deploy_builder(&eth_rp, admin, vec![]).into_transaction_request();
 
-        let base_account_rx = rt.block_on(async {
+        let base_account_rx = async_run!(rt, {
             eth_client
                 .execute_tx(base_account_tx.clone())
                 .await
@@ -844,7 +1071,7 @@ pub mod vault {
         mailbox: &str,
         authorization_contract_address: &str,
     ) -> Result<Address, Box<dyn Error>> {
-        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+        let eth_rp = async_run!(rt, { eth_client.get_request_provider().await.unwrap() });
 
         let tx = LiteProcessor::deploy_builder(
             &eth_rp,
@@ -855,7 +1082,7 @@ pub mod vault {
         )
         .into_transaction_request();
 
-        let lite_processor_rx = rt.block_on(async { eth_client.execute_tx(tx).await.unwrap() });
+        let lite_processor_rx = async_run!(rt, { eth_client.execute_tx(tx).await.unwrap() });
 
         let lite_processor_address = lite_processor_rx.contract_address.unwrap();
         info!("Lite Processor deployed at: {}", lite_processor_address);
@@ -872,7 +1099,7 @@ pub mod vault {
         eth_withdraw_acc: Address,
         vault_deposit_token_addr: Address,
     ) -> Result<Address, Box<dyn Error>> {
-        let eth_rp = rt.block_on(async { eth_client.get_request_provider().await.unwrap() });
+        let eth_rp = async_run!(rt, { eth_client.get_request_provider().await.unwrap() });
 
         info!("deploying Valence Vault on Ethereum...");
         let vault_config = setup_vault_config(eth_accounts, eth_deposit_acc, eth_withdraw_acc);
@@ -888,7 +1115,7 @@ pub mod vault {
         )
         .into_transaction_request();
 
-        let vault_rx = rt.block_on(async { eth_client.execute_tx(vault_tx).await.unwrap() });
+        let vault_rx = async_run!(rt, { eth_client.execute_tx(vault_tx).await.unwrap() });
 
         let vault_address = vault_rx.contract_address.unwrap();
         info!("Vault deployed at: {vault_address}");
