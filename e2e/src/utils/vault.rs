@@ -137,6 +137,23 @@ pub fn vault_update(
     Ok(())
 }
 
+pub fn query_vault_packed_values(
+    vault_addr: Address,
+    rt: &tokio::runtime::Runtime,
+    eth_client: &EthereumClient,
+) -> ValenceVault::packedValuesReturn {
+    async_run!(rt, {
+        let eth_rp = eth_client.get_request_provider().await.unwrap();
+
+        let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
+
+        eth_client
+            .query(valence_vault.packedValues())
+            .await
+            .unwrap()
+    })
+}
+
 pub fn setup_vault_config(
     accounts: &[Address],
     eth_deposit_acc: Address,
@@ -232,20 +249,22 @@ pub fn deposit_to_vault(
     async_run!(rt, {
         info!("user depositing {amount} into vault...");
 
-        let client = eth_client.get_request_provider().await.unwrap();
-        let valence_vault = ValenceVault::new(vault_addr, &client);
+        let eth_rp = eth_client.get_request_provider().await.unwrap();
+        let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
 
         let signed_tx = valence_vault
             .deposit(amount, user)
             .into_transaction_request()
             .from(user);
 
-        match alloy::providers::Provider::send_transaction(&client, signed_tx).await {
+        match alloy::providers::Provider::send_transaction(&eth_rp, signed_tx).await {
             Ok(resp) => {
                 let tx_hash = resp.get_receipt().await?.transaction_hash;
                 info!("deposit completed: {:?}", tx_hash);
             }
-            Err(e) => warn!("failed to deposit into vault: {:?}", e),
+            Err(e) => {
+                warn!("failed to deposit into vault: {:?}", e)
+            }
         };
 
         Ok(())
@@ -419,80 +438,6 @@ pub fn update() -> Result<(), Box<dyn Error>> {
     // find netting amount
     // update
     Ok(())
-}
-
-pub fn setup_deposit_erc20(
-    rt: &tokio::runtime::Runtime,
-    eth_client: &EthereumClient,
-) -> Result<Address, Box<dyn Error>> {
-    let eth_rp = async_run!(rt, { eth_client.get_request_provider().await.unwrap() });
-
-    info!("Deploying ERC20s on Ethereum...");
-    let evm_vault_deposit_token_tx =
-        MockERC20::deploy_builder(&eth_rp, "TestUSDC".to_string(), "TUSD".to_string())
-            .into_transaction_request();
-
-    let evm_vault_deposit_token_rx = async_run!(rt, {
-        valence_chain_client_utils::evm::base_client::EvmBaseClient::execute_tx(
-            eth_client,
-            evm_vault_deposit_token_tx,
-        )
-        .await
-        .unwrap()
-    });
-
-    let valence_vault_deposit_token_address = evm_vault_deposit_token_rx.contract_address.unwrap();
-
-    Ok(valence_vault_deposit_token_address)
-}
-
-pub fn setup_valence_account(
-    rt: &tokio::runtime::Runtime,
-    eth_client: &EthereumClient,
-    admin: Address,
-) -> Result<Address, Box<dyn Error>> {
-    let eth_rp = async_run!(rt, { eth_client.get_request_provider().await.unwrap() });
-
-    info!("Deploying base account on Ethereum...");
-    let base_account_tx =
-        BaseAccount::deploy_builder(&eth_rp, admin, vec![]).into_transaction_request();
-
-    let base_account_rx = async_run!(rt, {
-        eth_client
-            .execute_tx(base_account_tx.clone())
-            .await
-            .unwrap()
-    });
-
-    let base_account_addr = base_account_rx.contract_address.unwrap();
-
-    Ok(base_account_addr)
-}
-
-pub fn setup_lite_processor(
-    rt: &tokio::runtime::Runtime,
-    eth_client: &EthereumClient,
-    admin: Address,
-    mailbox: &str,
-    authorization_contract_address: &str,
-) -> Result<Address, Box<dyn Error>> {
-    let eth_rp = async_run!(rt, { eth_client.get_request_provider().await.unwrap() });
-
-    let tx = LiteProcessor::deploy_builder(
-        &eth_rp,
-        crate::utils::hyperlane::bech32_to_evm_bytes32(authorization_contract_address)?,
-        Address::from_str(mailbox)?,
-        NEUTRON_HYPERLANE_DOMAIN,
-        vec![admin],
-    )
-    .into_transaction_request();
-
-    let lite_processor_rx = async_run!(rt, { eth_client.execute_tx(tx).await.unwrap() });
-
-    let lite_processor_address = lite_processor_rx.contract_address.unwrap();
-    info!("Lite Processor deployed at: {}", lite_processor_address);
-
-    Ok(lite_processor_address)
 }
 
 pub fn setup_valence_vault(

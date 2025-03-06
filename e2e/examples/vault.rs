@@ -36,7 +36,7 @@ use valence_chain_client_utils::{
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
 use valence_e2e::utils::{
-    ethereum::set_up_anvil_container,
+    ethereum::{self, set_up_anvil_container},
     hyperlane::{
         set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts, set_up_hyperlane,
         HyperlaneContracts,
@@ -303,21 +303,32 @@ fn main() -> Result<(), Box<dyn Error>> {
     // 2. base accounts
     // 3. vault
 
-    info!("Setting up Lite Processor on Ethereum");
+    // Let's create two Valence Base Accounts on Ethereum to test the processor with libraries (in this case the forwarder)
+    let deposit_acc_addr =
+        ethereum::valence_account::setup_valence_account(&rt, &eth_client, eth_admin_acc)?;
+    let withdraw_acc_addr =
+        ethereum::valence_account::setup_valence_account(&rt, &eth_client, eth_admin_acc)?;
 
-    let (
-        lite_processor_address,
-        vault_address,
-        usdc_token_address,
-        deposit_acc_addr,
-        withdraw_acc_addr,
-    ) = eth_side_setup(
+    let usdc_token_address = ethereum::mock_erc20::setup_deposit_erc20(&rt, &eth_client)?;
+
+    info!("Setting up Lite Processor on Ethereum");
+    let _lite_processor_address = ethereum::lite_processor::setup_lite_processor(
         &rt,
         &eth_client,
-        authorization_contract_address.clone(),
-        eth_hyperlane_contracts.mailbox.to_string(),
-        eth_accounts,
         eth_admin_acc,
+        &eth_hyperlane_contracts.mailbox.to_string(),
+        authorization_contract_address.as_str(),
+    )?;
+
+    info!("Setting up Valence Vault...");
+    let vault_address = vault::setup_valence_vault(
+        &rt,
+        &eth_client,
+        &eth_accounts,
+        eth_admin_acc,
+        deposit_acc_addr,
+        withdraw_acc_addr,
+        usdc_token_address,
     )?;
 
     let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
@@ -326,60 +337,38 @@ fn main() -> Result<(), Box<dyn Error>> {
     let valence_vault = ValenceVault::new(vault_address, &eth_rp);
 
     info!("funding eth user with 1_000_000USDC...");
-    async_run!(rt, {
-        eth_client
-            .execute_tx(
-                usdc_token
-                    .mint(eth_user_acc, U256::from(1_000_000))
-                    .into_transaction_request(),
-            )
-            .await
-            .unwrap()
-    });
-    async_run!(rt, {
-        let client = eth_client.get_request_provider().await.unwrap();
+    ethereum::mock_erc20::mint(
+        &rt,
+        &eth_client,
+        usdc_token_address,
+        eth_user_acc,
+        U256::from(1_000_000),
+    );
 
-        let signed_tx = usdc_token
-            .approve(*valence_vault.address(), U256::MAX)
-            .into_transaction_request()
-            .from(eth_user_acc);
+    info!("approving vault to spend usdc on behalf of user...");
+    ethereum::mock_erc20::approve(
+        &rt,
+        &eth_client,
+        usdc_token_address,
+        eth_user_acc,
+        *valence_vault.address(),
+        U256::MAX,
+    );
 
-        let tx_response = alloy::providers::Provider::send_transaction(&client, signed_tx)
-            .await
-            .unwrap()
-            .get_receipt()
-            .await
-            .unwrap();
-
-        info!(
-            "user approved vault to spend usdc: {:?}",
-            tx_response.transaction_hash
-        );
-    });
-
-    async_run!(rt, {
-        info!("Approving vault as library for deposit and withdraw accounts...");
-
-        let deposit_account = BaseAccount::new(deposit_acc_addr, &eth_rp);
-        eth_client
-            .execute_tx(
-                deposit_account
-                    .approveLibrary(*valence_vault.address())
-                    .into_transaction_request(),
-            )
-            .await
-            .unwrap();
-
-        let withdraw_account = BaseAccount::new(withdraw_acc_addr, &eth_rp);
-        eth_client
-            .execute_tx(
-                withdraw_account
-                    .approveLibrary(*valence_vault.address())
-                    .into_transaction_request(),
-            )
-            .await
-            .unwrap();
-    });
+    info!("Approving vault for deposit account...");
+    ethereum::valence_account::approve_library(
+        &rt,
+        &eth_client,
+        deposit_acc_addr,
+        *valence_vault.address(),
+    );
+    info!("Approving vault for withdraw account...");
+    ethereum::valence_account::approve_library(
+        &rt,
+        &eth_client,
+        withdraw_acc_addr,
+        *valence_vault.address(),
+    );
 
     vault::query_vault_config(*valence_vault.address(), &rt, &eth_client);
     let vault_total_assets =
@@ -394,18 +383,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("user vault balance: {:?}", user_vault_bal._0);
 
     info!("Approving token for vault...");
-    async_run!(rt, {
-        eth_client
-            .execute_tx(
-                usdc_token
-                    .approve(*valence_vault.address(), U256::MAX)
-                    .into_transaction_request(),
-            )
-            .await
-            .unwrap()
-    });
+    ethereum::mock_erc20::approve(
+        &rt,
+        &eth_client,
+        usdc_token_address,
+        eth_admin_acc,
+        *valence_vault.address(),
+        U256::MAX,
+    );
 
     let deposit_amount = U256::from(500_000);
+
+    let vault_state = vault::query_vault_packed_values(*valence_vault.address(), &rt, &eth_client);
+    info!("vault packed values: {:?}", vault_state);
 
     info!("User depositing {deposit_amount}USDC tokens to vault...");
     vault::deposit_to_vault(
@@ -427,13 +417,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     )
     .unwrap();
 
-    info!("performing vault update...");
-
     let current_rate = vault::query_redemption_rate(*valence_vault.address(), &rt, &eth_client)._0;
-
     let netting_amount = U256::from(0);
-
     let withdraw_fee_bps = 1;
+
+    info!("performing vault update...");
     vault::vault_update(
         *valence_vault.address(),
         current_rate,
@@ -441,8 +429,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         netting_amount,
         &rt,
         &eth_client,
-    )
-    .unwrap();
+    )?;
 
     info!("pausing the vault...");
     vault::pause(*valence_vault.address(), &rt, &eth_client)?;
@@ -466,8 +453,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         *valence_vault.address(),
         eth_user_acc,
         deposit_amount,
-    )
-    .unwrap();
+    )?;
 
     log_eth_balances(
         &eth_client,
@@ -479,27 +465,26 @@ fn main() -> Result<(), Box<dyn Error>> {
         &eth_user_acc,
     )?;
 
+    info!("minting some USDC for admin...");
+    ethereum::mock_erc20::mint(
+        &rt,
+        &eth_client,
+        usdc_token_address,
+        eth_admin_acc,
+        deposit_amount * U256::from(5),
+    );
+
+    info!("transferring USDC from admin to withdraw account...");
+    ethereum::mock_erc20::transfer(
+        &rt,
+        &eth_client,
+        usdc_token_address,
+        eth_admin_acc,
+        withdraw_acc_addr,
+        deposit_amount * U256::from(5),
+    );
+
     async_run!(rt, {
-        info!("minting some tokens into admin acc for withdraw prep...");
-        eth_client
-            .execute_tx(
-                usdc_token
-                    .mint(eth_admin_acc, deposit_amount * U256::from(5))
-                    .into_transaction_request(),
-            )
-            .await
-            .unwrap();
-
-        info!("transferring tokens from admin to withdraw account...");
-        eth_client
-            .execute_tx(
-                usdc_token
-                    .transfer(withdraw_acc_addr, deposit_amount * U256::from(5))
-                    .into_transaction_request(),
-            )
-            .await
-            .unwrap();
-
         let withdraw_account = BaseAccount::new(withdraw_acc_addr, &eth_rp);
 
         let approve_calldata = usdc_token
@@ -659,50 +644,6 @@ fn log_eth_balances(
     });
 
     Ok(())
-}
-
-fn eth_side_setup(
-    rt: &tokio::runtime::Runtime,
-    eth_client: &EthereumClient,
-    authorization_contract_address: String,
-    eth_mailbox: String,
-    eth_accounts: Vec<Address>,
-    eth_admin_acc: Address,
-) -> Result<(Address, Address, Address, Address, Address), Box<dyn Error>> {
-    let lite_processor_address = vault::setup_lite_processor(
-        rt,
-        eth_client,
-        eth_admin_acc,
-        eth_mailbox.as_str(),
-        authorization_contract_address.as_str(),
-    )?;
-
-    // Let's create two Valence Base Accounts on Ethereum to test the processor with libraries (in this case the forwarder)
-    let eth_deposit_acc = vault::setup_valence_account(rt, eth_client, eth_admin_acc)?;
-    let eth_withdraw_acc = vault::setup_valence_account(rt, eth_client, eth_admin_acc)?;
-
-    info!("ETH deposit acc: {eth_deposit_acc}");
-    info!("ETH withdraw acc: {eth_withdraw_acc}");
-
-    let deposit_erc20_addr = vault::setup_deposit_erc20(rt, eth_client)?;
-
-    let vault_address = vault::setup_valence_vault(
-        rt,
-        eth_client,
-        &eth_accounts,
-        eth_admin_acc,
-        eth_deposit_acc,
-        eth_withdraw_acc,
-        deposit_erc20_addr,
-    )?;
-
-    Ok((
-        lite_processor_address,
-        vault_address,
-        deposit_erc20_addr,
-        eth_deposit_acc,
-        eth_withdraw_acc,
-    ))
 }
 
 fn setup_valence_encoder_broker(
