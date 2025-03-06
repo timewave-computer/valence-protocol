@@ -57,6 +57,7 @@ pub fn execute(
     match msg {
         ExecuteMsg::ApproveLibrary { library } => execute::approve_library(deps, info, library),
         ExecuteMsg::RemoveLibrary { library } => execute::remove_library(deps, info, library),
+        ExecuteMsg::ExecuteMsg { msgs } => execute::execute_msg(deps, info, msgs),
         ExecuteMsg::ExecuteIcaMsg { msgs } => execute::execute_ica_msg(deps, env, info, msgs),
         ExecuteMsg::RegisterIca {} => execute::try_register_ica(deps, env),
         ExecuteMsg::UpdateOwnership(action) => execute::update_ownership(deps, env, info, action),
@@ -110,6 +111,31 @@ mod execute {
         Ok(Response::new()
             .add_attribute("method", "remove_library")
             .add_attribute("library", library_addr))
+    }
+
+    pub fn execute_msg(
+        deps: DepsMut<NeutronQuery>,
+        info: MessageInfo,
+        msgs: Vec<CosmosMsg>,
+    ) -> Result<Response<NeutronMsg>, ContractError> {
+        // If not admin, check if it's an approved library
+        ensure!(
+            cw_ownable::is_owner(deps.storage, &info.sender)?
+                || APPROVED_LIBRARIES.has(deps.storage, info.sender.clone()),
+            ContractError::Unauthorized(UnauthorizedReason::NotAdminOrApprovedLibrary)
+        );
+
+        // Apply conversion
+        let neutron_msgs: Vec<CosmosMsg<NeutronMsg>> = msgs
+            .into_iter()
+            .filter_map(|msg| msg.change_custom())
+            .collect();
+
+        // Execute the message
+        Ok(Response::new()
+            .add_messages(neutron_msgs)
+            .add_attribute("method", "execute_msg")
+            .add_attribute("sender", info.sender))
     }
 
     pub fn try_register_ica(

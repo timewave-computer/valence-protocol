@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{StdError, StdResult, Uint64};
+use cosmwasm_std::{CosmosMsg, StdError, StdResult, Uint64};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query};
 use neutron_sdk::bindings::types::ProtobufAny;
 
@@ -15,8 +15,9 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     ApproveLibrary { library: String }, // Add library to approved list (only admin)
     RemoveLibrary { library: String },  // Remove library from approved list (only admin)
+    ExecuteMsg { msgs: Vec<CosmosMsg> }, // Execute a list of Cosmos messages, useful to retrieve funds that were sent here by the owner for example.
     ExecuteIcaMsg { msgs: Vec<ProtobufAny> }, // Execute a protobuf message on the ICA
-    RegisterIca {},                     // Register the ICA on the remote chain
+    RegisterIca {},                      // Register the ICA on the remote chain
 }
 
 #[cw_ownable_query]
