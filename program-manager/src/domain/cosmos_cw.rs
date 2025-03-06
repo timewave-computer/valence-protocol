@@ -420,6 +420,10 @@ impl Connector for CosmosCosmwasmConnector {
         authorization_addr: String,
         owner: String,
     ) -> ConnectorResult<()> {
+        if self.wallet.account_address == owner {
+            return Ok(());
+        }
+
         // Change owner in authorization contract
         let msg = to_vec(
             &valence_authorization_utils::msg::ExecuteMsg::UpdateOwnership(
