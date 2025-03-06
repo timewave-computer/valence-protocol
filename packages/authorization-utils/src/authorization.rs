@@ -2,7 +2,10 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Api, BlockInfo, Uint128};
 use cw_utils::Expiration;
 
-use crate::function::{AtomicFunction, Function, NonAtomicFunction, RetryLogic};
+use crate::{
+    function::{AtomicFunction, Function, NonAtomicFunction, RetryLogic},
+    zk::VerifyingKey,
+};
 
 #[cw_serde]
 // What an owner or subowner can pass to the contract to create an authorization
@@ -17,6 +20,8 @@ pub struct AuthorizationInfo {
     pub subroutine: Subroutine,
     // If not passed, we will set the priority to Medium
     pub priority: Option<Priority>,
+    // A ZK verifying key for subroutines that expects a ZK proof.
+    pub zk_vk: Option<VerifyingKey>,
 }
 
 #[cw_serde]
@@ -37,6 +42,7 @@ pub struct Authorization {
     pub subroutine: Subroutine,
     pub priority: Priority,
     pub state: AuthorizationState,
+    pub zk_vk: Option<VerifyingKey>,
 }
 
 impl AuthorizationInfo {
@@ -59,6 +65,7 @@ impl AuthorizationInfo {
             subroutine: self.subroutine,
             priority: self.priority.unwrap_or_default(),
             state: AuthorizationState::Enabled,
+            zk_vk: None,
         }
     }
 }
