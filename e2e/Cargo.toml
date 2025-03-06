@@ -27,6 +27,7 @@ valence-authorization-utils          = { workspace = true }
 valence-processor-utils              = { workspace = true }
 valence-account-utils                = { workspace = true }
 valence-storage-account              = { workspace = true }
+valence-interchain-account           = { workspace = true }
 valence-library-utils                = { workspace = true }
 valence-splitter-library             = { workspace = true }
 valence-reverse-splitter-library     = { workspace = true }
@@ -46,16 +47,17 @@ valence-osmosis-cl-withdrawer        = { workspace = true }
 valence-osmosis-utils                = { workspace = true }
 valence-encoder-broker               = { workspace = true }
 valence-encoder-utils                = { workspace = true }
-tokio                                = { workspace = true }
-osmosis-std                          = { workspace = true }
-valence-test-icq-lib                 = { workspace = true }
-neutron-sdk                          = { workspace = true }
 valence-neutron-ic-querier           = { workspace = true }
 valence-middleware-broker            = { workspace = true }
 valence-middleware-osmosis           = { workspace = true }
 valence-middleware-utils             = { workspace = true }
 valence-middleware-asserter          = { workspace = true }
+valence-test-icq-lib                 = { workspace = true }
 valence-chain-client-utils           = { workspace = true }
+valence-ica-cctp-transfer            = { workspace = true }
+tokio                                = { workspace = true }
+osmosis-std                          = { workspace = true }
+neutron-sdk                          = { workspace = true }
 alloy                                = { version = "0.9.2", features = ["full"] }
 alloy_primitives_encoder             = { package = "alloy-primitives", version = "0.7.7" }
 alloy_sol_types_encoder              = { package = "alloy-sol-types", version = "0.7.7" }

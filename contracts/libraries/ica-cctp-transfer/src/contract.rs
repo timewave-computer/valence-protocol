@@ -40,7 +40,7 @@ pub fn execute(
 }
 
 mod functions {
-    use cosmwasm_std::{to_json_binary, DepsMut, Env, MessageInfo, Response};
+    use cosmwasm_std::{Binary, DepsMut, Env, MessageInfo, Response};
     use neutron_sdk::bindings::types::ProtobufAny;
     use prost::{Message, Name};
     use valence_library_utils::{
@@ -76,7 +76,7 @@ mod functions {
                 // Create the Any
                 let any_msg = ProtobufAny {
                     type_url: MsgDepositForBurn::type_url(),
-                    value: to_json_binary(&proto_msg.encode_to_vec())?,
+                    value: Binary::new(proto_msg.encode_to_vec()),
                 };
 
                 let input_account_msgs = execute_on_behalf_of(vec![any_msg], &cfg.input_addr)?;

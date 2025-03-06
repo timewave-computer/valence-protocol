@@ -8595,6 +8595,8 @@ dependencies = [
  "valence-forwarder-library",
  "valence-generic-ibc-transfer-library",
  "valence-ibc-utils",
+ "valence-ica-cctp-transfer",
+ "valence-interchain-account",
  "valence-library-utils",
  "valence-middleware-asserter",
  "valence-middleware-broker",
@@ -8761,7 +8763,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 1.0.69",
- "valence-account-utils",
  "valence-ibc-utils",
 ]
 
