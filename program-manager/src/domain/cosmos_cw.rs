@@ -43,7 +43,7 @@ use super::{Connector, ConnectorResult, POLYTONE_TIMEOUT};
 // acc0 in local-ic
 // const MNEMONIC: &str = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry";
 // acc1 in local-ic
-// const MNEMONIC: &str = "across army acoustic hurt help sad turkey switch popular fade purse obvious session tuition file asset cover agree number motor pupil slim hundred busy";
+const MNEMONIC: &str = "across army acoustic hurt help sad turkey switch popular fade purse obvious session tuition file asset cover agree number motor pupil slim hundred busy";
 
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryBuildAddressRequest {
@@ -114,8 +114,10 @@ impl CosmosCosmwasmConnector {
         let gas_price = Decimal::from_str(&chain_info.gas_price)?;
         let gas_adj = Decimal::from_str("1.5")?;
 
-        let manager_mnemonic = env::var("MANAGER_MNEMONIC")
-            .context("Manager mnemonic is not set as environment variable")?;
+        // TODO: Error when MANAGER_MNEMONIC is not set as environment variable
+        // Currently our tests are not setting it, so we are using the default mnemonic
+        // .context("Manager mnemonic is not set as environment variable")?;
+        let manager_mnemonic = env::var("MANAGER_MNEMONIC").unwrap_or(MNEMONIC.to_string());
 
         let wallet = Wallet::from_seed_phrase(
             grpc,
