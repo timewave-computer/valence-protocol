@@ -323,6 +323,17 @@
           },
           "subroutine": {
             "$ref": "#/definitions/Subroutine"
+          },
+          "zk_vk": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0.0
+            }
           }
         },
         "additionalProperties": false
@@ -1696,6 +1707,31 @@
           {
             "type": "object",
             "required": [
+              "cosmwasm_execute_z_k_msg"
+            ],
+            "properties": {
+              "cosmwasm_execute_z_k_msg": {
+                "type": "object",
+                "required": [
+                  "msg",
+                  "proof"
+                ],
+                "properties": {
+                  "msg": {
+                    "$ref": "#/definitions/Binary"
+                  },
+                  "proof": {
+                    "$ref": "#/definitions/Binary"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
               "cosmwasm_migrate_msg"
             ],
             "properties": {
@@ -2262,6 +2298,17 @@
             },
             "subroutine": {
               "$ref": "#/definitions/Subroutine"
+            },
+            "zk_vk": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "uint8",
+                "minimum": 0.0
+              }
             }
           },
           "additionalProperties": false
@@ -3626,6 +3673,31 @@
             {
               "type": "object",
               "required": [
+                "cosmwasm_execute_z_k_msg"
+              ],
+              "properties": {
+                "cosmwasm_execute_z_k_msg": {
+                  "type": "object",
+                  "required": [
+                    "msg",
+                    "proof"
+                  ],
+                  "properties": {
+                    "msg": {
+                      "$ref": "#/definitions/Binary"
+                    },
+                    "proof": {
+                      "$ref": "#/definitions/Binary"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
                 "cosmwasm_migrate_msg"
               ],
               "properties": {
@@ -3989,6 +4061,31 @@
                   ],
                   "properties": {
                     "msg": {
+                      "$ref": "#/definitions/Binary"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "cosmwasm_execute_z_k_msg"
+              ],
+              "properties": {
+                "cosmwasm_execute_z_k_msg": {
+                  "type": "object",
+                  "required": [
+                    "msg",
+                    "proof"
+                  ],
+                  "properties": {
+                    "msg": {
+                      "$ref": "#/definitions/Binary"
+                    },
+                    "proof": {
                       "$ref": "#/definitions/Binary"
                     }
                   },

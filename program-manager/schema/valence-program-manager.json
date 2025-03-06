@@ -289,6 +289,17 @@
           },
           "subroutine": {
             "$ref": "#/definitions/Subroutine"
+          },
+          "zk_vk": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0.0
+            }
           }
         },
         "additionalProperties": false
