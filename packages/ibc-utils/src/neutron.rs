@@ -1,17 +1,17 @@
 use std::collections::BTreeMap;
 
+use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::traits::MessageExt;
-use cosmos_sdk_proto::{cosmos::base::v1beta1::Coin, Any};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     to_json_string, Addr, Binary, CosmosMsg, DepsMut, Env, QuerierWrapper, QueryRequest, StdError,
     StdResult, Uint128, Uint64,
 };
 use cw_denom::CheckedDenom;
-use neutron_sdk::proto_types::neutron::interchaintxs::v1::MsgSubmitTx;
+use neutron_sdk::bindings::msg::NeutronMsg;
 use neutron_sdk::{
-    bindings::{msg::IbcFee, query::NeutronQuery, types::ProtobufAny},
-    proto_types::neutron::{feerefunder::Fee, interchaintxs::v1::MsgRegisterInterchainAccount},
+    bindings::{msg::IbcFee, query::NeutronQuery},
+    proto_types::neutron::interchaintxs::v1::MsgRegisterInterchainAccount,
     query::min_ibc_fee::query_min_ibc_fee,
 };
 
@@ -238,7 +238,7 @@ pub fn register_ica_msg(
     connection_id: String,
     interchain_account_id: String,
     ica_registration_fee: &cosmwasm_std::Coin,
-) -> CosmosMsg {
+) -> CosmosMsg<NeutronMsg> {
     // Transform the coins to the ProtoCoin type
     let register_fee = vec![Coin {
         denom: ica_registration_fee.denom.to_string(),
@@ -256,40 +256,5 @@ pub fn register_ica_msg(
     CosmosMsg::Stargate {
         type_url: "/neutron.interchaintxs.v1.MsgRegisterInterchainAccount".to_string(),
         value: Binary::from(msg_register_interchain_account.to_bytes().unwrap()),
-    }
-}
-
-pub fn submit_tx(
-    sender: String,
-    connection_id: String,
-    interchain_account_id: String,
-    msgs: Vec<ProtobufAny>,
-    memo: String,
-    timeout: u64,
-    fee: Fee,
-) -> CosmosMsg {
-    // Transform the messages into what MsgSubmitTx expects
-    let any_msgs: Vec<Any> = msgs
-        .into_iter()
-        .map(|msg| Any {
-            type_url: msg.type_url,
-            value: msg.value.to_vec(),
-        })
-        .collect();
-
-    let msg_submit_tx = MsgSubmitTx {
-        from_address: sender.to_string(),
-        interchain_account_id,
-        connection_id,
-        msgs: any_msgs,
-        memo,
-        timeout,
-        fee: Some(fee),
-    };
-
-    #[allow(deprecated)]
-    CosmosMsg::Stargate {
-        type_url: "/neutron.interchaintxs.v1.MsgSubmitTx".to_string(),
-        value: Binary::from(msg_submit_tx.to_bytes().unwrap()),
     }
 }

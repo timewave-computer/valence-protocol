@@ -95,10 +95,7 @@ impl BaseClient for NeutronClient {
 
         let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
 
-        match broadcast_tx_response.tx_response {
-            Some(tx_response) => Ok(TransactionResponse::try_from(tx_response)?),
-            None => Err(StrategistError::TransactionError("failed".to_string())),
-        }
+        TransactionResponse::try_from(broadcast_tx_response.tx_response)
     }
 }
 

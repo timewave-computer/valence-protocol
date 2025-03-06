@@ -1,10 +1,12 @@
 pub mod authorization;
 pub mod base_account;
 pub mod ethereum;
+pub mod file;
 pub mod hyperlane;
 pub mod ibc;
 pub mod icq;
 pub mod manager;
+pub mod noble;
 pub mod osmosis;
 pub mod persistence;
 pub mod polytone;
@@ -16,6 +18,9 @@ pub mod solidity_contracts;
 pub const NEUTRON_CONFIG_FILE: &str = "neutron.json";
 pub const NEUTRON_JUNO_CONFIG_FILE: &str = "neutron_juno.json";
 pub const NEUTRON_OSMO_CONFIG_FILE: &str = "neutron_osmosis.json";
+
+// mnemonic used in our local-ic config for the admin address
+pub const ADMIN_MNEMONIC: &str = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry";
 
 // Path of all valence contracts
 pub const VALENCE_ARTIFACTS_PATH: &str = "artifacts";
@@ -44,6 +49,12 @@ pub const PERSISTENCE_CHAIN_ID: &str = "localpersistence-1";
 pub const PERSISTENCE_CHAIN_NAME: &str = "persistence";
 pub const PERSISTENCE_CHAIN_PREFIX: &str = "persistence";
 pub const PERSISTENCE_CHAIN_ADMIN_ADDR: &str = "persistence1hj5fveer5cjtn4wd6wstzugjfdxzl0xpgq5pz8";
+
+pub const NOBLE_CHAIN_DENOM: &str = "ustake"; // For testing ustake is the fee denom
+pub const NOBLE_CHAIN_ID: &str = "localnoble-1";
+pub const NOBLE_CHAIN_NAME: &str = "noble";
+pub const NOBLE_CHAIN_PREFIX: &str = "noble";
+pub const NOBLE_CHAIN_ADMIN_ADDR: &str = "noble1hj5fveer5cjtn4wd6wstzugjfdxzl0xpw0865d";
 
 pub const ASTROPORT_LP_SUBDENOM: &str = "astroport/share";
 

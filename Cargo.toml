@@ -86,6 +86,7 @@ valence-encoder-broker               = { path = "contracts/encoders/broker", fea
 valence-neutron-ic-querier           = { path = "contracts/libraries/neutron-ic-querier", features = ["library"] }
 valence-drop-liquid-staker           = { path = "contracts/libraries/drop-liquid-staker", features = ["library"] }
 valence-drop-liquid-unstaker         = { path = "contracts/libraries/drop-liquid-unstaker", features = ["library"] }
+valence-ica-cctp-transfer            = { path = "contracts/libraries/ica-cctp-transfer", features = ["library"] }
 
 # middleware
 valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = [
@@ -110,7 +111,7 @@ valence-program-registry-utils = { path = "packages/program-registry-utils" }
 valence-program-manager        = { path = "program-manager" }
 valence-program-registry       = { path = "contracts/program-registry", features = ["library"] }
 valence-middleware-utils       = { path = "packages/middleware-utils" }
-valence-chain-client-utils     = { path = "packages/chain-client-utils", features = ["library"] }
+valence-chain-client-utils     = { path = "packages/chain-client-utils" }
 valence-liquid-staking-utils   = { path = "packages/liquid-staking-utils" }
 
 # dev-dependencies

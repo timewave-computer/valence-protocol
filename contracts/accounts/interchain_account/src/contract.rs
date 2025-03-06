@@ -5,12 +5,14 @@ use cosmwasm_std::{
     StdResult,
 };
 use cw2::set_contract_version;
-use neutron_sdk::{bindings::query::NeutronQuery, sudo::msg::SudoMsg};
-
-use valence_account_utils::error::ContractError;
+use neutron_sdk::{
+    bindings::{msg::NeutronMsg, query::NeutronQuery},
+    sudo::msg::SudoMsg,
+};
 use valence_ibc_utils::neutron::OpenAckVersion;
 
 use crate::{
+    error::ContractError,
     msg::{ExecuteMsg, IcaInformation, IcaState, InstantiateMsg, QueryMsg},
     state::{APPROVED_LIBRARIES, ICA_STATE, REMOTE_DOMAIN_INFO},
 };
@@ -20,6 +22,7 @@ const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub const INTERCHAIN_ACCOUNT_ID: &str = "valence-ica";
+pub const NTRN_DENOM: &str = "untrn";
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -50,10 +53,11 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response<NeutronMsg>, ContractError> {
     match msg {
         ExecuteMsg::ApproveLibrary { library } => execute::approve_library(deps, info, library),
         ExecuteMsg::RemoveLibrary { library } => execute::remove_library(deps, info, library),
+        ExecuteMsg::ExecuteMsg { msgs } => execute::execute_msg(deps, info, msgs),
         ExecuteMsg::ExecuteIcaMsg { msgs } => execute::execute_ica_msg(deps, env, info, msgs),
         ExecuteMsg::RegisterIca {} => execute::try_register_ica(deps, env),
         ExecuteMsg::UpdateOwnership(action) => execute::update_ownership(deps, env, info, action),
@@ -61,17 +65,18 @@ pub fn execute(
 }
 
 mod execute {
-    use cosmwasm_std::{ensure, DepsMut, Empty, Env, MessageInfo, Response, StdError};
+    use cosmwasm_std::{ensure, CosmosMsg, DepsMut, Empty, Env, MessageInfo, Response, StdError};
     use neutron_sdk::{
-        bindings::{query::NeutronQuery, types::ProtobufAny},
+        bindings::{msg::NeutronMsg, query::NeutronQuery, types::ProtobufAny},
         query::min_ibc_fee::query_min_ibc_fee,
     };
-    use valence_account_utils::error::{ContractError, UnauthorizedReason};
     use valence_ibc_utils::neutron::{
-        get_transfer_fee, min_ntrn_ibc_fee, query_ica_registration_fee, register_ica_msg, submit_tx,
+        flatten_ntrn_ibc_fee, min_ntrn_ibc_fee, query_ica_registration_fee, register_ica_msg,
     };
 
     use crate::{
+        contract::NTRN_DENOM,
+        error::{ContractError, UnauthorizedReason},
         msg::IcaState,
         state::{APPROVED_LIBRARIES, ICA_STATE, REMOTE_DOMAIN_INFO},
     };
@@ -82,7 +87,7 @@ mod execute {
         deps: DepsMut<NeutronQuery>,
         info: MessageInfo,
         library: String,
-    ) -> Result<Response, ContractError> {
+    ) -> Result<Response<NeutronMsg>, ContractError> {
         cw_ownable::assert_owner(deps.storage, &info.sender)?;
 
         let library_addr = deps.api.addr_validate(&library)?;
@@ -97,7 +102,7 @@ mod execute {
         deps: DepsMut<NeutronQuery>,
         info: MessageInfo,
         library: String,
-    ) -> Result<Response, ContractError> {
+    ) -> Result<Response<NeutronMsg>, ContractError> {
         cw_ownable::assert_owner(deps.storage, &info.sender)?;
 
         let library_addr = deps.api.addr_validate(&library)?;
@@ -108,10 +113,35 @@ mod execute {
             .add_attribute("library", library_addr))
     }
 
+    pub fn execute_msg(
+        deps: DepsMut<NeutronQuery>,
+        info: MessageInfo,
+        msgs: Vec<CosmosMsg>,
+    ) -> Result<Response<NeutronMsg>, ContractError> {
+        // If not admin, check if it's an approved library
+        ensure!(
+            cw_ownable::is_owner(deps.storage, &info.sender)?
+                || APPROVED_LIBRARIES.has(deps.storage, info.sender.clone()),
+            ContractError::Unauthorized(UnauthorizedReason::NotAdminOrApprovedLibrary)
+        );
+
+        // Apply conversion
+        let neutron_msgs: Vec<CosmosMsg<NeutronMsg>> = msgs
+            .into_iter()
+            .filter_map(|msg| msg.change_custom())
+            .collect();
+
+        // Execute the message
+        Ok(Response::new()
+            .add_messages(neutron_msgs)
+            .add_attribute("method", "execute_msg")
+            .add_attribute("sender", info.sender))
+    }
+
     pub fn try_register_ica(
         deps: DepsMut<NeutronQuery>,
         env: Env,
-    ) -> Result<Response, ContractError> {
+    ) -> Result<Response<NeutronMsg>, ContractError> {
         // First we verify that we are in the correct state to allow ICA creation
         let state = ICA_STATE.load(deps.storage)?;
         match state {
@@ -160,7 +190,7 @@ mod execute {
         env: Env,
         info: MessageInfo,
         msgs: Vec<ProtobufAny>,
-    ) -> Result<Response, ContractError> {
+    ) -> Result<Response<NeutronMsg>, ContractError> {
         // If not admin, check if it's an approved library
         ensure!(
             cw_ownable::is_owner(deps.storage, &info.sender)?
@@ -178,23 +208,32 @@ mod execute {
                 .min_fee,
         );
 
-        // Get the proto fee
-        let transfer_fee = get_transfer_fee(ibc_fee);
+        let untrn_fee = flatten_ntrn_ibc_fee(&ibc_fee);
+        if deps
+            .querier
+            .query_balance(env.contract.address.clone(), NTRN_DENOM)?
+            .amount
+            < untrn_fee
+        {
+            return Err(ContractError::CannotCoverIbcFee);
+        }
 
-        // Create the SubmitTx msg
-        let submit_tx = submit_tx(
-            env.contract.address.into_string(),
+        // TODO: I'm forced to use the NeutronMsg + wasmbindings here due to an error in the serialization of the SubmitTxs proto in
+        // neutron-sdk because of how u64 are serialized as strings (which is fixed in neutron-std and we cant use right now due to testing limitations).
+        // Once we upgrade to neutron-std we can remove the NeutronMsg from here and use the proto directly instead of the binding (along with Any instead of Stargate)
+        let submit_tx_msg = NeutronMsg::submit_tx(
             remote_domain_info.connection_id,
             INTERCHAIN_ACCOUNT_ID.to_string(),
             msgs,
             "".to_string(),
             remote_domain_info.ica_timeout_seconds.u64(),
-            transfer_fee,
+            ibc_fee,
         );
+        let cosmos_msg = CosmosMsg::from(submit_tx_msg);
 
         // Send the message
         Ok(Response::new()
-            .add_message(submit_tx)
+            .add_message(cosmos_msg)
             .add_attribute("method", "execute_ica_msg")
             .add_attribute("sender", info.sender))
     }
@@ -204,7 +243,7 @@ mod execute {
         env: Env,
         info: MessageInfo,
         action: cw_ownable::Action,
-    ) -> Result<Response, ContractError> {
+    ) -> Result<Response<NeutronMsg>, ContractError> {
         let result = cw_ownable::update_ownership(
             deps.into_empty(),
             &env.block,
