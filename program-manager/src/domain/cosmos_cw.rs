@@ -112,7 +112,7 @@ impl CosmosCosmwasmConnector {
         ))?;
 
         let gas_price = Decimal::from_str(&chain_info.gas_price)?;
-        let gas_adj = Decimal::from_str("1.5")?;
+        let gas_adj = Decimal::from_str("2")?;
 
         // TODO: Error when MANAGER_MNEMONIC is not set as environment variable
         // Currently our tests are not setting it, so we are using the default mnemonic
