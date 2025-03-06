@@ -442,6 +442,8 @@ impl Connector for CosmosCosmwasmConnector {
         // Broadcast the tx and wait for it to finalize (or error)
         self.broadcast_tx(m, "change_authorization_owner").await?;
 
+        sleep(std::time::Duration::from_secs(5)).await;
+
         // Change the admin of the authorization contract as well
         let m = MsgUpdateAdmin {
             sender: self.wallet.account_address.clone(),
@@ -450,7 +452,7 @@ impl Connector for CosmosCosmwasmConnector {
         }
         .build_any();
 
-        self.broadcast_tx(m, "change_authorization_owner").await?;
+        self.broadcast_tx(m, "change_authorization_admin").await?;
 
         Ok(())
     }
