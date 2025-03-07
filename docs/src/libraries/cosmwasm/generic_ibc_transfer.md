@@ -108,7 +108,7 @@ Generic IBC Transfer library can be configured to make use of PFM as follows:
   More information about this can be found in the [official documentation](https://github.com/cosmos/ibc-apps/tree/main/middleware/packet-forward-middleware#full-example---chain-forward-a-b-c-d-with-retry-on-timeout
   ).
 
-Consider an example configuration transferring tokens from Neutron to Gaia via Juno.
+Consider an example configuration transferring tokens from Osmosis to Gaia via Juno.
 Library config may look like this:
 
 ```rust
@@ -119,13 +119,13 @@ LibraryConfig {
     amount: IbcTransferAmount::FixedAmount(transfer_amount),
     memo: "".to_string(),
     remote_chain_info: RemoteChainInfo {
-        channel_id: neutron_to_juno_channel_id,
+        channel_id: osmosis_to_juno_channel_id,
         ibc_transfer_timeout: Some(500u64.into()),
     },
     denom_to_pfm_map: BTreeMap::from([(
         denom,
         PacketForwardMiddlewareConfig {
-            local_to_hop_chain_channel_id: neutron_to_juno_channel_id,
+            local_to_hop_chain_channel_id: osmosis_to_juno_channel_id,
             hop_to_destination_chain_channel_id: juno_to_gaia_channel_id,
             hop_chain_receiver_address: "pfm".to_string(),
         },
