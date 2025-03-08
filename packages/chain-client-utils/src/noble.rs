@@ -1,4 +1,5 @@
 use cosmrs::Any;
+use log::info;
 use tonic::async_trait;
 
 use crate::{
@@ -8,6 +9,9 @@ use crate::{
 
 const CHAIN_PREFIX: &str = "noble";
 const CHAIN_DENOM: &str = "uusdc";
+const CCTP_MODULE_NAME: &str = "cctp";
+const ALLOWANCE: &str = "1000000000000000000000";
+const DUMMY_ADDRESS: &[u8; 32] = &[0x01; 32];
 
 /// client for interacting with the noble chain
 pub struct NobleClient {
@@ -37,6 +41,69 @@ impl NobleClient {
             chain_prefix: CHAIN_PREFIX.to_string(),
             gas_price: avg_gas_price,
         })
+    }
+
+    /// Sets up the noble client for testing the burn functionality by:
+    /// - Configuring the module account as a minter controller.
+    /// - Configuring the module account as a minter with a specified allowance.
+    /// - Adding a remote dummy token messenger.
+    /// - Linking a local token with a remote dummy token.
+    pub async fn set_up_test_environment(&self, sender: &str, domain_id: u32, denom: &str) {
+        // First get the module account for the cctp module
+        let cctp_module_account_address = self
+            .query_module_account(CCTP_MODULE_NAME)
+            .await
+            .unwrap()
+            .base_account
+            .unwrap()
+            .address;
+
+        // Configure the module account as a minter controller
+        let tx_response = self
+            .configure_minter_controller(sender, sender, &cctp_module_account_address)
+            .await
+            .unwrap();
+        info!("Minter controller configured response: {:?}", tx_response);
+        self.poll_for_tx(&tx_response.hash).await.unwrap();
+
+        // Configure the module account as a minter with a large mint allowance
+        let tx_response = self
+            .configure_minter(sender, &cctp_module_account_address, ALLOWANCE, denom)
+            .await
+            .unwrap();
+        info!("Minter configured response: {:?}", tx_response);
+        self.poll_for_tx(&tx_response.hash).await.unwrap();
+
+        // Add a remote token messenger address for the given domain_id.
+        // Any address will do as this is for testing the burn functionality.
+        let tx_response = self
+            .add_remote_token_messenger(sender, domain_id, DUMMY_ADDRESS)
+            .await;
+
+        match tx_response {
+            Ok(response) => {
+                self.poll_for_tx(&response.hash).await.unwrap();
+                info!("Remote token messenger added response: {:?}", response);
+            }
+            Err(_) => {
+                info!("Remote token messenger already added!");
+            }
+        }
+
+        // Link the local token with a remote token.
+        // Any remote token will do for testing.
+        let tx_response = self
+            .link_token_pair(sender, domain_id, DUMMY_ADDRESS, denom)
+            .await;
+        match tx_response {
+            Ok(response) => {
+                self.poll_for_tx(&response.hash).await.unwrap();
+                info!("Token pair linked response: {:?}", response);
+            }
+            Err(_) => {
+                info!("Token pair already linked!");
+            }
+        }
     }
 
     pub async fn mint_fiat(

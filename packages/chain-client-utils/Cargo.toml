@@ -20,6 +20,7 @@ cosmrs                  = { version = "0.21.1", features = ["cosmwasm", "rpc", "
 cosmos-sdk-proto        = { version = "0.26.1", features = ["grpc-transport", "grpc"] }
 tonic                   = { version = "0.12.3", features = ["transport"] }
 valence-processor-utils = { workspace = true }
+log                     = { workspace = true }
 hex                     = "0.4.3"
 neutron-std             = "5.1.2"
 ibc                     = "0.57.0"

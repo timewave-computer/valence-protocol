@@ -8,7 +8,7 @@ use persistence_std::types::pstake::liquidstakeibc::v1beta1::{KvUpdate, MsgUpdat
 use serde_json::Value;
 use tokio::runtime::Runtime;
 
-use crate::utils::file::get_grpc_address_and_port_from_logs;
+use crate::utils::parse::get_grpc_address_and_port_from_logs;
 
 use super::{
     ADMIN_MNEMONIC, PERSISTENCE_CHAIN_ADMIN_ADDR, PERSISTENCE_CHAIN_DENOM, PERSISTENCE_CHAIN_ID,

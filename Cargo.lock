@@ -8506,6 +8506,7 @@ dependencies = [
  "cosmrs 0.21.1",
  "hex",
  "ibc",
+ "log",
  "neutron-std",
  "prost 0.13.5",
  "serde",

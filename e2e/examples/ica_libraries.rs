@@ -10,9 +10,9 @@ use localic_utils::{
 use log::info;
 use valence_chain_client_utils::{cosmos::base_client::BaseClient, noble::NobleClient};
 use valence_e2e::utils::{
-    file::get_grpc_address_and_port_from_logs, noble::set_up_noble, relayer::restart_relayer,
-    ADMIN_MNEMONIC, GAS_FLAGS, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM,
-    NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, VALENCE_ARTIFACTS_PATH,
+    parse::get_grpc_address_and_port_from_logs, relayer::restart_relayer, ADMIN_MNEMONIC,
+    GAS_FLAGS, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID,
+    NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, VALENCE_ARTIFACTS_PATH,
 };
 use valence_interchain_account::msg::{IcaState, RemoteDomainInfo};
 use valence_library_utils::LibraryAccountType;
@@ -56,7 +56,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     });
 
     // Set up our noble environment to allow for testing on domain_id 0 and with USDC as the bridging denom
-    rt.block_on(set_up_noble(&noble_client, 0, UUSDC_DENOM));
+    rt.block_on(noble_client.set_up_test_environment(NOBLE_CHAIN_ADMIN_ADDR, 0, UUSDC_DENOM));
 
     // Upload the ICA account and the CCTP transfer contract
     let current_dir = env::current_dir()?;
