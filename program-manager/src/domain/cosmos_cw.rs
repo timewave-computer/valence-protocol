@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    fmt,
+    env, fmt,
     str::{from_utf8, FromStr},
 };
 
@@ -19,7 +19,7 @@ use cosmos_grpc_client::{
     cosmos_sdk_proto::{
         cosmos::tx::v1beta1::{GetTxRequest, GetTxResponse},
         cosmwasm::wasm::v1::{
-            MsgExecuteContract, MsgInstantiateContract2, QueryCodeRequest,
+            MsgExecuteContract, MsgInstantiateContract2, MsgUpdateAdmin, QueryCodeRequest,
             QueryContractInfoRequest, QuerySmartContractStateRequest,
         },
     },
@@ -109,11 +109,16 @@ impl CosmosCosmwasmConnector {
         ))?;
 
         let gas_price = Decimal::from_str(&chain_info.gas_price)?;
-        let gas_adj = Decimal::from_str("1.5")?;
+        let gas_adj = Decimal::from_str("2")?;
+
+        // TODO: Error when MANAGER_MNEMONIC is not set as environment variable
+        // Currently our tests are not setting it, so we are using the default mnemonic
+        // .context("Manager mnemonic is not set as environment variable")?;
+        let manager_mnemonic = env::var("MANAGER_MNEMONIC").unwrap_or(MNEMONIC.to_string());
 
         let wallet = Wallet::from_seed_phrase(
             grpc,
-            MNEMONIC,
+            manager_mnemonic,
             chain_info.prefix.clone(),
             chain_info.coin_type,
             0,
@@ -412,10 +417,15 @@ impl Connector for CosmosCosmwasmConnector {
         authorization_addr: String,
         owner: String,
     ) -> ConnectorResult<()> {
+        if self.wallet.account_address == owner {
+            return Ok(());
+        }
+
+        // Change owner in authorization contract
         let msg = to_vec(
             &valence_authorization_utils::msg::ExecuteMsg::UpdateOwnership(
                 cw_ownable::Action::TransferOwnership {
-                    new_owner: owner,
+                    new_owner: owner.clone(),
                     expiry: None,
                 },
             ),
@@ -424,7 +434,7 @@ impl Connector for CosmosCosmwasmConnector {
 
         let m = MsgExecuteContract {
             sender: self.wallet.account_address.clone(),
-            contract: authorization_addr,
+            contract: authorization_addr.clone(),
             msg,
             funds: vec![],
         }
@@ -432,6 +442,18 @@ impl Connector for CosmosCosmwasmConnector {
 
         // Broadcast the tx and wait for it to finalize (or error)
         self.broadcast_tx(m, "change_authorization_owner").await?;
+
+        sleep(std::time::Duration::from_secs(5)).await;
+
+        // Change the admin of the authorization contract as well
+        let m = MsgUpdateAdmin {
+            sender: self.wallet.account_address.clone(),
+            new_admin: owner,
+            contract: authorization_addr,
+        }
+        .build_any();
+
+        self.broadcast_tx(m, "change_authorization_admin").await?;
 
         Ok(())
     }
