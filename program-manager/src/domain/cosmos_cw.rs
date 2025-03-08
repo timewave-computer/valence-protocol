@@ -924,7 +924,7 @@ impl CosmosCosmwasmConnector {
         }
 
         // wait for the tx to be on chain
-        self.query_tx_hash(res.txhash, 15).await
+        self.query_tx_hash(res.txhash, 15, err_id.to_string()).await
     }
 
     /// we retry every second, so retry here means how many seconds we should wait for the tx to appear.
@@ -933,11 +933,12 @@ impl CosmosCosmwasmConnector {
         &mut self,
         hash: String,
         retry: u64,
+        err: String,
     ) -> BoxFuture<Result<GetTxResponse, CosmosCosmwasmError>> {
         Box::pin(async move {
             if retry == 0 {
                 return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
-                    "'query_tx_hash' failed, Max retry reached"
+                    "'query_tx_hash': {} failed, Max retry reached", err
                 )));
             };
 
@@ -953,7 +954,7 @@ impl CosmosCosmwasmConnector {
 
             match res {
                 Ok(r) => Ok(r.into_inner()),
-                Err(_) => self.query_tx_hash(hash, retry - 1).await,
+                Err(_) => self.query_tx_hash(hash, retry - 1, err).await,
             }
         })
     }
