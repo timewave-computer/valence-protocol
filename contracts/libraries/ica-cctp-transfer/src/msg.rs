@@ -28,7 +28,8 @@ pub struct LibraryConfig {
     pub denom: String,
     // Destination domain id
     pub destination_domain_id: u32,
-    // Address of the recipient account on the destination domain
+    // This address is the bytes representation of the address (with 32 length and padded zeroes)
+    // For more information, check https://docs.noble.xyz/cctp/mint#example
     pub mint_recipient: Binary,
 }
 
