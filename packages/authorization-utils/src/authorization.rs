@@ -65,7 +65,7 @@ impl AuthorizationInfo {
             subroutine: self.subroutine,
             priority: self.priority.unwrap_or_default(),
             state: AuthorizationState::Enabled,
-            zk_vk: None,
+            zk_vk: self.zk_vk,
         }
     }
 }
