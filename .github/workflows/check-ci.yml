@@ -329,6 +329,20 @@ jobs:
           chain-config: "neutron_osmosis"
           test-name: "osmo-cl-example"
 
+  local-ic-ica-tests:
+    needs: [build, setup-local-ic]
+    name: Valence ica & ica libraries e2e
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Run valence ica & ica libraries tests
+        uses: "./.github/actions/run-local-ic-test"
+        with:
+          chain-config: "neutron_noble"
+          test-name: "ica_libraries"
+
   local-ic-ethereum-e2e-tests:
     needs: [build, setup-local-ic]
     name: Ethereum e2e tests

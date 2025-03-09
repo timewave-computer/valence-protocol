@@ -12,6 +12,9 @@ pub mod liquidity_utils;
 pub mod msg;
 pub mod raw_config;
 
+#[cfg(feature = "neutron")]
+pub mod ica;
+
 #[cfg(feature = "testing")]
 pub mod testing;
 
