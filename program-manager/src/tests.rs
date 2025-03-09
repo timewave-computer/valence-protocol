@@ -252,6 +252,7 @@ mod test {
                     expiration_time: None,
                 }),
                 priority: None,
+                zk_vk: None,
             },
         );
 
