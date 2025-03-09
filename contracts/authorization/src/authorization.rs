@@ -374,7 +374,7 @@ impl Validate for Authorization {
             // If it's raw bytes we are going to validate the raw bytes
             match each_message {
                 ProcessorMessage::CosmwasmExecuteMsg { .. }
-                | ProcessorMessage::CosmwasmExecuteZKMsg { .. }
+                | ProcessorMessage::CosmwasmExecuteZkMsg { .. }
                 | ProcessorMessage::CosmwasmMigrateMsg { .. }
                 | ProcessorMessage::EvmCall { .. } => {
                     // Extract the json from each message

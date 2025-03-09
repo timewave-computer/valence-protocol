@@ -8,6 +8,12 @@ use ark_serialize::CanonicalDeserialize;
 // implementations for the authorization type (json schema, etc)
 pub type VerifyingKey = Vec<u8>;
 
+pub trait ProvingSystem {
+    type VerifyingKey: CanonicalDeserialize;
+    type PublicInputs;
+    type Proof;
+}
+
 pub fn verify_proof(vk: &VerifyingKey, proof: &[u8], inputs: &[u8]) -> bool {
     let pvk: PreparedVerifyingKey<Bn254> =
         match CanonicalDeserialize::deserialize_uncompressed(vk.as_slice()) {

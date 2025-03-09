@@ -1081,10 +1081,10 @@
           {
             "type": "object",
             "required": [
-              "cosmwasm_execute_z_k_msg"
+              "cosmwasm_execute_zk_msg"
             ],
             "properties": {
-              "cosmwasm_execute_z_k_msg": {
+              "cosmwasm_execute_zk_msg": {
                 "type": "object",
                 "required": [
                   "msg",
@@ -2144,10 +2144,10 @@
             {
               "type": "object",
               "required": [
-                "cosmwasm_execute_z_k_msg"
+                "cosmwasm_execute_zk_msg"
               ],
               "properties": {
-                "cosmwasm_execute_z_k_msg": {
+                "cosmwasm_execute_zk_msg": {
                   "type": "object",
                   "required": [
                     "msg",
