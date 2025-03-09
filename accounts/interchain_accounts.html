@@ -24,9 +24,9 @@
         <link rel="stylesheet" href="../fonts/fonts.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" href="../highlight.css">
-        <link rel="stylesheet" href="../tomorrow-night.css">
-        <link rel="stylesheet" href="../ayu-highlight.css">
+        <link rel="stylesheet" id="highlight-css" href="../highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="../tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
 
@@ -200,11 +200,13 @@ pub struct RemoteDomainInfo {
 </span>pub enum ExecuteMsg {
     ApproveLibrary { library: String }, // Add library to approved list (only admin)
     RemoveLibrary { library: String },  // Remove library from approved list (only admin)
+    ExecuteMsg { msgs: Vec&lt;CosmosMsg&gt; }, // Execute a list of Cosmos messages, useful to retrieve funds that were sent here by the owner for example.
     ExecuteIcaMsg { msgs: Vec&lt;ProtobufAny&gt; }, // Execute a protobuf message on the ICA
     RegisterIca {},                     // Register the ICA on the remote chain
 }
 <span class="boring">}</span></code></pre></pre>
 <p>Library approval and removal follow the same implementation as that of the fund accounts.</p>
+<p><code>ExecuteMsg</code> works in the same way as for the base account.</p>
 <p><code>ExecuteIcaMsg</code> is a list of protobuf messages that will be sent to the ICA on the remote chain. Each message contains
 the <code>type_url</code> and the protobuf encoded bytes to be delivered.</p>
 <p><code>RegisterIca</code> is a permissionless call that will register the ICA on the remote chain. This call requires the

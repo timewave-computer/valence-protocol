@@ -25,9 +25,9 @@
         <link rel="stylesheet" href="fonts/fonts.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" href="highlight.css">
-        <link rel="stylesheet" href="tomorrow-night.css">
-        <link rel="stylesheet" href="ayu-highlight.css">
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
 
@@ -342,11 +342,13 @@ pub struct RemoteDomainInfo {
 </span>pub enum ExecuteMsg {
     ApproveLibrary { library: String }, // Add library to approved list (only admin)
     RemoveLibrary { library: String },  // Remove library from approved list (only admin)
+    ExecuteMsg { msgs: Vec&lt;CosmosMsg&gt; }, // Execute a list of Cosmos messages, useful to retrieve funds that were sent here by the owner for example.
     ExecuteIcaMsg { msgs: Vec&lt;ProtobufAny&gt; }, // Execute a protobuf message on the ICA
     RegisterIca {},                     // Register the ICA on the remote chain
 }
 <span class="boring">}</span></code></pre></pre>
 <p>Library approval and removal follow the same implementation as that of the fund accounts.</p>
+<p><code>ExecuteMsg</code> works in the same way as for the base account.</p>
 <p><code>ExecuteIcaMsg</code> is a list of protobuf messages that will be sent to the ICA on the remote chain. Each message contains
 the <code>type_url</code> and the protobuf encoded bytes to be delivered.</p>
 <p><code>RegisterIca</code> is a permissionless call that will register the ICA on the remote chain. This call requires the
@@ -2358,11 +2360,56 @@ graph LR
     pub denom: String,
 }
 <span class="boring">}</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-ica-cctp-transfer-library"><a class="header" href="#valence-ica-cctp-transfer-library">Valence ICA CCTP Transfer Library</a></h1>
+<p>The <strong>Valence ICA CCTP Transfer Library</strong> library allows remotely executing a <strong>CCTP transfer</strong> using a <strong>Valence interchain account</strong> on <a href="https://www.noble.xyz/">Noble Chain</a>. It does that by remotely sending a <strong>MsgDepositForBurn</strong> to the ICS-27 ICA created by the <strong>Valence interchain account</strong> on Noble. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the <strong>Valence ICA CCTP Transfer Library</strong>.</p>
+<h2 id="high-level-flow-13"><a class="header" href="#high-level-flow-13">High-level flow</a></h2>
+<pre class="mermaid">---
+title: ICA CCTP Transfer Library
+---
+graph LR
+    subgraph Neutron
+      P[Processor]
+      L[ICA CCTP
+      Transfer Library]
+      I[Input Account]
+      P -- 1)Transfer --&gt; L
+      L -- 2)Query ICA address --&gt; I
+      L -- 3)Do ICA MsgDepositForBurn --&gt; I
+    end
+
+    subgraph Noble
+      ICA[Interchain Account]
+      I -- 4)Execute MsgDepositForBurn--&gt; ICA
+    end
+</pre>
+<h2 id="functions-13"><a class="header" href="#functions-13">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>Transfer</strong></td><td>-</td><td>Transfer funds with CCTP on Noble from the ICA created by the <strong>input_acount</strong> to a <strong>mint_recipient</strong> on a <strong>destination_domain_id</strong></td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration-13"><a class="header" href="#configuration-13">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LibraryConfig {
+    // Address of the input account (Valence interchain account)
+    pub input_addr: LibraryAccountType,
+    // Amount that is going to be transferred
+    pub amount: Uint128,
+    // Denom that is going to be transferred
+    pub denom: String,
+    // Destination domain id
+    pub destination_domain_id: u32,
+    // This address is the bytes representation of the address (with 32 length and padded zeroes)
+    // For more information, check https://docs.noble.xyz/cctp/mint#example
+    pub mint_recipient: Binary,
+}
+<span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="evm-libraries"><a class="header" href="#evm-libraries">EVM Libraries</a></h1>
 <p>This section contains a detailed description of all the libraries that can be used in EVM Execution Environments.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-forwarder-library-1"><a class="header" href="#valence-forwarder-library-1">Valence Forwarder Library</a></h1>
 <p>The <strong>Valence Forwarder</strong> library allows to <strong>continuously forward funds</strong> from an <strong>input account</strong> to an <strong>output account</strong>, following some time <strong>constraints</strong>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
-<h2 id="high-level-flow-13"><a class="header" href="#high-level-flow-13">High-level flow</a></h2>
+<h2 id="high-level-flow-14"><a class="header" href="#high-level-flow-14">High-level flow</a></h2>
 <pre class="mermaid">---
 title: Forwarder Library
 ---
@@ -2379,12 +2426,12 @@ graph LR
   S -- 3/Do Send funds --&gt; IA
   IA -- 4/Send funds --&gt; OA
 </pre>
-<h2 id="functions-13"><a class="header" href="#functions-13">Functions</a></h2>
+<h2 id="functions-14"><a class="header" href="#functions-14">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>Forward</strong></td><td>-</td><td>Forward funds from the configured <strong>input account</strong> to the <strong>output account</strong>, according to the <strong>forwarding configs</strong> &amp; <strong>min interval</strong>.</td></tr>
 </tbody></table>
 </div>
-<h2 id="configuration-13"><a class="header" href="#configuration-13">Configuration</a></h2>
+<h2 id="configuration-14"><a class="header" href="#configuration-14">Configuration</a></h2>
 <p>The library is configured on deployment using the <code>ForwarderConfig</code> type.</p>
 <pre><code class="language-solidity">    /**
      * @dev Configuration for a single token forwarding rule
@@ -2430,7 +2477,7 @@ graph LR
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-cctp-transfer-library"><a class="header" href="#valence-cctp-transfer-library">Valence CCTP Transfer library</a></h1>
 <p>The <strong>Valence CCTP Transfer</strong> library allows to <strong>transfer funds</strong> from an <strong>input account</strong> to a <strong>mint recipient</strong> using the <a href="https://developers.circle.com/stablecoins/cctp-getting-started">Cross-Chain Transfer Protocol (CCTP) v1</a>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the CCTP Transfer library.</p>
-<h2 id="high-level-flow-14"><a class="header" href="#high-level-flow-14">High-level flow</a></h2>
+<h2 id="high-level-flow-15"><a class="header" href="#high-level-flow-15">High-level flow</a></h2>
 <pre class="mermaid">---
 title: CCTP Transfer Library
 ---
@@ -2457,12 +2504,12 @@ graph LR
 
   EVM --- DEST
 </pre>
-<h2 id="functions-14"><a class="header" href="#functions-14">Functions</a></h2>
+<h2 id="functions-15"><a class="header" href="#functions-15">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>Transfer</strong></td><td>-</td><td>Transfer funds from the configured <strong>input account</strong> to the <strong>mint recipient</strong> on the <strong>destination domain</strong>.</td></tr>
 </tbody></table>
 </div>
-<h2 id="configuration-14"><a class="header" href="#configuration-14">Configuration</a></h2>
+<h2 id="configuration-15"><a class="header" href="#configuration-15">Configuration</a></h2>
 <p>The library is configured on deployment using the <code>CCTPTransferConfig</code> type. A list of the supported CCTP destination domains that can be used in the <code>destinationDomain</code> field can be found <a href="https://developers.circle.com/stablecoins/supported-domains">here</a>.</p>
 <pre><code class="language-solidity">    /**
      * @dev Configuration struct for token transfer parameters.
@@ -2899,7 +2946,7 @@ This way, when the message batch is being processed, any assertions that do not 
 prevent later messages from executing as expected. If the batch is <em>atomic</em>, the whole batch will abort.
 If the batch is <em>non-atomic</em>, various <a href="middleware/./../authorizations_processors/authorization_contract.html">authorization</a> configuration
 options will dictate the further behavior.</p>
-<h2 id="high-level-flow-15"><a class="header" href="#high-level-flow-15">High-level flow</a></h2>
+<h2 id="high-level-flow-16"><a class="header" href="#high-level-flow-16">High-level flow</a></h2>
 <pre class="mermaid">---
 title: Forwarder Library
 ---
