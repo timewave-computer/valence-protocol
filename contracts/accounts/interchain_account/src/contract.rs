@@ -9,11 +9,11 @@ use neutron_sdk::{
     bindings::{msg::NeutronMsg, query::NeutronQuery},
     sudo::msg::SudoMsg,
 };
+use valence_account_utils::ica::{ExecuteMsg, IcaInformation, IcaState, InstantiateMsg, QueryMsg};
 use valence_ibc_utils::neutron::OpenAckVersion;
 
 use crate::{
     error::ContractError,
-    msg::{ExecuteMsg, IcaInformation, IcaState, InstantiateMsg, QueryMsg},
     state::{APPROVED_LIBRARIES, ICA_STATE, REMOTE_DOMAIN_INFO},
 };
 
@@ -67,17 +67,20 @@ pub fn execute(
 mod execute {
     use cosmwasm_std::{ensure, CosmosMsg, DepsMut, Empty, Env, MessageInfo, Response, StdError};
     use neutron_sdk::{
-        bindings::{msg::NeutronMsg, query::NeutronQuery, types::ProtobufAny},
+        bindings::{msg::NeutronMsg, query::NeutronQuery},
         query::min_ibc_fee::query_min_ibc_fee,
     };
-    use valence_ibc_utils::neutron::{
-        flatten_ntrn_ibc_fee, min_ntrn_ibc_fee, query_ica_registration_fee, register_ica_msg,
+    use valence_account_utils::ica::IcaState;
+    use valence_ibc_utils::{
+        neutron::{
+            flatten_ntrn_ibc_fee, min_ntrn_ibc_fee, query_ica_registration_fee, register_ica_msg,
+        },
+        types::ProtobufAny,
     };
 
     use crate::{
         contract::NTRN_DENOM,
         error::{ContractError, UnauthorizedReason},
-        msg::IcaState,
         state::{APPROVED_LIBRARIES, ICA_STATE, REMOTE_DOMAIN_INFO},
     };
 
@@ -221,10 +224,18 @@ mod execute {
         // TODO: I'm forced to use the NeutronMsg + wasmbindings here due to an error in the serialization of the SubmitTxs proto in
         // neutron-sdk because of how u64 are serialized as strings (which is fixed in neutron-std and we cant use right now due to testing limitations).
         // Once we upgrade to neutron-std we can remove the NeutronMsg from here and use the proto directly instead of the binding (along with Any instead of Stargate)
+        let proto_msgs: Vec<neutron_sdk::bindings::types::ProtobufAny> = msgs
+            .iter()
+            .map(|msg| neutron_sdk::bindings::types::ProtobufAny {
+                type_url: msg.type_url.clone(),
+                value: msg.value.clone(),
+            })
+            .collect();
+
         let submit_tx_msg = NeutronMsg::submit_tx(
             remote_domain_info.connection_id,
             INTERCHAIN_ACCOUNT_ID.to_string(),
-            msgs,
+            proto_msgs,
             "".to_string(),
             remote_domain_info.ica_timeout_seconds.u64(),
             ibc_fee,

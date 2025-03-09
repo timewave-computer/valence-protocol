@@ -1,4 +1,5 @@
 use cosmwasm_schema::cw_serde;
+use cosmwasm_std::Binary;
 
 #[cw_serde]
 pub struct PacketForwardMiddlewareConfig {
@@ -18,4 +19,11 @@ pub struct ForwardMetadata {
     pub receiver: String,
     pub port: String,
     pub channel: String,
+}
+
+// We want a serializable version of Any using the Binary wrapper and not take it from neutron-sdk because it injects neutron feature into the contract
+#[cw_serde]
+pub struct ProtobufAny {
+    pub type_url: String,
+    pub value: Binary,
 }

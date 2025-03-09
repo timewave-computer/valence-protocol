@@ -1,12 +1,12 @@
 use cosmwasm_std::{to_json_binary, Addr, CosmosMsg, Deps, StdError, StdResult, WasmMsg};
-use neutron_sdk::bindings::types::ProtobufAny;
-use valence_interchain_account::msg::{IcaState, QueryMsg};
+use valence_account_utils::ica::{IcaState, QueryMsg};
+use valence_ibc_utils::types::ProtobufAny;
 
 /// Helper function to execute proto messages using the Valence interchain account
 pub fn execute_on_behalf_of(msgs: Vec<ProtobufAny>, account: &Addr) -> StdResult<CosmosMsg> {
     Ok(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: account.to_string(),
-        msg: to_json_binary(&valence_interchain_account::msg::ExecuteMsg::ExecuteIcaMsg { msgs })?,
+        msg: to_json_binary(&valence_account_utils::ica::ExecuteMsg::ExecuteIcaMsg { msgs })?,
         funds: vec![],
     }))
 }

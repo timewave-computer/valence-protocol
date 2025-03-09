@@ -648,7 +648,6 @@
         "additionalProperties": false
       },
       "ProtobufAny": {
-        "description": "Type for wrapping any protobuf message",
         "type": "object",
         "required": [
           "type_url",
@@ -656,16 +655,10 @@
         ],
         "properties": {
           "type_url": {
-            "description": "*type_url** describes the type of the serialized message",
             "type": "string"
           },
           "value": {
-            "description": "*value** must be a valid serialized protocol buffer of the above specified type",
-            "allOf": [
-              {
-                "$ref": "#/definitions/Binary"
-              }
-            ]
+            "$ref": "#/definitions/Binary"
           }
         },
         "additionalProperties": false

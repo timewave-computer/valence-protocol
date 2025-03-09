@@ -22,7 +22,7 @@ schemars              = { workspace = true }
 serde                 = { workspace = true }
 thiserror             = { workspace = true }
 valence-macros        = { workspace = true }
-valence-library-utils = { workspace = true, features = ["neutron"] }
+valence-library-utils = { workspace = true }
 valence-library-base  = { workspace = true }
+valence-ibc-utils     = { workspace = true }
 prost                 = { workspace = true, features = ["derive"] }
-neutron-sdk           = { workspace = true }
