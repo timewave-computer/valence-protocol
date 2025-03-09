@@ -8589,7 +8589,9 @@ dependencies = [
  "cosmrs 0.21.1",
  "hex",
  "ibc",
+ "log",
  "neutron-std",
+ "prost 0.13.5",
  "serde",
  "serde_json",
  "tokio",
@@ -8671,11 +8673,14 @@ dependencies = [
  "valence-astroport-withdrawer",
  "valence-authorization",
  "valence-authorization-utils",
+ "valence-chain-client-utils",
  "valence-encoder-broker",
  "valence-encoder-utils",
  "valence-forwarder-library",
  "valence-generic-ibc-transfer-library",
  "valence-ibc-utils",
+ "valence-ica-cctp-transfer",
+ "valence-interchain-account",
  "valence-library-utils",
  "valence-middleware-asserter",
  "valence-middleware-broker",
@@ -8811,6 +8816,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-ica-cctp-transfer"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "neutron-sdk",
+ "prost 0.13.5",
+ "schemars",
+ "serde",
+ "thiserror 1.0.69",
+ "valence-library-base",
+ "valence-library-utils",
+ "valence-macros",
+]
+
+[[package]]
 name = "valence-interchain-account"
 version = "0.2.0"
 dependencies = [
@@ -8824,7 +8847,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 1.0.69",
- "valence-account-utils",
  "valence-ibc-utils",
 ]
 
@@ -8858,12 +8880,14 @@ dependencies = [
  "cw-utils 2.0.0",
  "cw20 2.0.0",
  "cw20-base 2.0.0",
+ "neutron-sdk",
  "serde",
  "serde_json",
  "sha2 0.10.8",
  "thiserror 1.0.69",
  "valence-account-utils",
  "valence-base-account",
+ "valence-interchain-account",
  "valence-macros",
 ]
 
