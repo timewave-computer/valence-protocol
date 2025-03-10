@@ -40,9 +40,8 @@ pub fn execute(
 }
 
 mod functions {
-    use cosmwasm_std::{Binary, DepsMut, Env, MessageInfo, Response};
+    use cosmwasm_std::{AnyMsg, Binary, DepsMut, Env, MessageInfo, Response};
     use prost::{Message, Name};
-    use valence_ibc_utils::types::ProtobufAny;
     use valence_library_utils::{
         error::LibraryError,
         ica::{execute_on_behalf_of, get_remote_ica_address},
@@ -74,7 +73,7 @@ mod functions {
                 };
 
                 // Create the Any
-                let any_msg = ProtobufAny {
+                let any_msg = AnyMsg {
                     type_url: MsgDepositForBurn::type_url(),
                     value: Binary::from(proto_msg.encode_to_vec()),
                 };

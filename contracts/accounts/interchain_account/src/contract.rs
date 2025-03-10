@@ -65,17 +65,16 @@ pub fn execute(
 }
 
 mod execute {
-    use cosmwasm_std::{ensure, CosmosMsg, DepsMut, Empty, Env, MessageInfo, Response, StdError};
+    use cosmwasm_std::{
+        ensure, AnyMsg, CosmosMsg, DepsMut, Empty, Env, MessageInfo, Response, StdError,
+    };
     use neutron_sdk::{
         bindings::{msg::NeutronMsg, query::NeutronQuery},
         query::min_ibc_fee::query_min_ibc_fee,
     };
     use valence_account_utils::ica::IcaState;
-    use valence_ibc_utils::{
-        neutron::{
-            flatten_ntrn_ibc_fee, min_ntrn_ibc_fee, query_ica_registration_fee, register_ica_msg,
-        },
-        types::ProtobufAny,
+    use valence_ibc_utils::neutron::{
+        flatten_ntrn_ibc_fee, min_ntrn_ibc_fee, query_ica_registration_fee, register_ica_msg,
     };
 
     use crate::{
@@ -192,7 +191,7 @@ mod execute {
         deps: DepsMut<NeutronQuery>,
         env: Env,
         info: MessageInfo,
-        msgs: Vec<ProtobufAny>,
+        msgs: Vec<AnyMsg>,
     ) -> Result<Response<NeutronMsg>, ContractError> {
         // If not admin, check if it's an approved library
         ensure!(
