@@ -1,6 +1,6 @@
 use cosmwasm_schema::write_api;
 
-use valence_interchain_account::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use valence_account_utils::ica::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 fn main() {
     write_api! {

@@ -11,14 +11,15 @@ default = []
 testing = ["dep:cw-multi-test", "dep:cw20", "dep:cw20-base", "dep:sha2"]
 
 [dependencies]
-cosmwasm-schema = { workspace = true }
-cosmwasm-std    = { workspace = true }
-cw-ownable      = { workspace = true }
-cw-utils        = { workspace = true }
-serde           = { workspace = true }
-serde_json      = { workspace = true }
-thiserror       = { workspace = true }
-valence-macros  = { workspace = true }
+cosmwasm-schema   = { workspace = true }
+cosmwasm-std      = { workspace = true }
+cw-ownable        = { workspace = true }
+cw-utils          = { workspace = true }
+serde             = { workspace = true }
+serde_json        = { workspace = true }
+thiserror         = { workspace = true }
+valence-macros    = { workspace = true }
+valence-ibc-utils = { workspace = true }
 
 # Testing dependencies
 cw-multi-test = { workspace = true, optional = true }

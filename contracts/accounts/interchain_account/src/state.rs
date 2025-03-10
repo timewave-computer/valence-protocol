@@ -1,7 +1,6 @@
 use cosmwasm_std::{Addr, Empty};
 use cw_storage_plus::{Item, Map};
-
-use crate::msg::{IcaState, RemoteDomainInfo};
+use valence_account_utils::ica::{IcaState, RemoteDomainInfo};
 
 // Approved libraries that can execute actions on behalf of the account
 pub const APPROVED_LIBRARIES: Map<Addr, Empty> = Map::new("libraries");

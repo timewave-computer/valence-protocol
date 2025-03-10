@@ -54,8 +54,8 @@ pub enum ExecuteMsg {
     ApproveLibrary { library: String }, // Add library to approved list (only admin)
     RemoveLibrary { library: String },  // Remove library from approved list (only admin)
     ExecuteMsg { msgs: Vec<CosmosMsg> }, // Execute a list of Cosmos messages, useful to retrieve funds that were sent here by the owner for example.
-    ExecuteIcaMsg { msgs: Vec<ProtobufAny> }, // Execute a protobuf message on the ICA
-    RegisterIca {},                     // Register the ICA on the remote chain
+    ExecuteIcaMsg { msgs: Vec<AnyMsg> }, // Execute a protobuf message on the ICA
+    RegisterIca {},                      // Register the ICA on the remote chain
 }
 ```
 
