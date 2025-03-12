@@ -960,7 +960,8 @@ impl CosmosCosmwasmConnector {
         Box::pin(async move {
             if retry == 0 {
                 return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
-                    "'query_tx_hash': {} failed, Max retry reached", err
+                    "'query_tx_hash': {} failed, Max retry reached",
+                    err
                 )));
             };
 
