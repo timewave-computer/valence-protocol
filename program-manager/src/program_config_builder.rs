@@ -16,10 +16,11 @@ pub struct ProgramConfigBuilder {
 }
 
 impl ProgramConfigBuilder {
-    pub fn new(owner: String) -> Self {
+    pub fn new(name: &str, owner: &str) -> Self {
         ProgramConfigBuilder {
             program_config: ProgramConfig {
-                owner,
+                owner: owner.to_string(),
+                name: name.to_string(),
                 ..Default::default()
             },
             ..Default::default()

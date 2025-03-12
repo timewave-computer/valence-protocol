@@ -2421,6 +2421,7 @@
           "authorizations",
           "libraries",
           "links",
+          "name",
           "owner"
         ],
         "properties": {
@@ -2465,6 +2466,9 @@
             "description": "A list of links between an accounts and libraries",
             "type": "object",
             "additionalProperties": false
+          },
+          "name": {
+            "type": "string"
           },
           "owner": {
             "type": "string"

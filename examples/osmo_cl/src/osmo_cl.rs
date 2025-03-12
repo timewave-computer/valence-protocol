@@ -42,7 +42,7 @@ pub fn my_osmosis_cl_program(
     upper_tick: Int64,
 ) -> Result<ProgramConfig, Box<dyn Error>> {
     // initialize program config builder
-    let mut builder = ProgramConfigBuilder::new(owner);
+    let mut builder = ProgramConfigBuilder::new("osmo cl", owner.as_str());
 
     // Create three accounts on Osmosis
 

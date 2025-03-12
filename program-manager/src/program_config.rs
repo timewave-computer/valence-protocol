@@ -72,6 +72,7 @@ pub struct ProgramConfig {
     // This is the id of the program
     #[serde(default)]
     pub id: u64,
+    pub name: String,
     pub owner: String,
     /// A list of links between an accounts and libraries
     pub links: BTreeMap<Id, Link>,
