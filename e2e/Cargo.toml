@@ -53,7 +53,7 @@ valence-middleware-osmosis           = { workspace = true }
 valence-middleware-utils             = { workspace = true }
 valence-middleware-asserter          = { workspace = true }
 valence-test-icq-lib                 = { workspace = true }
-valence-chain-client-utils           = { workspace = true }
+valence-domain-clients               = { workspace = true }
 valence-ica-cctp-transfer            = { workspace = true }
 tokio                                = { workspace = true }
 osmosis-std                          = { workspace = true }

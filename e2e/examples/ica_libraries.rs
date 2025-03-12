@@ -8,7 +8,7 @@ use localic_utils::{
     NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 use log::info;
-use valence_chain_client_utils::{cosmos::base_client::BaseClient, noble::NobleClient};
+use valence_domain_clients::{clients::noble::NobleClient, cosmos::base_client::BaseClient};
 use valence_e2e::utils::{
     parse::get_grpc_address_and_port_from_logs, relayer::restart_relayer, ADMIN_MNEMONIC,
     GAS_FLAGS, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID,
