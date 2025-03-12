@@ -37,7 +37,7 @@ pub fn my_atomic_token_swap_program(
     swap_amount_token2: u128,
     authorized_swap_party: String,
 ) -> ProgramConfig {
-    let mut program_config_builder = ProgramConfigBuilder::new(owner);
+    let mut program_config_builder = ProgramConfigBuilder::new("token swap", owner.as_str());
 
     // Create two accounts in the domain
     let account_1 = program_config_builder.add_account(AccountInfo::new(
