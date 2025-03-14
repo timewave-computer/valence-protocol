@@ -10,6 +10,11 @@
         name = "OPENSSL_LIB_DIR";
         value = "${lib.getLib pkgs.openssl}/lib";
       }
+      {
+        name = "LIBCLANG_PATH";
+        value = lib.makeLibraryPath [ pkgs.libclang ];
+      }
+
     ];
     packages = with pkgs; [
       rustc
@@ -19,6 +24,7 @@
       foundry-bin
       taplo
       toml-cli
+      lld
     ];
     commands = [
       {
