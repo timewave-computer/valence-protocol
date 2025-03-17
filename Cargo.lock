@@ -1659,7 +1659,6 @@ version = "0.2.0"
 dependencies = [
  "clap 4.5.32",
  "localic-std",
- "localic-utils",
  "serde_json",
  "valence-authorization-utils",
  "valence-library-utils",
@@ -2858,7 +2857,6 @@ dependencies = [
  "config 0.15.11",
  "glob",
  "localic-std",
- "localic-utils",
  "serde_json",
  "tokio",
  "toml",

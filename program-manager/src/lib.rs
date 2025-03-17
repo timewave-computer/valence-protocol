@@ -21,7 +21,7 @@ use program_migration::{MigrateResponse, ProgramConfigMigrate};
 use program_update::{ProgramConfigUpdate, UpdateResponse};
 
 // Main chain name
-const NEUTRON_CHAIN: &str = "neutron";
+pub const NEUTRON_CHAIN: &str = "neutron";
 // // Main domain
 // const MAIN_DOMAIN: Domain = Domain::CosmosCosmwasm(MAIN_CHAIN);
 // // Neutron domain

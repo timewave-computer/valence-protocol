@@ -7,7 +7,6 @@ repository = { workspace = true }
 
 [dependencies]
 localic-std                 = { git = "https://github.com/strangelove-ventures/interchaintest", branch = "main" }
-localic-utils               = { git = "https://github.com/timewave-computer/localic-utils", branch = "main" }
 serde_json                  = { workspace = true }
 valence-program-manager     = { workspace = true }
 valence-splitter-library    = { workspace = true }

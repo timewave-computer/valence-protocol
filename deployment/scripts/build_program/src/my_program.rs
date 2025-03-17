@@ -1,4 +1,3 @@
-use localic_utils::{NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME};
 use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
@@ -9,8 +8,11 @@ use valence_program_manager::{
     library::{LibraryConfig, LibraryInfo},
     program_config::ProgramConfig,
     program_config_builder::ProgramConfigBuilder,
+    NEUTRON_CHAIN,
 };
 use valence_splitter_library::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
+
+pub const NEUTRON_CHAIN_ADMIN_ADDR: &str = "neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky";
 
 /// Write your program using the program builder
 pub(crate) fn my_program() -> ProgramConfig {
@@ -19,7 +21,7 @@ pub(crate) fn my_program() -> ProgramConfig {
 
     let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
     let neutron_domain =
-        valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
+        valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN.to_string());
 
     let account_1 = builder.add_account(AccountInfo::new(
         "test_1".to_string(),
