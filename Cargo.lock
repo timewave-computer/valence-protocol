@@ -8598,6 +8598,7 @@ dependencies = [
  "valence-generic-ibc-transfer-library",
  "valence-ibc-utils",
  "valence-ica-cctp-transfer",
+ "valence-ica-ibc-transfer",
  "valence-interchain-account",
  "valence-library-utils",
  "valence-middleware-asserter",

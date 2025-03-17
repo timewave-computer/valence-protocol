@@ -85,7 +85,7 @@ mod functions {
                                 .ibc_transfer_timeout
                                 .unwrap_or(DEFAULT_IBC_TIMEOUT),
                         )
-                        .seconds(),
+                        .nanos(),
                 };
 
                 // Create the Any
