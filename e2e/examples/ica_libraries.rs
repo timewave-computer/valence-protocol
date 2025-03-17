@@ -8,13 +8,13 @@ use localic_utils::{
     NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 use log::info;
+use valence_account_utils::ica::{IcaState, RemoteDomainInfo};
 use valence_domain_clients::{clients::noble::NobleClient, cosmos::base_client::BaseClient};
 use valence_e2e::utils::{
     parse::get_grpc_address_and_port_from_logs, relayer::restart_relayer, ADMIN_MNEMONIC,
     GAS_FLAGS, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID,
     NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, VALENCE_ARTIFACTS_PATH,
 };
-use valence_interchain_account::msg::{IcaState, RemoteDomainInfo};
 use valence_library_utils::LibraryAccountType;
 
 const UUSDC_DENOM: &str = "uusdc";
@@ -89,7 +89,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Instantiating the ICA contract...");
     let timeout_seconds = 90;
-    let ica_instantiate_msg = valence_interchain_account::msg::InstantiateMsg {
+    let ica_instantiate_msg = valence_account_utils::ica::InstantiateMsg {
         admin: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         approved_libraries: vec![],
         remote_domain_information: RemoteDomainInfo {
@@ -125,8 +125,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .get_request_builder(NEUTRON_CHAIN_NAME),
         &valence_ica.address,
         DEFAULT_KEY,
-        &serde_json::to_string(&valence_interchain_account::msg::ExecuteMsg::RegisterIca {})
-            .unwrap(),
+        &serde_json::to_string(&valence_account_utils::ica::ExecuteMsg::RegisterIca {}).unwrap(),
         GAS_FLAGS,
     )
     .unwrap_err();
@@ -145,8 +144,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .get_request_builder(NEUTRON_CHAIN_NAME),
         &valence_ica.address,
         DEFAULT_KEY,
-        &serde_json::to_string(&valence_interchain_account::msg::ExecuteMsg::RegisterIca {})
-            .unwrap(),
+        &serde_json::to_string(&valence_account_utils::ica::ExecuteMsg::RegisterIca {}).unwrap(),
         &format!("{} --amount=100000000{}", GAS_FLAGS, NEUTRON_CHAIN_DENOM),
     )
     .unwrap();
@@ -164,8 +162,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .get_request_builder()
                 .get_request_builder(NEUTRON_CHAIN_NAME),
             &valence_ica.address,
-            &serde_json::to_string(&valence_interchain_account::msg::QueryMsg::IcaState {})
-                .unwrap(),
+            &serde_json::to_string(&valence_account_utils::ica::QueryMsg::IcaState {}).unwrap(),
         )["data"]
             .clone(),
     )
@@ -249,11 +246,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             .get_request_builder(NEUTRON_CHAIN_NAME),
         &valence_ica.address,
         DEFAULT_KEY,
-        &serde_json::to_string(
-            &valence_interchain_account::msg::ExecuteMsg::ApproveLibrary {
-                library: ica_cctp_transfer.address.clone(),
-            },
-        )
+        &serde_json::to_string(&valence_account_utils::ica::ExecuteMsg::ApproveLibrary {
+            library: ica_cctp_transfer.address.clone(),
+        })
         .unwrap(),
         GAS_FLAGS,
     )
@@ -322,8 +317,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .get_request_builder(NEUTRON_CHAIN_NAME),
         &valence_ica.address,
         DEFAULT_KEY,
-        &serde_json::to_string(&valence_interchain_account::msg::ExecuteMsg::RegisterIca {})
-            .unwrap(),
+        &serde_json::to_string(&valence_account_utils::ica::ExecuteMsg::RegisterIca {}).unwrap(),
         GAS_FLAGS,
     )
     .unwrap();
@@ -351,8 +345,7 @@ where
                     .get_request_builder()
                     .get_request_builder(NEUTRON_CHAIN_NAME),
                 addr,
-                &serde_json::to_string(&valence_interchain_account::msg::QueryMsg::IcaState {})
-                    .unwrap(),
+                &serde_json::to_string(&valence_account_utils::ica::QueryMsg::IcaState {}).unwrap(),
             )["data"]
                 .clone(),
         )
