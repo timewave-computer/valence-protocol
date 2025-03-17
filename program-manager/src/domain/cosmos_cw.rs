@@ -924,7 +924,7 @@ impl CosmosCosmwasmConnector {
         }
 
         // wait for the tx to be on chain
-        self.query_tx_hash(res.txhash, 15).await
+        self.query_tx_hash(res.txhash, 15, err_id.to_string()).await
     }
 
     /// we retry every second, so retry here means how many seconds we should wait for the tx to appear.
@@ -933,6 +933,7 @@ impl CosmosCosmwasmConnector {
         &mut self,
         hash: String,
         retry: u64,
+        err: String,
     ) -> BoxFuture<Result<GetTxResponse, CosmosCosmwasmError>> {
         Box::pin(async move {
             if retry == 0 {
@@ -942,7 +943,7 @@ impl CosmosCosmwasmConnector {
                 )));
             };
 
-            sleep(std::time::Duration::from_secs(1)).await;
+            sleep(std::time::Duration::from_secs(6)).await;
 
             let res = self
                 .wallet
@@ -954,7 +955,7 @@ impl CosmosCosmwasmConnector {
 
             match res {
                 Ok(r) => Ok(r.into_inner()),
-                Err(_) => self.query_tx_hash(hash, retry - 1).await,
+                Err(_) => self.query_tx_hash(hash, retry - 1, err).await,
             }
         })
     }
