@@ -343,8 +343,8 @@ pub struct RemoteDomainInfo {
     ApproveLibrary { library: String }, // Add library to approved list (only admin)
     RemoveLibrary { library: String },  // Remove library from approved list (only admin)
     ExecuteMsg { msgs: Vec&lt;CosmosMsg&gt; }, // Execute a list of Cosmos messages, useful to retrieve funds that were sent here by the owner for example.
-    ExecuteIcaMsg { msgs: Vec&lt;ProtobufAny&gt; }, // Execute a protobuf message on the ICA
-    RegisterIca {},                     // Register the ICA on the remote chain
+    ExecuteIcaMsg { msgs: Vec&lt;AnyMsg&gt; }, // Execute a protobuf message on the ICA
+    RegisterIca {},                      // Register the ICA on the remote chain
 }
 <span class="boring">}</span></code></pre></pre>
 <p>Library approval and removal follow the same implementation as that of the fund accounts.</p>
