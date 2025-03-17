@@ -112,7 +112,6 @@ valence-program-manager        = { path = "program-manager" }
 valence-program-registry       = { path = "contracts/program-registry", features = ["library"] }
 valence-middleware-utils       = { path = "packages/middleware-utils" }
 valence-liquid-staking-utils   = { path = "packages/liquid-staking-utils" }
-valence-domain-clients         = { git = "https://github.com/timewave-computer/valence-domain-clients", tag = "v0.1.0-alpha" }
 
 # dev-dependencies
 cw-multi-test        = { version = "2.1.1", features = ["cosmwasm_1_4"] }
