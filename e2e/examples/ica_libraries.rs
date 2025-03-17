@@ -56,7 +56,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     });
 
     // Set up our noble environment to allow for testing on domain_id 0 and with USDC as the bridging denom
-    rt.block_on(noble_client.set_up_test_environment(NOBLE_CHAIN_ADMIN_ADDR, 0, UUSDC_DENOM));
+    rt.block_on(noble_client.set_up_test_environment(NOBLE_CHAIN_ADMIN_ADDR, 0, UUSDC_DENOM))?;
 
     // Upload the ICA account and the CCTP transfer contract
     let current_dir = env::current_dir()?;
@@ -197,9 +197,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     });
 
     // Verify that the funds were successfully minted
-    let balance = rt
-        .block_on(noble_client.query_balance(&remote_address, UUSDC_DENOM))
-        .unwrap();
+    let balance = rt.block_on(noble_client.query_balance(&remote_address, UUSDC_DENOM))?;
     assert_eq!(balance, amount_to_transfer);
 
     info!("Instantiating the ICA CCTP transfer contract...");
