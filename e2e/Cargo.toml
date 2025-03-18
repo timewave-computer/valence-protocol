@@ -55,6 +55,7 @@ valence-middleware-asserter          = { workspace = true }
 valence-test-icq-lib                 = { workspace = true }
 valence-chain-client-utils           = { workspace = true }
 valence-ica-cctp-transfer            = { workspace = true }
+valence-ica-ibc-transfer             = { workspace = true }
 tokio                                = { workspace = true }
 osmosis-std                          = { workspace = true }
 neutron-sdk                          = { workspace = true }
