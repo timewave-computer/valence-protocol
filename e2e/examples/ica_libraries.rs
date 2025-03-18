@@ -5,16 +5,19 @@ use localic_std::modules::cosmwasm::{contract_execute, contract_instantiate, con
 use localic_utils::{
     types::config::ConfigChain, utils::test_context::TestContext, ConfigChainBuilder,
     TestContextBuilder, DEFAULT_KEY, LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR,
-    NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
+    NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
 };
 use log::info;
 use valence_account_utils::ica::{IcaState, RemoteDomainInfo};
-use valence_chain_client_utils::{cosmos::base_client::BaseClient, noble::NobleClient};
+use valence_chain_client_utils::{
+    cosmos::base_client::BaseClient, neutron::NeutronClient, noble::NobleClient,
+};
 use valence_e2e::utils::{
     parse::get_grpc_address_and_port_from_logs, relayer::restart_relayer, ADMIN_MNEMONIC,
     GAS_FLAGS, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID,
     NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, VALENCE_ARTIFACTS_PATH,
 };
+use valence_ica_ibc_transfer::msg::RemoteChainInfo;
 use valence_library_utils::LibraryAccountType;
 
 const UUSDC_DENOM: &str = "uusdc";
@@ -176,6 +179,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
     info!("Remote address created: {}", remote_address);
 
+    info!("Start ICA CCTP transfer library test...");
+
     // Let's fund the ICA account with some uusdc by minting to it
     info!("Minting uusdc to the ICA account...");
     let amount_to_transfer = 10000000;
@@ -279,6 +284,142 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap();
     assert_eq!(balance, 0);
     info!("Funds successfully burned! ICA CCTP Transfer library test passed!");
+
+    info!("Start ICA IBC transfer library test...");
+    let ica_ibc_transfer = format!(
+        "{}/artifacts/valence_ica_ibc_transfer.wasm",
+        current_dir.display()
+    );
+
+    let mut uploader = test_ctx.build_tx_upload_contracts();
+    uploader
+        .with_chain_name(NEUTRON_CHAIN_NAME)
+        .send_single_contract(&ica_ibc_transfer)?;
+
+    // Get the code id
+    let code_id_ica_ibc_transfer = *test_ctx
+        .get_chain(NEUTRON_CHAIN_NAME)
+        .contract_codes
+        .get("valence_ica_ibc_transfer")
+        .unwrap();
+
+    info!("Instantiating the ICA IBC transfer contract...");
+    let ica_ibc_transfer_instantiate_msg = valence_library_utils::msg::InstantiateMsg::<
+        valence_ica_ibc_transfer::msg::LibraryConfig,
+    > {
+        owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        config: valence_ica_ibc_transfer::msg::LibraryConfig {
+            input_addr: LibraryAccountType::Addr(valence_ica.address.clone()),
+            amount: Uint128::new(amount_to_transfer),
+            denom: UUSDC_DENOM.to_string(),
+            receiver: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+            remote_chain_info: RemoteChainInfo {
+                channel_id: test_ctx
+                    .get_transfer_channels()
+                    .src(NOBLE_CHAIN_NAME)
+                    .dest(NEUTRON_CHAIN_NAME)
+                    .get(),
+                ibc_transfer_timeout: None,
+            },
+        },
+    };
+
+    let ica_ibc_transfer = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        code_id_ica_ibc_transfer,
+        &serde_json::to_string(&ica_ibc_transfer_instantiate_msg)?,
+        "valence_ica_ibc_transfer",
+        None,
+        "",
+    )?;
+    info!(
+        "ICA IBC transfer contract instantiated. Address: {}",
+        ica_ibc_transfer.address
+    );
+
+    info!("Approving the ICA IBC transfer library...");
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &valence_ica.address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&valence_account_utils::ica::ExecuteMsg::ApproveLibrary {
+            library: ica_ibc_transfer.address.clone(),
+        })
+        .unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+    std::thread::sleep(Duration::from_secs(3));
+
+    // Mint some funds to the ICA account
+    rt.block_on(async {
+        let tx_response = noble_client
+            .mint_fiat(
+                NOBLE_CHAIN_ADMIN_ADDR,
+                &remote_address,
+                &amount_to_transfer.to_string(),
+                UUSDC_DENOM,
+            )
+            .await
+            .unwrap();
+        noble_client.poll_for_tx(&tx_response.hash).await.unwrap();
+        info!(
+            "Minted {} to {}: {:?}",
+            UUSDC_DENOM, &remote_address, tx_response
+        );
+    });
+
+    // Trigger the transfer
+    let transfer_msg = &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+        valence_ica_ibc_transfer::msg::FunctionMsgs::Transfer {},
+    );
+
+    info!("Executing remote IBC transfer...");
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &ica_ibc_transfer.address,
+        DEFAULT_KEY,
+        &serde_json::to_string(&transfer_msg).unwrap(),
+        GAS_FLAGS,
+    )
+    .unwrap();
+    std::thread::sleep(Duration::from_secs(15));
+
+    // Verify that the funds were successfully sent
+    let uusdc_on_neutron_denom = test_ctx
+        .get_ibc_denom()
+        .base_denom(UUSDC_DENOM.to_owned())
+        .src(NOBLE_CHAIN_NAME)
+        .dest(NEUTRON_CHAIN_NAME)
+        .get();
+
+    let (grpc_url, grpc_port) = get_grpc_address_and_port_from_logs(NEUTRON_CHAIN_ID)?;
+    let neutron_client = rt.block_on(async {
+        NeutronClient::new(
+            &grpc_url,
+            &grpc_port.to_string(),
+            ADMIN_MNEMONIC,
+            NEUTRON_CHAIN_ID,
+        )
+        .await
+        .unwrap()
+    });
+
+    let balance = rt
+        .block_on(neutron_client.query_balance(NEUTRON_CHAIN_ADMIN_ADDR, &uusdc_on_neutron_denom))
+        .unwrap();
+
+    assert_eq!(balance, amount_to_transfer);
+
+    info!("Funds successfully sent! ICA IBC Transfer library test passed!");
 
     // Now we are going to force a timeout to verify that timeouts and channel recreations are working
     info!("Forcing a timeout to test channel closing...");
