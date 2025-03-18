@@ -4,7 +4,6 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/src/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import {ValenceVault} from "../../src/libraries/ValenceVault.sol";
-import {console} from "forge-std/src/console.sol";
 
 contract WithdrawDebugger is Test {
     function debugWithdrawRequest(ValenceVault vault, address owner)

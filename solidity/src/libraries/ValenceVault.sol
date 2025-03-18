@@ -249,7 +249,7 @@ contract ValenceVault is
      * @param newImplementation address of the new implementation
      */
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {
-        // You can add additional validation logic here if needed
+        // Upgrade logic comes here
     }
 
     /**
