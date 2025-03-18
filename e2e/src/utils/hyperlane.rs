@@ -573,6 +573,7 @@ async fn run_hyperlane_relayer(
     let mut pull_stream = docker.create_image(
         Some(CreateImageOptions {
             from_image: HYPERLANE_RELAYER_IMAGE_URL,
+            platform: "linux/amd64",
             ..Default::default()
         }),
         None,

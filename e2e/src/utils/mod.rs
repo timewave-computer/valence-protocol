@@ -18,6 +18,7 @@ pub mod vault;
 pub const NEUTRON_CONFIG_FILE: &str = "neutron.json";
 pub const NEUTRON_JUNO_CONFIG_FILE: &str = "neutron_juno.json";
 pub const NEUTRON_OSMO_CONFIG_FILE: &str = "neutron_osmosis.json";
+pub const NEUTRON_NOBLE_CONFIG_FILE: &str = "neutron_noble.json";
 
 // mnemonic used in our local-ic config for the admin address
 pub const ADMIN_MNEMONIC: &str = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry";

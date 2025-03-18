@@ -2,6 +2,7 @@ use std::error::Error;
 
 use alloy::{
     primitives::{Address, U256},
+    providers::ext::AnvilApi,
     sol_types::SolValue,
 };
 use log::{info, warn};
@@ -31,105 +32,99 @@ pub fn vault_update(
     rt: &tokio::runtime::Runtime,
     eth_client: &EthereumClient,
 ) -> Result<(), Box<dyn Error>> {
-    let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
-    let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
+    async_run!(rt, {
+        let eth_rp = eth_client.get_request_provider().await.unwrap();
 
-    let config = async_run!(rt, eth_client.query(valence_vault.config()).await.unwrap());
-    info!("pre-update vault config: {:?}", config);
+        eth_rp
+            .anvil_mine(Some(U256::from(5)), Some(U256::from(1)))
+            .await
+            .unwrap();
 
-    let start_rate = async_run!(rt, {
-        eth_client
+        let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
+
+        let config = eth_client.query(valence_vault.config()).await.unwrap();
+        info!("pre-update vault config: {:?}", config);
+
+        let start_rate = eth_client
             .query(valence_vault.redemptionRate())
             .await
             .unwrap()
-            ._0
-    });
-    let prev_max_rate = async_run!(rt, {
-        eth_client
+            ._0;
+        let prev_max_rate = eth_client
             .query(valence_vault.maxHistoricalRate())
             .await
             .unwrap()
-            ._0
-    });
+            ._0;
 
-    let prev_total_assets = async_run!(rt, {
-        eth_client
+        let prev_total_assets = eth_client
             .query(valence_vault.totalAssets())
             .await
             .unwrap()
-            ._0
-    });
+            ._0;
 
-    info!("Vault start rate: {start_rate}");
-    info!("Vault current max historical rate: {prev_max_rate}");
-    info!("Vault current total assets: {prev_total_assets}");
-    info!(
-            "Updating vault with new rate: {new_rate}, withdraw fee: {withdraw_fee_bps}bps, netting: {netting_amount}"
-        );
+        info!("Vault start rate: {start_rate}");
+        info!("Vault current max historical rate: {prev_max_rate}");
+        info!("Vault current total assets: {prev_total_assets}");
+        info!(
+                "Updating vault with new rate: {new_rate}, withdraw fee: {withdraw_fee_bps}bps, netting: {netting_amount}"
+            );
 
-    let update_result = async_run!(rt, {
-        eth_client
+        let update_result = eth_client
             .execute_tx(
                 valence_vault
                     .update(new_rate, withdraw_fee_bps, netting_amount)
                     .into_transaction_request(),
             )
-            .await
-    });
+            .await;
 
-    if let Err(e) = &update_result {
-        info!("Update failed: {:?}", e);
-        panic!("failed to update vault");
-    }
+        if let Err(e) = &update_result {
+            info!("Update failed: {:?}", e);
+            panic!("failed to update vault");
+        }
 
-    let new_redemption_rate = async_run!(rt, {
-        eth_client
+        let new_redemption_rate = eth_client
             .query(valence_vault.redemptionRate())
             .await
             .unwrap()
-            ._0
-    });
-    let new_max_historical_rate = async_run!(rt, {
-        eth_client
+            ._0;
+        let new_max_historical_rate = eth_client
             .query(valence_vault.maxHistoricalRate())
             .await
             .unwrap()
-            ._0
-    });
+            ._0;
 
-    let new_total_assets = async_run!(rt, {
-        eth_client
+        let new_total_assets = eth_client
             .query(valence_vault.totalAssets())
             .await
             .unwrap()
-            ._0
-    });
+            ._0;
 
-    let config = async_run!(rt, eth_client.query(valence_vault.config()).await.unwrap());
-    info!("Vault new config: {:?}", config);
-    info!("Vault new redemption rate: {new_redemption_rate}");
-    info!("Vault new max historical rate: {new_max_historical_rate}");
-    info!("Vault new total assets: {new_total_assets}");
+        let config = eth_client.query(valence_vault.config()).await.unwrap();
+        info!("Vault new config: {:?}", config);
+        info!("Vault new redemption rate: {new_redemption_rate}");
+        info!("Vault new max historical rate: {new_max_historical_rate}");
+        info!("Vault new total assets: {new_total_assets}");
 
-    assert_eq!(
-        new_redemption_rate, new_rate,
-        "Redemption rate should be updated to the new rate"
-    );
-
-    // Verify max historical rate was updated if needed
-    if new_rate > prev_max_rate {
         assert_eq!(
-            new_max_historical_rate, new_rate,
-            "Max historical rate should be updated when new rate is higher"
+            new_redemption_rate, new_rate,
+            "Redemption rate should be updated to the new rate"
         );
-    } else {
-        assert_eq!(
-            new_max_historical_rate, prev_max_rate,
-            "Max historical rate should remain unchanged when new rate is not higher"
-        );
-    }
 
-    Ok(())
+        // Verify max historical rate was updated if needed
+        if new_rate > prev_max_rate {
+            assert_eq!(
+                new_max_historical_rate, new_rate,
+                "Max historical rate should be updated when new rate is higher"
+            );
+        } else {
+            assert_eq!(
+                new_max_historical_rate, prev_max_rate,
+                "Max historical rate should remain unchanged when new rate is not higher"
+            );
+        }
+
+        Ok(())
+    })
 }
 
 pub fn query_vault_packed_values(

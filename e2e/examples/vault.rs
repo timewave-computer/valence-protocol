@@ -8,6 +8,7 @@ use localic_std::modules::{
     cosmwasm::{contract_execute, contract_instantiate, contract_query},
 };
 use localic_utils::{
+    types::config::ConfigChain,
     utils::{ethereum::EthClient, test_context::TestContext},
     ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
     NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
@@ -49,7 +50,9 @@ use valence_e2e::utils::{
     },
     vault, ASTROPORT_PATH, DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME,
     ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS, HYPERLANE_RELAYER_NEUTRON_ADDRESS,
-    LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
+    LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, NEUTRON_NOBLE_CONFIG_FILE,
+    NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME,
+    NOBLE_CHAIN_PREFIX, VALENCE_ARTIFACTS_PATH,
 };
 use valence_library_utils::liquidity_utils::AssetData;
 use valence_program_manager::{
@@ -224,6 +227,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_api_url(LOCAL_IC_API_URL)
         .with_artifacts_dir(VALENCE_ARTIFACTS_PATH)
         .with_chain(ConfigChainBuilder::default_neutron().build()?)
+        .with_chain(ConfigChain {
+            denom: NOBLE_CHAIN_DENOM.to_string(),
+            debugging: true,
+            chain_id: NOBLE_CHAIN_ID.to_string(),
+            chain_name: NOBLE_CHAIN_NAME.to_string(),
+            chain_prefix: NOBLE_CHAIN_PREFIX.to_string(),
+            admin_addr: NOBLE_CHAIN_ADMIN_ADDR.to_string(),
+        })
         .with_log_file_path(LOGS_FILE_PATH)
         .build()?;
 
@@ -256,8 +267,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     // 4. base account
     setup_manager(
         &mut test_ctx,
-        NEUTRON_CONFIG_FILE,
-        vec![GAIA_CHAIN_NAME],
+        NEUTRON_NOBLE_CONFIG_FILE,
+        vec![GAIA_CHAIN_NAME, NOBLE_CHAIN_NAME],
         vec![ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME],
     )?;
 
