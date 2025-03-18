@@ -53,12 +53,15 @@ In this message, the `connection_id` of the remote domain and the timeout for th
 pub enum ExecuteMsg {
     ApproveLibrary { library: String }, // Add library to approved list (only admin)
     RemoveLibrary { library: String },  // Remove library from approved list (only admin)
-    ExecuteIcaMsg { msgs: Vec<ProtobufAny> }, // Execute a protobuf message on the ICA
-    RegisterIca {},                     // Register the ICA on the remote chain
+    ExecuteMsg { msgs: Vec<CosmosMsg> }, // Execute a list of Cosmos messages, useful to retrieve funds that were sent here by the owner for example.
+    ExecuteIcaMsg { msgs: Vec<AnyMsg> }, // Execute a protobuf message on the ICA
+    RegisterIca {},                      // Register the ICA on the remote chain
 }
 ```
 
 Library approval and removal follow the same implementation as that of the fund accounts.
+
+`ExecuteMsg` works in the same way as for the base account.
 
 `ExecuteIcaMsg` is a list of protobuf messages that will be sent to the ICA on the remote chain. Each message contains
 the `type_url` and the protobuf encoded bytes to be delivered.

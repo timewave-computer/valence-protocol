@@ -8,6 +8,7 @@ pub mod denoms {
 }
 
 pub mod error;
+pub mod ica;
 pub mod liquidity_utils;
 pub mod msg;
 pub mod raw_config;

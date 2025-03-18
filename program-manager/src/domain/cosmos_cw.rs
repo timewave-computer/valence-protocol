@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    fmt,
+    env, fmt,
     str::{from_utf8, FromStr},
 };
 
@@ -19,7 +19,7 @@ use cosmos_grpc_client::{
     cosmos_sdk_proto::{
         cosmos::tx::v1beta1::{GetTxRequest, GetTxResponse},
         cosmwasm::wasm::v1::{
-            MsgExecuteContract, MsgInstantiateContract2, QueryCodeRequest,
+            MsgExecuteContract, MsgInstantiateContract2, MsgUpdateAdmin, QueryCodeRequest,
             QueryContractInfoRequest, QuerySmartContractStateRequest,
         },
     },
@@ -112,11 +112,16 @@ impl CosmosCosmwasmConnector {
         ))?;
 
         let gas_price = Decimal::from_str(&chain_info.gas_price)?;
-        let gas_adj = Decimal::from_str("1.5")?;
+        let gas_adj = Decimal::from_str("2")?;
+
+        // TODO: Error when MANAGER_MNEMONIC is not set as environment variable
+        // Currently our tests are not setting it, so we are using the default mnemonic
+        // .context("Manager mnemonic is not set as environment variable")?;
+        let manager_mnemonic = env::var("MANAGER_MNEMONIC").unwrap_or(MNEMONIC.to_string());
 
         let wallet = Wallet::from_seed_phrase(
             grpc,
-            MNEMONIC,
+            manager_mnemonic,
             chain_info.prefix.clone(),
             chain_info.coin_type,
             0,
@@ -152,8 +157,10 @@ impl Connector for CosmosCosmwasmConnector {
         let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();
 
         // Execute a message to reserve the program id
-        let msg = to_vec(&valence_program_registry_utils::ExecuteMsg::ReserveId {})
-            .map_err(CosmosCosmwasmError::SerdeJsonError)?;
+        let msg = to_vec(&valence_program_registry_utils::ExecuteMsg::ReserveId {
+            addr: self.wallet.account_address.clone(),
+        })
+        .map_err(CosmosCosmwasmError::SerdeJsonError)?;
 
         let m = MsgExecuteContract {
             sender: self.wallet.account_address.clone(),
@@ -413,10 +420,15 @@ impl Connector for CosmosCosmwasmConnector {
         authorization_addr: String,
         owner: String,
     ) -> ConnectorResult<()> {
+        if self.wallet.account_address == owner {
+            return Ok(());
+        }
+
+        // Change owner in authorization contract
         let msg = to_vec(
             &valence_authorization_utils::msg::ExecuteMsg::UpdateOwnership(
                 cw_ownable::Action::TransferOwnership {
-                    new_owner: owner,
+                    new_owner: owner.clone(),
                     expiry: None,
                 },
             ),
@@ -425,7 +437,7 @@ impl Connector for CosmosCosmwasmConnector {
 
         let m = MsgExecuteContract {
             sender: self.wallet.account_address.clone(),
-            contract: authorization_addr,
+            contract: authorization_addr.clone(),
             msg,
             funds: vec![],
         }
@@ -433,6 +445,18 @@ impl Connector for CosmosCosmwasmConnector {
 
         // Broadcast the tx and wait for it to finalize (or error)
         self.broadcast_tx(m, "change_authorization_owner").await?;
+
+        sleep(std::time::Duration::from_secs(5)).await;
+
+        // Change the admin of the authorization contract as well
+        let m = MsgUpdateAdmin {
+            sender: self.wallet.account_address.clone(),
+            new_admin: owner,
+            contract: authorization_addr,
+        }
+        .build_any();
+
+        self.broadcast_tx(m, "change_authorization_admin").await?;
 
         Ok(())
     }
@@ -798,6 +822,7 @@ impl Connector for CosmosCosmwasmConnector {
 
         let msg = to_vec(&valence_program_registry_utils::ExecuteMsg::SaveProgram {
             id: config.id,
+            owner: config.owner.clone(),
             program_config: program_binary,
         })
         .map_err(CosmosCosmwasmError::SerdeJsonError)?;
@@ -921,7 +946,7 @@ impl CosmosCosmwasmConnector {
         }
 
         // wait for the tx to be on chain
-        self.query_tx_hash(res.txhash, 15).await
+        self.query_tx_hash(res.txhash, 15, err_id.to_string()).await
     }
 
     /// we retry every second, so retry here means how many seconds we should wait for the tx to appear.
@@ -930,15 +955,17 @@ impl CosmosCosmwasmConnector {
         &mut self,
         hash: String,
         retry: u64,
+        err: String,
     ) -> BoxFuture<Result<GetTxResponse, CosmosCosmwasmError>> {
         Box::pin(async move {
             if retry == 0 {
                 return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
-                    "'query_tx_hash' failed, Max retry reached"
+                    "'query_tx_hash': {} failed, Max retry reached",
+                    err
                 )));
             };
 
-            sleep(std::time::Duration::from_secs(1)).await;
+            sleep(std::time::Duration::from_secs(6)).await;
 
             let res = self
                 .wallet
@@ -950,7 +977,7 @@ impl CosmosCosmwasmConnector {
 
             match res {
                 Ok(r) => Ok(r.into_inner()),
-                Err(_) => self.query_tx_hash(hash, retry - 1).await,
+                Err(_) => self.query_tx_hash(hash, retry - 1, err).await,
             }
         })
     }

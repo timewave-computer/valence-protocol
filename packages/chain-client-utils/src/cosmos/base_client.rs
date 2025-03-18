@@ -2,6 +2,9 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 use cosmos_sdk_proto::cosmos::{
+    auth::v1beta1::{
+        ModuleAccount, QueryModuleAccountByNameRequest, QueryModuleAccountByNameResponse,
+    },
     bank::v1beta1::{QueryBalanceRequest, QueryBalanceResponse},
     base::{abci::v1beta1::TxResponse, tendermint::v1beta1::Header},
     tx::v1beta1::GetTxRequest,
@@ -14,13 +17,14 @@ use cosmrs::{
     },
     Any,
 };
+use prost::Message;
 use tonic::Request;
 
 use crate::common::{error::StrategistError, transaction::TransactionResponse};
 
 use super::{
-    grpc_client::GrpcSigningClient, proto_timestamp::ProtoTimestamp, BankQueryClient,
-    CosmosServiceClient,
+    grpc_client::GrpcSigningClient, proto_timestamp::ProtoTimestamp, AuthQueryClient,
+    BankQueryClient, CosmosServiceClient,
 };
 
 /// base client trait with default implementations for cosmos-sdk based clients.
@@ -106,6 +110,32 @@ pub trait BaseClient: GrpcSigningClient {
         let amount = coin.amount.parse::<u128>()?;
 
         Ok(amount)
+    }
+
+    async fn query_module_account(&self, name: &str) -> Result<ModuleAccount, StrategistError> {
+        let channel = self.get_grpc_channel().await?;
+
+        let mut grpc_client = AuthQueryClient::new(channel);
+
+        let request = QueryModuleAccountByNameRequest {
+            name: name.to_string(),
+        };
+
+        let response: QueryModuleAccountByNameResponse = grpc_client
+            .module_account_by_name(Request::new(request))
+            .await?
+            .into_inner();
+
+        let module_account_any = response
+            .account
+            .ok_or_else(|| StrategistError::QueryError("No module account returned".to_string()))?;
+
+        // Decode the bytes into a ModuleAccount
+        let module_account = ModuleAccount::decode(&*module_account_any.value).map_err(|e| {
+            StrategistError::QueryError(format!("Failed to decode ModuleAccount: {}", e))
+        })?;
+
+        Ok(module_account)
     }
 
     // expected utils

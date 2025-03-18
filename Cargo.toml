@@ -86,6 +86,7 @@ valence-encoder-broker               = { path = "contracts/encoders/broker", fea
 valence-neutron-ic-querier           = { path = "contracts/libraries/neutron-ic-querier", features = ["library"] }
 valence-drop-liquid-staker           = { path = "contracts/libraries/drop-liquid-staker", features = ["library"] }
 valence-drop-liquid-unstaker         = { path = "contracts/libraries/drop-liquid-unstaker", features = ["library"] }
+valence-ica-cctp-transfer            = { path = "contracts/libraries/ica-cctp-transfer", features = ["library"] }
 
 # middleware
 valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = [

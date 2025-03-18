@@ -36,7 +36,7 @@ pub fn my_osmosis_gamm_program(
     denom_2: &str,
 ) -> Result<ProgramConfig, Box<dyn Error>> {
     // Get a ProgramConfigBuilder
-    let mut builder = ProgramConfigBuilder::new(owner);
+    let mut builder = ProgramConfigBuilder::new("osmo gamm", owner.as_str());
 
     // Create three accounts on Osmosis
 

@@ -79,7 +79,7 @@ pub fn my_evm_vault_program(
     pool_addr: &str,
     owner: &str,
 ) -> Result<ProgramConfig, Box<dyn Error>> {
-    let mut builder = ProgramConfigBuilder::new(owner.to_string());
+    let mut builder = ProgramConfigBuilder::new("vault test", owner);
 
     let deposit_account_info =
         AccountInfo::new("deposit".to_string(), &ntrn_domain, AccountType::default());
