@@ -142,4 +142,51 @@ contract ValenceVaultUpgradeTest is VaultHelper {
         assertGt(sharesAfter, sharesBefore, "Deposit should work with emergency shutdown disabled");
         vm.stopPrank();
     }
+
+    function test_UnauthorizedUpgradeAndCall() public {
+        // Deploy V2 implementation
+        vaultV2Implementation = new ValenceVaultV2();
+
+        // Prepare initialization data
+        bool initialShutdownState = true;
+        bytes memory initData = abi.encodeWithSelector(ValenceVaultV2.initializeV2.selector, initialShutdownState);
+
+        // Try to upgrade from an unauthorized account (not the owner)
+        vm.startPrank(user); // user is not the contract owner
+
+        // This should revert since only the owner should be able to upgrade
+        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", user));
+        vault.upgradeToAndCall(address(vaultV2Implementation), initData);
+
+        vm.stopPrank();
+
+        // Now ensure the owner can still perform the upgrade successfully
+        vm.startPrank(owner);
+        vault.upgradeToAndCall(address(vaultV2Implementation), initData);
+        vm.stopPrank();
+
+        // Verify the upgrade worked when done by the owner
+        ValenceVaultV2 vaultV2 = ValenceVaultV2(address(vault));
+        assertTrue(vaultV2.emergencyShutdown(), "Upgrade should have succeeded when done by owner");
+    }
+
+    function test_OtherUserCannotCallInitFunction() public {
+        // First do a proper upgrade as the owner
+        vm.startPrank(owner);
+        vaultV2Implementation = new ValenceVaultV2();
+        vault.upgradeToAndCall(address(vaultV2Implementation), "");
+        vm.stopPrank();
+
+        // Cast to V2 to access new functions
+        ValenceVaultV2 vaultV2 = ValenceVaultV2(address(vault));
+
+        // Now try to call the initialization function as a non-owner
+        vm.startPrank(user);
+        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", user));
+        vaultV2.initializeV2(true);
+        vm.stopPrank();
+
+        // Verify the state wasn't changed
+        assertFalse(vaultV2.emergencyShutdown(), "Non-owner should not be able to modify state");
+    }
 }
