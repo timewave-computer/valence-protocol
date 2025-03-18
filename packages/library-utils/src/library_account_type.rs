@@ -54,7 +54,7 @@ impl LibraryAccountType {
             }
         };
 
-        format!("{LIBRARY_ACCOUNT_RAW_PLACEHOLDER}:{}", value)
+        format!("{}:{}", LIBRARY_ACCOUNT_RAW_PLACEHOLDER, value)
     }
 }
 
@@ -66,7 +66,6 @@ impl From<&Addr> for LibraryAccountType {
 
 impl From<&str> for LibraryAccountType {
     fn from(input: &str) -> Self {
-        println!("input: {}", input);
         if input.starts_with("{\"|account_id|\":") {
             LibraryAccountType::AccountId(
                 input
@@ -162,7 +161,7 @@ mod test {
 
     #[test]
     fn serde_serialize() {
-        #[derive(serde::Serialize, serde::Deserialize, Debug)]
+        #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
         struct Helper {
             addr: LibraryAccountType,
         }
@@ -174,8 +173,7 @@ mod test {
         let json = serde_json::ser::to_string(&value).unwrap();
         let ty: Helper = serde_json::from_str(json.as_str()).unwrap();
 
-        println!("{json}");
-        println!("{:?}", ty);
+        assert_eq!(value, ty);
     }
 
     #[test]
@@ -203,7 +201,6 @@ mod test {
         let raw_addr = "addr1234".to_string();
         let addr = LibraryAccountType::Addr(raw_addr.clone());
         let account = LibraryAccountType::AccountId(1);
-        let library = LibraryAccountType::LibraryId(2);
 
         // If type is Addr, we should get back the address directly
         assert_eq!(addr.to_raw_placeholder(), "addr1234");
@@ -214,6 +211,12 @@ mod test {
             acc_placeholder,
             format!("{}:1", super::LIBRARY_ACCOUNT_RAW_PLACEHOLDER)
         );
+    }
+
+    #[test]
+    #[should_panic]
+    fn raw_placeholder_library() {
+        let library = LibraryAccountType::LibraryId(2);
 
         // Should panic if we try to get the raw placeholder of a library
         library.to_raw_placeholder();

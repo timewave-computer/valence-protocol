@@ -54,6 +54,3 @@ pub fn execute_submsgs_on_behalf_of(
         funds: vec![],
     }))
 }
-
-#[cfg(test)]
-mod test {}
