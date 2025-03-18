@@ -234,6 +234,59 @@ struct PacketForwardMiddlewareConfig {
   hop_chain_receiver_address: String,
 }
 <span class="boring">}</span></code></pre></pre>
+<h3 id="packet-forward-middleware"><a class="header" href="#packet-forward-middleware">Packet-Forward Middleware</a></h3>
+<p>The library supports multi-hop IBC transfers using the Packet Forward Middleware (PFM).
+This allows tokens to be transferred through an intermediate chain to reach their final
+destination. More information about the PFM functionality can be found in the <a href="https://github.com/cosmos/ibc-apps/tree/main/middleware/packet-forward-middleware">official
+documentation</a>.</p>
+<p>Neutron IBC Transfer library can be configured to make use of PFM as follows:</p>
+<ul>
+<li>
+<p><code>output_addr</code> is set to the final receiver address on the final destination chain</p>
+</li>
+<li>
+<p><code>remote_chain_info</code> is configured between the origin and intermediate chain</p>
+</li>
+<li>
+<p><code>denom_to_pfm_map</code> is configured to map the origin denom to its respective
+<code>PacketForwardMiddlewareConfig</code> which should contain:</p>
+<ul>
+<li><code>local_to_hop_chain_channel_id</code> - origin to intermediate chain channel id</li>
+<li><code>hop_to_destination_chain_channel_id</code> - intermediate to destination chain channel id</li>
+<li><code>hop_chain_receiver_address</code> - address where funds should settle on the intermediate
+chain in case of a failure</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p>Official packet-forward-middleware recommends to configure intermediate chain settlement
+addresses (<code>hop_chain_receiver_address</code>) with an invalid bech32 string such as <code>"pfm"</code>.
+More information about this can be found in the <a href="https://github.com/cosmos/ibc-apps/tree/main/middleware/packet-forward-middleware#full-example---chain-forward-a-b-c-d-with-retry-on-timeout">official documentation</a>.</p>
+</blockquote>
+<p>Consider an example configuration transferring tokens from Neutron to Gaia via Juno.
+Library config may look like this:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let cfg = LibraryConfig {
+    input_addr: input_acc,
+    output_addr: output_acc,
+    denom: UncheckedDenom::Native(target_denom),
+    amount: IbcTransferAmount::FixedAmount(transfer_amount),
+    memo: "".to_string(),
+    remote_chain_info: RemoteChainInfo {
+        channel_id: neutron_to_juno_channel_id,
+        ibc_transfer_timeout: Some(500u64.into()),
+    },
+    denom_to_pfm_map: BTreeMap::from([(
+        denom,
+        PacketForwardMiddlewareConfig {
+            local_to_hop_chain_channel_id: neutron_to_juno_channel_id,
+            hop_to_destination_chain_channel_id: juno_to_gaia_channel_id,
+            hop_chain_receiver_address: "pfm".to_string(),
+        },
+    )]),
+}
+<span class="boring">}</span></code></pre></pre>
 
                     </main>
 
