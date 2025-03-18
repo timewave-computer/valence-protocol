@@ -6,22 +6,22 @@ The **Valence ICA IBC Transfer Library** library allows remotely executing an **
 
 ```mermaid
 ---
-title: ICA CCTP Transfer Library
+title: ICA IBC Transfer Library
 ---
 graph LR
     subgraph Neutron
       P[Processor]
-      L[ICA CCTP
+      L[ICA IBC
       Transfer Library]
       I[Input Account]
       P -- 1)Transfer --> L
       L -- 2)Query ICA address --> I
-      L -- 3)Do ICA MsgDepositForBurn --> I
+      L -- 3)Do ICA MsgTransfer --> I
     end
 
-    subgraph Noble
+    subgraph Remote domain
       ICA[Interchain Account]
-      I -- 4)Execute MsgDepositForBurn--> ICA
+      I -- 4)Execute MsgTransfer --> ICA
     end
 ```
 
