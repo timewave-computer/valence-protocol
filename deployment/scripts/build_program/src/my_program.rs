@@ -17,7 +17,7 @@ pub(crate) fn my_program() -> ProgramConfig {
     // Write your program
     let swap_amount: u128 = 1_000_000_000;
 
-    let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
+    let mut builder = ProgramConfigBuilder::new("program name", NEUTRON_CHAIN_ADMIN_ADDR);
     let neutron_domain =
         valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
 

@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         vec![SPLITTER_NAME],
     )?;
 
-    let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
+    let mut builder = ProgramConfigBuilder::new("test", NEUTRON_CHAIN_ADMIN_ADDR);
     let neutron_domain =
         valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
 

@@ -81,7 +81,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let swap_amount = 1_000_000_000;
 
     let mut program_config_builder =
-        ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
+        ProgramConfigBuilder::new("token_swap", NEUTRON_CHAIN_ADMIN_ADDR);
     let neutron_domain =
         valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
 

@@ -1068,7 +1068,7 @@
             "type": "string"
           },
           "output_addr": {
-            "type": "string"
+            "$ref": "#/definitions/LibraryAccountType"
           },
           "remote_chain_info": {
             "$ref": "#/definitions/RemoteChainInfo"
@@ -2158,6 +2158,7 @@
           "authorizations",
           "libraries",
           "links",
+          "name",
           "owner"
         ],
         "properties": {
@@ -2202,6 +2203,9 @@
             "description": "A list of links between an accounts and libraries",
             "type": "object",
             "additionalProperties": false
+          },
+          "name": {
+            "type": "string"
           },
           "owner": {
             "type": "string"
