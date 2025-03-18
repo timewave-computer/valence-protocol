@@ -246,7 +246,6 @@ mod test {
     }
 
     #[test]
-    #[should_panic]
     fn raw_placeholder() {
         let raw_addr = "addr1234".to_string();
         let addr = LibraryAccountType::Addr(raw_addr.clone());
