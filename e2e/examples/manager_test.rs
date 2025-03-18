@@ -23,7 +23,9 @@ use valence_e2e::utils::{
     },
     GAS_FLAGS, LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
 };
-use valence_library_utils::{denoms::UncheckedDenom, GetId, Id, LibraryAccountType};
+use valence_library_utils::{
+    denoms::UncheckedDenom, library_account_type::GetId, Id, LibraryAccountType,
+};
 use valence_program_manager::{
     account::{AccountInfo, AccountType},
     library::{LibraryConfig, LibraryConfigUpdate, LibraryInfo},

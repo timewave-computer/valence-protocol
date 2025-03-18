@@ -1,5 +1,5 @@
 use valence_authorization_utils::authorization::AuthorizationInfo;
-use valence_library_utils::{GetId, LibraryAccountType};
+use valence_library_utils::{library_account_type::GetId, LibraryAccountType};
 
 use crate::{
     account::AccountInfo,

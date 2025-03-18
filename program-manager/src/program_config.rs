@@ -5,7 +5,10 @@ use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
 use valence_authorization_utils::authorization::AuthorizationInfo;
 
-use valence_library_utils::{GetId, Id};
+use valence_library_utils::{
+    library_account_type::{GetId, LIBRARY_ACCOUNT_RAW_PLACEHOLDER},
+    Id,
+};
 
 use crate::{
     account::{AccountInfo, AccountType, InstantiateAccountData},
@@ -349,7 +352,10 @@ impl ProgramConfig {
                 replace_with.push(format!(
                     "library_account_addr\":\"{}\"",
                     account_data.addr.clone()
-                ))
+                ));
+
+                patterns.push(format!("{LIBRARY_ACCOUNT_RAW_PLACEHOLDER}:{account_id}"));
+                replace_with.push(account_data.addr.clone());
             }
 
             for account_id in link.output_accounts_id.iter() {
@@ -361,7 +367,10 @@ impl ProgramConfig {
                 replace_with.push(format!(
                     "library_account_addr\":\"{}\"",
                     account_data.addr.clone()
-                ))
+                ));
+
+                patterns.push(format!("{LIBRARY_ACCOUNT_RAW_PLACEHOLDER}:{account_id}"));
+                replace_with.push(account_data.addr.clone());
             }
 
             library.config.replace_config(patterns, replace_with)?;
