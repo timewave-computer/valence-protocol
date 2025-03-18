@@ -1,4 +1,4 @@
-use std::{error::Error, str::FromStr};
+use std::error::Error;
 
 use alloy::{
     primitives::{Address, U256},
@@ -10,13 +10,8 @@ use valence_chain_client_utils::{
     evm::{base_client::EvmBaseClient as _, request_provider_client::RequestProviderClient},
 };
 
-use crate::utils::{
-    solidity_contracts::{
-        BaseAccount, LiteProcessor,
-        MockERC20::{self},
-        ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
-    },
-    NEUTRON_HYPERLANE_DOMAIN,
+use crate::utils::solidity_contracts::ValenceVault::{
+    self, FeeConfig, FeeDistributionConfig, VaultConfig,
 };
 
 // use crate::SECONDS_IN_DAY;
@@ -449,7 +444,7 @@ pub fn setup_valence_vault(
     eth_withdraw_acc: Address,
     vault_deposit_token_addr: Address,
 ) -> Result<Address, Box<dyn Error>> {
-    let eth_rp = async_run!(rt, { eth_client.get_request_provider().await.unwrap() });
+    let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
 
     info!("deploying Valence Vault on Ethereum...");
     let vault_config = setup_vault_config(eth_accounts, eth_deposit_acc, eth_withdraw_acc);
@@ -465,7 +460,7 @@ pub fn setup_valence_vault(
     )
     .into_transaction_request();
 
-    let vault_rx = async_run!(rt, { eth_client.execute_tx(vault_tx).await.unwrap() });
+    let vault_rx = async_run!(rt, eth_client.execute_tx(vault_tx).await.unwrap());
 
     let vault_address = vault_rx.contract_address.unwrap();
     info!("Vault deployed at: {vault_address}");

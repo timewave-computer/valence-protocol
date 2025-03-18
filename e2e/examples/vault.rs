@@ -13,7 +13,7 @@ use localic_utils::{
     NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 
-use log::{info, warn};
+use log::info;
 use rand::{distributions::Alphanumeric, Rng};
 use serde_json::Value;
 use valence_astroport_lper::msg::LiquidityProviderConfig;
@@ -215,7 +215,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     )
     .unwrap();
 
-    let eth_accounts = async_run!(rt, { eth_client.get_provider_accounts().await.unwrap() });
+    let eth_accounts = async_run!(rt, eth_client.get_provider_accounts().await.unwrap());
     let eth_admin_acc = eth_accounts[0];
     let eth_user_acc = eth_accounts[2];
 
