@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>EVM - Valence Protocol Documentation</title>
+        <title>ICA IBC Transfer - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -157,18 +157,67 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="evm-libraries"><a class="header" href="#evm-libraries">EVM Libraries</a></h1>
-<p>This section contains a detailed description of all the libraries that can be used in EVM Execution Environments.</p>
+                        <h1 id="valence-ica-ibc-transfer-library"><a class="header" href="#valence-ica-ibc-transfer-library">Valence ICA IBC Transfer Library</a></h1>
+<p>The <strong>Valence ICA IBC Transfer Library</strong> library allows remotely executing an <strong>IBC transfer</strong> using a <strong>Valence interchain account</strong> on a remote IBC connected domain. It does that by remotely sending a <strong>MsgTransfer</strong> to the ICA created by the <strong>Valence interchain account</strong> on the remote domain. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the <strong>Valence ICA IBC Transfer Library</strong>.</p>
+<h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
+<pre class="mermaid">---
+title: ICA IBC Transfer Library
+---
+graph LR
+    subgraph Neutron
+      P[Processor]
+      L[ICA IBC
+      Transfer Library]
+      I[Input Account]
+      P -- 1)Transfer --&gt; L
+      L -- 2)Query ICA address --&gt; I
+      L -- 3)Do ICA MsgTransfer --&gt; I
+    end
+
+    subgraph Remote domain
+      ICA[Interchain Account]
+      I -- 4)Execute MsgTransfer --&gt; ICA
+    end
+</pre>
+<h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>Transfer</strong></td><td>-</td><td>Transfer funds using IBC from the ICA created by the <strong>input_acount</strong> to a <strong>receiver</strong> on a remote domain using the IBC <strong>channel_id</strong></td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LibraryConfig {
+    // Address of the input account (Valence interchain account)
+    pub input_addr: LibraryAccountType,
+    // Amount that is going to be transferred
+    pub amount: Uint128,
+    // Denom that is going to be transferred
+    pub denom: String,
+    // Receiver on the other chain
+    pub receiver: String,
+    // Remote chain info
+    pub remote_chain_info: RemoteChainInfo,
+}
+
+pub struct RemoteChainInfo {
+    // Channel ID to be used
+    pub channel_id: String,
+    // Timeout for the IBC transfer in seconds. If not specified, a default 600 seconds will be used will be used
+    pub ibc_transfer_timeout: Option&lt;u64&gt;,
+}
+<span class="boring">}</span></code></pre></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../libraries/cosmwasm/ica_ibc_transfer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../libraries/cosmwasm/ica_cctp_transfer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../../libraries/evm/forwarder.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../libraries/evm/_overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -178,11 +227,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../libraries/cosmwasm/ica_ibc_transfer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../libraries/cosmwasm/ica_cctp_transfer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../../libraries/evm/forwarder.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../libraries/evm/_overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
