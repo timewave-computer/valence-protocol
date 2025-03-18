@@ -17,7 +17,7 @@ use valence_e2e::utils::{
 };
 use valence_library_utils::LibraryAccountType;
 
-const UUSDC_DENOM: &str = "uusdc";
+pub const UUSDC_DENOM: &str = "uusdc";
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();

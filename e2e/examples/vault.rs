@@ -35,6 +35,7 @@ use valence_authorization_utils::{
 use valence_chain_client_utils::{
     ethereum::EthereumClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
+    noble::NobleClient,
 };
 use valence_e2e::utils::{
     ethereum::{self, set_up_anvil_container},
@@ -43,12 +44,13 @@ use valence_e2e::utils::{
         HyperlaneContracts,
     },
     manager::{setup_manager, use_manager_init, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME},
+    parse::get_grpc_address_and_port_from_logs,
     processor::tick_processor,
     solidity_contracts::{
         BaseAccount, MockERC20,
         ValenceVault::{self},
     },
-    vault, ASTROPORT_PATH, DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME,
+    vault, ADMIN_MNEMONIC, ASTROPORT_PATH, DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME,
     ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS, HYPERLANE_RELAYER_NEUTRON_ADDRESS,
     LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, NEUTRON_NOBLE_CONFIG_FILE,
     NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME,
@@ -236,7 +238,24 @@ fn main() -> Result<(), Box<dyn Error>> {
             admin_addr: NOBLE_CHAIN_ADMIN_ADDR.to_string(),
         })
         .with_log_file_path(LOGS_FILE_PATH)
+        .with_transfer_channels(NEUTRON_CHAIN_NAME, NOBLE_CHAIN_NAME)
         .build()?;
+
+    let (grpc_url, grpc_port) = get_grpc_address_and_port_from_logs(NOBLE_CHAIN_ID)?;
+
+    let noble_client = rt.block_on(async {
+        NobleClient::new(
+            &grpc_url,
+            &grpc_port.to_string(),
+            ADMIN_MNEMONIC,
+            NOBLE_CHAIN_ID,
+            NOBLE_CHAIN_DENOM,
+        )
+        .await
+        .unwrap()
+    });
+
+    rt.block_on(noble_client.set_up_test_environment(NOBLE_CHAIN_ADMIN_ADDR, 0, "uusdc"));
 
     let token = create_counterparty_denom(&mut test_ctx)?;
 
