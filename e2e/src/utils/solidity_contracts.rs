@@ -59,6 +59,13 @@ sol!(
     "../solidity/out/ValenceVault.sol/ValenceVault.json",
 );
 
+// Proxy contract
+sol!(
+    #[sol(rpc)]
+    ERC1967Proxy,
+    "../solidity/out/ERC1967Proxy.sol/ERC1967Proxy.json",
+);
+
 // Testing utils
 sol!(
     #[sol(rpc)]

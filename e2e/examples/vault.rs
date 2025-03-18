@@ -1,7 +1,7 @@
 use std::{collections::HashMap, env, error::Error, str::FromStr, time::Duration};
 
 use alloy::{
-    primitives::{Address, U256},
+    primitives::{Address, Bytes, U256},
     sol_types::SolValue,
 };
 use cosmwasm_std::{coin, to_json_binary, Binary, Decimal, Empty};
@@ -43,7 +43,7 @@ use valence_e2e::utils::{
     manager::{setup_manager, use_manager_init, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME},
     processor::tick_processor,
     solidity_contracts::{
-        BaseAccount, LiteProcessor, MockERC20,
+        BaseAccount, ERC1967Proxy, LiteProcessor, MockERC20,
         ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
     },
     ASTROPORT_PATH, DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME, ETHEREUM_HYPERLANE_DOMAIN,
@@ -333,20 +333,42 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("deploying Valence Vault on Ethereum...");
     let vault_config = setup_vault_config(&accounts, eth_deposit_acc, eth_withdraw_acc);
 
-    let vault_tx = ValenceVault::deploy_builder(
-        &eth.provider,
-        accounts[0],                            // owner
-        vault_config.abi_encode().into(),       // encoded config
-        *valence_vault_deposit_token.address(), // underlying token
-        "Valence Test Vault".to_string(),       // vault token name
-        "vTEST".to_string(),                    // vault token symbol
-        U256::from(1e18), // placeholder, tbd what a reasonable value should be here
-    )
-    .into_transaction_request()
-    .from(accounts[0]);
+    // First deploy the implementation contract
+    let implementation_tx = ValenceVault::deploy_builder(&eth.provider)
+        .into_transaction_request()
+        .from(accounts[0]);
 
-    let vault_address = eth.send_transaction(vault_tx)?.contract_address.unwrap();
-    info!("Vault deployed at: {vault_address}");
+    let implementation_address = eth
+        .send_transaction(implementation_tx)?
+        .contract_address
+        .unwrap();
+    info!("Vault deployed at: {implementation_address}");
+
+    // Deploy the proxy contract
+    let proxy_tx =
+        ERC1967Proxy::deploy_builder(&eth.provider, implementation_address, Bytes::new())
+            .into_transaction_request()
+            .from(accounts[0]);
+
+    let proxy_address = eth.send_transaction(proxy_tx)?.contract_address.unwrap();
+    info!("Proxy deployed at: {proxy_address}");
+
+    // Initialize the Vault
+    let vault = ValenceVault::new(proxy_address, &eth.provider);
+
+    let initialize_tx = vault
+        .initialize(
+            accounts[0],                            // owner
+            vault_config.abi_encode().into(),       // encoded config
+            *valence_vault_deposit_token.address(), // underlying token
+            "Valence Test Vault".to_string(),       // vault token name
+            "vTEST".to_string(),                    // vault token symbol
+            U256::from(1e18), // placeholder, tbd what a reasonable value should be here)
+        )
+        .into_transaction_request()
+        .from(accounts[0]);
+
+    eth.send_transaction(initialize_tx)?;
 
     info!("Adding EVM external domain to Authorization contract");
     let add_external_evm_domain_msg =
