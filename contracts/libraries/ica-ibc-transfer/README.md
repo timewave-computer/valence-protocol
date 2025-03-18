@@ -46,7 +46,7 @@ pub struct LibraryConfig {
 pub struct RemoteChainInfo {
     // Channel ID to be used
     pub channel_id: String,
-    // Timeout for the IBC transfer in seconds, if not specified a default 600 seconds will be used will be used
+    // Timeout for the IBC transfer in seconds. If not specified, a default 600 seconds will be used will be used
     pub ibc_transfer_timeout: Option<u64>,
 }
 ```
