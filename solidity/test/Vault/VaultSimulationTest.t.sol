@@ -4,10 +4,10 @@ pragma solidity ^0.8.28;
 import {VaultHelper} from "./VaultHelper.t.sol";
 import {WithdrawDebugger} from "./WithdrawDebugger.t.sol";
 import {ValenceVault} from "../../src/libraries/ValenceVault.sol";
-import {IERC20} from "@openzeppelin-contracts/token/ERC20/IERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {console} from "forge-std/src/console.sol";
 import {VmSafe} from "forge-std/src/Vm.sol";
-import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract VaultSimulationTest is VaultHelper {
     using Math for uint256;

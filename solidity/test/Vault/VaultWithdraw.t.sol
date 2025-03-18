@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {VaultHelper} from "./VaultHelper.t.sol";
 import {ValenceVault} from "../../src/libraries/ValenceVault.sol";
-import {ERC4626} from "@openzeppelin-contracts/token/ERC20/extensions/ERC4626.sol";
+import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 
 abstract contract ValenceVaultWithdrawBaseTest is VaultHelper {
     event WithdrawRequested(

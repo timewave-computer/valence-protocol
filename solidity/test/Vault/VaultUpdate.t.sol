@@ -6,7 +6,7 @@ import {VaultHelper} from "./VaultHelper.t.sol";
 import {BaseAccount} from "../../src/accounts/BaseAccount.sol";
 import {ValenceVault} from "../../src/libraries/ValenceVault.sol";
 import {console} from "forge-std/src/console.sol";
-import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract VaultUpdateTest is VaultHelper {
     using Math for uint256;
