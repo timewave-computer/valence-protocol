@@ -81,7 +81,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap();
     std::thread::sleep(std::time::Duration::from_secs(3));
 
-    let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
+    let mut builder = ProgramConfigBuilder::new("tester", NEUTRON_CHAIN_ADMIN_ADDR);
     let neutron_domain =
         valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
 
@@ -344,7 +344,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Migrate from old to new, with sending funds from the old input account to the new one
 
     // Create the new program
-    let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
+    let mut builder = ProgramConfigBuilder::new("manager test 1", NEUTRON_CHAIN_ADMIN_ADDR);
     let neutron_domain =
         valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
 
