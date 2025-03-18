@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, StdError, StdResult};
 
@@ -72,7 +74,7 @@ impl From<&str> for LibraryAccountType {
                     .trim_start_matches("{\"|account_id|\":")
                     .trim_end_matches("}")
                     .parse()
-                    .unwrap(),
+                    .expect("Failed parsing account_id into LibraryAccountType"),
             )
         } else if input.starts_with("{\"|library_id|\":") {
             LibraryAccountType::LibraryId(
@@ -80,7 +82,7 @@ impl From<&str> for LibraryAccountType {
                     .trim_start_matches("{\"|library_id|\":")
                     .trim_end_matches("}")
                     .parse()
-                    .unwrap(),
+                    .expect("Failed parsing library_id into LibraryAccountType"),
             )
         } else if input.starts_with("{\"|library_account_addr|\":\"") {
             LibraryAccountType::Addr(
@@ -88,10 +90,44 @@ impl From<&str> for LibraryAccountType {
                     .trim_start_matches("{\"|library_account_addr|\":\"")
                     .trim_end_matches("\"}")
                     .parse()
-                    .unwrap(),
+                    .expect("Failed parsing addr into LibraryAccountType"),
             )
         } else {
             LibraryAccountType::Addr(input.to_string())
+        }
+    }
+}
+
+impl FromStr for LibraryAccountType {
+    type Err = String;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        if input.starts_with("{\"|account_id|\":") {
+            Ok(LibraryAccountType::AccountId(
+                input
+                    .trim_start_matches("{\"|account_id|\":")
+                    .trim_end_matches("}")
+                    .parse()
+                    .map_err(|_| "Failed parsing account_id into LibraryAccountType")?,
+            ))
+        } else if input.starts_with("{\"|library_id|\":") {
+            Ok(LibraryAccountType::LibraryId(
+                input
+                    .trim_start_matches("{\"|library_id|\":")
+                    .trim_end_matches("}")
+                    .parse()
+                    .map_err(|_| "Failed parsing library_id into LibraryAccountType")?,
+            ))
+        } else if input.starts_with("{\"|library_account_addr|\":\"") {
+            Ok(LibraryAccountType::Addr(
+                input
+                    .trim_start_matches("{\"|library_account_addr|\":\"")
+                    .trim_end_matches("\"}")
+                    .parse()
+                    .map_err(|_| "Failed parsing library_account_addr into LibraryAccountType")?,
+            ))
+        } else {
+            Ok(LibraryAccountType::Addr(input.to_string()))
         }
     }
 }
@@ -155,6 +191,8 @@ impl GetId for u32 {
 
 #[cfg(test)]
 mod test {
+    use std::str::FromStr;
+
     use cosmwasm_std::to_json_string;
 
     use super::LibraryAccountType;
@@ -186,13 +224,25 @@ mod test {
         let account_json_string = to_json_string(&account).unwrap();
         let library_json_string = to_json_string(&library).unwrap();
 
-        let addr_type: LibraryAccountType = addr_json_string.as_str().into();
-        let account_id_type: LibraryAccountType = account_json_string.as_str().into();
-        let library_id_type: LibraryAccountType = library_json_string.as_str().into();
+        let addr_type_into: LibraryAccountType = addr_json_string.as_str().into();
+        let addr_type_from = LibraryAccountType::from_str(addr_json_string.as_str()).unwrap();
 
-        assert_eq!(addr, addr_type);
-        assert_eq!(account, account_id_type);
-        assert_eq!(library, library_id_type);
+        assert_eq!(addr, addr_type_into);
+        assert_eq!(addr, addr_type_from);
+
+        let account_id_type_into: LibraryAccountType = account_json_string.as_str().into();
+        let account_id_type_from =
+            LibraryAccountType::from_str(account_json_string.as_str()).unwrap();
+
+        assert_eq!(account, account_id_type_into);
+        assert_eq!(account, account_id_type_from);
+
+        let library_id_type_into: LibraryAccountType = library_json_string.as_str().into();
+        let library_id_type_from =
+            LibraryAccountType::from_str(library_json_string.as_str()).unwrap();
+
+        assert_eq!(library, library_id_type_into);
+        assert_eq!(library, library_id_type_from);
     }
 
     #[test]
