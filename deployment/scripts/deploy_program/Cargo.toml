@@ -6,7 +6,6 @@ version    = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-localic-std                 = { git = "https://github.com/strangelove-ventures/interchaintest", branch = "main" }
 serde_json                  = { workspace = true }
 valence-program-manager     = { workspace = true }
 valence-splitter-library    = { workspace = true }

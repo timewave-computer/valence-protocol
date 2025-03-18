@@ -14,7 +14,6 @@ members = [
     "program-manager",
     "e2e",
     "examples/*",
-    "deployment/scripts/*",
 ]
 resolver = "2"
 
