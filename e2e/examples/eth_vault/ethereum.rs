@@ -13,6 +13,7 @@ use valence_e2e::utils::solidity_contracts::{
 
 use crate::async_run;
 
+#[allow(unused)]
 pub fn log_eth_balances(
     eth_client: &EthereumClient,
     rt: &tokio::runtime::Runtime,
