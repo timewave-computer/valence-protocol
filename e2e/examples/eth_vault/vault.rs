@@ -95,24 +95,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         NOBLE_CHAIN_ADMIN_ADDR,
         "999900000".to_string(),
     )?;
-    async_run!(&rt, {
-        let rx = noble_client
-            .ibc_transfer(
-                NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-                UUSDC_DENOM.to_string(),
-                "999000000".to_string(),
-                test_ctx
-                    .get_transfer_channels()
-                    .src(NOBLE_CHAIN_NAME)
-                    .dest(NEUTRON_CHAIN_NAME)
-                    .get(),
-                60,
-                None,
-            )
-            .await
-            .unwrap();
-        noble_client.poll_for_tx(&rx.hash).await.unwrap();
-    });
+    noble::fund_neutron_addr(
+        &rt,
+        &mut test_ctx,
+        &noble_client,
+        NEUTRON_CHAIN_ADMIN_ADDR,
+        "999000000",
+    )?;
 
     sleep(Duration::from_secs(3));
 
@@ -136,7 +125,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .as_secs()
             .to_string(),
     );
-    let amount_to_transfer = 10_000_000;
+    let amount_to_transfer = 1_000_000;
 
     // set up the authorization and processor contracts on neutron
     let (authorization_contract_address, neutron_processor_address) =
@@ -196,6 +185,20 @@ fn main() -> Result<(), Box<dyn Error>> {
         &uusdc_on_neutron_denom,
         &lp_token,
     )?;
+
+    strategist::swap_counterparty_denom_into_usdc(
+        &rt,
+        &neutron_client,
+        &neutron_program_accounts,
+        &neutron_program_libraries,
+        &uusdc_on_neutron_denom,
+        &lp_token,
+        &pool_addr,
+    )?;
+
+    // TODO:
+    // 1. swap non-deposit token from exit into the deposit token
+    // 2. route usdc to the neutron ibc transfer input acc
 
     // setup eth side:
     // 0. encoders

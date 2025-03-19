@@ -235,8 +235,8 @@ pub fn setup_astroport_cl_pool(
     let lp_token = query_pool_response["liquidity_token"].as_str().unwrap();
 
     info!("Pool created successfully! Pool address: {pool_addr}, LP token: {lp_token}");
-    let asset_a = coin(999_000_000, NEUTRON_CHAIN_DENOM);
-    let asset_b = coin(799_000_000, uusdc_on_neutron.clone());
+    let asset_a = coin(899_000_000, NEUTRON_CHAIN_DENOM);
+    let asset_b = coin(899_000_000, uusdc_on_neutron.clone());
     let assets = vec![
         Asset {
             info: AssetInfo::NativeToken {

@@ -1,8 +1,10 @@
 use std::{error::Error, time::Duration};
 
+use cosmwasm_std::{to_json_binary, CosmosMsg, WasmMsg};
 use localic_utils::NEUTRON_CHAIN_DENOM;
 use log::info;
 use tokio::{runtime::Runtime, time::sleep};
+use valence_astroport_utils::astroport_native_lp_token::{Asset, AssetInfo};
 use valence_chain_client_utils::{
     cosmos::{base_client::BaseClient, wasm_client::WasmClient},
     neutron::NeutronClient,
@@ -208,6 +210,109 @@ pub fn exit_position(
         );
         assert_ne!(0, withdraw_acc_usdc_bal);
         assert_ne!(0, withdraw_acc_ntrn_bal);
+    });
+
+    Ok(())
+}
+
+pub fn swap_counterparty_denom_into_usdc(
+    rt: &Runtime,
+    neutron_client: &NeutronClient,
+    neutron_program_accounts: &NeutronProgramAccounts,
+    neutron_program_libraries: &NeutronProgramLibraries,
+    uusdc_on_neutron_denom: &str,
+    lp_token_denom: &str,
+    pool_addr: &str,
+) -> Result<(), Box<dyn Error>> {
+    info!("swapping NTRN into USDC...");
+    async_run!(rt, {
+        let withdraw_account_ntrn_bal = neutron_client
+            .query_balance(
+                &neutron_program_accounts
+                    .withdraw_account
+                    .to_string()
+                    .unwrap(),
+                NEUTRON_CHAIN_DENOM,
+            )
+            .await
+            .unwrap();
+
+        assert_ne!(
+            withdraw_account_ntrn_bal, 0,
+            "withdraw account must have NTRN in order to swap into USDC"
+        );
+
+        let swap_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: pool_addr.to_string(),
+            msg: to_json_binary(
+                &valence_astroport_utils::astroport_native_lp_token::ExecuteMsg::Swap {
+                    offer_asset: Asset {
+                        info: AssetInfo::NativeToken {
+                            denom: NEUTRON_CHAIN_DENOM.to_string(),
+                        },
+                        amount: withdraw_account_ntrn_bal.into(),
+                    },
+                    max_spread: None,
+                    belief_price: None,
+                    to: None,
+                    ask_asset_info: None,
+                },
+            )
+            .unwrap(),
+            funds: vec![cosmwasm_std::coin(
+                withdraw_account_ntrn_bal,
+                NEUTRON_CHAIN_DENOM.to_string(),
+            )],
+        });
+
+        let base_account_execute_msgs = valence_account_utils::msg::ExecuteMsg::ExecuteMsg {
+            msgs: vec![swap_msg],
+        };
+
+        let rx = neutron_client
+            .execute_wasm(
+                &neutron_program_accounts
+                    .withdraw_account
+                    .to_string()
+                    .unwrap(),
+                base_account_execute_msgs,
+                vec![],
+            )
+            .await
+            .unwrap();
+
+        neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+
+        let withdraw_acc_usdc_bal = neutron_client
+            .query_balance(
+                &neutron_program_accounts
+                    .withdraw_account
+                    .to_string()
+                    .unwrap(),
+                uusdc_on_neutron_denom,
+            )
+            .await
+            .unwrap();
+        let withdraw_acc_ntrn_bal = neutron_client
+            .query_balance(
+                &neutron_program_accounts
+                    .withdraw_account
+                    .to_string()
+                    .unwrap(),
+                NEUTRON_CHAIN_DENOM,
+            )
+            .await
+            .unwrap();
+        info!(
+            "withdraw account USDC token balance: {:?}",
+            withdraw_acc_usdc_bal
+        );
+        info!(
+            "withdraw account NTRN token balance: {:?}",
+            withdraw_acc_ntrn_bal
+        );
+        assert_ne!(0, withdraw_acc_usdc_bal);
+        assert_eq!(0, withdraw_acc_ntrn_bal);
     });
 
     Ok(())
