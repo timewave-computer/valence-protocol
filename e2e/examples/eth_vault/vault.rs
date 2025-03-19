@@ -24,7 +24,6 @@ use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
     neutron::NeutronClient,
-    noble::NobleClient,
 };
 use valence_e2e::utils::{
     ethereum::set_up_anvil_container,
@@ -51,6 +50,7 @@ const SECONDS_IN_DAY: u64 = 86_400;
 
 mod ethereum;
 mod neutron;
+mod noble;
 mod program;
 
 /// macro for executing async code in a blocking context
@@ -66,7 +66,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Start anvil container
     let rt = tokio::runtime::Runtime::new()?;
-    rt.block_on(set_up_anvil_container())?;
+    async_run!(rt, set_up_anvil_container().await)?;
 
     let eth = EthClient::new(DEFAULT_ANVIL_RPC_ENDPOINT)?;
     let eth_client = valence_chain_client_utils::ethereum::EthereumClient::new(
@@ -96,21 +96,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_transfer_channels(NEUTRON_CHAIN_NAME, NOBLE_CHAIN_NAME)
         .build()?;
 
-    let (grpc_url, grpc_port) = get_grpc_address_and_port_from_logs(NOBLE_CHAIN_ID)?;
-
-    let noble_client = rt.block_on(async {
-        NobleClient::new(
-            &grpc_url,
-            &grpc_port.to_string(),
-            ADMIN_MNEMONIC,
-            NOBLE_CHAIN_ID,
-            NOBLE_CHAIN_DENOM,
-        )
-        .await
-        .unwrap()
-    });
-
-    rt.block_on(noble_client.set_up_test_environment(NOBLE_CHAIN_ADMIN_ADDR, 0, "uusdc"));
+    let noble_client = noble::get_client(&rt)?;
+    noble::setup_environment(&rt, &noble_client)?;
 
     let token = create_counterparty_denom(&mut test_ctx)?;
 
@@ -183,8 +170,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("NTRN AUTHORIZATIONS\t: {authorization_contract_address}");
     info!("NTRN PROCESSOR\t: {ntrn_processor_contract_address}");
 
-    // todo: create ICA account and ICA ibc transfer library
-
     let interchain_account_addr = instantiate_interchain_account_contract(&test_ctx)?;
 
     let noble_ica_addr = register_interchain_account(&mut test_ctx, &interchain_account_addr)?;
@@ -194,23 +179,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let ica_ibc_transfer_lib =
         setup_ica_ibc_transfer_lib(&mut test_ctx, &interchain_account_addr, amount_to_transfer)?;
 
-    // Mint some funds to the ICA account
-    rt.block_on(async {
-        let tx_response = noble_client
-            .mint_fiat(
-                NOBLE_CHAIN_ADMIN_ADDR,
-                &noble_ica_addr,
-                &amount_to_transfer.to_string(),
-                UUSDC_DENOM,
-            )
-            .await
-            .unwrap();
-        noble_client.poll_for_tx(&tx_response.hash).await.unwrap();
-        info!(
-            "Minted {} to {}: {:?}",
-            UUSDC_DENOM, &noble_ica_addr, tx_response
-        );
-    });
+    noble::mint_usdc_to_addr(
+        &rt,
+        &noble_client,
+        &noble_ica_addr,
+        amount_to_transfer.to_string(),
+    )?;
 
     // Trigger the transfer
     let transfer_msg = &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
@@ -239,7 +213,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         .get();
 
     let (grpc_url, grpc_port) = get_grpc_address_and_port_from_logs(NEUTRON_CHAIN_ID)?;
-    let neutron_client = rt.block_on(async {
+    let neutron_client = async_run!(
+        rt,
         NeutronClient::new(
             &grpc_url,
             &grpc_port.to_string(),
@@ -248,11 +223,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         )
         .await
         .unwrap()
-    });
+    );
 
-    let balance = rt
-        .block_on(neutron_client.query_balance(NEUTRON_CHAIN_ADMIN_ADDR, &uusdc_on_neutron_denom))
-        .unwrap();
+    let balance = async_run!(
+        rt,
+        neutron_client
+            .query_balance(NEUTRON_CHAIN_ADMIN_ADDR, &uusdc_on_neutron_denom)
+            .await
+            .unwrap()
+    );
 
     assert_eq!(balance, amount_to_transfer);
 
