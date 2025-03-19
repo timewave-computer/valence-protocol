@@ -3,9 +3,9 @@ use std::{env, error::Error, time::Duration};
 use cosmwasm_std::{Binary, Uint128, Uint64};
 use localic_std::modules::cosmwasm::{contract_execute, contract_instantiate, contract_query};
 use localic_utils::{
-    types::config::ConfigChain, utils::test_context::TestContext, ConfigChainBuilder,
-    TestContextBuilder, DEFAULT_KEY, LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR,
-    NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
+    types::config::ConfigChain, ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY,
+    LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID,
+    NEUTRON_CHAIN_NAME,
 };
 use log::info;
 use valence_account_utils::ica::{IcaState, RemoteDomainInfo};

@@ -1,7 +1,6 @@
-use std::{collections::HashMap, env, error::Error, str::FromStr, thread::sleep, time::Duration};
+use std::{collections::HashMap, env, error::Error, str::FromStr, time::Duration};
 
-use alloy::primitives::{Address, U256};
-use cosmos_grpc_client::cosmrs;
+use alloy::primitives::Address;
 use cosmwasm_std::{coin, to_json_binary, Binary, Decimal, Empty, Uint128, Uint64};
 use cosmwasm_std_old::Coin as BankCoin;
 use localic_std::modules::{
@@ -20,31 +19,24 @@ use program::my_evm_vault_program;
 use rand::{distributions::Alphanumeric, Rng};
 use serde_json::Value;
 use valence_account_utils::ica::{IcaState, RemoteDomainInfo};
-use valence_astroport_lper::msg::LiquidityProviderConfig;
 use valence_astroport_utils::astroport_native_lp_token::{
     Asset, AssetInfo, ConcentratedLiquidityExecuteMsg, ConcentratedPoolParams,
     FactoryInstantiateMsg, FactoryQueryMsg, NativeCoinRegistryExecuteMsg,
     NativeCoinRegistryInstantiateMsg, PairConfig, PairType,
 };
-use valence_authorization_utils::{
-    authorization_message::{Message, MessageDetails, MessageType},
-    builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
-    domain::Domain,
-    msg::{
-        EncoderInfo, EvmBridgeInfo, ExternalDomainInfo, HyperlaneConnectorInfo, PermissionedMsg,
-        ProcessorMessage,
-    },
+use valence_authorization_utils::msg::{
+    EncoderInfo, EvmBridgeInfo, ExternalDomainInfo, HyperlaneConnectorInfo, PermissionedMsg,
+    ProcessorMessage,
 };
 use valence_chain_client_utils::{
-    cosmos::{base_client::BaseClient, wasm_client::WasmClient},
+    cosmos::base_client::BaseClient,
     ethereum::EthereumClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
     neutron::NeutronClient,
     noble::NobleClient,
 };
 use valence_e2e::utils::{
-    base_account::create_interchain_accounts,
-    ethereum::{self, set_up_anvil_container},
+    ethereum::set_up_anvil_container,
     hyperlane::{
         set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts, set_up_hyperlane,
         HyperlaneContracts,
@@ -57,23 +49,17 @@ use valence_e2e::utils::{
     parse::get_grpc_address_and_port_from_logs,
     processor::tick_processor,
     solidity_contracts::{
-        BaseAccount, MockERC20,
+        MockERC20,
         ValenceVault::{self},
     },
-    vault, ADMIN_MNEMONIC, ASTROPORT_PATH, DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME,
+    ADMIN_MNEMONIC, ASTROPORT_PATH, DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME,
     ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS, HYPERLANE_RELAYER_NEUTRON_ADDRESS,
     LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, NEUTRON_NOBLE_CONFIG_FILE,
     NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME,
     NOBLE_CHAIN_PREFIX, UUSDC_DENOM, VALENCE_ARTIFACTS_PATH,
 };
-use valence_ica_ibc_transfer::msg::{LibraryConfig, RemoteChainInfo};
-use valence_library_utils::{liquidity_utils::AssetData, LibraryAccountType};
-use valence_program_manager::{
-    account::{AccountInfo, AccountType},
-    library::LibraryInfo,
-    program_config::ProgramConfig,
-    program_config_builder::ProgramConfigBuilder,
-};
+use valence_ica_ibc_transfer::msg::RemoteChainInfo;
+use valence_library_utils::LibraryAccountType;
 
 const EVM_ENCODER_NAMESPACE: &str = "evm_encoder_v1";
 const PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "provide_liquidity";
