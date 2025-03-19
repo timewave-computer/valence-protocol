@@ -14,10 +14,7 @@ use localic_utils::{
 
 use log::info;
 use neutron::setup_astroport_cl_pool;
-use program::{
-    setup_astroport_lper_lib, setup_astroport_lwer_lib, setup_cctp_forwarder_lib,
-    setup_ica_ibc_transfer_lib, setup_neutron_accounts, setup_neutron_ibc_transfer_lib,
-};
+use program::{setup_neutron_accounts, setup_neutron_libraries};
 use rand::{distributions::Alphanumeric, Rng};
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient, evm::request_provider_client::RequestProviderClient,
@@ -36,7 +33,6 @@ use valence_e2e::utils::{
     NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME,
     NOBLE_CHAIN_PREFIX, UUSDC_DENOM, VALENCE_ARTIFACTS_PATH,
 };
-use valence_library_utils::liquidity_utils::AssetData;
 
 const EVM_ENCODER_NAMESPACE: &str = "evm_encoder_v1";
 const PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "provide_liquidity";
@@ -131,67 +127,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let neutron_program_accounts = setup_neutron_accounts(&mut test_ctx)?;
 
-    let astro_cl_pool_asset_data = AssetData {
-        asset1: NEUTRON_CHAIN_DENOM.to_string(),
-        asset2: token.to_string(),
-    };
-
-    // library to enter into the position from the deposit account
-    // and route the issued shares into the into the position account
-    let astro_lper_lib = setup_astroport_lper_lib(
+    let neutron_program_libraries = setup_neutron_libraries(
         &mut test_ctx,
-        neutron_program_accounts.deposit_account.clone(),
-        neutron_program_accounts.position_account.clone(),
-        astro_cl_pool_asset_data.clone(),
-        pool_addr.to_string(),
-        neutron_processor_address.to_string(),
-    )?;
-
-    // library to withdraw the position held by the position account
-    // and route the underlying funds into the withdraw account
-    let astro_lwer_lib = setup_astroport_lwer_lib(
-        &mut test_ctx,
-        neutron_program_accounts.position_account.clone(),
-        neutron_program_accounts.withdraw_account.clone(),
-        astro_cl_pool_asset_data.clone(),
-        pool_addr.to_string(),
-        neutron_processor_address.to_string(),
-    )?;
-
-    // library to move USDC from a program-owned ICA on noble
-    // into the deposit account on neutron
-    let ica_ibc_transfer_lib = setup_ica_ibc_transfer_lib(
-        &mut test_ctx,
-        &neutron_program_accounts
-            .noble_inbound_ica
-            .library_account
-            .to_string()?,
+        &neutron_program_accounts,
+        &token,
+        &pool_addr,
+        &neutron_processor_address,
         amount_to_transfer,
-    )?;
-
-    // library to move USDC from a program-owned ICA on noble
-    // into the withdraw account on ethereum
-    let cctp_forwarder_lib_addr = setup_cctp_forwarder_lib(
-        &mut test_ctx,
-        neutron_program_accounts.withdraw_account.clone(), // replace
-        "TODO".to_string(),
-        neutron_processor_address,
-        amount_to_transfer,
-    )?;
-
-    // library to move USDC from the withdraw account on neutron
-    // into a program-owned ICA on noble
-    let neutron_ibc_transfer_lib = setup_neutron_ibc_transfer_lib(
-        &mut test_ctx,
-        neutron_program_accounts.withdraw_account,
-        valence_library_utils::LibraryAccountType::Addr(
-            neutron_program_accounts.noble_outbound_ica.remote_addr,
-        ),
         &uusdc_on_neutron_denom,
-        amount_to_transfer,
     )?;
-
-    let amount_to_transfer = 1_000_000;
 
     noble::mint_usdc_to_addr(
         &rt,
@@ -210,7 +154,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
-        &ica_ibc_transfer_lib,
+        &neutron_program_libraries.noble_inbound_transfer,
         DEFAULT_KEY,
         &serde_json::to_string(&transfer_msg).unwrap(),
         GAS_FLAGS,
