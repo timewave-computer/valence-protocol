@@ -1,11 +1,7 @@
 use std::{error::Error, time::Duration};
 
-use cosmwasm_std::{Uint128, Uint64};
 use cosmwasm_std_old::Coin as BankCoin;
-use localic_std::modules::{
-    bank,
-    cosmwasm::{contract_execute, contract_instantiate, contract_query},
-};
+use localic_std::modules::{bank, cosmwasm::contract_execute};
 use localic_utils::{
     types::config::ConfigChain,
     utils::{ethereum::EthClient, test_context::TestContext},
@@ -14,10 +10,16 @@ use localic_utils::{
 };
 
 use log::info;
-use neutron::{deploy_astroport_contracts, setup_astroport_cl_pool};
+use neutron::{
+    deploy_astroport_contracts,
+    ica::{
+        instantiate_interchain_account_contract, register_interchain_account,
+        setup_ica_ibc_transfer_lib,
+    },
+    setup_astroport_cl_pool,
+};
 use program::my_evm_vault_program;
 use rand::{distributions::Alphanumeric, Rng};
-use valence_account_utils::ica::{IcaState, RemoteDomainInfo};
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
@@ -30,7 +32,6 @@ use valence_e2e::utils::{
         set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts, set_up_hyperlane,
         HyperlaneContracts,
     },
-    ibc::poll_for_ica_state,
     manager::{
         setup_manager, use_manager_init, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME,
         ICA_IBC_TRANSFER_NAME, INTERCHAIN_ACCOUNT_NAME,
@@ -41,8 +42,6 @@ use valence_e2e::utils::{
     NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME,
     NOBLE_CHAIN_PREFIX, UUSDC_DENOM, VALENCE_ARTIFACTS_PATH,
 };
-use valence_ica_ibc_transfer::msg::RemoteChainInfo;
-use valence_library_utils::LibraryAccountType;
 
 const EVM_ENCODER_NAMESPACE: &str = "evm_encoder_v1";
 const PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "provide_liquidity";
@@ -185,157 +184,22 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("NTRN PROCESSOR\t: {ntrn_processor_contract_address}");
 
     // todo: create ICA account and ICA ibc transfer library
-    let ica_account_code = *test_ctx
-        .get_chain(NEUTRON_CHAIN_NAME)
-        .contract_codes
-        .get(INTERCHAIN_ACCOUNT_NAME)
-        .unwrap();
-    let ica_ibc_transfer_lib_code = *test_ctx
-        .get_chain(NEUTRON_CHAIN_NAME)
-        .contract_codes
-        .get(ICA_IBC_TRANSFER_NAME)
-        .unwrap();
 
-    info!("ica account code: {ica_account_code}");
-    info!("ica ibc transfer lib code: {ica_ibc_transfer_lib_code}");
+    let interchain_account_addr = instantiate_interchain_account_contract(&test_ctx)?;
 
-    let ntrn_to_noble_connection_id = test_ctx
-        .get_connections()
-        .src(NEUTRON_CHAIN_NAME)
-        .dest(NOBLE_CHAIN_NAME)
-        .get();
-
-    info!("Instantiating the ICA contract...");
-    let timeout_seconds = 90;
-    let ica_instantiate_msg = valence_account_utils::ica::InstantiateMsg {
-        admin: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        approved_libraries: vec![],
-        remote_domain_information: RemoteDomainInfo {
-            connection_id: test_ctx
-                .get_connections()
-                .src(NEUTRON_CHAIN_NAME)
-                .dest(NOBLE_CHAIN_NAME)
-                .get(),
-            ica_timeout_seconds: Uint64::new(timeout_seconds),
-        },
-    };
-
-    let valence_ica = contract_instantiate(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        DEFAULT_KEY,
-        ica_account_code,
-        &serde_json::to_string(&ica_instantiate_msg)?,
-        "valence_ica",
-        None,
-        "",
-    )?;
-    info!(
-        "ICA contract instantiated. Address: {}",
-        valence_ica.address
-    );
-    info!("Registering the ICA...");
-    contract_execute(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        &valence_ica.address,
-        DEFAULT_KEY,
-        &serde_json::to_string(&valence_account_utils::ica::ExecuteMsg::RegisterIca {}).unwrap(),
-        &format!("{} --amount=100000000{}", GAS_FLAGS, NEUTRON_CHAIN_DENOM),
-    )
-    .unwrap();
-    std::thread::sleep(Duration::from_secs(3));
-
-    // We want to check that it's in state created
-    poll_for_ica_state(&mut test_ctx, &valence_ica.address, |state| {
-        matches!(state, IcaState::Created(_))
-    });
-
-    // Get the remote address
-    let ica_state: IcaState = serde_json::from_value(
-        contract_query(
-            test_ctx
-                .get_request_builder()
-                .get_request_builder(NEUTRON_CHAIN_NAME),
-            &valence_ica.address,
-            &serde_json::to_string(&valence_account_utils::ica::QueryMsg::IcaState {}).unwrap(),
-        )["data"]
-            .clone(),
-    )
-    .unwrap();
-
-    let remote_address = match ica_state {
-        IcaState::Created(ica_info) => ica_info.address,
-        _ => {
-            unreachable!("Expected IcaState::Created variant");
-        }
-    };
-    info!("Remote address created: {}", remote_address);
+    let noble_ica_addr = register_interchain_account(&mut test_ctx, &interchain_account_addr)?;
 
     let amount_to_transfer = 1_000_000;
 
-    info!("Instantiating the ICA IBC transfer contract...");
-    let ica_ibc_transfer_instantiate_msg = valence_library_utils::msg::InstantiateMsg::<
-        valence_ica_ibc_transfer::msg::LibraryConfig,
-    > {
-        owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        config: valence_ica_ibc_transfer::msg::LibraryConfig {
-            input_addr: LibraryAccountType::Addr(valence_ica.address.clone()),
-            amount: Uint128::new(amount_to_transfer),
-            denom: UUSDC_DENOM.to_string(),
-            receiver: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-            remote_chain_info: RemoteChainInfo {
-                channel_id: test_ctx
-                    .get_transfer_channels()
-                    .src(NOBLE_CHAIN_NAME)
-                    .dest(NEUTRON_CHAIN_NAME)
-                    .get(),
-                ibc_transfer_timeout: None,
-            },
-        },
-    };
-
-    let ica_ibc_transfer = contract_instantiate(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        DEFAULT_KEY,
-        ica_ibc_transfer_lib_code,
-        &serde_json::to_string(&ica_ibc_transfer_instantiate_msg)?,
-        "valence_ica_ibc_transfer",
-        None,
-        "",
-    )?;
-    info!(
-        "ICA IBC transfer contract instantiated. Address: {}",
-        ica_ibc_transfer.address
-    );
-
-    info!("Approving the ICA IBC transfer library...");
-    contract_execute(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        &valence_ica.address,
-        DEFAULT_KEY,
-        &serde_json::to_string(&valence_account_utils::ica::ExecuteMsg::ApproveLibrary {
-            library: ica_ibc_transfer.address.clone(),
-        })
-        .unwrap(),
-        GAS_FLAGS,
-    )
-    .unwrap();
-    std::thread::sleep(Duration::from_secs(3));
+    let ica_ibc_transfer_lib =
+        setup_ica_ibc_transfer_lib(&mut test_ctx, &interchain_account_addr, amount_to_transfer)?;
 
     // Mint some funds to the ICA account
     rt.block_on(async {
         let tx_response = noble_client
             .mint_fiat(
                 NOBLE_CHAIN_ADMIN_ADDR,
-                &remote_address,
+                &noble_ica_addr,
                 &amount_to_transfer.to_string(),
                 UUSDC_DENOM,
             )
@@ -344,7 +208,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         noble_client.poll_for_tx(&tx_response.hash).await.unwrap();
         info!(
             "Minted {} to {}: {:?}",
-            UUSDC_DENOM, &remote_address, tx_response
+            UUSDC_DENOM, &noble_ica_addr, tx_response
         );
     });
 
@@ -358,7 +222,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
-        &ica_ibc_transfer.address,
+        &ica_ibc_transfer_lib,
         DEFAULT_KEY,
         &serde_json::to_string(&transfer_msg).unwrap(),
         GAS_FLAGS,
