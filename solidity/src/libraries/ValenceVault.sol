@@ -40,6 +40,7 @@ contract ValenceVault is
     error WithdrawRequestNotFound();
     error SolverNotAllowed();
     error WithdrawNotClaimable();
+    error NoUpdateForRequest();
     error SolverFeeTransferFailed();
     error FeeExceedsUint128();
     error OnlyOwnerCanUnpause();
@@ -738,6 +739,12 @@ contract ValenceVault is
         uint256 _redemptionRate = redemptionRate;
         UpdateInfo memory updateInfo = updateInfos[request.updateId];
         uint256 assetsToWithdraw;
+
+        // Check if there was an update for this request
+        if (updateInfo.timestamp == 0) {
+            if (revertOnFailure) revert NoUpdateForRequest();
+            return WithdrawResult(false, 0, 0, "Update not found");
+        }
 
         // The current withdrawRate is the redemption rate minus the update withdraw fee
         uint256 currentWithdrawRate = _redemptionRate.mulDiv(BASIS_POINTS - updateInfo.withdrawFee, BASIS_POINTS);
