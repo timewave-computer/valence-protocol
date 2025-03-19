@@ -2,8 +2,8 @@
 pragma solidity ^0.8.28;
 
 import {VaultHelper} from "./VaultHelper.t.sol";
-import {ERC4626} from "../../src/libraries/ValenceVault.sol";
-import {IERC20Errors} from "@openzeppelin-contracts/interfaces/draft-IERC6093.sol";
+import {ERC4626Upgradeable} from "../../src/libraries/ValenceVault.sol";
+import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 contract ValenceVaultDepositTest is VaultHelper {
     function testBasicDeposit() public {
@@ -49,7 +49,7 @@ contract ValenceVaultDepositTest is VaultHelper {
         assertEq(vault.totalAssets(), cap, "Second deposit failed");
 
         // Test deposit exceeding cap
-        vm.expectRevert(abi.encodeWithSelector(ERC4626.ERC4626ExceededMaxDeposit.selector, user, 1000, 0));
+        vm.expectRevert(abi.encodeWithSelector(ERC4626Upgradeable.ERC4626ExceededMaxDeposit.selector, user, 1000, 0));
         vault.deposit(1000, user);
         vm.stopPrank();
     }
@@ -69,7 +69,7 @@ contract ValenceVaultDepositTest is VaultHelper {
         assertEq(vault.totalSupply(), cap, "Second mint failed");
 
         // Test mint exceeding cap
-        vm.expectRevert(abi.encodeWithSelector(ERC4626.ERC4626ExceededMaxMint.selector, user, 1000, 0));
+        vm.expectRevert(abi.encodeWithSelector(ERC4626Upgradeable.ERC4626ExceededMaxMint.selector, user, 1000, 0));
         vault.mint(1000, user);
         vm.stopPrank();
     }

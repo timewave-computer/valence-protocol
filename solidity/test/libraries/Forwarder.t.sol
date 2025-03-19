@@ -5,7 +5,7 @@ import {Test} from "forge-std/src/Test.sol";
 import {Forwarder} from "../../src/libraries/Forwarder.sol";
 import {BaseAccount} from "../../src/accounts/BaseAccount.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
-import {Ownable} from "@openzeppelin-contracts/access/Ownable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title Forwarder Test

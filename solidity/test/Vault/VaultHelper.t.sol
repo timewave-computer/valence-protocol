@@ -2,10 +2,11 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/src/Test.sol";
-import {ERC4626, ValenceVault} from "../../src/libraries/ValenceVault.sol";
+import {ERC4626Upgradeable, ValenceVault} from "../../src/libraries/ValenceVault.sol";
 import {BaseAccount} from "../../src/accounts/BaseAccount.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
-import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 abstract contract VaultHelper is Test {
     using Math for uint256;
@@ -67,7 +68,19 @@ abstract contract VaultHelper is Test {
             feeDistribution: defaultDistributionFees()
         });
 
-        vault = new ValenceVault(owner, abi.encode(config), address(token), "Valence Vault Token", "VVT", ONE_SHARE);
+        ValenceVault implementation = new ValenceVault();
+        bytes memory initializeData = abi.encodeWithSelector(
+            ValenceVault.initialize.selector,
+            owner,
+            abi.encode(config),
+            address(token),
+            "Valence Vault Token",
+            "VVT",
+            ONE_SHARE
+        );
+        // Deploy the proxy
+        ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initializeData);
+        vault = ValenceVault(address(proxy));
 
         // Setup permissions
         depositAccount.approveLibrary(address(vault));
