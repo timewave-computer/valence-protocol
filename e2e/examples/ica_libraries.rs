@@ -13,14 +13,12 @@ use valence_chain_client_utils::{
     cosmos::base_client::BaseClient, neutron::NeutronClient, noble::NobleClient,
 };
 use valence_e2e::utils::{
-    parse::get_grpc_address_and_port_from_logs, relayer::restart_relayer, ADMIN_MNEMONIC,
-    GAS_FLAGS, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID,
-    NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, VALENCE_ARTIFACTS_PATH,
+    ibc::poll_for_ica_state, parse::get_grpc_address_and_port_from_logs, relayer::restart_relayer,
+    ADMIN_MNEMONIC, GAS_FLAGS, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM,
+    NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, UUSDC_DENOM, VALENCE_ARTIFACTS_PATH,
 };
 use valence_ica_ibc_transfer::msg::RemoteChainInfo;
 use valence_library_utils::LibraryAccountType;
-
-pub const UUSDC_DENOM: &str = "uusdc";
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -471,44 +469,4 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("All ICA tests passed!");
 
     Ok(())
-}
-
-fn poll_for_ica_state<F>(test_ctx: &mut TestContext, addr: &str, expected: F)
-where
-    F: Fn(&IcaState) -> bool,
-{
-    let mut attempts = 0;
-    loop {
-        attempts += 1;
-        let ica_state: IcaState = serde_json::from_value(
-            contract_query(
-                test_ctx
-                    .get_request_builder()
-                    .get_request_builder(NEUTRON_CHAIN_NAME),
-                addr,
-                &serde_json::to_string(&valence_account_utils::ica::QueryMsg::IcaState {}).unwrap(),
-            )["data"]
-                .clone(),
-        )
-        .unwrap();
-
-        if expected(&ica_state) {
-            info!("Target ICA state reached!");
-            break;
-        } else {
-            info!(
-                "Waiting for the right ICA state, current state: {:?}",
-                ica_state
-            );
-        }
-
-        if attempts % 5 == 0 {
-            restart_relayer(test_ctx);
-        }
-
-        if attempts > 60 {
-            panic!("Maximum number of attempts reached. Cancelling execution.");
-        }
-        std::thread::sleep(Duration::from_secs(10));
-    }
 }

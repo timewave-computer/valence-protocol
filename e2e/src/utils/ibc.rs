@@ -1,7 +1,12 @@
+use std::time::Duration;
+
 use cosmwasm_std_old::Uint128;
-use localic_std::modules::bank::get_balance;
-use localic_utils::utils::test_context::TestContext;
+use localic_std::modules::{bank::get_balance, cosmwasm::contract_query};
+use localic_utils::{utils::test_context::TestContext, NEUTRON_CHAIN_NAME};
 use log::info;
+use valence_account_utils::ica::IcaState;
+
+use super::relayer::restart_relayer;
 
 #[allow(clippy::too_many_arguments)]
 pub fn send_successful_ibc_transfer(
@@ -49,4 +54,44 @@ pub fn send_successful_ibc_transfer(
     }
 
     Ok(())
+}
+
+pub fn poll_for_ica_state<F>(test_ctx: &mut TestContext, addr: &str, expected: F)
+where
+    F: Fn(&IcaState) -> bool,
+{
+    let mut attempts = 0;
+    loop {
+        attempts += 1;
+        let ica_state: IcaState = serde_json::from_value(
+            contract_query(
+                test_ctx
+                    .get_request_builder()
+                    .get_request_builder(NEUTRON_CHAIN_NAME),
+                addr,
+                &serde_json::to_string(&valence_account_utils::ica::QueryMsg::IcaState {}).unwrap(),
+            )["data"]
+                .clone(),
+        )
+        .unwrap();
+
+        if expected(&ica_state) {
+            info!("Target ICA state reached!");
+            break;
+        } else {
+            info!(
+                "Waiting for the right ICA state, current state: {:?}",
+                ica_state
+            );
+        }
+
+        if attempts % 5 == 0 {
+            restart_relayer(test_ctx);
+        }
+
+        if attempts > 60 {
+            panic!("Maximum number of attempts reached. Cancelling execution.");
+        }
+        std::thread::sleep(Duration::from_secs(10));
+    }
 }
