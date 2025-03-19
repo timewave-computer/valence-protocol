@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use localic_utils::{
-    utils::test_context::TestContext, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
+    utils::test_context::TestContext, NEUTRON_CHAIN_NAME,
 };
 use log::info;
 use tokio::runtime::Runtime;

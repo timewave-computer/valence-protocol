@@ -1,6 +1,6 @@
 use std::{error::Error, time::Duration};
 
-use cosmwasm_std::{to_json_binary, CosmosMsg, WasmMsg};
+use cosmwasm_std::{coin, to_json_binary, CosmosMsg, WasmMsg};
 use localic_utils::NEUTRON_CHAIN_DENOM;
 use log::info;
 use tokio::{runtime::Runtime, time::sleep};
@@ -313,6 +313,108 @@ pub fn swap_counterparty_denom_into_usdc(
         );
         assert_ne!(0, withdraw_acc_usdc_bal);
         assert_eq!(0, withdraw_acc_ntrn_bal);
+    });
+
+    Ok(())
+}
+
+pub fn route_usdc_to_noble(
+    rt: &Runtime,
+    neutron_client: &NeutronClient,
+    neutron_program_accounts: &NeutronProgramAccounts,
+    neutron_program_libraries: &NeutronProgramLibraries,
+    uusdc_on_neutron_denom: &str,
+    lp_token_denom: &str,
+    pool_addr: &str,
+) -> Result<(), Box<dyn Error>> {
+    info!("routing USDC to noble...");
+    async_run!(rt, {
+        let transfer_rx = neutron_client
+            .transfer(
+                &neutron_program_accounts
+                    .withdraw_account
+                    .to_string()
+                    .unwrap(),
+                110_000,
+                NEUTRON_CHAIN_DENOM,
+                None,
+            )
+            .await
+            .unwrap();
+        neutron_client.poll_for_tx(&transfer_rx.hash).await.unwrap();
+        sleep(Duration::from_secs(3)).await;
+        let withdraw_account_usdc_bal = neutron_client
+            .query_balance(
+                &neutron_program_accounts
+                    .withdraw_account
+                    .to_string()
+                    .unwrap(),
+                uusdc_on_neutron_denom,
+            )
+            .await
+            .unwrap();
+        let withdraw_account_ntrn_bal = neutron_client
+            .query_balance(
+                &neutron_program_accounts
+                    .withdraw_account
+                    .to_string()
+                    .unwrap(),
+                NEUTRON_CHAIN_DENOM,
+            )
+            .await
+            .unwrap();
+
+        assert_ne!(
+            withdraw_account_usdc_bal, 0,
+            "withdraw account must have usdc in order to route funds to noble"
+        );
+        assert_ne!(
+            withdraw_account_ntrn_bal, 0,
+            "withdraw account must have ntrn in order to route funds to noble"
+        );
+        let neutron_ibc_transfer_msg =
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_neutron_ibc_transfer_library::msg::FunctionMsgs::IbcTransfer {},
+            );
+        let rx = neutron_client
+            .execute_wasm(
+                &neutron_program_libraries.neutron_ibc_transfer,
+                neutron_ibc_transfer_msg,
+                vec![],
+            )
+            .await
+            .unwrap();
+        neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+
+        let withdraw_acc_usdc_bal = neutron_client
+            .query_balance(
+                &neutron_program_accounts
+                    .withdraw_account
+                    .to_string()
+                    .unwrap(),
+                uusdc_on_neutron_denom,
+            )
+            .await
+            .unwrap();
+        let withdraw_acc_ntrn_bal = neutron_client
+            .query_balance(
+                &neutron_program_accounts
+                    .withdraw_account
+                    .to_string()
+                    .unwrap(),
+                NEUTRON_CHAIN_DENOM,
+            )
+            .await
+            .unwrap();
+        info!(
+            "withdraw account USDC token balance: {:?}",
+            withdraw_acc_usdc_bal
+        );
+        info!(
+            "withdraw account NTRN token balance: {:?}",
+            withdraw_acc_ntrn_bal
+        );
+        assert_eq!(0, withdraw_acc_usdc_bal);
     });
 
     Ok(())

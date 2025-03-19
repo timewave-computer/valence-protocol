@@ -196,6 +196,30 @@ fn main() -> Result<(), Box<dyn Error>> {
         &pool_addr,
     )?;
 
+    strategist::route_usdc_to_noble(
+        &rt,
+        &neutron_client,
+        &neutron_program_accounts,
+        &neutron_program_libraries,
+        &uusdc_on_neutron_denom,
+        &lp_token,
+        &pool_addr,
+    )?;
+
+    sleep(Duration::from_secs(5));
+
+    let noble_outbound_ica_usdc_bal = async_run!(
+        &rt,
+        noble_client
+            .query_balance(
+                &neutron_program_accounts.noble_outbound_ica.remote_addr,
+                UUSDC_DENOM
+            )
+            .await
+            .unwrap()
+    );
+    info!("noble_outbound_ica_usdc_bal: {noble_outbound_ica_usdc_bal}");
+
     // TODO:
     // 1. swap non-deposit token from exit into the deposit token
     // 2. route usdc to the neutron ibc transfer input acc

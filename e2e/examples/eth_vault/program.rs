@@ -34,7 +34,6 @@ pub struct NeutronProgramAccounts {
     pub deposit_account: LibraryAccountType,
     pub position_account: LibraryAccountType,
     pub withdraw_account: LibraryAccountType,
-    pub noble_outbound_account: LibraryAccountType,
     pub noble_inbound_ica: ValenceInterchainAccount,
     pub noble_outbound_ica: ValenceInterchainAccount,
 }
@@ -64,19 +63,17 @@ pub fn setup_neutron_accounts(
         base_account_code_id,
         NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         vec![],
-        4,
+        3,
         None,
     );
 
     let deposit_account_addr = neutron_base_accounts[0].to_string();
     let position_account_addr = neutron_base_accounts[1].to_string();
     let withdraw_account_addr = neutron_base_accounts[2].to_string();
-    let noble_outbound_account_addr = neutron_base_accounts[3].to_string();
 
     let deposit_account = LibraryAccountType::Addr(deposit_account_addr.to_string());
     let position_account = LibraryAccountType::Addr(position_account_addr.to_string());
     let withdraw_account = LibraryAccountType::Addr(withdraw_account_addr.to_string());
-    let noble_outbound_account = LibraryAccountType::Addr(noble_outbound_account_addr.to_string());
 
     let noble_inbound_interchain_account_addr = instantiate_interchain_account_contract(test_ctx)?;
 
@@ -103,7 +100,6 @@ pub fn setup_neutron_accounts(
         deposit_account,
         position_account,
         withdraw_account,
-        noble_outbound_account,
         // valence-icas
         noble_inbound_ica,
         noble_outbound_ica,
