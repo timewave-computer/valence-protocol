@@ -787,6 +787,8 @@ contract ValenceVault is
             return WithdrawResult(true, assetsToWithdraw, request.solverFee, "");
         } catch {
             if (revertOnFailure) revert("Asset transfer failed");
+            // Restore request if transfer fails
+            userWithdrawRequest[owner] = request;
             return WithdrawResult(false, 0, 0, "Asset transfer failed");
         }
     }
