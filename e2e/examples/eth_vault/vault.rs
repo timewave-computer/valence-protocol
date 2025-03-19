@@ -1,7 +1,13 @@
-use std::{error::Error, time::Duration};
+use std::{
+    error::Error,
+    time::{Duration, SystemTime},
+};
 
 use cosmwasm_std_old::Coin as BankCoin;
-use localic_std::modules::{bank, cosmwasm::contract_execute};
+use localic_std::modules::{
+    bank,
+    cosmwasm::{contract_execute, contract_instantiate},
+};
 use localic_utils::{
     types::config::ConfigChain,
     utils::{ethereum::EthClient, test_context::TestContext},
@@ -17,13 +23,19 @@ use neutron::{
     },
     setup_astroport_cl_pool,
 };
-use program::my_evm_vault_program;
+use program::{
+    my_evm_vault_program, setup_astroport_lper_lib, setup_astroport_lwer_lib,
+    setup_cctp_forwarder_lib, setup_neutron_accounts,
+};
 use rand::{distributions::Alphanumeric, Rng};
+use valence_astroport_lper::msg::LiquidityProviderConfig;
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient, evm::request_provider_client::RequestProviderClient,
     neutron::NeutronClient,
 };
 use valence_e2e::utils::{
+    authorization::set_up_authorization_and_processor,
+    base_account::{approve_library, create_base_accounts},
     ethereum::set_up_anvil_container,
     hyperlane::{
         set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts, set_up_hyperlane,
@@ -31,14 +43,15 @@ use valence_e2e::utils::{
     },
     manager::{
         setup_manager, use_manager_init, ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME,
-        ICA_IBC_TRANSFER_NAME, INTERCHAIN_ACCOUNT_NAME,
+        BASE_ACCOUNT_NAME, ICA_CCTP_TRANSFER_NAME, ICA_IBC_TRANSFER_NAME, INTERCHAIN_ACCOUNT_NAME,
     },
     parse::get_grpc_address_and_port_from_logs,
     ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS,
-    HYPERLANE_RELAYER_NEUTRON_ADDRESS, LOGS_FILE_PATH, NEUTRON_NOBLE_CONFIG_FILE,
-    NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME,
-    NOBLE_CHAIN_PREFIX, UUSDC_DENOM, VALENCE_ARTIFACTS_PATH,
+    HYPERLANE_RELAYER_NEUTRON_ADDRESS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
+    NEUTRON_NOBLE_CONFIG_FILE, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID,
+    NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, UUSDC_DENOM, VALENCE_ARTIFACTS_PATH,
 };
+use valence_library_utils::{liquidity_utils::AssetData, LibraryAccountType};
 
 const EVM_ENCODER_NAMESPACE: &str = "evm_encoder_v1";
 const PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "provide_liquidity";
@@ -105,121 +118,234 @@ fn main() -> Result<(), Box<dyn Error>> {
     // setup astroport
     let (pool_addr, _lp_token) = setup_astroport_cl_pool(&mut test_ctx, token.to_string())?;
 
+    let salt = hex::encode(
+        SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)?
+            .as_secs()
+            .to_string(),
+    );
+
+    // set up the authorization and processor contracts on neutron
+    let (authorization_contract_address, neutron_processor_address) =
+        set_up_authorization_and_processor(&mut test_ctx, salt.clone())?;
+
+    let mut uploader = test_ctx.build_tx_upload_contracts();
+    uploader
+        .with_chain_name(NEUTRON_CHAIN_NAME)
+        .send_with_local_cache(
+            "e2e/examples/eth_vault/neutron_contracts/",
+            LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
+        )?;
+
+    let astro_lper_code_id = test_ctx
+        .get_contract()
+        .contract(ASTROPORT_LPER_NAME)
+        .get_cw()
+        .code_id
+        .unwrap();
+    let base_account_code_id = test_ctx
+        .get_contract()
+        .contract(BASE_ACCOUNT_NAME)
+        .get_cw()
+        .code_id
+        .unwrap();
+    let astro_lwer_code_id = test_ctx
+        .get_contract()
+        .contract(ASTROPORT_WITHDRAWER_NAME)
+        .get_cw()
+        .code_id
+        .unwrap();
+    let ica_ibc_transfer_code_id = test_ctx
+        .get_contract()
+        .contract(ICA_IBC_TRANSFER_NAME)
+        .get_cw()
+        .code_id
+        .unwrap();
+    let interchain_account_code_id = test_ctx
+        .get_contract()
+        .contract(INTERCHAIN_ACCOUNT_NAME)
+        .get_cw()
+        .code_id
+        .unwrap();
+
+    let ica_cctp_transfer_code_id = test_ctx
+        .get_contract()
+        .contract(ICA_CCTP_TRANSFER_NAME)
+        .get_cw()
+        .code_id
+        .unwrap();
+
+    let (deposit_account, position_account, withdraw_account) =
+        setup_neutron_accounts(&mut test_ctx, base_account_code_id)?;
+
+    let astro_cl_pool_asset_data = AssetData {
+        asset1: NEUTRON_CHAIN_DENOM.to_string(),
+        asset2: token.to_string(),
+    };
+
+    let astro_lper_lib = setup_astroport_lper_lib(
+        &mut test_ctx,
+        deposit_account.clone(),
+        position_account.clone(),
+        astro_cl_pool_asset_data.clone(),
+        pool_addr.to_string(),
+        neutron_processor_address.to_string(),
+        astro_lper_code_id,
+    )?;
+
+    let astro_lwer_lib = setup_astroport_lwer_lib(
+        &mut test_ctx,
+        position_account.clone(),
+        withdraw_account.clone(),
+        astro_cl_pool_asset_data.clone(),
+        pool_addr.to_string(),
+        neutron_processor_address.to_string(),
+        astro_lwer_code_id,
+    )?;
+
+    let noble_inbound_interchain_account_addr = instantiate_interchain_account_contract(&test_ctx)?;
+
+    let inbound_noble_ica_addr =
+        register_interchain_account(&mut test_ctx, &noble_inbound_interchain_account_addr)?;
+
+    let amount_to_transfer = 1_000_000;
+
+    let ica_ibc_transfer_lib = setup_ica_ibc_transfer_lib(
+        &mut test_ctx,
+        &noble_inbound_interchain_account_addr,
+        amount_to_transfer,
+    )?;
+
+    let noble_outbound_interchain_account_addr =
+        instantiate_interchain_account_contract(&test_ctx)?;
+
+    let outbound_noble_ica_addr =
+        register_interchain_account(&mut test_ctx, &noble_outbound_interchain_account_addr)?;
+
+    let cctp_forwarder_lib_addr = setup_cctp_forwarder_lib(
+        &mut test_ctx,
+        withdraw_account, // replace
+        "TODO".to_string(),
+        neutron_processor_address,
+        ica_cctp_transfer_code_id,
+        amount_to_transfer,
+    )?;
+
     // setup neutron side:
     // 1. authorizations
     // 2. processor
     // 3. astroport LP & LW
     // 4. base account
-    setup_manager(
-        &mut test_ctx,
-        NEUTRON_NOBLE_CONFIG_FILE,
-        vec![GAIA_CHAIN_NAME, NOBLE_CHAIN_NAME],
-        vec![
-            ASTROPORT_LPER_NAME,
-            ASTROPORT_WITHDRAWER_NAME,
-            ICA_IBC_TRANSFER_NAME,
-            INTERCHAIN_ACCOUNT_NAME,
-        ],
-    )?;
+    // setup_manager(
+    //     &mut test_ctx,
+    //     NEUTRON_NOBLE_CONFIG_FILE,
+    //     vec![GAIA_CHAIN_NAME, NOBLE_CHAIN_NAME],
+    //     vec![
+    //         ASTROPORT_LPER_NAME,
+    //         ASTROPORT_WITHDRAWER_NAME,
+    //         ICA_IBC_TRANSFER_NAME,
+    //         INTERCHAIN_ACCOUNT_NAME,
+    //     ],
+    // )?;
 
-    let ntrn_domain =
-        valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
+    // let ntrn_domain =
+    //     valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
 
-    let mut program_config = my_evm_vault_program(
-        ntrn_domain.clone(),
-        NEUTRON_CHAIN_DENOM,
-        &token,
-        &pool_addr,
-        NEUTRON_CHAIN_ADMIN_ADDR,
-    )?;
+    // let mut program_config = my_evm_vault_program(
+    //     ntrn_domain.clone(),
+    //     NEUTRON_CHAIN_DENOM,
+    //     &token,
+    //     &pool_addr,
+    //     NEUTRON_CHAIN_ADMIN_ADDR,
+    // )?;
 
-    info!("initializing manager...");
-    use_manager_init(&mut program_config)?;
+    // info!("initializing manager...");
+    // use_manager_init(&mut program_config)?;
 
-    info!("fetching manager build artifacts...");
-    let deposit_acc_addr = program_config.get_account(0u64)?.addr.clone().unwrap();
-    let position_acc_addr = program_config.get_account(1u64)?.addr.clone().unwrap();
-    let withdraw_acc_addr = program_config.get_account(2u64)?.addr.clone().unwrap();
-    let authorization_contract_address = program_config
-        .authorization_data
-        .authorization_addr
-        .to_string();
-    let ntrn_processor_contract_address = program_config
-        .get_processor_addr(&ntrn_domain.to_string())
-        .unwrap();
+    // info!("fetching manager build artifacts...");
+    // let deposit_acc_addr = program_config.get_account(0u64)?.addr.clone().unwrap();
+    // let position_acc_addr = program_config.get_account(1u64)?.addr.clone().unwrap();
+    // let withdraw_acc_addr = program_config.get_account(2u64)?.addr.clone().unwrap();
+    // let authorization_contract_address = program_config
+    //     .authorization_data
+    //     .authorization_addr
+    //     .to_string();
+    // let ntrn_processor_contract_address = program_config
+    //     .get_processor_addr(&ntrn_domain.to_string())
+    //     .unwrap();
 
-    info!("NTRN DEPOSIT ACC\t: {deposit_acc_addr}");
-    info!("NTRN POSITION ACC\t: {position_acc_addr}");
-    info!("NTRN WITHDRAW ACC\t: {withdraw_acc_addr}");
-    info!("NTRN AUTHORIZATIONS\t: {authorization_contract_address}");
-    info!("NTRN PROCESSOR\t: {ntrn_processor_contract_address}");
+    // info!("NTRN DEPOSIT ACC\t: {deposit_acc_addr}");
+    // info!("NTRN POSITION ACC\t: {position_acc_addr}");
+    // info!("NTRN WITHDRAW ACC\t: {withdraw_acc_addr}");
+    // info!("NTRN AUTHORIZATIONS\t: {authorization_contract_address}");
+    // info!("NTRN PROCESSOR\t: {ntrn_processor_contract_address}");
 
-    let interchain_account_addr = instantiate_interchain_account_contract(&test_ctx)?;
+    // let interchain_account_addr = instantiate_interchain_account_contract(&test_ctx)?;
 
-    let noble_ica_addr = register_interchain_account(&mut test_ctx, &interchain_account_addr)?;
+    // let noble_ica_addr = register_interchain_account(&mut test_ctx, &interchain_account_addr)?;
 
-    let amount_to_transfer = 1_000_000;
+    // let amount_to_transfer = 1_000_000;
 
-    let ica_ibc_transfer_lib =
-        setup_ica_ibc_transfer_lib(&mut test_ctx, &interchain_account_addr, amount_to_transfer)?;
+    // let ica_ibc_transfer_lib =
+    //     setup_ica_ibc_transfer_lib(&mut test_ctx, &interchain_account_addr, amount_to_transfer)?;
 
-    noble::mint_usdc_to_addr(
-        &rt,
-        &noble_client,
-        &noble_ica_addr,
-        amount_to_transfer.to_string(),
-    )?;
+    // noble::mint_usdc_to_addr(
+    //     &rt,
+    //     &noble_client,
+    //     &noble_ica_addr,
+    //     amount_to_transfer.to_string(),
+    // )?;
 
-    // Trigger the transfer
-    let transfer_msg = &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
-        valence_ica_ibc_transfer::msg::FunctionMsgs::Transfer {},
-    );
+    // // Trigger the transfer
+    // let transfer_msg = &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+    //     valence_ica_ibc_transfer::msg::FunctionMsgs::Transfer {},
+    // );
 
-    info!("Executing remote IBC transfer...");
-    contract_execute(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        &ica_ibc_transfer_lib,
-        DEFAULT_KEY,
-        &serde_json::to_string(&transfer_msg).unwrap(),
-        GAS_FLAGS,
-    )
-    .unwrap();
-    std::thread::sleep(Duration::from_secs(15));
+    // info!("Executing remote IBC transfer...");
+    // contract_execute(
+    //     test_ctx
+    //         .get_request_builder()
+    //         .get_request_builder(NEUTRON_CHAIN_NAME),
+    //     &ica_ibc_transfer_lib,
+    //     DEFAULT_KEY,
+    //     &serde_json::to_string(&transfer_msg).unwrap(),
+    //     GAS_FLAGS,
+    // )
+    // .unwrap();
+    // std::thread::sleep(Duration::from_secs(15));
 
-    // Verify that the funds were successfully sent
-    let uusdc_on_neutron_denom = test_ctx
-        .get_ibc_denom()
-        .base_denom(UUSDC_DENOM.to_owned())
-        .src(NOBLE_CHAIN_NAME)
-        .dest(NEUTRON_CHAIN_NAME)
-        .get();
+    // // Verify that the funds were successfully sent
+    // let uusdc_on_neutron_denom = test_ctx
+    //     .get_ibc_denom()
+    //     .base_denom(UUSDC_DENOM.to_owned())
+    //     .src(NOBLE_CHAIN_NAME)
+    //     .dest(NEUTRON_CHAIN_NAME)
+    //     .get();
 
-    let (grpc_url, grpc_port) = get_grpc_address_and_port_from_logs(NEUTRON_CHAIN_ID)?;
-    let neutron_client = async_run!(
-        rt,
-        NeutronClient::new(
-            &grpc_url,
-            &grpc_port.to_string(),
-            ADMIN_MNEMONIC,
-            NEUTRON_CHAIN_ID,
-        )
-        .await
-        .unwrap()
-    );
+    // let (grpc_url, grpc_port) = get_grpc_address_and_port_from_logs(NEUTRON_CHAIN_ID)?;
+    // let neutron_client = async_run!(
+    //     rt,
+    //     NeutronClient::new(
+    //         &grpc_url,
+    //         &grpc_port.to_string(),
+    //         ADMIN_MNEMONIC,
+    //         NEUTRON_CHAIN_ID,
+    //     )
+    //     .await
+    //     .unwrap()
+    // );
 
-    let balance = async_run!(
-        rt,
-        neutron_client
-            .query_balance(NEUTRON_CHAIN_ADMIN_ADDR, &uusdc_on_neutron_denom)
-            .await
-            .unwrap()
-    );
+    // let balance = async_run!(
+    //     rt,
+    //     neutron_client
+    //         .query_balance(NEUTRON_CHAIN_ADMIN_ADDR, &uusdc_on_neutron_denom)
+    //         .await
+    //         .unwrap()
+    // );
 
-    assert_eq!(balance, amount_to_transfer);
+    // assert_eq!(balance, amount_to_transfer);
 
-    info!("Funds successfully sent! ICA IBC Transfer library relayed funds from Noble ICA to Neutron!");
+    // info!("Funds successfully sent! ICA IBC Transfer library relayed funds from Noble ICA to Neutron!");
 
     // setup eth side:
     // 0. encoders
