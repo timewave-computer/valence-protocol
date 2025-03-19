@@ -1,5 +1,6 @@
 use std::{error::Error, time::Duration};
 
+use localic_utils::NEUTRON_CHAIN_DENOM;
 use log::info;
 use tokio::{runtime::Runtime, time::sleep};
 use valence_chain_client_utils::{
@@ -130,6 +131,83 @@ pub fn enter_position(
             .unwrap();
         info!("position account LP token balance: {:?}", output_acc_bal);
         assert_ne!(0, output_acc_bal);
+    });
+
+    Ok(())
+}
+
+pub fn exit_position(
+    rt: &Runtime,
+    neutron_client: &NeutronClient,
+    neutron_program_accounts: &NeutronProgramAccounts,
+    neutron_program_libraries: &NeutronProgramLibraries,
+    uusdc_on_neutron_denom: &str,
+    lp_token_denom: &str,
+) -> Result<(), Box<dyn Error>> {
+    info!("entering LP position...");
+    async_run!(rt, {
+        let position_account_shares_bal = neutron_client
+            .query_balance(
+                &neutron_program_accounts
+                    .position_account
+                    .to_string()
+                    .unwrap(),
+                lp_token_denom,
+            )
+            .await
+            .unwrap();
+
+        assert_ne!(
+            position_account_shares_bal, 0,
+            "position account must have shares in order to exit lp"
+        );
+
+        let withdraw_liquidity_msg =
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_astroport_withdrawer::msg::FunctionMsgs::WithdrawLiquidity {
+                    expected_pool_ratio_range: None,
+                },
+            );
+        let rx = neutron_client
+            .execute_wasm(
+                &neutron_program_libraries.astroport_lwer,
+                withdraw_liquidity_msg,
+                vec![],
+            )
+            .await
+            .unwrap();
+        neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+
+        let withdraw_acc_usdc_bal = neutron_client
+            .query_balance(
+                &neutron_program_accounts
+                    .withdraw_account
+                    .to_string()
+                    .unwrap(),
+                uusdc_on_neutron_denom,
+            )
+            .await
+            .unwrap();
+        let withdraw_acc_ntrn_bal = neutron_client
+            .query_balance(
+                &neutron_program_accounts
+                    .withdraw_account
+                    .to_string()
+                    .unwrap(),
+                NEUTRON_CHAIN_DENOM,
+            )
+            .await
+            .unwrap();
+        info!(
+            "withdraw account USDC token balance: {:?}",
+            withdraw_acc_usdc_bal
+        );
+        info!(
+            "withdraw account NTRN token balance: {:?}",
+            withdraw_acc_ntrn_bal
+        );
+        assert_ne!(0, withdraw_acc_usdc_bal);
+        assert_ne!(0, withdraw_acc_ntrn_bal);
     });
 
     Ok(())

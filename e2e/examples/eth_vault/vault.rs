@@ -188,6 +188,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         &lp_token,
     )?;
 
+    strategist::exit_position(
+        &rt,
+        &neutron_client,
+        &neutron_program_accounts,
+        &neutron_program_libraries,
+        &uusdc_on_neutron_denom,
+        &lp_token,
+    )?;
+
     // setup eth side:
     // 0. encoders
     // 1. lite processor
