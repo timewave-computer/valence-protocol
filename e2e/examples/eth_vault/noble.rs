@@ -1,8 +1,6 @@
 use std::error::Error;
 
-use localic_utils::{
-    utils::test_context::TestContext, NEUTRON_CHAIN_NAME,
-};
+use localic_utils::{utils::test_context::TestContext, NEUTRON_CHAIN_NAME};
 use log::info;
 use tokio::runtime::Runtime;
 use valence_chain_client_utils::{cosmos::base_client::BaseClient, noble::NobleClient};

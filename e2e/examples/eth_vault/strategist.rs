@@ -1,6 +1,6 @@
 use std::{error::Error, time::Duration};
 
-use cosmwasm_std::{coin, to_json_binary, CosmosMsg, WasmMsg};
+use cosmwasm_std::{to_json_binary, CosmosMsg, WasmMsg};
 use localic_utils::NEUTRON_CHAIN_DENOM;
 use log::info;
 use tokio::{runtime::Runtime, time::sleep};
