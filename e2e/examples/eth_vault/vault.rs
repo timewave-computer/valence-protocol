@@ -11,7 +11,6 @@ use localic_utils::{
 
 use log::info;
 use neutron::{
-    deploy_astroport_contracts,
     ica::{
         instantiate_interchain_account_contract, register_interchain_account,
         setup_ica_ibc_transfer_lib,
@@ -21,8 +20,7 @@ use neutron::{
 use program::my_evm_vault_program;
 use rand::{distributions::Alphanumeric, Rng};
 use valence_chain_client_utils::{
-    cosmos::base_client::BaseClient,
-    evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
+    cosmos::base_client::BaseClient, evm::request_provider_client::RequestProviderClient,
     neutron::NeutronClient,
 };
 use valence_e2e::utils::{
@@ -105,21 +103,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         hyperlane_plumbing(&mut test_ctx, &eth)?;
 
     // setup astroport
-    let (
-        astroport_factory_code_id,
-        astroport_pair_concentrated_code_id,
-        astroport_token_code_id,
-        astroport_coin_registry_code_id,
-    ) = deploy_astroport_contracts(&mut test_ctx)?;
-
-    let (pool_addr, _lp_token) = setup_astroport_cl_pool(
-        &mut test_ctx,
-        astroport_pair_concentrated_code_id,
-        astroport_token_code_id,
-        astroport_factory_code_id,
-        astroport_coin_registry_code_id,
-        token.to_string(),
-    )?;
+    let (pool_addr, _lp_token) = setup_astroport_cl_pool(&mut test_ctx, token.to_string())?;
 
     // setup neutron side:
     // 1. authorizations

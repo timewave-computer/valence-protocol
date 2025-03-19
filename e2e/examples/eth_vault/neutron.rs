@@ -31,7 +31,7 @@ use crate::{
     PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL, WITHDRAW_LIQUIDITY_AUTHORIZATIONS_LABEL,
 };
 
-pub fn deploy_astroport_contracts(
+fn deploy_astroport_contracts(
     test_ctx: &mut TestContext,
 ) -> Result<(u64, u64, u64, u64), Box<dyn Error>> {
     info!("Uploading astroport contracts...");
@@ -82,19 +82,22 @@ pub fn deploy_astroport_contracts(
 
 pub fn setup_astroport_cl_pool(
     test_ctx: &mut TestContext,
-    pair_code_id: u64,
-    token_code_id: u64,
-    factory_code_id: u64,
-    native_coin_registry_code_id: u64,
     denom: String,
 ) -> Result<(String, String), Box<dyn Error>> {
+    let (
+        astroport_factory_code_id,
+        astroport_pair_concentrated_code_id,
+        astroport_token_code_id,
+        astroport_coin_registry_code_id,
+    ) = deploy_astroport_contracts(test_ctx)?;
+
     info!("Instantiating astroport native coin registry...");
     let coin_registry_contract = contract_instantiate(
         test_ctx
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
         DEFAULT_KEY,
-        native_coin_registry_code_id,
+        astroport_coin_registry_code_id,
         &serde_json::to_string(&NativeCoinRegistryInstantiateMsg {
             owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         })
@@ -129,7 +132,7 @@ pub fn setup_astroport_cl_pool(
     info!("Instantiating astroport factory...");
     let astroport_factory_instantiate_msg = FactoryInstantiateMsg {
         pair_configs: vec![PairConfig {
-            code_id: pair_code_id,
+            code_id: astroport_pair_concentrated_code_id,
             pair_type: PairType::Custom(ASTROPORT_CONCENTRATED_PAIR_TYPE.to_string()),
             total_fee_bps: 0u16,
             maker_fee_bps: 0,
@@ -137,13 +140,13 @@ pub fn setup_astroport_cl_pool(
             is_generator_disabled: false,
             permissioned: false,
         }],
-        token_code_id,
         fee_address: None,
         generator_address: None,
         owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         whitelist_code_id: 234, // This is not needed anymore but still part of API
         coin_registry_address: coin_registry_contract.address.to_string(),
         tracker_config: None,
+        token_code_id: astroport_token_code_id,
     };
 
     let factory_contract = contract_instantiate(
@@ -151,7 +154,7 @@ pub fn setup_astroport_cl_pool(
             .get_request_builder()
             .get_request_builder(NEUTRON_CHAIN_NAME),
         DEFAULT_KEY,
-        factory_code_id,
+        astroport_factory_code_id,
         &serde_json::to_string(&astroport_factory_instantiate_msg).unwrap(),
         "astroport_factory",
         None,
