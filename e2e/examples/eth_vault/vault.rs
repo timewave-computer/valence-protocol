@@ -1,25 +1,19 @@
-use std::{
-    error::Error,
-    time::{Duration, SystemTime},
-};
+use std::{error::Error, time::SystemTime};
 
 use cosmwasm_std_old::Coin as BankCoin;
-use localic_std::modules::{bank, cosmwasm::contract_execute};
+use localic_std::modules::bank;
 use localic_utils::{
     types::config::ConfigChain,
     utils::{ethereum::EthClient, test_context::TestContext},
     ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, LOCAL_IC_API_URL,
-    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
+    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 
 use log::info;
 use neutron::setup_astroport_cl_pool;
 use program::{setup_neutron_accounts, setup_neutron_libraries};
 use rand::{distributions::Alphanumeric, Rng};
-use valence_chain_client_utils::{
-    cosmos::base_client::BaseClient, evm::request_provider_client::RequestProviderClient,
-    neutron::NeutronClient,
-};
+use valence_chain_client_utils::evm::request_provider_client::RequestProviderClient;
 use valence_e2e::utils::{
     authorization::set_up_authorization_and_processor,
     ethereum::set_up_anvil_container,
@@ -27,11 +21,9 @@ use valence_e2e::utils::{
         set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts, set_up_hyperlane,
         HyperlaneContracts,
     },
-    parse::get_grpc_address_and_port_from_logs,
-    ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS,
-    HYPERLANE_RELAYER_NEUTRON_ADDRESS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
-    NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME,
-    NOBLE_CHAIN_PREFIX, UUSDC_DENOM, VALENCE_ARTIFACTS_PATH,
+    DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_HYPERLANE_DOMAIN, HYPERLANE_RELAYER_NEUTRON_ADDRESS,
+    LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM,
+    NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, UUSDC_DENOM, VALENCE_ARTIFACTS_PATH,
 };
 
 const EVM_ENCODER_NAMESPACE: &str = "evm_encoder_v1";
@@ -44,6 +36,7 @@ mod ethereum;
 mod neutron;
 mod noble;
 mod program;
+mod strategist;
 
 /// macro for executing async code in a blocking context
 #[macro_export]
@@ -144,50 +137,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         amount_to_transfer.to_string(),
     )?;
 
-    // Trigger the transfer
-    let transfer_msg = &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
-        valence_ica_ibc_transfer::msg::FunctionMsgs::Transfer {},
-    );
+    let neutron_client = neutron::get_neutron_client(&rt)?;
 
-    info!("Executing remote IBC transfer...");
-    contract_execute(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        &neutron_program_libraries.noble_inbound_transfer,
-        DEFAULT_KEY,
-        &serde_json::to_string(&transfer_msg).unwrap(),
-        GAS_FLAGS,
-    )
-    .unwrap();
-    std::thread::sleep(Duration::from_secs(15));
-
-    // Verify that the funds were successfully sent
-
-    let (grpc_url, grpc_port) = get_grpc_address_and_port_from_logs(NEUTRON_CHAIN_ID)?;
-    let neutron_client = async_run!(
-        rt,
-        NeutronClient::new(
-            &grpc_url,
-            &grpc_port.to_string(),
-            ADMIN_MNEMONIC,
-            NEUTRON_CHAIN_ID,
-        )
-        .await
-        .unwrap()
-    );
-
-    let balance = async_run!(
-        rt,
-        neutron_client
-            .query_balance(NEUTRON_CHAIN_ADMIN_ADDR, &uusdc_on_neutron_denom)
-            .await
-            .unwrap()
-    );
-
-    assert_eq!(balance, amount_to_transfer);
-
-    info!("Funds successfully sent! ICA IBC Transfer library relayed funds from Noble ICA to Neutron!");
+    strategist::pull_funds_from_noble_inbound_ica(
+        &rt,
+        &neutron_client,
+        &neutron_program_accounts,
+        &neutron_program_libraries,
+        &uusdc_on_neutron_denom,
+        amount_to_transfer,
+    )?;
 
     // setup eth side:
     // 0. encoders

@@ -150,6 +150,7 @@ pub fn setup_neutron_libraries(
             .noble_inbound_ica
             .library_account
             .to_string()?,
+        &neutron_program_accounts.deposit_account.to_string()?,
         amount,
     )?;
 
@@ -195,7 +196,7 @@ pub fn setup_astroport_lper_lib(
     output_account: LibraryAccountType,
     asset_data: AssetData,
     pool_addr: String,
-    processor: String,
+    _processor: String,
 ) -> Result<String, Box<dyn Error>> {
     let lper_code_id = test_ctx
         .get_contract()
@@ -224,7 +225,7 @@ pub fn setup_astroport_lper_lib(
     let astroport_lper_instantiate_msg =
         valence_library_utils::msg::InstantiateMsg::<valence_astroport_lper::msg::LibraryConfig> {
             owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-            processor,
+            processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
             config: astro_lper_library_cfg,
         };
 
@@ -260,7 +261,7 @@ pub fn setup_astroport_lwer_lib(
     output_account: LibraryAccountType,
     asset_data: AssetData,
     pool_addr: String,
-    processor: String,
+    _processor: String,
 ) -> Result<String, Box<dyn Error>> {
     let lwer_code_id = test_ctx
         .get_contract()
@@ -287,7 +288,7 @@ pub fn setup_astroport_lwer_lib(
         valence_astroport_withdrawer::msg::LibraryConfig,
     > {
         owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        processor: processor.to_string(),
+        processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         config: astro_lwer_library_cfg,
     };
 
@@ -321,7 +322,7 @@ pub fn setup_cctp_forwarder_lib(
     test_ctx: &mut TestContext,
     input_account: LibraryAccountType,
     output_addr: String,
-    processor: String,
+    _processor: String,
     amount: u128,
 ) -> Result<String, Box<dyn Error>> {
     let ica_cctp_transfer_code_id = test_ctx
@@ -343,7 +344,7 @@ pub fn setup_cctp_forwarder_lib(
         valence_ica_cctp_transfer::msg::LibraryConfig,
     > {
         owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        processor: processor.to_string(),
+        processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         config: cctp_transfer_config,
     };
 
@@ -376,6 +377,7 @@ pub fn setup_cctp_forwarder_lib(
 pub fn setup_ica_ibc_transfer_lib(
     test_ctx: &mut TestContext,
     interchain_account_addr: &str,
+    neutron_deposit_acc: &str,
     amount_to_transfer: u128,
 ) -> Result<String, Box<dyn Error>> {
     let ica_ibc_transfer_lib_code = *test_ctx
@@ -396,7 +398,7 @@ pub fn setup_ica_ibc_transfer_lib(
             input_addr: LibraryAccountType::Addr(interchain_account_addr.to_string()),
             amount: Uint128::new(amount_to_transfer),
             denom: UUSDC_DENOM.to_string(),
-            receiver: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+            receiver: neutron_deposit_acc.to_string(),
             remote_chain_info: RemoteChainInfo {
                 channel_id: test_ctx
                     .get_transfer_channels()

@@ -7,11 +7,12 @@ use localic_std::modules::{
 };
 use localic_utils::{
     utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM,
-    NEUTRON_CHAIN_NAME,
+    NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
 };
 
 use log::info;
 use serde_json::Value;
+use tokio::runtime::Runtime;
 use valence_astroport_utils::astroport_native_lp_token::{
     Asset, AssetInfo, ConcentratedLiquidityExecuteMsg, ConcentratedPoolParams,
     FactoryInstantiateMsg, FactoryQueryMsg, NativeCoinRegistryExecuteMsg,
@@ -21,13 +22,15 @@ use valence_authorization_utils::msg::{
     EncoderInfo, EvmBridgeInfo, ExternalDomainInfo, HyperlaneConnectorInfo, PermissionedMsg,
     ProcessorMessage,
 };
+use valence_chain_client_utils::neutron::NeutronClient;
 use valence_e2e::utils::{
-    processor::tick_processor, ASTROPORT_PATH, ETHEREUM_CHAIN_NAME, ETHEREUM_HYPERLANE_DOMAIN,
-    GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
+    parse::get_grpc_address_and_port_from_logs, processor::tick_processor, ADMIN_MNEMONIC,
+    ASTROPORT_PATH, ETHEREUM_CHAIN_NAME, ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS,
+    LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
 };
 
 use crate::{
-    ASTROPORT_CONCENTRATED_PAIR_TYPE, EVM_ENCODER_NAMESPACE,
+    async_run, ASTROPORT_CONCENTRATED_PAIR_TYPE, EVM_ENCODER_NAMESPACE,
     PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL, WITHDRAW_LIQUIDITY_AUTHORIZATIONS_LABEL,
 };
 
@@ -273,6 +276,23 @@ pub fn setup_astroport_cl_pool(
     std::thread::sleep(std::time::Duration::from_secs(3));
 
     Ok((pool_addr.to_string(), lp_token.to_string()))
+}
+
+pub fn get_neutron_client(rt: &Runtime) -> Result<NeutronClient, Box<dyn Error>> {
+    let (grpc_url, grpc_port) = get_grpc_address_and_port_from_logs(NEUTRON_CHAIN_ID)?;
+    let neutron_client = async_run!(
+        rt,
+        NeutronClient::new(
+            &grpc_url,
+            &grpc_port.to_string(),
+            ADMIN_MNEMONIC,
+            NEUTRON_CHAIN_ID,
+        )
+        .await
+        .unwrap()
+    );
+
+    Ok(neutron_client)
 }
 
 #[allow(unused)]
