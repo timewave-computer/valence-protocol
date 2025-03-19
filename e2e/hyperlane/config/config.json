@@ -14,9 +14,9 @@
       "displayName": "Ethereum",
       "domainId": 1,
       "gasCurrencyCoinGeckoId": "ethereum",
-      "interchainGasPaymaster": "0x1291Be112d480055DaFd8a610b7d1e203891C274",
-      "mailbox": "0x809d550fca64d94Bd9F66E60752A544199cfAC3D",
-      "merkleTreeHook": "0x4c5859f0F772848b2D91F1D83E2Fe57935348029",
+      "interchainGasPaymaster": "0x7969c5eD335650692Bc04293B07F5BF2e7A673C0",
+      "mailbox": "0x82e01223d51Eb87e16A03E24687EDF0F294da6f1",
+      "merkleTreeHook": "0x2bdCC0de6bE1f7D2ee689a0342D76F52E8EFABa3",
       "name": "ethereum",
       "nativeToken": {
         "decimals": 18,
@@ -30,7 +30,7 @@
         }
       ],
       "technicalStack": "other",
-      "validatorAnnounce": "0xb7278A61aa25c888815aFC32Ad3cC52fF24fE575"
+      "validatorAnnounce": "0xc351628EB244ec633d5f21fBD6621e1a683B1181"
     },
     "neutron": {
       "bech32Prefix": "neutron",
@@ -58,10 +58,10 @@
           "http": "http://localneutron-1-val-0-neutronic:9090"
         }
       ],
-      "interchainGasPaymaster": "0xb3d0c7cb939914461be2f860800753b0cb438bf4e625b28e948fb8df98cd21e2",
+      "interchainGasPaymaster": "0x8ded30379673d3931130fde7c340e4057fe5b2cfd4c328d5e8e6da5b85565d9b",
       "isTestnet": false,
-      "mailbox": "0x7df2622323febcb472188b8525c53e2f2f3276b29948a1c25f5f80b0d7f4212e",
-      "merkleTreeHook": "0xb8a30621b7db35efc01f6f38f5e26d8a7d4c3cc37ef953ff44771df156228424",
+      "mailbox": "0xb895f6263af0a5bfbb3aa7d10b5f8694d64fbce2f138b87262c1dd7ed53ad6d9",
+      "merkleTreeHook": "0x0b29a45f689acb063c64d25111813a72133c5ad0087ebeedd06cdafcbf2fb277",
       "name": "neutron",
       "nativeToken": {
         "decimals": 6,
@@ -87,7 +87,7 @@
       },
       "slip44": 118,
       "technicalStack": "other",
-      "validatorAnnounce": "0x8f90c250ee84896eb80ff800482b3999fccd65f5a01dc7cee3a0c20604256c36"
+      "validatorAnnounce": "0xa90e589f4e7adf4a067f704874357e7ea607de250f9985aac8167ed65186ee4a"
     }
   },
   "defaultRpcConsensusType": "fallback"
