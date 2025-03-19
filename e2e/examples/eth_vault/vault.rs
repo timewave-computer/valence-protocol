@@ -1,6 +1,5 @@
 use std::{error::Error, time::Duration};
 
-use alloy::primitives::Address;
 use cosmwasm_std::{Uint128, Uint64};
 use cosmwasm_std_old::Coin as BankCoin;
 use localic_std::modules::{
@@ -21,7 +20,6 @@ use rand::{distributions::Alphanumeric, Rng};
 use valence_account_utils::ica::{IcaState, RemoteDomainInfo};
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
-    ethereum::EthereumClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
     neutron::NeutronClient,
     noble::NobleClient,
@@ -38,10 +36,6 @@ use valence_e2e::utils::{
         ICA_IBC_TRANSFER_NAME, INTERCHAIN_ACCOUNT_NAME,
     },
     parse::get_grpc_address_and_port_from_logs,
-    solidity_contracts::{
-        MockERC20,
-        ValenceVault::{self},
-    },
     ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS,
     HYPERLANE_RELAYER_NEUTRON_ADDRESS, LOGS_FILE_PATH, NEUTRON_NOBLE_CONFIG_FILE,
     NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME,
@@ -56,10 +50,12 @@ const WITHDRAW_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "withdraw_liquidity";
 const ASTROPORT_CONCENTRATED_PAIR_TYPE: &str = "concentrated";
 const SECONDS_IN_DAY: u64 = 86_400;
 
+mod ethereum;
 mod neutron;
 mod program;
 
 /// macro for executing async code in a blocking context
+#[macro_export]
 macro_rules! async_run {
     ($rt:expr, $($body:tt)*) => {
         $rt.block_on(async { $($body)* })
@@ -698,51 +694,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     //     &eth_user_acc,
     // )
     // .unwrap();
-
-    Ok(())
-}
-
-fn log_eth_balances(
-    eth_client: &EthereumClient,
-    rt: &tokio::runtime::Runtime,
-    vault_addr: &Address,
-    vault_deposit_token: &Address,
-    deposit_acc_addr: &Address,
-    withdraw_acc_addr: &Address,
-    depositor_addr: &Address,
-) -> Result<(), Box<dyn Error>> {
-    async_run!(rt, {
-        let eth_rp = eth_client.get_request_provider().await.unwrap();
-
-        let usdc_token = MockERC20::new(*vault_deposit_token, &eth_rp);
-        let valence_vault = ValenceVault::new(*vault_addr, &eth_rp);
-
-        let (
-            depositor_usdc_bal,
-            depositor_vault_bal,
-            withdraw_acc_usdc_bal,
-            deposit_acc_usdc_bal,
-            vault_total_supply,
-        ) = tokio::join!(
-            eth_client.query(usdc_token.balanceOf(*depositor_addr)),
-            eth_client.query(valence_vault.balanceOf(*depositor_addr)),
-            eth_client.query(usdc_token.balanceOf(*withdraw_acc_addr)),
-            eth_client.query(usdc_token.balanceOf(*deposit_acc_addr)),
-            eth_client.query(valence_vault.totalSupply()),
-        );
-
-        let depositor_usdc_bal = depositor_usdc_bal.unwrap()._0;
-        let depositor_vault_bal = depositor_vault_bal.unwrap()._0;
-        let withdraw_acc_usdc_bal = withdraw_acc_usdc_bal.unwrap()._0;
-        let deposit_acc_usdc_bal = deposit_acc_usdc_bal.unwrap()._0;
-        let vault_total_supply = vault_total_supply.unwrap()._0;
-
-        info!("USER SHARES\t\t: {depositor_vault_bal}");
-        info!("USER USDC\t\t: {depositor_usdc_bal}");
-        info!("WITHDRAW ACC USDC\t: {withdraw_acc_usdc_bal}");
-        info!("DEPOSIT ACC USDC\t: {deposit_acc_usdc_bal}");
-        info!("VAULT TOTAL SUPPLY\t: {vault_total_supply}");
-    });
 
     Ok(())
 }
