@@ -73,3 +73,64 @@ pub fn pull_funds_from_noble_inbound_ica(
 
     Ok(())
 }
+
+pub fn enter_position(
+    rt: &Runtime,
+    neutron_client: &NeutronClient,
+    neutron_program_accounts: &NeutronProgramAccounts,
+    neutron_program_libraries: &NeutronProgramLibraries,
+    uusdc_on_neutron_denom: &str,
+    lp_token_denom: &str,
+) -> Result<(), Box<dyn Error>> {
+    info!("entering LP position...");
+    async_run!(rt, {
+        let deposit_account_usdc_bal = neutron_client
+            .query_balance(
+                &neutron_program_accounts
+                    .deposit_account
+                    .to_string()
+                    .unwrap(),
+                uusdc_on_neutron_denom,
+            )
+            .await
+            .unwrap();
+
+        assert_ne!(
+            deposit_account_usdc_bal, 0,
+            "deposit account must have uusdc in order to lp"
+        );
+
+        let provide_liquidity_msg =
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_astroport_lper::msg::FunctionMsgs::ProvideSingleSidedLiquidity {
+                    asset: uusdc_on_neutron_denom.to_string(),
+                    limit: None,
+                    expected_pool_ratio_range: None,
+                },
+            );
+        let rx = neutron_client
+            .execute_wasm(
+                &neutron_program_libraries.astroport_lper,
+                provide_liquidity_msg,
+                vec![],
+            )
+            .await
+            .unwrap();
+        neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+
+        let output_acc_bal = neutron_client
+            .query_balance(
+                &neutron_program_accounts
+                    .position_account
+                    .to_string()
+                    .unwrap(),
+                lp_token_denom,
+            )
+            .await
+            .unwrap();
+        info!("position account LP token balance: {:?}", output_acc_bal);
+        assert_ne!(0, output_acc_bal);
+    });
+
+    Ok(())
+}

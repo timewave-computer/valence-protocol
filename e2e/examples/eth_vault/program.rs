@@ -109,7 +109,6 @@ pub fn setup_neutron_accounts(
 pub fn setup_neutron_libraries(
     test_ctx: &mut TestContext,
     neutron_program_accounts: &NeutronProgramAccounts,
-    token: &str,
     pool: &str,
     processor: &str,
     amount: u128,
@@ -117,7 +116,7 @@ pub fn setup_neutron_libraries(
 ) -> Result<NeutronProgramLibraries, Box<dyn Error>> {
     let astro_cl_pool_asset_data = AssetData {
         asset1: NEUTRON_CHAIN_DENOM.to_string(),
-        asset2: token.to_string(),
+        asset2: usdc_on_neutron.to_string(),
     };
 
     // library to enter into the position from the deposit account

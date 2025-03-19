@@ -1,4 +1,8 @@
-use std::{error::Error, time::SystemTime};
+use std::{
+    error::Error,
+    thread::sleep,
+    time::{Duration, SystemTime},
+};
 
 use cosmwasm_std_old::Coin as BankCoin;
 use localic_std::modules::bank;
@@ -13,7 +17,9 @@ use log::info;
 use neutron::setup_astroport_cl_pool;
 use program::{setup_neutron_accounts, setup_neutron_libraries};
 use rand::{distributions::Alphanumeric, Rng};
-use valence_chain_client_utils::evm::request_provider_client::RequestProviderClient;
+use valence_chain_client_utils::{
+    cosmos::base_client::BaseClient, evm::request_provider_client::RequestProviderClient,
+};
 use valence_e2e::utils::{
     authorization::set_up_authorization_and_processor,
     ethereum::set_up_anvil_container,
@@ -83,8 +89,33 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let noble_client = noble::get_client(&rt)?;
     noble::setup_environment(&rt, &noble_client)?;
+    noble::mint_usdc_to_addr(
+        &rt,
+        &noble_client,
+        NOBLE_CHAIN_ADMIN_ADDR,
+        "999900000".to_string(),
+    )?;
+    async_run!(&rt, {
+        let rx = noble_client
+            .ibc_transfer(
+                NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+                UUSDC_DENOM.to_string(),
+                "999000000".to_string(),
+                test_ctx
+                    .get_transfer_channels()
+                    .src(NOBLE_CHAIN_NAME)
+                    .dest(NEUTRON_CHAIN_NAME)
+                    .get(),
+                60,
+                None,
+            )
+            .await
+            .unwrap();
+        noble_client.poll_for_tx(&rx.hash).await.unwrap();
+    });
 
-    let token = create_counterparty_denom(&mut test_ctx)?;
+    sleep(Duration::from_secs(3));
+
     let uusdc_on_neutron_denom = test_ctx
         .get_ibc_denom()
         .base_denom(UUSDC_DENOM.to_owned())
@@ -96,7 +127,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         hyperlane_plumbing(&mut test_ctx, &eth)?;
 
     // setup astroport
-    let (pool_addr, _lp_token) = setup_astroport_cl_pool(&mut test_ctx, token.to_string())?;
+    let (pool_addr, lp_token) =
+        setup_astroport_cl_pool(&mut test_ctx, uusdc_on_neutron_denom.to_string())?;
 
     let salt = hex::encode(
         SystemTime::now()
@@ -104,7 +136,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .as_secs()
             .to_string(),
     );
-    let amount_to_transfer = 1_000_000;
+    let amount_to_transfer = 10_000_000;
 
     // set up the authorization and processor contracts on neutron
     let (authorization_contract_address, neutron_processor_address) =
@@ -123,7 +155,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let neutron_program_libraries = setup_neutron_libraries(
         &mut test_ctx,
         &neutron_program_accounts,
-        &token,
         &pool_addr,
         &neutron_processor_address,
         amount_to_transfer,
@@ -146,6 +177,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         &neutron_program_libraries,
         &uusdc_on_neutron_denom,
         amount_to_transfer,
+    )?;
+
+    strategist::enter_position(
+        &rt,
+        &neutron_client,
+        &neutron_program_accounts,
+        &neutron_program_libraries,
+        &uusdc_on_neutron_denom,
+        &lp_token,
     )?;
 
     // setup eth side:

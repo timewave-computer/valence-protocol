@@ -85,7 +85,7 @@ fn deploy_astroport_contracts(
 
 pub fn setup_astroport_cl_pool(
     test_ctx: &mut TestContext,
-    denom: String,
+    uusdc_on_neutron: String,
 ) -> Result<(String, String), Box<dyn Error>> {
     let (
         astroport_factory_code_id,
@@ -124,7 +124,10 @@ pub fn setup_astroport_cl_pool(
         &coin_registry_contract.address,
         DEFAULT_KEY,
         &serde_json::to_string(&NativeCoinRegistryExecuteMsg::Add {
-            native_coins: vec![(NEUTRON_CHAIN_DENOM.to_string(), 6), (denom.to_string(), 6)],
+            native_coins: vec![
+                (NEUTRON_CHAIN_DENOM.to_string(), 6),
+                (uusdc_on_neutron.to_string(), 6),
+            ],
         })
         .unwrap(),
         GAS_FLAGS,
@@ -176,7 +179,7 @@ pub fn setup_astroport_cl_pool(
             denom: NEUTRON_CHAIN_DENOM.to_string(),
         },
         AssetInfo::NativeToken {
-            denom: denom.clone(),
+            denom: uusdc_on_neutron.clone(),
         },
     ];
 
@@ -232,8 +235,8 @@ pub fn setup_astroport_cl_pool(
     let lp_token = query_pool_response["liquidity_token"].as_str().unwrap();
 
     info!("Pool created successfully! Pool address: {pool_addr}, LP token: {lp_token}");
-    let asset_a = coin(799_000_000, NEUTRON_CHAIN_DENOM);
-    let asset_b = coin(999_000_000, denom.clone());
+    let asset_a = coin(999_000_000, NEUTRON_CHAIN_DENOM);
+    let asset_b = coin(799_000_000, uusdc_on_neutron.clone());
     let assets = vec![
         Asset {
             info: AssetInfo::NativeToken {
