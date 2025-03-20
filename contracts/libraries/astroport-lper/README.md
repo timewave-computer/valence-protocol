@@ -51,8 +51,8 @@ pub struct LiquidityProviderConfig {
     pub pool_type: PoolType,
     // Denoms of both native assets we are going to provide liquidity for
     pub asset_data: AssetData,
-    // Slippage tolerance
-    pub slippage_tolerance: Option<Decimal>,
+    /// Max spread used when swapping assets to provide single sided liquidity
+    pub max_spread: Option<Decimal>,
 }
 
 #[cw_serde]
