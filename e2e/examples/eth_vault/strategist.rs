@@ -8,7 +8,9 @@ use valence_astroport_utils::astroport_native_lp_token::{Asset, AssetInfo};
 use valence_chain_client_utils::{
     cosmos::{base_client::BaseClient, wasm_client::WasmClient},
     neutron::NeutronClient,
+    noble::NobleClient,
 };
+use valence_e2e::utils::UUSDC_DENOM;
 
 use crate::{
     async_run,
@@ -415,6 +417,77 @@ pub fn route_usdc_to_noble(
             withdraw_acc_ntrn_bal
         );
         assert_eq!(0, withdraw_acc_usdc_bal);
+    });
+
+    Ok(())
+}
+
+pub fn cctp_route_usdc_from_noble(
+    rt: &Runtime,
+    neutron_client: &NeutronClient,
+    noble_client: &NobleClient,
+    neutron_program_accounts: &NeutronProgramAccounts,
+    neutron_program_libraries: &NeutronProgramLibraries,
+) -> Result<(), Box<dyn Error>> {
+    info!("CCTP forwarding USDC from Noble to Ethereum...");
+    async_run!(rt, {
+        let transfer_rx = neutron_client
+            .transfer(
+                &neutron_program_accounts
+                    .noble_outbound_ica
+                    .library_account
+                    .to_string()
+                    .unwrap(),
+                110_000,
+                NEUTRON_CHAIN_DENOM,
+                None,
+            )
+            .await
+            .unwrap();
+        neutron_client.poll_for_tx(&transfer_rx.hash).await.unwrap();
+        sleep(Duration::from_secs(3)).await;
+
+        let noble_outbound_acc_usdc_bal = noble_client
+            .query_balance(
+                &neutron_program_accounts.noble_outbound_ica.remote_addr,
+                UUSDC_DENOM,
+            )
+            .await
+            .unwrap();
+
+        assert_ne!(
+            noble_outbound_acc_usdc_bal, 0,
+            "Noble outbound ICA account must have usdc in order to initiate CCTP forwarding"
+        );
+
+        let neutron_ica_cctp_transfer_msg =
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_ica_cctp_transfer::msg::FunctionMsgs::Transfer {},
+            );
+        let rx = neutron_client
+            .execute_wasm(
+                &neutron_program_libraries.noble_cctp_transfer,
+                neutron_ica_cctp_transfer_msg,
+                vec![],
+            )
+            .await
+            .unwrap();
+        neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+
+        sleep(Duration::from_secs(10)).await;
+
+        let noble_outbound_acc_usdc_bal = noble_client
+            .query_balance(
+                &neutron_program_accounts.noble_outbound_ica.remote_addr,
+                UUSDC_DENOM,
+            )
+            .await
+            .unwrap();
+
+        info!(
+            "Noble outbound ICA account balance post cctp transfer: {:?}",
+            noble_outbound_acc_usdc_bal
+        );
     });
 
     Ok(())

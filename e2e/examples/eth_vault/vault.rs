@@ -148,6 +148,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &neutron_processor_address,
         amount_to_transfer,
         &uusdc_on_neutron_denom,
+        eth_admin_acc.to_string(),
     )?;
 
     noble::mint_usdc_to_addr(
@@ -219,6 +220,14 @@ fn main() -> Result<(), Box<dyn Error>> {
             .unwrap()
     );
     info!("noble_outbound_ica_usdc_bal: {noble_outbound_ica_usdc_bal}");
+
+    strategist::cctp_route_usdc_from_noble(
+        &rt,
+        &neutron_client,
+        &noble_client,
+        &neutron_program_accounts,
+        &neutron_program_libraries,
+    )?;
 
     // TODO:
     // 1. swap non-deposit token from exit into the deposit token

@@ -25,6 +25,7 @@ use valence_library_utils::LibraryAccountType;
 use crate::neutron::ica::{instantiate_interchain_account_contract, register_interchain_account};
 use crate::ASTROPORT_CONCENTRATED_PAIR_TYPE;
 
+#[derive(Debug, Clone)]
 pub struct ValenceInterchainAccount {
     pub library_account: LibraryAccountType,
     pub remote_addr: String,
@@ -115,6 +116,7 @@ pub fn setup_neutron_libraries(
     processor: &str,
     amount: u128,
     usdc_on_neutron: &str,
+    eth_admin_addr: String,
 ) -> Result<NeutronProgramLibraries, Box<dyn Error>> {
     let astro_cl_pool_asset_data = AssetData {
         asset1: NEUTRON_CHAIN_DENOM.to_string(),
@@ -159,8 +161,11 @@ pub fn setup_neutron_libraries(
     // into the withdraw account on ethereum
     let cctp_forwarder_lib_addr = setup_cctp_forwarder_lib(
         test_ctx,
-        neutron_program_accounts.withdraw_account.clone(), // replace
-        "TODO".to_string(),
+        neutron_program_accounts
+            .noble_outbound_ica
+            .library_account
+            .clone(),
+        eth_admin_addr,
         processor.to_string(),
         amount,
     )?;
@@ -335,7 +340,7 @@ pub fn setup_astroport_lwer_lib(
 pub fn setup_cctp_forwarder_lib(
     test_ctx: &mut TestContext,
     input_account: LibraryAccountType,
-    output_addr: String,
+    mut output_addr: String,
     _processor: String,
     amount: u128,
 ) -> Result<String, Box<dyn Error>> {
@@ -346,12 +351,18 @@ pub fn setup_cctp_forwarder_lib(
         .code_id
         .unwrap();
 
+    let trimmed_addr = output_addr.split_off(2);
+    let mut mint_recipient = vec![0u8; 32];
+
+    let addr_bytes = hex::decode(trimmed_addr).unwrap();
+    mint_recipient[(32 - addr_bytes.len())..].copy_from_slice(&addr_bytes);
+
     let cctp_transfer_config = valence_ica_cctp_transfer::msg::LibraryConfig {
         input_addr: input_account.clone(),
-        amount: amount.into(),
+        amount: (amount / 2).into(),
         denom: UUSDC_DENOM.to_string(),
         destination_domain_id: 0,
-        mint_recipient: Binary::from(&[0x01; 32]), // TODO
+        mint_recipient: Binary::from(mint_recipient),
     };
 
     let ica_cctp_transfer_instantiate_msg = valence_library_utils::msg::InstantiateMsg::<
