@@ -306,6 +306,32 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         vault.completeWithdraw(user);
     }
 
+    function testCannotCompleteWithoutUpdate() public {
+        uint256 userVaultBalanceBefore = vault.balanceOf(user);
+        // Create withdraw request
+        vm.startPrank(user);
+        vault.withdraw(WITHDRAW_AMOUNT, user, user, MAX_LOSS, false);
+        vm.stopPrank();
+
+        assertEq(vault.balanceOf(user), userVaultBalanceBefore - WITHDRAW_AMOUNT, "User should have reduced shares");
+
+        // Get the withdraw request
+        (,,,,,, uint256 shares) = vault.userWithdrawRequest(user);
+        assertEq(shares, WITHDRAW_AMOUNT, "Shares should match withdraw amount");
+
+        // Fast forward past lockup period
+        vm.warp(vm.getBlockTimestamp() + 3 days + 1);
+
+        // Try to complete withdraw
+        vm.prank(user);
+        vm.expectRevert(ValenceVault.NoUpdateForRequest.selector);
+        vault.completeWithdraw(user);
+
+        // Verify request is still pending
+        (,,,,,, uint256 sharesAfter) = vault.userWithdrawRequest(user);
+        assertEq(sharesAfter, WITHDRAW_AMOUNT, "Shares should still be pending");
+    }
+
     function testSolverFeeTransferFailure() public {
         // Setup solver fee
         setFees(0, 0, 0, 100);
