@@ -486,6 +486,39 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         }
     }
 
+    function testBatchWithdrawsNoBalanceOnWithdrawAccount() public {
+        setFees(0, 0, 0, 100);
+
+        // All users request withdraw before first update
+        for (uint256 i = 0; i < users.length; i++) {
+            vm.prank(users[i]);
+            vault.withdraw{value: 100}(WITHDRAW_AMOUNT, users[i], users[i], MAX_LOSS, true); // Allow solver completion
+        }
+
+        // Process update for all withdraws
+        vm.startPrank(strategist);
+        vault.update(ONE_SHARE, 100, WITHDRAW_AMOUNT * users.length); // 1% fee
+        vm.stopPrank();
+
+        // Fast forward past lockup period
+        vm.warp(vm.getBlockTimestamp() + 3 days + 1);
+
+        // Burn all assets in withdraw account to test that withdraw requests will not be cleared
+        vm.startPrank(owner);
+        token.burn(address(withdrawAccount), token.balanceOf(address(withdrawAccount)));
+        vm.stopPrank();
+
+        // Complete all withdraws in batch
+        vm.prank(solver);
+        vault.completeWithdraws(users);
+
+        // Verify all withdraws failed and requests are still pending
+        for (uint256 i = 0; i < users.length; i++) {
+            (,,,,,, uint256 shares) = vault.userWithdrawRequest(users[i]);
+            assertTrue(shares > 0, "Withdraw should still be pending");
+        }
+    }
+
     function testMultipleWithdrawsWithVaryingLossThresholds() public {
         // Setup users with different loss thresholds
         uint32[] memory maxLosses = new uint32[](3);
