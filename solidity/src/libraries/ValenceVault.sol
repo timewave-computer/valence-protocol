@@ -775,20 +775,17 @@ contract ValenceVault is
             assetsToWithdraw = shares.mulDiv(updateInfo.withdrawRate, ONE_SHARE, Math.Rounding.Floor);
         }
 
-        // Delete request before transfer to prevent reentrancy
-        delete userWithdrawRequest[owner];
-
         // Prepare the transfer
         bytes memory transferCalldata = abi.encodeCall(IERC20.transfer, (request.receiver, assetsToWithdraw));
 
         // Execute transfer
         try withdrawAccount.execute(asset(), 0, transferCalldata) {
+            // Only delete the entry if the transfer succeeded
+            delete userWithdrawRequest[owner];
             emit WithdrawCompleted(owner, request.receiver, assetsToWithdraw, request.sharesAmount, msg.sender);
             return WithdrawResult(true, assetsToWithdraw, request.solverFee, "");
         } catch {
             if (revertOnFailure) revert("Asset transfer failed");
-            // Restore request if transfer fails
-            userWithdrawRequest[owner] = request;
             return WithdrawResult(false, 0, 0, "Asset transfer failed");
         }
     }
