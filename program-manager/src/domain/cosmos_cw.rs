@@ -149,8 +149,10 @@ impl Connector for CosmosCosmwasmConnector {
         let registry_addr = GLOBAL_CONFIG.lock().await.get_registry_addr();
 
         // Execute a message to reserve the program id
-        let msg = to_vec(&valence_program_registry_utils::ExecuteMsg::ReserveId {})
-            .map_err(CosmosCosmwasmError::SerdeJsonError)?;
+        let msg = to_vec(&valence_program_registry_utils::ExecuteMsg::ReserveId {
+            addr: self.wallet.account_address.clone(),
+        })
+        .map_err(CosmosCosmwasmError::SerdeJsonError)?;
 
         let m = MsgExecuteContract {
             sender: self.wallet.account_address.clone(),
@@ -792,6 +794,7 @@ impl Connector for CosmosCosmwasmConnector {
 
         let msg = to_vec(&valence_program_registry_utils::ExecuteMsg::SaveProgram {
             id: config.id,
+            owner: config.owner.clone(),
             program_config: program_binary,
         })
         .map_err(CosmosCosmwasmError::SerdeJsonError)?;

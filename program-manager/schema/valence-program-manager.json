@@ -1204,9 +1204,13 @@
             ]
           },
           "output_addr": {
-            "type": [
-              "string",
-              "null"
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "remote_chain_info": {
