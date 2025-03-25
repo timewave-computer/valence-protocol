@@ -482,6 +482,7 @@ pub fn setup_mock_token_messenger(
     Ok(messenger_address)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn setup_cctp_transfer(
     _rt: &tokio::runtime::Runtime,
     _eth_client: &EthereumClient,
