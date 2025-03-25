@@ -9,13 +9,15 @@ use futures_util::StreamExt;
 use log::{error, info};
 
 const ANVIL_IMAGE_URL: &str = "ghcr.io/foundry-rs/foundry:latest";
+const ANVIL_NAME: &str = "anvil";
+const ANVIL_PORT: &str = "8545";
 
 pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
     // Connect to the Docker daemon
     let docker = Docker::connect_with_local_defaults()?;
 
     let mut filters = HashMap::new();
-    filters.insert("name", vec!["anvil"]);
+    filters.insert("name", vec![ANVIL_NAME]);
     let options = ListContainersOptions {
         all: true,
         filters,
@@ -25,7 +27,26 @@ pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
     // Check if container already exists
     let containers = docker.list_containers(Some(options)).await?;
     if !containers.is_empty() {
-        info!("Anvil container already exists");
+        for container in containers {
+            info!("found an existing Anvil container: {:?}", container);
+            info!("attempting to kill the container...");
+
+            let container_id = &container.id.unwrap();
+
+            match docker.kill_container::<String>(container_id, None).await {
+                Ok(_) => info!("killed existing container: {container_id}"),
+                Err(e) => error!("failed to kill container {container_id}: {e}"),
+            }
+
+            docker
+                .remove_container(container_id, None)
+                .await
+                .map_err(|e| error!("Failed to remove container {container_id}: {e}"))
+                .unwrap();
+
+            info!("removed old Anvil container");
+        }
+
         return Ok(());
     }
 
@@ -40,16 +61,16 @@ pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
     );
 
     // Pull the image and process the progress stream
-    info!("Pulling image: {}", ANVIL_IMAGE_URL);
+    info!("Pulling image: {ANVIL_IMAGE_URL}");
 
     while let Some(result) = pull_stream.next().await {
         match result {
             Ok(output) => {
                 if let Some(status) = output.status {
-                    info!("Status: {}", status);
+                    info!("Status: {status}");
                 }
                 if let Some(progress) = output.progress {
-                    info!("Progress: {}", progress);
+                    info!("Progress: {progress}");
                 }
             }
             Err(e) => error!("Error pulling image: {}", e),
@@ -58,21 +79,20 @@ pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
 
     let config = Config {
         image: Some(ANVIL_IMAGE_URL),
-        cmd: Some(vec!["anvil"]),
+        cmd: Some(vec![ANVIL_NAME]),
         env: Some(vec!["ANVIL_IP_ADDR=0.0.0.0"]),
         exposed_ports: {
-            let mut ports = HashMap::new();
-            ports.insert("8545/tcp", HashMap::new());
+            let ports = HashMap::from_iter([("8545/tcp", HashMap::new())]);
             Some(ports)
         },
         host_config: Some(bollard::service::HostConfig {
             port_bindings: {
                 let mut port_bindings = HashMap::new();
                 port_bindings.insert(
-                    "8545/tcp".to_string(),
+                    format!("{ANVIL_PORT}/tcp").to_string(),
                     Some(vec![bollard::service::PortBinding {
                         host_ip: Some("0.0.0.0".to_string()),
-                        host_port: Some("8545".to_string()),
+                        host_port: Some(ANVIL_PORT.to_string()),
                     }]),
                 );
                 Some(port_bindings)
@@ -84,7 +104,7 @@ pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
 
     // Create container
     let options = Some(CreateContainerOptions {
-        name: "anvil",
+        name: ANVIL_NAME,
         platform: None,
     });
     let container = docker.create_container(options, config).await?;
@@ -95,7 +115,40 @@ pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
         .await?;
 
     info!("Anvil container started successfully");
+
+    info!("Waiting for Anvil JSON-RPC to be ready...");
+    wait_for_anvil_ready(10).await?;
+
+    info!("Anvil container ready!");
     Ok(())
+}
+
+async fn wait_for_anvil_ready(timeout_secs: u64) -> Result<(), Box<dyn Error>> {
+    use std::time::{Duration, Instant};
+    use tokio::time::sleep;
+
+    let client = alloy::transports::http::reqwest::Client::new();
+    let start = Instant::now();
+    let url = "http://localhost:8545";
+
+    while start.elapsed() < Duration::from_secs(timeout_secs) {
+        let poll_rx = client
+            .post(url)
+            .timeout(Duration::from_secs(1))
+            .body("{}")
+            .send()
+            .await;
+
+        if let Ok(resp) = poll_rx {
+            if resp.status().is_success() {
+                return Ok(());
+            }
+        }
+
+        sleep(Duration::from_millis(500)).await;
+    }
+
+    Err("timed out waiting for Anvil to be ready".into())
 }
 
 /// macro for executing async code in a blocking context
@@ -176,6 +229,8 @@ pub mod mock_erc20 {
     pub fn setup_deposit_erc20(
         rt: &tokio::runtime::Runtime,
         eth_client: &EthereumClient,
+        name: &str,
+        denom: &str,
     ) -> Result<Address, Box<dyn Error>> {
         async_run!(rt, {
             info!("Deploying MockERC20 contract...");
@@ -183,7 +238,7 @@ pub mod mock_erc20 {
             let eth_rp = eth_client.get_request_provider().await.unwrap();
 
             let evm_vault_deposit_token_tx =
-                MockERC20::deploy_builder(&eth_rp, "TestUSDC".to_string(), "TUSD".to_string())
+                MockERC20::deploy_builder(&eth_rp, name.to_string(), denom.to_string())
                     .into_transaction_request();
 
             let evm_vault_deposit_token_rx =

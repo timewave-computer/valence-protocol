@@ -221,9 +221,7 @@ pub fn swap_counterparty_denom_into_usdc(
     rt: &Runtime,
     neutron_client: &NeutronClient,
     neutron_program_accounts: &NeutronProgramAccounts,
-    neutron_program_libraries: &NeutronProgramLibraries,
     uusdc_on_neutron_denom: &str,
-    lp_token_denom: &str,
     pool_addr: &str,
 ) -> Result<(), Box<dyn Error>> {
     info!("swapping NTRN into USDC...");
@@ -326,8 +324,6 @@ pub fn route_usdc_to_noble(
     neutron_program_accounts: &NeutronProgramAccounts,
     neutron_program_libraries: &NeutronProgramLibraries,
     uusdc_on_neutron_denom: &str,
-    lp_token_denom: &str,
-    pool_addr: &str,
 ) -> Result<(), Box<dyn Error>> {
     info!("routing USDC to noble...");
     async_run!(rt, {

@@ -182,7 +182,6 @@ pub fn setup_neutron_libraries(
                 .to_string(),
         ),
         usdc_on_neutron,
-        amount,
     )?;
 
     info!("approving strategist on withdraw account...");
@@ -471,7 +470,6 @@ pub fn setup_neutron_ibc_transfer_lib(
     input_account: LibraryAccountType,
     output_addr: LibraryAccountType,
     denom: &str,
-    amount_to_transfer: u128,
 ) -> Result<String, Box<dyn Error>> {
     let neutron_ibc_transfer_code_id = *test_ctx
         .get_chain(NEUTRON_CHAIN_NAME)

@@ -11,8 +11,9 @@ use valence_chain_client_utils::{
     evm::{base_client::EvmBaseClient as _, request_provider_client::RequestProviderClient},
 };
 
-use crate::utils::solidity_contracts::ValenceVault::{
-    self, FeeConfig, FeeDistributionConfig, VaultConfig,
+use crate::utils::solidity_contracts::{
+    MockTokenMessenger,
+    ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
 };
 
 // use crate::SECONDS_IN_DAY;
@@ -461,4 +462,36 @@ pub fn setup_valence_vault(
     info!("Vault deployed at: {vault_address}");
 
     Ok(vault_address)
+}
+
+pub fn setup_mock_token_messenger(
+    rt: &tokio::runtime::Runtime,
+    eth_client: &EthereumClient,
+) -> Result<Address, Box<dyn Error>> {
+    let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
+
+    info!("deploying Mock Token Messenger lib on Ethereum...");
+
+    let messenger_tx = MockTokenMessenger::deploy_builder(eth_rp).into_transaction_request();
+
+    let messenger_rx = async_run!(rt, eth_client.execute_tx(messenger_tx).await.unwrap());
+
+    let messenger_address = messenger_rx.contract_address.unwrap();
+    info!("Mock CCTP Token Messenger deployed at: {messenger_address}");
+
+    Ok(messenger_address)
+}
+
+pub fn setup_cctp_transfer(
+    _rt: &tokio::runtime::Runtime,
+    _eth_client: &EthereumClient,
+    _noble_recipient: String,
+    _input_account: Address,
+    _eth_accounts: &[Address],
+    _admin: Address,
+    _processor: Address,
+    _usdc_token_address: Address,
+    _cctp_token_messenger_address: Address,
+) -> Result<Address, Box<dyn Error>> {
+    unimplemented!()
 }

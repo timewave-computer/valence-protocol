@@ -44,14 +44,12 @@ pub fn mint_usdc_to_addr(
     rt: &Runtime,
     client: &NobleClient,
     to: &str,
-    amount: impl Into<String>,
+    amount: u128,
 ) -> Result<(), Box<dyn Error>> {
     // Mint some funds to the ICA account
     async_run!(rt, {
-        let amount_str: String = amount.into();
-
         let tx_response = client
-            .mint_fiat(NOBLE_CHAIN_ADMIN_ADDR, to, &amount_str, UUSDC_DENOM)
+            .mint_fiat(NOBLE_CHAIN_ADMIN_ADDR, to, &amount.to_string(), UUSDC_DENOM)
             .await
             .unwrap();
         client.poll_for_tx(&tx_response.hash).await.unwrap();
@@ -66,14 +64,14 @@ pub fn fund_neutron_addr(
     test_ctx: &mut TestContext,
     client: &NobleClient,
     to: &str,
-    amount: impl Into<String>,
+    amount: u128,
 ) -> Result<(), Box<dyn Error>> {
     async_run!(&rt, {
         let rx = client
             .ibc_transfer(
                 to.to_string(),
                 UUSDC_DENOM.to_string(),
-                amount.into(),
+                amount.to_string(),
                 test_ctx
                     .get_transfer_channels()
                     .src(NOBLE_CHAIN_NAME)

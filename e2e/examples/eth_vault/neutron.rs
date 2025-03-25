@@ -377,7 +377,7 @@ pub fn setup_valence_evm_encoder_v1(test_ctx: &mut TestContext) -> Result<String
     Ok(evm_encoder)
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, unused)]
 pub fn test_neutron_side_flow(
     test_ctx: &mut TestContext,
     deposit_acc_addr: &str,
