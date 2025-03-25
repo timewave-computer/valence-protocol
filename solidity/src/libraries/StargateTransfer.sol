@@ -79,11 +79,6 @@ contract StargateTransfer is Library {
             revert("Token address does not match the stargate token address");
         }
 
-        // Ensure the amount is greater than zero.
-        if (decodedConfig.amount == 0) {
-            revert("Amount to transfer must be greater than zero");
-        }
-
         return decodedConfig;
     }
 
