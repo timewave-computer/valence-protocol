@@ -1,94 +1,94 @@
 {
-    "chains": {
-        "ethereum": {
-            "blocks": {
-                "confirmations": 0,
-                "estimateBlockTime": 1,
-                "reorgPeriod": 0
-            },
-            "chainId": 1,
-            "deployer": {
-                "name": "Abacus Works",
-                "url": "https://www.hyperlane.xyz"
-            },
-            "displayName": "Ethereum",
-            "domainId": 1,
-            "gasCurrencyCoinGeckoId": "ethereum",
-            "interchainGasPaymaster": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
-            "mailbox": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-            "merkleTreeHook": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-            "name": "ethereum",
-            "nativeToken": {
-                "decimals": 18,
-                "name": "Ether",
-                "symbol": "ETH"
-            },
-            "protocol": "ethereum",
-            "rpcUrls": [
-                {
-                    "http": "http://anvil:8545"
-                }
-            ],
-            "technicalStack": "other",
-            "validatorAnnounce": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
-        },
-        "neutron": {
-            "bech32Prefix": "neutron",
-            "blocks": {
-                "confirmations": 1,
-                "estimateBlockTime": 3,
-                "reorgPeriod": 1
-            },
-            "canonicalAsset": "untrn",
-            "chainId": "localneutron-1",
-            "contractAddressBytes": 32,
-            "deployer": {
-                "name": "Abacus Works",
-                "url": "https://www.hyperlane.xyz"
-            },
-            "displayName": "Neutron",
-            "domainId": 1853125230,
-            "gasCurrencyCoinGeckoId": "neutron-3",
-            "gasPrice": {
-                "amount": "0.0075",
-                "denom": "untrn"
-            },
-            "grpcUrls": [
-                {
-                    "http": "http://localneutron-1-val-0-neutronic:9090"
-                }
-            ],
-            "interchainGasPaymaster": "0x30e2301c8c6f801fc1d4218af4ae03509b745725169f7a379c820c167957e363",
-            "isTestnet": false,
-            "mailbox": "0x3e202fb37a08b2f316028a813902ac5b6b4366e081da0f61c4392e08d1c99ce2",
-            "merkleTreeHook": "0x022994774d25ac6c45fe22a81ce39c48e5635ba845ac6bfa7d6bd9725d7cbba3",
-            "name": "neutron",
-            "nativeToken": {
-                "decimals": 6,
-                "denom": "untrn",
-                "name": "Neutron",
-                "symbol": "NTRN"
-            },
-            "protocol": "cosmos",
-            "restUrls": [
-                {
-                    "http": "http://localneutron-1-val-0-neutronic:1317"
-                }
-            ],
-            "rpcUrls": [
-                {
-                    "http": "http://localneutron-1-val-0-neutronic:26657"
-                }
-            ],
-            "signer": {
-                "key": "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6",
-                "prefix": "neutron",
-                "type": "cosmosKey"
-            },
-            "slip44": 118,
-            "technicalStack": "other",
-            "validatorAnnounce": "0xc4f8e8a5fed390d276f0836cd7a23319758b00f87755bbbd454ce9b42549de37"
+  "chains": {
+    "ethereum": {
+      "blocks": {
+        "confirmations": 0,
+        "estimateBlockTime": 1,
+        "reorgPeriod": 0
+      },
+      "chainId": 1,
+      "deployer": {
+        "name": "Abacus Works",
+        "url": "https://www.hyperlane.xyz"
+      },
+      "displayName": "Ethereum",
+      "domainId": 1,
+      "gasCurrencyCoinGeckoId": "ethereum",
+      "interchainGasPaymaster": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+      "mailbox": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "merkleTreeHook": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+      "name": "ethereum",
+      "nativeToken": {
+        "decimals": 18,
+        "name": "Ether",
+        "symbol": "ETH"
+      },
+      "protocol": "ethereum",
+      "rpcUrls": [
+        {
+          "http": "http://anvil:8545"
         }
+      ],
+      "technicalStack": "other",
+      "validatorAnnounce": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
     },
-    "defaultRpcConsensusType": "fallback"
+    "neutron": {
+      "bech32Prefix": "neutron",
+      "blocks": {
+        "confirmations": 1,
+        "estimateBlockTime": 3,
+        "reorgPeriod": 1
+      },
+      "canonicalAsset": "untrn",
+      "chainId": "localneutron-1",
+      "contractAddressBytes": 32,
+      "deployer": {
+        "name": "Abacus Works",
+        "url": "https://www.hyperlane.xyz"
+      },
+      "displayName": "Neutron",
+      "domainId": 1853125230,
+      "gasCurrencyCoinGeckoId": "neutron-3",
+      "gasPrice": {
+        "amount": "0.0075",
+        "denom": "untrn"
+      },
+      "grpcUrls": [
+        {
+          "http": "http://localneutron-1-val-0-neutronic:9090"
+        }
+      ],
+      "interchainGasPaymaster": "0xd9f0d0a6b6ba2fa26c070f618c553387874bf14702cd408ef2f6e7d8a7cae7f2",
+      "isTestnet": false,
+      "mailbox": "0x9e01023971f729c58f274977d0add3d277a8f8ff4c0fd620a2fe812f44caeb50",
+      "merkleTreeHook": "0xdead604bf321e8ecbb23edd633ad8baf7d9b3c6c83435d133162ebf817e10256",
+      "name": "neutron",
+      "nativeToken": {
+        "decimals": 6,
+        "denom": "untrn",
+        "name": "Neutron",
+        "symbol": "NTRN"
+      },
+      "protocol": "cosmos",
+      "restUrls": [
+        {
+          "http": "http://localneutron-1-val-0-neutronic:1317"
+        }
+      ],
+      "rpcUrls": [
+        {
+          "http": "http://localneutron-1-val-0-neutronic:26657"
+        }
+      ],
+      "signer": {
+        "key": "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6",
+        "prefix": "neutron",
+        "type": "cosmosKey"
+      },
+      "slip44": 118,
+      "technicalStack": "other",
+      "validatorAnnounce": "0x74d391a5df3ab3b39368427ba458097e50997c1c505115685ed767f31cf8dd7f"
+    }
+  },
+  "defaultRpcConsensusType": "fallback"
 }

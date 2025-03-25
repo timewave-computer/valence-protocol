@@ -1,5 +1,6 @@
 use std::{
     error::Error,
+    path::Path,
     thread::sleep,
     time::{Duration, SystemTime},
 };
@@ -27,6 +28,10 @@ use valence_e2e::utils::{
     hyperlane::{
         set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts, set_up_hyperlane,
         HyperlaneContracts,
+    },
+    manager::{
+        ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME, BASE_ACCOUNT_NAME, ICA_CCTP_TRANSFER_NAME,
+        ICA_IBC_TRANSFER_NAME, INTERCHAIN_ACCOUNT_NAME, NEUTRON_IBC_TRANSFER_NAME,
     },
     solidity_contracts::ValenceVault,
     vault::setup_valence_vault,
@@ -133,6 +138,31 @@ fn main() -> Result<(), Box<dyn Error>> {
     // set up the authorization and processor contracts on neutron
     let (authorization_contract_address, neutron_processor_address) =
         set_up_authorization_and_processor(&mut test_ctx, salt.clone())?;
+
+    // copy over relevant contracts from artifacts/ to local path
+    // std::fs::copy(, to)
+    let local_contracts_path = Path::new("e2e/examples/eth_vault/neutron_contracts/");
+    if !local_contracts_path.exists() {
+        std::fs::create_dir(local_contracts_path)?;
+    }
+
+    for contract in [
+        INTERCHAIN_ACCOUNT_NAME,
+        ASTROPORT_LPER_NAME,
+        ASTROPORT_WITHDRAWER_NAME,
+        NEUTRON_IBC_TRANSFER_NAME,
+        ICA_CCTP_TRANSFER_NAME,
+        ICA_IBC_TRANSFER_NAME,
+        BASE_ACCOUNT_NAME,
+    ] {
+        let contract_name = format!("{}.wasm", contract);
+        let contract_path = Path::new(&contract_name);
+        let src = Path::new("artifacts/").join(contract_path);
+        let dest = local_contracts_path.join(contract_path);
+        info!("src path: {:?}", src);
+        info!("dest path: {:?}", dest);
+        std::fs::copy(src, dest)?;
+    }
 
     let mut uploader = test_ctx.build_tx_upload_contracts();
     uploader

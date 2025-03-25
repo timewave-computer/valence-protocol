@@ -46,8 +46,6 @@ pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
 
             info!("removed old Anvil container");
         }
-
-        return Ok(());
     }
 
     // Pull image if it doesn't exist

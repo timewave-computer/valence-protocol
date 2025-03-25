@@ -26,6 +26,7 @@ e2e/configs
 e2e/code_id_cache*
 e2e/tmp
 e2e/hyperlane_db_relayer
+e2e/**/*.wasm
 
 deployment/results
 deployment/configs/local

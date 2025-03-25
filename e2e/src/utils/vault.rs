@@ -8,7 +8,7 @@ use alloy::{
 use log::{info, warn};
 use valence_chain_client_utils::{
     ethereum::EthereumClient,
-    evm::{base_client::EvmBaseClient as _, request_provider_client::RequestProviderClient},
+    evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
 
 use crate::utils::solidity_contracts::{
@@ -481,26 +481,22 @@ pub fn setup_valence_vault(
     // Initialize the Vault
     let vault = ValenceVault::new(proxy_address, &eth_rp);
 
-    let initialize_tx = vault
-        .initialize(
-            admin,                            // owner
-            vault_config.abi_encode().into(), // encoded config
-            vault_deposit_token_addr,         // underlying token
-            "Valence Test Vault".to_string(), // vault token name
-            "vTEST".to_string(),              // vault token symbol
-            U256::from(1e18), // placeholder, tbd what a reasonable value should be here
-        )
-        .into_transaction_request()
-        .from(admin);
+    async_run!(rt, {
+        let initialize_tx = vault
+            .initialize(
+                admin,                            // owner
+                vault_config.abi_encode().into(), // encoded config
+                vault_deposit_token_addr,         // underlying token
+                "Valence Test Vault".to_string(), // vault token name
+                "vTEST".to_string(),              // vault token symbol
+                U256::from(1e18), // placeholder, tbd what a reasonable value should be here
+            )
+            .into_transaction_request()
+            .from(admin);
 
-    let vault_address = async_run!(rt, {
         let rx = eth_client.execute_tx(initialize_tx).await.unwrap();
-        rx.contract_address.unwrap()
     });
-
-    info!("Vault deployed at: {vault_address}");
-
-    Ok(vault_address)
+    Ok(implementation_address)
 }
 
 pub fn setup_mock_token_messenger(
