@@ -7,7 +7,7 @@ use crate::Id;
 
 pub const LIBRARY_ACCOUNT_RAW_PLACEHOLDER: &str = "|lib_acc_placeholder|";
 
-/// An helper type that is used to associate an account or library with an id
+/// A helper type that is used to associate an account or library with an id
 /// When a program is not instantiated yet, ids will be used to reference accounts and libraries
 /// When a program is instantiated, the ids will be replaced by the instantiated addresses
 #[cw_serde]
@@ -93,6 +93,8 @@ impl From<&str> for LibraryAccountType {
                     .expect("Failed parsing addr into LibraryAccountType"),
             )
         } else {
+            // Defaulting to `Addr` allows easily converting an address to LibraryAccountType
+            // by doing `"addr1234".into()`
             LibraryAccountType::Addr(input.to_string())
         }
     }
