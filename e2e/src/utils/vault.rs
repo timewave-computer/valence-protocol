@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use alloy::{
-    primitives::{Address, U256},
+    primitives::{Address, Bytes, U256},
     providers::ext::AnvilApi,
     sol_types::SolValue,
 };
@@ -12,7 +12,7 @@ use valence_chain_client_utils::{
 };
 
 use crate::utils::solidity_contracts::{
-    MockTokenMessenger,
+    ERC1967Proxy, MockTokenMessenger,
     ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
 };
 
@@ -445,20 +445,59 @@ pub fn setup_valence_vault(
     info!("deploying Valence Vault on Ethereum...");
     let vault_config = setup_vault_config(eth_accounts, eth_deposit_acc, eth_withdraw_acc);
 
-    let vault_tx = ValenceVault::deploy_builder(
-        &eth_rp,
-        admin,                            // owner
-        vault_config.abi_encode().into(), // encoded config
-        vault_deposit_token_addr,         // underlying token
-        "Valence Test Vault".to_string(), // vault token name
-        "vTEST".to_string(),              // vault token symbol
-        U256::from(1e18),                 // placeholder, tbd what a reasonable value should be here
-    )
-    .into_transaction_request();
+    // First deploy the implementation contract
+    let implementation_tx = ValenceVault::deploy_builder(&eth_rp)
+        .into_transaction_request()
+        .from(admin);
 
-    let vault_rx = async_run!(rt, eth_client.execute_tx(vault_tx).await.unwrap());
+    let implementation_address = async_run!(
+        rt,
+        eth_client
+            .execute_tx(implementation_tx)
+            .await
+            .unwrap()
+            .contract_address
+            .unwrap()
+    );
 
-    let vault_address = vault_rx.contract_address.unwrap();
+    info!("Vault deployed at: {implementation_address}");
+
+    let proxy_address = async_run!(rt, {
+        // Deploy the proxy contract
+        let proxy_tx = ERC1967Proxy::deploy_builder(&eth_rp, implementation_address, Bytes::new())
+            .into_transaction_request()
+            .from(admin);
+
+        let proxy_address = eth_client
+            .execute_tx(proxy_tx)
+            .await
+            .unwrap()
+            .contract_address
+            .unwrap();
+        info!("Proxy deployed at: {proxy_address}");
+        proxy_address
+    });
+
+    // Initialize the Vault
+    let vault = ValenceVault::new(proxy_address, &eth_rp);
+
+    let initialize_tx = vault
+        .initialize(
+            admin,                            // owner
+            vault_config.abi_encode().into(), // encoded config
+            vault_deposit_token_addr,         // underlying token
+            "Valence Test Vault".to_string(), // vault token name
+            "vTEST".to_string(),              // vault token symbol
+            U256::from(1e18), // placeholder, tbd what a reasonable value should be here
+        )
+        .into_transaction_request()
+        .from(admin);
+
+    let vault_address = async_run!(rt, {
+        let rx = eth_client.execute_tx(initialize_tx).await.unwrap();
+        rx.contract_address.unwrap()
+    });
+
     info!("Vault deployed at: {vault_address}");
 
     Ok(vault_address)
