@@ -16,8 +16,6 @@ use crate::utils::solidity_contracts::{
     ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
 };
 
-// use crate::SECONDS_IN_DAY;
-
 /// macro for executing async code in a blocking context
 macro_rules! async_run {
     ($rt:expr, $($body:tt)*) => {
@@ -494,8 +492,9 @@ pub fn setup_valence_vault(
             .into_transaction_request()
             .from(admin);
 
-        let rx = eth_client.execute_tx(initialize_tx).await.unwrap();
+        eth_client.execute_tx(initialize_tx).await.unwrap();
     });
+
     Ok(implementation_address)
 }
 
