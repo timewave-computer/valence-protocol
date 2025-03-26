@@ -25,14 +25,12 @@ contract StargateTransferScript is Script {
     // Contracts
     StargateTransfer public stargateTransferNative;
     StargateTransfer public stargateTransferERC20;
+    StargateTransfer public stargateTransferNativeFull;
     BaseAccount inputAccount;
 
     // Amounts to transfer
     uint256 ethAmount = 0.1 ether; // For native ETH
     uint256 tokenAmount = 100000; // For USDC
-
-    // Extra for fees
-    uint256 extraAmount = 0.01 ether;
 
     // Destination domain (chain ID in Stargate format)
     uint32 destinationDomain = 30362; // BeraChain
@@ -57,7 +55,8 @@ contract StargateTransferScript is Script {
         usdc.mint(address(inputAccount), tokenAmount); // Mint the USDC amount we want to transfer
 
         // Send some ETH to the BaseAccount
-        vm.deal(address(inputAccount), ethAmount + extraAmount); // We are going to transfer the full ETH amount and give some extra for fees
+        // We are going to transfer first a fixed amount and then the remaining full amount to test both scenarios
+        vm.deal(address(inputAccount), ethAmount * 2);
 
         // Deploy a new StargateTransfer contract for native ETH (Taxi mode)
         StargateTransfer.StargateTransferConfig memory ethConfig = StargateTransfer.StargateTransferConfig({
@@ -130,5 +129,40 @@ contract StargateTransferScript is Script {
 
         // The USDC balance should be exactly reduced by the amount
         assert(usdcBalanceBefore - usdcBalanceAfter == tokenAmount);
+
+        // Deploy a new StargateTransfer contract for native ETH (Taxi mode) but this time for full amount
+        vm.startPrank(owner);
+        StargateTransfer.StargateTransferConfig memory ethConfigFull = StargateTransfer.StargateTransferConfig({
+            recipient: bytes32(uint256(uint160(recipient))),
+            inputAccount: inputAccount,
+            destinationDomain: destinationDomain,
+            stargateAddress: IStargate(STARGATE_ETH_POOL),
+            transferToken: address(0), // Native ETH
+            amount: 0,
+            minAmountToReceive: 0, // Let the contract calculate
+            refundAddress: address(0), // Default refund address
+            extraOptions: "", // No extra options
+            composeMsg: "", // No compose message
+            oftCmd: "" // Taxi mode (empty bytes)
+        });
+        bytes memory ethConfigFullBytes = abi.encode(ethConfigFull);
+        stargateTransferNativeFull = new StargateTransfer(owner, processor, ethConfigFullBytes);
+
+        // Approve the libraries from the input account
+        inputAccount.approveLibrary(address(stargateTransferNativeFull));
+        vm.stopPrank();
+
+        uint256 ethBalanceBeforeFullTransfer = address(inputAccount).balance;
+        console.log("ETH balance before transfer: ", ethBalanceBeforeFullTransfer);
+
+        // Execute the native ETH transfer (Taxi mode) for full amount
+        vm.prank(processor);
+        stargateTransferNativeFull.transfer();
+
+        uint256 ethBalanceAfterFullTransfer = address(inputAccount).balance;
+        // Some dust should left in the account
+        assert(ethBalanceAfterFullTransfer > 0);
+        assert(ethBalanceAfterFullTransfer < 0.000001 ether);
+        console.log("ETH balance after transfer: ", ethBalanceAfterFullTransfer);
     }
 }
