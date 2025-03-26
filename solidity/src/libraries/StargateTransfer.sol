@@ -24,7 +24,7 @@ contract StargateTransfer is Library {
      * @param transferToken Address of the token to transfer. If transferring native tokens, this will be the zero address (address(0))
      * @param amount Amount of tokens to transfer. If set to 0, all available tokens will be transferred
      * @param minAmountToReceive Minimum amount to receive on destination after fees. If set to 0, fees will be automatically calculated
-     * @param _refundAddress Address to refund tokens in case of failed transfer. If set to address(0), tokens will be refunded to the input account
+     * @param refundAddress Address to refund tokens in case of failed transfer. If set to address(0), tokens will be refunded to the input account
      * @param extraOptions Additional options for the LayerZero message. Optional. See https://docs.layerzero.network/v2/developers/evm/protocol-gas-settings/options#option-types
      * @param composeMsg Message to execute logic on the destination chain. Optional. See https://docs.layerzero.network/v2/developers/evm/composer/overview#composing-an-oft--onft
      * @param oftCmd Indicates the transportation mode in Stargate. Empty bytes for "Taxi" mode, bytes(1) for "Bus" mode. See https://stargateprotocol.gitbook.io/stargate/v2-developer-docs/integrate-with-stargate/how-to-swap#sendparam.oftcmd
@@ -37,7 +37,7 @@ contract StargateTransfer is Library {
         address transferToken;
         uint256 amount;
         uint256 minAmountToReceive;
-        address _refundAddress;
+        address refundAddress;
         bytes extraOptions;
         bytes composeMsg;
         bytes oftCmd;
@@ -154,7 +154,7 @@ contract StargateTransfer is Library {
         uint256 valueToSend = messagingFee.nativeFee;
 
         // Set refund address
-        address refundAddress = storedConfig._refundAddress;
+        address refundAddress = storedConfig.refundAddress;
         if (refundAddress == address(0)) {
             refundAddress = address(storedConfig.inputAccount);
         }

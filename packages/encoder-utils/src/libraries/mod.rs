@@ -2,6 +2,7 @@ use alloy_sol_types::sol;
 
 pub mod cctp_transfer;
 pub mod forwarder;
+pub mod stargate_transfer;
 
 // All libraries will have these functions
 sol! {

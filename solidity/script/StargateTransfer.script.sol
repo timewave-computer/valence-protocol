@@ -68,7 +68,7 @@ contract StargateTransferScript is Script {
             transferToken: address(0), // Native ETH
             amount: ethAmount,
             minAmountToReceive: 0, // Let the contract calculate
-            _refundAddress: address(0), // Default refund address
+            refundAddress: address(0), // Default refund address
             extraOptions: "", // No extra options
             composeMsg: "", // No compose message
             oftCmd: "" // Taxi mode (empty bytes)
@@ -85,7 +85,7 @@ contract StargateTransferScript is Script {
             transferToken: USDC_ADDR,
             amount: tokenAmount,
             minAmountToReceive: 0, // Let the contract calculate
-            _refundAddress: address(0), // Default refund address
+            refundAddress: address(0), // Default refund address
             extraOptions: "", // No extra options
             composeMsg: "", // No compose message
             oftCmd: hex"01" // Bus mode (bytes(1))

@@ -16,16 +16,26 @@ use super::{get_update_ownership_call, get_update_processor_call};
 pub struct LibraryConfig {
     /// The input address for the library.
     pub input_addr: LibraryAccountType,
-    /// The mint recipient for the library. Bytes32 representation of the address in solidity.
-    pub mint_recipient: Binary,
-    /// Amount to transfer. Setting this to 0 will transfer the entire balance.
-    pub amount: Uint256,
+    /// The recipient for the library. Bytes32 representation of the address in solidity.
+    pub recipient: Binary,
     /// The destination domain to transfer to
     pub destination_domain: u32,
+    /// Address of Stargate Pool contract.
+    pub stargate_address: String,
     /// The address of the token to transfer.
     pub transfer_token: String,
-    /// The address of the cctp token messenger.
-    pub cctp_token_messenger: String,
+    /// Amount to transfer. Setting this to 0 will transfer the entire balance.
+    pub amount: Uint256,
+    /// Min amount to receive. If not provided it will automatically calculated
+    pub min_amount_to_receive: Option<Uint256>,
+    /// The refund address for the library. If not provided it will be set to the input address.
+    pub refund_address: Option<String>,
+    /// Extra options for the library.
+    pub extra_options: Option<Binary>,
+    /// Compose message for the library.
+    pub compose_msg: Option<Binary>,
+    /// Oft command for the library. This is used to set up Taxi/Bus mode. Not passed will default to Taxi mode.
+    pub oft_cmd: Option<Binary>,
 }
 
 #[cw_serde]
@@ -35,11 +45,11 @@ pub enum FunctionMsgs {
     Transfer {},
 }
 
-type CctpTransferMsg = ExecuteMsg<FunctionMsgs, LibraryConfig>;
+type StargateTransferMsg = ExecuteMsg<FunctionMsgs, LibraryConfig>;
 
 pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
     // Extract the message from the binary and verify that it parses into a valid json for the library
-    let msg: CctpTransferMsg = serde_json::from_slice(msg.as_slice()).map_err(|_| {
+    let msg: StargateTransferMsg = serde_json::from_slice(msg.as_slice()).map_err(|_| {
         StdError::generic_err("Message sent is not a valid message for this library!".to_string())
     })?;
 
@@ -50,14 +60,16 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
         ExecuteMsg::UpdateConfig { new_config } => {
             // Parse addresses
             let input_account = parse_address(&new_config.input_addr.to_string()?)?;
-            let cctp_transfer_messenger = parse_address(&new_config.cctp_token_messenger)?;
+            let stargate_address = parse_address(&new_config.stargate_address)?;
             let transfer_token = parse_address(&new_config.transfer_token)?;
+            let refund_address = new_config
+                .refund_address
+                .clone()
+                .map(|x| parse_address(&x))
+                .unwrap_or(Ok(input_account))?;
 
-            let mint_recipient_fixed: [u8; 32] = new_config
-                .mint_recipient
-                .as_slice()
-                .try_into()
-                .map_err(|e| {
+            let recipient_fixed: [u8; 32] =
+                new_config.recipient.as_slice().try_into().map_err(|e| {
                     StdError::generic_err(format!(
                         "Error converting mint recipient to fixed size: {}",
                         e
@@ -66,13 +78,20 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
 
             // Build config struct
             let config =
-                valence_encoder_utils::libraries::cctp_transfer::solidity_types::CCTPTransferConfig {
-                    amount: alloy_primitives::U256::from_be_bytes(new_config.amount.to_be_bytes()),
-                    mintRecipient: mint_recipient_fixed.into(),
+                valence_encoder_utils::libraries::stargate_transfer::solidity_types::StargateConfig {
+                    recipient: recipient_fixed.into(),
                     inputAccount: input_account,
                     destinationDomain: new_config.destination_domain,
-                    cctpTokenMessenger: cctp_transfer_messenger,
+                    stargateAddress: stargate_address,
                     transferToken: transfer_token,
+                    amount: alloy_primitives::U256::from_be_bytes(new_config.amount.to_be_bytes()),
+                    minAmountToReceive: new_config.min_amount_to_receive.map(|x| {
+                        alloy_primitives::U256::from_be_bytes(x.to_be_bytes())
+                    }).unwrap_or_default(),
+                    refundAddress: refund_address,
+                    extraOptions: new_config.extra_options.unwrap_or_default().to_vec().into(),
+                    composeMsg: new_config.compose_msg.unwrap_or_default().to_vec().into(),
+                    oftCmd: new_config.oft_cmd.unwrap_or_default().to_vec().into(),
                 };
 
             // Create the encoded call with the encoded config

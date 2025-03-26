@@ -58,7 +58,7 @@ contract StargateTransferTest is Test {
             transferToken: address(0),
             amount: 1 ether,
             minAmountToReceive: 0,
-            _refundAddress: address(0),
+            refundAddress: address(0),
             extraOptions: "",
             composeMsg: "",
             oftCmd: ""
@@ -76,7 +76,7 @@ contract StargateTransferTest is Test {
             transferToken: address(testToken),
             amount: 100 * 10 ** 18,
             minAmountToReceive: 0,
-            _refundAddress: address(0),
+            refundAddress: address(0),
             extraOptions: "",
             composeMsg: "",
             oftCmd: ""
@@ -96,7 +96,7 @@ contract StargateTransferTest is Test {
                 transferToken: address(0),
                 amount: 0,
                 minAmountToReceive: 0,
-                _refundAddress: address(0),
+                refundAddress: address(0),
                 extraOptions: "",
                 composeMsg: "",
                 oftCmd: ""
@@ -117,7 +117,7 @@ contract StargateTransferTest is Test {
                 transferToken: address(0),
                 amount: 0,
                 minAmountToReceive: 0,
-                _refundAddress: address(0),
+                refundAddress: address(0),
                 extraOptions: "",
                 composeMsg: "",
                 oftCmd: ""
@@ -141,7 +141,7 @@ contract StargateTransferTest is Test {
                 transferToken: address(differentToken), // Different token
                 amount: 100 * 10 ** 18,
                 minAmountToReceive: 0,
-                _refundAddress: address(0),
+                refundAddress: address(0),
                 extraOptions: "",
                 composeMsg: "",
                 oftCmd: ""
@@ -167,7 +167,7 @@ contract StargateTransferTest is Test {
                 transferToken: address(0),
                 amount: 0.00001 ether, // Tiny amount
                 minAmountToReceive: 0,
-                _refundAddress: address(0),
+                refundAddress: address(0),
                 extraOptions: "",
                 composeMsg: "",
                 oftCmd: ""
@@ -202,7 +202,7 @@ contract StargateTransferTest is Test {
                 transferToken: address(0),
                 amount: 0, // Transfer full balance
                 minAmountToReceive: 0,
-                _refundAddress: address(0),
+                refundAddress: address(0),
                 extraOptions: "",
                 composeMsg: "",
                 oftCmd: ""
@@ -235,7 +235,7 @@ contract StargateTransferTest is Test {
                 transferToken: address(0),
                 amount: 0, // Transfer full balance
                 minAmountToReceive: 0,
-                _refundAddress: address(0),
+                refundAddress: address(0),
                 extraOptions: "",
                 composeMsg: "",
                 oftCmd: ""
@@ -286,7 +286,7 @@ contract StargateTransferTest is Test {
                 transferToken: address(testToken),
                 amount: 0, // Transfer full balance
                 minAmountToReceive: 0,
-                _refundAddress: address(0),
+                refundAddress: address(0),
                 extraOptions: "",
                 composeMsg: "",
                 oftCmd: ""
@@ -339,7 +339,7 @@ contract StargateTransferTest is Test {
                 transferToken: address(0),
                 amount: 1 ether,
                 minAmountToReceive: 0,
-                _refundAddress: customRefund,
+                refundAddress: customRefund,
                 extraOptions: "",
                 composeMsg: "",
                 oftCmd: ""
@@ -394,7 +394,7 @@ contract StargateTransferTest is Test {
                 transferToken: address(0),
                 amount: 1 ether,
                 minAmountToReceive: 0,
-                _refundAddress: address(0),
+                refundAddress: address(0),
                 extraOptions: hex"01", // Example custom option
                 composeMsg: hex"02", // Example compose message
                 oftCmd: hex"03" // Example OFT command
