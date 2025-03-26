@@ -60,7 +60,7 @@ contract StargateTransferScript is Script {
         vm.deal(address(inputAccount), ethAmount + extraAmount); // We are going to transfer the full ETH amount and give some extra for fees
 
         // Deploy a new StargateTransfer contract for native ETH (Taxi mode)
-        StargateTransfer.StargateConfig memory ethConfig = StargateTransfer.StargateConfig({
+        StargateTransfer.StargateTransferConfig memory ethConfig = StargateTransfer.StargateTransferConfig({
             recipient: bytes32(uint256(uint160(recipient))),
             inputAccount: inputAccount,
             destinationDomain: destinationDomain,
@@ -77,7 +77,7 @@ contract StargateTransferScript is Script {
         stargateTransferNative = new StargateTransfer(owner, processor, ethConfigBytes);
 
         // Deploy a new StargateTransfer contract for USDC (Bus mode)
-        StargateTransfer.StargateConfig memory usdcConfig = StargateTransfer.StargateConfig({
+        StargateTransfer.StargateTransferConfig memory usdcConfig = StargateTransfer.StargateTransferConfig({
             recipient: bytes32(uint256(uint160(recipient))),
             inputAccount: inputAccount,
             destinationDomain: destinationDomain,

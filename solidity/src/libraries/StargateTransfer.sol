@@ -14,7 +14,7 @@ import {MessagingFee, OFTReceipt, SendParam} from "@layerzerolabs/lz-evm-oapp-v2
  */
 contract StargateTransfer is Library {
     /**
-     * @title StargateConfig
+     * @title StargateTransferConfig
      * @notice Configuration struct for cross-chain token transfers via Stargate Protocol
      * @dev Used to define parameters for LayerZero cross-chain messaging with Stargate
      * @param recipient The recipient address (in bytes32 format) on the destination chain
@@ -29,7 +29,7 @@ contract StargateTransfer is Library {
      * @param composeMsg Message to execute logic on the destination chain. Optional. See https://docs.layerzero.network/v2/developers/evm/composer/overview#composing-an-oft--onft
      * @param oftCmd Indicates the transportation mode in Stargate. Empty bytes for "Taxi" mode, bytes(1) for "Bus" mode. See https://stargateprotocol.gitbook.io/stargate/v2-developer-docs/integrate-with-stargate/how-to-swap#sendparam.oftcmd
      */
-    struct StargateConfig {
+    struct StargateTransferConfig {
         bytes32 recipient;
         Account inputAccount;
         uint32 destinationDomain;
@@ -44,7 +44,7 @@ contract StargateTransfer is Library {
     }
 
     /// @notice Holds the current configuration for token transfers
-    StargateConfig public config;
+    StargateTransferConfig public config;
 
     /**
      * @dev Constructor initializes the contract with the owner, processor, and initial configuration.
@@ -58,11 +58,11 @@ contract StargateTransfer is Library {
      * @notice Validates the provided configuration parameters
      * @dev Checks for validity of input account, stargate address, token match, and amount
      * @param _config The encoded configuration bytes to validate
-     * @return StargateConfig A validated configuration struct
+     * @return StargateTransferConfig A validated configuration struct
      */
-    function validateConfig(bytes memory _config) internal view returns (StargateConfig memory) {
-        // Decode the configuration bytes into the CCTPTransferConfig struct.
-        StargateConfig memory decodedConfig = abi.decode(_config, (StargateConfig));
+    function validateConfig(bytes memory _config) internal view returns (StargateTransferConfig memory) {
+        // Decode the configuration bytes into the StargateTransferConfig struct.
+        StargateTransferConfig memory decodedConfig = abi.decode(_config, (StargateTransferConfig));
 
         // Ensure the input account address is valid (non-zero).
         if (decodedConfig.inputAccount == Account(payable(address(0)))) {
@@ -101,7 +101,7 @@ contract StargateTransfer is Library {
      * associated input account.
      */
     function transfer() external onlyProcessor {
-        StargateConfig memory storedConfig = config;
+        StargateTransferConfig memory storedConfig = config;
 
         // Get the native token balance of the input account.
         uint256 inputAccountNativeBalance = address(storedConfig.inputAccount).balance;

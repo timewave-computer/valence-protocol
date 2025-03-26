@@ -50,7 +50,7 @@ contract StargateTransferTest is Test {
 
     // Helper function to encode native token transfer configuration
     function encodeNativeConfig() internal view returns (bytes memory) {
-        StargateTransfer.StargateConfig memory config = StargateTransfer.StargateConfig({
+        StargateTransfer.StargateTransferConfig memory config = StargateTransfer.StargateTransferConfig({
             recipient: bytes32(uint256(uint160(recipient))),
             inputAccount: inputAccount,
             destinationDomain: 1,
@@ -68,7 +68,7 @@ contract StargateTransferTest is Test {
 
     // Helper function to encode ERC20 token transfer configuration
     function encodeERC20Config() internal view returns (bytes memory) {
-        StargateTransfer.StargateConfig memory config = StargateTransfer.StargateConfig({
+        StargateTransfer.StargateTransferConfig memory config = StargateTransfer.StargateTransferConfig({
             recipient: bytes32(uint256(uint160(recipient))),
             inputAccount: inputAccount,
             destinationDomain: 1,
@@ -88,7 +88,7 @@ contract StargateTransferTest is Test {
     function testConfigValidation() public {
         // Test invalid input account
         bytes memory invalidConfig = abi.encode(
-            StargateTransfer.StargateConfig({
+            StargateTransfer.StargateTransferConfig({
                 recipient: bytes32(uint256(uint160(recipient))),
                 inputAccount: BaseAccount(payable(address(0))),
                 destinationDomain: 1,
@@ -109,7 +109,7 @@ contract StargateTransferTest is Test {
 
         // Test invalid stargate address
         invalidConfig = abi.encode(
-            StargateTransfer.StargateConfig({
+            StargateTransfer.StargateTransferConfig({
                 recipient: bytes32(uint256(uint160(recipient))),
                 inputAccount: inputAccount,
                 destinationDomain: 1,
@@ -133,7 +133,7 @@ contract StargateTransferTest is Test {
         MockERC20 differentToken = new MockERC20("Different", "DIFF");
 
         bytes memory invalidConfig = abi.encode(
-            StargateTransfer.StargateConfig({
+            StargateTransfer.StargateTransferConfig({
                 recipient: bytes32(uint256(uint160(recipient))),
                 inputAccount: inputAccount,
                 destinationDomain: 1,
@@ -159,7 +159,7 @@ contract StargateTransferTest is Test {
 
         // Update config with a very small amount
         bytes memory config = abi.encode(
-            StargateTransfer.StargateConfig({
+            StargateTransfer.StargateTransferConfig({
                 recipient: bytes32(uint256(uint160(recipient))),
                 inputAccount: inputAccount,
                 destinationDomain: 1,
@@ -194,7 +194,7 @@ contract StargateTransferTest is Test {
 
         // Create config to transfer full balance
         bytes memory config = abi.encode(
-            StargateTransfer.StargateConfig({
+            StargateTransfer.StargateTransferConfig({
                 recipient: bytes32(uint256(uint160(recipient))),
                 inputAccount: inputAccount,
                 destinationDomain: 1,
@@ -227,7 +227,7 @@ contract StargateTransferTest is Test {
 
         // Update config for full balance transfer
         bytes memory config = abi.encode(
-            StargateTransfer.StargateConfig({
+            StargateTransfer.StargateTransferConfig({
                 recipient: bytes32(uint256(uint160(recipient))),
                 inputAccount: inputAccount,
                 destinationDomain: 1,
@@ -278,7 +278,7 @@ contract StargateTransferTest is Test {
 
         // Update config for full balance transfer
         bytes memory config = abi.encode(
-            StargateTransfer.StargateConfig({
+            StargateTransfer.StargateTransferConfig({
                 recipient: bytes32(uint256(uint160(recipient))),
                 inputAccount: inputAccount,
                 destinationDomain: 1,
@@ -331,7 +331,7 @@ contract StargateTransferTest is Test {
 
         // Update config with custom refund address
         bytes memory config = abi.encode(
-            StargateTransfer.StargateConfig({
+            StargateTransfer.StargateTransferConfig({
                 recipient: bytes32(uint256(uint160(recipient))),
                 inputAccount: inputAccount,
                 destinationDomain: 1,
@@ -386,7 +386,7 @@ contract StargateTransferTest is Test {
 
         // Update config with custom options and compose message
         bytes memory config = abi.encode(
-            StargateTransfer.StargateConfig({
+            StargateTransfer.StargateTransferConfig({
                 recipient: bytes32(uint256(uint160(recipient))),
                 inputAccount: inputAccount,
                 destinationDomain: 1,

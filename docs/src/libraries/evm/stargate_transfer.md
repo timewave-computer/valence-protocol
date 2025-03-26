@@ -46,7 +46,7 @@ The library is configured on deployment using the `StargateTransferConfig` type.
 
 ```solidity
     /**
-     * @title StargateConfig
+     * @title StargateTransferConfig
      * @notice Configuration struct for cross-chain token transfers via Stargate Protocol
      * @dev Used to define parameters for LayerZero cross-chain messaging with Stargate
      * @param recipient The recipient address (in bytes32 format) on the destination chain
@@ -61,7 +61,7 @@ The library is configured on deployment using the `StargateTransferConfig` type.
      * @param composeMsg Message to execute logic on the destination chain. Optional. See https://docs.layerzero.network/v2/developers/evm/composer/overview#composing-an-oft--onft
      * @param oftCmd Indicates the transportation mode in Stargate. Empty bytes for "Taxi" mode, bytes(1) for "Bus" mode. See https://stargateprotocol.gitbook.io/stargate/v2-developer-docs/integrate-with-stargate/how-to-swap#sendparam.oftcmd
      */
-    struct StargateConfig {
+    struct StargateTransferConfig {
         bytes32 recipient;
         Account inputAccount;
         uint32 destinationDomain;

@@ -78,7 +78,7 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
 
             // Build config struct
             let config =
-                valence_encoder_utils::libraries::stargate_transfer::solidity_types::StargateConfig {
+                valence_encoder_utils::libraries::stargate_transfer::solidity_types::StargateTransferConfig {
                     recipient: recipient_fixed.into(),
                     inputAccount: input_account,
                     destinationDomain: new_config.destination_domain,

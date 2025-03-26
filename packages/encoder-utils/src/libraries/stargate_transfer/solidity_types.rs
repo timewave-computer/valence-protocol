@@ -1,7 +1,7 @@
 use alloy_sol_types::sol;
 
 sol! {
-    struct StargateConfig {
+    struct StargateTransferConfig {
         bytes32 recipient;
         address inputAccount;
         uint32 destinationDomain;
