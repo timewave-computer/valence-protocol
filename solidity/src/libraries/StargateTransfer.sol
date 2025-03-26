@@ -19,7 +19,7 @@ contract StargateTransfer is Library {
      * @dev Used to define parameters for LayerZero cross-chain messaging with Stargate
      * @param recipient The recipient address (in bytes32 format) on the destination chain
      * @param inputAccount The account from which tokens will be transferred
-     * @param destinationDomain The destination chain endpoint ID. Find all IDs at https://docs.layerzero.network/v2/deployments/deployed-contracts#contract-address-table
+     * @param destinationDomain The destination chain endpoint ID. Find all IDs at https://stargateprotocol.gitbook.io/stargate/v2-developer-docs/technical-reference/mainnet-contracts
      * @param stargateAddress Stargate pool address implementing IOFT interface. See https://github.com/stargate-protocol/stargate-v2/blob/main/packages/stg-evm-v2/src/interfaces/IStargate.sol
      * @param transferToken Address of the token to transfer. If transferring native tokens, this will be the zero address (address(0))
      * @param amount Amount of tokens to transfer. If set to 0, all available tokens will be transferred
