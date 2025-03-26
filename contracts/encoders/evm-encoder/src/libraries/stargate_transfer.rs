@@ -2,7 +2,7 @@ use alloy_sol_types::{SolCall, SolValue};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Binary, StdError, StdResult, Uint256};
 use valence_encoder_utils::libraries::{
-    cctp_transfer::solidity_types::transferCall, updateConfigCall,
+    stargate_transfer::solidity_types::transferCall, updateConfigCall,
 };
 use valence_library_utils::{msg::ExecuteMsg, LibraryAccountType};
 
