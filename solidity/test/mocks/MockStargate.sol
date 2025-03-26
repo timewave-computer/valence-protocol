@@ -16,7 +16,6 @@ import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
 contract MockStargate is IStargate {
     address private _token;
     uint256 private _nativeFee = 0.001 ether; // Default fee
-    uint256 private _dustAmount = 0.0001 ether; // Small amount to simulate transfer costs
     uint256 private _receiptAmount; // The amount received after fees
 
     constructor(address token_) {
