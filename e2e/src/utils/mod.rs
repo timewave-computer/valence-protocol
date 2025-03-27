@@ -12,11 +12,13 @@ pub mod polytone;
 pub mod processor;
 pub mod relayer;
 pub mod solidity_contracts;
+pub mod vault;
 
 // Local-ic chain configs files
 pub const NEUTRON_CONFIG_FILE: &str = "neutron.json";
 pub const NEUTRON_JUNO_CONFIG_FILE: &str = "neutron_juno.json";
 pub const NEUTRON_OSMO_CONFIG_FILE: &str = "neutron_osmosis.json";
+pub const NEUTRON_NOBLE_CONFIG_FILE: &str = "neutron_noble.json";
 
 // mnemonic used in our local-ic config for the admin address
 pub const ADMIN_MNEMONIC: &str = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry";
@@ -54,6 +56,7 @@ pub const NOBLE_CHAIN_ID: &str = "localnoble-1";
 pub const NOBLE_CHAIN_NAME: &str = "noble";
 pub const NOBLE_CHAIN_PREFIX: &str = "noble";
 pub const NOBLE_CHAIN_ADMIN_ADDR: &str = "noble1hj5fveer5cjtn4wd6wstzugjfdxzl0xpw0865d";
+pub const UUSDC_DENOM: &str = "uusdc";
 
 pub const ASTROPORT_LP_SUBDENOM: &str = "astroport/share";
 
