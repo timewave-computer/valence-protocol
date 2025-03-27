@@ -676,9 +676,18 @@ pub fn update_hyperlane_config(
 ) -> Result<Value, Box<dyn std::error::Error>> {
     // Read existing configuration file
     let env = std::env::current_dir()?;
+    info!("current dir: {:?}", env);
+
     let config_path = env.join(Path::new(HYPERLANE_RELAYER_CONFIG_PATH));
+
+    info!("config_path: {:?}", config_path);
+
     let config_str = fs::read_to_string(config_path.clone())?;
+
+    info!("config_str: {:?}", config_str);
+
     let mut config: Value = serde_json::from_str(&config_str)?;
+    info!("config: {:?}", config);
 
     // Update configuration for both chains
     update_chain_contracts(&mut config, chain1_name, contracts_chain1)?;
