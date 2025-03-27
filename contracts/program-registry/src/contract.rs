@@ -141,12 +141,19 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             });
             to_json_binary(&program)
         }
-        QueryMsg::GetAllConfigs { start, end, limit } => {
+        QueryMsg::GetAllConfigs {
+            start,
+            end,
+            limit,
+            order,
+        } => {
             let start = start.map(Bound::inclusive);
-            let end = end.map(Bound::exclusive);
+            let end = end.map(Bound::inclusive);
+            let order = order.unwrap_or(cosmwasm_std::Order::Ascending);
             let limit = limit.unwrap_or(10) as usize;
+
             let configs = PROGRAMS
-                .range(deps.storage, start, end, cosmwasm_std::Order::Ascending)
+                .range(deps.storage, start, end, order)
                 .take(limit)
                 .map(|item| item.map(|(id, program_config)| ProgramResponse { id, program_config }))
                 .collect::<Result<Vec<_>, _>>()?;
@@ -154,5 +161,137 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             to_json_binary(&configs)
         }
         QueryMsg::GetLastId {} => to_json_binary(&LAST_ID.load(deps.storage)?),
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use cosmwasm_std::{
+        from_json,
+        testing::{message_info, mock_dependencies, mock_env},
+    };
+    use valence_program_registry_utils::ProgramResponse;
+
+    #[test]
+    fn test_all_configs_order() {
+        let mut deps = mock_dependencies();
+        let sender = deps.api.addr_make("creator");
+        let info = message_info(&sender, &[]);
+
+        // init contract
+        super::instantiate(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            super::InstantiateMsg {
+                admin: sender.to_string(),
+            },
+        )
+        .unwrap();
+
+        for i in 1..11 {
+            // reserve id
+            super::execute(
+                deps.as_mut(),
+                mock_env(),
+                info.clone(),
+                super::ExecuteMsg::ReserveId {
+                    addr: sender.to_string(),
+                },
+            )
+            .unwrap();
+
+            // save config
+            super::execute(
+                deps.as_mut(),
+                mock_env(),
+                info.clone(),
+                super::ExecuteMsg::SaveProgram {
+                    id: i,
+                    owner: sender.to_string(),
+                    program_config: b"config1".to_vec().into(),
+                },
+            )
+            .unwrap();
+        }
+
+        // query first 5 configs and assert Ascending order
+        let res: Vec<ProgramResponse> = from_json(
+            super::query(
+                deps.as_ref(),
+                mock_env(),
+                super::QueryMsg::GetAllConfigs {
+                    start: None,
+                    end: None,
+                    limit: Some(5),
+                    order: Some(cosmwasm_std::Order::Ascending),
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(res.len(), 5);
+        assert_eq!(res[0].id, 1);
+        assert_eq!(res[4].id, 5);
+
+        // query last 5 configs and assert Descending order
+        let res: Vec<ProgramResponse> = from_json(
+            super::query(
+                deps.as_ref(),
+                mock_env(),
+                super::QueryMsg::GetAllConfigs {
+                    start: None,
+                    end: None,
+                    limit: Some(5),
+                    order: Some(cosmwasm_std::Order::Descending),
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(res.len(), 5);
+        assert_eq!(res[0].id, 10);
+        assert_eq!(res[4].id, 6);
+
+        // test pagination
+        let res: Vec<ProgramResponse> = from_json(
+            super::query(
+                deps.as_ref(),
+                mock_env(),
+                super::QueryMsg::GetAllConfigs {
+                    start: None,
+                    end: Some(8),
+                    limit: Some(2),
+                    order: Some(cosmwasm_std::Order::Descending),
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(res.len(), 2);
+        assert_eq!(res[0].id, 8);
+        assert_eq!(res[1].id, 7);
+
+        let res: Vec<ProgramResponse> = from_json(
+            super::query(
+                deps.as_ref(),
+                mock_env(),
+                super::QueryMsg::GetAllConfigs {
+                    start: None,
+                    end: Some(6),
+                    limit: Some(2),
+                    order: Some(cosmwasm_std::Order::Descending),
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(res.len(), 2);
+        assert_eq!(res[0].id, 6);
+        assert_eq!(res[1].id, 5);
     }
 }
