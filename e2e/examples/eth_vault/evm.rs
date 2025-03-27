@@ -6,12 +6,13 @@ use valence_chain_client_utils::{
     ethereum::EthereumClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
-use valence_e2e::utils::solidity_contracts::{
-    MockERC20,
-    ValenceVault::{self},
+use valence_e2e::{
+    async_run,
+    utils::solidity_contracts::{
+        MockERC20,
+        ValenceVault::{self},
+    },
 };
-
-use crate::async_run;
 
 #[allow(unused)]
 pub fn log_eth_balances(

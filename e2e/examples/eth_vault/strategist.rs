@@ -10,12 +10,9 @@ use valence_chain_client_utils::{
     neutron::NeutronClient,
     noble::NobleClient,
 };
-use valence_e2e::utils::UUSDC_DENOM;
+use valence_e2e::{async_run, utils::UUSDC_DENOM};
 
-use crate::{
-    async_run,
-    program::{NeutronProgramAccounts, NeutronProgramLibraries},
-};
+use crate::program::{NeutronProgramAccounts, NeutronProgramLibraries};
 
 pub fn pull_funds_from_noble_inbound_ica(
     rt: &Runtime,
@@ -148,7 +145,7 @@ pub fn exit_position(
     uusdc_on_neutron_denom: &str,
     lp_token_denom: &str,
 ) -> Result<(), Box<dyn Error>> {
-    info!("entering LP position...");
+    info!("exiting LP position...");
     async_run!(rt, {
         let position_account_shares_bal = neutron_client
             .query_balance(
@@ -217,7 +214,7 @@ pub fn exit_position(
     Ok(())
 }
 
-pub fn swap_counterparty_denom_into_usdc(
+pub fn swap_ntrn_into_usdc(
     rt: &Runtime,
     neutron_client: &NeutronClient,
     neutron_program_accounts: &NeutronProgramAccounts,
@@ -427,7 +424,7 @@ pub fn cctp_route_usdc_from_noble(
 ) -> Result<(), Box<dyn Error>> {
     info!("CCTP forwarding USDC from Noble to Ethereum...");
     async_run!(rt, {
-        let transfer_rx = neutron_client
+        let transfer_tx = neutron_client
             .transfer(
                 &neutron_program_accounts
                     .noble_outbound_ica
@@ -440,7 +437,7 @@ pub fn cctp_route_usdc_from_noble(
             )
             .await
             .unwrap();
-        neutron_client.poll_for_tx(&transfer_rx.hash).await.unwrap();
+        neutron_client.poll_for_tx(&transfer_tx.hash).await.unwrap();
         sleep(Duration::from_secs(3)).await;
 
         let noble_outbound_acc_usdc_bal = noble_client
