@@ -12,6 +12,14 @@ const ANVIL_IMAGE_URL: &str = "ghcr.io/foundry-rs/foundry:latest";
 const ANVIL_NAME: &str = "anvil";
 const ANVIL_PORT: &str = "8545";
 
+/// macro for executing async code in a blocking context
+#[macro_export]
+macro_rules! async_run {
+    ($rt:expr, $($body:tt)*) => {
+        $rt.block_on(async { $($body)* })
+    }
+}
+
 pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
     // Connect to the Docker daemon
     let docker = Docker::connect_with_local_defaults()?;

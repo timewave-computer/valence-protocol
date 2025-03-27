@@ -11,17 +11,13 @@ use valence_chain_client_utils::{
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
 
-use crate::utils::solidity_contracts::{
-    ERC1967Proxy, MockTokenMessenger,
-    ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
+use crate::{
+    async_run,
+    utils::solidity_contracts::{
+        ERC1967Proxy, MockTokenMessenger,
+        ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
+    },
 };
-
-/// macro for executing async code in a blocking context
-macro_rules! async_run {
-    ($rt:expr, $($body:tt)*) => {
-        $rt.block_on(async { $($body)* })
-    }
-}
 
 pub fn vault_update(
     vault_addr: Address,
@@ -495,7 +491,7 @@ pub fn setup_valence_vault(
         eth_client.execute_tx(initialize_tx).await.unwrap();
     });
 
-    Ok(implementation_address)
+    Ok(proxy_address)
 }
 
 pub fn setup_mock_token_messenger(

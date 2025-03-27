@@ -22,43 +22,40 @@ use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
-use valence_e2e::utils::{
-    authorization::set_up_authorization_and_processor,
-    ethereum as ethereum_utils,
-    hyperlane::{
-        set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts, set_up_hyperlane,
-        HyperlaneContracts,
+
+use valence_e2e::{
+    async_run,
+    utils::{
+        authorization::set_up_authorization_and_processor,
+        ethereum as ethereum_utils,
+        hyperlane::{
+            set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts, set_up_hyperlane,
+            HyperlaneContracts,
+        },
+        manager::{
+            ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME, BASE_ACCOUNT_NAME,
+            ICA_CCTP_TRANSFER_NAME, ICA_IBC_TRANSFER_NAME, INTERCHAIN_ACCOUNT_NAME,
+            NEUTRON_IBC_TRANSFER_NAME,
+        },
+        solidity_contracts::ValenceVault,
+        vault::setup_valence_vault,
+        DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_HYPERLANE_DOMAIN, HYPERLANE_RELAYER_NEUTRON_ADDRESS,
+        LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR,
+        NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, UUSDC_DENOM,
+        VALENCE_ARTIFACTS_PATH,
     },
-    manager::{
-        ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME, BASE_ACCOUNT_NAME, ICA_CCTP_TRANSFER_NAME,
-        ICA_IBC_TRANSFER_NAME, INTERCHAIN_ACCOUNT_NAME, NEUTRON_IBC_TRANSFER_NAME,
-    },
-    solidity_contracts::ValenceVault,
-    vault::setup_valence_vault,
-    DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_HYPERLANE_DOMAIN, HYPERLANE_RELAYER_NEUTRON_ADDRESS,
-    LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM,
-    NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, UUSDC_DENOM, VALENCE_ARTIFACTS_PATH,
 };
 
 const EVM_ENCODER_NAMESPACE: &str = "evm_encoder_v1";
 const PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "provide_liquidity";
 const WITHDRAW_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "withdraw_liquidity";
 const ASTROPORT_CONCENTRATED_PAIR_TYPE: &str = "concentrated";
-const _SECONDS_IN_DAY: u64 = 86_400;
 
 mod evm;
 mod neutron;
 mod noble;
 mod program;
 mod strategist;
-
-/// macro for executing async code in a blocking context
-#[macro_export]
-macro_rules! async_run {
-    ($rt:expr, $($body:tt)*) => {
-        $rt.block_on(async { $($body)* })
-    }
-}
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -103,13 +100,25 @@ fn main() -> Result<(), Box<dyn Error>> {
     let noble_client = noble::get_client(&rt)?;
     noble::setup_environment(&rt, &noble_client)?;
     noble::mint_usdc_to_addr(&rt, &noble_client, NOBLE_CHAIN_ADMIN_ADDR, 999900000)?;
-    noble::fund_neutron_addr(
-        &rt,
-        &mut test_ctx,
-        &noble_client,
-        NEUTRON_CHAIN_ADMIN_ADDR,
-        999000000,
-    )?;
+
+    async_run!(&rt, {
+        let rx = noble_client
+            .ibc_transfer(
+                NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+                UUSDC_DENOM.to_string(),
+                999000000.to_string(),
+                test_ctx
+                    .get_transfer_channels()
+                    .src(NOBLE_CHAIN_NAME)
+                    .dest(NEUTRON_CHAIN_NAME)
+                    .get(),
+                60,
+                None,
+            )
+            .await
+            .unwrap();
+        noble_client.poll_for_tx(&rx.hash).await.unwrap();
+    });
 
     sleep(Duration::from_secs(3));
 
@@ -220,7 +229,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &lp_token,
     )?;
 
-    strategist::swap_counterparty_denom_into_usdc(
+    strategist::swap_ntrn_into_usdc(
         &rt,
         &neutron_client,
         &neutron_program_accounts,

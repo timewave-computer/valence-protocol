@@ -1,6 +1,6 @@
-use std::{collections::HashMap, env, error::Error, str::FromStr, time::Duration};
+use std::{env, error::Error, str::FromStr, time::Duration};
 
-use cosmwasm_std::{coin, to_json_binary, Binary, Decimal, Empty};
+use cosmwasm_std::{coin, to_json_binary, Binary, Decimal};
 use localic_std::modules::{
     bank,
     cosmwasm::{contract_execute, contract_instantiate, contract_query},
@@ -23,14 +23,18 @@ use valence_authorization_utils::msg::{
     ProcessorMessage,
 };
 use valence_chain_client_utils::neutron::NeutronClient;
-use valence_e2e::utils::{
-    parse::get_grpc_address_and_port_from_logs, processor::tick_processor, ADMIN_MNEMONIC,
-    ASTROPORT_PATH, ETHEREUM_CHAIN_NAME, ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS,
-    LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
+
+use valence_e2e::{
+    async_run,
+    utils::{
+        parse::get_grpc_address_and_port_from_logs, processor::tick_processor, ADMIN_MNEMONIC,
+        ASTROPORT_PATH, ETHEREUM_CHAIN_NAME, ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS,
+        LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
+    },
 };
 
 use crate::{
-    async_run, ASTROPORT_CONCENTRATED_PAIR_TYPE, EVM_ENCODER_NAMESPACE,
+    ASTROPORT_CONCENTRATED_PAIR_TYPE, EVM_ENCODER_NAMESPACE,
     PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL, WITHDRAW_LIQUIDITY_AUTHORIZATIONS_LABEL,
 };
 
@@ -296,85 +300,6 @@ pub fn get_neutron_client(rt: &Runtime) -> Result<NeutronClient, Box<dyn Error>>
     );
 
     Ok(neutron_client)
-}
-
-#[allow(unused)]
-pub fn setup_valence_encoder_broker(
-    test_ctx: &mut TestContext,
-    evm_encoder: String,
-) -> Result<String, Box<dyn Error>> {
-    let current_dir = env::current_dir()?;
-    let encoder_broker_path = format!(
-        "{}/artifacts/valence_encoder_broker.wasm",
-        current_dir.display()
-    );
-
-    let mut uploader = test_ctx.build_tx_upload_contracts();
-    uploader.send_single_contract(&encoder_broker_path)?;
-
-    let code_id_encoder_broker = *test_ctx
-        .get_chain(NEUTRON_CHAIN_NAME)
-        .contract_codes
-        .get("valence_encoder_broker")
-        .unwrap();
-
-    let encoder_broker = contract_instantiate(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        DEFAULT_KEY,
-        code_id_encoder_broker,
-        &serde_json::to_string(&valence_encoder_broker::msg::InstantiateMsg {
-            encoders: HashMap::from([(EVM_ENCODER_NAMESPACE.to_string(), evm_encoder)]),
-            owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        })
-        .unwrap(),
-        "encoder_broker",
-        None,
-        "",
-    )
-    .unwrap()
-    .address;
-
-    info!("EVM broker: {encoder_broker}");
-
-    Ok(encoder_broker)
-}
-
-#[allow(unused)]
-pub fn setup_valence_evm_encoder_v1(test_ctx: &mut TestContext) -> Result<String, Box<dyn Error>> {
-    let current_dir = env::current_dir()?;
-
-    let evm_encoder_path = format!(
-        "{}/artifacts/valence_evm_encoder_v1.wasm",
-        current_dir.display()
-    );
-    let mut uploader = test_ctx.build_tx_upload_contracts();
-    uploader.send_single_contract(&evm_encoder_path)?;
-
-    let code_id_evm_encoder = *test_ctx
-        .get_chain(NEUTRON_CHAIN_NAME)
-        .contract_codes
-        .get("valence_evm_encoder_v1")
-        .unwrap();
-
-    let evm_encoder = contract_instantiate(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        DEFAULT_KEY,
-        code_id_evm_encoder,
-        &serde_json::to_string(&Empty {}).unwrap(),
-        "evm_encoder",
-        None,
-        "",
-    )
-    .unwrap()
-    .address;
-
-    info!("EVM encoder: {evm_encoder}");
-
-    Ok(evm_encoder)
 }
 
 #[allow(clippy::too_many_arguments, unused)]
