@@ -1,4 +1,7 @@
+@layerzerolabs/lz-evm-oapp-v2/=dependencies/@layerzerolabs-lz-evm-oapp-v2-3.0.81/
+@layerzerolabs/lz-evm-protocol-v2/=dependencies/@layerzerolabs-lz-evm-protocol-v2-3.0.81/
 @openzeppelin-contracts-upgradeable/=dependencies/@openzeppelin-contracts-upgradeable-5.2.0/
 @openzeppelin/contracts/=dependencies/@openzeppelin-contracts-5.2.0/
+@stargatefinance/stg-evm-v2/=dependencies/@stargatefinance-stg-evm-v2-2.0.2/
 forge-std/=dependencies/forge-std-1.9.4/
 hyperlane/=dependencies/hyperlane-5.8.3/solidity/contracts

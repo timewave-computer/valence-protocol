@@ -21,7 +21,7 @@ graph LR
   end
 
   subgraph EVM[ EVM Domain ]
-    P -- 1/Forward --> S
+    P -- 1/Transfer --> S
     S -- 2/Query balances --> IA
     S -- 3/Do approve and call depositForBurn --> IA
     IA -- 4/ERC-20 approve --> TM
