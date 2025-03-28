@@ -2,7 +2,7 @@ use alloy_sol_types::{SolCall, SolValue};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Binary, StdError, StdResult, Uint256};
 use valence_encoder_utils::libraries::{
-    stargate_transfer::solidity_types::transferCall, updateConfigCall,
+    stargate_transfer::solidity_types::transferCall, updateConfigCall, Bytes32Address, ToFixedBytes,
 };
 use valence_library_utils::{msg::ExecuteMsg, LibraryAccountType};
 
@@ -17,7 +17,7 @@ pub struct LibraryConfig {
     /// The input address for the library.
     pub input_addr: LibraryAccountType,
     /// The recipient for the library. Bytes32 representation of the address in solidity.
-    pub recipient: Binary,
+    pub recipient: Bytes32Address,
     /// The destination domain to transfer to
     pub destination_domain: u32,
     /// Address of Stargate Pool contract.
@@ -68,18 +68,10 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
                 .map(|x| parse_address(&x))
                 .unwrap_or(Ok(input_account))?;
 
-            let recipient_fixed: [u8; 32] =
-                new_config.recipient.as_slice().try_into().map_err(|e| {
-                    StdError::generic_err(format!(
-                        "Error converting mint recipient to fixed size: {}",
-                        e
-                    ))
-                })?;
-
             // Build config struct
             let config =
                 valence_encoder_utils::libraries::stargate_transfer::solidity_types::StargateTransferConfig {
-                    recipient: recipient_fixed.into(),
+                    recipient: new_config.recipient.to_fixed_bytes()?.into(),
                     inputAccount: input_account,
                     destinationDomain: new_config.destination_domain,
                     stargateAddress: stargate_address,
