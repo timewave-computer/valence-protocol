@@ -68,7 +68,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ],
     )?;
 
-    let mut builder = ProgramConfigBuilder::new(NEUTRON_CHAIN_ADMIN_ADDR.to_string());
+    let mut builder = ProgramConfigBuilder::new("osmo_cl", NEUTRON_CHAIN_ADMIN_ADDR);
     let osmo_domain =
         valence_program_manager::domain::Domain::CosmosCosmwasm(OSMOSIS_CHAIN_NAME.to_string());
     let ntrn_domain =

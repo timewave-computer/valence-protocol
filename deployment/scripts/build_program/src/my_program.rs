@@ -1,13 +1,4 @@
-use std::error::Error;
-
-use local_interchaintest::utils::{
-    manager::{setup_manager, use_manager_init, SPLITTER_NAME},
-    LOGS_FILE_PATH, NEUTRON_CONFIG_FILE, VALENCE_ARTIFACTS_PATH,
-};
-use localic_utils::{
-    ConfigChainBuilder, TestContextBuilder, GAIA_CHAIN_NAME, LOCAL_IC_API_URL,
-    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
-};
+use localic_utils::{NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME};
 use valence_authorization_utils::{
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
@@ -16,29 +7,17 @@ use valence_library_utils::denoms::UncheckedDenom;
 use valence_program_manager::{
     account::{AccountInfo, AccountType},
     library::{LibraryConfig, LibraryInfo},
+    program_config::ProgramConfig,
     program_config_builder::ProgramConfigBuilder,
 };
 use valence_splitter_library::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
 
-fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::init();
+/// Write your program using the program builder
+pub(crate) fn my_program() -> ProgramConfig {
+    // Write your program
+    let swap_amount: u128 = 1_000_000_000;
 
-    let mut test_ctx = TestContextBuilder::default()
-        .with_unwrap_raw_logs(true)
-        .with_api_url(LOCAL_IC_API_URL)
-        .with_artifacts_dir(VALENCE_ARTIFACTS_PATH)
-        .with_chain(ConfigChainBuilder::default_neutron().build()?)
-        .with_log_file_path(LOGS_FILE_PATH)
-        .build()?;
-
-    setup_manager(
-        &mut test_ctx,
-        NEUTRON_CONFIG_FILE,
-        vec![GAIA_CHAIN_NAME],
-        vec![SPLITTER_NAME],
-    )?;
-
-    let mut builder = ProgramConfigBuilder::new("test", NEUTRON_CHAIN_ADMIN_ADDR);
+    let mut builder = ProgramConfigBuilder::new("program name", NEUTRON_CHAIN_ADMIN_ADDR);
     let neutron_domain =
         valence_program_manager::domain::Domain::CosmosCosmwasm(NEUTRON_CHAIN_NAME.to_string());
 
@@ -56,9 +35,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let library_config = valence_splitter_library::msg::LibraryConfig {
         input_addr: account_1.clone(),
         splits: vec![UncheckedSplitConfig {
-            denom: UncheckedDenom::Native("test".to_string()),
+            denom: UncheckedDenom::Native("untrn".to_string()),
             account: account_2.clone(),
-            amount: UncheckedSplitAmount::FixedAmount(1000_u128.into()),
+            amount: UncheckedSplitAmount::FixedAmount(swap_amount.into()),
         }],
     };
 
@@ -98,12 +77,5 @@ fn main() -> Result<(), Box<dyn Error>> {
             .build(),
     );
 
-    let mut program_config = builder.build();
-    let mut program_config2 = program_config.clone();
-
-    use_manager_init(&mut program_config)?;
-
-    use_manager_init(&mut program_config2)?;
-
-    Ok(())
+    builder.build()
 }
