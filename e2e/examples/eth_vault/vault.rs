@@ -6,6 +6,7 @@ use std::{
 };
 
 use alloy::primitives::U256;
+use evm::log_eth_balances;
 use localic_utils::{
     types::config::ConfigChain, utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder,
     LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
@@ -15,8 +16,7 @@ use log::info;
 use neutron::setup_astroport_cl_pool;
 use program::{setup_neutron_accounts, setup_neutron_libraries};
 use valence_chain_client_utils::{
-    cosmos::base_client::BaseClient,
-    evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
+    cosmos::base_client::BaseClient, evm::request_provider_client::RequestProviderClient,
 };
 
 use valence_e2e::{
@@ -29,8 +29,8 @@ use valence_e2e::{
             ICA_CCTP_TRANSFER_NAME, ICA_IBC_TRANSFER_NAME, INTERCHAIN_ACCOUNT_NAME,
             NEUTRON_IBC_TRANSFER_NAME,
         },
-        solidity_contracts::{MockERC20, ValenceVault},
-        vault::{setup_cctp_transfer, setup_valence_vault},
+        solidity_contracts::ValenceVault,
+        vault::{self, setup_cctp_transfer, setup_valence_vault},
         DEFAULT_ANVIL_RPC_ENDPOINT, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
         NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME,
         NOBLE_CHAIN_PREFIX, UUSDC_DENOM, VALENCE_ARTIFACTS_PATH,
@@ -298,12 +298,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         usdc_token_address,
     )?;
 
-    let valence_vault = ValenceVault::new(vault_address, &eth_rp);
-
-    let vault_config = async_run!(&rt, eth_client.query(valence_vault.config()).await.unwrap());
-
-    info!("instantiated valence vault config: {:?}", vault_config);
-
     let cctp_forwarder = setup_cctp_transfer(
         &rt,
         &eth_client,
@@ -340,6 +334,177 @@ fn main() -> Result<(), Box<dyn Error>> {
         deposit_acc_addr,
     );
     info!("post-cctp transfer deposit account balance: {post_cctp_deposit_acc_balance}");
+
+    let eth_user_acc = eth_accounts[2];
+    let eth_user2_acc = eth_accounts[3];
+
+    info!("funding eth user with 1_000_000USDC...");
+    ethereum_utils::mock_erc20::mint(
+        &rt,
+        &eth_client,
+        usdc_token_address,
+        eth_user_acc,
+        U256::from(1_000_000),
+    );
+
+    let valence_vault = ValenceVault::new(vault_address, &eth_rp);
+
+    info!("approving vault to spend usdc on behalf of user...");
+    ethereum_utils::mock_erc20::approve(
+        &rt,
+        &eth_client,
+        usdc_token_address,
+        eth_user_acc,
+        *valence_vault.address(),
+        U256::MAX,
+    );
+
+    info!("Approving vault for withdraw account...");
+    ethereum_utils::valence_account::approve_library(
+        &rt,
+        &eth_client,
+        withdraw_acc_addr,
+        *valence_vault.address(),
+    );
+
+    info!("Approving vault for deposit account...");
+    ethereum_utils::valence_account::approve_library(
+        &rt,
+        &eth_client,
+        deposit_acc_addr,
+        *valence_vault.address(),
+    );
+
+    let deposit_amount = U256::from(500_000);
+
+    info!("User depositing {deposit_amount}USDC tokens to vault...");
+    vault::deposit_to_vault(
+        &rt,
+        &eth_client,
+        *valence_vault.address(),
+        eth_user_acc,
+        deposit_amount,
+    )?;
+
+    log_eth_balances(
+        &eth_client,
+        &rt,
+        valence_vault.address(),
+        &usdc_token_address,
+        &deposit_acc_addr,
+        &withdraw_acc_addr,
+        &eth_user_acc,
+        &eth_user2_acc,
+    )
+    .unwrap();
+
+    let current_rate = vault::query_redemption_rate(*valence_vault.address(), &rt, &eth_client)._0;
+    let netting_amount = U256::from(0);
+    let withdraw_fee_bps = 1;
+
+    info!("performing vault update...");
+    vault::vault_update(
+        *valence_vault.address(),
+        current_rate,
+        withdraw_fee_bps,
+        netting_amount,
+        &rt,
+        &eth_client,
+    )?;
+
+    info!("funding eth user2 with 1_000_000USDC...");
+    ethereum_utils::mock_erc20::mint(
+        &rt,
+        &eth_client,
+        usdc_token_address,
+        eth_user2_acc,
+        U256::from(1_000_000),
+    );
+
+    info!("approving vault to spend usdc on behalf of user2...");
+    ethereum_utils::mock_erc20::approve(
+        &rt,
+        &eth_client,
+        usdc_token_address,
+        eth_user2_acc,
+        *valence_vault.address(),
+        U256::MAX,
+    );
+
+    info!("User2 depositing {deposit_amount}USDC tokens to vault...");
+    vault::deposit_to_vault(
+        &rt,
+        &eth_client,
+        *valence_vault.address(),
+        eth_user_acc,
+        deposit_amount,
+    )?;
+
+    async_run!(rt, {
+        let eth_rp = eth_client.get_request_provider().await.unwrap();
+
+        alloy::providers::ext::AnvilApi::anvil_mine(
+            &eth_rp,
+            Some(U256::from(5)),
+            Some(U256::from(3)),
+        )
+        .await
+        .unwrap();
+    });
+
+    info!("USER1 withdrawing from vault...");
+    let withdraw_request_resp =
+        vault::addr_withdraw_request(vault_address, &rt, &eth_client, eth_user_acc);
+    info!(
+        "USER1 withdraw request response: {:?}",
+        withdraw_request_resp
+    );
+
+    async_run!(rt, {
+        let eth_rp = eth_client.get_request_provider().await.unwrap();
+
+        alloy::providers::ext::AnvilApi::anvil_mine(
+            &eth_rp,
+            Some(U256::from(5)),
+            Some(U256::from(3)),
+        )
+        .await
+        .unwrap();
+    });
+
+    log_eth_balances(
+        &eth_client,
+        &rt,
+        valence_vault.address(),
+        &usdc_token_address,
+        &deposit_acc_addr,
+        &withdraw_acc_addr,
+        &eth_user_acc,
+        &eth_user2_acc,
+    )
+    .unwrap();
+
+    info!("performing vault update with N=100_000...");
+    vault::vault_update(
+        *valence_vault.address(),
+        current_rate,
+        withdraw_fee_bps,
+        U256::from(100_000),
+        &rt,
+        &eth_client,
+    )?;
+
+    log_eth_balances(
+        &eth_client,
+        &rt,
+        valence_vault.address(),
+        &usdc_token_address,
+        &deposit_acc_addr,
+        &withdraw_acc_addr,
+        &eth_user_acc,
+        &eth_user2_acc,
+    )
+    .unwrap();
 
     Ok(())
 }

@@ -521,7 +521,7 @@ pub fn setup_cctp_transfer(
     noble_recipient: String,
     input_account: Address,
     admin: Address,
-    processor: Address,
+    _processor: Address,
     usdc_token_address: Address,
     cctp_token_messenger_address: Address,
 ) -> Result<Address, Box<dyn Error>> {
