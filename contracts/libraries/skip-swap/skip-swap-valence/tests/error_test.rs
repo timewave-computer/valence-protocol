@@ -13,6 +13,7 @@ use skip_swap_valence::validation;
 fn create_instantiate_msg() -> InstantiateMsg {
     InstantiateMsg {
         config: Config {
+            owner: Addr::unchecked("owner"),
             strategist_address: Addr::unchecked("strategist"),
             skip_entry_point: Addr::unchecked("skip_entry"),
             allowed_asset_pairs: vec![
@@ -25,6 +26,9 @@ fn create_instantiate_msg() -> InstantiateMsg {
             max_slippage: Decimal::percent(5),
             token_destinations: HashMap::new(),
             intermediate_accounts: HashMap::new(),
+            authorization_contract: None,
+            use_authorization_contract: false,
+            swap_authorization_label: "skip_swap".to_string(),
         }
     }
 }
@@ -44,7 +48,7 @@ fn setup_contract() -> cosmwasm_std::OwnedDeps<cosmwasm_std::MemoryStorage, cosm
     let update_msg = ExecuteMsg::UpdateConfig {
         config,
     };
-    let _res = execute(deps.as_mut(), env, mock_info("strategist", &[]), update_msg).unwrap();
+    let _res = execute(deps.as_mut(), env, mock_info("creator", &[]), update_msg).unwrap();
     
     deps
 }
@@ -144,6 +148,7 @@ fn test_invalid_asset_pair_error() {
 fn test_mock_validation() {
     // Create a config that only allows astroport
     let test_config = Config {
+        owner: Addr::unchecked("owner"),
         strategist_address: Addr::unchecked("strategist"),
         skip_entry_point: Addr::unchecked("skip_entry"),
         allowed_asset_pairs: vec![
@@ -156,6 +161,9 @@ fn test_mock_validation() {
         max_slippage: Decimal::percent(5),
         token_destinations: HashMap::new(),
         intermediate_accounts: HashMap::new(),
+        authorization_contract: None,
+        use_authorization_contract: false,
+        swap_authorization_label: "skip_swap".to_string(),
     };
     
     // Create a route with "invalid_venue" venue
@@ -256,8 +264,8 @@ fn test_error_responses_multi_hop() {
         config: new_config,
     };
     
-    // Update as strategist
-    let res = execute(deps.as_mut(), env.clone(), mock_info("strategist", &[]), update_msg);
+    // Update as creator (who is the owner)
+    let res = execute(deps.as_mut(), env.clone(), mock_info("creator", &[]), update_msg);
     assert!(res.is_ok());
     
     // Now try to execute the multi-hop route
@@ -297,8 +305,10 @@ fn test_error_responses_multi_hop() {
 
 #[test]
 fn test_validation_errors() {
-    // Create a config for testing validation errors
+    let deps = mock_dependencies();
+    // Create a test config for validation tests
     let test_config = Config {
+        owner: Addr::unchecked("owner"),
         strategist_address: Addr::unchecked("strategist"),
         skip_entry_point: Addr::unchecked("skip_entry"),
         allowed_asset_pairs: vec![
@@ -307,19 +317,23 @@ fn test_validation_errors() {
                 output_asset: "uusdc".to_string(),
             },
         ],
-        allowed_venues: vec!["astroport".to_string(), "osmosis".to_string()], // Allow these venues
+        allowed_venues: vec!["astroport".to_string()],
         max_slippage: Decimal::percent(5),
         token_destinations: HashMap::new(),
         intermediate_accounts: HashMap::new(),
+        authorization_contract: None,
+        use_authorization_contract: false,
+        swap_authorization_label: "skip_swap".to_string(),
     };
     
-    // Test: Excessive slippage error
+    // Test slippage validation
     let mut route = create_test_route("astroport");
     route.slippage_tolerance_percent = Decimal::percent(10); // 10% > 5% max
     
-    let res = validation::validate_slippage(&test_config, &route);
-    assert!(res.is_err(), "Expected validation to fail for excessive slippage");
+    let res = validation::validate_slippage(deps.as_ref(), &test_config, &route);
     
+    // Verify it fails with excessive slippage
+    assert!(res.is_err());
     match res.unwrap_err() {
         ContractError::ExcessiveSlippage { slippage, max_slippage } => {
             assert_eq!(slippage, Decimal::percent(10));

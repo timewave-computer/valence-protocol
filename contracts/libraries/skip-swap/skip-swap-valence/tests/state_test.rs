@@ -18,6 +18,7 @@ fn create_instantiate_msg() -> InstantiateMsg {
     
     InstantiateMsg {
         config: Config {
+            owner: Addr::unchecked("owner"),
             strategist_address: Addr::unchecked("strategist"),
             skip_entry_point: Addr::unchecked("skip_entry"),
             allowed_asset_pairs: vec![
@@ -34,6 +35,9 @@ fn create_instantiate_msg() -> InstantiateMsg {
             max_slippage: Decimal::percent(5),
             token_destinations,
             intermediate_accounts,
+            authorization_contract: None,
+            use_authorization_contract: false,
+            swap_authorization_label: "skip_swap".to_string(),
         }
     }
 }
@@ -181,7 +185,7 @@ fn test_state_updates() {
         config: new_config,
     };
     
-    let res = execute(deps.as_mut(), env.clone(), mock_info("strategist", &[]), update_msg);
+    let res = execute(deps.as_mut(), env.clone(), mock_info("creator", &[]), update_msg);
     assert!(res.is_ok());
     
     // Verify config changes were applied
@@ -206,7 +210,7 @@ fn test_state_updates() {
         config: new_config,
     };
     
-    let res = execute(deps.as_mut(), env.clone(), mock_info("strategist", &[]), update_msg);
+    let res = execute(deps.as_mut(), env.clone(), mock_info("creator", &[]), update_msg);
     assert!(res.is_ok());
     
     // Verify intermediate accounts changes were applied

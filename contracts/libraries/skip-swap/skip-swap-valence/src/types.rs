@@ -6,6 +6,9 @@ use std::collections::HashMap;
 /// Configuration for the Skip Swap library
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
+    /// Address of the contract owner (deployer)
+    pub owner: Addr,
+    
     /// Address authorized to query Skip API and submit routes
     pub strategist_address: Addr,
     
@@ -26,6 +29,34 @@ pub struct Config {
     
     /// Intermediate accounts for multi-hop routes
     pub intermediate_accounts: HashMap<String, Addr>,
+    
+    /// Valence authorization contract address
+    pub authorization_contract: Option<Addr>,
+    
+    /// Whether to use the authorization contract for validation
+    /// If false, the contract will use local validation
+    pub use_authorization_contract: bool,
+    
+    /// The authorization label for swap operations
+    pub swap_authorization_label: String,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            owner: Addr::unchecked(""),
+            strategist_address: Addr::unchecked(""),
+            skip_entry_point: Addr::unchecked(""),
+            allowed_asset_pairs: vec![],
+            allowed_venues: vec![],
+            max_slippage: Decimal::percent(1),
+            token_destinations: HashMap::new(),
+            intermediate_accounts: HashMap::new(),
+            authorization_contract: None,
+            use_authorization_contract: false,
+            swap_authorization_label: "skip_swap".to_string(),
+        }
+    }
 }
 
 /// Represents a pair of assets that can be swapped

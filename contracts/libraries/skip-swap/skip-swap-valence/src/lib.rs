@@ -1,3 +1,4 @@
+pub mod authorization;
 pub mod contract;
 pub mod error;
 pub mod msg;
@@ -5,15 +6,19 @@ pub mod state;
 pub mod types;
 pub mod validation;
 
+pub use authorization::*;
 pub use contract::*;
 pub use error::*;
 pub use msg::*;
 pub use state::*;
 pub use types::*;
 pub use validation::*;
+pub use valence_library_base;
+pub use valence_library_utils;
 
 // Export main components for external use
 pub mod prelude {
+    pub use crate::authorization::*;
     pub use crate::contract::*;
     pub use crate::error::*;
     pub use crate::msg::*;

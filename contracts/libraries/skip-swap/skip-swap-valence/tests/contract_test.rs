@@ -13,6 +13,7 @@ use skip_swap_valence::state;
 fn create_instantiate_msg() -> InstantiateMsg {
     InstantiateMsg {
         config: Config {
+            owner: Addr::unchecked("owner"),
             strategist_address: Addr::unchecked("strategist"),
             skip_entry_point: Addr::unchecked("skip_entry"),
             allowed_asset_pairs: vec![
@@ -29,6 +30,9 @@ fn create_instantiate_msg() -> InstantiateMsg {
             max_slippage: Decimal::percent(5),
             token_destinations: HashMap::new(),
             intermediate_accounts: HashMap::new(),
+            authorization_contract: None,
+            use_authorization_contract: false,
+            swap_authorization_label: "skip_swap".to_string(),
         }
     }
 }
@@ -255,39 +259,40 @@ fn test_update_config() {
     let msg = create_instantiate_msg();
     let _res = instantiate(deps.as_mut(), env.clone(), mock_info(creator, &[]), msg).unwrap();
     
-    // Update config (as strategist)
+    // Update config
     let new_config = Config {
+        owner: Addr::unchecked("owner"),
         strategist_address: Addr::unchecked("new_strategist"),
-        skip_entry_point: Addr::unchecked("skip_entry"),
+        skip_entry_point: Addr::unchecked("new_skip_entry"),
         allowed_asset_pairs: vec![
             AssetPair {
                 input_asset: "uatom".to_string(),
                 output_asset: "uusdc".to_string(),
             },
-            AssetPair {
-                input_asset: "uluna".to_string(),
-                output_asset: "uusdc".to_string(),
-            },
         ],
-        allowed_venues: vec!["astroport".to_string(), "osmosis".to_string(), "new_venue".to_string()],
-        max_slippage: Decimal::percent(10),
+        allowed_venues: vec!["astroport".to_string()],
+        max_slippage: Decimal::percent(3),
         token_destinations: HashMap::new(),
         intermediate_accounts: HashMap::new(),
+        authorization_contract: None,
+        use_authorization_contract: false,
+        swap_authorization_label: "skip_swap".to_string(),
     };
     
     let update_msg = ExecuteMsg::UpdateConfig {
         config: new_config.clone(),
     };
     
-    let res = execute(deps.as_mut(), env.clone(), mock_info("strategist", &[]), update_msg);
+    // Execute as creator (who is the owner), which should succeed
+    let res = execute(deps.as_mut(), env.clone(), mock_info(creator, &[]), update_msg);
     assert!(res.is_ok());
     
-    // Verify config was updated
+    // Verify that the config was updated correctly
     let config: Config = state::CONFIG.load(&deps.storage).unwrap();
     assert_eq!(config.strategist_address, Addr::unchecked("new_strategist"));
-    assert_eq!(config.allowed_asset_pairs.len(), 2);
-    assert_eq!(config.allowed_venues.len(), 3);
-    assert_eq!(config.max_slippage, Decimal::percent(10));
+    assert_eq!(config.allowed_asset_pairs.len(), 1);
+    assert_eq!(config.allowed_venues.len(), 1);
+    assert_eq!(config.max_slippage, Decimal::percent(3));
 }
 
 #[test]
@@ -300,28 +305,38 @@ fn test_update_config_unauthorized() {
     let msg = create_instantiate_msg();
     let _res = instantiate(deps.as_mut(), env.clone(), mock_info(creator, &[]), msg).unwrap();
     
-    // Update config (as NOT strategist)
+    // Update config
     let new_config = Config {
+        owner: Addr::unchecked("owner"),
         strategist_address: Addr::unchecked("new_strategist"),
-        skip_entry_point: Addr::unchecked("skip_entry"),
-        allowed_asset_pairs: vec![],
-        allowed_venues: vec![],
-        max_slippage: Decimal::percent(10),
+        skip_entry_point: Addr::unchecked("new_skip_entry"),
+        allowed_asset_pairs: vec![
+            AssetPair {
+                input_asset: "uatom".to_string(),
+                output_asset: "uusdc".to_string(),
+            },
+        ],
+        allowed_venues: vec!["astroport".to_string()],
+        max_slippage: Decimal::percent(3),
         token_destinations: HashMap::new(),
         intermediate_accounts: HashMap::new(),
+        authorization_contract: None,
+        use_authorization_contract: false,
+        swap_authorization_label: "skip_swap".to_string(),
     };
     
     let update_msg = ExecuteMsg::UpdateConfig {
-        config: new_config,
+        config: new_config.clone(),
     };
     
-    let res = execute(deps.as_mut(), env.clone(), mock_info("not_strategist", &[]), update_msg);
+    // Execute as non-owner, which should fail
+    let res = execute(deps.as_mut(), env.clone(), mock_info("not_owner", &[]), update_msg);
     assert!(res.is_err());
     
-    // Check that the error is an Unauthorized error
+    // Verify it's an unauthorized error
     match res.unwrap_err() {
         ContractError::Unauthorized { msg } => {
-            assert!(msg.contains("strategist"));
+            assert!(msg.contains("owner"));
         }
         e => panic!("Expected Unauthorized error, got: {:?}", e),
     }

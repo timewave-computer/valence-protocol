@@ -51,6 +51,8 @@ pub enum ExecuteMsg {
     UpdateConfig {
         config: Config,
     },
+    /// Creates a skip swap authorization in the Valence authorization contract
+    CreateSkipSwapAuthorization {},
 }
 
 /// Response type for route parameters
@@ -65,11 +67,15 @@ pub struct RouteParametersResponse {
 /// Response type for configuration
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 pub struct ConfigResponse {
+    pub owner: String,
     pub skip_entry_point: String,
     pub strategist_address: String,
     pub allowed_asset_pairs: Vec<AssetPair>,
     pub allowed_venues: Vec<String>,
     pub max_slippage: String,
+    pub authorization_contract: Option<String>,
+    pub use_authorization_contract: bool,
+    pub swap_authorization_label: String,
 }
 
 /// Response type for simulate swap

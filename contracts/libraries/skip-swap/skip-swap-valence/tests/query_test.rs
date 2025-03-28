@@ -19,6 +19,7 @@ fn create_instantiate_msg() -> InstantiateMsg {
     
     InstantiateMsg {
         config: Config {
+            owner: Addr::unchecked("owner"),
             strategist_address: Addr::unchecked("strategist"),
             skip_entry_point: Addr::unchecked("skip_entry"),
             allowed_asset_pairs: vec![
@@ -35,6 +36,9 @@ fn create_instantiate_msg() -> InstantiateMsg {
             max_slippage: Decimal::percent(5),
             token_destinations,
             intermediate_accounts,
+            authorization_contract: None,
+            use_authorization_contract: false,
+            swap_authorization_label: "skip_swap".to_string(),
         }
     }
 }
