@@ -5,19 +5,14 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use cosmwasm_std_old::Coin as BankCoin;
-use localic_std::modules::bank;
 use localic_utils::{
-    types::config::ConfigChain,
-    utils::{ethereum::EthClient, test_context::TestContext},
-    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, LOCAL_IC_API_URL,
-    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
+    types::config::ConfigChain, utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder,
+    LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
 };
 
 use log::info;
 use neutron::setup_astroport_cl_pool;
 use program::{setup_neutron_accounts, setup_neutron_libraries};
-use rand::{distributions::Alphanumeric, Rng};
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
@@ -28,10 +23,6 @@ use valence_e2e::{
     utils::{
         authorization::set_up_authorization_and_processor,
         ethereum as ethereum_utils,
-        hyperlane::{
-            set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts, set_up_hyperlane,
-            HyperlaneContracts,
-        },
         manager::{
             ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME, BASE_ACCOUNT_NAME,
             ICA_CCTP_TRANSFER_NAME, ICA_IBC_TRANSFER_NAME, INTERCHAIN_ACCOUNT_NAME,
@@ -39,10 +30,9 @@ use valence_e2e::{
         },
         solidity_contracts::ValenceVault,
         vault::setup_valence_vault,
-        DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_HYPERLANE_DOMAIN, HYPERLANE_RELAYER_NEUTRON_ADDRESS,
-        LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR,
-        NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, UUSDC_DENOM,
-        VALENCE_ARTIFACTS_PATH,
+        DEFAULT_ANVIL_RPC_ENDPOINT, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
+        NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME,
+        NOBLE_CHAIN_PREFIX, UUSDC_DENOM, VALENCE_ARTIFACTS_PATH,
     },
 };
 
@@ -56,6 +46,7 @@ mod neutron;
 mod noble;
 mod program;
 mod strategist;
+mod utils;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -129,8 +120,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .dest(NEUTRON_CHAIN_NAME)
         .get();
 
-    let (eth_hyperlane_contracts, _ntrn_hyperlane_contracts) =
-        hyperlane_plumbing(&mut test_ctx, &eth)?;
+    let program_hyperlane_contracts = utils::hyperlane_plumbing(&mut test_ctx, &eth)?;
 
     // setup astroport
     let (pool_addr, lp_token) =
@@ -281,7 +271,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         &rt,
         &eth_client,
         eth_admin_acc,
-        &eth_hyperlane_contracts.mailbox.to_string(),
+        &program_hyperlane_contracts
+            .eth_hyperlane_contracts
+            .mailbox
+            .to_string(),
         authorization_contract_address.as_str(),
     )?;
 
@@ -306,83 +299,4 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("instantiated valence vault config: {:?}", vault_config);
 
     Ok(())
-}
-
-#[allow(unused)]
-fn create_counterparty_denom(test_ctx: &mut TestContext) -> Result<String, Box<dyn Error>> {
-    info!("creating subdenom to pair with NTRN");
-    // Let's create a token to pair it with NTRN
-    let token_subdenom: String = rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(10)
-        .map(char::from)
-        .collect();
-
-    test_ctx
-        .build_tx_create_tokenfactory_token()
-        .with_subdenom(&token_subdenom)
-        .send()?;
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
-    let token = test_ctx
-        .get_tokenfactory_denom()
-        .creator(NEUTRON_CHAIN_ADMIN_ADDR)
-        .subdenom(token_subdenom)
-        .get();
-
-    // Mint some of the token
-    test_ctx
-        .build_tx_mint_tokenfactory_token()
-        .with_amount(1_000_000_000)
-        .with_denom(&token)
-        .send()
-        .unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
-    Ok(token)
-}
-
-fn hyperlane_plumbing(
-    test_ctx: &mut TestContext,
-    eth: &EthClient,
-) -> Result<(HyperlaneContracts, HyperlaneContracts), Box<dyn Error>> {
-    info!("uploading cosmwasm hyperlane contracts...");
-    // Upload all Hyperlane contracts to Neutron
-    let neutron_hyperlane_contracts = set_up_cw_hyperlane_contracts(test_ctx)?;
-
-    info!("uploading evm hyperlane conrtacts...");
-    // Deploy all Hyperlane contracts on Ethereum
-    let eth_hyperlane_contracts = set_up_eth_hyperlane_contracts(eth, ETHEREUM_HYPERLANE_DOMAIN)?;
-
-    info!("setting up hyperlane connection Neutron <> Ethereum");
-    set_up_hyperlane(
-        "hyperlane-net",
-        vec!["localneutron-1-val-0-neutronic", "anvil"],
-        "neutron",
-        "ethereum",
-        &neutron_hyperlane_contracts,
-        &eth_hyperlane_contracts,
-    )?;
-
-    // Since we are going to relay callbacks to Neutron, let's fund the Hyperlane relayer account with some tokens
-    info!("Fund relayer account...");
-    bank::send(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        DEFAULT_KEY,
-        HYPERLANE_RELAYER_NEUTRON_ADDRESS,
-        &[BankCoin {
-            denom: NEUTRON_CHAIN_DENOM.to_string(),
-            amount: 5_000_000u128.into(),
-        }],
-        &BankCoin {
-            denom: NEUTRON_CHAIN_DENOM.to_string(),
-            amount: cosmwasm_std_old::Uint128::new(5000),
-        },
-    )
-    .unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
-    Ok((eth_hyperlane_contracts, neutron_hyperlane_contracts))
 }
