@@ -42,7 +42,7 @@ graph LR
 
 ## Configuration
 
-The library is configured on deployment using the `StargateTransferConfig` type. A list of the supported Stargate destination domains that can be used in the `destinationDomain` field can be found [here](https://stargateprotocol.gitbook.io/stargate/v2-developer-docs/technical-reference/mainnet-contracts).
+The library is configured on deployment using the `StargateTransferConfig` type. A list of supported Stargate destination domains that can be used in the `destinationDomain` field can be found [here](https://stargateprotocol.gitbook.io/stargate/v2-developer-docs/technical-reference/mainnet-contracts).
 
 ```solidity
     /**
