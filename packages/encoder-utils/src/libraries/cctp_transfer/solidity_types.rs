@@ -1,6 +1,8 @@
 use alloy_sol_types::sol;
 
 sol! {
+    #[sol(rpc)]
+    #[derive(Debug, PartialEq, Eq)]
     struct CCTPTransferConfig {
         uint256 amount; // If we want to transfer all tokens, we can set this to 0.
         bytes32 mintRecipient;

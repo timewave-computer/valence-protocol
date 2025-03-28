@@ -5,6 +5,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+use alloy::primitives::U256;
 use localic_utils::{
     types::config::ConfigChain, utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder,
     LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
@@ -28,18 +29,18 @@ use valence_e2e::{
             ICA_CCTP_TRANSFER_NAME, ICA_IBC_TRANSFER_NAME, INTERCHAIN_ACCOUNT_NAME,
             NEUTRON_IBC_TRANSFER_NAME,
         },
-        solidity_contracts::ValenceVault,
-        vault::setup_valence_vault,
+        solidity_contracts::{MockERC20, ValenceVault},
+        vault::{setup_cctp_transfer, setup_valence_vault},
         DEFAULT_ANVIL_RPC_ENDPOINT, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
         NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME,
         NOBLE_CHAIN_PREFIX, UUSDC_DENOM, VALENCE_ARTIFACTS_PATH,
     },
 };
 
-const EVM_ENCODER_NAMESPACE: &str = "evm_encoder_v1";
-const PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "provide_liquidity";
-const WITHDRAW_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "withdraw_liquidity";
+const _PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "provide_liquidity";
+const _WITHDRAW_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "withdraw_liquidity";
 const ASTROPORT_CONCENTRATED_PAIR_TYPE: &str = "concentrated";
+const VAULT_NEUTRON_CACHE_PATH: &str = "e2e/examples/eth_vault/neutron_contracts/";
 
 mod evm;
 mod neutron;
@@ -139,8 +140,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         set_up_authorization_and_processor(&mut test_ctx, salt.clone())?;
 
     // copy over relevant contracts from artifacts/ to local path
-    // std::fs::copy(, to)
-    let local_contracts_path = Path::new("e2e/examples/eth_vault/neutron_contracts/");
+    let local_contracts_path = Path::new(VAULT_NEUTRON_CACHE_PATH);
     if !local_contracts_path.exists() {
         std::fs::create_dir(local_contracts_path)?;
     }
@@ -158,8 +158,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         let contract_path = Path::new(&contract_name);
         let src = Path::new("artifacts/").join(contract_path);
         let dest = local_contracts_path.join(contract_path);
-        info!("src path: {:?}", src);
-        info!("dest path: {:?}", dest);
         std::fs::copy(src, dest)?;
     }
 
@@ -266,6 +264,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     let usdc_token_address =
         ethereum_utils::mock_erc20::setup_deposit_erc20(&rt, &eth_client, "MockUSDC", "USDC")?;
 
+    ethereum_utils::mock_erc20::mint(
+        &rt,
+        &eth_client,
+        usdc_token_address,
+        deposit_acc_addr,
+        U256::from(10_000_000),
+    );
+
     info!("Setting up Lite Processor on Ethereum");
     let _lite_processor_address = ethereum_utils::lite_processor::setup_lite_processor(
         &rt,
@@ -278,7 +284,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         authorization_contract_address.as_str(),
     )?;
 
-    let _mock_cctp_messenger_address =
+    let mock_cctp_messenger_address =
         valence_e2e::utils::vault::setup_mock_token_messenger(&rt, &eth_client)?;
 
     info!("Setting up Valence Vault...");
@@ -297,6 +303,79 @@ fn main() -> Result<(), Box<dyn Error>> {
     let vault_config = async_run!(&rt, eth_client.query(valence_vault.config()).await.unwrap());
 
     info!("instantiated valence vault config: {:?}", vault_config);
+
+    let cctp_forwarder = setup_cctp_transfer(
+        &rt,
+        &eth_client,
+        neutron_program_accounts.noble_inbound_ica.remote_addr,
+        deposit_acc_addr,
+        eth_admin_acc,
+        eth_admin_acc,
+        usdc_token_address,
+        mock_cctp_messenger_address,
+    )?;
+
+    // approve the CCTP forwarder on deposit account
+    ethereum_utils::valence_account::approve_library(
+        &rt,
+        &eth_client,
+        deposit_acc_addr,
+        cctp_forwarder,
+    );
+
+    async_run!(rt, {
+        let eth_rp = eth_client.get_request_provider().await.unwrap();
+
+        let usdc = MockERC20::new(usdc_token_address, &eth_rp);
+
+        let signed_tx = usdc
+            .approve(cctp_forwarder, U256::MAX)
+            .into_transaction_request()
+            .from(eth_admin_acc);
+        let rx = alloy::providers::Provider::send_transaction(&eth_rp, signed_tx)
+            .await
+            .unwrap()
+            .get_receipt()
+            .await
+            .unwrap();
+
+        info!("usdc approval rx: {:?}", rx.transaction_hash);
+    });
+
+    let pre_cctp_deposit_acc_balance = ethereum_utils::mock_erc20::query_balance(
+        &rt,
+        &eth_client,
+        usdc_token_address,
+        deposit_acc_addr,
+    );
+    info!("pre-cctp transfer deposit account balance: {pre_cctp_deposit_acc_balance}");
+
+    async_run!(rt, {
+        let eth_rp = eth_client.get_request_provider().await.unwrap();
+
+        let cctp_forwarder_contract =
+            valence_e2e::utils::solidity_contracts::CCTPTransfer::new(cctp_forwarder, &eth_rp);
+
+        let cctp_transfer_rx = eth_client
+            .execute_tx(
+                cctp_forwarder_contract
+                    .transfer()
+                    .into_transaction_request()
+                    .from(eth_admin_acc),
+            )
+            .await
+            .unwrap();
+
+        info!("cctp transfer rx: {:?}", cctp_transfer_rx);
+    });
+
+    let post_cctp_deposit_acc_balance = ethereum_utils::mock_erc20::query_balance(
+        &rt,
+        &eth_client,
+        usdc_token_address,
+        deposit_acc_addr,
+    );
+    info!("post-cctp transfer deposit account balance: {post_cctp_deposit_acc_balance}");
 
     Ok(())
 }

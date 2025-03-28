@@ -1,10 +1,7 @@
-use std::{env, error::Error, str::FromStr, time::Duration};
+use std::{env, error::Error, str::FromStr};
 
-use cosmwasm_std::{coin, to_json_binary, Binary, Decimal};
-use localic_std::modules::{
-    bank,
-    cosmwasm::{contract_execute, contract_instantiate, contract_query},
-};
+use cosmwasm_std::{coin, to_json_binary, Decimal};
+use localic_std::modules::cosmwasm::{contract_execute, contract_instantiate, contract_query};
 use localic_utils::{
     utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM,
     NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
@@ -18,25 +15,18 @@ use valence_astroport_utils::astroport_native_lp_token::{
     FactoryInstantiateMsg, FactoryQueryMsg, NativeCoinRegistryExecuteMsg,
     NativeCoinRegistryInstantiateMsg, PairConfig, PairType,
 };
-use valence_authorization_utils::msg::{
-    EncoderInfo, EvmBridgeInfo, ExternalDomainInfo, HyperlaneConnectorInfo, PermissionedMsg,
-    ProcessorMessage,
-};
+
 use valence_chain_client_utils::neutron::NeutronClient;
 
 use valence_e2e::{
     async_run,
     utils::{
-        parse::get_grpc_address_and_port_from_logs, processor::tick_processor, ADMIN_MNEMONIC,
-        ASTROPORT_PATH, ETHEREUM_CHAIN_NAME, ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS,
+        parse::get_grpc_address_and_port_from_logs, ADMIN_MNEMONIC, ASTROPORT_PATH, GAS_FLAGS,
         LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
     },
 };
 
-use crate::{
-    ASTROPORT_CONCENTRATED_PAIR_TYPE, EVM_ENCODER_NAMESPACE,
-    PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL, WITHDRAW_LIQUIDITY_AUTHORIZATIONS_LABEL,
-};
+use crate::ASTROPORT_CONCENTRATED_PAIR_TYPE;
 
 fn deploy_astroport_contracts(
     test_ctx: &mut TestContext,
@@ -300,214 +290,6 @@ pub fn get_neutron_client(rt: &Runtime) -> Result<NeutronClient, Box<dyn Error>>
     );
 
     Ok(neutron_client)
-}
-
-#[allow(clippy::too_many_arguments, unused)]
-pub fn test_neutron_side_flow(
-    test_ctx: &mut TestContext,
-    deposit_acc_addr: &str,
-    position_acc_addr: &str,
-    withdraw_acc_addr: &str,
-    denom_1: &str,
-    denom_2: &str,
-    authorizations_addr: &str,
-    ntrn_processor_addr: &str,
-    encoder_broker: &str,
-    ntrn_mailbox: &str,
-    lite_processor_address: &str,
-) -> Result<(), Box<dyn Error>> {
-    info!("Adding EVM external domain to Authorization contract");
-
-    let authorization_exec_env_info =
-        valence_authorization_utils::msg::ExecutionEnvironmentInfo::Evm(
-            EncoderInfo {
-                broker_address: encoder_broker.to_string(),
-                encoder_version: EVM_ENCODER_NAMESPACE.to_string(),
-            },
-            EvmBridgeInfo::Hyperlane(HyperlaneConnectorInfo {
-                mailbox: ntrn_mailbox.to_string(),
-                domain_id: ETHEREUM_HYPERLANE_DOMAIN,
-            }),
-        );
-
-    let external_domain_info = ExternalDomainInfo {
-        name: ETHEREUM_CHAIN_NAME.to_string(),
-        execution_environment: authorization_exec_env_info,
-        processor: lite_processor_address.to_string(),
-    };
-
-    let add_external_evm_domain_msg =
-        valence_authorization_utils::msg::ExecuteMsg::PermissionedAction(
-            PermissionedMsg::AddExternalDomains {
-                external_domains: vec![external_domain_info],
-            },
-        );
-
-    contract_execute(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        authorizations_addr,
-        DEFAULT_KEY,
-        &serde_json::to_string(&add_external_evm_domain_msg).unwrap(),
-        GAS_FLAGS,
-    )
-    .unwrap();
-    std::thread::sleep(Duration::from_secs(3));
-
-    info!("funding the input account...");
-    bank::send(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        DEFAULT_KEY,
-        deposit_acc_addr,
-        &[
-            cosmwasm_std_old::Coin {
-                denom: denom_2.to_string(),
-                amount: 1_000_000u128.into(),
-            },
-            cosmwasm_std_old::Coin {
-                denom: denom_1.to_string(),
-                amount: 1_200_000u128.into(),
-            },
-        ],
-        &cosmwasm_std_old::Coin {
-            denom: denom_1.to_string(),
-            amount: 1_000_000u128.into(),
-        },
-    )?;
-
-    std::thread::sleep(Duration::from_secs(3));
-
-    log_neutron_acc_balances(
-        test_ctx,
-        deposit_acc_addr,
-        position_acc_addr,
-        withdraw_acc_addr,
-    );
-
-    let lp_message = ProcessorMessage::CosmwasmExecuteMsg {
-        msg: Binary::from(serde_json::to_vec(
-            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
-                valence_astroport_lper::msg::FunctionMsgs::ProvideDoubleSidedLiquidity {
-                    expected_pool_ratio_range: None,
-                },
-            ),
-        )?),
-    };
-    let provide_liquidity_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
-        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
-            label: PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL.to_string(),
-            messages: vec![lp_message],
-            ttl: None,
-        },
-    );
-
-    contract_execute(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        authorizations_addr,
-        DEFAULT_KEY,
-        &serde_json::to_string(&provide_liquidity_msg)?,
-        GAS_FLAGS,
-    )?;
-    std::thread::sleep(std::time::Duration::from_secs(2));
-
-    tick_processor(
-        test_ctx,
-        NEUTRON_CHAIN_NAME,
-        DEFAULT_KEY,
-        ntrn_processor_addr,
-        GAS_FLAGS,
-    );
-    std::thread::sleep(std::time::Duration::from_secs(2));
-
-    log_neutron_acc_balances(
-        test_ctx,
-        deposit_acc_addr,
-        position_acc_addr,
-        withdraw_acc_addr,
-    );
-
-    info!("pushing withdraw liquidity message to processor...");
-    let lw_message = ProcessorMessage::CosmwasmExecuteMsg {
-        msg: Binary::from(serde_json::to_vec(
-            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
-                valence_astroport_withdrawer::msg::FunctionMsgs::WithdrawLiquidity {
-                    expected_pool_ratio_range: None,
-                },
-            ),
-        )?),
-    };
-    let withdraw_liquidity_msg = valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
-        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
-            label: WITHDRAW_LIQUIDITY_AUTHORIZATIONS_LABEL.to_string(),
-            messages: vec![lw_message],
-            ttl: None,
-        },
-    );
-
-    contract_execute(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        authorizations_addr,
-        DEFAULT_KEY,
-        &serde_json::to_string(&withdraw_liquidity_msg)?,
-        GAS_FLAGS,
-    )?;
-    std::thread::sleep(std::time::Duration::from_secs(2));
-
-    info!("ticking processor to withdraw liquidity");
-    tick_processor(
-        test_ctx,
-        NEUTRON_CHAIN_NAME,
-        DEFAULT_KEY,
-        ntrn_processor_addr,
-        GAS_FLAGS,
-    );
-    std::thread::sleep(std::time::Duration::from_secs(2));
-
-    log_neutron_acc_balances(
-        test_ctx,
-        deposit_acc_addr,
-        position_acc_addr,
-        withdraw_acc_addr,
-    );
-
-    Ok(())
-}
-
-#[allow(unused)]
-pub fn log_neutron_acc_balances(
-    test_ctx: &mut TestContext,
-    deposit_acc: &str,
-    position_acc: &str,
-    withdraw_acc: &str,
-) {
-    let deposit_acc_bal = bank::get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        deposit_acc,
-    );
-    let position_acc_bal = bank::get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        position_acc,
-    );
-    let withdraw_acc_bal = bank::get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        withdraw_acc,
-    );
-    info!("DEPOSIT ACC BAL\t: {:?}", deposit_acc_bal);
-    info!("POSITION ACC BAL\t: {:?}", position_acc_bal);
-    info!("WITHDRAW ACC BAL\t: {:?}", withdraw_acc_bal);
 }
 
 pub mod ica {
