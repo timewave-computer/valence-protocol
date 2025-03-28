@@ -1,0 +1,20 @@
+# Sample configuration for the strategist
+library_address = "neutron1library_address_here"
+skip_entry_point = "neutron1qd7prxvuhdq0p3rjk9xuwz2ph5fvwddqmfsj25qgmw0p2z3g5tscyqccnz"
+skip_api_url = "https://api.skip.money"
+skip_api_key = "your_skip_api_key_here" # Optional
+
+# Polling configuration
+polling_interval = 60  # in seconds
+max_retries = 3
+retry_delay = 10  # in seconds
+
+# Strategist address (used for signing transactions)
+strategist_address = "neutron1strategist_address_here"
+
+# Accounts to monitor for deposits
+# Format: token_denom = "address"
+[monitored_accounts]
+"ibc/uusdc" = "neutron1usdc_deposit_address_here"
+"ibc/uatom" = "neutron1atom_deposit_address_here"
+"ibc/steth" = "neutron1steth_deposit_address_here" 

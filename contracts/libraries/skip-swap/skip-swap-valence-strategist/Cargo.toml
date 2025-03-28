@@ -1,0 +1,28 @@
+[package]
+name = "skip-swap-valence-strategist"
+version = "0.1.0"
+authors = ["Timewave <engineering@timewave.com>"]
+edition = "2021"
+description = "Off-chain component for the Skip Swap Valence library that finds optimal routes via the Skip API"
+license = "Apache-2.0"
+
+[workspace]
+
+[dependencies]
+cosmwasm-std = { version = "1.5", default-features = false }
+schemars = "0.8"
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+thiserror = "1.0"
+serde_json = "1.0"
+tokio = { version = "1.29", features = ["full"], optional = true }
+reqwest = { version = "0.11", features = ["json"], optional = true }
+serde-json-wasm = "1.0"
+toml = "0.8"
+
+[features]
+default = ["runtime"]
+runtime = ["tokio", "reqwest"]
+
+[dev-dependencies]
+tokio = { version = "1.29", features = ["full", "macros", "test-util"] }
+mockall = "0.11" 

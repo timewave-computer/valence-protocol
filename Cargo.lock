@@ -2518,6 +2518,25 @@ dependencies = [
 
 [[package]]
 name = "cw-multi-test"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d818f5323c80ed4890db7f89d65eda3f0261fe21878e628c27ea2d8de4b7ba4"
+dependencies = [
+ "anyhow",
+ "cosmwasm-std 1.5.10",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "derivative",
+ "itertools 0.11.0",
+ "prost 0.12.6",
+ "schemars",
+ "serde",
+ "sha2 0.10.8",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "cw-multi-test"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b00c3a218ed6abc6f1dd9be8146d4f23d8f41cf4e6d53cdfa71bab4514e1fc3"
@@ -4848,6 +4867,15 @@ name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
 dependencies = [
  "either",
 ]
@@ -8375,7 +8403,7 @@ version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
- "cw-multi-test",
+ "cw-multi-test 2.3.1",
  "cw-ownable",
  "cw-utils 2.0.0",
  "cw20 2.0.0",
@@ -8478,7 +8506,7 @@ dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
  "cw-denom",
- "cw-multi-test",
+ "cw-multi-test 2.3.1",
  "cw-ownable",
  "cw-storage-plus 2.0.0",
  "cw2 2.0.0",
@@ -8672,7 +8700,7 @@ version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
- "cw-multi-test",
+ "cw-multi-test 2.3.1",
  "cw-ownable",
  "cw-storage-plus 2.0.0",
  "cw-utils 2.0.0",
@@ -8695,7 +8723,7 @@ version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
- "cw-multi-test",
+ "cw-multi-test 2.3.1",
  "cw-ownable",
  "cw-storage-plus 2.0.0",
  "cw-utils 2.0.0",
@@ -8759,7 +8787,7 @@ dependencies = [
  "cosmos-sdk-proto 0.20.0",
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
- "cw-multi-test",
+ "cw-multi-test 2.3.1",
  "cw-ownable",
  "cw-storage-plus 2.0.0",
  "schemars",
@@ -8795,7 +8823,7 @@ version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
- "cw-multi-test",
+ "cw-multi-test 2.3.1",
  "cw-ownable",
  "cw-storage-plus 2.0.0",
  "cw2 2.0.0",
@@ -8813,7 +8841,7 @@ dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
  "cw-denom",
- "cw-multi-test",
+ "cw-multi-test 2.3.1",
  "cw-ownable",
  "cw-storage-plus 2.0.0",
  "cw-utils 2.0.0",
@@ -8854,7 +8882,7 @@ version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
- "cw-multi-test",
+ "cw-multi-test 2.3.1",
  "cw-ownable",
  "cw-storage-plus 2.0.0",
  "cw2 2.0.0",
@@ -8869,7 +8897,7 @@ version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
- "cw-multi-test",
+ "cw-multi-test 2.3.1",
  "cw-ownable",
  "cw-storage-plus 2.0.0",
  "cw2 2.0.0",
@@ -8925,7 +8953,7 @@ version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
- "cw-multi-test",
+ "cw-multi-test 2.3.1",
  "cw-ownable",
  "cw-storage-plus 2.0.0",
  "cw-utils 2.0.0",
@@ -9151,7 +9179,7 @@ version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
- "cw-multi-test",
+ "cw-multi-test 2.3.1",
  "cw-ownable",
  "cw-storage-plus 2.0.0",
  "cw2 2.0.0",
@@ -9177,7 +9205,7 @@ version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
- "cw-multi-test",
+ "cw-multi-test 2.3.1",
  "cw-ownable",
  "cw-storage-plus 2.0.0",
  "cw-utils 2.0.0",
@@ -9195,12 +9223,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-skip-swap"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 1.5.10",
+ "cosmwasm-std 1.5.10",
+ "cw-multi-test 0.17.0",
+ "schemars",
+ "serde",
+ "serde-json-wasm 1.0.1",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "valence-splitter-library"
 version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
- "cw-multi-test",
+ "cw-multi-test 2.3.1",
  "cw-ownable",
  "cw-storage-plus 2.0.0",
  "cw-utils 2.0.0",
@@ -9226,7 +9267,7 @@ dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
  "cw-denom",
- "cw-multi-test",
+ "cw-multi-test 2.3.1",
  "cw-ownable",
  "cw-storage-plus 2.0.0",
  "cw2 2.0.0",
@@ -9248,7 +9289,7 @@ version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
- "cw-multi-test",
+ "cw-multi-test 2.3.1",
  "cw-ownable",
  "cw-storage-plus 2.0.0",
  "cw-utils 2.0.0",
@@ -9267,7 +9308,7 @@ version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
- "cw-multi-test",
+ "cw-multi-test 2.3.1",
  "cw-ownable",
  "cw-storage-plus 2.0.0",
  "cw-utils 2.0.0",
