@@ -537,7 +537,7 @@ pub fn setup_cctp_transfer(
     let padded_hex = format!("{:0>64}", address_hex);
 
     let cctp_transer_cfg = CCTPTransferConfig {
-        amount: U256::from(1_000_000),
+        amount: U256::ZERO,
         mintRecipient: alloy_primitives_encoder::FixedBytes::<32>::from_hex(padded_hex)?,
         inputAccount: alloy_primitives_encoder::Address::from_str(
             input_account.to_string().as_str(),

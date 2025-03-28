@@ -3,15 +3,15 @@ pragma solidity ^0.8.28;
 
 import "../../src/libraries/interfaces/cctp/ITokenMessenger.sol";
 
+// Add the interface definition for IERC20
+interface IERC20 {
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+}
+
+
 /// @title MockTokenMessenger
 /// @notice Mock implementation of the ITokenMessenger interface with stubs for testing.
 contract MockTokenMessenger is ITokenMessenger {
-
-    // Add the interface definition for IERC20
-    interface IERC20 {
-        function transferFrom(address from, address to, uint256 amount) external returns (bool);
-    }
-
     function depositForBurn(
         uint256 amount,
         uint32 destinationDomain,

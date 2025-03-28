@@ -323,25 +323,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         cctp_forwarder,
     );
 
-    async_run!(rt, {
-        let eth_rp = eth_client.get_request_provider().await.unwrap();
-
-        let usdc = MockERC20::new(usdc_token_address, &eth_rp);
-
-        let signed_tx = usdc
-            .approve(cctp_forwarder, U256::MAX)
-            .into_transaction_request()
-            .from(eth_admin_acc);
-        let rx = alloy::providers::Provider::send_transaction(&eth_rp, signed_tx)
-            .await
-            .unwrap()
-            .get_receipt()
-            .await
-            .unwrap();
-
-        info!("usdc approval rx: {:?}", rx.transaction_hash);
-    });
-
     let pre_cctp_deposit_acc_balance = ethereum_utils::mock_erc20::query_balance(
         &rt,
         &eth_client,
@@ -350,24 +331,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
     info!("pre-cctp transfer deposit account balance: {pre_cctp_deposit_acc_balance}");
 
-    async_run!(rt, {
-        let eth_rp = eth_client.get_request_provider().await.unwrap();
-
-        let cctp_forwarder_contract =
-            valence_e2e::utils::solidity_contracts::CCTPTransfer::new(cctp_forwarder, &eth_rp);
-
-        let cctp_transfer_rx = eth_client
-            .execute_tx(
-                cctp_forwarder_contract
-                    .transfer()
-                    .into_transaction_request()
-                    .from(eth_admin_acc),
-            )
-            .await
-            .unwrap();
-
-        info!("cctp transfer rx: {:?}", cctp_transfer_rx);
-    });
+    strategist::cctp_route_usdc_from_eth(&rt, &eth_client, cctp_forwarder, eth_admin_acc)?;
 
     let post_cctp_deposit_acc_balance = ethereum_utils::mock_erc20::query_balance(
         &rt,
