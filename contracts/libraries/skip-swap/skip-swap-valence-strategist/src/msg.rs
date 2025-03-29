@@ -1,3 +1,9 @@
+/*
+ * Message definitions for Skip Swap Valence strategist.
+ * Contains the message structures used for communication between
+ * the strategist and the Skip Swap Valence contract.
+ */
+
 use cosmwasm_std::Uint128;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

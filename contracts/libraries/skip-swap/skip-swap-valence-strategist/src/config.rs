@@ -1,3 +1,9 @@
+/*
+ * Configuration management for the Skip Swap Valence strategist.
+ * Handles loading, parsing, and validating configuration from various sources,
+ * including environment variables and configuration files.
+ */
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;

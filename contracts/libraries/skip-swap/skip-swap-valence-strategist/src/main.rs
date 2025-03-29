@@ -1,3 +1,8 @@
+/*
+ * Main entry point for the Skip Swap Valence strategist CLI.
+ * Provides command-line functionality for running the strategist process,
+ * processing configurations, and initializing the monitoring system.
+ */
 use skip_swap_valence_strategist::strategist::Strategist;
 
 #[cfg(feature = "runtime")]

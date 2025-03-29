@@ -1,3 +1,11 @@
+/*
+ * Type definitions for the Skip Swap Valence contract.
+ * Defines the core data structures used throughout the contract, including:
+ * - Configuration types
+ * - Asset pair definitions
+ * - Skip protocol integration types
+ * - Swap execution parameters
+ */
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

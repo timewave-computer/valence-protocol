@@ -1,3 +1,11 @@
+/*
+ * Tests for the query functionality of the Skip Swap Valence contract.
+ * Covers all query endpoints including:
+ * - Configuration queries
+ * - Swap simulation queries
+ * - Route parameter queries
+ */
+
 use cosmwasm_std::{
     testing::{mock_dependencies, mock_env, mock_info},
     from_binary, Addr, Binary, Decimal, Uint128,

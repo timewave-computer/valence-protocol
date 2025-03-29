@@ -1,3 +1,10 @@
+/*
+ * Authorization module for the Skip Swap Valence contract.
+ * Handles the creation and validation of swap authorizations:
+ * - Creating authorization structures for permitted swap operations
+ * - Generating swap messages for execution
+ * - Validating authorization constraints (asset pairs, venues, slippage)
+ */
 use cosmwasm_std::{Addr, Decimal, Deps, StdResult};
 use cw_utils::Expiration;
 use valence_authorization_utils::{
@@ -10,6 +17,7 @@ use valence_authorization_utils::{
     function::AtomicFunction,
 };
 use valence_library_utils::LibraryAccountType;
+use serde::Deserialize;
 
 // Re-export the AuthorizationInfo for use within the crate
 pub use valence_authorization_utils::authorization::AuthorizationInfo;
@@ -18,6 +26,12 @@ pub use valence_authorization_utils::authorization::AuthorizationInfo;
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, schemars::JsonSchema)]
 pub struct IsAuthorizedResponse {
     pub is_authorized: bool,
+}
+
+/// Generic response structure for permission responses from the authorization contract
+#[derive(Deserialize)]
+struct GenericPermissionResponse {
+    pub is_permitted: bool,
 }
 
 /// Create an authorization for swap operations
@@ -64,61 +78,174 @@ pub fn create_swap_authorization(
 
 /// Checks if a strategist is authorized
 /// 
-/// This is a local validation - integration with the authorization contract
-/// would require sending actual messages through the authorization contract.
+/// This function sends a query to the Valence authorization contract
+/// to check if the strategist is authorized to execute swaps.
 pub fn is_strategist_authorized(
-    _deps: Deps,
+    deps: Deps,
     config_strategist: &Addr,
     strategist_address: &Addr,
+    auth_contract: &Addr,
 ) -> StdResult<IsAuthorizedResponse> {
-    Ok(IsAuthorizedResponse {
-        is_authorized: config_strategist == strategist_address,
-    })
-}
-
-/// Checks if an asset pair is authorized
-/// 
-/// This function first checks against the local config, then can be extended
-/// to check with the Valence authorization contract in the future.
-pub fn is_asset_pair_authorized(
-    _deps: Deps,
-    allowed_pairs: &[crate::types::AssetPair],
-    input_asset: &str,
-    output_asset: &str,
-) -> StdResult<IsAuthorizedResponse> {
-    let is_authorized = allowed_pairs.iter().any(|pair| {
-        pair.input_asset == input_asset && pair.output_asset == output_asset
-    });
+    // First do a local check for efficiency
+    if config_strategist != strategist_address {
+        return Ok(IsAuthorizedResponse {
+            is_authorized: false,
+        });
+    }
+    
+    // Query the authorization contract to validate the permission
+    let query_msg = valence_authorization_utils::msg::QueryMsg::IsPermitted {
+        label: "skip_swap".to_string(),
+        sender: strategist_address.to_string(),
+    };
+    
+    // Send the query to the authorization contract
+    let result: Result<GenericPermissionResponse, _> = 
+        deps.querier.query_wasm_smart(auth_contract, &query_msg);
+    
+    // Return the result from the authorization contract or false if there was an error
+    let is_authorized = match result {
+        Ok(response) => response.is_permitted,
+        Err(_) => false, // If there's an error, treat as unauthorized
+    };
     
     Ok(IsAuthorizedResponse { is_authorized })
 }
 
+/// Checks if an asset pair is authorized
+/// 
+/// This function first checks against the local config, then also verifies
+/// with the Valence authorization contract to ensure the pair is authorized.
+pub fn is_asset_pair_authorized(
+    deps: Deps,
+    allowed_pairs: &[crate::types::AssetPair],
+    input_asset: &str,
+    output_asset: &str,
+    auth_contract: Option<&Addr>,
+) -> StdResult<IsAuthorizedResponse> {
+    // First check against local configuration
+    let is_locally_authorized = allowed_pairs.iter().any(|pair| {
+        pair.input_asset == input_asset && pair.output_asset == output_asset
+    });
+    
+    // If not authorized locally, no need to check with auth contract
+    if !is_locally_authorized {
+        return Ok(IsAuthorizedResponse { is_authorized: false });
+    }
+    
+    // If there's an authorization contract, check with it too
+    if let Some(contract_addr) = auth_contract {
+        // Create query to check if this asset pair is allowed in the authorization
+        let query_msg = valence_authorization_utils::msg::QueryMsg::IsPermittedForParams {
+            label: "skip_swap".to_string(),
+            params: serde_json::json!({
+                "input_asset": input_asset,
+                "output_asset": output_asset,
+            }),
+        };
+        
+        // Query the authorization contract
+        let result: Result<GenericPermissionResponse, _> = 
+            deps.querier.query_wasm_smart(contract_addr, &query_msg);
+            
+        // If auth contract says it's not authorized, respect that decision
+        if let Ok(response) = result {
+            if !response.is_permitted {
+                return Ok(IsAuthorizedResponse { is_authorized: false });
+            }
+        }
+    }
+    
+    // If we got here, it's authorized (locally and by auth contract if present)
+    Ok(IsAuthorizedResponse { is_authorized: true })
+}
+
 /// Checks if a swap venue is authorized
 /// 
-/// This function first checks against the local config, then can be extended
-/// to check with the Valence authorization contract in the future.
+/// This function first checks against the local config, then also verifies
+/// with the Valence authorization contract to ensure the venue is authorized.
 pub fn is_swap_venue_authorized(
-    _deps: Deps,
+    deps: Deps,
     allowed_venues: &[String],
     venue: &str,
+    auth_contract: Option<&Addr>,
 ) -> StdResult<IsAuthorizedResponse> {
-    Ok(IsAuthorizedResponse {
-        is_authorized: allowed_venues.contains(&venue.to_string()),
-    })
+    // First check against local configuration
+    let is_locally_authorized = allowed_venues.contains(&venue.to_string());
+    
+    // If not authorized locally, no need to check with auth contract
+    if !is_locally_authorized {
+        return Ok(IsAuthorizedResponse { is_authorized: false });
+    }
+    
+    // If there's an authorization contract, check with it too
+    if let Some(contract_addr) = auth_contract {
+        // Create query to check if this venue is allowed in the authorization
+        let query_msg = valence_authorization_utils::msg::QueryMsg::IsPermittedForParams {
+            label: "skip_swap".to_string(),
+            params: serde_json::json!({
+                "venue": venue,
+            }),
+        };
+        
+        // Query the authorization contract
+        let result: Result<GenericPermissionResponse, _> = 
+            deps.querier.query_wasm_smart(contract_addr, &query_msg);
+            
+        // If auth contract says it's not authorized, respect that decision
+        if let Ok(response) = result {
+            if !response.is_permitted {
+                return Ok(IsAuthorizedResponse { is_authorized: false });
+            }
+        }
+    }
+    
+    // If we got here, it's authorized (locally and by auth contract if present)
+    Ok(IsAuthorizedResponse { is_authorized: true })
 }
 
 /// Checks if a slippage amount is authorized
 /// 
-/// This function first checks against the local config, then can be extended
-/// to check with the Valence authorization contract in the future.
+/// This function first checks against the local config, then also verifies
+/// with the Valence authorization contract to ensure the slippage is authorized.
 pub fn is_slippage_authorized(
-    _deps: Deps,
+    deps: Deps,
     max_slippage: Decimal,
     slippage: Decimal,
+    auth_contract: Option<&Addr>,
 ) -> StdResult<IsAuthorizedResponse> {
-    Ok(IsAuthorizedResponse {
-        is_authorized: slippage <= max_slippage,
-    })
+    // First check against local configuration
+    let is_locally_authorized = slippage <= max_slippage;
+    
+    // If not authorized locally, no need to check with auth contract
+    if !is_locally_authorized {
+        return Ok(IsAuthorizedResponse { is_authorized: false });
+    }
+    
+    // If there's an authorization contract, check with it too
+    if let Some(contract_addr) = auth_contract {
+        // Create query to check if this slippage is allowed in the authorization
+        let query_msg = valence_authorization_utils::msg::QueryMsg::IsPermittedForParams {
+            label: "skip_swap".to_string(),
+            params: serde_json::json!({
+                "slippage": slippage.to_string(),
+            }),
+        };
+        
+        // Query the authorization contract
+        let result: Result<GenericPermissionResponse, _> = 
+            deps.querier.query_wasm_smart(contract_addr, &query_msg);
+            
+        // If auth contract says it's not authorized, respect that decision
+        if let Ok(response) = result {
+            if !response.is_permitted {
+                return Ok(IsAuthorizedResponse { is_authorized: false });
+            }
+        }
+    }
+    
+    // If we got here, it's authorized (locally and by auth contract if present)
+    Ok(IsAuthorizedResponse { is_authorized: true })
 }
 
 /// SwapMessage contains the information needed to execute a swap on the Skip contract
@@ -169,7 +296,8 @@ mod tests {
         let result = is_strategist_authorized(
             deps.as_ref(), 
             &strategist, 
-            &Addr::unchecked("strategist")
+            &Addr::unchecked("strategist"),
+            &Addr::unchecked("auth_contract")
         ).unwrap();
         assert!(result.is_authorized);
         
@@ -177,7 +305,8 @@ mod tests {
         let result = is_strategist_authorized(
             deps.as_ref(), 
             &strategist, 
-            &Addr::unchecked("not_strategist")
+            &Addr::unchecked("not_strategist"),
+            &Addr::unchecked("auth_contract")
         ).unwrap();
         assert!(!result.is_authorized);
     }
@@ -197,7 +326,8 @@ mod tests {
             deps.as_ref(),
             &allowed_pairs,
             "uusdc",
-            "steth"
+            "steth",
+            None
         ).unwrap();
         assert!(result.is_authorized);
         
@@ -206,7 +336,8 @@ mod tests {
             deps.as_ref(),
             &allowed_pairs,
             "invalid",
-            "steth"
+            "steth",
+            None
         ).unwrap();
         assert!(!result.is_authorized);
     }
@@ -220,7 +351,8 @@ mod tests {
         let result = is_swap_venue_authorized(
             deps.as_ref(),
             &allowed_venues,
-            "astroport"
+            "astroport",
+            None
         ).unwrap();
         assert!(result.is_authorized);
         
@@ -228,7 +360,8 @@ mod tests {
         let result = is_swap_venue_authorized(
             deps.as_ref(),
             &allowed_venues,
-            "invalid"
+            "invalid",
+            None
         ).unwrap();
         assert!(!result.is_authorized);
     }
@@ -242,7 +375,8 @@ mod tests {
         let result = is_slippage_authorized(
             deps.as_ref(),
             max_slippage,
-            Decimal::percent(1)
+            Decimal::percent(1),
+            None
         ).unwrap();
         assert!(result.is_authorized);
         
@@ -250,7 +384,8 @@ mod tests {
         let result = is_slippage_authorized(
             deps.as_ref(),
             max_slippage,
-            Decimal::percent(2)
+            Decimal::percent(2),
+            None
         ).unwrap();
         assert!(!result.is_authorized);
     }

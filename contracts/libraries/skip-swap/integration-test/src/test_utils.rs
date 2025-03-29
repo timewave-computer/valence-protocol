@@ -1,3 +1,8 @@
+/*
+ * Test utilities for Skip Swap Valence integration tests.
+ * Provides fixtures, helpers, and mock implementations to facilitate
+ * end-to-end testing of contract and strategist interactions.
+ */
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 use std::collections::HashMap;

@@ -1,3 +1,11 @@
+/*
+ * Tests for the validation module of Skip Swap Valence contract.
+ * Focuses on testing the validation logic for swap routes and parameters:
+ * - Route validation for optimized swaps
+ * - Swap authorization creation and validation
+ * - Parameter boundary checking
+ */
+
 use cosmwasm_std::{
     testing::{mock_dependencies, mock_env, mock_info},
     Addr, Decimal, Uint128,

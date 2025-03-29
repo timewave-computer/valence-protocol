@@ -1,3 +1,12 @@
+/*
+ * Message definitions for the Skip Swap Valence contract.
+ * Defines all message structures used for contract communication:
+ * - InstantiateMsg for contract initialization
+ * - ExecuteMsg for contract operations (swaps, route execution, config updates)
+ * - QueryMsg for data retrieval operations
+ * - Response structures for query results
+ */
+
 use cosmwasm_std::Uint128;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -20,6 +29,19 @@ pub enum QueryMsg {
         input_denom: String,
         input_amount: Uint128,
         output_denom: String,
+    },
+    /// Gets a list of pending simulation requests that need to be fulfilled by the strategist
+    GetPendingSimulationRequests {
+        start_after: Option<u64>,
+        limit: Option<u32>,
+    },
+    /// Gets a specific simulation request by ID
+    GetSimulationRequest {
+        request_id: u64,
+    },
+    /// Gets a simulation response by request ID
+    GetSimulationResponse {
+        request_id: u64,
     },
 }
 
@@ -53,6 +75,20 @@ pub enum ExecuteMsg {
     },
     /// Creates a skip swap authorization in the Valence authorization contract
     CreateSkipSwapAuthorization {},
+    /// Request a route simulation from the strategist
+    /// This creates a simulation request that the strategist can fulfill
+    RequestRouteSimulation {
+        input_denom: String,
+        input_amount: Uint128,
+        output_denom: String,
+        max_slippage: Option<String>,
+    },
+    /// Submit a route simulation result (strategist only)
+    /// This fulfills a pending simulation request with the optimized route
+    SubmitRouteSimulation {
+        request_id: u64,
+        route: SkipRouteResponse,
+    },
 }
 
 /// Response type for route parameters
@@ -83,4 +119,23 @@ pub struct ConfigResponse {
 pub struct SimulateSwapResponse {
     pub expected_output: Uint128,
     pub route_description: String,
+}
+
+/// Response type for simulation request
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
+pub struct SimulationRequestResponse {
+    pub request_id: u64,
+    pub requester: String,
+    pub input_denom: String,
+    pub input_amount: Uint128,
+    pub output_denom: String,
+    pub max_slippage: String,
+    pub timestamp: u64,
+    pub fulfilled: bool,
+}
+
+/// Response type for pending simulation requests
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
+pub struct PendingSimulationRequestsResponse {
+    pub requests: Vec<SimulationRequestResponse>,
 } 

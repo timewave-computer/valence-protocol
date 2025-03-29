@@ -1,3 +1,9 @@
+/*
+ * Error types for the Skip Swap Valence contract.
+ * Defines all the possible error cases that can occur during contract execution,
+ * including validation errors, unauthorized access, and specific swap-related failures.
+ */
+
 use cosmwasm_std::{Decimal, StdError};
 use thiserror::Error;
 
@@ -34,12 +40,39 @@ pub enum ContractError {
         expected_output: String,
     },
     
-    #[error("Invalid route received from strategist")]
-    InvalidRoute {},
+    #[error("Invalid route: {msg}")]
+    InvalidRoute { msg: String },
 
     #[error("Route execution timed out")]
     RouteTimeout {},
     
     #[error("Unauthorized: {msg}")]
     Unauthorized { msg: String },
+
+    #[error("Invalid skip route: {msg}")]
+    InvalidSkipRoute { msg: String },
+    
+    #[error("Invalid timeout timestamp: {0}")]
+    InvalidTimeout(String),
+    
+    #[error("Route not found for operation")]
+    RouteNotFound {},
+    
+    #[error("Unsupported asset pair: {input_denom} to {output_denom}")]
+    UnsupportedAssetPair {
+        input_denom: String,
+        output_denom: String,
+    },
+    
+    #[error("Invalid funds: expected {expected}, received {received}")]
+    InvalidFunds {
+        expected: String,
+        received: String,
+    },
+    
+    #[error("Not found: {msg}")]
+    NotFound { msg: String },
+    
+    #[error("Invalid request: {msg}")]
+    InvalidRequest { msg: String },
 } 

@@ -1,3 +1,9 @@
+/*
+ * skip-swap-valence: CosmWasm smart contract that interfaces with Skip Protocol 
+ * for cross-chain and DEX aggregator swaps. This contract serves as the main
+ * execution interface for Skip swap operations in the Valence ecosystem.
+ */
+
 pub mod authorization;
 pub mod contract;
 pub mod error;

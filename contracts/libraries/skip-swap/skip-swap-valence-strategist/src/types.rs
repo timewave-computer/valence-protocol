@@ -1,3 +1,8 @@
+/*
+ * Type definitions for Skip Swap Valence strategist.
+ * Defines the core data structures shared across the strategist components,
+ * including route parameters and asset pair definitions.
+ */
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

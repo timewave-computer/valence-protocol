@@ -1,3 +1,12 @@
+/*
+ * Validation module for the Skip Swap Valence contract.
+ * Provides validation logic for swap operations and routes:
+ * - Validating optimized routes from the strategist
+ * - Creating and verifying swap authorizations
+ * - Checking parameter boundaries (slippage, timeout, etc.)
+ * - Validating asset pairs against allowed configurations
+ */
+
 use cosmwasm_std::{Addr, Deps};
 
 use crate::authorization::{
@@ -13,7 +22,27 @@ pub fn validate_strategist(
     config: &Config,
     strategist_address: &Addr,
 ) -> Result<(), ContractError> {
-    let response = is_strategist_authorized(deps, &config.strategist_address, strategist_address)?;
+    // Check if authorization contract should be used
+    let auth_contract = match &config.authorization_contract {
+        Some(addr) if config.use_authorization_contract => addr,
+        _ => {
+            // If no authorization contract or not using it, do a local check
+            if &config.strategist_address != strategist_address {
+                return Err(ContractError::UnauthorizedStrategist {
+                    address: strategist_address.to_string(),
+                });
+            }
+            return Ok(());
+        }
+    };
+    
+    // Use the authorization contract for validation
+    let response = is_strategist_authorized(
+        deps, 
+        &config.strategist_address, 
+        strategist_address,
+        auth_contract
+    )?;
     
     if !response.is_authorized {
         return Err(ContractError::UnauthorizedStrategist {
@@ -31,11 +60,19 @@ pub fn validate_asset_pair(
     input_asset: &str,
     output_asset: &str,
 ) -> Result<(), ContractError> {
+    // Get the auth contract if available and enabled
+    let auth_contract = if config.use_authorization_contract {
+        config.authorization_contract.as_ref()
+    } else {
+        None
+    };
+    
     let response = is_asset_pair_authorized(
         deps, 
         &config.allowed_asset_pairs, 
         input_asset, 
-        output_asset
+        output_asset,
+        auth_contract
     )?;
     
     if !response.is_authorized {

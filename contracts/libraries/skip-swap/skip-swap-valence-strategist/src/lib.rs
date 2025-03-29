@@ -1,3 +1,10 @@
+/*
+ * skip-swap-valence-strategist: Client library for orchestrating and optimizing
+ * Skip Protocol swap routes. This strategic layer monitors accounts, queries optimal
+ * routes from Skip API, and manages the execution of swaps through the skip-swap-valence
+ * contract.
+ */
+
 pub mod chain;
 pub mod config;
 pub mod msg;
