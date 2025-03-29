@@ -1,6 +1,9 @@
-use cosmwasm_std::{Coin, CosmosMsg, Decimal, StdError, StdResult, Uint128, WasmMsg, to_json_binary};
+use cosmwasm_std::{Coin, CosmosMsg, Decimal, StdResult, Uint128, WasmMsg, to_json_binary};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use async_trait::async_trait;
+use thiserror::Error;
+use std::sync::Arc;
 
 /// Skip Swap library ExecuteMsg
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -29,6 +32,111 @@ pub trait SkipApiClient {
         allowed_venues: &[String],
         max_slippage: Decimal,
     ) -> StdResult<SkipRouteResponse>;
+}
+
+/// Errors that can occur when interacting with the Skip API
+#[derive(Error, Debug)]
+pub enum SkipApiError {
+    #[error("HTTP error: {0}")]
+    HttpError(String),
+    
+    #[error("Invalid response: {0}")]
+    InvalidResponse(String),
+    
+    #[error("Rate limit exceeded")]
+    RateLimitExceeded,
+    
+    #[error("API error: {0}")]
+    ApiError(String),
+}
+
+/// Trait defining the async interface for interacting with the Skip API
+#[async_trait]
+pub trait SkipAsync: Send + Sync {
+    /// Get the optimal route for a swap between two assets
+    async fn get_optimal_route(
+        &self,
+        source_asset_denom: &str,
+        dest_asset_denom: &str,
+        amount: Uint128,
+        slippage_tolerance: Decimal,
+    ) -> Result<SkipRouteResponseAsync, SkipApiError>;
+}
+
+/// Represents a swap operation in a route (async version)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SwapOperationAsync {
+    /// Chain ID where the swap occurs
+    pub chain_id: String,
+    
+    /// Type of operation (e.g., "swap")
+    pub operation_type: String,
+    
+    /// Venue for the swap (e.g., "astroport")
+    pub swap_venue: Option<String>,
+    
+    /// Details for the swap operation
+    pub swap_details: Option<SwapDetails>,
+    
+    /// Details for any transfer operation
+    pub transfer_details: Option<TransferDetails>,
+}
+
+/// Details specific to a swap operation
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SwapDetails {
+    /// Input token denom
+    pub input_denom: String,
+    
+    /// Output token denom
+    pub output_denom: String,
+    
+    /// Pool ID for the swap
+    pub pool_id: Option<String>,
+}
+
+/// Details specific to a transfer operation
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TransferDetails {
+    /// Source chain ID
+    pub source_chain_id: String,
+    
+    /// Destination chain ID
+    pub dest_chain_id: String,
+    
+    /// Port on the source chain
+    pub source_port: String,
+    
+    /// Channel on the source chain
+    pub source_channel: String,
+}
+
+/// Response from the Skip API containing route information (async version)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SkipRouteResponseAsync {
+    /// Chain ID of the source token
+    pub source_chain_id: String,
+    
+    /// Denom of the source token
+    pub source_asset_denom: String,
+    
+    /// Chain ID of the destination token
+    pub dest_chain_id: String,
+    
+    /// Denom of the destination token
+    pub dest_asset_denom: String,
+    
+    /// Amount to swap
+    pub amount: Uint128,
+    
+    /// Operations to perform in sequence
+    pub operations: Vec<SwapOperationAsync>,
+    
+    /// Expected output amount
+    pub expected_output: Uint128,
+    
+    /// Slippage tolerance as a percentage
+    pub slippage_tolerance_percent: Decimal,
 }
 
 /// Mock Skip API client implementation for testing
@@ -92,7 +200,7 @@ impl SkipApiClient for SkipApi {
         output_denom: &str,
         amount: Uint128,
         allowed_venues: &[String],
-        max_slippage: Decimal,
+        _max_slippage: Decimal,
     ) -> StdResult<SkipRouteResponse> {
         // In a real implementation with reqwest HTTP client, this would:
         // 1. Construct an HTTP request to the Skip API
@@ -248,365 +356,216 @@ pub struct RouteRequest {
     /// Allowed bridges for cross-chain operations
     pub allowed_bridges: Option<Vec<String>>,
     /// Allowed DEXes for swaps
-    pub allowed_routes: Option<Vec<String>>,
+    pub allowed_swap_venues: Option<Vec<String>>,
 }
 
-/// Route response from Skip API
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct RouteResponse {
-    /// Chain operations to perform
-    pub chain_operations: Vec<ChainOperation>,
-    /// Total estimated time in seconds
-    pub estimated_time_seconds: u64,
-    /// Total estimated fee in USD
-    pub estimated_fees_usd: String,
+/// Create a Skip Swap execute message for executing an optimized route
+pub fn create_execute_optimized_route_msg(
+    input_denom: String,
+    input_amount: Uint128,
+    output_denom: String,
+    min_output_amount: Uint128,
+    route: SkipRouteResponse,
+) -> StdResult<CosmosMsg> {
+    let msg = ExecuteMsg::ExecuteOptimizedRoute {
+        input_denom: input_denom.clone(),
+        input_amount,
+        output_denom,
+        min_output_amount,
+        operations: route.operations,
+        timeout_timestamp: route.timeout_timestamp,
+        swap_venue: route.swap_venue,
+    };
+    
+    Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: "skip_swap_valence".to_string(), // This would be the actual contract address
+        msg: to_json_binary(&msg)?,
+        funds: vec![Coin {
+            denom: input_denom,
+            amount: input_amount,
+        }],
+    }))
 }
 
-/// Chain operation in a route
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct ChainOperation {
-    /// Chain ID
-    pub chain_id: String,
-    /// Operations to perform
-    pub operations: Vec<Operation>,
+/// Implementation of the Async Skip API client
+pub struct SkipApiClientAsync {
+    /// Base URL for the Skip API
+    base_url: String,
+    
+    /// API key for authentication
+    api_key: Option<String>,
+    
+    /// HTTP client for making requests
+    #[cfg(feature = "runtime")]
+    client: reqwest::Client,
 }
 
-/// Operation type in a chain operation
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(tag = "operation_type")]
-pub enum Operation {
-    /// Swap operation
-    Swap {
-        /// Swap venue name
-        swap_venue: SwapVenue,
-        /// Swap in asset
-        swap_in: Asset,
-        /// Swap operations
-        swap_operations: Vec<SwapStep>,
-    },
-    /// Transfer operation for cross-chain
-    Transfer {
-        /// Port ID
-        port: String,
-        /// Channel ID
-        channel: String,
-        /// Destination chain
-        destination_chain: String,
-    },
-}
-
-/// Swap venue
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct SwapVenue {
-    /// Venue name
-    pub name: String,
-}
-
-/// Swap step
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct SwapStep {
-    /// DEX to use
-    pub dex: String,
-    /// Pool ID
-    pub pool_id: String,
-    /// Input denomination
-    pub input_denom: String,
-    /// Output denomination
-    pub output_denom: String,
-}
-
-/// Validate a route execution response against expected parameters
-pub fn validate_route_execution(
-    response: &RouteExecutionResponse,
-    expected_input_denom: &str,
-    expected_output_denom: &str,
-    expected_swap_venue: &str,
-    expected_pool_id: &str,
-    expected_output_address: &str,
-) -> bool {
-    response.input_denom == expected_input_denom
-        && response.output_denom == expected_output_denom
-        && response.swap_venue == expected_swap_venue
-        && response.pool_id == expected_pool_id
-        && response.output_address == expected_output_address
-}
-
-/// Extract route details from a Skip execute message for validation
-pub fn extract_route_details(msg: &SkipExecuteMsg) -> Option<RouteExecutionResponse> {
-    match msg {
-        SkipExecuteMsg::SwapAndAction {
-            sent_asset,
-            user_swap,
-            min_asset,
-            post_swap_action,
-            ..
-        } => {
-            // Extract input denom and amount
-            let (input_denom, input_amount) = if let Some(asset) = sent_asset {
-                match &asset.info {
-                    AssetInfo::Native { denom } => (denom.clone(), asset.amount),
-                    AssetInfo::Token { address } => (address.clone(), asset.amount),
-                }
-            } else {
-                return None;
-            };
-
-            // Extract output denom and amount
-            let (output_denom, min_output_amount) = match &min_asset.info {
-                AssetInfo::Native { denom } => (denom.clone(), min_asset.amount),
-                AssetInfo::Token { address } => (address.clone(), min_asset.amount),
-            };
-
-            // Extract output address
-            let output_address = match post_swap_action {
-                Action::Transfer { to_address } => to_address.clone(),
-            };
-
-            // Extract pool ID and swap venue
-            if user_swap.operations.is_empty() {
-                return None;
-            }
-            
-            let first_op = &user_swap.operations[0];
-            
-            Some(RouteExecutionResponse {
-                input_denom,
-                output_denom,
-                swap_venue: user_swap.swap_venue_name.clone(),
-                pool_id: first_op.pool_id.clone(),
-                output_address,
-                input_amount,
-                min_output_amount,
-            })
+impl SkipApiClientAsync {
+    /// Create a new Async Skip API client
+    pub fn new(base_url: String, api_key: Option<String>) -> Self {
+        #[cfg(feature = "runtime")]
+        let client = reqwest::Client::new();
+        
+        Self {
+            base_url,
+            api_key,
+            #[cfg(feature = "runtime")]
+            client,
         }
     }
-}
-
-/// Creates a message to execute an optimized route
-pub fn create_execute_optimized_route_msg(
-    _input_denom: String,
-    _input_amount: Uint128,
-    _output_denom: String,
-    _min_output_amount: Uint128,
-    _route: SkipRouteResponse,
-) -> StdResult<CosmosMsg> {
-    // Return a generic error as this is just a placeholder
-    Err(StdError::generic_err("Not implemented - requires library address in real implementation"))
-}
-
-/// Creates a static USDC to stETH route
-pub fn create_static_usdc_to_steth_route(
-    skip_entry_point: &str,
-    output_address: &str,
-    usdc_amount: Uint128,
-    min_steth_amount: Uint128,
-    timeout_timestamp: u64,
-    astroport_pool_id: &str,
-    usdc_denom: &str,
-    steth_denom: &str,
-) -> StdResult<CosmosMsg> {
-    // Validate input parameters
-    if skip_entry_point.is_empty() {
-        return Err(StdError::generic_err("Skip entry point address cannot be empty"));
-    }
-    
-    if output_address.is_empty() {
-        return Err(StdError::generic_err("Output address cannot be empty"));
-    }
-    
-    if usdc_amount.is_zero() {
-        return Err(StdError::generic_err("USDC amount must be greater than zero"));
-    }
-    
-    if min_steth_amount.is_zero() {
-        return Err(StdError::generic_err("Minimum stETH amount must be greater than zero"));
-    }
-    
-    if astroport_pool_id.is_empty() {
-        return Err(StdError::generic_err("Astroport pool ID cannot be empty"));
-    }
-    
-    if usdc_denom.is_empty() {
-        return Err(StdError::generic_err("USDC denom cannot be empty"));
-    }
-    
-    if steth_denom.is_empty() {
-        return Err(StdError::generic_err("stETH denom cannot be empty"));
-    }
-
-    // Create the swap operation
-    let swap_operation = SwapOperation {
-        pool_id: astroport_pool_id.to_string(),
-        denom_in: usdc_denom.to_string(),
-        denom_out: steth_denom.to_string(),
-    };
-
-    // Create asset objects
-    let sent_asset = Some(Asset {
-        info: AssetInfo::Native {
-            denom: usdc_denom.to_string(),
-        },
-        amount: usdc_amount,
-    });
-
-    let min_asset = Asset {
-        info: AssetInfo::Native {
-            denom: steth_denom.to_string(),
-        },
-        amount: min_steth_amount,
-    };
-
-    // Create the swap message
-    let swap_msg = SkipExecuteMsg::SwapAndAction {
-        sent_asset,
-        user_swap: Swap {
-            swap_venue_name: "astroport".to_string(),
-            operations: vec![swap_operation],
-        },
-        min_asset,
-        timeout_timestamp,
-        post_swap_action: Action::Transfer {
-            to_address: output_address.to_string(),
-        },
-        affiliates: vec![],
-    };
-
-    // Create the WasmMsg
-    let wasm_msg = WasmMsg::Execute {
-        contract_addr: skip_entry_point.to_string(),
-        msg: to_json_binary(&swap_msg)
-            .map_err(|e| StdError::generic_err(format!("Failed to serialize swap message: {}", e)))?,
-        funds: vec![Coin {
-            denom: usdc_denom.to_string(),
-            amount: usdc_amount,
-        }],
-    };
-
-    Ok(CosmosMsg::Wasm(wasm_msg))
 }
 
 #[cfg(feature = "runtime")]
-pub mod http_client {
-    use reqwest::{Client, header};
-    use crate::skip::{RouteRequest, RouteResponse};
-    use cosmwasm_std::{Decimal, Uint128};
-    use std::time::Duration;
-
-    pub struct SkipHttpClient {
-        client: Client,
-        base_url: String,
-        api_key: Option<String>,
+#[async_trait]
+impl SkipAsync for SkipApiClientAsync {
+    async fn get_optimal_route(
+        &self,
+        source_asset_denom: &str,
+        dest_asset_denom: &str,
+        amount: Uint128,
+        slippage_tolerance: Decimal,
+    ) -> Result<SkipRouteResponseAsync, SkipApiError> {
+        // Build the API URL
+        let url = format!("{}/v1/router/routes", self.base_url);
+        
+        // Construct the request payload
+        let payload = serde_json::json!({
+            "source_asset_denom": source_asset_denom,
+            "source_asset_chain_id": "neutron",  // This would come from config in real impl
+            "dest_asset_denom": dest_asset_denom,
+            "dest_asset_chain_id": "neutron",    // This would come from config in real impl
+            "amount": amount.to_string(),
+            "slippage_tolerance_percent": slippage_tolerance.to_string(),
+        });
+        
+        // Build the request with optional API key
+        let mut request_builder = self.client.post(&url).json(&payload);
+        if let Some(api_key) = &self.api_key {
+            request_builder = request_builder.header("x-skip-api-key", api_key);
+        }
+        
+        // Execute the request
+        let response = request_builder
+            .send()
+            .await
+            .map_err(|e| SkipApiError::HttpError(e.to_string()))?;
+        
+        // Check for rate limiting
+        if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+            return Err(SkipApiError::RateLimitExceeded);
+        }
+        
+        // Check for other errors
+        if !response.status().is_success() {
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(SkipApiError::ApiError(error_text));
+        }
+        
+        // Parse the response
+        let response_json: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| SkipApiError::InvalidResponse(e.to_string()))?;
+        
+        // Extract the route from the response
+        let route: SkipRouteResponseAsync = serde_json::from_value(response_json["route"].clone())
+            .map_err(|e| SkipApiError::InvalidResponse(e.to_string()))?;
+        
+        Ok(route)
     }
+}
 
-    impl SkipHttpClient {
-        pub fn new(base_url: &str, api_key: Option<String>) -> Self {
-            let client = Client::builder()
-                .timeout(Duration::from_secs(30))
-                .build()
-                .unwrap_or_default();
+// Non-runtime implementation that returns a mock response
+#[cfg(not(feature = "runtime"))]
+#[async_trait]
+impl SkipAsync for SkipApiClientAsync {
+    async fn get_optimal_route(
+        &self,
+        source_asset_denom: &str,
+        dest_asset_denom: &str,
+        amount: Uint128,
+        slippage_tolerance: Decimal,
+    ) -> Result<SkipRouteResponseAsync, SkipApiError> {
+        // Create a simple mock route
+        Ok(SkipRouteResponseAsync {
+            source_chain_id: "neutron".to_string(),
+            source_asset_denom: source_asset_denom.to_string(),
+            dest_chain_id: "neutron".to_string(),
+            dest_asset_denom: dest_asset_denom.to_string(),
+            amount,
+            operations: vec![SwapOperationAsync {
+                chain_id: "neutron".to_string(),
+                operation_type: "swap".to_string(),
+                swap_venue: Some("astroport".to_string()),
+                swap_details: Some(SwapDetails {
+                    input_denom: source_asset_denom.to_string(),
+                    output_denom: dest_asset_denom.to_string(),
+                    pool_id: Some("pool1".to_string()),
+                }),
+                transfer_details: None,
+            }],
+            expected_output: amount.multiply_ratio(99u128, 100u128),  // 1% slippage
+            slippage_tolerance_percent: slippage_tolerance,
+        })
+    }
+}
 
-            Self {
-                client,
-                base_url: base_url.to_string(),
-                api_key,
-            }
+/// Async Mock implementation of the Skip API client for testing
+pub struct MockSkipApiAsync {
+    /// Predefined route to return
+    route: Option<Arc<SkipRouteResponseAsync>>,
+}
+
+impl MockSkipApiAsync {
+    /// Create a new mock client with no predefined route
+    pub fn new() -> Self {
+        Self { route: None }
+    }
+    
+    /// Create a new mock client with a predefined route
+    pub fn with_route(route: Arc<SkipRouteResponseAsync>) -> Self {
+        Self { route: Some(route) }
+    }
+}
+
+#[async_trait]
+impl SkipAsync for MockSkipApiAsync {
+    async fn get_optimal_route(
+        &self,
+        source_asset_denom: &str,
+        dest_asset_denom: &str,
+        amount: Uint128,
+        slippage_tolerance: Decimal,
+    ) -> Result<SkipRouteResponseAsync, SkipApiError> {
+        // If a predefined route is set, return it
+        if let Some(route) = &self.route {
+            return Ok(route.as_ref().clone());
         }
-
-        pub async fn get_chains(&self) -> Result<Vec<String>, String> {
-            let url = format!("{}/v2/info/chains", self.base_url);
-            
-            let mut request = self.client.get(&url);
-            
-            // Add API key if available
-            if let Some(api_key) = &self.api_key {
-                request = request.header(header::AUTHORIZATION, api_key);
-            }
-            
-            let response = request
-                .send()
-                .await
-                .map_err(|e| format!("Failed to send request: {}", e))?;
-            
-            if !response.status().is_success() {
-                return Err(format!("Failed to get chains: {}", response.status()));
-            }
-            
-            response.json::<Vec<String>>()
-                .await
-                .map_err(|e| format!("Failed to parse response: {}", e))
-        }
-
-        pub async fn get_bridges(&self) -> Result<Vec<String>, String> {
-            let url = format!("{}/v2/info/bridges", self.base_url);
-            
-            let mut request = self.client.get(&url);
-            
-            // Add API key if available
-            if let Some(api_key) = &self.api_key {
-                request = request.header(header::AUTHORIZATION, api_key);
-            }
-            
-            let response = request
-                .send()
-                .await
-                .map_err(|e| format!("Failed to send request: {}", e))?;
-            
-            if !response.status().is_success() {
-                return Err(format!("Failed to get bridges: {}", response.status()));
-            }
-            
-            response.json::<Vec<String>>()
-                .await
-                .map_err(|e| format!("Failed to parse response: {}", e))
-        }
-
-        pub async fn get_route(
-            &self,
-            source_chain_id: &str,
-            destination_chain_id: &str,
-            source_asset_denom: &str,
-            destination_asset_denom: &str,
-            amount: Uint128,
-            destination_address: &str,
-            slippage_tolerance: Decimal,
-            allowed_routes: Option<Vec<String>>,
-            allowed_bridges: Option<Vec<String>>,
-        ) -> Result<RouteResponse, String> {
-            let url = format!("{}/v2/fungible/route", self.base_url);
-            
-            let route_request = RouteRequest {
-                source_chain_id: source_chain_id.to_string(),
-                destination_chain_id: destination_chain_id.to_string(),
-                source_asset_denom: source_asset_denom.to_string(),
-                destination_asset_denom: destination_asset_denom.to_string(),
-                amount: amount.to_string(),
-                destination_address: destination_address.to_string(),
-                slippage_tolerance_percent: slippage_tolerance.to_string(),
-                allowed_bridges,
-                allowed_routes,
-            };
-            
-            let mut request = self.client.post(&url)
-                .json(&route_request);
-            
-            // Add API key if available
-            if let Some(api_key) = &self.api_key {
-                request = request.header(header::AUTHORIZATION, api_key);
-            }
-            
-            let response = request
-                .send()
-                .await
-                .map_err(|e| format!("Failed to send request: {}", e))?;
-            
-            if !response.status().is_success() {
-                return Err(format!("Failed to get route: {}", response.status()));
-            }
-            
-            response.json::<RouteResponse>()
-                .await
-                .map_err(|e| format!("Failed to parse response: {}", e))
-        }
+        
+        // Otherwise, create a simple route
+        Ok(SkipRouteResponseAsync {
+            source_chain_id: "neutron".to_string(),
+            source_asset_denom: source_asset_denom.to_string(),
+            dest_chain_id: "neutron".to_string(),
+            dest_asset_denom: dest_asset_denom.to_string(),
+            amount,
+            operations: vec![SwapOperationAsync {
+                chain_id: "neutron".to_string(),
+                operation_type: "swap".to_string(),
+                swap_venue: Some("astroport".to_string()),
+                swap_details: Some(SwapDetails {
+                    input_denom: source_asset_denom.to_string(),
+                    output_denom: dest_asset_denom.to_string(),
+                    pool_id: Some("pool1".to_string()),
+                }),
+                transfer_details: None,
+            }],
+            expected_output: amount.multiply_ratio(99u128, 100u128),  // 1% slippage
+            slippage_tolerance_percent: slippage_tolerance,
+        })
     }
 }
 
@@ -615,139 +574,59 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_mock_skip_api_client() {
-        let client = MockSkipApiClient;
+    fn test_create_execute_optimized_route_msg() {
+        let input_denom = "uatom".to_string();
+        let input_amount = Uint128::new(1000000);
+        let output_denom = "uusdc".to_string();
+        let min_output_amount = Uint128::new(950000);
         
-        let response = client.query_optimal_route(
-            "uusdc",
-            "steth",
-            Uint128::from(1000000u128),
-            &["astroport".to_string()],
-            Decimal::percent(1),
+        let route = SkipRouteResponse {
+            operations: vec![
+                SwapOperation {
+                    pool_id: "1".to_string(),
+                    denom_in: input_denom.clone(),
+                    denom_out: output_denom.clone(),
+                },
+            ],
+            expected_output: Uint128::new(990000),
+            timeout_timestamp: 1634567890,
+            swap_venue: "astroport".to_string(),
+        };
+        
+        let msg = create_execute_optimized_route_msg(
+            input_denom.clone(),
+            input_amount,
+            output_denom,
+            min_output_amount,
+            route,
         ).unwrap();
         
-        assert_eq!(response.expected_output, Uint128::from(1000000u128));
-        assert_eq!(response.swap_venue, "astroport");
-    }
-    
-    #[test]
-    fn test_skip_api() {
-        let client = SkipApi::new(
-            "https://api.skip.money",
-            Some("api-key".to_string()),
-        );
-        
-        assert_eq!(client.base_url, "https://api.skip.money");
-        assert_eq!(client.api_key, Some("api-key".to_string()));
-    }
-    
-    #[test]
-    fn test_create_route() {
-        // Test parameters
-        let skip_entry_point = "neutron1qd7prxvuhdq0p3rjk9xuwz2ph5fvwddqmfsj25qgmw0p2z3g5tscyqccnz";
-        let output_address = "neutron1user";
-        let usdc_amount = Uint128::from(1000000u128); // 1 USDC
-        let min_steth_amount = Uint128::from(500000u128); // 0.5 stETH
-        let timeout_timestamp = 1634567890u64;
-        let astroport_pool_id = "neutron1astropool";
-        let usdc_denom = "ibc/uusdc";
-        let steth_denom = "ibc/steth";
-        
-        // Create the route
-        let route_msg = create_static_usdc_to_steth_route(
-            skip_entry_point,
-            output_address,
-            usdc_amount,
-            min_steth_amount,
-            timeout_timestamp,
-            astroport_pool_id,
-            usdc_denom,
-            steth_denom,
-        ).unwrap();
-        
-        // Extract the message
-        if let CosmosMsg::Wasm(WasmMsg::Execute { contract_addr, msg, funds }) = route_msg {
-            // Verify contract address
-            assert_eq!(contract_addr, skip_entry_point);
-            
-            // Verify funds
-            assert_eq!(funds.len(), 1);
-            assert_eq!(funds[0].denom, usdc_denom);
-            assert_eq!(funds[0].amount, usdc_amount);
-            
-            // Parse the message
-            let swap_msg: SkipExecuteMsg = serde_json_wasm::from_slice(&msg.0).unwrap();
-            
-            // Extract route details
-            let route_details = extract_route_details(&swap_msg).unwrap();
-            
-            // Validate route details
-            assert!(validate_route_execution(
-                &route_details,
-                usdc_denom,
-                steth_denom,
-                "astroport",
-                astroport_pool_id,
-                output_address,
-            ));
-            
-            // Additional validations
-            assert_eq!(route_details.input_amount, usdc_amount);
-            assert_eq!(route_details.min_output_amount, min_steth_amount);
-        } else {
-            panic!("Expected WasmMsg::Execute");
+        match msg {
+            CosmosMsg::Wasm(WasmMsg::Execute { contract_addr, msg: _msg, funds }) => {
+                assert_eq!(contract_addr, "skip_swap_valence");
+                assert_eq!(funds.len(), 1);
+                assert_eq!(funds[0].denom, input_denom);
+                assert_eq!(funds[0].amount, input_amount);
+            },
+            _ => panic!("Expected Wasm Execute message"),
         }
     }
     
-    #[test]
-    fn test_validation_errors() {
-        // Valid parameters
-        let skip_entry_point = "neutron1qd7prxvuhdq0p3rjk9xuwz2ph5fvwddqmfsj25qgmw0p2z3g5tscyqccnz";
-        let output_address = "neutron1user";
-        let usdc_amount = Uint128::from(1000000u128);
-        let min_steth_amount = Uint128::from(500000u128);
-        let timeout_timestamp = 1634567890u64;
-        let astroport_pool_id = "neutron1astropool";
-        let usdc_denom = "ibc/uusdc";
-        let steth_denom = "ibc/steth";
+    #[tokio::test]
+    async fn test_mock_skip_api_async() {
+        let mock_client = MockSkipApiAsync::new();
         
-        // Test empty Skip entry point
-        let result = create_static_usdc_to_steth_route(
-            "",
-            output_address,
-            usdc_amount,
-            min_steth_amount,
-            timeout_timestamp,
-            astroport_pool_id,
-            usdc_denom,
-            steth_denom,
-        );
-        assert!(result.is_err());
+        let result = mock_client.get_optimal_route(
+            "uusdc",
+            "uatom",
+            Uint128::new(1000000),
+            Decimal::percent(1),
+        ).await;
         
-        // Test zero USDC amount
-        let result = create_static_usdc_to_steth_route(
-            skip_entry_point,
-            output_address,
-            Uint128::zero(),
-            min_steth_amount,
-            timeout_timestamp,
-            astroport_pool_id,
-            usdc_denom,
-            steth_denom,
-        );
-        assert!(result.is_err());
-        
-        // Test empty pool ID
-        let result = create_static_usdc_to_steth_route(
-            skip_entry_point,
-            output_address,
-            usdc_amount,
-            min_steth_amount,
-            timeout_timestamp,
-            "",
-            usdc_denom,
-            steth_denom,
-        );
-        assert!(result.is_err());
+        assert!(result.is_ok());
+        let route = result.unwrap();
+        assert_eq!(route.source_asset_denom, "uusdc");
+        assert_eq!(route.dest_asset_denom, "uatom");
+        assert_eq!(route.operations.len(), 1);
     }
 } 

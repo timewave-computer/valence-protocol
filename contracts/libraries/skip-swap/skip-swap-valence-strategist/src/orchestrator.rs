@@ -53,13 +53,24 @@ impl<T: SkipApiClient> Orchestrator<T> {
     }
 
     /// Start the polling loop
+    #[cfg(feature = "runtime")]
+    pub async fn start_polling(&mut self) -> StdResult<()> {
+        loop {
+            self.poll_for_deposits()?;
+            
+            // Use tokio's async sleep instead of blocking thread::sleep
+            tokio::time::sleep(tokio::time::Duration::from_secs(self.config.polling_interval)).await;
+        }
+    }
+
+    /// Synchronous version of start_polling for environments without async runtime
+    #[cfg(not(feature = "runtime"))]
     pub fn start_polling(&mut self) -> StdResult<()> {
         loop {
             self.poll_for_deposits()?;
             
-            // Sleep for polling interval
-            // In a real implementation, this would use tokio::time::sleep or similar
-            std::thread::sleep(Duration::from_secs(self.config.polling_interval));
+            // Use blocking sleep in non-async environments
+            std::thread::sleep(std::time::Duration::from_secs(self.config.polling_interval));
         }
     }
 
@@ -202,7 +213,7 @@ mod tests {
             skip_api_url: "https://api.skip.money".to_string(),
         };
         
-        let orchestrator = Orchestrator::new(chain_client, skip_api_client, config);
+        let _orchestrator = Orchestrator::new(chain_client, skip_api_client, config);
         
         // In a real test, we would mock the chain_client and skip_api_client
         // and test the orchestrator logic more thoroughly

@@ -7253,12 +7253,14 @@ dependencies = [
 name = "skip-swap-valence-strategist"
 version = "0.2.0"
 dependencies = [
+ "async-trait",
  "cosmwasm-std 2.2.1",
  "mockall",
  "reqwest 0.11.27",
  "schemars",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "toml",

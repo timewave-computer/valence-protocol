@@ -31,6 +31,9 @@ pub struct StrategistConfig {
     /// Skip API configuration
     pub skip_api: SkipApiConfig,
     
+    /// Monitored accounts for the orchestrator
+    pub monitored_accounts: Option<MonitoredAccountsConfig>,
+    
     /// Monitoring configuration
     pub monitoring: Option<MonitoringConfig>,
 }
@@ -56,6 +59,22 @@ pub struct LibraryConfig {
     
     /// Polling interval in seconds
     pub polling_interval: u64,
+    
+    /// Maximum retries for failed transactions
+    #[serde(default = "default_max_retries")]
+    pub max_retries: u8,
+    
+    /// Delay between retries in seconds
+    #[serde(default = "default_retry_delay")]
+    pub retry_delay: u64,
+}
+
+fn default_max_retries() -> u8 {
+    3
+}
+
+fn default_retry_delay() -> u64 {
+    5
 }
 
 /// Account configuration
@@ -79,6 +98,23 @@ pub struct SkipApiConfig {
     
     /// Timeout for API requests in seconds
     pub timeout: u64,
+}
+
+/// Monitored accounts configuration
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MonitoredAccountsConfig {
+    /// List of accounts to monitor, mapping token denom to account address
+    pub accounts: Vec<MonitoredAccount>,
+}
+
+/// A single monitored account entry
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MonitoredAccount {
+    /// Token denomination to monitor (e.g., "uatom", "uusdc")
+    pub token_denom: String,
+    
+    /// Account address to monitor
+    pub account_address: String,
 }
 
 /// Monitoring configuration

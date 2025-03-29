@@ -16,6 +16,7 @@ serde_json = "1.0.125"
 tokio = { version = "1.29", features = ["full"], optional = true }
 reqwest = { version = "0.11", features = ["json"], optional = true }
 toml = "0.8"
+async-trait = "0.1"
 
 [features]
 default = ["runtime"]
@@ -23,4 +24,5 @@ runtime = ["tokio", "reqwest"]
 
 [dev-dependencies]
 tokio = { version = "1.29", features = ["full", "macros", "test-util"] }
-mockall = "0.11" 
+mockall = "0.11"
+tempfile = "3.10.0" 
