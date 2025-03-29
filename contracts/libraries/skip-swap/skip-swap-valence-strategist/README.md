@@ -1,17 +1,84 @@
 # Skip Swap Valence Strategist
 
-An off-chain component that polls for token deposits and orchestrates Skip API interactions with the Valence Protocol.
+A service that interacts with both the Skip Protocol API and the Skip Swap Valence contract to provide optimized swap routes and pricing information.
 
 ## Overview
 
-The Skip Swap Valence Strategist is a long-running process that:
+The Skip Swap Valence Strategist is responsible for:
 
-1. Polls Valence input accounts for specific token deposits
-2. Queries the Skip Swap Valence library for route parameters
-3. Interacts with the Skip API to find optimal routes
-4. Submits optimized routes back to the Skip Swap Valence library
+1. Continuously monitoring the Skip Swap Valence contract for pending simulation requests
+2. Querying the Skip Protocol API for optimal swap routes and pricing data
+3. Submitting route simulation responses back to the contract
+4. Providing trusted price data and optimized routes for Valence programs
 
-**Critical Security Principle**: The Strategist never has custody over any funds. It only returns route data that is validated by the Skip Swap Valence library through its authorization module before any swap is executed.
+## Route Simulation Service
+
+The strategist implements a critical component of the Skip Swap Valence ecosystem by fulfilling route simulation requests with real-time data from the Skip Protocol.
+
+### Key Responsibilities
+
+#### Monitoring Simulation Requests
+
+The strategist periodically polls the Skip Swap Valence contract to discover pending simulation requests using the `GetPendingSimulationRequests` query endpoint. This allows it to stay aware of any new requests that need to be fulfilled.
+
+#### Route Optimization
+
+When a pending request is found, the strategist:
+1. Extracts the request parameters (input denom, output denom, amount, slippage)
+2. Makes an API call to Skip Protocol to find the most efficient route
+3. Processes the response to format it according to the contract's expected format
+
+#### Submitting Route Responses
+
+After obtaining optimized route information, the strategist:
+1. Prepares a `SubmitRouteSimulation` transaction with the route details
+2. Signs and broadcasts the transaction to the blockchain
+3. Confirms the successful submission
+
+#### Security and Authorization
+
+The strategist:
+- Only submits routes that have been verified through the Skip Protocol API
+- Properly signs all transactions using its authorized key
+- Ensures routes meet the requirements specified in the original request
+- Validates expected output amounts and slippage parameters
+
+## Configuration
+
+The strategist requires configuration for:
+- Connection details for the blockchain node
+- The Skip Swap Valence contract address
+- API credentials for the Skip Protocol
+- Signing keys and permission settings
+- Polling interval for checking pending requests
+
+## Example Flow
+
+```
+[Skip Swap Contract] → New simulation request created
+       |
+[Strategist] → Polls for pending requests
+       |
+       ↓
+[Strategist] → Finds request for swapping USDC to ATOM
+       |
+       ↓
+[Strategist] → Calls Skip API for optimal USDC → ATOM route
+       |
+       ↓
+[Strategist] → Receives route with expected output of 2.5 ATOM
+       |
+       ↓
+[Strategist] → Prepares SubmitRouteSimulation transaction
+       |
+       ↓
+[Skip Swap Contract] → Stores route simulation response
+       |
+       ↓
+[Valence Program] → Can now query and use the simulation results
+```
+
+By fulfilling route simulation requests, the strategist enables Valence programs to make informed decisions about swaps based on current market conditions without directly integrating with external APIs.
 
 ## Configuration
 

@@ -1,10 +1,79 @@
 # Skip Swap Valence
 
-The Skip Swap Valence library is a CosmWasm smart contract that facilitates token swaps through the Skip Protocol. It's designed to be integrated with the Valence Protocol and provides a secure and configurable interface for executing token swaps via the Skip entry point.
+A CosmWasm contract that enables secure integration between Valence and Skip Protocol for cross-chain swaps.
 
 ## Overview
 
-This library serves as the on-chain component of the Skip Swap system, working in conjunction with the off-chain Strategist actor. The library provides validation, configuration, and execution capabilities for token swaps, while relying on the Strategist for routing logic and Skip API interaction.
+Skip Swap Valence is a contract library that facilitates interaction with the Skip Protocol for cross-chain swaps, while leveraging Valence's authorization and orchestration capabilities. It provides a security layer for swap validation and execution.
+
+## Key Features
+
+- **Authorization Management**: Validate operations against permissioned actors and parameters
+- **Swap Execution**: Safely execute swaps through Skip Protocol's entry point
+- **Parameter Validation**: Ensure swaps only use approved asset pairs, venues, and slippage settings
+- **Asset Routing**: Configure where swapped assets should be sent
+- **Route Simulation & Price Oracle**: Request and receive price data and optimized routes through a trust-minimized process
+
+## Route Simulation System
+
+The Skip Swap Valence contract includes a simulation request system that enables Valence programs to request route simulations or price data from strategists. This provides a trust-minimized way to obtain pricing information before committing to swaps.
+
+### Key Components
+
+#### Message Types
+
+- `RequestRouteSimulation`: Request a route simulation with input asset, output asset, and amount parameters
+- `SubmitRouteSimulation`: Submit an optimized route as a response to a simulation request
+- `GetSimulationResponse`: Query a simulation response by request ID
+- `GetPendingSimulationRequests`: Query all pending (unfulfilled) simulation requests
+
+#### Storage
+
+- Simulation requests are stored with unique IDs
+- Responses are linked to their original requests
+- Pending requests can be easily queried by strategists
+
+### Workflow
+
+1. **Request Phase**: A Valence program calls `RequestRouteSimulation` with parameters
+2. **Polling Phase**: Strategists poll for pending requests using `GetPendingSimulationRequests`
+3. **Response Phase**: After querying Skip API, strategists submit optimized routes via `SubmitRouteSimulation`
+4. **Validation Phase**: The contract validates routes against request parameters and authorization constraints
+5. **Usage Phase**: Valence programs query simulation results using `GetSimulationResponse`
+
+### Use Cases
+
+- **Price Oracle**: Get current market prices for assets without executing swaps
+- **Swap Optimization**: Find the most efficient route before committing to execution
+- **Price-Dependent Logic**: Build conditional logic in Valence programs based on current prices
+- **Multi-Step Operations**: Get price information before executing complex operations
+
+### Security Features
+
+- **Request Authorization**: Only authorized actors can create simulation requests
+- **Response Validation**: Submitted routes are validated against original request parameters
+- **Parameter Constraints**: Routes must conform to authorized asset pairs, venues, and slippage settings
+- **Strategist Authentication**: Only authorized strategists can submit route simulations
+
+## Integration
+
+The Skip Swap Valence contract is designed to work within the Valence ecosystem:
+
+1. It integrates with the Valence authorization system for permission management
+2. It works with the Skip Swap Valence Strategist to obtain optimized routes
+3. It can be used by any Valence program to request price data or execute swaps
+
+## Configuration
+
+The contract is configured with:
+
+- Allowed asset pairs (input and output assets)
+- Allowed swap venues (e.g., "astroport", "osmosis")
+- Maximum slippage tolerance
+- Token destinations (where swapped tokens should be sent)
+- Strategist address
+- Skip entry point contract address
+- Authorization contract address (optional)
 
 ## Features
 

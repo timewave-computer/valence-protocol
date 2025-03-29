@@ -20,6 +20,7 @@ This architecture separates concerns, with the library handling secure on-chain 
 - Provides message construction for Skip integration
 - Validates routes returned by the Strategist
 - Executes optimized swap routes through the Skip entry point
+- Enables Valence programs to request and receive price data and optimized routes through a trust-minimized process
 
 ### Strategist Actor
 
@@ -29,6 +30,7 @@ The off-chain Strategist:
 - Interacts with the Skip API to find optimal routes
 - Submits routes to the library for execution
 - Handles authentication and API key management
+- Processes requests for route simulations and price data by querying Skip API and submitting verified results back to the contract
 
 ## Configuration
 
@@ -62,6 +64,8 @@ Config {
 
 ## Workflow
 
+### Basic Swap Workflow
+
 1. Valence input account receives tokens
 2. Strategist polls the Valence input account for token deposits
 3. When tokens are detected, Strategist calls `GetRouteParameters()`
@@ -71,6 +75,24 @@ Config {
 7. Library validates the route (allowed asset pairs, venues, slippage, and the Strategist's identity)
 8. Library forwards the route to the Skip entry point for execution
 
+### Route Simulation & Price Oracle Workflow
+
+1. Valence program calls `RequestRouteSimulation()` with parameters (input asset, output asset, amount)
+2. Skip Swap contract records the request with a unique ID
+3. Strategist polls for pending simulation requests using `GetPendingSimulationRequests()`
+4. Strategist queries Skip API to find the optimal route meeting the request parameters
+5. Strategist submits the route data using `SubmitRouteSimulation()`
+6. Skip Swap contract verifies the route against request parameters and authorization constraints
+7. Valence program can query the simulation result using `GetSimulationResponse()`
+8. The route data can be used as price information or executed through the standard swap execution flow
+
+This oracle/simulation system enables Valence programs to obtain current market prices or optimized routes through a trust-minimized process with proper validation and authorization checks. It's particularly useful for:
+
+- Getting current asset prices before making decisions
+- Finding optimal swap routes without committing to execution
+- Building price-dependent logic into Valence programs
+- Creating multi-step operations where pricing information is needed before execution
+
 ## Security
 
 The architecture is designed with security in mind:
@@ -79,6 +101,8 @@ The architecture is designed with security in mind:
 - Only pre-configured asset pairs and venues are allowed
 - Maximum slippage enforcement prevents excessive losses
 - Only the designated Strategist address can submit routes
+- Request parameters are validated against actual returned routes
+- Authorization checks are performed at each step of the process
 
 ## Development
 
@@ -170,3 +194,58 @@ cargo tarpaulin --out Html
 ```
 
 This will generate an HTML report in the current directory showing test coverage statistics.
+
+# Skip Swap Valence Library
+
+Skip Swap Valence is a contract library that facilitates interaction with the Skip Protocol for cross-chain swaps, while leveraging Valence's authorization and orchestration capabilities.
+
+## Features
+
+- Execute cross-chain token swaps through Skip Protocol
+- Validate swap parameters against configurable constraints
+- Integrate with Valence authorization contracts for permission management
+- Submit optimized swap routes with slippage protection
+
+## Route Simulation System
+
+The Skip Swap Valence contract includes a simulation request system that enables Valence programs to request route simulations or price data from the strategist. This system provides a trust-minimized way to obtain pricing information and optimize routes before executing swaps.
+
+### How It Works
+
+1. **Request Phase**: A Valence program calls the `RequestRouteSimulation` function on the Skip Swap contract with parameters (input asset, output asset, amount, and optional max slippage).
+
+2. **Polling Phase**: The strategist periodically polls the contract using `GetPendingSimulationRequests` to discover new simulation requests that need to be fulfilled.
+
+3. **Response Phase**: After querying the Skip API for the best route, the strategist submits the optimized route back to the contract using `SubmitRouteSimulation`.
+
+4. **Validation Phase**: The contract validates the returned route against the original request parameters and authorization constraints.
+
+5. **Usage Phase**: The simulation result can be queried using `GetSimulationResponse` and used in subsequent swap operations, providing price information or executing the optimized route.
+
+### Key Components
+
+- **Simulation Requests**: Stored on-chain with a unique ID, containing input/output denoms, amount, and slippage preferences
+- **Pending Request Queries**: Allow strategists to discover and fulfill pending requests
+- **Route Validation**: Ensures routes meet the requirements of the original request and contract authorization rules
+- **Integration with Swaps**: Simulation results can be used directly in swap execution
+
+### Example Flow
+
+```
+[Valence Program] → RequestRouteSimulation → [Skip Swap Contract]
+                                               |
+[Strategist] ← GetPendingSimulationRequests ← [Skip Swap Contract]
+      |
+      ↓
+[Skip API] → Get optimized route
+      |
+      ↓
+[Strategist] → SubmitRouteSimulation → [Skip Swap Contract]
+                                         |
+[Valence Program] ← GetSimulationResponse ← [Skip Swap Contract]
+      |
+      ↓
+[Execute swap using the optimized route]
+```
+
+This system enables Valence programs to obtain reliable, validated pricing data or optimized routes with minimal trust assumptions and proper authorization checks.
