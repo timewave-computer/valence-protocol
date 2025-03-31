@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>CCTP Transfer - Valence Protocol Documentation</title>
+        <title>Stargate Transfer - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -157,58 +157,72 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="valence-cctp-transfer-library"><a class="header" href="#valence-cctp-transfer-library">Valence CCTP Transfer library</a></h1>
-<p>The <strong>Valence CCTP Transfer</strong> library allows to <strong>transfer funds</strong> from an <strong>input account</strong> to a <strong>mint recipient</strong> using the <a href="https://developers.circle.com/stablecoins/cctp-getting-started">Cross-Chain Transfer Protocol (CCTP) v1</a>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the CCTP Transfer library.</p>
+                        <h1 id="valence-stargate-transfer-library"><a class="header" href="#valence-stargate-transfer-library">Valence Stargate Transfer library</a></h1>
+<p>The <strong>Valence Stargate Transfer</strong> library allows to <strong>transfer funds</strong> from an <strong>input account</strong> to a <strong>recipient</strong> using the <a href="https://stargateprotocol.gitbook.io/stargate/v2-developer-docs">Stargate Protocol v2</a> built on top of LayerZero v2. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Stargate Transfer library.</p>
 <h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
 <pre class="mermaid">---
-title: CCTP Transfer Library
+title: Stargate Transfer Library
 ---
 graph LR
   IA((Input Account))
-  CCTPR((CCTP Relayer))
-  MR((Mint Recipient))
-  TM((CCTP Token Messenger))
+  SE((Stargate Executor))
+  R((Recipient))
+  SP((Stargate Pool))
+  SEP((Stargate Endpoint))
   P[Processor]
-  S[CCTP Transfer Library]
+  S[Stargate Transfer Library]
 
   subgraph DEST[ Destination Domain ]
-    CCTPR -- 7/Mint tokens --&gt; MR
+    SE -- 8/Mint tokens --&gt; R
   end
 
   subgraph EVM[ EVM Domain ]
     P -- 1/Transfer --&gt; S
-    S -- 2/Query balances --&gt; IA
-    S -- 3/Do approve and call depositForBurn --&gt; IA
-    IA -- 4/ERC-20 approve --&gt; TM
-    IA -- 5/Call depositForBurn --&gt; TM
-    TM -- 6/Burn tokens and emit event --&gt; TM
+    S -- 2/Query native or ERC20 balance --&gt; IA
+    S -- 3/Send native balance or Approve ERC20 and call sendToken --&gt; IA
+    IA -- 4/Approve ERC20 (if applies) --&gt; SP
+    IA -- 5/Call sendToken and send native token (if applies) --&gt; SP
+    SP -- 6/Lock/burn token --&gt; SP
+    SP -- 7/Send Fees --&gt; SEP
   end
 
   EVM --- DEST
 </pre>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>Transfer</strong></td><td>-</td><td>Transfer funds from the configured <strong>input account</strong> to the <strong>mint recipient</strong> on the <strong>destination domain</strong>.</td></tr>
+<tr><td><strong>Transfer</strong></td><td>-</td><td>Transfer funds from the configured <strong>input account</strong> to the <strong>recipient</strong> on the <strong>destination domain</strong>.</td></tr>
 </tbody></table>
 </div>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
-<p>The library is configured on deployment using the <code>CCTPTransferConfig</code> type. A list of the supported CCTP destination domains that can be used in the <code>destinationDomain</code> field can be found <a href="https://developers.circle.com/stablecoins/supported-domains">here</a>.</p>
+<p>The library is configured on deployment using the <code>StargateTransferConfig</code> type. A list of supported Stargate destination domains that can be used in the <code>destinationDomain</code> field can be found <a href="https://stargateprotocol.gitbook.io/stargate/v2-developer-docs/technical-reference/mainnet-contracts">here</a>.</p>
 <pre><code class="language-solidity">    /**
-     * @dev Configuration struct for token transfer parameters.
-     * @param amount The number of tokens to transfer. If set to 0, the entire balance is transferred.
-     * @param mintRecipient The recipient address (in bytes32 format) on the destination chain where tokens will be minted.
-     * @param inputAccount The account from which tokens will be debited.
-     * @param destinationDomain The domain identifier for the destination chain.
-     * @param cctpTokenMessenger The CCTP Token Messenger contract.
-     * @param transferToken The ERC20 token address that will be transferred.
+     * @title StargateTransferConfig
+     * @notice Configuration struct for cross-chain token transfers via Stargate Protocol
+     * @dev Used to define parameters for LayerZero cross-chain messaging with Stargate
+     * @param recipient The recipient address (in bytes32 format) on the destination chain
+     * @param inputAccount The account from which tokens will be transferred
+     * @param destinationDomain The destination chain endpoint ID. Find all IDs at https://stargateprotocol.gitbook.io/stargate/v2-developer-docs/technical-reference/mainnet-contracts
+     * @param stargateAddress Stargate pool address implementing IOFT interface. See https://github.com/stargate-protocol/stargate-v2/blob/main/packages/stg-evm-v2/src/interfaces/IStargate.sol
+     * @param transferToken Address of the token to transfer. If transferring native tokens, this will be the zero address (address(0))
+     * @param amount Amount of tokens to transfer. If set to 0, all available tokens will be transferred
+     * @param minAmountToReceive Minimum amount to receive on destination after fees. If set to 0, fees will be automatically calculated
+     * @param refundAddress Address to refund tokens in case of failed transfer. If set to address(0), tokens will be refunded to the input account
+     * @param extraOptions Additional options for the LayerZero message. Optional. See https://docs.layerzero.network/v2/developers/evm/protocol-gas-settings/options#option-types
+     * @param composeMsg Message to execute logic on the destination chain. Optional. See https://docs.layerzero.network/v2/developers/evm/composer/overview#composing-an-oft--onft
+     * @param oftCmd Indicates the transportation mode in Stargate. Empty bytes for "Taxi" mode, bytes(1) for "Bus" mode. See https://stargateprotocol.gitbook.io/stargate/v2-developer-docs/integrate-with-stargate/how-to-swap#sendparam.oftcmd
      */
-    struct CCTPTransferConfig {
-        uint256 amount; // If we want to transfer all tokens, we can set this to 0.
-        bytes32 mintRecipient;
+    struct StargateTransferConfig {
+        bytes32 recipient;
         Account inputAccount;
         uint32 destinationDomain;
-        ITokenMessenger cctpTokenMessenger;
+        IStargate stargateAddress;
         address transferToken;
+        uint256 amount;
+        uint256 minAmountToReceive;
+        address refundAddress;
+        bytes extraOptions;
+        bytes composeMsg;
+        bytes oftCmd;
     }
 </code></pre>
 
@@ -216,11 +230,11 @@ graph LR
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../libraries/evm/forwarder.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../libraries/evm/cctp_transfer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../../libraries/evm/stargate_transfer.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../middleware/_overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -230,11 +244,11 @@ graph LR
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../libraries/evm/forwarder.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../libraries/evm/cctp_transfer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../../libraries/evm/stargate_transfer.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../middleware/_overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

@@ -2651,7 +2651,7 @@ graph LR
   end
 
   subgraph EVM[ EVM Domain ]
-    P -- 1/Forward --&gt; S
+    P -- 1/Transfer --&gt; S
     S -- 2/Query balances --&gt; IA
     S -- 3/Do approve and call depositForBurn --&gt; IA
     IA -- 4/ERC-20 approve --&gt; TM
@@ -2684,6 +2684,74 @@ graph LR
         uint32 destinationDomain;
         ITokenMessenger cctpTokenMessenger;
         address transferToken;
+    }
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-stargate-transfer-library"><a class="header" href="#valence-stargate-transfer-library">Valence Stargate Transfer library</a></h1>
+<p>The <strong>Valence Stargate Transfer</strong> library allows to <strong>transfer funds</strong> from an <strong>input account</strong> to a <strong>recipient</strong> using the <a href="https://stargateprotocol.gitbook.io/stargate/v2-developer-docs">Stargate Protocol v2</a> built on top of LayerZero v2. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Stargate Transfer library.</p>
+<h2 id="high-level-flow-17"><a class="header" href="#high-level-flow-17">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Stargate Transfer Library
+---
+graph LR
+  IA((Input Account))
+  SE((Stargate Executor))
+  R((Recipient))
+  SP((Stargate Pool))
+  SEP((Stargate Endpoint))
+  P[Processor]
+  S[Stargate Transfer Library]
+
+  subgraph DEST[ Destination Domain ]
+    SE -- 8/Mint tokens --&gt; R
+  end
+
+  subgraph EVM[ EVM Domain ]
+    P -- 1/Transfer --&gt; S
+    S -- 2/Query native or ERC20 balance --&gt; IA
+    S -- 3/Send native balance or Approve ERC20 and call sendToken --&gt; IA
+    IA -- 4/Approve ERC20 (if applies) --&gt; SP
+    IA -- 5/Call sendToken and send native token (if applies) --&gt; SP
+    SP -- 6/Lock/burn token --&gt; SP
+    SP -- 7/Send Fees --&gt; SEP
+  end
+
+  EVM --- DEST
+</pre>
+<h2 id="functions-17"><a class="header" href="#functions-17">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>Transfer</strong></td><td>-</td><td>Transfer funds from the configured <strong>input account</strong> to the <strong>recipient</strong> on the <strong>destination domain</strong>.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration-17"><a class="header" href="#configuration-17">Configuration</a></h2>
+<p>The library is configured on deployment using the <code>StargateTransferConfig</code> type. A list of supported Stargate destination domains that can be used in the <code>destinationDomain</code> field can be found <a href="https://stargateprotocol.gitbook.io/stargate/v2-developer-docs/technical-reference/mainnet-contracts">here</a>.</p>
+<pre><code class="language-solidity">    /**
+     * @title StargateTransferConfig
+     * @notice Configuration struct for cross-chain token transfers via Stargate Protocol
+     * @dev Used to define parameters for LayerZero cross-chain messaging with Stargate
+     * @param recipient The recipient address (in bytes32 format) on the destination chain
+     * @param inputAccount The account from which tokens will be transferred
+     * @param destinationDomain The destination chain endpoint ID. Find all IDs at https://stargateprotocol.gitbook.io/stargate/v2-developer-docs/technical-reference/mainnet-contracts
+     * @param stargateAddress Stargate pool address implementing IOFT interface. See https://github.com/stargate-protocol/stargate-v2/blob/main/packages/stg-evm-v2/src/interfaces/IStargate.sol
+     * @param transferToken Address of the token to transfer. If transferring native tokens, this will be the zero address (address(0))
+     * @param amount Amount of tokens to transfer. If set to 0, all available tokens will be transferred
+     * @param minAmountToReceive Minimum amount to receive on destination after fees. If set to 0, fees will be automatically calculated
+     * @param refundAddress Address to refund tokens in case of failed transfer. If set to address(0), tokens will be refunded to the input account
+     * @param extraOptions Additional options for the LayerZero message. Optional. See https://docs.layerzero.network/v2/developers/evm/protocol-gas-settings/options#option-types
+     * @param composeMsg Message to execute logic on the destination chain. Optional. See https://docs.layerzero.network/v2/developers/evm/composer/overview#composing-an-oft--onft
+     * @param oftCmd Indicates the transportation mode in Stargate. Empty bytes for "Taxi" mode, bytes(1) for "Bus" mode. See https://stargateprotocol.gitbook.io/stargate/v2-developer-docs/integrate-with-stargate/how-to-swap#sendparam.oftcmd
+     */
+    struct StargateTransferConfig {
+        bytes32 recipient;
+        Account inputAccount;
+        uint32 destinationDomain;
+        IStargate stargateAddress;
+        address transferToken;
+        uint256 amount;
+        uint256 minAmountToReceive;
+        address refundAddress;
+        bytes extraOptions;
+        bytes composeMsg;
+        bytes oftCmd;
     }
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="middleware"><a class="header" href="#middleware">Middleware</a></h1>
@@ -3103,7 +3171,7 @@ This way, when the message batch is being processed, any assertions that do not 
 prevent later messages from executing as expected. If the batch is <em>atomic</em>, the whole batch will abort.
 If the batch is <em>non-atomic</em>, various <a href="middleware/./../authorizations_processors/authorization_contract.html">authorization</a> configuration
 options will dictate the further behavior.</p>
-<h2 id="high-level-flow-17"><a class="header" href="#high-level-flow-17">High-level flow</a></h2>
+<h2 id="high-level-flow-18"><a class="header" href="#high-level-flow-18">High-level flow</a></h2>
 <pre class="mermaid">---
 title: Forwarder Library
 ---
