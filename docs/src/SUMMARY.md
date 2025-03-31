@@ -46,6 +46,7 @@
   - [EVM](./libraries/evm/_overview.md)
     - [Forwarder](./libraries/evm/forwarder.md)
     - [CCTP Transfer](./libraries/evm/cctp_transfer.md)
+    - [Stargate Transfer](./libraries/evm/stargate_transfer.md)
 - [Middleware](./middleware/_overview.md)
   - [Broker](./middleware/broker.md)
   - [Type Registry](./middleware/type_registry.md)
