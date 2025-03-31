@@ -264,14 +264,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let usdc_token_address =
         ethereum_utils::mock_erc20::setup_deposit_erc20(&rt, &eth_client, "MockUSDC", "USDC")?;
 
-    ethereum_utils::mock_erc20::mint(
-        &rt,
-        &eth_client,
-        usdc_token_address,
-        deposit_acc_addr,
-        U256::from(10_000_000),
-    );
-
     info!("Setting up Lite Processor on Ethereum");
     let _lite_processor_address = ethereum_utils::lite_processor::setup_lite_processor(
         &rt,
@@ -317,34 +309,19 @@ fn main() -> Result<(), Box<dyn Error>> {
         cctp_forwarder,
     );
 
-    let pre_cctp_deposit_acc_balance = ethereum_utils::mock_erc20::query_balance(
-        &rt,
-        &eth_client,
-        usdc_token_address,
-        deposit_acc_addr,
-    );
-    info!("pre-cctp transfer deposit account balance: {pre_cctp_deposit_acc_balance}");
-
-    strategist::cctp_route_usdc_from_eth(&rt, &eth_client, cctp_forwarder, eth_admin_acc)?;
-
-    let post_cctp_deposit_acc_balance = ethereum_utils::mock_erc20::query_balance(
-        &rt,
-        &eth_client,
-        usdc_token_address,
-        deposit_acc_addr,
-    );
-    info!("post-cctp transfer deposit account balance: {post_cctp_deposit_acc_balance}");
-
     let eth_user_acc = eth_accounts[2];
     let eth_user2_acc = eth_accounts[3];
 
-    info!("funding eth user with 1_000_000USDC...");
+    let user_1_deposit_amount = U256::from(500_000);
+    let user_2_deposit_amount = U256::from(1_000_000);
+
+    info!("funding eth user with {user_1_deposit_amount}USDC...");
     ethereum_utils::mock_erc20::mint(
         &rt,
         &eth_client,
         usdc_token_address,
         eth_user_acc,
-        U256::from(1_000_000),
+        user_1_deposit_amount,
     );
 
     let valence_vault = ValenceVault::new(vault_address, &eth_rp);
@@ -375,28 +352,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         *valence_vault.address(),
     );
 
-    let deposit_amount = U256::from(500_000);
-
-    info!("User depositing {deposit_amount}USDC tokens to vault...");
+    info!("User depositing {user_1_deposit_amount}USDC tokens to vault...");
     vault::deposit_to_vault(
         &rt,
         &eth_client,
         *valence_vault.address(),
         eth_user_acc,
-        deposit_amount,
+        user_1_deposit_amount,
     )?;
-
-    log_eth_balances(
-        &eth_client,
-        &rt,
-        valence_vault.address(),
-        &usdc_token_address,
-        &deposit_acc_addr,
-        &withdraw_acc_addr,
-        &eth_user_acc,
-        &eth_user2_acc,
-    )
-    .unwrap();
 
     let current_rate = vault::query_redemption_rate(*valence_vault.address(), &rt, &eth_client)._0;
     let netting_amount = U256::from(0);
@@ -412,13 +375,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         &eth_client,
     )?;
 
-    info!("funding eth user2 with 1_000_000USDC...");
+    info!("funding eth user2 with {user_2_deposit_amount}USDC...");
     ethereum_utils::mock_erc20::mint(
         &rt,
         &eth_client,
         usdc_token_address,
         eth_user2_acc,
-        U256::from(1_000_000),
+        user_2_deposit_amount,
     );
 
     info!("approving vault to spend usdc on behalf of user2...");
@@ -430,15 +393,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         *valence_vault.address(),
         U256::MAX,
     );
-
-    info!("User2 depositing {deposit_amount}USDC tokens to vault...");
-    vault::deposit_to_vault(
-        &rt,
-        &eth_client,
-        *valence_vault.address(),
-        eth_user_acc,
-        deposit_amount,
-    )?;
 
     async_run!(rt, {
         let eth_rp = eth_client.get_request_provider().await.unwrap();
@@ -452,13 +406,70 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap();
     });
 
-    info!("USER1 withdrawing from vault...");
-    let withdraw_request_resp =
-        vault::addr_withdraw_request(vault_address, &rt, &eth_client, eth_user_acc);
-    info!(
-        "USER1 withdraw request response: {:?}",
-        withdraw_request_resp
+    let user1_pre_redeem_shares_bal =
+        vault::query_vault_balance_of(*valence_vault.address(), &rt, &eth_client, eth_user_acc)._0;
+    assert_ne!(user1_pre_redeem_shares_bal, U256::ZERO);
+
+    info!("USER1 initiating the redeem of {user1_pre_redeem_shares_bal} shares from vault...");
+    vault::redeem(
+        vault_address,
+        &rt,
+        &eth_client,
+        eth_user_acc,
+        user1_pre_redeem_shares_bal,
+        10_000,
+        true,
+    )?;
+    let user1_post_redeem_shares_bal =
+        vault::query_vault_balance_of(*valence_vault.address(), &rt, &eth_client, eth_user_acc)._0;
+    assert_eq!(user1_post_redeem_shares_bal, U256::ZERO);
+
+    let has_active_withdraw =
+        vault::addr_has_active_withdraw(*valence_vault.address(), &rt, &eth_client, eth_user_acc)
+            ._0;
+    assert!(has_active_withdraw);
+
+    info!("User2 depositing {user_2_deposit_amount}USDC tokens to vault...");
+    vault::deposit_to_vault(
+        &rt,
+        &eth_client,
+        *valence_vault.address(),
+        eth_user2_acc,
+        U256::from(1_000_000),
+    )?;
+    let user2_shares_bal =
+        vault::query_vault_balance_of(*valence_vault.address(), &rt, &eth_client, eth_user2_acc)._0;
+    let user2_post_deposit_usdc_bal = ethereum_utils::mock_erc20::query_balance(
+        &rt,
+        &eth_client,
+        usdc_token_address,
+        eth_user2_acc,
     );
+    assert_ne!(user2_shares_bal, U256::ZERO);
+    assert_eq!(user2_post_deposit_usdc_bal, U256::ZERO);
+
+    async_run!(rt, {
+        let eth_rp = eth_client.get_request_provider().await.unwrap();
+
+        alloy::providers::ext::AnvilApi::anvil_mine(
+            &eth_rp,
+            Some(U256::from(5)),
+            Some(U256::from(3)),
+        )
+        .await
+        .unwrap();
+    });
+
+    info!("performing vault update with N=100_000...");
+    vault::vault_update(
+        *valence_vault.address(),
+        current_rate,
+        withdraw_fee_bps,
+        // netting the full amount
+        user_1_deposit_amount,
+        &rt,
+        &eth_client,
+    )?;
 
     async_run!(rt, {
         let eth_rp = eth_client.get_request_provider().await.unwrap();
@@ -484,15 +495,42 @@ fn main() -> Result<(), Box<dyn Error>> {
     )
     .unwrap();
 
-    info!("performing vault update with N=100_000...");
-    vault::vault_update(
-        *valence_vault.address(),
-        current_rate,
-        withdraw_fee_bps,
-        U256::from(100_000),
+    info!("user1 completing withdraw request...");
+    vault::complete_withdraw_request(*valence_vault.address(), &rt, &eth_client, eth_user_acc)?;
+    let withdraw_acc_usdc_bal = ethereum_utils::mock_erc20::query_balance(
         &rt,
         &eth_client,
-    )?;
+        usdc_token_address,
+        withdraw_acc_addr,
+    );
+    let user1_usdc_bal = ethereum_utils::mock_erc20::query_balance(
+        &rt,
+        &eth_client,
+        usdc_token_address,
+        eth_user_acc,
+    );
+    assert_eq!(withdraw_acc_usdc_bal, U256::from(50)); // fees leftover
+    assert_eq!(user1_usdc_bal, user_1_deposit_amount - U256::from(50));
+
+    let deposit_acc_usdc_bal = ethereum_utils::mock_erc20::query_balance(
+        &rt,
+        &eth_client,
+        usdc_token_address,
+        deposit_acc_addr,
+    );
+    info!("deposit account usdc balance: {deposit_acc_usdc_bal}");
+    assert_ne!(deposit_acc_usdc_bal, U256::ZERO);
+
+    info!("strategist cctp routing eth->ntrn...");
+    strategist::cctp_route_usdc_from_eth(&rt, &eth_client, cctp_forwarder, eth_admin_acc)?;
+
+    let deposit_acc_usdc_bal = ethereum_utils::mock_erc20::query_balance(
+        &rt,
+        &eth_client,
+        usdc_token_address,
+        deposit_acc_addr,
+    );
+    assert_eq!(deposit_acc_usdc_bal, U256::ZERO);
 
     log_eth_balances(
         &eth_client,
