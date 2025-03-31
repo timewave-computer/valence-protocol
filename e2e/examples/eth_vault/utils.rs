@@ -24,7 +24,7 @@ pub fn hyperlane_plumbing(
     // Upload all Hyperlane contracts to Neutron
     let neutron_hyperlane_contracts = set_up_cw_hyperlane_contracts(test_ctx)?;
 
-    info!("uploading evm hyperlane conrtacts...");
+    info!("uploading evm hyperlane contracts...");
     // Deploy all Hyperlane contracts on Ethereum
     let eth_hyperlane_contracts = set_up_eth_hyperlane_contracts(eth, ETHEREUM_HYPERLANE_DOMAIN)?;
 
