@@ -43,6 +43,7 @@ const ASTROPORT_CONCENTRATED_PAIR_TYPE: &str = "concentrated";
 const VAULT_NEUTRON_CACHE_PATH: &str = "e2e/examples/eth_vault/neutron_contracts/";
 
 mod evm;
+mod mock_cctp_relayer;
 mod neutron;
 mod noble;
 mod program;
@@ -247,6 +248,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
     info!("noble_outbound_ica_usdc_bal: {noble_outbound_ica_usdc_bal}");
 
+    let cctp_noble_client = noble::get_client(&rt)?;
+    let cctp_eth_client = valence_chain_client_utils::ethereum::EthereumClient::new(
+        DEFAULT_ANVIL_RPC_ENDPOINT,
+        "test test test test test test test test test test test junk",
+    )
+    .unwrap();
+
+    let mock_cctp_relayer =
+        mock_cctp_relayer::MockCctpRelayer::new(cctp_eth_client, cctp_noble_client);
+
     strategist::cctp_route_usdc_from_noble(
         &rt,
         &neutron_client,
@@ -278,6 +289,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mock_cctp_messenger_address =
         valence_e2e::utils::vault::setup_mock_token_messenger(&rt, &eth_client)?;
+
+    let relayer_handle = async_run!(
+        &rt,
+        mock_cctp_relayer
+            .start_eth(mock_cctp_messenger_address)
+            .await
+    );
 
     info!("Setting up Valence Vault...");
     let vault_address = setup_valence_vault(
@@ -543,6 +561,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         &eth_user2_acc,
     )
     .unwrap();
+
+    sleep(Duration::from_secs(5));
 
     Ok(())
 }
