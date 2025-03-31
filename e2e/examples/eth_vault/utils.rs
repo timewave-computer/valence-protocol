@@ -4,11 +4,10 @@ use cosmwasm_std_old::Coin as BankCoin;
 use localic_std::modules::bank;
 use localic_utils::{
     utils::{ethereum::EthClient, test_context::TestContext},
-    DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
+    DEFAULT_KEY, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 
 use log::info;
-use rand::{distributions::Alphanumeric, Rng};
 
 use valence_e2e::utils::{
     hyperlane::{set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts, set_up_hyperlane},
@@ -16,40 +15,6 @@ use valence_e2e::utils::{
 };
 
 use crate::program::ProgramHyperlaneContracts;
-
-#[allow(unused)]
-fn create_counterparty_denom(test_ctx: &mut TestContext) -> Result<String, Box<dyn Error>> {
-    info!("creating subdenom to pair with NTRN");
-    // Let's create a token to pair it with NTRN
-    let token_subdenom: String = rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(10)
-        .map(char::from)
-        .collect();
-
-    test_ctx
-        .build_tx_create_tokenfactory_token()
-        .with_subdenom(&token_subdenom)
-        .send()?;
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
-    let token = test_ctx
-        .get_tokenfactory_denom()
-        .creator(NEUTRON_CHAIN_ADMIN_ADDR)
-        .subdenom(token_subdenom)
-        .get();
-
-    // Mint some of the token
-    test_ctx
-        .build_tx_mint_tokenfactory_token()
-        .with_amount(1_000_000_000)
-        .with_denom(&token)
-        .send()
-        .unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
-    Ok(token)
-}
 
 pub fn hyperlane_plumbing(
     test_ctx: &mut TestContext,
