@@ -1,5 +1,6 @@
 use std::{error::Error, time::Duration};
 
+use alloy::primitives::Address;
 use cosmwasm_std::{to_json_binary, CosmosMsg, WasmMsg};
 use localic_utils::NEUTRON_CHAIN_DENOM;
 use log::info;
@@ -7,10 +8,16 @@ use tokio::{runtime::Runtime, time::sleep};
 use valence_astroport_utils::astroport_native_lp_token::{Asset, AssetInfo};
 use valence_chain_client_utils::{
     cosmos::{base_client::BaseClient, wasm_client::WasmClient},
+    ethereum::EthereumClient,
+    evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
     neutron::NeutronClient,
     noble::NobleClient,
 };
-use valence_e2e::{async_run, utils::UUSDC_DENOM};
+
+use valence_e2e::{
+    async_run,
+    utils::{solidity_contracts::CCTPTransfer, UUSDC_DENOM},
+};
 
 use crate::program::{NeutronProgramAccounts, NeutronProgramLibraries};
 
@@ -480,6 +487,31 @@ pub fn cctp_route_usdc_from_noble(
         info!(
             "Noble outbound ICA account balance post cctp transfer: {:?}",
             noble_outbound_acc_usdc_bal
+        );
+    });
+
+    Ok(())
+}
+
+pub fn cctp_route_usdc_from_eth(
+    rt: &Runtime,
+    client: &EthereumClient,
+    cctp_transfer_lib: Address,
+    eth_admin: Address,
+) -> Result<(), Box<dyn Error>> {
+    info!("CCTP forwarding USDC from Ethereum to Noble...");
+    async_run!(rt, {
+        let eth_rp = client.get_request_provider().await.unwrap();
+
+        let cctp_transfer_contract = CCTPTransfer::new(cctp_transfer_lib, &eth_rp);
+
+        let signed_tx = cctp_transfer_contract.transfer().into_transaction_request();
+
+        let cctp_transfer_rx = client.execute_tx(signed_tx.from(eth_admin)).await.unwrap();
+
+        info!(
+            "cctp transfer tx hash: {:?}",
+            cctp_transfer_rx.transaction_hash
         );
     });
 

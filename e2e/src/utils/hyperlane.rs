@@ -676,8 +676,11 @@ pub fn update_hyperlane_config(
 ) -> Result<Value, Box<dyn std::error::Error>> {
     // Read existing configuration file
     let env = std::env::current_dir()?;
+
     let config_path = env.join(Path::new(HYPERLANE_RELAYER_CONFIG_PATH));
+
     let config_str = fs::read_to_string(config_path.clone())?;
+
     let mut config: Value = serde_json::from_str(&config_str)?;
 
     // Update configuration for both chains

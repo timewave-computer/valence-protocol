@@ -12,6 +12,7 @@ use log::info;
 use valence_astroport_lper::msg::LiquidityProviderConfig;
 
 use valence_e2e::utils::base_account::{approve_library, create_base_accounts};
+use valence_e2e::utils::hyperlane::HyperlaneContracts;
 use valence_e2e::utils::manager::{
     ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME, BASE_ACCOUNT_NAME, ICA_CCTP_TRANSFER_NAME,
     ICA_IBC_TRANSFER_NAME, NEUTRON_IBC_TRANSFER_NAME,
@@ -45,6 +46,12 @@ pub struct NeutronProgramLibraries {
     pub noble_inbound_transfer: String,
     pub noble_cctp_transfer: String,
     pub neutron_ibc_transfer: String,
+}
+
+#[allow(unused)]
+pub struct ProgramHyperlaneContracts {
+    pub neutron_hyperlane_contracts: HyperlaneContracts,
+    pub eth_hyperlane_contracts: HyperlaneContracts,
 }
 
 pub fn setup_neutron_accounts(

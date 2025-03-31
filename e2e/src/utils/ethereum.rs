@@ -157,13 +157,6 @@ async fn wait_for_anvil_ready(timeout_secs: u64) -> Result<(), Box<dyn Error>> {
     Err("timed out waiting for Anvil to be ready".into())
 }
 
-/// macro for executing async code in a blocking context
-macro_rules! async_run {
-    ($rt:expr, $($body:tt)*) => {
-        $rt.block_on(async { $($body)* })
-    }
-}
-
 pub mod valence_account {
     use std::error::Error;
 
@@ -336,6 +329,23 @@ pub mod mock_erc20 {
 
             info!("erc20 transfer rx: {:?}", rx.transaction_hash);
         });
+    }
+
+    pub fn query_balance(
+        rt: &tokio::runtime::Runtime,
+        eth_client: &EthereumClient,
+        erc20_addr: Address,
+        addr: Address,
+    ) -> U256 {
+        async_run!(rt, {
+            let eth_rp = eth_client.get_request_provider().await.unwrap();
+
+            let mock_erc20 = MockERC20::new(erc20_addr, &eth_rp);
+
+            let balance_q = mock_erc20.balanceOf(addr);
+
+            eth_client.query(balance_q).await.unwrap()._0
+        })
     }
 }
 

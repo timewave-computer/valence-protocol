@@ -1,6 +1,7 @@
-use std::error::Error;
+use std::{error::Error, str::FromStr};
 
 use alloy::{
+    hex::FromHex,
     primitives::{Address, Bytes, U256},
     providers::ext::AnvilApi,
     sol_types::SolValue,
@@ -10,11 +11,12 @@ use valence_chain_client_utils::{
     ethereum::EthereumClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
+use valence_encoder_utils::libraries::cctp_transfer::solidity_types::CCTPTransferConfig;
 
 use crate::{
     async_run,
     utils::solidity_contracts::{
-        ERC1967Proxy, MockTokenMessenger,
+        CCTPTransfer, ERC1967Proxy, MockTokenMessenger,
         ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
     },
 };
@@ -514,15 +516,54 @@ pub fn setup_mock_token_messenger(
 
 #[allow(clippy::too_many_arguments)]
 pub fn setup_cctp_transfer(
-    _rt: &tokio::runtime::Runtime,
-    _eth_client: &EthereumClient,
-    _noble_recipient: String,
-    _input_account: Address,
-    _eth_accounts: &[Address],
-    _admin: Address,
+    rt: &tokio::runtime::Runtime,
+    eth_client: &EthereumClient,
+    noble_recipient: String,
+    input_account: Address,
+    admin: Address,
     _processor: Address,
-    _usdc_token_address: Address,
-    _cctp_token_messenger_address: Address,
+    usdc_token_address: Address,
+    cctp_token_messenger_address: Address,
 ) -> Result<Address, Box<dyn Error>> {
-    unimplemented!()
+    let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
+
+    info!("deploying CCTP Transfer lib on Ethereum...");
+
+    // Decode the bech32 address
+    let (_, data) = bech32::decode(&noble_recipient)?;
+    // Convert to hex
+    let address_hex = hex::encode(data);
+    // Pad with zeroes to 32 bytes
+    let padded_hex = format!("{:0>64}", address_hex);
+
+    let cctp_transer_cfg = CCTPTransferConfig {
+        amount: U256::ZERO,
+        mintRecipient: alloy_primitives_encoder::FixedBytes::<32>::from_hex(padded_hex)?,
+        inputAccount: alloy_primitives_encoder::Address::from_str(
+            input_account.to_string().as_str(),
+        )?,
+        destinationDomain: 4,
+        cctpTokenMessenger: alloy_primitives_encoder::Address::from_str(
+            cctp_token_messenger_address.to_string().as_str(),
+        )?,
+        transferToken: alloy_primitives_encoder::Address::from_str(
+            usdc_token_address.to_string().as_str(),
+        )?,
+    };
+
+    let cctp_tx = CCTPTransfer::deploy_builder(
+        &eth_rp,
+        admin,
+        admin,
+        alloy_sol_types_encoder::SolValue::abi_encode(&cctp_transer_cfg).into(),
+    )
+    .into_transaction_request()
+    .from(admin);
+
+    let cctp_rx = async_run!(rt, eth_client.execute_tx(cctp_tx).await.unwrap());
+
+    let cctp_address = cctp_rx.contract_address.unwrap();
+    info!("CCTP Transfer deployed at: {cctp_address}");
+
+    Ok(cctp_address)
 }
