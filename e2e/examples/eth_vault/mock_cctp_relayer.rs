@@ -13,11 +13,11 @@ use hex::FromHex;
 use log::{debug, info, warn};
 use tokio::task::JoinHandle;
 use valence_chain_client_utils::{
-    ethereum::EthereumClient, evm::request_provider_client::RequestProviderClient,
-    noble::NobleClient,
+    cosmos::base_client::BaseClient, ethereum::EthereumClient,
+    evm::request_provider_client::RequestProviderClient, noble::NobleClient,
 };
 use valence_e2e::utils::{
-    solidity_contracts::MockTokenMessenger::DepositForBurn, NOBLE_CHAIN_ADMIN_ADDR,
+    solidity_contracts::MockTokenMessenger::DepositForBurn, NOBLE_CHAIN_ADMIN_ADDR, UUSDC_DENOM,
 };
 
 pub struct MockCctpRelayer {
@@ -64,19 +64,27 @@ impl MockCctpRelayer {
                                 match DepositForBurn::decode_log(&alloy_log, false) {
                                     Ok(val) => {
                                         info!("decoded deposit for burn log: {:?}", val);
-                                        match decode_mint_recipient_to_noble_address(
-                                            &val.mintRecipient.encode_hex(),
-                                        ) {
-                                            Ok(bech32_address) => {
-                                                info!("bech32 address: {}", bech32_address);
-                                            }
-                                            Err(e) => {
-                                                warn!(
-                                                    "failed to convert bytes32 to bech32: {:?}",
-                                                    e
-                                                )
-                                            }
-                                        }
+                                        let destination_addr =
+                                            decode_mint_recipient_to_noble_address(
+                                                &val.mintRecipient.encode_hex(),
+                                            )
+                                            .unwrap();
+                                        let amount = val.amount;
+                                        let tx_response = self
+                                            .noble_client
+                                            .mint_fiat(
+                                                NOBLE_CHAIN_ADMIN_ADDR,
+                                                &destination_addr,
+                                                &amount.to_string(),
+                                                UUSDC_DENOM,
+                                            )
+                                            .await
+                                            .unwrap();
+                                        self.noble_client
+                                            .poll_for_tx(&tx_response.hash)
+                                            .await
+                                            .unwrap();
+                                        info!("[MOCK RELAYER] Minted {UUSDC_DENOM} to {destination_addr}: {:?}", tx_response);
                                     }
                                     Err(e) => {
                                         warn!("failed to decode the deposit for burn log: {:?}", e)
