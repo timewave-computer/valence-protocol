@@ -29,6 +29,7 @@ use valence_e2e::{
             ICA_CCTP_TRANSFER_NAME, ICA_IBC_TRANSFER_NAME, INTERCHAIN_ACCOUNT_NAME,
             NEUTRON_IBC_TRANSFER_NAME,
         },
+        mock_cctp_relayer,
         solidity_contracts::ValenceVault,
         vault::{self, setup_cctp_transfer, setup_valence_vault},
         DEFAULT_ANVIL_RPC_ENDPOINT, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
@@ -43,7 +44,6 @@ const ASTROPORT_CONCENTRATED_PAIR_TYPE: &str = "concentrated";
 const VAULT_NEUTRON_CACHE_PATH: &str = "e2e/examples/eth_vault/neutron_contracts/";
 
 pub(crate) mod evm;
-pub(crate) mod mock_cctp_relayer;
 pub(crate) mod neutron;
 pub(crate) mod noble;
 pub(crate) mod program;
