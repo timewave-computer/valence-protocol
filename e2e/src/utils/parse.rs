@@ -4,6 +4,36 @@ use serde_json::Value;
 
 use super::LOGS_FILE_PATH;
 
+/// Helper to get the rpc address of a chain from the local-ic logs file
+pub fn get_rpc_address_from_logs(target_chain_id: &str) -> Result<String, Box<dyn Error>> {
+    // Open the logs file
+    let mut file = File::open(LOGS_FILE_PATH)?;
+
+    // Read the file contents into a string
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+
+    // Parse the string into a JSON value
+    let json: Value = serde_json::from_str(&contents)?;
+
+    let chains = json["chains"]
+        .as_array()
+        .ok_or("'chains' field not found or not an array")?;
+    for chain in chains {
+        if let Some(chain_id) = chain["chain_id"].as_str() {
+            if chain_id == target_chain_id {
+                if let Some(rpc_address) = chain["rpc_address"].as_str() {
+                    return Ok(rpc_address.to_string());
+                } else {
+                    return Err("rpc address not found for the specified chain".into());
+                }
+            }
+        }
+    }
+
+    Err(format!("Chain with ID '{}' not found in logs file", target_chain_id).into())
+}
+
 /// Helper to get the gRPC address of a chain from the local-ic logs file
 pub fn get_grpc_address_from_logs(target_chain_id: &str) -> Result<String, Box<dyn Error>> {
     // Open the logs file

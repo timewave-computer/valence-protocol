@@ -7,7 +7,7 @@ use log::info;
 use tokio::{runtime::Runtime, time::sleep};
 use valence_astroport_utils::astroport_native_lp_token::{Asset, AssetInfo};
 use valence_chain_client_utils::{
-    cosmos::{base_client::BaseClient, wasm_client::WasmClient},
+    cosmos::{base_client::BaseClient, grpc_client::GrpcSigningClient, wasm_client::WasmClient},
     ethereum::EthereumClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
     neutron::NeutronClient,

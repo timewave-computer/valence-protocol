@@ -226,6 +226,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         &pool_addr,
     )?;
 
+    let cctp_noble_client_2 = noble::get_client(&rt)?;
+    let cctp_eth_client_2 = valence_chain_client_utils::ethereum::EthereumClient::new(
+        DEFAULT_ANVIL_RPC_ENDPOINT,
+        "test test test test test test test test test test test junk",
+    )
+    .unwrap();
+    let mock_cctp_relayer_2 =
+        mock_cctp_relayer::MockCctpRelayer::new(cctp_eth_client_2, cctp_noble_client_2);
+    let noble_handle = async_run!(&rt, mock_cctp_relayer_2.start_noble().await);
+
     strategist::route_usdc_to_noble(
         &rt,
         &neutron_client,
