@@ -195,6 +195,16 @@
                 "format": "uint32",
                 "minimum": 0.0
               },
+              "order": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/Order"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "start": {
                 "type": [
                   "integer",
@@ -223,7 +233,16 @@
         },
         "additionalProperties": false
       }
-    ]
+    ],
+    "definitions": {
+      "Order": {
+        "type": "string",
+        "enum": [
+          "ascending",
+          "descending"
+        ]
+      }
+    }
   },
   "migrate": null,
   "sudo": null,

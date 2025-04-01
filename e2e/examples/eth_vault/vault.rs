@@ -43,12 +43,12 @@ const _WITHDRAW_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "withdraw_liquidity";
 const ASTROPORT_CONCENTRATED_PAIR_TYPE: &str = "concentrated";
 const VAULT_NEUTRON_CACHE_PATH: &str = "e2e/examples/eth_vault/neutron_contracts/";
 
-pub(crate) mod evm;
-pub(crate) mod neutron;
-pub(crate) mod noble;
-pub(crate) mod program;
-pub(crate) mod strategist;
-pub(crate) mod utils;
+mod evm;
+mod neutron;
+mod noble;
+mod program;
+mod strategist;
+mod utils;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -555,8 +555,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         &eth_user2_acc,
     )
     .unwrap();
-
-    sleep(Duration::from_secs(5));
 
     Ok(())
 }
