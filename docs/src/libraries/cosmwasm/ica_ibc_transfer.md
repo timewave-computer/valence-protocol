@@ -78,4 +78,4 @@ This allows tokens to be transferred through an intermediate chain to reach thei
 destination. More information about the PFM functionality can be found in the [official
 documentation](https://github.com/cosmos/ibc-apps/tree/main/middleware/packet-forward-middleware).
 
-This works in the same way as it works for the **Generic IBC Transfer Library**. The only difference is that the **input account** is a **Valence interchain account** and the **receiver** is a remote address on the remote domain. For more details check the [Generic IBC Transfer Library PFM](./generic_ibc_transfer.md#packet-forward-middleware) documentation.
+This works in the same way as the **Generic IBC Transfer Library**. The only difference is that the **input account** is a **Valence interchain account** and the **receiver** is a remote address on the remote domain. For more details on how PFM works, check the [Generic IBC Transfer Library PFM](./generic_ibc_transfer.md#packet-forward-middleware) documentation.
