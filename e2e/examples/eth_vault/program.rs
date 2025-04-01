@@ -430,6 +430,7 @@ pub fn setup_ica_ibc_transfer_lib(
             amount: Uint128::new(amount_to_transfer),
             denom: UUSDC_DENOM.to_string(),
             receiver: neutron_deposit_acc.to_string(),
+            memo: "".to_string(),
             remote_chain_info: RemoteChainInfo {
                 channel_id: test_ctx
                     .get_transfer_channels()
@@ -438,6 +439,7 @@ pub fn setup_ica_ibc_transfer_lib(
                     .get(),
                 ibc_transfer_timeout: None,
             },
+            denom_to_pfm_map: BTreeMap::default(),
         },
     };
 

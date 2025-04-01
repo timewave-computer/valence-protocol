@@ -8756,16 +8756,18 @@ dependencies = [
 name = "valence-ica-ibc-transfer"
 version = "0.2.0"
 dependencies = [
- "cosmos-sdk-proto 0.20.0",
+ "cosmos-sdk-proto 0.26.1",
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
  "cw-multi-test",
  "cw-ownable",
  "cw-storage-plus 2.0.0",
+ "ibc-proto",
  "schemars",
  "serde",
  "thiserror 1.0.69",
  "valence-account-utils",
+ "valence-ibc-utils",
  "valence-library-base",
  "valence-library-utils",
  "valence-macros",

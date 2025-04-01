@@ -45,8 +45,12 @@ pub struct LibraryConfig {
     pub denom: String,
     // Receiver on the other chain
     pub receiver: String,
+    // Memo to be passed in the IBC transfer message.
+    pub memo: String,
     // Remote chain info
     pub remote_chain_info: RemoteChainInfo,
+    // Denom map for the Packet-Forwarding Middleware, to perform a multi-hop transfer.
+    pub denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
 }
 
 pub struct RemoteChainInfo {
@@ -55,4 +59,23 @@ pub struct RemoteChainInfo {
     // Timeout for the IBC transfer in seconds. If not specified, a default 600 seconds will be used will be used
     pub ibc_transfer_timeout: Option<u64>,
 }
+
+// Configuration for a multi-hop transfer using the Packet Forwarding Middleware
+struct PacketForwardMiddlewareConfig {
+  // Channel ID from the source chain to the intermediate chain
+  local_to_hop_chain_channel_id: String,
+  // Channel ID from the intermediate to the destination chain
+  hop_to_destination_chain_channel_id: String,
+  // Temporary receiver address on the intermediate chain
+  hop_chain_receiver_address: String,
+}
 ```
+
+### Packet-Forward Middleware
+
+The library supports multi-hop IBC transfers using the Packet Forward Middleware (PFM).
+This allows tokens to be transferred through an intermediate chain to reach their final
+destination. More information about the PFM functionality can be found in the [official
+documentation](https://github.com/cosmos/ibc-apps/tree/main/middleware/packet-forward-middleware).
+
+This works in the same way as it works for the **Generic IBC Transfer Library**. The only difference is that the **input account** is a **Valence interchain account** and the **receiver** is a remote address on the remote domain. For more details check the [Generic IBC Transfer Library PFM](./generic_ibc_transfer.md#packet-forward-middleware) documentation.
