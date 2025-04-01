@@ -1,0 +1,10 @@
+[package]
+name = "valence-lending-utils"
+version     = { workspace = true }
+edition     = { workspace = true }
+authors     = { workspace = true }
+description = "Helpers for lending integrations"
+
+[dependencies]
+cosmwasm-std    = { workspace = true }
+cosmwasm-schema = { workspace = true }

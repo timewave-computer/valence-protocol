@@ -1,0 +1,27 @@
+[package]
+name = "valence-mars-withdrawer"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# use library feature to disable all instantiate/execute/query exports
+library = []
+
+[dependencies]
+cosmwasm-schema              = { workspace = true }
+cosmwasm-std                 = { workspace = true }
+cw-ownable                   = { workspace = true }
+cw-storage-plus              = { workspace = true }
+schemars                     = { workspace = true }
+serde                        = { workspace = true }
+thiserror                    = { workspace = true }
+valence-macros               = { workspace = true }
+valence-library-utils        = { workspace = true }
+valence-library-base         = { workspace = true }
+valence-lending-utils        = { workspace = true }
