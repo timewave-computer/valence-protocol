@@ -42,13 +42,13 @@ const _WITHDRAW_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "withdraw_liquidity";
 const ASTROPORT_CONCENTRATED_PAIR_TYPE: &str = "concentrated";
 const VAULT_NEUTRON_CACHE_PATH: &str = "e2e/examples/eth_vault/neutron_contracts/";
 
-mod evm;
-mod mock_cctp_relayer;
-mod neutron;
-mod noble;
-mod program;
-mod strategist;
-mod utils;
+pub(crate) mod evm;
+pub(crate) mod mock_cctp_relayer;
+pub(crate) mod neutron;
+pub(crate) mod noble;
+pub(crate) mod program;
+pub(crate) mod strategist;
+pub(crate) mod utils;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -226,6 +226,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         &pool_addr,
     )?;
 
+    let usdc_token_address =
+        ethereum_utils::mock_erc20::setup_deposit_erc20(&rt, &eth_client, "MockUSDC", "USDC")?;
+
     let cctp_noble_client_2 = noble::get_client(&rt)?;
     let cctp_eth_client_2 = valence_chain_client_utils::ethereum::EthereumClient::new(
         DEFAULT_ANVIL_RPC_ENDPOINT,
@@ -234,7 +237,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     .unwrap();
     let mock_cctp_relayer_2 =
         mock_cctp_relayer::MockCctpRelayer::new(cctp_eth_client_2, cctp_noble_client_2);
-    let noble_handle = async_run!(&rt, mock_cctp_relayer_2.start_noble().await);
+    let noble_handle = async_run!(
+        &rt,
+        mock_cctp_relayer_2.start_noble(usdc_token_address).await
+    );
 
     strategist::route_usdc_to_noble(
         &rt,
@@ -281,9 +287,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         ethereum_utils::valence_account::setup_valence_account(&rt, &eth_client, eth_admin_acc)?;
     let withdraw_acc_addr =
         ethereum_utils::valence_account::setup_valence_account(&rt, &eth_client, eth_admin_acc)?;
-
-    let usdc_token_address =
-        ethereum_utils::mock_erc20::setup_deposit_erc20(&rt, &eth_client, "MockUSDC", "USDC")?;
 
     info!("Setting up Lite Processor on Ethereum");
     let _lite_processor_address = ethereum_utils::lite_processor::setup_lite_processor(

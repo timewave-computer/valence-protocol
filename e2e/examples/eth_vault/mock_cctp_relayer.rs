@@ -1,20 +1,28 @@
-use std::{error::Error, time::Duration};
+use std::{error::Error, str::FromStr, time::Duration};
 
 use alloy::{
-    hex::ToHexExt, primitives::Address, providers::Provider, rpc::types::Filter,
+    hex::ToHexExt,
+    primitives::{Address, U256},
+    providers::Provider,
+    rpc::types::Filter,
     sol_types::SolEvent,
 };
 
 use bech32::{encode, Bech32};
+use cosmwasm_std::{from_base64, Uint128};
 use hex::FromHex;
 use log::{info, warn};
 use tokio::task::JoinHandle;
 use valence_chain_client_utils::{
-    cosmos::base_client::BaseClient, ethereum::EthereumClient,
-    evm::request_provider_client::RequestProviderClient, noble::NobleClient,
+    cosmos::base_client::BaseClient,
+    ethereum::EthereumClient,
+    evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
+    noble::NobleClient,
 };
 use valence_e2e::utils::{
-    parse::get_rpc_address_from_logs, solidity_contracts::MockTokenMessenger::DepositForBurn,
+    ethereum,
+    parse::get_rpc_address_from_logs,
+    solidity_contracts::{MockERC20, MockTokenMessenger::DepositForBurn},
     NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_ID, UUSDC_DENOM,
 };
 
@@ -31,7 +39,7 @@ impl MockCctpRelayer {
         }
     }
 
-    pub async fn start_noble(self) -> JoinHandle<()> {
+    pub async fn start_noble(self, destination_erc20: Address) -> JoinHandle<()> {
         let mut latest_block = self
             .noble_client
             .latest_block_header()
@@ -96,6 +104,50 @@ impl MockCctpRelayer {
                                         && !destination_token_messenger.is_empty()
                                     {
                                         info!("[CCTP NOBLE] minting {amount}USDC to domain #{destination_domain} recipient {mint_recipient}");
+                                        let eth_rp =
+                                            self.eth_client.get_request_provider().await.unwrap();
+
+                                        let mock_erc20 = MockERC20::new(destination_erc20, &eth_rp);
+
+                                        let amount_stripped = amount.strip_prefix('"').unwrap();
+                                        let amount_stripped =
+                                            amount_stripped.strip_suffix('"').unwrap();
+
+                                        let recipient_stripped =
+                                            mint_recipient.strip_suffix('"').unwrap();
+                                        let recipient_stripped =
+                                            recipient_stripped.strip_prefix('"').unwrap();
+
+                                        let amt = Uint128::from_str(&amount_stripped).unwrap();
+                                        let to = from_base64(recipient_stripped).unwrap();
+
+                                        let address_bytes = &to[12..];
+
+                                        let dest_addr = Address::from_slice(address_bytes);
+
+                                        let pre_mint_balance = self
+                                            .eth_client
+                                            .query(mock_erc20.balanceOf(dest_addr))
+                                            .await
+                                            .unwrap();
+
+                                        self.eth_client
+                                            .execute_tx(
+                                                mock_erc20
+                                                    .mint(dest_addr, U256::from(amt.u128()))
+                                                    .into_transaction_request(),
+                                            )
+                                            .await
+                                            .unwrap();
+
+                                        let post_mint_balance = self
+                                            .eth_client
+                                            .query(mock_erc20.balanceOf(dest_addr))
+                                            .await
+                                            .unwrap();
+
+                                        let delta = post_mint_balance._0 - pre_mint_balance._0;
+                                        info!("[CCTP NOBLE] successfully minted {delta} tokens to eth address {dest_addr}");
                                     }
                                 }
                             }
