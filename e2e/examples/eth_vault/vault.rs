@@ -60,6 +60,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     async_run!(rt, ethereum_utils::set_up_anvil_container().await)?;
 
     let eth = EthClient::new(DEFAULT_ANVIL_RPC_ENDPOINT)?;
+
     let eth_client = valence_chain_client_utils::ethereum::EthereumClient::new(
         DEFAULT_ANVIL_RPC_ENDPOINT,
         "test test test test test test test test test test test junk",
@@ -70,6 +71,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let eth_accounts = async_run!(rt, eth_client.get_provider_accounts().await.unwrap());
     let eth_admin_acc = eth_accounts[0];
     let _eth_user_acc = eth_accounts[2];
+    let eth_cctp_relay_acc = eth_accounts[5];
 
     info!("Setting up Neutron side flow...");
 
@@ -229,19 +231,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let usdc_token_address =
         ethereum_utils::mock_erc20::setup_deposit_erc20(&rt, &eth_client, "MockUSDC", "USDC")?;
 
-    let cctp_noble_client_2 = noble::get_client(&rt)?;
-    let cctp_eth_client_2 = valence_chain_client_utils::ethereum::EthereumClient::new(
-        DEFAULT_ANVIL_RPC_ENDPOINT,
-        "test test test test test test test test test test test junk",
-    )
-    .unwrap();
-    let mock_cctp_relayer_2 =
-        mock_cctp_relayer::MockCctpRelayer::new(cctp_eth_client_2, cctp_noble_client_2);
-    let noble_handle = async_run!(
-        &rt,
-        mock_cctp_relayer_2.start_noble(usdc_token_address).await
-    );
-
     strategist::route_usdc_to_noble(
         &rt,
         &neutron_client,
@@ -264,15 +253,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
     info!("noble_outbound_ica_usdc_bal: {noble_outbound_ica_usdc_bal}");
 
-    let cctp_noble_client = noble::get_client(&rt)?;
-    let cctp_eth_client = valence_chain_client_utils::ethereum::EthereumClient::new(
-        DEFAULT_ANVIL_RPC_ENDPOINT,
-        "test test test test test test test test test test test junk",
-    )
-    .unwrap();
-
-    let mock_cctp_relayer =
-        mock_cctp_relayer::MockCctpRelayer::new(cctp_eth_client, cctp_noble_client);
+    let mock_cctp_relayer = mock_cctp_relayer::MockCctpRelayer::new(&rt, eth_cctp_relay_acc);
 
     strategist::cctp_route_usdc_from_noble(
         &rt,
@@ -306,7 +287,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let relayer_handle = async_run!(
         &rt,
         mock_cctp_relayer
-            .start_eth(mock_cctp_messenger_address)
+            .start_relay(usdc_token_address, mock_cctp_messenger_address)
             .await
     );
 
