@@ -8,14 +8,14 @@ use cosmos_sdk_proto::cosmos::{
     bank::v1beta1::{QueryBalanceRequest, QueryBalanceResponse},
     base::{
         abci::v1beta1::TxResponse,
-        tendermint::v1beta1::{GetBlockByHeightResponse, Header},
+        tendermint::v1beta1::Header,
     },
     tx::v1beta1::GetTxRequest,
 };
 
 use cosmrs::{
     bank::MsgSend,
-    rpc::{Client, HttpClient, HttpClientUrl},
+    rpc::{Client, HttpClient},
     tendermint::block::Height,
     tx::Msg,
     AccountId, Coin,

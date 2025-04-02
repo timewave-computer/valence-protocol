@@ -5,6 +5,7 @@ use alloy::{
     primitives::{Address, Log, U256},
     providers::Provider,
     rpc::types::Filter,
+    signers::local::{coins_bip39::English, MnemonicBuilder},
     sol_types::SolEvent,
 };
 
@@ -20,7 +21,7 @@ use bech32::{encode, Bech32};
 use cosmwasm_std::{from_base64, Uint128};
 use hex::FromHex;
 use log::{info, warn};
-use tokio::{runtime::Runtime, sync::Mutex, task::JoinHandle};
+use tokio::{runtime::Runtime, sync::Mutex};
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
     ethereum::EthereumClient,
@@ -35,7 +36,6 @@ use super::{
 
 pub struct MockCctpRelayer {
     eth_client: EthereumClient,
-    eth_acc: Address,
     noble_client: NobleClient,
     state: Arc<Mutex<RelayerState>>,
 }
@@ -47,7 +47,7 @@ struct RelayerState {
 }
 
 impl MockCctpRelayer {
-    pub fn new(rt: &Runtime, eth_acc: Address) -> Self {
+    pub fn new(rt: &Runtime) -> Self {
         let (grpc_url, grpc_port) = get_grpc_address_and_port_from_logs(NOBLE_CHAIN_ID).unwrap();
         let (noble_client, latest_noble_block) = async_run!(rt, {
             let client = NobleClient::new(
@@ -63,13 +63,20 @@ impl MockCctpRelayer {
             (client, latest_block)
         });
 
+        let signer = MnemonicBuilder::<English>::default()
+            .phrase("test test test test test test test test test test test junk")
+            .index(5) // derive the mnemonic at a different index to avoid nonce issues
+            .unwrap()
+            .build()
+            .unwrap();
+
+        let eth_client = EthereumClient {
+            rpc_url: DEFAULT_ANVIL_RPC_ENDPOINT.to_string(),
+            signer,
+        };
+
         Self {
-            eth_client: valence_chain_client_utils::ethereum::EthereumClient::new(
-                DEFAULT_ANVIL_RPC_ENDPOINT,
-                "test test test test test test test test test test test junk",
-            )
-            .unwrap(),
-            eth_acc,
+            eth_client,
             noble_client,
             state: Arc::new(Mutex::new(RelayerState {
                 last_noble_block: latest_noble_block,
@@ -78,27 +85,26 @@ impl MockCctpRelayer {
         }
     }
 
-    pub async fn start_relay(
-        self,
-        destination_erc20: Address,
-        messenger: Address,
-    ) -> JoinHandle<()> {
+    pub async fn start_relay(self, destination_erc20: Address, messenger: Address) {
         info!("[CCTP MOCK RELAY] Starting...");
         let filter = Filter::new().address(messenger);
 
         let rpc_addr = get_rpc_address_from_logs(NOBLE_CHAIN_ID).unwrap();
-        let poll_interval = Duration::from_secs(5);
+        let poll_interval = Duration::from_secs(2);
 
-        // spawn a thread that relays noble <-> ethereum
-        tokio::spawn(async move {
-            loop {
-                // process both chains in sequence rather than in parallel threads
-                let _ = self.poll_noble(&rpc_addr, destination_erc20).await.unwrap();
-                let _ = self.poll_ethereum(&filter).await.unwrap();
-                // sleep for a bit
-                tokio::time::sleep(poll_interval).await;
+        loop {
+            info!("[CCTP RELAY] loop");
+
+            if let Err(e) = self.poll_noble(&rpc_addr, destination_erc20).await {
+                warn!("[CCTP MOCK RELAY] Noble polling error: {:?}", e);
             }
-        })
+
+            if let Err(e) = self.poll_ethereum(&filter).await {
+                warn!("[CCTP MOCK RELAY] Ethereum polling error: {:?}", e);
+            }
+
+            tokio::time::sleep(poll_interval).await;
+        }
     }
 
     async fn mint_evm(
@@ -121,7 +127,7 @@ impl MockCctpRelayer {
             .strip_prefix('"')
             .unwrap();
 
-        let amt = Uint128::from_str(&amount_stripped).unwrap();
+        let amt = Uint128::from_str(amount_stripped).unwrap();
         let to = from_base64(recipient_stripped).unwrap();
 
         let address_bytes = &to[12..];
@@ -139,8 +145,7 @@ impl MockCctpRelayer {
             .execute_tx(
                 mock_erc20
                     .mint(dest_addr, U256::from(amt.u128()))
-                    .into_transaction_request()
-                    .from(self.eth_acc),
+                    .into_transaction_request(),
             )
             .await
             .unwrap();
@@ -224,12 +229,12 @@ impl MockCctpRelayer {
             .expect("could not get provider");
 
         // fetch the logs
-        let logs = provider.get_logs(&filter).await.unwrap();
+        let logs = provider.get_logs(filter).await.unwrap();
 
         for log in logs.iter() {
             let event_id = log.transaction_hash.unwrap().to_vec();
             if state.processed_events.insert(event_id) {
-                warn!("[CCTP MOCK RELAY] picked up CCTP transfer event on Ethereum");
+                info!("[CCTP MOCK RELAY] picked up CCTP transfer event on Ethereum");
 
                 let alloy_log = alloy::primitives::Log::new(
                     log.address(),

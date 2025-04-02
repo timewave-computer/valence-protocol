@@ -124,6 +124,7 @@ pub fn setup_neutron_libraries(
     amount: u128,
     usdc_on_neutron: &str,
     eth_admin_addr: String,
+    eth_withdraw_acc: String,
 ) -> Result<NeutronProgramLibraries, Box<dyn Error>> {
     let astro_cl_pool_asset_data = AssetData {
         asset1: NEUTRON_CHAIN_DENOM.to_string(),
@@ -172,7 +173,7 @@ pub fn setup_neutron_libraries(
             .noble_outbound_ica
             .library_account
             .clone(),
-        eth_admin_addr,
+        eth_withdraw_acc,
         processor.to_string(),
         amount,
     )?;
