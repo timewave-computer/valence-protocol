@@ -123,7 +123,6 @@ pub fn setup_neutron_libraries(
     processor: &str,
     amount: u128,
     usdc_on_neutron: &str,
-    eth_admin_addr: String,
     eth_withdraw_acc: String,
 ) -> Result<NeutronProgramLibraries, Box<dyn Error>> {
     let astro_cl_pool_asset_data = AssetData {
