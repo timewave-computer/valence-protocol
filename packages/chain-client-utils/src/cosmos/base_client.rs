@@ -6,10 +6,7 @@ use cosmos_sdk_proto::cosmos::{
         ModuleAccount, QueryModuleAccountByNameRequest, QueryModuleAccountByNameResponse,
     },
     bank::v1beta1::{QueryBalanceRequest, QueryBalanceResponse},
-    base::{
-        abci::v1beta1::TxResponse,
-        tendermint::v1beta1::Header,
-    },
+    base::{abci::v1beta1::TxResponse, tendermint::v1beta1::Header},
     tx::v1beta1::GetTxRequest,
 };
 
