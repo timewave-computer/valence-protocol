@@ -131,13 +131,15 @@
       "PacketForwardMiddlewareConfig": {
         "type": "object",
         "required": [
-          "hop_chain_receiver_address",
           "hop_to_destination_chain_channel_id",
           "local_to_hop_chain_channel_id"
         ],
         "properties": {
           "hop_chain_receiver_address": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "hop_to_destination_chain_channel_id": {
             "type": "string"
@@ -538,13 +540,15 @@
       "PacketForwardMiddlewareConfig": {
         "type": "object",
         "required": [
-          "hop_chain_receiver_address",
           "hop_to_destination_chain_channel_id",
           "local_to_hop_chain_channel_id"
         ],
         "properties": {
           "hop_chain_receiver_address": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "hop_to_destination_chain_channel_id": {
             "type": "string"
@@ -790,13 +794,15 @@
         "PacketForwardMiddlewareConfig": {
           "type": "object",
           "required": [
-            "hop_chain_receiver_address",
             "hop_to_destination_chain_channel_id",
             "local_to_hop_chain_channel_id"
           ],
           "properties": {
             "hop_chain_receiver_address": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "hop_to_destination_chain_channel_id": {
               "type": "string"
@@ -954,13 +960,15 @@
         "PacketForwardMiddlewareConfig": {
           "type": "object",
           "required": [
-            "hop_chain_receiver_address",
             "hop_to_destination_chain_channel_id",
             "local_to_hop_chain_channel_id"
           ],
           "properties": {
             "hop_chain_receiver_address": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "hop_to_destination_chain_channel_id": {
               "type": "string"
