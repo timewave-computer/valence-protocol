@@ -13,7 +13,9 @@ use valence_chain_client_utils::{
     cosmos::base_client::BaseClient, neutron::NeutronClient, noble::NobleClient,
 };
 use valence_e2e::utils::{
-    ibc::poll_for_ica_state, parse::get_grpc_address_and_port_from_logs, relayer::restart_relayer,
+    ibc::poll_for_ica_state,
+    parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
+    relayer::restart_relayer,
     ADMIN_MNEMONIC, GAS_FLAGS, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM,
     NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, UUSDC_DENOM, VALENCE_ARTIFACTS_PATH,
 };
@@ -42,7 +44,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let rt = tokio::runtime::Runtime::new()?;
     // Get the grpc url and the port for the noble chain
-    let (grpc_url, grpc_port) = get_grpc_address_and_port_from_logs(NOBLE_CHAIN_ID)?;
+    let grpc_addr = get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "grpc_address")?;
+    let (grpc_url, grpc_port) = get_grpc_address_and_port_from_url(&grpc_addr)?;
 
     let noble_client = rt.block_on(async {
         NobleClient::new(
@@ -399,7 +402,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         .dest(NEUTRON_CHAIN_NAME)
         .get();
 
-    let (grpc_url, grpc_port) = get_grpc_address_and_port_from_logs(NEUTRON_CHAIN_ID)?;
+    let grpc_addr = get_chain_field_from_local_ic_log(NEUTRON_CHAIN_ID, "grpc_address")?;
+    let (grpc_url, grpc_port) = get_grpc_address_and_port_from_url(&grpc_addr)?;
+
     let neutron_client = rt.block_on(async {
         NeutronClient::new(
             &grpc_url,

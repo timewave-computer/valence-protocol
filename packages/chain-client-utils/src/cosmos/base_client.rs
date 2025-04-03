@@ -103,7 +103,7 @@ pub trait BaseClient: GrpcSigningClient {
 
         let height = Height::from(height);
 
-        let results = client.block_results(height).await.unwrap();
+        let results = client.block_results(height).await?;
 
         Ok(results)
     }

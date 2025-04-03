@@ -240,7 +240,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ethereum_utils::mock_erc20::setup_deposit_erc20(&rt, &eth_client, "MockUSDC", "USDC")?;
 
     info!("Starting CCTP mock relayer between Noble and Ethereum...");
-    let mock_cctp_relayer = mock_cctp_relayer::MockCctpRelayer::new(&rt);
+    let mock_cctp_relayer = mock_cctp_relayer::MockCctpRelayer::new(&rt)?;
     let rly_rt = tokio::runtime::Runtime::new().unwrap();
 
     let _join_handle = rly_rt

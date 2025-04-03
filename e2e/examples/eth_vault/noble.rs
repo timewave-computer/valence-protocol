@@ -6,13 +6,14 @@ use valence_chain_client_utils::{cosmos::base_client::BaseClient, noble::NobleCl
 use valence_e2e::{
     async_run,
     utils::{
-        parse::get_grpc_address_and_port_from_logs, ADMIN_MNEMONIC, NOBLE_CHAIN_ADMIN_ADDR,
-        NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, UUSDC_DENOM,
+        parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
+        ADMIN_MNEMONIC, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, UUSDC_DENOM,
     },
 };
 
 pub fn get_client(rt: &Runtime) -> Result<NobleClient, Box<dyn Error>> {
-    let (grpc_url, grpc_port) = get_grpc_address_and_port_from_logs(NOBLE_CHAIN_ID)?;
+    let grpc_addr = get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "grpc_address")?;
+    let (grpc_url, grpc_port) = get_grpc_address_and_port_from_url(&grpc_addr)?;
 
     let noble_client = async_run!(
         rt,

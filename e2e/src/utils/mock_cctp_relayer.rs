@@ -12,7 +12,7 @@ use alloy::{
 use crate::{
     async_run,
     utils::{
-        parse::get_rpc_address_from_logs,
+        parse::get_chain_field_from_local_ic_log,
         solidity_contracts::{MockERC20, MockTokenMessenger::DepositForBurn},
         NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_ID, UUSDC_DENOM,
     },
@@ -30,7 +30,7 @@ use valence_chain_client_utils::{
 };
 
 use super::{
-    parse::get_grpc_address_and_port_from_logs, ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT,
+    parse::get_grpc_address_and_port_from_url, ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT,
     NOBLE_CHAIN_DENOM,
 };
 
@@ -47,8 +47,10 @@ struct RelayerState {
 }
 
 impl MockCctpRelayer {
-    pub fn new(rt: &Runtime) -> Self {
-        let (grpc_url, grpc_port) = get_grpc_address_and_port_from_logs(NOBLE_CHAIN_ID).unwrap();
+    pub fn new(rt: &Runtime) -> Result<Self, Box<dyn Error>> {
+        let grpc_addr = get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "grpc_address")?;
+        let (grpc_url, grpc_port) = get_grpc_address_and_port_from_url(&grpc_addr)?;
+
         let (noble_client, latest_noble_block) = async_run!(rt, {
             let client = NobleClient::new(
                 &grpc_url,
@@ -58,38 +60,41 @@ impl MockCctpRelayer {
                 NOBLE_CHAIN_DENOM,
             )
             .await
-            .unwrap();
-            let latest_block = client.latest_block_header().await.unwrap().height;
+            .expect("failed to create noble client");
+            let latest_block = client
+                .latest_block_header()
+                .await
+                .expect("failed to get latest block header")
+                .height;
             (client, latest_block)
         });
 
         let signer = MnemonicBuilder::<English>::default()
             .phrase("test test test test test test test test test test test junk")
-            .index(5) // derive the mnemonic at a different index to avoid nonce issues
-            .unwrap()
-            .build()
-            .unwrap();
+            .index(5)? // derive the mnemonic at a different index to avoid nonce issues
+            .build()?;
 
         let eth_client = EthereumClient {
             rpc_url: DEFAULT_ANVIL_RPC_ENDPOINT.to_string(),
             signer,
         };
 
-        Self {
+        Ok(Self {
             eth_client,
             noble_client,
             state: Arc::new(Mutex::new(RelayerState {
                 last_noble_block: latest_noble_block,
                 processed_events: HashSet::new(),
             })),
-        }
+        })
     }
 
     pub async fn start_relay(self, destination_erc20: Address, messenger: Address) {
         info!("[CCTP MOCK RELAY] Starting...");
         let filter = Filter::new().address(messenger);
 
-        let rpc_addr = get_rpc_address_from_logs(NOBLE_CHAIN_ID).unwrap();
+        let rpc_addr = get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "rpc_address")
+            .expect("Failed to find rpc_address field for noble chain");
         let poll_interval = Duration::from_secs(2);
 
         loop {
