@@ -33,7 +33,9 @@ pub fn get_chain_field_from_local_ic_log(
                 if let Some(field) = chain[target_field].as_str() {
                     return Ok(field.to_string());
                 } else {
-                    return Err("{target_field} not found for the specified chain".into());
+                    return Err(
+                        format!("{} not found for the specified chain", target_field).into(),
+                    );
                 }
             }
         }

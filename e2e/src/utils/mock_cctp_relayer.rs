@@ -34,6 +34,8 @@ use super::{
     NOBLE_CHAIN_DENOM,
 };
 
+const POLLING_PERIOD: Duration = Duration::from_secs(2);
+
 pub struct MockCctpRelayer {
     eth_client: EthereumClient,
     noble_client: NobleClient,
@@ -41,13 +43,24 @@ pub struct MockCctpRelayer {
 }
 
 struct RelayerState {
-    last_noble_block: i64,
+    // last processed block on noble
+    noble_last_block: i64,
+    // noble rpc address
+    noble_rpc_addr: String,
     // processed events cache to avoid double processing
-    processed_events: HashSet<Vec<u8>>,
+    eth_processed_events: HashSet<Vec<u8>>,
+    // ethereum filter to poll for events
+    eth_filter: Filter,
+    // ethereum destination erc20 address
+    eth_destination_erc20: Address,
 }
 
 impl MockCctpRelayer {
-    pub fn new(rt: &Runtime) -> Result<Self, Box<dyn Error>> {
+    pub fn new(
+        rt: &Runtime,
+        messenger: Address,
+        destination_erc20: Address,
+    ) -> Result<Self, Box<dyn Error>> {
         let grpc_addr = get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "grpc_address")?;
         let (grpc_url, grpc_port) = get_grpc_address_and_port_from_url(&grpc_addr)?;
 
@@ -79,36 +92,37 @@ impl MockCctpRelayer {
             signer,
         };
 
+        let noble_rpc_addr = get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "rpc_address")
+            .expect("Failed to find rpc_address field for noble chain");
+
         Ok(Self {
             eth_client,
             noble_client,
             state: Arc::new(Mutex::new(RelayerState {
-                last_noble_block: latest_noble_block,
-                processed_events: HashSet::new(),
+                noble_last_block: latest_noble_block,
+                noble_rpc_addr,
+                eth_processed_events: HashSet::new(),
+                eth_filter: Filter::new().address(messenger),
+                eth_destination_erc20: destination_erc20,
             })),
         })
     }
 
-    pub async fn start_relay(self, destination_erc20: Address, messenger: Address) {
-        info!("[CCTP MOCK RELAY] Starting...");
-        let filter = Filter::new().address(messenger);
-
-        let rpc_addr = get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "rpc_address")
-            .expect("Failed to find rpc_address field for noble chain");
-        let poll_interval = Duration::from_secs(2);
+    pub async fn start(self) {
+        info!("[CCTP MOCK RELAY] Starting Eth<->Noble cctp relayer...");
 
         loop {
             info!("[CCTP RELAY] loop");
 
-            if let Err(e) = self.poll_noble(&rpc_addr, destination_erc20).await {
+            if let Err(e) = self.poll_noble().await {
                 warn!("[CCTP MOCK RELAY] Noble polling error: {:?}", e);
             }
 
-            if let Err(e) = self.poll_ethereum(&filter).await {
+            if let Err(e) = self.poll_ethereum().await {
                 warn!("[CCTP MOCK RELAY] Ethereum polling error: {:?}", e);
             }
 
-            tokio::time::sleep(poll_interval).await;
+            tokio::time::sleep(POLLING_PERIOD).await;
         }
     }
 
@@ -118,32 +132,26 @@ impl MockCctpRelayer {
         mint_recipient: String,
         destination_domain: String,
         destination_erc20: Address,
-    ) {
+    ) -> Result<(), Box<dyn Error>> {
         info!("[CCTP NOBLE] minting {amount}USDC to domain #{destination_domain} recipient {mint_recipient}");
-        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
+        let eth_rp = self
+            .eth_client
+            .get_request_provider()
+            .await
+            .expect("failed to get eth request provider");
 
         let mock_erc20 = MockERC20::new(destination_erc20, &eth_rp);
 
-        let amount_stripped = amount.strip_prefix('"').unwrap().strip_suffix('"').unwrap();
+        let amt = Uint128::from_str(&amount)?;
+        let to = from_base64(mint_recipient)?;
 
-        let recipient_stripped = mint_recipient
-            .strip_suffix('"')
-            .unwrap()
-            .strip_prefix('"')
-            .unwrap();
-
-        let amt = Uint128::from_str(amount_stripped).unwrap();
-        let to = from_base64(recipient_stripped).unwrap();
-
-        let address_bytes = &to[12..];
-
-        let dest_addr = Address::from_slice(address_bytes);
+        let dest_addr = Address::from_slice(&to[12..]);
 
         let pre_mint_balance = self
             .eth_client
             .query(mock_erc20.balanceOf(dest_addr))
             .await
-            .unwrap();
+            .expect("failed to query eth balance");
 
         let mint_tx = self
             .eth_client
@@ -153,27 +161,28 @@ impl MockCctpRelayer {
                     .into_transaction_request(),
             )
             .await
-            .unwrap();
+            .expect("failed to mint usdc on eth");
 
-        let _receipt = eth_rp
+        let _ = eth_rp
             .get_transaction_receipt(mint_tx.transaction_hash)
-            .await
-            .unwrap();
+            .await;
 
         let post_mint_balance = self
             .eth_client
             .query(mock_erc20.balanceOf(dest_addr))
             .await
-            .unwrap();
+            .expect("failed to query eth balance");
 
         let delta = post_mint_balance._0 - pre_mint_balance._0;
         info!("[CCTP NOBLE] successfully minted {delta} tokens to eth address {dest_addr}");
+
+        Ok(())
     }
 
-    async fn mint_noble(&self, val: Log<DepositForBurn>) {
+    async fn mint_noble(&self, val: Log<DepositForBurn>) -> Result<(), Box<dyn Error>> {
         info!("decoded deposit for burn log: {:?}", val);
         let destination_addr =
-            decode_mint_recipient_to_noble_address(&val.mintRecipient.encode_hex()).unwrap();
+            decode_mint_recipient_to_noble_address(&val.mintRecipient.encode_hex())?;
 
         let tx_response = self
             .noble_client
@@ -184,22 +193,20 @@ impl MockCctpRelayer {
                 UUSDC_DENOM,
             )
             .await
-            .unwrap();
+            .expect("failed to mint usdc on noble");
         self.noble_client
             .poll_for_tx(&tx_response.hash)
             .await
-            .unwrap();
+            .expect("failed to poll for mint tx on noble");
         info!(
             "[CCTP ETH] Minted {UUSDC_DENOM} to {destination_addr}: {:?}",
             tx_response
         );
+
+        Ok(())
     }
 
-    pub async fn poll_noble(
-        &self,
-        rpc: &str,
-        eth_destination: Address,
-    ) -> Result<(), Box<dyn Error>> {
+    async fn poll_noble(&self) -> Result<(), Box<dyn Error>> {
         // get last processed block from state
         let mut state = self.state.lock().await;
 
@@ -212,19 +219,18 @@ impl MockCctpRelayer {
             .height;
 
         // process all blocks from last processed block to current block
-        for i in state.last_noble_block..current_block {
-            self.process_noble_block(rpc, i as u32, eth_destination)
-                .await
-                .unwrap();
+        for i in state.noble_last_block..current_block {
+            self.process_noble_block(&state.noble_rpc_addr, i as u32, state.eth_destination_erc20)
+                .await?;
         }
 
         // update the last processed block and return
-        state.last_noble_block = current_block;
+        state.noble_last_block = current_block;
 
         Ok(())
     }
 
-    pub async fn poll_ethereum(&self, filter: &Filter) -> Result<(), Box<dyn Error>> {
+    async fn poll_ethereum(&self) -> Result<(), Box<dyn Error>> {
         let mut state = self.state.lock().await;
 
         let provider = self
@@ -234,22 +240,22 @@ impl MockCctpRelayer {
             .expect("could not get provider");
 
         // fetch the logs
-        let logs = provider.get_logs(filter).await.unwrap();
+        let logs = provider.get_logs(&state.eth_filter).await?;
 
         for log in logs.iter() {
-            let event_id = log.transaction_hash.unwrap().to_vec();
-            if state.processed_events.insert(event_id) {
+            let event_id = log
+                .transaction_hash
+                .expect("failed to find tx hash in eth logs")
+                .to_vec();
+            if state.eth_processed_events.insert(event_id) {
                 info!("[CCTP MOCK RELAY] picked up CCTP transfer event on Ethereum");
 
-                let alloy_log = alloy::primitives::Log::new(
-                    log.address(),
-                    log.topics().into(),
-                    log.data().clone().data,
-                )
-                .unwrap_or_default();
+                let alloy_log =
+                    Log::new(log.address(), log.topics().into(), log.data().clone().data)
+                        .unwrap_or_default();
 
-                let deposit_for_burn_log = DepositForBurn::decode_log(&alloy_log, false).unwrap();
-                self.mint_noble(deposit_for_burn_log).await;
+                let deposit_for_burn_log = DepositForBurn::decode_log(&alloy_log, false)?;
+                self.mint_noble(deposit_for_burn_log).await?;
             }
         }
 
@@ -266,7 +272,7 @@ impl MockCctpRelayer {
             .noble_client
             .block_results(rpc_addr, block_number)
             .await
-            .unwrap();
+            .expect("failed to fetch noble block results");
 
         if let Some(r) = results.txs_results {
             for result in r {
@@ -280,13 +286,23 @@ impl MockCctpRelayer {
                         let mut destination_token_messenger = "".to_string();
 
                         for attribute in event.attributes {
-                            let key = attribute.key_str().unwrap().to_string();
-                            let value = attribute.value_str().unwrap().to_string();
+                            let key = attribute.key_str()?.to_string();
+                            let value = attribute.value_str()?.to_string();
                             if key == "amount" {
-                                amount = value;
+                                amount = value
+                                    .strip_prefix('"')
+                                    .unwrap()
+                                    .strip_suffix('"')
+                                    .unwrap()
+                                    .to_string();
                                 info!("\t[CCTP NOBLE] amount: {amount}");
                             } else if key == "mint_recipient" {
-                                mint_recipient = value;
+                                mint_recipient = value
+                                    .strip_suffix('"')
+                                    .unwrap()
+                                    .strip_prefix('"')
+                                    .unwrap()
+                                    .to_string();
                                 info!("\t[CCTP NOBLE] mint_recipient: {mint_recipient}");
                             } else if key == "destination_domain" {
                                 destination_domain = value;
@@ -308,7 +324,7 @@ impl MockCctpRelayer {
                                 destination_domain,
                                 destination_erc20,
                             )
-                            .await
+                            .await?
                         }
                     }
                 }
