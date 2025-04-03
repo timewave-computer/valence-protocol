@@ -41,11 +41,10 @@ pub fn execute(
 }
 
 mod functions {
-    use cosmos_sdk_proto::{
-        cosmos::base::v1beta1::Coin, ibc::applications::transfer::v1::MsgTransfer, prost::Name,
-        traits::MessageExt,
-    };
-    use cosmwasm_std::{AnyMsg, Binary, DepsMut, Env, MessageInfo, Response};
+    use cosmos_sdk_proto::{cosmos::base::v1beta1::Coin, prost::Name, traits::MessageExt};
+    use cosmwasm_std::{to_json_string, AnyMsg, Binary, DepsMut, Env, MessageInfo, Response};
+    use ibc_proto::ibc::apps::transfer::v1::MsgTransfer;
+    use valence_ibc_utils::types::{ForwardMetadata, PacketMetadata};
     use valence_library_utils::{
         error::LibraryError,
         ica::{execute_on_behalf_of, get_remote_ica_address},
@@ -67,25 +66,58 @@ mod functions {
         match msg {
             FunctionMsgs::Transfer {} => {
                 // Create the proto message
-                let proto_msg = MsgTransfer {
-                    source_port: "transfer".to_string(),
-                    source_channel: cfg.remote_chain_info.channel_id,
-                    token: Some(Coin {
-                        denom: cfg.denom,
-                        amount: cfg.amount.to_string(),
-                    }),
-                    sender: remote_address,
-                    receiver: cfg.receiver,
-                    timeout_height: None,
-                    timeout_timestamp: env
-                        .block
-                        .time
-                        .plus_seconds(
-                            cfg.remote_chain_info
-                                .ibc_transfer_timeout
-                                .unwrap_or(DEFAULT_IBC_TIMEOUT),
-                        )
-                        .nanos(),
+                let proto_msg = match cfg.denom_to_pfm_map.get(&cfg.denom) {
+                    // No PFM config for the denom sent
+                    None => MsgTransfer {
+                        source_port: "transfer".to_string(),
+                        source_channel: cfg.remote_chain_info.channel_id,
+                        token: Some(Coin {
+                            denom: cfg.denom,
+                            amount: cfg.amount.to_string(),
+                        }),
+                        sender: remote_address,
+                        receiver: cfg.receiver,
+                        timeout_height: None,
+                        timeout_timestamp: env
+                            .block
+                            .time
+                            .plus_seconds(
+                                cfg.remote_chain_info
+                                    .ibc_transfer_timeout
+                                    .unwrap_or(DEFAULT_IBC_TIMEOUT),
+                            )
+                            .nanos(),
+                        memo: cfg.memo,
+                    },
+                    // PFM Config found
+                    Some(pfm_config) => MsgTransfer {
+                        source_port: "transfer".to_string(),
+                        source_channel: pfm_config.local_to_hop_chain_channel_id.to_string(),
+                        token: Some(Coin {
+                            denom: cfg.denom,
+                            amount: cfg.amount.to_string(),
+                        }),
+                        sender: remote_address,
+                        receiver: pfm_config.hop_chain_receiver_address.to_string(),
+                        timeout_height: None,
+                        timeout_timestamp: env
+                            .block
+                            .time
+                            .plus_seconds(
+                                cfg.remote_chain_info
+                                    .ibc_transfer_timeout
+                                    .unwrap_or(DEFAULT_IBC_TIMEOUT),
+                            )
+                            .nanos(),
+                        memo: to_json_string(&PacketMetadata {
+                            forward: Some(ForwardMetadata {
+                                receiver: cfg.receiver.clone(),
+                                port: "transfer".to_string(),
+                                // hop chain to final receiver chain channel
+                                channel: pfm_config.hop_to_destination_chain_channel_id.to_string(),
+                            }),
+                        })?,
+                    },
                 };
 
                 // Create the Any
