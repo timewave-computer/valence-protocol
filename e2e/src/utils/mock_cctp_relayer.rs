@@ -1,4 +1,4 @@
-use std::{collections::HashSet, error::Error, str::FromStr, sync::Arc, time::Duration};
+use std::{collections::HashSet, error::Error, str::FromStr, time::Duration};
 
 use alloy::{
     hex::ToHexExt,
@@ -21,7 +21,7 @@ use bech32::{encode, Bech32};
 use cosmwasm_std::{from_base64, Uint128};
 use hex::FromHex;
 use log::{info, warn};
-use tokio::{runtime::Runtime, sync::Mutex};
+use tokio::runtime::Runtime;
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
     ethereum::EthereumClient,
@@ -39,7 +39,7 @@ const POLLING_PERIOD: Duration = Duration::from_secs(2);
 pub struct MockCctpRelayer {
     eth_client: EthereumClient,
     noble_client: NobleClient,
-    state: Arc<Mutex<RelayerState>>,
+    state: RelayerState,
 }
 
 struct RelayerState {
@@ -98,17 +98,17 @@ impl MockCctpRelayer {
         Ok(Self {
             eth_client,
             noble_client,
-            state: Arc::new(Mutex::new(RelayerState {
+            state: RelayerState {
                 noble_last_block: latest_noble_block,
                 noble_rpc_addr,
                 eth_processed_events: HashSet::new(),
                 eth_filter: Filter::new().address(messenger),
                 eth_destination_erc20: destination_erc20,
-            })),
+            },
         })
     }
 
-    pub async fn start(self) {
+    pub async fn start(mut self) {
         info!("[CCTP MOCK RELAY] Starting Eth<->Noble cctp relayer...");
 
         loop {
@@ -206,10 +206,7 @@ impl MockCctpRelayer {
         Ok(())
     }
 
-    async fn poll_noble(&self) -> Result<(), Box<dyn Error>> {
-        // get last processed block from state
-        let mut state = self.state.lock().await;
-
+    async fn poll_noble(&mut self) -> Result<(), Box<dyn Error>> {
         // query the current block to process the delta
         let current_block = self
             .noble_client
@@ -219,20 +216,22 @@ impl MockCctpRelayer {
             .height;
 
         // process all blocks from last processed block to current block
-        for i in state.noble_last_block..current_block {
-            self.process_noble_block(&state.noble_rpc_addr, i as u32, state.eth_destination_erc20)
-                .await?;
+        for i in self.state.noble_last_block..current_block {
+            self.process_noble_block(
+                &self.state.noble_rpc_addr,
+                i as u32,
+                self.state.eth_destination_erc20,
+            )
+            .await?;
         }
 
         // update the last processed block and return
-        state.noble_last_block = current_block;
+        self.state.noble_last_block = current_block;
 
         Ok(())
     }
 
-    async fn poll_ethereum(&self) -> Result<(), Box<dyn Error>> {
-        let mut state = self.state.lock().await;
-
+    async fn poll_ethereum(&mut self) -> Result<(), Box<dyn Error>> {
         let provider = self
             .eth_client
             .get_request_provider()
@@ -240,14 +239,14 @@ impl MockCctpRelayer {
             .expect("could not get provider");
 
         // fetch the logs
-        let logs = provider.get_logs(&state.eth_filter).await?;
+        let logs = provider.get_logs(&self.state.eth_filter).await?;
 
         for log in logs.iter() {
             let event_id = log
                 .transaction_hash
                 .expect("failed to find tx hash in eth logs")
                 .to_vec();
-            if state.eth_processed_events.insert(event_id) {
+            if self.state.eth_processed_events.insert(event_id) {
                 info!("[CCTP MOCK RELAY] picked up CCTP transfer event on Ethereum");
 
                 let alloy_log =
