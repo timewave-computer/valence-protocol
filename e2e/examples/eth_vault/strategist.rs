@@ -21,6 +21,74 @@ use valence_e2e::{
 
 use crate::program::{NeutronProgramAccounts, NeutronProgramLibraries};
 
+pub struct Strategist {
+    eth_client: EthereumClient,
+    noble_client: NobleClient,
+    neutron_client: NeutronClient,
+    neutron_program_accounts: NeutronProgramAccounts,
+    neutron_program_libraries: NeutronProgramLibraries,
+    uusdc_on_neutron_denom: String,
+}
+
+impl Strategist {
+    pub fn new(
+        eth_client: EthereumClient,
+        noble_client: NobleClient,
+        neutron_client: NeutronClient,
+        neutron_program_accounts: NeutronProgramAccounts,
+        neutron_program_libraries: NeutronProgramLibraries,
+        uusdc_on_neutron_denom: String,
+    ) -> Self {
+        Self {
+            eth_client,
+            noble_client,
+            neutron_client,
+            neutron_program_accounts,
+            neutron_program_libraries,
+            uusdc_on_neutron_denom,
+        }
+    }
+}
+
+impl Strategist {
+    pub async fn start(mut self) {
+        info!("[STRATEGIST] Starting...");
+
+        loop {
+            info!("[STRATEGIST] loop");
+            // TODO
+        }
+    }
+
+    async fn route_noble_to_neutron(mut self) {
+        // TODO
+    }
+
+    async fn route_neutron_to_noble(mut self) {
+        // TODO
+    }
+
+    async fn route_eth_to_noble(mut self) {
+        // TODO
+    }
+
+    async fn route_noble_to_eth(mut self) {
+        // TODO
+    }
+
+    async fn enter_position(mut self) {
+        // TODO
+    }
+
+    async fn exit_position(mut self) {
+        // TODO
+    }
+
+    async fn swap_ntrn_into_usdc(mut self) {
+        // TODO
+    }
+}
+
 pub fn pull_funds_from_noble_inbound_ica(
     rt: &Runtime,
     neutron_client: &NeutronClient,
