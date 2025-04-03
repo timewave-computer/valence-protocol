@@ -7,8 +7,8 @@ use alloy_signer_local::{MnemonicBuilder, PrivateKeySigner};
 use tonic::async_trait;
 
 pub struct EthereumClient {
-    rpc_url: String,
-    signer: PrivateKeySigner,
+    pub rpc_url: String,
+    pub signer: PrivateKeySigner,
 }
 
 impl EthereumClient {

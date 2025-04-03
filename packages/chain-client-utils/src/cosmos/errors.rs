@@ -7,6 +7,12 @@ use tonic::Status;
 
 use crate::common::error::StrategistError;
 
+impl From<cosmrs::rpc::Error> for StrategistError {
+    fn from(value: cosmrs::rpc::Error) -> Self {
+        StrategistError::ClientError(value.to_string())
+    }
+}
+
 impl From<Status> for StrategistError {
     fn from(value: Status) -> Self {
         StrategistError::ParseError(value.to_string())

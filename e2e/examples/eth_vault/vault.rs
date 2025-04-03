@@ -29,6 +29,7 @@ use valence_e2e::{
             ICA_CCTP_TRANSFER_NAME, ICA_IBC_TRANSFER_NAME, INTERCHAIN_ACCOUNT_NAME,
             NEUTRON_IBC_TRANSFER_NAME,
         },
+        mock_cctp_relayer,
         solidity_contracts::ValenceVault,
         vault::{self, setup_cctp_transfer, setup_valence_vault},
         DEFAULT_ANVIL_RPC_ENDPOINT, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
@@ -59,6 +60,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     async_run!(rt, ethereum_utils::set_up_anvil_container().await)?;
 
     let eth = EthClient::new(DEFAULT_ANVIL_RPC_ENDPOINT)?;
+
     let eth_client = valence_chain_client_utils::ethereum::EthereumClient::new(
         DEFAULT_ANVIL_RPC_ENDPOINT,
         "test test test test test test test test test test test junk",
@@ -69,6 +71,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     let eth_accounts = async_run!(rt, eth_client.get_provider_accounts().await.unwrap());
     let eth_admin_acc = eth_accounts[0];
     let _eth_user_acc = eth_accounts[2];
+
+    // create two Valence Base Accounts on Ethereum to test the processor with libraries (in this case the forwarder)
+    let deposit_acc_addr =
+        ethereum_utils::valence_account::setup_valence_account(&rt, &eth_client, eth_admin_acc)?;
+    let withdraw_acc_addr =
+        ethereum_utils::valence_account::setup_valence_account(&rt, &eth_client, eth_admin_acc)?;
+    // set up the cctp messenger
+    let mock_cctp_messenger_address =
+        valence_e2e::utils::vault::setup_mock_token_messenger(&rt, &eth_client)?;
 
     info!("Setting up Neutron side flow...");
 
@@ -178,7 +189,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &neutron_processor_address,
         amount_to_transfer,
         &uusdc_on_neutron_denom,
-        eth_admin_acc.to_string(),
+        withdraw_acc_addr.to_string(),
     )?;
 
     noble::mint_usdc_to_addr(
@@ -225,6 +236,21 @@ fn main() -> Result<(), Box<dyn Error>> {
         &pool_addr,
     )?;
 
+    let usdc_token_address =
+        ethereum_utils::mock_erc20::setup_deposit_erc20(&rt, &eth_client, "MockUSDC", "USDC")?;
+
+    info!("Starting CCTP mock relayer between Noble and Ethereum...");
+    let mock_cctp_relayer = mock_cctp_relayer::MockCctpRelayer::new(
+        &rt,
+        mock_cctp_messenger_address,
+        usdc_token_address,
+    )?;
+    let rly_rt = tokio::runtime::Runtime::new().unwrap();
+
+    let _join_handle = rly_rt.spawn(mock_cctp_relayer.start());
+    info!("main sleep for 3...");
+    sleep(Duration::from_secs(3));
+
     strategist::route_usdc_to_noble(
         &rt,
         &neutron_client,
@@ -232,8 +258,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         &neutron_program_libraries,
         &uusdc_on_neutron_denom,
     )?;
-
-    sleep(Duration::from_secs(5));
 
     let noble_outbound_ica_usdc_bal = async_run!(
         &rt,
@@ -255,15 +279,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         &neutron_program_libraries,
     )?;
 
-    // create two Valence Base Accounts on Ethereum to test the processor with libraries (in this case the forwarder)
-    let deposit_acc_addr =
-        ethereum_utils::valence_account::setup_valence_account(&rt, &eth_client, eth_admin_acc)?;
-    let withdraw_acc_addr =
-        ethereum_utils::valence_account::setup_valence_account(&rt, &eth_client, eth_admin_acc)?;
-
-    let usdc_token_address =
-        ethereum_utils::mock_erc20::setup_deposit_erc20(&rt, &eth_client, "MockUSDC", "USDC")?;
-
     info!("Setting up Lite Processor on Ethereum");
     let _lite_processor_address = ethereum_utils::lite_processor::setup_lite_processor(
         &rt,
@@ -275,9 +290,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             .to_string(),
         authorization_contract_address.as_str(),
     )?;
-
-    let mock_cctp_messenger_address =
-        valence_e2e::utils::vault::setup_mock_token_messenger(&rt, &eth_client)?;
 
     info!("Setting up Valence Vault...");
     let vault_address = setup_valence_vault(
@@ -293,7 +305,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let cctp_forwarder = setup_cctp_transfer(
         &rt,
         &eth_client,
-        neutron_program_accounts.noble_inbound_ica.remote_addr,
+        neutron_program_accounts
+            .noble_inbound_ica
+            .remote_addr
+            .to_string(),
         deposit_acc_addr,
         eth_admin_acc,
         eth_admin_acc,
@@ -497,52 +512,60 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("user1 completing withdraw request...");
     vault::complete_withdraw_request(*valence_vault.address(), &rt, &eth_client, eth_user_acc)?;
-    let withdraw_acc_usdc_bal = ethereum_utils::mock_erc20::query_balance(
-        &rt,
-        &eth_client,
-        usdc_token_address,
-        withdraw_acc_addr,
-    );
+
     let user1_usdc_bal = ethereum_utils::mock_erc20::query_balance(
         &rt,
         &eth_client,
         usdc_token_address,
         eth_user_acc,
     );
-    assert_eq!(withdraw_acc_usdc_bal, U256::from(50)); // fees leftover
     assert_eq!(user1_usdc_bal, user_1_deposit_amount - U256::from(50));
 
-    let deposit_acc_usdc_bal = ethereum_utils::mock_erc20::query_balance(
+    let pre_cctp_deposit_acc_usdc_bal = ethereum_utils::mock_erc20::query_balance(
         &rt,
         &eth_client,
         usdc_token_address,
         deposit_acc_addr,
     );
-    info!("deposit account usdc balance: {deposit_acc_usdc_bal}");
-    assert_ne!(deposit_acc_usdc_bal, U256::ZERO);
+    let pre_cctp_neutron_ica_bal = async_run!(
+        &rt,
+        noble_client
+            .query_balance(
+                &neutron_program_accounts.noble_inbound_ica.remote_addr,
+                UUSDC_DENOM
+            )
+            .await
+            .unwrap()
+    );
+
+    assert_eq!(pre_cctp_neutron_ica_bal, 0);
+    assert_eq!(pre_cctp_deposit_acc_usdc_bal, U256::from(1000000));
 
     info!("strategist cctp routing eth->ntrn...");
     strategist::cctp_route_usdc_from_eth(&rt, &eth_client, cctp_forwarder, eth_admin_acc)?;
 
-    let deposit_acc_usdc_bal = ethereum_utils::mock_erc20::query_balance(
+    info!("[MAIN] sleeping for 5 to give cctp time to relay");
+    sleep(Duration::from_secs(5));
+
+    let post_cctp_deposit_acc_usdc_bal = ethereum_utils::mock_erc20::query_balance(
         &rt,
         &eth_client,
         usdc_token_address,
         deposit_acc_addr,
     );
-    assert_eq!(deposit_acc_usdc_bal, U256::ZERO);
-
-    log_eth_balances(
-        &eth_client,
+    let post_cctp_neutron_ica_bal = async_run!(
         &rt,
-        valence_vault.address(),
-        &usdc_token_address,
-        &deposit_acc_addr,
-        &withdraw_acc_addr,
-        &eth_user_acc,
-        &eth_user2_acc,
-    )
-    .unwrap();
+        noble_client
+            .query_balance(
+                &neutron_program_accounts.noble_inbound_ica.remote_addr,
+                UUSDC_DENOM
+            )
+            .await
+            .unwrap()
+    );
+
+    assert_eq!(post_cctp_neutron_ica_bal, 1000000);
+    assert_eq!(post_cctp_deposit_acc_usdc_bal, U256::ZERO);
 
     Ok(())
 }

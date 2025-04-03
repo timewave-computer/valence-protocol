@@ -21,8 +21,8 @@ use valence_chain_client_utils::neutron::NeutronClient;
 use valence_e2e::{
     async_run,
     utils::{
-        parse::get_grpc_address_and_port_from_logs, ADMIN_MNEMONIC, ASTROPORT_PATH, GAS_FLAGS,
-        LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
+        parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
+        ADMIN_MNEMONIC, ASTROPORT_PATH, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
     },
 };
 
@@ -276,7 +276,9 @@ pub fn setup_astroport_cl_pool(
 }
 
 pub fn get_neutron_client(rt: &Runtime) -> Result<NeutronClient, Box<dyn Error>> {
-    let (grpc_url, grpc_port) = get_grpc_address_and_port_from_logs(NEUTRON_CHAIN_ID)?;
+    let grpc_addr = get_chain_field_from_local_ic_log(NEUTRON_CHAIN_ID, "grpc_address")?;
+    let (grpc_url, grpc_port) = get_grpc_address_and_port_from_url(&grpc_addr)?;
+
     let neutron_client = async_run!(
         rt,
         NeutronClient::new(
