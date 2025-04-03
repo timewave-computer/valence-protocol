@@ -67,7 +67,7 @@ struct PacketForwardMiddlewareConfig {
   // Channel ID from the intermediate to the destination chain
   hop_to_destination_chain_channel_id: String,
   // Temporary receiver address on the intermediate chain. Typically this is set to an invalid address so the entire transaction will revert if the forwarding fails. If not 
-  // provided, will be set to "pfm"
+  // provided it's set to "pfm"
   hop_chain_receiver_address: Option<String>,
 }
 ```
