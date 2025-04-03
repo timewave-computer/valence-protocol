@@ -1444,7 +1444,7 @@ struct PacketForwardMiddlewareConfig {
   local_to_hop_chain_channel_id: String,
   // Channel ID from the intermediate to the destination chain
   hop_to_destination_chain_channel_id: String,
-  // Temporary receiver address on the intermediate chain
+  // Temporary receiver address on the intermediate chain. Typically this is set to an invalid address so the entire transaction will revert if the forwarding fails
   hop_chain_receiver_address: String,
 }
 <span class="boring">}</span></code></pre></pre>
@@ -1574,7 +1574,7 @@ struct PacketForwardMiddlewareConfig {
   local_to_hop_chain_channel_id: String,
   // Channel ID from the intermediate to the destination chain
   hop_to_destination_chain_channel_id: String,
-  // Temporary receiver address on the intermediate chain
+  // Temporary receiver address on the intermediate chain. Typically this is set to an invalid address so the entire transaction will revert if the forwarding fails
   hop_chain_receiver_address: String,
 }
 <span class="boring">}</span></code></pre></pre>
@@ -2554,8 +2554,12 @@ graph LR
     pub denom: String,
     // Receiver on the other chain
     pub receiver: String,
+    // Memo to be passed in the IBC transfer message.
+    pub memo: String,
     // Remote chain info
     pub remote_chain_info: RemoteChainInfo,
+    // Denom map for the Packet-Forwarding Middleware, to perform a multi-hop transfer.
+    pub denom_to_pfm_map: BTreeMap&lt;String, PacketForwardMiddlewareConfig&gt;,
 }
 
 pub struct RemoteChainInfo {
@@ -2564,7 +2568,23 @@ pub struct RemoteChainInfo {
     // Timeout for the IBC transfer in seconds. If not specified, a default 600 seconds will be used will be used
     pub ibc_transfer_timeout: Option&lt;u64&gt;,
 }
+
+// Configuration for a multi-hop transfer using the Packet Forwarding Middleware
+struct PacketForwardMiddlewareConfig {
+  // Channel ID from the source chain to the intermediate chain
+  local_to_hop_chain_channel_id: String,
+  // Channel ID from the intermediate to the destination chain
+  hop_to_destination_chain_channel_id: String,
+  // Temporary receiver address on the intermediate chain. Typically this is set to an invalid address so the entire transaction will revert if the forwarding fails
+  hop_chain_receiver_address: String,
+}
 <span class="boring">}</span></code></pre></pre>
+<h3 id="packet-forward-middleware-2"><a class="header" href="#packet-forward-middleware-2">Packet-Forward Middleware</a></h3>
+<p>The library supports multi-hop IBC transfers using the Packet Forward Middleware (PFM).
+This allows tokens to be transferred through an intermediate chain to reach their final
+destination. More information about the PFM functionality can be found in the <a href="https://github.com/cosmos/ibc-apps/tree/main/middleware/packet-forward-middleware">official
+documentation</a>.</p>
+<p>This works in the same way as the <strong>Generic IBC Transfer Library</strong>. The only difference is that the <strong>input account</strong> is a <strong>Valence interchain account</strong> and the <strong>receiver</strong> is a remote address on the remote domain. For more details on how PFM works, check the <a href="libraries/cosmwasm/./generic_ibc_transfer.html#packet-forward-middleware">Generic IBC Transfer Library PFM</a> documentation.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="evm-libraries"><a class="header" href="#evm-libraries">EVM Libraries</a></h1>
 <p>This section contains a detailed description of all the libraries that can be used in EVM Execution Environments.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-forwarder-library-1"><a class="header" href="#valence-forwarder-library-1">Valence Forwarder Library</a></h1>
