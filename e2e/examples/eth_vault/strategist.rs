@@ -87,8 +87,6 @@ impl Strategist {
             .index(7)? // derive the mnemonic at a different index to avoid nonce issues
             .build()?;
 
-        info!("strategist address: {:?}", signer.address());
-
         let eth_client = EthereumClient {
             rpc_url: DEFAULT_ANVIL_RPC_ENDPOINT.to_string(),
             signer,

@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use alloy::primitives::Address;
+use alloy::primitives::{Address, U256};
 use log::info;
 use valence_chain_client_utils::{
     ethereum::EthereumClient,
@@ -14,6 +14,25 @@ use valence_e2e::{
         ValenceVault::{self},
     },
 };
+
+pub fn mine_blocks(
+    rt: &tokio::runtime::Runtime,
+    eth_client: &EthereumClient,
+    blocks: usize,
+    interval: usize,
+) {
+    async_run!(rt, {
+        let eth_rp = eth_client.get_request_provider().await.unwrap();
+
+        alloy::providers::ext::AnvilApi::anvil_mine(
+            &eth_rp,
+            Some(U256::from(blocks)),
+            Some(U256::from(interval)),
+        )
+        .await
+        .unwrap();
+    });
+}
 
 #[allow(clippy::too_many_arguments)]
 pub fn log_eth_balances(

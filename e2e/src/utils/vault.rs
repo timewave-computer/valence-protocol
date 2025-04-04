@@ -15,9 +15,12 @@ use valence_encoder_utils::libraries::cctp_transfer::solidity_types::CCTPTransfe
 
 use crate::{
     async_run,
-    utils::solidity_contracts::{
-        CCTPTransfer, ERC1967Proxy, MockTokenMessenger,
-        ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
+    utils::{
+        self,
+        solidity_contracts::{
+            CCTPTransfer, ERC1967Proxy, MockTokenMessenger,
+            ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
+        },
     },
 };
 
@@ -427,6 +430,8 @@ pub fn update() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// sets up a Valence Vault on Ethereum with a proxy.
+/// approves deposit & withdraw accounts.
 pub fn setup_valence_vault(
     rt: &tokio::runtime::Runtime,
     eth_client: &EthereumClient,
@@ -492,6 +497,22 @@ pub fn setup_valence_vault(
 
         eth_client.execute_tx(initialize_tx).await.unwrap();
     });
+
+    info!("Approving vault for withdraw account...");
+    utils::ethereum::valence_account::approve_library(
+        rt,
+        eth_client,
+        eth_withdraw_acc,
+        proxy_address,
+    );
+
+    info!("Approving vault for deposit account...");
+    utils::ethereum::valence_account::approve_library(
+        rt,
+        eth_client,
+        eth_deposit_acc,
+        proxy_address,
+    );
 
     Ok(proxy_address)
 }
@@ -564,6 +585,9 @@ pub fn setup_cctp_transfer(
 
     let cctp_address = cctp_rx.contract_address.unwrap();
     info!("CCTP Transfer deployed at: {cctp_address}");
+
+    // approve the CCTP forwarder on deposit account
+    utils::ethereum::valence_account::approve_library(rt, eth_client, input_account, cctp_address);
 
     Ok(cctp_address)
 }

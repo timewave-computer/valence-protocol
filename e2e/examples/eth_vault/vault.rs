@@ -83,6 +83,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     // set up the cctp messenger
     let mock_cctp_messenger_address =
         valence_e2e::utils::vault::setup_mock_token_messenger(&rt, &eth_client)?;
+    // eth side USDC token
+    let usdc_token_address =
+        ethereum_utils::mock_erc20::setup_deposit_erc20(&rt, &eth_client, "MockUSDC", "USDC")?;
 
     info!("Setting up Neutron side flow...");
 
@@ -202,9 +205,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         amount_to_transfer,
     )?;
 
-    let usdc_token_address =
-        ethereum_utils::mock_erc20::setup_deposit_erc20(&rt, &eth_client, "MockUSDC", "USDC")?;
-
     let cctp_forwarder = setup_cctp_transfer(
         &rt,
         &eth_client,
@@ -218,56 +218,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         usdc_token_address,
         mock_cctp_messenger_address,
     )?;
-
-    let strategist = Strategist::new(
-        &rt,
-        neutron_program_accounts.clone(),
-        neutron_program_libraries.clone(),
-        uusdc_on_neutron_denom.clone(),
-        lp_token.to_string(),
-        pool_addr.to_string(),
-        cctp_forwarder,
-    )
-    .unwrap();
-
-    async_run!(
-        &rt,
-        strategist.route_noble_to_neutron(amount_to_transfer).await
-    );
-
-    async_run!(&rt, strategist.enter_position().await);
-
-    async_run!(&rt, strategist.exit_position().await);
-
-    async_run!(&rt, strategist.swap_ntrn_into_usdc().await);
-
-    info!("Starting CCTP mock relayer between Noble and Ethereum...");
-    let mock_cctp_relayer = mock_cctp_relayer::MockCctpRelayer::new(
-        &rt,
-        mock_cctp_messenger_address,
-        usdc_token_address,
-    )?;
-    let rly_rt = tokio::runtime::Runtime::new().unwrap();
-
-    let _join_handle = rly_rt.spawn(mock_cctp_relayer.start());
-    info!("main sleep for 3...");
-    sleep(Duration::from_secs(3));
-
-    async_run!(&rt, strategist.route_neutron_to_noble().await);
-
-    let noble_outbound_ica_usdc_bal = async_run!(
-        &rt,
-        noble_client
-            .query_balance(
-                &neutron_program_accounts.noble_outbound_ica.remote_addr,
-                UUSDC_DENOM
-            )
-            .await
-            .unwrap()
-    );
-    info!("noble_outbound_ica_usdc_bal: {noble_outbound_ica_usdc_bal}");
-
-    async_run!(&rt, strategist.route_noble_to_eth().await);
 
     info!("Setting up Lite Processor on Ethereum");
     let _lite_processor_address = ethereum_utils::lite_processor::setup_lite_processor(
@@ -292,13 +242,46 @@ fn main() -> Result<(), Box<dyn Error>> {
         usdc_token_address,
     )?;
 
-    // approve the CCTP forwarder on deposit account
-    ethereum_utils::valence_account::approve_library(
+    let valence_vault = ValenceVault::new(vault_address, &eth_rp);
+
+    info!("Starting CCTP mock relayer between Noble and Ethereum...");
+    let mock_cctp_relayer = mock_cctp_relayer::MockCctpRelayer::new(
         &rt,
-        &eth_client,
-        deposit_acc_addr,
+        mock_cctp_messenger_address,
+        usdc_token_address,
+    )?;
+    let rly_rt = tokio::runtime::Runtime::new().unwrap();
+
+    let _join_handle = rly_rt.spawn(mock_cctp_relayer.start());
+    info!("main sleep for 3...");
+    sleep(Duration::from_secs(3));
+
+    let strategist = Strategist::new(
+        &rt,
+        neutron_program_accounts.clone(),
+        neutron_program_libraries.clone(),
+        uusdc_on_neutron_denom.clone(),
+        lp_token.to_string(),
+        pool_addr.to_string(),
         cctp_forwarder,
+    )
+    .unwrap();
+
+    // flow starts here
+    async_run!(
+        &rt,
+        strategist.route_noble_to_neutron(amount_to_transfer).await
     );
+
+    async_run!(&rt, strategist.enter_position().await);
+
+    async_run!(&rt, strategist.exit_position().await);
+
+    async_run!(&rt, strategist.swap_ntrn_into_usdc().await);
+
+    async_run!(&rt, strategist.route_neutron_to_noble().await);
+
+    async_run!(&rt, strategist.route_noble_to_eth().await);
 
     let eth_user_acc = eth_accounts[2];
     let eth_user2_acc = eth_accounts[3];
@@ -315,8 +298,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         user_1_deposit_amount,
     );
 
-    let valence_vault = ValenceVault::new(vault_address, &eth_rp);
-
     info!("approving vault to spend usdc on behalf of user...");
     ethereum_utils::mock_erc20::approve(
         &rt,
@@ -325,22 +306,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         eth_user_acc,
         *valence_vault.address(),
         U256::MAX,
-    );
-
-    info!("Approving vault for withdraw account...");
-    ethereum_utils::valence_account::approve_library(
-        &rt,
-        &eth_client,
-        withdraw_acc_addr,
-        *valence_vault.address(),
-    );
-
-    info!("Approving vault for deposit account...");
-    ethereum_utils::valence_account::approve_library(
-        &rt,
-        &eth_client,
-        deposit_acc_addr,
-        *valence_vault.address(),
     );
 
     info!("User depositing {user_1_deposit_amount}USDC tokens to vault...");
@@ -385,17 +350,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         U256::MAX,
     );
 
-    async_run!(rt, {
-        let eth_rp = eth_client.get_request_provider().await.unwrap();
-
-        alloy::providers::ext::AnvilApi::anvil_mine(
-            &eth_rp,
-            Some(U256::from(5)),
-            Some(U256::from(3)),
-        )
-        .await
-        .unwrap();
-    });
+    evm::mine_blocks(&rt, &eth_client, 5, 3);
 
     let user1_pre_redeem_shares_bal =
         vault::query_vault_balance_of(*valence_vault.address(), &rt, &eth_client, eth_user_acc)._0;
@@ -439,17 +394,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     assert_ne!(user2_shares_bal, U256::ZERO);
     assert_eq!(user2_post_deposit_usdc_bal, U256::ZERO);
 
-    async_run!(rt, {
-        let eth_rp = eth_client.get_request_provider().await.unwrap();
-
-        alloy::providers::ext::AnvilApi::anvil_mine(
-            &eth_rp,
-            Some(U256::from(5)),
-            Some(U256::from(3)),
-        )
-        .await
-        .unwrap();
-    });
+    evm::mine_blocks(&rt, &eth_client, 5, 3);
 
     info!("performing vault update with N=100_000...");
     vault::vault_update(
@@ -462,17 +407,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &eth_client,
     )?;
 
-    async_run!(rt, {
-        let eth_rp = eth_client.get_request_provider().await.unwrap();
-
-        alloy::providers::ext::AnvilApi::anvil_mine(
-            &eth_rp,
-            Some(U256::from(5)),
-            Some(U256::from(3)),
-        )
-        .await
-        .unwrap();
-    });
+    evm::mine_blocks(&rt, &eth_client, 5, 3);
 
     log_eth_balances(
         &eth_client,
@@ -518,7 +453,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     assert_eq!(pre_cctp_deposit_acc_usdc_bal, U256::from(1000000));
 
     info!("strategist cctp routing eth->ntrn...");
-    // strategist::cctp_route_usdc_from_eth(&rt, &eth_client, cctp_forwarder, eth_admin_acc)?;
     async_run!(&rt, strategist.route_eth_to_noble().await);
 
     info!("[MAIN] sleeping for 5 to give cctp time to relay");
