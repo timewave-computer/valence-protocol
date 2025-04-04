@@ -1,11 +1,12 @@
 use std::{
     error::Error,
     path::Path,
+    str::FromStr,
     thread::sleep,
     time::{Duration, SystemTime},
 };
 
-use alloy::primitives::U256;
+use alloy::primitives::{Address, U256};
 use evm::log_eth_balances;
 use localic_utils::{
     types::config::ConfigChain, utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder,
@@ -15,6 +16,7 @@ use localic_utils::{
 use log::info;
 use neutron::setup_astroport_cl_pool;
 use program::{setup_neutron_accounts, setup_neutron_libraries};
+use strategist::Strategist;
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient, evm::request_provider_client::RequestProviderClient,
 };
@@ -71,6 +73,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let eth_accounts = async_run!(rt, eth_client.get_provider_accounts().await.unwrap());
     let eth_admin_acc = eth_accounts[0];
     let _eth_user_acc = eth_accounts[2];
+    let strategist_acc = Address::from_str("0x14dc79964da2c08b23698b3d3cc7ca32193d9955").unwrap();
 
     // create two Valence Base Accounts on Ethereum to test the processor with libraries (in this case the forwarder)
     let deposit_acc_addr =
@@ -199,45 +202,44 @@ fn main() -> Result<(), Box<dyn Error>> {
         amount_to_transfer,
     )?;
 
-    let neutron_client = neutron::get_neutron_client(&rt)?;
-
-    strategist::pull_funds_from_noble_inbound_ica(
-        &rt,
-        &neutron_client,
-        &neutron_program_accounts,
-        &neutron_program_libraries,
-        &uusdc_on_neutron_denom,
-        amount_to_transfer,
-    )?;
-
-    strategist::enter_position(
-        &rt,
-        &neutron_client,
-        &neutron_program_accounts,
-        &neutron_program_libraries,
-        &uusdc_on_neutron_denom,
-        &lp_token,
-    )?;
-
-    strategist::exit_position(
-        &rt,
-        &neutron_client,
-        &neutron_program_accounts,
-        &neutron_program_libraries,
-        &uusdc_on_neutron_denom,
-        &lp_token,
-    )?;
-
-    strategist::swap_ntrn_into_usdc(
-        &rt,
-        &neutron_client,
-        &neutron_program_accounts,
-        &uusdc_on_neutron_denom,
-        &pool_addr,
-    )?;
-
     let usdc_token_address =
         ethereum_utils::mock_erc20::setup_deposit_erc20(&rt, &eth_client, "MockUSDC", "USDC")?;
+
+    let cctp_forwarder = setup_cctp_transfer(
+        &rt,
+        &eth_client,
+        neutron_program_accounts
+            .noble_inbound_ica
+            .remote_addr
+            .to_string(),
+        deposit_acc_addr,
+        eth_admin_acc,
+        strategist_acc,
+        usdc_token_address,
+        mock_cctp_messenger_address,
+    )?;
+
+    let strategist = Strategist::new(
+        &rt,
+        neutron_program_accounts.clone(),
+        neutron_program_libraries.clone(),
+        uusdc_on_neutron_denom.clone(),
+        lp_token.to_string(),
+        pool_addr.to_string(),
+        cctp_forwarder,
+    )
+    .unwrap();
+
+    async_run!(
+        &rt,
+        strategist.route_noble_to_neutron(amount_to_transfer).await
+    );
+
+    async_run!(&rt, strategist.enter_position().await);
+
+    async_run!(&rt, strategist.exit_position().await);
+
+    async_run!(&rt, strategist.swap_ntrn_into_usdc().await);
 
     info!("Starting CCTP mock relayer between Noble and Ethereum...");
     let mock_cctp_relayer = mock_cctp_relayer::MockCctpRelayer::new(
@@ -251,13 +253,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("main sleep for 3...");
     sleep(Duration::from_secs(3));
 
-    strategist::route_usdc_to_noble(
-        &rt,
-        &neutron_client,
-        &neutron_program_accounts,
-        &neutron_program_libraries,
-        &uusdc_on_neutron_denom,
-    )?;
+    async_run!(&rt, strategist.route_neutron_to_noble().await);
 
     let noble_outbound_ica_usdc_bal = async_run!(
         &rt,
@@ -271,13 +267,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
     info!("noble_outbound_ica_usdc_bal: {noble_outbound_ica_usdc_bal}");
 
-    strategist::cctp_route_usdc_from_noble(
-        &rt,
-        &neutron_client,
-        &noble_client,
-        &neutron_program_accounts,
-        &neutron_program_libraries,
-    )?;
+    async_run!(&rt, strategist.route_noble_to_eth().await);
 
     info!("Setting up Lite Processor on Ethereum");
     let _lite_processor_address = ethereum_utils::lite_processor::setup_lite_processor(
@@ -300,20 +290,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         deposit_acc_addr,
         withdraw_acc_addr,
         usdc_token_address,
-    )?;
-
-    let cctp_forwarder = setup_cctp_transfer(
-        &rt,
-        &eth_client,
-        neutron_program_accounts
-            .noble_inbound_ica
-            .remote_addr
-            .to_string(),
-        deposit_acc_addr,
-        eth_admin_acc,
-        eth_admin_acc,
-        usdc_token_address,
-        mock_cctp_messenger_address,
     )?;
 
     // approve the CCTP forwarder on deposit account
@@ -542,7 +518,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     assert_eq!(pre_cctp_deposit_acc_usdc_bal, U256::from(1000000));
 
     info!("strategist cctp routing eth->ntrn...");
-    strategist::cctp_route_usdc_from_eth(&rt, &eth_client, cctp_forwarder, eth_admin_acc)?;
+    // strategist::cctp_route_usdc_from_eth(&rt, &eth_client, cctp_forwarder, eth_admin_acc)?;
+    async_run!(&rt, strategist.route_eth_to_noble().await);
 
     info!("[MAIN] sleeping for 5 to give cctp time to relay");
     sleep(Duration::from_secs(5));

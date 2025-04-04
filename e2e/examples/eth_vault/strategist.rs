@@ -1,8 +1,11 @@
 use std::{error::Error, time::Duration};
 
-use alloy::primitives::Address;
+use alloy::{
+    primitives::Address,
+    signers::local::{coins_bip39::English, MnemonicBuilder},
+};
 use cosmwasm_std::{to_json_binary, CosmosMsg, WasmMsg};
-use localic_utils::NEUTRON_CHAIN_DENOM;
+use localic_utils::{NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID};
 use log::info;
 use tokio::{runtime::Runtime, time::sleep};
 use valence_astroport_utils::astroport_native_lp_token::{Asset, AssetInfo};
@@ -16,7 +19,11 @@ use valence_chain_client_utils::{
 
 use valence_e2e::{
     async_run,
-    utils::{solidity_contracts::CCTPTransfer, UUSDC_DENOM},
+    utils::{
+        parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
+        solidity_contracts::CCTPTransfer,
+        ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, UUSDC_DENOM,
+    },
 };
 
 use crate::program::{NeutronProgramAccounts, NeutronProgramLibraries};
@@ -28,30 +35,81 @@ pub struct Strategist {
     neutron_program_accounts: NeutronProgramAccounts,
     neutron_program_libraries: NeutronProgramLibraries,
     uusdc_on_neutron_denom: String,
+    lp_token_denom: String,
+    pool_addr: String,
+    cctp_transfer_lib: Address,
 }
 
 impl Strategist {
     pub fn new(
-        eth_client: EthereumClient,
-        noble_client: NobleClient,
-        neutron_client: NeutronClient,
+        rt: &Runtime,
         neutron_program_accounts: NeutronProgramAccounts,
         neutron_program_libraries: NeutronProgramLibraries,
         uusdc_on_neutron_denom: String,
-    ) -> Self {
-        Self {
+        lp_token_denom: String,
+        pool_addr: String,
+        cctp_transfer_lib: Address,
+    ) -> Result<Self, Box<dyn Error>> {
+        let noble_grpc_addr = get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "grpc_address")?;
+        let (noble_grpc_url, noble_grpc_port) =
+            get_grpc_address_and_port_from_url(&noble_grpc_addr)?;
+
+        let noble_client = async_run!(rt, {
+            NobleClient::new(
+                &noble_grpc_url,
+                &noble_grpc_port.to_string(),
+                ADMIN_MNEMONIC,
+                NOBLE_CHAIN_ID,
+                NOBLE_CHAIN_DENOM,
+            )
+            .await
+            .expect("failed to create noble client")
+        });
+
+        let neutron_grpc_addr =
+            get_chain_field_from_local_ic_log(NEUTRON_CHAIN_ID, "grpc_address")?;
+        let (neutron_grpc_url, neutron_grpc_port) =
+            get_grpc_address_and_port_from_url(&neutron_grpc_addr)?;
+
+        let neutron_client = async_run!(rt, {
+            NeutronClient::new(
+                &neutron_grpc_url,
+                &neutron_grpc_port.to_string(),
+                ADMIN_MNEMONIC,
+                NEUTRON_CHAIN_ID,
+            )
+            .await
+            .expect("failed to create neutron client")
+        });
+
+        let signer = MnemonicBuilder::<English>::default()
+            .phrase("test test test test test test test test test test test junk")
+            .index(7)? // derive the mnemonic at a different index to avoid nonce issues
+            .build()?;
+
+        info!("strategist address: {:?}", signer.address());
+
+        let eth_client = EthereumClient {
+            rpc_url: DEFAULT_ANVIL_RPC_ENDPOINT.to_string(),
+            signer,
+        };
+
+        Ok(Self {
             eth_client,
             noble_client,
             neutron_client,
             neutron_program_accounts,
             neutron_program_libraries,
             uusdc_on_neutron_denom,
-        }
+            lp_token_denom,
+            pool_addr,
+            cctp_transfer_lib,
+        })
     }
 }
 
 impl Strategist {
-    pub async fn start(mut self) {
+    pub async fn _start(self) {
         info!("[STRATEGIST] Starting...");
 
         loop {
@@ -60,77 +118,46 @@ impl Strategist {
         }
     }
 
-    async fn route_noble_to_neutron(mut self) {
-        // TODO
-    }
-
-    async fn route_neutron_to_noble(mut self) {
-        // TODO
-    }
-
-    async fn route_eth_to_noble(mut self) {
-        // TODO
-    }
-
-    async fn route_noble_to_eth(mut self) {
-        // TODO
-    }
-
-    async fn enter_position(mut self) {
-        // TODO
-    }
-
-    async fn exit_position(mut self) {
-        // TODO
-    }
-
-    async fn swap_ntrn_into_usdc(mut self) {
-        // TODO
-    }
-}
-
-pub fn pull_funds_from_noble_inbound_ica(
-    rt: &Runtime,
-    neutron_client: &NeutronClient,
-    neutron_program_accounts: &NeutronProgramAccounts,
-    neutron_program_libraries: &NeutronProgramLibraries,
-    uusdc_on_neutron_denom: &str,
-    transfer_amount: u128,
-) -> Result<(), Box<dyn Error>> {
-    info!("bringing in USDC from Noble inbound ICA -> Neutron deposit acc...");
-    async_run!(rt, {
-        let init_bal = neutron_client
+    /// IBC-transfers funds from noble inbound ica into neutron deposit account
+    pub async fn route_noble_to_neutron(&self, transfer_amount: u128) {
+        let init_bal = self
+            .neutron_client
             .query_balance(
-                &neutron_program_accounts
+                &self
+                    .neutron_program_accounts
                     .deposit_account
                     .to_string()
                     .unwrap(),
-                uusdc_on_neutron_denom,
+                &self.uusdc_on_neutron_denom,
             )
             .await
             .unwrap();
+
         let transfer_msg = &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
             valence_ica_ibc_transfer::msg::FunctionMsgs::Transfer {},
         );
-        let rx = neutron_client
+        let rx = self
+            .neutron_client
             .execute_wasm(
-                &neutron_program_libraries.noble_inbound_transfer,
+                &self.neutron_program_libraries.noble_inbound_transfer,
                 transfer_msg,
                 vec![],
             )
             .await
             .unwrap();
-        neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+        self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
 
         for i in 1..10 {
             sleep(Duration::from_secs(3)).await;
-            let post_bal = neutron_client
+            let post_bal = self
+                .neutron_client
                 .query_balance(
-                    &neutron_program_accounts
+                    &self
+                        .neutron_program_accounts
                         .deposit_account
                         .to_string()
                         .unwrap(),
-                    uusdc_on_neutron_denom,
+                    &self.uusdc_on_neutron_denom,
                 )
                 .await
                 .unwrap();
@@ -146,28 +173,240 @@ pub fn pull_funds_from_noble_inbound_ica(
                 info!("Funds in transit #{i}...")
             }
         }
-    });
+    }
 
-    Ok(())
-}
-
-pub fn enter_position(
-    rt: &Runtime,
-    neutron_client: &NeutronClient,
-    neutron_program_accounts: &NeutronProgramAccounts,
-    neutron_program_libraries: &NeutronProgramLibraries,
-    uusdc_on_neutron_denom: &str,
-    lp_token_denom: &str,
-) -> Result<(), Box<dyn Error>> {
-    info!("entering LP position...");
-    async_run!(rt, {
-        let deposit_account_usdc_bal = neutron_client
+    /// IBC-transfers funds from Neutron withdraw account to noble outbound ica
+    pub async fn route_neutron_to_noble(&self) {
+        info!("routing USDC to noble...");
+        let transfer_rx = self
+            .neutron_client
+            .transfer(
+                &self
+                    .neutron_program_accounts
+                    .withdraw_account
+                    .to_string()
+                    .unwrap(),
+                110_000,
+                NEUTRON_CHAIN_DENOM,
+                None,
+            )
+            .await
+            .unwrap();
+        self.neutron_client
+            .poll_for_tx(&transfer_rx.hash)
+            .await
+            .unwrap();
+        sleep(Duration::from_secs(3)).await;
+        let withdraw_account_usdc_bal = self
+            .neutron_client
             .query_balance(
-                &neutron_program_accounts
+                &self
+                    .neutron_program_accounts
+                    .withdraw_account
+                    .to_string()
+                    .unwrap(),
+                &self.uusdc_on_neutron_denom,
+            )
+            .await
+            .unwrap();
+        let withdraw_account_ntrn_bal = self
+            .neutron_client
+            .query_balance(
+                &self
+                    .neutron_program_accounts
+                    .withdraw_account
+                    .to_string()
+                    .unwrap(),
+                NEUTRON_CHAIN_DENOM,
+            )
+            .await
+            .unwrap();
+
+        assert_ne!(
+            withdraw_account_usdc_bal, 0,
+            "withdraw account must have usdc in order to route funds to noble"
+        );
+        assert_ne!(
+            withdraw_account_ntrn_bal, 0,
+            "withdraw account must have ntrn in order to route funds to noble"
+        );
+        let neutron_ibc_transfer_msg =
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_neutron_ibc_transfer_library::msg::FunctionMsgs::IbcTransfer {},
+            );
+        let rx = self
+            .neutron_client
+            .execute_wasm(
+                &self.neutron_program_libraries.neutron_ibc_transfer,
+                neutron_ibc_transfer_msg,
+                vec![],
+            )
+            .await
+            .unwrap();
+        self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+
+        let withdraw_acc_usdc_bal = self
+            .neutron_client
+            .query_balance(
+                &self
+                    .neutron_program_accounts
+                    .withdraw_account
+                    .to_string()
+                    .unwrap(),
+                &self.uusdc_on_neutron_denom,
+            )
+            .await
+            .unwrap();
+        let withdraw_acc_ntrn_bal = self
+            .neutron_client
+            .query_balance(
+                &self
+                    .neutron_program_accounts
+                    .withdraw_account
+                    .to_string()
+                    .unwrap(),
+                NEUTRON_CHAIN_DENOM,
+            )
+            .await
+            .unwrap();
+        info!(
+            "withdraw account USDC token balance: {:?}",
+            withdraw_acc_usdc_bal
+        );
+        info!(
+            "withdraw account NTRN token balance: {:?}",
+            withdraw_acc_ntrn_bal
+        );
+        assert_eq!(0, withdraw_acc_usdc_bal);
+    }
+
+    /// CCTP-transfers funds from Ethereum deposit account to Noble inbound ica
+    pub async fn route_eth_to_noble(&self) {
+        info!("CCTP forwarding USDC from Ethereum to Noble...");
+        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
+
+        let cctp_transfer_contract = CCTPTransfer::new(self.cctp_transfer_lib, &eth_rp);
+
+        let cctp_config = self
+            .eth_client
+            .query(cctp_transfer_contract.config())
+            .await
+            .unwrap();
+        let cctp_processor = self
+            .eth_client
+            .query(cctp_transfer_contract.processor())
+            .await
+            .unwrap();
+        let cctp_owner = self
+            .eth_client
+            .query(cctp_transfer_contract.owner())
+            .await
+            .unwrap();
+        let signer_addr = self.eth_client.signer.address();
+
+        info!("[route_eth_to_noble] cctp config: {:?}", cctp_config);
+        info!(
+            "[route_eth_to_noble] cctp processor: {:?}",
+            cctp_processor._0
+        );
+        info!("[route_eth_to_noble] cctp owner: {:?}", cctp_owner._0);
+        info!("[route_eth_to_noble] signer address: {:?}", signer_addr);
+
+        let signed_tx = cctp_transfer_contract
+            .transfer()
+            .into_transaction_request()
+            .from(signer_addr);
+
+        let cctp_transfer_rx = self.eth_client.execute_tx(signed_tx).await.unwrap();
+
+        info!(
+            "cctp transfer tx hash: {:?}",
+            cctp_transfer_rx.transaction_hash
+        );
+    }
+
+    /// CCTP-transfers funds from Noble outbound ica to Ethereum withdraw account
+    pub async fn route_noble_to_eth(&self) {
+        info!("CCTP forwarding USDC from Noble to Ethereum...");
+        let transfer_tx = self
+            .neutron_client
+            .transfer(
+                &self
+                    .neutron_program_accounts
+                    .noble_outbound_ica
+                    .library_account
+                    .to_string()
+                    .unwrap(),
+                110_000,
+                NEUTRON_CHAIN_DENOM,
+                None,
+            )
+            .await
+            .unwrap();
+        self.neutron_client
+            .poll_for_tx(&transfer_tx.hash)
+            .await
+            .unwrap();
+        sleep(Duration::from_secs(3)).await;
+
+        let noble_outbound_acc_usdc_bal = self
+            .noble_client
+            .query_balance(
+                &self.neutron_program_accounts.noble_outbound_ica.remote_addr,
+                UUSDC_DENOM,
+            )
+            .await
+            .unwrap();
+
+        assert_ne!(
+            noble_outbound_acc_usdc_bal, 0,
+            "Noble outbound ICA account must have usdc in order to initiate CCTP forwarding"
+        );
+
+        let neutron_ica_cctp_transfer_msg =
+            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+                valence_ica_cctp_transfer::msg::FunctionMsgs::Transfer {},
+            );
+        let rx = self
+            .neutron_client
+            .execute_wasm(
+                &self.neutron_program_libraries.noble_cctp_transfer,
+                neutron_ica_cctp_transfer_msg,
+                vec![],
+            )
+            .await
+            .unwrap();
+        self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+
+        sleep(Duration::from_secs(10)).await;
+
+        let noble_outbound_acc_usdc_bal = self
+            .noble_client
+            .query_balance(
+                &self.neutron_program_accounts.noble_outbound_ica.remote_addr,
+                UUSDC_DENOM,
+            )
+            .await
+            .unwrap();
+
+        info!(
+            "Noble outbound ICA account balance post cctp transfer: {:?}",
+            noble_outbound_acc_usdc_bal
+        );
+    }
+
+    /// enters the position on astroport
+    pub async fn enter_position(&self) {
+        info!("entering LP position...");
+        let deposit_account_usdc_bal = self
+            .neutron_client
+            .query_balance(
+                &self
+                    .neutron_program_accounts
                     .deposit_account
                     .to_string()
                     .unwrap(),
-                uusdc_on_neutron_denom,
+                &self.uusdc_on_neutron_denom,
             )
             .await
             .unwrap();
@@ -180,55 +419,51 @@ pub fn enter_position(
         let provide_liquidity_msg =
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
                 valence_astroport_lper::msg::FunctionMsgs::ProvideSingleSidedLiquidity {
-                    asset: uusdc_on_neutron_denom.to_string(),
+                    asset: self.uusdc_on_neutron_denom.to_string(),
                     limit: None,
                     expected_pool_ratio_range: None,
                 },
             );
-        let rx = neutron_client
+        let rx = self
+            .neutron_client
             .execute_wasm(
-                &neutron_program_libraries.astroport_lper,
+                &self.neutron_program_libraries.astroport_lper,
                 provide_liquidity_msg,
                 vec![],
             )
             .await
             .unwrap();
-        neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+        self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
 
-        let output_acc_bal = neutron_client
+        let output_acc_bal = self
+            .neutron_client
             .query_balance(
-                &neutron_program_accounts
+                &self
+                    .neutron_program_accounts
                     .position_account
                     .to_string()
                     .unwrap(),
-                lp_token_denom,
+                &self.lp_token_denom,
             )
             .await
             .unwrap();
         info!("position account LP token balance: {:?}", output_acc_bal);
         assert_ne!(0, output_acc_bal);
-    });
+    }
 
-    Ok(())
-}
+    /// exits the position on astroport
+    pub async fn exit_position(&self) {
+        info!("exiting LP position...");
 
-pub fn exit_position(
-    rt: &Runtime,
-    neutron_client: &NeutronClient,
-    neutron_program_accounts: &NeutronProgramAccounts,
-    neutron_program_libraries: &NeutronProgramLibraries,
-    uusdc_on_neutron_denom: &str,
-    lp_token_denom: &str,
-) -> Result<(), Box<dyn Error>> {
-    info!("exiting LP position...");
-    async_run!(rt, {
-        let position_account_shares_bal = neutron_client
+        let position_account_shares_bal = self
+            .neutron_client
             .query_balance(
-                &neutron_program_accounts
+                &self
+                    .neutron_program_accounts
                     .position_account
                     .to_string()
                     .unwrap(),
-                lp_token_denom,
+                &self.lp_token_denom,
             )
             .await
             .unwrap();
@@ -244,29 +479,34 @@ pub fn exit_position(
                     expected_pool_ratio_range: None,
                 },
             );
-        let rx = neutron_client
+        let rx = self
+            .neutron_client
             .execute_wasm(
-                &neutron_program_libraries.astroport_lwer,
+                &self.neutron_program_libraries.astroport_lwer,
                 withdraw_liquidity_msg,
                 vec![],
             )
             .await
             .unwrap();
-        neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+        self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
 
-        let withdraw_acc_usdc_bal = neutron_client
+        let withdraw_acc_usdc_bal = self
+            .neutron_client
             .query_balance(
-                &neutron_program_accounts
+                &self
+                    .neutron_program_accounts
                     .withdraw_account
                     .to_string()
                     .unwrap(),
-                uusdc_on_neutron_denom,
+                &self.uusdc_on_neutron_denom,
             )
             .await
             .unwrap();
-        let withdraw_acc_ntrn_bal = neutron_client
+        let withdraw_acc_ntrn_bal = self
+            .neutron_client
             .query_balance(
-                &neutron_program_accounts
+                &self
+                    .neutron_program_accounts
                     .withdraw_account
                     .to_string()
                     .unwrap(),
@@ -284,23 +524,16 @@ pub fn exit_position(
         );
         assert_ne!(0, withdraw_acc_usdc_bal);
         assert_ne!(0, withdraw_acc_ntrn_bal);
-    });
+    }
 
-    Ok(())
-}
-
-pub fn swap_ntrn_into_usdc(
-    rt: &Runtime,
-    neutron_client: &NeutronClient,
-    neutron_program_accounts: &NeutronProgramAccounts,
-    uusdc_on_neutron_denom: &str,
-    pool_addr: &str,
-) -> Result<(), Box<dyn Error>> {
-    info!("swapping NTRN into USDC...");
-    async_run!(rt, {
-        let withdraw_account_ntrn_bal = neutron_client
+    /// swaps counterparty denom into usdc
+    pub async fn swap_ntrn_into_usdc(&self) {
+        info!("swapping NTRN into USDC...");
+        let withdraw_account_ntrn_bal = self
+            .neutron_client
             .query_balance(
-                &neutron_program_accounts
+                &self
+                    .neutron_program_accounts
                     .withdraw_account
                     .to_string()
                     .unwrap(),
@@ -315,7 +548,7 @@ pub fn swap_ntrn_into_usdc(
         );
 
         let swap_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: pool_addr.to_string(),
+            contract_addr: self.pool_addr.to_string(),
             msg: to_json_binary(
                 &valence_astroport_utils::astroport_native_lp_token::ExecuteMsg::Swap {
                     offer_asset: Asset {
@@ -341,9 +574,11 @@ pub fn swap_ntrn_into_usdc(
             msgs: vec![swap_msg],
         };
 
-        let rx = neutron_client
+        let rx = self
+            .neutron_client
             .execute_wasm(
-                &neutron_program_accounts
+                &self
+                    .neutron_program_accounts
                     .withdraw_account
                     .to_string()
                     .unwrap(),
@@ -353,21 +588,25 @@ pub fn swap_ntrn_into_usdc(
             .await
             .unwrap();
 
-        neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+        self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
 
-        let withdraw_acc_usdc_bal = neutron_client
+        let withdraw_acc_usdc_bal = self
+            .neutron_client
             .query_balance(
-                &neutron_program_accounts
+                &self
+                    .neutron_program_accounts
                     .withdraw_account
                     .to_string()
                     .unwrap(),
-                uusdc_on_neutron_denom,
+                &self.uusdc_on_neutron_denom,
             )
             .await
             .unwrap();
-        let withdraw_acc_ntrn_bal = neutron_client
+        let withdraw_acc_ntrn_bal = self
+            .neutron_client
             .query_balance(
-                &neutron_program_accounts
+                &self
+                    .neutron_program_accounts
                     .withdraw_account
                     .to_string()
                     .unwrap(),
@@ -385,203 +624,5 @@ pub fn swap_ntrn_into_usdc(
         );
         assert_ne!(0, withdraw_acc_usdc_bal);
         assert_eq!(0, withdraw_acc_ntrn_bal);
-    });
-
-    Ok(())
-}
-
-pub fn route_usdc_to_noble(
-    rt: &Runtime,
-    neutron_client: &NeutronClient,
-    neutron_program_accounts: &NeutronProgramAccounts,
-    neutron_program_libraries: &NeutronProgramLibraries,
-    uusdc_on_neutron_denom: &str,
-) -> Result<(), Box<dyn Error>> {
-    info!("routing USDC to noble...");
-    async_run!(rt, {
-        let transfer_rx = neutron_client
-            .transfer(
-                &neutron_program_accounts
-                    .withdraw_account
-                    .to_string()
-                    .unwrap(),
-                110_000,
-                NEUTRON_CHAIN_DENOM,
-                None,
-            )
-            .await
-            .unwrap();
-        neutron_client.poll_for_tx(&transfer_rx.hash).await.unwrap();
-        sleep(Duration::from_secs(3)).await;
-        let withdraw_account_usdc_bal = neutron_client
-            .query_balance(
-                &neutron_program_accounts
-                    .withdraw_account
-                    .to_string()
-                    .unwrap(),
-                uusdc_on_neutron_denom,
-            )
-            .await
-            .unwrap();
-        let withdraw_account_ntrn_bal = neutron_client
-            .query_balance(
-                &neutron_program_accounts
-                    .withdraw_account
-                    .to_string()
-                    .unwrap(),
-                NEUTRON_CHAIN_DENOM,
-            )
-            .await
-            .unwrap();
-
-        assert_ne!(
-            withdraw_account_usdc_bal, 0,
-            "withdraw account must have usdc in order to route funds to noble"
-        );
-        assert_ne!(
-            withdraw_account_ntrn_bal, 0,
-            "withdraw account must have ntrn in order to route funds to noble"
-        );
-        let neutron_ibc_transfer_msg =
-            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
-                valence_neutron_ibc_transfer_library::msg::FunctionMsgs::IbcTransfer {},
-            );
-        let rx = neutron_client
-            .execute_wasm(
-                &neutron_program_libraries.neutron_ibc_transfer,
-                neutron_ibc_transfer_msg,
-                vec![],
-            )
-            .await
-            .unwrap();
-        neutron_client.poll_for_tx(&rx.hash).await.unwrap();
-
-        let withdraw_acc_usdc_bal = neutron_client
-            .query_balance(
-                &neutron_program_accounts
-                    .withdraw_account
-                    .to_string()
-                    .unwrap(),
-                uusdc_on_neutron_denom,
-            )
-            .await
-            .unwrap();
-        let withdraw_acc_ntrn_bal = neutron_client
-            .query_balance(
-                &neutron_program_accounts
-                    .withdraw_account
-                    .to_string()
-                    .unwrap(),
-                NEUTRON_CHAIN_DENOM,
-            )
-            .await
-            .unwrap();
-        info!(
-            "withdraw account USDC token balance: {:?}",
-            withdraw_acc_usdc_bal
-        );
-        info!(
-            "withdraw account NTRN token balance: {:?}",
-            withdraw_acc_ntrn_bal
-        );
-        assert_eq!(0, withdraw_acc_usdc_bal);
-    });
-
-    Ok(())
-}
-
-pub fn cctp_route_usdc_from_noble(
-    rt: &Runtime,
-    neutron_client: &NeutronClient,
-    noble_client: &NobleClient,
-    neutron_program_accounts: &NeutronProgramAccounts,
-    neutron_program_libraries: &NeutronProgramLibraries,
-) -> Result<(), Box<dyn Error>> {
-    info!("CCTP forwarding USDC from Noble to Ethereum...");
-    async_run!(rt, {
-        let transfer_tx = neutron_client
-            .transfer(
-                &neutron_program_accounts
-                    .noble_outbound_ica
-                    .library_account
-                    .to_string()
-                    .unwrap(),
-                110_000,
-                NEUTRON_CHAIN_DENOM,
-                None,
-            )
-            .await
-            .unwrap();
-        neutron_client.poll_for_tx(&transfer_tx.hash).await.unwrap();
-        sleep(Duration::from_secs(3)).await;
-
-        let noble_outbound_acc_usdc_bal = noble_client
-            .query_balance(
-                &neutron_program_accounts.noble_outbound_ica.remote_addr,
-                UUSDC_DENOM,
-            )
-            .await
-            .unwrap();
-
-        assert_ne!(
-            noble_outbound_acc_usdc_bal, 0,
-            "Noble outbound ICA account must have usdc in order to initiate CCTP forwarding"
-        );
-
-        let neutron_ica_cctp_transfer_msg =
-            &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
-                valence_ica_cctp_transfer::msg::FunctionMsgs::Transfer {},
-            );
-        let rx = neutron_client
-            .execute_wasm(
-                &neutron_program_libraries.noble_cctp_transfer,
-                neutron_ica_cctp_transfer_msg,
-                vec![],
-            )
-            .await
-            .unwrap();
-        neutron_client.poll_for_tx(&rx.hash).await.unwrap();
-
-        sleep(Duration::from_secs(10)).await;
-
-        let noble_outbound_acc_usdc_bal = noble_client
-            .query_balance(
-                &neutron_program_accounts.noble_outbound_ica.remote_addr,
-                UUSDC_DENOM,
-            )
-            .await
-            .unwrap();
-
-        info!(
-            "Noble outbound ICA account balance post cctp transfer: {:?}",
-            noble_outbound_acc_usdc_bal
-        );
-    });
-
-    Ok(())
-}
-
-pub fn cctp_route_usdc_from_eth(
-    rt: &Runtime,
-    client: &EthereumClient,
-    cctp_transfer_lib: Address,
-    eth_admin: Address,
-) -> Result<(), Box<dyn Error>> {
-    info!("CCTP forwarding USDC from Ethereum to Noble...");
-    async_run!(rt, {
-        let eth_rp = client.get_request_provider().await.unwrap();
-
-        let cctp_transfer_contract = CCTPTransfer::new(cctp_transfer_lib, &eth_rp);
-
-        let signed_tx = cctp_transfer_contract.transfer().into_transaction_request();
-
-        let cctp_transfer_rx = client.execute_tx(signed_tx.from(eth_admin)).await.unwrap();
-
-        info!(
-            "cctp transfer tx hash: {:?}",
-            cctp_transfer_rx.transaction_hash
-        );
-    });
-
-    Ok(())
+    }
 }

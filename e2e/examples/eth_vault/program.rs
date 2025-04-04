@@ -32,6 +32,7 @@ pub struct ValenceInterchainAccount {
     pub remote_addr: String,
 }
 
+#[derive(Clone, Debug)]
 pub struct NeutronProgramAccounts {
     pub deposit_account: LibraryAccountType,
     pub position_account: LibraryAccountType,
@@ -40,6 +41,7 @@ pub struct NeutronProgramAccounts {
     pub noble_outbound_ica: ValenceInterchainAccount,
 }
 
+#[derive(Clone, Debug)]
 pub struct NeutronProgramLibraries {
     pub astroport_lper: String,
     pub astroport_lwer: String,

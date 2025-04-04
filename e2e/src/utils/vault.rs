@@ -521,7 +521,7 @@ pub fn setup_cctp_transfer(
     noble_recipient: String,
     input_account: Address,
     admin: Address,
-    _processor: Address,
+    processor: Address,
     usdc_token_address: Address,
     cctp_token_messenger_address: Address,
 ) -> Result<Address, Box<dyn Error>> {
@@ -554,7 +554,7 @@ pub fn setup_cctp_transfer(
     let cctp_tx = CCTPTransfer::deploy_builder(
         &eth_rp,
         admin,
-        admin,
+        processor,
         alloy_sol_types_encoder::SolValue::abi_encode(&cctp_transer_cfg).into(),
     )
     .into_transaction_request()
