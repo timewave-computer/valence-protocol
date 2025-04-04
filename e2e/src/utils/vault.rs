@@ -148,6 +148,7 @@ pub fn setup_vault_config(
     accounts: &[Address],
     eth_deposit_acc: Address,
     eth_withdraw_acc: Address,
+    _eth_strategist_acc: Address,
 ) -> VaultConfig {
     let fee_config = FeeConfig {
         depositFeeBps: 0,        // No deposit fee
@@ -435,6 +436,7 @@ pub fn update() -> Result<(), Box<dyn Error>> {
 pub fn setup_valence_vault(
     rt: &tokio::runtime::Runtime,
     eth_client: &EthereumClient,
+    eth_strategist_acc: Address,
     eth_accounts: &[Address],
     admin: Address,
     eth_deposit_acc: Address,
@@ -444,7 +446,12 @@ pub fn setup_valence_vault(
     let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
 
     info!("deploying Valence Vault on Ethereum...");
-    let vault_config = setup_vault_config(eth_accounts, eth_deposit_acc, eth_withdraw_acc);
+    let vault_config = setup_vault_config(
+        eth_accounts,
+        eth_deposit_acc,
+        eth_withdraw_acc,
+        eth_strategist_acc,
+    );
 
     // First deploy the implementation contract
     let implementation_tx = ValenceVault::deploy_builder(&eth_rp)

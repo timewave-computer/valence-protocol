@@ -9,9 +9,12 @@ use valence_chain_client_utils::{
 
 use valence_e2e::{
     async_run,
-    utils::solidity_contracts::{
-        MockERC20,
-        ValenceVault::{self},
+    utils::{
+        solidity_contracts::{
+            MockERC20,
+            ValenceVault::{self},
+        },
+        vault::setup_cctp_transfer,
     },
 };
 
@@ -87,4 +90,102 @@ pub fn log_eth_balances(
     });
 
     Ok(())
+}
+
+#[derive(Clone, Debug)]
+pub struct EthereumProgramLibraries {
+    pub cctp_forwarder: Address,
+    pub lite_processor: Address,
+    pub valence_vault: Address,
+}
+
+#[derive(Clone, Debug)]
+pub struct EthereumProgramAccounts {
+    pub deposit: Address,
+    pub withdraw: Address,
+}
+
+pub fn setup_eth_accounts(
+    rt: &tokio::runtime::Runtime,
+    eth_client: &EthereumClient,
+    eth_admin_addr: Address,
+) -> Result<EthereumProgramAccounts, Box<dyn Error>> {
+    info!("Setting up Deposit and Withdraw accounts on Ethereum");
+
+    // create two Valence Base Accounts on Ethereum to test the processor with libraries (in this case the forwarder)
+    let deposit_acc_addr = valence_e2e::utils::ethereum::valence_account::setup_valence_account(
+        rt,
+        eth_client,
+        eth_admin_addr,
+    )?;
+    let withdraw_acc_addr = valence_e2e::utils::ethereum::valence_account::setup_valence_account(
+        rt,
+        eth_client,
+        eth_admin_addr,
+    )?;
+
+    let accounts = EthereumProgramAccounts {
+        deposit: deposit_acc_addr,
+        withdraw: withdraw_acc_addr,
+    };
+
+    Ok(accounts)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn setup_eth_libraries(
+    rt: &tokio::runtime::Runtime,
+    eth_client: &EthereumClient,
+    eth_admin_addr: Address,
+    eth_strategist_addr: Address,
+    deposit_acc_addr: Address,
+    withdraw_acc_addr: Address,
+    cctp_messenger_addr: Address,
+    usdc_token_addr: Address,
+    noble_inbound_ica_addr: String,
+    eth_hyperlane_mailbox_addr: String,
+    ntrn_authorizations_addr: String,
+    eth_accounts: &[Address],
+) -> Result<EthereumProgramLibraries, Box<dyn Error>> {
+    info!("Setting up CCTP Transfer on Ethereum");
+    let cctp_forwarder_addr = setup_cctp_transfer(
+        rt,
+        eth_client,
+        noble_inbound_ica_addr,
+        deposit_acc_addr,
+        eth_admin_addr,
+        eth_strategist_addr,
+        usdc_token_addr,
+        cctp_messenger_addr,
+    )?;
+
+    info!("Setting up Lite Processor on Ethereum");
+    let lite_processor_address =
+        valence_e2e::utils::ethereum::lite_processor::setup_lite_processor(
+            rt,
+            eth_client,
+            eth_admin_addr,
+            &eth_hyperlane_mailbox_addr,
+            &ntrn_authorizations_addr,
+        )?;
+
+    info!("Setting up Valence Vault...");
+    let vault_address = valence_e2e::utils::vault::setup_valence_vault(
+        rt,
+        eth_client,
+        eth_strategist_addr,
+        eth_accounts,
+        eth_admin_addr,
+        deposit_acc_addr,
+        withdraw_acc_addr,
+        usdc_token_addr,
+    )?;
+
+    let libraries = EthereumProgramLibraries {
+        cctp_forwarder: cctp_forwarder_addr,
+        lite_processor: lite_processor_address,
+        valence_vault: vault_address,
+    };
+
+    Ok(libraries)
 }

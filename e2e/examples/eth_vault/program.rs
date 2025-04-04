@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::error::Error;
+use std::path::Path;
 use std::time::Duration;
 
 use cosmwasm_std::{Binary, Uint128};
@@ -15,16 +16,16 @@ use valence_e2e::utils::base_account::{approve_library, create_base_accounts};
 use valence_e2e::utils::hyperlane::HyperlaneContracts;
 use valence_e2e::utils::manager::{
     ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME, BASE_ACCOUNT_NAME, ICA_CCTP_TRANSFER_NAME,
-    ICA_IBC_TRANSFER_NAME, NEUTRON_IBC_TRANSFER_NAME,
+    ICA_IBC_TRANSFER_NAME, INTERCHAIN_ACCOUNT_NAME, NEUTRON_IBC_TRANSFER_NAME,
 };
-use valence_e2e::utils::{NOBLE_CHAIN_NAME, UUSDC_DENOM};
+use valence_e2e::utils::{LOCAL_CODE_ID_CACHE_PATH_NEUTRON, NOBLE_CHAIN_NAME, UUSDC_DENOM};
 use valence_generic_ibc_transfer_library::msg::IbcTransferAmount;
 use valence_ica_ibc_transfer::msg::RemoteChainInfo;
 use valence_library_utils::liquidity_utils::AssetData;
 use valence_library_utils::LibraryAccountType;
 
 use crate::neutron::ica::{instantiate_interchain_account_contract, register_interchain_account};
-use crate::ASTROPORT_CONCENTRATED_PAIR_TYPE;
+use crate::{ASTROPORT_CONCENTRATED_PAIR_TYPE, VAULT_NEUTRON_CACHE_PATH};
 
 #[derive(Debug, Clone)]
 pub struct ValenceInterchainAccount {
@@ -116,6 +117,40 @@ pub fn setup_neutron_accounts(
     };
 
     Ok(neutron_accounts)
+}
+
+pub fn upload_neutron_contracts(test_ctx: &mut TestContext) -> Result<(), Box<dyn Error>> {
+    // copy over relevant contracts from artifacts/ to local path
+    let local_contracts_path = Path::new(VAULT_NEUTRON_CACHE_PATH);
+    if !local_contracts_path.exists() {
+        std::fs::create_dir(local_contracts_path)?;
+    }
+
+    for contract in [
+        INTERCHAIN_ACCOUNT_NAME,
+        ASTROPORT_LPER_NAME,
+        ASTROPORT_WITHDRAWER_NAME,
+        NEUTRON_IBC_TRANSFER_NAME,
+        ICA_CCTP_TRANSFER_NAME,
+        ICA_IBC_TRANSFER_NAME,
+        BASE_ACCOUNT_NAME,
+    ] {
+        let contract_name = format!("{}.wasm", contract);
+        let contract_path = Path::new(&contract_name);
+        let src = Path::new("artifacts/").join(contract_path);
+        let dest = local_contracts_path.join(contract_path);
+        std::fs::copy(src, dest)?;
+    }
+
+    let mut uploader = test_ctx.build_tx_upload_contracts();
+    uploader
+        .with_chain_name(NEUTRON_CHAIN_NAME)
+        .send_with_local_cache(
+            "e2e/examples/eth_vault/neutron_contracts/",
+            LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
+        )?;
+
+    Ok(())
 }
 
 pub fn setup_neutron_libraries(

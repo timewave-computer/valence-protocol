@@ -7,7 +7,7 @@ use std::{
 };
 
 use alloy::primitives::{Address, U256};
-use evm::log_eth_balances;
+use evm::{log_eth_balances, setup_eth_accounts, setup_eth_libraries};
 use localic_utils::{
     types::config::ConfigChain, utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder,
     LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
@@ -15,7 +15,7 @@ use localic_utils::{
 
 use log::info;
 use neutron::setup_astroport_cl_pool;
-use program::{setup_neutron_accounts, setup_neutron_libraries};
+use program::{setup_neutron_accounts, setup_neutron_libraries, upload_neutron_contracts};
 use strategist::Strategist;
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient, evm::request_provider_client::RequestProviderClient,
@@ -25,18 +25,11 @@ use valence_e2e::{
     async_run,
     utils::{
         authorization::set_up_authorization_and_processor,
-        ethereum as ethereum_utils,
-        manager::{
-            ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME, BASE_ACCOUNT_NAME,
-            ICA_CCTP_TRANSFER_NAME, ICA_IBC_TRANSFER_NAME, INTERCHAIN_ACCOUNT_NAME,
-            NEUTRON_IBC_TRANSFER_NAME,
-        },
-        mock_cctp_relayer,
+        ethereum as ethereum_utils, mock_cctp_relayer,
         solidity_contracts::ValenceVault,
-        vault::{self, setup_cctp_transfer, setup_valence_vault},
-        DEFAULT_ANVIL_RPC_ENDPOINT, LOCAL_CODE_ID_CACHE_PATH_NEUTRON, LOGS_FILE_PATH,
-        NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME,
-        NOBLE_CHAIN_PREFIX, UUSDC_DENOM, VALENCE_ARTIFACTS_PATH,
+        vault::{self},
+        DEFAULT_ANVIL_RPC_ENDPOINT, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM,
+        NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, UUSDC_DENOM, VALENCE_ARTIFACTS_PATH,
     },
 };
 
@@ -75,11 +68,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let _eth_user_acc = eth_accounts[2];
     let strategist_acc = Address::from_str("0x14dc79964da2c08b23698b3d3cc7ca32193d9955").unwrap();
 
-    // create two Valence Base Accounts on Ethereum to test the processor with libraries (in this case the forwarder)
-    let deposit_acc_addr =
-        ethereum_utils::valence_account::setup_valence_account(&rt, &eth_client, eth_admin_acc)?;
-    let withdraw_acc_addr =
-        ethereum_utils::valence_account::setup_valence_account(&rt, &eth_client, eth_admin_acc)?;
+    let ethereum_program_accounts = setup_eth_accounts(&rt, &eth_client, eth_admin_acc)?;
+
     // set up the cctp messenger
     let mock_cctp_messenger_address =
         valence_e2e::utils::vault::setup_mock_token_messenger(&rt, &eth_client)?;
@@ -156,35 +146,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let (authorization_contract_address, neutron_processor_address) =
         set_up_authorization_and_processor(&mut test_ctx, salt.clone())?;
 
-    // copy over relevant contracts from artifacts/ to local path
-    let local_contracts_path = Path::new(VAULT_NEUTRON_CACHE_PATH);
-    if !local_contracts_path.exists() {
-        std::fs::create_dir(local_contracts_path)?;
-    }
-
-    for contract in [
-        INTERCHAIN_ACCOUNT_NAME,
-        ASTROPORT_LPER_NAME,
-        ASTROPORT_WITHDRAWER_NAME,
-        NEUTRON_IBC_TRANSFER_NAME,
-        ICA_CCTP_TRANSFER_NAME,
-        ICA_IBC_TRANSFER_NAME,
-        BASE_ACCOUNT_NAME,
-    ] {
-        let contract_name = format!("{}.wasm", contract);
-        let contract_path = Path::new(&contract_name);
-        let src = Path::new("artifacts/").join(contract_path);
-        let dest = local_contracts_path.join(contract_path);
-        std::fs::copy(src, dest)?;
-    }
-
-    let mut uploader = test_ctx.build_tx_upload_contracts();
-    uploader
-        .with_chain_name(NEUTRON_CHAIN_NAME)
-        .send_with_local_cache(
-            "e2e/examples/eth_vault/neutron_contracts/",
-            LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
-        )?;
+    upload_neutron_contracts(&mut test_ctx)?;
 
     let neutron_program_accounts = setup_neutron_accounts(&mut test_ctx)?;
 
@@ -195,7 +157,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &neutron_processor_address,
         amount_to_transfer,
         &uusdc_on_neutron_denom,
-        withdraw_acc_addr.to_string(),
+        ethereum_program_accounts.withdraw.to_string(),
     )?;
 
     noble::mint_usdc_to_addr(
@@ -205,44 +167,28 @@ fn main() -> Result<(), Box<dyn Error>> {
         amount_to_transfer,
     )?;
 
-    let cctp_forwarder = setup_cctp_transfer(
+    let ethereum_program_libraries = setup_eth_libraries(
         &rt,
         &eth_client,
+        eth_admin_acc,
+        strategist_acc,
+        ethereum_program_accounts.deposit,
+        ethereum_program_accounts.withdraw,
+        mock_cctp_messenger_address,
+        usdc_token_address,
         neutron_program_accounts
             .noble_inbound_ica
             .remote_addr
             .to_string(),
-        deposit_acc_addr,
-        eth_admin_acc,
-        strategist_acc,
-        usdc_token_address,
-        mock_cctp_messenger_address,
-    )?;
-
-    info!("Setting up Lite Processor on Ethereum");
-    let _lite_processor_address = ethereum_utils::lite_processor::setup_lite_processor(
-        &rt,
-        &eth_client,
-        eth_admin_acc,
-        &program_hyperlane_contracts
+        program_hyperlane_contracts
             .eth_hyperlane_contracts
             .mailbox
             .to_string(),
-        authorization_contract_address.as_str(),
-    )?;
-
-    info!("Setting up Valence Vault...");
-    let vault_address = setup_valence_vault(
-        &rt,
-        &eth_client,
+        authorization_contract_address,
         &eth_accounts,
-        eth_admin_acc,
-        deposit_acc_addr,
-        withdraw_acc_addr,
-        usdc_token_address,
     )?;
 
-    let valence_vault = ValenceVault::new(vault_address, &eth_rp);
+    let valence_vault = ValenceVault::new(ethereum_program_libraries.valence_vault, &eth_rp);
 
     info!("Starting CCTP mock relayer between Noble and Ethereum...");
     let mock_cctp_relayer = mock_cctp_relayer::MockCctpRelayer::new(
@@ -263,7 +209,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         uusdc_on_neutron_denom.clone(),
         lp_token.to_string(),
         pool_addr.to_string(),
-        cctp_forwarder,
+        ethereum_program_libraries.cctp_forwarder,
     )
     .unwrap();
 
@@ -358,7 +304,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("USER1 initiating the redeem of {user1_pre_redeem_shares_bal} shares from vault...");
     vault::redeem(
-        vault_address,
+        ethereum_program_libraries.valence_vault,
         &rt,
         &eth_client,
         eth_user_acc,
@@ -414,8 +360,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         &rt,
         valence_vault.address(),
         &usdc_token_address,
-        &deposit_acc_addr,
-        &withdraw_acc_addr,
+        &ethereum_program_accounts.deposit,
+        &ethereum_program_accounts.withdraw,
         &eth_user_acc,
         &eth_user2_acc,
     )
@@ -436,7 +382,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &rt,
         &eth_client,
         usdc_token_address,
-        deposit_acc_addr,
+        ethereum_program_accounts.deposit,
     );
     let pre_cctp_neutron_ica_bal = async_run!(
         &rt,
@@ -462,7 +408,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &rt,
         &eth_client,
         usdc_token_address,
-        deposit_acc_addr,
+        ethereum_program_accounts.deposit,
     );
     let post_cctp_neutron_ica_bal = async_run!(
         &rt,
