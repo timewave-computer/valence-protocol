@@ -16,11 +16,11 @@ use valence_encoder_utils::libraries::cctp_transfer::solidity_types::CCTPTransfe
 
 use crate::async_run;
 use valence_e2e::utils::{
+    ethereum::mock_erc20,
     solidity_contracts::{
         CCTPTransfer, ERC1967Proxy, MockERC20, MockTokenMessenger,
-        ValenceVault::{self},
+        ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
     },
-    vault::setup_vault_config,
 };
 
 pub fn mine_blocks(
@@ -108,6 +108,45 @@ pub struct EthereumProgramLibraries {
 pub struct EthereumProgramAccounts {
     pub deposit: Address,
     pub withdraw: Address,
+}
+
+#[derive(Clone, Debug)]
+pub struct EthereumUsers {
+    pub users: Vec<Address>,
+    pub erc20: Address,
+    pub vault: Address,
+}
+
+impl EthereumUsers {
+    pub fn new(erc20: Address, vault: Address) -> Self {
+        Self {
+            users: vec![],
+            erc20,
+            vault,
+        }
+    }
+
+    pub fn add_user(
+        &mut self,
+        rt: &tokio::runtime::Runtime,
+        eth_client: &EthereumClient,
+        user: Address,
+    ) {
+        info!("Adding new user {user}");
+        self.users.push(user);
+        info!("Approving erc20 spend for vault on behalf of user");
+        mock_erc20::approve(rt, eth_client, self.erc20, user, self.vault, U256::MAX);
+    }
+
+    pub fn fund_user(
+        &self,
+        rt: &tokio::runtime::Runtime,
+        eth_client: &EthereumClient,
+        user: usize,
+        amount: U256,
+    ) {
+        mock_erc20::mint(rt, eth_client, self.erc20, self.users[user], amount);
+    }
 }
 
 pub fn setup_eth_accounts(
@@ -206,13 +245,32 @@ pub fn setup_valence_vault(
 ) -> Result<Address, Box<dyn Error>> {
     let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
 
+    let fee_config = FeeConfig {
+        depositFeeBps: 0,        // No deposit fee
+        platformFeeBps: 1000,    // 10% yearly platform fee
+        performanceFeeBps: 2000, // 20% performance fee
+        solverCompletionFee: 0,  // No solver completion fee
+    };
+
+    let fee_distribution = FeeDistributionConfig {
+        strategistAccount: eth_accounts[0], // Strategist fee recipient
+        platformAccount: eth_accounts[1],   // Platform fee recipient
+        strategistRatioBps: 5000,           // 50% to strategist
+    };
+
+    let vault_config = VaultConfig {
+        depositAccount: eth_program_accounts.deposit,
+        withdrawAccount: eth_program_accounts.withdraw,
+        strategist: eth_strategist_acc,
+        fees: fee_config,
+        feeDistribution: fee_distribution,
+        depositCap: 0, // No cap (for real)
+        withdrawLockupPeriod: 1,
+        // withdrawLockupPeriod: SECONDS_IN_DAY, // 1 day lockup
+        maxWithdrawFeeBps: 100, // 1% max withdraw fee
+    };
+
     info!("deploying Valence Vault on Ethereum...");
-    let vault_config = setup_vault_config(
-        eth_accounts,
-        eth_program_accounts.deposit,
-        eth_program_accounts.withdraw,
-        eth_strategist_acc,
-    );
 
     // First deploy the implementation contract
     let implementation_tx = ValenceVault::deploy_builder(&eth_rp)

@@ -6,7 +6,7 @@ use std::{
 };
 
 use alloy::primitives::{Address, U256};
-use evm::{log_eth_balances, setup_eth_accounts, setup_eth_libraries};
+use evm::{log_eth_balances, setup_eth_accounts, setup_eth_libraries, EthereumUsers};
 use localic_utils::{
     types::config::ConfigChain, utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder,
     LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
@@ -158,13 +158,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         ethereum_program_accounts.withdraw.to_string(),
     )?;
 
-    noble::mint_usdc_to_addr(
-        &rt,
-        &noble_client,
-        &neutron_program_accounts.noble_inbound_ica.remote_addr,
-        amount_to_transfer,
-    )?;
-
     let ethereum_program_libraries = setup_eth_libraries(
         &rt,
         &eth_client,
@@ -186,6 +179,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
 
     let valence_vault = ValenceVault::new(ethereum_program_libraries.valence_vault, &eth_rp);
+
+    let user_1_deposit_amount = U256::from(500_000);
+    let user_2_deposit_amount = U256::from(1_000_000);
+
+    let mut eth_users =
+        EthereumUsers::new(usdc_token_address, ethereum_program_libraries.valence_vault);
+    eth_users.add_user(&rt, &eth_client, eth_accounts[2]);
+    eth_users.fund_user(&rt, &eth_client, 0, user_1_deposit_amount);
+    eth_users.add_user(&rt, &eth_client, eth_accounts[3]);
+    eth_users.fund_user(&rt, &eth_client, 1, user_2_deposit_amount);
 
     info!("Starting CCTP mock relayer between Noble and Ethereum...");
     let mock_cctp_relayer = mock_cctp_relayer::MockCctpRelayer::new(
@@ -211,6 +214,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     )
     .unwrap();
 
+    noble::mint_usdc_to_addr(
+        &rt,
+        &noble_client,
+        &neutron_program_accounts.noble_inbound_ica.remote_addr,
+        amount_to_transfer,
+    )?;
+
     // flow starts here
     async_run!(
         &rt,
@@ -227,37 +237,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     async_run!(&rt, strategist.route_noble_to_eth().await);
 
-    let eth_user_acc = eth_accounts[2];
-    let eth_user2_acc = eth_accounts[3];
-
-    let user_1_deposit_amount = U256::from(500_000);
-    let user_2_deposit_amount = U256::from(1_000_000);
-
-    info!("funding eth user with {user_1_deposit_amount}USDC...");
-    ethereum_utils::mock_erc20::mint(
-        &rt,
-        &eth_client,
-        usdc_token_address,
-        eth_user_acc,
-        user_1_deposit_amount,
-    );
-
-    info!("approving vault to spend usdc on behalf of user...");
-    ethereum_utils::mock_erc20::approve(
-        &rt,
-        &eth_client,
-        usdc_token_address,
-        eth_user_acc,
-        *valence_vault.address(),
-        U256::MAX,
-    );
-
     info!("User depositing {user_1_deposit_amount}USDC tokens to vault...");
     vault::deposit_to_vault(
         &rt,
         &eth_client,
         *valence_vault.address(),
-        eth_user_acc,
+        eth_users.users[0],
         user_1_deposit_amount,
     )?;
 
@@ -274,29 +259,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             .unwrap()
     );
 
-    info!("funding eth user2 with {user_2_deposit_amount}USDC...");
-    ethereum_utils::mock_erc20::mint(
-        &rt,
-        &eth_client,
-        usdc_token_address,
-        eth_user2_acc,
-        user_2_deposit_amount,
-    );
-
-    info!("approving vault to spend usdc on behalf of user2...");
-    ethereum_utils::mock_erc20::approve(
-        &rt,
-        &eth_client,
-        usdc_token_address,
-        eth_user2_acc,
-        *valence_vault.address(),
-        U256::MAX,
-    );
-
     evm::mine_blocks(&rt, &eth_client, 5, 3);
 
-    let user1_pre_redeem_shares_bal =
-        vault::query_vault_balance_of(*valence_vault.address(), &rt, &eth_client, eth_user_acc)._0;
+    let user1_pre_redeem_shares_bal = vault::query_vault_balance_of(
+        *valence_vault.address(),
+        &rt,
+        &eth_client,
+        eth_users.users[0],
+    )
+    ._0;
     assert_ne!(user1_pre_redeem_shares_bal, U256::ZERO);
 
     info!("USER1 initiating the redeem of {user1_pre_redeem_shares_bal} shares from vault...");
@@ -304,18 +275,27 @@ fn main() -> Result<(), Box<dyn Error>> {
         ethereum_program_libraries.valence_vault,
         &rt,
         &eth_client,
-        eth_user_acc,
+        eth_users.users[0],
         user1_pre_redeem_shares_bal,
         10_000,
         true,
     )?;
-    let user1_post_redeem_shares_bal =
-        vault::query_vault_balance_of(*valence_vault.address(), &rt, &eth_client, eth_user_acc)._0;
+    let user1_post_redeem_shares_bal = vault::query_vault_balance_of(
+        *valence_vault.address(),
+        &rt,
+        &eth_client,
+        eth_users.users[0],
+    )
+    ._0;
     assert_eq!(user1_post_redeem_shares_bal, U256::ZERO);
 
-    let has_active_withdraw =
-        vault::addr_has_active_withdraw(*valence_vault.address(), &rt, &eth_client, eth_user_acc)
-            ._0;
+    let has_active_withdraw = vault::addr_has_active_withdraw(
+        *valence_vault.address(),
+        &rt,
+        &eth_client,
+        eth_users.users[0],
+    )
+    ._0;
     assert!(has_active_withdraw);
 
     info!("User2 depositing {user_2_deposit_amount}USDC tokens to vault...");
@@ -323,16 +303,21 @@ fn main() -> Result<(), Box<dyn Error>> {
         &rt,
         &eth_client,
         *valence_vault.address(),
-        eth_user2_acc,
+        eth_users.users[1],
         U256::from(1_000_000),
     )?;
-    let user2_shares_bal =
-        vault::query_vault_balance_of(*valence_vault.address(), &rt, &eth_client, eth_user2_acc)._0;
+    let user2_shares_bal = vault::query_vault_balance_of(
+        *valence_vault.address(),
+        &rt,
+        &eth_client,
+        eth_users.users[1],
+    )
+    ._0;
     let user2_post_deposit_usdc_bal = ethereum_utils::mock_erc20::query_balance(
         &rt,
         &eth_client,
         usdc_token_address,
-        eth_user2_acc,
+        eth_users.users[1],
     );
     assert_ne!(user2_shares_bal, U256::ZERO);
     assert_eq!(user2_post_deposit_usdc_bal, U256::ZERO);
@@ -358,19 +343,24 @@ fn main() -> Result<(), Box<dyn Error>> {
         &usdc_token_address,
         &ethereum_program_accounts.deposit,
         &ethereum_program_accounts.withdraw,
-        &eth_user_acc,
-        &eth_user2_acc,
+        &eth_users.users[0],
+        &eth_users.users[1],
     )
     .unwrap();
 
     info!("user1 completing withdraw request...");
-    vault::complete_withdraw_request(*valence_vault.address(), &rt, &eth_client, eth_user_acc)?;
+    vault::complete_withdraw_request(
+        *valence_vault.address(),
+        &rt,
+        &eth_client,
+        eth_users.users[0],
+    )?;
 
     let user1_usdc_bal = ethereum_utils::mock_erc20::query_balance(
         &rt,
         &eth_client,
         usdc_token_address,
-        eth_user_acc,
+        eth_users.users[0],
     );
     assert_eq!(user1_usdc_bal, user_1_deposit_amount - U256::from(50));
 

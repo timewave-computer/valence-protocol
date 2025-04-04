@@ -1,9 +1,6 @@
 use std::error::Error;
 
-use alloy::{
-    primitives::{Address, U256},
-    providers::ext::AnvilApi,
-};
+use alloy::primitives::{Address, U256};
 use log::{info, warn};
 use valence_chain_client_utils::{
     ethereum::EthereumClient,
@@ -12,113 +9,8 @@ use valence_chain_client_utils::{
 
 use crate::{
     async_run,
-    utils::solidity_contracts::ValenceVault::{
-        self, FeeConfig, FeeDistributionConfig, VaultConfig,
-    },
+    utils::solidity_contracts::ValenceVault::{self},
 };
-
-pub fn vault_update(
-    vault_addr: Address,
-    new_rate: U256,
-    withdraw_fee_bps: u32,
-    netting_amount: U256,
-    rt: &tokio::runtime::Runtime,
-    eth_client: &EthereumClient,
-) -> Result<(), Box<dyn Error>> {
-    async_run!(rt, {
-        let eth_rp = eth_client.get_request_provider().await.unwrap();
-
-        eth_rp
-            .anvil_mine(Some(U256::from(5)), Some(U256::from(1)))
-            .await
-            .unwrap();
-
-        let valence_vault = ValenceVault::new(vault_addr, &eth_rp);
-
-        let config = eth_client.query(valence_vault.config()).await.unwrap();
-        info!("pre-update vault config: {:?}", config);
-
-        let start_rate = eth_client
-            .query(valence_vault.redemptionRate())
-            .await
-            .unwrap()
-            ._0;
-        let prev_max_rate = eth_client
-            .query(valence_vault.maxHistoricalRate())
-            .await
-            .unwrap()
-            ._0;
-
-        let prev_total_assets = eth_client
-            .query(valence_vault.totalAssets())
-            .await
-            .unwrap()
-            ._0;
-
-        info!("Vault start rate: {start_rate}");
-        info!("Vault current max historical rate: {prev_max_rate}");
-        info!("Vault current total assets: {prev_total_assets}");
-        info!(
-                "Updating vault with new rate: {new_rate}, withdraw fee: {withdraw_fee_bps}bps, netting: {netting_amount}"
-            );
-
-        let update_result = eth_client
-            .execute_tx(
-                valence_vault
-                    .update(new_rate, withdraw_fee_bps, netting_amount)
-                    .into_transaction_request(),
-            )
-            .await;
-
-        if let Err(e) = &update_result {
-            info!("Update failed: {:?}", e);
-            panic!("failed to update vault");
-        }
-
-        let new_redemption_rate = eth_client
-            .query(valence_vault.redemptionRate())
-            .await
-            .unwrap()
-            ._0;
-        let new_max_historical_rate = eth_client
-            .query(valence_vault.maxHistoricalRate())
-            .await
-            .unwrap()
-            ._0;
-
-        let new_total_assets = eth_client
-            .query(valence_vault.totalAssets())
-            .await
-            .unwrap()
-            ._0;
-
-        let config = eth_client.query(valence_vault.config()).await.unwrap();
-        info!("Vault new config: {:?}", config);
-        info!("Vault new redemption rate: {new_redemption_rate}");
-        info!("Vault new max historical rate: {new_max_historical_rate}");
-        info!("Vault new total assets: {new_total_assets}");
-
-        assert_eq!(
-            new_redemption_rate, new_rate,
-            "Redemption rate should be updated to the new rate"
-        );
-
-        // Verify max historical rate was updated if needed
-        if new_rate > prev_max_rate {
-            assert_eq!(
-                new_max_historical_rate, new_rate,
-                "Max historical rate should be updated when new rate is higher"
-            );
-        } else {
-            assert_eq!(
-                new_max_historical_rate, prev_max_rate,
-                "Max historical rate should remain unchanged when new rate is not higher"
-            );
-        }
-
-        Ok(())
-    })
-}
 
 pub fn query_vault_packed_values(
     vault_addr: Address,
@@ -135,38 +27,6 @@ pub fn query_vault_packed_values(
             .await
             .unwrap()
     })
-}
-
-pub fn setup_vault_config(
-    accounts: &[Address],
-    eth_deposit_acc: Address,
-    eth_withdraw_acc: Address,
-    eth_strategist_acc: Address,
-) -> VaultConfig {
-    let fee_config = FeeConfig {
-        depositFeeBps: 0,        // No deposit fee
-        platformFeeBps: 1000,    // 10% yearly platform fee
-        performanceFeeBps: 2000, // 20% performance fee
-        solverCompletionFee: 0,  // No solver completion fee
-    };
-
-    let fee_distribution = FeeDistributionConfig {
-        strategistAccount: accounts[0], // Strategist fee recipient
-        platformAccount: accounts[1],   // Platform fee recipient
-        strategistRatioBps: 5000,       // 50% to strategist
-    };
-
-    VaultConfig {
-        depositAccount: eth_deposit_acc,
-        withdrawAccount: eth_withdraw_acc,
-        strategist: eth_strategist_acc,
-        fees: fee_config,
-        feeDistribution: fee_distribution,
-        depositCap: 0, // No cap (for real)
-        withdrawLockupPeriod: 1,
-        // withdrawLockupPeriod: SECONDS_IN_DAY, // 1 day lockup
-        maxWithdrawFeeBps: 100, // 1% max withdraw fee
-    }
 }
 
 pub fn pause(
