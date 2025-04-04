@@ -1,6 +1,5 @@
 use std::{
     error::Error,
-    path::Path,
     str::FromStr,
     thread::sleep,
     time::{Duration, SystemTime},
@@ -71,8 +70,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let ethereum_program_accounts = setup_eth_accounts(&rt, &eth_client, eth_admin_acc)?;
 
     // set up the cctp messenger
-    let mock_cctp_messenger_address =
-        valence_e2e::utils::vault::setup_mock_token_messenger(&rt, &eth_client)?;
+    let mock_cctp_messenger_address = evm::setup_mock_token_messenger(&rt, &eth_client)?;
     // eth side USDC token
     let usdc_token_address =
         ethereum_utils::mock_erc20::setup_deposit_erc20(&rt, &eth_client, "MockUSDC", "USDC")?;
@@ -172,8 +170,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &eth_client,
         eth_admin_acc,
         strategist_acc,
-        ethereum_program_accounts.deposit,
-        ethereum_program_accounts.withdraw,
+        ethereum_program_accounts.clone(),
         mock_cctp_messenger_address,
         usdc_token_address,
         neutron_program_accounts
@@ -210,6 +207,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         lp_token.to_string(),
         pool_addr.to_string(),
         ethereum_program_libraries.cctp_forwarder,
+        ethereum_program_libraries.valence_vault,
     )
     .unwrap();
 
@@ -268,14 +266,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     let withdraw_fee_bps = 1;
 
     info!("performing vault update...");
-    vault::vault_update(
-        *valence_vault.address(),
-        current_rate,
-        withdraw_fee_bps,
-        netting_amount,
+    async_run!(
         &rt,
-        &eth_client,
-    )?;
+        strategist
+            .vault_update(current_rate, withdraw_fee_bps, netting_amount)
+            .await
+            .unwrap()
+    );
 
     info!("funding eth user2 with {user_2_deposit_amount}USDC...");
     ethereum_utils::mock_erc20::mint(
@@ -343,15 +340,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     evm::mine_blocks(&rt, &eth_client, 5, 3);
 
     info!("performing vault update with N=100_000...");
-    vault::vault_update(
-        *valence_vault.address(),
-        current_rate,
-        withdraw_fee_bps,
-        // netting the full amount
-        user_1_deposit_amount,
+    async_run!(
         &rt,
-        &eth_client,
-    )?;
+        // netting the full amount
+        strategist
+            .vault_update(current_rate, withdraw_fee_bps, user_1_deposit_amount)
+            .await
+            .unwrap()
+    );
 
     evm::mine_blocks(&rt, &eth_client, 5, 3);
 

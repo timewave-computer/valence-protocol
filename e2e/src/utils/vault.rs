@@ -1,26 +1,19 @@
-use std::{error::Error, str::FromStr};
+use std::error::Error;
 
 use alloy::{
-    hex::FromHex,
-    primitives::{Address, Bytes, U256},
+    primitives::{Address, U256},
     providers::ext::AnvilApi,
-    sol_types::SolValue,
 };
 use log::{info, warn};
 use valence_chain_client_utils::{
     ethereum::EthereumClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
-use valence_encoder_utils::libraries::cctp_transfer::solidity_types::CCTPTransferConfig;
 
 use crate::{
     async_run,
-    utils::{
-        self,
-        solidity_contracts::{
-            CCTPTransfer, ERC1967Proxy, MockTokenMessenger,
-            ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
-        },
+    utils::solidity_contracts::ValenceVault::{
+        self, FeeConfig, FeeDistributionConfig, VaultConfig,
     },
 };
 
@@ -148,7 +141,7 @@ pub fn setup_vault_config(
     accounts: &[Address],
     eth_deposit_acc: Address,
     eth_withdraw_acc: Address,
-    _eth_strategist_acc: Address,
+    eth_strategist_acc: Address,
 ) -> VaultConfig {
     let fee_config = FeeConfig {
         depositFeeBps: 0,        // No deposit fee
@@ -166,7 +159,7 @@ pub fn setup_vault_config(
     VaultConfig {
         depositAccount: eth_deposit_acc,
         withdrawAccount: eth_withdraw_acc,
-        strategist: accounts[0],
+        strategist: eth_strategist_acc,
         fees: fee_config,
         feeDistribution: fee_distribution,
         depositCap: 0, // No cap (for real)
@@ -429,172 +422,4 @@ pub fn update() -> Result<(), Box<dyn Error>> {
     // find netting amount
     // update
     Ok(())
-}
-
-/// sets up a Valence Vault on Ethereum with a proxy.
-/// approves deposit & withdraw accounts.
-pub fn setup_valence_vault(
-    rt: &tokio::runtime::Runtime,
-    eth_client: &EthereumClient,
-    eth_strategist_acc: Address,
-    eth_accounts: &[Address],
-    admin: Address,
-    eth_deposit_acc: Address,
-    eth_withdraw_acc: Address,
-    vault_deposit_token_addr: Address,
-) -> Result<Address, Box<dyn Error>> {
-    let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
-
-    info!("deploying Valence Vault on Ethereum...");
-    let vault_config = setup_vault_config(
-        eth_accounts,
-        eth_deposit_acc,
-        eth_withdraw_acc,
-        eth_strategist_acc,
-    );
-
-    // First deploy the implementation contract
-    let implementation_tx = ValenceVault::deploy_builder(&eth_rp)
-        .into_transaction_request()
-        .from(admin);
-
-    let implementation_address = async_run!(
-        rt,
-        eth_client
-            .execute_tx(implementation_tx)
-            .await
-            .unwrap()
-            .contract_address
-            .unwrap()
-    );
-
-    info!("Vault deployed at: {implementation_address}");
-
-    let proxy_address = async_run!(rt, {
-        // Deploy the proxy contract
-        let proxy_tx = ERC1967Proxy::deploy_builder(&eth_rp, implementation_address, Bytes::new())
-            .into_transaction_request()
-            .from(admin);
-
-        let proxy_address = eth_client
-            .execute_tx(proxy_tx)
-            .await
-            .unwrap()
-            .contract_address
-            .unwrap();
-        info!("Proxy deployed at: {proxy_address}");
-        proxy_address
-    });
-
-    // Initialize the Vault
-    let vault = ValenceVault::new(proxy_address, &eth_rp);
-
-    async_run!(rt, {
-        let initialize_tx = vault
-            .initialize(
-                admin,                            // owner
-                vault_config.abi_encode().into(), // encoded config
-                vault_deposit_token_addr,         // underlying token
-                "Valence Test Vault".to_string(), // vault token name
-                "vTEST".to_string(),              // vault token symbol
-                U256::from(1e18), // placeholder, tbd what a reasonable value should be here
-            )
-            .into_transaction_request()
-            .from(admin);
-
-        eth_client.execute_tx(initialize_tx).await.unwrap();
-    });
-
-    info!("Approving vault for withdraw account...");
-    utils::ethereum::valence_account::approve_library(
-        rt,
-        eth_client,
-        eth_withdraw_acc,
-        proxy_address,
-    );
-
-    info!("Approving vault for deposit account...");
-    utils::ethereum::valence_account::approve_library(
-        rt,
-        eth_client,
-        eth_deposit_acc,
-        proxy_address,
-    );
-
-    Ok(proxy_address)
-}
-
-pub fn setup_mock_token_messenger(
-    rt: &tokio::runtime::Runtime,
-    eth_client: &EthereumClient,
-) -> Result<Address, Box<dyn Error>> {
-    let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
-
-    info!("deploying Mock Token Messenger lib on Ethereum...");
-
-    let messenger_tx = MockTokenMessenger::deploy_builder(eth_rp).into_transaction_request();
-
-    let messenger_rx = async_run!(rt, eth_client.execute_tx(messenger_tx).await.unwrap());
-
-    let messenger_address = messenger_rx.contract_address.unwrap();
-    info!("Mock CCTP Token Messenger deployed at: {messenger_address}");
-
-    Ok(messenger_address)
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn setup_cctp_transfer(
-    rt: &tokio::runtime::Runtime,
-    eth_client: &EthereumClient,
-    noble_recipient: String,
-    input_account: Address,
-    admin: Address,
-    processor: Address,
-    usdc_token_address: Address,
-    cctp_token_messenger_address: Address,
-) -> Result<Address, Box<dyn Error>> {
-    let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
-
-    info!("deploying CCTP Transfer lib on Ethereum...");
-
-    // Decode the bech32 address
-    let (_, data) = bech32::decode(&noble_recipient)?;
-    // Convert to hex
-    let address_hex = hex::encode(data);
-    // Pad with zeroes to 32 bytes
-    let padded_hex = format!("{:0>64}", address_hex);
-
-    let cctp_transer_cfg = CCTPTransferConfig {
-        amount: U256::ZERO,
-        mintRecipient: alloy_primitives_encoder::FixedBytes::<32>::from_hex(padded_hex)?,
-        inputAccount: alloy_primitives_encoder::Address::from_str(
-            input_account.to_string().as_str(),
-        )?,
-        destinationDomain: 4,
-        cctpTokenMessenger: alloy_primitives_encoder::Address::from_str(
-            cctp_token_messenger_address.to_string().as_str(),
-        )?,
-        transferToken: alloy_primitives_encoder::Address::from_str(
-            usdc_token_address.to_string().as_str(),
-        )?,
-    };
-
-    let cctp_tx = CCTPTransfer::deploy_builder(
-        &eth_rp,
-        admin,
-        processor,
-        alloy_sol_types_encoder::SolValue::abi_encode(&cctp_transer_cfg).into(),
-    )
-    .into_transaction_request()
-    .from(admin);
-
-    let cctp_rx = async_run!(rt, eth_client.execute_tx(cctp_tx).await.unwrap());
-
-    let cctp_address = cctp_rx.contract_address.unwrap();
-    info!("CCTP Transfer deployed at: {cctp_address}");
-
-    // approve the CCTP forwarder on deposit account
-    utils::ethereum::valence_account::approve_library(rt, eth_client, input_account, cctp_address);
-
-    Ok(cctp_address)
 }

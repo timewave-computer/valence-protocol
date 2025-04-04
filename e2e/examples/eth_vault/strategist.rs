@@ -1,7 +1,7 @@
 use std::{error::Error, time::Duration};
 
 use alloy::{
-    primitives::Address,
+    primitives::{Address, U256},
     signers::local::{coins_bip39::English, MnemonicBuilder},
 };
 use cosmwasm_std::{to_json_binary, CosmosMsg, WasmMsg};
@@ -21,7 +21,7 @@ use valence_e2e::{
     async_run,
     utils::{
         parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
-        solidity_contracts::CCTPTransfer,
+        solidity_contracts::{CCTPTransfer, ValenceVault},
         ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, UUSDC_DENOM,
     },
 };
@@ -38,9 +38,11 @@ pub struct Strategist {
     lp_token_denom: String,
     pool_addr: String,
     cctp_transfer_lib: Address,
+    vault_addr: Address,
 }
 
 impl Strategist {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         rt: &Runtime,
         neutron_program_accounts: NeutronProgramAccounts,
@@ -49,6 +51,7 @@ impl Strategist {
         lp_token_denom: String,
         pool_addr: String,
         cctp_transfer_lib: Address,
+        vault_addr: Address,
     ) -> Result<Self, Box<dyn Error>> {
         let noble_grpc_addr = get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "grpc_address")?;
         let (noble_grpc_url, noble_grpc_port) =
@@ -102,6 +105,7 @@ impl Strategist {
             lp_token_denom,
             pool_addr,
             cctp_transfer_lib,
+            vault_addr,
         })
     }
 }
@@ -114,6 +118,32 @@ impl Strategist {
             info!("[STRATEGIST] loop");
             // TODO
         }
+    }
+
+    /// concludes the vault epoch and updates the Valence Vault state
+    pub async fn vault_update(
+        &self,
+        rate: U256,
+        withdraw_fee_bps: u32,
+        netting_amount: U256,
+    ) -> Result<(), Box<dyn Error>> {
+        info!("[STRATEGIST] Updating Ethereum Vault...");
+        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
+
+        let valence_vault = ValenceVault::new(self.vault_addr, &eth_rp);
+
+        let update_msg = valence_vault
+            .update(rate, withdraw_fee_bps, netting_amount)
+            .into_transaction_request();
+
+        let update_result = self.eth_client.execute_tx(update_msg).await;
+
+        if let Err(e) = &update_result {
+            info!("Update failed: {:?}", e);
+            panic!("failed to update vault");
+        }
+
+        Ok(())
     }
 
     /// IBC-transfers funds from noble inbound ica into neutron deposit account
@@ -175,7 +205,7 @@ impl Strategist {
 
     /// IBC-transfers funds from Neutron withdraw account to noble outbound ica
     pub async fn route_neutron_to_noble(&self) {
-        info!("routing USDC to noble...");
+        info!("[STRATEGIST] routing USDC to noble...");
         let transfer_rx = self
             .neutron_client
             .transfer(
@@ -280,7 +310,7 @@ impl Strategist {
 
     /// CCTP-transfers funds from Ethereum deposit account to Noble inbound ica
     pub async fn route_eth_to_noble(&self) {
-        info!("CCTP forwarding USDC from Ethereum to Noble...");
+        info!("[STRATEGIST] CCTP forwarding USDC from Ethereum to Noble...");
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
 
         let cctp_transfer_contract = CCTPTransfer::new(self.cctp_transfer_lib, &eth_rp);
@@ -325,7 +355,7 @@ impl Strategist {
 
     /// CCTP-transfers funds from Noble outbound ica to Ethereum withdraw account
     pub async fn route_noble_to_eth(&self) {
-        info!("CCTP forwarding USDC from Noble to Ethereum...");
+        info!("[STRATEGIST] CCTP forwarding USDC from Noble to Ethereum...");
         let transfer_tx = self
             .neutron_client
             .transfer(
@@ -395,7 +425,7 @@ impl Strategist {
 
     /// enters the position on astroport
     pub async fn enter_position(&self) {
-        info!("entering LP position...");
+        info!("[STRATEGIST] entering LP position...");
         let deposit_account_usdc_bal = self
             .neutron_client
             .query_balance(
@@ -451,7 +481,7 @@ impl Strategist {
 
     /// exits the position on astroport
     pub async fn exit_position(&self) {
-        info!("exiting LP position...");
+        info!("[STRATEGIST] exiting LP position...");
 
         let position_account_shares_bal = self
             .neutron_client
@@ -526,7 +556,7 @@ impl Strategist {
 
     /// swaps counterparty denom into usdc
     pub async fn swap_ntrn_into_usdc(&self) {
-        info!("swapping NTRN into USDC...");
+        info!("[STRATEGIST] swapping NTRN into USDC...");
         let withdraw_account_ntrn_bal = self
             .neutron_client
             .query_balance(
