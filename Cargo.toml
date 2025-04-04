@@ -2,6 +2,8 @@
 members = [
     "contracts/accounts/*",
     "contracts/libraries/*",
+    "contracts/libraries/skip-swap/skip-swap-valence",
+    "contracts/libraries/skip-swap/skip-swap-valence-strategist",
     "contracts/encoders/*",
     "contracts/authorization",
     "contracts/processor",
@@ -88,6 +90,8 @@ valence-drop-liquid-staker           = { path = "contracts/libraries/drop-liquid
 valence-drop-liquid-unstaker         = { path = "contracts/libraries/drop-liquid-unstaker", features = ["library"] }
 valence-ica-cctp-transfer            = { path = "contracts/libraries/ica-cctp-transfer", features = ["library"] }
 valence-ica-ibc-transfer             = { path = "contracts/libraries/ica-ibc-transfer", features = ["library"] }
+skip-swap-valence                    = { path = "contracts/libraries/skip-swap/skip-swap-valence", features = ["library"] }
+skip-swap-valence-strategist         = { path = "contracts/libraries/skip-swap/skip-swap-valence-strategist" }
 
 # middleware
 valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = [
