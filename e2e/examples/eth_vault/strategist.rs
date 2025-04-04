@@ -6,7 +6,7 @@ use alloy::{
 };
 use cosmwasm_std::{to_json_binary, CosmosMsg, WasmMsg};
 use localic_utils::{NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID};
-use log::info;
+use log::{info, warn};
 use tokio::{runtime::Runtime, time::sleep};
 use valence_astroport_utils::astroport_native_lp_token::{Asset, AssetInfo};
 use valence_chain_client_utils::{
@@ -148,6 +148,20 @@ impl Strategist {
 
     /// IBC-transfers funds from noble inbound ica into neutron deposit account
     pub async fn route_noble_to_neutron(&self, transfer_amount: u128) {
+        let noble_inbound_ica_balance = self
+            .noble_client
+            .query_balance(
+                &self.neutron_program_accounts.noble_inbound_ica.remote_addr,
+                UUSDC_DENOM,
+            )
+            .await
+            .unwrap();
+
+        if noble_inbound_ica_balance < transfer_amount {
+            warn!("Noble inbound ICA account must have enough USDC to route funds to Neutron deposit acc; returning");
+            return;
+        }
+
         let init_bal = self
             .neutron_client
             .query_balance(
@@ -250,14 +264,16 @@ impl Strategist {
             .await
             .unwrap();
 
-        assert_ne!(
-            withdraw_account_usdc_bal, 0,
-            "withdraw account must have usdc in order to route funds to noble"
-        );
-        assert_ne!(
-            withdraw_account_ntrn_bal, 0,
-            "withdraw account must have ntrn in order to route funds to noble"
-        );
+        if withdraw_account_usdc_bal == 0 {
+            warn!("[STRATEGIST] withdraw account must have USDC in order to route funds to noble; returning");
+            return;
+        }
+
+        if withdraw_account_ntrn_bal == 0 {
+            warn!("[STRATEGIST] withdraw account must have NTRN in order to route funds to noble; returning");
+            return;
+        }
+
         let neutron_ibc_transfer_msg =
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
                 valence_neutron_ibc_transfer_library::msg::FunctionMsgs::IbcTransfer {},
@@ -297,14 +313,8 @@ impl Strategist {
             )
             .await
             .unwrap();
-        info!(
-            "withdraw account USDC token balance: {:?}",
-            withdraw_acc_usdc_bal
-        );
-        info!(
-            "withdraw account NTRN token balance: {:?}",
-            withdraw_acc_ntrn_bal
-        );
+        info!("withdraw account USDC token balance: {withdraw_acc_usdc_bal}",);
+        info!("withdraw account NTRN token balance: {withdraw_acc_ntrn_bal}",);
         assert_eq!(0, withdraw_acc_usdc_bal);
     }
 
@@ -386,10 +396,10 @@ impl Strategist {
             .await
             .unwrap();
 
-        assert_ne!(
-            noble_outbound_acc_usdc_bal, 0,
-            "Noble outbound ICA account must have usdc in order to initiate CCTP forwarding"
-        );
+        if noble_outbound_acc_usdc_bal == 0 {
+            warn!("[STRATEGIST] Noble outbound ICA account must have USDC in order to CCTP forward to Ethereum; returning");
+            return;
+        }
 
         let neutron_ica_cctp_transfer_msg =
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
@@ -418,8 +428,7 @@ impl Strategist {
             .unwrap();
 
         info!(
-            "Noble outbound ICA account balance post cctp transfer: {:?}",
-            noble_outbound_acc_usdc_bal
+            "Noble outbound ICA account balance post cctp transfer: {noble_outbound_acc_usdc_bal}",
         );
     }
 
@@ -439,10 +448,10 @@ impl Strategist {
             .await
             .unwrap();
 
-        assert_ne!(
-            deposit_account_usdc_bal, 0,
-            "deposit account must have uusdc in order to lp"
-        );
+        if deposit_account_usdc_bal == 0 {
+            warn!("[STRATEGIST] Deposit account must have USDC in order to LP; returning");
+            return;
+        }
 
         let provide_liquidity_msg =
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
@@ -475,7 +484,7 @@ impl Strategist {
             )
             .await
             .unwrap();
-        info!("position account LP token balance: {:?}", output_acc_bal);
+        info!("position account LP token balance: {output_acc_bal}");
         assert_ne!(0, output_acc_bal);
     }
 
@@ -496,10 +505,12 @@ impl Strategist {
             .await
             .unwrap();
 
-        assert_ne!(
-            position_account_shares_bal, 0,
-            "position account must have shares in order to exit lp"
-        );
+        if position_account_shares_bal == 0 {
+            warn!(
+                "[STRATEGIST] Position account must have LP shares in order to exit LP; returning"
+            );
+            return;
+        }
 
         let withdraw_liquidity_msg =
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
@@ -542,14 +553,8 @@ impl Strategist {
             )
             .await
             .unwrap();
-        info!(
-            "withdraw account USDC token balance: {:?}",
-            withdraw_acc_usdc_bal
-        );
-        info!(
-            "withdraw account NTRN token balance: {:?}",
-            withdraw_acc_ntrn_bal
-        );
+        info!("withdraw account USDC token balance: {withdraw_acc_usdc_bal}",);
+        info!("withdraw account NTRN token balance: {withdraw_acc_ntrn_bal}",);
         assert_ne!(0, withdraw_acc_usdc_bal);
         assert_ne!(0, withdraw_acc_ntrn_bal);
     }
@@ -570,10 +575,10 @@ impl Strategist {
             .await
             .unwrap();
 
-        assert_ne!(
-            withdraw_account_ntrn_bal, 0,
-            "withdraw account must have NTRN in order to swap into USDC"
-        );
+        if withdraw_account_ntrn_bal == 0 {
+            warn!("[STRATEGIST] Withdraw account must have NTRN in order to swap into USDC; returning");
+            return;
+        }
 
         let swap_msg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.pool_addr.to_string(),
@@ -642,14 +647,8 @@ impl Strategist {
             )
             .await
             .unwrap();
-        info!(
-            "withdraw account USDC token balance: {:?}",
-            withdraw_acc_usdc_bal
-        );
-        info!(
-            "withdraw account NTRN token balance: {:?}",
-            withdraw_acc_ntrn_bal
-        );
+        info!("withdraw account USDC token balance: {withdraw_acc_usdc_bal}",);
+        info!("withdraw account NTRN token balance: {withdraw_acc_ntrn_bal}",);
         assert_ne!(0, withdraw_acc_usdc_bal);
         assert_eq!(0, withdraw_acc_ntrn_bal);
     }

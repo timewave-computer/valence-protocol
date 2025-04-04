@@ -261,13 +261,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     evm::mine_blocks(&rt, &eth_client, 5, 3);
 
-    let user1_pre_redeem_shares_bal = vault::query_vault_balance_of(
-        *valence_vault.address(),
-        &rt,
-        &eth_client,
-        eth_users.users[0],
-    )
-    ._0;
+    let user1_pre_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 0);
     assert_ne!(user1_pre_redeem_shares_bal, U256::ZERO);
 
     info!("USER1 initiating the redeem of {user1_pre_redeem_shares_bal} shares from vault...");
@@ -280,13 +274,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         10_000,
         true,
     )?;
-    let user1_post_redeem_shares_bal = vault::query_vault_balance_of(
-        *valence_vault.address(),
-        &rt,
-        &eth_client,
-        eth_users.users[0],
-    )
-    ._0;
+
+    let user1_post_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 0);
     assert_eq!(user1_post_redeem_shares_bal, U256::ZERO);
 
     let has_active_withdraw = vault::addr_has_active_withdraw(
@@ -306,19 +295,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         eth_users.users[1],
         U256::from(1_000_000),
     )?;
-    let user2_shares_bal = vault::query_vault_balance_of(
-        *valence_vault.address(),
-        &rt,
-        &eth_client,
-        eth_users.users[1],
-    )
-    ._0;
-    let user2_post_deposit_usdc_bal = ethereum_utils::mock_erc20::query_balance(
-        &rt,
-        &eth_client,
-        usdc_token_address,
-        eth_users.users[1],
-    );
+    let user2_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 1);
+    let user2_post_deposit_usdc_bal = eth_users.get_user_usdc(&rt, &eth_client, 1);
     assert_ne!(user2_shares_bal, U256::ZERO);
     assert_eq!(user2_post_deposit_usdc_bal, U256::ZERO);
 
@@ -341,12 +319,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         &rt,
         valence_vault.address(),
         &usdc_token_address,
-        &ethereum_program_accounts.deposit,
-        &ethereum_program_accounts.withdraw,
-        &eth_users.users[0],
-        &eth_users.users[1],
-    )
-    .unwrap();
+        &ethereum_program_accounts,
+        &eth_users,
+    )?;
 
     info!("user1 completing withdraw request...");
     vault::complete_withdraw_request(
@@ -356,12 +331,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         eth_users.users[0],
     )?;
 
-    let user1_usdc_bal = ethereum_utils::mock_erc20::query_balance(
-        &rt,
-        &eth_client,
-        usdc_token_address,
-        eth_users.users[0],
-    );
+    let user1_usdc_bal = eth_users.get_user_usdc(&rt, &eth_client, 0);
     assert_eq!(user1_usdc_bal, user_1_deposit_amount - U256::from(50));
 
     let pre_cctp_deposit_acc_usdc_bal = ethereum_utils::mock_erc20::query_balance(

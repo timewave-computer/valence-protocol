@@ -21,6 +21,7 @@ use valence_e2e::utils::{
         CCTPTransfer, ERC1967Proxy, MockERC20, MockTokenMessenger,
         ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
     },
+    vault,
 };
 
 pub fn mine_blocks(
@@ -48,10 +49,8 @@ pub fn log_eth_balances(
     rt: &tokio::runtime::Runtime,
     vault_addr: &Address,
     vault_deposit_token: &Address,
-    deposit_acc_addr: &Address,
-    withdraw_acc_addr: &Address,
-    user1_addr: &Address,
-    user2_addr: &Address,
+    eth_program_accounts: &EthereumProgramAccounts,
+    eth_users: &EthereumUsers,
 ) -> Result<(), Box<dyn Error>> {
     async_run!(rt, {
         let eth_rp = eth_client.get_request_provider().await.unwrap();
@@ -68,12 +67,12 @@ pub fn log_eth_balances(
             deposit_acc_usdc_bal,
             vault_total_supply,
         ) = tokio::join!(
-            eth_client.query(usdc_token.balanceOf(*user1_addr)),
-            eth_client.query(usdc_token.balanceOf(*user2_addr)),
-            eth_client.query(valence_vault.balanceOf(*user1_addr)),
-            eth_client.query(valence_vault.balanceOf(*user2_addr)),
-            eth_client.query(usdc_token.balanceOf(*withdraw_acc_addr)),
-            eth_client.query(usdc_token.balanceOf(*deposit_acc_addr)),
+            eth_client.query(usdc_token.balanceOf(eth_users.users[0])),
+            eth_client.query(usdc_token.balanceOf(eth_users.users[1])),
+            eth_client.query(valence_vault.balanceOf(eth_users.users[0])),
+            eth_client.query(valence_vault.balanceOf(eth_users.users[1])),
+            eth_client.query(usdc_token.balanceOf(eth_program_accounts.withdraw)),
+            eth_client.query(usdc_token.balanceOf(eth_program_accounts.deposit)),
             eth_client.query(valence_vault.totalSupply()),
         );
 
@@ -146,6 +145,26 @@ impl EthereumUsers {
         amount: U256,
     ) {
         mock_erc20::mint(rt, eth_client, self.erc20, self.users[user], amount);
+    }
+
+    pub fn get_user_shares(
+        &self,
+        rt: &tokio::runtime::Runtime,
+        eth_client: &EthereumClient,
+        user: usize,
+    ) -> U256 {
+        let user_shares_balance =
+            vault::query_vault_balance_of(self.vault, rt, eth_client, self.users[user]);
+        user_shares_balance._0
+    }
+
+    pub fn get_user_usdc(
+        &self,
+        rt: &tokio::runtime::Runtime,
+        eth_client: &EthereumClient,
+        user: usize,
+    ) -> U256 {
+        mock_erc20::query_balance(rt, eth_client, self.erc20, self.users[user])
     }
 }
 
