@@ -10,7 +10,13 @@ use cosmos_sdk_proto::cosmos::{
     tx::v1beta1::GetTxRequest,
 };
 
-use cosmrs::{bank::MsgSend, tx::Msg, AccountId, Coin};
+use cosmrs::{
+    bank::MsgSend,
+    rpc::{Client, HttpClient},
+    tendermint::block::Height,
+    tx::Msg,
+    AccountId, Coin,
+};
 use cosmrs::{
     proto::cosmos::base::tendermint::v1beta1::{
         service_client::ServiceClient as TendermintServiceClient, GetLatestBlockRequest,
@@ -86,6 +92,20 @@ pub trait BaseClient: GrpcSigningClient {
             .ok_or_else(|| StrategistError::QueryError("no header in sdk_block".to_string()))?;
 
         Ok(block_header)
+    }
+
+    async fn block_results(
+        &self,
+        rpc_addr: &str,
+        height: u32,
+    ) -> Result<cosmrs::rpc::endpoint::block_results::Response, StrategistError> {
+        let client = HttpClient::new(rpc_addr)?;
+
+        let height = Height::from(height);
+
+        let results = client.block_results(height).await?;
+
+        Ok(results)
     }
 
     async fn query_balance(&self, address: &str, denom: &str) -> Result<u128, StrategistError> {

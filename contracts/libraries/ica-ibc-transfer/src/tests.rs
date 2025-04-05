@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use cosmwasm_std::{coin, Addr, Empty, Uint128};
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
@@ -86,7 +88,9 @@ impl IcaIbcTransferTestSuite {
             amount,
             denom,
             receiver,
+            "".to_string(),
             remote_chain_info,
+            BTreeMap::default(),
         )
     }
 
@@ -158,7 +162,9 @@ fn instantiate_with_valid_config() {
             Uint128::new(ONE_THOUSAND),
             UUSDC.to_string(),
             "receiver".to_string(),
-            RemoteChainInfo::new("channel-1".to_string(), Some(600))
+            "".to_string(),
+            RemoteChainInfo::new("channel-1".to_string(), Some(600)),
+            BTreeMap::default(),
         )
     );
 }
@@ -404,7 +410,9 @@ fn update_config_works() {
             new_cfg.amount,
             new_cfg.denom,
             new_cfg.receiver,
-            new_cfg.remote_chain_info
+            new_cfg.memo,
+            new_cfg.remote_chain_info,
+            BTreeMap::default()
         )
     );
 }

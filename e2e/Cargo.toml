@@ -5,6 +5,10 @@ license    = { workspace = true }
 version    = { workspace = true }
 repository = { workspace = true }
 
+[[example]]
+name = "vault"
+path = "examples/eth_vault/vault.rs"
+
 [dependencies]
 localic-std                          = { git = "https://github.com/strangelove-ventures/interchaintest", branch = "main" }
 localic-utils                        = { git = "https://github.com/timewave-computer/localic-utils", branch = "main" }

@@ -1,11 +1,12 @@
-use std::{env, error::Error, time::Duration};
+use std::{collections::BTreeMap, env, error::Error, time::Duration};
 
 use cosmwasm_std::{Binary, Uint128, Uint64};
 use localic_std::modules::cosmwasm::{contract_execute, contract_instantiate, contract_query};
 use localic_utils::{
-    types::config::ConfigChain, utils::test_context::TestContext, ConfigChainBuilder,
-    TestContextBuilder, DEFAULT_KEY, LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR,
-    NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
+    types::{config::ConfigChain, ibc::get_multihop_ibc_denom},
+    ConfigChainBuilder, TestContextBuilder, DEFAULT_KEY, LOCAL_IC_API_URL,
+    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
+    OSMOSIS_CHAIN_NAME,
 };
 use log::info;
 use valence_account_utils::ica::{IcaState, RemoteDomainInfo};
@@ -13,14 +14,15 @@ use valence_chain_client_utils::{
     cosmos::base_client::BaseClient, neutron::NeutronClient, noble::NobleClient,
 };
 use valence_e2e::utils::{
-    parse::get_grpc_address_and_port_from_logs, relayer::restart_relayer, ADMIN_MNEMONIC,
-    GAS_FLAGS, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID,
-    NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, VALENCE_ARTIFACTS_PATH,
+    ibc::poll_for_ica_state,
+    parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
+    relayer::restart_relayer,
+    ADMIN_MNEMONIC, GAS_FLAGS, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM,
+    NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, UUSDC_DENOM, VALENCE_ARTIFACTS_PATH,
 };
+use valence_ibc_utils::types::PacketForwardMiddlewareConfig;
 use valence_ica_ibc_transfer::msg::RemoteChainInfo;
 use valence_library_utils::LibraryAccountType;
-
-const UUSDC_DENOM: &str = "uusdc";
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -30,6 +32,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_artifacts_dir(VALENCE_ARTIFACTS_PATH)
         .with_chain(ConfigChainBuilder::default_neutron().build()?)
         .with_chain(ConfigChainBuilder::default_gaia().build()?)
+        .with_chain(ConfigChainBuilder::default_osmosis().build()?)
         .with_chain(ConfigChain {
             denom: NOBLE_CHAIN_DENOM.to_string(),
             debugging: true,
@@ -40,11 +43,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         })
         .with_log_file_path(LOGS_FILE_PATH)
         .with_transfer_channels(NEUTRON_CHAIN_NAME, NOBLE_CHAIN_NAME)
+        .with_transfer_channels(NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_NAME)
+        .with_transfer_channels(NOBLE_CHAIN_NAME, OSMOSIS_CHAIN_NAME)
         .build()?;
 
     let rt = tokio::runtime::Runtime::new()?;
     // Get the grpc url and the port for the noble chain
-    let (grpc_url, grpc_port) = get_grpc_address_and_port_from_logs(NOBLE_CHAIN_ID)?;
+    let grpc_addr = get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "grpc_address")?;
+    let (grpc_url, grpc_port) = get_grpc_address_and_port_from_url(&grpc_addr)?;
 
     let noble_client = rt.block_on(async {
         NobleClient::new(
@@ -303,7 +309,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         .get("valence_ica_ibc_transfer")
         .unwrap();
 
-    info!("Instantiating the ICA IBC transfer contract...");
+    // We are going to test sending the uusdc from the ICA account via Osmosis using PFM
+
+    info!("Instantiating the ICA IBC transfer contract with PFM...");
     let ica_ibc_transfer_instantiate_msg = valence_library_utils::msg::InstantiateMsg::<
         valence_ica_ibc_transfer::msg::LibraryConfig,
     > {
@@ -314,14 +322,31 @@ fn main() -> Result<(), Box<dyn Error>> {
             amount: Uint128::new(amount_to_transfer),
             denom: UUSDC_DENOM.to_string(),
             receiver: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+            memo: "".to_string(),
             remote_chain_info: RemoteChainInfo {
                 channel_id: test_ctx
                     .get_transfer_channels()
                     .src(NOBLE_CHAIN_NAME)
-                    .dest(NEUTRON_CHAIN_NAME)
+                    .dest(OSMOSIS_CHAIN_NAME)
                     .get(),
                 ibc_transfer_timeout: None,
             },
+            denom_to_pfm_map: BTreeMap::from([(
+                UUSDC_DENOM.to_string(),
+                PacketForwardMiddlewareConfig {
+                    local_to_hop_chain_channel_id: test_ctx
+                        .get_transfer_channels()
+                        .src(NOBLE_CHAIN_NAME)
+                        .dest(OSMOSIS_CHAIN_NAME)
+                        .get(),
+                    hop_to_destination_chain_channel_id: test_ctx
+                        .get_transfer_channels()
+                        .src(OSMOSIS_CHAIN_NAME)
+                        .dest(NEUTRON_CHAIN_NAME)
+                        .get(),
+                    hop_chain_receiver_address: "pfm".to_string(),
+                },
+            )]),
         },
     };
 
@@ -394,14 +419,25 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(Duration::from_secs(15));
 
     // Verify that the funds were successfully sent
-    let uusdc_on_neutron_denom = test_ctx
-        .get_ibc_denom()
-        .base_denom(UUSDC_DENOM.to_owned())
-        .src(NOBLE_CHAIN_NAME)
-        .dest(NEUTRON_CHAIN_NAME)
-        .get();
+    let uusdc_on_neutron_via_osmosis = get_multihop_ibc_denom(
+        UUSDC_DENOM,
+        vec![
+            &test_ctx
+                .get_transfer_channels()
+                .src(NEUTRON_CHAIN_NAME)
+                .dest(OSMOSIS_CHAIN_NAME)
+                .get(),
+            &test_ctx
+                .get_transfer_channels()
+                .src(OSMOSIS_CHAIN_NAME)
+                .dest(NOBLE_CHAIN_NAME)
+                .get(),
+        ],
+    );
 
-    let (grpc_url, grpc_port) = get_grpc_address_and_port_from_logs(NEUTRON_CHAIN_ID)?;
+    let grpc_addr = get_chain_field_from_local_ic_log(NEUTRON_CHAIN_ID, "grpc_address")?;
+    let (grpc_url, grpc_port) = get_grpc_address_and_port_from_url(&grpc_addr)?;
+
     let neutron_client = rt.block_on(async {
         NeutronClient::new(
             &grpc_url,
@@ -414,7 +450,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     });
 
     let balance = rt
-        .block_on(neutron_client.query_balance(NEUTRON_CHAIN_ADMIN_ADDR, &uusdc_on_neutron_denom))
+        .block_on(
+            neutron_client.query_balance(NEUTRON_CHAIN_ADMIN_ADDR, &uusdc_on_neutron_via_osmosis),
+        )
         .unwrap();
 
     assert_eq!(balance, amount_to_transfer);
@@ -471,44 +509,4 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("All ICA tests passed!");
 
     Ok(())
-}
-
-fn poll_for_ica_state<F>(test_ctx: &mut TestContext, addr: &str, expected: F)
-where
-    F: Fn(&IcaState) -> bool,
-{
-    let mut attempts = 0;
-    loop {
-        attempts += 1;
-        let ica_state: IcaState = serde_json::from_value(
-            contract_query(
-                test_ctx
-                    .get_request_builder()
-                    .get_request_builder(NEUTRON_CHAIN_NAME),
-                addr,
-                &serde_json::to_string(&valence_account_utils::ica::QueryMsg::IcaState {}).unwrap(),
-            )["data"]
-                .clone(),
-        )
-        .unwrap();
-
-        if expected(&ica_state) {
-            info!("Target ICA state reached!");
-            break;
-        } else {
-            info!(
-                "Waiting for the right ICA state, current state: {:?}",
-                ica_state
-            );
-        }
-
-        if attempts % 5 == 0 {
-            restart_relayer(test_ctx);
-        }
-
-        if attempts > 60 {
-            panic!("Maximum number of attempts reached. Cancelling execution.");
-        }
-        std::thread::sleep(Duration::from_secs(10));
-    }
 }
