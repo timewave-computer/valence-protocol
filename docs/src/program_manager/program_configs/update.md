@@ -1,6 +1,6 @@
 # Update a program
 
-Updating a programs allows you to:
+Updating a program allows you to:
 
 * Change the owner of a program
 * Update libraries configs
@@ -37,7 +37,7 @@ A map of `library_id => library_config`.
 
 ## Authorizations
 
-A list o operations to do on the authorizations table
+A list of operations to do on the authorizations table
 
 ```rust
 pub enum AuthorizationInfoUpdate {
@@ -62,7 +62,7 @@ Adds a new authorization with that info
 
 ### Modify
 
-Nodifies an existing authorization with that label
+Modifies an existing authorization with that label
 
 ### Disable
 

@@ -1,6 +1,6 @@
 # Program manager
 
-The program manager is a off-chain tool that helps instantiate, update and migrate a program.
+The program manager is an off-chain tool that helps instantiate, update and migrate a program.
 
 **Guides**
 - [How to](./how_to.md)

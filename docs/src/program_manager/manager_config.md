@@ -42,7 +42,7 @@ manager_config.general.registry_addr = "addr1234".to_string();
 
 ### Non-async functions
 
-The manager config is using `tokio::sync::Mutex`, because of that you need to use blocking operation in non-async functions, like this:
+The manager config is using `tokio::sync::Mutex`, because of that, you need to use blocking operation in non-async functions, like this:
 
 ```rust
 let rt = tokio::runtime::Builder::new_current_thread()
@@ -104,7 +104,7 @@ This allows the manager to find the code id of a contract on a specific chain to
 
 The bridge is a complex map of bridge information needed for cross-chain operations.
 
-Easiest way to explain it is by `toml` format:
+The easiest way to explain it is by `toml` format:
 
 ```toml
 [bridges.neutron.juno.polytone.neutron]
@@ -133,4 +133,4 @@ pub struct GeneralConfig {
 
 General field holds general information that is needed for the manager to work:
 
-- `registry_addr` - The registry contract address on neutron.
+* `registry_addr` - The registry contract address on neutron.

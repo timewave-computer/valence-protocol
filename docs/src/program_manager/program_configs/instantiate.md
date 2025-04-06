@@ -67,7 +67,7 @@ Identifying name for this account
 
 ### AccountType
 
-Account type allows the manager to know if the account should be instantiate or not, and what type of account we should instantiate.
+Account type allows the manager to know whether the account should be instantiated or not, and what type of account we should instantiate.
 
 ```rust
 pub enum AccountType {
@@ -101,7 +101,7 @@ pub struct LibraryInfo {
 
 ### Name
 
-The identifying name of this psecific library
+The identifying name of this specific library
 
 ### Domain
 
@@ -111,7 +111,7 @@ The specific domain this library is on.
 
 The library specific config that will be used during instantiation.
 
-`LibraryConfig` is an enum of libraries that are currently exists and can be used in programs.
+`LibraryConfig` is an enum of libraries that currently exist and can be used in programs.
 
 ### Addr
 

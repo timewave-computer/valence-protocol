@@ -4,12 +4,12 @@ Migrating a program allows you to pause an existing program and perform funds tr
 
 Like updating a program, the manager will not perform those actions but will output a set of instructions to be executed by the owner.
 
-Unlike the update, migration requires 2 set of actions:
+Unlike the update, migration requires 2 sets of actions:
 
 1. Transfer all funds from the old program to the new program
 2. Pause the old program processors
 
-Pausing the program will not allow any actions to be done on the old program including transferring the funds, for this reason we first transfer all the funds, and only then pausing the old program.
+Pausing the program will not allow any actions to be done on the old program including transferring the funds, for this reason, we first transfer all the funds, and only then pausing the old program.
 
 ```rust
 pub struct ProgramConfigMigrate {
