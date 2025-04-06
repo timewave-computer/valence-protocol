@@ -662,7 +662,7 @@
         "type": "string"
       },
       "LibraryAccountType": {
-        "description": "An helper type that is used to associate an account or library with an id When a program is not instantiated yet, ids will be used to reference accounts and libraries When a program is instantiated, the ids will be replaced by the instantiated addresses",
+        "description": "A helper type that is used to associate an account or library with an id When a program is not instantiated yet, ids will be used to reference accounts and libraries When a program is instantiated, the ids will be replaced by the instantiated addresses",
         "oneOf": [
           {
             "type": "object",
