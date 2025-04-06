@@ -46,7 +46,7 @@ pub struct Link {
 
 ## Accounts 
 
-A map of accounts that are being used by the program
+A list of accounts that are being used by the program
 
 ```rust
 pub struct AccountInfo {
@@ -61,13 +61,87 @@ pub struct AccountInfo {
 }
 ```
 
+### Name
+
+Identifying name for this account
+
 ### AccountType
+
+Account type allows the manager to know if the account should be instantiate or not, and what type of account we should instantiate.
 
 ```rust
 pub enum AccountType {
-    /// This means the account is already instantiated
+    /// Existing address on chain
     Addr { addr: String },
     /// This is our base account implementation
     Base { admin: Option<String> },
 }
 ```
+
+### Domain
+
+On what domain the account exists or should be instantiated on.
+
+### Addr
+
+This field will be set by the manager once the account is intantiated.
+
+## Libraries
+
+A list of libraries that are being used by the program.
+
+```rust
+pub struct LibraryInfo {
+    pub name: String,
+    pub domain: Domain,
+    pub config: LibraryConfig,
+    pub addr: Option<String>,
+}
+```
+
+### Name
+
+The identifying name of this psecific library
+
+### Domain
+
+The specific domain this library is on.
+
+### Config
+
+The library specific config that will be used during instantiation.
+
+`LibraryConfig` is an enum of libraries that are currently exists and can be used in programs.
+
+### Addr
+
+This will include the address of the library contract once instantiated
+
+## Authorizations
+
+This is a list of all authorizations that should be included in the authorization contract.
+
+## Authorization data
+
+This field includes all the data regarding authorization contract and processors on all chains.
+
+```rust
+pub struct AuthorizationData {
+    /// authorization contract address on neutron
+    pub authorization_addr: String,
+    /// List of processor addresses by domain
+    /// Key: domain name | Value: processor address
+    pub processor_addrs: BTreeMap<String, String>,
+    /// List of authorization bridge addresses by domain
+    /// The addresses are on the specified domain
+    /// Key: domain name | Value: authorization bridge address on that domain
+    pub authorization_bridge_addrs: BTreeMap<String, String>,
+    /// List of processor bridge addresses by domain on neutron chain
+    pub processor_bridge_addrs: Vec<String>,
+}
+```
+
+- `authorization_addr` - Authorization contract address on neutron
+- `processor_addrs` - Map of all processors by domain
+- `authorization_bridge_addrs` - Bridge account address of the authorization contract on all chains
+- `processor_bridge_addrs` - List of bridge accounts of processors on neutron chain
