@@ -4,8 +4,16 @@ use serde_json::Value;
 
 use super::LOGS_FILE_PATH;
 
-/// Helper to get the gRPC address of a chain from the local-ic logs file
-pub fn get_grpc_address_from_logs(target_chain_id: &str) -> Result<String, Box<dyn Error>> {
+/// Helper to extract a given field from a given chain entry in the the local-ic logs file.
+/// available options:
+/// - rpc_address
+/// - rest_address
+/// - grpc_address
+/// - p2p_address
+pub fn get_chain_field_from_local_ic_log(
+    target_chain_id: &str,
+    target_field: &str,
+) -> Result<String, Box<dyn Error>> {
     // Open the logs file
     let mut file = File::open(LOGS_FILE_PATH)?;
 
@@ -16,17 +24,18 @@ pub fn get_grpc_address_from_logs(target_chain_id: &str) -> Result<String, Box<d
     // Parse the string into a JSON value
     let json: Value = serde_json::from_str(&contents)?;
 
-    // Get the gRPC address of Persistence chain
     let chains = json["chains"]
         .as_array()
         .ok_or("'chains' field not found or not an array")?;
     for chain in chains {
         if let Some(chain_id) = chain["chain_id"].as_str() {
             if chain_id == target_chain_id {
-                if let Some(grpc_address) = chain["grpc_address"].as_str() {
-                    return Ok(grpc_address.to_string());
+                if let Some(field) = chain[target_field].as_str() {
+                    return Ok(field.to_string());
                 } else {
-                    return Err("gRPC address not found for the specified chain".into());
+                    return Err(
+                        format!("{} not found for the specified chain", target_field).into(),
+                    );
                 }
             }
         }
@@ -35,12 +44,9 @@ pub fn get_grpc_address_from_logs(target_chain_id: &str) -> Result<String, Box<d
     Err(format!("Chain with ID '{}' not found in logs file", target_chain_id).into())
 }
 
-pub fn get_grpc_address_and_port_from_logs(
-    target_chain_id: &str,
+pub fn get_grpc_address_and_port_from_url(
+    grpc_address: &str,
 ) -> Result<(String, String), Box<dyn Error>> {
-    // Get the gRPC address from the logs file
-    let grpc_address = get_grpc_address_from_logs(target_chain_id)?;
-
     // Split the input on ':'
     let parts: Vec<&str> = grpc_address.split(':').collect();
 

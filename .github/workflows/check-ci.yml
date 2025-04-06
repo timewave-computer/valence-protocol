@@ -340,7 +340,7 @@ jobs:
       - name: Run valence ica & ica libraries tests
         uses: "./.github/actions/run-local-ic-test"
         with:
-          chain-config: "neutron_noble"
+          chain-config: "neutron_noble_osmosis"
           test-name: "ica_libraries"
 
   local-ic-ethereum-e2e-tests:

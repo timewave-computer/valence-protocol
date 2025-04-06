@@ -1,9 +1,37 @@
 [[dependencies]]
+name = "@layerzerolabs-lz-evm-oapp-v2"
+version = "3.0.81"
+url = "https://soldeer-revisions.s3.amazonaws.com/@layerzerolabs-lz-evm-oapp-v2/3_0_81_24-03-2025_07:59:45_lz-evm-oapp-v2.zip"
+checksum = "8d38d974f1604c816da1085266e7f04290eae27c5a48066d3f4f98a0090d7bc9"
+integrity = "26e9ed1662a0759c9bead60a535a0fe02e292ef8d72ecae1255a9f609cc9fbb4"
+
+[[dependencies]]
+name = "@layerzerolabs-lz-evm-protocol-v2"
+version = "3.0.81"
+url = "https://soldeer-revisions.s3.amazonaws.com/@layerzerolabs-lz-evm-protocol-v2/3_0_81_24-03-2025_08:00:59_lz-evm-protocol-v2.zip"
+checksum = "0bb6d5a47274d4e31233fc9f7e9fd9601e64c0c112a693f1d85d8d1265d6da21"
+integrity = "2fd63832a6270ae9d92b382a0232551705157e602858a079dc9e3670cd13e029"
+
+[[dependencies]]
 name = "@openzeppelin-contracts"
 version = "5.2.0"
 url = "https://soldeer-revisions.s3.amazonaws.com/@openzeppelin-contracts/5_2_0_11-01-2025_09:30:20_contracts.zip"
 checksum = "6dbd0440446b2ed16ca25e9f1af08fc0c5c1e73e71fee86ae8a00daa774e3817"
 integrity = "4cb7f3777f67fdf4b7d0e2f94d2f93f198b2e5dce718b7062ac7c2c83e1183bd"
+
+[[dependencies]]
+name = "@openzeppelin-contracts-upgradeable"
+version = "5.2.0"
+url = "https://soldeer-revisions.s3.amazonaws.com/@openzeppelin-contracts-upgradeable/5_2_0_11-01-2025_09:30:25_contracts-upgradeable.zip"
+checksum = "25d9cf22b6f4d8da7975f24234eefbf6c71348464ea74c8fdd481be3811767f5"
+integrity = "498747bedc3f757976da0b6125d26a63e79bb2b4dbabd8ecd2547e809a2fa27e"
+
+[[dependencies]]
+name = "@stargatefinance-stg-evm-v2"
+version = "2.0.2"
+url = "https://soldeer-revisions.s3.amazonaws.com/@stargatefinance-stg-evm-v2/2_0_2_14-03-2025_08:07:52_stg-evm-v2.zip"
+checksum = "839e4ebfd9219d28a436a33c0a828a95fac4498d3aa89e935c6f9c8fdc2de3a3"
+integrity = "242fe8944531230b474ba2e85f01b477b9a8d57df3e3940c9c3d4fe23e5deda1"
 
 [[dependencies]]
 name = "forge-std"

@@ -3,10 +3,10 @@ pragma solidity ^0.8.28;
 
 import {VaultHelper} from "./VaultHelper.t.sol";
 import {ValenceVault} from "../../src/libraries/ValenceVault.sol";
-import {IERC20} from "@openzeppelin-contracts/token/ERC20/IERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {console} from "forge-std/src/console.sol";
 import {VmSafe} from "forge-std/src/Vm.sol";
-import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract VaultCompleteWithdrawTest is VaultHelper {
     using Math for uint256;
@@ -306,6 +306,32 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         vault.completeWithdraw(user);
     }
 
+    function testCannotCompleteWithoutUpdate() public {
+        uint256 userVaultBalanceBefore = vault.balanceOf(user);
+        // Create withdraw request
+        vm.startPrank(user);
+        vault.withdraw(WITHDRAW_AMOUNT, user, user, MAX_LOSS, false);
+        vm.stopPrank();
+
+        assertEq(vault.balanceOf(user), userVaultBalanceBefore - WITHDRAW_AMOUNT, "User should have reduced shares");
+
+        // Get the withdraw request
+        (,,,,,, uint256 shares) = vault.userWithdrawRequest(user);
+        assertEq(shares, WITHDRAW_AMOUNT, "Shares should match withdraw amount");
+
+        // Fast forward past lockup period
+        vm.warp(vm.getBlockTimestamp() + 3 days + 1);
+
+        // Try to complete withdraw
+        vm.prank(user);
+        vm.expectRevert(ValenceVault.NoUpdateForRequest.selector);
+        vault.completeWithdraw(user);
+
+        // Verify request is still pending
+        (,,,,,, uint256 sharesAfter) = vault.userWithdrawRequest(user);
+        assertEq(sharesAfter, WITHDRAW_AMOUNT, "Shares should still be pending");
+    }
+
     function testSolverFeeTransferFailure() public {
         // Setup solver fee
         setFees(0, 0, 0, 100);
@@ -480,6 +506,39 @@ contract VaultCompleteWithdrawTest is VaultHelper {
         vault.completeWithdraws(users);
 
         // Verify all withdraws are still pending due to lockup
+        for (uint256 i = 0; i < users.length; i++) {
+            (,,,,,, uint256 shares) = vault.userWithdrawRequest(users[i]);
+            assertTrue(shares > 0, "Withdraw should still be pending");
+        }
+    }
+
+    function testBatchWithdrawsNoBalanceOnWithdrawAccount() public {
+        setFees(0, 0, 0, 100);
+
+        // All users request withdraw before first update
+        for (uint256 i = 0; i < users.length; i++) {
+            vm.prank(users[i]);
+            vault.withdraw{value: 100}(WITHDRAW_AMOUNT, users[i], users[i], MAX_LOSS, true); // Allow solver completion
+        }
+
+        // Process update for all withdraws
+        vm.startPrank(strategist);
+        vault.update(ONE_SHARE, 100, WITHDRAW_AMOUNT * users.length); // 1% fee
+        vm.stopPrank();
+
+        // Fast forward past lockup period
+        vm.warp(vm.getBlockTimestamp() + 3 days + 1);
+
+        // Burn all assets in withdraw account to test that withdraw requests will not be cleared
+        vm.startPrank(owner);
+        token.burn(address(withdrawAccount), token.balanceOf(address(withdrawAccount)));
+        vm.stopPrank();
+
+        // Complete all withdraws in batch
+        vm.prank(solver);
+        vault.completeWithdraws(users);
+
+        // Verify all withdraws failed and requests are still pending
         for (uint256 i = 0; i < users.length; i++) {
             (,,,,,, uint256 shares) = vault.userWithdrawRequest(users[i]);
             assertTrue(shares > 0, "Withdraw should still be pending");

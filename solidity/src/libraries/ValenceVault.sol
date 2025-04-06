@@ -1,14 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.28;
 
-import {SafeERC20, ERC20, IERC20, ERC4626} from "@openzeppelin-contracts/token/ERC20/extensions/ERC4626.sol";
-import "@openzeppelin-contracts/utils/ReentrancyGuard.sol";
+import {ERC20Upgradeable} from "@openzeppelin-contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {ERC4626Upgradeable} from "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin-contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {BaseAccount} from "../accounts/BaseAccount.sol";
-import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
-import {Ownable} from "@openzeppelin-contracts/access/Ownable.sol";
-// import {console} from "forge-std/src/console.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {OwnableUpgradeable} from "@openzeppelin-contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Initializable} from "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
+contract ValenceVault is
+    Initializable,
+    ERC4626Upgradeable,
+    OwnableUpgradeable,
+    ReentrancyGuardUpgradeable,
+    UUPSUpgradeable
+{
     using Math for uint256;
 
     error VaultIsPaused();
@@ -30,6 +40,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     error WithdrawRequestNotFound();
     error SolverNotAllowed();
     error WithdrawNotClaimable();
+    error NoUpdateForRequest();
     error SolverFeeTransferFailed();
     error FeeExceedsUint128();
     error OnlyOwnerCanUnpause();
@@ -168,7 +179,7 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
     // 1 day = 86400 seconds
     uint64 private constant SECONDS_PER_YEAR = 365 days;
     // One share
-    uint256 internal immutable ONE_SHARE;
+    uint256 internal ONE_SHARE;
 
     modifier onlyStrategist() {
         if (msg.sender != config.strategist) {
@@ -191,16 +202,36 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         _;
     }
 
-    constructor(
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    /**
+     * @dev Initializes the contract replacing the constructor
+     * @param _owner Address of the contract owner
+     * @param _config Encoded configuration bytes
+     * @param underlying Address of the underlying token
+     * @param vaultTokenName Name of the vault token
+     * @param vaultTokenSymbol Symbol of the vault token
+     * @param startingRate Initial redemption rate
+     */
+    function initialize(
         address _owner,
         bytes memory _config,
         address underlying,
         string memory vaultTokenName,
         string memory vaultTokenSymbol,
         uint256 startingRate
-    ) ERC20(vaultTokenName, vaultTokenSymbol) ERC4626(IERC20(underlying)) Ownable(_owner) {
+    ) public initializer {
+        __ERC20_init(vaultTokenName, vaultTokenSymbol);
+        __ERC4626_init(IERC20(underlying));
+        __Ownable_init(_owner);
+        __ReentrancyGuard_init();
+
         config = abi.decode(_config, (VaultConfig));
         _validateConfig(config);
+
         unchecked {
             ONE_SHARE = 10 ** decimals();
             redemptionRate = startingRate; // Initialize at 1:1
@@ -208,6 +239,18 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
             lastUpdateTimestamp = uint64(block.timestamp);
             lastUpdateTotalShares = 0;
         }
+    }
+
+    /**
+     * @dev Function that should revert when `msg.sender` is not authorized to upgrade the contract. Called by
+     * {upgradeTo} and {upgradeToAndCall}.
+     *
+     * Normally, this function will use an xref:access.adoc[access control] modifier such as {Ownable-onlyOwner}.
+     *
+     * @param newImplementation address of the new implementation
+     */
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {
+        // Upgrade logic comes here
     }
 
     /**
@@ -697,6 +740,12 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         UpdateInfo memory updateInfo = updateInfos[request.updateId];
         uint256 assetsToWithdraw;
 
+        // Check if there was an update for this request
+        if (updateInfo.timestamp == 0) {
+            if (revertOnFailure) revert NoUpdateForRequest();
+            return WithdrawResult(false, 0, 0, "Update not found");
+        }
+
         // The current withdrawRate is the redemption rate minus the update withdraw fee
         uint256 currentWithdrawRate = _redemptionRate.mulDiv(BASIS_POINTS - updateInfo.withdrawFee, BASIS_POINTS);
 
@@ -733,14 +782,13 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
             assetsToWithdraw = shares.mulDiv(updateInfo.withdrawRate, ONE_SHARE, Math.Rounding.Floor);
         }
 
-        // Delete request before transfer to prevent reentrancy
-        delete userWithdrawRequest[owner];
-
         // Prepare the transfer
         bytes memory transferCalldata = abi.encodeCall(IERC20.transfer, (request.receiver, assetsToWithdraw));
 
         // Execute transfer
         try withdrawAccount.execute(asset(), 0, transferCalldata) {
+            // Only delete the entry if the transfer succeeded
+            delete userWithdrawRequest[owner];
             emit WithdrawCompleted(owner, request.receiver, assetsToWithdraw, request.sharesAmount, msg.sender);
             return WithdrawResult(true, assetsToWithdraw, request.solverFee, "");
         } catch {
@@ -920,5 +968,12 @@ contract ValenceVault is ERC4626, Ownable, ReentrancyGuard {
         if (receiver == address(0)) revert InvalidReceiver();
         if (owner == address(0)) revert InvalidOwner();
         if (maxLossBps > BASIS_POINTS) revert InvalidMaxLoss();
+    }
+
+    /// @notice Fallback function that reverts all calls to non-existent functions
+    /// @dev Called when no other function matches the function signature
+    /// @dev Add this to your contract to explicitly fail calls to wrong/non-existent
+    fallback() external {
+        revert("Function not found");
     }
 }

@@ -1,6 +1,9 @@
+use std::collections::BTreeMap;
+
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut, Uint128};
 use cw_ownable::cw_ownable_query;
+use valence_ibc_utils::types::PacketForwardMiddlewareConfig;
 use valence_library_utils::LibraryAccountType;
 use valence_library_utils::{error::LibraryError, msg::LibraryConfigValidation};
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
@@ -28,8 +31,12 @@ pub struct LibraryConfig {
     pub denom: String,
     // Receiver on the other chain
     pub receiver: String,
+    // Memo to be passed in the IBC transfer message.
+    pub memo: String,
     // Remote chain info
     pub remote_chain_info: RemoteChainInfo,
+    // Denom map for the Packet-Forwarding Middleware, to perform a multi-hop transfer.
+    pub denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
 }
 
 #[cw_serde]
@@ -55,14 +62,18 @@ impl LibraryConfig {
         amount: Uint128,
         denom: String,
         receiver: String,
+        memo: String,
         remote_chain_info: RemoteChainInfo,
+        denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
     ) -> Self {
         LibraryConfig {
             input_addr: input_addr.into(),
             amount,
             denom,
             receiver,
+            memo,
             remote_chain_info,
+            denom_to_pfm_map,
         }
     }
 
@@ -119,7 +130,9 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
             amount: self.amount,
             denom: self.denom.clone(),
             receiver: self.receiver.clone(),
+            memo: self.memo.clone(),
             remote_chain_info: self.remote_chain_info.clone(),
+            denom_to_pfm_map: self.denom_to_pfm_map.clone(),
         })
     }
 }
@@ -193,7 +206,9 @@ pub struct Config {
     pub amount: Uint128,
     pub denom: String,
     pub receiver: String,
+    pub memo: String,
     pub remote_chain_info: RemoteChainInfo,
+    pub denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
 }
 
 impl Config {
@@ -202,14 +217,18 @@ impl Config {
         amount: Uint128,
         denom: String,
         receiver: String,
+        memo: String,
         remote_chain_info: RemoteChainInfo,
+        denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
     ) -> Self {
         Config {
             input_addr,
             amount,
             denom,
             receiver,
+            memo,
             remote_chain_info,
+            denom_to_pfm_map,
         }
     }
 }

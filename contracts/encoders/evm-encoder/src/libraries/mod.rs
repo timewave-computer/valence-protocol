@@ -7,6 +7,7 @@ use valence_encoder_utils::libraries::{
 
 pub mod cctp_transfer;
 pub mod forwarder;
+pub mod stargate_transfer;
 
 // Function calls that are common to all libraries
 

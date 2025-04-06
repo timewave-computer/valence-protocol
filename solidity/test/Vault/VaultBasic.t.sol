@@ -4,8 +4,8 @@ pragma solidity ^0.8.28;
 import {VaultHelper} from "./VaultHelper.t.sol";
 import {BaseAccount} from "../../src/accounts/BaseAccount.sol";
 import {ValenceVault} from "../../src/libraries/ValenceVault.sol";
-import {Ownable} from "@openzeppelin-contracts/access/Ownable.sol";
-import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract VaultBasicTest is VaultHelper {
     using Math for uint256;

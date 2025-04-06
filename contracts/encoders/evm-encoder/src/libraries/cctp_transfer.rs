@@ -2,7 +2,7 @@ use alloy_sol_types::{SolCall, SolValue};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Binary, StdError, StdResult, Uint256};
 use valence_encoder_utils::libraries::{
-    cctp_transfer::solidity_types::transferCall, updateConfigCall,
+    cctp_transfer::solidity_types::transferCall, updateConfigCall, Bytes32Address, ToFixedBytes,
 };
 use valence_library_utils::{msg::ExecuteMsg, LibraryAccountType};
 
@@ -17,7 +17,7 @@ pub struct LibraryConfig {
     /// The input address for the library.
     pub input_addr: LibraryAccountType,
     /// The mint recipient for the library. Bytes32 representation of the address in solidity.
-    pub mint_recipient: Binary,
+    pub mint_recipient: Bytes32Address,
     /// Amount to transfer. Setting this to 0 will transfer the entire balance.
     pub amount: Uint256,
     /// The destination domain to transfer to
@@ -53,22 +53,11 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
             let cctp_transfer_messenger = parse_address(&new_config.cctp_token_messenger)?;
             let transfer_token = parse_address(&new_config.transfer_token)?;
 
-            let mint_recipient_fixed: [u8; 32] = new_config
-                .mint_recipient
-                .as_slice()
-                .try_into()
-                .map_err(|e| {
-                    StdError::generic_err(format!(
-                        "Error converting mint recipient to fixed size: {}",
-                        e
-                    ))
-                })?;
-
             // Build config struct
             let config =
                 valence_encoder_utils::libraries::cctp_transfer::solidity_types::CCTPTransferConfig {
                     amount: alloy_primitives::U256::from_be_bytes(new_config.amount.to_be_bytes()),
-                    mintRecipient: alloy_primitives::FixedBytes::<32>::from(mint_recipient_fixed),
+                    mintRecipient: new_config.mint_recipient.to_fixed_bytes()?.into(),
                     inputAccount: input_account,
                     destinationDomain: new_config.destination_domain,
                     cctpTokenMessenger: cctp_transfer_messenger,

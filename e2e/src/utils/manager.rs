@@ -40,6 +40,9 @@ pub const MIDDLEWARE_BROKER_NAME: &str = "valence_middleware_broker";
 pub const MIDDLEWARE_OSMOSIS_NAME: &str = "valence_middleware_osmosis";
 pub const STORAGE_ACCOUNT_NAME: &str = "valence_storage_account";
 pub const MIDDLEWARE_ASSERTER_NAME: &str = "valence_middleware_asserter";
+pub const INTERCHAIN_ACCOUNT_NAME: &str = "valence_interchain_account";
+pub const ICA_IBC_TRANSFER_NAME: &str = "valence_ica_ibc_transfer";
+pub const ICA_CCTP_TRANSFER_NAME: &str = "valence_ica_cctp_transfer";
 
 /// Those contracts will always be uploaded because each program needs them
 const BASIC_CONTRACTS: [&str; 2] = [PROCESSOR_NAME, BASE_ACCOUNT_NAME];

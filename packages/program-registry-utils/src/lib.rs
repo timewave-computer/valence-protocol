@@ -41,6 +41,7 @@ pub enum QueryMsg {
         start: Option<u64>,
         end: Option<u64>,
         limit: Option<u32>,
+        order: Option<cosmwasm_std::Order>,
     },
     /// Get the last reserved id
     #[returns(u64)]

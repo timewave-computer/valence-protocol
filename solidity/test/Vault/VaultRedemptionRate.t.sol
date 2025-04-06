@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.28;
 
-import {Test} from "forge-std/src/Test.sol";
 import {VaultHelper} from "./VaultHelper.t.sol";
 import {ValenceVault} from "../../src/libraries/ValenceVault.sol";
-import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract VaultRedemptionTest is VaultHelper {
     using Math for uint256;

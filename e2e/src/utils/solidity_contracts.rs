@@ -55,8 +55,16 @@ sol!(
 // Valence ERC4626-based vault
 sol!(
     #[sol(rpc)]
+    #[derive(Debug, PartialEq, Eq)]
     ValenceVault,
     "../solidity/out/ValenceVault.sol/ValenceVault.json",
+);
+
+// Proxy contract
+sol!(
+    #[sol(rpc)]
+    ERC1967Proxy,
+    "../solidity/out/ERC1967Proxy.sol/ERC1967Proxy.json",
 );
 
 // Testing utils
@@ -64,4 +72,20 @@ sol!(
     #[sol(rpc)]
     MockERC20,
     "../solidity/out/MockERC20.sol/MockERC20.json",
+);
+
+// CCTP Transfer
+sol!(
+    #[sol(rpc)]
+    #[derive(Debug, PartialEq, Eq)]
+    CCTPTransfer,
+    "../solidity/out/CCTPTransfer.sol/CCTPTransfer.json",
+);
+
+// Mock CCTP messenger
+sol!(
+    #[sol(rpc)]
+    #[derive(Debug, PartialEq, Eq)]
+    MockTokenMessenger,
+    "../solidity/out/MockTokenMessenger.sol/MockTokenMessenger.json",
 );

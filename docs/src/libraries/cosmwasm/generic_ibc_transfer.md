@@ -79,7 +79,56 @@ struct PacketForwardMiddlewareConfig {
   local_to_hop_chain_channel_id: String,
   // Channel ID from the intermediate to the destination chain
   hop_to_destination_chain_channel_id: String,
-  // Temporary receiver address on the intermediate chain
+  // Temporary receiver address on the intermediate chain. Typically this is set to an invalid address so the entire transaction will revert if the forwarding fails
   hop_chain_receiver_address: String,
+}
+```
+
+### Packet-Forward Middleware
+
+The library supports multi-hop IBC transfers using the Packet Forward Middleware (PFM).
+This allows tokens to be transferred through an intermediate chain to reach their final
+destination. More information about the PFM functionality can be found in the [official
+documentation](https://github.com/cosmos/ibc-apps/tree/main/middleware/packet-forward-middleware).
+
+Generic IBC Transfer library can be configured to make use of PFM as follows:
+
+- `output_addr` is set to the final receiver address on the final destination chain
+- `remote_chain_info` is configured between the origin and intermediate chain
+- `denom_to_pfm_map` is configured to map the origin denom to its respective
+`PacketForwardMiddlewareConfig` which should contain:
+
+  - `local_to_hop_chain_channel_id` - origin to intermediate chain channel id
+  - `hop_to_destination_chain_channel_id` - intermediate to destination chain channel id
+  - `hop_chain_receiver_address` - address where funds should settle on the intermediate
+  chain in case of a failure
+
+> Official packet-forward-middleware recommends to configure intermediate chain settlement
+  addresses (`hop_chain_receiver_address`) with an invalid bech32 string such as `"pfm"`.
+  More information about this can be found in the [official documentation](https://github.com/cosmos/ibc-apps/tree/main/middleware/packet-forward-middleware#full-example---chain-forward-a-b-c-d-with-retry-on-timeout
+  ).
+
+Consider an example configuration transferring tokens from Osmosis to Gaia via Juno.
+Library config may look like this:
+
+```rust
+LibraryConfig {
+    input_addr: input_acc,
+    output_addr: output_acc,
+    denom: UncheckedDenom::Native(target_denom),
+    amount: IbcTransferAmount::FixedAmount(transfer_amount),
+    memo: "".to_string(),
+    remote_chain_info: RemoteChainInfo {
+        channel_id: osmosis_to_juno_channel_id,
+        ibc_transfer_timeout: Some(500u64.into()),
+    },
+    denom_to_pfm_map: BTreeMap::from([(
+        denom,
+        PacketForwardMiddlewareConfig {
+            local_to_hop_chain_channel_id: osmosis_to_juno_channel_id,
+            hop_to_destination_chain_channel_id: juno_to_gaia_channel_id,
+            hop_chain_receiver_address: "pfm".to_string(),
+        },
+    )]),
 }
 ```

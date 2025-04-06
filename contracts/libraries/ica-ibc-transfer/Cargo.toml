@@ -24,7 +24,9 @@ thiserror             = { workspace = true }
 valence-macros        = { workspace = true }
 valence-library-utils = { workspace = true }
 valence-library-base  = { workspace = true }
-cosmos-sdk-proto      = { workspace = true }
+valence-ibc-utils     = { workspace = true }
+cosmos-sdk-proto      = { version = "0.26.1", default-features = false }
+ibc-proto             = { version = "0.51.1", default-features = false }
 
 [dev-dependencies]
 cw-multi-test         = { workspace = true }
