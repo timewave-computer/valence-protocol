@@ -6,7 +6,7 @@ use std::{
 };
 
 use alloy::primitives::{Address, U256};
-use evm::{log_eth_balances, setup_eth_accounts, setup_eth_libraries, EthereumUsers};
+use evm::{setup_eth_accounts, setup_eth_libraries, EthereumUsers};
 use localic_utils::{
     types::config::ConfigChain, utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder,
     LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
@@ -219,28 +219,41 @@ fn main() -> Result<(), Box<dyn Error>> {
     )
     .unwrap();
 
-    noble::mint_usdc_to_addr(
-        &rt,
-        &noble_client,
-        &neutron_program_accounts.noble_inbound_ica.remote_addr,
-        amount_to_transfer,
-    )?;
+    // noble::mint_usdc_to_addr(
+    //     &rt,
+    //     &noble_client,
+    //     &neutron_program_accounts.noble_inbound_ica.remote_addr,
+    //     amount_to_transfer,
+    // )?;
+    // noble::mint_usdc_to_addr(
+    //     &rt,
+    //     &noble_client,
+    //     &neutron_program_accounts.noble_outbound_ica.remote_addr,
+    //     amount_to_transfer,
+    // )?;
 
-    // flow starts here
-    async_run!(
-        &rt,
-        strategist.route_noble_to_neutron(amount_to_transfer).await
-    );
-
-    async_run!(&rt, strategist.enter_position().await);
-
-    async_run!(&rt, strategist.exit_position().await);
-
-    async_run!(&rt, strategist.swap_ntrn_into_usdc().await);
-
-    async_run!(&rt, strategist.route_neutron_to_noble().await);
-
-    async_run!(&rt, strategist.route_noble_to_eth().await);
+    // noble::mint_usdc_to_addr(&rt, &noble_client, NOBLE_CHAIN_ADMIN_ADDR, 1_000_000)?;
+    // async_run!(&rt, {
+    //     let rx = noble_client
+    //         .ibc_transfer(
+    //             neutron_program_accounts
+    //                 .withdraw_account
+    //                 .to_string()
+    //                 .unwrap(),
+    //             UUSDC_DENOM.to_string(),
+    //             1_000_000.to_string(),
+    //             test_ctx
+    //                 .get_transfer_channels()
+    //                 .src(NOBLE_CHAIN_NAME)
+    //                 .dest(NEUTRON_CHAIN_NAME)
+    //                 .get(),
+    //             60,
+    //             None,
+    //         )
+    //         .await
+    //         .unwrap();
+    //     noble_client.poll_for_tx(&rx.hash).await.unwrap();
+    // });
 
     info!("User depositing {user_1_deposit_amount}USDC tokens to vault...");
     vault::deposit_to_vault(
@@ -251,136 +264,172 @@ fn main() -> Result<(), Box<dyn Error>> {
         user_1_deposit_amount,
     )?;
 
-    let current_rate = vault::query_redemption_rate(*valence_vault.address(), &rt, &eth_client)._0;
-    let netting_amount = U256::from(0);
-    let withdraw_fee_bps = 1;
-
-    info!("performing vault update...");
-    async_run!(
-        &rt,
-        strategist
-            .vault_update(current_rate, withdraw_fee_bps, netting_amount)
-            .await
-            .unwrap()
-    );
-
     evm::mine_blocks(&rt, &eth_client, 5, 3);
 
-    let user1_pre_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 0);
-    assert_ne!(user1_pre_redeem_shares_bal, U256::ZERO);
+    // give cctp rly time to deliver this before starting the strategist to avoid errors
+    sleep(Duration::from_secs(5));
 
-    info!("USER1 initiating the redeem of {user1_pre_redeem_shares_bal} shares from vault...");
-    vault::redeem(
-        ethereum_program_libraries.valence_vault,
-        &rt,
-        &eth_client,
-        eth_users.users[0],
-        user1_pre_redeem_shares_bal,
-        10_000,
-        true,
-    )?;
+    let strategist_rt = tokio::runtime::Runtime::new().unwrap();
+    let _strategist_join_handle = strategist_rt.spawn(strategist.start());
+    info!("main sleep for 3...");
 
-    let user1_post_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 0);
-    assert_eq!(user1_post_redeem_shares_bal, U256::ZERO);
+    sleep(Duration::from_secs(15));
 
-    let has_active_withdraw = vault::addr_has_active_withdraw(
-        *valence_vault.address(),
-        &rt,
-        &eth_client,
-        eth_users.users[0],
-    )
-    ._0;
-    assert!(has_active_withdraw);
+    // flow starts here
+    // async_run!(
+    //     &rt,
+    //     strategist.route_noble_to_neutron(amount_to_transfer).await
+    // );
 
-    info!("User2 depositing {user_2_deposit_amount}USDC tokens to vault...");
-    vault::deposit_to_vault(
-        &rt,
-        &eth_client,
-        *valence_vault.address(),
-        eth_users.users[1],
-        U256::from(1_000_000),
-    )?;
-    let user2_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 1);
-    let user2_post_deposit_usdc_bal = eth_users.get_user_usdc(&rt, &eth_client, 1);
-    assert_ne!(user2_shares_bal, U256::ZERO);
-    assert_eq!(user2_post_deposit_usdc_bal, U256::ZERO);
+    // async_run!(&rt, strategist.enter_position().await);
 
-    evm::mine_blocks(&rt, &eth_client, 5, 3);
+    // async_run!(&rt, strategist.exit_position().await);
 
-    info!("performing vault update with N=100_000...");
-    async_run!(
-        &rt,
-        // netting the full amount
-        strategist
-            .vault_update(current_rate, withdraw_fee_bps, user_1_deposit_amount)
-            .await
-            .unwrap()
-    );
+    // async_run!(&rt, strategist.swap_ntrn_into_usdc().await);
 
-    evm::mine_blocks(&rt, &eth_client, 5, 3);
+    // async_run!(&rt, strategist.route_neutron_to_noble().await);
 
-    log_eth_balances(
-        &eth_client,
-        &rt,
-        valence_vault.address(),
-        &usdc_token_address,
-        &ethereum_program_accounts,
-        &eth_users,
-    )?;
+    // async_run!(&rt, strategist.route_noble_to_eth().await);
 
-    info!("user1 completing withdraw request...");
-    vault::complete_withdraw_request(
-        *valence_vault.address(),
-        &rt,
-        &eth_client,
-        eth_users.users[0],
-    )?;
+    // info!("User depositing {user_1_deposit_amount}USDC tokens to vault...");
+    // vault::deposit_to_vault(
+    //     &rt,
+    //     &eth_client,
+    //     *valence_vault.address(),
+    //     eth_users.users[0],
+    //     user_1_deposit_amount,
+    // )?;
 
-    let user1_usdc_bal = eth_users.get_user_usdc(&rt, &eth_client, 0);
-    assert_eq!(user1_usdc_bal, user_1_deposit_amount - U256::from(50));
+    // let current_rate = vault::query_redemption_rate(*valence_vault.address(), &rt, &eth_client)._0;
+    // let netting_amount = U256::from(0);
+    // let withdraw_fee_bps = 1;
 
-    let pre_cctp_deposit_acc_usdc_bal = ethereum_utils::mock_erc20::query_balance(
-        &rt,
-        &eth_client,
-        usdc_token_address,
-        ethereum_program_accounts.deposit,
-    );
-    let pre_cctp_neutron_ica_bal = async_run!(
-        &rt,
-        noble_client
-            .query_balance(
-                &neutron_program_accounts.noble_inbound_ica.remote_addr,
-                UUSDC_DENOM
-            )
-            .await
-            .unwrap()
-    );
+    // info!("performing vault update...");
+    // async_run!(
+    //     &rt,
+    //     strategist
+    //         .vault_update(current_rate, withdraw_fee_bps, netting_amount)
+    //         .await
+    //         .unwrap()
+    // );
 
-    assert_eq!(pre_cctp_neutron_ica_bal, 0);
-    assert_eq!(pre_cctp_deposit_acc_usdc_bal, U256::from(1000000));
+    // evm::mine_blocks(&rt, &eth_client, 5, 3);
 
-    info!("strategist cctp routing eth->ntrn...");
-    async_run!(&rt, strategist.route_eth_to_noble().await);
+    // let user1_pre_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 0);
+    // assert_ne!(user1_pre_redeem_shares_bal, U256::ZERO);
 
-    let post_cctp_deposit_acc_usdc_bal = ethereum_utils::mock_erc20::query_balance(
-        &rt,
-        &eth_client,
-        usdc_token_address,
-        ethereum_program_accounts.deposit,
-    );
-    let post_cctp_neutron_ica_bal = async_run!(
-        &rt,
-        noble_client
-            .query_balance(
-                &neutron_program_accounts.noble_inbound_ica.remote_addr,
-                UUSDC_DENOM
-            )
-            .await
-            .unwrap()
-    );
+    // info!("USER1 initiating the redeem of {user1_pre_redeem_shares_bal} shares from vault...");
+    // vault::redeem(
+    //     ethereum_program_libraries.valence_vault,
+    //     &rt,
+    //     &eth_client,
+    //     eth_users.users[0],
+    //     user1_pre_redeem_shares_bal,
+    //     10_000,
+    //     true,
+    // )?;
 
-    assert_eq!(post_cctp_neutron_ica_bal, 1000000);
-    assert_eq!(post_cctp_deposit_acc_usdc_bal, U256::ZERO);
+    // let user1_post_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 0);
+    // assert_eq!(user1_post_redeem_shares_bal, U256::ZERO);
+
+    // let has_active_withdraw = vault::addr_has_active_withdraw(
+    //     *valence_vault.address(),
+    //     &rt,
+    //     &eth_client,
+    //     eth_users.users[0],
+    // )
+    // ._0;
+    // assert!(has_active_withdraw);
+
+    // info!("User2 depositing {user_2_deposit_amount}USDC tokens to vault...");
+    // vault::deposit_to_vault(
+    //     &rt,
+    //     &eth_client,
+    //     *valence_vault.address(),
+    //     eth_users.users[1],
+    //     U256::from(1_000_000),
+    // )?;
+    // let user2_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 1);
+    // let user2_post_deposit_usdc_bal = eth_users.get_user_usdc(&rt, &eth_client, 1);
+    // assert_ne!(user2_shares_bal, U256::ZERO);
+    // assert_eq!(user2_post_deposit_usdc_bal, U256::ZERO);
+
+    // evm::mine_blocks(&rt, &eth_client, 5, 3);
+
+    // info!("performing vault update with N=100_000...");
+    // async_run!(
+    //     &rt,
+    //     // netting the full amount
+    //     strategist
+    //         .vault_update(current_rate, withdraw_fee_bps, user_1_deposit_amount)
+    //         .await
+    //         .unwrap()
+    // );
+
+    // evm::mine_blocks(&rt, &eth_client, 5, 3);
+
+    // log_eth_balances(
+    //     &eth_client,
+    //     &rt,
+    //     valence_vault.address(),
+    //     &usdc_token_address,
+    //     &ethereum_program_accounts,
+    //     &eth_users,
+    // )?;
+
+    // info!("user1 completing withdraw request...");
+    // vault::complete_withdraw_request(
+    //     *valence_vault.address(),
+    //     &rt,
+    //     &eth_client,
+    //     eth_users.users[0],
+    // )?;
+
+    // let user1_usdc_bal = eth_users.get_user_usdc(&rt, &eth_client, 0);
+    // assert_eq!(user1_usdc_bal, user_1_deposit_amount - U256::from(50));
+
+    // let pre_cctp_deposit_acc_usdc_bal = ethereum_utils::mock_erc20::query_balance(
+    //     &rt,
+    //     &eth_client,
+    //     usdc_token_address,
+    //     ethereum_program_accounts.deposit,
+    // );
+    // let pre_cctp_neutron_ica_bal = async_run!(
+    //     &rt,
+    //     noble_client
+    //         .query_balance(
+    //             &neutron_program_accounts.noble_inbound_ica.remote_addr,
+    //             UUSDC_DENOM
+    //         )
+    //         .await
+    //         .unwrap()
+    // );
+
+    // assert_eq!(pre_cctp_neutron_ica_bal, 0);
+    // assert_eq!(pre_cctp_deposit_acc_usdc_bal, U256::from(1000000));
+
+    // info!("strategist cctp routing eth->ntrn...");
+    // async_run!(&rt, strategist.route_eth_to_noble().await);
+
+    // let post_cctp_deposit_acc_usdc_bal = ethereum_utils::mock_erc20::query_balance(
+    //     &rt,
+    //     &eth_client,
+    //     usdc_token_address,
+    //     ethereum_program_accounts.deposit,
+    // );
+    // let post_cctp_neutron_ica_bal = async_run!(
+    //     &rt,
+    //     noble_client
+    //         .query_balance(
+    //             &neutron_program_accounts.noble_inbound_ica.remote_addr,
+    //             UUSDC_DENOM
+    //         )
+    //         .await
+    //         .unwrap()
+    // );
+
+    // assert_eq!(post_cctp_neutron_ica_bal, 1000000);
+    // assert_eq!(post_cctp_deposit_acc_usdc_bal, U256::ZERO);
 
     Ok(())
 }

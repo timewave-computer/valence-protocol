@@ -126,7 +126,6 @@ pub fn query_vault_config(
 
         eth_client.query(valence_vault.config()).await.unwrap()
     });
-
     info!("VAULT CONFIG config: {:?}", config);
     config
 }

@@ -1,14 +1,17 @@
-use std::error::Error;
+use std::{error::Error, str::FromStr};
 
 use alloy::{
     primitives::{Address, U256},
     signers::local::{coins_bip39::English, MnemonicBuilder},
 };
-use cosmwasm_std::{to_json_binary, CosmosMsg, WasmMsg};
+use cosmwasm_std::{to_json_binary, CosmosMsg, Decimal, Uint128, WasmMsg};
 use localic_utils::{NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID};
 use log::{info, warn};
 use tokio::runtime::Runtime;
-use valence_astroport_utils::astroport_native_lp_token::{Asset, AssetInfo};
+use valence_astroport_utils::{
+    astroport_cw20_lp_token::SimulationResponse,
+    astroport_native_lp_token::{self, Asset, AssetInfo},
+};
 use valence_chain_client_utils::{
     cosmos::{base_client::BaseClient, wasm_client::WasmClient},
     ethereum::EthereumClient,
@@ -120,13 +123,298 @@ impl Strategist {
 }
 
 impl Strategist {
-    pub async fn _start(self) {
+    pub async fn start(self) {
         info!("[STRATEGIST] Starting...");
 
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
+        let mut i = 0;
         loop {
-            info!("[STRATEGIST] loop");
-            // TODO
+            info!("[STRATEGIST] loop #{i}, sleeping for 5sec...");
+            interval.tick().await;
+
+            // STEP 1: pulling funds due for withdrawal from position to origin domain
+            //   0. swap neutron withdraw acc neutron tokens into usdc (leaving enough neutron for ibc transfer)
+            //   1. ibc transfer neutron withdraw acc -> noble outbound ica
+            //   2. cctp transfer noble outbound ica -> eth withdraw acc
+            self.swap_ntrn_into_usdc().await;
+
+            let neutron_withdraw_acc_usdc_bal = self
+                .neutron_client
+                .query_balance(
+                    &self
+                        .neutron_program_accounts
+                        .withdraw_account
+                        .to_string()
+                        .unwrap(),
+                    &self.uusdc_on_neutron_denom,
+                )
+                .await
+                .unwrap();
+            if neutron_withdraw_acc_usdc_bal > 0 {
+                info!("[STRATEGIST] Neutron withdraw account USDC balance greater than 0!\nRouting from position to origin chain.");
+                self.route_neutron_to_noble().await;
+                self.route_noble_to_eth().await;
+            }
+
+            // STEP 2: updating the vault to conclude the previous epoch:
+            // redemption rate R = total_shares / total_assets
+            let redemption_rate = self.calculate_redemption_rate().await.unwrap();
+            let total_fee = self.calculate_total_fee().await.unwrap();
+            let netting_amount = self.calculate_netting_amount().await.unwrap();
+            info!("[STRATEGIST] returned redemption rate: {redemption_rate}");
+            let r = U256::from(redemption_rate.atomics().u128());
+            info!("[STRATEGIST] vault converted redemption rate: {r}");
+            match self
+                .vault_update(r, total_fee, U256::from(netting_amount))
+                .await
+            {
+                Ok(resp) => {
+                    info!("[STRATEGIST] vault update response: {:?}", resp);
+                }
+                Err(err) => warn!("[STRATEGIST] vault update error: {:?}", err),
+            };
+            // 4. Update the Vault with R, F_total, N
+
+            // STEP 3. pulling funds due for deposit from origin to position domain
+            //   1. cctp transfer eth deposit acc -> noble inbound ica
+            //   2. ica ibc transfer noble inbound ica -> neutron deposit acc
+
+            // STEP 4. enter the position with funds available in neutron deposit acc
+
+            // STEP 5. exit the
+
+            i += 1;
         }
+    }
+
+    async fn simulate_liquidation(
+        &self,
+        pool_addr: &str,
+        shares_amount: u128,
+        denom_1: &str,
+        denom_2: &str,
+    ) -> Result<(Uint128, Uint128), Box<dyn Error>> {
+        if shares_amount == 0 {
+            info!("[STRATEGIST] shares amount is zero, skipping withdraw liquidation simulation");
+            return Ok((Uint128::zero(), Uint128::zero()));
+        }
+
+        let share_liquidation_response: Vec<Asset> = self
+            .neutron_client
+            .query_contract_state(
+                pool_addr,
+                astroport_native_lp_token::PoolQueryMsg::Share {
+                    amount: Uint128::from(shares_amount),
+                },
+            )
+            .await
+            .unwrap();
+
+        let output_coins: Vec<cosmwasm_std::Coin> = share_liquidation_response
+            .iter()
+            .map(|c| c.as_coin().unwrap())
+            .collect();
+
+        info!(
+            "[STRATEGIST] Share liquidation for {shares_amount} on the pool respnose: {:?}",
+            output_coins
+        );
+
+        let coin_1 = output_coins.iter().find(|c| c.denom == denom_1).unwrap();
+        let coin_2 = output_coins.iter().find(|c| c.denom == denom_2).unwrap();
+
+        Ok((coin_1.amount, coin_2.amount))
+    }
+
+    async fn calculate_netting_amount(&self) -> Result<u32, Box<dyn Error>> {
+        // 3. Find netting amount N
+        //   1. query Vault for total pending withdrawals (USDC)
+        //   2. query Eth deposit account for USDC balance
+        //   3. N = min(deposit_bal, withdrawals_sum)
+        Ok(0)
+    }
+
+    async fn calculate_total_fee(&self) -> Result<u32, Box<dyn Error>> {
+        // 2. Find withdraw fee F_total
+        //   1. query Vault fee from the Eth vault
+        //   2. query the dex position for their fee
+        //   3. F_total = F_vault + F_position
+        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
+        let valence_vault = ValenceVault::new(self.vault_addr, &eth_rp);
+
+        let fees = self
+            .eth_client
+            .query(valence_vault.config())
+            .await
+            .unwrap()
+            .fees;
+
+        info!("[STRATEGIST] vault fees: {:?}", fees);
+
+        let pool_addr = self.pool_addr.to_string();
+        let cl_pool_cfg: astroport_native_lp_token::ConfigResponse = self
+            .neutron_client
+            .query_contract_state(
+                &pool_addr,
+                astroport_native_lp_token::PoolQueryMsg::Config {},
+            )
+            .await
+            .unwrap();
+        info!("[STRATEGIST] CL POOL CONFIG: {:?}", cl_pool_cfg);
+
+        let pool_fee = match cl_pool_cfg.try_get_cl_params() {
+            Some(cl_params) => {
+                info!("[STRATEGIST] CL POOL PARAMS: {:?}", cl_params);
+                (cl_params.out_fee * Decimal::from_ratio(10000u128, 1u128))
+                    .atomics()
+                    .u128() as u32 // intentionally truncating
+            }
+            None => 0u32,
+        };
+
+        Ok(fees.platformFeeBps + pool_fee)
+    }
+
+    async fn calculate_redemption_rate(&self) -> Result<Decimal, Box<dyn Error>> {
+        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
+        let valence_vault = ValenceVault::new(self.vault_addr, &eth_rp);
+        let eth_usdc_erc20 = MockERC20::new(self.ethereum_usdc_erc20, &eth_rp);
+
+        let neutron_position_acc = self
+            .neutron_program_accounts
+            .position_account
+            .to_string()
+            .unwrap();
+        let noble_inbound_ica = self
+            .neutron_program_accounts
+            .noble_inbound_ica
+            .remote_addr
+            .to_string();
+        let neutron_deposit_acc = self
+            .neutron_program_accounts
+            .deposit_account
+            .to_string()
+            .unwrap();
+        let eth_deposit_acc = self.eth_program_accounts.deposit;
+
+        // 1. query total shares issued from the vault
+        let vault_issued_shares = self
+            .eth_client
+            .query(valence_vault.totalSupply())
+            .await
+            .unwrap()
+            ._0;
+        let vault_current_rate = self
+            .eth_client
+            .query(valence_vault.redemptionRate())
+            .await
+            .unwrap()
+            ._0;
+        info!(
+            "[STRATEGIST] current vault redemption rate: {:?}",
+            vault_current_rate
+        );
+
+        // 2. query shares in position account and simulate their liquidation for USDC
+        let neutron_position_acc_shares = self
+            .neutron_client
+            .query_balance(&neutron_position_acc, &self.lp_token_denom)
+            .await
+            .unwrap();
+        let (usdc_amount, ntrn_amount) = self
+            .simulate_liquidation(
+                &self.pool_addr,
+                neutron_position_acc_shares,
+                &self.uusdc_on_neutron_denom,
+                NEUTRON_CHAIN_DENOM,
+            )
+            .await
+            .unwrap();
+
+        let swap_simulation_output = self
+            .simulate_swap(
+                &self.pool_addr,
+                NEUTRON_CHAIN_DENOM,
+                ntrn_amount,
+                &self.uusdc_on_neutron_denom,
+            )
+            .await
+            .unwrap();
+
+        // 3. query pending deposits (eth deposit acc + noble inbound ica + neutron deposit acc)
+
+        let eth_deposit_usdc = self
+            .eth_client
+            .query(eth_usdc_erc20.balanceOf(eth_deposit_acc))
+            .await
+            .unwrap()
+            ._0;
+        let noble_inbound_ica_usdc = self
+            .noble_client
+            .query_balance(&noble_inbound_ica, UUSDC_DENOM)
+            .await
+            .unwrap();
+        let neutron_deposit_acc_usdc = self
+            .neutron_client
+            .query_balance(&neutron_deposit_acc, &self.uusdc_on_neutron_denom)
+            .await
+            .unwrap();
+
+        //   4. R = total_shares / total_assets
+        let normalized_eth_balance = Uint128::from_str(&eth_deposit_usdc.to_string()).unwrap();
+
+        let total_assets = noble_inbound_ica_usdc
+            + neutron_deposit_acc_usdc
+            + normalized_eth_balance.u128()
+            + usdc_amount.u128()
+            + swap_simulation_output.u128();
+        let normalized_shares = Uint128::from_str(&vault_issued_shares.to_string()).unwrap();
+
+        info!("[STRATEGIST] total assets: {}USDC", total_assets);
+        info!("[STRATEGIST] total shares: {}", normalized_shares.u128());
+        match Decimal::checked_from_ratio(normalized_shares, total_assets) {
+            Ok(ratio) => {
+                info!("[STRATEGIST] redemption rate: {}", ratio);
+                Ok(ratio)
+            }
+            Err(_) => Ok(Decimal::zero()),
+        }
+    }
+
+    async fn simulate_swap(
+        &self,
+        pool_addr: &str,
+        offer_denom: &str,
+        offer_amount: Uint128,
+        ask_denom: &str,
+    ) -> Result<Uint128, Box<dyn Error>> {
+        if offer_amount == Uint128::zero() {
+            info!("[STRATEGIST] offer amount is zero, skipping swap simulation");
+            return Ok(Uint128::zero());
+        }
+
+        let share_liquidation_response: SimulationResponse = self
+            .neutron_client
+            .query_contract_state(
+                pool_addr,
+                astroport_native_lp_token::PoolQueryMsg::Simulation {
+                    offer_asset: Asset {
+                        info: AssetInfo::NativeToken {
+                            denom: offer_denom.to_string(),
+                        },
+                        amount: offer_amount,
+                    },
+                    ask_asset_info: Some(AssetInfo::NativeToken {
+                        denom: ask_denom.to_string(),
+                    }),
+                },
+            )
+            .await
+            .unwrap();
+
+        info!("[STRATEGIST] swap simulation of {offer_amount}{offer_denom} -> {ask_denom} response: {:?}", share_liquidation_response);
+
+        Ok(share_liquidation_response.return_amount)
     }
 
     /// concludes the vault epoch and updates the Valence Vault state
@@ -136,13 +424,20 @@ impl Strategist {
         withdraw_fee_bps: u32,
         netting_amount: U256,
     ) -> Result<(), Box<dyn Error>> {
-        info!("[STRATEGIST] Updating Ethereum Vault...");
+        info!(
+            "[STRATEGIST] Updating Ethereum Vault with:
+            \nrate: {rate}
+            \nwitdraw_fee_bps: {withdraw_fee_bps}
+            \nnetting_amount: {netting_amount}"
+        );
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
+
+        let clamped_withdraw_fee = withdraw_fee_bps.clamp(1, 10_000);
 
         let valence_vault = ValenceVault::new(self.vault_addr, &eth_rp);
 
         let update_msg = valence_vault
-            .update(rate, withdraw_fee_bps, netting_amount)
+            .update(rate, clamped_withdraw_fee, netting_amount)
             .into_transaction_request();
 
         let update_result = self.eth_client.execute_tx(update_msg).await;
@@ -256,10 +551,10 @@ impl Strategist {
             return;
         }
 
-        if withdraw_account_ntrn_bal == 0 {
-            warn!("[STRATEGIST] withdraw account must have NTRN in order to route funds to noble; returning");
-            return;
-        }
+        // if withdraw_account_ntrn_bal == 0 {
+        //     warn!("[STRATEGIST] withdraw account must have NTRN in order to route funds to noble; returning");
+        //     return;
+        // }
 
         info!("[STRATEGIST] routing USDC to noble...");
         let transfer_rx = self
@@ -611,10 +906,12 @@ impl Strategist {
             .await
             .unwrap();
 
-        if withdraw_account_ntrn_bal == 0 {
+        if withdraw_account_ntrn_bal <= 1_000_000 {
             warn!("[STRATEGIST] Withdraw account must have NTRN in order to swap into USDC; returning");
             return;
         }
+
+        let swap_amount = withdraw_account_ntrn_bal - 1_000_000;
 
         let swap_msg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.pool_addr.to_string(),
@@ -624,7 +921,7 @@ impl Strategist {
                         info: AssetInfo::NativeToken {
                             denom: NEUTRON_CHAIN_DENOM.to_string(),
                         },
-                        amount: withdraw_account_ntrn_bal.into(),
+                        amount: swap_amount.into(),
                     },
                     max_spread: None,
                     belief_price: None,
@@ -634,7 +931,7 @@ impl Strategist {
             )
             .unwrap(),
             funds: vec![cosmwasm_std::coin(
-                withdraw_account_ntrn_bal,
+                swap_amount,
                 NEUTRON_CHAIN_DENOM.to_string(),
             )],
         });
@@ -686,6 +983,9 @@ impl Strategist {
         info!("withdraw account USDC token balance: {withdraw_acc_usdc_bal}",);
         info!("withdraw account NTRN token balance: {withdraw_acc_ntrn_bal}",);
         assert_ne!(0, withdraw_acc_usdc_bal);
-        assert_eq!(0, withdraw_acc_ntrn_bal);
+        assert_eq!(
+            1_000_000, withdraw_acc_ntrn_bal,
+            "neutron withdraw account should have 1_000_000untrn left to cover ibc transfer fees"
+        );
     }
 }

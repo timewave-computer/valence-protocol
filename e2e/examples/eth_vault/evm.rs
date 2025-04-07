@@ -265,16 +265,16 @@ pub fn setup_valence_vault(
     let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
 
     let fee_config = FeeConfig {
-        depositFeeBps: 0,        // No deposit fee
-        platformFeeBps: 1000,    // 10% yearly platform fee
-        performanceFeeBps: 2000, // 20% performance fee
-        solverCompletionFee: 0,  // No solver completion fee
+        depositFeeBps: 0,          // No deposit fee
+        platformFeeBps: 10_000,    // 0.1% yearly platform fee
+        performanceFeeBps: 10_000, // 0.1% performance fee
+        solverCompletionFee: 0,    // No solver completion fee
     };
 
     let fee_distribution = FeeDistributionConfig {
         strategistAccount: eth_accounts[0], // Strategist fee recipient
         platformAccount: eth_accounts[1],   // Platform fee recipient
-        strategistRatioBps: 5000,           // 50% to strategist
+        strategistRatioBps: 10_000,         // 0.1% to strategist
     };
 
     let vault_config = VaultConfig {
@@ -286,7 +286,7 @@ pub fn setup_valence_vault(
         depositCap: 0, // No cap (for real)
         withdrawLockupPeriod: 1,
         // withdrawLockupPeriod: SECONDS_IN_DAY, // 1 day lockup
-        maxWithdrawFeeBps: 100, // 1% max withdraw fee
+        maxWithdrawFeeBps: 10_000, // 1% max withdraw fee
     };
 
     info!("deploying Valence Vault on Ethereum...");
