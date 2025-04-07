@@ -32,7 +32,10 @@ pub fn ibc_send_message(
         }),
         Some(pfm_config) => CosmosMsg::Ibc(cosmwasm_std::IbcMsg::Transfer {
             channel_id: pfm_config.local_to_hop_chain_channel_id.to_string(),
-            to_address: pfm_config.hop_chain_receiver_address.to_string(),
+            to_address: pfm_config
+                .hop_chain_receiver_address
+                .clone()
+                .unwrap_or("pfm".to_string()),
             amount: coin(amount, denom),
             timeout: IbcTimeout::with_timestamp(
                 env.block
