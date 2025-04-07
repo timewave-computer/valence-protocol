@@ -126,10 +126,10 @@ impl Strategist {
     pub async fn start(self) {
         info!("[STRATEGIST] Starting...");
 
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(10));
         let mut i = 0;
         loop {
-            info!("[STRATEGIST] loop #{i}, sleeping for 5sec...");
+            info!("[STRATEGIST] loop #{i}");
             interval.tick().await;
 
             // STEP 1: pulling funds due for withdrawal from position to origin domain
@@ -164,6 +164,7 @@ impl Strategist {
             info!("[STRATEGIST] returned redemption rate: {redemption_rate}");
             let r = U256::from(redemption_rate.atomics().u128());
             info!("[STRATEGIST] vault converted redemption rate: {r}");
+            // 4. Update the Vault with R, F_total, N
             match self
                 .vault_update(r, total_fee, U256::from(netting_amount))
                 .await
@@ -173,15 +174,18 @@ impl Strategist {
                 }
                 Err(err) => warn!("[STRATEGIST] vault update error: {:?}", err),
             };
-            // 4. Update the Vault with R, F_total, N
 
             // STEP 3. pulling funds due for deposit from origin to position domain
             //   1. cctp transfer eth deposit acc -> noble inbound ica
             //   2. ica ibc transfer noble inbound ica -> neutron deposit acc
+            self.route_eth_to_noble().await;
+            self.route_noble_to_neutron().await;
 
             // STEP 4. enter the position with funds available in neutron deposit acc
+            self.enter_position().await;
 
-            // STEP 5. exit the
+            // STEP 5. TODO: exit the position with necessary amount of shares needed
+            // to fulfill the withdraw obligations
 
             i += 1;
         }
@@ -451,7 +455,7 @@ impl Strategist {
     }
 
     /// IBC-transfers funds from noble inbound ica into neutron deposit account
-    pub async fn route_noble_to_neutron(&self, transfer_amount: u128) {
+    pub async fn route_noble_to_neutron(&self) {
         let noble_inbound_ica_balance = self
             .noble_client
             .query_balance(
@@ -461,12 +465,14 @@ impl Strategist {
             .await
             .unwrap();
 
-        if noble_inbound_ica_balance < transfer_amount {
+        info!("[STRATEGIST] noble inbound ica USDC balance: {noble_inbound_ica_balance}");
+
+        if noble_inbound_ica_balance < 100_000 {
             warn!("Noble inbound ICA account must have enough USDC to route funds to Neutron deposit acc; returning");
             return;
         }
 
-        let init_bal = self
+        let neutron_deposit_acc_pre_transfer_bal = self
             .neutron_client
             .query_balance(
                 &self
@@ -478,6 +484,32 @@ impl Strategist {
             )
             .await
             .unwrap();
+
+        let neutron_inbound_transfer_ntrn_bal = self
+            .neutron_client
+            .query_balance(
+                &self.neutron_program_libraries.noble_inbound_transfer,
+                NEUTRON_CHAIN_DENOM,
+            )
+            .await
+            .unwrap();
+        if neutron_inbound_transfer_ntrn_bal < 100_000 {
+            info!("[STRATEGIST] funding noble inbound transfer with some ntrn for ibc call");
+            let transfer_rx = self
+                .neutron_client
+                .transfer(
+                    &self.neutron_program_libraries.noble_inbound_transfer,
+                    100_000,
+                    NEUTRON_CHAIN_DENOM,
+                    None,
+                )
+                .await
+                .unwrap();
+            self.neutron_client
+                .poll_for_tx(&transfer_rx.hash)
+                .await
+                .unwrap();
+        }
 
         let transfer_msg = &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
             valence_ica_ibc_transfer::msg::FunctionMsgs::Transfer {},
@@ -491,9 +523,13 @@ impl Strategist {
             )
             .await
             .unwrap();
-        self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+        let inbound_transfer_rx = self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+        info!(
+            "[STRATEGIST] noble inbound transfer rx: {:?}",
+            inbound_transfer_rx
+        );
 
-        info!("starting polling assertion on the destination...");
+        info!("[STRATEGIST] polling neutron deposit account for USDC balance...");
         self.neutron_client
             .poll_until_expected_balance(
                 &self
@@ -502,8 +538,8 @@ impl Strategist {
                     .to_string()
                     .unwrap(),
                 &self.uusdc_on_neutron_denom,
-                init_bal + transfer_amount,
-                1,
+                neutron_deposit_acc_pre_transfer_bal + 1,
+                2,
                 10,
             )
             .await
@@ -612,6 +648,17 @@ impl Strategist {
     pub async fn route_eth_to_noble(&self) {
         info!("[STRATEGIST] CCTP forwarding USDC from Ethereum to Noble...");
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
+        let erc20 = MockERC20::new(self.ethereum_usdc_erc20, &eth_rp);
+
+        let eth_deposit_acc_usdc_bal = self
+            .eth_client
+            .query(erc20.balanceOf(self.eth_program_accounts.deposit))
+            .await
+            .unwrap();
+        if eth_deposit_acc_usdc_bal._0 < U256::from(100_000) {
+            info!("[STRATEGIST] Ethereum deposit account balance < 100_000, returning...");
+            return;
+        }
 
         let cctp_transfer_contract = CCTPTransfer::new(self.cctp_transfer_lib, &eth_rp);
 
@@ -629,13 +676,7 @@ impl Strategist {
             .transfer()
             .into_transaction_request()
             .from(signer_addr);
-
-        let cctp_transfer_rx = self.eth_client.execute_tx(signed_tx).await.unwrap();
-
-        info!(
-            "cctp transfer tx hash: {:?}",
-            cctp_transfer_rx.transaction_hash
-        );
+        self.eth_client.execute_tx(signed_tx).await.unwrap();
 
         let remote_ica_addr = self
             .neutron_program_accounts

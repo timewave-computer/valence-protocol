@@ -183,7 +183,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let valence_vault = ValenceVault::new(ethereum_program_libraries.valence_vault, &eth_rp);
 
-    let user_1_deposit_amount = U256::from(500_000);
+    let user_1_deposit_amount = U256::from(5_000_000);
     let user_2_deposit_amount = U256::from(1_000_000);
 
     let mut eth_users =
@@ -218,6 +218,29 @@ fn main() -> Result<(), Box<dyn Error>> {
         usdc_token_address,
     )
     .unwrap();
+
+    info!("User depositing {user_1_deposit_amount}USDC tokens to vault...");
+    vault::deposit_to_vault(
+        &rt,
+        &eth_client,
+        *valence_vault.address(),
+        eth_users.users[0],
+        user_1_deposit_amount,
+    )?;
+
+    evm::mine_blocks(&rt, &eth_client, 5, 3);
+
+    // give cctp rly time to deliver this before starting the strategist to avoid errors
+    sleep(Duration::from_secs(5));
+
+    let strategist_rt = tokio::runtime::Runtime::new().unwrap();
+    let _strategist_join_handle = strategist_rt.spawn(strategist.start());
+
+    for _ in 1..10 {
+        info!("main sleep for 10sec, mining evm blocks...");
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        sleep(Duration::from_secs(10));
+    }
 
     // noble::mint_usdc_to_addr(
     //     &rt,
@@ -254,26 +277,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     //         .unwrap();
     //     noble_client.poll_for_tx(&rx.hash).await.unwrap();
     // });
-
-    info!("User depositing {user_1_deposit_amount}USDC tokens to vault...");
-    vault::deposit_to_vault(
-        &rt,
-        &eth_client,
-        *valence_vault.address(),
-        eth_users.users[0],
-        user_1_deposit_amount,
-    )?;
-
-    evm::mine_blocks(&rt, &eth_client, 5, 3);
-
-    // give cctp rly time to deliver this before starting the strategist to avoid errors
-    sleep(Duration::from_secs(5));
-
-    let strategist_rt = tokio::runtime::Runtime::new().unwrap();
-    let _strategist_join_handle = strategist_rt.spawn(strategist.start());
-    info!("main sleep for 3...");
-
-    sleep(Duration::from_secs(15));
 
     // flow starts here
     // async_run!(
