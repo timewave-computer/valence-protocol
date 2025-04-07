@@ -104,7 +104,7 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
                 outputAccount: output_account,
                 supplyAsset: supply_asset,
                 borrowAsset: borrow_asset,
-                referralCode: new_config.referral_code.unwrap_or_default().into(),
+                referralCode: new_config.referral_code.unwrap_or_default(),
             };
 
             // Create the encoded call with the encoded config
