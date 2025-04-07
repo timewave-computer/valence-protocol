@@ -251,16 +251,14 @@ contract AavePositionManagerScript is Script {
 
         console.log("\n=== FINAL VERIFICATION ===");
 
-        if (finalAUsdcBalance < 100) {
-            // Allow for some dust
+        if (finalAUsdcBalance == 0) {
             console.log("Supply and withdrawal tests passed successfully!");
         } else {
             console.log("Not all aUSDC withdrawn. Remaining: %s", finalAUsdcBalance / 10 ** 6);
             revert("Supply and withdrawal tests failed: Not all aUSDC withdrawn");
         }
 
-        if (finalDebtBalance < 100) {
-            // Allow for some dust
+        if (finalDebtBalance == 0) {
             console.log("Borrow and repay tests passed successfully!");
         } else {
             console.log("Not all DAI debt repaid. Remaining: %s", finalDebtBalance / 10 ** 18);
