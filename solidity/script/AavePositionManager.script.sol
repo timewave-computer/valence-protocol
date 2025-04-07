@@ -111,7 +111,7 @@ contract AavePositionManagerScript is Script {
         console.log("After borrowing %s DAI:", borrowAmount / 10 ** 18);
         logBalances();
 
-        // Verify that DAI balance increased by the borrowed amount
+        // Verify that DAI balance increased by the borrowed amount (allowing some small rounding discrepancy)
         uint256 daiAfterBorrow = IERC20(DAI_ADDR).balanceOf(address(account));
         require(
             daiAfterBorrow >= initialDaiBalance + borrowAmount - 10,
