@@ -87,18 +87,18 @@ contract AavePositionManager is Library {
     function supply(uint256 amount) external onlyProcessor {
         // Get the current configuration.
         AavePositionManagerConfig memory storedConfig = config;
-        
+
         // Get the current balance of the supply asset in the input account
         uint256 balance = IERC20(storedConfig.supplyAsset).balanceOf(address(storedConfig.inputAccount));
-        
+
         // Check if balance is zero
         if (balance == 0) {
             revert("No supply asset balance available");
         }
-        
+
         // If amount is 0, use the entire balance
         uint256 amountToSupply = amount == 0 ? balance : amount;
-        
+
         // Check if there's enough balance for the requested amount
         if (balance < amountToSupply) {
             revert("Insufficient supply asset balance");
@@ -197,8 +197,9 @@ contract AavePositionManager is Library {
         storedConfig.inputAccount.execute(storedConfig.borrowAsset, 0, encodedApproveCall);
 
         // Repay the specified asset to the Aave protocol.
-        bytes memory encodedRepayCall =
-            abi.encodeCall(IPool.repay, (storedConfig.borrowAsset, amountToRepay, 2, address(storedConfig.inputAccount)));
+        bytes memory encodedRepayCall = abi.encodeCall(
+            IPool.repay, (storedConfig.borrowAsset, amountToRepay, 2, address(storedConfig.inputAccount))
+        );
 
         // Execute the repay from the input account
         storedConfig.inputAccount.execute(address(storedConfig.aavePoolAddress), 0, encodedRepayCall);
