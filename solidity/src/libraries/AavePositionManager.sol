@@ -81,15 +81,32 @@ contract AavePositionManager is Library {
      * @dev Only the designated processor can execute this function.
      * First approves the Aave pool to spend tokens, then supplies them to the protocol.
      * The output account will receive the corresponding aTokens.
-     * @param amount The amount of tokens to supply
+     * If amount is 0, the entire balance of the supply asset in the input account will be used.
+     * @param amount The amount of tokens to supply, or 0 to use entire balance
      */
     function supply(uint256 amount) external onlyProcessor {
         // Get the current configuration.
         AavePositionManagerConfig memory storedConfig = config;
+        
+        // Get the current balance of the supply asset in the input account
+        uint256 balance = IERC20(storedConfig.supplyAsset).balanceOf(address(storedConfig.inputAccount));
+        
+        // Check if balance is zero
+        if (balance == 0) {
+            revert("No supply asset balance available");
+        }
+        
+        // If amount is 0, use the entire balance
+        uint256 amountToSupply = amount == 0 ? balance : amount;
+        
+        // Check if there's enough balance for the requested amount
+        if (balance < amountToSupply) {
+            revert("Insufficient supply asset balance");
+        }
 
         // Encode the approval call for the Aave pool.
         bytes memory encodedApproveCall =
-            abi.encodeCall(IERC20.approve, (address(storedConfig.aavePoolAddress), amount));
+            abi.encodeCall(IERC20.approve, (address(storedConfig.aavePoolAddress), amountToSupply));
 
         // Execute the approval from the input account
         storedConfig.inputAccount.execute(storedConfig.supplyAsset, 0, encodedApproveCall);
@@ -97,7 +114,7 @@ contract AavePositionManager is Library {
         // Supply the specified asset to the Aave protocol.
         bytes memory encodedSupplyCall = abi.encodeCall(
             IPool.supply,
-            (storedConfig.supplyAsset, amount, address(storedConfig.outputAccount), storedConfig.referralCode)
+            (storedConfig.supplyAsset, amountToSupply, address(storedConfig.outputAccount), storedConfig.referralCode)
         );
 
         // Execute the supply from the input account
@@ -131,7 +148,7 @@ contract AavePositionManager is Library {
      * @dev Only the designated processor can execute this function.
      * Withdraws assets from Aave and sends them to the output account.
      * This reduces the available collateral for any outstanding loans.
-     * @param amount The amount of tokens to withdraw
+     * @param amount The amount of tokens to withdraw, passing uint256.max will withdraw the entire balance
      */
     function withdraw(uint256 amount) external onlyProcessor {
         // Get the current configuration.
@@ -150,22 +167,38 @@ contract AavePositionManager is Library {
      * @dev Only the designated processor can execute this function.
      * First approves the Aave pool to spend tokens, then repays the loan
      * Uses interest rate mode 2 (variable rate), which is only one supported for this operation.
-     * @param amount The amount of tokens to repay
+     * @param amount The amount of tokens to repay, if amount is 0, repays the entire balance
      */
     function repay(uint256 amount) external onlyProcessor {
         // Get the current configuration.
         AavePositionManagerConfig memory storedConfig = config;
 
+        // Get the current balance of the borrow asset in the input account
+        uint256 balance = IERC20(storedConfig.borrowAsset).balanceOf(address(storedConfig.inputAccount));
+
+        // Check if balance is zero
+        if (balance == 0) {
+            revert("No borrow asset balance available");
+        }
+
+        // If amount is 0, use the entire balance
+        uint256 amountToRepay = amount == 0 ? balance : amount;
+
+        // Check if there's enough balance for the requested amount
+        if (balance < amountToRepay) {
+            revert("Insufficient borrow asset balance");
+        }
+
         // Encode the approval call for the Aave pool.
         bytes memory encodedApproveCall =
-            abi.encodeCall(IERC20.approve, (address(storedConfig.aavePoolAddress), amount));
+            abi.encodeCall(IERC20.approve, (address(storedConfig.aavePoolAddress), amountToRepay));
 
         // Execute the approval from the input account
         storedConfig.inputAccount.execute(storedConfig.borrowAsset, 0, encodedApproveCall);
 
         // Repay the specified asset to the Aave protocol.
         bytes memory encodedRepayCall =
-            abi.encodeCall(IPool.repay, (storedConfig.borrowAsset, amount, 2, address(storedConfig.inputAccount)));
+            abi.encodeCall(IPool.repay, (storedConfig.borrowAsset, amountToRepay, 2, address(storedConfig.inputAccount)));
 
         // Execute the repay from the input account
         storedConfig.inputAccount.execute(address(storedConfig.aavePoolAddress), 0, encodedRepayCall);
@@ -177,7 +210,7 @@ contract AavePositionManager is Library {
      * Allows repaying loans using the interest-bearing aTokens themselves,
      * which can be more gas-efficient than converting aTokens to underlying assets first.
      * Uses interest rate mode 2 (variable rate), which is only one supported for this operation.
-     * @param amount The amount of tokens to repay using aTokens
+     * @param amount The amount of tokens to repay using aTokens, passing uint256.max will repay as much as possible
      */
     function repayWithATokens(uint256 amount) external onlyProcessor {
         // Get the current configuration.
