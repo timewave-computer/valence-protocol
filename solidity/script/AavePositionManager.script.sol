@@ -51,7 +51,7 @@ contract AavePositionManagerScript is Script {
         IERC20(DAI_ADDR).transfer(address(account), 1_000_000 * 10 ** 18); // 1M DAI
         vm.stopPrank();
 
-        // Set up the Aave manager with the same account for input and output, to avoid requiring to transfer tokens afterwards
+        // Set up the Aave manager with the same account for input and output for simplicity
         vm.startPrank(owner);
         AavePositionManager.AavePositionManagerConfig memory config = AavePositionManager.AavePositionManagerConfig({
             aavePoolAddress: IPool(AAVE_POOL_ADDR),
