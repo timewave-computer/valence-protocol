@@ -1,4 +1,4 @@
-use std::{error::Error, time::Duration};
+use std::error::Error;
 
 use alloy::{
     primitives::{Address, U256},
@@ -7,7 +7,7 @@ use alloy::{
 use cosmwasm_std::{to_json_binary, CosmosMsg, WasmMsg};
 use localic_utils::{NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID};
 use log::{info, warn};
-use tokio::{runtime::Runtime, time::sleep};
+use tokio::runtime::Runtime;
 use valence_astroport_utils::astroport_native_lp_token::{Asset, AssetInfo};
 use valence_chain_client_utils::{
     cosmos::{base_client::BaseClient, wasm_client::WasmClient},
@@ -21,12 +21,15 @@ use valence_e2e::{
     async_run,
     utils::{
         parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
-        solidity_contracts::{CCTPTransfer, ValenceVault},
+        solidity_contracts::{CCTPTransfer, MockERC20, ValenceVault},
         ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, UUSDC_DENOM,
     },
 };
 
-use crate::program::{NeutronProgramAccounts, NeutronProgramLibraries};
+use crate::{
+    evm::EthereumProgramAccounts,
+    program::{NeutronProgramAccounts, NeutronProgramLibraries},
+};
 
 pub struct Strategist {
     eth_client: EthereumClient,
@@ -34,11 +37,13 @@ pub struct Strategist {
     neutron_client: NeutronClient,
     neutron_program_accounts: NeutronProgramAccounts,
     neutron_program_libraries: NeutronProgramLibraries,
+    eth_program_accounts: EthereumProgramAccounts,
     uusdc_on_neutron_denom: String,
     lp_token_denom: String,
     pool_addr: String,
     cctp_transfer_lib: Address,
     vault_addr: Address,
+    ethereum_usdc_erc20: Address,
 }
 
 impl Strategist {
@@ -47,11 +52,13 @@ impl Strategist {
         rt: &Runtime,
         neutron_program_accounts: NeutronProgramAccounts,
         neutron_program_libraries: NeutronProgramLibraries,
+        ethereum_program_accounts: EthereumProgramAccounts,
         uusdc_on_neutron_denom: String,
         lp_token_denom: String,
         pool_addr: String,
         cctp_transfer_lib: Address,
         vault_addr: Address,
+        ethereum_usdc_erc20: Address,
     ) -> Result<Self, Box<dyn Error>> {
         let noble_grpc_addr = get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "grpc_address")?;
         let (noble_grpc_url, noble_grpc_port) =
@@ -101,11 +108,13 @@ impl Strategist {
             neutron_client,
             neutron_program_accounts,
             neutron_program_libraries,
+            eth_program_accounts: ethereum_program_accounts,
             uusdc_on_neutron_denom,
             lp_token_denom,
             pool_addr,
             cctp_transfer_lib,
             vault_addr,
+            ethereum_usdc_erc20,
         })
     }
 }
@@ -355,6 +364,29 @@ impl Strategist {
     /// CCTP-transfers funds from Noble outbound ica to Ethereum withdraw account
     pub async fn route_noble_to_eth(&self) {
         info!("[STRATEGIST] CCTP forwarding USDC from Noble to Ethereum...");
+
+        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
+        let erc20 = MockERC20::new(self.ethereum_usdc_erc20, &eth_rp);
+        let pre_cctp_ethereum_withdraw_acc_usdc_bal = self
+            .eth_client
+            .query(erc20.balanceOf(self.eth_program_accounts.withdraw))
+            .await
+            .unwrap()
+            ._0;
+        let pre_cctp_noble_outbound_ica_usdc_bal = self
+            .noble_client
+            .query_balance(
+                &self.neutron_program_accounts.noble_outbound_ica.remote_addr,
+                UUSDC_DENOM,
+            )
+            .await
+            .unwrap();
+
+        if pre_cctp_noble_outbound_ica_usdc_bal == 0 {
+            warn!("[STRATEGIST] Noble outbound ICA account must have USDC in order to CCTP forward to Ethereum; returning");
+            return;
+        }
+
         let transfer_tx = self
             .neutron_client
             .transfer(
@@ -374,21 +406,6 @@ impl Strategist {
             .poll_for_tx(&transfer_tx.hash)
             .await
             .unwrap();
-        sleep(Duration::from_secs(3)).await;
-
-        let noble_outbound_acc_usdc_bal = self
-            .noble_client
-            .query_balance(
-                &self.neutron_program_accounts.noble_outbound_ica.remote_addr,
-                UUSDC_DENOM,
-            )
-            .await
-            .unwrap();
-
-        if noble_outbound_acc_usdc_bal == 0 {
-            warn!("[STRATEGIST] Noble outbound ICA account must have USDC in order to CCTP forward to Ethereum; returning");
-            return;
-        }
 
         let neutron_ica_cctp_transfer_msg =
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
@@ -405,20 +422,50 @@ impl Strategist {
             .unwrap();
         self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
 
-        sleep(Duration::from_secs(10)).await;
+        self.blocking_erc20_expected_balance_query(
+            self.eth_program_accounts.withdraw,
+            pre_cctp_ethereum_withdraw_acc_usdc_bal + U256::from(1),
+            1,
+            10,
+        )
+        .await;
+    }
 
-        let noble_outbound_acc_usdc_bal = self
-            .noble_client
-            .query_balance(
-                &self.neutron_program_accounts.noble_outbound_ica.remote_addr,
-                UUSDC_DENOM,
-            )
-            .await
-            .unwrap();
+    async fn blocking_erc20_expected_balance_query(
+        &self,
+        addr: Address,
+        min_amount: U256,
+        interval_sec: u64,
+        max_attempts: u32,
+    ) {
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(interval_sec));
+        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
 
-        info!(
-            "Noble outbound ICA account balance post cctp transfer: {noble_outbound_acc_usdc_bal}",
-        );
+        info!("EVM polling {addr} balance to exceed {min_amount}");
+
+        let erc20 = MockERC20::new(self.ethereum_usdc_erc20, &eth_rp);
+
+        for attempt in 1..max_attempts + 1 {
+            interval.tick().await;
+
+            match self.eth_client.query(erc20.balanceOf(addr)).await {
+                Ok(balance) => {
+                    let bal = balance._0;
+                    if bal >= min_amount {
+                        info!("balance exceeded!");
+                        return;
+                    } else {
+                        info!(
+                            "Balance polling attempt {attempt}/{max_attempts}: current={bal}, target={min_amount}"
+                        );
+                    }
+                }
+                Err(e) => warn!(
+                    "Balance polling attempt {attempt}/{max_attempts} failed: {:?}",
+                    e
+                ),
+            }
+        }
     }
 
     /// enters the position on astroport

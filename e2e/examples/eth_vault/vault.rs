@@ -209,11 +209,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         &rt,
         neutron_program_accounts.clone(),
         neutron_program_libraries.clone(),
+        ethereum_program_accounts.clone(),
         uusdc_on_neutron_denom.clone(),
         lp_token.to_string(),
         pool_addr.to_string(),
         ethereum_program_libraries.cctp_forwarder,
         ethereum_program_libraries.valence_vault,
+        usdc_token_address,
     )
     .unwrap();
 
@@ -359,9 +361,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("strategist cctp routing eth->ntrn...");
     async_run!(&rt, strategist.route_eth_to_noble().await);
-
-    info!("[MAIN] sleeping for 5 to give cctp time to relay");
-    sleep(Duration::from_secs(5));
 
     let post_cctp_deposit_acc_usdc_bal = ethereum_utils::mock_erc20::query_balance(
         &rt,
