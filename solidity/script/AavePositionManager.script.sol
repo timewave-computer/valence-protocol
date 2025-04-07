@@ -19,7 +19,7 @@ contract AavePositionManagerScript is Script {
     address constant VARIABLE_DEBT_DAI = 0xcF8d0c70c850859266f5C338b38F9D663181C314;
 
     // Let's use a whale to transfer some tokens as we need to fund the account
-    // Tried replacing the runtime code of the tokens but it messed up with AAVE's calcuations because tokens had different decimals
+    // Tried replacing the runtime code of the tokens but it messed up with AAVE's calculations because tokens had different decimals
     // Binance hot wallet - huge USDC and DAI holdings
     address constant USDC_WHALE = 0x28C6c06298d514Db089934071355E5743bf21d60;
     address constant DAI_WHALE = 0x28C6c06298d514Db089934071355E5743bf21d60;
@@ -75,9 +75,17 @@ contract AavePositionManagerScript is Script {
         uint256 withdrawAmount = 20_000 * 10 ** 6; // 20,000 USDC
         uint256 repayAmount = 3_000 * 10 ** 18; // 3,000 DAI
 
+        // Store initial balances for comparison
+        uint256 initialUsdcBalance = IERC20(USDC_ADDR).balanceOf(address(account));
+        uint256 initialDaiBalance = IERC20(DAI_ADDR).balanceOf(address(account));
+
         // Log initial state
         console.log("\n=== INITIAL STATE ===");
         logBalances();
+
+        // Verify initial setup
+        require(initialUsdcBalance >= supplyAmount, "Insufficient USDC for testing");
+        require(initialDaiBalance >= repayAmount, "Insufficient DAI for testing");
 
         // TEST 1: SUPPLY
         console.log("\n=== TEST 1: SUPPLY ===");
@@ -86,6 +94,16 @@ contract AavePositionManagerScript is Script {
         console.log("After supplying %s USDC:", supplyAmount / 10 ** 6);
         logBalances();
 
+        // Verify that USDC balance has decreased by the correct amount
+        uint256 usdcAfterSupply = IERC20(USDC_ADDR).balanceOf(address(account));
+        require(
+            usdcAfterSupply == initialUsdcBalance - supplyAmount, "USDC balance didn't decrease correctly after supply"
+        );
+
+        // Verify that aUSDC balance has increased
+        uint256 aUsdcBalance = IERC20(AUSDC_ADDR).balanceOf(address(account));
+        require(aUsdcBalance > 0, "Supply operation failed: No aUSDC received");
+
         // TEST 2: BORROW
         console.log("\n=== TEST 2: BORROW ===");
         vm.prank(processor);
@@ -93,59 +111,139 @@ contract AavePositionManagerScript is Script {
         console.log("After borrowing %s DAI:", borrowAmount / 10 ** 18);
         logBalances();
 
+        // Verify that DAI balance increased by the borrowed amount
+        uint256 daiAfterBorrow = IERC20(DAI_ADDR).balanceOf(address(account));
+        require(
+            daiAfterBorrow >= initialDaiBalance + borrowAmount - 10,
+            "DAI balance didn't increase correctly after borrow"
+        );
+
+        // Verify that debt token increased
+        uint256 debtDaiBalance = IERC20(VARIABLE_DEBT_DAI).balanceOf(address(account));
+        require(debtDaiBalance >= borrowAmount - 10, "Debt not registered correctly");
+
         // TEST 3: PARTIAL WITHDRAW
         console.log("\n=== TEST 3: PARTIAL WITHDRAW ===");
+        uint256 usdcBeforeWithdraw = IERC20(USDC_ADDR).balanceOf(address(account));
+        uint256 aUsdcBeforeWithdraw = IERC20(AUSDC_ADDR).balanceOf(address(account));
+
         vm.prank(processor);
         aaveManager.withdraw(withdrawAmount);
         console.log("After withdrawing %s USDC:", withdrawAmount / 10 ** 6);
         logBalances();
 
+        // Verify that USDC balance increased by the withdrawn amount
+        uint256 usdcAfterWithdraw = IERC20(USDC_ADDR).balanceOf(address(account));
+        require(
+            usdcAfterWithdraw >= usdcBeforeWithdraw + withdrawAmount - 10,
+            "USDC balance didn't increase correctly after withdraw"
+        );
+
+        // Verify that aUSDC balance decreased
+        uint256 aUsdcAfterWithdraw = IERC20(AUSDC_ADDR).balanceOf(address(account));
+        require(aUsdcAfterWithdraw < aUsdcBeforeWithdraw, "aUSDC balance didn't decrease after withdraw");
+
         // TEST 4: PARTIAL REPAY
         console.log("\n=== TEST 4: PARTIAL REPAY ===");
+        uint256 daiBeforeRepay = IERC20(DAI_ADDR).balanceOf(address(account));
+        uint256 debtBeforeRepay = IERC20(VARIABLE_DEBT_DAI).balanceOf(address(account));
+
         vm.prank(processor);
         aaveManager.repay(repayAmount);
         console.log("After repaying %s DAI:", repayAmount / 10 ** 18);
         logBalances();
 
+        // Verify that DAI balance decreased by the repaid amount
+        uint256 daiAfterRepay = IERC20(DAI_ADDR).balanceOf(address(account));
+        require(daiAfterRepay <= daiBeforeRepay - repayAmount + 10, "DAI balance didn't decrease correctly after repay");
+
+        // Verify that debt token decreased
+        uint256 debtAfterRepay = IERC20(VARIABLE_DEBT_DAI).balanceOf(address(account));
+        require(debtAfterRepay <= debtBeforeRepay - repayAmount + 10, "Debt not decreased correctly after repay");
+
         // TEST 5: SUPPLY DAI (to get aDAI for repayWithATokens test)
         console.log("\n=== TEST 5: SUPPLY DAI ===");
         // Instead of changing the config to supply DAI, we are going to execute it directly from the account by the owner
+        uint256 daiSupplyAmount = 20_000 * 10 ** 18; // 20,000 DAI
+        uint256 daiBeforeSupplyDai = IERC20(DAI_ADDR).balanceOf(address(account));
+        uint256 aDaiBeforeSupply = IERC20(ADAI_ADDR).balanceOf(address(account));
+
         vm.startPrank(owner);
         // First approve DAI spending by Aave pool
-        bytes memory approveDAICall = abi.encodeCall(IERC20.approve, (AAVE_POOL_ADDR, 20_000 * 10 ** 18));
+        bytes memory approveDAICall = abi.encodeCall(IERC20.approve, (AAVE_POOL_ADDR, daiSupplyAmount));
         account.execute(DAI_ADDR, 0, approveDAICall);
 
         // Now supply DAI to get aDAI tokens
-        bytes memory encodedSupplyCall =
-            abi.encodeCall(IPool.supply, (DAI_ADDR, 20_000 * 10 ** 18, address(account), 0));
+        bytes memory encodedSupplyCall = abi.encodeCall(IPool.supply, (DAI_ADDR, daiSupplyAmount, address(account), 0));
         account.execute(AAVE_POOL_ADDR, 0, encodedSupplyCall);
         vm.stopPrank();
 
         console.log("After supplying 20,000 DAI to get aDAI:");
         logBalances();
 
+        // Verify that DAI balance decreased
+        uint256 daiAfterSupplyDai = IERC20(DAI_ADDR).balanceOf(address(account));
+        require(
+            daiAfterSupplyDai <= daiBeforeSupplyDai - daiSupplyAmount + 10,
+            "DAI balance didn't decrease correctly after supplying DAI"
+        );
+
+        // Verify that aDAI balance increased
+        uint256 aDaiAfterSupply = IERC20(ADAI_ADDR).balanceOf(address(account));
+        require(aDaiAfterSupply > aDaiBeforeSupply, "aDAI balance didn't increase after supplying DAI");
+
         // TEST 6: REPAY WITH ATOKENS
         console.log("\n=== TEST 6: REPAY WITH ATOKENS ===");
         // Now try repayWithATokens
         uint256 repayWithATokensAmount = 3_000 * 10 ** 18; // 3,000 DAI equivalent in aDAI
+        uint256 aDaiBeforeRepay = IERC20(ADAI_ADDR).balanceOf(address(account));
+        uint256 debtBeforeATokenRepay = IERC20(VARIABLE_DEBT_DAI).balanceOf(address(account));
+
         vm.prank(processor);
         aaveManager.repayWithATokens(repayWithATokensAmount);
         console.log("After repaying %s DAI with aDAI tokens:", repayWithATokensAmount / 10 ** 18);
         logBalances();
 
+        // Verify that aDAI balance decreased
+        uint256 aDaiAfterRepay = IERC20(ADAI_ADDR).balanceOf(address(account));
+        require(aDaiAfterRepay < aDaiBeforeRepay, "aDAI balance didn't decrease after repaying with aTokens");
+
+        // Verify that debt decreased
+        uint256 debtAfterATokenRepay = IERC20(VARIABLE_DEBT_DAI).balanceOf(address(account));
+        require(debtAfterATokenRepay < debtBeforeATokenRepay, "Debt didn't decrease after repaying with aTokens");
+        require(
+            debtBeforeATokenRepay - debtAfterATokenRepay >= repayWithATokensAmount - 10,
+            "Debt didn't decrease by the expected amount after repaying with aTokens"
+        );
+
         // TEST 7: REPAY ALL
         console.log("\n=== TEST 7: REPAY ALL ===");
+
         vm.prank(processor);
         aaveManager.repay(0); // 0 means repay all
         console.log("After repaying all remaining DAI:");
         logBalances();
 
+        // Verify that debt is fully repaid (or close to zero)
+        uint256 debtAfterRepayAll = IERC20(VARIABLE_DEBT_DAI).balanceOf(address(account));
+        require(debtAfterRepayAll == 0, "Debt not fully repaid");
+
         // TEST 8: WITHDRAW ALL
         console.log("\n=== TEST 8: WITHDRAW ALL ===");
+        uint256 usdcBeforeWithdrawAll = IERC20(USDC_ADDR).balanceOf(address(account));
+
         vm.prank(processor);
         aaveManager.withdraw(type(uint256).max); // max means withdraw all
         console.log("After withdrawing all USDC:");
         logBalances();
+
+        // Verify that aUSDC is fully withdrawn
+        uint256 aUsdcAfterWithdrawAll = IERC20(AUSDC_ADDR).balanceOf(address(account));
+        require(aUsdcAfterWithdrawAll == 0, "aUSDC not fully withdrawn");
+
+        // Verify that USDC balance increased
+        uint256 usdcAfterWithdrawAll = IERC20(USDC_ADDR).balanceOf(address(account));
+        require(usdcAfterWithdrawAll > usdcBeforeWithdrawAll, "USDC balance didn't increase after withdrawing all");
 
         // Final verification
         uint256 finalAUsdcBalance = IERC20(AUSDC_ADDR).balanceOf(address(account));
@@ -158,6 +256,7 @@ contract AavePositionManagerScript is Script {
             console.log("Supply and withdrawal tests passed successfully!");
         } else {
             console.log("Not all aUSDC withdrawn. Remaining: %s", finalAUsdcBalance / 10 ** 6);
+            revert("Supply and withdrawal tests failed: Not all aUSDC withdrawn");
         }
 
         if (finalDebtBalance < 100) {
@@ -165,6 +264,7 @@ contract AavePositionManagerScript is Script {
             console.log("Borrow and repay tests passed successfully!");
         } else {
             console.log("Not all DAI debt repaid. Remaining: %s", finalDebtBalance / 10 ** 18);
+            revert("Borrow and repay tests failed: Not all DAI debt repaid");
         }
 
         console.log("\nAavePositionManager integration tests completed successfully!");
