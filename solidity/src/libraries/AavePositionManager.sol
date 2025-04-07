@@ -18,7 +18,7 @@ contract AavePositionManager is Library {
      * @dev Used to define parameters for interacting with Aave V3 protocol
      * @param aavePoolAddress The address of the Aave V3 Pool contract
      * @param inputAccount The account from which transactions will be initiated
-     * @param outputAccount The account that will receive aTokens, borrowed assets or withdrawals. Can be the same as inputAccount.
+     * @param outputAccount The account that will receive withdrawals. Can be the same as inputAccount.
      * @param supplyAsset Address of the token to supply to Aave
      * @param borrowAsset Address of the token to borrow from Aave
      * @param referralCode Referral code for Aave protocol (if applicable - 0 if the action is executed directly by the user, without any middle-men)
@@ -80,7 +80,7 @@ contract AavePositionManager is Library {
      * @notice Supplies tokens to the Aave protocol
      * @dev Only the designated processor can execute this function.
      * First approves the Aave pool to spend tokens, then supplies them to the protocol.
-     * The output account will receive the corresponding aTokens.
+     * The input account will receive the corresponding aTokens.
      * If amount is 0, the entire balance of the supply asset in the input account will be used.
      * @param amount The amount of tokens to supply, or 0 to use entire balance
      */
@@ -114,7 +114,7 @@ contract AavePositionManager is Library {
         // Supply the specified asset to the Aave protocol.
         bytes memory encodedSupplyCall = abi.encodeCall(
             IPool.supply,
-            (storedConfig.supplyAsset, amountToSupply, address(storedConfig.outputAccount), storedConfig.referralCode)
+            (storedConfig.supplyAsset, amountToSupply, address(storedConfig.inputAccount), storedConfig.referralCode)
         );
 
         // Execute the supply from the input account
@@ -125,7 +125,7 @@ contract AavePositionManager is Library {
      * @notice Borrows tokens from the Aave protocol
      * @dev Only the designated processor can execute this function.
      * Borrows assets from Aave against the collateral previously supplied.
-     * The output account will receive the borrowed tokens.
+     * The input account will receive the borrowed tokens.
      * Uses interest rate mode 2 (variable rate), which is only one supported for this operation.
      * @param amount The amount of tokens to borrow
      */
@@ -136,7 +136,7 @@ contract AavePositionManager is Library {
         // Borrow the specified asset from the Aave protocol.
         bytes memory encodedBorrowCall = abi.encodeCall(
             IPool.borrow,
-            (storedConfig.borrowAsset, amount, 2, storedConfig.referralCode, address(storedConfig.outputAccount))
+            (storedConfig.borrowAsset, amount, 2, storedConfig.referralCode, address(storedConfig.inputAccount))
         );
 
         // Execute the borrow from the input account

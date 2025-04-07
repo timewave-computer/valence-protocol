@@ -14,13 +14,12 @@ flowchart LR
     Manager Library]
     IA((Input Account))
     AP((AAVE Pool))
-    OA((Output Account))
 
     P -- 1/Supply(amount) --> A
     A -- 2/Query balance --> IA
     A -- 3/Approve ERC20(amount) and call supply --> IA
     IA -- 4/Supply --> AP
-    AP -- 5/Mint aTokens --> OA
+    AP -- 5/Mint aTokens --> IA
 ```
 
 ```mermaid
@@ -33,11 +32,10 @@ flowchart LR
  Manager Library]
  IA((Input Account))
  AP((AAVE Pool))
- OA((Output Account))
  P -- 1/Borrow(amount) --> A
  A -- 2/Call borrow --> IA
  IA -- 4/Borrow --> AP
- AP -- 5/Send borrowed tokens --> OA
+ AP -- 5/Send borrowed tokens --> IA
 ```
 
 ```mermaid
@@ -95,13 +93,13 @@ flowchart LR
 
 ## Functions
 
-| Function             | Parameters | Description                                                                                                                                                                      |
-| -------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **supply**           | amount     | Supplies tokens from the **input account** to the AAVE protocol. The **output account** will receive the corresponding aTokens. If amount is 0, the entire balance will be used. |
-| **borrow**           | amount     | Borrows tokens from the AAVE protocol using the collateral previously supplied. The **output account** will receive the borrowed tokens and the **input account** will receive debt tokens.                                         |
-| **withdraw**         | amount     | Withdraws previously supplied tokens from AAVE and sends them to the **output account**. Passing uint256.max will withdraw the entire balance.                                   |
-| **repay**            | amount     | Repays borrowed tokens to the AAVE protocol from the **input account**. If amount is 0, repays the entire balance.                                                               |
-| **repayWithATokens** | amount     | Repays borrowed tokens using aTokens directly, which can be more gas-efficient. Passing uint256.max will repay as much as possible.                                              |
+| Function             | Parameters | Description                                                                                                                                                                                 |
+| -------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **supply**           | amount     | Supplies tokens from the **input account** to the AAVE protocol. The **input account** will receive these corresponding aTokens. If amount is 0, the entire balance will be used.            |
+| **borrow**           | amount     | Borrows tokens from the AAVE protocol using the collateral previously supplied. The **input account** will receive the borrowed tokens and the debt tokens. |
+| **withdraw**         | amount     | Withdraws previously supplied tokens from AAVE and sends them to the **output account**. Passing uint256.max will withdraw the entire balance.                                              |
+| **repay**            | amount     | Repays borrowed tokens to the AAVE protocol from the **input account**. If amount is 0, repays the entire balance.                                                                          |
+| **repayWithATokens** | amount     | Repays borrowed tokens using aTokens directly, which can be more gas-efficient. Passing uint256.max will repay as much as possible.                                                         |
 
 More details on how the interaction with the AAVE v3 protocol works can be found in the [AAVE V3 Pool documentation](https://aave.com/docs/developers/smart-contracts/pool).
 
@@ -116,7 +114,7 @@ The library is configured on deployment using the `AavePositionManagerConfig` ty
      * @dev Used to define parameters for interacting with Aave V3 protocol
      * @param aavePoolAddress The address of the Aave V3 Pool contract
      * @param inputAccount The account from which transactions will be initiated
-     * @param outputAccount The account that will receive aTokens, borrowed assets or withdrawals. Can be the same as inputAccount.
+     * @param outputAccount The account that will receive withdrawals. Can be the same as inputAccount.
      * @param supplyAsset Address of the token to supply to Aave
      * @param borrowAsset Address of the token to borrow from Aave
      * @param referralCode Referral code for Aave protocol (if applicable - 0 if the action is executed directly by the user, without any middle-men)
