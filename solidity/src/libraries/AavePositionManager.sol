@@ -53,6 +53,11 @@ contract AavePositionManager is Library {
         // Decode the configuration bytes into the AavePositionManagerConfig struct.
         AavePositionManagerConfig memory decodedConfig = abi.decode(_config, (AavePositionManagerConfig));
 
+        // Ensure the Aave pool address is valid (non-zero).
+        if (address(decodedConfig.aavePoolAddress) == address(0)) {
+            revert("Aave pool address can't be zero address");
+        }
+
         // Ensure the input account address is valid (non-zero).
         if (decodedConfig.inputAccount == Account(payable(address(0)))) {
             revert("Input account can't be zero address");

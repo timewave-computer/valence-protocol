@@ -81,6 +81,20 @@ contract AavePositionManagerTest is Test {
         vm.expectRevert("Input account can't be zero address");
         aavePositionManager.updateConfig(abi.encode(invalidConfig));
 
+        // Test invalid Aave pool address
+        invalidConfig = AavePositionManager.AavePositionManagerConfig({
+            aavePoolAddress: IPool(address(0)),
+            inputAccount: inputAccount,
+            outputAccount: outputAccount,
+            supplyAsset: address(supplyToken),
+            borrowAsset: address(borrowToken),
+            referralCode: referralCode
+        });
+
+        vm.prank(owner);
+        vm.expectRevert("Aave pool address can't be zero address");
+        aavePositionManager.updateConfig(abi.encode(invalidConfig));
+
         // Test invalid output account
         invalidConfig = AavePositionManager.AavePositionManagerConfig({
             aavePoolAddress: IPool(address(mockPool)),
