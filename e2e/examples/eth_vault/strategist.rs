@@ -189,56 +189,33 @@ impl Strategist {
             .unwrap();
         self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
 
-        for i in 1..10 {
-            sleep(Duration::from_secs(3)).await;
-            let post_bal = self
-                .neutron_client
-                .query_balance(
-                    &self
-                        .neutron_program_accounts
-                        .deposit_account
-                        .to_string()
-                        .unwrap(),
-                    &self.uusdc_on_neutron_denom,
-                )
-                .await
-                .unwrap();
-
-            if init_bal + transfer_amount == post_bal {
-                info!(
-                    "Funds successfully routed in from Noble inbound ICA to Neutron deposit acc!"
-                );
-                break;
-            } else if i == 10 {
-                panic!("Failed to route funds from Noble inbound ICA to Neutron deposit acc!");
-            } else {
-                info!("Funds in transit #{i}...")
-            }
-        }
+        info!("starting polling assertion on the destination...");
+        self.neutron_client
+            .poll_until_expected_balance(
+                &self
+                    .neutron_program_accounts
+                    .deposit_account
+                    .to_string()
+                    .unwrap(),
+                &self.uusdc_on_neutron_denom,
+                init_bal + transfer_amount,
+                1,
+                10,
+            )
+            .await
+            .unwrap();
     }
 
     /// IBC-transfers funds from Neutron withdraw account to noble outbound ica
     pub async fn route_neutron_to_noble(&self) {
-        info!("[STRATEGIST] routing USDC to noble...");
-        let transfer_rx = self
-            .neutron_client
-            .transfer(
-                &self
-                    .neutron_program_accounts
-                    .withdraw_account
-                    .to_string()
-                    .unwrap(),
-                110_000,
-                NEUTRON_CHAIN_DENOM,
-                None,
+        let noble_outbound_ica_usdc_bal = self
+            .noble_client
+            .query_balance(
+                &self.neutron_program_accounts.noble_outbound_ica.remote_addr,
+                UUSDC_DENOM,
             )
             .await
             .unwrap();
-        self.neutron_client
-            .poll_for_tx(&transfer_rx.hash)
-            .await
-            .unwrap();
-        sleep(Duration::from_secs(3)).await;
         let withdraw_account_usdc_bal = self
             .neutron_client
             .query_balance(
@@ -251,6 +228,7 @@ impl Strategist {
             )
             .await
             .unwrap();
+
         let withdraw_account_ntrn_bal = self
             .neutron_client
             .query_balance(
@@ -274,6 +252,26 @@ impl Strategist {
             return;
         }
 
+        info!("[STRATEGIST] routing USDC to noble...");
+        let transfer_rx = self
+            .neutron_client
+            .transfer(
+                &self
+                    .neutron_program_accounts
+                    .withdraw_account
+                    .to_string()
+                    .unwrap(),
+                110_000,
+                NEUTRON_CHAIN_DENOM,
+                None,
+            )
+            .await
+            .unwrap();
+        self.neutron_client
+            .poll_for_tx(&transfer_rx.hash)
+            .await
+            .unwrap();
+
         let neutron_ibc_transfer_msg =
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
                 valence_neutron_ibc_transfer_library::msg::FunctionMsgs::IbcTransfer {},
@@ -289,33 +287,21 @@ impl Strategist {
             .unwrap();
         self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
 
-        let withdraw_acc_usdc_bal = self
-            .neutron_client
-            .query_balance(
+        info!("starting polling assertion on noble outbound ica...");
+        self.noble_client
+            .poll_until_expected_balance(
                 &self
                     .neutron_program_accounts
-                    .withdraw_account
-                    .to_string()
-                    .unwrap(),
-                &self.uusdc_on_neutron_denom,
+                    .noble_outbound_ica
+                    .remote_addr
+                    .to_string(),
+                UUSDC_DENOM,
+                noble_outbound_ica_usdc_bal + withdraw_account_usdc_bal,
+                1,
+                10,
             )
             .await
             .unwrap();
-        let withdraw_acc_ntrn_bal = self
-            .neutron_client
-            .query_balance(
-                &self
-                    .neutron_program_accounts
-                    .withdraw_account
-                    .to_string()
-                    .unwrap(),
-                NEUTRON_CHAIN_DENOM,
-            )
-            .await
-            .unwrap();
-        info!("withdraw account USDC token balance: {withdraw_acc_usdc_bal}",);
-        info!("withdraw account NTRN token balance: {withdraw_acc_ntrn_bal}",);
-        assert_eq!(0, withdraw_acc_usdc_bal);
     }
 
     /// CCTP-transfers funds from Ethereum deposit account to Noble inbound ica
@@ -325,31 +311,16 @@ impl Strategist {
 
         let cctp_transfer_contract = CCTPTransfer::new(self.cctp_transfer_lib, &eth_rp);
 
-        let cctp_config = self
-            .eth_client
-            .query(cctp_transfer_contract.config())
+        let pre_cctp_inbound_ica_usdc_bal = self
+            .noble_client
+            .query_balance(
+                &self.neutron_program_accounts.noble_inbound_ica.remote_addr,
+                UUSDC_DENOM,
+            )
             .await
             .unwrap();
-        let cctp_processor = self
-            .eth_client
-            .query(cctp_transfer_contract.processor())
-            .await
-            .unwrap();
-        let cctp_owner = self
-            .eth_client
-            .query(cctp_transfer_contract.owner())
-            .await
-            .unwrap();
+
         let signer_addr = self.eth_client.signer.address();
-
-        info!("[route_eth_to_noble] cctp config: {:?}", cctp_config);
-        info!(
-            "[route_eth_to_noble] cctp processor: {:?}",
-            cctp_processor._0
-        );
-        info!("[route_eth_to_noble] cctp owner: {:?}", cctp_owner._0);
-        info!("[route_eth_to_noble] signer address: {:?}", signer_addr);
-
         let signed_tx = cctp_transfer_contract
             .transfer()
             .into_transaction_request()
@@ -361,6 +332,24 @@ impl Strategist {
             "cctp transfer tx hash: {:?}",
             cctp_transfer_rx.transaction_hash
         );
+
+        let remote_ica_addr = self
+            .neutron_program_accounts
+            .noble_inbound_ica
+            .remote_addr
+            .to_string();
+
+        info!("starting polling assertion on the destination...");
+        self.noble_client
+            .poll_until_expected_balance(
+                &remote_ica_addr,
+                UUSDC_DENOM,
+                pre_cctp_inbound_ica_usdc_bal + 1,
+                1,
+                10,
+            )
+            .await
+            .unwrap();
     }
 
     /// CCTP-transfers funds from Noble outbound ica to Ethereum withdraw account

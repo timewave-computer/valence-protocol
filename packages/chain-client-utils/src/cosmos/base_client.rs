@@ -23,6 +23,7 @@ use cosmrs::{
     },
     Any,
 };
+use log::{info, warn};
 use prost::Message;
 use tonic::Request;
 
@@ -198,6 +199,44 @@ pub trait BaseClient: GrpcSigningClient {
         Err(StrategistError::QueryError(
             "failed to confirm tx".to_string(),
         ))
+    }
+
+    async fn poll_until_expected_balance(
+        &self,
+        address: &str,
+        denom: &str,
+        min_amount: u128,
+        interval_sec: u64,
+        max_attempts: u32,
+    ) -> Result<u128, StrategistError> {
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(interval_sec));
+
+        info!("Polling {address} balance to exceed {denom}{min_amount}");
+
+        for attempt in 1..max_attempts + 1 {
+            interval.tick().await;
+
+            match self.query_balance(address, denom).await {
+                Ok(balance) => {
+                    if balance >= min_amount {
+                        return Ok(balance);
+                    }
+                    info!(
+                        "Balance polling attempt {attempt}/{max_attempts}: current={balance}, target={min_amount}"
+                    );
+                }
+                Err(e) => {
+                    warn!(
+                        "Balance polling attempt {attempt}/{max_attempts} failed: {:?}",
+                        e
+                    );
+                }
+            }
+        }
+
+        Err(StrategistError::QueryError(format!(
+            "Balance did not exceed {min_amount}{denom} after {max_attempts} attempts"
+        )))
     }
 
     async fn ibc_transfer(

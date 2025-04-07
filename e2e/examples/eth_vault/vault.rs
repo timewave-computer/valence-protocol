@@ -94,6 +94,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_transfer_channels(NEUTRON_CHAIN_NAME, NOBLE_CHAIN_NAME)
         .build()?;
 
+    // setup hyperlane between neutron and eth
+    let program_hyperlane_contracts = utils::hyperlane_plumbing(&mut test_ctx, &eth)?;
+
+    let uusdc_on_neutron_denom = test_ctx
+        .get_ibc_denom()
+        .base_denom(UUSDC_DENOM.to_owned())
+        .src(NOBLE_CHAIN_NAME)
+        .dest(NEUTRON_CHAIN_NAME)
+        .get();
+
     let noble_client = noble::get_client(&rt)?;
     noble::setup_environment(&rt, &noble_client)?;
     noble::mint_usdc_to_addr(&rt, &noble_client, NOBLE_CHAIN_ADMIN_ADDR, 999900000)?;
@@ -119,30 +129,23 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     sleep(Duration::from_secs(3));
 
-    let uusdc_on_neutron_denom = test_ctx
-        .get_ibc_denom()
-        .base_denom(UUSDC_DENOM.to_owned())
-        .src(NOBLE_CHAIN_NAME)
-        .dest(NEUTRON_CHAIN_NAME)
-        .get();
-
-    let program_hyperlane_contracts = utils::hyperlane_plumbing(&mut test_ctx, &eth)?;
-
     // setup astroport
     let (pool_addr, lp_token) =
         setup_astroport_cl_pool(&mut test_ctx, uusdc_on_neutron_denom.to_string())?;
 
-    let salt = hex::encode(
-        SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)?
-            .as_secs()
-            .to_string(),
-    );
     let amount_to_transfer = 1_000_000;
 
     // set up the authorization and processor contracts on neutron
     let (authorization_contract_address, neutron_processor_address) =
-        set_up_authorization_and_processor(&mut test_ctx, salt.clone())?;
+        set_up_authorization_and_processor(
+            &mut test_ctx,
+            hex::encode(
+                SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)?
+                    .as_secs()
+                    .to_string(),
+            ),
+        )?;
 
     upload_neutron_contracts(&mut test_ctx)?;
 
