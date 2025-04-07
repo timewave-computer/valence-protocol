@@ -73,7 +73,7 @@ contract AavePositionManagerScript is Script {
         uint256 supplyAmount = 100_000 * 10 ** 6; // 100,000 USDC
         uint256 borrowAmount = 10_000 * 10 ** 18; // 10,000 DAI
         uint256 withdrawAmount = 20_000 * 10 ** 6; // 20,000 USDC
-        uint256 repayAmount = 3_000 * 10 ** 18; // 3,000 DAI (reduced from 5,000)
+        uint256 repayAmount = 3_000 * 10 ** 18; // 3,000 DAI
 
         // Log initial state
         console.log("\n=== INITIAL STATE ===");
@@ -127,7 +127,7 @@ contract AavePositionManagerScript is Script {
         // TEST 6: REPAY WITH ATOKENS
         console.log("\n=== TEST 6: REPAY WITH ATOKENS ===");
         // Now try repayWithATokens
-        uint256 repayWithATokensAmount = 3_000 * 10 ** 18; // 3,000 DAI equivalent in aDAI (reduced from 5,000)
+        uint256 repayWithATokensAmount = 3_000 * 10 ** 18; // 3,000 DAI equivalent in aDAI
         vm.prank(processor);
         aaveManager.repayWithATokens(repayWithATokensAmount);
         console.log("After repaying %s DAI with aDAI tokens:", repayWithATokensAmount / 10 ** 18);
