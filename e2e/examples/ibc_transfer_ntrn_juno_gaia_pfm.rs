@@ -217,7 +217,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         .src(JUNO_CHAIN_NAME)
                         .dest(GAIA_CHAIN_NAME)
                         .get(),
-                    hop_chain_receiver_address: JUNO_CHAIN_ADMIN_ADDR.to_string(),
+                    hop_chain_receiver_address: Some(JUNO_CHAIN_ADMIN_ADDR.to_string()),
                 },
             )]),
         ),

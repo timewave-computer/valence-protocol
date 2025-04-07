@@ -79,8 +79,9 @@ struct PacketForwardMiddlewareConfig {
   local_to_hop_chain_channel_id: String,
   // Channel ID from the intermediate to the destination chain
   hop_to_destination_chain_channel_id: String,
-  // Temporary receiver address on the intermediate chain. Typically this is set to an invalid address so the entire transaction will revert if the forwarding fails
-  hop_chain_receiver_address: String,
+  // Temporary receiver address on the intermediate chain. Typically this is set to an invalid address so the entire transaction will revert if the forwarding fails. If not 
+  // provided it's set to "pfm"
+  hop_chain_receiver_address: Option<String>,
 }
 ```
 
@@ -127,7 +128,7 @@ LibraryConfig {
         PacketForwardMiddlewareConfig {
             local_to_hop_chain_channel_id: osmosis_to_juno_channel_id,
             hop_to_destination_chain_channel_id: juno_to_gaia_channel_id,
-            hop_chain_receiver_address: "pfm".to_string(),
+            hop_chain_receiver_address: None, // if not passed, "pfm" is used
         },
     )]),
 }

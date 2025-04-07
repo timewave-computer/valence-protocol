@@ -344,7 +344,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         .src(OSMOSIS_CHAIN_NAME)
                         .dest(NEUTRON_CHAIN_NAME)
                         .get(),
-                    hop_chain_receiver_address: "pfm".to_string(),
+                    hop_chain_receiver_address: None,
                 },
             )]),
         },
