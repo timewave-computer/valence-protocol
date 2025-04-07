@@ -98,7 +98,10 @@ mod functions {
                             amount: cfg.amount.to_string(),
                         }),
                         sender: remote_address,
-                        receiver: pfm_config.hop_chain_receiver_address.to_string(),
+                        receiver: pfm_config
+                            .hop_chain_receiver_address
+                            .clone()
+                            .unwrap_or("pfm".to_string()),
                         timeout_height: None,
                         timeout_timestamp: env
                             .block
