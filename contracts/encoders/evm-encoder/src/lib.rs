@@ -3,7 +3,7 @@ use std::str::FromStr;
 use alloy_primitives::{address, Address, Bytes};
 use alloy_sol_types::SolValue;
 use cosmwasm_std::{Binary, StdError, StdResult};
-use libraries::{cctp_transfer, forwarder, stargate_transfer};
+use libraries::{aave_position_manager, cctp_transfer, forwarder, stargate_transfer};
 use strum::EnumString;
 use valence_authorization_utils::authorization::Subroutine;
 use valence_encoder_utils::processor::solidity_types;
@@ -24,6 +24,7 @@ pub enum EVMLibrary {
     Forwarder,
     CctpTransfer,
     StargateTransfer,
+    AavePositionManager,
 }
 
 impl EVMLibrary {
@@ -53,6 +54,7 @@ impl EVMLibrary {
             EVMLibrary::Forwarder => forwarder::encode(msg),
             EVMLibrary::CctpTransfer => cctp_transfer::encode(msg),
             EVMLibrary::StargateTransfer => stargate_transfer::encode(msg),
+            EVMLibrary::AavePositionManager => aave_position_manager::encode(msg),
         }
     }
 }
