@@ -12,7 +12,7 @@ use valence_authorization_utils::{
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder},
     msg::ProcessorMessage,
 };
-use valence_library_utils::{GetId, Id, LibraryAccountType};
+use valence_library_utils::{library_account_type::GetId, Id, LibraryAccountType};
 
 use crate::{
     connectors::Connectors,
