@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {Library} from "./Library.sol";
-import {Account} from "../accounts/Account.sol";
+import {BaseAccount} from "../accounts/BaseAccount.sol";
 import {IPool} from "aave-v3-origin/interfaces/IPool.sol";
 import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
 
@@ -25,8 +25,8 @@ contract AavePositionManager is Library {
      */
     struct AavePositionManagerConfig {
         IPool aavePoolAddress;
-        Account inputAccount;
-        Account outputAccount;
+        BaseAccount inputAccount;
+        BaseAccount outputAccount;
         address supplyAsset;
         address borrowAsset;
         uint16 referralCode;
@@ -59,12 +59,12 @@ contract AavePositionManager is Library {
         }
 
         // Ensure the input account address is valid (non-zero).
-        if (decodedConfig.inputAccount == Account(payable(address(0)))) {
+        if (decodedConfig.inputAccount == BaseAccount(payable(address(0)))) {
             revert("Input account can't be zero address");
         }
 
         // Ensure the output account address is valid (non-zero).
-        if (decodedConfig.outputAccount == Account(payable(address(0)))) {
+        if (decodedConfig.outputAccount == BaseAccount(payable(address(0)))) {
             revert("Output account can't be zero address");
         }
 
