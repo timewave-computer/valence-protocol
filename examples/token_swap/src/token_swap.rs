@@ -26,8 +26,7 @@ use valence_splitter_library::msg::{UncheckedSplitAmount, UncheckedSplitConfig};
 /// * `token2` - the token denomination required in the second account
 /// * `swap_amount_token1` - the amount of the first token to swap
 /// * `swap_amount_token2` - the amount of the second token to swap
-/// * `authorized_swap_party` - the party that receives the authority token to execute
-///                             the swap
+/// * `authorized_swap_party` - the party that receives the authority token to execute the swap
 pub fn my_atomic_token_swap_program(
     domain: Domain,
     owner: String,
