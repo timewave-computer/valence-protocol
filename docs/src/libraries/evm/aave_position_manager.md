@@ -93,13 +93,13 @@ flowchart LR
 
 ## Functions
 
-| Function            | Parameters | Description                                                                                                                                                                       |
-| ------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **supply**          | amount     | Supplies tokens from the **input account** to the AAVE protocol. The **input account** will receive these corresponding aTokens. If amount is 0, the entire balance will be used. |
-| **borrow**          | amount     | Borrows tokens from the AAVE protocol using the collateral previously supplied. The **input account** will receive the borrowed tokens and the debt tokens.                       |
-| **withdraw**        | amount     | Withdraws previously supplied tokens from AAVE and sends them to the **output account**. Passing 0 will withdraw the entire balance.                                              |
-| **repay**           | amount     | Repays borrowed tokens to the AAVE protocol from the **input account**. If amount is 0, repays the entire balance.                                                                |
-| **repayWithShares** | amount     | Repays borrowed tokens using aTokens directly, which can be more gas-efficient. Passing 0 repay as much as possible.                                                              |
+| Function            | Parameters | Description                                                                                                                                                                      |
+| ------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **supply**          | amount     | Supplies tokens from the **input account** to the AAVE protocol. The **input account** will receive these corresponding aTokens. If amount is 0 the entire balance will be used. |
+| **borrow**          | amount     | Borrows tokens from the AAVE protocol using the collateral previously supplied. The **input account** will receive the borrowed tokens and the debt tokens.                      |
+| **withdraw**        | amount     | Withdraws previously supplied tokens from AAVE and sends them to the **output account**. Passing 0 will withdraw the entire balance.                                             |
+| **repay**           | amount     | Repays borrowed tokens to the AAVE protocol from the **input account**. Passing 0 repays the entire balance.                                                                     |
+| **repayWithShares** | amount     | Repays borrowed tokens using aTokens directly, which can be more gas-efficient. Passing 0 will repay as much as possible.                                                        |
 
 More details on how the interaction with the AAVE v3 protocol works can be found in the [AAVE V3 Pool documentation](https://aave.com/docs/developers/smart-contracts/pool).
 
