@@ -17,8 +17,8 @@ contract AavePositionManager is Library {
      * @notice Configuration struct for Aave lending operations
      * @dev Used to define parameters for interacting with Aave V3 protocol
      * @param poolAddress The address of the Aave V3 Pool contract
-     * @param inputAccount The account from which transactions will be initiated
-     * @param outputAccount The account that will receive withdrawals. Can be the same as inputAccount.
+     * @param inputAccount The Base Account from which transactions will be initiated
+     * @param outputAccount The Base Account that will receive withdrawals. Can be the same as inputAccount.
      * @param supplyAsset Address of the token to supply to Aave
      * @param borrowAsset Address of the token to borrow from Aave
      * @param referralCode Referral code for Aave protocol (if applicable - 0 if the action is executed directly by the user, without any middle-men)
@@ -223,7 +223,7 @@ contract AavePositionManager is Library {
      * Uses interest rate mode 2 (variable rate), which is only one supported for this operation.
      * @param amount The amount of tokens to repay using aTokens, passing 0 will repay as much as possible
      */
-    function repayWithATokens(uint256 amount) external onlyProcessor {
+    function repayWithShares(uint256 amount) external onlyProcessor {
         // Get the current configuration.
         AavePositionManagerConfig memory storedConfig = config;
 

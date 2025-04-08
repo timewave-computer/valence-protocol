@@ -161,7 +161,7 @@ contract AavePositionManagerScript is Script {
         uint256 debtAfterRepay = IERC20(VARIABLE_DEBT_DAI).balanceOf(address(account));
         require(debtAfterRepay <= debtBeforeRepay - repayAmount + 10, "Debt not decreased correctly after repay");
 
-        // TEST 5: SUPPLY DAI (to get aDAI for repayWithATokens test)
+        // TEST 5: SUPPLY DAI (to get aDAI for repayWithShares test)
         console.log("\n=== TEST 5: SUPPLY DAI ===");
         // Instead of changing the config to supply DAI, we are going to execute it directly from the account by the owner
         uint256 daiSupplyAmount = 20_000 * 10 ** 18; // 20,000 DAI
@@ -194,14 +194,14 @@ contract AavePositionManagerScript is Script {
 
         // TEST 6: REPAY WITH ATOKENS
         console.log("\n=== TEST 6: REPAY WITH ATOKENS ===");
-        // Now try repayWithATokens
-        uint256 repayWithATokensAmount = 3_000 * 10 ** 18; // 3,000 DAI equivalent in aDAI
+        // Now try repayWithShares
+        uint256 repayWithSharesAmount = 3_000 * 10 ** 18; // 3,000 DAI equivalent in aDAI
         uint256 aDaiBeforeRepay = IERC20(ADAI_ADDR).balanceOf(address(account));
         uint256 debtBeforeATokenRepay = IERC20(VARIABLE_DEBT_DAI).balanceOf(address(account));
 
         vm.prank(processor);
-        aaveManager.repayWithATokens(repayWithATokensAmount);
-        console.log("After repaying %s DAI with aDAI tokens:", repayWithATokensAmount / 10 ** 18);
+        aaveManager.repayWithShares(repayWithSharesAmount);
+        console.log("After repaying %s DAI with aDAI tokens:", repayWithSharesAmount / 10 ** 18);
         logBalances();
 
         // Verify that aDAI balance decreased
@@ -212,7 +212,7 @@ contract AavePositionManagerScript is Script {
         uint256 debtAfterATokenRepay = IERC20(VARIABLE_DEBT_DAI).balanceOf(address(account));
         require(debtAfterATokenRepay < debtBeforeATokenRepay, "Debt didn't decrease after repaying with aTokens");
         require(
-            debtBeforeATokenRepay - debtAfterATokenRepay >= repayWithATokensAmount - 10,
+            debtBeforeATokenRepay - debtAfterATokenRepay >= repayWithSharesAmount - 10,
             "Debt didn't decrease by the expected amount after repaying with aTokens"
         );
 

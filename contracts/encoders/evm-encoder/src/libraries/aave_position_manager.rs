@@ -4,7 +4,7 @@ use cosmwasm_std::{Binary, StdError, StdResult, Uint256};
 
 use valence_encoder_utils::libraries::{
     aave_position_manager::solidity_types::{
-        borrowCall, repayCall, repayWithATokensCall, supplyCall, withdrawCall,
+        borrowCall, repayCall, repayWithSharesCall, supplyCall, withdrawCall,
     },
     updateConfigCall,
 };
@@ -43,8 +43,8 @@ pub enum FunctionMsgs {
     Withdraw { amount: Uint256 },
     /// Message to repay tokens.
     Repay { amount: Uint256 },
-    /// Message to repay with aTokens.
-    RepayWithATokens { amount: Uint256 },
+    /// Message to repay with shares, for AAVE that is aTokens.
+    RepayWithShares { amount: Uint256 },
 }
 
 type StargateTransferMsg = ExecuteMsg<FunctionMsgs, LibraryConfig>;
@@ -81,8 +81,8 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
                 };
                 Ok(withdraw_call.abi_encode())
             }
-            FunctionMsgs::RepayWithATokens { amount } => {
-                let withdraw_call = repayWithATokensCall {
+            FunctionMsgs::RepayWithShares { amount } => {
+                let withdraw_call = repayWithSharesCall {
                     amount: alloy_primitives::U256::from_be_bytes(amount.to_be_bytes()),
                 };
                 Ok(withdraw_call.abi_encode())

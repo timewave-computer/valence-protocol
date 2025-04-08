@@ -14,5 +14,5 @@ sol! {
     function borrow(uint256 amount) external;
     function withdraw(uint256 amount) external;
     function repay(uint256 amount) external;
-    function repayWithATokens(uint256 amount) external;
+    function repayWithShares(uint256 amount) external;
 }

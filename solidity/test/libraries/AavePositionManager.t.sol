@@ -336,21 +336,22 @@ contract AavePositionManagerTest is Test {
         aavePositionManager.repay(amount);
     }
 
-    // ============== Repay With ATokens Tests ==============
+    // ============== Repay With Shares Tests ==============
 
-    function testRepayWithATokens() public {
-        // Execute repayWithATokens as processor
+    function testRepayWithShares() public {
+        // Execute repayWithShares as processor
         uint256 amount = 100 * 10 ** 18;
         vm.prank(processor);
-        aavePositionManager.repayWithATokens(amount);
+        aavePositionManager.repayWithShares(amount);
+        (amount);
     }
 
-    function testUnauthorizedRepayWithATokens() public {
+    function testUnauthorizedRepayWithShares() public {
         address unauthorized = makeAddr("unauthorized");
 
-        // Attempt to repayWithATokens as unauthorized user
+        // Attempt to repayWithShares as unauthorized user
         vm.prank(unauthorized);
         vm.expectRevert();
-        aavePositionManager.repayWithATokens(100 * 10 ** 18);
+        aavePositionManager.repayWithShares(100 * 10 ** 18);
     }
 }
