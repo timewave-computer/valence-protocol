@@ -27,6 +27,11 @@ pub enum ExecuteMsg {
 }
 
 #[cw_serde]
+pub enum MigrateMsg {
+    NoStateChange {},
+}
+
+#[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     /// Gets the most up to date program config for the id
