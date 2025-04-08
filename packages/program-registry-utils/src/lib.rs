@@ -27,7 +27,9 @@ pub enum ExecuteMsg {
 }
 
 #[cw_serde]
-pub enum MigrateMsg {}
+pub enum MigrateMsg {
+    NoStateChange {},
+}
 
 #[cw_serde]
 #[derive(QueryResponses)]
