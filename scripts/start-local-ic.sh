@@ -10,7 +10,7 @@ while [[ "$SUCCESS" = false && "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]]; do
   /tmp/local-ic start $CHAIN_CONFIG --api-port 42069 &
   curl --head -X GET --retry 200 --retry-connrefused --retry-delay 5 http://localhost:42069
   echo "$(date): Successfully queried Local-IC"
-  sleep 10
+  sleep 20
   # Check to see if chain config has been created which is the last step of local-ic startup
   CHAIN_INFO=$(<configs/logs.json)
   if [[ "$CHAIN_INFO" != "{}" ]]; then
