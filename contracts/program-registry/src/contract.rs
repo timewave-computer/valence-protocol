@@ -6,7 +6,9 @@ use cw_storage_plus::Bound;
 
 use crate::state::{PROGRAMS, PROGRAMS_BACKUP};
 use crate::{error::ContractError, state::LAST_ID};
-use valence_program_registry_utils::{ExecuteMsg, InstantiateMsg, ProgramResponse, QueryMsg};
+use valence_program_registry_utils::{
+    ExecuteMsg, InstantiateMsg, MigrateMsg, ProgramResponse, QueryMsg,
+};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -162,6 +164,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
         QueryMsg::GetLastId {} => to_json_binary(&LAST_ID.load(deps.storage)?),
     }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    Ok(Response::default())
 }
 
 #[cfg(test)]
