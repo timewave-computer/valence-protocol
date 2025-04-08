@@ -233,7 +233,7 @@ contract AavePositionManagerScript is Script {
         uint256 usdcBeforeWithdrawAll = IERC20(USDC_ADDR).balanceOf(address(account));
 
         vm.prank(processor);
-        aaveManager.withdraw(type(uint256).max); // max means withdraw all
+        aaveManager.withdraw(0); // max means withdraw all
         console.log("After withdrawing all USDC:");
         logBalances();
 

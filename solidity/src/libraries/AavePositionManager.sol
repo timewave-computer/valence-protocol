@@ -153,11 +153,16 @@ contract AavePositionManager is Library {
      * @dev Only the designated processor can execute this function.
      * Withdraws assets from Aave and sends them to the output account.
      * This reduces the available collateral for any outstanding loans.
-     * @param amount The amount of tokens to withdraw, passing uint256.max will withdraw the entire balance
+     * @param amount The amount of tokens to withdraw, passing 0 will withdraw the entire balance
      */
     function withdraw(uint256 amount) external onlyProcessor {
         // Get the current configuration.
         AavePositionManagerConfig memory storedConfig = config;
+
+        // If amount is 0, use uint256.max to withdraw as much as possible
+        if (amount == 0) {
+            amount = type(uint256).max;
+        }
 
         // Withdraw the specified asset from the Aave protocol.
         bytes memory encodedWithdrawCall =
@@ -216,11 +221,16 @@ contract AavePositionManager is Library {
      * Allows repaying loans using the interest-bearing aTokens themselves,
      * which can be more gas-efficient than converting aTokens to underlying assets first.
      * Uses interest rate mode 2 (variable rate), which is only one supported for this operation.
-     * @param amount The amount of tokens to repay using aTokens, passing uint256.max will repay as much as possible
+     * @param amount The amount of tokens to repay using aTokens, passing 0 will repay as much as possible
      */
     function repayWithATokens(uint256 amount) external onlyProcessor {
         // Get the current configuration.
         AavePositionManagerConfig memory storedConfig = config;
+
+        // If amount is 0, use uint256.max to repay as much as possible
+        if (amount == 0) {
+            amount = type(uint256).max;
+        }
 
         // Repay the specified asset to the Aave protocol using aTokens.
         bytes memory encodedRepayCall = abi.encodeCall(IPool.repayWithATokens, (storedConfig.borrowAsset, amount, 2));
