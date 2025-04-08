@@ -2,7 +2,7 @@
 
 The **Valence Neutron IBC Transfer** library allows to transfer funds over IBC from an **input account** on **Neutron** to an **output account** on a destination chain. It is typically used as part of a **Valence Program**. In that context, a **Processor** contract will be the main contract interacting with the Forwarder library.
 
-Note: this library should not be used on another CosmWasm chain than **Neutron**, which requires some fees to be paid to relayers for IBC transfers. For other CosmWasm chains, prefer using the **[Generic IBC Transfer library](./generic_ibc_transfer.md)** instead.
+Note: this library should not be used on another chain other than **Neutron**, which requires some NTRN fees to be paid to relayers for IBC transfers that the **input account** should hold. For other CosmWasm chains, use the **[Generic IBC Transfer library](./generic_ibc_transfer.md)** instead.
 
 ## High-level flow
 
@@ -30,9 +30,9 @@ graph LR
 
 ## Functions
 
-| Function    | Parameters | Description |
-|-------------|------------|-------------|
-| **IbcTransfer** | -          | Transfer funds over IBC from an **input account** on **Neutron** to an **output account** on a destination chain. |
+| Function        | Parameters | Description                                                                                                                                                                                       |
+| --------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **IbcTransfer** | -          | Transfer funds over IBC from an **input account** on **Neutron** to an **output account** on a destination chain. The **input account** must hold enough NTRN balance to pay for the relayer fees |
 
 ## Configuration
 
@@ -79,12 +79,11 @@ struct PacketForwardMiddlewareConfig {
   local_to_hop_chain_channel_id: String,
   // Channel ID from the intermediate to the destination chain
   hop_to_destination_chain_channel_id: String,
-  // Temporary receiver address on the intermediate chain. Typically this is set to an invalid address so the entire transaction will revert if the forwarding fails. If not 
+  // Temporary receiver address on the intermediate chain. Typically this is set to an invalid address so the entire transaction will revert if the forwarding fails. If not
   // provided it's set to "pfm"
   hop_chain_receiver_address: Option<String>,
 }
 ```
-
 
 ### Packet-Forward Middleware
 
@@ -98,17 +97,16 @@ Neutron IBC Transfer library can be configured to make use of PFM as follows:
 - `output_addr` is set to the final receiver address on the final destination chain
 - `remote_chain_info` is configured between the origin and intermediate chain
 - `denom_to_pfm_map` is configured to map the origin denom to its respective
-`PacketForwardMiddlewareConfig` which should contain:
+  `PacketForwardMiddlewareConfig` which should contain:
 
   - `local_to_hop_chain_channel_id` - origin to intermediate chain channel id
   - `hop_to_destination_chain_channel_id` - intermediate to destination chain channel id
   - `hop_chain_receiver_address` - address where funds should settle on the intermediate
-  chain in case of a failure
+    chain in case of a failure
 
 > Official packet-forward-middleware recommends to configure intermediate chain settlement
-  addresses (`hop_chain_receiver_address`) with an invalid bech32 string such as `"pfm"`.
-  More information about this can be found in the [official documentation](https://github.com/cosmos/ibc-apps/tree/main/middleware/packet-forward-middleware#full-example---chain-forward-a-b-c-d-with-retry-on-timeout
-  ).
+> addresses (`hop_chain_receiver_address`) with an invalid bech32 string such as `"pfm"`.
+> More information about this can be found in the [official documentation](https://github.com/cosmos/ibc-apps/tree/main/middleware/packet-forward-middleware#full-example---chain-forward-a-b-c-d-with-retry-on-timeout).
 
 Consider an example configuration transferring tokens from Neutron to Gaia via Juno.
 Library config may look like this:
