@@ -37,7 +37,7 @@ impl EthereumVaultRouting for Strategist {
     /// account to the withdrawal account.
     async fn forward_shares_for_liquidation(&self, amount: Uint128) {
         if amount.is_zero() {
-            info!("[STRATEGIST] zero-shares liquidation request; returning");
+            info!("zero-shares liquidation request; returning");
             return;
         }
 
@@ -48,10 +48,7 @@ impl EthereumVaultRouting for Strategist {
             max_amount: amount,
         }];
 
-        info!(
-            "[STRATEGIST] updating liquidation forwarder cfg to: {:?}",
-            new_fwd_cfgs
-        );
+        info!("updating liquidation forwarder cfg to: {:?}", new_fwd_cfgs);
 
         let update_cfg_msg = &valence_library_utils::msg::ExecuteMsg::<
             valence_forwarder_library::msg::FunctionMsgs,
@@ -80,7 +77,7 @@ impl EthereumVaultRouting for Strategist {
             .await
             .unwrap();
 
-        info!("[STRATEGIST] update cfg complete; executing forwarding");
+        info!("update cfg complete; executing forwarding");
 
         let pre_fwd_position = self
             .neutron_client
@@ -96,7 +93,7 @@ impl EthereumVaultRouting for Strategist {
             .unwrap();
 
         info!(
-            "[STRATEGIST] pre forward position account shares balance: {:?}",
+            "pre forward position account shares balance: {:?}",
             pre_fwd_position
         );
 
@@ -128,11 +125,11 @@ impl EthereumVaultRouting for Strategist {
             .unwrap();
 
         info!(
-            "[STRATEGIST] post forward position account shares balance: {:?}",
+            "post forward position account shares balance: {:?}",
             post_fwd_position
         );
 
-        info!("[STRATEGIST] fwd complete!");
+        info!("fwd complete!");
     }
 
     /// IBC-transfers funds from Neutron withdraw account to noble outbound ica
@@ -158,30 +155,12 @@ impl EthereumVaultRouting for Strategist {
             .await
             .unwrap();
 
-        let withdraw_account_ntrn_bal = self
-            .neutron_client
-            .query_balance(
-                &self
-                    .neutron_program_accounts
-                    .withdraw_account
-                    .to_string()
-                    .unwrap(),
-                NEUTRON_CHAIN_DENOM,
-            )
-            .await
-            .unwrap();
-
         if withdraw_account_usdc_bal == 0 {
-            warn!("[STRATEGIST] withdraw account must have USDC in order to route funds to noble; returning");
+            warn!("withdraw account must have USDC in order to route funds to noble; returning");
             return;
         }
 
-        // if withdraw_account_ntrn_bal == 0 {
-        //     warn!("[STRATEGIST] withdraw account must have NTRN in order to route funds to noble; returning");
-        //     return;
-        // }
-
-        info!("[STRATEGIST] routing USDC to noble...");
+        info!("routing USDC to noble...");
         let transfer_rx = self
             .neutron_client
             .transfer(
@@ -235,7 +214,7 @@ impl EthereumVaultRouting for Strategist {
 
     /// CCTP-transfers funds from Ethereum deposit account to Noble inbound ica
     async fn route_eth_to_noble(&self) {
-        info!("[STRATEGIST] CCTP forwarding USDC from Ethereum to Noble...");
+        info!("CCTP forwarding USDC from Ethereum to Noble...");
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
         let erc20 = MockERC20::new(self.ethereum_usdc_erc20, &eth_rp);
 
@@ -248,11 +227,11 @@ impl EthereumVaultRouting for Strategist {
         let eth_deposit_acc_usdc_u128 =
             Uint128::from_str(&eth_deposit_acc_usdc_bal.to_string()).unwrap();
         info!(
-            "[STRATEGIST] Ethereum deposit account USDC balance: {:?}",
+            "Ethereum deposit account USDC balance: {:?}",
             eth_deposit_acc_usdc_u128
         );
         if eth_deposit_acc_usdc_u128 < Uint128::new(100_000) {
-            info!("[STRATEGIST] Ethereum deposit account balance < 100_000, returning...");
+            info!("Ethereum deposit account balance < 100_000, returning...");
             return;
         }
 
@@ -292,7 +271,7 @@ impl EthereumVaultRouting for Strategist {
 
     /// CCTP-transfers funds from Noble outbound ica to Ethereum withdraw account
     async fn route_noble_to_eth(&self) {
-        info!("[STRATEGIST] CCTP forwarding USDC from Noble to Ethereum...");
+        info!("CCTP forwarding USDC from Noble to Ethereum...");
 
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
         let erc20 = MockERC20::new(self.ethereum_usdc_erc20, &eth_rp);
@@ -312,7 +291,7 @@ impl EthereumVaultRouting for Strategist {
             .unwrap();
 
         if pre_cctp_noble_outbound_ica_usdc_bal == 0 {
-            warn!("[STRATEGIST] Noble outbound ICA account must have USDC in order to CCTP forward to Ethereum; returning");
+            warn!("Noble outbound ICA account must have USDC in order to CCTP forward to Ethereum; returning");
             return;
         }
 
@@ -371,14 +350,14 @@ impl EthereumVaultRouting for Strategist {
             .await
             .unwrap();
 
-        info!("[STRATEGIST] noble inbound ica USDC balance: {noble_inbound_ica_balance}");
+        info!("noble inbound ica USDC balance: {noble_inbound_ica_balance}");
 
         if noble_inbound_ica_balance < 100_000 {
             warn!("Noble inbound ICA account must have enough USDC to route funds to Neutron deposit acc; returning");
             return;
         }
 
-        info!("[STRATEGIST] updating noble inbound ica transfer cfg");
+        info!("updating noble inbound ica transfer cfg");
 
         let update_cfg_msg = &valence_library_utils::msg::ExecuteMsg::<
             valence_ica_ibc_transfer::msg::FunctionMsgs,
@@ -409,7 +388,7 @@ impl EthereumVaultRouting for Strategist {
             .await
             .unwrap();
 
-        info!("[STRATEGIST] update cfg complete; executing inbound transfer");
+        info!("update cfg complete; executing inbound transfer");
 
         let neutron_deposit_acc_pre_transfer_bal = self
             .neutron_client
@@ -433,7 +412,7 @@ impl EthereumVaultRouting for Strategist {
             .await
             .unwrap();
         if neutron_inbound_transfer_ntrn_bal < 100_000 {
-            info!("[STRATEGIST] funding noble inbound transfer with some ntrn for ibc call");
+            info!("funding noble inbound transfer with some ntrn for ibc call");
             let transfer_rx = self
                 .neutron_client
                 .transfer(
@@ -464,7 +443,7 @@ impl EthereumVaultRouting for Strategist {
             .unwrap();
         self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
 
-        info!("[STRATEGIST] polling neutron deposit account for USDC balance...");
+        info!("polling neutron deposit account for USDC balance...");
         self.neutron_client
             .poll_until_expected_balance(
                 &self

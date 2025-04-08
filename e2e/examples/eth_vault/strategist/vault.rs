@@ -56,7 +56,7 @@ impl EthereumVault for Strategist {
             .unwrap()
             .fees;
 
-        info!("[STRATEGIST] vault fees: {:?}", fees);
+        info!("vault fees: {:?}", fees);
 
         let pool_addr = self.pool_addr.to_string();
         let cl_pool_cfg: ConfigResponse = self
@@ -67,7 +67,6 @@ impl EthereumVault for Strategist {
 
         let pool_fee = match cl_pool_cfg.try_get_cl_params() {
             Some(cl_params) => {
-                // info!("[STRATEGIST] CL POOL PARAMS: {:?}", cl_params);
                 (cl_params.out_fee * Decimal::from_ratio(10000u128, 1u128))
                     .atomics()
                     .u128() as u32 // intentionally truncating
@@ -86,10 +85,10 @@ impl EthereumVault for Strategist {
         netting_amount: U256,
     ) -> Result<(), Box<dyn Error>> {
         info!(
-            "[STRATEGIST] Updating Ethereum Vault with:
-            \nrate: {rate}
-            \nwitdraw_fee_bps: {withdraw_fee_bps}
-            \nnetting_amount: {netting_amount}"
+            "Updating Ethereum Vault with:
+            rate: {rate}
+            witdraw_fee_bps: {withdraw_fee_bps}
+            netting_amount: {netting_amount}"
         );
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
 
@@ -146,10 +145,7 @@ impl EthereumVault for Strategist {
             .await
             .unwrap()
             ._0;
-        info!(
-            "[STRATEGIST] current vault redemption rate: {:?}",
-            vault_current_rate
-        );
+        info!("current vault redemption rate: {:?}", vault_current_rate);
 
         // 2. query shares in position account and simulate their liquidation for USDC
         let neutron_position_acc_shares = self
@@ -206,11 +202,11 @@ impl EthereumVault for Strategist {
             + swap_simulation_output.u128();
         let normalized_shares = Uint128::from_str(&vault_issued_shares.to_string()).unwrap();
 
-        info!("[STRATEGIST] total assets: {}USDC", total_assets);
-        info!("[STRATEGIST] total shares: {}", normalized_shares.u128());
+        info!("total assets: {}USDC", total_assets);
+        info!("total shares: {}", normalized_shares.u128());
         match Decimal::checked_from_ratio(normalized_shares, total_assets) {
             Ok(ratio) => {
-                info!("[STRATEGIST] redemption rate: {}", ratio);
+                info!("redemption rate: {}", ratio);
                 Ok(ratio)
             }
             Err(_) => Ok(Decimal::zero()),

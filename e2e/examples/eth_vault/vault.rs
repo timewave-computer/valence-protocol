@@ -279,12 +279,35 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let pre_completion_user0_bal = eth_users.get_user_usdc(&rt, &eth_client, 0);
 
+    async_run!(
+        &rt,
+        eth_users
+            .log_balances(
+                &eth_client,
+                &ethereum_program_libraries.valence_vault,
+                &usdc_token_address,
+            )
+            .await
+    );
+
+    info!("User0 completing withdraw request...");
     vault::complete_withdraw_request(
         ethereum_program_libraries.valence_vault,
         &rt,
         &eth_client,
         eth_users.users[0],
     )?;
+
+    async_run!(
+        &rt,
+        eth_users
+            .log_balances(
+                &eth_client,
+                &ethereum_program_libraries.valence_vault,
+                &usdc_token_address,
+            )
+            .await
+    );
 
     let post_completion_user0_bal = eth_users.get_user_usdc(&rt, &eth_client, 0);
 

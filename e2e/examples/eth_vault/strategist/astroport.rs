@@ -62,7 +62,7 @@ impl AstroportOps for Strategist {
         ask_amount: Uint128,
     ) -> Result<Uint128, Box<dyn Error>> {
         if ask_amount == Uint128::zero() {
-            info!("[STRATEGIST] ask amount is zero, skipping swap simulation");
+            info!("ask amount is zero, skipping swap simulation");
             return Ok(Uint128::zero());
         }
 
@@ -86,7 +86,7 @@ impl AstroportOps for Strategist {
             .unwrap();
 
         info!(
-            "[STRATEGIST] reverse swap simulation of {ask_amount}{ask_denom} -> {ask_denom} response: {:?}",
+            "reverse swap simulation of {ask_amount}{ask_denom} -> {ask_denom} response: {:?}",
             reverse_simulation_response
         );
 
@@ -102,7 +102,7 @@ impl AstroportOps for Strategist {
         a2: Uint128,
     ) -> Result<Uint128, Box<dyn Error>> {
         if a1.is_zero() || a2.is_zero() {
-            info!("[STRATEGIST] proposed liquidity amount 0, skipping");
+            info!("proposed liquidity amount 0, skipping");
             return Ok(Uint128::zero());
         }
 
@@ -132,7 +132,7 @@ impl AstroportOps for Strategist {
             .unwrap();
 
         info!(
-            "[STRATEGIST] providing {a1}{d1} + {a2}{d2} liquidity would yield -> {simulate_provide_response} LP tokens",
+            "providing {a1}{d1} + {a2}{d2} liquidity would yield -> {simulate_provide_response} LP tokens",
         );
 
         Ok(simulate_provide_response)
@@ -140,7 +140,7 @@ impl AstroportOps for Strategist {
 
     /// exits the position on astroport
     async fn exit_position(&self) {
-        info!("[STRATEGIST] exiting LP position...");
+        info!("exiting LP position...");
 
         let liquidation_account_shares_bal = self
             .neutron_client
@@ -156,9 +156,7 @@ impl AstroportOps for Strategist {
             .unwrap();
 
         if liquidation_account_shares_bal == 0 {
-            warn!(
-                "[STRATEGIST] Liquidation account must have LP shares in order to exit LP; returning"
-            );
+            warn!("Liquidation account must have LP shares in order to exit LP; returning");
             return;
         }
 
@@ -217,7 +215,7 @@ impl AstroportOps for Strategist {
         ask_denom: &str,
     ) -> Result<Uint128, Box<dyn Error>> {
         if offer_amount == Uint128::zero() {
-            info!("[STRATEGIST] offer amount is zero, skipping swap simulation");
+            info!("offer amount is zero, skipping swap simulation");
             return Ok(Uint128::zero());
         }
 
@@ -240,7 +238,10 @@ impl AstroportOps for Strategist {
             .await
             .unwrap();
 
-        info!("[STRATEGIST] swap simulation of {offer_amount}{offer_denom} -> {ask_denom} response: {:?}", share_liquidation_response);
+        info!(
+            "swap simulation of {offer_amount}{offer_denom} -> {ask_denom} response: {:?}",
+            share_liquidation_response
+        );
 
         Ok(share_liquidation_response.return_amount)
     }
@@ -253,7 +254,7 @@ impl AstroportOps for Strategist {
         denom_2: &str,
     ) -> Result<(Uint128, Uint128), Box<dyn Error>> {
         if shares_amount == 0 {
-            info!("[STRATEGIST] shares amount is zero, skipping withdraw liquidation simulation");
+            info!("shares amount is zero, skipping withdraw liquidation simulation");
             return Ok((Uint128::zero(), Uint128::zero()));
         }
 
@@ -274,7 +275,7 @@ impl AstroportOps for Strategist {
             .collect();
 
         info!(
-            "[STRATEGIST] Share liquidation for {shares_amount} on the pool respnose: {:?}",
+            "Share liquidation for {shares_amount} on the pool respnose: {:?}",
             output_coins
         );
 
@@ -286,7 +287,7 @@ impl AstroportOps for Strategist {
 
     /// enters the position on astroport
     async fn enter_position(&self) {
-        info!("[STRATEGIST] entering LP position...");
+        info!("entering LP position...");
         let deposit_account_usdc_bal = self
             .neutron_client
             .query_balance(
@@ -301,7 +302,7 @@ impl AstroportOps for Strategist {
             .unwrap();
 
         if deposit_account_usdc_bal == 0 {
-            warn!("[STRATEGIST] Deposit account must have USDC in order to LP; returning");
+            warn!("Deposit account must have USDC in order to LP; returning");
             return;
         }
 
@@ -342,7 +343,7 @@ impl AstroportOps for Strategist {
 
     /// swaps counterparty denom into usdc
     async fn swap_ntrn_into_usdc(&self) {
-        info!("[STRATEGIST] swapping NTRN into USDC...");
+        info!("swapping NTRN into USDC...");
         let withdraw_account_ntrn_bal = self
             .neutron_client
             .query_balance(
@@ -357,7 +358,7 @@ impl AstroportOps for Strategist {
             .unwrap();
 
         if withdraw_account_ntrn_bal <= 1_000_000 {
-            warn!("[STRATEGIST] Withdraw account must have NTRN in order to swap into USDC; returning");
+            warn!("Withdraw account must have NTRN in order to swap into USDC; returning");
             return;
         }
 

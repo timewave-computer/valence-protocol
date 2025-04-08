@@ -121,12 +121,12 @@ impl Strategist {
 
 impl Strategist {
     pub async fn start(self) {
-        info!("[STRATEGIST] Starting...");
+        info!("Starting...");
 
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(15));
         let mut i = 0;
         loop {
-            info!("[STRATEGIST] loop #{i}");
+            info!("loop #{i}");
             interval.tick().await;
 
             // STEP 1: pulling funds due for withdrawal from position to origin domain
@@ -148,7 +148,7 @@ impl Strategist {
                 .await
                 .unwrap();
             if neutron_withdraw_acc_usdc_bal > 0 {
-                info!("[STRATEGIST] Neutron withdraw account USDC balance greater than 0!\nRouting from position to origin chain.");
+                info!("Neutron withdraw account USDC balance greater than 0!\nRouting from position to origin chain.");
                 self.route_neutron_to_noble().await;
                 self.route_noble_to_eth().await;
             }
@@ -165,9 +165,9 @@ impl Strategist {
                 .await
             {
                 Ok(resp) => {
-                    info!("[STRATEGIST] vault update response: {:?}", resp);
+                    info!("vault update response: {:?}", resp);
                 }
-                Err(err) => warn!("[STRATEGIST] vault update error: {:?}", err),
+                Err(err) => warn!("vault update error: {:?}", err),
             };
 
             // STEP 3. pulling funds due for deposit from origin to position domain
@@ -196,7 +196,7 @@ impl Strategist {
                 usdc_to_withdraw_u128.checked_div(Uint128::new(2)).unwrap();
 
             info!(
-                "[STRATEGIST] ValenceVault assets_to_withdraw (USDC?): {:?}",
+                "ValenceVault assets_to_withdraw (USDC?): {:?}",
                 assets_to_withdraw
             );
 
@@ -211,7 +211,7 @@ impl Strategist {
                 .unwrap();
 
             info!(
-                "[STRATEGIST] swap simulation output to get {halved_usdc_obligation_amt}usdc: {:?}untrn",
+                "swap simulation output to get {halved_usdc_obligation_amt}usdc: {:?}untrn",
                 swap_simulation_output
             );
 

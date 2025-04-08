@@ -162,7 +162,7 @@ impl NeutronProgramAccounts {
             vec.push(entry);
         }
 
-        info!("\n\n[STRATEGIST] NEUTRON+NOBLE ACCOUNTS LOG");
+        info!("\n\nNEUTRON+NOBLE ACCOUNTS LOG");
         for (k, v) in balances {
             let balances = v.join(" ");
             info!("\t{k}: {balances}");
