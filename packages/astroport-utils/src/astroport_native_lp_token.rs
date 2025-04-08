@@ -26,6 +26,17 @@ pub struct SimulationResponse {
     pub commission_amount: Uint128,
 }
 
+/// This structure holds the parameters that are returned from a reverse swap simulation response.
+#[cw_serde]
+pub struct ReverseSimulationResponse {
+    /// The amount of offer assets returned by the reverse swap
+    pub offer_amount: Uint128,
+    /// The spread used in the swap operation
+    pub spread_amount: Uint128,
+    /// The amount of fees charged by the transaction
+    pub commission_amount: Uint128,
+}
+
 /// This struct is used to return a query result with the total amount of LP tokens and assets in a specific pool.
 #[cw_serde]
 pub struct PoolResponse {
@@ -143,6 +154,18 @@ pub enum PoolQueryMsg {
     Simulation {
         offer_asset: Asset,
         ask_asset_info: Option<AssetInfo>,
+    },
+    /// Returns information about a reverse swap simulation
+    #[returns(ReverseSimulationResponse)]
+    ReverseSimulation {
+        offer_asset_info: Option<AssetInfo>,
+        ask_asset: Asset,
+    },
+    /// Returns an estimation of shares received for the given amount of assets
+    #[returns(Uint128)]
+    SimulateProvide {
+        assets: Vec<Asset>,
+        slippage_tolerance: Option<Decimal>,
     },
     /// Returns an estimation of assets received for the given amount of LP tokens
     #[returns(Vec<Asset>)]

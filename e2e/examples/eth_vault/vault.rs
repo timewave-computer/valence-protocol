@@ -159,6 +159,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         amount_to_transfer,
         &uusdc_on_neutron_denom,
         ethereum_program_accounts.withdraw.to_string(),
+        &lp_token,
     )?;
 
     let ethereum_program_libraries = setup_eth_libraries(
@@ -236,10 +237,43 @@ fn main() -> Result<(), Box<dyn Error>> {
     let strategist_rt = tokio::runtime::Runtime::new().unwrap();
     let _strategist_join_handle = strategist_rt.spawn(strategist.start());
 
-    for _ in 1..10 {
+    for _ in 1..5 {
         info!("main sleep for 10sec, mining evm blocks...");
         evm::mine_blocks(&rt, &eth_client, 5, 3);
         sleep(Duration::from_secs(10));
+    }
+
+    info!("User2 depositing {user_2_deposit_amount}USDC tokens to vault...");
+    vault::deposit_to_vault(
+        &rt,
+        &eth_client,
+        *valence_vault.address(),
+        eth_users.users[1],
+        U256::from(1_000_000),
+    )?;
+
+    for _ in 1..3 {
+        info!("main sleep for 10sec, mining evm blocks...");
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        sleep(Duration::from_secs(10));
+    }
+
+    let user1_pre_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 0);
+    info!("USER1 initiating the redeem of {user1_pre_redeem_shares_bal} shares from vault...");
+    vault::redeem(
+        ethereum_program_libraries.valence_vault,
+        &rt,
+        &eth_client,
+        eth_users.users[0],
+        user1_pre_redeem_shares_bal,
+        10_000,
+        true,
+    )?;
+
+    for _ in 1..10 {
+        info!("main sleep for 20sec, mining evm blocks...");
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        sleep(Duration::from_secs(20));
     }
 
     // noble::mint_usdc_to_addr(

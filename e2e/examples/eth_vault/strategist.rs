@@ -10,7 +10,7 @@ use log::{info, warn};
 use tokio::runtime::Runtime;
 use valence_astroport_utils::{
     astroport_cw20_lp_token::SimulationResponse,
-    astroport_native_lp_token::{self, Asset, AssetInfo},
+    astroport_native_lp_token::{self, Asset, AssetInfo, ReverseSimulationResponse},
 };
 use valence_chain_client_utils::{
     cosmos::{base_client::BaseClient, wasm_client::WasmClient},
@@ -28,6 +28,7 @@ use valence_e2e::{
         ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, UUSDC_DENOM,
     },
 };
+use valence_forwarder_library::msg::UncheckedForwardingConfig;
 
 use crate::{
     evm::EthereumProgramAccounts,
@@ -161,10 +162,8 @@ impl Strategist {
             let redemption_rate = self.calculate_redemption_rate().await.unwrap();
             let total_fee = self.calculate_total_fee().await.unwrap();
             let netting_amount = self.calculate_netting_amount().await.unwrap();
-            info!("[STRATEGIST] returned redemption rate: {redemption_rate}");
             let r = U256::from(redemption_rate.atomics().u128());
-            info!("[STRATEGIST] vault converted redemption rate: {r}");
-            // 4. Update the Vault with R, F_total, N
+            // Update the Vault with R, F_total, N
             match self
                 .vault_update(r, total_fee, U256::from(netting_amount))
                 .await
@@ -186,9 +185,162 @@ impl Strategist {
 
             // STEP 5. TODO: exit the position with necessary amount of shares needed
             // to fulfill the withdraw obligations
+            let eth_rp = self.eth_client.get_request_provider().await.unwrap();
+            let valence_vault = ValenceVault::new(self.vault_addr, &eth_rp);
+
+            let assets_to_withdraw = self
+                .eth_client
+                .query(valence_vault.totalAssetsToWithdrawNextUpdate())
+                .await
+                .unwrap()
+                ._0;
+
+            let usdc_to_withdraw_u128 = Uint128::from_str(&assets_to_withdraw.to_string()).unwrap();
+            let halved_usdc_obligation_amt =
+                usdc_to_withdraw_u128.checked_div(Uint128::new(2)).unwrap();
+
+            info!(
+                "[STRATEGIST] ValenceVault assets_to_withdraw (USDC?): {:?}",
+                assets_to_withdraw
+            );
+
+            let swap_simulation_output = self
+                .reverse_simulate_swap(
+                    &self.pool_addr,
+                    NEUTRON_CHAIN_DENOM,
+                    &self.uusdc_on_neutron_denom,
+                    halved_usdc_obligation_amt,
+                )
+                .await
+                .unwrap();
+
+            info!(
+                "[STRATEGIST] swap simulation output to get {halved_usdc_obligation_amt}usdc: {:?}untrn",
+                swap_simulation_output
+            );
+
+            // convert assets to shares
+            //
+            let shares_to_liquidate = self
+                .simulate_provide_liquidity(
+                    &self.pool_addr,
+                    &self.uusdc_on_neutron_denom,
+                    halved_usdc_obligation_amt,
+                    NEUTRON_CHAIN_DENOM,
+                    swap_simulation_output,
+                )
+                .await
+                .unwrap();
+
+            self.forward_shares_for_liquidation(shares_to_liquidate)
+                .await;
+            self.exit_position().await;
 
             i += 1;
         }
+    }
+
+    /// calculates the amount of shares that need to be liquidated to fulfill all
+    /// pending withdraw obligations and forwards those shares from the position
+    /// account to the withdrawal account.
+    async fn forward_shares_for_liquidation(&self, amount: Uint128) {
+        if amount.is_zero() {
+            info!("[STRATEGIST] zero-shares liquidation request; returning");
+            return;
+        }
+
+        let new_fwd_cfgs = vec![UncheckedForwardingConfig {
+            denom: valence_library_utils::denoms::UncheckedDenom::Native(
+                self.lp_token_denom.to_string(),
+            ),
+            max_amount: amount,
+        }];
+
+        info!(
+            "[STRATEGIST] updating liquidation forwarder cfg to: {:?}",
+            new_fwd_cfgs
+        );
+
+        let update_cfg_msg = &valence_library_utils::msg::ExecuteMsg::<
+            valence_forwarder_library::msg::FunctionMsgs,
+            valence_forwarder_library::msg::LibraryConfigUpdate,
+        >::UpdateConfig {
+            new_config: valence_forwarder_library::msg::LibraryConfigUpdate {
+                input_addr: None,
+                output_addr: None,
+                forwarding_configs: Some(new_fwd_cfgs),
+                forwarding_constraints: None,
+            },
+        };
+
+        let update_rx = self
+            .neutron_client
+            .execute_wasm(
+                &self.neutron_program_libraries.liquidation_forwarder,
+                update_cfg_msg,
+                vec![],
+            )
+            .await
+            .unwrap();
+
+        self.neutron_client
+            .poll_for_tx(&update_rx.hash)
+            .await
+            .unwrap();
+
+        info!("[STRATEGIST] update cfg complete; executing forwarding");
+
+        let pre_fwd_position = self
+            .neutron_client
+            .query_balance(
+                &self
+                    .neutron_program_accounts
+                    .position_account
+                    .to_string()
+                    .unwrap(),
+                &self.lp_token_denom,
+            )
+            .await
+            .unwrap();
+
+        info!(
+            "[STRATEGIST] pre forward position account shares balance: {:?}",
+            pre_fwd_position
+        );
+
+        let fwd_msg = &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+            valence_forwarder_library::msg::FunctionMsgs::Forward {},
+        );
+        let rx = self
+            .neutron_client
+            .execute_wasm(
+                &self.neutron_program_libraries.liquidation_forwarder,
+                fwd_msg,
+                vec![],
+            )
+            .await
+            .unwrap();
+        self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+
+        let post_fwd_position = self
+            .neutron_client
+            .query_balance(
+                &self
+                    .neutron_program_accounts
+                    .position_account
+                    .to_string()
+                    .unwrap(),
+                &self.lp_token_denom,
+            )
+            .await
+            .unwrap();
+
+        info!(
+            "[STRATEGIST] post forward position account shares balance: {:?}",
+            post_fwd_position
+        );
+
+        info!("[STRATEGIST] fwd complete!");
     }
 
     async fn simulate_liquidation(
@@ -264,11 +416,11 @@ impl Strategist {
             )
             .await
             .unwrap();
-        info!("[STRATEGIST] CL POOL CONFIG: {:?}", cl_pool_cfg);
+        // info!("[STRATEGIST] CL POOL CONFIG: {:?}", cl_pool_cfg);
 
         let pool_fee = match cl_pool_cfg.try_get_cl_params() {
             Some(cl_params) => {
-                info!("[STRATEGIST] CL POOL PARAMS: {:?}", cl_params);
+                // info!("[STRATEGIST] CL POOL PARAMS: {:?}", cl_params);
                 (cl_params.out_fee * Decimal::from_ratio(10000u128, 1u128))
                     .atomics()
                     .u128() as u32 // intentionally truncating
@@ -383,6 +535,90 @@ impl Strategist {
             }
             Err(_) => Ok(Decimal::zero()),
         }
+    }
+
+    async fn reverse_simulate_swap(
+        &self,
+        pool_addr: &str,
+        offer_denom: &str,
+        ask_denom: &str,
+        ask_amount: Uint128,
+    ) -> Result<Uint128, Box<dyn Error>> {
+        if ask_amount == Uint128::zero() {
+            info!("[STRATEGIST] ask amount is zero, skipping swap simulation");
+            return Ok(Uint128::zero());
+        }
+
+        let reverse_simulation_response: ReverseSimulationResponse = self
+            .neutron_client
+            .query_contract_state(
+                pool_addr,
+                astroport_native_lp_token::PoolQueryMsg::ReverseSimulation {
+                    offer_asset_info: Some(AssetInfo::NativeToken {
+                        denom: offer_denom.to_string(),
+                    }),
+                    ask_asset: Asset {
+                        info: AssetInfo::NativeToken {
+                            denom: ask_denom.to_string(),
+                        },
+                        amount: ask_amount,
+                    },
+                },
+            )
+            .await
+            .unwrap();
+
+        info!(
+            "[STRATEGIST] reverse swap simulation of {ask_amount}{ask_denom} -> {ask_denom} response: {:?}",
+            reverse_simulation_response
+        );
+
+        Ok(reverse_simulation_response.offer_amount)
+    }
+
+    async fn simulate_provide_liquidity(
+        &self,
+        pool_addr: &str,
+        d1: &str,
+        a1: Uint128,
+        d2: &str,
+        a2: Uint128,
+    ) -> Result<Uint128, Box<dyn Error>> {
+        if a1.is_zero() || a2.is_zero() {
+            info!("[STRATEGIST] proposed liquidity amount 0, skipping");
+            return Ok(Uint128::zero());
+        }
+
+        let simulate_provide_response: Uint128 = self
+            .neutron_client
+            .query_contract_state(
+                pool_addr,
+                astroport_native_lp_token::PoolQueryMsg::SimulateProvide {
+                    assets: vec![
+                        Asset {
+                            info: AssetInfo::NativeToken {
+                                denom: d1.to_string(),
+                            },
+                            amount: a1,
+                        },
+                        Asset {
+                            info: AssetInfo::NativeToken {
+                                denom: d2.to_string(),
+                            },
+                            amount: a2,
+                        },
+                    ],
+                    slippage_tolerance: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        info!(
+            "[STRATEGIST] providing {a1}{d1} + {a2}{d2} liquidity would yield -> {simulate_provide_response} LP tokens",
+        );
+
+        Ok(simulate_provide_response)
     }
 
     async fn simulate_swap(
@@ -523,11 +759,7 @@ impl Strategist {
             )
             .await
             .unwrap();
-        let inbound_transfer_rx = self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
-        info!(
-            "[STRATEGIST] noble inbound transfer rx: {:?}",
-            inbound_transfer_rx
-        );
+        self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
 
         info!("[STRATEGIST] polling neutron deposit account for USDC balance...");
         self.neutron_client
@@ -864,12 +1096,12 @@ impl Strategist {
     pub async fn exit_position(&self) {
         info!("[STRATEGIST] exiting LP position...");
 
-        let position_account_shares_bal = self
+        let liquidation_account_shares_bal = self
             .neutron_client
             .query_balance(
                 &self
                     .neutron_program_accounts
-                    .position_account
+                    .liquidation_account
                     .to_string()
                     .unwrap(),
                 &self.lp_token_denom,
@@ -877,9 +1109,9 @@ impl Strategist {
             .await
             .unwrap();
 
-        if position_account_shares_bal == 0 {
+        if liquidation_account_shares_bal == 0 {
             warn!(
-                "[STRATEGIST] Position account must have LP shares in order to exit LP; returning"
+                "[STRATEGIST] Liquidation account must have LP shares in order to exit LP; returning"
             );
             return;
         }

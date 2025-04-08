@@ -15,12 +15,17 @@ use valence_astroport_lper::msg::LiquidityProviderConfig;
 use valence_e2e::utils::base_account::{approve_library, create_base_accounts};
 use valence_e2e::utils::hyperlane::HyperlaneContracts;
 use valence_e2e::utils::manager::{
-    ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME, BASE_ACCOUNT_NAME, ICA_CCTP_TRANSFER_NAME,
-    ICA_IBC_TRANSFER_NAME, INTERCHAIN_ACCOUNT_NAME, NEUTRON_IBC_TRANSFER_NAME,
+    ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME, BASE_ACCOUNT_NAME, FORWARDER_NAME,
+    ICA_CCTP_TRANSFER_NAME, ICA_IBC_TRANSFER_NAME, INTERCHAIN_ACCOUNT_NAME,
+    NEUTRON_IBC_TRANSFER_NAME,
 };
 use valence_e2e::utils::{LOCAL_CODE_ID_CACHE_PATH_NEUTRON, NOBLE_CHAIN_NAME, UUSDC_DENOM};
+use valence_forwarder_library::msg::{
+    ForwardingConfig, ForwardingConstraints, UncheckedForwardingConfig,
+};
 use valence_generic_ibc_transfer_library::msg::IbcTransferAmount;
 use valence_ica_ibc_transfer::msg::RemoteChainInfo;
+use valence_library_utils::denoms::UncheckedDenom;
 use valence_library_utils::liquidity_utils::AssetData;
 use valence_library_utils::LibraryAccountType;
 
@@ -37,6 +42,7 @@ pub struct ValenceInterchainAccount {
 pub struct NeutronProgramAccounts {
     pub deposit_account: LibraryAccountType,
     pub position_account: LibraryAccountType,
+    pub liquidation_account: LibraryAccountType,
     pub withdraw_account: LibraryAccountType,
     pub noble_inbound_ica: ValenceInterchainAccount,
     pub noble_outbound_ica: ValenceInterchainAccount,
@@ -46,6 +52,7 @@ pub struct NeutronProgramAccounts {
 pub struct NeutronProgramLibraries {
     pub astroport_lper: String,
     pub astroport_lwer: String,
+    pub liquidation_forwarder: String,
     pub noble_inbound_transfer: String,
     pub noble_cctp_transfer: String,
     pub neutron_ibc_transfer: String,
@@ -74,17 +81,19 @@ pub fn setup_neutron_accounts(
         base_account_code_id,
         NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         vec![],
-        3,
+        4,
         None,
     );
 
     let deposit_account_addr = neutron_base_accounts[0].to_string();
     let position_account_addr = neutron_base_accounts[1].to_string();
     let withdraw_account_addr = neutron_base_accounts[2].to_string();
+    let liquidation_account_addr = neutron_base_accounts[3].to_string();
 
     let deposit_account = LibraryAccountType::Addr(deposit_account_addr.to_string());
     let position_account = LibraryAccountType::Addr(position_account_addr.to_string());
     let withdraw_account = LibraryAccountType::Addr(withdraw_account_addr.to_string());
+    let liquidation_account = LibraryAccountType::Addr(liquidation_account_addr.to_string());
 
     let noble_inbound_interchain_account_addr = instantiate_interchain_account_contract(test_ctx)?;
 
@@ -110,6 +119,7 @@ pub fn setup_neutron_accounts(
         // base accounts
         deposit_account,
         position_account,
+        liquidation_account,
         withdraw_account,
         // valence-icas
         noble_inbound_ica,
@@ -131,6 +141,7 @@ pub fn upload_neutron_contracts(test_ctx: &mut TestContext) -> Result<(), Box<dy
         ASTROPORT_LPER_NAME,
         ASTROPORT_WITHDRAWER_NAME,
         NEUTRON_IBC_TRANSFER_NAME,
+        FORWARDER_NAME,
         ICA_CCTP_TRANSFER_NAME,
         ICA_IBC_TRANSFER_NAME,
         BASE_ACCOUNT_NAME,
@@ -153,6 +164,7 @@ pub fn upload_neutron_contracts(test_ctx: &mut TestContext) -> Result<(), Box<dy
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn setup_neutron_libraries(
     test_ctx: &mut TestContext,
     neutron_program_accounts: &NeutronProgramAccounts,
@@ -161,6 +173,7 @@ pub fn setup_neutron_libraries(
     amount: u128,
     usdc_on_neutron: &str,
     eth_withdraw_acc: String,
+    lp_token_denom: &str,
 ) -> Result<NeutronProgramLibraries, Box<dyn Error>> {
     let astro_cl_pool_asset_data = AssetData {
         asset1: NEUTRON_CHAIN_DENOM.to_string(),
@@ -178,11 +191,20 @@ pub fn setup_neutron_libraries(
         processor.to_string(),
     )?;
 
+    // library to forward the required amount of shares, from the position account
+    // to the liquidation account, needed to fulfill the withdraw obligations
+    let forwarder_lib = setup_liquidation_fwd_lib(
+        test_ctx,
+        neutron_program_accounts.position_account.clone(),
+        neutron_program_accounts.liquidation_account.clone(),
+        lp_token_denom,
+    )?;
+
     // library to withdraw the position held by the position account
     // and route the underlying funds into the withdraw account
     let astro_lwer_lib = setup_astroport_lwer_lib(
         test_ctx,
-        neutron_program_accounts.position_account.clone(),
+        neutron_program_accounts.liquidation_account.clone(),
         neutron_program_accounts.withdraw_account.clone(),
         astro_cl_pool_asset_data.clone(),
         pool.to_string(),
@@ -228,13 +250,13 @@ pub fn setup_neutron_libraries(
         usdc_on_neutron,
     )?;
 
-    info!("approving strategist on withdraw account...");
+    info!("approving strategist on liquidation account...");
     approve_library(
         test_ctx,
         NEUTRON_CHAIN_NAME,
         DEFAULT_KEY,
         &neutron_program_accounts
-            .withdraw_account
+            .liquidation_account
             .to_string()
             .unwrap(),
         NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
@@ -247,6 +269,7 @@ pub fn setup_neutron_libraries(
         noble_inbound_transfer: ica_ibc_transfer_lib,
         noble_cctp_transfer: cctp_forwarder_lib_addr,
         neutron_ibc_transfer: neutron_ibc_transfer_lib,
+        liquidation_forwarder: forwarder_lib,
     };
 
     Ok(libraries)
@@ -580,4 +603,68 @@ pub fn setup_neutron_ibc_transfer_lib(
     );
 
     Ok(ibc_transfer.address)
+}
+
+pub fn setup_liquidation_fwd_lib(
+    test_ctx: &mut TestContext,
+    input_account: LibraryAccountType,
+    output_addr: LibraryAccountType,
+    shares_denom: &str,
+) -> Result<String, Box<dyn Error>> {
+    let fwd_code_id = *test_ctx
+        .get_chain(NEUTRON_CHAIN_NAME)
+        .contract_codes
+        .get(FORWARDER_NAME)
+        .unwrap();
+
+    let fwd_instantiate_msg = valence_library_utils::msg::InstantiateMsg::<
+        valence_forwarder_library::msg::LibraryConfig,
+    > {
+        owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        config: valence_forwarder_library::msg::LibraryConfig {
+            input_addr: input_account.clone(),
+            output_addr: output_addr.clone(),
+            forwarding_configs: vec![UncheckedForwardingConfig {
+                denom: UncheckedDenom::Native(shares_denom.to_string()),
+                max_amount: Uint128::MAX,
+            }],
+            forwarding_constraints: ForwardingConstraints::new(None),
+        },
+    };
+
+    info!(
+        "Neutron Forwarder instantiate message: {:?}",
+        fwd_instantiate_msg
+    );
+
+    let liquidation_forwarder = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        fwd_code_id,
+        &serde_json::to_string(&fwd_instantiate_msg).unwrap(),
+        "liquidation_forwarder",
+        None,
+        "",
+    )
+    .unwrap();
+
+    info!(
+        "Liquidation Forwarder library: {}",
+        liquidation_forwarder.address.clone()
+    );
+
+    // Approve the library for the base account
+    approve_library(
+        test_ctx,
+        NEUTRON_CHAIN_NAME,
+        DEFAULT_KEY,
+        &input_account.to_string()?,
+        liquidation_forwarder.address.clone(),
+        None,
+    );
+
+    Ok(liquidation_forwarder.address)
 }
