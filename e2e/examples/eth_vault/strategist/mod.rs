@@ -1,3 +1,4 @@
 mod astroport;
-mod bridge;
 pub mod client;
+mod routing;
+mod vault;

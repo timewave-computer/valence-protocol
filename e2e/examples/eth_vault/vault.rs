@@ -270,8 +270,30 @@ fn main() -> Result<(), Box<dyn Error>> {
         true,
     )?;
 
-    // giving the strategist some time to process the deposits
-    for _ in 1..30 {
+    // giving the strategist some time to process the withdraw request
+    for _ in 1..10 {
+        info!("main sleep for 4sec, mining evm blocks...");
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        sleep(Duration::from_secs(4));
+    }
+
+    let pre_completion_user0_bal = eth_users.get_user_usdc(&rt, &eth_client, 0);
+
+    vault::complete_withdraw_request(
+        ethereum_program_libraries.valence_vault,
+        &rt,
+        &eth_client,
+        eth_users.users[0],
+    )?;
+
+    let post_completion_user0_bal = eth_users.get_user_usdc(&rt, &eth_client, 0);
+
+    assert!(
+        pre_completion_user0_bal < post_completion_user0_bal,
+        "user failed to complete withdrawal"
+    );
+
+    for _ in 1..5 {
         info!("main sleep for 4sec, mining evm blocks...");
         evm::mine_blocks(&rt, &eth_client, 5, 3);
         sleep(Duration::from_secs(4));

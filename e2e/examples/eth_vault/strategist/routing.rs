@@ -13,11 +13,12 @@ use valence_e2e::utils::{
     solidity_contracts::{CCTPTransfer, MockERC20},
     UUSDC_DENOM,
 };
+use valence_forwarder_library::msg::UncheckedForwardingConfig;
 
 use super::client::Strategist;
 
 #[async_trait]
-pub trait EthereumVaultBridging {
+pub trait EthereumVaultRouting {
     async fn route_noble_to_eth(&self);
 
     async fn route_eth_to_noble(&self);
@@ -25,10 +26,115 @@ pub trait EthereumVaultBridging {
     async fn route_neutron_to_noble(&self);
 
     async fn route_noble_to_neutron(&self);
+
+    async fn forward_shares_for_liquidation(&self, amount: Uint128);
 }
 
 #[async_trait]
-impl EthereumVaultBridging for Strategist {
+impl EthereumVaultRouting for Strategist {
+    /// calculates the amount of shares that need to be liquidated to fulfill all
+    /// pending withdraw obligations and forwards those shares from the position
+    /// account to the withdrawal account.
+    async fn forward_shares_for_liquidation(&self, amount: Uint128) {
+        if amount.is_zero() {
+            info!("[STRATEGIST] zero-shares liquidation request; returning");
+            return;
+        }
+
+        let new_fwd_cfgs = vec![UncheckedForwardingConfig {
+            denom: valence_library_utils::denoms::UncheckedDenom::Native(
+                self.lp_token_denom.to_string(),
+            ),
+            max_amount: amount,
+        }];
+
+        info!(
+            "[STRATEGIST] updating liquidation forwarder cfg to: {:?}",
+            new_fwd_cfgs
+        );
+
+        let update_cfg_msg = &valence_library_utils::msg::ExecuteMsg::<
+            valence_forwarder_library::msg::FunctionMsgs,
+            valence_forwarder_library::msg::LibraryConfigUpdate,
+        >::UpdateConfig {
+            new_config: valence_forwarder_library::msg::LibraryConfigUpdate {
+                input_addr: None,
+                output_addr: None,
+                forwarding_configs: Some(new_fwd_cfgs),
+                forwarding_constraints: None,
+            },
+        };
+
+        let update_rx = self
+            .neutron_client
+            .execute_wasm(
+                &self.neutron_program_libraries.liquidation_forwarder,
+                update_cfg_msg,
+                vec![],
+            )
+            .await
+            .unwrap();
+
+        self.neutron_client
+            .poll_for_tx(&update_rx.hash)
+            .await
+            .unwrap();
+
+        info!("[STRATEGIST] update cfg complete; executing forwarding");
+
+        let pre_fwd_position = self
+            .neutron_client
+            .query_balance(
+                &self
+                    .neutron_program_accounts
+                    .position_account
+                    .to_string()
+                    .unwrap(),
+                &self.lp_token_denom,
+            )
+            .await
+            .unwrap();
+
+        info!(
+            "[STRATEGIST] pre forward position account shares balance: {:?}",
+            pre_fwd_position
+        );
+
+        let fwd_msg = &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
+            valence_forwarder_library::msg::FunctionMsgs::Forward {},
+        );
+        let rx = self
+            .neutron_client
+            .execute_wasm(
+                &self.neutron_program_libraries.liquidation_forwarder,
+                fwd_msg,
+                vec![],
+            )
+            .await
+            .unwrap();
+        self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+
+        let post_fwd_position = self
+            .neutron_client
+            .query_balance(
+                &self
+                    .neutron_program_accounts
+                    .position_account
+                    .to_string()
+                    .unwrap(),
+                &self.lp_token_denom,
+            )
+            .await
+            .unwrap();
+
+        info!(
+            "[STRATEGIST] post forward position account shares balance: {:?}",
+            post_fwd_position
+        );
+
+        info!("[STRATEGIST] fwd complete!");
+    }
+
     /// IBC-transfers funds from Neutron withdraw account to noble outbound ica
     async fn route_neutron_to_noble(&self) {
         let noble_outbound_ica_usdc_bal = self

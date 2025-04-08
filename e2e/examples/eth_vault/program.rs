@@ -23,9 +23,7 @@ use valence_e2e::utils::manager::{
     NEUTRON_IBC_TRANSFER_NAME,
 };
 use valence_e2e::utils::{LOCAL_CODE_ID_CACHE_PATH_NEUTRON, NOBLE_CHAIN_NAME, UUSDC_DENOM};
-use valence_forwarder_library::msg::{
-    ForwardingConfig, ForwardingConstraints, UncheckedForwardingConfig,
-};
+use valence_forwarder_library::msg::{ForwardingConstraints, UncheckedForwardingConfig};
 use valence_generic_ibc_transfer_library::msg::IbcTransferAmount;
 use valence_ica_ibc_transfer::msg::RemoteChainInfo;
 use valence_library_utils::denoms::UncheckedDenom;
