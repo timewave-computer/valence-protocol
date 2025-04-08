@@ -43,59 +43,6 @@ pub fn mine_blocks(
     });
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn log_eth_balances(
-    eth_client: &EthereumClient,
-    rt: &tokio::runtime::Runtime,
-    vault_addr: &Address,
-    vault_deposit_token: &Address,
-    eth_program_accounts: &EthereumProgramAccounts,
-    eth_users: &EthereumUsers,
-) -> Result<(), Box<dyn Error>> {
-    async_run!(rt, {
-        let eth_rp = eth_client.get_request_provider().await.unwrap();
-
-        let usdc_token = MockERC20::new(*vault_deposit_token, &eth_rp);
-        let valence_vault = ValenceVault::new(*vault_addr, &eth_rp);
-
-        let (
-            user1_usdc_bal,
-            user2_usdc_bal,
-            user1_vault_bal,
-            user2_vault_bal,
-            withdraw_acc_usdc_bal,
-            deposit_acc_usdc_bal,
-            vault_total_supply,
-        ) = tokio::join!(
-            eth_client.query(usdc_token.balanceOf(eth_users.users[0])),
-            eth_client.query(usdc_token.balanceOf(eth_users.users[1])),
-            eth_client.query(valence_vault.balanceOf(eth_users.users[0])),
-            eth_client.query(valence_vault.balanceOf(eth_users.users[1])),
-            eth_client.query(usdc_token.balanceOf(eth_program_accounts.withdraw)),
-            eth_client.query(usdc_token.balanceOf(eth_program_accounts.deposit)),
-            eth_client.query(valence_vault.totalSupply()),
-        );
-
-        let user1_usdc_bal = user1_usdc_bal.unwrap()._0;
-        let user2_usdc_bal = user2_usdc_bal.unwrap()._0;
-        let user1_vault_bal = user1_vault_bal.unwrap()._0;
-        let user2_vault_bal = user2_vault_bal.unwrap()._0;
-        let withdraw_acc_usdc_bal = withdraw_acc_usdc_bal.unwrap()._0;
-        let deposit_acc_usdc_bal = deposit_acc_usdc_bal.unwrap()._0;
-        let vault_total_supply = vault_total_supply.unwrap()._0;
-
-        info!("USER1 SHARES\t\t: {user1_vault_bal}");
-        info!("USER1 USDC\t\t: {user1_usdc_bal}");
-        info!("USER2 SHARES\t\t: {user2_vault_bal}");
-        info!("USER2 USDC\t\t: {user2_usdc_bal}");
-        info!("WITHDRAW ACC USDC\t: {withdraw_acc_usdc_bal}");
-        info!("DEPOSIT ACC USDC\t: {deposit_acc_usdc_bal}");
-        info!("VAULT TOTAL SUPPLY\t: {vault_total_supply}");
-    });
-
-    Ok(())
-}
-
 #[derive(Clone, Debug)]
 pub struct EthereumProgramLibraries {
     pub cctp_forwarder: Address,
@@ -107,6 +54,50 @@ pub struct EthereumProgramLibraries {
 pub struct EthereumProgramAccounts {
     pub deposit: Address,
     pub withdraw: Address,
+}
+
+impl EthereumProgramAccounts {
+    pub async fn log_balances(
+        &self,
+        eth_client: &EthereumClient,
+        vault_addr: &Address,
+        vault_deposit_token: &Address,
+    ) {
+        let eth_rp = eth_client.get_request_provider().await.unwrap();
+
+        let usdc_token = MockERC20::new(*vault_deposit_token, &eth_rp);
+        let valence_vault = ValenceVault::new(*vault_addr, &eth_rp);
+
+        let deposit_usdc_bal = eth_client
+            .query(usdc_token.balanceOf(self.deposit))
+            .await
+            .unwrap()
+            ._0;
+        let deposit_vault_bal = eth_client
+            .query(valence_vault.balanceOf(self.deposit))
+            .await
+            .unwrap()
+            ._0;
+        let deposit_usdc_entry = format!("{deposit_usdc_bal}USDC");
+        let deposit_vault_entry = format!("{deposit_vault_bal}VAULT");
+
+        let withdraw_usdc_bal = eth_client
+            .query(usdc_token.balanceOf(self.withdraw))
+            .await
+            .unwrap()
+            ._0;
+        let withdraw_vault_bal = eth_client
+            .query(valence_vault.balanceOf(self.withdraw))
+            .await
+            .unwrap()
+            ._0;
+        let withdraw_usdc_entry = format!("{withdraw_usdc_bal}USDC");
+        let withdraw_vault_entry = format!("{withdraw_vault_bal}VAULT");
+
+        info!("\n[STRATEGIST] ETHEREUM PROGRAM ACCOUNTS LOG");
+        info!("\tDEPOSIT: {deposit_usdc_entry} {deposit_vault_entry}");
+        info!("\tWITHDRAW: {withdraw_usdc_entry} {withdraw_vault_entry}")
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -166,6 +157,88 @@ impl EthereumUsers {
     ) -> U256 {
         mock_erc20::query_balance(rt, eth_client, self.erc20, self.users[user])
     }
+
+    pub async fn log_balances(
+        &self,
+        eth_client: &EthereumClient,
+        vault_addr: &Address,
+        vault_deposit_token: &Address,
+    ) {
+        let eth_rp = eth_client.get_request_provider().await.unwrap();
+
+        let usdc_token = MockERC20::new(*vault_deposit_token, &eth_rp);
+        let valence_vault = ValenceVault::new(*vault_addr, &eth_rp);
+
+        info!("\n[STRATEGIST] ETHEREUM ACCOUNTS LOG");
+        for (i, user) in self.users.iter().enumerate() {
+            let usdc_bal = eth_client
+                .query(usdc_token.balanceOf(*user))
+                .await
+                .unwrap()
+                ._0;
+            let vault_bal = eth_client
+                .query(valence_vault.balanceOf(*user))
+                .await
+                .unwrap()
+                ._0;
+            let usdc_entry = format!("{usdc_bal}USDC");
+            let vault_entry = format!("{vault_bal}VAULT");
+            info!("\tUSER_{i}: {usdc_entry} {vault_entry}");
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn log_eth_balances(
+    eth_client: &EthereumClient,
+    rt: &tokio::runtime::Runtime,
+    vault_addr: &Address,
+    vault_deposit_token: &Address,
+    eth_program_accounts: &EthereumProgramAccounts,
+    eth_users: &EthereumUsers,
+) -> Result<(), Box<dyn Error>> {
+    async_run!(rt, {
+        let eth_rp = eth_client.get_request_provider().await.unwrap();
+
+        let usdc_token = MockERC20::new(*vault_deposit_token, &eth_rp);
+        let valence_vault = ValenceVault::new(*vault_addr, &eth_rp);
+
+        let (
+            user1_usdc_bal,
+            user2_usdc_bal,
+            user1_vault_bal,
+            user2_vault_bal,
+            withdraw_acc_usdc_bal,
+            deposit_acc_usdc_bal,
+            vault_total_supply,
+        ) = tokio::join!(
+            eth_client.query(usdc_token.balanceOf(eth_users.users[0])),
+            eth_client.query(usdc_token.balanceOf(eth_users.users[1])),
+            eth_client.query(valence_vault.balanceOf(eth_users.users[0])),
+            eth_client.query(valence_vault.balanceOf(eth_users.users[1])),
+            eth_client.query(usdc_token.balanceOf(eth_program_accounts.withdraw)),
+            eth_client.query(usdc_token.balanceOf(eth_program_accounts.deposit)),
+            eth_client.query(valence_vault.totalSupply()),
+        );
+
+        let user1_usdc_bal = user1_usdc_bal.unwrap()._0;
+        let user2_usdc_bal = user2_usdc_bal.unwrap()._0;
+        let user1_vault_bal = user1_vault_bal.unwrap()._0;
+        let user2_vault_bal = user2_vault_bal.unwrap()._0;
+        let withdraw_acc_usdc_bal = withdraw_acc_usdc_bal.unwrap()._0;
+        let deposit_acc_usdc_bal = deposit_acc_usdc_bal.unwrap()._0;
+        let vault_total_supply = vault_total_supply.unwrap()._0;
+
+        info!("USER1 SHARES\t\t: {user1_vault_bal}");
+        info!("USER1 USDC\t\t: {user1_usdc_bal}");
+        info!("USER2 SHARES\t\t: {user2_vault_bal}");
+        info!("USER2 USDC\t\t: {user2_usdc_bal}");
+        info!("WITHDRAW ACC USDC\t: {withdraw_acc_usdc_bal}");
+        info!("DEPOSIT ACC USDC\t: {deposit_acc_usdc_bal}");
+        info!("VAULT TOTAL SUPPLY\t: {vault_total_supply}");
+    });
+
+    Ok(())
 }
 
 pub fn setup_eth_accounts(

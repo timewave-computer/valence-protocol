@@ -12,6 +12,9 @@ use localic_utils::{
 use log::info;
 use valence_astroport_lper::msg::LiquidityProviderConfig;
 
+use valence_chain_client_utils::cosmos::base_client::BaseClient;
+use valence_chain_client_utils::neutron::NeutronClient;
+use valence_chain_client_utils::noble::NobleClient;
 use valence_e2e::utils::base_account::{approve_library, create_base_accounts};
 use valence_e2e::utils::hyperlane::HyperlaneContracts;
 use valence_e2e::utils::manager::{
@@ -46,6 +49,128 @@ pub struct NeutronProgramAccounts {
     pub withdraw_account: LibraryAccountType,
     pub noble_inbound_ica: ValenceInterchainAccount,
     pub noble_outbound_ica: ValenceInterchainAccount,
+}
+
+impl NeutronProgramAccounts {
+    pub async fn log_balances(
+        &self,
+        neutron_client: &NeutronClient,
+        noble_client: &NobleClient,
+        denoms: Vec<String>,
+    ) {
+        let mut balances: BTreeMap<&str, Vec<String>> = BTreeMap::from_iter(vec![
+            ("deposit_account", vec![]),
+            ("position_account", vec![]),
+            ("liquidation_account", vec![]),
+            ("withdraw_account", vec![]),
+            ("noble_inbound_account", vec![]),
+            ("noble_outbound_account", vec![]),
+            ("noble_inbound_ica_remote", vec![]),
+            ("noble_outbound_ica_remote", vec![]),
+        ]);
+
+        for denom in denoms {
+            let mut denom_truncated = denom.to_string();
+            denom_truncated.truncate(10);
+
+            let deposit_account_denom_bal = neutron_client
+                .query_balance(&self.deposit_account.to_string().unwrap(), &denom)
+                .await
+                .unwrap();
+            if deposit_account_denom_bal > 0 {
+                if let Some(vec) = balances.get_mut("deposit_account") {
+                    let entry = format!("{deposit_account_denom_bal}{denom_truncated}");
+                    vec.push(entry);
+                }
+            }
+
+            let position_account_denom_bal = neutron_client
+                .query_balance(&self.position_account.to_string().unwrap(), &denom)
+                .await
+                .unwrap();
+            if position_account_denom_bal > 0 {
+                if let Some(vec) = balances.get_mut("position_account") {
+                    let entry = format!("{position_account_denom_bal}{denom_truncated}");
+                    vec.push(entry);
+                }
+            }
+
+            let liquidation_account_denom_bal = neutron_client
+                .query_balance(&self.liquidation_account.to_string().unwrap(), &denom)
+                .await
+                .unwrap();
+            if liquidation_account_denom_bal > 0 {
+                if let Some(vec) = balances.get_mut("liquidation_account") {
+                    let entry = format!("{liquidation_account_denom_bal}{denom_truncated}");
+                    vec.push(entry);
+                }
+            }
+
+            let withdraw_account_denom_bal = neutron_client
+                .query_balance(&self.withdraw_account.to_string().unwrap(), &denom)
+                .await
+                .unwrap();
+            if withdraw_account_denom_bal > 0 {
+                if let Some(vec) = balances.get_mut("withdraw_account") {
+                    let entry = format!("{withdraw_account_denom_bal}{denom_truncated}");
+                    vec.push(entry);
+                }
+            }
+
+            let noble_inbound_account_denom_bal = neutron_client
+                .query_balance(
+                    &self.noble_inbound_ica.library_account.to_string().unwrap(),
+                    &denom,
+                )
+                .await
+                .unwrap();
+            if noble_inbound_account_denom_bal > 0 {
+                if let Some(vec) = balances.get_mut("noble_inbound_account") {
+                    let entry = format!("{noble_inbound_account_denom_bal}{denom_truncated}");
+                    vec.push(entry);
+                }
+            }
+
+            let noble_outbound_account_denom_bal = neutron_client
+                .query_balance(
+                    &self.noble_outbound_ica.library_account.to_string().unwrap(),
+                    &denom,
+                )
+                .await
+                .unwrap();
+            if noble_outbound_account_denom_bal > 0 {
+                if let Some(vec) = balances.get_mut("noble_outbound_account") {
+                    let entry = format!("{noble_outbound_account_denom_bal}{denom_truncated}");
+                    vec.push(entry);
+                }
+            }
+        }
+
+        let noble_inbound_ica_usdc_bal = noble_client
+            .query_balance(&self.noble_inbound_ica.remote_addr, UUSDC_DENOM)
+            .await
+            .unwrap();
+        if let Some(vec) = balances.get_mut("noble_inbound_ica_remote") {
+            let entry = format!("{noble_inbound_ica_usdc_bal}USDC");
+            vec.push(entry);
+        }
+
+        let noble_outbound_ica_usdc_bal = noble_client
+            .query_balance(&self.noble_outbound_ica.remote_addr, UUSDC_DENOM)
+            .await
+            .unwrap();
+        if let Some(vec) = balances.get_mut("noble_outbound_ica_remote") {
+            let entry = format!("{noble_outbound_ica_usdc_bal}USDC");
+            vec.push(entry);
+        }
+
+        info!("\n\n[STRATEGIST] NEUTRON+NOBLE ACCOUNTS LOG");
+        for (k, v) in balances {
+            let balances = v.join(" ");
+            info!("\t{k}: {balances}");
+        }
+        info!("\n");
+    }
 }
 
 #[derive(Clone, Debug)]

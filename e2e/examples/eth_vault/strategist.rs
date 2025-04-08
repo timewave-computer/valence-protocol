@@ -127,7 +127,7 @@ impl Strategist {
     pub async fn start(self) {
         info!("[STRATEGIST] Starting...");
 
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(10));
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(15));
         let mut i = 0;
         loop {
             info!("[STRATEGIST] loop #{i}");
@@ -237,6 +237,24 @@ impl Strategist {
             self.exit_position().await;
 
             i += 1;
+            self.neutron_program_accounts
+                .log_balances(
+                    &self.neutron_client,
+                    &self.noble_client,
+                    vec![
+                        self.uusdc_on_neutron_denom.to_string(),
+                        NEUTRON_CHAIN_DENOM.to_string(),
+                        self.lp_token_denom.to_string(),
+                    ],
+                )
+                .await;
+            self.eth_program_accounts
+                .log_balances(
+                    &self.eth_client,
+                    &self.vault_addr,
+                    &self.ethereum_usdc_erc20,
+                )
+                .await;
         }
     }
 
@@ -708,6 +726,39 @@ impl Strategist {
             return;
         }
 
+        info!("[STRATEGIST] updating noble inbound ica transfer cfg");
+
+        let update_cfg_msg = &valence_library_utils::msg::ExecuteMsg::<
+            valence_ica_ibc_transfer::msg::FunctionMsgs,
+            valence_ica_ibc_transfer::msg::LibraryConfigUpdate,
+        >::UpdateConfig {
+            new_config: valence_ica_ibc_transfer::msg::LibraryConfigUpdate {
+                input_addr: None,
+                amount: Some(noble_inbound_ica_balance.into()),
+                denom: None,
+                receiver: None,
+                memo: None,
+                remote_chain_info: None,
+                denom_to_pfm_map: None,
+            },
+        };
+
+        let update_rx = self
+            .neutron_client
+            .execute_wasm(
+                &self.neutron_program_libraries.noble_inbound_transfer,
+                update_cfg_msg,
+                vec![],
+            )
+            .await
+            .unwrap();
+        self.neutron_client
+            .poll_for_tx(&update_rx.hash)
+            .await
+            .unwrap();
+
+        info!("[STRATEGIST] update cfg complete; executing inbound transfer");
+
         let neutron_deposit_acc_pre_transfer_bal = self
             .neutron_client
             .query_balance(
@@ -770,7 +821,7 @@ impl Strategist {
                     .to_string()
                     .unwrap(),
                 &self.uusdc_on_neutron_denom,
-                neutron_deposit_acc_pre_transfer_bal + 1,
+                neutron_deposit_acc_pre_transfer_bal + noble_inbound_ica_balance,
                 2,
                 10,
             )
@@ -886,20 +937,30 @@ impl Strategist {
             .eth_client
             .query(erc20.balanceOf(self.eth_program_accounts.deposit))
             .await
-            .unwrap();
-        if eth_deposit_acc_usdc_bal._0 < U256::from(100_000) {
+            .unwrap()
+            ._0;
+        let eth_deposit_acc_usdc_u128 =
+            Uint128::from_str(&eth_deposit_acc_usdc_bal.to_string()).unwrap();
+        info!(
+            "[STRATEGIST] Ethereum deposit account USDC balance: {:?}",
+            eth_deposit_acc_usdc_u128
+        );
+        if eth_deposit_acc_usdc_u128 < Uint128::new(100_000) {
             info!("[STRATEGIST] Ethereum deposit account balance < 100_000, returning...");
             return;
         }
 
         let cctp_transfer_contract = CCTPTransfer::new(self.cctp_transfer_lib, &eth_rp);
 
+        let remote_ica_addr = self
+            .neutron_program_accounts
+            .noble_inbound_ica
+            .remote_addr
+            .to_string();
+
         let pre_cctp_inbound_ica_usdc_bal = self
             .noble_client
-            .query_balance(
-                &self.neutron_program_accounts.noble_inbound_ica.remote_addr,
-                UUSDC_DENOM,
-            )
+            .query_balance(&remote_ica_addr, UUSDC_DENOM)
             .await
             .unwrap();
 
@@ -910,19 +971,13 @@ impl Strategist {
             .from(signer_addr);
         self.eth_client.execute_tx(signed_tx).await.unwrap();
 
-        let remote_ica_addr = self
-            .neutron_program_accounts
-            .noble_inbound_ica
-            .remote_addr
-            .to_string();
-
         info!("starting polling assertion on the destination...");
         self.noble_client
             .poll_until_expected_balance(
                 &remote_ica_addr,
                 UUSDC_DENOM,
-                pre_cctp_inbound_ica_usdc_bal + 1,
-                1,
+                pre_cctp_inbound_ica_usdc_bal + eth_deposit_acc_usdc_u128.u128(),
+                3,
                 10,
             )
             .await
@@ -1261,4 +1316,6 @@ impl Strategist {
             "neutron withdraw account should have 1_000_000untrn left to cover ibc transfer fees"
         );
     }
+
+    async fn state_log(&self) {}
 }

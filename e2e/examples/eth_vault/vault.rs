@@ -231,16 +231,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     evm::mine_blocks(&rt, &eth_client, 5, 3);
 
-    // give cctp rly time to deliver this before starting the strategist to avoid errors
-    sleep(Duration::from_secs(5));
-
     let strategist_rt = tokio::runtime::Runtime::new().unwrap();
     let _strategist_join_handle = strategist_rt.spawn(strategist.start());
 
+    // giving the strategist some time to process the deposits
     for _ in 1..5 {
-        info!("main sleep for 10sec, mining evm blocks...");
+        info!("main sleep for 4sec, mining evm blocks...");
         evm::mine_blocks(&rt, &eth_client, 5, 3);
-        sleep(Duration::from_secs(10));
+        sleep(Duration::from_secs(4));
     }
 
     info!("User2 depositing {user_2_deposit_amount}USDC tokens to vault...");
@@ -252,10 +250,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         U256::from(1_000_000),
     )?;
 
-    for _ in 1..3 {
-        info!("main sleep for 10sec, mining evm blocks...");
+    // giving the strategist some time to process the deposits
+    for _ in 1..5 {
+        info!("main sleep for 4sec, mining evm blocks...");
         evm::mine_blocks(&rt, &eth_client, 5, 3);
-        sleep(Duration::from_secs(10));
+        sleep(Duration::from_secs(4));
     }
 
     let user1_pre_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 0);
@@ -270,10 +269,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         true,
     )?;
 
-    for _ in 1..10 {
-        info!("main sleep for 20sec, mining evm blocks...");
+    // giving the strategist some time to process the deposits
+    for _ in 1..30 {
+        info!("main sleep for 4sec, mining evm blocks...");
         evm::mine_blocks(&rt, &eth_client, 5, 3);
-        sleep(Duration::from_secs(20));
+        sleep(Duration::from_secs(4));
     }
 
     // noble::mint_usdc_to_addr(
