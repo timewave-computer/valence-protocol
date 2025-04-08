@@ -2,6 +2,7 @@ use alloy_sol_types::sol;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Binary, StdError, StdResult};
 
+pub mod aave_position_manager;
 pub mod cctp_transfer;
 pub mod forwarder;
 pub mod stargate_transfer;
