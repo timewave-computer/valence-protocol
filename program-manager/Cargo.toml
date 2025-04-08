@@ -45,7 +45,6 @@ valence-neutron-ibc-transfer-library = { workspace = true }
 valence-drop-liquid-staker           = { workspace = true }
 valence-drop-liquid-unstaker         = { workspace = true }
 valence-mars-lending                 = { workspace = true }
-valence-mars-withdrawer              = { workspace = true }
 
 tokio              = { workspace = true }
 aho-corasick       = "1.1"

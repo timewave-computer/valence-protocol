@@ -96,7 +96,6 @@ valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmo
 valence-middleware-broker = { path = "contracts/middleware/broker", features = ["library"] }
 valence-middleware-asserter = { path = "contracts/middleware/asserter", features = ["library"] }
 valence-mars-lending                 = { path = "contracts/libraries/mars-lending", features = ["library"] }
-valence-mars-withdrawer              = { path = "contracts/libraries/mars-withdrawer", features = ["library"] }
 
 # our packages
 valence-account-utils          = { path = "packages/account-utils" }

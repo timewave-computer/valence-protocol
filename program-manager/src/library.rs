@@ -98,7 +98,6 @@ pub enum LibraryConfig {
     ValenceDropLiquidStaker(valence_drop_liquid_staker::msg::LibraryConfig),
     ValenceDropLiquidUnstaker(valence_drop_liquid_unstaker::msg::LibraryConfig),
     ValenceMarsLending(valence_mars_lending::msg::LibraryConfig),
-    ValenceMarsWithdrawer(valence_mars_withdrawer::msg::LibraryConfig),
 }
 
 impl LibraryConfig {

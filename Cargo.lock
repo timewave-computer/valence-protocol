@@ -8877,23 +8877,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "valence-mars-withdrawer"
-version = "0.2.0"
-dependencies = [
- "cosmwasm-schema 2.2.1",
- "cosmwasm-std 2.2.1",
- "cw-ownable",
- "cw-storage-plus 2.0.0",
- "schemars",
- "serde",
- "thiserror 1.0.69",
- "valence-lending-utils",
- "valence-library-base",
- "valence-library-utils",
- "valence-macros",
-]
-
-[[package]]
 name = "valence-middleware-asserter"
 version = "0.2.0"
 dependencies = [
@@ -9178,7 +9161,6 @@ dependencies = [
  "valence-library-utils",
  "valence-macros",
  "valence-mars-lending",
- "valence-mars-withdrawer",
  "valence-neutron-ibc-transfer-library",
  "valence-osmosis-cl-lper",
  "valence-osmosis-cl-withdrawer",

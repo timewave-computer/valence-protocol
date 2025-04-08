@@ -870,6 +870,18 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "ValenceMarsLending"
+            ],
+            "properties": {
+              "ValenceMarsLending": {
+                "$ref": "#/definitions/LibraryConfig14"
+              }
+            },
+            "additionalProperties": false
           }
         ]
       },
@@ -965,6 +977,35 @@
           },
           "withdrawal_manager_addr": {
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LibraryConfig14": {
+        "type": "object",
+        "required": [
+          "credit_manager_addr",
+          "denom",
+          "input_addr",
+          "output_addr"
+        ],
+        "properties": {
+          "credit_manager_addr": {
+            "type": "string"
+          },
+          "denom": {
+            "type": "string"
+          },
+          "input_addr": {
+            "$ref": "#/definitions/LibraryAccountType"
+          },
+          "output_addr": {
+            "description": "Address of the output account",
+            "allOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              }
+            ]
           }
         },
         "additionalProperties": false
@@ -1343,6 +1384,18 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "ValenceMarsLending"
+            ],
+            "properties": {
+              "ValenceMarsLending": {
+                "$ref": "#/definitions/LibraryConfigUpdate14"
+              }
+            },
+            "additionalProperties": false
           }
         ]
       },
@@ -1501,6 +1554,44 @@
             "type": [
               "string",
               "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "LibraryConfigUpdate14": {
+        "type": "object",
+        "properties": {
+          "credit_manager_addr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "denom": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "input_addr": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "output_addr": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              },
+              {
+                "type": "null"
+              }
             ]
           }
         },

@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Deps, DepsMut};
+use cosmwasm_std::{Addr, Deps, DepsMut, Uint128};
 use cw_ownable::cw_ownable_query;
 use valence_library_utils::LibraryAccountType;
 use valence_library_utils::{error::LibraryError, msg::LibraryConfigValidation};
@@ -9,6 +9,8 @@ use valence_macros::{valence_library_query, ValenceLibraryInterface};
 pub enum FunctionMsgs {
     /// Message to lend tokens.
     Lend {},
+    /// Message to withdraw tokens. If amount is not specified, full amount will be withdrawn.
+    Withdraw { amount: Option<Uint128> },
 }
 
 #[valence_library_query]

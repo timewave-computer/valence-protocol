@@ -1,6 +1,6 @@
 # Mars Lending library
 
-The **Valence Mars Lender** library enables lending on Mars by funding a mars credit account from an **input account**. The credit account, owned by the **output account**, then uses the funds to lend assets.
+The **Valence Mars Lending** library enables lending on Mars by funding a mars credit account from an **input account**. The credit account, owned by the **input account**, then uses the funds to lend assets. Also, the library allows **withdrawing lent assets** from a credit account on Mars and depositing the withdrawed tokens into an **output account**.
 
 ## Configuration
 
