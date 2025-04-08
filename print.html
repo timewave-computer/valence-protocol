@@ -1504,7 +1504,7 @@ Library config may look like this:</p>
 <span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-neutron-ibc-transfer-library"><a class="header" href="#valence-neutron-ibc-transfer-library">Valence Neutron IBC Transfer library</a></h1>
 <p>The <strong>Valence Neutron IBC Transfer</strong> library allows to transfer funds over IBC from an <strong>input account</strong> on <strong>Neutron</strong> to an <strong>output account</strong> on a destination chain. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
-<p>Note: this library should not be used on another CosmWasm chain than <strong>Neutron</strong>, which requires some fees to be paid to relayers for IBC transfers. For other CosmWasm chains, prefer using the <strong><a href="libraries/cosmwasm/./generic_ibc_transfer.html">Generic IBC Transfer library</a></strong> instead.</p>
+<p>Note: this library should not be used on another chain other than <strong>Neutron</strong>, which requires some NTRN fees to be paid to relayers for IBC transfers that the <strong>input account</strong> should hold. For other CosmWasm chains, use the <strong><a href="libraries/cosmwasm/./generic_ibc_transfer.html">Generic IBC Transfer library</a></strong> instead.</p>
 <h2 id="high-level-flow-4"><a class="header" href="#high-level-flow-4">High-level flow</a></h2>
 <pre class="mermaid">---
 title: Neutron IBC Transfer Library
@@ -1528,7 +1528,7 @@ graph LR
 </pre>
 <h2 id="functions-4"><a class="header" href="#functions-4">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>IbcTransfer</strong></td><td>-</td><td>Transfer funds over IBC from an <strong>input account</strong> on <strong>Neutron</strong> to an <strong>output account</strong> on a destination chain.</td></tr>
+<tr><td><strong>IbcTransfer</strong></td><td>-</td><td>Transfer funds over IBC from an <strong>input account</strong> on <strong>Neutron</strong> to an <strong>output account</strong> on a destination chain. The <strong>input account</strong> must hold enough NTRN balance to pay for the relayer fees</td></tr>
 </tbody></table>
 </div>
 <h2 id="configuration-4"><a class="header" href="#configuration-4">Configuration</a></h2>
@@ -1575,7 +1575,7 @@ struct PacketForwardMiddlewareConfig {
   local_to_hop_chain_channel_id: String,
   // Channel ID from the intermediate to the destination chain
   hop_to_destination_chain_channel_id: String,
-  // Temporary receiver address on the intermediate chain. Typically this is set to an invalid address so the entire transaction will revert if the forwarding fails. If not 
+  // Temporary receiver address on the intermediate chain. Typically this is set to an invalid address so the entire transaction will revert if the forwarding fails. If not
   // provided it's set to "pfm"
   hop_chain_receiver_address: Option&lt;String&gt;,
 }
