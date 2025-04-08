@@ -23,7 +23,7 @@ pub struct LibraryConfig {
     /// The output address for the library.
     pub output_addr: LibraryAccountType,
     /// The AAVE pool address.
-    pub aave_pool: String,
+    pub pool: String,
     /// The supply asset token address.
     pub supply_asset: String,
     /// The borrow asset token address.
@@ -92,14 +92,14 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
             // Parse addresses
             let input_account = parse_address(&new_config.input_addr.to_string()?)?;
             let output_account = parse_address(&new_config.output_addr.to_string()?)?;
-            let aave_pool_address = parse_address(&new_config.aave_pool)?;
+            let pool_address = parse_address(&new_config.pool)?;
             let supply_asset = parse_address(&new_config.supply_asset)?;
             let borrow_asset = parse_address(&new_config.borrow_asset)?;
 
             // Build config struct
             let config =
              valence_encoder_utils::libraries::aave_position_manager::solidity_types::AavePositionManagerConfig {
-                aavePoolAddress: aave_pool_address,
+                poolAddress: pool_address,
                 inputAccount: input_account,
                 outputAccount: output_account,
                 supplyAsset: supply_asset,

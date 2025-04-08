@@ -49,7 +49,7 @@ contract AavePositionManagerTest is Test {
 
         // Create and encode config directly
         AavePositionManager.AavePositionManagerConfig memory config = AavePositionManager.AavePositionManagerConfig({
-            aavePoolAddress: IPool(address(mockPool)),
+            poolAddress: IPool(address(mockPool)),
             inputAccount: inputAccount,
             outputAccount: outputAccount,
             supplyAsset: address(supplyToken),
@@ -69,7 +69,7 @@ contract AavePositionManagerTest is Test {
         // Test invalid input account
         AavePositionManager.AavePositionManagerConfig memory invalidConfig = AavePositionManager
             .AavePositionManagerConfig({
-            aavePoolAddress: IPool(address(mockPool)),
+            poolAddress: IPool(address(mockPool)),
             inputAccount: BaseAccount(payable(address(0))),
             outputAccount: outputAccount,
             supplyAsset: address(supplyToken),
@@ -83,7 +83,7 @@ contract AavePositionManagerTest is Test {
 
         // Test invalid Aave pool address
         invalidConfig = AavePositionManager.AavePositionManagerConfig({
-            aavePoolAddress: IPool(address(0)),
+            poolAddress: IPool(address(0)),
             inputAccount: inputAccount,
             outputAccount: outputAccount,
             supplyAsset: address(supplyToken),
@@ -97,7 +97,7 @@ contract AavePositionManagerTest is Test {
 
         // Test invalid output account
         invalidConfig = AavePositionManager.AavePositionManagerConfig({
-            aavePoolAddress: IPool(address(mockPool)),
+            poolAddress: IPool(address(mockPool)),
             inputAccount: inputAccount,
             outputAccount: BaseAccount(payable(address(0))),
             supplyAsset: address(supplyToken),
@@ -111,7 +111,7 @@ contract AavePositionManagerTest is Test {
 
         // Test invalid supply asset
         invalidConfig = AavePositionManager.AavePositionManagerConfig({
-            aavePoolAddress: IPool(address(mockPool)),
+            poolAddress: IPool(address(mockPool)),
             inputAccount: inputAccount,
             outputAccount: outputAccount,
             supplyAsset: address(0),
@@ -125,7 +125,7 @@ contract AavePositionManagerTest is Test {
 
         // Test invalid borrow asset
         invalidConfig = AavePositionManager.AavePositionManagerConfig({
-            aavePoolAddress: IPool(address(mockPool)),
+            poolAddress: IPool(address(mockPool)),
             inputAccount: inputAccount,
             outputAccount: outputAccount,
             supplyAsset: address(supplyToken),
@@ -145,7 +145,7 @@ contract AavePositionManagerTest is Test {
         MockERC20 newBorrowToken = new MockERC20("New Borrow Token", "NBT");
 
         AavePositionManager.AavePositionManagerConfig memory newConfig = AavePositionManager.AavePositionManagerConfig({
-            aavePoolAddress: IPool(address(mockPool)),
+            poolAddress: IPool(address(mockPool)),
             inputAccount: inputAccount,
             outputAccount: outputAccount,
             supplyAsset: address(newSupplyToken),
@@ -169,7 +169,7 @@ contract AavePositionManagerTest is Test {
         address unauthorized = makeAddr("unauthorized");
 
         AavePositionManager.AavePositionManagerConfig memory config = AavePositionManager.AavePositionManagerConfig({
-            aavePoolAddress: IPool(address(mockPool)),
+            poolAddress: IPool(address(mockPool)),
             inputAccount: inputAccount,
             outputAccount: outputAccount,
             supplyAsset: address(supplyToken),

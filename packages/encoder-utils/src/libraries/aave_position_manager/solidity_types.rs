@@ -2,7 +2,7 @@ use alloy_sol_types::sol;
 
 sol! {
     struct AavePositionManagerConfig {
-        address aavePoolAddress;
+        address poolAddress;
         address inputAccount;
         address outputAccount;
         address supplyAsset;

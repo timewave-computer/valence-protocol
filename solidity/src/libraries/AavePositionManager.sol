@@ -16,7 +16,7 @@ contract AavePositionManager is Library {
      * @title AavePositionManagerConfig
      * @notice Configuration struct for Aave lending operations
      * @dev Used to define parameters for interacting with Aave V3 protocol
-     * @param aavePoolAddress The address of the Aave V3 Pool contract
+     * @param poolAddress The address of the Aave V3 Pool contract
      * @param inputAccount The account from which transactions will be initiated
      * @param outputAccount The account that will receive withdrawals. Can be the same as inputAccount.
      * @param supplyAsset Address of the token to supply to Aave
@@ -24,7 +24,7 @@ contract AavePositionManager is Library {
      * @param referralCode Referral code for Aave protocol (if applicable - 0 if the action is executed directly by the user, without any middle-men)
      */
     struct AavePositionManagerConfig {
-        IPool aavePoolAddress;
+        IPool poolAddress;
         BaseAccount inputAccount;
         BaseAccount outputAccount;
         address supplyAsset;
@@ -54,7 +54,7 @@ contract AavePositionManager is Library {
         AavePositionManagerConfig memory decodedConfig = abi.decode(_config, (AavePositionManagerConfig));
 
         // Ensure the Aave pool address is valid (non-zero).
-        if (address(decodedConfig.aavePoolAddress) == address(0)) {
+        if (address(decodedConfig.poolAddress) == address(0)) {
             revert("Aave pool address can't be zero address");
         }
 
@@ -111,7 +111,7 @@ contract AavePositionManager is Library {
 
         // Encode the approval call for the Aave pool.
         bytes memory encodedApproveCall =
-            abi.encodeCall(IERC20.approve, (address(storedConfig.aavePoolAddress), amountToSupply));
+            abi.encodeCall(IERC20.approve, (address(storedConfig.poolAddress), amountToSupply));
 
         // Execute the approval from the input account
         storedConfig.inputAccount.execute(storedConfig.supplyAsset, 0, encodedApproveCall);
@@ -123,7 +123,7 @@ contract AavePositionManager is Library {
         );
 
         // Execute the supply from the input account
-        storedConfig.inputAccount.execute(address(storedConfig.aavePoolAddress), 0, encodedSupplyCall);
+        storedConfig.inputAccount.execute(address(storedConfig.poolAddress), 0, encodedSupplyCall);
     }
 
     /**
@@ -145,7 +145,7 @@ contract AavePositionManager is Library {
         );
 
         // Execute the borrow from the input account
-        storedConfig.inputAccount.execute(address(storedConfig.aavePoolAddress), 0, encodedBorrowCall);
+        storedConfig.inputAccount.execute(address(storedConfig.poolAddress), 0, encodedBorrowCall);
     }
 
     /**
@@ -169,7 +169,7 @@ contract AavePositionManager is Library {
             abi.encodeCall(IPool.withdraw, (storedConfig.supplyAsset, amount, address(storedConfig.outputAccount)));
 
         // Execute the withdraw from the input account
-        storedConfig.inputAccount.execute(address(storedConfig.aavePoolAddress), 0, encodedWithdrawCall);
+        storedConfig.inputAccount.execute(address(storedConfig.poolAddress), 0, encodedWithdrawCall);
     }
 
     /**
@@ -201,7 +201,7 @@ contract AavePositionManager is Library {
 
         // Encode the approval call for the Aave pool.
         bytes memory encodedApproveCall =
-            abi.encodeCall(IERC20.approve, (address(storedConfig.aavePoolAddress), amountToRepay));
+            abi.encodeCall(IERC20.approve, (address(storedConfig.poolAddress), amountToRepay));
 
         // Execute the approval from the input account
         storedConfig.inputAccount.execute(storedConfig.borrowAsset, 0, encodedApproveCall);
@@ -212,7 +212,7 @@ contract AavePositionManager is Library {
         );
 
         // Execute the repay from the input account
-        storedConfig.inputAccount.execute(address(storedConfig.aavePoolAddress), 0, encodedRepayCall);
+        storedConfig.inputAccount.execute(address(storedConfig.poolAddress), 0, encodedRepayCall);
     }
 
     /**
@@ -236,7 +236,7 @@ contract AavePositionManager is Library {
         bytes memory encodedRepayCall = abi.encodeCall(IPool.repayWithATokens, (storedConfig.borrowAsset, amount, 2));
 
         // Execute the repay from the input account
-        storedConfig.inputAccount.execute(address(storedConfig.aavePoolAddress), 0, encodedRepayCall);
+        storedConfig.inputAccount.execute(address(storedConfig.poolAddress), 0, encodedRepayCall);
     }
 
     /**

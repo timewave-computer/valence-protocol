@@ -112,7 +112,7 @@ The library is configured on deployment using the `AavePositionManagerConfig` ty
      * @title AavePositionManagerConfig
      * @notice Configuration struct for Aave lending operations
      * @dev Used to define parameters for interacting with Aave V3 protocol
-     * @param aavePoolAddress The address of the Aave V3 Pool contract
+     * @param poolAddress The address of the Aave V3 Pool contract
      * @param inputAccount The account from which transactions will be initiated
      * @param outputAccount The account that will receive withdrawals. Can be the same as inputAccount.
      * @param supplyAsset Address of the token to supply to Aave
@@ -120,7 +120,7 @@ The library is configured on deployment using the `AavePositionManagerConfig` ty
      * @param referralCode Referral code for Aave protocol (if applicable - 0 if the action is executed directly by the user, without any middle-men)
      */
     struct AavePositionManagerConfig {
-        IPool aavePoolAddress;
+        IPool poolAddress;
         Account inputAccount;
         Account outputAccount;
         address supplyAsset;

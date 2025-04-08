@@ -54,7 +54,7 @@ contract AavePositionManagerScript is Script {
         // Set up the Aave manager with the same account for input and output for simplicity
         vm.startPrank(owner);
         AavePositionManager.AavePositionManagerConfig memory config = AavePositionManager.AavePositionManagerConfig({
-            aavePoolAddress: IPool(AAVE_POOL_ADDR),
+            poolAddress: IPool(AAVE_POOL_ADDR),
             inputAccount: account,
             outputAccount: account,
             supplyAsset: USDC_ADDR,
