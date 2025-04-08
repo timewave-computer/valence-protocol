@@ -14,7 +14,7 @@ use crate::domain::Domain;
 pub enum AccountType {
     /// This means the account is already instantiated
     Addr { addr: String },
-    /// This our base account implementation
+    /// This is our base account implementation
     #[strum(to_string = "valence_base_account")]
     Base { admin: Option<String> },
 }
@@ -42,9 +42,13 @@ impl AccountType {
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(crate = "cosmwasm_schema::schemars")]
 pub struct AccountInfo {
+    // The name of the account
     pub name: String,
+    // The type of the account
     pub ty: AccountType,
+    // The domain this account is on
     pub domain: Domain,
+    // The instantiated address of the account
     pub addr: Option<String>,
 }
 
