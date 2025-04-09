@@ -20,7 +20,7 @@ use valence_e2e::{
     async_run,
     utils::{
         parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
-        solidity_contracts::{MockERC20, ValenceVault},
+        solidity_contracts::ValenceVault,
         ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID,
     },
 };
@@ -251,43 +251,6 @@ impl Strategist {
                     &self.ethereum_usdc_erc20,
                 )
                 .await;
-        }
-    }
-
-    pub(crate) async fn blocking_erc20_expected_balance_query(
-        &self,
-        addr: Address,
-        min_amount: U256,
-        interval_sec: u64,
-        max_attempts: u32,
-    ) {
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(interval_sec));
-        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
-
-        info!("EVM polling {addr} balance to exceed {min_amount}");
-
-        let erc20 = MockERC20::new(self.ethereum_usdc_erc20, &eth_rp);
-
-        for attempt in 1..max_attempts + 1 {
-            interval.tick().await;
-
-            match self.eth_client.query(erc20.balanceOf(addr)).await {
-                Ok(balance) => {
-                    let bal = balance._0;
-                    if bal >= min_amount {
-                        info!("balance exceeded!");
-                        return;
-                    } else {
-                        info!(
-                            "Balance polling attempt {attempt}/{max_attempts}: current={bal}, target={min_amount}"
-                        );
-                    }
-                }
-                Err(e) => warn!(
-                    "Balance polling attempt {attempt}/{max_attempts} failed: {:?}",
-                    e
-                ),
-            }
         }
     }
 

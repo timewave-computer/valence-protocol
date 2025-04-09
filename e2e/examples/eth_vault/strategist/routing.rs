@@ -330,13 +330,16 @@ impl EthereumVaultRouting for Strategist {
             .unwrap();
         self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
 
-        self.blocking_erc20_expected_balance_query(
-            self.eth_program_accounts.withdraw,
-            pre_cctp_ethereum_withdraw_acc_usdc_bal + U256::from(1),
-            1,
-            10,
-        )
-        .await;
+        let erc20 = MockERC20::new(self.ethereum_usdc_erc20, &eth_rp);
+        self.eth_client
+            .blocking_query(
+                erc20.balanceOf(self.eth_program_accounts.withdraw),
+                |resp| resp._0 >= pre_cctp_ethereum_withdraw_acc_usdc_bal + U256::from(1),
+                1,
+                10,
+            )
+            .await
+            .unwrap();
     }
 
     /// IBC-transfers funds from noble inbound ica into neutron deposit account
