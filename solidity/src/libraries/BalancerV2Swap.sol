@@ -27,7 +27,7 @@ contract BalancerV2Swap is Library {
         address vaultAddress;
     }
 
-    /// @notice Base configuration for the Balancer swap
+    /// @notice Base configuration for the BalancerV2Swap
     BalancerV2SwapConfig public config;
 
     /**
