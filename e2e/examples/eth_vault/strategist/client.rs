@@ -1,4 +1,4 @@
-use std::{error::Error, str::FromStr, time::Duration};
+use std::{error::Error, str::FromStr};
 
 use alloy::{
     primitives::{Address, U256},
@@ -6,7 +6,7 @@ use alloy::{
 };
 use cosmwasm_std::Uint128;
 use localic_utils::{NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID};
-use log::{info, warn};
+use log::info;
 use tokio::runtime::Runtime;
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
@@ -29,6 +29,7 @@ use crate::{
     evm::{EthereumProgramAccounts, EthereumProgramLibraries},
     program::{NeutronProgramAccounts, NeutronProgramLibraries},
     strategist::{astroport::AstroportOps, routing::EthereumVaultRouting, vault::EthereumVault},
+    utils::{get_current_second, wait_until_next_minute},
 };
 
 pub(crate) struct Strategist {
@@ -130,13 +131,17 @@ impl Strategist {
         let mut i = 0;
 
         loop {
-            let loop_start_time = tokio::time::Instant::now();
+            // strategist runs every minute, usually taking around 12sec to complete
+            wait_until_next_minute().await;
+            info!(
+                "strategist starting operation loop #{i} at second {}",
+                get_current_second()
+            );
 
             // STEP 1: pulling funds due for withdrawal from position to origin domain
             //   0. swap neutron withdraw acc neutron tokens into usdc (leaving enough neutron for ibc transfer)
             //   1. ibc transfer neutron withdraw acc -> noble outbound ica
             //   2. cctp transfer noble outbound ica -> eth withdraw acc
-
             let neutron_withdraw_acc_usdc_bal = self
                 .neutron_client
                 .query_balance(
@@ -162,15 +167,9 @@ impl Strategist {
             let netting_amount = self.calculate_netting_amount().await.unwrap();
             let r = U256::from(redemption_rate.atomics().u128());
             // Update the Vault with R, F_total, N
-            match self
-                .vault_update(r, total_fee, U256::from(netting_amount))
+            self.vault_update(r, total_fee, U256::from(netting_amount))
                 .await
-            {
-                Ok(resp) => {
-                    info!("vault update response: {:?}", resp);
-                }
-                Err(err) => warn!("vault update error: {:?}", err),
-            };
+                .unwrap();
 
             // STEP 3. pulling funds due for deposit from origin to position domain
             //   1. cctp transfer eth deposit acc -> noble inbound ica
@@ -255,21 +254,14 @@ impl Strategist {
                 )
                 .await;
 
-            let loop_duration = loop_start_time.elapsed();
             info!(
-                "\n\n\t\t loop #{i} took {}seconds\n\n",
-                loop_duration.as_secs()
+                "Strategist completed operation loop #{i} at second {}",
+                get_current_second()
             );
-
-            if let Some(delta) = Duration::from_secs(15).checked_sub(loop_duration) {
-                tokio::time::sleep(delta).await;
-            }
-
-            tokio::time::sleep(Duration::from_secs(15)).await;
 
             i += 1;
         }
     }
 
-    async fn state_log(&self) {}
+    async fn _state_log(&self) {}
 }

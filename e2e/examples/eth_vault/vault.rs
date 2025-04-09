@@ -17,8 +17,10 @@ use neutron::setup_astroport_cl_pool;
 use program::{setup_neutron_accounts, setup_neutron_libraries, upload_neutron_contracts};
 
 use strategist::client::Strategist;
+use utils::wait_until_half_minute;
 use valence_chain_client_utils::{
-    cosmos::base_client::BaseClient, evm::request_provider_client::RequestProviderClient,
+    cosmos::base_client::BaseClient,
+    evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
 
 use valence_e2e::{
@@ -187,6 +189,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let user_1_deposit_amount = U256::from(5_000_000);
     let user_2_deposit_amount = U256::from(1_000_000);
+    let user_3_deposit_amount = U256::from(3_000_000);
 
     let mut eth_users =
         EthereumUsers::new(usdc_token_address, ethereum_program_libraries.valence_vault);
@@ -194,6 +197,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     eth_users.fund_user(&rt, &eth_client, 0, user_1_deposit_amount);
     eth_users.add_user(&rt, &eth_client, eth_accounts[3]);
     eth_users.fund_user(&rt, &eth_client, 1, user_2_deposit_amount);
+    eth_users.add_user(&rt, &eth_client, eth_accounts[4]);
+    eth_users.fund_user(&rt, &eth_client, 2, user_3_deposit_amount);
 
     info!("Starting CCTP mock relayer between Noble and Ethereum...");
     let mock_cctp_relayer = mock_cctp_relayer::MockCctpRelayer::new(
@@ -220,112 +225,196 @@ fn main() -> Result<(), Box<dyn Error>> {
     )
     .unwrap();
 
-    info!("User depositing {user_1_deposit_amount}USDC tokens to vault...");
+    info!("User3 depositing {user_3_deposit_amount}USDC tokens to vault...");
     vault::deposit_to_vault(
         &rt,
         &eth_client,
         *valence_vault.address(),
-        eth_users.users[0],
-        user_1_deposit_amount,
+        eth_users.users[2],
+        user_3_deposit_amount,
     )?;
-
-    evm::mine_blocks(&rt, &eth_client, 5, 3);
 
     let strategist_rt = tokio::runtime::Runtime::new().unwrap();
     let _strategist_join_handle = strategist_rt.spawn(strategist.start());
 
-    // loop {
-    //     if strategist.is_buffering() {
-    //         info!("strategist in buffering phase, performing user actions");
-    //     } else {
-    //         info!("waiting for strategist buffering phase...");
-    //         sleep(Duration::from_secs(1));
-    //     }
-    // }
-
-    // giving the strategist some time to process the deposits
-    sleep(Duration::from_secs(25));
-
-    info!("User2 depositing {user_2_deposit_amount}USDC tokens to vault...");
-    vault::deposit_to_vault(
-        &rt,
-        &eth_client,
-        *valence_vault.address(),
-        eth_users.users[1],
-        U256::from(1_000_000),
-    )?;
-
-    // giving the strategist some time to process the deposits
-    evm::mine_blocks(&rt, &eth_client, 5, 3);
-    sleep(Duration::from_secs(25));
-
-    let user1_pre_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 0);
-    info!("USER1 initiating the redeem of {user1_pre_redeem_shares_bal} shares from vault...");
-    vault::redeem(
-        ethereum_program_libraries.valence_vault,
-        &rt,
-        &eth_client,
-        eth_users.users[0],
-        user1_pre_redeem_shares_bal,
-        10_000,
-        true,
-    )?;
-
-    evm::mine_blocks(&rt, &eth_client, 5, 3);
-    sleep(Duration::from_secs(25));
-
-    async_run!(
-        &rt,
-        eth_users
-            .log_balances(
-                &eth_client,
-                &ethereum_program_libraries.valence_vault,
-                &usdc_token_address,
-            )
-            .await
-    );
-
-    info!("User0 completing withdraw request...");
-    vault::complete_withdraw_request(
-        ethereum_program_libraries.valence_vault,
-        &rt,
-        &eth_client,
-        eth_users.users[0],
-    )?;
-
-    for _ in 1..10 {
+    // epoch 0
+    {
+        info!("\n======================== EPOCH 0 ========================\n");
+        async_run!(&rt, wait_until_half_minute().await);
         evm::mine_blocks(&rt, &eth_client, 5, 3);
-        sleep(Duration::from_secs(4));
+
+        info!("User depositing {user_1_deposit_amount}USDC tokens to vault...");
+        vault::deposit_to_vault(
+            &rt,
+            &eth_client,
+            *valence_vault.address(),
+            eth_users.users[0],
+            user_1_deposit_amount,
+        )?;
+
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
+    }
+
+    // epoch 1
+    {
+        info!("\n======================== EPOCH 1 ========================\n");
+        async_run!(&rt, wait_until_half_minute().await);
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
+
+        info!("User2 depositing {user_2_deposit_amount}USDC tokens to vault...");
+        vault::deposit_to_vault(
+            &rt,
+            &eth_client,
+            *valence_vault.address(),
+            eth_users.users[1],
+            U256::from(1_000_000),
+        )?;
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
+    }
+
+    // epoch 2
+    {
+        info!("\n======================== EPOCH 2 ========================\n");
+        async_run!(&rt, wait_until_half_minute().await);
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
+
+        let user1_pre_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 0);
+        info!("USER1 initiating the redeem of {user1_pre_redeem_shares_bal} shares from vault...");
+        let total_to_withdraw_before = async_run!(&rt, {
+            eth_client
+                .query(valence_vault.totalAssetsToWithdrawNextUpdate())
+                .await
+                .unwrap()
+        })
+        ._0;
+        info!("Total assets to withdraw before redeem: {total_to_withdraw_before}");
+
+        vault::redeem(
+            ethereum_program_libraries.valence_vault,
+            &rt,
+            &eth_client,
+            eth_users.users[0],
+            user1_pre_redeem_shares_bal / U256::from(2),
+            10_000,
+            false,
+        )?;
+
+        let total_to_withdraw = async_run!(&rt, {
+            eth_client
+                .query(valence_vault.totalAssetsToWithdrawNextUpdate())
+                .await
+                .unwrap()
+        })
+        ._0;
+        info!("Total assets to withdraw after redeem: {total_to_withdraw}",);
+        assert_ne!(
+            total_to_withdraw,
+            U256::from(0),
+            "totalAssetsToWithdraw should be non-zero"
+        );
+
+        let request = async_run!(&rt, {
+            eth_client
+                .query(valence_vault.userWithdrawRequest(eth_users.users[0]))
+                .await
+                .unwrap()
+        });
+        info!("Update withdraw request: {:?}", request);
+
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
+    }
+
+    {
+        info!("\n======================== empty epoch ========================\n");
+        async_run!(&rt, wait_until_half_minute().await);
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
+    }
+
+    {
+        info!("\n======================== EPOCH 4 ========================\n");
+        async_run!(&rt, wait_until_half_minute().await);
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
+
+        // Get the withdrawal request details before completion
+        let withdraw_request = async_run!(&rt, {
+            eth_client
+                .query(valence_vault.userWithdrawRequest(eth_users.users[0]))
+                .await
+                .unwrap()
+        });
+        info!("Withdraw request details: {:?}", withdraw_request);
+        // Get the update info for this request
+        let update_info = async_run!(&rt, {
+            eth_client
+                .query(valence_vault.updateInfos(withdraw_request.updateId as u64))
+                .await
+                .unwrap()
+        });
+        info!("Update info for request: {:?}", update_info);
+
+        // Check withdraw account balance
+        let withdraw_acc_balance = async_run!(&rt, {
+            let erc20 =
+                valence_e2e::utils::solidity_contracts::MockERC20::new(usdc_token_address, &eth_rp);
+            eth_client
+                .query(erc20.balanceOf(ethereum_program_accounts.withdraw))
+                .await
+                .unwrap()
+        });
+        info!("Withdraw account balance: {:?}", withdraw_acc_balance._0);
+
+        async_run!(
+            &rt,
+            eth_users
+                .log_balances(
+                    &eth_client,
+                    &ethereum_program_libraries.valence_vault,
+                    &usdc_token_address,
+                )
+                .await
+        );
+
+        let user0_withdraw_request = vault::addr_has_active_withdraw(
+            ethereum_program_libraries.valence_vault,
+            &rt,
+            &eth_client,
+            eth_users.users[0],
+        )
+        ._0;
+        info!("user0 has withdraw request: {user0_withdraw_request}");
+
         info!("User0 completing withdraw request...");
         vault::complete_withdraw_request(
             ethereum_program_libraries.valence_vault,
             &rt,
             &eth_client,
             eth_users.users[0],
+        )?;
+
+        async_run!(
+            &rt,
+            eth_users
+                .log_balances(
+                    &eth_client,
+                    &ethereum_program_libraries.valence_vault,
+                    &usdc_token_address,
+                )
+                .await
         );
+
+        let post_completion_user0_bal = eth_users.get_user_usdc(&rt, &eth_client, 0);
+        let post_completion_user0_shares = eth_users.get_user_shares(&rt, &eth_client, 0);
+        let user0_withdraw_request = vault::addr_has_active_withdraw(
+            ethereum_program_libraries.valence_vault,
+            &rt,
+            &eth_client,
+            eth_users.users[0],
+        )
+        ._0;
+        info!("user0 has withdraw request: {user0_withdraw_request}");
+        info!("post completion user0 usdc bal: {post_completion_user0_bal}",);
+        info!("post completion user0 shares bal: {post_completion_user0_shares}",);
     }
-
-    async_run!(
-        &rt,
-        eth_users
-            .log_balances(
-                &eth_client,
-                &ethereum_program_libraries.valence_vault,
-                &usdc_token_address,
-            )
-            .await
-    );
-
-    let post_completion_user0_bal = eth_users.get_user_usdc(&rt, &eth_client, 0);
-    info!("post completion user0 usdc bal: {post_completion_user0_bal}",);
-
-    for _ in 1..5 {
-        evm::mine_blocks(&rt, &eth_client, 5, 3);
-        sleep(Duration::from_secs(4));
-    }
-
-    let post_completion_user0_bal = eth_users.get_user_usdc(&rt, &eth_client, 0);
-    info!("post completion user0 usdc bal: {post_completion_user0_bal}",);
 
     Ok(())
 }

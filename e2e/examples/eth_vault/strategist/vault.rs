@@ -1,10 +1,10 @@
 use std::{error::Error, str::FromStr};
 
-use alloy::primitives::U256;
+use alloy::{primitives::U256, providers::Provider};
 use async_trait::async_trait;
 use cosmwasm_std::{Decimal, Uint128};
 use localic_utils::NEUTRON_CHAIN_DENOM;
-use log::info;
+use log::{info, warn};
 use valence_astroport_utils::astroport_native_lp_token::{ConfigResponse, PoolQueryMsg};
 use valence_chain_client_utils::{
     cosmos::{base_client::BaseClient, wasm_client::WasmClient},
@@ -49,12 +49,9 @@ impl EthereumVault for Strategist {
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
         let valence_vault = ValenceVault::new(self.eth_program_libraries.valence_vault, &eth_rp);
 
-        let fees = self
-            .eth_client
-            .query(valence_vault.config())
-            .await
-            .unwrap()
-            .fees;
+        let vault_cfg = self.eth_client.query(valence_vault.config()).await.unwrap();
+
+        let fees = vault_cfg.fees;
 
         info!("vault fees: {:?}", fees);
 
@@ -67,6 +64,7 @@ impl EthereumVault for Strategist {
 
         let pool_fee = match cl_pool_cfg.try_get_cl_params() {
             Some(cl_params) => {
+                info!("CL Params out fee: {:?}", cl_params);
                 (cl_params.out_fee * Decimal::from_ratio(10000u128, 1u128))
                     .atomics()
                     .u128() as u32 // intentionally truncating
@@ -74,7 +72,23 @@ impl EthereumVault for Strategist {
             None => 0u32,
         };
 
-        Ok(fees.platformFeeBps + pool_fee)
+        info!("Was about to use pool fee of: {pool_fee}");
+
+        // test with smaller fee
+        let withdraw_fee = 100u32;
+
+        if withdraw_fee > vault_cfg.maxWithdrawFeeBps {
+            log::warn!(
+                "Calculated withdraw fee {withdraw_fee} exceeds max allowed {}, using max",
+                vault_cfg.maxWithdrawFeeBps
+            );
+            return Ok(vault_cfg.maxWithdrawFeeBps);
+        }
+
+        Ok(withdraw_fee)
+
+        // Ok(fees.platformFeeBps + pool_fee)
+        // Ok(vault_cfg.maxWithdrawFeeBps)
     }
 
     /// concludes the vault epoch and updates the Valence Vault state
@@ -106,6 +120,19 @@ impl EthereumVault for Strategist {
             info!("Update failed: {:?}", e);
             panic!("failed to update vault");
         }
+
+        match eth_rp
+            .get_transaction_receipt(update_result.unwrap().transaction_hash)
+            .await
+        {
+            Ok(val) => match val {
+                Some(receipt) => {
+                    info!("Update tx receipt: {:?}", receipt);
+                }
+                None => warn!("Failed to get update_vault tx receipt"),
+            },
+            Err(e) => warn!("Error updating vault: {:?}", e),
+        };
 
         Ok(())
     }
@@ -181,6 +208,7 @@ impl EthereumVault for Strategist {
             .await
             .unwrap()
             ._0;
+
         let noble_inbound_ica_usdc = self
             .noble_client
             .query_balance(&noble_inbound_ica, UUSDC_DENOM)
@@ -202,14 +230,19 @@ impl EthereumVault for Strategist {
             + swap_simulation_output.u128();
         let normalized_shares = Uint128::from_str(&vault_issued_shares.to_string()).unwrap();
 
-        info!("total assets: {}USDC", total_assets);
-        info!("total shares: {}", normalized_shares.u128());
+        info!("total assets: {total_assets}USDC");
+        info!("total shares: {}SHARES", normalized_shares.u128());
         match Decimal::checked_from_ratio(normalized_shares, total_assets) {
             Ok(ratio) => {
-                info!("redemption rate: {}", ratio);
+                info!("redemption rate: {ratio}");
                 Ok(ratio)
             }
-            Err(_) => Ok(Decimal::zero()),
+            Err(_) => {
+                // this handling can be improved, just returning default for now
+                // to handle startup
+                info!("zero shares; defaulting to ratio of 1.0");
+                Ok(Decimal::one())
+            }
         }
     }
 }
