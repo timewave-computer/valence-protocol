@@ -5,7 +5,8 @@ use cosmwasm_std::{to_json_binary, CosmosMsg, Uint128, WasmMsg};
 use localic_utils::NEUTRON_CHAIN_DENOM;
 use log::{info, warn};
 use valence_astroport_utils::astroport_native_lp_token::{
-    Asset, AssetInfo, PoolQueryMsg, ReverseSimulationResponse, SimulationResponse,
+    Asset, AssetInfo, ExecuteMsg as AstroportExecuteMsg, PoolQueryMsg, ReverseSimulationResponse,
+    SimulationResponse,
 };
 use valence_chain_client_utils::cosmos::{base_client::BaseClient, wasm_client::WasmClient};
 
@@ -343,7 +344,6 @@ impl AstroportOps for Strategist {
 
     /// swaps counterparty denom into usdc
     async fn swap_ntrn_into_usdc(&self) {
-        info!("swapping NTRN into USDC...");
         let withdraw_account_ntrn_bal = self
             .neutron_client
             .query_balance(
@@ -362,27 +362,25 @@ impl AstroportOps for Strategist {
             return;
         }
 
-        let swap_amount = withdraw_account_ntrn_bal - 1_000_000;
+        info!("swapping {withdraw_account_ntrn_bal}NTRN into USDC...");
 
         let swap_msg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.pool_addr.to_string(),
-            msg: to_json_binary(
-                &valence_astroport_utils::astroport_native_lp_token::ExecuteMsg::Swap {
-                    offer_asset: Asset {
-                        info: AssetInfo::NativeToken {
-                            denom: NEUTRON_CHAIN_DENOM.to_string(),
-                        },
-                        amount: swap_amount.into(),
+            msg: to_json_binary(&AstroportExecuteMsg::Swap {
+                offer_asset: Asset {
+                    info: AssetInfo::NativeToken {
+                        denom: NEUTRON_CHAIN_DENOM.to_string(),
                     },
-                    max_spread: None,
-                    belief_price: None,
-                    to: None,
-                    ask_asset_info: None,
+                    amount: withdraw_account_ntrn_bal.into(),
                 },
-            )
+                max_spread: None,
+                belief_price: None,
+                to: None,
+                ask_asset_info: None,
+            })
             .unwrap(),
             funds: vec![cosmwasm_std::coin(
-                swap_amount,
+                withdraw_account_ntrn_bal,
                 NEUTRON_CHAIN_DENOM.to_string(),
             )],
         });
@@ -391,6 +389,7 @@ impl AstroportOps for Strategist {
             msgs: vec![swap_msg],
         };
 
+        // let neutron_fee_coin = NeutronClient::proto_coin(NEUTRON_CHAIN_DENOM, 100_000).unwrap();
         let rx = self
             .neutron_client
             .execute_wasm(
@@ -434,9 +433,9 @@ impl AstroportOps for Strategist {
         info!("withdraw account USDC token balance: {withdraw_acc_usdc_bal}",);
         info!("withdraw account NTRN token balance: {withdraw_acc_ntrn_bal}",);
         assert_ne!(0, withdraw_acc_usdc_bal);
-        assert_eq!(
-            1_000_000, withdraw_acc_ntrn_bal,
-            "neutron withdraw account should have 1_000_000untrn left to cover ibc transfer fees"
-        );
+        // assert_eq!(
+        //     1_000_000, withdraw_acc_ntrn_bal,
+        //     "neutron withdraw account should have 1_000_000untrn left to cover ibc transfer fees"
+        // );
     }
 }

@@ -92,10 +92,7 @@ impl EthereumVaultRouting for Strategist {
             .await
             .unwrap();
 
-        info!(
-            "pre forward position account shares balance: {:?}",
-            pre_fwd_position
-        );
+        info!("pre forward position account shares balance: {pre_fwd_position}",);
 
         let fwd_msg = &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
             valence_forwarder_library::msg::FunctionMsgs::Forward {},
@@ -124,12 +121,7 @@ impl EthereumVaultRouting for Strategist {
             .await
             .unwrap();
 
-        info!(
-            "post forward position account shares balance: {:?}",
-            post_fwd_position
-        );
-
-        info!("fwd complete!");
+        info!("post forward position account shares balance: {post_fwd_position}",);
     }
 
     /// IBC-transfers funds from Neutron withdraw account to noble outbound ica
@@ -235,7 +227,8 @@ impl EthereumVaultRouting for Strategist {
             return;
         }
 
-        let cctp_transfer_contract = CCTPTransfer::new(self.cctp_transfer_lib, &eth_rp);
+        let cctp_transfer_contract =
+            CCTPTransfer::new(self.eth_program_libraries.cctp_forwarder, &eth_rp);
 
         let remote_ica_addr = self
             .neutron_program_accounts
@@ -294,6 +287,37 @@ impl EthereumVaultRouting for Strategist {
             warn!("Noble outbound ICA account must have USDC in order to CCTP forward to Ethereum; returning");
             return;
         }
+
+        info!("updating noble inbound ica cctp routing cfg");
+
+        let update_cfg_msg = &valence_library_utils::msg::ExecuteMsg::<
+            valence_ica_cctp_transfer::msg::FunctionMsgs,
+            valence_ica_cctp_transfer::msg::LibraryConfigUpdate,
+        >::UpdateConfig {
+            new_config: valence_ica_cctp_transfer::msg::LibraryConfigUpdate {
+                input_addr: None,
+                amount: Some(pre_cctp_noble_outbound_ica_usdc_bal.into()),
+                denom: None,
+                destination_domain_id: None,
+                mint_recipient: None,
+            },
+        };
+
+        let update_rx = self
+            .neutron_client
+            .execute_wasm(
+                &self.neutron_program_libraries.noble_cctp_transfer,
+                update_cfg_msg,
+                vec![],
+            )
+            .await
+            .unwrap();
+        self.neutron_client
+            .poll_for_tx(&update_rx.hash)
+            .await
+            .unwrap();
+
+        info!("NOBLE->ETH cctp transfer update cfg complete; executing outbound transfer");
 
         let transfer_tx = self
             .neutron_client

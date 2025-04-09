@@ -240,8 +240,11 @@ pub fn complete_withdraw_request(
 
         match alloy::providers::Provider::send_transaction(&client, signed_tx).await {
             Ok(resp) => {
-                resp.get_receipt().await.unwrap();
-                info!("withdrawal complete!");
+                let receipt = resp.get_receipt().await.unwrap();
+                info!(
+                    "withdrawal complete! receipt hash: {:?}",
+                    receipt.transaction_hash
+                );
             }
             Err(e) => warn!("complete withdrawal request error: {:?}", e),
         };

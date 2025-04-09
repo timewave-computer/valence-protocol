@@ -47,7 +47,7 @@ impl EthereumVault for Strategist {
         //   2. query the dex position for their fee
         //   3. F_total = F_vault + F_position
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
-        let valence_vault = ValenceVault::new(self.vault_addr, &eth_rp);
+        let valence_vault = ValenceVault::new(self.eth_program_libraries.valence_vault, &eth_rp);
 
         let fees = self
             .eth_client
@@ -94,7 +94,7 @@ impl EthereumVault for Strategist {
 
         let clamped_withdraw_fee = withdraw_fee_bps.clamp(1, 10_000);
 
-        let valence_vault = ValenceVault::new(self.vault_addr, &eth_rp);
+        let valence_vault = ValenceVault::new(self.eth_program_libraries.valence_vault, &eth_rp);
 
         let update_msg = valence_vault
             .update(rate, clamped_withdraw_fee, netting_amount)
@@ -112,7 +112,7 @@ impl EthereumVault for Strategist {
 
     async fn calculate_redemption_rate(&self) -> Result<Decimal, Box<dyn Error>> {
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
-        let valence_vault = ValenceVault::new(self.vault_addr, &eth_rp);
+        let valence_vault = ValenceVault::new(self.eth_program_libraries.valence_vault, &eth_rp);
         let eth_usdc_erc20 = MockERC20::new(self.ethereum_usdc_erc20, &eth_rp);
 
         let neutron_position_acc = self

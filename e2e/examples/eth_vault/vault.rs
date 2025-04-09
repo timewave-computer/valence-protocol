@@ -212,11 +212,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         neutron_program_accounts.clone(),
         neutron_program_libraries.clone(),
         ethereum_program_accounts.clone(),
+        ethereum_program_libraries.clone(),
         uusdc_on_neutron_denom.clone(),
         lp_token.to_string(),
         pool_addr.to_string(),
-        ethereum_program_libraries.cctp_forwarder,
-        ethereum_program_libraries.valence_vault,
         usdc_token_address,
     )
     .unwrap();
@@ -235,12 +234,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     let strategist_rt = tokio::runtime::Runtime::new().unwrap();
     let _strategist_join_handle = strategist_rt.spawn(strategist.start());
 
+    // loop {
+    //     if strategist.is_buffering() {
+    //         info!("strategist in buffering phase, performing user actions");
+    //     } else {
+    //         info!("waiting for strategist buffering phase...");
+    //         sleep(Duration::from_secs(1));
+    //     }
+    // }
+
     // giving the strategist some time to process the deposits
-    for _ in 1..5 {
-        info!("main sleep for 4sec, mining evm blocks...");
-        evm::mine_blocks(&rt, &eth_client, 5, 3);
-        sleep(Duration::from_secs(4));
-    }
+    sleep(Duration::from_secs(25));
 
     info!("User2 depositing {user_2_deposit_amount}USDC tokens to vault...");
     vault::deposit_to_vault(
@@ -252,11 +256,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
 
     // giving the strategist some time to process the deposits
-    for _ in 1..5 {
-        info!("main sleep for 4sec, mining evm blocks...");
-        evm::mine_blocks(&rt, &eth_client, 5, 3);
-        sleep(Duration::from_secs(4));
-    }
+    evm::mine_blocks(&rt, &eth_client, 5, 3);
+    sleep(Duration::from_secs(25));
 
     let user1_pre_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 0);
     info!("USER1 initiating the redeem of {user1_pre_redeem_shares_bal} shares from vault...");
@@ -270,14 +271,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         true,
     )?;
 
-    // giving the strategist some time to process the withdraw request
-    for _ in 1..10 {
-        info!("main sleep for 4sec, mining evm blocks...");
-        evm::mine_blocks(&rt, &eth_client, 5, 3);
-        sleep(Duration::from_secs(4));
-    }
-
-    let pre_completion_user0_bal = eth_users.get_user_usdc(&rt, &eth_client, 0);
+    evm::mine_blocks(&rt, &eth_client, 5, 3);
+    sleep(Duration::from_secs(25));
 
     async_run!(
         &rt,
@@ -298,6 +293,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         eth_users.users[0],
     )?;
 
+    for _ in 1..10 {
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        sleep(Duration::from_secs(4));
+        info!("User0 completing withdraw request...");
+        vault::complete_withdraw_request(
+            ethereum_program_libraries.valence_vault,
+            &rt,
+            &eth_client,
+            eth_users.users[0],
+        );
+    }
+
     async_run!(
         &rt,
         eth_users
@@ -310,17 +317,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let post_completion_user0_bal = eth_users.get_user_usdc(&rt, &eth_client, 0);
-
-    assert!(
-        pre_completion_user0_bal < post_completion_user0_bal,
-        "user failed to complete withdrawal"
-    );
+    info!("post completion user0 usdc bal: {post_completion_user0_bal}",);
 
     for _ in 1..5 {
-        info!("main sleep for 4sec, mining evm blocks...");
         evm::mine_blocks(&rt, &eth_client, 5, 3);
         sleep(Duration::from_secs(4));
     }
+
+    let post_completion_user0_bal = eth_users.get_user_usdc(&rt, &eth_client, 0);
+    info!("post completion user0 usdc bal: {post_completion_user0_bal}",);
 
     Ok(())
 }

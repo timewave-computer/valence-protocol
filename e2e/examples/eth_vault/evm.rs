@@ -258,7 +258,7 @@ pub fn setup_eth_libraries(
         eth_strategist_addr,
         eth_accounts,
         eth_admin_addr,
-        eth_program_accounts,
+        eth_program_accounts.clone(),
         usdc_token_addr,
     )?;
 

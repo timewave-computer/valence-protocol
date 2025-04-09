@@ -1,4 +1,4 @@
-use std::{error::Error, str::FromStr};
+use std::{error::Error, str::FromStr, time::Duration};
 
 use alloy::{
     primitives::{Address, U256},
@@ -26,23 +26,29 @@ use valence_e2e::{
 };
 
 use crate::{
-    evm::EthereumProgramAccounts,
+    evm::{EthereumProgramAccounts, EthereumProgramLibraries},
     program::{NeutronProgramAccounts, NeutronProgramLibraries},
     strategist::{astroport::AstroportOps, routing::EthereumVaultRouting, vault::EthereumVault},
 };
 
 pub(crate) struct Strategist {
+    // (g)RPC clients
     pub eth_client: EthereumClient,
     pub noble_client: NobleClient,
     pub neutron_client: NeutronClient,
+
+    // Ethereum and Neutron account & library addresses
     pub neutron_program_accounts: NeutronProgramAccounts,
     pub neutron_program_libraries: NeutronProgramLibraries,
     pub eth_program_accounts: EthereumProgramAccounts,
-    pub uusdc_on_neutron_denom: String,
+    pub eth_program_libraries: EthereumProgramLibraries,
+
+    // underlying pool and its lp token addrress
     pub lp_token_denom: String,
     pub pool_addr: String,
-    pub cctp_transfer_lib: Address,
-    pub vault_addr: Address,
+
+    // deposit token information on Ethereum & Cosmos
+    pub uusdc_on_neutron_denom: String,
     pub ethereum_usdc_erc20: Address,
 }
 
@@ -53,17 +59,21 @@ impl Strategist {
         neutron_program_accounts: NeutronProgramAccounts,
         neutron_program_libraries: NeutronProgramLibraries,
         ethereum_program_accounts: EthereumProgramAccounts,
+        ethereum_program_libraries: EthereumProgramLibraries,
         uusdc_on_neutron_denom: String,
         lp_token_denom: String,
         pool_addr: String,
-        cctp_transfer_lib: Address,
-        vault_addr: Address,
         ethereum_usdc_erc20: Address,
     ) -> Result<Self, Box<dyn Error>> {
-        let noble_grpc_addr = get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "grpc_address")?;
-        let (noble_grpc_url, noble_grpc_port) =
-            get_grpc_address_and_port_from_url(&noble_grpc_addr)?;
+        // get neutron & noble grpc (url, port) values from local-ic logs
+        let (noble_grpc_url, noble_grpc_port) = get_grpc_address_and_port_from_url(
+            &get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "grpc_address")?,
+        )?;
+        let (neutron_grpc_url, neutron_grpc_port) = get_grpc_address_and_port_from_url(
+            &get_chain_field_from_local_ic_log(NEUTRON_CHAIN_ID, "grpc_address")?,
+        )?;
 
+        // build the noble client
         let noble_client = async_run!(rt, {
             NobleClient::new(
                 &noble_grpc_url,
@@ -76,11 +86,7 @@ impl Strategist {
             .expect("failed to create noble client")
         });
 
-        let neutron_grpc_addr =
-            get_chain_field_from_local_ic_log(NEUTRON_CHAIN_ID, "grpc_address")?;
-        let (neutron_grpc_url, neutron_grpc_port) =
-            get_grpc_address_and_port_from_url(&neutron_grpc_addr)?;
-
+        // build the neutron client
         let neutron_client = async_run!(rt, {
             NeutronClient::new(
                 &neutron_grpc_url,
@@ -92,14 +98,13 @@ impl Strategist {
             .expect("failed to create neutron client")
         });
 
-        let signer = MnemonicBuilder::<English>::default()
-            .phrase("test test test test test test test test test test test junk")
-            .index(7)? // derive the mnemonic at a different index to avoid nonce issues
-            .build()?;
-
+        // build the eth client
         let eth_client = EthereumClient {
             rpc_url: DEFAULT_ANVIL_RPC_ENDPOINT.to_string(),
-            signer,
+            signer: MnemonicBuilder::<English>::default()
+                .phrase("test test test test test test test test test test test junk")
+                .index(7)? // derive the mnemonic at a different index to avoid nonce issues
+                .build()?,
         };
 
         Ok(Self {
@@ -108,12 +113,11 @@ impl Strategist {
             neutron_client,
             neutron_program_accounts,
             neutron_program_libraries,
+            eth_program_libraries: ethereum_program_libraries,
             eth_program_accounts: ethereum_program_accounts,
             uusdc_on_neutron_denom,
             lp_token_denom,
             pool_addr,
-            cctp_transfer_lib,
-            vault_addr,
             ethereum_usdc_erc20,
         })
     }
@@ -123,17 +127,15 @@ impl Strategist {
     pub async fn start(self) {
         info!("Starting...");
 
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(15));
         let mut i = 0;
+
         loop {
-            info!("loop #{i}");
-            interval.tick().await;
+            let loop_start_time = tokio::time::Instant::now();
 
             // STEP 1: pulling funds due for withdrawal from position to origin domain
             //   0. swap neutron withdraw acc neutron tokens into usdc (leaving enough neutron for ibc transfer)
             //   1. ibc transfer neutron withdraw acc -> noble outbound ica
             //   2. cctp transfer noble outbound ica -> eth withdraw acc
-            self.swap_ntrn_into_usdc().await;
 
             let neutron_withdraw_acc_usdc_bal = self
                 .neutron_client
@@ -182,7 +184,8 @@ impl Strategist {
             // STEP 5. TODO: exit the position with necessary amount of shares needed
             // to fulfill the withdraw obligations
             let eth_rp = self.eth_client.get_request_provider().await.unwrap();
-            let valence_vault = ValenceVault::new(self.vault_addr, &eth_rp);
+            let valence_vault =
+                ValenceVault::new(self.eth_program_libraries.valence_vault, &eth_rp);
 
             let assets_to_withdraw = self
                 .eth_client
@@ -231,8 +234,8 @@ impl Strategist {
             self.forward_shares_for_liquidation(shares_to_liquidate)
                 .await;
             self.exit_position().await;
+            self.swap_ntrn_into_usdc().await;
 
-            i += 1;
             self.neutron_program_accounts
                 .log_balances(
                     &self.neutron_client,
@@ -247,10 +250,24 @@ impl Strategist {
             self.eth_program_accounts
                 .log_balances(
                     &self.eth_client,
-                    &self.vault_addr,
+                    &self.eth_program_libraries.valence_vault,
                     &self.ethereum_usdc_erc20,
                 )
                 .await;
+
+            let loop_duration = loop_start_time.elapsed();
+            info!(
+                "\n\n\t\t loop #{i} took {}seconds\n\n",
+                loop_duration.as_secs()
+            );
+
+            if let Some(delta) = Duration::from_secs(15).checked_sub(loop_duration) {
+                tokio::time::sleep(delta).await;
+            }
+
+            tokio::time::sleep(Duration::from_secs(15)).await;
+
+            i += 1;
         }
     }
 

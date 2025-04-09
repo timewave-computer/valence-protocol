@@ -15,7 +15,7 @@ use cosmrs::{
     rpc::{Client, HttpClient},
     tendermint::block::Height,
     tx::Msg,
-    AccountId, Coin,
+    AccountId, Coin, Denom,
 };
 use cosmrs::{
     proto::cosmos::base::tendermint::v1beta1::{
@@ -40,6 +40,14 @@ use super::{
 /// these function definitions can be overridden to match the custom chain logic.
 #[async_trait]
 pub trait BaseClient: GrpcSigningClient {
+    fn proto_coin(denom: &str, amt: u128) -> Result<Coin, StrategistError> {
+        let proto_denom: Denom = denom.parse()?;
+        Ok(Coin {
+            denom: proto_denom,
+            amount: amt,
+        })
+    }
+
     async fn transfer(
         &self,
         to: &str,
