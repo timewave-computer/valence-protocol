@@ -1,0 +1,13 @@
+[package]
+name = "skip-swap"
+version = "0.1.0"
+authors = ["Timewave <engineering@timewave.computer>"]
+edition = "2021"
+description = "Parent package for Skip Protocol integration with Valence"
+license = "Apache-2.0"
+repository = "https://github.com/valence-protocol/valence-protocol"
+publish = false
+
+[lib]
+name = "skip_swap"
+path = "lib.rs" 
