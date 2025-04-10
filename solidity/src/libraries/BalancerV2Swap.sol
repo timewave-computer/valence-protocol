@@ -171,7 +171,7 @@ contract BalancerV2Swap is Library {
         uint256 amount,
         uint256 minAmountOut,
         uint256 timeout
-    ) public onlyProcessor {
+    ) external onlyProcessor {
         // Get the config
         BalancerV2SwapConfig memory swapConfig = config;
 
@@ -242,7 +242,7 @@ contract BalancerV2Swap is Library {
         uint256 amount,
         uint256 minAmountOut,
         uint256 timeout
-    ) public onlyProcessor {
+    ) external onlyProcessor {
         // Get the config
         BalancerV2SwapConfig memory swapConfig = config;
 
