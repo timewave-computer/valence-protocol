@@ -19,7 +19,7 @@ sol! {
 
     function multiSwap(
         bytes32[] calldata poolIds,
-        address[] calldata assets,
+        address[] calldata tokens,
         bytes[] calldata userDataArray,
         uint256 amount,
         uint256 minAmountOut,

@@ -106,13 +106,13 @@ contract BalancerV2Swap is Library {
     /**
      * @notice Validates the multi-hop swap parameters
      * @param poolIds Array of pool IDs to use for each swap step
-     * @param assets Array of all assets involved in the swap path (in sequence)
+     * @param tokens Array of all tokens involved in the swap path (in sequence)
      * @param userDataArray Additional data for specialized pools
      * @param timeout How long the transaction is valid for (in seconds)
      */
     function validateMultiSwapParams(
         bytes32[] calldata poolIds,
-        IAsset[] calldata assets,
+        IAsset[] calldata tokens,
         bytes[] calldata userDataArray,
         uint256 timeout
     ) internal pure {
@@ -120,13 +120,13 @@ contract BalancerV2Swap is Library {
             revert("Pool IDs array can't be empty for multi-hop swap");
         }
 
-        if (assets.length == 0) {
-            revert("Assets array can't be empty for multi-hop swap");
+        if (tokens.length == 0) {
+            revert("Tokens array can't be empty for multi-hop swap");
         }
 
-        // For multi-hop swaps, assets array must have at least one more element than poolIds
-        if (assets.length != poolIds.length + 1) {
-            revert("Assets array must contain at least poolIds.length + 1 elements");
+        // For multi-hop swaps, Tokens array must have at least one more element than poolIds
+        if (tokens.length != poolIds.length + 1) {
+            revert("Tokens array must contain at least poolIds.length + 1 elements");
         }
 
         // Validate userData array length if provided
@@ -141,10 +141,10 @@ contract BalancerV2Swap is Library {
             }
         }
 
-        // Validate each asset is not a zero address
-        for (uint256 i = 0; i < assets.length; i++) {
-            if (address(assets[i]) == address(0)) {
-                revert("Asset can't be zero address in assets array");
+        // Validate each token is not a zero address
+        for (uint256 i = 0; i < tokens.length; i++) {
+            if (address(tokens[i]) == address(0)) {
+                revert("Token can't be zero address in tokens array");
             }
         }
 
@@ -229,7 +229,7 @@ contract BalancerV2Swap is Library {
     /**
      * @notice Executes a multi-hop swap through Balancer V2
      * @param poolIds Array of pool IDs to use for each swap step
-     * @param assets Array of all assets involved in the swap path (in sequence)
+     * @param tokens Array of all tokens involved in the swap path (in sequence)
      * @param userDataArray Additional data for specialized pools (usually empty bytes for each step)
      * @param amount Amount of tokens to swap. If set to 0, all available tokens will be swapped
      * @param minAmountOut Minimum amount of output tokens to receive (slippage protection)
@@ -237,7 +237,7 @@ contract BalancerV2Swap is Library {
      */
     function multiSwap(
         bytes32[] calldata poolIds,
-        IAsset[] calldata assets,
+        IAsset[] calldata tokens,
         bytes[] calldata userDataArray,
         uint256 amount,
         uint256 minAmountOut,
@@ -247,10 +247,10 @@ contract BalancerV2Swap is Library {
         BalancerV2SwapConfig memory swapConfig = config;
 
         // Validate multi-hop swap parameters
-        validateMultiSwapParams(poolIds, assets, userDataArray, timeout);
+        validateMultiSwapParams(poolIds, tokens, userDataArray, timeout);
 
         // Get the initial token (first asset in the path)
-        IAsset initialToken = assets[0];
+        IAsset initialToken = tokens[0];
 
         // Get the current balance of tokenIn asset in the input account
         uint256 balance = IERC20(address(initialToken)).balanceOf(address(swapConfig.inputAccount));
@@ -296,13 +296,13 @@ contract BalancerV2Swap is Library {
 
         // Create limits array for multi-hop swap
         // For more info on limits for batch swaps, check https://docs-v2.balancer.fi/reference/swaps/batch-swaps.html#batchswap-function
-        int256[] memory limits = new int256[](assets.length);
+        int256[] memory limits = new int256[](tokens.length);
 
         // Set input token limit (maximum to spend) - Positive value indicates Balancer this is the maximum amount to spend.
         limits[0] = int256(amountToSwap);
 
         // Set output token limit (minimum to receive) - Negative value indicates Balancer this is the minimum amount to receive.
-        limits[assets.length - 1] = -1 * int256(minAmountOut);
+        limits[tokens.length - 1] = -1 * int256(minAmountOut);
 
         // All other limits remain 0 (no restrictions on intermediate tokens)
 
@@ -312,7 +312,7 @@ contract BalancerV2Swap is Library {
 
         // Then execute the batch swap
         bytes memory encodedBatchSwapCall = abi.encodeCall(
-            IBalancerVault.batchSwap, (IBalancerVault.SwapKind.GIVEN_IN, swapSteps, assets, funds, limits, deadline)
+            IBalancerVault.batchSwap, (IBalancerVault.SwapKind.GIVEN_IN, swapSteps, tokens, funds, limits, deadline)
         );
 
         // Execute the batch swap from the input account

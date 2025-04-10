@@ -125,10 +125,10 @@ contract BalancerV2SwapScript is Script {
         poolIds[0] = HONEY_USDCE_POOL_ID; // First pool: USDCE -> HONEY
         poolIds[1] = HONEY_BYUSD_POOL_ID; // Second pool: HONEY -> BYUSD
 
-        IAsset[] memory assets = new IAsset[](3);
-        assets[0] = IAsset(USDCE_ADDR); // Starting asset: USDCE
-        assets[1] = IAsset(HONEY_ADDR); // Intermediate asset: HONEY
-        assets[2] = IAsset(BYUSD_ADDR); // Final asset: BYUSD
+        IAsset[] memory tokens = new IAsset[](3);
+        tokens[0] = IAsset(USDCE_ADDR); // Starting token: USDCE
+        tokens[1] = IAsset(HONEY_ADDR); // Intermediate token: HONEY
+        tokens[2] = IAsset(BYUSD_ADDR); // Final token: BYUSD
 
         bytes[] memory userDataArray = new bytes[](2);
         userDataArray[0] = bytes("");
@@ -139,7 +139,7 @@ contract BalancerV2SwapScript is Script {
         uint256 byusdBeforeMulti = IERC20(BYUSD_ADDR).balanceOf(address(outputAccount));
 
         vm.prank(processor);
-        balancerSwap.multiSwap(poolIds, assets, userDataArray, multiSwapAmount, multiMinAmountOut, timeout);
+        balancerSwap.multiSwap(poolIds, tokens, userDataArray, multiSwapAmount, multiMinAmountOut, timeout);
 
         console.log("After multi-hop swapping %s USDCE -> HONEY -> BYUSD:", multiSwapAmount / 10 ** 6);
         console.log("Input Account Balances:");

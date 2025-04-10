@@ -35,9 +35,9 @@ pub enum FunctionMsgs {
         token_in: String,
         /// The address of the token to swap to
         token_out: String,
-        /// The amount to swap from the first asset
+        /// The amount to swap from the first token
         amount: Uint256,
-        /// The minimum amount to receive from the last asset
+        /// The minimum amount to receive from the last token
         min_amount_out: Uint256,
         /// The timeout for the swap in seconds (e.g. transaction not executed directly because it's in mempool)
         timeout: Uint256,
@@ -51,12 +51,12 @@ pub enum FunctionMsgs {
         /// List of pool IDs to swap through in order
         /// The first pool ID is the one to swap from, the last one is the one to swap to
         pool_ids: Vec<Bytes32Address>,
-        /// List of assets to swap through
-        /// The first asset is the one to swap from, the last one is the one to swap to
-        assets: Vec<String>,
-        /// The amount to swap from the first asset
+        /// List of tokens to swap through
+        /// The first token is the one to swap from, the last one is the one to swap to
+        tokens: Vec<String>,
+        /// The amount to swap from the first token
         amount: Uint256,
-        /// The minimum amount to receive from the last asset
+        /// The minimum amount to receive from the last token
         min_amount_out: Uint256,
         /// The timeout for the swap in seconds (e.g. transaction not executed directly because it's in mempool)
         timeout: Uint256,
@@ -100,7 +100,7 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
             }
             FunctionMsgs::MultiSwap {
                 pool_ids,
-                assets,
+                tokens,
                 amount,
                 min_amount_out,
                 timeout,
@@ -111,7 +111,7 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
                         .iter()
                         .map(|pool| pool.to_fixed_bytes().map(|bytes| bytes.into()))
                         .collect::<Result<Vec<_>, _>>()?,
-                    assets: assets
+                    tokens: tokens
                         .iter()
                         .map(|token| parse_address(token))
                         .collect::<Result<Vec<_>, _>>()?,

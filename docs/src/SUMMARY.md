@@ -48,6 +48,7 @@
     - [CCTP Transfer](./libraries/evm/cctp_transfer.md)
     - [Stargate Transfer](./libraries/evm/stargate_transfer.md)
     - [AAVE Position Manager](./libraries/evm/aave_position_manager.md)
+    - [Balancer V2 Swap](./libraries/evm/balancer_v2_swap.md)
 - [Middleware](./middleware/_overview.md)
   - [Broker](./middleware/broker.md)
   - [Type Registry](./middleware/type_registry.md)
