@@ -41,24 +41,32 @@ impl EthereumVault for Strategist {
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
         let eth_usdc_erc20 = MockERC20::new(self.ethereum_usdc_erc20, &eth_rp);
 
-        Ok(self
+        let eth_withdraw_acc_usdc_bal = self
             .eth_client
             .query(eth_usdc_erc20.balanceOf(self.eth_program_accounts.withdraw))
             .await
             .unwrap()
-            ._0)
+            ._0;
+
+        info!("eth deposit acc bal: {eth_withdraw_acc_usdc_bal}");
+
+        Ok(eth_withdraw_acc_usdc_bal)
     }
 
     async fn deposit_acc_bal(&self) -> Result<U256, Box<dyn Error>> {
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
         let eth_usdc_erc20 = MockERC20::new(self.ethereum_usdc_erc20, &eth_rp);
 
-        Ok(self
+        let eth_deposit_acc_usdc_bal = self
             .eth_client
             .query(eth_usdc_erc20.balanceOf(self.eth_program_accounts.deposit))
             .await
             .unwrap()
-            ._0)
+            ._0;
+
+        info!("eth deposit acc bal: {eth_deposit_acc_usdc_bal}");
+
+        Ok(eth_deposit_acc_usdc_bal)
     }
 
     async fn calculate_usdc_obligation(&self) -> Result<U256, Box<dyn Error>> {
@@ -72,11 +80,9 @@ impl EthereumVault for Strategist {
             .unwrap()
             ._0;
 
-        Ok(assets_to_withdraw)
-        // let usdc_to_withdraw_u128 = Uint128::from_str(&assets_to_withdraw.to_string()).unwrap();
-        // info!("ValenceVault assets_to_withdraw: {usdc_to_withdraw_u128}USDC");
+        info!("pending obligations: {assets_to_withdraw}");
 
-        // Ok(usdc_to_withdraw_u128)
+        Ok(assets_to_withdraw)
     }
 
     async fn calculate_netting_amount(&self) -> Result<u32, Box<dyn Error>> {
