@@ -21,10 +21,8 @@ use crate::{strategist::astroport::AstroportOps, Strategist};
 pub trait EthereumVault {
     async fn calculate_redemption_rate(&self) -> Result<Decimal, Box<dyn Error>>;
     async fn calculate_total_fee(&self) -> Result<u32, Box<dyn Error>>;
-    async fn calculate_netting_amount(&self) -> Result<u32, Box<dyn Error>>;
     async fn calculate_usdc_obligation(&self) -> Result<U256, Box<dyn Error>>;
 
-    async fn withdraw_acc_bal(&self) -> Result<U256, Box<dyn Error>>;
     async fn deposit_acc_bal(&self) -> Result<U256, Box<dyn Error>>;
 
     async fn vault_update(
@@ -37,22 +35,6 @@ pub trait EthereumVault {
 
 #[async_trait]
 impl EthereumVault for Strategist {
-    async fn withdraw_acc_bal(&self) -> Result<U256, Box<dyn Error>> {
-        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
-        let eth_usdc_erc20 = MockERC20::new(self.ethereum_usdc_erc20, &eth_rp);
-
-        let eth_withdraw_acc_usdc_bal = self
-            .eth_client
-            .query(eth_usdc_erc20.balanceOf(self.eth_program_accounts.withdraw))
-            .await
-            .unwrap()
-            ._0;
-
-        info!("eth deposit acc bal: {eth_withdraw_acc_usdc_bal}");
-
-        Ok(eth_withdraw_acc_usdc_bal)
-    }
-
     async fn deposit_acc_bal(&self) -> Result<U256, Box<dyn Error>> {
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
         let eth_usdc_erc20 = MockERC20::new(self.ethereum_usdc_erc20, &eth_rp);
@@ -83,14 +65,6 @@ impl EthereumVault for Strategist {
         info!("pending obligations: {assets_to_withdraw}");
 
         Ok(assets_to_withdraw)
-    }
-
-    async fn calculate_netting_amount(&self) -> Result<u32, Box<dyn Error>> {
-        // 3. Find netting amount N
-        //   1. query Vault for total pending withdrawals (USDC)
-        //   2. query Eth deposit account for USDC balance
-        //   3. N = min(deposit_bal, withdrawals_sum)
-        Ok(0)
     }
 
     async fn calculate_total_fee(&self) -> Result<u32, Box<dyn Error>> {
@@ -138,9 +112,6 @@ impl EthereumVault for Strategist {
         }
 
         Ok(withdraw_fee)
-
-        // Ok(fees.platformFeeBps + pool_fee)
-        // Ok(vault_cfg.maxWithdrawFeeBps)
     }
 
     /// concludes the vault epoch and updates the Valence Vault state

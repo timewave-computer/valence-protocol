@@ -1,13 +1,12 @@
-use std::{error::Error, u128};
+use std::error::Error;
 
 use alloy::{
     primitives::{Address, U256},
     signers::local::{coins_bip39::English, MnemonicBuilder},
 };
-use cosmwasm_std::{Uint128, Uint256};
+use cosmwasm_std::Uint128;
 use localic_utils::{NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID};
 use log::info;
-use neutron_sdk::interchain_queries::helpers::uint256_to_u128;
 use tokio::runtime::Runtime;
 use valence_chain_client_utils::{
     ethereum::EthereumClient, neutron::NeutronClient, noble::NobleClient,
@@ -24,10 +23,7 @@ use valence_e2e::{
 use crate::{
     evm::{EthereumProgramAccounts, EthereumProgramLibraries},
     program::{NeutronProgramAccounts, NeutronProgramLibraries},
-    strategist::{
-        astroport::AstroportOps, routing::EthereumVaultRouting, u256_to_uint256,
-        vault::EthereumVault,
-    },
+    strategist::{astroport::AstroportOps, routing::EthereumVaultRouting, vault::EthereumVault},
     utils::{get_current_second, wait_until_next_minute},
 };
 
