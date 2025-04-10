@@ -49,7 +49,6 @@ pub enum FunctionMsgs {
     /// Message to perform a multi-hop swap
     MultiSwap {
         /// List of pool IDs to swap through in order
-        /// The first pool ID is the one to swap from, the last one is the one to swap to
         pool_ids: Vec<Bytes32Address>,
         /// List of tokens to swap through
         /// The first token is the one to swap from, the last one is the one to swap to

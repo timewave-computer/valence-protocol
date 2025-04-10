@@ -53,7 +53,7 @@ The `multiSwap` function enables complex trading routes through multiple pools:
 
 | Parameter         | Type      | Description                                                                                                                                                                                     |
 | ----------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **poolIds**       | bytes32[] | Array of pool IDs to use for each swap step                                                                                                                                                     |
+| **poolIds**       | bytes32[] | Array of pool IDs to use for each swap step (in sequence)                                                                                                                                       |
 | **tokens**        | address[] | Array of all token addresses involved in the swap path (in sequence), needs to contain exactly 1 more element than the poolIds array                                                            |
 | **userDataArray** | bytes[]   | Additional data for specialized pools (one entry per pool). Can be empty for all current Balancer pools. It's used for possible future pool logic. Must be the same length as the poolIds array |
 | **amount**        | uint256   | Amount of tokens to swap. If set to 0, all available tokens in the **input_account** will be swapped                                                                                            |
