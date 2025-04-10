@@ -22,7 +22,10 @@ pub trait EthereumVault {
     async fn calculate_redemption_rate(&self) -> Result<Decimal, Box<dyn Error>>;
     async fn calculate_total_fee(&self) -> Result<u32, Box<dyn Error>>;
     async fn calculate_netting_amount(&self) -> Result<u32, Box<dyn Error>>;
-    async fn calculate_usdc_obligation(&self) -> Result<Uint128, Box<dyn Error>>;
+    async fn calculate_usdc_obligation(&self) -> Result<U256, Box<dyn Error>>;
+
+    async fn withdraw_acc_bal(&self) -> Result<U256, Box<dyn Error>>;
+    async fn deposit_acc_bal(&self) -> Result<U256, Box<dyn Error>>;
 
     async fn vault_update(
         &self,
@@ -34,7 +37,31 @@ pub trait EthereumVault {
 
 #[async_trait]
 impl EthereumVault for Strategist {
-    async fn calculate_usdc_obligation(&self) -> Result<Uint128, Box<dyn Error>> {
+    async fn withdraw_acc_bal(&self) -> Result<U256, Box<dyn Error>> {
+        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
+        let eth_usdc_erc20 = MockERC20::new(self.ethereum_usdc_erc20, &eth_rp);
+
+        Ok(self
+            .eth_client
+            .query(eth_usdc_erc20.balanceOf(self.eth_program_accounts.withdraw))
+            .await
+            .unwrap()
+            ._0)
+    }
+
+    async fn deposit_acc_bal(&self) -> Result<U256, Box<dyn Error>> {
+        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
+        let eth_usdc_erc20 = MockERC20::new(self.ethereum_usdc_erc20, &eth_rp);
+
+        Ok(self
+            .eth_client
+            .query(eth_usdc_erc20.balanceOf(self.eth_program_accounts.deposit))
+            .await
+            .unwrap()
+            ._0)
+    }
+
+    async fn calculate_usdc_obligation(&self) -> Result<U256, Box<dyn Error>> {
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
         let valence_vault = ValenceVault::new(self.eth_program_libraries.valence_vault, &eth_rp);
 
@@ -45,10 +72,11 @@ impl EthereumVault for Strategist {
             .unwrap()
             ._0;
 
-        let usdc_to_withdraw_u128 = Uint128::from_str(&assets_to_withdraw.to_string()).unwrap();
-        info!("ValenceVault assets_to_withdraw: {usdc_to_withdraw_u128}USDC");
+        Ok(assets_to_withdraw)
+        // let usdc_to_withdraw_u128 = Uint128::from_str(&assets_to_withdraw.to_string()).unwrap();
+        // info!("ValenceVault assets_to_withdraw: {usdc_to_withdraw_u128}USDC");
 
-        Ok(usdc_to_withdraw_u128)
+        // Ok(usdc_to_withdraw_u128)
     }
 
     async fn calculate_netting_amount(&self) -> Result<u32, Box<dyn Error>> {

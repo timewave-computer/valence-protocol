@@ -1,12 +1,13 @@
-use std::error::Error;
+use std::{error::Error, u128};
 
 use alloy::{
     primitives::{Address, U256},
     signers::local::{coins_bip39::English, MnemonicBuilder},
 };
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{Uint128, Uint256};
 use localic_utils::{NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID};
 use log::info;
+use neutron_sdk::interchain_queries::helpers::uint256_to_u128;
 use tokio::runtime::Runtime;
 use valence_chain_client_utils::{
     ethereum::EthereumClient, neutron::NeutronClient, noble::NobleClient,
@@ -23,7 +24,10 @@ use valence_e2e::{
 use crate::{
     evm::{EthereumProgramAccounts, EthereumProgramLibraries},
     program::{NeutronProgramAccounts, NeutronProgramLibraries},
-    strategist::{astroport::AstroportOps, routing::EthereumVaultRouting, vault::EthereumVault},
+    strategist::{
+        astroport::AstroportOps, routing::EthereumVaultRouting, u256_to_uint256,
+        vault::EthereumVault,
+    },
     utils::{get_current_second, wait_until_next_minute},
 };
 
@@ -132,52 +136,79 @@ impl Strategist {
                 get_current_second()
             );
 
-            // STEP 5. TODO: exit the position with necessary amount of shares needed
-            // to fulfill the withdraw obligations
-            {
-                let usdc_to_withdraw = self.calculate_usdc_obligation().await.unwrap();
+            // 1. calculate the amount of usdc needed to fulfill
+            // the active withdraw obligations
+            let pending_obligations = self.calculate_usdc_obligation().await.unwrap();
+            info!("pending obligations: {pending_obligations}");
 
-                let halved_usdc_obligation_amt =
-                    usdc_to_withdraw.checked_div(Uint128::new(2)).unwrap();
+            // 2. query ethereum program accounts for their usdc balances
+            let eth_deposit_acc_usdc_bal = self.deposit_acc_bal().await.unwrap();
+            let eth_withdraw_acc_usdc_bal = self.withdraw_acc_bal().await.unwrap();
+            info!("eth deposit acc bal: {eth_deposit_acc_usdc_bal}");
+            info!("eth withdraw acc bal: {eth_withdraw_acc_usdc_bal}");
 
-                let swap_simulation_output = self
-                    .reverse_simulate_swap(
-                        &self.pool_addr,
-                        NEUTRON_CHAIN_DENOM,
-                        &self.uusdc_on_neutron_denom,
-                        halved_usdc_obligation_amt,
-                    )
-                    .await
-                    .unwrap();
+            // 3. see if pending obligations can be netted
+            let netting_amount = pending_obligations.min(eth_deposit_acc_usdc_bal);
+            info!("netting amount: {netting_amount}");
 
-                info!("swap simulation output to get {halved_usdc_obligation_amt}usdc: {swap_simulation_output}untrn");
+            // 4. update the pending obligations amount to reflect the netting
+            let pending_obligations = pending_obligations.checked_sub(netting_amount).unwrap();
+            info!("updated pending obligations: {pending_obligations}");
 
-                // convert assets to shares
-                let shares_to_liquidate = self
-                    .simulate_provide_liquidity(
-                        &self.pool_addr,
-                        &self.uusdc_on_neutron_denom,
-                        halved_usdc_obligation_amt,
-                        NEUTRON_CHAIN_DENOM,
-                        swap_simulation_output,
-                    )
-                    .await
-                    .unwrap();
+            // 3. figure out the sum of new withdraw requests that will need to
+            // be fulfilled
+            let missing_usdc_amount: u128 = pending_obligations
+                .try_into()
+                .map_err(|_| "Pending obligations U256 Value too large for u128")
+                .unwrap();
+            info!("missing usdc amount: {missing_usdc_amount}");
 
-                self.forward_shares_for_liquidation(shares_to_liquidate)
-                    .await;
-                self.exit_position().await;
-                self.swap_ntrn_into_usdc().await;
-            }
+            // 4. lp shares to be liquidated will yield untrn+uusdc. to figure out
+            // the amount of ntrn needed to get 1/2 of the obligations, we half the
+            // usdc amount
+            let halved_usdc_obligation_amt = Uint128::new(missing_usdc_amount / 2);
+
+            info!("halved usdc obligation amount: {halved_usdc_obligation_amt}");
+
+            // next we simulate how many untrn we need to obtain half of the
+            // missing usdc obligation amount
+            let expected_untrn_amount = self
+                .reverse_simulate_swap(
+                    &self.pool_addr,
+                    NEUTRON_CHAIN_DENOM,
+                    &self.uusdc_on_neutron_denom,
+                    halved_usdc_obligation_amt,
+                )
+                .await
+                .unwrap();
+
+            info!("reverse swap simulation response: {expected_untrn_amount}untrn => {halved_usdc_obligation_amt}usdc");
+
+            // simulate shares needed to liquidate in order to get the needed amount of tokens
+            // to fulfill missing obligations. TODO: think if this simulation makes sense here.
+            let shares_to_liquidate = self
+                .simulate_provide_liquidity(
+                    &self.pool_addr,
+                    &self.uusdc_on_neutron_denom,
+                    halved_usdc_obligation_amt,
+                    NEUTRON_CHAIN_DENOM,
+                    expected_untrn_amount,
+                )
+                .await
+                .unwrap();
+
+            self.forward_shares_for_liquidation(shares_to_liquidate)
+                .await;
+            self.exit_position().await;
+            self.swap_ntrn_into_usdc().await;
 
             // STEP 2: updating the vault to conclude the previous epoch:
             // redemption rate R = total_shares / total_assets
             let redemption_rate = self.calculate_redemption_rate().await.unwrap();
             let total_fee = self.calculate_total_fee().await.unwrap();
-            let netting_amount = self.calculate_netting_amount().await.unwrap();
             let r = U256::from(redemption_rate.atomics().u128());
             // Update the Vault with R, F_total, N
-            self.vault_update(r, total_fee, U256::from(netting_amount))
+            self.vault_update(r, total_fee, netting_amount)
                 .await
                 .unwrap();
 

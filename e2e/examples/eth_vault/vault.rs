@@ -324,11 +324,55 @@ fn main() -> Result<(), Box<dyn Error>> {
         evm::mine_blocks(&rt, &eth_client, 5, 3);
     }
 
-    // {
-    //     info!("\n======================== empty epoch ========================\n");
-    //     async_run!(&rt, wait_until_half_minute().await);
-    //     evm::mine_blocks(&rt, &eth_client, 5, 3);
-    // }
+    {
+        info!("\n======================== EPOCH 3.5 ========================\n");
+        async_run!(&rt, wait_until_half_minute().await);
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
+
+        let user2_pre_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 1);
+        info!("USER2 initiating the redeem of {user2_pre_redeem_shares_bal} shares from vault...");
+        let total_to_withdraw_before = async_run!(&rt, {
+            eth_client
+                .query(valence_vault.totalAssetsToWithdrawNextUpdate())
+                .await
+                .unwrap()
+        })
+        ._0;
+        info!("Total assets to withdraw before redeem: {total_to_withdraw_before}");
+
+        vault::redeem(
+            ethereum_program_libraries.valence_vault,
+            &rt,
+            &eth_client,
+            eth_users.users[1],
+            user2_pre_redeem_shares_bal,
+            10_000,
+            false,
+        )?;
+
+        let total_to_withdraw = async_run!(&rt, {
+            eth_client
+                .query(valence_vault.totalAssetsToWithdrawNextUpdate())
+                .await
+                .unwrap()
+        })
+        ._0;
+        info!("Total assets to withdraw after redeem: {total_to_withdraw}",);
+        assert_ne!(
+            total_to_withdraw, total_to_withdraw_before,
+            "totalAssetsToWithdraw should have increased"
+        );
+
+        let request = async_run!(&rt, {
+            eth_client
+                .query(valence_vault.userWithdrawRequest(eth_users.users[1]))
+                .await
+                .unwrap()
+        });
+        info!("Update withdraw request: {:?}", request);
+
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
+    }
 
     {
         info!("\n======================== EPOCH 4 ========================\n");
@@ -414,6 +458,80 @@ fn main() -> Result<(), Box<dyn Error>> {
         info!("user0 has withdraw request: {user0_withdraw_request}");
         info!("post completion user0 usdc bal: {post_completion_user0_bal}",);
         info!("post completion user0 shares bal: {post_completion_user0_shares}",);
+
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
+    }
+
+    {
+        info!("\n======================== EPOCH 5 ========================\n");
+        async_run!(&rt, wait_until_half_minute().await);
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
+
+        info!("User0 depositing 2_000_000 to vault");
+        vault::deposit_to_vault(
+            &rt,
+            &eth_client,
+            *valence_vault.address(),
+            eth_users.users[0],
+            U256::from(2_000_000),
+        )?;
+
+        let user2_shares = eth_users.get_user_shares(&rt, &eth_client, 2);
+        info!("User 2 submitting withdraw request for {user2_shares}shares");
+
+        vault::redeem(
+            ethereum_program_libraries.valence_vault,
+            &rt,
+            &eth_client,
+            eth_users.users[2],
+            user2_shares,
+            10_000,
+            false,
+        )?;
+
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
+    }
+
+    {
+        info!("\n======================== EPOCH 6 ========================\n");
+        async_run!(&rt, wait_until_half_minute().await);
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
+
+        let pre_completion_user2_bal = eth_users.get_user_usdc(&rt, &eth_client, 2);
+        let pre_completion_user2_shares = eth_users.get_user_shares(&rt, &eth_client, 2);
+        let user2_withdraw_request = vault::addr_has_active_withdraw(
+            ethereum_program_libraries.valence_vault,
+            &rt,
+            &eth_client,
+            eth_users.users[2],
+        )
+        ._0;
+        info!("user2 has withdraw request: {user2_withdraw_request}");
+        info!("pre completion user2 usdc bal: {pre_completion_user2_bal}",);
+        info!("pre completion user2 shares bal: {pre_completion_user2_shares}",);
+
+        info!("User2 completing withdraw request...");
+        vault::complete_withdraw_request(
+            ethereum_program_libraries.valence_vault,
+            &rt,
+            &eth_client,
+            eth_users.users[2],
+        )?;
+
+        let post_completion_user2_bal = eth_users.get_user_usdc(&rt, &eth_client, 2);
+        let post_completion_user2_shares = eth_users.get_user_shares(&rt, &eth_client, 2);
+        let user2_withdraw_request = vault::addr_has_active_withdraw(
+            ethereum_program_libraries.valence_vault,
+            &rt,
+            &eth_client,
+            eth_users.users[2],
+        )
+        ._0;
+        info!("user2 has withdraw request: {user2_withdraw_request}");
+        info!("post completion user2 usdc bal: {post_completion_user2_bal}",);
+        info!("post completion user2 shares bal: {post_completion_user2_shares}",);
+
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     Ok(())
