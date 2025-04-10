@@ -51,14 +51,14 @@ The `swap` function requires the following parameters:
 
 The `multiSwap` function enables complex trading routes through multiple pools:
 
-| Parameter         | Type      | Description                                                                                                                                                                                     |
-| ----------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **poolIds**       | bytes32[] | Array of pool IDs to use for each swap step (in sequence)                                                                                                                                       |
-| **tokens**        | address[] | Array of all token addresses involved in the swap path (in sequence), needs to contain exactly 1 more element than the poolIds array                                                            |
-| **userDataArray** | bytes[]   | Additional data for specialized pools (one entry per pool). Can be empty for all current Balancer pools. It's used for possible future pool logic. Must be the same length as the poolIds array |
-| **amount**        | uint256   | Amount of tokens to swap. If set to 0, all available tokens in the **input_account** will be swapped                                                                                            |
-| **minAmountOut**  | uint256   | Minimum amount of output tokens to receive (slippage protection)                                                                                                                                |
-| **timeout**       | uint256   | How long the transaction is valid for (in seconds)                                                                                                                                              |
+| Parameter         | Type      | Description                                                                                                                                                                                                    |
+| ----------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **poolIds**       | bytes32[] | Array of pool IDs to use for each swap step (in sequence)                                                                                                                                                      |
+| **tokens**        | address[] | Array of all token addresses involved in the swap path (in sequence), needs to contain exactly 1 more element than the poolIds array                                                                           |
+| **userDataArray** | bytes[]   | Additional data for specialized pools (one entry per pool). This data can be empty for all current Balancer pools but is reserved for possible future pool logic. Must be the same length as the poolIds array |
+| **amount**        | uint256   | Amount of tokens to swap. If set to 0, all available tokens in the **input_account** will be swapped                                                                                                           |
+| **minAmountOut**  | uint256   | Minimum amount of output tokens to receive (slippage protection)                                                                                                                                               |
+| **timeout**       | uint256   | How long the transaction is valid for (in seconds)                                                                                                                                                             |
 
 For more information on how swaps work on Balancer V2, please refer to the [Single Swap](https://docs-v2.balancer.fi/reference/swaps/single-swap.html) and [Batch Swap](https://docs-v2.balancer.fi/reference/swaps/batch-swaps.html) documentation.
 
