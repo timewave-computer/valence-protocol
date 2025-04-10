@@ -145,7 +145,7 @@ impl EthereumVault for Strategist {
         {
             Ok(val) => match val {
                 Some(receipt) => {
-                    info!("Update tx receipt: {:?}", receipt);
+                    info!("Update tx receipt hash: {:?}", receipt.transaction_hash);
                 }
                 None => warn!("Failed to get update_vault tx receipt"),
             },

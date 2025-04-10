@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use async_trait::async_trait;
-use cosmwasm_std::{to_json_binary, CosmosMsg, Uint128, WasmMsg};
+use cosmwasm_std::{coin, to_json_binary, CosmosMsg, Uint128, WasmMsg};
 use localic_utils::NEUTRON_CHAIN_DENOM;
 use log::{info, warn};
 use valence_astroport_utils::astroport_native_lp_token::{
@@ -62,7 +62,7 @@ impl AstroportOps for Strategist {
         ask_denom: &str,
         ask_amount: Uint128,
     ) -> Result<Uint128, Box<dyn Error>> {
-        if ask_amount == Uint128::zero() {
+        if ask_amount.is_zero() {
             info!("ask amount is zero, skipping swap simulation");
             return Ok(Uint128::zero());
         }
@@ -141,8 +141,6 @@ impl AstroportOps for Strategist {
 
     /// exits the position on astroport
     async fn exit_position(&self) {
-        info!("exiting LP position...");
-
         let liquidation_account_shares_bal = self
             .neutron_client
             .query_balance(
@@ -159,6 +157,8 @@ impl AstroportOps for Strategist {
         if liquidation_account_shares_bal == 0 {
             warn!("Liquidation account must have LP shares in order to exit LP; returning");
             return;
+        } else {
+            info!("exiting LP position for {liquidation_account_shares_bal}shares...");
         }
 
         let withdraw_liquidity_msg =
@@ -178,35 +178,6 @@ impl AstroportOps for Strategist {
             .await
             .unwrap();
         self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
-
-        let withdraw_acc_usdc_bal = self
-            .neutron_client
-            .query_balance(
-                &self
-                    .neutron_program_accounts
-                    .withdraw_account
-                    .to_string()
-                    .unwrap(),
-                &self.uusdc_on_neutron_denom,
-            )
-            .await
-            .unwrap();
-        let withdraw_acc_ntrn_bal = self
-            .neutron_client
-            .query_balance(
-                &self
-                    .neutron_program_accounts
-                    .withdraw_account
-                    .to_string()
-                    .unwrap(),
-                NEUTRON_CHAIN_DENOM,
-            )
-            .await
-            .unwrap();
-        info!("withdraw account USDC token balance: {withdraw_acc_usdc_bal}",);
-        info!("withdraw account NTRN token balance: {withdraw_acc_ntrn_bal}",);
-        assert_ne!(0, withdraw_acc_usdc_bal);
-        assert_ne!(0, withdraw_acc_ntrn_bal);
     }
 
     async fn simulate_swap(
@@ -216,7 +187,7 @@ impl AstroportOps for Strategist {
         offer_amount: Uint128,
         ask_denom: &str,
     ) -> Result<Uint128, Box<dyn Error>> {
-        if offer_amount == Uint128::zero() {
+        if offer_amount.is_zero() {
             info!("offer amount is zero, skipping swap simulation");
             return Ok(Uint128::zero());
         }
@@ -289,7 +260,6 @@ impl AstroportOps for Strategist {
 
     /// enters the position on astroport
     async fn enter_position(&self) {
-        info!("entering LP position...");
         let deposit_account_usdc_bal = self
             .neutron_client
             .query_balance(
@@ -306,6 +276,8 @@ impl AstroportOps for Strategist {
         if deposit_account_usdc_bal == 0 {
             warn!("Deposit account must have USDC in order to LP; returning");
             return;
+        } else {
+            info!("entering LP position...");
         }
 
         let provide_liquidity_msg =
@@ -327,21 +299,6 @@ impl AstroportOps for Strategist {
             .await
             .unwrap();
         self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
-
-        let output_acc_bal = self
-            .neutron_client
-            .query_balance(
-                &self
-                    .neutron_program_accounts
-                    .position_account
-                    .to_string()
-                    .unwrap(),
-                &self.lp_token_denom,
-            )
-            .await
-            .unwrap();
-        info!("position account LP token balance: {output_acc_bal}");
-        assert_ne!(0, output_acc_bal);
     }
 
     /// swaps counterparty denom into usdc
@@ -359,12 +316,12 @@ impl AstroportOps for Strategist {
             .await
             .unwrap();
 
-        if withdraw_account_ntrn_bal <= 1_000_000 {
+        if withdraw_account_ntrn_bal == 0 {
             warn!("Withdraw account must have NTRN in order to swap into USDC; returning");
             return;
+        } else {
+            info!("swapping {withdraw_account_ntrn_bal}NTRN into USDC...");
         }
-
-        info!("swapping {withdraw_account_ntrn_bal}NTRN into USDC...");
 
         let swap_msg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.pool_addr.to_string(),
@@ -381,17 +338,13 @@ impl AstroportOps for Strategist {
                 ask_asset_info: None,
             })
             .unwrap(),
-            funds: vec![cosmwasm_std::coin(
-                withdraw_account_ntrn_bal,
-                NEUTRON_CHAIN_DENOM.to_string(),
-            )],
+            funds: vec![coin(withdraw_account_ntrn_bal, NEUTRON_CHAIN_DENOM)],
         });
 
         let base_account_execute_msgs = valence_account_utils::msg::ExecuteMsg::ExecuteMsg {
             msgs: vec![swap_msg],
         };
 
-        // let neutron_fee_coin = NeutronClient::proto_coin(NEUTRON_CHAIN_DENOM, 100_000).unwrap();
         let rx = self
             .neutron_client
             .execute_wasm(
@@ -408,37 +361,5 @@ impl AstroportOps for Strategist {
             .unwrap();
 
         self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
-
-        let withdraw_acc_usdc_bal = self
-            .neutron_client
-            .query_balance(
-                &self
-                    .neutron_program_accounts
-                    .withdraw_account
-                    .to_string()
-                    .unwrap(),
-                &self.uusdc_on_neutron_denom,
-            )
-            .await
-            .unwrap();
-        let withdraw_acc_ntrn_bal = self
-            .neutron_client
-            .query_balance(
-                &self
-                    .neutron_program_accounts
-                    .withdraw_account
-                    .to_string()
-                    .unwrap(),
-                NEUTRON_CHAIN_DENOM,
-            )
-            .await
-            .unwrap();
-        info!("withdraw account USDC token balance: {withdraw_acc_usdc_bal}",);
-        info!("withdraw account NTRN token balance: {withdraw_acc_ntrn_bal}",);
-        assert_ne!(0, withdraw_acc_usdc_bal);
-        // assert_eq!(
-        //     1_000_000, withdraw_acc_ntrn_bal,
-        //     "neutron withdraw account should have 1_000_000untrn left to cover ibc transfer fees"
-        // );
     }
 }

@@ -121,15 +121,14 @@ impl Strategist {
 
 impl Strategist {
     pub async fn start(self) {
-        info!("Starting...");
-
         let mut i = 0;
 
         loop {
             // strategist runs every minute, usually taking around 12sec to complete
+            // and sleeping the remaining seconds
             wait_until_next_minute().await;
             info!(
-                "strategist starting operation loop #{i} at second {}",
+                "strategist loop #{i} started at second {}",
                 get_current_second()
             );
 
@@ -199,7 +198,7 @@ impl Strategist {
             self.route_noble_to_eth().await;
 
             info!(
-                "Strategist completed operation loop #{i} at second {}",
+                "strategist loop #{i} completed at second {}",
                 get_current_second()
             );
             self.state_log().await;
