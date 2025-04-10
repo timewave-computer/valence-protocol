@@ -22,6 +22,7 @@ pub trait EthereumVault {
     async fn calculate_redemption_rate(&self) -> Result<Decimal, Box<dyn Error>>;
     async fn calculate_total_fee(&self) -> Result<u32, Box<dyn Error>>;
     async fn calculate_netting_amount(&self) -> Result<u32, Box<dyn Error>>;
+    async fn calculate_usdc_obligation(&self) -> Result<Uint128, Box<dyn Error>>;
 
     async fn vault_update(
         &self,
@@ -33,6 +34,23 @@ pub trait EthereumVault {
 
 #[async_trait]
 impl EthereumVault for Strategist {
+    async fn calculate_usdc_obligation(&self) -> Result<Uint128, Box<dyn Error>> {
+        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
+        let valence_vault = ValenceVault::new(self.eth_program_libraries.valence_vault, &eth_rp);
+
+        let assets_to_withdraw = self
+            .eth_client
+            .query(valence_vault.totalAssetsToWithdrawNextUpdate())
+            .await
+            .unwrap()
+            ._0;
+
+        let usdc_to_withdraw_u128 = Uint128::from_str(&assets_to_withdraw.to_string()).unwrap();
+        info!("ValenceVault assets_to_withdraw: {usdc_to_withdraw_u128}USDC");
+
+        Ok(usdc_to_withdraw_u128)
+    }
+
     async fn calculate_netting_amount(&self) -> Result<u32, Box<dyn Error>> {
         // 3. Find netting amount N
         //   1. query Vault for total pending withdrawals (USDC)

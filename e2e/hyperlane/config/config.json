@@ -58,10 +58,10 @@
           "http": "http://localneutron-1-val-0-neutronic:9090"
         }
       ],
-      "interchainGasPaymaster": "0x558ff669c39673b11f1309a3a7d09f414d52eef406629ad4b65df0529d8a3f1f",
+      "interchainGasPaymaster": "0x934a5a86cf2052519360df81fc3d291974d7c8612d5dc2c2bc10971606e8230b",
       "isTestnet": false,
-      "mailbox": "0xbbb16abe6b954a2805e837855c897aa50ed7ab8336cf3ead898b80f423694a05",
-      "merkleTreeHook": "0xc73467fbb4cb06543b650bf240d31b082fb064c4e23c34705658c6b5c66544f4",
+      "mailbox": "0xa09b5d8b15891a9c1816b89862bad508dbdcefafb1b05b959a508ad04241b79a",
+      "merkleTreeHook": "0x47d6835b81afc58286c58f853c4d10379a2457c78848919da25349ec7ab5da37",
       "name": "neutron",
       "nativeToken": {
         "decimals": 6,
@@ -87,7 +87,7 @@
       },
       "slip44": 118,
       "technicalStack": "other",
-      "validatorAnnounce": "0xcda8ddbd6f692a2d3f16fe2a06246d5bac7cb3b223db5e36d556ee45e055e4fc"
+      "validatorAnnounce": "0x3572bb1967fdf5305fc772ed413b0a55807f9c629ecc01c91db255ba039b0bf5"
     }
   },
   "defaultRpcConsensusType": "fallback"

@@ -66,6 +66,8 @@ pub trait WasmClient: GrpcSigningClient {
         .to_any()?;
 
         let simulation_response = self.simulate_tx(wasm_tx.clone()).await?;
+
+        // TODO: make this accept custom additional fees (e.g. neutron ibc tx fee amount)
         let fee = self.get_tx_fee(simulation_response)?;
 
         let raw_tx = signing_client.create_tx(wasm_tx, fee, None).await?;

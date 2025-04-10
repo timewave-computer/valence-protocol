@@ -8,6 +8,7 @@ use log::{info, warn};
 use valence_chain_client_utils::{
     cosmos::{base_client::BaseClient, wasm_client::WasmClient},
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
+    neutron::NeutronClient,
 };
 use valence_e2e::utils::{
     solidity_contracts::{CCTPTransfer, MockERC20},
@@ -126,14 +127,6 @@ impl EthereumVaultRouting for Strategist {
 
     /// IBC-transfers funds from Neutron withdraw account to noble outbound ica
     async fn route_neutron_to_noble(&self) {
-        let noble_outbound_ica_usdc_bal = self
-            .noble_client
-            .query_balance(
-                &self.neutron_program_accounts.noble_outbound_ica.remote_addr,
-                UUSDC_DENOM,
-            )
-            .await
-            .unwrap();
         let withdraw_account_usdc_bal = self
             .neutron_client
             .query_balance(
@@ -148,9 +141,20 @@ impl EthereumVaultRouting for Strategist {
             .unwrap();
 
         if withdraw_account_usdc_bal == 0 {
-            warn!("withdraw account must have USDC in order to route funds to noble; returning");
+            warn!("Neutron withdraw account holds no USDC; skipping routing from neutron to noble");
             return;
+        } else {
+            info!("Routing USDC from Neutron to Noble");
         }
+
+        let noble_outbound_ica_usdc_bal = self
+            .noble_client
+            .query_balance(
+                &self.neutron_program_accounts.noble_outbound_ica.remote_addr,
+                UUSDC_DENOM,
+            )
+            .await
+            .unwrap();
 
         info!("routing USDC to noble...");
         let transfer_rx = self

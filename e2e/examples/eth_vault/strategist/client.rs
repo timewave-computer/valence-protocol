@@ -1,4 +1,4 @@
-use std::{error::Error, str::FromStr};
+use std::error::Error;
 
 use alloy::{
     primitives::{Address, U256},
@@ -9,10 +9,7 @@ use localic_utils::{NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID};
 use log::info;
 use tokio::runtime::Runtime;
 use valence_chain_client_utils::{
-    cosmos::base_client::BaseClient,
-    ethereum::EthereumClient,
-    evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
-    neutron::NeutronClient,
+    cosmos::base_client::BaseClient, ethereum::EthereumClient, neutron::NeutronClient,
     noble::NobleClient,
 };
 
@@ -20,7 +17,6 @@ use valence_e2e::{
     async_run,
     utils::{
         parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
-        solidity_contracts::ValenceVault,
         ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID,
     },
 };
@@ -138,26 +134,42 @@ impl Strategist {
                 get_current_second()
             );
 
-            // STEP 1: pulling funds due for withdrawal from position to origin domain
-            //   0. swap neutron withdraw acc neutron tokens into usdc (leaving enough neutron for ibc transfer)
-            //   1. ibc transfer neutron withdraw acc -> noble outbound ica
-            //   2. cctp transfer noble outbound ica -> eth withdraw acc
-            let neutron_withdraw_acc_usdc_bal = self
-                .neutron_client
-                .query_balance(
-                    &self
-                        .neutron_program_accounts
-                        .withdraw_account
-                        .to_string()
-                        .unwrap(),
-                    &self.uusdc_on_neutron_denom,
-                )
-                .await
-                .unwrap();
-            if neutron_withdraw_acc_usdc_bal > 0 {
-                info!("Neutron withdraw account USDC balance greater than 0!\nRouting from position to origin chain.");
-                self.route_neutron_to_noble().await;
-                self.route_noble_to_eth().await;
+            // STEP 5. TODO: exit the position with necessary amount of shares needed
+            // to fulfill the withdraw obligations
+            {
+                let usdc_to_withdraw = self.calculate_usdc_obligation().await.unwrap();
+
+                let halved_usdc_obligation_amt =
+                    usdc_to_withdraw.checked_div(Uint128::new(2)).unwrap();
+
+                let swap_simulation_output = self
+                    .reverse_simulate_swap(
+                        &self.pool_addr,
+                        NEUTRON_CHAIN_DENOM,
+                        &self.uusdc_on_neutron_denom,
+                        halved_usdc_obligation_amt,
+                    )
+                    .await
+                    .unwrap();
+
+                info!("swap simulation output to get {halved_usdc_obligation_amt}usdc: {swap_simulation_output}untrn");
+
+                // convert assets to shares
+                let shares_to_liquidate = self
+                    .simulate_provide_liquidity(
+                        &self.pool_addr,
+                        &self.uusdc_on_neutron_denom,
+                        halved_usdc_obligation_amt,
+                        NEUTRON_CHAIN_DENOM,
+                        swap_simulation_output,
+                    )
+                    .await
+                    .unwrap();
+
+                self.forward_shares_for_liquidation(shares_to_liquidate)
+                    .await;
+                self.exit_position().await;
+                self.swap_ntrn_into_usdc().await;
             }
 
             // STEP 2: updating the vault to conclude the previous epoch:
@@ -180,88 +192,41 @@ impl Strategist {
             // STEP 4. enter the position with funds available in neutron deposit acc
             self.enter_position().await;
 
-            // STEP 5. TODO: exit the position with necessary amount of shares needed
-            // to fulfill the withdraw obligations
-            let eth_rp = self.eth_client.get_request_provider().await.unwrap();
-            let valence_vault =
-                ValenceVault::new(self.eth_program_libraries.valence_vault, &eth_rp);
-
-            let assets_to_withdraw = self
-                .eth_client
-                .query(valence_vault.totalAssetsToWithdrawNextUpdate())
-                .await
-                .unwrap()
-                ._0;
-
-            let usdc_to_withdraw_u128 = Uint128::from_str(&assets_to_withdraw.to_string()).unwrap();
-            let halved_usdc_obligation_amt =
-                usdc_to_withdraw_u128.checked_div(Uint128::new(2)).unwrap();
-
-            info!(
-                "ValenceVault assets_to_withdraw (USDC?): {:?}",
-                assets_to_withdraw
-            );
-
-            let swap_simulation_output = self
-                .reverse_simulate_swap(
-                    &self.pool_addr,
-                    NEUTRON_CHAIN_DENOM,
-                    &self.uusdc_on_neutron_denom,
-                    halved_usdc_obligation_amt,
-                )
-                .await
-                .unwrap();
-
-            info!(
-                "swap simulation output to get {halved_usdc_obligation_amt}usdc: {:?}untrn",
-                swap_simulation_output
-            );
-
-            // convert assets to shares
-            //
-            let shares_to_liquidate = self
-                .simulate_provide_liquidity(
-                    &self.pool_addr,
-                    &self.uusdc_on_neutron_denom,
-                    halved_usdc_obligation_amt,
-                    NEUTRON_CHAIN_DENOM,
-                    swap_simulation_output,
-                )
-                .await
-                .unwrap();
-
-            self.forward_shares_for_liquidation(shares_to_liquidate)
-                .await;
-            self.exit_position().await;
-            self.swap_ntrn_into_usdc().await;
-
-            self.neutron_program_accounts
-                .log_balances(
-                    &self.neutron_client,
-                    &self.noble_client,
-                    vec![
-                        self.uusdc_on_neutron_denom.to_string(),
-                        NEUTRON_CHAIN_DENOM.to_string(),
-                        self.lp_token_denom.to_string(),
-                    ],
-                )
-                .await;
-            self.eth_program_accounts
-                .log_balances(
-                    &self.eth_client,
-                    &self.eth_program_libraries.valence_vault,
-                    &self.ethereum_usdc_erc20,
-                )
-                .await;
+            // STEP 1: pulling funds due for withdrawal from position to origin domain
+            //   0. swap neutron withdraw acc neutron tokens into usdc (leaving enough neutron for ibc transfer)
+            //   1. ibc transfer neutron withdraw acc -> noble outbound ica
+            //   2. cctp transfer noble outbound ica -> eth withdraw acc
+            self.route_neutron_to_noble().await;
+            self.route_noble_to_eth().await;
 
             info!(
                 "Strategist completed operation loop #{i} at second {}",
                 get_current_second()
             );
+            self.state_log().await;
 
             i += 1;
         }
     }
 
-    async fn _state_log(&self) {}
+    async fn state_log(&self) {
+        self.neutron_program_accounts
+            .log_balances(
+                &self.neutron_client,
+                &self.noble_client,
+                vec![
+                    self.uusdc_on_neutron_denom.to_string(),
+                    NEUTRON_CHAIN_DENOM.to_string(),
+                    self.lp_token_denom.to_string(),
+                ],
+            )
+            .await;
+        self.eth_program_accounts
+            .log_balances(
+                &self.eth_client,
+                &self.eth_program_libraries.valence_vault,
+                &self.ethereum_usdc_erc20,
+            )
+            .await;
+    }
 }
