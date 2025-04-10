@@ -324,11 +324,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         evm::mine_blocks(&rt, &eth_client, 5, 3);
     }
 
-    {
-        info!("\n======================== empty epoch ========================\n");
-        async_run!(&rt, wait_until_half_minute().await);
-        evm::mine_blocks(&rt, &eth_client, 5, 3);
-    }
+    // {
+    //     info!("\n======================== empty epoch ========================\n");
+    //     async_run!(&rt, wait_until_half_minute().await);
+    //     evm::mine_blocks(&rt, &eth_client, 5, 3);
+    // }
 
     {
         info!("\n======================== EPOCH 4 ========================\n");

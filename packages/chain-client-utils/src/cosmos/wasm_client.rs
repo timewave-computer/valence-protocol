@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
-use cosmrs::Coin;
+use cosmrs::{tx::Fee, Coin};
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::common::{error::StrategistError, transaction::TransactionResponse};
@@ -51,6 +51,7 @@ pub trait WasmClient: GrpcSigningClient {
         contract: &str,
         msg: (impl Serialize + Send),
         funds: Vec<Coin>,
+        fees: Option<Fee>,
     ) -> Result<TransactionResponse, StrategistError> {
         let signing_client = self.get_signing_client().await?;
         let channel = self.get_grpc_channel().await?;
@@ -67,10 +68,10 @@ pub trait WasmClient: GrpcSigningClient {
 
         let simulation_response = self.simulate_tx(wasm_tx.clone()).await?;
 
-        // TODO: make this accept custom additional fees (e.g. neutron ibc tx fee amount)
-        let fee = self.get_tx_fee(simulation_response)?;
+        // if no fees were specified we simulate the tx and use the estimated fee
+        let tx_fee = fees.unwrap_or(self.get_tx_fee(simulation_response)?);
 
-        let raw_tx = signing_client.create_tx(wasm_tx, fee, None).await?;
+        let raw_tx = signing_client.create_tx(wasm_tx, tx_fee, None).await?;
 
         let mut grpc_client = CosmosServiceClient::new(channel);
 

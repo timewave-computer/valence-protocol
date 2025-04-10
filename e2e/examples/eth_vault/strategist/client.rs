@@ -9,8 +9,7 @@ use localic_utils::{NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID};
 use log::info;
 use tokio::runtime::Runtime;
 use valence_chain_client_utils::{
-    cosmos::base_client::BaseClient, ethereum::EthereumClient, neutron::NeutronClient,
-    noble::NobleClient,
+    ethereum::EthereumClient, neutron::NeutronClient, noble::NobleClient,
 };
 
 use valence_e2e::{

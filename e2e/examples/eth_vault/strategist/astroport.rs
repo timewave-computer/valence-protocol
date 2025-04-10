@@ -173,6 +173,7 @@ impl AstroportOps for Strategist {
                 &self.neutron_program_libraries.astroport_lwer,
                 withdraw_liquidity_msg,
                 vec![],
+                None,
             )
             .await
             .unwrap();
@@ -321,6 +322,7 @@ impl AstroportOps for Strategist {
                 &self.neutron_program_libraries.astroport_lper,
                 provide_liquidity_msg,
                 vec![],
+                None,
             )
             .await
             .unwrap();
@@ -400,6 +402,7 @@ impl AstroportOps for Strategist {
                     .unwrap(),
                 base_account_execute_msgs,
                 vec![],
+                None,
             )
             .await
             .unwrap();
