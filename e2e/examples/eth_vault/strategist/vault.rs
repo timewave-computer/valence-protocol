@@ -1,13 +1,11 @@
 use std::{error::Error, str::FromStr};
 
-use alloy::{primitives::U256, providers::Provider};
 use async_trait::async_trait;
 use cosmwasm_std::{Decimal, Uint128};
 use localic_utils::NEUTRON_CHAIN_DENOM;
-use log::{info, warn};
-use valence_astroport_utils::astroport_native_lp_token::{ConfigResponse, PoolQueryMsg};
+use log::info;
 use valence_chain_client_utils::{
-    cosmos::{base_client::BaseClient, wasm_client::WasmClient},
+    cosmos::base_client::BaseClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
 use valence_e2e::utils::{
@@ -21,52 +19,10 @@ use crate::{strategist::astroport::AstroportOps, Strategist};
 pub trait EthereumVault {
     async fn calculate_redemption_rate(&self) -> Result<Decimal, Box<dyn Error>>;
     async fn calculate_total_fee(&self) -> Result<u32, Box<dyn Error>>;
-    async fn calculate_usdc_obligation(&self) -> Result<U256, Box<dyn Error>>;
-
-    async fn deposit_acc_bal(&self) -> Result<U256, Box<dyn Error>>;
-
-    async fn vault_update(
-        &self,
-        rate: U256,
-        withdraw_fee_bps: u32,
-        netting_amount: U256,
-    ) -> Result<(), Box<dyn Error>>;
 }
 
 #[async_trait]
 impl EthereumVault for Strategist {
-    async fn deposit_acc_bal(&self) -> Result<U256, Box<dyn Error>> {
-        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
-        let eth_usdc_erc20 = MockERC20::new(self.ethereum_usdc_erc20, &eth_rp);
-
-        let eth_deposit_acc_usdc_bal = self
-            .eth_client
-            .query(eth_usdc_erc20.balanceOf(self.eth_program_accounts.deposit))
-            .await
-            .unwrap()
-            ._0;
-
-        info!("eth deposit acc bal: {eth_deposit_acc_usdc_bal}");
-
-        Ok(eth_deposit_acc_usdc_bal)
-    }
-
-    async fn calculate_usdc_obligation(&self) -> Result<U256, Box<dyn Error>> {
-        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
-        let valence_vault = ValenceVault::new(self.eth_program_libraries.valence_vault, &eth_rp);
-
-        let assets_to_withdraw = self
-            .eth_client
-            .query(valence_vault.totalAssetsToWithdrawNextUpdate())
-            .await
-            .unwrap()
-            ._0;
-
-        info!("pending obligations: {assets_to_withdraw}");
-
-        Ok(assets_to_withdraw)
-    }
-
     async fn calculate_total_fee(&self) -> Result<u32, Box<dyn Error>> {
         // 2. Find withdraw fee F_total
         //   1. query Vault fee from the Eth vault
@@ -81,26 +37,15 @@ impl EthereumVault for Strategist {
 
         info!("vault fees: {:?}", fees);
 
-        let pool_addr = self.pool_addr.to_string();
-        let cl_pool_cfg: ConfigResponse = self
-            .neutron_client
-            .query_contract_state(&pool_addr, PoolQueryMsg::Config {})
-            .await
-            .unwrap();
+        // TODO: need to decide which fee we want to take (mid_fee, out_fee, etc).
+        // let pool_addr = self.pool_addr.to_string();
+        // let cl_pool_cfg: ConfigResponse = self
+        //     .neutron_client
+        //     .query_contract_state(&pool_addr, PoolQueryMsg::Config {})
+        //     .await
+        //     .unwrap();
 
-        let pool_fee = match cl_pool_cfg.try_get_cl_params() {
-            Some(cl_params) => {
-                info!("CL Params out fee: {:?}", cl_params);
-                (cl_params.out_fee * Decimal::from_ratio(10000u128, 1u128))
-                    .atomics()
-                    .u128() as u32 // intentionally truncating
-            }
-            None => 0u32,
-        };
-
-        info!("Was about to use pool fee of: {pool_fee}");
-
-        // test with smaller fee
+        // hardcoding flat fee for now
         let withdraw_fee = 100u32;
 
         if withdraw_fee > vault_cfg.maxWithdrawFeeBps {
@@ -112,52 +57,6 @@ impl EthereumVault for Strategist {
         }
 
         Ok(withdraw_fee)
-    }
-
-    /// concludes the vault epoch and updates the Valence Vault state
-    async fn vault_update(
-        &self,
-        rate: U256,
-        withdraw_fee_bps: u32,
-        netting_amount: U256,
-    ) -> Result<(), Box<dyn Error>> {
-        info!(
-            "Updating Ethereum Vault with:
-            rate: {rate}
-            witdraw_fee_bps: {withdraw_fee_bps}
-            netting_amount: {netting_amount}"
-        );
-        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
-
-        let clamped_withdraw_fee = withdraw_fee_bps.clamp(1, 10_000);
-
-        let valence_vault = ValenceVault::new(self.eth_program_libraries.valence_vault, &eth_rp);
-
-        let update_msg = valence_vault
-            .update(rate, clamped_withdraw_fee, netting_amount)
-            .into_transaction_request();
-
-        let update_result = self.eth_client.execute_tx(update_msg).await;
-
-        if let Err(e) = &update_result {
-            info!("Update failed: {:?}", e);
-            panic!("failed to update vault");
-        }
-
-        match eth_rp
-            .get_transaction_receipt(update_result.unwrap().transaction_hash)
-            .await
-        {
-            Ok(val) => match val {
-                Some(receipt) => {
-                    info!("Update tx receipt hash: {:?}", receipt.transaction_hash);
-                }
-                None => warn!("Failed to get update_vault tx receipt"),
-            },
-            Err(e) => warn!("Error updating vault: {:?}", e),
-        };
-
-        Ok(())
     }
 
     async fn calculate_redemption_rate(&self) -> Result<Decimal, Box<dyn Error>> {

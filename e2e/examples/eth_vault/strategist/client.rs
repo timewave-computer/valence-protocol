@@ -2,20 +2,25 @@ use std::error::Error;
 
 use alloy::{
     primitives::{Address, U256},
+    providers::Provider,
     signers::local::{coins_bip39::English, MnemonicBuilder},
 };
 use cosmwasm_std::Uint128;
 use localic_utils::{NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID};
-use log::info;
+use log::{info, warn};
 use tokio::runtime::Runtime;
 use valence_chain_client_utils::{
-    ethereum::EthereumClient, neutron::NeutronClient, noble::NobleClient,
+    ethereum::EthereumClient,
+    evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
+    neutron::NeutronClient,
+    noble::NobleClient,
 };
 
 use valence_e2e::{
     async_run,
     utils::{
         parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
+        solidity_contracts::{MockERC20, ValenceVault},
         ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID,
     },
 };
@@ -131,13 +136,27 @@ impl Strategist {
                 "strategist loop #{i} started at second {}",
                 get_current_second()
             );
+            let eth_rp = self.eth_client.get_request_provider().await.unwrap();
+            let valence_vault =
+                ValenceVault::new(self.eth_program_libraries.valence_vault, &eth_rp);
+            let eth_usdc_erc20 = MockERC20::new(self.ethereum_usdc_erc20, &eth_rp);
 
             // 1. calculate the amount of usdc needed to fulfill
             // the active withdraw obligations
-            let pending_obligations = self.calculate_usdc_obligation().await.unwrap();
+            let pending_obligations = self
+                .eth_client
+                .query(valence_vault.totalAssetsToWithdrawNextUpdate())
+                .await
+                .unwrap()
+                ._0;
 
             // 2. query ethereum program accounts for their usdc balances
-            let eth_deposit_acc_usdc_bal = self.deposit_acc_bal().await.unwrap();
+            let eth_deposit_acc_usdc_bal = self
+                .eth_client
+                .query(eth_usdc_erc20.balanceOf(self.eth_program_accounts.deposit))
+                .await
+                .unwrap()
+                ._0;
 
             // 3. see if pending obligations can be netted and update the pending
             // obligations accordingly
@@ -202,10 +221,39 @@ impl Strategist {
             let redemption_rate = self.calculate_redemption_rate().await.unwrap();
             let total_fee = self.calculate_total_fee().await.unwrap();
             let r = U256::from(redemption_rate.atomics().u128());
-            // Update the Vault with R, F_total, N
-            self.vault_update(r, total_fee, netting_amount)
+
+            let clamped_withdraw_fee = total_fee.clamp(1, 10_000);
+
+            info!(
+                "Updating Ethereum Vault with:
+                rate: {r}
+                witdraw_fee_bps: {clamped_withdraw_fee}
+                netting_amount: {netting_amount}"
+            );
+
+            let update_result = self
+                .eth_client
+                .execute_tx(
+                    valence_vault
+                        .update(r, clamped_withdraw_fee, netting_amount)
+                        .into_transaction_request(),
+                )
+                .await;
+
+            if let Err(e) = &update_result {
+                info!("Update failed: {:?}", e);
+                panic!("failed to update vault");
+            }
+
+            if eth_rp
+                .get_transaction_receipt(update_result.unwrap().transaction_hash)
                 .await
-                .unwrap();
+                .map_err(|e| warn!("Error: {:?}", e))
+                .unwrap()
+                .is_none()
+            {
+                warn!("Failed to get update_vault tx receipt")
+            };
 
             // 11. pull the funds due for deposit from origin to position domain
             //   1. cctp transfer eth deposit acc -> noble inbound ica
