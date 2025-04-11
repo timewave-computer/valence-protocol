@@ -117,4 +117,42 @@ pub trait EvmBaseClient: RequestProviderClient {
 
         Ok(decoded)
     }
+
+    async fn blocking_query<Q, F>(
+        &self,
+        builder: Q,   // query definition
+        predicate: F, // assertion fn on the response type
+        interval_sec: u64,
+        max_attempts: u32,
+    ) -> Result<Q::Output, StrategistError>
+    where
+        Q: EvmQueryRequest + Send,
+        F: Fn(&Q::Output) -> bool + Send,
+    {
+        let client = self.get_request_provider().await?;
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(interval_sec));
+        let tx_request = builder.get_tx_request();
+
+        for attempt in 1..max_attempts + 1 {
+            interval.tick().await;
+
+            match client.call(&tx_request).await {
+                Ok(raw_response) => {
+                    let decoded = builder.decode_response(raw_response)?;
+                    if predicate(&decoded) {
+                        log::info!("query attempt {attempt}/{max_attempts}: condition met");
+                        return Ok(decoded);
+                    }
+                    log::info!("query attempt {attempt}/{max_attempts}: condition not met");
+                }
+                Err(e) => {
+                    log::warn!("query attempt {attempt}/{max_attempts} failed: {:?}", e);
+                }
+            }
+        }
+
+        Err(StrategistError::QueryError(
+            "blocking query failed after max attempts; condition not met".to_string(),
+        ))
+    }
 }

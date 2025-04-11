@@ -3,7 +3,9 @@
 // The content of this file is taken from the 'astroport' crate, specifically version 5.0.0
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{coin, Addr, Binary, Coin, Decimal, DepsMut, StdError, StdResult, Uint128};
+use cosmwasm_std::{
+    coin, from_json, Addr, Binary, Coin, Decimal, DepsMut, StdError, StdResult, Uint128,
+};
 use valence_library_utils::error::LibraryError;
 
 pub fn query_pool(deps: &DepsMut, pool_addr: &str) -> Result<Vec<Asset>, LibraryError> {
@@ -18,6 +20,17 @@ pub fn query_pool(deps: &DepsMut, pool_addr: &str) -> Result<Vec<Asset>, Library
 pub struct SimulationResponse {
     /// The amount of ask assets returned by the swap
     pub return_amount: Uint128,
+    /// The spread used in the swap operation
+    pub spread_amount: Uint128,
+    /// The amount of fees charged by the transaction
+    pub commission_amount: Uint128,
+}
+
+/// This structure holds the parameters that are returned from a reverse swap simulation response.
+#[cw_serde]
+pub struct ReverseSimulationResponse {
+    /// The amount of offer assets returned by the reverse swap
+    pub offer_amount: Uint128,
     /// The spread used in the swap operation
     pub spread_amount: Uint128,
     /// The amount of fees charged by the transaction
@@ -104,9 +117,33 @@ pub enum FactoryQueryMsg {
     },
 }
 
+/// This struct is used to return a query result with the general contract configuration.
+#[cw_serde]
+pub struct ConfigResponse {
+    /// Last timestamp when the cumulative prices in the pool were updated
+    pub block_time_last: u64,
+    /// The pool's parameters
+    pub params: Option<Binary>,
+    /// The contract owner
+    pub owner: Addr,
+    /// The factory contract address
+    pub factory_addr: Addr,
+    /// Tracker contract address
+    pub tracker_addr: Option<Addr>,
+}
+
+impl ConfigResponse {
+    pub fn try_get_cl_params(&self) -> Option<ConcentratedPoolParams> {
+        self.params.as_ref().map(|p| from_json(p).unwrap())
+    }
+}
+
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum PoolQueryMsg {
+    /// Returns contract configuration
+    #[returns(ConfigResponse)]
+    Config {},
     /// Returns information about a pair in an object of type [`super::asset::PairInfo`].
     #[returns(PairInfo)]
     Pair {},
@@ -118,6 +155,21 @@ pub enum PoolQueryMsg {
         offer_asset: Asset,
         ask_asset_info: Option<AssetInfo>,
     },
+    /// Returns information about a reverse swap simulation
+    #[returns(ReverseSimulationResponse)]
+    ReverseSimulation {
+        offer_asset_info: Option<AssetInfo>,
+        ask_asset: Asset,
+    },
+    /// Returns an estimation of shares received for the given amount of assets
+    #[returns(Uint128)]
+    SimulateProvide {
+        assets: Vec<Asset>,
+        slippage_tolerance: Option<Decimal>,
+    },
+    /// Returns an estimation of assets received for the given amount of LP tokens
+    #[returns(Vec<Asset>)]
+    SimulateWithdraw { lp_amount: Uint128 },
     /// Returns information about the share of the pool in a vector that contains objects of type [`Asset`].
     #[returns(Vec<Asset>)]
     Share { amount: Uint128 },

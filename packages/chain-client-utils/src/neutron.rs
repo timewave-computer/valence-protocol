@@ -280,7 +280,7 @@ mod tests {
         );
 
         let rx = client
-            .execute_wasm(LOCAL_PROCESSOR_ADDR, processor_tick_msg, vec![])
+            .execute_wasm(LOCAL_PROCESSOR_ADDR, processor_tick_msg, vec![], None)
             .await
             .unwrap();
 

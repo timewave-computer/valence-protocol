@@ -1,4 +1,7 @@
-use std::error::Error;
+use std::{
+    error::Error,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use cosmwasm_std_old::Coin as BankCoin;
 use localic_std::modules::bank;
@@ -15,6 +18,35 @@ use valence_e2e::utils::{
 };
 
 use crate::program::ProgramHyperlaneContracts;
+
+pub fn get_current_second() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+        % 60
+}
+
+pub async fn wait_until_next_minute() {
+    let current_second = get_current_second();
+    let seconds_to_wait = 60 - current_second;
+    info!("waiting {seconds_to_wait} seconds until next minute");
+    tokio::time::sleep(Duration::from_secs(seconds_to_wait)).await;
+}
+
+pub async fn wait_until_half_minute() {
+    let current_second = get_current_second();
+    if current_second >= 30 {
+        // wait for next minute + 30 seconds
+        wait_until_next_minute().await;
+        tokio::time::sleep(Duration::from_secs(30)).await;
+    } else {
+        // wait until second 30 of current minute
+        let seconds_to_wait = 30 - current_second;
+        info!("waiting {seconds_to_wait} seconds until half minute");
+        tokio::time::sleep(Duration::from_secs(seconds_to_wait)).await;
+    }
+}
 
 pub fn hyperlane_plumbing(
     test_ctx: &mut TestContext,
