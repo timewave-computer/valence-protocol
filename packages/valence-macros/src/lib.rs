@@ -163,6 +163,7 @@ pub fn manager_impl_library_configs(_attr: TokenStream, input: TokenStream) -> T
 
     for variant in variants {
         let variant_ident = &variant.ident;
+        let variant_name = variant_ident.to_string();
 
         if variant_ident == "None" {
             // Add None variant
@@ -195,30 +196,49 @@ pub fn manager_impl_library_configs(_attr: TokenStream, input: TokenStream) -> T
             Fields::Unnamed(fields) => {
                 let field = fields.unnamed.first().expect("Expected single field");
                 if let Type::Path(type_path) = &field.ty {
+                    let original_path = &type_path.path;
+
                     let mut new_path = type_path.path.clone();
                     if let Some(last_seg) = new_path.segments.last_mut() {
                         last_seg.ident = format_ident!("{}Update", last_seg.ident);
                     }
 
                     // Extract the base module path
-                    let module_path = &type_path.path.segments[0].ident;
+                    let library_path: &syn::Ident = &type_path.path.segments[0].ident;
 
                     // Add update variant
-                    update_variants.push(quote! {
-                        #variant_ident(#new_path)
-                    });
+                    if variant_name.starts_with("Evm") {
+                        update_variants.push(quote! {
+                            #variant_ident(#original_path)
+                        });
+                    } else {
+                        update_variants.push(quote! {
+                            #variant_ident(#new_path)
+                        });
+                    }
 
                     // Add get_update_msg match for update enum
-                    update_msg_matches.push(quote! {
-                        #update_enum_ident::#variant_ident(service_config_update) => {
-                            to_json_binary(&valence_library_utils::msg::ExecuteMsg::<
-                                Empty,
-                                #module_path::msg::LibraryConfigUpdate,
-                            >::UpdateConfig {
-                                new_config: service_config_update,
-                            })
-                        }
-                    });
+                    if variant_name.starts_with("Evm") {
+                        // TODO: Return the correct update message for EVM
+                        update_msg_matches.push(quote! {
+                            #update_enum_ident::#variant_ident(service_config) => {
+                                Ok(#library_path::updateConfigCall {
+                                    _config: service_config.abi_encode().into(),
+                                }.abi_encode())
+                            }
+                        });
+                    } else {
+                        update_msg_matches.push(quote! {
+                            #update_enum_ident::#variant_ident(service_config_update) => {
+                                to_vec(&valence_library_utils::msg::ExecuteMsg::<
+                                    Empty,
+                                    #library_path::msg::LibraryConfigUpdate,
+                                >::UpdateConfig {
+                                    new_config: service_config_update,
+                                })
+                            }
+                        });
+                    }
 
                     // Add replace_config match
                     replace_config_matches.push(quote! {
@@ -230,21 +250,43 @@ pub fn manager_impl_library_configs(_attr: TokenStream, input: TokenStream) -> T
                     });
 
                     // Add get_instantiate_msg match
-                    get_instantiate_msg_matches.push(quote! {
-                        #enum_ident::#variant_ident(config) => to_vec(&InstantiateMsg {
-                            owner,
-                            processor,
-                            config: config.clone(),
-                        })
-                    });
+                    if variant_name.starts_with("Evm") {
+                        get_instantiate_msg_matches.push(quote! {
+                            #enum_ident::#variant_ident(config) => Ok(
+                                #library_path::constructorCall {
+                                    _owner: Address::from_str(&owner).map_err(|_| LibraryError::FailedToParseAddress(owner))?,
+                                    _processor: Address::from_str(&processor).map_err(|_| LibraryError::FailedToParseAddress(processor))?,
+                                    _config: config.abi_encode().into(),
+                                }
+                                .abi_encode()
+                            )
+                        });
+                    } else {
+                        get_instantiate_msg_matches.push(quote! {
+                            #enum_ident::#variant_ident(config) => to_vec(&InstantiateMsg {
+                                owner,
+                                processor,
+                                config: config.clone(),
+                            })
+                        });
+                    }
 
                     // Add pre_validate_config match
-                    pre_validate_matches.push(quote! {
-                        #enum_ident::#variant_ident(config) => {
-                            config.pre_validate(api)?;
-                            Ok(())
-                        }
-                    });
+                    if variant_name.starts_with("Evm") {
+                        // TODO: Handle EVM specific pre-validation of the config
+                        pre_validate_matches.push(quote! {
+                            #enum_ident::#variant_ident(config) => {
+                                Ok(())
+                            }
+                        });
+                    } else {
+                        pre_validate_matches.push(quote! {
+                            #enum_ident::#variant_ident(config) => {
+                                config.pre_validate(api)?;
+                                Ok(())
+                            }
+                        });
+                    }
 
                     // Add get_account_ids match
                     get_account_ids_matches.push(quote! {
@@ -271,20 +313,18 @@ pub fn manager_impl_library_configs(_attr: TokenStream, input: TokenStream) -> T
             VariantNames,
             PartialEq,
             Default,
-            JsonSchema,
         )]
         #[strum(serialize_all = "snake_case")]
-        #[schemars(crate = "cosmwasm_schema::schemars")]
         pub enum #update_enum_ident {
             #(#update_variants,)*
         }
 
         impl #update_enum_ident {
-            pub fn get_update_msg(self) -> LibraryResult<Binary> {
+            pub fn get_update_msg(self) -> LibraryResult<Vec<u8>> {
                 match self {
                     #(#update_msg_matches,)*
                 }
-                .map_err(LibraryError::CosmwasmStdError)
+                .map_err(LibraryError::SerdeJsonError)
             }
         }
 
@@ -322,6 +362,29 @@ pub fn manager_impl_library_configs(_attr: TokenStream, input: TokenStream) -> T
                 match self {
                     #(#get_account_ids_matches,)*
                 }
+            }
+
+            /// Helper to find account ids in the json string
+            fn find_account_ids(ac: AhoCorasick, json: String) -> LibraryResult<Vec<Id>> {
+                // We find all the places `"|account_id|": is used
+                let res = ac.find_iter(&json);
+                let mut account_ids = vec![];
+
+                // List of all matches
+                for mat in res {
+                    // we take a substring from our match to the next 5 characters
+                    // we loop over those characters and see if they are numbers
+                    // once we found a char that is not a number we stop
+                    // we get Vec<char> and convert it to a string and parse to Id (u64)
+                    let number = json[mat.end()..]
+                        .chars()
+                        .map_while(|char| if char.is_numeric() { Some(char) } else { None })
+                        .collect::<String>()
+                        .parse::<Id>()?;
+                    account_ids.push(number);
+                }
+
+                Ok(account_ids)
             }
         }
 

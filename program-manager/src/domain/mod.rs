@@ -1,4 +1,5 @@
 pub mod cosmos_cw;
+pub mod eth_evm;
 // pub mod cosmos_evm;
 
 use std::fmt;
@@ -8,6 +9,7 @@ use async_trait::async_trait;
 use cosmos_cw::{CosmosCosmwasmConnector, CosmosCosmwasmError};
 
 use cosmwasm_schema::schemars::JsonSchema;
+use eth_evm::{EthEvmConnector, EthEvmError};
 use serde::{Deserialize, Serialize};
 
 // use cosmos_evm::CosmosEvmError;
@@ -30,8 +32,9 @@ pub enum ConnectorError {
 
     #[error("Cosmos Cosmwasm")]
     CosmosCosmwasm(#[from] CosmosCosmwasmError),
-    // #[error("Cosmos Evm")]
-    // CosmosEvm(#[from] CosmosEvmError),
+
+    #[error("Ethereum Evm")]
+    EthEvm(#[from] EthEvmError),
 }
 
 /// We need some way of knowing which domain we are talking with
@@ -42,6 +45,7 @@ pub enum ConnectorError {
 #[schemars(crate = "cosmwasm_schema::schemars")]
 pub enum Domain {
     CosmosCosmwasm(String),
+    EthEvm,
     // CosmosEvm(String),
     // Solana
 }
@@ -51,7 +55,7 @@ impl fmt::Display for Domain {
         // IMPORTANT: to get from_string, we need to separate everything using ":"
         match self {
             Domain::CosmosCosmwasm(chain_name) => write!(f, "CosmosCosmwasm:{}", chain_name),
-            // Domain::CosmosEvm(chain_name) => write!(f, "CosmosEvm:{}", chain_name),
+            Domain::EthEvm => write!(f, "EthEvm"),
         }
     }
 }
@@ -69,12 +73,7 @@ impl Domain {
                     .context("CosmosCosmwasm Domain missing chain name")?
                     .to_string(),
             )),
-            // "CosmosEvm" => Ok(Domain::CosmosEvm(
-            //     split
-            //         .next()
-            //         .context("CosmosCosmwasm Domain missing chain name")?
-            //         .to_string(),
-            // )),
+            "EthEvm" => Ok(Domain::EthEvm),
             s => Err(anyhow!(format!(
                 "Failed to parse domain from string: {}",
                 s
@@ -85,7 +84,7 @@ impl Domain {
     pub fn get_chain_name(&self) -> &str {
         match self {
             Domain::CosmosCosmwasm(chain_name) => chain_name,
-            // Domain::CosmosEvm(chain_name) => chain_name,
+            Domain::EthEvm => "Ethereum",
         }
     }
 
@@ -93,11 +92,13 @@ impl Domain {
         Ok(match self {
             Domain::CosmosCosmwasm(chain_name) => {
                 Box::new(CosmosCosmwasmConnector::new(chain_name.as_str()).await?)
-            } // Domain::CosmosEvm(_) => {
-              //     return Err(ConnectorError::ConfigError(
-              //         ConfigError::ChainBridgeNotFound("test".to_string()),
-              //     ))
-              // }
+            }
+            Domain::EthEvm => Box::new(EthEvmConnector::new().await?),
+            // Domain::CosmosEvm(_) => {
+            //     return Err(ConnectorError::ConfigError(
+            //         ConfigError::ChainBridgeNotFound("test".to_string()),
+            //     ))
+            // }
         })
     }
 }

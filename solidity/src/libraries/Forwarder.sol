@@ -10,6 +10,7 @@ import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
  * @dev Contract for automatically forwarding tokens between accounts based on configurable intervals
  */
 contract Forwarder is Library {
+    event F(ForwarderConfig c);
     /**
      * @dev Configuration for a single token forwarding rule
      * @param tokenAddress Address of token to forward (0x0 for native coin)
@@ -62,15 +63,24 @@ contract Forwarder is Library {
      * @param _config Initial configuration data for the forwarder
      * @notice Calls updateConfig to set initial forwarder configuration
      */
-    constructor(address _owner, address _processor, bytes memory _config) Library(_owner, _processor, _config) {}
+    constructor(
+        address _owner,
+        address _processor,
+        bytes memory _config
+    ) Library(_owner, _processor, _config) {}
 
     /**
      * @dev Validates configuration, checking for duplicate tokens
      * @param _config Raw configuration bytes
      * @return Decoded and validated config
      */
-    function validateConfig(bytes memory _config) internal pure returns (ForwarderConfig memory) {
-        ForwarderConfig memory decodedConfig = abi.decode(_config, (ForwarderConfig));
+    function validateConfig(
+        bytes memory _config
+    ) internal pure returns (ForwarderConfig memory) {
+        ForwarderConfig memory decodedConfig = abi.decode(
+            _config,
+            (ForwarderConfig)
+        );
         uint256 len = decodedConfig.forwardingConfigs.length;
         if (len == 0) {
             revert("No forwarding configs");
@@ -115,9 +125,15 @@ contract Forwarder is Library {
      */
     function _checkInterval() private view {
         if (config.intervalType == IntervalType.TIME) {
-            require(block.timestamp - lastExecution.timestamp >= config.minInterval, "Time interval not passed");
+            require(
+                block.timestamp - lastExecution.timestamp >= config.minInterval,
+                "Time interval not passed"
+            );
         } else {
-            require(block.number - lastExecution.blockHeight >= config.minInterval, "Block interval not passed");
+            require(
+                block.number - lastExecution.blockHeight >= config.minInterval,
+                "Block interval not passed"
+            );
         }
     }
 
@@ -125,7 +141,10 @@ contract Forwarder is Library {
      * @dev Updates last execution time/block
      */
     function _updateLastExecution() private {
-        lastExecution = LastExecution(uint64(block.number), uint64(block.timestamp));
+        lastExecution = LastExecution(
+            uint64(block.number),
+            uint64(block.timestamp)
+        );
     }
 
     /**
@@ -134,7 +153,11 @@ contract Forwarder is Library {
      * @param input Source account
      * @param output Destination account
      */
-    function _forwardToken(ForwardingConfig memory fConfig, Account input, Account output) private {
+    function _forwardToken(
+        ForwardingConfig memory fConfig,
+        Account input,
+        Account output
+    ) private {
         // Check if what we are trying to forward is the native coin or ERC20
         bool isNativeCoin = _isNativeCoin(fConfig.tokenAddress);
 
@@ -144,7 +167,9 @@ contract Forwarder is Library {
             : IERC20(fConfig.tokenAddress).balanceOf(address(input)); // Balance of ERC20 token
 
         // Calculate amount to send, capped by max amount configuration
-        uint256 amountToSend = balance < fConfig.maxAmount ? balance : fConfig.maxAmount;
+        uint256 amountToSend = balance < fConfig.maxAmount
+            ? balance
+            : fConfig.maxAmount;
 
         // Skip execution if no amount to send
         if (amountToSend == 0) return;

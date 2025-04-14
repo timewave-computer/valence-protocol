@@ -1,20 +1,24 @@
-use std::num::ParseIntError;
+use std::{num::ParseIntError, str::FromStr};
 
 use aho_corasick::AhoCorasick;
 
-use cosmwasm_schema::schemars;
 use cosmwasm_schema::schemars::JsonSchema;
-use cosmwasm_std::{to_json_binary, Binary, Empty, StdError};
+use cosmwasm_std::{Empty, StdError};
 use serde::{Deserialize, Serialize};
 use serde_json::to_vec;
 use strum::VariantNames;
 use thiserror::Error;
 
+use alloy::{
+    primitives::Address,
+    sol_types::{SolCall, SolConstructor, SolValue},
+};
 use valence_library_utils::{
     msg::{InstantiateMsg, LibraryConfigValidation},
     Id,
 };
 use valence_macros::manager_impl_library_configs;
+use valence_solidity_bindings::Forwarder as EvmForwarder;
 
 use crate::domain::Domain;
 
@@ -45,6 +49,9 @@ pub enum LibraryError {
 
     #[error("No library config update")]
     NoLibraryConfigUpdate,
+    
+    #[error("Failed to parse string into EVM Address: {0}")]
+    FailedToParseAddress(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
@@ -52,6 +59,7 @@ pub enum LibraryError {
 pub struct LibraryInfo {
     pub name: String,
     pub domain: Domain,
+    #[schemars(skip)]
     pub config: LibraryConfig,
     pub addr: Option<String>,
 }
@@ -70,15 +78,7 @@ impl LibraryInfo {
 /// This is a list of all our libraries we support and their configs.
 #[manager_impl_library_configs]
 #[derive(
-    Debug,
-    Clone,
-    strum::Display,
-    Serialize,
-    Deserialize,
-    VariantNames,
-    PartialEq,
-    Default,
-    JsonSchema,
+    Debug, Clone, strum::Display, Serialize, Deserialize, VariantNames, PartialEq, Default,
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum LibraryConfig {
@@ -97,29 +97,5 @@ pub enum LibraryConfig {
     ValenceOsmosisClWithdrawer(valence_osmosis_cl_withdrawer::msg::LibraryConfig),
     ValenceDropLiquidStaker(valence_drop_liquid_staker::msg::LibraryConfig),
     ValenceDropLiquidUnstaker(valence_drop_liquid_unstaker::msg::LibraryConfig),
-}
-
-impl LibraryConfig {
-    /// Helper to find account ids in the json string
-    fn find_account_ids(ac: AhoCorasick, json: String) -> LibraryResult<Vec<Id>> {
-        // We find all the places `"|account_id|": is used
-        let res = ac.find_iter(&json);
-        let mut account_ids = vec![];
-
-        // LOist of all matches
-        for mat in res {
-            // we take a substring from our match to the next 5 characters
-            // we loop over those characters and see if they are numbers
-            // once we found a char that is not a number we stop
-            // we get Vec<char> and convert it to a string and parse to Id (u64)
-            let number = json[mat.end()..]
-                .chars()
-                .map_while(|char| if char.is_numeric() { Some(char) } else { None })
-                .collect::<String>()
-                .parse::<Id>()?;
-            account_ids.push(number);
-        }
-
-        Ok(account_ids)
-    }
+    EvmForwarderLibrary(EvmForwarder::ForwarderConfig),
 }

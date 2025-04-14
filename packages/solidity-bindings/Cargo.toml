@@ -1,0 +1,12 @@
+[package]
+name        = "valence-solidity-bindings"
+version     = { workspace = true }
+edition     = { workspace = true }
+authors     = { workspace = true }
+description = "Bindings for solidity libraries"
+license     = { workspace = true }
+
+[dependencies]
+alloy           = { version = "0.9.2", features = ["full"] }
+serde           = { workspace = true }
+cosmwasm-schema = { workspace = true }

@@ -25,7 +25,7 @@ pub fn instantiate(
 ) -> StdResult<Response> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     cw_ownable::initialize_owner(deps.storage, deps.api, Some(&msg.admin))?;
-
+    
     msg.approved_libraries.iter().try_for_each(|library| {
         APPROVED_LIBRARIES.save(deps.storage, deps.api.addr_validate(library)?, &Empty {})
     })?;

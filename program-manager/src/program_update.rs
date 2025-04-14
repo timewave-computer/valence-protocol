@@ -36,6 +36,7 @@ pub struct ProgramConfigUpdate {
     /// New owner, if the owner is to be updated
     pub owner: Option<String>,
     /// The list library data by id
+    #[schemars(skip)]
     pub libraries: BTreeMap<Id, LibraryConfigUpdate>,
     /// A list of authorizations
     pub authorizations: Vec<AuthorizationInfoUpdate>,
@@ -178,7 +179,9 @@ impl ProgramConfigUpdate {
                                 queue_position: 0,
                                 priority: Priority::High,
                                 messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
-                                    msg: update_config_msg,
+                                    msg: to_json_binary(&update_config_msg).context(
+                                        "Failed parsing `update_config_msg` to json_binary",
+                                    )?,
                                 }],
                             },
                         ),
