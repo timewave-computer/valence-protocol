@@ -28,10 +28,10 @@ graph LR
 
 ## Functions
 
-| Function      | Parameters                                                         | Description                                                  |
-| ------------- | ------------------------------------------------------------------ | ------------------------------------------------------------ |
-| **swap**      | poolId, tokenIn, tokenOut, userData, amount, minAmountOut, timeout | Execute a single token swap through a Balancer V2 pool.      |
-| **multiSwap** | poolIds, tokens, userDataArray, amount, minAmountOut, timeout      | Execute a multi-hop swap through multiple Balancer V2 pools. |
+| Function      | Parameters                                                           | Description                                                  |
+| ------------- | -------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **swap**      | poolId, tokenIn, tokenOut, userData, amountIn, minAmountOut, timeout | Execute a single token swap through a Balancer V2 pool.      |
+| **multiSwap** | poolIds, tokens, userDataArray, amountIn, minAmountOut, timeout      | Execute a multi-hop swap through multiple Balancer V2 pools. |
 
 ## Single Swap Parameters
 
@@ -43,7 +43,7 @@ The `swap` function requires the following parameters:
 | **tokenIn**      | address | Address of the token to swap from                                                                    |
 | **tokenOut**     | address | Address of the token to swap to                                                                      |
 | **userData**     | bytes   | Additional data for specialized pools (usually empty bytes)                                          |
-| **amount**       | uint256 | Amount of tokens to swap. If set to 0, all available tokens in the **input_account** will be swapped |
+| **amountIn**     | uint256 | Amount of tokens to swap. If set to 0, all available tokens in the **input_account** will be swapped |
 | **minAmountOut** | uint256 | Minimum amount of output tokens to receive (slippage protection)                                     |
 | **timeout**      | uint256 | How long the transaction is valid for (in seconds)                                                   |
 
@@ -56,7 +56,7 @@ The `multiSwap` function enables complex trading routes through multiple pools:
 | **poolIds**       | bytes32[] | Array of pool IDs to use for each swap step (in sequence)                                                                                                                                                      |
 | **tokens**        | address[] | Array of all token addresses involved in the swap path (in sequence), needs to contain exactly 1 more element than the poolIds array                                                                           |
 | **userDataArray** | bytes[]   | Additional data for specialized pools (one entry per pool). This data can be empty for all current Balancer pools but is reserved for possible future pool logic. Must be the same length as the poolIds array |
-| **amount**        | uint256   | Amount of tokens to swap. If set to 0, all available tokens in the **input_account** will be swapped                                                                                                           |
+| **amountIn**      | uint256   | Amount of tokens to swap. If set to 0, all available tokens in the **input_account** will be swapped                                                                                                           |
 | **minAmountOut**  | uint256   | Minimum amount of output tokens to receive (slippage protection)                                                                                                                                               |
 | **timeout**       | uint256   | How long the transaction is valid for (in seconds)                                                                                                                                                             |
 
