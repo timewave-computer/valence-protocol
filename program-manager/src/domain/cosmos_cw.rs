@@ -480,7 +480,7 @@ impl Connector for CosmosCosmwasmConnector {
         let polytone_config = polytone_config.map(|bridge_ty| {
             match bridge_ty {
                 Bridgetype::Polytone => {
-                    let polytone_info = GLOBAL_CONFIG.lock().await;
+                    let polytone_info = cfg.g;
                 valence_processor_utils::msg::PolytoneContracts {
                     polytone_proxy_address: admin.to_string(),
                     polytone_note_address: chain_info.note_addr.to_string(),
