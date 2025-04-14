@@ -35,7 +35,7 @@ pub enum FunctionMsgs {
         token_in: String,
         /// The address of the token to swap to
         token_out: String,
-        /// The amount to swap from the first token
+        /// The amount to swap from the first token. If set to 0, the library will use the entire balance of the input account
         amount_in: Uint256,
         /// The minimum amount to receive from the last token
         min_amount_out: Uint256,
@@ -53,7 +53,7 @@ pub enum FunctionMsgs {
         /// List of tokens to swap through
         /// The first token is the one to swap from, the last one is the one to swap to
         tokens: Vec<String>,
-        /// The amount to swap from the first token
+        /// The amount to swap from the first token. If set to 0, the library will use the entire balance of the input account
         amount_in: Uint256,
         /// The minimum amount to receive from the last token
         min_amount_out: Uint256,
