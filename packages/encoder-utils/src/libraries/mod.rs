@@ -3,6 +3,7 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Binary, StdError, StdResult};
 
 pub mod aave_position_manager;
+pub mod balancer_v2_swap;
 pub mod cctp_transfer;
 pub mod forwarder;
 pub mod standard_bridge_transfer;
