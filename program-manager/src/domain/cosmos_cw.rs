@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     account::{AccountType, InstantiateAccountData},
-    bridge::PolytoneSingleChainInfo,
+    bridge::{Bridgetype, PolytoneBridgeInfo},
     config::{ChainInfo, ConfigError, GLOBAL_CONFIG},
     library::{LibraryConfig, LibraryError},
     mock_api::MockApi,
@@ -467,13 +467,28 @@ impl Connector for CosmosCosmwasmConnector {
         salt: Vec<u8>,
         admin: String,
         authorization: String,
-        polytone_config: Option<valence_processor_utils::msg::PolytoneContracts>,
+        polytone_config: Option<Bridgetype>,
     ) -> ConnectorResult<()> {
         let code_id = *self
             .code_ids
             .get("valence_processor")
             .context(format!("Code id not found for: {}", "processor"))
             .map_err(CosmosCosmwasmError::Error)?;
+
+            let cfg = GLOBAL_CONFIG.lock().await;
+
+        let polytone_config = polytone_config.map(|bridge_ty| {
+            match bridge_ty {
+                Bridgetype::Polytone => {
+                    let polytone_info = GLOBAL_CONFIG.lock().await;
+                valence_processor_utils::msg::PolytoneContracts {
+                    polytone_proxy_address: admin.to_string(),
+                    polytone_note_address: chain_info.note_addr.to_string(),
+                    timeout_seconds: POLYTONE_TIMEOUT,
+                }},
+                _ => unreachable!(),
+            }
+        }) 
 
         let msg = to_vec(&valence_processor_utils::msg::InstantiateMsg {
             authorization_contract: authorization,

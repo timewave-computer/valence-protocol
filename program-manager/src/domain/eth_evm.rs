@@ -11,10 +11,7 @@ use async_trait::async_trait;
 use thiserror::Error;
 
 use crate::{
-    account::InstantiateAccountData,
-    config::{ChainInfo, ConfigError, GLOBAL_CONFIG},
-    library::LibraryConfig,
-    mock_api::MockApi,
+    account::InstantiateAccountData, bridge::Bridgetype, config::{ChainInfo, ConfigError, GLOBAL_CONFIG}, library::LibraryConfig, mock_api::MockApi
 };
 
 use super::{Connector, ConnectorResult};
@@ -148,7 +145,7 @@ impl Connector for EthEvmConnector {
         salt: Vec<u8>,
         admin: String,
         authorization: String,
-        polytone_config: Option<valence_processor_utils::msg::PolytoneContracts>,
+        polytone_config: Option<Bridgetype>,
     ) -> ConnectorResult<()> {
         // Implement the logic here
         unimplemented!()
@@ -179,11 +176,6 @@ impl Connector for EthEvmConnector {
     }
 
     async fn verify_bridge_account(&mut self, bridge_addr: String) -> ConnectorResult<()> {
-        // Implement the logic here
-        unimplemented!()
-    }
-
-    fn get_api(&self) -> &MockApi {
         // Implement the logic here
         unimplemented!()
     }

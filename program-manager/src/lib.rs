@@ -4,7 +4,6 @@ pub mod config;
 pub mod connectors;
 pub mod domain;
 pub mod error;
-pub mod helpers;
 pub mod library;
 pub mod macros;
 pub mod mock_api;

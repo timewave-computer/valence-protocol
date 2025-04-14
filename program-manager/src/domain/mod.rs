@@ -17,8 +17,7 @@ use thiserror::Error;
 use valence_authorization_utils::authorization::AuthorizationInfo;
 
 use crate::{
-    account::InstantiateAccountData, config::ConfigError, library::LibraryConfig,
-    mock_api::MockApi, program_config::ProgramConfig,
+    account::InstantiateAccountData, bridge::Bridgetype, config::ConfigError, library::LibraryConfig, mock_api::MockApi, program_config::ProgramConfig
 };
 
 pub type ConnectorResult<T> = Result<T, ConnectorError>;
@@ -148,7 +147,7 @@ pub trait Connector: fmt::Debug + Send + Sync {
         salt: Vec<u8>,
         admin: String,
         authorization: String,
-        polytone_config: Option<valence_processor_utils::msg::PolytoneContracts>,
+        polytone_config: Option<Bridgetype>,
     ) -> ConnectorResult<()>;
 
     /// We need to do 2 things here:
@@ -175,7 +174,7 @@ pub trait Connector: fmt::Debug + Send + Sync {
     // Verify the bridge account was instantiated
     async fn verify_bridge_account(&mut self, bridge_addr: String) -> ConnectorResult<()>;
 
-    fn get_api(&self) -> &MockApi;
+    
     // ---------------------------------------------------------------------------------------
     // Below are functions that sohuld only be implemented on a specific domain
     // For example authorization contract methods should only be implemented on the main domain
@@ -284,5 +283,10 @@ pub trait Connector: fmt::Debug + Send + Sync {
     #[allow(unused_variables)]
     async fn get_program_config(&mut self, id: u64) -> ConnectorResult<ProgramConfig> {
         unimplemented!("'get_program_config' should only be implemented on neutron domain");
+    }
+    
+    #[allow(unused_variables)]
+    fn get_api(&self) -> &MockApi {
+        unimplemented!("'get_api' should only be implemented on Cosmwasm domains");
     }
 }

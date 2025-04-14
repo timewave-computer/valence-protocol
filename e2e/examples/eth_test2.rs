@@ -43,8 +43,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let accounts = eth.get_accounts_addresses()?;
 
     let deployer = Address::from_str(DEPLOYER).unwrap();
-
-    println!("Step 1: Deploy ForwarderProxy using CREATE2");
     
     // Use a simple salt for CREATE2
     let salt = keccak256(b"test");

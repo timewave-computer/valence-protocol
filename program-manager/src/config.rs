@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::Mutex;
 
-use crate::bridge::Bridge;
+use crate::bridge::{BridgeInfo, BridgesConfig, BridgesMap};
 
 pub type ConfigResult<T> = Result<T, ConfigError>;
 
@@ -19,18 +19,15 @@ pub enum ConfigError {
     #[error("Code ids not found for: {0}")]
     CodeIdsNotFound(String),
 
-    #[error("Bridge details not found for main chain: {0}")]
-    MainChainBridgeNotFound(String),
-
-    #[error("Bridge details not found for: {0}")]
-    ChainBridgeNotFound(String),
+    #[error("Bridge details not found, from : {0} to : {1}")]
+    ChainBridgeNotFoundA(String, String),
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Config {
     pub chains: HashMap<String, ChainInfo>,
     pub contracts: Contracts,
-    pub bridges: HashMap<String, HashMap<String, Bridge>>,
+    pub bridges: BridgesConfig,
     pub general: GeneralConfig,
 }
 
@@ -69,12 +66,19 @@ impl Config {
             .ok_or(ConfigError::CodeIdsNotFound(chain_name.to_string()))
     }
 
-    pub fn get_bridge_info(&self, main_chain: &str, chain_name: &str) -> ConfigResult<&Bridge> {
+    pub fn get_bridges(&self, chain_a: &str, chain_b: &str) -> ConfigResult<&BridgesMap> {
         self.bridges
-            .get(main_chain)
-            .ok_or(ConfigError::MainChainBridgeNotFound(main_chain.to_string()))?
-            .get(chain_name)
-            .ok_or(ConfigError::ChainBridgeNotFound(chain_name.to_string()))
+            .get(chain_a)
+            .ok_or(ConfigError::ChainBridgeNotFoundA(chain_a.to_string(), chain_b.to_string()))?
+            .get(chain_b)
+            .ok_or(ConfigError::ChainBridgeNotFoundA(chain_a.to_string(), chain_b.to_string()))
+    }
+
+    pub fn get_bridge_info(&self, chain_a: &str, chain_b: &str, bridge_name: &str) -> ConfigResult<&BridgeInfo>{
+        let bridges_map = self.get_bridges(chain_a, chain_b)?;
+        bridges_map
+            .get(bridge_name)
+            .ok_or(ConfigError::ChainBridgeNotFoundA(chain_a.to_string(), chain_b.to_string()))
     }
 
     pub fn get_registry_addr(&self) -> String {

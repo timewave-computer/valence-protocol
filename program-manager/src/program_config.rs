@@ -15,7 +15,6 @@ use crate::{
     connectors::Connectors,
     domain::Domain,
     error::{ManagerError, ManagerResult},
-    helpers::get_polytone_info,
     library::LibraryInfo,
     macros::ensure,
     NEUTRON_CHAIN,
