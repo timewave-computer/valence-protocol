@@ -37,15 +37,15 @@ graph LR
 
 The `swap` function requires the following parameters:
 
-| Parameter        | Type    | Description                                                                                          |
-| ---------------- | ------- | ---------------------------------------------------------------------------------------------------- |
-| **poolId**       | bytes32 | The ID of the Balancer pool to use for the swap                                                      |
-| **tokenIn**      | address | Address of the token to swap from                                                                    |
-| **tokenOut**     | address | Address of the token to swap to                                                                      |
-| **userData**     | bytes   | Additional data for specialized pools (usually empty bytes)                                          |
-| **amountIn**     | uint256 | Amount of tokens to swap. If set to 0, all available tokens in the **input_account** will be swapped |
-| **minAmountOut** | uint256 | Minimum amount of output tokens to receive (slippage protection)                                     |
-| **timeout**      | uint256 | How long the transaction is valid for (in seconds)                                                   |
+| Parameter        | Type    | Description                                                                                                              |
+| ---------------- | ------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **poolId**       | bytes32 | The ID of the Balancer pool to use for the swap                                                                          |
+| **tokenIn**      | address | Address of the token to swap from                                                                                        |
+| **tokenOut**     | address | Address of the token to swap to                                                                                          |
+| **userData**     | bytes   | Additional data for specialized pools (usually empty bytes)                                                              |
+| **amountIn**     | uint256 | Amount of tokens to swap. If set to 0, all available tokens in the **input_account** will be swapped                     |
+| **minAmountOut** | uint256 | Minimum amount of output tokens to receive (slippage tolerance). If set to 0 it means no slippage protection is applied. |
+| **timeout**      | uint256 | How long the transaction is valid for (in seconds)                                                                       |
 
 ## Multi-Hop Swap Parameters
 
@@ -57,7 +57,7 @@ The `multiSwap` function enables complex trading routes through multiple pools:
 | **tokens**        | address[] | Array of all token addresses involved in the swap path (in sequence), needs to contain exactly 1 more element than the poolIds array                                                                           |
 | **userDataArray** | bytes[]   | Additional data for specialized pools (one entry per pool). This data can be empty for all current Balancer pools but is reserved for possible future pool logic. Must be the same length as the poolIds array |
 | **amountIn**      | uint256   | Amount of tokens to swap. If set to 0, all available tokens in the **input_account** will be swapped                                                                                                           |
-| **minAmountOut**  | uint256   | Minimum amount of output tokens to receive (slippage protection)                                                                                                                                               |
+| **minAmountOut**  | uint256   | Minimum amount of output tokens to receive (slippage tolerance). If set to 0 it means no slippage protection is applied.                                                                                       |
 | **timeout**       | uint256   | How long the transaction is valid for (in seconds)                                                                                                                                                             |
 
 For more information on how swaps work on Balancer V2, please refer to the [Single Swap](https://docs-v2.balancer.fi/reference/swaps/single-swap.html) and [Batch Swap](https://docs-v2.balancer.fi/reference/swaps/batch-swaps.html) documentation.
