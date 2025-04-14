@@ -1,6 +1,6 @@
 # Standard Bridge Transfer library
 
-The **Standard Bridge Transfer** library allows to **transfer funds** from an **input account** to a **recipient** using a [Standard Bridge contract (both L1 and L2 variants)](https://docs.optimism.io/app-developers/bridging/standard-bridge). This bridge is used to transfer tokens between L1 and L2 EVM chains (e.g. Base to Ethereum and viceversa).It is typically used as part of a **Valence Program**. In that context, a **Processor** contract will be the main contract interacting with the Standard Bridge Transfer library.
+The Standard Bridge Transfer library enables transferring funds from an **input account** to a **recipient** using a [StandardBridge contract](https://docs.optimism.io/app-developers/bridging/standard-bridge). This library works with both the L1StandardBridge and L2StandardBridge implementations, allowing token transfers between Ethereum (Layer 1) and its scaling solutions like Optimism or Base (Layer 2). The library facilitates seamless bridging of assets in both directions - from L1 to L2 and from L2 to L1. It is typically used as part of a **Valence Program**. In that context, a **Processor** contract will be the main contract interacting with the Stargate Transfer library.
 
 ## High-level flow
 
