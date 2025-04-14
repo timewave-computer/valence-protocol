@@ -159,7 +159,7 @@ contract BalancerV2Swap is Library {
      * @param tokenIn Address of the token to swap from
      * @param tokenOut Address of the token to swap to
      * @param userData Additional data for specialized pools (usually empty bytes)
-     * @param amount Amount of tokens to swap. If set to 0, all available tokens will be swapped
+     * @param amountIn Amount of tokens to swap. If set to 0, all available tokens will be swapped
      * @param minAmountOut Minimum amount of output tokens to receive (slippage protection)
      * @param timeout How long the transaction is valid for (in seconds)
      */
@@ -168,7 +168,7 @@ contract BalancerV2Swap is Library {
         IAsset tokenIn,
         IAsset tokenOut,
         bytes memory userData,
-        uint256 amount,
+        uint256 amountIn,
         uint256 minAmountOut,
         uint256 timeout
     ) external onlyProcessor {
@@ -186,8 +186,8 @@ contract BalancerV2Swap is Library {
             revert("No asset balance available");
         }
 
-        // If amount is 0, use the entire balance
-        uint256 amountToSwap = amount == 0 ? balance : amount;
+        // If amountIn is 0, use the entire balance
+        uint256 amountToSwap = amountIn == 0 ? balance : amountIn;
 
         // Check if there's enough balance for the requested amount
         if (balance < amountToSwap) {
@@ -231,7 +231,7 @@ contract BalancerV2Swap is Library {
      * @param poolIds Array of pool IDs to use for each swap step
      * @param tokens Array of all tokens involved in the swap path (in sequence)
      * @param userDataArray Additional data for specialized pools (usually empty bytes for each step)
-     * @param amount Amount of tokens to swap. If set to 0, all available tokens will be swapped
+     * @param amountIn Amount of tokens to swap. If set to 0, all available tokens will be swapped
      * @param minAmountOut Minimum amount of output tokens to receive (slippage protection)
      * @param timeout How long the transaction is valid for (in seconds)
      */
@@ -239,7 +239,7 @@ contract BalancerV2Swap is Library {
         bytes32[] calldata poolIds,
         IAsset[] calldata tokens,
         bytes[] calldata userDataArray,
-        uint256 amount,
+        uint256 amountIn,
         uint256 minAmountOut,
         uint256 timeout
     ) external onlyProcessor {
@@ -260,8 +260,8 @@ contract BalancerV2Swap is Library {
             revert("No asset balance available");
         }
 
-        // If amount is 0, use the entire balance
-        uint256 amountToSwap = amount == 0 ? balance : amount;
+        // If amountIn is 0, use the entire balance
+        uint256 amountToSwap = amountIn == 0 ? balance : amountIn;
 
         // Check if there's enough balance for the requested amount
         if (balance < amountToSwap) {

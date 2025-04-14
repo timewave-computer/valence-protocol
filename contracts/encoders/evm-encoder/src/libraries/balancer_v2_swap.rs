@@ -36,7 +36,7 @@ pub enum FunctionMsgs {
         /// The address of the token to swap to
         token_out: String,
         /// The amount to swap from the first token
-        amount: Uint256,
+        amount_in: Uint256,
         /// The minimum amount to receive from the last token
         min_amount_out: Uint256,
         /// The timeout for the swap in seconds (e.g. transaction not executed directly because it's in mempool)
@@ -54,7 +54,7 @@ pub enum FunctionMsgs {
         /// The first token is the one to swap from, the last one is the one to swap to
         tokens: Vec<String>,
         /// The amount to swap from the first token
-        amount: Uint256,
+        amount_in: Uint256,
         /// The minimum amount to receive from the last token
         min_amount_out: Uint256,
         /// The timeout for the swap in seconds (e.g. transaction not executed directly because it's in mempool)
@@ -79,7 +79,7 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
                 pool_id,
                 token_in,
                 token_out,
-                amount,
+                amount_in,
                 min_amount_out,
                 timeout,
                 user_data,
@@ -88,7 +88,7 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
                     poolId: pool_id.to_fixed_bytes()?.into(),
                     tokenIn: parse_address(&token_in)?,
                     tokenOut: parse_address(&token_out)?,
-                    amount: alloy_primitives::U256::from_be_bytes(amount.to_be_bytes()),
+                    amountIn: alloy_primitives::U256::from_be_bytes(amount_in.to_be_bytes()),
                     minAmountOut: alloy_primitives::U256::from_be_bytes(
                         min_amount_out.to_be_bytes(),
                     ),
@@ -100,7 +100,7 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
             FunctionMsgs::MultiSwap {
                 pool_ids,
                 tokens,
-                amount,
+                amount_in,
                 min_amount_out,
                 timeout,
                 user_data,
@@ -118,7 +118,7 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
                         .iter()
                         .map(|data| alloy_primitives::Bytes::from(data.to_vec()))
                         .collect::<Vec<_>>(),
-                    amount: alloy_primitives::U256::from_be_bytes(amount.to_be_bytes()),
+                    amountIn: alloy_primitives::U256::from_be_bytes(amount_in.to_be_bytes()),
                     minAmountOut: alloy_primitives::U256::from_be_bytes(
                         min_amount_out.to_be_bytes(),
                     ),

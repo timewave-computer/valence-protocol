@@ -145,39 +145,39 @@ contract BalancerV2SwapTest is Test {
         IAsset tokenInAsset = IAsset(address(tokenA));
         IAsset tokenOutAsset = IAsset(address(tokenB));
         bytes memory userData = "";
-        uint256 amount = 100 * 10 ** 18;
+        uint256 amountIn = 100 * 10 ** 18;
         uint256 minAmountOut = 90 * 10 ** 18;
         uint256 timeout = 3600; // 1 hour
 
         vm.prank(processor);
         vm.expectRevert("Pool ID can't be empty for single swap");
-        balancerV2Swap.swap(emptyPoolId, tokenInAsset, tokenOutAsset, userData, amount, minAmountOut, timeout);
+        balancerV2Swap.swap(emptyPoolId, tokenInAsset, tokenOutAsset, userData, amountIn, minAmountOut, timeout);
 
         // Test zero address for token in
         vm.prank(processor);
         vm.expectRevert("Token in can't be zero address for single swap");
-        balancerV2Swap.swap(poolId, IAsset(address(0)), tokenOutAsset, userData, amount, minAmountOut, timeout);
+        balancerV2Swap.swap(poolId, IAsset(address(0)), tokenOutAsset, userData, amountIn, minAmountOut, timeout);
 
         // Test zero address for token out
         vm.prank(processor);
         vm.expectRevert("Token out can't be zero address for single swap");
-        balancerV2Swap.swap(poolId, tokenInAsset, IAsset(address(0)), userData, amount, minAmountOut, timeout);
+        balancerV2Swap.swap(poolId, tokenInAsset, IAsset(address(0)), userData, amountIn, minAmountOut, timeout);
 
         // Test same token for in and out
         vm.prank(processor);
         vm.expectRevert("Token in and out can't be the same");
-        balancerV2Swap.swap(poolId, tokenInAsset, tokenInAsset, userData, amount, minAmountOut, timeout);
+        balancerV2Swap.swap(poolId, tokenInAsset, tokenInAsset, userData, amountIn, minAmountOut, timeout);
 
         // Test zero timeout
         vm.prank(processor);
         vm.expectRevert("Timeout can't be zero");
-        balancerV2Swap.swap(poolId, tokenInAsset, tokenOutAsset, userData, amount, minAmountOut, 0);
+        balancerV2Swap.swap(poolId, tokenInAsset, tokenOutAsset, userData, amountIn, minAmountOut, 0);
 
         // Test unauthorized caller
         address unauthorized = makeAddr("unauthorized");
         vm.prank(unauthorized);
         vm.expectRevert();
-        balancerV2Swap.swap(poolId, tokenInAsset, tokenOutAsset, userData, amount, minAmountOut, timeout);
+        balancerV2Swap.swap(poolId, tokenInAsset, tokenOutAsset, userData, amountIn, minAmountOut, timeout);
     }
 
     // ============== Multi Swap Validation Tests ==============
@@ -197,7 +197,7 @@ contract BalancerV2SwapTest is Test {
         userDataArray[0] = "";
         userDataArray[1] = "";
 
-        uint256 amount = 100 * 10 ** 18;
+        uint256 amountIn = 100 * 10 ** 18;
         uint256 minAmountOut = 80 * 10 ** 18;
         uint256 timeout = 3600; // 1 hour
 
@@ -206,14 +206,14 @@ contract BalancerV2SwapTest is Test {
 
         vm.prank(processor);
         vm.expectRevert("Pool IDs array can't be empty for multi-hop swap");
-        balancerV2Swap.multiSwap(emptyPoolIds, tokens, userDataArray, amount, minAmountOut, timeout);
+        balancerV2Swap.multiSwap(emptyPoolIds, tokens, userDataArray, amountIn, minAmountOut, timeout);
 
         // Test empty tokens array
         IAsset[] memory emptyTokens = new IAsset[](0);
 
         vm.prank(processor);
         vm.expectRevert("Tokens array can't be empty for multi-hop swap");
-        balancerV2Swap.multiSwap(poolIds, emptyTokens, userDataArray, amount, minAmountOut, timeout);
+        balancerV2Swap.multiSwap(poolIds, emptyTokens, userDataArray, amountIn, minAmountOut, timeout);
 
         // Test tokens array length mismatch
         IAsset[] memory invalidTokens = new IAsset[](2); // Should be 3 for 2 pool IDs
@@ -222,7 +222,7 @@ contract BalancerV2SwapTest is Test {
 
         vm.prank(processor);
         vm.expectRevert("Tokens array must contain at least poolIds.length + 1 elements");
-        balancerV2Swap.multiSwap(poolIds, invalidTokens, userDataArray, amount, minAmountOut, timeout);
+        balancerV2Swap.multiSwap(poolIds, invalidTokens, userDataArray, amountIn, minAmountOut, timeout);
 
         // Test userData array length mismatch
         bytes[] memory invalidUserData = new bytes[](1); // Should be 2 for 2 pool IDs
@@ -230,7 +230,7 @@ contract BalancerV2SwapTest is Test {
 
         vm.prank(processor);
         vm.expectRevert("userData array length must match poolIds length");
-        balancerV2Swap.multiSwap(poolIds, tokens, invalidUserData, amount, minAmountOut, timeout);
+        balancerV2Swap.multiSwap(poolIds, tokens, invalidUserData, amountIn, minAmountOut, timeout);
 
         // Test empty pool ID in array
         bytes32[] memory invalidPoolIds = new bytes32[](2);
@@ -239,7 +239,7 @@ contract BalancerV2SwapTest is Test {
 
         vm.prank(processor);
         vm.expectRevert("Pool ID can't be empty in poolIds array");
-        balancerV2Swap.multiSwap(invalidPoolIds, tokens, userDataArray, amount, minAmountOut, timeout);
+        balancerV2Swap.multiSwap(invalidPoolIds, tokens, userDataArray, amountIn, minAmountOut, timeout);
 
         // Test zero address in assets array
         IAsset[] memory invalidTokensZero = new IAsset[](3);
@@ -249,17 +249,17 @@ contract BalancerV2SwapTest is Test {
 
         vm.prank(processor);
         vm.expectRevert("Token can't be zero address in tokens array");
-        balancerV2Swap.multiSwap(poolIds, invalidTokensZero, userDataArray, amount, minAmountOut, timeout);
+        balancerV2Swap.multiSwap(poolIds, invalidTokensZero, userDataArray, amountIn, minAmountOut, timeout);
 
         // Test zero timeout
         vm.prank(processor);
         vm.expectRevert("Timeout can't be zero");
-        balancerV2Swap.multiSwap(poolIds, tokens, userDataArray, amount, minAmountOut, 0);
+        balancerV2Swap.multiSwap(poolIds, tokens, userDataArray, amountIn, minAmountOut, 0);
 
         // Test unauthorized caller
         address unauthorized = makeAddr("unauthorized");
         vm.prank(unauthorized);
         vm.expectRevert();
-        balancerV2Swap.multiSwap(poolIds, tokens, userDataArray, amount, minAmountOut, timeout);
+        balancerV2Swap.multiSwap(poolIds, tokens, userDataArray, amountIn, minAmountOut, timeout);
     }
 }

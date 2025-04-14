@@ -12,7 +12,7 @@ sol! {
         address tokenIn,
         address tokenOut,
         bytes memory userData,
-        uint256 amount,
+        uint256 amountIn,
         uint256 minAmountOut,
         uint256 timeout
     ) external;
@@ -21,7 +21,7 @@ sol! {
         bytes32[] calldata poolIds,
         address[] calldata tokens,
         bytes[] calldata userDataArray,
-        uint256 amount,
+        uint256 amountIn,
         uint256 minAmountOut,
         uint256 timeout
     ) external;
