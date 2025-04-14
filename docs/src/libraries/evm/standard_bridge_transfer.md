@@ -49,7 +49,7 @@ The library is configured on deployment using the `StandardBridgeTransferConfig`
      * @param recipient The recipient address on the destination chain.
      * @param standardBridge The StandardBridge contract address (L1 or L2 version).
      * @param token The ERC20 token address to transfer (or address(0) for ETH).
-     * @param remoteToken Address of the corresponding token on the destination chain (for ERC20).
+     * @param remoteToken Address of the corresponding token on the destination chain (only used for ERC20 transfers). Must be zero address for ETH transfers.
      * @param minGasLimit Gas to use to complete the transfer on the receiving side. Used for sequencers/relayers.
      * @param extraData Additional data to be forwarded with the transaction.
      */

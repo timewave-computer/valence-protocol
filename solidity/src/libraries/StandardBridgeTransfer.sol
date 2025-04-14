@@ -20,7 +20,7 @@ contract StandardBridgeTransfer is Library {
      * @param recipient The recipient address on the destination chain.
      * @param standardBridge The StandardBridge contract address (L1 or L2 version).
      * @param token The ERC20 token address to transfer (or address(0) for ETH).
-     * @param remoteToken Address of the corresponding token on the destination chain (for ERC20).
+     * @param remoteToken Address of the corresponding token on the destination chain (only used for ERC20 transfers). Must be zero address for ETH transfers.
      * @param minGasLimit Gas to use to complete the transfer on the receiving side. Used for sequencers/relayers.
      * @param extraData Additional data to be forwarded with the transaction.
      */
@@ -73,6 +73,11 @@ contract StandardBridgeTransfer is Library {
         // For ERC20 transfers, ensure remote token is specified
         if (decodedConfig.token != address(0) && decodedConfig.remoteToken == address(0)) {
             revert("Remote token must be specified for ERC20 transfers");
+        }
+
+        // For ETH transfers, ensure remote token is not specified
+        if (decodedConfig.token == address(0) && decodedConfig.remoteToken != address(0)) {
+            revert("Remote token must not be specified for ETH transfers");
         }
 
         return decodedConfig;

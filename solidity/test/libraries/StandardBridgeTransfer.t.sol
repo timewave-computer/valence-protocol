@@ -126,6 +126,24 @@ contract StandardBridgeTransferTest is Test {
         standardBridgeTransfer.updateConfig(configBytes);
     }
 
+    function testUpdateConfigFailsRemoteTokenForETH() public {
+        StandardBridgeTransfer.StandardBridgeTransferConfig memory invalidConfig = StandardBridgeTransfer
+            .StandardBridgeTransferConfig({
+            amount: 1000,
+            inputAccount: inputAccount,
+            recipient: recipient,
+            standardBridge: mockStandardBridge,
+            token: address(0), // ETH transfer
+            remoteToken: address(remoteToken), // Non-zero remote token (invalid for ETH)
+            minGasLimit: minGasLimit,
+            extraData: bytes("")
+        });
+        bytes memory configBytes = abi.encode(invalidConfig);
+        vm.prank(owner);
+        vm.expectRevert("Remote token must not be specified for ETH transfers");
+        standardBridgeTransfer.updateConfig(configBytes);
+    }
+
     function testUpdateConfigSucceedsWithZeroRemoteTokenForETH() public {
         StandardBridgeTransfer.StandardBridgeTransferConfig memory validConfig = StandardBridgeTransfer
             .StandardBridgeTransferConfig({
