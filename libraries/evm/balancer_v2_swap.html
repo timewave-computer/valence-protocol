@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Middleware - Valence Protocol Documentation</title>
+        <title>Balancer V2 Swap - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -12,21 +12,21 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="../favicon.svg">
-        <link rel="shortcut icon" href="../favicon.png">
-        <link rel="stylesheet" href="../css/variables.css">
-        <link rel="stylesheet" href="../css/general.css">
-        <link rel="stylesheet" href="../css/chrome.css">
-        <link rel="stylesheet" href="../css/print.css" media="print">
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
-        <link rel="stylesheet" href="../fonts/fonts.css">
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="highlight-css" href="../highlight.css">
-        <link rel="stylesheet" id="tomorrow-night-css" href="../tomorrow-night.css">
-        <link rel="stylesheet" id="ayu-highlight-css" href="../ayu-highlight.css">
+        <link rel="stylesheet" id="highlight-css" href="../../highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="../../tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="../../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
 
@@ -35,12 +35,12 @@
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "../";
+            const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "ayu";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc.js"></script>
+        <script src="../../toc.js"></script>
     </head>
     <body>
     <div id="body-container">
@@ -93,7 +93,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../../toc.html"></iframe>
             </noscript>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -128,7 +128,7 @@
                     <h1 class="menu-title">Valence Protocol Documentation</h1>
 
                     <div class="right-buttons">
-                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
                         <a href="https://github.com/timewave-computer/valence-protocol" title="Git repository" aria-label="Git repository">
@@ -160,25 +160,84 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="middleware"><a class="header" href="#middleware">Middleware</a></h1>
-<p>This section contains a description of the Valence Protocol middleware design.</p>
-<p><strong>Valence Protocol Middleware components</strong>:</p>
-<ul>
-<li><a href="./broker.html">Middleware Broker</a></li>
-<li><a href="./type_registry.html">Middleware Type Registry</a></li>
-<li><a href="./valence_types.html">Valence Types</a></li>
-<li><a href="./valence_asserter.html">Asserters</a></li>
-</ul>
+                        <h1 id="valence-balancerv2swap-library"><a class="header" href="#valence-balancerv2swap-library">Valence BalancerV2Swap Library</a></h1>
+<p>The <strong>Valence BalancerV2Swap</strong> library enables <strong>token swaps</strong> from an <strong>input account</strong> to an <strong>output account</strong> using the <a href="https://docs-v2.balancer.fi/">Balancer V2 protocol</a>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the BalancerV2Swap library.</p>
+<h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
+<pre class="mermaid">---
+title: BalancerV2Swap Library
+---
+graph LR
+    IA((Input Account))
+    OA((Output Account))
+    BV((Balancer Vault))
+    P[Processor]
+    S[BalancerV2Swap Library]
+
+    subgraph EVM[ EVM Domain ]
+        P -- 1/swap or multiSwap --&gt; S
+        S -- 2/Query balances --&gt; IA
+        S -- 3/Do approve --&gt; IA
+        IA -- 4/ERC-20 approve --&gt; BV
+        S -- 5/Execute swap --&gt; IA
+        IA -- 6/Call swap/batchSwap --&gt; BV
+        BV -- 7/Transfer output tokens --&gt; OA
+    end
+</pre>
+<h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>swap</strong></td><td>poolId, tokenIn, tokenOut, userData, amountIn, minAmountOut, timeout</td><td>Execute a single token swap through a Balancer V2 pool.</td></tr>
+<tr><td><strong>multiSwap</strong></td><td>poolIds, tokens, userDataArray, amountIn, minAmountOut, timeout</td><td>Execute a multi-hop swap through multiple Balancer V2 pools.</td></tr>
+</tbody></table>
+</div>
+<h2 id="single-swap-parameters"><a class="header" href="#single-swap-parameters">Single Swap Parameters</a></h2>
+<p>The <code>swap</code> function requires the following parameters:</p>
+<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>poolId</strong></td><td>bytes32</td><td>The ID of the Balancer pool to use for the swap</td></tr>
+<tr><td><strong>tokenIn</strong></td><td>address</td><td>Address of the token to swap from</td></tr>
+<tr><td><strong>tokenOut</strong></td><td>address</td><td>Address of the token to swap to</td></tr>
+<tr><td><strong>userData</strong></td><td>bytes</td><td>Additional data for specialized pools (usually empty bytes)</td></tr>
+<tr><td><strong>amountIn</strong></td><td>uint256</td><td>Amount of tokens to swap. If set to 0, all available tokens in the <strong>input_account</strong> will be swapped</td></tr>
+<tr><td><strong>minAmountOut</strong></td><td>uint256</td><td>Minimum amount of output tokens to receive (slippage tolerance). If set to 0 it means no slippage protection is applied.</td></tr>
+<tr><td><strong>timeout</strong></td><td>uint256</td><td>How long the transaction is valid for (in seconds)</td></tr>
+</tbody></table>
+</div>
+<h2 id="multi-hop-swap-parameters"><a class="header" href="#multi-hop-swap-parameters">Multi-Hop Swap Parameters</a></h2>
+<p>The <code>multiSwap</code> function enables complex trading routes through multiple pools:</p>
+<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>poolIds</strong></td><td>bytes32[]</td><td>Array of pool IDs to use for each swap step (in sequence)</td></tr>
+<tr><td><strong>tokens</strong></td><td>address[]</td><td>Array of all token addresses involved in the swap path (in sequence), needs to contain exactly 1 more element than the poolIds array</td></tr>
+<tr><td><strong>userDataArray</strong></td><td>bytes[]</td><td>Additional data for specialized pools (one entry per pool). This data can be empty for all current Balancer pools but is reserved for possible future pool logic. Must be the same length as the poolIds array</td></tr>
+<tr><td><strong>amountIn</strong></td><td>uint256</td><td>Amount of tokens to swap. If set to 0, all available tokens in the <strong>input_account</strong> will be swapped</td></tr>
+<tr><td><strong>minAmountOut</strong></td><td>uint256</td><td>Minimum amount of output tokens to receive (slippage tolerance). If set to 0 it means no slippage protection is applied.</td></tr>
+<tr><td><strong>timeout</strong></td><td>uint256</td><td>How long the transaction is valid for (in seconds)</td></tr>
+</tbody></table>
+</div>
+<p>For more information on how swaps work on Balancer V2, please refer to the <a href="https://docs-v2.balancer.fi/reference/swaps/single-swap.html">Single Swap</a> and <a href="https://docs-v2.balancer.fi/reference/swaps/batch-swaps.html">Batch Swap</a> documentation.</p>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>The library is configured on deployment using the <code>BalancerV2SwapConfig</code> type.</p>
+<pre><code class="language-solidity">/**
+ * @title BalancerV2SwapConfig
+ * @notice Configuration for Balancer V2 swaps
+ * @param inputAccount The account from which tokens will be taken
+ * @param outputAccount The account to which result tokens will be sent
+ * @param vaultAddress Address of the Balancer V2 Vault
+ */
+struct BalancerV2SwapConfig {
+    BaseAccount inputAccount;
+    BaseAccount outputAccount;
+    address vaultAddress;
+}
+</code></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../libraries/evm/balancer_v2_swap.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../libraries/evm/aave_position_manager.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../middleware/broker.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../middleware/_overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -188,11 +247,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../libraries/evm/balancer_v2_swap.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../libraries/evm/aave_position_manager.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../middleware/broker.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../middleware/_overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
@@ -207,17 +266,17 @@
         </script>
 
 
-        <script src="../elasticlunr.min.js"></script>
-        <script src="../mark.min.js"></script>
-        <script src="../searcher.js"></script>
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
 
-        <script src="../clipboard.min.js"></script>
-        <script src="../highlight.js"></script>
-        <script src="../book.js"></script>
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
 
         <!-- Custom JS scripts -->
-        <script src="../mermaid.min.js"></script>
-        <script src="../mermaid-init.js"></script>
+        <script src="../../mermaid.min.js"></script>
+        <script src="../../mermaid-init.js"></script>
 
 
     </div>
