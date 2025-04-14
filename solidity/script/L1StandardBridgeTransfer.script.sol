@@ -57,7 +57,8 @@ contract L1BaseBridgeTransferScript is Script {
         vm.deal(address(inputAccount), ethAmount * 3);
 
         // Deploy a new StandardBridgeTransfer contract for native ETH with fixed amount
-        StandardBridgeTransfer.StandardBridgeConfig memory ethConfig = StandardBridgeTransfer.StandardBridgeConfig({
+        StandardBridgeTransfer.StandardBridgeTransferConfig memory ethConfig = StandardBridgeTransfer
+            .StandardBridgeTransferConfig({
             amount: ethAmount,
             inputAccount: inputAccount,
             recipient: recipient,
@@ -71,7 +72,8 @@ contract L1BaseBridgeTransferScript is Script {
         standardBridgeTransferNative = new StandardBridgeTransfer(owner, processor, ethConfigBytes);
 
         // Deploy a new StandardBridgeTransfer contract for USDC
-        StandardBridgeTransfer.StandardBridgeConfig memory usdcConfig = StandardBridgeTransfer.StandardBridgeConfig({
+        StandardBridgeTransfer.StandardBridgeTransferConfig memory usdcConfig = StandardBridgeTransfer
+            .StandardBridgeTransferConfig({
             amount: tokenAmount,
             inputAccount: inputAccount,
             recipient: recipient,
@@ -122,7 +124,8 @@ contract L1BaseBridgeTransferScript is Script {
 
         // Deploy a new StandardBridgeTransfer contract for native ETH with full balance transfer
         vm.startPrank(owner);
-        StandardBridgeTransfer.StandardBridgeConfig memory ethConfigFull = StandardBridgeTransfer.StandardBridgeConfig({
+        StandardBridgeTransfer.StandardBridgeTransferConfig memory ethConfigFull = StandardBridgeTransfer
+            .StandardBridgeTransferConfig({
             amount: 0, // 0 means transfer full balance
             inputAccount: inputAccount,
             recipient: recipient,

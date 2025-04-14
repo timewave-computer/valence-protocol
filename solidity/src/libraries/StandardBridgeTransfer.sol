@@ -21,10 +21,10 @@ contract StandardBridgeTransfer is Library {
      * @param standardBridge The StandardBridge contract address (L1 or L2 version).
      * @param token The ERC20 token address to transfer (or address(0) for ETH).
      * @param remoteToken Address of the corresponding token on the destination chain (for ERC20).
-     * @param minGasLimit Gas limit for the transaction execution on the destination chain.
+     * @param minGasLimit Gas to use to complete the transfer on the receiving side. Used for sequencers/relayers.
      * @param extraData Additional data to be forwarded with the transaction.
      */
-    struct StandardBridgeConfig {
+    struct StandardBridgeTransferConfig {
         uint256 amount;
         BaseAccount inputAccount;
         address recipient;
@@ -36,7 +36,7 @@ contract StandardBridgeTransfer is Library {
     }
 
     // Holds the current configuration for StandardBridge transfers
-    StandardBridgeConfig public config;
+    StandardBridgeTransferConfig public config;
 
     /**
      * @dev Constructor initializes the contract with the owner, processor, and initial configuration.
@@ -49,11 +49,11 @@ contract StandardBridgeTransfer is Library {
     /**
      * @dev Validates configuration by decoding the provided bytes and ensuring no critical addresses are zero.
      * @param _config Raw configuration bytes.
-     * @return Decoded and validated StandardBridgeConfig struct.
+     * @return Decoded and validated StandardBridgeTransferConfig struct.
      */
-    function validateConfig(bytes memory _config) internal pure returns (StandardBridgeConfig memory) {
-        // Decode the configuration bytes into the StandardBridgeConfig struct.
-        StandardBridgeConfig memory decodedConfig = abi.decode(_config, (StandardBridgeConfig));
+    function validateConfig(bytes memory _config) internal pure returns (StandardBridgeTransferConfig memory) {
+        // Decode the configuration bytes into the StandardBridgeTransferConfig struct.
+        StandardBridgeTransferConfig memory decodedConfig = abi.decode(_config, (StandardBridgeTransferConfig));
 
         // Ensure the StandardBridge is a valid (non-zero) address.
         if (decodedConfig.standardBridge == IStandardBridge(payable(address(0)))) {
@@ -94,7 +94,7 @@ contract StandardBridgeTransfer is Library {
      */
     function transfer() external onlyProcessor {
         // Retrieve the current configuration into a local variable.
-        StandardBridgeConfig memory _config = config;
+        StandardBridgeTransferConfig memory _config = config;
 
         // Check if we're transferring ETH or ERC20
         bool isETH = _config.token == address(0);

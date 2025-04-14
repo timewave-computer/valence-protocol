@@ -5,6 +5,7 @@ use cosmwasm_std::{Binary, StdError, StdResult};
 pub mod aave_position_manager;
 pub mod cctp_transfer;
 pub mod forwarder;
+pub mod standard_bridge_transfer;
 pub mod stargate_transfer;
 
 #[cw_serde]

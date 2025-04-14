@@ -36,7 +36,8 @@ contract StandardBridgeTransferTest is Test {
         mockStandardBridge = IStandardBridge(address(bridge));
 
         // Create a valid configuration for ERC20 transfer
-        StandardBridgeTransfer.StandardBridgeConfig memory validConfig = StandardBridgeTransfer.StandardBridgeConfig({
+        StandardBridgeTransfer.StandardBridgeTransferConfig memory validConfig = StandardBridgeTransfer
+            .StandardBridgeTransferConfig({
             amount: 1000,
             inputAccount: inputAccount,
             recipient: recipient,
@@ -54,7 +55,8 @@ contract StandardBridgeTransferTest is Test {
     }
 
     function testUpdateConfigFailsZeroStandardBridge() public {
-        StandardBridgeTransfer.StandardBridgeConfig memory invalidConfig = StandardBridgeTransfer.StandardBridgeConfig({
+        StandardBridgeTransfer.StandardBridgeTransferConfig memory invalidConfig = StandardBridgeTransfer
+            .StandardBridgeTransferConfig({
             amount: 1000,
             inputAccount: inputAccount,
             recipient: recipient,
@@ -71,7 +73,8 @@ contract StandardBridgeTransferTest is Test {
     }
 
     function testUpdateConfigFailsZeroRecipient() public {
-        StandardBridgeTransfer.StandardBridgeConfig memory invalidConfig = StandardBridgeTransfer.StandardBridgeConfig({
+        StandardBridgeTransfer.StandardBridgeTransferConfig memory invalidConfig = StandardBridgeTransfer
+            .StandardBridgeTransferConfig({
             amount: 1000,
             inputAccount: inputAccount,
             recipient: address(0), // Zero address (invalid)
@@ -88,7 +91,8 @@ contract StandardBridgeTransferTest is Test {
     }
 
     function testUpdateConfigFailsZeroInputAccount() public {
-        StandardBridgeTransfer.StandardBridgeConfig memory invalidConfig = StandardBridgeTransfer.StandardBridgeConfig({
+        StandardBridgeTransfer.StandardBridgeTransferConfig memory invalidConfig = StandardBridgeTransfer
+            .StandardBridgeTransferConfig({
             amount: 1000,
             inputAccount: BaseAccount(payable(address(0))), // Zero address (invalid)
             recipient: recipient,
@@ -105,7 +109,8 @@ contract StandardBridgeTransferTest is Test {
     }
 
     function testUpdateConfigFailsZeroRemoteTokenForERC20() public {
-        StandardBridgeTransfer.StandardBridgeConfig memory invalidConfig = StandardBridgeTransfer.StandardBridgeConfig({
+        StandardBridgeTransfer.StandardBridgeTransferConfig memory invalidConfig = StandardBridgeTransfer
+            .StandardBridgeTransferConfig({
             amount: 1000,
             inputAccount: inputAccount,
             recipient: recipient,
@@ -122,7 +127,8 @@ contract StandardBridgeTransferTest is Test {
     }
 
     function testUpdateConfigSucceedsWithZeroRemoteTokenForETH() public {
-        StandardBridgeTransfer.StandardBridgeConfig memory validConfig = StandardBridgeTransfer.StandardBridgeConfig({
+        StandardBridgeTransfer.StandardBridgeTransferConfig memory validConfig = StandardBridgeTransfer
+            .StandardBridgeTransferConfig({
             amount: 1000,
             inputAccount: inputAccount,
             recipient: recipient,
@@ -144,7 +150,8 @@ contract StandardBridgeTransferTest is Test {
 
     function testTransferFailsNoETHBalance() public {
         // Update config to use ETH instead of ERC20
-        StandardBridgeTransfer.StandardBridgeConfig memory ethConfig = StandardBridgeTransfer.StandardBridgeConfig({
+        StandardBridgeTransfer.StandardBridgeTransferConfig memory ethConfig = StandardBridgeTransfer
+            .StandardBridgeTransferConfig({
             amount: 1000,
             inputAccount: inputAccount,
             recipient: recipient,
@@ -166,7 +173,8 @@ contract StandardBridgeTransferTest is Test {
 
     function testTransferFailsInsufficientETHBalance() public {
         // Update config to use ETH instead of ERC20
-        StandardBridgeTransfer.StandardBridgeConfig memory ethConfig = StandardBridgeTransfer.StandardBridgeConfig({
+        StandardBridgeTransfer.StandardBridgeTransferConfig memory ethConfig = StandardBridgeTransfer
+            .StandardBridgeTransferConfig({
             amount: 1000,
             inputAccount: inputAccount,
             recipient: recipient,
@@ -205,7 +213,8 @@ contract StandardBridgeTransferTest is Test {
 
     function testTransferSucceedsWithSufficientETHBalance() public {
         // Update config to use ETH instead of ERC20
-        StandardBridgeTransfer.StandardBridgeConfig memory ethConfig = StandardBridgeTransfer.StandardBridgeConfig({
+        StandardBridgeTransfer.StandardBridgeTransferConfig memory ethConfig = StandardBridgeTransfer
+            .StandardBridgeTransferConfig({
             amount: 1000,
             inputAccount: inputAccount,
             recipient: recipient,
@@ -237,7 +246,8 @@ contract StandardBridgeTransferTest is Test {
 
     function testTransferSucceedsWithFullETHAmount() public {
         // Update config to use ETH with amount=0 (transfer full balance)
-        StandardBridgeTransfer.StandardBridgeConfig memory ethConfig = StandardBridgeTransfer.StandardBridgeConfig({
+        StandardBridgeTransfer.StandardBridgeTransferConfig memory ethConfig = StandardBridgeTransfer
+            .StandardBridgeTransferConfig({
             amount: 0, // Transfer full balance
             inputAccount: inputAccount,
             recipient: recipient,
@@ -261,7 +271,8 @@ contract StandardBridgeTransferTest is Test {
 
     function testTransferSucceedsWithFullERC20Amount() public {
         // Update config to transfer full token balance
-        StandardBridgeTransfer.StandardBridgeConfig memory fullConfig = StandardBridgeTransfer.StandardBridgeConfig({
+        StandardBridgeTransfer.StandardBridgeTransferConfig memory fullConfig = StandardBridgeTransfer
+            .StandardBridgeTransferConfig({
             amount: 0, // Transfer full balance
             inputAccount: inputAccount,
             recipient: recipient,
