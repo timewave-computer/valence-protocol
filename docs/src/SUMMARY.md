@@ -47,6 +47,7 @@
     - [Forwarder](./libraries/evm/forwarder.md)
     - [CCTP Transfer](./libraries/evm/cctp_transfer.md)
     - [Stargate Transfer](./libraries/evm/stargate_transfer.md)
+    - [Standard Bridge Transfer](./libraries/evm/standard_bridge_transfer.md)
     - [AAVE Position Manager](./libraries/evm/aave_position_manager.md)
 - [Middleware](./middleware/_overview.md)
   - [Broker](./middleware/broker.md)
