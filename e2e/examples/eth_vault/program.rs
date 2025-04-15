@@ -173,6 +173,8 @@ impl NeutronProgramAccounts {
 
 #[derive(Clone, Debug)]
 pub struct NeutronProgramLibraries {
+    pub _authorizations: String,
+    pub _processor: String,
     pub astroport_lper: String,
     pub astroport_lwer: String,
     pub liquidation_forwarder: String,
@@ -292,6 +294,7 @@ pub fn setup_neutron_libraries(
     test_ctx: &mut TestContext,
     neutron_program_accounts: &NeutronProgramAccounts,
     pool: &str,
+    authorizations: &str,
     processor: &str,
     amount: u128,
     usdc_on_neutron: &str,
@@ -312,6 +315,7 @@ pub fn setup_neutron_libraries(
         astro_cl_pool_asset_data.clone(),
         pool.to_string(),
         processor.to_string(),
+        authorizations.to_string(),
     )?;
 
     // library to forward the required amount of shares, from the position account
@@ -356,6 +360,7 @@ pub fn setup_neutron_libraries(
             .clone(),
         eth_withdraw_acc,
         processor.to_string(),
+        authorizations.to_string(),
         amount,
     )?;
 
@@ -371,6 +376,8 @@ pub fn setup_neutron_libraries(
                 .to_string(),
         ),
         usdc_on_neutron,
+        authorizations.to_string(),
+        processor.to_string(),
     )?;
 
     info!("approving strategist on liquidation account...");
@@ -393,6 +400,8 @@ pub fn setup_neutron_libraries(
         noble_cctp_transfer: cctp_forwarder_lib_addr,
         neutron_ibc_transfer: neutron_ibc_transfer_lib,
         liquidation_forwarder: forwarder_lib,
+        _authorizations: authorizations.to_string(),
+        _processor: processor.to_string(),
     };
 
     Ok(libraries)
@@ -405,6 +414,7 @@ pub fn setup_astroport_lper_lib(
     asset_data: AssetData,
     pool_addr: String,
     _processor: String,
+    _authorizations: String,
 ) -> Result<String, Box<dyn Error>> {
     let lper_code_id = test_ctx
         .get_contract()
@@ -432,6 +442,9 @@ pub fn setup_astroport_lper_lib(
 
     let astroport_lper_instantiate_msg =
         valence_library_utils::msg::InstantiateMsg::<valence_astroport_lper::msg::LibraryConfig> {
+            // TODO: uncomment to not bypass authorizations/processor logic
+            // owner: authorizations.to_string(),
+            // processor: processor.to_string(),
             owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
             processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
             config: astro_lper_library_cfg,
@@ -531,6 +544,7 @@ pub fn setup_cctp_forwarder_lib(
     input_account: LibraryAccountType,
     mut output_addr: String,
     _processor: String,
+    _authorizations: String,
     amount: u128,
 ) -> Result<String, Box<dyn Error>> {
     let ica_cctp_transfer_code_id = test_ctx
@@ -557,6 +571,9 @@ pub fn setup_cctp_forwarder_lib(
     let ica_cctp_transfer_instantiate_msg = valence_library_utils::msg::InstantiateMsg::<
         valence_ica_cctp_transfer::msg::LibraryConfig,
     > {
+        // TODO: uncomment to not bypass authorizations/processor logic
+        // owner: authorizations.to_string(),
+        // processor: processor.to_string(),
         owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         config: cctp_transfer_config,
@@ -662,6 +679,8 @@ pub fn setup_neutron_ibc_transfer_lib(
     input_account: LibraryAccountType,
     output_addr: LibraryAccountType,
     denom: &str,
+    _authorizations: String,
+    _processor: String,
 ) -> Result<String, Box<dyn Error>> {
     let neutron_ibc_transfer_code_id = *test_ctx
         .get_chain(NEUTRON_CHAIN_NAME)
@@ -672,6 +691,9 @@ pub fn setup_neutron_ibc_transfer_lib(
     let neutron_ibc_transfer_instantiate_msg = valence_library_utils::msg::InstantiateMsg::<
         valence_neutron_ibc_transfer_library::msg::LibraryConfig,
     > {
+        // TODO: uncomment to not bypass authorizations/processor logic
+        // owner: authorizations.to_string(),
+        // processor: processor.to_string(),
         owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         config: valence_neutron_ibc_transfer_library::msg::LibraryConfig {

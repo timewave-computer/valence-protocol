@@ -158,6 +158,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &mut test_ctx,
         &neutron_program_accounts,
         &pool_addr,
+        &authorization_contract_address,
         &neutron_processor_address,
         amount_to_transfer,
         &uusdc_on_neutron_denom,
