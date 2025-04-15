@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>AAVE Position Manager - Valence Protocol Documentation</title>
+        <title>Standard Bridge Transfer - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -160,116 +160,61 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="valence-aave-position-manager-library"><a class="header" href="#valence-aave-position-manager-library">Valence AAVE Position Manager library</a></h1>
-<p>The <strong>Valence AAVE Position Manager</strong> library allows <strong>management of lending positions</strong> using an <strong>input account</strong> and an <strong>output account</strong> using the <a href="https://aave.com/docs/developers/aave-v3">AAVE v3 Protocol</a>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the AAVE Position Manager library.</p>
-<h2 id="high-level-flows"><a class="header" href="#high-level-flows">High-level flows</a></h2>
+                        <h1 id="standard-bridge-transfer-library"><a class="header" href="#standard-bridge-transfer-library">Standard Bridge Transfer library</a></h1>
+<p>The Standard Bridge Transfer library enables transferring funds from an <strong>input account</strong> to a <strong>recipient</strong> using a <a href="https://docs.optimism.io/app-developers/bridging/standard-bridge">StandardBridge contract</a>. This library works with both the L1StandardBridge and L2StandardBridge implementations, allowing token transfers between Ethereum (Layer 1) and its scaling solutions like Optimism or Base (Layer 2). The library facilitates seamless bridging of assets in both directions - from L1 to L2 and from L2 to L1. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Stargate Transfer library.</p>
+<h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
 <pre class="mermaid">---
-title: AAVE Position Manager Supply Flow
+title: Standard Bridge Transfer Library
 ---
-flowchart LR
-    P[Processor]
-    A[AAVE Position
-    Manager Library]
-    IA((Input Account))
-    AP((AAVE Pool))
+graph LR
+  IA((Input Account))
+  R((Recipient))
+  SBO((Standard Bridge))
+  SBD((Standard Bridge))
+  P[Processor]
+  S[StandardBridgeTransfer
+   Library]
 
-    P -- 1/Supply(amount) --&gt; A
-    A -- 2/Query balance --&gt; IA
-    A -- 3/Approve ERC20(amount) and call supply --&gt; IA
-    IA -- 4/Supply --&gt; AP
-    AP -- 5/Mint aTokens --&gt; IA
-</pre>
-<pre class="mermaid">---
-title: AAVE Position Manager Borrow Flow
----
-flowchart LR
- P[Processor]
- A[AAVE Position
- Manager Library]
- IA((Input Account))
- AP((AAVE Pool))
- P -- 1/Borrow(amount) --&gt; A
- A -- 2/Call borrow --&gt; IA
- IA -- 4/Borrow --&gt; AP
- AP -- 5/Send borrowed tokens --&gt; IA
-</pre>
-<pre class="mermaid">---
-title: AAVE Position Manager Withdraw Flow
----
-flowchart LR
- P[Processor]
- A[AAVE Position
- Manager Library]
- IA((Input Account))
- AP((AAVE Pool))
- OA((Output Account))
- P -- 1/Withdraw(amount) --&gt; A
- A -- 2/Call withdraw --&gt; IA
- IA -- 3/Withdraw --&gt; AP
- AP -- 4/Send withdrawn tokens --&gt; OA
-</pre>
-<pre class="mermaid">---
-title: AAVE Position Manager Repay Flow
----
-flowchart LR
-    P[Processor]
-    A[AAVE Position
-    Manager Library]
-    IA((Input Account))
-    AP((AAVE Pool))
+  subgraph DEST[ Destination Chain ]
+    SBD -- 5/WithdrawTo --&gt; R
+  end
 
-    P -- 1/Repay(amount) --&gt; A
-    A -- 2/Query balance --&gt; IA
-    A -- 3/Approve ERC20(amount) and call repay --&gt; IA
-    IA -- 4/Repay --&gt; AP
-    AP -- 5/Burn debt tokens  --&gt; IA
-</pre>
-<pre class="mermaid">---
-title: AAVE Position Manager RepayWithShares Flow
----
-flowchart LR
-    P[Processor]
-    A[AAVE Position
-    Manager Library]
-    IA((Input Account))
-    AP((AAVE Pool))
+  subgraph SRC[ Source Chain ]
+    P -- 1/Transfer --&gt; S
+    S -- 2/Query native or ERC20 balance --&gt; IA
+    IA -- 3/Approve ERC20 (if applies) --&gt; SBO
+    IA -- 4/Call bridgeETHTo or bridgeERC20To --&gt; SBO
+  end
 
-    P -- 1/RepayWithShares(amount) --&gt; A
-    A -- 2/Call repayWithATokens --&gt; IA
-    IA -- 3/Repay --&gt; AP
-    AP -- 4/Burn aTokens --&gt; IA
-    AP -- 5/Burn debt tokens --&gt; IA
+  SRC --- DEST
 </pre>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>supply</strong></td><td>amount</td><td>Supplies tokens from the <strong>input account</strong> to the AAVE protocol. The <strong>input account</strong> will receive these corresponding aTokens. If amount is 0 the entire balance will be used.</td></tr>
-<tr><td><strong>borrow</strong></td><td>amount</td><td>Borrows tokens from the AAVE protocol using the collateral previously supplied. The <strong>input account</strong> will receive the borrowed tokens and the debt tokens.</td></tr>
-<tr><td><strong>withdraw</strong></td><td>amount</td><td>Withdraws previously supplied tokens from AAVE and sends them to the <strong>output account</strong>. Passing 0 will withdraw the entire balance.</td></tr>
-<tr><td><strong>repay</strong></td><td>amount</td><td>Repays borrowed tokens to the AAVE protocol from the <strong>input account</strong>. Passing 0 repays the entire balance.</td></tr>
-<tr><td><strong>repayWithShares</strong></td><td>amount</td><td>Repays borrowed tokens using aTokens directly, which can be more gas-efficient. Passing 0 will repay as much as possible.</td></tr>
+<tr><td><strong>Transfer</strong></td><td>-</td><td>Transfer funds from the configured <strong>input account</strong> to the <strong>recipient</strong> on the destination chain.</td></tr>
 </tbody></table>
 </div>
-<p>More details on how the interaction with the AAVE v3 protocol works can be found in the <a href="https://aave.com/docs/developers/smart-contracts/pool">AAVE V3 Pool documentation</a>.</p>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
-<p>The library is configured on deployment using the <code>AavePositionManagerConfig</code> type.</p>
+<p>The library is configured on deployment using the <code>StandardBridgeTransferConfig</code> type. More information on the config parameters can be found <a href="https://docs.optimism.io/app-developers/bridging/standard-bridge">here</a>.</p>
 <pre><code class="language-solidity">    /**
-     * @title AavePositionManagerConfig
-     * @notice Configuration struct for Aave lending operations
-     * @dev Used to define parameters for interacting with Aave V3 protocol
-     * @param poolAddress The address of the Aave V3 Pool contract
-     * @param inputAccount The Base Account from which transactions will be initiated
-     * @param outputAccount The Base Account that will receive withdrawals. Can be the same as inputAccount.
-     * @param supplyAsset Address of the token to supply to Aave
-     * @param borrowAsset Address of the token to borrow from Aave
-     * @param referralCode Referral code for Aave protocol (if applicable - 0 if the action is executed directly by the user, without any middle-men)
+     * @dev Configuration struct for StandardBridge transfer parameters.
+     * @param amount The number of tokens to transfer. If set to 0, the entire balance is transferred.
+     * @param inputAccount The account from which tokens will be transferred from.
+     * @param recipient The recipient address on the destination chain.
+     * @param standardBridge The StandardBridge contract address (L1 or L2 version).
+     * @param token The ERC20 token address to transfer (or address(0) for ETH).
+     * @param remoteToken Address of the corresponding token on the destination chain (only used for ERC20 transfers). Must be zero address for ETH transfers.
+     * @param minGasLimit Gas to use to complete the transfer on the receiving side. Used for sequencers/relayers.
+     * @param extraData Additional data to be forwarded with the transaction.
      */
-    struct AavePositionManagerConfig {
-        IPool poolAddress;
+    struct StandardBridgeTransferConfig {
+        uint256 amount;
         BaseAccount inputAccount;
-        BaseAccount outputAccount;
-        address supplyAsset;
-        address borrowAsset;
-        uint16 referralCode;
+        address recipient;
+        IStandardBridge standardBridge;
+        address token;
+        address remoteToken;
+        uint32 minGasLimit;
+        bytes extraData;
     }
 </code></pre>
 
@@ -277,11 +222,11 @@ flowchart LR
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../libraries/evm/standard_bridge_transfer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../libraries/evm/stargate_transfer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../../libraries/evm/balancer_v2_swap.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../libraries/evm/aave_position_manager.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -291,11 +236,11 @@ flowchart LR
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../libraries/evm/standard_bridge_transfer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../libraries/evm/stargate_transfer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../../libraries/evm/balancer_v2_swap.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../libraries/evm/aave_position_manager.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
