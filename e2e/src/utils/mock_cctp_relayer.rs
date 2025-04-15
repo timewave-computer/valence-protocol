@@ -112,7 +112,7 @@ impl MockCctpRelayer {
         info!("[CCTP MOCK RELAY] Starting Eth<->Noble cctp relayer...");
 
         loop {
-            info!("[CCTP RELAY] loop");
+            // info!("[CCTP RELAY] loop");
 
             if let Err(e) = self.poll_noble().await {
                 warn!("[CCTP MOCK RELAY] Noble polling error: {:?}", e);
