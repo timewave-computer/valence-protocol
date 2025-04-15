@@ -252,37 +252,6 @@ pub fn setup_eth_libraries(
         )?;
 
     info!("Setting up Valence Vault...");
-    let vault_address = setup_valence_vault(
-        rt,
-        eth_client,
-        eth_strategist_addr,
-        eth_accounts,
-        eth_admin_addr,
-        eth_program_accounts.clone(),
-        usdc_token_addr,
-    )?;
-
-    let libraries = EthereumProgramLibraries {
-        cctp_forwarder: cctp_forwarder_addr,
-        _lite_processor: lite_processor_address,
-        valence_vault: vault_address,
-    };
-
-    Ok(libraries)
-}
-
-/// sets up a Valence Vault on Ethereum with a proxy.
-/// approves deposit & withdraw accounts.
-pub fn setup_valence_vault(
-    rt: &tokio::runtime::Runtime,
-    eth_client: &EthereumClient,
-    eth_strategist_acc: Address,
-    eth_accounts: &[Address],
-    admin: Address,
-    eth_program_accounts: EthereumProgramAccounts,
-    vault_deposit_token_addr: Address,
-) -> Result<Address, Box<dyn Error>> {
-    let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
 
     let fee_config = FeeConfig {
         depositFeeBps: 0,          // No deposit fee
@@ -300,7 +269,7 @@ pub fn setup_valence_vault(
     let vault_config = VaultConfig {
         depositAccount: eth_program_accounts.deposit,
         withdrawAccount: eth_program_accounts.withdraw,
-        strategist: eth_strategist_acc,
+        strategist: eth_strategist_addr,
         fees: fee_config,
         feeDistribution: fee_distribution,
         depositCap: 0, // No cap (for real)
@@ -308,6 +277,36 @@ pub fn setup_valence_vault(
         // withdrawLockupPeriod: SECONDS_IN_DAY, // 1 day lockup
         maxWithdrawFeeBps: 10_000, // 1% max withdraw fee
     };
+
+    let vault_address = setup_valence_vault(
+        rt,
+        eth_client,
+        eth_admin_addr,
+        eth_program_accounts.clone(),
+        usdc_token_addr,
+        vault_config,
+    )?;
+
+    let libraries = EthereumProgramLibraries {
+        cctp_forwarder: cctp_forwarder_addr,
+        _lite_processor: lite_processor_address,
+        valence_vault: vault_address,
+    };
+
+    Ok(libraries)
+}
+
+/// sets up a Valence Vault on Ethereum with a proxy.
+/// approves deposit & withdraw accounts.
+pub fn setup_valence_vault(
+    rt: &tokio::runtime::Runtime,
+    eth_client: &EthereumClient,
+    admin: Address,
+    eth_program_accounts: EthereumProgramAccounts,
+    vault_deposit_token_addr: Address,
+    vault_config: VaultConfig,
+) -> Result<Address, Box<dyn Error>> {
+    let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
 
     info!("deploying Valence Vault on Ethereum...");
 
