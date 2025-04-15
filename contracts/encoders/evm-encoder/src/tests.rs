@@ -22,9 +22,50 @@ use valence_encoder_utils::{
 
 use crate::{
     contract::{instantiate, query},
+    parse_address,
     solidity_types::{EvictMsgs, InsertMsgs, ProcessorMessage, ProcessorMessageType, SendMsgs},
     EVMLibrary,
 };
+
+#[test]
+fn test_parse_zero_address() {
+    // Test with full zero address
+    let result = parse_address("0x0000000000000000000000000000000000000000");
+    assert!(result.is_ok());
+    let zero_addr = result.unwrap();
+    assert_eq!(zero_addr, Address::ZERO);
+}
+
+#[test]
+fn test_parse_real_address() {
+    // A real Ethereum address
+    let address_str = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045";
+
+    // Parse the address
+    let result = parse_address(address_str);
+    assert!(result.is_ok());
+
+    let parsed_address = result.unwrap();
+
+    // Confirm it's not the zero address
+    assert_ne!(parsed_address, Address::ZERO);
+
+    // Convert back to string and compare (case insensitive)
+    let address_back_to_string = format!("{:?}", parsed_address).to_lowercase();
+
+    assert_eq!(address_back_to_string, address_str.to_lowercase());
+}
+
+#[test]
+fn test_parse_invalid_address() {
+    // Test with invalid address
+    let result = parse_address("not_an_address");
+    assert!(result.is_err());
+
+    // Test with invalid hex but correct prefix
+    let result = parse_address("0xZZZZ");
+    assert!(result.is_err());
+}
 
 #[test]
 fn test_valid_combinations() {
