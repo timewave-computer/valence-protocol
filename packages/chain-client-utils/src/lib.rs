@@ -1,3 +1,4 @@
+pub mod babylon;
 pub mod common;
 pub mod cosmos;
 pub mod ethereum;
