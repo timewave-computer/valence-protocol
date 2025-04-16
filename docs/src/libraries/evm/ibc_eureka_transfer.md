@@ -69,7 +69,7 @@ struct IBCEurekaTransferConfig {
 
 - The EurekaHandler contract on Ethereum that is used to transfer from Ethereum to CosmosHub is at `0xfc2d0487a0ae42ae7329a80dc269916a9184cf7c`.
 - The recipient address is not in Bytes32 format but in the format used by the IBC chain (e.g., bech32: `cosmos1...`).
-- To build the `Fees` structure for the transfer we query the Skip Go API to obtain all the necessary information. Here's an example of a query:
+- To build the `Fees` structure for the transfer, we query the Skip Go API to obtain all the necessary information. Here is an example of a query:
 
 ```bash
 curl -X POST "https://go.skip.build/api/skip/v2/fungible/route" \
@@ -98,8 +98,8 @@ This is a query to obtain the fee information for transferring 20 ATOM from Ethe
 
 `{"dest_callback":{"address":"cosmos198plfkpwzpxxrlpvprhfmdkcf3frpa7kvduq9cw8lh02mm327tgqhh3s55"},"wasm":{"contract":"cosmos1zvesudsdfxusz06jztpph4d3h5x6veglqsspxns2v2jqml9nhywshhfp5j","msg":{"action":{"action":{"ibc_transfer":{"ibc_info":{"memo":"","receiver":"elys1....","recover_address":"cosmos1...","source_channel":"channel-1266"}}},"exact_out":false,"timeout_timestamp":1744774447117660400}}}}`
 
-The `dest_callback` field specifies the address of the contract that will be called on the destination chain. In this case `cosmos198plfkpwzpxxrlpvprhfmdkcf3frpa7kvduq9cw8lh02mm327tgqhh3s55` is a contract deployed on the Cosmos Hub that can handle these callbacks. The contract `cosmos1zvesudsdfxusz06jztpph4d3h5x6veglqsspxns2v2jqml9nhywshhfp5j` is the contract deployed to trigger these additional actions. These 2 contracts can be reused for all memos.
+The `dest_callback` field specifies the address of the contract that will be called on the destination chain. In this case, `cosmos198plfkpwzpxxrlpvprhfmdkcf3frpa7kvduq9cw8lh02mm327tgqhh3s55` is a contract deployed on the Cosmos Hub that can handle these callbacks. The contract `cosmos1zvesudsdfxusz06jztpph4d3h5x6veglqsspxns2v2jqml9nhywshhfp5j` is the contract deployed to trigger these additional actions. These 2 contracts can be reused for all memos.
 In this particular case, the memo is used to trigger an additional IBC transfer on the destination chain, in this case from the Cosmos Hub to Elys. The receiver is the address specified in the `receiver` field and the `recover_address` is the address that will receive the tokens in case of a failure.
 
 - The function will automatically deduct relay fees from the total amount being transferred.
-- IBC transfers require specifying a timeout period after which the transfer is considered failed if not completed.
+- IBC transfers require specifying a timeout period, after which the transfer is considered failed if not completed.
