@@ -108,9 +108,10 @@ contract IBCEurekaTransfer is Library {
 
         // Check the token balance of the input account.
         uint256 balance = IERC20(_config.transferToken).balanceOf(address(_config.inputAccount));
-        if (balance == 0 && _config.amount == 0) {
+        if (balance == 0) {
             revert("Nothing to transfer");
-        } else if (balance == 0 || balance < _config.amount) {
+        }
+        if (_config.amount > balance) {
             revert("Insufficient balance");
         }
 

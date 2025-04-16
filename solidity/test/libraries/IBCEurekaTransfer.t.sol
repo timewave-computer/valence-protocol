@@ -165,7 +165,7 @@ contract IBCEurekaTransferTest is Test {
         });
 
         vm.prank(processor);
-        vm.expectRevert("Insufficient balance");
+        vm.expectRevert("Nothing to transfer");
         ibcEurekaTransfer.transfer(fees, "");
     }
 
