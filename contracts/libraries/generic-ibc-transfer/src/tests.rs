@@ -5,6 +5,7 @@ use cosmwasm_std::{coin, Addr, Empty, Uint128, Uint64};
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
 use getset::{Getters, Setters};
+use valence_ibc_utils::types::EurekaFee;
 use valence_library_utils::{
     denoms::CheckedDenom,
     msg::{ExecuteMsg, InstantiateMsg, LibraryConfigValidation},
@@ -108,6 +109,19 @@ impl IbcTransferTestSuite {
         self.contract_execute(
             addr,
             &ExecuteMsg::<_, LibraryConfig>::ProcessFunction(FunctionMsgs::IbcTransfer {}),
+        )
+    }
+
+    fn execute_eureka_ibc_transfer(&mut self, addr: Addr) -> AnyResult<AppResponse> {
+        self.contract_execute(
+            addr,
+            &ExecuteMsg::<_, LibraryConfig>::ProcessFunction(FunctionMsgs::EurekaTransfer {
+                eureka_fee: EurekaFee {
+                    coin: coin(1, NTRN),
+                    receiver: self.output_addr().to_string(),
+                    timeout_timestamp: 15000000000,
+                },
+            }),
         )
     }
 
@@ -386,4 +400,25 @@ fn ibc_transfer_fails_for_insufficient_balance() {
 
     // Execute IBC transfer
     suite.execute_ibc_transfer(lib).unwrap();
+}
+
+// Eureka config test
+
+#[test]
+#[should_panic(expected = "No Eureka config provided.")]
+fn eureka_ibc_transfer_fails_no_eureka_config() {
+    let mut suite = IbcTransferTestSuite::new(Some((ONE_MILLION, NTRN.to_string())));
+
+    let cfg = suite.ibc_transfer_config(
+        NTRN.to_string(),
+        IbcTransferAmount::FixedAmount(ONE_MILLION.into()),
+        "".to_string(),
+        RemoteChainInfo::new("channel-1".to_string(), Some(600u64.into())),
+    );
+
+    // Instantiate contract
+    let lib = suite.ibc_transfer_init(&cfg);
+
+    // Execute IBC transfer
+    suite.execute_eureka_ibc_transfer(lib).unwrap();
 }

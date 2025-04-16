@@ -392,6 +392,7 @@ impl EthereumVaultRouting for Strategist {
                 memo: None,
                 remote_chain_info: None,
                 denom_to_pfm_map: None,
+                eureka_config: valence_library_utils::OptionUpdate::Set(None),
             },
         };
 

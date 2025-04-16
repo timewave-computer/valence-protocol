@@ -249,6 +249,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         memo: None,
         remote_chain_info: None,
         denom_to_pfm_map: None,
+        eureka_config: valence_library_utils::OptionUpdate::Set(None),
     };
     let upd_cfg_msg =
         valence_library_utils::msg::ExecuteMsg::<FunctionMsgs, LibraryConfigUpdate>::UpdateConfig {
