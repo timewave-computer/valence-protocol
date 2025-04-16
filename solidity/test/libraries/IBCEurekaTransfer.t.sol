@@ -195,7 +195,7 @@ contract IBCEurekaTransferTest is Test {
         });
 
         vm.prank(processor);
-        vm.expectRevert("Not enough balance to cover fees");
+        vm.expectRevert("Not enough to pay fees and make a transfer");
         ibcEurekaTransfer.transfer(fees, "");
     }
 
@@ -210,7 +210,7 @@ contract IBCEurekaTransferTest is Test {
         });
 
         vm.prank(processor);
-        vm.expectRevert("Not enough balance to cover fees");
+        vm.expectRevert("Not enough to pay fees and make a transfer");
         ibcEurekaTransfer.transfer(fees, "");
     }
 

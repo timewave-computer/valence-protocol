@@ -120,7 +120,7 @@ contract IBCEurekaTransfer is Library {
 
         // Check that we have enough balance to cover the fees.
         if (amount <= fees.relayFee) {
-            revert("Not enough balance to cover fees");
+            revert("Not enough to pay fees and make a transfer");
         }
 
         // Subtract the relay fee from the amount to be transferred.
