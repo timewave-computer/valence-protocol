@@ -98,6 +98,8 @@ This is a query to obtain the fee information for transferring 20 ATOM from Ethe
 
 `{"dest_callback":{"address":"cosmos198plfkpwzpxxrlpvprhfmdkcf3frpa7kvduq9cw8lh02mm327tgqhh3s55"},"wasm":{"contract":"cosmos1zvesudsdfxusz06jztpph4d3h5x6veglqsspxns2v2jqml9nhywshhfp5j","msg":{"action":{"action":{"ibc_transfer":{"ibc_info":{"memo":"","receiver":"elys1....","recover_address":"cosmos1...","source_channel":"channel-1266"}}},"exact_out":false,"timeout_timestamp":1744774447117660400}}}}`
 
+For more details on how this memo works, please refer to the [IBC callback middleware](https://github.com/cosmos/ibc-go/blob/16f51eb5635bc16c6361c44f2a963f4736d1cf8b/docs/docs/04-middleware/01-callbacks/05-end-users.md) documentation.
+
 The `dest_callback` field specifies the address of the contract that will be called on the destination chain. In this case, `cosmos198plfkpwzpxxrlpvprhfmdkcf3frpa7kvduq9cw8lh02mm327tgqhh3s55` is a contract deployed on the Cosmos Hub that can handle these callbacks. The contract `cosmos1zvesudsdfxusz06jztpph4d3h5x6veglqsspxns2v2jqml9nhywshhfp5j` is the contract deployed to trigger these additional actions. These 2 contracts can be reused for all memos.
 In this particular case, the memo is used to trigger an additional IBC transfer on the destination chain, in this case from the Cosmos Hub to Elys. The receiver is the address specified in the `receiver` field and the `recover_address` is the address that will receive the tokens in case of a failure.
 
