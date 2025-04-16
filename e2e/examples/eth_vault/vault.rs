@@ -18,7 +18,7 @@ use log::info;
 use neutron::setup_astroport_cl_pool;
 use program::{setup_neutron_accounts, setup_neutron_libraries, upload_neutron_contracts};
 
-use strategist::{client::Strategist, setup::StrategyConfig};
+use strategist::{client::Strategist, strategy::StrategyConfig};
 use utils::wait_until_half_minute;
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
@@ -190,14 +190,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         &eth_accounts,
     )?;
 
-    let valence_vault = ValenceVault::new(ethereum_program_libraries.valence_vault, &eth_rp);
+    let vault_address = Address::from_str(&ethereum_program_libraries.valence_vault).unwrap();
+    let valence_vault = ValenceVault::new(vault_address, &eth_rp);
 
     let user_1_deposit_amount = U256::from(5_000_000);
     let user_2_deposit_amount = U256::from(1_000_000);
     let user_3_deposit_amount = U256::from(3_000_000);
 
-    let mut eth_users =
-        EthereumUsers::new(usdc_token_address, ethereum_program_libraries.valence_vault);
+    let mut eth_users = EthereumUsers::new(usdc_token_address, vault_address);
     eth_users.add_user(&rt, &eth_client, eth_accounts[2]);
     eth_users.fund_user(&rt, &eth_client, 0, user_1_deposit_amount);
     eth_users.add_user(&rt, &eth_client, eth_accounts[3]);
@@ -226,77 +226,34 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
 
     let strategy_config = StrategyConfig {
-        noble: strategist::setup::noble::NobleStrategyConfig {
+        noble: strategist::strategy::noble::NobleStrategyConfig {
             grpc_url: noble_grpc_url,
             grpc_port: noble_grpc_port,
             chain_id: NOBLE_CHAIN_ID.to_string(),
             mnemonic: ADMIN_MNEMONIC.to_string(),
         },
-        neutron: strategist::setup::neutron::NeutronStrategyConfig {
+        neutron: strategist::strategy::neutron::NeutronStrategyConfig {
             grpc_url: neutron_grpc_url,
             grpc_port: neutron_grpc_port,
             chain_id: NEUTRON_CHAIN_ID.to_string(),
             mnemonic: ADMIN_MNEMONIC.to_string(),
             target_pool: pool_addr.to_string(),
-            denoms: strategist::setup::neutron::NeutronDenoms {
+            denoms: strategist::strategy::neutron::NeutronDenoms {
                 lp_token: lp_token.to_string(),
                 usdc: uusdc_on_neutron_denom.to_string(),
                 ntrn: NEUTRON_CHAIN_DENOM.to_string(),
             },
-            accounts: strategist::setup::neutron::NeutronAccounts {
-                deposit: neutron_program_accounts.deposit_account.to_string()?,
-                position: neutron_program_accounts.position_account.to_string()?,
-                withdraw: neutron_program_accounts.withdraw_account.to_string()?,
-                liquidation: neutron_program_accounts.liquidation_account.to_string()?,
-                noble_inbound_ica: strategist::setup::neutron::IcaAccount {
-                    library_account: neutron_program_accounts
-                        .noble_inbound_ica
-                        .library_account
-                        .to_string()?,
-                    remote_addr: neutron_program_accounts
-                        .noble_inbound_ica
-                        .remote_addr
-                        .to_string(),
-                },
-                noble_outbound_ica: strategist::setup::neutron::IcaAccount {
-                    library_account: neutron_program_accounts
-                        .noble_outbound_ica
-                        .library_account
-                        .to_string()?,
-                    remote_addr: neutron_program_accounts
-                        .noble_outbound_ica
-                        .remote_addr
-                        .to_string(),
-                },
-            },
-            libraries: strategist::setup::neutron::NeutronLibraries {
-                neutron_ibc_transfer: neutron_program_libraries.neutron_ibc_transfer.to_string(),
-                noble_inbound_transfer: neutron_program_libraries
-                    .noble_inbound_transfer
-                    .to_string(),
-                noble_cctp_transfer: neutron_program_libraries.noble_cctp_transfer.to_string(),
-                astroport_lper: neutron_program_libraries.astroport_lper.to_string(),
-                astroport_lwer: neutron_program_libraries.astroport_lwer.to_string(),
-                liquidation_forwarder: neutron_program_libraries.liquidation_forwarder.to_string(),
-                authorizations: neutron_program_libraries._authorizations.to_string(),
-                processor: neutron_program_libraries._processor.to_string(),
-            },
+            accounts: neutron_program_accounts,
+            libraries: neutron_program_libraries,
         },
-        ethereum: strategist::setup::ethereum::EthereumStrategyConfig {
+        ethereum: strategist::strategy::ethereum::EthereumStrategyConfig {
             rpc_url: DEFAULT_ANVIL_RPC_ENDPOINT.to_string(),
             mnemonic: "test test test test test test test test test test test junk".to_string(),
-            denoms: strategist::setup::ethereum::EthereumDenoms {
+            denoms: strategist::strategy::ethereum::EthereumDenoms {
                 usdc_erc20: usdc_token_address.to_string(),
             },
-            accounts: strategist::setup::ethereum::EthereumAccounts {
-                deposit: ethereum_program_accounts.deposit.to_string(),
-                withdraw: ethereum_program_accounts.withdraw.to_string(),
-            },
-            libraries: strategist::setup::ethereum::EthereumLibraries {
-                valence_vault: ethereum_program_libraries.valence_vault.to_string(),
-                cctp_forwarder: ethereum_program_libraries.cctp_forwarder.to_string(),
-                lite_processor: ethereum_program_libraries._lite_processor.to_string(),
-            },
+            accounts: ethereum_program_accounts.clone(),
+            libraries: ethereum_program_libraries.clone(),
         },
     };
 
@@ -318,6 +275,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let strategist_rt = tokio::runtime::Runtime::new().unwrap();
     let _strategist_join_handle = strategist_rt.spawn(strategist.start());
+
+    let vault_address = Address::from_str(&ethereum_program_libraries.valence_vault).unwrap();
+    let eth_withdraw_address =
+        Address::from_str(&ethereum_program_accounts.withdraw.to_string()).unwrap();
 
     // epoch 0
     {
@@ -372,7 +333,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         info!("Total assets to withdraw before redeem: {total_to_withdraw_before}");
 
         vault::redeem(
-            ethereum_program_libraries.valence_vault,
+            vault_address,
             &rt,
             &eth_client,
             eth_users.users[0],
@@ -423,7 +384,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         info!("Total assets to withdraw before redeem: {total_to_withdraw_before}");
 
         vault::redeem(
-            ethereum_program_libraries.valence_vault,
+            vault_address,
             &rt,
             &eth_client,
             eth_users.users[1],
@@ -483,7 +444,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             let erc20 =
                 valence_e2e::utils::solidity_contracts::MockERC20::new(usdc_token_address, &eth_rp);
             eth_client
-                .query(erc20.balanceOf(ethereum_program_accounts.withdraw))
+                .query(erc20.balanceOf(eth_withdraw_address))
                 .await
                 .unwrap()
         });
@@ -492,51 +453,28 @@ fn main() -> Result<(), Box<dyn Error>> {
         async_run!(
             &rt,
             eth_users
-                .log_balances(
-                    &eth_client,
-                    &ethereum_program_libraries.valence_vault,
-                    &usdc_token_address,
-                )
+                .log_balances(&eth_client, &vault_address, &usdc_token_address,)
                 .await
         );
 
-        let user0_withdraw_request = vault::addr_has_active_withdraw(
-            ethereum_program_libraries.valence_vault,
-            &rt,
-            &eth_client,
-            eth_users.users[0],
-        )
-        ._0;
+        let user0_withdraw_request =
+            vault::addr_has_active_withdraw(vault_address, &rt, &eth_client, eth_users.users[0])._0;
         info!("user0 has withdraw request: {user0_withdraw_request}");
 
         info!("User0 completing withdraw request...");
-        vault::complete_withdraw_request(
-            ethereum_program_libraries.valence_vault,
-            &rt,
-            &eth_client,
-            eth_users.users[0],
-        )?;
+        vault::complete_withdraw_request(vault_address, &rt, &eth_client, eth_users.users[0])?;
 
         async_run!(
             &rt,
             eth_users
-                .log_balances(
-                    &eth_client,
-                    &ethereum_program_libraries.valence_vault,
-                    &usdc_token_address,
-                )
+                .log_balances(&eth_client, &vault_address, &usdc_token_address,)
                 .await
         );
 
         let post_completion_user0_bal = eth_users.get_user_usdc(&rt, &eth_client, 0);
         let post_completion_user0_shares = eth_users.get_user_shares(&rt, &eth_client, 0);
-        let user0_withdraw_request = vault::addr_has_active_withdraw(
-            ethereum_program_libraries.valence_vault,
-            &rt,
-            &eth_client,
-            eth_users.users[0],
-        )
-        ._0;
+        let user0_withdraw_request =
+            vault::addr_has_active_withdraw(vault_address, &rt, &eth_client, eth_users.users[0])._0;
         info!("user0 has withdraw request: {user0_withdraw_request}");
         info!("post completion user0 usdc bal: {post_completion_user0_bal}",);
         info!("post completion user0 shares bal: {post_completion_user0_shares}",);
@@ -562,7 +500,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         info!("User 2 submitting withdraw request for {user2_shares}shares");
 
         vault::redeem(
-            ethereum_program_libraries.valence_vault,
+            vault_address,
             &rt,
             &eth_client,
             eth_users.users[2],
@@ -581,34 +519,19 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let pre_completion_user2_bal = eth_users.get_user_usdc(&rt, &eth_client, 2);
         let pre_completion_user2_shares = eth_users.get_user_shares(&rt, &eth_client, 2);
-        let user2_withdraw_request = vault::addr_has_active_withdraw(
-            ethereum_program_libraries.valence_vault,
-            &rt,
-            &eth_client,
-            eth_users.users[2],
-        )
-        ._0;
+        let user2_withdraw_request =
+            vault::addr_has_active_withdraw(vault_address, &rt, &eth_client, eth_users.users[2])._0;
         info!("user2 has withdraw request: {user2_withdraw_request}");
         info!("pre completion user2 usdc bal: {pre_completion_user2_bal}",);
         info!("pre completion user2 shares bal: {pre_completion_user2_shares}",);
 
         info!("User2 completing withdraw request...");
-        vault::complete_withdraw_request(
-            ethereum_program_libraries.valence_vault,
-            &rt,
-            &eth_client,
-            eth_users.users[2],
-        )?;
+        vault::complete_withdraw_request(vault_address, &rt, &eth_client, eth_users.users[2])?;
 
         let post_completion_user2_bal = eth_users.get_user_usdc(&rt, &eth_client, 2);
         let post_completion_user2_shares = eth_users.get_user_shares(&rt, &eth_client, 2);
-        let user2_withdraw_request = vault::addr_has_active_withdraw(
-            ethereum_program_libraries.valence_vault,
-            &rt,
-            &eth_client,
-            eth_users.users[2],
-        )
-        ._0;
+        let user2_withdraw_request =
+            vault::addr_has_active_withdraw(vault_address, &rt, &eth_client, eth_users.users[2])._0;
         info!("user2 has withdraw request: {user2_withdraw_request}");
         info!("post completion user2 usdc bal: {post_completion_user2_bal}",);
         info!("post completion user2 shares bal: {post_completion_user2_shares}",);

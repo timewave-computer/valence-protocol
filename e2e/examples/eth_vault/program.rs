@@ -12,9 +12,6 @@ use localic_utils::{
 use log::info;
 use valence_astroport_lper::msg::LiquidityProviderConfig;
 
-use valence_chain_client_utils::cosmos::base_client::BaseClient;
-use valence_chain_client_utils::neutron::NeutronClient;
-use valence_chain_client_utils::noble::NobleClient;
 use valence_e2e::utils::base_account::{approve_library, create_base_accounts};
 use valence_e2e::utils::hyperlane::HyperlaneContracts;
 use valence_e2e::utils::manager::{
@@ -31,157 +28,8 @@ use valence_library_utils::liquidity_utils::AssetData;
 use valence_library_utils::LibraryAccountType;
 
 use crate::neutron::ica::{instantiate_interchain_account_contract, register_interchain_account};
+use crate::strategist::strategy;
 use crate::{ASTROPORT_CONCENTRATED_PAIR_TYPE, VAULT_NEUTRON_CACHE_PATH};
-
-#[derive(Debug, Clone)]
-pub struct ValenceInterchainAccount {
-    pub library_account: LibraryAccountType,
-    pub remote_addr: String,
-}
-
-#[derive(Clone, Debug)]
-pub struct NeutronProgramAccounts {
-    pub deposit_account: LibraryAccountType,
-    pub position_account: LibraryAccountType,
-    pub liquidation_account: LibraryAccountType,
-    pub withdraw_account: LibraryAccountType,
-    pub noble_inbound_ica: ValenceInterchainAccount,
-    pub noble_outbound_ica: ValenceInterchainAccount,
-}
-
-impl NeutronProgramAccounts {
-    pub async fn log_balances(
-        &self,
-        neutron_client: &NeutronClient,
-        noble_client: &NobleClient,
-        denoms: Vec<String>,
-    ) {
-        let mut balances: BTreeMap<&str, Vec<String>> = BTreeMap::from_iter(vec![
-            ("deposit_account", vec![]),
-            ("position_account", vec![]),
-            ("liquidation_account", vec![]),
-            ("withdraw_account", vec![]),
-            ("noble_inbound_account", vec![]),
-            ("noble_outbound_account", vec![]),
-            ("noble_inbound_ica_remote", vec![]),
-            ("noble_outbound_ica_remote", vec![]),
-        ]);
-
-        for denom in denoms {
-            let mut denom_truncated = denom.to_string();
-            denom_truncated.truncate(10);
-
-            let deposit_account_denom_bal = neutron_client
-                .query_balance(&self.deposit_account.to_string().unwrap(), &denom)
-                .await
-                .unwrap();
-            if deposit_account_denom_bal > 0 {
-                if let Some(vec) = balances.get_mut("deposit_account") {
-                    let entry = format!("{deposit_account_denom_bal}{denom_truncated}");
-                    vec.push(entry);
-                }
-            }
-
-            let position_account_denom_bal = neutron_client
-                .query_balance(&self.position_account.to_string().unwrap(), &denom)
-                .await
-                .unwrap();
-            if position_account_denom_bal > 0 {
-                if let Some(vec) = balances.get_mut("position_account") {
-                    let entry = format!("{position_account_denom_bal}{denom_truncated}");
-                    vec.push(entry);
-                }
-            }
-
-            let liquidation_account_denom_bal = neutron_client
-                .query_balance(&self.liquidation_account.to_string().unwrap(), &denom)
-                .await
-                .unwrap();
-            if liquidation_account_denom_bal > 0 {
-                if let Some(vec) = balances.get_mut("liquidation_account") {
-                    let entry = format!("{liquidation_account_denom_bal}{denom_truncated}");
-                    vec.push(entry);
-                }
-            }
-
-            let withdraw_account_denom_bal = neutron_client
-                .query_balance(&self.withdraw_account.to_string().unwrap(), &denom)
-                .await
-                .unwrap();
-            if withdraw_account_denom_bal > 0 {
-                if let Some(vec) = balances.get_mut("withdraw_account") {
-                    let entry = format!("{withdraw_account_denom_bal}{denom_truncated}");
-                    vec.push(entry);
-                }
-            }
-
-            let noble_inbound_account_denom_bal = neutron_client
-                .query_balance(
-                    &self.noble_inbound_ica.library_account.to_string().unwrap(),
-                    &denom,
-                )
-                .await
-                .unwrap();
-            if noble_inbound_account_denom_bal > 0 {
-                if let Some(vec) = balances.get_mut("noble_inbound_account") {
-                    let entry = format!("{noble_inbound_account_denom_bal}{denom_truncated}");
-                    vec.push(entry);
-                }
-            }
-
-            let noble_outbound_account_denom_bal = neutron_client
-                .query_balance(
-                    &self.noble_outbound_ica.library_account.to_string().unwrap(),
-                    &denom,
-                )
-                .await
-                .unwrap();
-            if noble_outbound_account_denom_bal > 0 {
-                if let Some(vec) = balances.get_mut("noble_outbound_account") {
-                    let entry = format!("{noble_outbound_account_denom_bal}{denom_truncated}");
-                    vec.push(entry);
-                }
-            }
-        }
-
-        let noble_inbound_ica_usdc_bal = noble_client
-            .query_balance(&self.noble_inbound_ica.remote_addr, UUSDC_DENOM)
-            .await
-            .unwrap();
-        if let Some(vec) = balances.get_mut("noble_inbound_ica_remote") {
-            let entry = format!("{noble_inbound_ica_usdc_bal}USDC");
-            vec.push(entry);
-        }
-
-        let noble_outbound_ica_usdc_bal = noble_client
-            .query_balance(&self.noble_outbound_ica.remote_addr, UUSDC_DENOM)
-            .await
-            .unwrap();
-        if let Some(vec) = balances.get_mut("noble_outbound_ica_remote") {
-            let entry = format!("{noble_outbound_ica_usdc_bal}USDC");
-            vec.push(entry);
-        }
-
-        info!("\n\nNEUTRON+NOBLE ACCOUNTS LOG");
-        for (k, v) in balances {
-            let balances = v.join(" ");
-            info!("\t{k}: {balances}");
-        }
-        info!("\n");
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct NeutronProgramLibraries {
-    pub _authorizations: String,
-    pub _processor: String,
-    pub astroport_lper: String,
-    pub astroport_lwer: String,
-    pub liquidation_forwarder: String,
-    pub noble_inbound_transfer: String,
-    pub noble_cctp_transfer: String,
-    pub neutron_ibc_transfer: String,
-}
 
 #[allow(unused)]
 pub struct ProgramHyperlaneContracts {
@@ -191,7 +39,7 @@ pub struct ProgramHyperlaneContracts {
 
 pub fn setup_neutron_accounts(
     test_ctx: &mut TestContext,
-) -> Result<NeutronProgramAccounts, Box<dyn Error>> {
+) -> Result<strategy::neutron::NeutronAccounts, Box<dyn Error>> {
     let base_account_code_id = test_ctx
         .get_contract()
         .contract(BASE_ACCOUNT_NAME)
@@ -225,8 +73,8 @@ pub fn setup_neutron_accounts(
     let inbound_noble_ica_addr =
         register_interchain_account(test_ctx, &noble_inbound_interchain_account_addr)?;
 
-    let noble_inbound_ica = ValenceInterchainAccount {
-        library_account: LibraryAccountType::Addr(noble_inbound_interchain_account_addr),
+    let noble_inbound_ica = strategy::neutron::IcaAccount {
+        library_account: noble_inbound_interchain_account_addr,
         remote_addr: inbound_noble_ica_addr,
     };
 
@@ -235,20 +83,18 @@ pub fn setup_neutron_accounts(
     let outbound_noble_ica_addr =
         register_interchain_account(test_ctx, &noble_outbound_interchain_account_addr)?;
 
-    let noble_outbound_ica = ValenceInterchainAccount {
-        library_account: LibraryAccountType::Addr(noble_outbound_interchain_account_addr),
+    let noble_outbound_ica = strategy::neutron::IcaAccount {
+        library_account: noble_outbound_interchain_account_addr,
         remote_addr: outbound_noble_ica_addr,
     };
 
-    let neutron_accounts = NeutronProgramAccounts {
-        // base accounts
-        deposit_account,
-        position_account,
-        liquidation_account,
-        withdraw_account,
-        // valence-icas
+    let neutron_accounts = strategy::neutron::NeutronAccounts {
         noble_inbound_ica,
         noble_outbound_ica,
+        deposit: deposit_account.to_string()?,
+        position: position_account.to_string()?,
+        withdraw: withdraw_account.to_string()?,
+        liquidation: liquidation_account.to_string()?,
     };
 
     Ok(neutron_accounts)
@@ -292,7 +138,7 @@ pub fn upload_neutron_contracts(test_ctx: &mut TestContext) -> Result<(), Box<dy
 #[allow(clippy::too_many_arguments)]
 pub fn setup_neutron_libraries(
     test_ctx: &mut TestContext,
-    neutron_program_accounts: &NeutronProgramAccounts,
+    neutron_program_accounts: &strategy::neutron::NeutronAccounts,
     pool: &str,
     authorizations: &str,
     processor: &str,
@@ -300,7 +146,7 @@ pub fn setup_neutron_libraries(
     usdc_on_neutron: &str,
     eth_withdraw_acc: String,
     lp_token_denom: &str,
-) -> Result<NeutronProgramLibraries, Box<dyn Error>> {
+) -> Result<strategy::neutron::NeutronLibraries, Box<dyn Error>> {
     let astro_cl_pool_asset_data = AssetData {
         asset1: NEUTRON_CHAIN_DENOM.to_string(),
         asset2: usdc_on_neutron.to_string(),
@@ -310,8 +156,8 @@ pub fn setup_neutron_libraries(
     // and route the issued shares into the into the position account
     let astro_lper_lib = setup_astroport_lper_lib(
         test_ctx,
-        neutron_program_accounts.deposit_account.clone(),
-        neutron_program_accounts.position_account.clone(),
+        neutron_program_accounts.deposit.to_string(),
+        neutron_program_accounts.position.to_string(),
         astro_cl_pool_asset_data.clone(),
         pool.to_string(),
         processor.to_string(),
@@ -322,8 +168,8 @@ pub fn setup_neutron_libraries(
     // to the liquidation account, needed to fulfill the withdraw obligations
     let forwarder_lib = setup_liquidation_fwd_lib(
         test_ctx,
-        neutron_program_accounts.position_account.clone(),
-        neutron_program_accounts.liquidation_account.clone(),
+        neutron_program_accounts.position.to_string(),
+        neutron_program_accounts.liquidation.to_string(),
         lp_token_denom,
     )?;
 
@@ -331,8 +177,8 @@ pub fn setup_neutron_libraries(
     // and route the underlying funds into the withdraw account
     let astro_lwer_lib = setup_astroport_lwer_lib(
         test_ctx,
-        neutron_program_accounts.liquidation_account.clone(),
-        neutron_program_accounts.withdraw_account.clone(),
+        neutron_program_accounts.liquidation.to_string(),
+        neutron_program_accounts.withdraw.to_string(),
         astro_cl_pool_asset_data.clone(),
         pool.to_string(),
         processor.to_string(),
@@ -342,11 +188,8 @@ pub fn setup_neutron_libraries(
     // into the deposit account on neutron
     let ica_ibc_transfer_lib = setup_ica_ibc_transfer_lib(
         test_ctx,
-        &neutron_program_accounts
-            .noble_inbound_ica
-            .library_account
-            .to_string()?,
-        &neutron_program_accounts.deposit_account.to_string()?,
+        &neutron_program_accounts.noble_inbound_ica.library_account,
+        &neutron_program_accounts.deposit,
         amount,
     )?;
 
@@ -357,7 +200,7 @@ pub fn setup_neutron_libraries(
         neutron_program_accounts
             .noble_outbound_ica
             .library_account
-            .clone(),
+            .to_string(),
         eth_withdraw_acc,
         processor.to_string(),
         authorizations.to_string(),
@@ -368,13 +211,11 @@ pub fn setup_neutron_libraries(
     // into a program-owned ICA on noble
     let neutron_ibc_transfer_lib = setup_neutron_ibc_transfer_lib(
         test_ctx,
-        neutron_program_accounts.withdraw_account.clone(),
-        valence_library_utils::LibraryAccountType::Addr(
-            neutron_program_accounts
-                .noble_outbound_ica
-                .remote_addr
-                .to_string(),
-        ),
+        neutron_program_accounts.withdraw.to_string(),
+        neutron_program_accounts
+            .noble_outbound_ica
+            .remote_addr
+            .to_string(),
         usdc_on_neutron,
         authorizations.to_string(),
         processor.to_string(),
@@ -385,23 +226,20 @@ pub fn setup_neutron_libraries(
         test_ctx,
         NEUTRON_CHAIN_NAME,
         DEFAULT_KEY,
-        &neutron_program_accounts
-            .liquidation_account
-            .to_string()
-            .unwrap(),
+        &neutron_program_accounts.liquidation.to_string(),
         NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         None,
     );
 
-    let libraries = NeutronProgramLibraries {
+    let libraries = strategy::neutron::NeutronLibraries {
         astroport_lper: astro_lper_lib,
         astroport_lwer: astro_lwer_lib,
         noble_inbound_transfer: ica_ibc_transfer_lib,
         noble_cctp_transfer: cctp_forwarder_lib_addr,
         neutron_ibc_transfer: neutron_ibc_transfer_lib,
         liquidation_forwarder: forwarder_lib,
-        _authorizations: authorizations.to_string(),
-        _processor: processor.to_string(),
+        authorizations: authorizations.to_string(),
+        processor: processor.to_string(),
     };
 
     Ok(libraries)
@@ -409,8 +247,8 @@ pub fn setup_neutron_libraries(
 
 pub fn setup_astroport_lper_lib(
     test_ctx: &mut TestContext,
-    input_account: LibraryAccountType,
-    output_account: LibraryAccountType,
+    input_account: String,
+    output_account: String,
     asset_data: AssetData,
     pool_addr: String,
     _processor: String,
@@ -434,8 +272,8 @@ pub fn setup_astroport_lper_lib(
     };
 
     let astro_lper_library_cfg = valence_astroport_lper::msg::LibraryConfig {
-        input_addr: input_account.clone(),
-        output_addr: output_account.clone(),
+        input_addr: LibraryAccountType::Addr(input_account.clone()),
+        output_addr: LibraryAccountType::Addr(output_account.clone()),
         lp_config: astro_lp_config,
         pool_addr,
     };
@@ -468,7 +306,7 @@ pub fn setup_astroport_lper_lib(
         test_ctx,
         NEUTRON_CHAIN_NAME,
         DEFAULT_KEY,
-        &input_account.to_string()?,
+        &input_account,
         astro_lper_lib.address.to_string(),
         None,
     );
@@ -478,8 +316,8 @@ pub fn setup_astroport_lper_lib(
 
 pub fn setup_astroport_lwer_lib(
     test_ctx: &mut TestContext,
-    input_account: LibraryAccountType,
-    output_account: LibraryAccountType,
+    input_account: String,
+    output_account: String,
     asset_data: AssetData,
     pool_addr: String,
     _processor: String,
@@ -500,8 +338,8 @@ pub fn setup_astroport_lwer_lib(
         asset_data,
     };
     let astro_lwer_library_cfg = valence_astroport_withdrawer::msg::LibraryConfig {
-        input_addr: input_account.clone(),
-        output_addr: output_account.clone(),
+        input_addr: LibraryAccountType::Addr(input_account.to_string()),
+        output_addr: LibraryAccountType::Addr(output_account.to_string()),
         withdrawer_config: astro_lw_config,
         pool_addr: pool_addr.to_string(),
     };
@@ -531,7 +369,7 @@ pub fn setup_astroport_lwer_lib(
         test_ctx,
         NEUTRON_CHAIN_NAME,
         DEFAULT_KEY,
-        &input_account.to_string()?,
+        &input_account,
         astro_lwer_lib.address.to_string(),
         None,
     );
@@ -541,7 +379,7 @@ pub fn setup_astroport_lwer_lib(
 
 pub fn setup_cctp_forwarder_lib(
     test_ctx: &mut TestContext,
-    input_account: LibraryAccountType,
+    input_account: String,
     mut output_addr: String,
     _processor: String,
     _authorizations: String,
@@ -561,7 +399,7 @@ pub fn setup_cctp_forwarder_lib(
     mint_recipient[(32 - addr_bytes.len())..].copy_from_slice(&addr_bytes);
 
     let cctp_transfer_config = valence_ica_cctp_transfer::msg::LibraryConfig {
-        input_addr: input_account.clone(),
+        input_addr: LibraryAccountType::Addr(input_account.to_string()),
         amount: (amount / 2).into(),
         denom: UUSDC_DENOM.to_string(),
         destination_domain_id: 0,
@@ -597,7 +435,7 @@ pub fn setup_cctp_forwarder_lib(
         test_ctx,
         NEUTRON_CHAIN_NAME,
         DEFAULT_KEY,
-        &input_account.to_string()?,
+        &input_account,
         cctp_transfer_lib.address.to_string(),
         None,
     );
@@ -676,8 +514,8 @@ pub fn setup_ica_ibc_transfer_lib(
 
 pub fn setup_neutron_ibc_transfer_lib(
     test_ctx: &mut TestContext,
-    input_account: LibraryAccountType,
-    output_addr: LibraryAccountType,
+    input_account: String,
+    output_addr: String,
     denom: &str,
     _authorizations: String,
     _processor: String,
@@ -697,7 +535,7 @@ pub fn setup_neutron_ibc_transfer_lib(
         owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         config: valence_neutron_ibc_transfer_library::msg::LibraryConfig {
-            input_addr: input_account.clone(),
+            input_addr: LibraryAccountType::Addr(input_account.to_string()),
             amount: IbcTransferAmount::FullAmount,
             denom: valence_library_utils::denoms::UncheckedDenom::Native(denom.to_string()),
             remote_chain_info: valence_generic_ibc_transfer_library::msg::RemoteChainInfo {
@@ -708,7 +546,7 @@ pub fn setup_neutron_ibc_transfer_lib(
                     .get(),
                 ibc_transfer_timeout: None,
             },
-            output_addr: output_addr.clone(),
+            output_addr: LibraryAccountType::Addr(output_addr.to_string()),
             memo: "-".to_string(),
             denom_to_pfm_map: BTreeMap::default(),
         },
@@ -742,7 +580,7 @@ pub fn setup_neutron_ibc_transfer_lib(
         test_ctx,
         NEUTRON_CHAIN_NAME,
         DEFAULT_KEY,
-        &input_account.to_string()?,
+        &input_account,
         ibc_transfer.address.clone(),
         None,
     );
@@ -752,8 +590,8 @@ pub fn setup_neutron_ibc_transfer_lib(
 
 pub fn setup_liquidation_fwd_lib(
     test_ctx: &mut TestContext,
-    input_account: LibraryAccountType,
-    output_addr: LibraryAccountType,
+    input_account: String,
+    output_addr: String,
     shares_denom: &str,
 ) -> Result<String, Box<dyn Error>> {
     let fwd_code_id = *test_ctx
@@ -768,8 +606,8 @@ pub fn setup_liquidation_fwd_lib(
         owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         config: valence_forwarder_library::msg::LibraryConfig {
-            input_addr: input_account.clone(),
-            output_addr: output_addr.clone(),
+            input_addr: LibraryAccountType::Addr(input_account.clone()),
+            output_addr: LibraryAccountType::Addr(output_addr.clone()),
             forwarding_configs: vec![UncheckedForwardingConfig {
                 denom: UncheckedDenom::Native(shares_denom.to_string()),
                 max_amount: Uint128::MAX,
@@ -806,7 +644,7 @@ pub fn setup_liquidation_fwd_lib(
         test_ctx,
         NEUTRON_CHAIN_NAME,
         DEFAULT_KEY,
-        &input_account.to_string()?,
+        &input_account,
         liquidation_forwarder.address.clone(),
         None,
     );

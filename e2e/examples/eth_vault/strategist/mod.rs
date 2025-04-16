@@ -1,5 +1,5 @@
 mod astroport;
 pub mod client;
 mod routing;
-pub mod setup;
+pub mod strategy;
 mod vault;

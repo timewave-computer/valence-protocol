@@ -29,7 +29,7 @@ use crate::{
     utils::{get_current_second, wait_until_next_minute},
 };
 
-use super::setup::StrategyConfig;
+use super::strategy::StrategyConfig;
 
 pub(crate) struct Strategist {
     // (g)RPC clients
