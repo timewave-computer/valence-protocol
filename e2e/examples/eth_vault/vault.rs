@@ -23,6 +23,7 @@ use utils::wait_until_half_minute;
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
+    noble::NobleClient,
 };
 
 use valence_e2e::{
@@ -46,7 +47,6 @@ const VAULT_NEUTRON_CACHE_PATH: &str = "e2e/examples/eth_vault/neutron_contracts
 
 mod evm;
 mod neutron;
-mod noble;
 mod program;
 mod strategist;
 mod utils;
@@ -111,11 +111,40 @@ fn main() -> Result<(), Box<dyn Error>> {
         .dest(NEUTRON_CHAIN_NAME)
         .get();
 
-    let noble_client = noble::get_client(&rt)?;
-    noble::setup_environment(&rt, &noble_client)?;
-    noble::mint_usdc_to_addr(&rt, &noble_client, NOBLE_CHAIN_ADMIN_ADDR, 999900000)?;
+    // get neutron & noble grpc (url, port) values from local-ic logs
+    let (noble_grpc_url, noble_grpc_port) = get_grpc_address_and_port_from_url(
+        &get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "grpc_address")?,
+    )?;
+    let (neutron_grpc_url, neutron_grpc_port) = get_grpc_address_and_port_from_url(
+        &get_chain_field_from_local_ic_log(NEUTRON_CHAIN_ID, "grpc_address")?,
+    )?;
 
-    async_run!(&rt, {
+    async_run!(rt, {
+        let noble_client = NobleClient::new(
+            &noble_grpc_url.to_string(),
+            &noble_grpc_port.to_string(),
+            ADMIN_MNEMONIC,
+            NOBLE_CHAIN_ID,
+            NOBLE_CHAIN_DENOM,
+        )
+        .await
+        .unwrap();
+
+        noble_client
+            .set_up_test_environment(NOBLE_CHAIN_ADMIN_ADDR, 0, UUSDC_DENOM)
+            .await;
+
+        let tx_response = noble_client
+            .mint_fiat(
+                NOBLE_CHAIN_ADMIN_ADDR,
+                NOBLE_CHAIN_ADMIN_ADDR,
+                &999900000.to_string(),
+                UUSDC_DENOM,
+            )
+            .await
+            .unwrap();
+        noble_client.poll_for_tx(&tx_response.hash).await.unwrap();
+
         let rx = noble_client
             .ibc_transfer(
                 NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
@@ -216,14 +245,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let _join_handle = rly_rt.spawn(mock_cctp_relayer.start());
     info!("main sleep for 3...");
     sleep(Duration::from_secs(3));
-
-    // get neutron & noble grpc (url, port) values from local-ic logs
-    let (noble_grpc_url, noble_grpc_port) = get_grpc_address_and_port_from_url(
-        &get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "grpc_address")?,
-    )?;
-    let (neutron_grpc_url, neutron_grpc_port) = get_grpc_address_and_port_from_url(
-        &get_chain_field_from_local_ic_log(NEUTRON_CHAIN_ID, "grpc_address")?,
-    )?;
 
     let strategy_config = StrategyConfig {
         noble: strategist::strategy::noble::NobleStrategyConfig {
