@@ -300,22 +300,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     };
 
-    strategy_config.to_file(Path::new(
-        "./e2e/examples/eth_vault/strategist/example_strategy.toml",
-    ))?;
+    let temp_path = Path::new("./e2e/examples/eth_vault/strategist/example_strategy.toml");
+    strategy_config.to_file(temp_path)?;
 
-    let strategist = Strategist::new(
-        &rt,
-        neutron_program_accounts.clone(),
-        neutron_program_libraries.clone(),
-        ethereum_program_accounts.clone(),
-        ethereum_program_libraries.clone(),
-        uusdc_on_neutron_denom.clone(),
-        lp_token.to_string(),
-        pool_addr.to_string(),
-        usdc_token_address,
-    )
-    .unwrap();
+    let strategy_cfg = StrategyConfig::from_file(temp_path)?;
+
+    let strategist = Strategist::new(&rt, strategy_cfg).unwrap();
 
     info!("User3 depositing {user_3_deposit_amount}USDC tokens to vault...");
     vault::deposit_to_vault(
