@@ -389,7 +389,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     {
-        info!("\n======================== EPOCH 3.5 ========================\n");
+        info!("\n======================== EPOCH 3 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
         evm::mine_blocks(&rt, &eth_client, 5, 3);
 

@@ -58,43 +58,27 @@ pub fn setup_neutron_accounts(
         None,
     );
 
-    let deposit_account_addr = neutron_base_accounts[0].to_string();
-    let position_account_addr = neutron_base_accounts[1].to_string();
-    let withdraw_account_addr = neutron_base_accounts[2].to_string();
-    let liquidation_account_addr = neutron_base_accounts[3].to_string();
-
-    let deposit_account = LibraryAccountType::Addr(deposit_account_addr.to_string());
-    let position_account = LibraryAccountType::Addr(position_account_addr.to_string());
-    let withdraw_account = LibraryAccountType::Addr(withdraw_account_addr.to_string());
-    let liquidation_account = LibraryAccountType::Addr(liquidation_account_addr.to_string());
-
     let noble_inbound_interchain_account_addr = instantiate_interchain_account_contract(test_ctx)?;
+    let noble_outbound_interchain_account_addr = instantiate_interchain_account_contract(test_ctx)?;
 
     let inbound_noble_ica_addr =
         register_interchain_account(test_ctx, &noble_inbound_interchain_account_addr)?;
-
-    let noble_inbound_ica = strategy::neutron::IcaAccount {
-        library_account: noble_inbound_interchain_account_addr,
-        remote_addr: inbound_noble_ica_addr,
-    };
-
-    let noble_outbound_interchain_account_addr = instantiate_interchain_account_contract(test_ctx)?;
-
     let outbound_noble_ica_addr =
         register_interchain_account(test_ctx, &noble_outbound_interchain_account_addr)?;
 
-    let noble_outbound_ica = strategy::neutron::IcaAccount {
-        library_account: noble_outbound_interchain_account_addr,
-        remote_addr: outbound_noble_ica_addr,
-    };
-
     let neutron_accounts = strategy::neutron::NeutronAccounts {
-        noble_inbound_ica,
-        noble_outbound_ica,
-        deposit: deposit_account.to_string()?,
-        position: position_account.to_string()?,
-        withdraw: withdraw_account.to_string()?,
-        liquidation: liquidation_account.to_string()?,
+        noble_inbound_ica: strategy::neutron::IcaAccount {
+            library_account: noble_inbound_interchain_account_addr,
+            remote_addr: inbound_noble_ica_addr,
+        },
+        noble_outbound_ica: strategy::neutron::IcaAccount {
+            library_account: noble_outbound_interchain_account_addr,
+            remote_addr: outbound_noble_ica_addr,
+        },
+        deposit: neutron_base_accounts[0].to_string(),
+        position: neutron_base_accounts[1].to_string(),
+        withdraw: neutron_base_accounts[2].to_string(),
+        liquidation: neutron_base_accounts[3].to_string(),
     };
 
     Ok(neutron_accounts)
@@ -272,8 +256,8 @@ pub fn setup_astroport_lper_lib(
     };
 
     let astro_lper_library_cfg = valence_astroport_lper::msg::LibraryConfig {
-        input_addr: LibraryAccountType::Addr(input_account.clone()),
-        output_addr: LibraryAccountType::Addr(output_account.clone()),
+        input_addr: LibraryAccountType::Addr(input_account.to_string()),
+        output_addr: LibraryAccountType::Addr(output_account.to_string()),
         lp_config: astro_lp_config,
         pool_addr,
     };
