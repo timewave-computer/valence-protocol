@@ -1,5 +1,6 @@
 use std::{
     error::Error,
+    path::Path,
     str::FromStr,
     thread::sleep,
     time::{Duration, SystemTime},
@@ -9,14 +10,15 @@ use alloy::primitives::{Address, U256};
 use evm::{setup_eth_accounts, setup_eth_libraries, EthereumUsers};
 use localic_utils::{
     types::config::ConfigChain, utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder,
-    LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
+    LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID,
+    NEUTRON_CHAIN_NAME,
 };
 
 use log::info;
 use neutron::setup_astroport_cl_pool;
 use program::{setup_neutron_accounts, setup_neutron_libraries, upload_neutron_contracts};
 
-use strategist::client::Strategist;
+use strategist::{client::Strategist, setup::StrategyConfig};
 use utils::wait_until_half_minute;
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
@@ -28,10 +30,12 @@ use valence_e2e::{
     utils::{
         authorization::set_up_authorization_and_processor,
         ethereum as ethereum_utils, mock_cctp_relayer,
+        parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
         solidity_contracts::ValenceVault,
         vault::{self},
-        DEFAULT_ANVIL_RPC_ENDPOINT, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM,
-        NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, UUSDC_DENOM, VALENCE_ARTIFACTS_PATH,
+        ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR,
+        NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, UUSDC_DENOM,
+        VALENCE_ARTIFACTS_PATH,
     },
 };
 
@@ -212,6 +216,93 @@ fn main() -> Result<(), Box<dyn Error>> {
     let _join_handle = rly_rt.spawn(mock_cctp_relayer.start());
     info!("main sleep for 3...");
     sleep(Duration::from_secs(3));
+
+    // get neutron & noble grpc (url, port) values from local-ic logs
+    let (noble_grpc_url, noble_grpc_port) = get_grpc_address_and_port_from_url(
+        &get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "grpc_address")?,
+    )?;
+    let (neutron_grpc_url, neutron_grpc_port) = get_grpc_address_and_port_from_url(
+        &get_chain_field_from_local_ic_log(NEUTRON_CHAIN_ID, "grpc_address")?,
+    )?;
+
+    let strategy_config = StrategyConfig {
+        noble: strategist::setup::noble::NobleStrategyConfig {
+            grpc_url: noble_grpc_url,
+            grpc_port: noble_grpc_port,
+            chain_id: NOBLE_CHAIN_ID.to_string(),
+            mnemonic: ADMIN_MNEMONIC.to_string(),
+        },
+        neutron: strategist::setup::neutron::NeutronStrategyConfig {
+            grpc_url: neutron_grpc_url,
+            grpc_port: neutron_grpc_port,
+            chain_id: NEUTRON_CHAIN_ID.to_string(),
+            mnemonic: ADMIN_MNEMONIC.to_string(),
+            target_pool: pool_addr.to_string(),
+            denoms: strategist::setup::neutron::NeutronDenoms {
+                lp_token: lp_token.to_string(),
+                usdc: uusdc_on_neutron_denom.to_string(),
+                ntrn: NEUTRON_CHAIN_DENOM.to_string(),
+            },
+            accounts: strategist::setup::neutron::NeutronAccounts {
+                deposit: neutron_program_accounts.deposit_account.to_string()?,
+                position: neutron_program_accounts.position_account.to_string()?,
+                withdraw: neutron_program_accounts.withdraw_account.to_string()?,
+                liquidation: neutron_program_accounts.liquidation_account.to_string()?,
+                noble_inbound_ica: strategist::setup::neutron::IcaAccount {
+                    library_account: neutron_program_accounts
+                        .noble_inbound_ica
+                        .library_account
+                        .to_string()?,
+                    remote_addr: neutron_program_accounts
+                        .noble_inbound_ica
+                        .remote_addr
+                        .to_string(),
+                },
+                noble_outbound_ica: strategist::setup::neutron::IcaAccount {
+                    library_account: neutron_program_accounts
+                        .noble_outbound_ica
+                        .library_account
+                        .to_string()?,
+                    remote_addr: neutron_program_accounts
+                        .noble_outbound_ica
+                        .remote_addr
+                        .to_string(),
+                },
+            },
+            libraries: strategist::setup::neutron::NeutronLibraries {
+                neutron_ibc_transfer: neutron_program_libraries.neutron_ibc_transfer.to_string(),
+                noble_inbound_transfer: neutron_program_libraries
+                    .noble_inbound_transfer
+                    .to_string(),
+                noble_cctp_transfer: neutron_program_libraries.noble_cctp_transfer.to_string(),
+                astroport_lper: neutron_program_libraries.astroport_lper.to_string(),
+                astroport_lwer: neutron_program_libraries.astroport_lwer.to_string(),
+                liquidation_forwarder: neutron_program_libraries.liquidation_forwarder.to_string(),
+                authorizations: neutron_program_libraries._authorizations.to_string(),
+                processor: neutron_program_libraries._processor.to_string(),
+            },
+        },
+        ethereum: strategist::setup::ethereum::EthereumStrategyConfig {
+            rpc_url: DEFAULT_ANVIL_RPC_ENDPOINT.to_string(),
+            mnemonic: "test test test test test test test test test test test junk".to_string(),
+            denoms: strategist::setup::ethereum::EthereumDenoms {
+                usdc_erc20: usdc_token_address.to_string(),
+            },
+            accounts: strategist::setup::ethereum::EthereumAccounts {
+                deposit: ethereum_program_accounts.deposit.to_string(),
+                withdraw: ethereum_program_accounts.withdraw.to_string(),
+            },
+            libraries: strategist::setup::ethereum::EthereumLibraries {
+                valence_vault: ethereum_program_libraries.valence_vault.to_string(),
+                cctp_forwarder: ethereum_program_libraries.cctp_forwarder.to_string(),
+                lite_processor: ethereum_program_libraries._lite_processor.to_string(),
+            },
+        },
+    };
+
+    strategy_config.to_file(Path::new(
+        "./e2e/examples/eth_vault/strategist/example_strategy.toml",
+    ))?;
 
     let strategist = Strategist::new(
         &rt,
