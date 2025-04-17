@@ -8,20 +8,17 @@ use alloy::{
     signers::local::{coins_bip39::English, MnemonicBuilder},
     sol_types::SolEvent,
 };
+use async_trait::async_trait;
 
-use crate::{
-    async_run,
-    utils::{
-        parse::get_chain_field_from_local_ic_log,
-        solidity_contracts::{MockERC20, MockTokenMessenger::DepositForBurn},
-        NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_ID, UUSDC_DENOM,
-    },
+use crate::utils::{
+    parse::get_chain_field_from_local_ic_log,
+    solidity_contracts::{MockERC20, MockTokenMessenger::DepositForBurn},
+    NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_ID, UUSDC_DENOM,
 };
 use bech32::{encode, Bech32};
 use cosmwasm_std::{from_base64, Uint128};
 use hex::FromHex;
 use log::{info, warn};
-use tokio::runtime::Runtime;
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
     ethereum::EthereumClient,
@@ -30,19 +27,23 @@ use valence_chain_client_utils::{
 };
 
 use super::{
-    parse::get_grpc_address_and_port_from_url, ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT,
-    NOBLE_CHAIN_DENOM,
+    parse::get_grpc_address_and_port_from_url, worker::ValenceWorker, ADMIN_MNEMONIC,
+    DEFAULT_ANVIL_RPC_ENDPOINT, NOBLE_CHAIN_DENOM,
 };
 
-const POLLING_PERIOD: Duration = Duration::from_secs(2);
+const POLLING_PERIOD: Duration = Duration::from_secs(5);
 
 pub struct MockCctpRelayer {
-    eth_client: EthereumClient,
-    noble_client: NobleClient,
-    state: RelayerState,
+    pub state: RelayerState,
+    pub runtime: RelayerRuntime,
 }
 
-struct RelayerState {
+pub struct RelayerRuntime {
+    pub eth_client: EthereumClient,
+    pub noble_client: NobleClient,
+}
+
+pub struct RelayerState {
     // last processed block on noble
     noble_last_block: i64,
     // noble rpc address
@@ -55,32 +56,52 @@ struct RelayerState {
     eth_destination_erc20: Address,
 }
 
+#[async_trait]
+impl ValenceWorker for MockCctpRelayer {
+    fn get_name(&self) -> String {
+        "Mock CCTP Relayer: ETH-NOBLE".to_string()
+    }
+
+    async fn cycle(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let worker_name = self.get_name();
+
+        if let Err(e) = self.poll_noble().await {
+            warn!("{worker_name}: Noble polling error: {:?}", e);
+        }
+
+        if let Err(e) = self.poll_ethereum().await {
+            warn!("{worker_name}: Ethereum polling error: {:?}", e);
+        }
+
+        tokio::time::sleep(POLLING_PERIOD).await;
+
+        Ok(())
+    }
+}
+
 impl MockCctpRelayer {
-    pub fn new(
-        rt: &Runtime,
+    pub async fn new(
         messenger: Address,
         destination_erc20: Address,
     ) -> Result<Self, Box<dyn Error>> {
         let grpc_addr = get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "grpc_address")?;
         let (grpc_url, grpc_port) = get_grpc_address_and_port_from_url(&grpc_addr)?;
 
-        let (noble_client, latest_noble_block) = async_run!(rt, {
-            let client = NobleClient::new(
-                &grpc_url,
-                &grpc_port.to_string(),
-                ADMIN_MNEMONIC,
-                NOBLE_CHAIN_ID,
-                NOBLE_CHAIN_DENOM,
-            )
+        let noble_client = NobleClient::new(
+            &grpc_url,
+            &grpc_port.to_string(),
+            ADMIN_MNEMONIC,
+            NOBLE_CHAIN_ID,
+            NOBLE_CHAIN_DENOM,
+        )
+        .await
+        .expect("failed to create noble client");
+
+        let latest_noble_block = noble_client
+            .latest_block_header()
             .await
-            .expect("failed to create noble client");
-            let latest_block = client
-                .latest_block_header()
-                .await
-                .expect("failed to get latest block header")
-                .height;
-            (client, latest_block)
-        });
+            .expect("failed to get latest block header")
+            .height;
 
         let signer = MnemonicBuilder::<English>::default()
             .phrase("test test test test test test test test test test test junk")
@@ -96,8 +117,10 @@ impl MockCctpRelayer {
             .expect("Failed to find rpc_address field for noble chain");
 
         Ok(Self {
-            eth_client,
-            noble_client,
+            runtime: RelayerRuntime {
+                eth_client,
+                noble_client,
+            },
             state: RelayerState {
                 noble_last_block: latest_noble_block,
                 noble_rpc_addr,
@@ -106,24 +129,6 @@ impl MockCctpRelayer {
                 eth_destination_erc20: destination_erc20,
             },
         })
-    }
-
-    pub async fn start(mut self) {
-        info!("[CCTP MOCK RELAY] Starting Eth<->Noble cctp relayer...");
-
-        loop {
-            // info!("[CCTP RELAY] loop");
-
-            if let Err(e) = self.poll_noble().await {
-                warn!("[CCTP MOCK RELAY] Noble polling error: {:?}", e);
-            }
-
-            if let Err(e) = self.poll_ethereum().await {
-                warn!("[CCTP MOCK RELAY] Ethereum polling error: {:?}", e);
-            }
-
-            tokio::time::sleep(POLLING_PERIOD).await;
-        }
     }
 
     async fn mint_evm(
@@ -135,6 +140,7 @@ impl MockCctpRelayer {
     ) -> Result<(), Box<dyn Error>> {
         info!("[CCTP NOBLE] minting {amount}USDC to domain #{destination_domain} recipient {mint_recipient}");
         let eth_rp = self
+            .runtime
             .eth_client
             .get_request_provider()
             .await
@@ -148,12 +154,14 @@ impl MockCctpRelayer {
         let dest_addr = Address::from_slice(&to[12..]);
 
         let pre_mint_balance = self
+            .runtime
             .eth_client
             .query(mock_erc20.balanceOf(dest_addr))
             .await
             .expect("failed to query eth balance");
 
         let mint_tx = self
+            .runtime
             .eth_client
             .execute_tx(
                 mock_erc20
@@ -168,6 +176,7 @@ impl MockCctpRelayer {
             .await;
 
         let post_mint_balance = self
+            .runtime
             .eth_client
             .query(mock_erc20.balanceOf(dest_addr))
             .await
@@ -185,6 +194,7 @@ impl MockCctpRelayer {
             decode_mint_recipient_to_noble_address(&val.mintRecipient.encode_hex())?;
 
         let tx_response = self
+            .runtime
             .noble_client
             .mint_fiat(
                 NOBLE_CHAIN_ADMIN_ADDR,
@@ -194,7 +204,8 @@ impl MockCctpRelayer {
             )
             .await
             .expect("failed to mint usdc on noble");
-        self.noble_client
+        self.runtime
+            .noble_client
             .poll_for_tx(&tx_response.hash)
             .await
             .expect("failed to poll for mint tx on noble");
@@ -209,6 +220,7 @@ impl MockCctpRelayer {
     async fn poll_noble(&mut self) -> Result<(), Box<dyn Error>> {
         // query the current block to process the delta
         let current_block = self
+            .runtime
             .noble_client
             .latest_block_header()
             .await
@@ -233,6 +245,7 @@ impl MockCctpRelayer {
 
     async fn poll_ethereum(&mut self) -> Result<(), Box<dyn Error>> {
         let provider = self
+            .runtime
             .eth_client
             .get_request_provider()
             .await
@@ -268,6 +281,7 @@ impl MockCctpRelayer {
         destination_erc20: Address,
     ) -> Result<(), Box<dyn Error>> {
         let results = self
+            .runtime
             .noble_client
             .block_results(rpc_addr, block_number)
             .await
