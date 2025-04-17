@@ -2837,6 +2837,100 @@ graph LR
         bytes extraData;
     }
 </code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="ibc-eureka-transfer-library"><a class="header" href="#ibc-eureka-transfer-library">IBC Eureka Transfer Library</a></h1>
+<p>The IBC Eureka Transfer library enables transferring ERC20 tokens from an <strong>input account</strong> on an EVM chain to a <strong>recipient</strong> on an IBC Eureka connected chain using the IBC protocol via <a href="https://docs.skip.build/go/eureka/eureka-overview">IBC Eureka's Solidity implementation</a>. This library also takes advantage of <a href="https://docs.skip.build/go/general/getting-started">Skip Go API</a> that provides an <code>EurekaHandler</code> wrapper and the relaying service for the underlying protocol. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the IBC Eureka Transfer library.</p>
+<h2 id="high-level-flow-19"><a class="header" href="#high-level-flow-19">High-level flow</a></h2>
+<pre class="mermaid">---
+title: IBC Eureka Transfer Library
+---
+graph LR
+    IA((Input Account))
+    R((Recipient))
+    EH((Eureka Handler))
+    ICS((ICS20Transfer))
+    P[Processor]
+    I[IBCEurekaTransfer
+    Library]
+
+    subgraph DEST[ Destination Chain ]
+    R
+    end
+
+    subgraph SRC[ Source Chain ]
+    P -- 1/Transfer(fees &amp; memo) --&gt; I
+    I -- 2/Query ERC20 balance --&gt; IA
+    IA -- 3/Approve ERC20 --&gt; EH
+    IA -- 4/Call transfer --&gt; EH
+    EH -- 5/Forward to ICS20 --&gt; ICS
+    end
+
+    ICS -.6/IBC Packet.-&gt; R
+    SRC --- DEST
+</pre>
+<h2 id="functions-19"><a class="header" href="#functions-19">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>Transfer</strong></td><td><code>fees</code>: Relay fee structure<br><code>memo</code>: Additional information</td><td>Transfer tokens from the configured <strong>input account</strong> to the <strong>recipient</strong> on the destination IBC chain. The <code>fees</code> parameter specifies relay fees, fee recipient, and quote expiry. The <code>memo</code> parameter can contain additional information that might execute logic on the destination chain.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration-19"><a class="header" href="#configuration-19">Configuration</a></h2>
+<p>The library is configured on deployment using the <code>IBCEurekaTransferConfig</code> type.</p>
+<pre><code class="language-solidity">/**
+ * @dev Configuration struct for token transfer parameters.
+ * @param amount The number of tokens to transfer. If set to 0, the entire balance is transferred.
+ * @param transferToken The ERC20 token address that will be transferred.
+ * @param inputAccount The account from which tokens will be debited.
+ * @param recipient The recipient address on the destination IBC chain (in bech32 format).
+ * @param sourceClient The source client identifier (e.g. cosmoshub-0).
+ * @param timeout The timeout for the IBC transfer in seconds. Skip Go uses 12 hours (43200 seconds) as the default timeout.
+ * @param eurekaHandler The EurekaHandler contract which is a wrapper around the ICS20Transfer contract.
+ */
+struct IBCEurekaTransferConfig {
+    uint256 amount;
+    address transferToken;
+    BaseAccount inputAccount;
+    string recipient;
+    string sourceClient;
+    uint64 timeout;
+    IEurekaHandler eurekaHandler;
+}
+</code></pre>
+<h2 id="special-considerations"><a class="header" href="#special-considerations">Special Considerations</a></h2>
+<ul>
+<li>The EurekaHandler contract on Ethereum that is used to transfer from Ethereum to CosmosHub is at <code>0xfc2d0487a0ae42ae7329a80dc269916a9184cf7c</code>.</li>
+<li>The recipient address is not in Bytes32 format but in the format used by the IBC chain (e.g., bech32: <code>cosmos1...</code>).</li>
+<li>To build the <code>Fees</code> structure for the transfer, we query the Skip Go API to obtain all the necessary information. Here is an example of a query:</li>
+</ul>
+<pre><code class="language-bash">curl -X POST "https://go.skip.build/api/skip/v2/fungible/route" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source_asset_denom": "0xbf6Bc6782f7EB580312CC09B976e9329f3e027B3",
+    "source_asset_chain_id": "1",
+    "dest_asset_denom": "uatom",
+    "dest_asset_chain_id": "cosmoshub-4",
+    "amount_in": "20000000",
+    "allow_multi_tx": true,
+    "allow_unsafe": true,
+    "go_fast": true,
+    "smart_relay": true,
+    "experimental_features": ["eureka"],
+    "smart_swap_options": {
+      "split_routes": true,
+      "evm_swaps": true
+    }
+  }
+</code></pre>
+<p>This is a query to obtain the fee information for transferring 20 ATOM from Ethereum (chain ID <code>1</code>) to the Cosmos Hub (chain ID <code>cosmoshub-4</code>). This will return us a response from which we can extract the <code>smart_relay_fee_quote</code> information that contains all the information to build the <code>Fees</code> structure. Important: The <code>quoteExpiry</code> timestamp of the <code>Fees</code> is passed in seconds.</p>
+<ul>
+<li>The memo can be used to execute logic on the destination chain. For example, if we want to execute a hop on the destination chain, we can use the memo to specify the hop parameters. Here is an example of a memo:</li>
+</ul>
+<p><code>{"dest_callback":{"address":"cosmos198plfkpwzpxxrlpvprhfmdkcf3frpa7kvduq9cw8lh02mm327tgqhh3s55"},"wasm":{"contract":"cosmos1zvesudsdfxusz06jztpph4d3h5x6veglqsspxns2v2jqml9nhywshhfp5j","msg":{"action":{"action":{"ibc_transfer":{"ibc_info":{"memo":"","receiver":"elys1....","recover_address":"cosmos1...","source_channel":"channel-1266"}}},"exact_out":false,"timeout_timestamp":1744774447117660400}}}}</code></p>
+<p>For more details on how this memo works, please refer to the <a href="https://github.com/cosmos/ibc-go/blob/16f51eb5635bc16c6361c44f2a963f4736d1cf8b/docs/docs/04-middleware/01-callbacks/05-end-users.md">IBC callback middleware</a> documentation.</p>
+<p>The <code>dest_callback</code> field specifies the address of the contract that will be called on the destination chain. In this case, <code>cosmos198plfkpwzpxxrlpvprhfmdkcf3frpa7kvduq9cw8lh02mm327tgqhh3s55</code> is a contract deployed on the Cosmos Hub that can handle these callbacks. The contract <code>cosmos1zvesudsdfxusz06jztpph4d3h5x6veglqsspxns2v2jqml9nhywshhfp5j</code> is the contract deployed to trigger these additional actions. These 2 contracts can be reused for all memos.
+In this particular case, the memo is used to trigger an additional IBC transfer on the destination chain, in this case from the Cosmos Hub to Elys. The receiver is the address specified in the <code>receiver</code> field and the <code>recover_address</code> is the address that will receive the tokens in case of a failure.</p>
+<ul>
+<li>The function will automatically deduct relay fees from the total amount being transferred.</li>
+<li>IBC transfers require specifying a timeout period, after which the transfer is considered failed if not completed.</li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-aave-position-manager-library"><a class="header" href="#valence-aave-position-manager-library">Valence AAVE Position Manager library</a></h1>
 <p>The <strong>Valence AAVE Position Manager</strong> library allows <strong>management of lending positions</strong> using an <strong>input account</strong> and an <strong>output account</strong> using the <a href="https://aave.com/docs/developers/aave-v3">AAVE v3 Protocol</a>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the AAVE Position Manager library.</p>
 <h2 id="high-level-flows"><a class="header" href="#high-level-flows">High-level flows</a></h2>
@@ -2917,7 +3011,7 @@ flowchart LR
     AP -- 4/Burn aTokens --&gt; IA
     AP -- 5/Burn debt tokens --&gt; IA
 </pre>
-<h2 id="functions-19"><a class="header" href="#functions-19">Functions</a></h2>
+<h2 id="functions-20"><a class="header" href="#functions-20">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>supply</strong></td><td>amount</td><td>Supplies tokens from the <strong>input account</strong> to the AAVE protocol. The <strong>input account</strong> will receive these corresponding aTokens. If amount is 0 the entire balance will be used.</td></tr>
 <tr><td><strong>borrow</strong></td><td>amount</td><td>Borrows tokens from the AAVE protocol using the collateral previously supplied. The <strong>input account</strong> will receive the borrowed tokens and the debt tokens.</td></tr>
@@ -2927,7 +3021,7 @@ flowchart LR
 </tbody></table>
 </div>
 <p>More details on how the interaction with the AAVE v3 protocol works can be found in the <a href="https://aave.com/docs/developers/smart-contracts/pool">AAVE V3 Pool documentation</a>.</p>
-<h2 id="configuration-19"><a class="header" href="#configuration-19">Configuration</a></h2>
+<h2 id="configuration-20"><a class="header" href="#configuration-20">Configuration</a></h2>
 <p>The library is configured on deployment using the <code>AavePositionManagerConfig</code> type.</p>
 <pre><code class="language-solidity">    /**
      * @title AavePositionManagerConfig
@@ -2951,7 +3045,7 @@ flowchart LR
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-balancerv2swap-library"><a class="header" href="#valence-balancerv2swap-library">Valence BalancerV2Swap Library</a></h1>
 <p>The <strong>Valence BalancerV2Swap</strong> library enables <strong>token swaps</strong> from an <strong>input account</strong> to an <strong>output account</strong> using the <a href="https://docs-v2.balancer.fi/">Balancer V2 protocol</a>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the BalancerV2Swap library.</p>
-<h2 id="high-level-flow-19"><a class="header" href="#high-level-flow-19">High-level flow</a></h2>
+<h2 id="high-level-flow-20"><a class="header" href="#high-level-flow-20">High-level flow</a></h2>
 <pre class="mermaid">---
 title: BalancerV2Swap Library
 ---
@@ -2972,7 +3066,7 @@ graph LR
         BV -- 7/Transfer output tokens --&gt; OA
     end
 </pre>
-<h2 id="functions-20"><a class="header" href="#functions-20">Functions</a></h2>
+<h2 id="functions-21"><a class="header" href="#functions-21">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>swap</strong></td><td>poolId, tokenIn, tokenOut, userData, amountIn, minAmountOut, timeout</td><td>Execute a single token swap through a Balancer V2 pool.</td></tr>
 <tr><td><strong>multiSwap</strong></td><td>poolIds, tokens, userDataArray, amountIn, minAmountOut, timeout</td><td>Execute a multi-hop swap through multiple Balancer V2 pools.</td></tr>
@@ -3002,7 +3096,7 @@ graph LR
 </tbody></table>
 </div>
 <p>For more information on how swaps work on Balancer V2, please refer to the <a href="https://docs-v2.balancer.fi/reference/swaps/single-swap.html">Single Swap</a> and <a href="https://docs-v2.balancer.fi/reference/swaps/batch-swaps.html">Batch Swap</a> documentation.</p>
-<h2 id="configuration-20"><a class="header" href="#configuration-20">Configuration</a></h2>
+<h2 id="configuration-21"><a class="header" href="#configuration-21">Configuration</a></h2>
 <p>The library is configured on deployment using the <code>BalancerV2SwapConfig</code> type.</p>
 <pre><code class="language-solidity">/**
  * @title BalancerV2SwapConfig
@@ -3434,7 +3528,7 @@ This way, when the message batch is being processed, any assertions that do not 
 prevent later messages from executing as expected. If the batch is <em>atomic</em>, the whole batch will abort.
 If the batch is <em>non-atomic</em>, various <a href="middleware/./../authorizations_processors/authorization_contract.html">authorization</a> configuration
 options will dictate the further behavior.</p>
-<h2 id="high-level-flow-20"><a class="header" href="#high-level-flow-20">High-level flow</a></h2>
+<h2 id="high-level-flow-21"><a class="header" href="#high-level-flow-21">High-level flow</a></h2>
 <pre class="mermaid">---
 title: Forwarder Library
 ---
