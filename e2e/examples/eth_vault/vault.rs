@@ -18,7 +18,7 @@ use log::info;
 use neutron::setup_astroport_cl_pool;
 use program::{setup_neutron_accounts, setup_neutron_libraries, upload_neutron_contracts};
 
-use strategist::{client::Strategist, strategy::StrategyConfig};
+use strategist::strategy::{Strategy, StrategyConfig};
 use utils::wait_until_half_minute;
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
@@ -34,7 +34,7 @@ use valence_e2e::{
         parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
         solidity_contracts::ValenceVault,
         vault::{self},
-        worker::ValenceWorkerTomlSerde,
+        worker::{ValenceWorker, ValenceWorkerTomlSerde},
         ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR,
         NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, UUSDC_DENOM,
         VALENCE_ARTIFACTS_PATH,
@@ -248,13 +248,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     sleep(Duration::from_secs(3));
 
     let strategy_config = StrategyConfig {
-        noble: strategist::strategy::noble::NobleStrategyConfig {
+        noble_cfg: strategist::strategy::noble::NobleStrategyConfig {
             grpc_url: noble_grpc_url,
             grpc_port: noble_grpc_port,
             chain_id: NOBLE_CHAIN_ID.to_string(),
             mnemonic: ADMIN_MNEMONIC.to_string(),
         },
-        neutron: strategist::strategy::neutron::NeutronStrategyConfig {
+        neutron_cfg: strategist::strategy::neutron::NeutronStrategyConfig {
             grpc_url: neutron_grpc_url,
             grpc_port: neutron_grpc_port,
             chain_id: NEUTRON_CHAIN_ID.to_string(),
@@ -268,7 +268,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             accounts: neutron_program_accounts,
             libraries: neutron_program_libraries,
         },
-        ethereum: strategist::strategy::ethereum::EthereumStrategyConfig {
+        ethereum_cfg: strategist::strategy::ethereum::EthereumStrategyConfig {
             rpc_url: DEFAULT_ANVIL_RPC_ENDPOINT.to_string(),
             mnemonic: "test test test test test test test test test test test junk".to_string(),
             denoms: strategist::strategy::ethereum::EthereumDenoms {
@@ -283,8 +283,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     strategy_config.to_file(temp_path)?;
 
     let strategy_cfg = StrategyConfig::from_file(temp_path)?;
-
-    let strategist = Strategist::new(&rt, strategy_cfg).unwrap();
+    let strategy = async_run!(rt, Strategy::new(strategy_cfg).await)?;
 
     info!("User3 depositing {user_3_deposit_amount}USDC tokens to vault...");
     vault::deposit_to_vault(
@@ -295,8 +294,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         user_3_deposit_amount,
     )?;
 
-    let strategist_rt = tokio::runtime::Runtime::new().unwrap();
-    let _strategist_join_handle = strategist_rt.spawn(strategist.start());
+    let strategist_join_handle = strategy.start();
+    async_run!(rt, tokio::time::sleep(Duration::from_secs(1)).await);
+    if strategist_join_handle.is_finished() {
+        log::warn!("Strategist task finished unexpectedly!");
+    }
+
+    info!("Strategist worker started");
 
     let vault_address = Address::from_str(&ethereum_program_libraries.valence_vault).unwrap();
     let eth_withdraw_address =

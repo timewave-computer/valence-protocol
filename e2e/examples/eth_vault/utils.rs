@@ -27,11 +27,16 @@ pub fn get_current_second() -> u64 {
         % 60
 }
 
-pub async fn wait_until_next_minute() {
-    let current_second = get_current_second();
-    let seconds_to_wait = 60 - current_second;
-    info!("waiting {seconds_to_wait} seconds until next minute");
-    tokio::time::sleep(Duration::from_secs(seconds_to_wait)).await;
+pub async fn wait_until_next_minute() -> SystemTime {
+    let now = SystemTime::now();
+    let since_epoch = now.duration_since(UNIX_EPOCH).unwrap();
+    let seconds = since_epoch.as_secs() % 60;
+    let wait_secs = 60 - seconds;
+
+    log::info!("waiting {} seconds until next minute", wait_secs);
+    tokio::time::sleep(Duration::from_secs(wait_secs)).await;
+
+    SystemTime::now()
 }
 
 pub async fn wait_until_half_minute() {
