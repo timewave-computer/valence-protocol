@@ -1,5 +1,6 @@
 use std::{
     error::Error,
+    path::Path,
     str::FromStr,
     thread::sleep,
     time::{Duration, SystemTime},
@@ -9,18 +10,20 @@ use alloy::primitives::{Address, U256};
 use evm::{setup_eth_accounts, setup_eth_libraries, EthereumUsers};
 use localic_utils::{
     types::config::ConfigChain, utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder,
-    LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
+    LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID,
+    NEUTRON_CHAIN_NAME,
 };
 
 use log::info;
 use neutron::setup_astroport_cl_pool;
 use program::{setup_neutron_accounts, setup_neutron_libraries, upload_neutron_contracts};
 
-use strategist::client::Strategist;
+use strategist::{client::Strategist, strategy::StrategyConfig};
 use utils::wait_until_half_minute;
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
+    noble::NobleClient,
 };
 
 use valence_e2e::{
@@ -28,10 +31,12 @@ use valence_e2e::{
     utils::{
         authorization::set_up_authorization_and_processor,
         ethereum as ethereum_utils, mock_cctp_relayer,
+        parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
         solidity_contracts::ValenceVault,
         vault::{self},
-        DEFAULT_ANVIL_RPC_ENDPOINT, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM,
-        NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, UUSDC_DENOM, VALENCE_ARTIFACTS_PATH,
+        ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR,
+        NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, UUSDC_DENOM,
+        VALENCE_ARTIFACTS_PATH,
     },
 };
 
@@ -42,7 +47,6 @@ const VAULT_NEUTRON_CACHE_PATH: &str = "e2e/examples/eth_vault/neutron_contracts
 
 mod evm;
 mod neutron;
-mod noble;
 mod program;
 mod strategist;
 mod utils;
@@ -107,11 +111,40 @@ fn main() -> Result<(), Box<dyn Error>> {
         .dest(NEUTRON_CHAIN_NAME)
         .get();
 
-    let noble_client = noble::get_client(&rt)?;
-    noble::setup_environment(&rt, &noble_client)?;
-    noble::mint_usdc_to_addr(&rt, &noble_client, NOBLE_CHAIN_ADMIN_ADDR, 999900000)?;
+    // get neutron & noble grpc (url, port) values from local-ic logs
+    let (noble_grpc_url, noble_grpc_port) = get_grpc_address_and_port_from_url(
+        &get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "grpc_address")?,
+    )?;
+    let (neutron_grpc_url, neutron_grpc_port) = get_grpc_address_and_port_from_url(
+        &get_chain_field_from_local_ic_log(NEUTRON_CHAIN_ID, "grpc_address")?,
+    )?;
 
-    async_run!(&rt, {
+    async_run!(rt, {
+        let noble_client = NobleClient::new(
+            &noble_grpc_url.to_string(),
+            &noble_grpc_port.to_string(),
+            ADMIN_MNEMONIC,
+            NOBLE_CHAIN_ID,
+            NOBLE_CHAIN_DENOM,
+        )
+        .await
+        .unwrap();
+
+        noble_client
+            .set_up_test_environment(NOBLE_CHAIN_ADMIN_ADDR, 0, UUSDC_DENOM)
+            .await;
+
+        let tx_response = noble_client
+            .mint_fiat(
+                NOBLE_CHAIN_ADMIN_ADDR,
+                NOBLE_CHAIN_ADMIN_ADDR,
+                &999900000.to_string(),
+                UUSDC_DENOM,
+            )
+            .await
+            .unwrap();
+        noble_client.poll_for_tx(&tx_response.hash).await.unwrap();
+
         let rx = noble_client
             .ibc_transfer(
                 NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
@@ -186,14 +219,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         &eth_accounts,
     )?;
 
-    let valence_vault = ValenceVault::new(ethereum_program_libraries.valence_vault, &eth_rp);
+    let vault_address = Address::from_str(&ethereum_program_libraries.valence_vault).unwrap();
+    let valence_vault = ValenceVault::new(vault_address, &eth_rp);
 
     let user_1_deposit_amount = U256::from(5_000_000);
     let user_2_deposit_amount = U256::from(1_000_000);
     let user_3_deposit_amount = U256::from(3_000_000);
 
-    let mut eth_users =
-        EthereumUsers::new(usdc_token_address, ethereum_program_libraries.valence_vault);
+    let mut eth_users = EthereumUsers::new(usdc_token_address, vault_address);
     eth_users.add_user(&rt, &eth_client, eth_accounts[2]);
     eth_users.fund_user(&rt, &eth_client, 0, user_1_deposit_amount);
     eth_users.add_user(&rt, &eth_client, eth_accounts[3]);
@@ -213,18 +246,44 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("main sleep for 3...");
     sleep(Duration::from_secs(3));
 
-    let strategist = Strategist::new(
-        &rt,
-        neutron_program_accounts.clone(),
-        neutron_program_libraries.clone(),
-        ethereum_program_accounts.clone(),
-        ethereum_program_libraries.clone(),
-        uusdc_on_neutron_denom.clone(),
-        lp_token.to_string(),
-        pool_addr.to_string(),
-        usdc_token_address,
-    )
-    .unwrap();
+    let strategy_config = StrategyConfig {
+        noble: strategist::strategy::noble::NobleStrategyConfig {
+            grpc_url: noble_grpc_url,
+            grpc_port: noble_grpc_port,
+            chain_id: NOBLE_CHAIN_ID.to_string(),
+            mnemonic: ADMIN_MNEMONIC.to_string(),
+        },
+        neutron: strategist::strategy::neutron::NeutronStrategyConfig {
+            grpc_url: neutron_grpc_url,
+            grpc_port: neutron_grpc_port,
+            chain_id: NEUTRON_CHAIN_ID.to_string(),
+            mnemonic: ADMIN_MNEMONIC.to_string(),
+            target_pool: pool_addr.to_string(),
+            denoms: strategist::strategy::neutron::NeutronDenoms {
+                lp_token: lp_token.to_string(),
+                usdc: uusdc_on_neutron_denom.to_string(),
+                ntrn: NEUTRON_CHAIN_DENOM.to_string(),
+            },
+            accounts: neutron_program_accounts,
+            libraries: neutron_program_libraries,
+        },
+        ethereum: strategist::strategy::ethereum::EthereumStrategyConfig {
+            rpc_url: DEFAULT_ANVIL_RPC_ENDPOINT.to_string(),
+            mnemonic: "test test test test test test test test test test test junk".to_string(),
+            denoms: strategist::strategy::ethereum::EthereumDenoms {
+                usdc_erc20: usdc_token_address.to_string(),
+            },
+            accounts: ethereum_program_accounts.clone(),
+            libraries: ethereum_program_libraries.clone(),
+        },
+    };
+
+    let temp_path = Path::new("./e2e/examples/eth_vault/strategist/example_strategy.toml");
+    strategy_config.to_file(temp_path)?;
+
+    let strategy_cfg = StrategyConfig::from_file(temp_path)?;
+
+    let strategist = Strategist::new(&rt, strategy_cfg).unwrap();
 
     info!("User3 depositing {user_3_deposit_amount}USDC tokens to vault...");
     vault::deposit_to_vault(
@@ -237,6 +296,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let strategist_rt = tokio::runtime::Runtime::new().unwrap();
     let _strategist_join_handle = strategist_rt.spawn(strategist.start());
+
+    let vault_address = Address::from_str(&ethereum_program_libraries.valence_vault).unwrap();
+    let eth_withdraw_address =
+        Address::from_str(&ethereum_program_accounts.withdraw.to_string()).unwrap();
 
     // epoch 0
     {
@@ -291,7 +354,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         info!("Total assets to withdraw before redeem: {total_to_withdraw_before}");
 
         vault::redeem(
-            ethereum_program_libraries.valence_vault,
+            vault_address,
             &rt,
             &eth_client,
             eth_users.users[0],
@@ -326,7 +389,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     {
-        info!("\n======================== EPOCH 3.5 ========================\n");
+        info!("\n======================== EPOCH 3 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
         evm::mine_blocks(&rt, &eth_client, 5, 3);
 
@@ -342,7 +405,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         info!("Total assets to withdraw before redeem: {total_to_withdraw_before}");
 
         vault::redeem(
-            ethereum_program_libraries.valence_vault,
+            vault_address,
             &rt,
             &eth_client,
             eth_users.users[1],
@@ -402,7 +465,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             let erc20 =
                 valence_e2e::utils::solidity_contracts::MockERC20::new(usdc_token_address, &eth_rp);
             eth_client
-                .query(erc20.balanceOf(ethereum_program_accounts.withdraw))
+                .query(erc20.balanceOf(eth_withdraw_address))
                 .await
                 .unwrap()
         });
@@ -411,51 +474,28 @@ fn main() -> Result<(), Box<dyn Error>> {
         async_run!(
             &rt,
             eth_users
-                .log_balances(
-                    &eth_client,
-                    &ethereum_program_libraries.valence_vault,
-                    &usdc_token_address,
-                )
+                .log_balances(&eth_client, &vault_address, &usdc_token_address,)
                 .await
         );
 
-        let user0_withdraw_request = vault::addr_has_active_withdraw(
-            ethereum_program_libraries.valence_vault,
-            &rt,
-            &eth_client,
-            eth_users.users[0],
-        )
-        ._0;
+        let user0_withdraw_request =
+            vault::addr_has_active_withdraw(vault_address, &rt, &eth_client, eth_users.users[0])._0;
         info!("user0 has withdraw request: {user0_withdraw_request}");
 
         info!("User0 completing withdraw request...");
-        vault::complete_withdraw_request(
-            ethereum_program_libraries.valence_vault,
-            &rt,
-            &eth_client,
-            eth_users.users[0],
-        )?;
+        vault::complete_withdraw_request(vault_address, &rt, &eth_client, eth_users.users[0])?;
 
         async_run!(
             &rt,
             eth_users
-                .log_balances(
-                    &eth_client,
-                    &ethereum_program_libraries.valence_vault,
-                    &usdc_token_address,
-                )
+                .log_balances(&eth_client, &vault_address, &usdc_token_address,)
                 .await
         );
 
         let post_completion_user0_bal = eth_users.get_user_usdc(&rt, &eth_client, 0);
         let post_completion_user0_shares = eth_users.get_user_shares(&rt, &eth_client, 0);
-        let user0_withdraw_request = vault::addr_has_active_withdraw(
-            ethereum_program_libraries.valence_vault,
-            &rt,
-            &eth_client,
-            eth_users.users[0],
-        )
-        ._0;
+        let user0_withdraw_request =
+            vault::addr_has_active_withdraw(vault_address, &rt, &eth_client, eth_users.users[0])._0;
         info!("user0 has withdraw request: {user0_withdraw_request}");
         info!("post completion user0 usdc bal: {post_completion_user0_bal}",);
         info!("post completion user0 shares bal: {post_completion_user0_shares}",);
@@ -481,7 +521,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         info!("User 2 submitting withdraw request for {user2_shares}shares");
 
         vault::redeem(
-            ethereum_program_libraries.valence_vault,
+            vault_address,
             &rt,
             &eth_client,
             eth_users.users[2],
@@ -500,34 +540,19 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let pre_completion_user2_bal = eth_users.get_user_usdc(&rt, &eth_client, 2);
         let pre_completion_user2_shares = eth_users.get_user_shares(&rt, &eth_client, 2);
-        let user2_withdraw_request = vault::addr_has_active_withdraw(
-            ethereum_program_libraries.valence_vault,
-            &rt,
-            &eth_client,
-            eth_users.users[2],
-        )
-        ._0;
+        let user2_withdraw_request =
+            vault::addr_has_active_withdraw(vault_address, &rt, &eth_client, eth_users.users[2])._0;
         info!("user2 has withdraw request: {user2_withdraw_request}");
         info!("pre completion user2 usdc bal: {pre_completion_user2_bal}",);
         info!("pre completion user2 shares bal: {pre_completion_user2_shares}",);
 
         info!("User2 completing withdraw request...");
-        vault::complete_withdraw_request(
-            ethereum_program_libraries.valence_vault,
-            &rt,
-            &eth_client,
-            eth_users.users[2],
-        )?;
+        vault::complete_withdraw_request(vault_address, &rt, &eth_client, eth_users.users[2])?;
 
         let post_completion_user2_bal = eth_users.get_user_usdc(&rt, &eth_client, 2);
         let post_completion_user2_shares = eth_users.get_user_shares(&rt, &eth_client, 2);
-        let user2_withdraw_request = vault::addr_has_active_withdraw(
-            ethereum_program_libraries.valence_vault,
-            &rt,
-            &eth_client,
-            eth_users.users[2],
-        )
-        ._0;
+        let user2_withdraw_request =
+            vault::addr_has_active_withdraw(vault_address, &rt, &eth_client, eth_users.users[2])._0;
         info!("user2 has withdraw request: {user2_withdraw_request}");
         info!("post completion user2 usdc bal: {post_completion_user2_bal}",);
         info!("post completion user2 shares bal: {post_completion_user2_shares}",);

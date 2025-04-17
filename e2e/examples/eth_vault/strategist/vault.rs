@@ -1,5 +1,6 @@
 use std::{error::Error, str::FromStr};
 
+use alloy::primitives::Address;
 use async_trait::async_trait;
 use cosmwasm_std::{Decimal, Uint128};
 use localic_utils::NEUTRON_CHAIN_DENOM;
@@ -29,7 +30,10 @@ impl EthereumVault for Strategist {
         //   2. query the dex position for their fee
         //   3. F_total = F_vault + F_position
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
-        let valence_vault = ValenceVault::new(self.eth_program_libraries.valence_vault, &eth_rp);
+        let valence_vault = ValenceVault::new(
+            Address::from_str(&self.strategy.ethereum.libraries.valence_vault)?,
+            &eth_rp,
+        );
 
         let vault_cfg = self.eth_client.query(valence_vault.config()).await.unwrap();
 
@@ -61,25 +65,14 @@ impl EthereumVault for Strategist {
 
     async fn calculate_redemption_rate(&self) -> Result<Decimal, Box<dyn Error>> {
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
-        let valence_vault = ValenceVault::new(self.eth_program_libraries.valence_vault, &eth_rp);
-        let eth_usdc_erc20 = MockERC20::new(self.ethereum_usdc_erc20, &eth_rp);
-
-        let neutron_position_acc = self
-            .neutron_program_accounts
-            .position_account
-            .to_string()
-            .unwrap();
-        let noble_inbound_ica = self
-            .neutron_program_accounts
-            .noble_inbound_ica
-            .remote_addr
-            .to_string();
-        let neutron_deposit_acc = self
-            .neutron_program_accounts
-            .deposit_account
-            .to_string()
-            .unwrap();
-        let eth_deposit_acc = self.eth_program_accounts.deposit;
+        let valence_vault = ValenceVault::new(
+            Address::from_str(&self.strategy.ethereum.libraries.valence_vault)?,
+            &eth_rp,
+        );
+        let eth_usdc_erc20 = MockERC20::new(
+            Address::from_str(&self.strategy.ethereum.denoms.usdc_erc20)?,
+            &eth_rp,
+        );
 
         // 1. query total shares issued from the vault
         let vault_issued_shares = self
@@ -99,14 +92,17 @@ impl EthereumVault for Strategist {
         // 2. query shares in position account and simulate their liquidation for USDC
         let neutron_position_acc_shares = self
             .neutron_client
-            .query_balance(&neutron_position_acc, &self.lp_token_denom)
+            .query_balance(
+                &self.strategy.neutron.accounts.position,
+                &self.strategy.neutron.denoms.lp_token,
+            )
             .await
             .unwrap();
         let (usdc_amount, ntrn_amount) = self
             .simulate_liquidation(
-                &self.pool_addr,
+                &self.strategy.neutron.target_pool,
                 neutron_position_acc_shares,
-                &self.uusdc_on_neutron_denom,
+                &self.strategy.neutron.denoms.usdc,
                 NEUTRON_CHAIN_DENOM,
             )
             .await
@@ -114,10 +110,10 @@ impl EthereumVault for Strategist {
 
         let swap_simulation_output = self
             .simulate_swap(
-                &self.pool_addr,
+                &self.strategy.neutron.target_pool,
                 NEUTRON_CHAIN_DENOM,
                 ntrn_amount,
-                &self.uusdc_on_neutron_denom,
+                &self.strategy.neutron.denoms.usdc,
             )
             .await
             .unwrap();
@@ -126,19 +122,28 @@ impl EthereumVault for Strategist {
 
         let eth_deposit_usdc = self
             .eth_client
-            .query(eth_usdc_erc20.balanceOf(eth_deposit_acc))
+            .query(
+                eth_usdc_erc20
+                    .balanceOf(Address::from_str(&self.strategy.ethereum.accounts.deposit)?),
+            )
             .await
             .unwrap()
             ._0;
 
         let noble_inbound_ica_usdc = self
             .noble_client
-            .query_balance(&noble_inbound_ica, UUSDC_DENOM)
+            .query_balance(
+                &self.strategy.neutron.accounts.noble_inbound_ica.remote_addr,
+                UUSDC_DENOM,
+            )
             .await
             .unwrap();
         let neutron_deposit_acc_usdc = self
             .neutron_client
-            .query_balance(&neutron_deposit_acc, &self.uusdc_on_neutron_denom)
+            .query_balance(
+                &self.strategy.neutron.accounts.deposit,
+                &self.strategy.neutron.denoms.usdc,
+            )
             .await
             .unwrap();
 

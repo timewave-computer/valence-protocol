@@ -14,7 +14,7 @@ use valence_chain_client_utils::{
 };
 use valence_encoder_utils::libraries::cctp_transfer::solidity_types::CCTPTransferConfig;
 
-use crate::async_run;
+use crate::{async_run, strategist::strategy};
 use valence_e2e::utils::{
     ethereum::mock_erc20,
     solidity_contracts::{
@@ -41,63 +41,6 @@ pub fn mine_blocks(
         .await
         .unwrap();
     });
-}
-
-#[derive(Clone, Debug)]
-pub struct EthereumProgramLibraries {
-    pub cctp_forwarder: Address,
-    pub _lite_processor: Address,
-    pub valence_vault: Address,
-}
-
-#[derive(Clone, Debug)]
-pub struct EthereumProgramAccounts {
-    pub deposit: Address,
-    pub withdraw: Address,
-}
-
-impl EthereumProgramAccounts {
-    pub async fn log_balances(
-        &self,
-        eth_client: &EthereumClient,
-        vault_addr: &Address,
-        vault_deposit_token: &Address,
-    ) {
-        let eth_rp = eth_client.get_request_provider().await.unwrap();
-
-        let usdc_token = MockERC20::new(*vault_deposit_token, &eth_rp);
-        let valence_vault = ValenceVault::new(*vault_addr, &eth_rp);
-
-        let deposit_usdc_bal = eth_client
-            .query(usdc_token.balanceOf(self.deposit))
-            .await
-            .unwrap()
-            ._0;
-        let deposit_vault_bal = eth_client
-            .query(valence_vault.balanceOf(self.deposit))
-            .await
-            .unwrap()
-            ._0;
-        let deposit_usdc_entry = format!("{deposit_usdc_bal}USDC");
-        let deposit_vault_entry = format!("{deposit_vault_bal}VAULT");
-
-        let withdraw_usdc_bal = eth_client
-            .query(usdc_token.balanceOf(self.withdraw))
-            .await
-            .unwrap()
-            ._0;
-        let withdraw_vault_bal = eth_client
-            .query(valence_vault.balanceOf(self.withdraw))
-            .await
-            .unwrap()
-            ._0;
-        let withdraw_usdc_entry = format!("{withdraw_usdc_bal}USDC");
-        let withdraw_vault_entry = format!("{withdraw_vault_bal}VAULT");
-
-        info!("\nETHEREUM PROGRAM ACCOUNTS LOG");
-        info!("\tDEPOSIT: {deposit_usdc_entry} {deposit_vault_entry}");
-        info!("\tWITHDRAW: {withdraw_usdc_entry} {withdraw_vault_entry}")
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -192,7 +135,7 @@ pub fn setup_eth_accounts(
     rt: &tokio::runtime::Runtime,
     eth_client: &EthereumClient,
     eth_admin_addr: Address,
-) -> Result<EthereumProgramAccounts, Box<dyn Error>> {
+) -> Result<strategy::ethereum::EthereumAccounts, Box<dyn Error>> {
     info!("Setting up Deposit and Withdraw accounts on Ethereum");
 
     // create two Valence Base Accounts on Ethereum to test the processor with libraries (in this case the forwarder)
@@ -207,9 +150,9 @@ pub fn setup_eth_accounts(
         eth_admin_addr,
     )?;
 
-    let accounts = EthereumProgramAccounts {
-        deposit: deposit_acc_addr,
-        withdraw: withdraw_acc_addr,
+    let accounts = strategy::ethereum::EthereumAccounts {
+        deposit: deposit_acc_addr.to_string(),
+        withdraw: withdraw_acc_addr.to_string(),
     };
 
     Ok(accounts)
@@ -221,20 +164,20 @@ pub fn setup_eth_libraries(
     eth_client: &EthereumClient,
     eth_admin_addr: Address,
     eth_strategist_addr: Address,
-    eth_program_accounts: EthereumProgramAccounts,
+    eth_program_accounts: strategy::ethereum::EthereumAccounts,
     cctp_messenger_addr: Address,
     usdc_token_addr: Address,
     noble_inbound_ica_addr: String,
     eth_hyperlane_mailbox_addr: String,
     ntrn_authorizations_addr: String,
     eth_accounts: &[Address],
-) -> Result<EthereumProgramLibraries, Box<dyn Error>> {
+) -> Result<strategy::ethereum::EthereumLibraries, Box<dyn Error>> {
     info!("Setting up CCTP Transfer on Ethereum");
     let cctp_forwarder_addr = setup_cctp_transfer(
         rt,
         eth_client,
         noble_inbound_ica_addr,
-        eth_program_accounts.deposit,
+        eth_program_accounts.deposit.to_string(),
         eth_admin_addr,
         eth_strategist_addr,
         usdc_token_addr,
@@ -267,8 +210,8 @@ pub fn setup_eth_libraries(
     };
 
     let vault_config = VaultConfig {
-        depositAccount: eth_program_accounts.deposit,
-        withdrawAccount: eth_program_accounts.withdraw,
+        depositAccount: Address::from_str(&eth_program_accounts.deposit).unwrap(),
+        withdrawAccount: Address::from_str(&eth_program_accounts.withdraw).unwrap(),
         strategist: eth_strategist_addr,
         fees: fee_config,
         feeDistribution: fee_distribution,
@@ -287,10 +230,10 @@ pub fn setup_eth_libraries(
         vault_config,
     )?;
 
-    let libraries = EthereumProgramLibraries {
-        cctp_forwarder: cctp_forwarder_addr,
-        _lite_processor: lite_processor_address,
-        valence_vault: vault_address,
+    let libraries = strategy::ethereum::EthereumLibraries {
+        cctp_forwarder: cctp_forwarder_addr.to_string(),
+        lite_processor: lite_processor_address.to_string(),
+        valence_vault: vault_address.to_string(),
     };
 
     Ok(libraries)
@@ -302,7 +245,7 @@ pub fn setup_valence_vault(
     rt: &tokio::runtime::Runtime,
     eth_client: &EthereumClient,
     admin: Address,
-    eth_program_accounts: EthereumProgramAccounts,
+    eth_program_accounts: strategy::ethereum::EthereumAccounts,
     vault_deposit_token_addr: Address,
     vault_config: VaultConfig,
 ) -> Result<Address, Box<dyn Error>> {
@@ -366,7 +309,7 @@ pub fn setup_valence_vault(
     valence_e2e::utils::ethereum::valence_account::approve_library(
         rt,
         eth_client,
-        eth_program_accounts.withdraw,
+        Address::from_str(&eth_program_accounts.withdraw).unwrap(),
         proxy_address,
     );
 
@@ -374,7 +317,7 @@ pub fn setup_valence_vault(
     valence_e2e::utils::ethereum::valence_account::approve_library(
         rt,
         eth_client,
-        eth_program_accounts.deposit,
+        Address::from_str(&eth_program_accounts.deposit).unwrap(),
         proxy_address,
     );
 
@@ -404,7 +347,7 @@ pub fn setup_cctp_transfer(
     rt: &tokio::runtime::Runtime,
     eth_client: &EthereumClient,
     noble_recipient: String,
-    input_account: Address,
+    input_account: String,
     admin: Address,
     processor: Address,
     usdc_token_address: Address,
@@ -454,7 +397,7 @@ pub fn setup_cctp_transfer(
     valence_e2e::utils::ethereum::valence_account::approve_library(
         rt,
         eth_client,
-        input_account,
+        Address::from_str(&input_account).unwrap(),
         cctp_address,
     );
 
