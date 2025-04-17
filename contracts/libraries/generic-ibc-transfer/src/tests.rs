@@ -1,5 +1,6 @@
 use crate::msg::{
-    Config, FunctionMsgs, IbcTransferAmount, LibraryConfig, QueryMsg, RemoteChainInfo,
+    Config, FunctionMsgs, IbcTransferAmount, LibraryConfig, LibraryConfigUpdate, QueryMsg,
+    RemoteChainInfo,
 };
 use cosmwasm_std::{coin, Addr, Empty, Uint128, Uint64};
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
@@ -127,10 +128,22 @@ impl IbcTransferTestSuite {
 
     fn update_config(&mut self, addr: Addr, new_config: LibraryConfig) -> AnyResult<AppResponse> {
         let owner = self.owner().clone();
+        let updated_config = LibraryConfigUpdate {
+            input_addr: Some(new_config.input_addr),
+            output_addr: Some(new_config.output_addr),
+            amount: Some(new_config.amount),
+            denom: Some(new_config.denom),
+            memo: Some(new_config.memo),
+            remote_chain_info: Some(new_config.remote_chain_info),
+            denom_to_pfm_map: Some(new_config.denom_to_pfm_map),
+            eureka_config: valence_library_utils::OptionUpdate::Set(new_config.eureka_config),
+        };
         self.app_mut().execute_contract(
             owner,
             addr,
-            &ExecuteMsg::<FunctionMsgs, LibraryConfig>::UpdateConfig { new_config },
+            &ExecuteMsg::<FunctionMsgs, LibraryConfigUpdate>::UpdateConfig {
+                new_config: updated_config,
+            },
             &[],
         )
     }

@@ -15,6 +15,7 @@ use neutron_sdk::{
     bindings::query::NeutronQuery, query::min_ibc_fee::MinIbcFeeResponse, sudo::msg::SudoMsg,
 };
 use serde::de::DeserializeOwned;
+use valence_generic_ibc_transfer_library::msg::LibraryConfigUpdate;
 use valence_ibc_utils::types::EurekaFee;
 use valence_library_utils::{
     denoms::CheckedDenom,
@@ -142,10 +143,22 @@ impl IbcTransferTestSuite {
 
     fn update_config(&mut self, addr: Addr, new_config: LibraryConfig) -> AnyResult<AppResponse> {
         let owner = self.owner().clone();
+        let updated_config = LibraryConfigUpdate {
+            input_addr: Some(new_config.input_addr),
+            output_addr: Some(new_config.output_addr),
+            amount: Some(new_config.amount),
+            denom: Some(new_config.denom),
+            memo: Some(new_config.memo),
+            remote_chain_info: Some(new_config.remote_chain_info),
+            denom_to_pfm_map: Some(new_config.denom_to_pfm_map),
+            eureka_config: valence_library_utils::OptionUpdate::Set(new_config.eureka_config),
+        };
         self.app_mut().execute_contract(
             owner,
             addr,
-            &ExecuteMsg::<FunctionMsgs, LibraryConfig>::UpdateConfig { new_config },
+            &ExecuteMsg::<FunctionMsgs, LibraryConfigUpdate>::UpdateConfig {
+                new_config: updated_config,
+            },
             &[],
         )
     }
