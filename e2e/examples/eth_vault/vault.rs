@@ -30,7 +30,8 @@ use valence_e2e::{
     async_run,
     utils::{
         authorization::set_up_authorization_and_processor,
-        ethereum as ethereum_utils, mock_cctp_relayer,
+        ethereum as ethereum_utils,
+        mock_cctp_relayer::MockCctpRelayer,
         parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
         solidity_contracts::ValenceVault,
         vault::{self},
@@ -236,14 +237,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     eth_users.fund_user(&rt, &eth_client, 2, user_3_deposit_amount);
 
     info!("Starting CCTP mock relayer between Noble and Ethereum...");
-    let mock_cctp_relayer = mock_cctp_relayer::MockCctpRelayer::new(
-        &rt,
-        mock_cctp_messenger_address,
-        usdc_token_address,
+    let mock_cctp_relayer = async_run!(
+        rt,
+        MockCctpRelayer::new(mock_cctp_messenger_address, usdc_token_address).await
     )?;
-    let rly_rt = tokio::runtime::Runtime::new().unwrap();
 
-    let _join_handle = rly_rt.spawn(mock_cctp_relayer.start());
+    let _cctp_rly_join_handle = mock_cctp_relayer.start();
+
     info!("main sleep for 3...");
     sleep(Duration::from_secs(3));
 
@@ -283,7 +283,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     strategy_config.to_file(temp_path)?;
 
     let strategy_cfg = StrategyConfig::from_file(temp_path)?;
-    let strategy = async_run!(rt, Strategy::new(strategy_cfg).await)?;
+    let strategist_rt = tokio::runtime::Runtime::new()?;
+    let strategy = async_run!(strategist_rt, Strategy::new(strategy_cfg).await)?;
 
     info!("User3 depositing {user_3_deposit_amount}USDC tokens to vault...");
     vault::deposit_to_vault(
@@ -294,13 +295,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         user_3_deposit_amount,
     )?;
 
-    let strategist_join_handle = strategy.start();
-    async_run!(rt, tokio::time::sleep(Duration::from_secs(1)).await);
-    if strategist_join_handle.is_finished() {
-        log::warn!("Strategist task finished unexpectedly!");
-    }
-
-    info!("Strategist worker started");
+    let _strategist_join_handle = strategy.start();
 
     let vault_address = Address::from_str(&ethereum_program_libraries.valence_vault).unwrap();
     let eth_withdraw_address =

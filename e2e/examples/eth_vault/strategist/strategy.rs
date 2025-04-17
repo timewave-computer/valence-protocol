@@ -1,4 +1,4 @@
-use std::{error::Error, str::FromStr, time::UNIX_EPOCH};
+use std::{error::Error, str::FromStr};
 
 use alloy::{
     primitives::{Address, U256},
@@ -98,18 +98,15 @@ impl ValenceWorker for Strategy {
     }
 
     async fn cycle(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        log::info!("{}: Starting cycle...", self.get_name());
-        log::info!("{}: Waiting until next minute...", self.get_name());
-
-        let start_time = wait_until_next_minute().await;
-
-        log::info!(
-            "{}: Wait completed at {:?}, now proceeding with cycle logic",
-            self.get_name(),
-            start_time.duration_since(UNIX_EPOCH).unwrap()
+        let worker_name = self.get_name();
+        info!("{worker_name}: Starting cycle...");
+        info!("{worker_name}: Waiting until next minute...");
+        wait_until_next_minute().await;
+        info!(
+            "{worker_name}: worker loop started at second {}",
+            get_current_second()
         );
 
-        info!("strategist loop started at second {}", get_current_second());
         let eth_rp = self
             .runtime
             .eth_client
