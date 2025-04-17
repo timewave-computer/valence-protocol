@@ -87,6 +87,7 @@ pub struct IbcInfo {
 pub struct EurekaFee {
     pub coin: Coin,
     pub receiver: String,
+    // In nanoseconds
     pub timeout_timestamp: u64,
 }
 
@@ -101,12 +102,12 @@ mod tests {
         // Create a sample struct
         let wrapper = EurekaMemo {
             dest_callback: IbcDstCallback {
-                address: "cosmos198plfkpwzpxxrlpvprhfmdkcf3frpa7kvduq9cw8lh02mm327tgqhh3s55"
+                address: "cosmos1lqu9662kd4my6dww4gzp3730vew0gkwe0nl9ztjh0n5da0a8zc4swsvd22"
                     .to_string(),
                 gas_limit: None,
             },
             wasm: WasmData {
-                contract: "cosmos1zvesudsdfxusz06jztpph4d3h5x6veglqsspxns2v2jqml9nhywshhfp5j"
+                contract: "cosmos1clswlqlfm8gpn7n5wu0ypu0ugaj36urlhj7yz30hn7v7mkcm2tuqy9f8s5"
                     .to_string(),
                 msg: WasmMessage {
                     action: ActionWrapper {
@@ -145,7 +146,7 @@ mod tests {
         println!("Serialized Memo: {}", memo);
 
         // Assert it contains expected values
-        assert!(memo.contains("cosmos198plfkpwzpxxrlpvprhfmdkcf3frpa7kvduq9cw8lh02mm327tgqhh3s55"));
+        assert!(memo.contains("cosmos1lqu9662kd4my6dww4gzp3730vew0gkwe0nl9ztjh0n5da0a8zc4swsvd22"));
         assert!(memo.contains("250000"));
         assert!(memo.contains("uatom"));
         assert!(memo.contains("0x0000000000000000000000000000000000000001"));
@@ -156,7 +157,7 @@ mod tests {
         // Verify some values from the reconstructed object
         assert_eq!(
             deserialized.dest_callback.address,
-            "cosmos198plfkpwzpxxrlpvprhfmdkcf3frpa7kvduq9cw8lh02mm327tgqhh3s55"
+            "cosmos1lqu9662kd4my6dww4gzp3730vew0gkwe0nl9ztjh0n5da0a8zc4swsvd22"
         );
         assert_eq!(
             deserialized
