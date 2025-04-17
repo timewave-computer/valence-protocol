@@ -51,7 +51,7 @@ The library is configured on deployment using the `IBCEurekaTransferConfig` type
  * @param inputAccount The account from which tokens will be debited.
  * @param recipient The recipient address on the destination IBC chain (in bech32 format).
  * @param sourceClient The source client identifier (e.g. cosmoshub-0).
- * @param timeout The timeout for the IBC transfer in seconds.
+ * @param timeout The timeout for the IBC transfer in seconds. Skip Go uses 12 hours (43200 seconds) as the default timeout.
  * @param eurekaHandler The EurekaHandler contract which is a wrapper around the ICS20Transfer contract.
  */
 struct IBCEurekaTransferConfig {
@@ -92,7 +92,7 @@ curl -X POST "https://go.skip.build/api/skip/v2/fungible/route" \
   }
 ```
 
-This is a query to obtain the fee information for transferring 20 ATOM from Ethereum (chain ID `1`) to the Cosmos Hub (chain ID `cosmoshub-4`). This will return us a response from which we can extract the `smart_relay_fee_quote` information that contains all the information to build the `Fees` structure.
+This is a query to obtain the fee information for transferring 20 ATOM from Ethereum (chain ID `1`) to the Cosmos Hub (chain ID `cosmoshub-4`). This will return us a response from which we can extract the `smart_relay_fee_quote` information that contains all the information to build the `Fees` structure. Important: The `quoteExpiry` timestamp of the `Fees` is passed in seconds.
 
 - The memo can be used to execute logic on the destination chain. For example, if we want to execute a hop on the destination chain, we can use the memo to specify the hop parameters. Here is an example of a memo:
 

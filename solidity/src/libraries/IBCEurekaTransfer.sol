@@ -19,7 +19,7 @@ contract IBCEurekaTransfer is Library {
      * @param inputAccount The account from which tokens will be debited.
      * @param recipient The recipient address on the destination IBC chain (in bech32 format).
      * @param sourceClient The source client identifier (e.g. cosmoshub-0).
-     * @param timeout The timeout for the IBC transfer in seconds.
+     * @param timeout The timeout for the IBC transfer in seconds. Skip Go uses 12 hours (43200 seconds) as the default timeout.
      * @param eurekaHandler The EurekaHandler contract which is a wrapper around the ICS20Transfer contract.
      */
     struct IBCEurekaTransferConfig {
