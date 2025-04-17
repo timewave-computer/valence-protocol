@@ -34,6 +34,7 @@ use valence_e2e::{
         parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
         solidity_contracts::ValenceVault,
         vault::{self},
+        worker::ValenceWorkerTomlSerde,
         ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR,
         NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, UUSDC_DENOM,
         VALENCE_ARTIFACTS_PATH,

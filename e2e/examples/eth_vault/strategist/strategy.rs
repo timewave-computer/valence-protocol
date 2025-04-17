@@ -1,6 +1,7 @@
 use std::{fs, path::Path};
 
 use serde::{Deserialize, Serialize};
+use valence_e2e::utils::worker::{ValenceWorker, ValenceWorkerTomlSerde};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StrategyConfig {
@@ -9,19 +10,13 @@ pub struct StrategyConfig {
     pub ethereum: ethereum::EthereumStrategyConfig,
 }
 
-impl StrategyConfig {
-    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
-        let contents = fs::read_to_string(path)?;
-        let config: StrategyConfig = toml::from_str(&contents)?;
-        Ok(config)
-    }
-
-    pub fn to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
-        let toml_string = toml::to_string(self)?;
-        fs::write(path, toml_string)?;
-        Ok(())
+impl ValenceWorker for StrategyConfig {
+    fn get_name(&self) -> String {
+        "Valence X-Vault: ETH-NOBLE-NEUTRON".to_string()
     }
 }
+
+impl ValenceWorkerTomlSerde for StrategyConfig {}
 
 pub mod noble {
     use serde::{Deserialize, Serialize};
