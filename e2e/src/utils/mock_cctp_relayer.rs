@@ -43,6 +43,38 @@ pub struct RelayerRuntime {
     pub noble_client: NobleClient,
 }
 
+impl RelayerRuntime {
+    async fn default() -> Result<Self, Box<dyn Error>> {
+        let grpc_addr = get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "grpc_address")?;
+        let (grpc_url, grpc_port) = get_grpc_address_and_port_from_url(&grpc_addr)?;
+
+        let noble_client = NobleClient::new(
+            &grpc_url,
+            &grpc_port.to_string(),
+            ADMIN_MNEMONIC,
+            NOBLE_CHAIN_ID,
+            NOBLE_CHAIN_DENOM,
+        )
+        .await
+        .expect("failed to create noble client");
+
+        let signer = MnemonicBuilder::<English>::default()
+            .phrase("test test test test test test test test test test test junk")
+            .index(5)? // derive the mnemonic at a different index to avoid nonce issues
+            .build()?;
+
+        let eth_client = EthereumClient {
+            rpc_url: DEFAULT_ANVIL_RPC_ENDPOINT.to_string(),
+            signer,
+        };
+
+        Ok(Self {
+            eth_client,
+            noble_client,
+        })
+    }
+}
+
 pub struct RelayerState {
     // last processed block on noble
     noble_last_block: i64,
@@ -62,6 +94,9 @@ impl ValenceWorker for MockCctpRelayer {
         "Mock CCTP Relayer: ETH-NOBLE".to_string()
     }
 
+    /// each cctp relayer cycle will poll both noble and ethereum for events
+    /// that indicate a CCTP-transfer. Once such event is picked up on the origin
+    /// domain, it will mint the equivalent amount on the destination chain.
     async fn cycle(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
         let worker_name = self.get_name();
 
@@ -84,43 +119,20 @@ impl MockCctpRelayer {
         messenger: Address,
         destination_erc20: Address,
     ) -> Result<Self, Box<dyn Error>> {
-        let grpc_addr = get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "grpc_address")?;
-        let (grpc_url, grpc_port) = get_grpc_address_and_port_from_url(&grpc_addr)?;
+        let runtime = RelayerRuntime::default().await?;
 
-        let noble_client = NobleClient::new(
-            &grpc_url,
-            &grpc_port.to_string(),
-            ADMIN_MNEMONIC,
-            NOBLE_CHAIN_ID,
-            NOBLE_CHAIN_DENOM,
-        )
-        .await
-        .expect("failed to create noble client");
-
-        let latest_noble_block = noble_client
+        let latest_noble_block = runtime
+            .noble_client
             .latest_block_header()
             .await
             .expect("failed to get latest block header")
             .height;
 
-        let signer = MnemonicBuilder::<English>::default()
-            .phrase("test test test test test test test test test test test junk")
-            .index(5)? // derive the mnemonic at a different index to avoid nonce issues
-            .build()?;
-
-        let eth_client = EthereumClient {
-            rpc_url: DEFAULT_ANVIL_RPC_ENDPOINT.to_string(),
-            signer,
-        };
-
         let noble_rpc_addr = get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "rpc_address")
             .expect("Failed to find rpc_address field for noble chain");
 
         Ok(Self {
-            runtime: RelayerRuntime {
-                eth_client,
-                noble_client,
-            },
+            runtime,
             state: RelayerState {
                 noble_last_block: latest_noble_block,
                 noble_rpc_addr,

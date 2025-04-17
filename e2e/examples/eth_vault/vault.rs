@@ -238,10 +238,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Starting CCTP mock relayer between Noble and Ethereum...");
     let mock_cctp_relayer = async_run!(
-        rt,
+        tokio::runtime::Runtime::new()?,
         MockCctpRelayer::new(mock_cctp_messenger_address, usdc_token_address).await
     )?;
-
     let _cctp_rly_join_handle = mock_cctp_relayer.start();
 
     info!("main sleep for 3...");
@@ -283,8 +282,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     strategy_config.to_file(temp_path)?;
 
     let strategy_cfg = StrategyConfig::from_file(temp_path)?;
-    let strategist_rt = tokio::runtime::Runtime::new()?;
-    let strategy = async_run!(strategist_rt, Strategy::new(strategy_cfg).await)?;
+
+    let strategy = async_run!(
+        tokio::runtime::Runtime::new()?,
+        Strategy::new(strategy_cfg).await
+    )?;
 
     info!("User3 depositing {user_3_deposit_amount}USDC tokens to vault...");
     vault::deposit_to_vault(
