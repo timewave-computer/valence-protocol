@@ -13,7 +13,7 @@ pub trait ValenceWorker {
     where
         Self: Sized + Send + 'static,
     {
-        info!("Starting worker: {}", self.get_name());
+        info!("starting worker: {}", self.get_name());
 
         // start the worker in its own thread to own the runtime
         std::thread::spawn(move || {
@@ -25,7 +25,7 @@ pub trait ValenceWorker {
                 let mut worker = self;
                 let worker_name = worker.get_name();
 
-                info!("{worker_name}: Worker started in new runtime");
+                info!("{worker_name}: worker started in new runtime");
 
                 loop {
                     match worker.cycle().await {
