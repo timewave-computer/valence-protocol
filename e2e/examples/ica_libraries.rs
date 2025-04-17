@@ -347,6 +347,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     hop_chain_receiver_address: None,
                 },
             )]),
+            eureka_config: None,
         },
     };
 

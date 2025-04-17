@@ -4,7 +4,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, CustomQuery, Deps, DepsMut, Uint128, Uint64};
 use cw_ownable::cw_ownable_query;
 use getset::{Getters, Setters};
-use valence_ibc_utils::types::PacketForwardMiddlewareConfig;
+use valence_ibc_utils::types::{EurekaConfig, EurekaFee, PacketForwardMiddlewareConfig};
 use valence_library_utils::{
     denoms::{CheckedDenom, UncheckedDenom},
     error::LibraryError,
@@ -16,6 +16,7 @@ use valence_macros::{valence_library_query, ValenceLibraryInterface};
 #[cw_serde]
 pub enum FunctionMsgs {
     IbcTransfer {},
+    EurekaTransfer { eureka_fee: EurekaFee },
 }
 
 #[valence_library_query]
@@ -35,6 +36,7 @@ pub struct LibraryConfig {
     pub memo: String,
     pub remote_chain_info: RemoteChainInfo,
     pub denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
+    pub eureka_config: Option<EurekaConfig>,
 }
 
 #[cw_serde]
@@ -75,6 +77,7 @@ impl LibraryConfig {
             memo,
             remote_chain_info,
             denom_to_pfm_map: BTreeMap::default(),
+            eureka_config: None,
         }
     }
 
@@ -95,6 +98,7 @@ impl LibraryConfig {
             memo,
             remote_chain_info,
             denom_to_pfm_map,
+            eureka_config: None,
         }
     }
 
@@ -153,6 +157,7 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
             memo: self.memo.clone(),
             remote_chain_info: self.remote_chain_info.clone(),
             denom_to_pfm_map: self.denom_to_pfm_map.clone(),
+            eureka_config: self.eureka_config.clone(),
         })
     }
 }
@@ -212,6 +217,14 @@ impl LibraryConfigUpdate {
             config.remote_chain_info = remote_chain_info;
         }
 
+        if let Some(denom_to_pfm_map) = self.denom_to_pfm_map {
+            config.denom_to_pfm_map = denom_to_pfm_map;
+        }
+
+        if let OptionUpdate::Set(eureka_config) = self.eureka_config {
+            config.eureka_config = eureka_config;
+        }
+
         valence_library_base::save_config(deps.storage, &config)?;
 
         Ok(())
@@ -235,6 +248,8 @@ pub struct Config {
     remote_chain_info: RemoteChainInfo,
     #[getset(get = "pub", set)]
     denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
+    #[getset(get = "pub", set)]
+    eureka_config: Option<EurekaConfig>,
 }
 
 impl Config {
@@ -254,6 +269,7 @@ impl Config {
             memo,
             remote_chain_info,
             denom_to_pfm_map: BTreeMap::default(),
+            eureka_config: None,
         }
     }
 
@@ -274,6 +290,28 @@ impl Config {
             memo,
             remote_chain_info,
             denom_to_pfm_map,
+            eureka_config: None,
+        }
+    }
+
+    pub fn with_eureka_config(
+        input_addr: Addr,
+        output_addr: String,
+        denom: CheckedDenom,
+        amount: IbcTransferAmount,
+        memo: String,
+        remote_chain_info: RemoteChainInfo,
+        eureka_config: EurekaConfig,
+    ) -> Self {
+        Config {
+            input_addr,
+            output_addr,
+            denom,
+            amount,
+            memo,
+            remote_chain_info,
+            denom_to_pfm_map: BTreeMap::default(),
+            eureka_config: Some(eureka_config),
         }
     }
 }

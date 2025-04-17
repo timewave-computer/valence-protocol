@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Deps, DepsMut, Uint128};
 use cw_ownable::cw_ownable_query;
-use valence_ibc_utils::types::PacketForwardMiddlewareConfig;
+use valence_ibc_utils::types::{EurekaConfig, EurekaFee, PacketForwardMiddlewareConfig};
 use valence_library_utils::LibraryAccountType;
 use valence_library_utils::{error::LibraryError, msg::LibraryConfigValidation};
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
@@ -11,6 +11,7 @@ use valence_macros::{valence_library_query, ValenceLibraryInterface};
 #[cw_serde]
 pub enum FunctionMsgs {
     Transfer {},
+    EurekaTransfer { eureka_fee: EurekaFee },
 }
 
 #[valence_library_query]
@@ -37,6 +38,8 @@ pub struct LibraryConfig {
     pub remote_chain_info: RemoteChainInfo,
     // Denom map for the Packet-Forwarding Middleware, to perform a multi-hop transfer.
     pub denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
+    // Optional Eureka config for Eureka IBC transfers
+    pub eureka_config: Option<EurekaConfig>,
 }
 
 #[cw_serde]
@@ -57,6 +60,7 @@ impl RemoteChainInfo {
 }
 
 impl LibraryConfig {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         input_addr: impl Into<LibraryAccountType>,
         amount: Uint128,
@@ -65,6 +69,7 @@ impl LibraryConfig {
         memo: String,
         remote_chain_info: RemoteChainInfo,
         denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
+        eureka_config: Option<EurekaConfig>,
     ) -> Self {
         LibraryConfig {
             input_addr: input_addr.into(),
@@ -74,6 +79,7 @@ impl LibraryConfig {
             memo,
             remote_chain_info,
             denom_to_pfm_map,
+            eureka_config,
         }
     }
 
@@ -133,6 +139,7 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
             memo: self.memo.clone(),
             remote_chain_info: self.remote_chain_info.clone(),
             denom_to_pfm_map: self.denom_to_pfm_map.clone(),
+            eureka_config: self.eureka_config.clone(),
         })
     }
 }
@@ -195,6 +202,14 @@ impl LibraryConfigUpdate {
             config.remote_chain_info = remote_chain_info;
         }
 
+        if let Some(denom_to_pfm_map) = self.denom_to_pfm_map {
+            config.denom_to_pfm_map = denom_to_pfm_map;
+        }
+
+        if let OptionUpdate::Set(eureka_config) = self.eureka_config {
+            config.eureka_config = eureka_config;
+        }
+
         valence_library_base::save_config(deps.storage, &config)?;
         Ok(())
     }
@@ -209,9 +224,11 @@ pub struct Config {
     pub memo: String,
     pub remote_chain_info: RemoteChainInfo,
     pub denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
+    pub eureka_config: Option<EurekaConfig>,
 }
 
 impl Config {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         input_addr: Addr,
         amount: Uint128,
@@ -220,6 +237,7 @@ impl Config {
         memo: String,
         remote_chain_info: RemoteChainInfo,
         denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
+        eureka_config: Option<EurekaConfig>,
     ) -> Self {
         Config {
             input_addr,
@@ -229,6 +247,7 @@ impl Config {
             memo,
             remote_chain_info,
             denom_to_pfm_map,
+            eureka_config,
         }
     }
 }

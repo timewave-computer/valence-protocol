@@ -24,6 +24,50 @@
     },
     "additionalProperties": false,
     "definitions": {
+      "EurekaConfig": {
+        "type": "object",
+        "required": [
+          "action_contract",
+          "callback_contract",
+          "recover_address",
+          "source_channel"
+        ],
+        "properties": {
+          "action_contract": {
+            "description": "The address of the contract on intermediate chain that will trigger the actions, in this case the Eureka transfer.",
+            "type": "string"
+          },
+          "callback_contract": {
+            "description": "The address of the contract on intermediate chain that will receive the callback.",
+            "type": "string"
+          },
+          "memo": {
+            "description": "Optional memo for the Eureka transfer triggered by the contract. Not used right now but could eventually be used.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recover_address": {
+            "description": "Recover address on intermediate chain in case the transfer fails",
+            "type": "string"
+          },
+          "source_channel": {
+            "description": "Source channel on the intermediate chain (e.g. \"08-wasm-1369\")",
+            "type": "string"
+          },
+          "timeout": {
+            "description": "Timeout in seconds to be used for the Eureka transfer. For reference, Skip Go uses 12 hours (43200). If not passed we will use that default value",
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        },
+        "additionalProperties": false
+      },
       "LibraryAccountType": {
         "description": "A helper type that is used to associate an account or library with an id When a program is not instantiated yet, ids will be used to reference accounts and libraries When a program is instantiated, the ids will be replaced by the instantiated addresses",
         "oneOf": [
@@ -90,6 +134,16 @@
           "denom_to_pfm_map": {
             "type": "object",
             "additionalProperties": false
+          },
+          "eureka_config": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/EurekaConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "input_addr": {
             "$ref": "#/definitions/LibraryAccountType"
@@ -278,6 +332,88 @@
           }
         ]
       },
+      "Coin": {
+        "type": "object",
+        "required": [
+          "amount",
+          "denom"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "denom": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "EurekaConfig": {
+        "type": "object",
+        "required": [
+          "action_contract",
+          "callback_contract",
+          "recover_address",
+          "source_channel"
+        ],
+        "properties": {
+          "action_contract": {
+            "description": "The address of the contract on intermediate chain that will trigger the actions, in this case the Eureka transfer.",
+            "type": "string"
+          },
+          "callback_contract": {
+            "description": "The address of the contract on intermediate chain that will receive the callback.",
+            "type": "string"
+          },
+          "memo": {
+            "description": "Optional memo for the Eureka transfer triggered by the contract. Not used right now but could eventually be used.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recover_address": {
+            "description": "Recover address on intermediate chain in case the transfer fails",
+            "type": "string"
+          },
+          "source_channel": {
+            "description": "Source channel on the intermediate chain (e.g. \"08-wasm-1369\")",
+            "type": "string"
+          },
+          "timeout": {
+            "description": "Timeout in seconds to be used for the Eureka transfer. For reference, Skip Go uses 12 hours (43200). If not passed we will use that default value",
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        },
+        "additionalProperties": false
+      },
+      "EurekaFee": {
+        "type": "object",
+        "required": [
+          "coin",
+          "receiver",
+          "timeout_timestamp"
+        ],
+        "properties": {
+          "coin": {
+            "$ref": "#/definitions/Coin"
+          },
+          "receiver": {
+            "type": "string"
+          },
+          "timeout_timestamp": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        },
+        "additionalProperties": false
+      },
       "Expiration": {
         "description": "Expiration represents a point in time when some event happens. It can compare with a BlockInfo and will return is_expired() == true once the condition is hit (and for every block in the future)",
         "oneOf": [
@@ -339,6 +475,27 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "eureka_transfer"
+            ],
+            "properties": {
+              "eureka_transfer": {
+                "type": "object",
+                "required": [
+                  "eureka_fee"
+                ],
+                "properties": {
+                  "eureka_fee": {
+                    "$ref": "#/definitions/EurekaFee"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
           }
         ]
       },
@@ -389,6 +546,9 @@
       },
       "LibraryConfigUpdate": {
         "type": "object",
+        "required": [
+          "eureka_config"
+        ],
         "properties": {
           "amount": {
             "anyOf": [
@@ -412,6 +572,9 @@
               "null"
             ],
             "additionalProperties": false
+          },
+          "eureka_config": {
+            "$ref": "#/definitions/OptionUpdate_for_EurekaConfig"
           },
           "input_addr": {
             "anyOf": [
@@ -447,6 +610,35 @@
           }
         },
         "additionalProperties": false
+      },
+      "OptionUpdate_for_EurekaConfig": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "none"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "set"
+            ],
+            "properties": {
+              "set": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/EurekaConfig"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
       },
       "PacketForwardMiddlewareConfig": {
         "type": "object",
@@ -597,6 +789,16 @@
           "type": "object",
           "additionalProperties": false
         },
+        "eureka_config": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EurekaConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "input_addr": {
           "$ref": "#/definitions/Addr"
         },
@@ -615,6 +817,50 @@
         "Addr": {
           "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
           "type": "string"
+        },
+        "EurekaConfig": {
+          "type": "object",
+          "required": [
+            "action_contract",
+            "callback_contract",
+            "recover_address",
+            "source_channel"
+          ],
+          "properties": {
+            "action_contract": {
+              "description": "The address of the contract on intermediate chain that will trigger the actions, in this case the Eureka transfer.",
+              "type": "string"
+            },
+            "callback_contract": {
+              "description": "The address of the contract on intermediate chain that will receive the callback.",
+              "type": "string"
+            },
+            "memo": {
+              "description": "Optional memo for the Eureka transfer triggered by the contract. Not used right now but could eventually be used.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "recover_address": {
+              "description": "Recover address on intermediate chain in case the transfer fails",
+              "type": "string"
+            },
+            "source_channel": {
+              "description": "Source channel on the intermediate chain (e.g. \"08-wasm-1369\")",
+              "type": "string"
+            },
+            "timeout": {
+              "description": "Timeout in seconds to be used for the Eureka transfer. For reference, Skip Go uses 12 hours (43200). If not passed we will use that default value",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
         },
         "PacketForwardMiddlewareConfig": {
           "type": "object",
@@ -694,6 +940,16 @@
           "type": "object",
           "additionalProperties": false
         },
+        "eureka_config": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EurekaConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "input_addr": {
           "$ref": "#/definitions/LibraryAccountType"
         },
@@ -709,6 +965,50 @@
       },
       "additionalProperties": false,
       "definitions": {
+        "EurekaConfig": {
+          "type": "object",
+          "required": [
+            "action_contract",
+            "callback_contract",
+            "recover_address",
+            "source_channel"
+          ],
+          "properties": {
+            "action_contract": {
+              "description": "The address of the contract on intermediate chain that will trigger the actions, in this case the Eureka transfer.",
+              "type": "string"
+            },
+            "callback_contract": {
+              "description": "The address of the contract on intermediate chain that will receive the callback.",
+              "type": "string"
+            },
+            "memo": {
+              "description": "Optional memo for the Eureka transfer triggered by the contract. Not used right now but could eventually be used.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "recover_address": {
+              "description": "Recover address on intermediate chain in case the transfer fails",
+              "type": "string"
+            },
+            "source_channel": {
+              "description": "Source channel on the intermediate chain (e.g. \"08-wasm-1369\")",
+              "type": "string"
+            },
+            "timeout": {
+              "description": "Timeout in seconds to be used for the Eureka transfer. For reference, Skip Go uses 12 hours (43200). If not passed we will use that default value",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
         "LibraryAccountType": {
           "description": "A helper type that is used to associate an account or library with an id When a program is not instantiated yet, ids will be used to reference accounts and libraries When a program is instantiated, the ids will be replaced by the instantiated addresses",
           "oneOf": [
