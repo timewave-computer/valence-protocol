@@ -6,6 +6,7 @@ import {UnionTransfer} from "../../src/libraries/UnionTransfer.sol";
 import {IUnion} from "../../src/libraries/interfaces/union/IUnion.sol";
 import {BaseAccount} from "../../src/accounts/BaseAccount.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
+import {console} from "forge-std/src/console.sol";
 
 /**
  * @title UnionTransfer Test
@@ -208,30 +209,6 @@ contract UnionTransferTest is Test {
         bytes memory configBytes = abi.encode(invalidConfig);
         vm.prank(owner);
         vm.expectRevert("Transfer token symbol can't be empty");
-        unionTransfer.updateConfig(configBytes);
-    }
-
-    function testUpdateConfigFailsZeroTransferTokenDecimals() public {
-        UnionTransfer.UnionTransferConfig memory invalidConfig = UnionTransfer.UnionTransferConfig({
-            amount: 1000,
-            inputAccount: inputAccount,
-            recipient: recipient,
-            protocolVersion: 1,
-            zkGM: mockZkGM,
-            transferToken: transferToken,
-            transferTokenName: "TEST",
-            transferTokenSymbol: "TEST",
-            transferTokenDecimals: 0, // Zero decimals (invalid)
-            transferTokenUnwrappingPath: 1,
-            quoteToken: quoteToken,
-            quoteTokenAmount: 980,
-            channelId: channelId,
-            timeout: timeout
-        });
-
-        bytes memory configBytes = abi.encode(invalidConfig);
-        vm.prank(owner);
-        vm.expectRevert("Transfer token decimals can't be zero");
         unionTransfer.updateConfig(configBytes);
     }
 
@@ -461,5 +438,68 @@ contract UnionTransferTest is Test {
         uint256 counterAfterSecondTransfer = unionTransfer.counter();
         assertEq(counterAfterSecondTransfer, 2, "Counter should be 2 after second transfer");
         vm.stopPrank();
+    }
+
+    function testDecodeFungibleAssetOrderTest() public pure {
+        // Bytes taken from a real transaction on Etherscan for the operand field
+        bytes memory fungibleAssetOrder =
+            hex"0000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000018000000000000000000000000000000000000000000000000000000000000001e00000000000000000000000000000000000000000000000000000000000003e80000000000000000000000000000000000000000000000000000000000000022000000000000000000000000000000000000000000000000000000000000002600000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000002a00000000000000000000000000000000000000000000000000000000000003e80000000000000000000000000000000000000000000000000000000000000001441568848e805c9fed20494e35669f8b0110db7a9000000000000000000000000000000000000000000000000000000000000000000000000000000000000002a62626e3133377577716d733375616a727a726a646778706a357368746175617a786d3277786434706676000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000014e53dcec07d16d88e386ae0710e86d9a400f83c31000000000000000000000000000000000000000000000000000000000000000000000000000000000000000442414259000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007426162796c6f6e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000047562626e00000000000000000000000000000000000000000000000000000000";
+
+        // Decode field by field
+        (
+            bytes memory sender,
+            bytes memory receiver,
+            bytes memory baseToken,
+            uint256 baseAmount,
+            string memory baseTokenSymbol,
+            string memory baseTokenName,
+            uint8 baseTokenDecimals,
+            uint256 baseTokenPath,
+            bytes memory quoteTokenReturned,
+            uint256 quoteAmount
+        ) = abi.decode(
+            fungibleAssetOrder, (bytes, bytes, bytes, uint256, string, string, uint8, uint256, bytes, uint256)
+        );
+
+        // Construct the struct from the decoded fields
+        IUnion.FungibleAssetOrder memory decodedOrder = IUnion.FungibleAssetOrder({
+            sender: sender,
+            receiver: receiver,
+            baseToken: baseToken,
+            baseAmount: baseAmount,
+            baseTokenSymbol: baseTokenSymbol,
+            baseTokenName: baseTokenName,
+            baseTokenDecimals: baseTokenDecimals,
+            baseTokenPath: baseTokenPath,
+            quoteToken: quoteTokenReturned,
+            quoteAmount: quoteAmount
+        });
+
+        // Print the result
+        printOrderDetails(decodedOrder);
+    }
+
+    // Helper function to print order details
+    function printOrderDetails(IUnion.FungibleAssetOrder memory order) internal pure {
+        console.log("Sender:");
+        console.logBytes(order.sender);
+        console.log("Receiver:");
+        console.logBytes(order.receiver);
+        console.log("Base Token:");
+        console.logBytes(order.baseToken);
+        console.log("Base Amount:");
+        console.log(order.baseAmount);
+        console.log("Base Token Symbol:");
+        console.log(order.baseTokenSymbol);
+        console.log("Base Token Name:");
+        console.log(order.baseTokenName);
+        console.log("Base Token Decimals:");
+        console.log(uint256(order.baseTokenDecimals));
+        console.log("Base Token Path:");
+        console.log(order.baseTokenPath);
+        console.log("Quote Token:");
+        console.logBytes(order.quoteToken);
+        console.log("Quote Amount:");
+        console.log(order.quoteAmount);
     }
 }

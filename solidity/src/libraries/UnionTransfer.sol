@@ -5,6 +5,7 @@ import {Library} from "./Library.sol";
 import {BaseAccount} from "../accounts/BaseAccount.sol";
 import {IUnion} from "./interfaces/union/IUnion.sol";
 import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
+import {console} from "forge-std/src/console.sol";
 
 /**
  * @title UnionTransfer
@@ -106,11 +107,6 @@ contract UnionTransfer is Library {
             revert("Transfer token symbol can't be empty");
         }
 
-        // Ensure the transfer token decimals are valid (greater than 0).
-        if (decodedConfig.transferTokenDecimals == 0) {
-            revert("Transfer token decimals can't be zero");
-        }
-
         // Ensure the quote token address is valid.
         if (decodedConfig.quoteToken.length == 0) {
             revert("Quote token can't be empty bytes");
@@ -182,25 +178,14 @@ contract UnionTransfer is Library {
             quoteAmount = amount;
         }
 
-        // Encode the FungibleAssetOrder to be sent to the zkGM.
-        IUnion.FungibleAssetOrder memory order = IUnion.FungibleAssetOrder({
-            sender: abi.encodePacked(address(_config.inputAccount)),
-            receiver: _config.recipient,
-            baseToken: _config.transferToken,
-            baseAmount: amount,
-            baseTokenSymbol: _config.transferTokenSymbol,
-            baseTokenName: _config.transferTokenName,
-            baseTokenDecimals: _config.transferTokenDecimals,
-            baseTokenPath: _config.transferTokenUnwrappingPath,
-            quoteToken: _config.quoteToken,
-            quoteAmount: quoteAmount
-        });
+        // Create the encoded operand
+        bytes memory encodedOperand = createEncodedOperand(_config, amount, quoteAmount);
 
         // Encode the instruction to be sent to the zkGM.
         IUnion.Instruction memory instruction = IUnion.Instruction({
             version: _config.protocolVersion,
             opcode: 3, // Opcode for transferring tokens (FungibleAssetOrder)
-            operand: abi.encode(order)
+            operand: encodedOperand
         });
 
         // Encode the approval call: this allows the zkGM to spend the tokens.
@@ -224,5 +209,50 @@ contract UnionTransfer is Library {
         _config.inputAccount.execute(transferTokenAddress, 0, encodedApproveCall);
         // Execute the token send call via the zkGM.
         _config.inputAccount.execute(address(_config.zkGM), 0, encodedSendCall);
+    }
+
+    /**
+     * @notice Creates an encoded operand for the zkGM instruction
+     * @dev This function manually encodes all fields that would normally be in a FungibleAssetOrder struct
+     * without using the struct itself. This approach is necessary because:
+     * 1. The zkGM protocol expects the raw encoded fields without the additional type information
+     *    that would be included when encoding a full struct with abi.encode(struct)
+     * 2. Directly encoding a struct would add a 32-byte prefix indicating it's a complex object,
+     *    which the protocol doesn't expect
+     *
+     * Note that the order of fields must exactly match what the protocol expects (like the FungibleAssetOrder in IUnion):
+     * - sender (bytes from address)
+     * - receiver (bytes)
+     * - baseToken (bytes)
+     * - baseAmount (uint256)
+     * - baseTokenName (string)
+     * - baseTokenSymbol (string)
+     * - baseTokenDecimals (uint8)
+     * - baseTokenPath (uint256)
+     * - quoteToken (bytes)
+     * - quoteAmount (uint256)
+     *
+     * @param _config The transfer configuration containing most required fields
+     * @param amount The amount of tokens to transfer
+     * @param quoteAmount The quote amount for the transfer
+     * @return The encoded operand bytes ready to be included in the zkGM instruction
+     */
+    function createEncodedOperand(UnionTransferConfig memory _config, uint256 amount, uint256 quoteAmount)
+        private
+        pure
+        returns (bytes memory)
+    {
+        return abi.encode(
+            abi.encodePacked(address(_config.inputAccount)),
+            _config.recipient,
+            _config.transferToken,
+            amount,
+            _config.transferTokenSymbol,
+            _config.transferTokenName,
+            _config.transferTokenDecimals,
+            _config.transferTokenUnwrappingPath,
+            _config.quoteToken,
+            quoteAmount
+        );
     }
 }
