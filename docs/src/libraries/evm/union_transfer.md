@@ -1,6 +1,6 @@
 # Valence Union Transfer library
 
-The **Valence Union Transfer** library allows to **transfer funds** from an **input account** to a **recipient** using the [Union UCS03-ZKGM protocol](https://docs.union.build/ucs/03/). It is typically used as part of a **Valence Program**. In that context, a **Processor** contract will be the main contract interacting with the Union Transfer library.
+The **Valence Union Transfer** library allows to **transfer funds** from an **input account** to a **recipient** using the [Union UCS03-ZKGM protocol](https://docs.union.build/ucs/03/), which allows arbitrary filling of orders by any party. It is typically used as part of a **Valence Program**. In that context, a **Processor** contract will be the main contract interacting with the Union Transfer library.
 
 ## High-level flow
 
@@ -15,10 +15,11 @@ graph LR
   P[Processor]
   U[Union Transfer
    Library]
-  UTM[Union Token Minter]
+  UTM[Union Token
+   Protocol]
 
   subgraph DEST[ Destination Chain ]
-    UTM -- 6/Mint tokens --> R
+    UTM -- 6/Send tokens --> R
   end
 
   subgraph EVM[ EVM Domain ]
@@ -41,7 +42,7 @@ graph LR
 
 ## Configuration
 
-The library is configured on deployment using the `UnionTransferConfig` type. A list of supported chains and their channels can be found [here](https://docs.union.build/protocol/chains/overview/). Additional information of parameters used in the configuration can be found [here](https://docs.union.build/ucs/03/)
+The library is configured on deployment using the `UnionTransferConfig` type. A list of supported chains and their channels can be found [here](https://docs.union.build/protocol/chains/overview/). Additional information of parameters used in the configuration can be found [here](https://docs.union.build/ucs/03/). This library allows any party to fill orders, therefore the `quoteTokenAmount` value should take into consideration the amount of tokens that the filling party will receive.
 
 All current deployed Union UCS03 contracts can be found in the [deployment section](https://docs.union.build/protocol/deployments/) under the name `ucs03`.
 
