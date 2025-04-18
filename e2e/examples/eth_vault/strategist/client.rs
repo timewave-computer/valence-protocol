@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, str::FromStr};
 
 use alloy::{
     primitives::{Address, U256},
@@ -19,18 +19,17 @@ use valence_chain_client_utils::{
 use valence_e2e::{
     async_run,
     utils::{
-        parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
         solidity_contracts::{MockERC20, ValenceVault},
-        ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID,
+        NOBLE_CHAIN_DENOM,
     },
 };
 
 use crate::{
-    evm::{EthereumProgramAccounts, EthereumProgramLibraries},
-    program::{NeutronProgramAccounts, NeutronProgramLibraries},
     strategist::{astroport::AstroportOps, routing::EthereumVaultRouting, vault::EthereumVault},
     utils::{get_current_second, wait_until_next_minute},
 };
+
+use super::strategy::StrategyConfig;
 
 pub(crate) struct Strategist {
     // (g)RPC clients
@@ -38,49 +37,18 @@ pub(crate) struct Strategist {
     pub noble_client: NobleClient,
     pub neutron_client: NeutronClient,
 
-    // Ethereum and Neutron account & library addresses
-    pub neutron_program_accounts: NeutronProgramAccounts,
-    pub neutron_program_libraries: NeutronProgramLibraries,
-    pub eth_program_accounts: EthereumProgramAccounts,
-    pub eth_program_libraries: EthereumProgramLibraries,
-
-    // underlying pool and its lp token addrress
-    pub lp_token_denom: String,
-    pub pool_addr: String,
-
-    // deposit token information on Ethereum & Cosmos
-    pub uusdc_on_neutron_denom: String,
-    pub ethereum_usdc_erc20: Address,
+    pub strategy: StrategyConfig,
 }
 
 impl Strategist {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        rt: &Runtime,
-        neutron_program_accounts: NeutronProgramAccounts,
-        neutron_program_libraries: NeutronProgramLibraries,
-        ethereum_program_accounts: EthereumProgramAccounts,
-        ethereum_program_libraries: EthereumProgramLibraries,
-        uusdc_on_neutron_denom: String,
-        lp_token_denom: String,
-        pool_addr: String,
-        ethereum_usdc_erc20: Address,
-    ) -> Result<Self, Box<dyn Error>> {
-        // get neutron & noble grpc (url, port) values from local-ic logs
-        let (noble_grpc_url, noble_grpc_port) = get_grpc_address_and_port_from_url(
-            &get_chain_field_from_local_ic_log(NOBLE_CHAIN_ID, "grpc_address")?,
-        )?;
-        let (neutron_grpc_url, neutron_grpc_port) = get_grpc_address_and_port_from_url(
-            &get_chain_field_from_local_ic_log(NEUTRON_CHAIN_ID, "grpc_address")?,
-        )?;
-
+    pub fn new(rt: &Runtime, strategy: StrategyConfig) -> Result<Self, Box<dyn Error>> {
         // build the noble client
         let noble_client = async_run!(rt, {
             NobleClient::new(
-                &noble_grpc_url,
-                &noble_grpc_port.to_string(),
-                ADMIN_MNEMONIC,
-                NOBLE_CHAIN_ID,
+                &strategy.noble.grpc_url,
+                &strategy.noble.grpc_port,
+                &strategy.noble.mnemonic,
+                &strategy.noble.chain_id,
                 NOBLE_CHAIN_DENOM,
             )
             .await
@@ -90,9 +58,9 @@ impl Strategist {
         // build the neutron client
         let neutron_client = async_run!(rt, {
             NeutronClient::new(
-                &neutron_grpc_url,
-                &neutron_grpc_port.to_string(),
-                ADMIN_MNEMONIC,
+                &strategy.neutron.grpc_url,
+                &strategy.neutron.grpc_port,
+                &strategy.neutron.mnemonic,
                 NEUTRON_CHAIN_ID,
             )
             .await
@@ -101,9 +69,9 @@ impl Strategist {
 
         // build the eth client
         let eth_client = EthereumClient {
-            rpc_url: DEFAULT_ANVIL_RPC_ENDPOINT.to_string(),
+            rpc_url: strategy.ethereum.rpc_url.to_string(),
             signer: MnemonicBuilder::<English>::default()
-                .phrase("test test test test test test test test test test test junk")
+                .phrase(strategy.ethereum.mnemonic.clone())
                 .index(7)? // derive the mnemonic at a different index to avoid nonce issues
                 .build()?,
         };
@@ -112,14 +80,7 @@ impl Strategist {
             eth_client,
             noble_client,
             neutron_client,
-            neutron_program_accounts,
-            neutron_program_libraries,
-            eth_program_libraries: ethereum_program_libraries,
-            eth_program_accounts: ethereum_program_accounts,
-            uusdc_on_neutron_denom,
-            lp_token_denom,
-            pool_addr,
-            ethereum_usdc_erc20,
+            strategy,
         })
     }
 }
@@ -137,9 +98,14 @@ impl Strategist {
                 get_current_second()
             );
             let eth_rp = self.eth_client.get_request_provider().await.unwrap();
-            let valence_vault =
-                ValenceVault::new(self.eth_program_libraries.valence_vault, &eth_rp);
-            let eth_usdc_erc20 = MockERC20::new(self.ethereum_usdc_erc20, &eth_rp);
+            let valence_vault = ValenceVault::new(
+                Address::from_str(&self.strategy.ethereum.libraries.valence_vault).unwrap(),
+                &eth_rp,
+            );
+            let eth_usdc_erc20 = MockERC20::new(
+                Address::from_str(&self.strategy.ethereum.denoms.usdc_erc20).unwrap(),
+                &eth_rp,
+            );
 
             // 1. calculate the amount of usdc needed to fulfill
             // the active withdraw obligations
@@ -153,7 +119,9 @@ impl Strategist {
             // 2. query ethereum program accounts for their usdc balances
             let eth_deposit_acc_usdc_bal = self
                 .eth_client
-                .query(eth_usdc_erc20.balanceOf(self.eth_program_accounts.deposit))
+                .query(eth_usdc_erc20.balanceOf(
+                    Address::from_str(&self.strategy.ethereum.accounts.deposit).unwrap(),
+                ))
                 .await
                 .unwrap()
                 ._0;
@@ -182,9 +150,9 @@ impl Strategist {
             // missing usdc obligation amount
             let expected_untrn_amount = self
                 .reverse_simulate_swap(
-                    &self.pool_addr,
+                    &self.strategy.neutron.target_pool.to_string(),
                     NEUTRON_CHAIN_DENOM,
-                    &self.uusdc_on_neutron_denom,
+                    &self.strategy.neutron.denoms.usdc,
                     halved_usdc_obligation_amt,
                 )
                 .await
@@ -196,8 +164,8 @@ impl Strategist {
             // TODO: think if this simulation makes sense here as the order is reversed.
             let shares_to_liquidate = self
                 .simulate_provide_liquidity(
-                    &self.pool_addr,
-                    &self.uusdc_on_neutron_denom,
+                    &self.strategy.neutron.target_pool,
+                    &self.strategy.neutron.denoms.usdc,
                     halved_usdc_obligation_amt,
                     NEUTRON_CHAIN_DENOM,
                     expected_untrn_amount,
@@ -274,30 +242,8 @@ impl Strategist {
                 "strategist loop #{i} completed at second {}",
                 get_current_second()
             );
-            self.state_log().await;
 
             i += 1;
         }
-    }
-
-    async fn state_log(&self) {
-        self.neutron_program_accounts
-            .log_balances(
-                &self.neutron_client,
-                &self.noble_client,
-                vec![
-                    self.uusdc_on_neutron_denom.to_string(),
-                    NEUTRON_CHAIN_DENOM.to_string(),
-                    self.lp_token_denom.to_string(),
-                ],
-            )
-            .await;
-        self.eth_program_accounts
-            .log_balances(
-                &self.eth_client,
-                &self.eth_program_libraries.valence_vault,
-                &self.ethereum_usdc_erc20,
-            )
-            .await;
     }
 }
