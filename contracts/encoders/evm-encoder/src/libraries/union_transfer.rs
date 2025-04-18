@@ -18,7 +18,6 @@ pub struct LibraryConfig {
     /// The input address for the library.
     pub input_addr: LibraryAccountType,
     /// The recipient of the transfer on the destination chain (for bech32 addresses the bytes conversion of the entire bech32 address string).
-    /// Example:
     pub recipient: Binary,
     /// Amount to transfer. Setting this to 0 will transfer the entire balance.
     pub amount: Uint256,
