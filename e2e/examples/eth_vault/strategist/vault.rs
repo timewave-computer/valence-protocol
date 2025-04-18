@@ -14,7 +14,9 @@ use valence_e2e::utils::{
     UUSDC_DENOM,
 };
 
-use crate::{strategist::astroport::AstroportOps, Strategist};
+use crate::strategist::astroport::AstroportOps;
+
+use super::strategy::Strategy;
 
 #[async_trait]
 pub trait EthereumVault {
@@ -23,7 +25,7 @@ pub trait EthereumVault {
 }
 
 #[async_trait]
-impl EthereumVault for Strategist {
+impl EthereumVault for Strategy {
     async fn calculate_total_fee(&self) -> Result<u32, Box<dyn Error>> {
         // 2. Find withdraw fee F_total
         //   1. query Vault fee from the Eth vault
@@ -31,7 +33,7 @@ impl EthereumVault for Strategist {
         //   3. F_total = F_vault + F_position
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
         let valence_vault = ValenceVault::new(
-            Address::from_str(&self.strategy.ethereum.libraries.valence_vault)?,
+            Address::from_str(&self.cfg.ethereum.libraries.valence_vault)?,
             &eth_rp,
         );
 
@@ -66,11 +68,11 @@ impl EthereumVault for Strategist {
     async fn calculate_redemption_rate(&self) -> Result<Decimal, Box<dyn Error>> {
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
         let valence_vault = ValenceVault::new(
-            Address::from_str(&self.strategy.ethereum.libraries.valence_vault)?,
+            Address::from_str(&self.cfg.ethereum.libraries.valence_vault)?,
             &eth_rp,
         );
         let eth_usdc_erc20 = MockERC20::new(
-            Address::from_str(&self.strategy.ethereum.denoms.usdc_erc20)?,
+            Address::from_str(&self.cfg.ethereum.denoms.usdc_erc20)?,
             &eth_rp,
         );
 
@@ -93,16 +95,16 @@ impl EthereumVault for Strategist {
         let neutron_position_acc_shares = self
             .neutron_client
             .query_balance(
-                &self.strategy.neutron.accounts.position,
-                &self.strategy.neutron.denoms.lp_token,
+                &self.cfg.neutron.accounts.position,
+                &self.cfg.neutron.denoms.lp_token,
             )
             .await
             .unwrap();
         let (usdc_amount, ntrn_amount) = self
             .simulate_liquidation(
-                &self.strategy.neutron.target_pool,
+                &self.cfg.neutron.target_pool,
                 neutron_position_acc_shares,
-                &self.strategy.neutron.denoms.usdc,
+                &self.cfg.neutron.denoms.usdc,
                 NEUTRON_CHAIN_DENOM,
             )
             .await
@@ -110,10 +112,10 @@ impl EthereumVault for Strategist {
 
         let swap_simulation_output = self
             .simulate_swap(
-                &self.strategy.neutron.target_pool,
+                &self.cfg.neutron.target_pool,
                 NEUTRON_CHAIN_DENOM,
                 ntrn_amount,
-                &self.strategy.neutron.denoms.usdc,
+                &self.cfg.neutron.denoms.usdc,
             )
             .await
             .unwrap();
@@ -123,8 +125,7 @@ impl EthereumVault for Strategist {
         let eth_deposit_usdc = self
             .eth_client
             .query(
-                eth_usdc_erc20
-                    .balanceOf(Address::from_str(&self.strategy.ethereum.accounts.deposit)?),
+                eth_usdc_erc20.balanceOf(Address::from_str(&self.cfg.ethereum.accounts.deposit)?),
             )
             .await
             .unwrap()
@@ -133,7 +134,7 @@ impl EthereumVault for Strategist {
         let noble_inbound_ica_usdc = self
             .noble_client
             .query_balance(
-                &self.strategy.neutron.accounts.noble_inbound_ica.remote_addr,
+                &self.cfg.neutron.accounts.noble_inbound_ica.remote_addr,
                 UUSDC_DENOM,
             )
             .await
@@ -141,8 +142,8 @@ impl EthereumVault for Strategist {
         let neutron_deposit_acc_usdc = self
             .neutron_client
             .query_balance(
-                &self.strategy.neutron.accounts.deposit,
-                &self.strategy.neutron.denoms.usdc,
+                &self.cfg.neutron.accounts.deposit,
+                &self.cfg.neutron.denoms.usdc,
             )
             .await
             .unwrap();
