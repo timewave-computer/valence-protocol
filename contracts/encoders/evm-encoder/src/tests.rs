@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use alloy_primitives::{Address, U256};
 use alloy_sol_types::SolValue;
 use cosmwasm_std::{
@@ -529,4 +531,41 @@ fn test_decode_callback_message() {
     };
 
     assert_eq!(expected, expected_callback);
+}
+
+#[test]
+fn test_alloy_from_cosmwasm_uint256() {
+    use alloy_primitives::U256 as AlloyU256;
+    use cosmwasm_std::Uint256 as CosmwasmUint256;
+
+    // Create a CosmWasm Uint256
+    let cosmwasm_uint = CosmwasmUint256::from(12345u128);
+
+    // Get the bytes from the CosmWasm Uint256
+    let bytes = cosmwasm_uint.to_be_bytes();
+
+    // Create an Alloy U256 from those same bytes
+    let alloy_uint = AlloyU256::from_be_bytes(bytes);
+
+    // Verify the values match by comparing their string representations
+    assert_eq!(cosmwasm_uint.to_string(), alloy_uint.to_string());
+
+    // Test with a larger value
+    let cosmwasm_uint = CosmwasmUint256::from(u128::MAX);
+    let bytes = cosmwasm_uint.to_be_bytes();
+    let alloy_uint = AlloyU256::from_be_bytes(bytes);
+    assert_eq!(cosmwasm_uint.to_string(), alloy_uint.to_string());
+
+    // Test with a value from string that's larger than u128
+    let large_value = "340282366920938463463374607431768211456"; // > u128::MAX
+    let cosmwasm_uint = CosmwasmUint256::from_str(large_value).unwrap();
+    let bytes = cosmwasm_uint.to_be_bytes();
+    let alloy_uint = AlloyU256::from_be_bytes(bytes);
+    assert_eq!(cosmwasm_uint.to_string(), alloy_uint.to_string());
+
+    // Test the reverse direction (Alloy → CosmWasm)
+    let alloy_uint = AlloyU256::from(9876543210u64);
+    let bytes = alloy_uint.to_be_bytes();
+    let cosmwasm_uint = CosmwasmUint256::from_be_bytes(bytes);
+    assert_eq!(alloy_uint.to_string(), cosmwasm_uint.to_string());
 }

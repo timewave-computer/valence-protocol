@@ -261,24 +261,21 @@ contract UnionTransferTest is Test {
     }
 
     function testUpdateConfigSucceeds() public {
-        bytes memory newRecipient = hex"62626e31616263646566"; // Different recipient
-        bytes memory newQuoteToken = hex"7562626e"; // Different quote token
-
         UnionTransfer.UnionTransferConfig memory validConfig = UnionTransfer.UnionTransferConfig({
-            amount: 2000, // Different amount
+            protocolVersion: 2,
+            transferTokenDecimals: 8,
+            channelId: 456,
+            timeout: 86400, // 1 day
             inputAccount: inputAccount,
-            recipient: newRecipient,
-            protocolVersion: 2, // Different version
             zkGM: mockZkGM,
+            amount: 2000, // Updated amount
+            quoteTokenAmount: 1950, // Updated quote token amount
+            transferTokenUnwrappingPath: 2,
+            recipient: hex"62626e31616263646566", // Different recipient
             transferToken: transferToken,
-            transferTokenName: "NEW_TEST", // Different name
-            transferTokenSymbol: "NTEST", // Different symbol
-            transferTokenDecimals: 8, // Different decimals
-            transferTokenUnwrappingPath: 2, // Different path
-            quoteToken: newQuoteToken,
-            quoteTokenAmount: 1950, // Different quote amount
-            channelId: 456, // Different channel
-            timeout: 86400 // Different timeout
+            quoteToken: hex"7562626e", // Different quote token
+            transferTokenName: "NEW_TEST", // Updated transfer token name
+            transferTokenSymbol: "NTEST" // Updated transfer token symbol
         });
 
         bytes memory configBytes = abi.encode(validConfig);
@@ -287,43 +284,36 @@ contract UnionTransferTest is Test {
 
         // Verify config was updated successfully
         (
-            uint256 newAmount,
-            BaseAccount newInputAccount,
-            bytes memory newRecipientBytes,
             uint8 newProtocolVersion,
-            IUnion newZkGM,
-            ,
-            string memory newTransferTokenName,
-            string memory newTransferTokenSymbol,
-            uint8 newTransferTokenDecimals,
-            uint256 newTransferTokenUnwrappingPath,
-            bytes memory newQuoteTokenBytes,
-            uint256 newQuoteTokenAmount,
+            uint256 transferTokenDecimals,
             uint32 newChannelId,
-            uint64 newTimeout
+            uint64 newTimeout,
+            BaseAccount newInputAccount,
+            IUnion newZkGM,
+            uint256 amount,
+            uint256 quoteTokenAmount,
+            uint256 transferTokenUnwrappingPath,
+            bytes memory newRecipient,
+            bytes memory newTransferToken,
+            bytes memory newQuoteToken,
+            string memory newTransferTokenName,
+            string memory newTransferTokenSymbol
         ) = unionTransfer.config();
 
-        assertEq(newAmount, 2000, "Amount should be updated");
-        assertEq(address(newInputAccount), address(inputAccount), "Account should be unchanged");
-        assertEq(keccak256(newRecipientBytes), keccak256(newRecipient), "Recipient should be updated");
         assertEq(newProtocolVersion, 2, "Protocol version should be updated");
-        assertEq(address(newZkGM), zkGMAddress, "zkGM should be unchanged");
-        assertEq(
-            keccak256(abi.encodePacked(newTransferTokenName)),
-            keccak256(abi.encodePacked("NEW_TEST")),
-            "Transfer token name should be updated"
-        );
-        assertEq(
-            keccak256(abi.encodePacked(newTransferTokenSymbol)),
-            keccak256(abi.encodePacked("NTEST")),
-            "Transfer token symbol should be updated"
-        );
-        assertEq(newTransferTokenDecimals, 8, "Transfer token decimals should be updated");
-        assertEq(newTransferTokenUnwrappingPath, 2, "Transfer token unwrapping path should be updated");
-        assertEq(keccak256(newQuoteTokenBytes), keccak256(newQuoteToken), "Quote token should be updated");
-        assertEq(newQuoteTokenAmount, 1950, "Quote token amount should be updated");
+        assertEq(transferTokenDecimals, 8, "Transfer token decimals should be updated");
         assertEq(newChannelId, 456, "Channel ID should be updated");
         assertEq(newTimeout, 86400, "Timeout should be updated");
+        assertEq(address(newInputAccount), address(inputAccount), "Input account should be the same");
+        assertEq(address(newZkGM), address(mockZkGM), "zkGM should be the same");
+        assertEq(amount, 2000, "Amount should be updated");
+        assertEq(quoteTokenAmount, 1950, "Quote token amount should be updated");
+        assertEq(transferTokenUnwrappingPath, 2, "Transfer token unwrapping path should be updated");
+        assertEq(newRecipient, newRecipient, "Recipient should be updated");
+        assertEq(newTransferToken, transferToken, "Transfer token should be the same");
+        assertEq(newQuoteToken, newQuoteToken, "Quote token should be updated");
+        assertEq(newTransferTokenName, "NEW_TEST", "Transfer token name should be updated");
+        assertEq(newTransferTokenSymbol, "NTEST", "Transfer token symbol should be updated");
     }
 
     function testTransferFailsNoTokenBalance() public {
