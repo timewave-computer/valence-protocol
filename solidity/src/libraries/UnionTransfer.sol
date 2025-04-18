@@ -136,6 +136,24 @@ contract UnionTransfer is Library {
 
     /**
      * @dev Executes the token transfer using the UCS03-ZKGM protocol.
+     *
+     * Steps:
+     * 1. Retrieve the current configuration.
+     * 2. Convert the transfer token to an address.
+     * 3. Check the token balance of the input account to ensure sufficient funds.
+     * 4. Determine the quote amount and transfer amount to use.
+     * 5. Encode the FungibleAssetOrder for the zkGM.
+     * 6. Create the Instruction with the appropriate opcode.
+     * 7. Approve the zkGM to spend tokens from the input account.
+     * 8. Generate a unique salt for the transaction.
+     * 9. Execute the send call to complete the transfer via zkGM.
+     *
+     * Requirements:
+     * - The caller must be the designated processor.
+     * - The input account must hold enough tokens for the transfer.
+     * - If specified amounts are zero, appropriate fallbacks are used.
+     *
+     * @param _quoteAmount The amount of the quote token requested in return on the destination chain. If set to 0, the amount specified in the configuration is used.
      */
     function transfer(uint256 _quoteAmount) external onlyProcessor {
         // Retrieve the current configuration into a local variable.
