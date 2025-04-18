@@ -112,7 +112,7 @@ contract UnionTransferTest is Test {
 
         bytes memory configBytes = abi.encode(invalidConfig);
         vm.prank(owner);
-        vm.expectRevert("Transfer token can't be empty bytes");
+        vm.expectRevert("Transfer token must be a 20 byte EVM address");
         unionTransfer.updateConfig(configBytes);
     }
 
@@ -309,9 +309,9 @@ contract UnionTransferTest is Test {
         assertEq(amount, 2000, "Amount should be updated");
         assertEq(quoteTokenAmount, 1950, "Quote token amount should be updated");
         assertEq(transferTokenUnwrappingPath, 2, "Transfer token unwrapping path should be updated");
-        assertEq(newRecipient, newRecipient, "Recipient should be updated");
+        assertEq(newRecipient, validConfig.recipient, "Recipient should be updated");
         assertEq(newTransferToken, transferToken, "Transfer token should be the same");
-        assertEq(newQuoteToken, newQuoteToken, "Quote token should be updated");
+        assertEq(newQuoteToken, validConfig.quoteToken, "Quote token should be updated");
         assertEq(newTransferTokenName, "NEW_TEST", "Transfer token name should be updated");
         assertEq(newTransferTokenSymbol, "NTEST", "Transfer token symbol should be updated");
     }

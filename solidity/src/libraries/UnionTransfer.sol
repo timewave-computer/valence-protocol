@@ -91,8 +91,8 @@ contract UnionTransfer is Library {
         }
 
         // Ensure the transfer token address is valid.
-        if (decodedConfig.transferToken.length == 0) {
-            revert("Transfer token can't be empty bytes");
+        if (decodedConfig.transferToken.length != 20) {
+            revert("Transfer token must be a 20 byte EVM address");
         }
 
         // Ensure the input account address is valid (non-zero).
