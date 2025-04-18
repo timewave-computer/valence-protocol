@@ -1,4 +1,5 @@
-mod astroport;
-mod routing;
+pub(crate) mod astroport;
+pub(crate) mod routing;
 pub mod strategy;
-mod vault;
+pub mod strategy_config;
+pub(crate) mod vault;

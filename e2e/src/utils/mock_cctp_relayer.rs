@@ -201,7 +201,12 @@ impl MockCctpRelayer {
     }
 
     async fn mint_noble(&self, val: Log<DepositForBurn>) -> Result<(), Box<dyn Error>> {
-        info!("decoded deposit for burn log: {:?}", val);
+        info!(
+            "decoded deposit for burn log:
+            \nmintRecipient: {:?}",
+            val.mintRecipient
+        );
+
         let destination_addr =
             decode_mint_recipient_to_noble_address(&val.mintRecipient.encode_hex())?;
 
@@ -365,9 +370,13 @@ fn decode_mint_recipient_to_noble_address(
 ) -> Result<String, Box<dyn Error>> {
     let (hrp, _) = bech32::decode(NOBLE_CHAIN_ADMIN_ADDR)?;
 
-    let trimmed_hex = mint_recipient_hex.trim_start_matches('0');
+    info!("decoding mint recipient from evm: {mint_recipient_hex}");
 
-    let bytes = Vec::from_hex(trimmed_hex)?;
+    let stripped_hex = mint_recipient_hex
+        .strip_prefix("0x")
+        .unwrap_or(mint_recipient_hex);
+
+    let bytes = Vec::from_hex(stripped_hex)?;
 
     let noble_address = encode::<Bech32>(hrp, &bytes)?;
 

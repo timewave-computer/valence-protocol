@@ -18,7 +18,10 @@ use log::info;
 use neutron::setup_astroport_cl_pool;
 use program::{setup_neutron_accounts, setup_neutron_libraries, upload_neutron_contracts};
 
-use strategist::strategy::{Strategy, StrategyConfig};
+use strategist::{
+    strategy::Strategy,
+    strategy_config::{self, StrategyConfig},
+};
 use utils::wait_until_half_minute;
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
@@ -247,19 +250,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     sleep(Duration::from_secs(3));
 
     let strategy_config = StrategyConfig {
-        noble_cfg: strategist::strategy::noble::NobleStrategyConfig {
+        noble_cfg: strategy_config::noble::NobleStrategyConfig {
             grpc_url: noble_grpc_url,
             grpc_port: noble_grpc_port,
             chain_id: NOBLE_CHAIN_ID.to_string(),
             mnemonic: ADMIN_MNEMONIC.to_string(),
         },
-        neutron_cfg: strategist::strategy::neutron::NeutronStrategyConfig {
+        neutron_cfg: strategy_config::neutron::NeutronStrategyConfig {
             grpc_url: neutron_grpc_url,
             grpc_port: neutron_grpc_port,
             chain_id: NEUTRON_CHAIN_ID.to_string(),
             mnemonic: ADMIN_MNEMONIC.to_string(),
             target_pool: pool_addr.to_string(),
-            denoms: strategist::strategy::neutron::NeutronDenoms {
+            denoms: strategy_config::neutron::NeutronDenoms {
                 lp_token: lp_token.to_string(),
                 usdc: uusdc_on_neutron_denom.to_string(),
                 ntrn: NEUTRON_CHAIN_DENOM.to_string(),
@@ -267,10 +270,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             accounts: neutron_program_accounts,
             libraries: neutron_program_libraries,
         },
-        ethereum_cfg: strategist::strategy::ethereum::EthereumStrategyConfig {
+        ethereum_cfg: strategy_config::ethereum::EthereumStrategyConfig {
             rpc_url: DEFAULT_ANVIL_RPC_ENDPOINT.to_string(),
             mnemonic: "test test test test test test test test test test test junk".to_string(),
-            denoms: strategist::strategy::ethereum::EthereumDenoms {
+            denoms: strategy_config::ethereum::EthereumDenoms {
                 usdc_erc20: usdc_token_address.to_string(),
             },
             accounts: ethereum_program_accounts.clone(),
@@ -281,11 +284,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let temp_path = Path::new("./e2e/examples/eth_vault/strategist/example_strategy.toml");
     strategy_config.to_file(temp_path)?;
 
-    let strategy_cfg = StrategyConfig::from_file(temp_path)?;
-
     let strategy = async_run!(
         tokio::runtime::Runtime::new()?,
-        Strategy::new(strategy_cfg).await
+        Strategy::from_file(temp_path).await
     )?;
 
     info!("User3 depositing {user_3_deposit_amount}USDC tokens to vault...");

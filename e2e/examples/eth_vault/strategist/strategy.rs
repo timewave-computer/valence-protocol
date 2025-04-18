@@ -1,4 +1,4 @@
-use std::{error::Error, str::FromStr};
+use std::{error::Error, path::Path, str::FromStr};
 
 use alloy::{
     primitives::{Address, U256},
@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use cosmwasm_std::Uint128;
 use localic_utils::{NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID};
 use log::{info, warn};
-use serde::{Deserialize, Serialize};
+
 use valence_chain_client_utils::{
     ethereum::EthereumClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
@@ -27,67 +27,63 @@ use crate::{
     utils::{get_current_second, wait_until_next_minute},
 };
 
-pub struct Strategy {
-    pub config: StrategyConfig,
-    pub runtime: StrategyRuntime,
-}
+use super::strategy_config::{ethereum, neutron, noble, StrategyConfig};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StrategyConfig {
-    pub noble_cfg: noble::NobleStrategyConfig,
+pub struct Strategy {
+    pub _noble_cfg: noble::NobleStrategyConfig,
     pub neutron_cfg: neutron::NeutronStrategyConfig,
     pub ethereum_cfg: ethereum::EthereumStrategyConfig,
+
+    pub(crate) eth_client: EthereumClient,
+    pub(crate) noble_client: NobleClient,
+    pub(crate) neutron_client: NeutronClient,
 }
 
-pub struct StrategyRuntime {
-    pub eth_client: EthereumClient,
-    pub noble_client: NobleClient,
-    pub neutron_client: NeutronClient,
-}
-
-impl StrategyRuntime {
-    pub async fn from_config(
-        strategy: &StrategyConfig,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+impl Strategy {
+    pub async fn new(cfg: StrategyConfig) -> Result<Self, Box<dyn Error>> {
         let noble_client = NobleClient::new(
-            &strategy.noble_cfg.grpc_url,
-            &strategy.noble_cfg.grpc_port,
-            &strategy.noble_cfg.mnemonic,
-            &strategy.noble_cfg.chain_id,
+            &cfg.noble_cfg.grpc_url,
+            &cfg.noble_cfg.grpc_port,
+            &cfg.noble_cfg.mnemonic,
+            &cfg.noble_cfg.chain_id,
             NOBLE_CHAIN_DENOM,
         )
         .await
         .expect("failed to create noble client");
 
         let neutron_client = NeutronClient::new(
-            &strategy.neutron_cfg.grpc_url,
-            &strategy.neutron_cfg.grpc_port,
-            &strategy.neutron_cfg.mnemonic,
+            &cfg.neutron_cfg.grpc_url,
+            &cfg.neutron_cfg.grpc_port,
+            &cfg.neutron_cfg.mnemonic,
             NEUTRON_CHAIN_ID,
         )
         .await
         .expect("failed to create neutron client");
 
         let eth_client = EthereumClient {
-            rpc_url: strategy.ethereum_cfg.rpc_url.to_string(),
+            rpc_url: cfg.ethereum_cfg.rpc_url.to_string(),
             signer: MnemonicBuilder::<English>::default()
-                .phrase(strategy.ethereum_cfg.mnemonic.clone())
+                .phrase(cfg.ethereum_cfg.mnemonic.clone())
                 .index(7)? // derive the mnemonic at a different index to avoid nonce issues
                 .build()?,
         };
 
-        Ok(Self {
+        Ok(Strategy {
+            // copy over the parsed domain configs
+            _noble_cfg: cfg.noble_cfg,
+            neutron_cfg: cfg.neutron_cfg,
+            ethereum_cfg: cfg.ethereum_cfg,
+            // store the initialized clients
             eth_client,
             noble_client,
             neutron_client,
         })
     }
-}
 
-impl Strategy {
-    pub async fn new(config: StrategyConfig) -> Result<Self, Box<dyn std::error::Error>> {
-        let runtime = StrategyRuntime::from_config(&config).await?;
-        Ok(Self { config, runtime })
+    // e2e test helper to parse files
+    pub async fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn Error>> {
+        let strategy_cfg = StrategyConfig::from_file(path)?;
+        Self::new(strategy_cfg).await
     }
 }
 
@@ -107,25 +103,19 @@ impl ValenceWorker for Strategy {
             get_current_second()
         );
 
-        let eth_rp = self
-            .runtime
-            .eth_client
-            .get_request_provider()
-            .await
-            .unwrap();
+        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
         let valence_vault = ValenceVault::new(
-            Address::from_str(&self.config.ethereum_cfg.libraries.valence_vault).unwrap(),
+            Address::from_str(&self.ethereum_cfg.libraries.valence_vault).unwrap(),
             &eth_rp,
         );
         let eth_usdc_erc20 = MockERC20::new(
-            Address::from_str(&self.config.ethereum_cfg.denoms.usdc_erc20).unwrap(),
+            Address::from_str(&self.ethereum_cfg.denoms.usdc_erc20).unwrap(),
             &eth_rp,
         );
 
         // 1. calculate the amount of usdc needed to fulfill
         // the active withdraw obligations
         let pending_obligations = self
-            .runtime
             .eth_client
             .query(valence_vault.totalAssetsToWithdrawNextUpdate())
             .await
@@ -133,15 +123,15 @@ impl ValenceWorker for Strategy {
             ._0;
 
         // 2. query ethereum program accounts for their usdc balances
-        let eth_deposit_acc_usdc_bal =
-            self.runtime
-                .eth_client
-                .query(eth_usdc_erc20.balanceOf(
-                    Address::from_str(&self.config.ethereum_cfg.accounts.deposit).unwrap(),
-                ))
-                .await
-                .unwrap()
-                ._0;
+        let eth_deposit_acc_usdc_bal = self
+            .eth_client
+            .query(
+                eth_usdc_erc20
+                    .balanceOf(Address::from_str(&self.ethereum_cfg.accounts.deposit).unwrap()),
+            )
+            .await
+            .unwrap()
+            ._0;
 
         // 3. see if pending obligations can be netted and update the pending
         // obligations accordingly
@@ -167,9 +157,9 @@ impl ValenceWorker for Strategy {
         // missing usdc obligation amount
         let expected_untrn_amount = self
             .reverse_simulate_swap(
-                &self.config.neutron_cfg.target_pool.to_string(),
+                &self.neutron_cfg.target_pool.to_string(),
                 NEUTRON_CHAIN_DENOM,
-                &self.config.neutron_cfg.denoms.usdc,
+                &self.neutron_cfg.denoms.usdc,
                 halved_usdc_obligation_amt,
             )
             .await
@@ -181,8 +171,8 @@ impl ValenceWorker for Strategy {
         // TODO: think if this simulation makes sense here as the order is reversed.
         let shares_to_liquidate = self
             .simulate_provide_liquidity(
-                &self.config.neutron_cfg.target_pool,
-                &self.config.neutron_cfg.denoms.usdc,
+                &self.neutron_cfg.target_pool,
+                &self.neutron_cfg.denoms.usdc,
                 halved_usdc_obligation_amt,
                 NEUTRON_CHAIN_DENOM,
                 expected_untrn_amount,
@@ -217,7 +207,6 @@ impl ValenceWorker for Strategy {
         );
 
         let update_result = self
-            .runtime
             .eth_client
             .execute_tx(
                 valence_vault
@@ -262,113 +251,5 @@ impl ValenceWorker for Strategy {
         );
 
         Ok(())
-    }
-}
-
-impl ValenceWorkerTomlSerde for StrategyConfig {
-    fn from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, Box<dyn Error>> {
-        let contents = std::fs::read_to_string(path)?;
-        let config: Self = toml::from_str(&contents)?;
-        Ok(config)
-    }
-
-    fn to_file<P: AsRef<std::path::Path>>(&self, path: P) -> Result<(), Box<dyn Error>> {
-        let toml_string = toml::to_string(self)?;
-        std::fs::write(path, toml_string)?;
-        Ok(())
-    }
-}
-
-pub mod noble {
-    use serde::{Deserialize, Serialize};
-
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct NobleStrategyConfig {
-        pub grpc_url: String,
-        pub grpc_port: String,
-        pub chain_id: String,
-        pub mnemonic: String,
-    }
-}
-
-pub mod neutron {
-    use serde::{Deserialize, Serialize};
-
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct NeutronStrategyConfig {
-        pub grpc_url: String,
-        pub grpc_port: String,
-        pub chain_id: String,
-        pub mnemonic: String,
-        pub target_pool: String,
-        pub denoms: NeutronDenoms,
-        pub accounts: NeutronAccounts,
-        pub libraries: NeutronLibraries,
-    }
-
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct NeutronDenoms {
-        pub lp_token: String,
-        pub usdc: String,
-        pub ntrn: String,
-    }
-
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct NeutronAccounts {
-        pub deposit: String,
-        pub position: String,
-        pub withdraw: String,
-        pub liquidation: String,
-        pub noble_inbound_ica: IcaAccount,
-        pub noble_outbound_ica: IcaAccount,
-    }
-
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct IcaAccount {
-        pub library_account: String,
-        pub remote_addr: String,
-    }
-
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct NeutronLibraries {
-        pub neutron_ibc_transfer: String,
-        pub noble_inbound_transfer: String,
-        pub noble_cctp_transfer: String,
-        pub astroport_lper: String,
-        pub astroport_lwer: String,
-        pub liquidation_forwarder: String,
-        pub authorizations: String,
-        pub processor: String,
-    }
-}
-
-pub mod ethereum {
-    use serde::{Deserialize, Serialize};
-
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct EthereumStrategyConfig {
-        pub rpc_url: String,
-        pub mnemonic: String,
-        pub denoms: EthereumDenoms,
-        pub accounts: EthereumAccounts,
-        pub libraries: EthereumLibraries,
-    }
-
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct EthereumDenoms {
-        pub usdc_erc20: String,
-    }
-
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct EthereumAccounts {
-        pub deposit: String,
-        pub withdraw: String,
-    }
-
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct EthereumLibraries {
-        pub valence_vault: String,
-        pub cctp_forwarder: String,
-        pub lite_processor: String,
     }
 }
