@@ -23,7 +23,7 @@ contract IBCEurekaTransferTest is Test {
     IEurekaHandler mockEurekaHandler;
 
     string recipient = "cosmos1xyz..."; // Example bech32 address
-    string sourceClient = "cosmoshub-4";
+    string sourceClient = "cosmoshub-0";
     uint64 timeout = 600; // 10 minutes
 
     /**
