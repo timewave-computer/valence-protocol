@@ -250,13 +250,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     sleep(Duration::from_secs(3));
 
     let strategy_config = StrategyConfig {
-        noble_cfg: strategy_config::noble::NobleStrategyConfig {
+        noble: strategy_config::noble::NobleStrategyConfig {
             grpc_url: noble_grpc_url,
             grpc_port: noble_grpc_port,
             chain_id: NOBLE_CHAIN_ID.to_string(),
             mnemonic: ADMIN_MNEMONIC.to_string(),
         },
-        neutron_cfg: strategy_config::neutron::NeutronStrategyConfig {
+        neutron: strategy_config::neutron::NeutronStrategyConfig {
             grpc_url: neutron_grpc_url,
             grpc_port: neutron_grpc_port,
             chain_id: NEUTRON_CHAIN_ID.to_string(),
@@ -270,7 +270,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             accounts: neutron_program_accounts,
             libraries: neutron_program_libraries,
         },
-        ethereum_cfg: strategy_config::ethereum::EthereumStrategyConfig {
+        ethereum: strategy_config::ethereum::EthereumStrategyConfig {
             rpc_url: DEFAULT_ANVIL_RPC_ENDPOINT.to_string(),
             mnemonic: "test test test test test test test test test test test junk".to_string(),
             denoms: strategy_config::ethereum::EthereumDenoms {

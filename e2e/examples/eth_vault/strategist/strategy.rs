@@ -27,12 +27,12 @@ use crate::{
     utils::{get_current_second, wait_until_next_minute},
 };
 
-use super::strategy_config::{ethereum, neutron, noble, StrategyConfig};
+use super::strategy_config::StrategyConfig;
 
+// main strategy struct that wraps around the StrategyConfig
+// and stores the initialized clients
 pub struct Strategy {
-    pub _noble_cfg: noble::NobleStrategyConfig,
-    pub neutron_cfg: neutron::NeutronStrategyConfig,
-    pub ethereum_cfg: ethereum::EthereumStrategyConfig,
+    pub cfg: StrategyConfig,
 
     pub(crate) eth_client: EthereumClient,
     pub(crate) noble_client: NobleClient,
@@ -40,39 +40,37 @@ pub struct Strategy {
 }
 
 impl Strategy {
+    // async constructor which initializes the clients baesd on the StrategyConfig
     pub async fn new(cfg: StrategyConfig) -> Result<Self, Box<dyn Error>> {
         let noble_client = NobleClient::new(
-            &cfg.noble_cfg.grpc_url,
-            &cfg.noble_cfg.grpc_port,
-            &cfg.noble_cfg.mnemonic,
-            &cfg.noble_cfg.chain_id,
+            &cfg.noble.grpc_url,
+            &cfg.noble.grpc_port,
+            &cfg.noble.mnemonic,
+            &cfg.noble.chain_id,
             NOBLE_CHAIN_DENOM,
         )
         .await
         .expect("failed to create noble client");
 
         let neutron_client = NeutronClient::new(
-            &cfg.neutron_cfg.grpc_url,
-            &cfg.neutron_cfg.grpc_port,
-            &cfg.neutron_cfg.mnemonic,
+            &cfg.neutron.grpc_url,
+            &cfg.neutron.grpc_port,
+            &cfg.neutron.mnemonic,
             NEUTRON_CHAIN_ID,
         )
         .await
         .expect("failed to create neutron client");
 
         let eth_client = EthereumClient {
-            rpc_url: cfg.ethereum_cfg.rpc_url.to_string(),
+            rpc_url: cfg.ethereum.rpc_url.to_string(),
             signer: MnemonicBuilder::<English>::default()
-                .phrase(cfg.ethereum_cfg.mnemonic.clone())
+                .phrase(cfg.ethereum.mnemonic.clone())
                 .index(7)? // derive the mnemonic at a different index to avoid nonce issues
                 .build()?,
         };
 
         Ok(Strategy {
-            // copy over the parsed domain configs
-            _noble_cfg: cfg.noble_cfg,
-            neutron_cfg: cfg.neutron_cfg,
-            ethereum_cfg: cfg.ethereum_cfg,
+            cfg,
             // store the initialized clients
             eth_client,
             noble_client,
@@ -80,13 +78,16 @@ impl Strategy {
         })
     }
 
-    // e2e test helper to parse files
+    // e2e test helper to parse the StrategyConfig from a file
     pub async fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn Error>> {
         let strategy_cfg = StrategyConfig::from_file(path)?;
         Self::new(strategy_cfg).await
     }
 }
 
+// implement the ValenceWorker trait for the Strategy struct.
+// This trait defines the main loop of the strategy and inherits
+// the default implementation for spawning the worker.
 #[async_trait]
 impl ValenceWorker for Strategy {
     fn get_name(&self) -> String {
@@ -105,11 +106,11 @@ impl ValenceWorker for Strategy {
 
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
         let valence_vault = ValenceVault::new(
-            Address::from_str(&self.ethereum_cfg.libraries.valence_vault).unwrap(),
+            Address::from_str(&self.cfg.ethereum.libraries.valence_vault).unwrap(),
             &eth_rp,
         );
         let eth_usdc_erc20 = MockERC20::new(
-            Address::from_str(&self.ethereum_cfg.denoms.usdc_erc20).unwrap(),
+            Address::from_str(&self.cfg.ethereum.denoms.usdc_erc20).unwrap(),
             &eth_rp,
         );
 
@@ -127,7 +128,7 @@ impl ValenceWorker for Strategy {
             .eth_client
             .query(
                 eth_usdc_erc20
-                    .balanceOf(Address::from_str(&self.ethereum_cfg.accounts.deposit).unwrap()),
+                    .balanceOf(Address::from_str(&self.cfg.ethereum.accounts.deposit).unwrap()),
             )
             .await
             .unwrap()
@@ -157,9 +158,9 @@ impl ValenceWorker for Strategy {
         // missing usdc obligation amount
         let expected_untrn_amount = self
             .reverse_simulate_swap(
-                &self.neutron_cfg.target_pool.to_string(),
+                &self.cfg.neutron.target_pool.to_string(),
                 NEUTRON_CHAIN_DENOM,
-                &self.neutron_cfg.denoms.usdc,
+                &self.cfg.neutron.denoms.usdc,
                 halved_usdc_obligation_amt,
             )
             .await
@@ -171,8 +172,8 @@ impl ValenceWorker for Strategy {
         // TODO: think if this simulation makes sense here as the order is reversed.
         let shares_to_liquidate = self
             .simulate_provide_liquidity(
-                &self.neutron_cfg.target_pool,
-                &self.neutron_cfg.denoms.usdc,
+                &self.cfg.neutron.target_pool,
+                &self.cfg.neutron.denoms.usdc,
                 halved_usdc_obligation_amt,
                 NEUTRON_CHAIN_DENOM,
                 expected_untrn_amount,

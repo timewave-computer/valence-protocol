@@ -144,8 +144,8 @@ impl AstroportOps for Strategy {
         let liquidation_account_shares_bal = self
             .neutron_client
             .query_balance(
-                &self.neutron_cfg.accounts.liquidation,
-                &self.neutron_cfg.denoms.lp_token,
+                &self.cfg.neutron.accounts.liquidation,
+                &self.cfg.neutron.denoms.lp_token,
             )
             .await
             .unwrap();
@@ -166,7 +166,7 @@ impl AstroportOps for Strategy {
         let rx = self
             .neutron_client
             .execute_wasm(
-                &self.neutron_cfg.libraries.astroport_lwer,
+                &self.cfg.neutron.libraries.astroport_lwer,
                 withdraw_liquidity_msg,
                 vec![],
                 None,
@@ -259,8 +259,8 @@ impl AstroportOps for Strategy {
         let deposit_account_usdc_bal = self
             .neutron_client
             .query_balance(
-                &self.neutron_cfg.accounts.deposit,
-                &self.neutron_cfg.denoms.usdc,
+                &self.cfg.neutron.accounts.deposit,
+                &self.cfg.neutron.denoms.usdc,
             )
             .await
             .unwrap();
@@ -275,7 +275,7 @@ impl AstroportOps for Strategy {
         let provide_liquidity_msg =
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
                 valence_astroport_lper::msg::FunctionMsgs::ProvideSingleSidedLiquidity {
-                    asset: self.neutron_cfg.denoms.usdc.to_string(),
+                    asset: self.cfg.neutron.denoms.usdc.to_string(),
                     limit: None,
                     expected_pool_ratio_range: None,
                 },
@@ -283,7 +283,7 @@ impl AstroportOps for Strategy {
         let rx = self
             .neutron_client
             .execute_wasm(
-                &self.neutron_cfg.libraries.astroport_lper,
+                &self.cfg.neutron.libraries.astroport_lper,
                 provide_liquidity_msg,
                 vec![],
                 None,
@@ -297,7 +297,7 @@ impl AstroportOps for Strategy {
     async fn swap_ntrn_into_usdc(&self) {
         let withdraw_account_ntrn_bal = self
             .neutron_client
-            .query_balance(&self.neutron_cfg.accounts.withdraw, NEUTRON_CHAIN_DENOM)
+            .query_balance(&self.cfg.neutron.accounts.withdraw, NEUTRON_CHAIN_DENOM)
             .await
             .unwrap();
 
@@ -309,7 +309,7 @@ impl AstroportOps for Strategy {
         }
 
         let swap_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: self.neutron_cfg.target_pool.to_string(),
+            contract_addr: self.cfg.neutron.target_pool.to_string(),
             msg: to_json_binary(&AstroportExecuteMsg::Swap {
                 offer_asset: Asset {
                     info: AssetInfo::NativeToken {
@@ -333,7 +333,7 @@ impl AstroportOps for Strategy {
         let rx = self
             .neutron_client
             .execute_wasm(
-                &self.neutron_cfg.accounts.withdraw,
+                &self.cfg.neutron.accounts.withdraw,
                 base_account_execute_msgs,
                 vec![],
                 None,

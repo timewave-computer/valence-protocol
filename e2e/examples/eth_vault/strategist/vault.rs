@@ -33,7 +33,7 @@ impl EthereumVault for Strategy {
         //   3. F_total = F_vault + F_position
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
         let valence_vault = ValenceVault::new(
-            Address::from_str(&self.ethereum_cfg.libraries.valence_vault)?,
+            Address::from_str(&self.cfg.ethereum.libraries.valence_vault)?,
             &eth_rp,
         );
 
@@ -68,11 +68,11 @@ impl EthereumVault for Strategy {
     async fn calculate_redemption_rate(&self) -> Result<Decimal, Box<dyn Error>> {
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
         let valence_vault = ValenceVault::new(
-            Address::from_str(&self.ethereum_cfg.libraries.valence_vault)?,
+            Address::from_str(&self.cfg.ethereum.libraries.valence_vault)?,
             &eth_rp,
         );
         let eth_usdc_erc20 = MockERC20::new(
-            Address::from_str(&self.ethereum_cfg.denoms.usdc_erc20)?,
+            Address::from_str(&self.cfg.ethereum.denoms.usdc_erc20)?,
             &eth_rp,
         );
 
@@ -95,16 +95,16 @@ impl EthereumVault for Strategy {
         let neutron_position_acc_shares = self
             .neutron_client
             .query_balance(
-                &self.neutron_cfg.accounts.position,
-                &self.neutron_cfg.denoms.lp_token,
+                &self.cfg.neutron.accounts.position,
+                &self.cfg.neutron.denoms.lp_token,
             )
             .await
             .unwrap();
         let (usdc_amount, ntrn_amount) = self
             .simulate_liquidation(
-                &self.neutron_cfg.target_pool,
+                &self.cfg.neutron.target_pool,
                 neutron_position_acc_shares,
-                &self.neutron_cfg.denoms.usdc,
+                &self.cfg.neutron.denoms.usdc,
                 NEUTRON_CHAIN_DENOM,
             )
             .await
@@ -112,10 +112,10 @@ impl EthereumVault for Strategy {
 
         let swap_simulation_output = self
             .simulate_swap(
-                &self.neutron_cfg.target_pool,
+                &self.cfg.neutron.target_pool,
                 NEUTRON_CHAIN_DENOM,
                 ntrn_amount,
-                &self.neutron_cfg.denoms.usdc,
+                &self.cfg.neutron.denoms.usdc,
             )
             .await
             .unwrap();
@@ -125,7 +125,7 @@ impl EthereumVault for Strategy {
         let eth_deposit_usdc = self
             .eth_client
             .query(
-                eth_usdc_erc20.balanceOf(Address::from_str(&self.ethereum_cfg.accounts.deposit)?),
+                eth_usdc_erc20.balanceOf(Address::from_str(&self.cfg.ethereum.accounts.deposit)?),
             )
             .await
             .unwrap()
@@ -134,7 +134,7 @@ impl EthereumVault for Strategy {
         let noble_inbound_ica_usdc = self
             .noble_client
             .query_balance(
-                &self.neutron_cfg.accounts.noble_inbound_ica.remote_addr,
+                &self.cfg.neutron.accounts.noble_inbound_ica.remote_addr,
                 UUSDC_DENOM,
             )
             .await
@@ -142,8 +142,8 @@ impl EthereumVault for Strategy {
         let neutron_deposit_acc_usdc = self
             .neutron_client
             .query_balance(
-                &self.neutron_cfg.accounts.deposit,
-                &self.neutron_cfg.denoms.usdc,
+                &self.cfg.neutron.accounts.deposit,
+                &self.cfg.neutron.denoms.usdc,
             )
             .await
             .unwrap();

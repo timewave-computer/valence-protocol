@@ -7,9 +7,9 @@ use valence_e2e::utils::worker::ValenceWorkerTomlSerde;
 // begin with the execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StrategyConfig {
-    pub noble_cfg: noble::NobleStrategyConfig,
-    pub neutron_cfg: neutron::NeutronStrategyConfig,
-    pub ethereum_cfg: ethereum::EthereumStrategyConfig,
+    pub noble: noble::NobleStrategyConfig,
+    pub neutron: neutron::NeutronStrategyConfig,
+    pub ethereum: ethereum::EthereumStrategyConfig,
 }
 
 // default impl serde trait to enable toml config file parsing
