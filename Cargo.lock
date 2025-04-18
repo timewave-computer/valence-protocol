@@ -8794,6 +8794,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-lending-utils"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+]
+
+[[package]]
 name = "valence-library-base"
 version = "0.2.0"
 dependencies = [
@@ -8850,6 +8858,24 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.98",
+]
+
+[[package]]
+name = "valence-mars-lending"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "schemars",
+ "serde",
+ "thiserror 1.0.69",
+ "valence-account-utils",
+ "valence-lending-utils",
+ "valence-library-base",
+ "valence-library-utils",
+ "valence-macros",
 ]
 
 [[package]]
@@ -9136,6 +9162,7 @@ dependencies = [
  "valence-library-base",
  "valence-library-utils",
  "valence-macros",
+ "valence-mars-lending",
  "valence-neutron-ibc-transfer-library",
  "valence-osmosis-cl-lper",
  "valence-osmosis-cl-withdrawer",
