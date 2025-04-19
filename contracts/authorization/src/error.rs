@@ -41,6 +41,9 @@ pub enum ContractError {
 
     #[error("Bridge creation not required")]
     BridgeCreationNotRequired {},
+
+    #[error("The authorization bound verifying key is not valid for the provided proof")]
+    ZKProofVerificationError,
 }
 
 #[derive(Error, Debug, PartialEq)]
