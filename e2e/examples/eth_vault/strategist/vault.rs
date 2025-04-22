@@ -31,13 +31,13 @@ impl EthereumVault for Strategy {
         //   1. query Vault fee from the Eth vault
         //   2. query the dex position for their fee
         //   3. F_total = F_vault + F_position
-        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
+        let eth_rp = self.eth_client.get_request_provider().await?;
         let valence_vault = ValenceVault::new(
             Address::from_str(&self.cfg.ethereum.libraries.valence_vault)?,
             &eth_rp,
         );
 
-        let vault_cfg = self.eth_client.query(valence_vault.config()).await.unwrap();
+        let vault_cfg = self.eth_client.query(valence_vault.config()).await?;
 
         let fees = vault_cfg.fees;
 
@@ -66,7 +66,7 @@ impl EthereumVault for Strategy {
     }
 
     async fn calculate_redemption_rate(&self) -> Result<Decimal, Box<dyn Error>> {
-        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
+        let eth_rp = self.eth_client.get_request_provider().await?;
         let valence_vault = ValenceVault::new(
             Address::from_str(&self.cfg.ethereum.libraries.valence_vault)?,
             &eth_rp,
@@ -77,17 +77,11 @@ impl EthereumVault for Strategy {
         );
 
         // 1. query total shares issued from the vault
-        let vault_issued_shares = self
-            .eth_client
-            .query(valence_vault.totalSupply())
-            .await
-            .unwrap()
-            ._0;
+        let vault_issued_shares = self.eth_client.query(valence_vault.totalSupply()).await?._0;
         let vault_current_rate = self
             .eth_client
             .query(valence_vault.redemptionRate())
-            .await
-            .unwrap()
+            .await?
             ._0;
         info!("current vault redemption rate: {:?}", vault_current_rate);
 
@@ -98,8 +92,7 @@ impl EthereumVault for Strategy {
                 &self.cfg.neutron.accounts.position,
                 &self.cfg.neutron.denoms.lp_token,
             )
-            .await
-            .unwrap();
+            .await?;
         let (usdc_amount, ntrn_amount) = self
             .simulate_liquidation(
                 &self.cfg.neutron.target_pool,
@@ -107,8 +100,7 @@ impl EthereumVault for Strategy {
                 &self.cfg.neutron.denoms.usdc,
                 NEUTRON_CHAIN_DENOM,
             )
-            .await
-            .unwrap();
+            .await?;
 
         let swap_simulation_output = self
             .simulate_swap(
@@ -117,8 +109,7 @@ impl EthereumVault for Strategy {
                 ntrn_amount,
                 &self.cfg.neutron.denoms.usdc,
             )
-            .await
-            .unwrap();
+            .await?;
 
         // 3. query pending deposits (eth deposit acc + noble inbound ica + neutron deposit acc)
 
@@ -127,8 +118,7 @@ impl EthereumVault for Strategy {
             .query(
                 eth_usdc_erc20.balanceOf(Address::from_str(&self.cfg.ethereum.accounts.deposit)?),
             )
-            .await
-            .unwrap()
+            .await?
             ._0;
 
         let noble_inbound_ica_usdc = self
@@ -137,26 +127,24 @@ impl EthereumVault for Strategy {
                 &self.cfg.neutron.accounts.noble_inbound_ica.remote_addr,
                 UUSDC_DENOM,
             )
-            .await
-            .unwrap();
+            .await?;
         let neutron_deposit_acc_usdc = self
             .neutron_client
             .query_balance(
                 &self.cfg.neutron.accounts.deposit,
                 &self.cfg.neutron.denoms.usdc,
             )
-            .await
-            .unwrap();
+            .await?;
 
         //   4. R = total_shares / total_assets
-        let normalized_eth_balance = Uint128::from_str(&eth_deposit_usdc.to_string()).unwrap();
+        let normalized_eth_balance = Uint128::from_str(&eth_deposit_usdc.to_string())?;
 
         let total_assets = noble_inbound_ica_usdc
             + neutron_deposit_acc_usdc
             + normalized_eth_balance.u128()
             + usdc_amount.u128()
             + swap_simulation_output.u128();
-        let normalized_shares = Uint128::from_str(&vault_issued_shares.to_string()).unwrap();
+        let normalized_shares = Uint128::from_str(&vault_issued_shares.to_string())?;
 
         info!("total assets: {total_assets}USDC");
         info!("total shares: {}SHARES", normalized_shares.u128());

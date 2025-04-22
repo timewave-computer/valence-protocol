@@ -49,8 +49,7 @@ impl Strategy {
             &cfg.noble.chain_id,
             NOBLE_CHAIN_DENOM,
         )
-        .await
-        .expect("failed to create noble client");
+        .await?;
 
         let neutron_client = NeutronClient::new(
             &cfg.neutron.grpc_url,
@@ -58,8 +57,7 @@ impl Strategy {
             &cfg.neutron.mnemonic,
             NEUTRON_CHAIN_ID,
         )
-        .await
-        .expect("failed to create neutron client");
+        .await?;
 
         let eth_client = EthereumClient {
             rpc_url: cfg.ethereum.rpc_url.to_string(),
@@ -78,7 +76,8 @@ impl Strategy {
         })
     }
 
-    // e2e test helper to parse the StrategyConfig from a file
+    // initialization helper that parses StrategyConfig from a file and calls the
+    // default constructor (`Strategy::new`)
     pub async fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn Error>> {
         let strategy_cfg = StrategyConfig::from_file(path)?;
         Self::new(strategy_cfg).await
@@ -104,13 +103,13 @@ impl ValenceWorker for Strategy {
             get_current_second()
         );
 
-        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
+        let eth_rp = self.eth_client.get_request_provider().await?;
         let valence_vault = ValenceVault::new(
-            Address::from_str(&self.cfg.ethereum.libraries.valence_vault).unwrap(),
+            Address::from_str(&self.cfg.ethereum.libraries.valence_vault)?,
             &eth_rp,
         );
         let eth_usdc_erc20 = MockERC20::new(
-            Address::from_str(&self.cfg.ethereum.denoms.usdc_erc20).unwrap(),
+            Address::from_str(&self.cfg.ethereum.denoms.usdc_erc20)?,
             &eth_rp,
         );
 
@@ -119,19 +118,16 @@ impl ValenceWorker for Strategy {
         let pending_obligations = self
             .eth_client
             .query(valence_vault.totalAssetsToWithdrawNextUpdate())
-            .await
-            .unwrap()
+            .await?
             ._0;
 
         // 2. query ethereum program accounts for their usdc balances
         let eth_deposit_acc_usdc_bal = self
             .eth_client
             .query(
-                eth_usdc_erc20
-                    .balanceOf(Address::from_str(&self.cfg.ethereum.accounts.deposit).unwrap()),
+                eth_usdc_erc20.balanceOf(Address::from_str(&self.cfg.ethereum.accounts.deposit)?),
             )
-            .await
-            .unwrap()
+            .await?
             ._0;
 
         // 3. see if pending obligations can be netted and update the pending
@@ -139,7 +135,9 @@ impl ValenceWorker for Strategy {
         let netting_amount = pending_obligations.min(eth_deposit_acc_usdc_bal);
         info!("netting amount: {netting_amount}");
 
-        let pending_obligations = pending_obligations.checked_sub(netting_amount).unwrap();
+        let pending_obligations = pending_obligations
+            .checked_sub(netting_amount)
+            .unwrap_or_default();
         info!("updated pending obligations: {pending_obligations}");
 
         // 4. lp shares to be liquidated will yield untrn+uusdc. to figure out
@@ -147,8 +145,7 @@ impl ValenceWorker for Strategy {
         // usdc amount
         let missing_usdc_amount: u128 = pending_obligations
             .try_into()
-            .map_err(|_| "Pending obligations U256 Value too large for u128")
-            .unwrap();
+            .map_err(|_| "Pending obligations U256 Value too large for u128")?;
         info!("total to withdraw: {missing_usdc_amount}USDC");
 
         let halved_usdc_obligation_amt = Uint128::new(missing_usdc_amount / 2);
@@ -186,10 +183,16 @@ impl ValenceWorker for Strategy {
             .await;
 
         // 8. liquidate the forwarded shares to get USDC+NTRN
-        self.exit_position().await;
+        match self.exit_position().await {
+            Ok(_) => info!("success exiting position"),
+            Err(e) => warn!("error exiting position: {:?}", e),
+        };
 
         // 9. swap NTRN into USDC to obtain the full obligation amount
-        self.swap_ntrn_into_usdc().await;
+        match self.swap_ntrn_into_usdc().await {
+            Ok(_) => info!("success swapping ntrn into usdc"),
+            Err(e) => warn!("error swapping ntrn into usdc: {:?}", e),
+        };
 
         // 10. update the vault to conclude the previous epoch. we already derived
         // the netting amount in step #3, so we need to find the redemption rate and
@@ -214,15 +217,10 @@ impl ValenceWorker for Strategy {
                     .update(r, clamped_withdraw_fee, netting_amount)
                     .into_transaction_request(),
             )
-            .await;
-
-        if let Err(e) = &update_result {
-            info!("Update failed: {:?}", e);
-            panic!("failed to update vault");
-        }
+            .await?;
 
         if eth_rp
-            .get_transaction_receipt(update_result.unwrap().transaction_hash)
+            .get_transaction_receipt(update_result.transaction_hash)
             .await
             .map_err(|e| warn!("Error: {:?}", e))
             .unwrap()
@@ -238,7 +236,10 @@ impl ValenceWorker for Strategy {
         self.route_noble_to_neutron().await;
 
         // 12. enter the position with funds available in neutron deposit acc
-        self.enter_position().await;
+        match self.enter_position().await {
+            Ok(_) => info!("success entering position"),
+            Err(e) => warn!("error entering position: {:?}", e),
+        };
 
         // 13. pull the funds due for withdrawal from position to origin domain
         //   1. ibc transfer neutron withdraw acc -> noble outbound ica
