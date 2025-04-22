@@ -58,7 +58,8 @@ mod functions {
     };
     use alloy_sol_types::SolValue;
     use cosmwasm_std::{
-        to_json_binary, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult, Uint64, WasmMsg,
+        coin, to_json_binary, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult, Uint64,
+        WasmMsg,
     };
     use cw20::Cw20ExecuteMsg;
     use sha2::{Digest, Sha256};
@@ -101,6 +102,8 @@ mod functions {
 
                 // Messages to be used for the transfer
                 let mut msgs = vec![];
+                // Funds to be attached to the transfer
+                let mut funds = vec![];
 
                 // If the token we are sending is Cw20, we first need to approve the token minter to spend the tokens
                 // This is how the union transfer works for Cw20 tokens
@@ -118,6 +121,12 @@ mod functions {
                     });
 
                     msgs.push(cosmos_msg);
+                } else {
+                    // If the token is not Cw20, we need to send the funds directly
+                    // We need to convert the amount to u128
+                    let amount = amount.u128();
+                    let denom = cfg.denom.to_string();
+                    funds.push(coin(amount, denom));
                 }
 
                 // If we are passing the quote_amount in the message, we will use that one, otherwise the one in the config
@@ -202,7 +211,7 @@ mod functions {
                             .to_string(),
                         instruction: bytes_instruction.to_string(),
                     })?,
-                    funds: vec![],
+                    funds,
                 });
                 msgs.push(send_msg);
 

@@ -43,9 +43,11 @@ sol! {
 
 #[cfg(test)]
 mod tests {
-    use alloy_primitives::{hex::FromHex, Bytes};
-    use alloy_sol_types::SolType;
-    use cosmwasm_std::to_json_string;
+    use alloy_primitives::{hex::FromHex, Bytes, U256};
+    use alloy_sol_types::SolValue;
+    use cosmwasm_std::{to_json_string, Addr, Uint128, Uint256};
+
+    use crate::msg::{CheckedUnionDenomConfig, Config, TransferAmount};
 
     use super::*;
 
@@ -128,5 +130,61 @@ mod tests {
         println!("  Quote token: {}", fungible_asset_order.quoteToken);
         println!("  Quote amount: {}", fungible_asset_order.quoteAmount);
         println!("  Base token path: {}", fungible_asset_order.baseTokenPath);
+    }
+
+    #[test]
+    fn correct_instruction_from_config() {
+        // Create an example Config object and verify that all fields are transformed correctly
+        let cfg = Config::new(
+            Addr::unchecked(
+                "bbn1rvp882qs76sawd6ejydst28272t4au3n3hl79cwt8xsc7t3kp8rs26uc7z".to_string(),
+            ),
+            "0xe7c952d457121ba8f02df1b1d85b26de80a6f1ac".to_string(),
+            CheckedUnionDenomConfig::Native("ubbn".to_string()),
+            TransferAmount::FixedAmount(Uint128::from(100000000u128)),
+            "ubbn".to_string(),
+            "ubbn".to_string(),
+            6,
+            Uint256::zero(),
+            "0xe53dcec07d16d88e386ae0710e86d9a400f83c31".to_string(),
+            Uint256::from(100000000u128),
+            3,
+            None,
+            Addr::unchecked(
+                "bbn1336jj8ertl8h7rdvnz4dh5rqahd09cy0x43guhsxx6xyrztx292q77945h".to_string(),
+            ),
+            None,
+            None,
+        );
+
+        let fungible_asset_order = FungibleAssetOrder {
+            sender: Bytes::from(cfg.input_addr.to_string().into_bytes()),
+            receiver: Bytes::from_hex(&cfg.output_addr).unwrap(),
+            baseToken: Bytes::from(cfg.denom.to_string().into_bytes()),
+            baseAmount: U256::from(100000000u128),
+            baseTokenSymbol: cfg.input_asset_symbol,
+            baseTokenName: cfg.input_asset_name,
+            baseTokenDecimals: cfg.input_asset_decimals,
+            baseTokenPath: U256::from_be_bytes(cfg.input_asset_token_path.to_be_bytes()),
+            quoteToken: Bytes::from_hex(cfg.quote_token).unwrap(),
+            quoteAmount: U256::from(100000000u128),
+        };
+
+        // Verify the fields
+        assert_eq!(fungible_asset_order.sender.to_string(), "0x62626e31727670383832717337367361776436656a79647374323832373274346175336e33686c3739637774387873633774336b7038727332367563377a".to_string());
+        assert_eq!(
+            fungible_asset_order.receiver.to_string(),
+            "0xe7c952d457121ba8f02df1b1d85b26de80a6f1ac".to_string()
+        );
+        assert_eq!(
+            fungible_asset_order.baseToken.to_string(),
+            "0x7562626e".to_string() // "ubbn"
+        );
+
+        assert_eq!(fungible_asset_order.baseTokenPath, U256::from(0));
+        assert_eq!(
+            fungible_asset_order.quoteToken.to_string(),
+            "0xe53dcec07d16d88e386ae0710e86d9a400f83c31".to_string()
+        );
     }
 }
