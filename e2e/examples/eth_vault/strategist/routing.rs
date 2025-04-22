@@ -187,7 +187,7 @@ impl EthereumVaultRouting for Strategy {
                 &self.cfg.neutron.accounts.noble_outbound_ica.remote_addr,
                 UUSDC_DENOM,
                 noble_outbound_ica_usdc_bal + withdraw_account_usdc_bal,
-                1,
+                3,
                 10,
             )
             .await
@@ -345,7 +345,7 @@ impl EthereumVaultRouting for Strategy {
             .blocking_query(
                 erc20.balanceOf(Address::from_str(&self.cfg.ethereum.accounts.withdraw).unwrap()),
                 |resp| resp._0 >= pre_cctp_ethereum_withdraw_acc_usdc_bal + U256::from(1),
-                1,
+                3,
                 10,
             )
             .await
@@ -445,7 +445,7 @@ impl EthereumVaultRouting for Strategy {
                 &self.cfg.neutron.accounts.deposit,
                 &self.cfg.neutron.denoms.usdc,
                 neutron_deposit_acc_pre_transfer_bal + noble_inbound_ica_balance,
-                2,
+                3,
                 10,
             )
             .await
