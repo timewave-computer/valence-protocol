@@ -128,14 +128,7 @@ mod functions {
                     eureka_memo,
                     cfg.remote_chain_info().ibc_transfer_timeout.map(Into::into),
                     BTreeMap::default(),
-                )
-                .map_err(|err| {
-                    if let StdError::GenericErr { msg, .. } = err {
-                        LibraryError::ExecutionError(msg)
-                    } else {
-                        LibraryError::ExecutionError(err.to_string())
-                    }
-                })?;
+                )?;
 
                 let input_account_msgs =
                     execute_on_behalf_of(vec![ibc_send_msg], cfg.input_addr())?;
