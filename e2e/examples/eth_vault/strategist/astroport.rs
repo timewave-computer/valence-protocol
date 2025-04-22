@@ -10,14 +10,14 @@ use valence_astroport_utils::astroport_native_lp_token::{
 };
 use valence_chain_client_utils::cosmos::{base_client::BaseClient, wasm_client::WasmClient};
 
-use super::client::Strategist;
+use super::strategy::Strategy;
 
 #[async_trait]
 pub trait AstroportOps {
-    async fn swap_ntrn_into_usdc(&self);
+    async fn swap_ntrn_into_usdc(&self) -> Result<(), Box<dyn Error>>;
 
-    async fn exit_position(&self);
-    async fn enter_position(&self);
+    async fn exit_position(&self) -> Result<(), Box<dyn Error>>;
+    async fn enter_position(&self) -> Result<(), Box<dyn Error>>;
 
     async fn simulate_swap(
         &self,
@@ -54,7 +54,7 @@ pub trait AstroportOps {
 }
 
 #[async_trait]
-impl AstroportOps for Strategist {
+impl AstroportOps for Strategy {
     async fn reverse_simulate_swap(
         &self,
         pool_addr: &str,
@@ -83,8 +83,7 @@ impl AstroportOps for Strategist {
                     },
                 },
             )
-            .await
-            .unwrap();
+            .await?;
 
         info!(
             "reverse swap simulation of {ask_amount}{ask_denom} -> {ask_denom} response: {:?}",
@@ -129,8 +128,7 @@ impl AstroportOps for Strategist {
                     slippage_tolerance: None,
                 },
             )
-            .await
-            .unwrap();
+            .await?;
 
         info!(
             "providing {a1}{d1} + {a2}{d2} liquidity would yield -> {simulate_provide_response} LP tokens",
@@ -140,19 +138,18 @@ impl AstroportOps for Strategist {
     }
 
     /// exits the position on astroport
-    async fn exit_position(&self) {
+    async fn exit_position(&self) -> Result<(), Box<dyn Error>> {
         let liquidation_account_shares_bal = self
             .neutron_client
             .query_balance(
-                &self.strategy.neutron.accounts.liquidation,
-                &self.strategy.neutron.denoms.lp_token,
+                &self.cfg.neutron.accounts.liquidation,
+                &self.cfg.neutron.denoms.lp_token,
             )
-            .await
-            .unwrap();
+            .await?;
 
         if liquidation_account_shares_bal == 0 {
             warn!("Liquidation account must have LP shares in order to exit LP; returning");
-            return;
+            return Ok(());
         } else {
             info!("exiting LP position for {liquidation_account_shares_bal}shares...");
         }
@@ -166,14 +163,15 @@ impl AstroportOps for Strategist {
         let rx = self
             .neutron_client
             .execute_wasm(
-                &self.strategy.neutron.libraries.astroport_lwer,
+                &self.cfg.neutron.libraries.astroport_lwer,
                 withdraw_liquidity_msg,
                 vec![],
                 None,
             )
-            .await
-            .unwrap();
-        self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+            .await?;
+        self.neutron_client.poll_for_tx(&rx.hash).await?;
+
+        Ok(())
     }
 
     async fn simulate_swap(
@@ -235,8 +233,7 @@ impl AstroportOps for Strategist {
                     amount: Uint128::from(shares_amount),
                 },
             )
-            .await
-            .unwrap();
+            .await?;
 
         let output_coins: Vec<cosmwasm_std::Coin> = share_liquidation_response
             .iter()
@@ -255,19 +252,18 @@ impl AstroportOps for Strategist {
     }
 
     /// enters the position on astroport
-    async fn enter_position(&self) {
+    async fn enter_position(&self) -> Result<(), Box<dyn Error>> {
         let deposit_account_usdc_bal = self
             .neutron_client
             .query_balance(
-                &self.strategy.neutron.accounts.deposit,
-                &self.strategy.neutron.denoms.usdc,
+                &self.cfg.neutron.accounts.deposit,
+                &self.cfg.neutron.denoms.usdc,
             )
-            .await
-            .unwrap();
+            .await?;
 
         if deposit_account_usdc_bal == 0 {
             warn!("Deposit account must have USDC in order to LP; returning");
-            return;
+            return Ok(());
         } else {
             info!("entering LP position...");
         }
@@ -275,7 +271,7 @@ impl AstroportOps for Strategist {
         let provide_liquidity_msg =
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
                 valence_astroport_lper::msg::FunctionMsgs::ProvideSingleSidedLiquidity {
-                    asset: self.strategy.neutron.denoms.usdc.to_string(),
+                    asset: self.cfg.neutron.denoms.usdc.to_string(),
                     limit: None,
                     expected_pool_ratio_range: None,
                 },
@@ -283,49 +279,47 @@ impl AstroportOps for Strategist {
         let rx = self
             .neutron_client
             .execute_wasm(
-                &self.strategy.neutron.libraries.astroport_lper,
+                &self.cfg.neutron.libraries.astroport_lper,
                 provide_liquidity_msg,
                 vec![],
                 None,
             )
-            .await
-            .unwrap();
-        self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+            .await?;
+        self.neutron_client.poll_for_tx(&rx.hash).await?;
+
+        Ok(())
     }
 
     /// swaps counterparty denom into usdc
-    async fn swap_ntrn_into_usdc(&self) {
+    async fn swap_ntrn_into_usdc(&self) -> Result<(), Box<dyn Error>> {
         let withdraw_account_ntrn_bal = self
             .neutron_client
-            .query_balance(
-                &self.strategy.neutron.accounts.withdraw,
-                NEUTRON_CHAIN_DENOM,
-            )
-            .await
-            .unwrap();
+            .query_balance(&self.cfg.neutron.accounts.withdraw, NEUTRON_CHAIN_DENOM)
+            .await?;
 
         if withdraw_account_ntrn_bal == 0 {
             warn!("Withdraw account must have NTRN in order to swap into USDC; returning");
-            return;
+            return Ok(());
         } else {
             info!("swapping {withdraw_account_ntrn_bal}NTRN into USDC...");
         }
 
-        let swap_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: self.strategy.neutron.target_pool.to_string(),
-            msg: to_json_binary(&AstroportExecuteMsg::Swap {
-                offer_asset: Asset {
-                    info: AssetInfo::NativeToken {
-                        denom: NEUTRON_CHAIN_DENOM.to_string(),
-                    },
-                    amount: withdraw_account_ntrn_bal.into(),
+        let astroport_swap_msg = AstroportExecuteMsg::Swap {
+            offer_asset: Asset {
+                info: AssetInfo::NativeToken {
+                    denom: NEUTRON_CHAIN_DENOM.to_string(),
                 },
-                max_spread: None,
-                belief_price: None,
-                to: None,
-                ask_asset_info: None,
-            })
-            .unwrap(),
+                amount: withdraw_account_ntrn_bal.into(),
+            },
+            max_spread: None,
+            belief_price: None,
+            to: None,
+            ask_asset_info: None,
+        };
+
+        let swap_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: self.cfg.neutron.target_pool.to_string(),
+            msg: to_json_binary(&astroport_swap_msg)?,
             funds: vec![coin(withdraw_account_ntrn_bal, NEUTRON_CHAIN_DENOM)],
         });
 
@@ -336,14 +330,15 @@ impl AstroportOps for Strategist {
         let rx = self
             .neutron_client
             .execute_wasm(
-                &self.strategy.neutron.accounts.withdraw,
+                &self.cfg.neutron.accounts.withdraw,
                 base_account_execute_msgs,
                 vec![],
                 None,
             )
-            .await
-            .unwrap();
+            .await?;
 
-        self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+        self.neutron_client.poll_for_tx(&rx.hash).await?;
+
+        Ok(())
     }
 }
