@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, CustomQuery, Deps, DepsMut, QuerierWrapper, Uint128, Uint256, Uint64};
+use cosmwasm_std::{Addr, CustomQuery, Deps, DepsMut, QuerierWrapper, Uint128, Uint256};
 use cw_ownable::cw_ownable_query;
 use valence_library_utils::{
     error::LibraryError, msg::LibraryConfigValidation, LibraryAccountType,
@@ -35,10 +35,14 @@ pub struct LibraryConfig {
     pub quote_token: String,
     pub quote_amount: Uint256,
     // Information about the remote chain.
-    pub channel_id: String,
-    pub transfer_timeout: Option<Uint64>, // If not provided, a default 3 days will be used (259200 seconds).
+    pub channel_id: u64,
+    pub transfer_timeout: Option<u64>, // If not provided, a default 3 days will be used (259200 seconds).
     // Information about the protocol
-    pub protocol_version: u8,
+    pub zkgm_contract: String, // The address of the ZKGM contract that we will interact with
+    // They are using a batch operation with a transfer (FungibleAssetOrder) operation inside, so we need the version for both instructions.
+    // If not provided, we will use the versions currently used by the protocol, but this is meant to be used for future upgrades.
+    pub batch_instruction_version: Option<u8>, // The version of the batch instruction to be used. If not provided, the current default version will be used.
+    pub transfer_instruction_version: Option<u8>, // The version of the transfer instruction to be used. If not provided, the current default version will be used.
 }
 
 #[cw_serde]
@@ -82,14 +86,16 @@ pub enum CheckedUnionDenomConfig {
     Cw20(CheckedUnionCw20Config),
 }
 
-impl CheckedUnionDenomConfig {
-    pub fn to_string(&self) -> String {
+impl std::fmt::Display for CheckedUnionDenomConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Native(denom) => denom.clone(),
-            Self::Cw20(config) => config.token.to_string(),
+            Self::Native(denom) => write!(f, "{}", denom),
+            Self::Cw20(config) => write!(f, "{}", config.token),
         }
     }
+}
 
+impl CheckedUnionDenomConfig {
     pub fn query_balance<C: CustomQuery>(
         &self,
         querier: &QuerierWrapper<C>,
@@ -123,6 +129,7 @@ pub enum TransferAmount {
 }
 
 impl LibraryConfig {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         input_addr: LibraryAccountType,
         output_addr: LibraryAccountType,
@@ -134,9 +141,11 @@ impl LibraryConfig {
         input_asset_token_path: Uint256,
         quote_token: String,
         quote_amount: Uint256,
-        channel_id: String,
-        transfer_timeout: Option<Uint64>,
-        protocol_version: u8,
+        channel_id: u64,
+        transfer_timeout: Option<u64>,
+        zkgm_contract: String,
+        batch_instruction_version: Option<u8>,
+        transfer_instruction_version: Option<u8>,
     ) -> Self {
         Self {
             input_addr,
@@ -151,12 +160,15 @@ impl LibraryConfig {
             quote_amount,
             channel_id,
             transfer_timeout,
-            protocol_version,
+            zkgm_contract,
+            batch_instruction_version,
+            transfer_instruction_version,
         }
     }
 
-    fn do_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<Addr, LibraryError> {
+    fn do_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<(Addr, Addr), LibraryError> {
         let input_addr = self.input_addr.to_addr(api)?;
+        let zkgm_addr = api.addr_validate(&self.zkgm_contract)?;
 
         match self.amount {
             TransferAmount::FullAmount => {}
@@ -169,21 +181,15 @@ impl LibraryConfig {
             }
         }
 
-        if self.channel_id.is_empty() {
-            return Err(LibraryError::ConfigurationError(
-                "Invalid Union transfer config: channel_id cannot be empty.".to_string(),
-            ));
-        }
-
         if let Some(timeout) = self.transfer_timeout {
-            if timeout.is_zero() {
+            if timeout == 0 {
                 return Err(LibraryError::ConfigurationError(
                     "Invalid Union transfer config: transfer_timeout cannot be zero.".to_string(),
                 ));
             }
         }
 
-        Ok(input_addr)
+        Ok((input_addr, zkgm_addr))
     }
 }
 
@@ -195,7 +201,7 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
     }
 
     fn validate(&self, deps: Deps) -> Result<Config, LibraryError> {
-        let input_addr = self.do_validate(deps.api)?;
+        let (input_addr, zkgm_contract) = self.do_validate(deps.api)?;
         Ok(Config {
             input_addr,
             // Can't validate output address as it's on another chain
@@ -212,9 +218,11 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
             input_asset_token_path: self.input_asset_token_path,
             quote_token: self.quote_token.clone(),
             quote_amount: self.quote_amount,
-            channel_id: self.channel_id.clone(),
+            channel_id: self.channel_id,
             transfer_timeout: self.transfer_timeout,
-            protocol_version: self.protocol_version,
+            zkgm_contract,
+            batch_instruction_version: self.batch_instruction_version,
+            transfer_instruction_version: self.transfer_instruction_version,
         })
     }
 }
@@ -282,7 +290,7 @@ impl LibraryConfigUpdate {
 
         if let OptionUpdate::Set(transfer_timeout) = self.transfer_timeout {
             if let Some(timeout) = transfer_timeout {
-                if timeout.is_zero() {
+                if timeout == 0 {
                     return Err(LibraryError::ConfigurationError(
                         "Invalid Union transfer config: transfer_timeout cannot be zero."
                             .to_string(),
@@ -292,8 +300,12 @@ impl LibraryConfigUpdate {
             config.transfer_timeout = transfer_timeout;
         }
 
-        if let Some(protocol_version) = self.protocol_version {
-            config.protocol_version = protocol_version;
+        if let OptionUpdate::Set(batch_instruction_version) = self.batch_instruction_version {
+            config.batch_instruction_version = batch_instruction_version;
+        }
+
+        if let OptionUpdate::Set(transfer_instruction_version) = self.transfer_instruction_version {
+            config.transfer_instruction_version = transfer_instruction_version;
         }
 
         valence_library_base::save_config(deps.storage, &config)?;
@@ -314,12 +326,15 @@ pub struct Config {
     pub input_asset_token_path: Uint256,
     pub quote_token: String,
     pub quote_amount: Uint256,
-    pub channel_id: String,
-    pub transfer_timeout: Option<Uint64>,
-    pub protocol_version: u8,
+    pub channel_id: u64,
+    pub transfer_timeout: Option<u64>,
+    pub zkgm_contract: Addr,
+    pub batch_instruction_version: Option<u8>,
+    pub transfer_instruction_version: Option<u8>,
 }
 
 impl Config {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         input_addr: Addr,
         output_addr: String,
@@ -331,9 +346,11 @@ impl Config {
         input_asset_token_path: Uint256,
         quote_token: String,
         quote_amount: Uint256,
-        channel_id: String,
-        transfer_timeout: Option<Uint64>,
-        protocol_version: u8,
+        channel_id: u64,
+        transfer_timeout: Option<u64>,
+        zkgm_contract: Addr,
+        batch_instruction_version: Option<u8>,
+        transfer_instruction_version: Option<u8>,
     ) -> Self {
         Config {
             input_addr,
@@ -348,7 +365,9 @@ impl Config {
             quote_amount,
             channel_id,
             transfer_timeout,
-            protocol_version,
+            zkgm_contract,
+            batch_instruction_version,
+            transfer_instruction_version,
         }
     }
 }

@@ -1,6 +1,7 @@
 pub mod contract;
 pub mod msg;
-pub mod union;
+pub mod state;
 
 #[cfg(test)]
 mod tests;
+pub mod union;

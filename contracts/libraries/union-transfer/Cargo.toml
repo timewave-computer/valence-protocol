@@ -1,5 +1,5 @@
 [package]
-name       = "valence-union-transfer-library"
+name       = "valence-union-transfer"
 authors    = { workspace = true }
 edition    = { workspace = true }
 license    = { workspace = true }
@@ -20,13 +20,15 @@ cw-ownable            = { workspace = true }
 cw-storage-plus       = { workspace = true }
 cw-utils              = { workspace = true }
 cw20                  = { workspace = true }
-cw20-base             = { workspace = true }
 schemars              = { workspace = true }
 serde                 = { workspace = true }
 thiserror             = { workspace = true }
 valence-macros        = { workspace = true }
 valence-library-utils = { workspace = true }
 valence-library-base  = { workspace = true }
+alloy-sol-types       = "0.7.7"
+alloy-primitives      = "0.7.7"
+sha2                  = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test         = { workspace = true }
