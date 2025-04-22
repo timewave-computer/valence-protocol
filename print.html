@@ -3655,6 +3655,471 @@ the pool price is above <code>10.0</code>.</p>
   },
 }
 </code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="program-manager"><a class="header" href="#program-manager">Program manager</a></h1>
+<p>The program manager is an off-chain tool that helps instantiate, update and migrate a program.</p>
+<p><strong>Guides</strong></p>
+<ul>
+<li><a href="program_manager/./how_to.html">How to</a></li>
+<li><a href="program_manager/./build_program_config.html">Build program config</a></li>
+</ul>
+<p><strong>Program manager components</strong>:</p>
+<ul>
+<li><a href="program_manager/./manager_config.html">Manager config</a></li>
+<li><a href="program_manager/./program_configs/instantiate.html">Program config</a></li>
+<li><a href="program_manager/./program_configs/update.html">Program config update</a></li>
+<li><a href="program_manager/./program_configs/migrate.html">Program config migrate</a></li>
+<li><a href="program_manager/./library_account_type.html">Library Account Type</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="manager-config---before-the-manager-can-work"><a class="header" href="#manager-config---before-the-manager-can-work">Manager config - before the manager can work</a></h1>
+<p>The manager is performing actions on chains included in the program, and for that the manager need to have certain information that will allow him to perform those actions.</p>
+<p>You can read more about the <a href="program_manager/./manager_config.html">manager config here</a>.</p>
+<h1 id="wallet"><a class="header" href="#wallet">Wallet</a></h1>
+<p>The manager requires a funded wallet to perform actions on chain, it expects the mnemonic of the wallet to be included in the <strong>MANAGER_MNEMONIC</strong> environment variable.</p>
+<ul>
+<li>Note - This wallet should NOT be the owner of the program, this is a helper wallet that allows the manager to execute actions on chain, it should be funded with just enough funds to perform those actions.</li>
+</ul>
+<h1 id="how-to-use-program-manager"><a class="header" href="#how-to-use-program-manager">How to use program manager</a></h1>
+<p>The program manager is a library, it can be used as dependency in any rust project.</p>
+<p>There are 3 functions that allow you to interact with a program:</p>
+<ol>
+<li><code>init_program(&amp;mut ProgramConfig)</code> - Instantiate a new program</li>
+<li><code>update_program(ProgramConfigUpdate)</code> - Update existing program</li>
+<li><code>migrate_program(ProgramConfigMigrate)</code> - Migrate existing program to a new program</li>
+</ol>
+<h2 id="instantiate-a-program"><a class="header" href="#instantiate-a-program">Instantiate a program</a></h2>
+<p><code>init_program()</code> takes a program config to instantiate and mutate it with the instantiated program config.</p>
+<p>Read more in <a href="program_manager/./program_configs/instantiate.html">Program config</a></p>
+<h2 id="update-a-program"><a class="header" href="#update-a-program">Update a program</a></h2>
+<p><code>update_program()</code> takes a set of instructions to update an existing program and returns a set of messages that can be executed by the owner.</p>
+<p>This is useful to batch update library configs and authorizations.</p>
+<ul>
+<li>Note - <code>update_program()</code> returns a set of messages that are needed to perform the update, those messages must be executed by the owner of the program.</li>
+</ul>
+<p>Read more in <a href="program_manager/./program_configs/update.html">Program config update</a></p>
+<h2 id="migrate-a-program"><a class="header" href="#migrate-a-program">Migrate a program</a></h2>
+<p><code>migrate_program()</code> allows the owner to "disable" an old program, and move all the funds to the new program.</p>
+<p>This is useful when you want to disable an old program and move the funds to a new program.</p>
+<ul>
+<li>Note - <code>migrate_program()</code> returns a set of messages to move the funds and pause the program that must be executed by the owner.</li>
+</ul>
+<p>Read more in <a href="program_manager/./program_configs/migrate.html">Program config migrate</a></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="manager-config"><a class="header" href="#manager-config">Manager config</a></h1>
+<p>The program manager requires information like chain connection details and bridges details, this must be provided to the manager via a config.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct Config {
+    // Map of chain connections details
+    pub chains: HashMap&lt;String, ChainInfo&gt;,
+    // Contract information per chain for instantiation
+    pub contracts: Contracts,
+    // Map of bridges information
+    pub bridges: HashMap&lt;String, HashMap&lt;String, Bridge&gt;&gt;,
+    pub general: GeneralConfig,
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="setup"><a class="header" href="#setup">Setup</a></h2>
+<p>The manager config is a global mutateable config and can be read and set from anywhere in your project.</p>
+<h3 id="get-config"><a class="header" href="#get-config">Get config</a></h3>
+<p>You can get the config like this:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let manager_config = valence_program_manager::config::GLOBAL_CONFIG.lock().await
+<span class="boring">}</span></code></pre></pre>
+<h3 id="write-config"><a class="header" href="#write-config">Write config</a></h3>
+<p>Writing to the config is possible with:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut manager_config = valence_program_manager::config::GLOBAL_CONFIG.lock().await
+
+// Mutate field
+manager_config.general.registry_addr = "addr1234".to_string();
+
+// Write full config
+*manager_config = new_manager_config;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="non-async-functions"><a class="header" href="#non-async-functions">Non-async functions</a></h3>
+<p>The manager config is using <code>tokio::sync::Mutex</code>, because of that, you need to use blocking operation in non-async functions, like this:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+rt.block_on(valence_program_manager::config::GLOBAL_CONFIG.lock())
+<span class="boring">}</span></code></pre></pre>
+<ul>
+<li>Note - You must be careful with blocking, the manager might be blocked from accessing the global config if not freed properly.</li>
+</ul>
+<h2 id="example-1"><a class="header" href="#example-1">Example</a></h2>
+<p>We have a public repo that include configs for major persistant environments (like mainnet and testnet)</p>
+<p>It can be used directly in the manager to deploy on those environments or as example to a working manager config layout.</p>
+<p><a href="https://github.com/timewave-computer/valence-program-manager-config">Public manager configs</a></p>
+<h2 id="config-fields"><a class="header" href="#config-fields">Config fields</a></h2>
+<h3 id="chains"><a class="header" href="#chains">Chains</a></h3>
+<p>This is a map of <code>chain_id =&gt; ChainInfo</code>.</p>
+<p>It allows the manager to connect to chains that are required by your program and to execute actions on chain and query data.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct ChainInfo {
+    pub name: String,
+    pub rpc: String,
+    pub grpc: String,
+    pub prefix: String,
+    pub gas_price: String,
+    pub gas_denom: String,
+    pub coin_type: u64,
+}
+<span class="boring">}</span></code></pre></pre>
+<ul>
+<li>
+<p>Note - Your program might require multiple chains, all chains must be included in the config or the manager will fail.</p>
+</li>
+<li>
+<p>Note - Neutron chain must be included even if the program is not using it as a domain.</p>
+</li>
+</ul>
+<h3 id="contracts"><a class="header" href="#contracts">Contracts</a></h3>
+<p>Contracts field includes all the code ids of contract</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct Contracts {
+    pub code_ids: HashMap&lt;String, HashMap&lt;String, u64&gt;&gt;,
+}
+<span class="boring">}</span></code></pre></pre>
+<p><code>code_ids</code> field is a map of <code>chain_id =&gt; map(contract_name =&gt; code_id)</code></p>
+<p>This allows the manager to find the code id of a contract on a specific chain to instantiate it.</p>
+<h3 id="bridges"><a class="header" href="#bridges">Bridges</a></h3>
+<p>The bridge is a complex map of bridge information needed for cross-chain operations.</p>
+<p>The easiest way to explain it is by <code>toml</code> format:</p>
+<pre><code class="language-toml">[bridges.neutron.juno.polytone.neutron]
+voice_addr      = "neutron15c0d3k8nf5t82zzkl8l7he3smx033hsr9dvzjeeuj7e8n46rqy5se0pn3e"
+note_addr       = "neutron174ne8p7zh539sht8sfjsa9r6uwe3pzlvqedr0yquml9crfzsfnlshvlse8"
+other_note_port = "wasm.juno1yt5kcplze0sark8f55fklk70uay3863t5q3j3a8kgvs3rlmjya9qys0d2y"
+connection_id   = "connection-95"
+channel_id      = "channel-4721"
+[bridges.neutron.juno.polytone.juno]
+voice_addr      = "juno1c9hx3q7sd2d0xgknc52ft6qsqxemkuxh3nt8d4rmdtdua25x5h0sdd2zm5"
+note_addr       = "juno1yt5kcplze0sark8f55fklk70uay3863t5q3j3a8kgvs3rlmjya9qys0d2y"
+other_note_port = "wasm.neutron174ne8p7zh539sht8sfjsa9r6uwe3pzlvqedr0yquml9crfzsfnlshvlse8"
+connection_id   = "connection-530"
+channel_id      = "channel-620"
+</code></pre>
+<p>We are providing a bridge information here between <code>neutron</code> and <code>juno</code> chains, the bridge we are using is <code>polytone</code>, and the first information is for the <code>neutron</code> "side", while the second information is for the <code>juno</code> "side".</p>
+<h3 id="general"><a class="header" href="#general">General</a></h3>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct GeneralConfig {
+    pub registry_addr: String,
+}
+<span class="boring">}</span></code></pre></pre>
+<p>General field holds general information that is needed for the manager to work:</p>
+<ul>
+<li><code>registry_addr</code> - The registry contract address on neutron.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="instantiate-program"><a class="header" href="#instantiate-program">Instantiate program</a></h1>
+<p>The manager is using the program config to instantiate the full flow of the program on-chain.</p>
+<p>After instantiation of a program, the program config will contain the instantiated data of the program.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct ProgramConfig {
+    pub id: u64,
+    pub name: String,
+    pub owner: String,
+    pub links: BTreeMap&lt;Id, Link&gt;,
+    pub accounts: BTreeMap&lt;Id, AccountInfo&gt;,
+    pub libraries: BTreeMap&lt;Id, LibraryInfo&gt;,
+    pub authorizations: Vec&lt;AuthorizationInfo&gt;,
+    #[serde(default)]
+    pub authorization_data: AuthorizationData,
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="id"><a class="header" href="#id">Id</a></h2>
+<p>Unique identifier of a program, it is used to save the program config on-chain.</p>
+<p>Should be set to <code>0</code> when instantiating a new program.</p>
+<h2 id="name"><a class="header" href="#name">Name</a></h2>
+<p>A short description of the program to easily identify it.</p>
+<h1 id="links"><a class="header" href="#links">Links</a></h1>
+<p>A map of links between libraries and the connected input and output accounts.</p>
+<p>This allows us to represent a program in a graph.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct Link {
+    /// List of input accounts by id
+    pub input_accounts_id: Vec&lt;Id&gt;,
+    /// List of output accounts by id
+    pub output_accounts_id: Vec&lt;Id&gt;,
+    /// The library id
+    pub library_id: Id,
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="accounts"><a class="header" href="#accounts">Accounts</a></h2>
+<p>A list of accounts that are being used by the program</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct AccountInfo {
+    // The name of the account
+    pub name: String,
+    // The type of the account
+    pub ty: AccountType,
+    // The domain this account is on
+    pub domain: Domain,
+    // The instantiated address of the account
+    pub addr: Option&lt;String&gt;,
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="name-1"><a class="header" href="#name-1">Name</a></h3>
+<p>Identifying name for this account</p>
+<h3 id="accounttype"><a class="header" href="#accounttype">AccountType</a></h3>
+<p>Account type allows the manager to know whether the account should be instantiated or not, and what type of account we should instantiate.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum AccountType {
+    /// Existing address on chain
+    Addr { addr: String },
+    /// This is our base account implementation
+    Base { admin: Option&lt;String&gt; },
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="domain"><a class="header" href="#domain">Domain</a></h3>
+<p>On what domain the account exists or should be instantiated on.</p>
+<h3 id="addr"><a class="header" href="#addr">Addr</a></h3>
+<p>This field will be set by the manager once the account is intantiated.</p>
+<h2 id="libraries-1"><a class="header" href="#libraries-1">Libraries</a></h2>
+<p>A list of libraries that are being used by the program.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LibraryInfo {
+    pub name: String,
+    pub domain: Domain,
+    pub config: LibraryConfig,
+    pub addr: Option&lt;String&gt;,
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="name-2"><a class="header" href="#name-2">Name</a></h3>
+<p>The identifying name of this specific library</p>
+<h3 id="domain-1"><a class="header" href="#domain-1">Domain</a></h3>
+<p>The specific domain this library is on.</p>
+<h3 id="config"><a class="header" href="#config">Config</a></h3>
+<p>The library specific config that will be used during instantiation.</p>
+<p><code>LibraryConfig</code> is an enum of libraries that currently exist and can be used in programs.</p>
+<h3 id="addr-1"><a class="header" href="#addr-1">Addr</a></h3>
+<p>This will include the address of the library contract once instantiated</p>
+<h2 id="authorizations"><a class="header" href="#authorizations">Authorizations</a></h2>
+<p>This is a list of all authorizations that should be included in the authorization contract.</p>
+<h2 id="authorization-data"><a class="header" href="#authorization-data">Authorization data</a></h2>
+<p>This field includes all the data regarding authorization contract and processors on all chains.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct AuthorizationData {
+    /// authorization contract address on neutron
+    pub authorization_addr: String,
+    /// List of processor addresses by domain
+    /// Key: domain name | Value: processor address
+    pub processor_addrs: BTreeMap&lt;String, String&gt;,
+    /// List of authorization bridge addresses by domain
+    /// The addresses are on the specified domain
+    /// Key: domain name | Value: authorization bridge address on that domain
+    pub authorization_bridge_addrs: BTreeMap&lt;String, String&gt;,
+    /// List of processor bridge addresses by domain on neutron chain
+    pub processor_bridge_addrs: Vec&lt;String&gt;,
+}
+<span class="boring">}</span></code></pre></pre>
+<ul>
+<li><code>authorization_addr</code> - Authorization contract address on neutron</li>
+<li><code>processor_addrs</code> - Map of all processors by domain</li>
+<li><code>authorization_bridge_addrs</code> - Bridge account address of the authorization contract on all chains</li>
+<li><code>processor_bridge_addrs</code> - List of bridge accounts of processors on neutron chain</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="update-a-program-1"><a class="header" href="#update-a-program-1">Update a program</a></h1>
+<p>Updating a program allows you to:</p>
+<ul>
+<li>Change the owner of a program</li>
+<li>Update libraries configs</li>
+<li>Add/Modify/Enable/Disable authorizations</li>
+</ul>
+<p>The manager will NOT perform those operations directly, rather output a list of messages that needs to be executed by the owner to achieve the updated program.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct ProgramConfigUpdate {
+    /// The id of a program to update
+    pub id: u64,
+    /// New owner, if the owner is to be updated
+    pub owner: Option&lt;String&gt;,
+    /// The list of library config updates to perform
+    pub libraries: BTreeMap&lt;Id, LibraryConfigUpdate&gt;,
+    /// A list of authorizations
+    pub authorizations: Vec&lt;AuthorizationInfoUpdate&gt;,
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="id-1"><a class="header" href="#id-1">Id</a></h2>
+<p>The id of the program to perform the update on, the manager will look for this id in the on-chain registry and pull the current program config that exists.</p>
+<h2 id="owner"><a class="header" href="#owner">Owner</a></h2>
+<p>Optional field to update the owner, it takes the new owner address.</p>
+<h2 id="libraries-2"><a class="header" href="#libraries-2">Libraries</a></h2>
+<p>A map of <code>library_id =&gt; library_config</code>.</p>
+<p><code>LibraryConfigUpdate</code> is an enum that includes all possible libraries and their <code>LibraryConfigUpdate</code> type</p>
+<h2 id="authorizations-1"><a class="header" href="#authorizations-1">Authorizations</a></h2>
+<p>A list of operations to do on the authorizations table</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum AuthorizationInfoUpdate {
+    Add(AuthorizationInfo),
+    Modify {
+        label: String,
+        not_before: Option&lt;Expiration&gt;,
+        expiration: Option&lt;Expiration&gt;,
+        max_concurrent_executions: Option&lt;u64&gt;,
+        priority: Option&lt;Priority&gt;,
+    },
+    /// Disable by label
+    Disable(String),
+    /// Disable by label
+    Enable(String),
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="add"><a class="header" href="#add">Add</a></h3>
+<p>Adds a new authorization with that info</p>
+<h3 id="modify"><a class="header" href="#modify">Modify</a></h3>
+<p>Modifies an existing authorization with that label</p>
+<h3 id="disable"><a class="header" href="#disable">Disable</a></h3>
+<p>Disables an existing authorization by label</p>
+<h3 id="enable"><a class="header" href="#enable">Enable</a></h3>
+<p>Enable a disabled authorization by label</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="migrate-a-program-1"><a class="header" href="#migrate-a-program-1">Migrate a program</a></h1>
+<p>Migrating a program allows you to pause an existing program and perform funds transfer from accounts that hold funds in an old program to accounts in the new program.</p>
+<p>Like updating a program, the manager will not perform those actions but will output a set of instructions to be executed by the owner.</p>
+<p>Unlike the update, migration requires 2 sets of actions:</p>
+<ol>
+<li>Transfer all funds from the old program to the new program</li>
+<li>Pause the old program processors</li>
+</ol>
+<p>Pausing the program will not allow any actions to be done on the old program including transferring the funds, for this reason, we first transfer all the funds, and only then pausing the old program.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct ProgramConfigMigrate {
+    pub old_id: Id,
+    /// The new program we instantiate
+    pub new_program: ProgramConfig,
+    /// Transfer funds details
+    pub transfer_funds: Vec&lt;FundsTransfer&gt;,
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="old-id"><a class="header" href="#old-id">Old id</a></h2>
+<p>This is the id of the old program</p>
+<h2 id="new-program"><a class="header" href="#new-program">New program</a></h2>
+<p>This is the config of the new program to instantiate</p>
+<h2 id="transfer-funds"><a class="header" href="#transfer-funds">Transfer funds</a></h2>
+<p>A list of transfers to perform</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct FundsTransfer {
+    pub from: String,
+    pub to: LibraryAccountType,
+    pub domain: Domain,
+    pub funds: Coin,
+}
+<span class="boring">}</span></code></pre></pre>
+<ul>
+<li><code>from</code> - From what adress to move funds to, must be an account owned by the old program</li>
+<li><code>to</code> - A <code>LibraryAccountType</code> can either be set as an address, or an account id of an account in the new program</li>
+<li><code>domain</code> - On what domain to perform this transfer, both <code>from</code> and <code>to</code> must be on that domain</li>
+<li><code>funds</code> - The amount of funds to transfer</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="build-a-program-config"><a class="header" href="#build-a-program-config">Build a program config</a></h1>
+<p>The manager entry points are expecting a rust type, you can use any way you are familiar with to build this type, here are some examples</p>
+<h2 id="using-deployer"><a class="header" href="#using-deployer">Using deployer</a></h2>
+<p><a href="https://github.com/timewave-computer/program-deployer-template">Timewave Deployer</a> is an easy way of building programs, you can follow the README to set the deployer.</p>
+<p>You can view <a href="https://github.com/timewave-computer/timewave-program-deployments">Timewave deployments</a> repository to see an example of already deployed programs using the deployer.</p>
+<h2 id="program-builder"><a class="header" href="#program-builder">Program builder</a></h2>
+<p>Our above deployer is using a rust builder to build a program, an example of this can be found in our <a href="https://github.com/timewave-computer/program-deployer-template/blob/main/programs/program_template/src/program_builder.rs">program template</a></p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut builder = ProgramConfigBuilder::new("example-program", owner.as_str());
+<span class="boring">}</span></code></pre></pre>
+<p><code>ProgramConfigBuilder::new(NAME, OWNER)</code> provides an easy way to add accounts, libraries and authorizations to build the program config.</p>
+<h2 id="json-file"><a class="header" href="#json-file">JSON file</a></h2>
+<p>A program config can also be parsed from a JSON file to <code>ProgramConfig</code> type.</p>
+<p>Here is an <a href="https://github.com/timewave-computer/timewave-program-deployments/blob/main/programs/2025-03-23-prod-dICS-ntrn-allocation/output/mainnet-2025-03-31_18%3A38%3A02-success/raw-program-config.json">example</a> from past deployments of a JSON file of a program config that can be provided to the manager to be intantiated.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="library-account-type"><a class="header" href="#library-account-type">Library account type</a></h1>
+<p>When we build a new program, we don't yet have an on-chain address, but there are several components that require an address to operate, for example a library needs to know the input account address it should operate on.</p>
+<p>When building a fresh program config, we are using ids instead of addresses, the manager first predicts all the addresses of to-be instantiated contracts, and replace the ID with the address where an id was used.</p>
+<p>To achieve this we are using the <code>LibraryAccountType</code> that first uses an id, and allows us to replace it with an address later when this contract was instantiated.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum LibraryAccountType {
+    #[serde(rename = "|library_account_addr|", alias = "library_account_addr")]
+    Addr(String),
+    #[serde(rename = "|account_id|", alias = "account_id")]
+    AccountId(Id),
+    #[serde(rename = "|library_id|", alias = "library_id")]
+    LibraryId(Id),
+}
+<span class="boring">}</span></code></pre></pre>
+<p><code>LibraryAccountType</code> is an enum that includes 3 options:</p>
+<ul>
+<li><code>Addr(String)</code> - Already instantiated on-chain address, this means we should not replace it</li>
+<li><code>AccountId(Id)</code> - Account id that should be replaced with the address of an account</li>
+<li><code>LibraryId(Id)</code> - Library id that should be replaced with the address of a library</li>
+</ul>
+<h2 id="methods"><a class="header" href="#methods">Methods</a></h2>
+<h3 id="to_string---stdresult"><a class="header" href="#to_string---stdresult">to_string() -&gt; StdResult<Addr></a></h3>
+<p>If <code>LibraryAccountType:Addr</code>, we return the address as a string.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let addr = LibraryAccountType::Addr("some_addr".to_string());
+
+let addr_string = addr.to_string();
+
+assert_eq!(addr_string, "some_addr")
+<span class="boring">}</span></code></pre></pre>
+<p>Will error if <code>LibraryAccountType</code> is an id.</p>
+<h3 id="to_addrapi-dyn-cosmwasm_stdapi---stdresultcosmwasm_stdaddr"><a class="header" href="#to_addrapi-dyn-cosmwasm_stdapi---stdresultcosmwasm_stdaddr">to_addr(api: &amp;dyn cosmwasm_std::Api) -&gt; StdResult&lt;cosmwasm_std::Addr&gt;</a></h3>
+<p>Returns the address in <code>cosmwasm_std::Addr</code> type</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let addr = LibraryAccountType::Addr("some_addr".to_string());
+let api = mock_api();
+
+let addr_as_addr = addr.to_addr(&amp;api);
+
+assert_eq!(addr_as_addr, cosmwasm_std::Addr::unchecked("some_addr"))
+<span class="boring">}</span></code></pre></pre>
+<p>Will error if <code>LibraryAccountType</code> is an id.</p>
+<h3 id="to_raw_placeholder---string"><a class="header" href="#to_raw_placeholder---string">to_raw_placeholder() -&gt; String</a></h3>
+<p>Although it is encouraged for libraries to accept the <code>LibraryAccountType</code> directly as an address, some libraries may require a <code>Strin</code>.</p>
+<p><code>to_raw_placeholder</code> allows us to still use account ids in library config where a <code>String</code> is expected.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct LibraryConfig {
+    addr: String,
+}
+let addr_id = LibraryAccountType::AccountId(1);
+
+let library_config = LibraryConfig { addr: addr_id.to_raw_placeholder() }
+
+// Here is library config before passing to the manager:
+// LibraryConfig { addr: "|lib_acc_placeholder|:1" }
+
+init_program(&amp;mut program_config);
+
+// Here is the library config after instantiation:
+// LibraryConfig { addr: "addres_of_account_id_1" }
+<span class="boring">}</span></code></pre></pre>
+<h3 id="from_strinput-str---resultself-string"><a class="header" href="#from_strinput-str---resultself-string">from_str(input: &amp;str) -&gt; Result&lt;Self, String&gt;</a></h3>
+<p>You can get <code>LibraryAccountType::Addr</code> from a string</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let addr = "some_addr";
+
+let LAT = LibraryAccountType::from(addr);
+let LAT: LibraryAccountType = addr.into();
+
+// Both are equal to `LibraryAccountType::Addr("some_addr".to_string())`
+<span class="boring">}</span></code></pre></pre>
+<h3 id="get_account_idself---id"><a class="header" href="#get_account_idself---id">get_account_id(&amp;self) -&gt; Id</a></h3>
+<p>Gets the id if <code>LibraryAccountType::AccountId</code>, else it panics.</p>
+<h3 id="get_library_idself---id"><a class="header" href="#get_library_idself---id">get_library_id(&amp;self) -&gt; Id;</a></h3>
+<p>Gets the id if <code>LibraryAccountType::LibraryId</code>, else it panics.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="examples"><a class="header" href="#examples">Examples</a></h1>
 <p>Here are some examples of Valence Programs that you can use to get started.</p>
 <ul>
@@ -4091,7 +4556,7 @@ Note that this action may be subject to a lockup period!</li>
 <p>We use <a href="https://github.com/strangelove-ventures/interchaintest/tree/main/local-interchain">local-interchain</a>, a component of the <a href="https://github.com/strangelove-ventures/interchaintest">interchaintest</a> developer toolkit. This allows you to deploy and run chains in a local environment, providing a controlled testing space for your blockchain applications.</p>
 <h3 id="localic-utils"><a class="header" href="#localic-utils">Localic Utils</a></h3>
 <p>To make these tools more accessible in Rust, we've developed <a href="https://github.com/timewave-computer/localic-utils">localic-utils</a>. This Rust library provides convenient interfaces to interact with the local-interchain testing framework.</p>
-<h3 id="program-manager"><a class="header" href="#program-manager">Program Manager</a></h3>
+<h3 id="program-manager-1"><a class="header" href="#program-manager-1">Program Manager</a></h3>
 <p>We provide a tool called <code>Program Manager</code> that helps you manage your programs. We've created all the abstractions and helper functions to create your programs more efficiently together with local-interchain.</p>
 <p>The Program Manager use is optional, it abstracts a lot of functionality and allows creating programs in much less code. But if you want to have more fine-grained control over your programs, we provide helper functions to create and interact with your programs directly without it. In this section, we'll show you two different examples on how to test your programs, one using the Program Manager and the other without it. There are also many more examples each of them for different use cases. They are all in the <code>examples</code> folder of <a href="https://github.com/timewave-computer/valence-protocol/tree/main/e2e">our e2e folder</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="initial-testing-set-up"><a class="header" href="#initial-testing-set-up">Initial Testing Set Up</a></h1>

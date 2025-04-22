@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Valence Asserter - Valence Protocol Documentation</title>
+        <title>Manager Config - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -160,163 +160,129 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="valence-asserter"><a class="header" href="#valence-asserter">Valence Asserter</a></h1>
-<p><strong>Valence Asserters</strong> provide the means to assert boolean conditions about <a href="./valence_types.html">Valence Types</a>.</p>
-<p>Each Valence Type variant may provide different assertion queries. To offer a unified API, Valence Asserter
-remains agnostic to the underlying type being queried and provides a common gateway to all available types.</p>
-<h2 id="motivation"><a class="header" href="#motivation">Motivation</a></h2>
-<p>Primary use case for Valence Type assertions is to enable <strong>conditional execution</strong> of functions.
-A basic example of this may be expressed as "<em>provide liquidity if and only if the pool price is greater than X</em>".</p>
-<p>While specific conditions like this could be internalized in each function that is to be executed, Valence Asserter
-aims to:</p>
-<ul>
-<li>enable such assertions to be performed prior to any library function (system level)</li>
-<li>not limit the assertions to a particular condition (generalize)</li>
-</ul>
-<p>With the following goals satisfied, arbitrary assertions can be performed on the <a href="./../authorizations_processors/processor.html">processor</a> level.</p>
-<p>Each function call that the configured program wishes to execute only if a certain condition is met can then
-be placed in a message batch and prepended with an assertion message.
-This way, when the message batch is being processed, any assertions that do not evaluate to true (return an <code>Err</code>) will
-prevent later messages from executing as expected. If the batch is <em>atomic</em>, the whole batch will abort.
-If the batch is <em>non-atomic</em>, various <a href="./../authorizations_processors/authorization_contract.html">authorization</a> configuration
-options will dictate the further behavior.</p>
-<h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
-<pre class="mermaid">---
-title: Forwarder Library
----
-graph LR
-  IA((Storage Account))
-  P[Processor]
-  S[Valence Asserter]
-  P -- 1/Assert --&gt; S
-  S -- 2/Query storage slot(s) --&gt; IA
-  S -- 3/Evaluate the predicate --&gt; S
-  S -- 4/Return OK/ERR --&gt; P
-</pre>
-<h2 id="api"><a class="header" href="#api">API</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th><th>Return Value</th></tr></thead><tbody>
-<tr><td><strong>Assert</strong></td><td><code>a: AssertionValue</code><br><code>predicate: Predicate</code><br><code>b: AssertionValue</code></td><td>Evaluate the given predicate <em>R(a, b)</em>.<br>If <em>a</em> or <em>b</em> are variables, they get fetched using the configuartion specified in the respective <code>QueryInfo</code>.<br>Both <em>a</em> and <em>b</em> must be deserializable into the same type.</td><td>- predicate evaluates to true: <code>Ok()</code><br>- predicate evaluates to false: <code>Err</code></td></tr>
-</tbody></table>
-</div>
-<h2 id="design"><a class="header" href="#design">Design</a></h2>
-<p>Assertions to be performed are expressed as <em>R(a, b)</em>, where:</p>
-<ul>
-<li><em>a</em> and <em>b</em> are values of the same type</li>
-<li><em>R</em> is the predicate that applies to <em>a</em> and <em>b</em></li>
-</ul>
-<p>Valence Asserter design should enable such predicate evaluations to be performed in a generic manner within Valence Programs.</p>
-<h3 id="assertion-values"><a class="header" href="#assertion-values">Assertion values</a></h3>
-<p>Assertion values are defined as follows:</p>
+                        <h1 id="manager-config"><a class="header" href="#manager-config">Manager config</a></h1>
+<p>The program manager requires information like chain connection details and bridges details, this must be provided to the manager via a config.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub enum AssertionValue {
-    // storage account slot query
-    Variable(QueryInfo),
-    // constant valence primitive value
-    Constant(ValencePrimitive),
+</span>pub struct Config {
+    // Map of chain connections details
+    pub chains: HashMap&lt;String, ChainInfo&gt;,
+    // Contract information per chain for instantiation
+    pub contracts: Contracts,
+    // Map of bridges information
+    pub bridges: HashMap&lt;String, HashMap&lt;String, Bridge&gt;&gt;,
+    pub general: GeneralConfig,
 }
 <span class="boring">}</span></code></pre></pre>
-<p>Two values are required for any comparison. Both <em>a</em> and <em>b</em> can be configured to be obtained in one of two ways:</p>
-<ol>
-<li>Constant value (known before program instantiation)</li>
-<li>Variable value (known during program runtime)</li>
-</ol>
-<p>Any combination of these values can be used for a given assertion:</p>
+<h2 id="setup"><a class="header" href="#setup">Setup</a></h2>
+<p>The manager config is a global mutateable config and can be read and set from anywhere in your project.</p>
+<h3 id="get-config"><a class="header" href="#get-config">Get config</a></h3>
+<p>You can get the config like this:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let manager_config = valence_program_manager::config::GLOBAL_CONFIG.lock().await
+<span class="boring">}</span></code></pre></pre>
+<h3 id="write-config"><a class="header" href="#write-config">Write config</a></h3>
+<p>Writing to the config is possible with:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut manager_config = valence_program_manager::config::GLOBAL_CONFIG.lock().await
+
+// Mutate field
+manager_config.general.registry_addr = "addr1234".to_string();
+
+// Write full config
+*manager_config = new_manager_config;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="non-async-functions"><a class="header" href="#non-async-functions">Non-async functions</a></h3>
+<p>The manager config is using <code>tokio::sync::Mutex</code>, because of that, you need to use blocking operation in non-async functions, like this:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+rt.block_on(valence_program_manager::config::GLOBAL_CONFIG.lock())
+<span class="boring">}</span></code></pre></pre>
 <ul>
-<li>constant-constant (unlikely)</li>
-<li>constant-variable</li>
-<li>variable-variable</li>
+<li>Note - You must be careful with blocking, the manager might be blocked from accessing the global config if not freed properly.</li>
 </ul>
-<h4 id="variable-assertion-values"><a class="header" href="#variable-assertion-values"><code>Variable</code> assertion values</a></h4>
-<p>Variable assertion values are meant to be used for information that can only become known during runtime.</p>
-<p>Such values will be obtained from Valence Types, which expose their own set of queries.</p>
-<p>Valence Types reside in their dedicated storage slots in <a href="../accounts/storage_accounts.html">Storage Accounts</a>.</p>
-<p>Valence Asserter uses the following type in order to obtain the Valence Type and query its state:</p>
+<h2 id="example"><a class="header" href="#example">Example</a></h2>
+<p>We have a public repo that include configs for major persistant environments (like mainnet and testnet)</p>
+<p>It can be used directly in the manager to deploy on those environments or as example to a working manager config layout.</p>
+<p><a href="https://github.com/timewave-computer/valence-program-manager-config">Public manager configs</a></p>
+<h2 id="config-fields"><a class="header" href="#config-fields">Config fields</a></h2>
+<h3 id="chains"><a class="header" href="#chains">Chains</a></h3>
+<p>This is a map of <code>chain_id =&gt; ChainInfo</code>.</p>
+<p>It allows the manager to connect to chains that are required by your program and to execute actions on chain and query data.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub struct QueryInfo {
-    // addr of the storage account
-    pub storage_account: String,
-    // key to access the value in the storage account
-    pub storage_slot_key: String,
-    // b64 encoded query
-    pub query: Binary,
+</span>pub struct ChainInfo {
+    pub name: String,
+    pub rpc: String,
+    pub grpc: String,
+    pub prefix: String,
+    pub gas_price: String,
+    pub gas_denom: String,
+    pub coin_type: u64,
 }
 <span class="boring">}</span></code></pre></pre>
-<h4 id="constant-assertion-values"><a class="header" href="#constant-assertion-values"><code>Constant</code> assertion values</a></h4>
-<p>Constant assertion values are meant to be used for assertions where one of the operands is known before runtime.</p>
-<p>Valence Asserter expects constant values to be passed using the <code>ValencePrimitive</code> enum which wraps around the standard <code>cosmwasm_std</code> types:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub enum ValencePrimitive {
-    Decimal(cosmwasm_std::Decimal),
-    Uint64(cosmwasm_std::Uint64),
-    Uint128(cosmwasm_std::Uint128),
-    Uint256(cosmwasm_std::Uint256),
-    String(String),
-}
-<span class="boring">}</span></code></pre></pre>
-<h3 id="predicates"><a class="header" href="#predicates">Predicates</a></h3>
-<p>Predicates <em>R</em> are specified with the following type:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub enum Predicate {
-    LT,  // &lt;
-    LTE, // &lt;=
-    EQ,  // ==
-    GT,  // &gt;
-    GTE, // &gt;=
-}
-<span class="boring">}</span></code></pre></pre>
-<p>In the context of Valence Asserter, the predicate treats <code>a</code> as the left-hand-side and <code>b</code> as the right-hand-side variables (<code>a &lt; b</code>).</p>
-<blockquote>
-<p>While comparison of numeric types is pretty straightforward, it is important to note that string predicates are evaluated in lexicographical order and are case sensitive:</p>
 <ul>
-<li>"Z" &lt; "a"</li>
-<li>"Assertion" != "assertion"</li>
+<li>
+<p>Note - Your program might require multiple chains, all chains must be included in the config or the manager will fail.</p>
+</li>
+<li>
+<p>Note - Neutron chain must be included even if the program is not using it as a domain.</p>
+</li>
 </ul>
-</blockquote>
-<h3 id="example"><a class="header" href="#example">Example</a></h3>
-<p>Consider that a Valence Program wants to provide liquidity to a liquidity pool if and only if
-the pool price is above <code>10.0</code>.</p>
-<p>Pool price can be obtained by querying a <code>ValenceXykPool</code> variant which exposes the following query:</p>
+<h3 id="contracts"><a class="header" href="#contracts">Contracts</a></h3>
+<p>Contracts field includes all the code ids of contract</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>ValenceXykQuery::GetPrice {} -&gt; Decimal
-<span class="boring">}</span></code></pre></pre>
-<p>The program is configured to store the respective <code>ValenceXykPool</code> in a Storage Account with address
-<code>neutron123...</code>, under storage slot <code>pool</code>.</p>
-<p>Filling in the blanks of <em>R(a, b)</em>, we have:</p>
-<ul>
-<li>variable <code>a</code> is obtained with the <code>GetPrice {}</code> query of <code>neutron123...</code> storage slot <code>pool</code></li>
-<li>predicate <code>R</code> is known in advance: <code>&gt;</code></li>
-<li>constant <code>b</code> is known in advance: <code>10.0</code></li>
-</ul>
-<p>Thefore the assertion message may look as follows:</p>
-<pre><code class="language-json">"assert": {
-  "a": {
-    "variable": {
-      "storage_account": "neutron123...",
-      "storage_slot": "pool",
-      "query": b64("GetPrice {}"),
-    }
-  },
-  "predicate": Predicate::GT,
-  "b": {
-    "constant": "10.0",
-  },
+</span>pub struct Contracts {
+    pub code_ids: HashMap&lt;String, HashMap&lt;String, u64&gt;&gt;,
 }
+<span class="boring">}</span></code></pre></pre>
+<p><code>code_ids</code> field is a map of <code>chain_id =&gt; map(contract_name =&gt; code_id)</code></p>
+<p>This allows the manager to find the code id of a contract on a specific chain to instantiate it.</p>
+<h3 id="bridges"><a class="header" href="#bridges">Bridges</a></h3>
+<p>The bridge is a complex map of bridge information needed for cross-chain operations.</p>
+<p>The easiest way to explain it is by <code>toml</code> format:</p>
+<pre><code class="language-toml">[bridges.neutron.juno.polytone.neutron]
+voice_addr      = "neutron15c0d3k8nf5t82zzkl8l7he3smx033hsr9dvzjeeuj7e8n46rqy5se0pn3e"
+note_addr       = "neutron174ne8p7zh539sht8sfjsa9r6uwe3pzlvqedr0yquml9crfzsfnlshvlse8"
+other_note_port = "wasm.juno1yt5kcplze0sark8f55fklk70uay3863t5q3j3a8kgvs3rlmjya9qys0d2y"
+connection_id   = "connection-95"
+channel_id      = "channel-4721"
+[bridges.neutron.juno.polytone.juno]
+voice_addr      = "juno1c9hx3q7sd2d0xgknc52ft6qsqxemkuxh3nt8d4rmdtdua25x5h0sdd2zm5"
+note_addr       = "juno1yt5kcplze0sark8f55fklk70uay3863t5q3j3a8kgvs3rlmjya9qys0d2y"
+other_note_port = "wasm.neutron174ne8p7zh539sht8sfjsa9r6uwe3pzlvqedr0yquml9crfzsfnlshvlse8"
+connection_id   = "connection-530"
+channel_id      = "channel-620"
 </code></pre>
+<p>We are providing a bridge information here between <code>neutron</code> and <code>juno</code> chains, the bridge we are using is <code>polytone</code>, and the first information is for the <code>neutron</code> "side", while the second information is for the <code>juno</code> "side".</p>
+<h3 id="general"><a class="header" href="#general">General</a></h3>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct GeneralConfig {
+    pub registry_addr: String,
+}
+<span class="boring">}</span></code></pre></pre>
+<p>General field holds general information that is needed for the manager to work:</p>
+<ul>
+<li><code>registry_addr</code> - The registry contract address on neutron.</li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../middleware/valence_types.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../program_manager/how_to.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../program_manager/_overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../program_manager/program_configs/instantiate.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -326,11 +292,11 @@ the pool price is above <code>10.0</code>.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../middleware/valence_types.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../program_manager/how_to.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../program_manager/_overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../program_manager/program_configs/instantiate.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
