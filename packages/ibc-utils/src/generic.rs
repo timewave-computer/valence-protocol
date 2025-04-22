@@ -8,10 +8,10 @@ use crate::types::{
 };
 
 // Default timeout for IbcTransfer is 600 seconds
-const DEFAULT_TIMEOUT_TIMESTAMP: u64 = 600;
+const DEFAULT_TIMEOUT_SECONDS: u64 = 600;
 
 // Default timeout for EurekaTransfers is 12 hours
-const DEFAULT_EUREKA_TIMEOUT_TIMESTAMP: u64 = 43200;
+const DEFAULT_EUREKA_TIMEOUT_SECONDS: u64 = 43200;
 
 #[allow(clippy::too_many_arguments)]
 pub fn ibc_send_message(
@@ -32,7 +32,7 @@ pub fn ibc_send_message(
             timeout: IbcTimeout::with_timestamp(
                 env.block
                     .time
-                    .plus_seconds(timeout_seconds.unwrap_or(DEFAULT_TIMEOUT_TIMESTAMP)),
+                    .plus_seconds(timeout_seconds.unwrap_or(DEFAULT_TIMEOUT_SECONDS)),
             ),
             memo: Some(memo),
         }),
@@ -46,7 +46,7 @@ pub fn ibc_send_message(
             timeout: IbcTimeout::with_timestamp(
                 env.block
                     .time
-                    .plus_seconds(timeout_seconds.unwrap_or(DEFAULT_TIMEOUT_TIMESTAMP)),
+                    .plus_seconds(timeout_seconds.unwrap_or(DEFAULT_TIMEOUT_SECONDS)),
             ),
             memo: Some(to_json_string(&PacketMetadata {
                 forward: Some(ForwardMetadata {
@@ -97,7 +97,7 @@ pub fn build_eureka_memo(
                         .plus_seconds(
                             eureka_config
                                 .timeout
-                                .unwrap_or(DEFAULT_EUREKA_TIMEOUT_TIMESTAMP),
+                                .unwrap_or(DEFAULT_EUREKA_TIMEOUT_SECONDS),
                         )
                         .seconds(),
                 },

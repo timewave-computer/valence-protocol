@@ -18,7 +18,7 @@ use neutron_sdk::{
 use crate::types::{ForwardMetadata, PacketForwardMiddlewareConfig, PacketMetadata};
 
 // Default timeout for IbcTransfer is 600 seconds
-const DEFAULT_TIMEOUT_TIMESTAMP: u64 = 600;
+const DEFAULT_TIMEOUT_SECONDS: u64 = 600;
 const NTRN_DENOM: &str = "untrn";
 
 #[allow(clippy::too_many_arguments)]
@@ -87,7 +87,7 @@ pub fn ibc_send_message(
             timeout_timestamp: env
                 .block
                 .time
-                .plus_seconds(timeout_seconds.unwrap_or(DEFAULT_TIMEOUT_TIMESTAMP))
+                .plus_seconds(timeout_seconds.unwrap_or(DEFAULT_TIMEOUT_SECONDS))
                 .nanos(),
             memo,
             fee: Some(get_transfer_fee(ibc_fee)),
@@ -106,7 +106,7 @@ pub fn ibc_send_message(
                 timeout_timestamp: env
                     .block
                     .time
-                    .plus_seconds(timeout_seconds.unwrap_or(DEFAULT_TIMEOUT_TIMESTAMP))
+                    .plus_seconds(timeout_seconds.unwrap_or(DEFAULT_TIMEOUT_SECONDS))
                     .nanos(),
                 memo: to_json_string(&PacketMetadata {
                     forward: Some(ForwardMetadata {
