@@ -9322,6 +9322,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-union-transfer-library"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-multi-test",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "cw-utils 2.0.0",
+ "cw20 2.0.0",
+ "cw20-base 2.0.0",
+ "schemars",
+ "serde",
+ "sha2 0.10.8",
+ "thiserror 1.0.69",
+ "valence-account-utils",
+ "valence-library-base",
+ "valence-library-utils",
+ "valence-macros",
+]
+
+[[package]]
 name = "valuable"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
