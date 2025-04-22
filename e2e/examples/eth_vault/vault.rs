@@ -229,7 +229,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let user_1_deposit_amount = U256::from(5_000_000);
     let user_2_deposit_amount = U256::from(1_000_000);
-    let user_3_deposit_amount = U256::from(3_000_000);
+    let user_3_deposit_amount = U256::from(25_000_000);
 
     let mut eth_users = EthereumUsers::new(usdc_token_address, vault_address);
     eth_users.add_user(&rt, &eth_client, eth_accounts[2]);

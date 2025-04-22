@@ -10,7 +10,8 @@ use crate::{
 const CHAIN_PREFIX: &str = "noble";
 const CHAIN_DENOM: &str = "uusdc";
 const CCTP_MODULE_NAME: &str = "cctp";
-const ALLOWANCE: &str = "1000000000000000000000";
+// u128 max as str
+const ALLOWANCE: &str = "340282366920938463463374607431768211455";
 const DUMMY_ADDRESS: &[u8; 32] = &[0x01; 32];
 
 /// client for interacting with the noble chain
