@@ -185,6 +185,7 @@ graph LR
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>Transfer</strong></td><td>-</td><td>Transfer funds using IBC from the ICA created by the <strong>input_acount</strong> to a <strong>receiver</strong> on a remote domain using the IBC <strong>channel_id</strong></td></tr>
+<tr><td><strong>EurekaTransfer</strong></td><td>eureka_fee</td><td>Transfer funds over IBC from an <strong>input account</strong> on a source chain to an <strong>output account</strong> on a destination EVM chain using IBC Eureka. The eureka_fee parameter will contain the amount to be paid to a relayer address on the intermediate chain along with the timeout of this fee. All this information can be obtained from a Skip Go query explained in the IBC Eureka section below. <strong>Important</strong>: the fee timeout is passed in nanoseconds</td></tr>
 </tbody></table>
 </div>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
@@ -206,6 +207,8 @@ graph LR
     pub remote_chain_info: RemoteChainInfo,
     // Denom map for the Packet-Forwarding Middleware, to perform a multi-hop transfer.
     pub denom_to_pfm_map: BTreeMap&lt;String, PacketForwardMiddlewareConfig&gt;,
+    // Configuration used for IBC Eureka transfers
+    pub eureka_config: Option&lt;EurekaConfig&gt;,
 }
 
 pub struct RemoteChainInfo {
@@ -221,9 +224,25 @@ struct PacketForwardMiddlewareConfig {
   local_to_hop_chain_channel_id: String,
   // Channel ID from the intermediate to the destination chain
   hop_to_destination_chain_channel_id: String,
-  // Temporary receiver address on the intermediate chain. Typically this is set to an invalid address so the entire transaction will revert if the forwarding fails. If not 
+  // Temporary receiver address on the intermediate chain. Typically this is set to an invalid address so the entire transaction will revert if the forwarding fails. If not
   // provided it's set to "pfm"
   hop_chain_receiver_address: Option&lt;String&gt;,
+}
+
+// Configuration for IBC Eureka transfers
+pub struct EurekaConfig {
+    /// The address of the contract on intermediate chain that will receive the callback.
+    pub callback_contract: String,
+    /// The address of the contract on intermediate chain that will trigger the actions, in this case the Eureka transfer.
+    pub action_contract: String,
+    /// Recover address on intermediate chain in case the transfer fails
+    pub recover_address: String,
+    /// Source channel on the intermediate chain (e.g. "08-wasm-1369")
+    pub source_channel: String,
+    /// Optional memo for the Eureka transfer triggered by the contract. Not used right now but could eventually be used.
+    pub memo: Option&lt;String&gt;,
+    /// Timeout in seconds to be used for the Eureka transfer. For reference, Skip Go uses 12 hours (43200). If not passed we will use that default value
+    pub timeout: Option&lt;u64&gt;,
 }
 <span class="boring">}</span></code></pre></pre>
 <h3 id="packet-forward-middleware"><a class="header" href="#packet-forward-middleware">Packet-Forward Middleware</a></h3>
@@ -232,6 +251,9 @@ This allows tokens to be transferred through an intermediate chain to reach thei
 destination. More information about the PFM functionality can be found in the <a href="https://github.com/cosmos/ibc-apps/tree/main/middleware/packet-forward-middleware">official
 documentation</a>.</p>
 <p>This works in the same way as the <strong>Generic IBC Transfer Library</strong>. The only difference is that the <strong>input account</strong> is a <strong>Valence interchain account</strong> and the <strong>receiver</strong> is a remote address on the remote domain. For more details on how PFM works, check the <a href="./generic_ibc_transfer.html#packet-forward-middleware">Generic IBC Transfer Library PFM</a> documentation.</p>
+<h3 id="ibc-eureka"><a class="header" href="#ibc-eureka">IBC Eureka</a></h3>
+<p>This library supports IBC Eureka transfers using an intermediate chain. This allows tokens to be transferred from the origin chain to EVM chains connected with IBC Eureka using standard IBC transfers together with Skip Go capabilities. For more information on how IBC Eureka works with Skip Go, please refer to this <a href="https://docs.skip.build/go/eureka/eureka-overview">Eureka overview</a>.</p>
+<p>This works in the same way as the <strong>Generic IBC Transfer Library</strong>. The only difference is that the <strong>input account</strong> is a <strong>Valence interchain account</strong> and the <strong>receiver</strong> is a remote address on the remote EVM chain. For more details on how IBC Eureka works, check the <a href="./generic_ibc_transfer.html#ibc-eureka">Generic IBC Transfer Library IBC Eureka</a> documentation.</p>
 
                     </main>
 

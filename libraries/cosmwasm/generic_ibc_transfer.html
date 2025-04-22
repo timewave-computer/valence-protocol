@@ -187,6 +187,7 @@ graph LR
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>IbcTransfer</strong></td><td>-</td><td>Transfer funds over IBC from an <strong>input account</strong> on a source chain to an <strong>output account</strong> on a destination chain.</td></tr>
+<tr><td><strong>EurekaTransfer</strong></td><td>eureka_fee</td><td>Transfer funds over IBC from an <strong>input account</strong> on a source chain to an <strong>output account</strong> on a destination EVM chain using IBC Eureka. The eureka_fee parameter will contain the amount to be paid to a relayer address on the intermediate chain along with the timeout of this fee. All this information can be obtained from a Skip Go query explained in the IBC Eureka section below. <strong>Important</strong>: the fee timeout is passed in nanoseconds</td></tr>
 </tbody></table>
 </div>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
@@ -208,6 +209,8 @@ graph LR
   remote_chain_info: RemoteChainInfo,
   // Denom map for the Packet-Forwarding Middleware, to perform a multi-hop transfer.
   denom_to_pfm_map: BTreeMap&lt;String, PacketForwardMiddlewareConfig&gt;,
+  // Configuration used for IBC Eureka transfers
+  eureka_config: Option&lt;EurekaConfig&gt;,
 }
 
 // Defines the amount to be transferred, either a fixed amount or the whole available balance.
@@ -233,9 +236,25 @@ struct PacketForwardMiddlewareConfig {
   local_to_hop_chain_channel_id: String,
   // Channel ID from the intermediate to the destination chain
   hop_to_destination_chain_channel_id: String,
-  // Temporary receiver address on the intermediate chain. Typically this is set to an invalid address so the entire transaction will revert if the forwarding fails. If not 
+  // Temporary receiver address on the intermediate chain. Typically this is set to an invalid address so the entire transaction will revert if the forwarding fails. If not
   // provided it's set to "pfm"
   hop_chain_receiver_address: Option&lt;String&gt;,
+}
+
+// Configuration for IBC Eureka transfers
+pub struct EurekaConfig {
+    /// The address of the contract on intermediate chain that will receive the callback.
+    pub callback_contract: String,
+    /// The address of the contract on intermediate chain that will trigger the actions, in this case the Eureka transfer.
+    pub action_contract: String,
+    /// Recover address on intermediate chain in case the transfer fails
+    pub recover_address: String,
+    /// Source channel on the intermediate chain (e.g. "08-wasm-1369")
+    pub source_channel: String,
+    /// Optional memo for the Eureka transfer triggered by the contract. Not used right now but could eventually be used.
+    pub memo: Option&lt;String&gt;,
+    /// Timeout in seconds to be used for the Eureka transfer. For reference, Skip Go uses 12 hours (43200). If not passed we will use that default value
+    pub timeout: Option&lt;u64&gt;,
 }
 <span class="boring">}</span></code></pre></pre>
 <h3 id="packet-forward-middleware"><a class="header" href="#packet-forward-middleware">Packet-Forward Middleware</a></h3>
@@ -289,8 +308,81 @@ Library config may look like this:</p>
             hop_chain_receiver_address: None, // if not passed, "pfm" is used
         },
     )]),
+    eureka_config: None,
 }
 <span class="boring">}</span></code></pre></pre>
+<h3 id="ibc-eureka"><a class="header" href="#ibc-eureka">IBC Eureka</a></h3>
+<p>This library supports IBC Eureka transfers using an intermediate chain. This allows tokens to be transferred from the origin chain to EVM chains connected with IBC Eureka using standard IBC transfers together with Skip Go capabilities. For more information on how IBC Eureka works with Skip Go, please refer to this <a href="https://docs.skip.build/go/eureka/eureka-overview">Eureka overview</a>.</p>
+<p>Currently, all IBC Eureka transfers are routed through the Cosmos Hub, but the library can be configured to use any other chain as the intermediate chain in the future.
+The library can be configured to make use of IBC Eureka as follows:</p>
+<ul>
+<li><code>output_addr</code> is set to the final receiver address on the final EVM chain (0x address)</li>
+<li><code>remote_chain_info</code> is configured between the origin and intermediate chain</li>
+<li><code>eureka_config</code> is configured with the addresses used to trigger the actions on the intermediate chain and the callback contract that will be called when the transfer is completed.
+<ul>
+<li><code>callback_contract</code> - address of the contract on the intermediate chain that will trigger the callback.</li>
+<li><code>action_contract</code> - address of the contract on the intermediate chain that will trigger the actions, in this case the Eureka transfer.</li>
+<li><code>recover_address</code> - address on the intermediate chain that will be used to recover the funds in case the transfer fails.</li>
+<li><code>source_channel</code> - source channel on the intermediate chain</li>
+<li><code>memo(Optional)</code> - memo to be passed in the IBC transfer message. Currently not used but could potentially be used in the future.</li>
+<li><code>timeout(Optional)</code> - timeout in seconds for the Eureka Transfer. If not provided, a default 43200 seconds (12 hours) will be used. Which is the same that Skip Go uses.</li>
+</ul>
+</li>
+</ul>
+<p>Consider an example configuration transferring ATOM tokens from Neutron to Ethereum.
+Library config may look like this:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>LibraryConfig {
+    input_addr: "neutron1....",
+    output_addr: "0x....",
+    denom: UncheckedDenom::Native("ibc/C4CFF46FD6DE35CA4CF4CE031E643C8FDC9BA4B99AE598E9B0ED98FE3A2319F9".to_string()),
+    amount: IbcTransferAmount::FullAmount,
+    memo: "".to_string(),
+    remote_chain_info: RemoteChainInfo {
+        channel_id: "channel-1", // Neutron to Cosmos Hub channel id
+        ibc_transfer_timeout: None, // Default 10 minutes used
+    },
+    denom_to_pfm_map: BTreeMap::default(),
+    eureka_config: {
+        callback_contract: "cosmos1lqu9662kd4my6dww4gzp3730vew0gkwe0nl9ztjh0n5da0a8zc4swsvd22".to_string(),
+        action_contract: "cosmos1clswlqlfm8gpn7n5wu0ypu0ugaj36urlhj7yz30hn7v7mkcm2tuqy9f8s5".to_string(),
+        recover_address: "cosmos1....".to_string(),
+        source_channel: "08-wasm-1369".to_string(),
+        memo: None,
+        timeout: None,
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<p>When configuring the library or executing the <strong>EurekaTransfer</strong> function, the following Skip Go query can be used to get all the required information. Here's an example query to transfer 5 ATOM from Neutron to Ethereum.</p>
+<pre><code class="language-bash">curl -X POST "https://go.skip.build/api/skip/v2/fungible/route" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source_asset_chain_id": "neutron-1",
+    "source_asset_denom": "ibc/C4CFF46FD6DE35CA4CF4CE031E643C8FDC9BA4B99AE598E9B0ED98FE3A2319F9",
+    "dest_asset_chain_id": "1",
+    "dest_asset_denom": "0xbf6Bc6782f7EB580312CC09B976e9329f3e027B3",
+    "amount_in": "5000000",
+    "allow_unsafe": true,
+    "allow_multi_tx": true,
+    "go_fast": true,
+    "smart_relay": true,
+    "smart_swap_options": {
+      "split_routes": true,
+      "evm_swaps": true
+    },
+    "experimental_features": [
+      "eureka"
+    ]
+  }'
+</code></pre>
+<p>This query will return the following key information among other things:</p>
+<ul>
+<li><code>smart_relay_fee_quote</code> - the <code>eureka_fee</code> information to execute the transfer. <strong>Important</strong>: the timeout for the transfer needs to be passed as nanoseconds.</li>
+<li><code>source_client</code> - the <code>source_channel</code> used in the <code>eureka_config</code> when configuring the library.</li>
+<li><code>callback_adapter_contract_address</code> - the <code>callback_contract</code> used in the <code>eureka_config</code> when configuring the library.</li>
+<li><code>entry_contract_address</code> - the <code>action_contract</code> used in the <code>eureka_config</code> when configuring the library.</li>
+</ul>
 
                     </main>
 
