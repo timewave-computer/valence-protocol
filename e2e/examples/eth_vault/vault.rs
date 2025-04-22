@@ -564,5 +564,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         evm::mine_blocks(&rt, &eth_client, 5, 3);
     }
 
+    let mut i = 7;
+    loop {
+        info!("\n======================== EPOCH {i} ========================\n");
+        async_run!(&rt, wait_until_half_minute().await);
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        i += 1;
+        if i > 1_000_000 {
+            break;
+        }
+    }
+
     Ok(())
 }
