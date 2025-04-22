@@ -462,6 +462,7 @@ pub fn setup_ica_ibc_transfer_lib(
                 ibc_transfer_timeout: None,
             },
             denom_to_pfm_map: BTreeMap::default(),
+            eureka_config: None,
         },
     };
 
@@ -533,6 +534,7 @@ pub fn setup_neutron_ibc_transfer_lib(
             output_addr: LibraryAccountType::Addr(output_addr.to_string()),
             memo: "-".to_string(),
             denom_to_pfm_map: BTreeMap::default(),
+            eureka_config: None,
         },
     };
 

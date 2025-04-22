@@ -40,6 +40,8 @@ pub fn execute(
 }
 
 mod functions {
+    use std::collections::BTreeMap;
+
     use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
     use valence_library_utils::{error::LibraryError, execute_on_behalf_of};
 
@@ -52,23 +54,23 @@ mod functions {
         msg: FunctionMsgs,
         cfg: Config,
     ) -> Result<Response, LibraryError> {
-        match msg {
-            FunctionMsgs::IbcTransfer {} => {
-                let balance = cfg.denom().query_balance(&deps.querier, cfg.input_addr())?;
+        let balance = cfg.denom().query_balance(&deps.querier, cfg.input_addr())?;
 
-                let amount = match cfg.amount() {
-                    IbcTransferAmount::FullAmount => balance,
-                    IbcTransferAmount::FixedAmount(amount) => {
-                        if balance < *amount {
-                            return Err(LibraryError::ExecutionError(format!(
+        let amount = match cfg.amount() {
+            IbcTransferAmount::FullAmount => balance,
+            IbcTransferAmount::FixedAmount(amount) => {
+                if balance < *amount {
+                    return Err(LibraryError::ExecutionError(format!(
                                 "Insufficient balance for denom '{}' in config (required: {}, available: {}).",
                                 cfg.denom(), amount, balance,
                             )));
-                        }
-                        *amount
-                    }
-                };
+                }
+                *amount
+            }
+        };
 
+        match msg {
+            FunctionMsgs::IbcTransfer {} => {
                 let ibc_send_msg = valence_ibc_utils::generic::ibc_send_message(
                     env,
                     cfg.remote_chain_info().channel_id.clone(),
@@ -86,6 +88,42 @@ mod functions {
 
                 Ok(Response::new()
                     .add_attribute("method", "ibc-transfer")
+                    .add_message(input_account_msgs))
+            }
+            FunctionMsgs::EurekaTransfer { eureka_fee } => {
+                let eureka_config = match cfg.eureka_config() {
+                    Some(config) => config,
+                    None => {
+                        return Err(LibraryError::ExecutionError(
+                            "No Eureka config provided.".to_string(),
+                        ))
+                    }
+                };
+
+                let eureka_memo = valence_ibc_utils::generic::build_eureka_memo(
+                    &env,
+                    cfg.output_addr().clone(),
+                    eureka_fee,
+                    eureka_config.clone(),
+                )?;
+
+                let ibc_send_msg = valence_ibc_utils::generic::ibc_send_message(
+                    env,
+                    cfg.remote_chain_info().channel_id.clone(),
+                    eureka_config.callback_contract.clone(),
+                    cfg.denom().to_string(),
+                    amount.u128(),
+                    eureka_memo,
+                    cfg.remote_chain_info().ibc_transfer_timeout.map(Into::into),
+                    BTreeMap::default(),
+                )
+                .map_err(|err| LibraryError::ExecutionError(err.to_string()))?;
+
+                let input_account_msgs =
+                    execute_on_behalf_of(vec![ibc_send_msg], cfg.input_addr())?;
+
+                Ok(Response::new()
+                    .add_attribute("method", "ibc-eureka-transfer")
                     .add_message(input_account_msgs))
             }
         }

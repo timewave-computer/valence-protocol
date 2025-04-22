@@ -15,6 +15,8 @@ use neutron_sdk::{
     bindings::query::NeutronQuery, query::min_ibc_fee::MinIbcFeeResponse, sudo::msg::SudoMsg,
 };
 use serde::de::DeserializeOwned;
+use valence_generic_ibc_transfer_library::msg::LibraryConfigUpdate;
+use valence_ibc_utils::types::EurekaFee;
 use valence_library_utils::{
     denoms::CheckedDenom,
     msg::{ExecuteMsg, InstantiateMsg, LibraryConfigValidation},
@@ -126,12 +128,37 @@ impl IbcTransferTestSuite {
         )
     }
 
+    fn execute_eureka_ibc_transfer(&mut self, addr: Addr) -> AnyResult<AppResponse> {
+        self.contract_execute(
+            addr,
+            &ExecuteMsg::<_, LibraryConfig>::ProcessFunction(FunctionMsgs::EurekaTransfer {
+                eureka_fee: EurekaFee {
+                    coin: coin(1, NTRN),
+                    receiver: self.output_addr().to_string(),
+                    timeout_timestamp: 15000000000,
+                },
+            }),
+        )
+    }
+
     fn update_config(&mut self, addr: Addr, new_config: LibraryConfig) -> AnyResult<AppResponse> {
         let owner = self.owner().clone();
+        let updated_config = LibraryConfigUpdate {
+            input_addr: Some(new_config.input_addr),
+            output_addr: Some(new_config.output_addr),
+            amount: Some(new_config.amount),
+            denom: Some(new_config.denom),
+            memo: Some(new_config.memo),
+            remote_chain_info: Some(new_config.remote_chain_info),
+            denom_to_pfm_map: Some(new_config.denom_to_pfm_map),
+            eureka_config: valence_library_utils::OptionUpdate::Set(new_config.eureka_config),
+        };
         self.app_mut().execute_contract(
             owner,
             addr,
-            &ExecuteMsg::<FunctionMsgs, LibraryConfig>::UpdateConfig { new_config },
+            &ExecuteMsg::<FunctionMsgs, LibraryConfigUpdate>::UpdateConfig {
+                new_config: updated_config,
+            },
             &[],
         )
     }
@@ -457,4 +484,25 @@ fn ibc_transfer_fails_for_insufficient_fee_balance() {
 
     // Execute IBC transfer
     suite.execute_ibc_transfer(svc).unwrap();
+}
+
+// Eureka config test
+
+#[test]
+#[should_panic(expected = "No Eureka config provided.")]
+fn eureka_ibc_transfer_fails_no_eureka_config() {
+    let mut suite = IbcTransferTestSuite::new(Some((ONE_MILLION, NTRN.to_string())));
+
+    let cfg = suite.ibc_transfer_config(
+        NTRN.to_string(),
+        IbcTransferAmount::FixedAmount(ONE_MILLION.into()),
+        "".to_string(),
+        RemoteChainInfo::new("channel-1".to_string(), Some(600u64.into())),
+    );
+
+    // Instantiate contract
+    let lib = suite.ibc_transfer_init(&cfg);
+
+    // Execute IBC transfer
+    suite.execute_eureka_ibc_transfer(lib).unwrap();
 }

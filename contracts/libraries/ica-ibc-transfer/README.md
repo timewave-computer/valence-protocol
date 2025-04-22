@@ -45,6 +45,8 @@ pub struct LibraryConfig {
     pub remote_chain_info: RemoteChainInfo,
     // Denom map for the Packet-Forwarding Middleware, to perform a multi-hop transfer.
     pub denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
+    // Configuration used for IBC Eureka transfers
+    pub eureka_config: Option<EurekaConfig>,
 }
 
 pub struct RemoteChainInfo {
@@ -63,5 +65,21 @@ struct PacketForwardMiddlewareConfig {
   // Temporary receiver address on the intermediate chain. Typically this is set to an invalid address so the entire transaction will revert if the forwarding fails. If not 
   // provided it's set to "pfm"
   hop_chain_receiver_address: Option<String>,
+}
+
+// Configuration for IBC Eureka transfers
+pub struct EurekaConfig {
+    /// The address of the contract on intermediate chain that will receive the callback.
+    pub callback_contract: String,
+    /// The address of the contract on intermediate chain that will trigger the actions, in this case the Eureka transfer.
+    pub action_contract: String,
+    /// Recover address on intermediate chain in case the transfer fails
+    pub recover_address: String,
+    /// Source channel on the intermediate chain (e.g. "08-wasm-1369")
+    pub source_channel: String,
+    /// Optional memo for the Eureka transfer triggered by the contract. Not used right now but could eventually be used.
+    pub memo: Option<String>,
+    /// Timeout in seconds to be used for the Eureka transfer. For reference, Skip Go uses 12 hours (43200). If not passed we will use that default value
+    pub timeout: Option<u64>,
 }
 ```
