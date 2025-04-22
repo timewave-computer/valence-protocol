@@ -86,6 +86,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // eth side USDC token
     let usdc_token_address =
         ethereum_utils::mock_erc20::setup_deposit_erc20(&rt, &eth_client, "MockUSDC", "USDC")?;
+    info!("USDC Token Address: {usdc_token_address}");
 
     info!("Setting up Neutron side flow...");
 
