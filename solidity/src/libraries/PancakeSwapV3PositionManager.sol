@@ -33,8 +33,8 @@ contract PancakeSwapV3PositionManager is Library {
         address token0;
         address token1;
         uint24 poolFee;
+        uint16 slippageBps; // Basis points (e.g., 100 = 1%)
         uint256 timeout;
-        uint256 slippageBps; // Basis points (e.g., 100 = 1%)
     }
 
     /**
@@ -43,12 +43,12 @@ contract PancakeSwapV3PositionManager is Library {
     PancakeSwapV3PositionManagerConfig public config;
 
     /**
-     * @notice Emitted when liquidity is provided and a new NFT position is minted
+     * @notice Emitted when a position is created and a new NFT position is minted
      * @param tokenId ID of the minted NFT position
-     * @param amount0Used Amount of token0 used for providing liquidity
-     * @param amount1Used Amount of token1 used for providing liquidity
+     * @param amount0Used Amount of token0 used for create position
+     * @param amount1Used Amount of token1 used for create position
      */
-    event LiquidityProvided(uint256 tokenId, uint256 amount0Used, uint256 amount1Used);
+    event PositionCreated(uint256 tokenId, uint256 amount0Used, uint256 amount1Used);
 
     /**
      * @notice Emitted when a position is withdrawn
@@ -136,7 +136,7 @@ contract PancakeSwapV3PositionManager is Library {
     }
 
     /**
-     * @notice Provides liquidity to a PancakeSwap V3 pool and stakes the position in MasterChef
+     * @notice Creates a position on a PancakeSwap V3 pool and stakes it in MasterChef
      * @param tickLower Lower tick boundary of the position
      * @param tickUpper Upper tick boundary of the position
      * @param amount0 Amount of token0 to provide (0 = use entire balance)
@@ -144,7 +144,7 @@ contract PancakeSwapV3PositionManager is Library {
      * @return tokenId ID of the minted NFT position
      * @dev Approves tokens, mints position, and stakes in MasterChef
      */
-    function provideLiquidity(int24 tickLower, int24 tickUpper, uint256 amount0, uint256 amount1)
+    function createPosition(int24 tickLower, int24 tickUpper, uint256 amount0, uint256 amount1)
         external
         onlyProcessor
         returns (uint256)
@@ -225,7 +225,7 @@ contract PancakeSwapV3PositionManager is Library {
         _config.inputAccount.execute(address(_config.positionManager), 0, encodedTransferCall);
 
         // Emit event
-        emit LiquidityProvided(tokenId, amount0Used, amount1Used);
+        emit PositionCreated(tokenId, amount0Used, amount1Used);
 
         return tokenId;
     }

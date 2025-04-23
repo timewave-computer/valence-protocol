@@ -65,8 +65,8 @@ contract PancakeSwapV3PositionManagerScript is Script {
             token0: WETH_ADDR, // WETH is token0
             token1: USDC_ADDR, // USDC is token1
             poolFee: POOL_FEE,
-            timeout: 600, // 10 minutes
-            slippageBps: 10000 // allow 100% slippage for testing
+            slippageBps: 10000, // allow 100% slippage for testing
+            timeout: 600 // 10 minutes
         });
 
         bytes memory configBytes = abi.encode(config);
@@ -87,13 +87,13 @@ contract PancakeSwapV3PositionManagerScript is Script {
         console.log("\nOutput Account Balances:");
         logBalances(outputAccount);
 
-        // Test 1: Add liquidity to a USDC-WETH pool
-        console.log("\n=== TEST 1: ADD LIQUIDITY TO USDC-WETH POOL ===");
+        // Test 1: Create Position on a USDC-WETH pool
+        console.log("\n=== TEST 1: Create Position ON USDC-WETH POOL ===");
 
         // Define position parameters
         // Note: These values are examples and should be calculated based on the current pool state
-        int24 tickLower = -887272; // Minimum possible tick
-        int24 tickUpper = 887272; // Maximum possible tick
+        int24 tickLower = -800000; // Use a small value
+        int24 tickUpper = 800000;  // Use a big value
 
         // Amount of tokens to add to the pool
         // Make sure the order is correct: amount0 is for token0 (WETH) and amount1 is for token1 (USDC)
@@ -104,24 +104,24 @@ contract PancakeSwapV3PositionManagerScript is Script {
         uint256 initialUsdcBalance = IERC20(USDC_ADDR).balanceOf(address(inputAccount));
         uint256 initialWethBalance = IERC20(WETH_ADDR).balanceOf(address(inputAccount));
 
-        // Add liquidity
+        // Create Position
         vm.prank(processor);
-        uint256 tokenId = positionManager.provideLiquidity(tickLower, tickUpper, amount0, amount1);
+        uint256 tokenId = positionManager.createPosition(tickLower, tickUpper, amount0, amount1);
         console.log("Token ID minted: %s", tokenId);
 
-        console.log("After adding liquidity to USDC-WETH pool:");
+        console.log("After creating position to USDC-WETH pool:");
         console.log("Input Account Balances:");
         logBalances(inputAccount);
         console.log("\nOutput Account Balances:");
         logBalances(outputAccount);
 
-        // Verify balances after adding liquidity
-        uint256 usdcAfterLiquidity = IERC20(USDC_ADDR).balanceOf(address(inputAccount));
-        uint256 wethAfterLiquidity = IERC20(WETH_ADDR).balanceOf(address(inputAccount));
+        // Verify balances after creating position
+        uint256 usdcAfterPosition = IERC20(USDC_ADDR).balanceOf(address(inputAccount));
+        uint256 wethAfterPosition = IERC20(WETH_ADDR).balanceOf(address(inputAccount));
 
         console.log("\n=== VERIFICATION ===");
-        console.log("USDC used for liquidity: %s", (initialUsdcBalance - usdcAfterLiquidity) / 10 ** 6);
-        console.log("WETH used for liquidity: %s", (initialWethBalance - wethAfterLiquidity) / 10 ** 18);
+        console.log("USDC used for liquidity: %s", (initialUsdcBalance - usdcAfterPosition) / 10 ** 6);
+        console.log("WETH used for liquidity: %s", (initialWethBalance - wethAfterPosition) / 10 ** 18);
 
         // Test 3: Withdraw a position
         console.log("\n=== TEST 3: WITHDRAW POSITION ===");
