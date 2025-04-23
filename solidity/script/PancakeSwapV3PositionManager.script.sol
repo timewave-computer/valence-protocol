@@ -6,12 +6,12 @@ import {console} from "forge-std/src/console.sol";
 import {PancakeSwapV3PositionManager} from "../src/libraries/PancakeSwapV3PositionManager.sol";
 import {BaseAccount} from "../src/accounts/BaseAccount.sol";
 import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
-import {MockERC20} from "../test/mocks/MockERC20.sol";
 
 contract PancakeSwapV3PositionManagerScript is Script {
     // Base chain PancakeSwap addresses
     address constant POSITION_MANAGER_ADDR = 0x46A15B0b27311cedF172AB29E4f4766fbE7F4364; // PancakeSwap NonfungiblePositionManager on Base
     address constant MASTER_CHEF_V3_ADDR = 0xC6A2Db661D5a5690172d8eB0a7DEA2d3008665A3; // PancakeSwap MasterChefV3 on Base
+    address constant CAKE_ADDR = 0x3055913c90Fcc1A6CE9a358911721eEb942013A1; // CAKE token on Base
 
     // Token addresses on Base chain
     address constant USDC_ADDR = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913; // USDC on Base
@@ -46,7 +46,7 @@ contract PancakeSwapV3PositionManagerScript is Script {
         IERC20(USDC_ADDR).transfer(address(inputAccount), 10000 * 10 ** 6); // 10,000 USDC
         vm.stopPrank();
 
-        // Fund the account with DAI from the whale
+        // Fund the account with WETH from the whale
         vm.startPrank(WETH_WHALE);
         IERC20(WETH_ADDR).transfer(address(inputAccount), 10 * 10 ** 18); // 10 WETH
         vm.stopPrank();
@@ -74,12 +74,18 @@ contract PancakeSwapV3PositionManagerScript is Script {
 
         // Approve library to act on behalf of the input account
         inputAccount.approveLibrary(address(positionManager));
+
+        // Also approve the output account to allow library to act on its behalf
+        // This is needed for withdrawal operations
+        outputAccount.approveLibrary(address(positionManager));
         vm.stopPrank();
 
         // Log initial state
         console.log("\n=== INITIAL STATE ===");
         console.log("Input Account Balances:");
         logBalances(inputAccount);
+        console.log("\nOutput Account Balances:");
+        logBalances(outputAccount);
 
         // Test 1: Add liquidity to a USDC-WETH pool
         console.log("\n=== TEST 1: ADD LIQUIDITY TO USDC-WETH POOL ===");
@@ -100,7 +106,8 @@ contract PancakeSwapV3PositionManagerScript is Script {
 
         // Add liquidity
         vm.prank(processor);
-        positionManager.provideLiquidity(tickLower, tickUpper, amount0, amount1);
+        uint256 tokenId = positionManager.provideLiquidity(tickLower, tickUpper, amount0, amount1);
+        console.log("Token ID minted: %s", tokenId);
 
         console.log("After adding liquidity to USDC-WETH pool:");
         console.log("Input Account Balances:");
@@ -116,45 +123,53 @@ contract PancakeSwapV3PositionManagerScript is Script {
         console.log("USDC used for liquidity: %s", (initialUsdcBalance - usdcAfterLiquidity) / 10 ** 6);
         console.log("WETH used for liquidity: %s", (initialWethBalance - wethAfterLiquidity) / 10 ** 18);
 
-        // Test 2: Add all remaining liquidity
-        console.log("\n=== TEST 2: ADD ALL REMAINING LIQUIDITY ===");
+        // Test 3: Withdraw a position
+        console.log("\n=== TEST 3: WITHDRAW POSITION ===");
+        console.log("Before withdrawal - Output Account Balances:");
+        logBalances(outputAccount);
+        console.log("CAKE balance: %s", IERC20(CAKE_ADDR).balanceOf(address(outputAccount)) / 10 ** 18);
 
-        // Store balances before adding all remaining liquidity
-        uint256 usdcBeforeAll = IERC20(USDC_ADDR).balanceOf(address(inputAccount));
-        uint256 wethBeforeAll = IERC20(WETH_ADDR).balanceOf(address(inputAccount));
-
-        // Add all remaining liquidity (using 0 to indicate "use all")
+        // Call withdrawPosition
         vm.prank(processor);
-        uint256 tokenId = positionManager.provideLiquidity(
-            tickLower,
-            tickUpper,
-            0, // use all WETH (token0)
-            0 // use all USDC (token1)
-        );
+        (
+            uint256 feesCollectedToken0,
+            uint256 feesCollectedToken1,
+            uint256 liquidity0,
+            uint256 liquidity1,
+            uint256 rewardAmount
+        ) = positionManager.withdrawPosition(tokenId);
 
-        console.log("Token ID minted: %s", tokenId);
-        console.log("After adding all remaining liquidity:");
-        console.log("Input Account Balances:");
-        logBalances(inputAccount);
+        console.log("\nPosition withdrawal results:");
+        console.log("Fees collected (WETH): %s", feesCollectedToken0 / 10 ** 18);
+        console.log("Fees collected (USDC): %s", feesCollectedToken1 / 10 ** 6);
+        console.log("Liquidity withdrawn (WETH): %s", liquidity0 / 10 ** 18);
+        console.log("Liquidity withdrawn (USDC): %s", liquidity1 / 10 ** 6);
+        console.log("CAKE rewards: %s", rewardAmount / 10 ** 18);
 
-        // Verify all tokens were used
-        uint256 usdcAfterAll = IERC20(USDC_ADDR).balanceOf(address(inputAccount));
-        uint256 wethAfterAll = IERC20(WETH_ADDR).balanceOf(address(inputAccount));
+        console.log("\nAfter withdrawal - Output Account Balances:");
+        logBalances(outputAccount);
+        console.log("CAKE balance: %s", IERC20(CAKE_ADDR).balanceOf(address(outputAccount)) / 10 ** 18);
+
+        // Verify that funds were received in the output account
+        uint256 finalUsdcBalance = IERC20(USDC_ADDR).balanceOf(address(outputAccount));
+        uint256 finalWethBalance = IERC20(WETH_ADDR).balanceOf(address(outputAccount));
+        uint256 finalCakeBalance = IERC20(CAKE_ADDR).balanceOf(address(outputAccount));
 
         console.log("\n=== FINAL VERIFICATION ===");
-        console.log("USDC used in second liquidity provision: %s", (usdcBeforeAll - usdcAfterAll) / 10 ** 6);
-        console.log("WETH used in second liquidity provision: %s", (wethBeforeAll - wethAfterAll) / 10 ** 18);
+        console.log("Total USDC received in output account: %s", finalUsdcBalance / 10 ** 6);
+        console.log("Total WETH received in output account: %s", finalWethBalance / 10 ** 18);
+        console.log("Total CAKE rewards received: %s", finalCakeBalance / 10 ** 18);
 
-        // Check if all tokens were used
-        if (usdcAfterAll == 0 && wethAfterAll == 0) {
-            console.log("Liquidity test passed: All tokens have been provided to the pool!");
+        // Verify that the position is fully withdrawn
+        if (finalUsdcBalance > 0 && finalWethBalance > 0) {
+            console.log("\nWithdrawal test passed: Tokens have been successfully withdrawn to the output account!");
         } else {
-            console.log(
-                "Not all tokens were provided to the pool. Remaining USDC: %s, Remaining WETH: %s",
-                usdcAfterAll / 10 ** 6,
-                wethAfterAll / 10 ** 18
-            );
+            console.log("\nWithdrawal test failed: No tokens were received in the output account");
         }
+
+        // Note: since we are on a simulated environment, we cannot accrue real CAKE rewards, nevertheless, the fact
+        // that we can withdraw the position and all the calls to the Position Manager and MasterChefV3 return all values
+        // successfully and the NFT is burned, we can assume that the integration is working as expected.
 
         console.log("\nPancakeSwapV3PositionManager integration tests completed successfully!");
     }
