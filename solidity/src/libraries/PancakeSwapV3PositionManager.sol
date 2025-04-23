@@ -6,11 +6,12 @@ import {BaseAccount} from "../accounts/BaseAccount.sol";
 import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
 import {INonfungiblePositionManager} from "./interfaces/pancakeswap/INonfungiblePositionManager.sol";
 
-contract PancakeSwapPositionManager is Library {
-    struct PancakeSwapPositionManagerConfig {
+contract PancakeSwapV3PositionManager is Library {
+    struct PancakeSwapV3PositionManagerConfig {
         BaseAccount inputAccount;
         BaseAccount outputAccount;
         address positionManager;
+        address masterChef;
         address token0;
         address token1;
         uint24 poolFee;
@@ -18,13 +19,17 @@ contract PancakeSwapPositionManager is Library {
         uint256 slippageBps; // Basis points (e.g., 100 = 1%)
     }
 
-    PancakeSwapPositionManagerConfig public config;
+    PancakeSwapV3PositionManagerConfig public config;
+
+    // Event to emit when liquidity is provided and a new NFT position is minted
+    event LiquidityProvided(uint256 tokenId, uint256 amount0Used, uint256 amount1Used);
 
     constructor(address _owner, address _processor, bytes memory _config) Library(_owner, _processor, _config) {}
 
-    function validateConfig(bytes memory _config) internal pure returns (PancakeSwapPositionManagerConfig memory) {
-        // Decode the configuration bytes into the PancakeSwapPositionManagerConfig struct
-        PancakeSwapPositionManagerConfig memory decodedConfig = abi.decode(_config, (PancakeSwapPositionManagerConfig));
+    function validateConfig(bytes memory _config) internal pure returns (PancakeSwapV3PositionManagerConfig memory) {
+        // Decode the configuration bytes into the PancakeSwapV3PositionManagerConfig struct
+        PancakeSwapV3PositionManagerConfig memory decodedConfig =
+            abi.decode(_config, (PancakeSwapV3PositionManagerConfig));
 
         // Ensure the input account address is valid
         if (decodedConfig.inputAccount == BaseAccount(payable(address(0)))) {
@@ -76,9 +81,10 @@ contract PancakeSwapPositionManager is Library {
     function provideLiquidity(int24 tickLower, int24 tickUpper, uint256 amount0, uint256 amount1)
         external
         onlyProcessor
+        returns (uint256)
     {
         // Get the config
-        PancakeSwapPositionManagerConfig memory _config = config;
+        PancakeSwapV3PositionManagerConfig memory _config = config;
 
         // Check if balance of assets is zero
         uint256 balanceToken0 = IERC20(address(_config.token0)).balanceOf(address(_config.inputAccount));
@@ -133,6 +139,28 @@ contract PancakeSwapPositionManager is Library {
         // Execute the calls
         _config.inputAccount.execute(_config.token0, 0, encodedApproveCallToken0);
         _config.inputAccount.execute(_config.token1, 0, encodedApproveCallToken1);
-        _config.inputAccount.execute(_config.positionManager, 0, encodedMintCall);
+        // Execute the mint call and extract the tokenId
+        bytes memory result = _config.inputAccount.execute(_config.positionManager, 0, encodedMintCall);
+
+        // Extract tokenId, liquidity, amount0, amount1 from the result
+        (uint256 tokenId,, uint256 amount0Used, uint256 amount1Used) =
+            abi.decode(result, (uint256, uint128, uint256, uint256));
+
+        // We are going to now stake the position by transferring the NFT to the masterChef
+        // Encode the transfer call
+        bytes memory encodedTransferCall = abi.encodeWithSignature(
+            "safeTransferFrom(address,address,uint256,bytes)",
+            address(_config.inputAccount),
+            address(_config.masterChef),
+            tokenId,
+            "" // Empty bytes for the data parameter
+        );
+        // Execute the transfer call
+        _config.inputAccount.execute(address(_config.positionManager), 0, encodedTransferCall);
+
+        // Emit event
+        emit LiquidityProvided(tokenId, amount0Used, amount1Used);
+
+        return tokenId;
     }
 }

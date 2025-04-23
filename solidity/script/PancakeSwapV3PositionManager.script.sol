@@ -3,14 +3,15 @@ pragma solidity ^0.8.28;
 
 import {Script} from "forge-std/src/Script.sol";
 import {console} from "forge-std/src/console.sol";
-import {PancakeSwapPositionManager} from "../src/libraries/PancakeSwapPositionManager.sol";
+import {PancakeSwapV3PositionManager} from "../src/libraries/PancakeSwapV3PositionManager.sol";
 import {BaseAccount} from "../src/accounts/BaseAccount.sol";
 import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
 import {MockERC20} from "../test/mocks/MockERC20.sol";
 
-contract PancakeSwapPositionManagerScript is Script {
+contract PancakeSwapV3PositionManagerScript is Script {
     // Base chain PancakeSwap addresses
     address constant POSITION_MANAGER_ADDR = 0x46A15B0b27311cedF172AB29E4f4766fbE7F4364; // PancakeSwap NonfungiblePositionManager on Base
+    address constant MASTER_CHEF_V3_ADDR = 0xC6A2Db661D5a5690172d8eB0a7DEA2d3008665A3; // PancakeSwap MasterChefV3 on Base
 
     // Token addresses on Base chain
     address constant USDC_ADDR = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913; // USDC on Base
@@ -26,7 +27,7 @@ contract PancakeSwapPositionManagerScript is Script {
     address processor = address(0x2);
 
     // Contracts
-    PancakeSwapPositionManager public positionManager;
+    PancakeSwapV3PositionManager public positionManager;
     BaseAccount public inputAccount;
     BaseAccount public outputAccount;
 
@@ -55,20 +56,21 @@ contract PancakeSwapPositionManagerScript is Script {
 
         // NOTE: WETH has the smaller address, so it should be token0
         // We need to make sure token0 and token1 are properly ordered
-        PancakeSwapPositionManager.PancakeSwapPositionManagerConfig memory config = PancakeSwapPositionManager
-            .PancakeSwapPositionManagerConfig({
+        PancakeSwapV3PositionManager.PancakeSwapV3PositionManagerConfig memory config = PancakeSwapV3PositionManager
+            .PancakeSwapV3PositionManagerConfig({
             inputAccount: inputAccount,
             outputAccount: outputAccount,
             positionManager: POSITION_MANAGER_ADDR,
-            token0: WETH_ADDR, // WETH is token0 (smaller address)
-            token1: USDC_ADDR, // USDC is token1 (larger address)
+            masterChef: MASTER_CHEF_V3_ADDR, // Added MasterChefV3 address
+            token0: WETH_ADDR, // WETH is token0
+            token1: USDC_ADDR, // USDC is token1
             poolFee: POOL_FEE,
             timeout: 600, // 10 minutes
             slippageBps: 10000 // allow 100% slippage for testing
         });
 
         bytes memory configBytes = abi.encode(config);
-        positionManager = new PancakeSwapPositionManager(owner, processor, configBytes);
+        positionManager = new PancakeSwapV3PositionManager(owner, processor, configBytes);
 
         // Approve library to act on behalf of the input account
         inputAccount.approveLibrary(address(positionManager));
@@ -84,8 +86,8 @@ contract PancakeSwapPositionManagerScript is Script {
 
         // Define position parameters
         // Note: These values are examples and should be calculated based on the current pool state
-        int24 tickLower = -887220;
-        int24 tickUpper = -73800;
+        int24 tickLower = -887272; // Minimum possible tick
+        int24 tickUpper = 887272; // Maximum possible tick
 
         // Amount of tokens to add to the pool
         // Make sure the order is correct: amount0 is for token0 (WETH) and amount1 is for token1 (USDC)
@@ -123,13 +125,14 @@ contract PancakeSwapPositionManagerScript is Script {
 
         // Add all remaining liquidity (using 0 to indicate "use all")
         vm.prank(processor);
-        positionManager.provideLiquidity(
+        uint256 tokenId = positionManager.provideLiquidity(
             tickLower,
             tickUpper,
             0, // use all WETH (token0)
             0 // use all USDC (token1)
         );
 
+        console.log("Token ID minted: %s", tokenId);
         console.log("After adding all remaining liquidity:");
         console.log("Input Account Balances:");
         logBalances(inputAccount);
@@ -153,7 +156,7 @@ contract PancakeSwapPositionManagerScript is Script {
             );
         }
 
-        console.log("\nPancakeSwapPositionManager integration tests completed successfully!");
+        console.log("\nPancakeSwapV3PositionManager integration tests completed successfully!");
     }
 
     function logBalances(BaseAccount account) internal view {
