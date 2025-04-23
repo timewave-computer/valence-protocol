@@ -13,7 +13,7 @@ git clone https://github.com/strangelove-ventures/interchaintest && cd interchai
 Run one of the set-up configs we have in the `e2e/chains` folder. For example, to run the `neutron_juno.json` config, run the following command:
 
 ```bash
-./scripts/start-local-ic.sh start neutron_juno --api-port 42069
+./scripts/start-local-ic.sh neutron_juno
 ```
 
 This will start a local environment (with automatic retry mechanism as sometimes local-ic starts the http server and then crashes) with a Gaia chain, a Neutron (using ICS) chain and a Juno chain. The `--api-port` will expose the API on port 42069, we are using this port in our local-ic-utils crate so let's use the same to reuse some of the utils there.
