@@ -530,6 +530,50 @@
         },
         "additionalProperties": false
       },
+      "EurekaConfig": {
+        "type": "object",
+        "required": [
+          "action_contract",
+          "callback_contract",
+          "recover_address",
+          "source_channel"
+        ],
+        "properties": {
+          "action_contract": {
+            "description": "The address of the contract on intermediate chain that will trigger the actions, in this case the Eureka transfer.",
+            "type": "string"
+          },
+          "callback_contract": {
+            "description": "The address of the contract on intermediate chain that will receive the callback.",
+            "type": "string"
+          },
+          "memo": {
+            "description": "Optional memo for the Eureka transfer triggered by the contract. Not used right now but could eventually be used.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recover_address": {
+            "description": "Recover address on intermediate chain in case the transfer fails",
+            "type": "string"
+          },
+          "source_channel": {
+            "description": "Source channel on the intermediate chain (e.g. \"08-wasm-1369\")",
+            "type": "string"
+          },
+          "timeout": {
+            "description": "Timeout in seconds to be used for the Eureka transfer. For reference, Skip Go uses 12 hours (43200). If not passed we will use that default value",
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        },
+        "additionalProperties": false
+      },
       "Expiration": {
         "description": "Expiration represents a point in time when some event happens. It can compare with a BlockInfo and will return is_expired() == true once the condition is hit (and for every block in the future)",
         "oneOf": [
@@ -1260,6 +1304,16 @@
           "denom_to_pfm_map": {
             "type": "object",
             "additionalProperties": false
+          },
+          "eureka_config": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/EurekaConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "input_addr": {
             "$ref": "#/definitions/LibraryAccountType"
@@ -1997,6 +2051,9 @@
       },
       "LibraryConfigUpdate9": {
         "type": "object",
+        "required": [
+          "eureka_config"
+        ],
         "properties": {
           "amount": {
             "anyOf": [
@@ -2024,6 +2081,9 @@
               "null"
             ],
             "additionalProperties": false
+          },
+          "eureka_config": {
+            "$ref": "#/definitions/OptionUpdate_for_EurekaConfig"
           },
           "input_addr": {
             "anyOf": [
@@ -2381,6 +2441,35 @@
           }
         },
         "additionalProperties": false
+      },
+      "OptionUpdate_for_EurekaConfig": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "none"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "set"
+            ],
+            "properties": {
+              "set": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/EurekaConfig"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
       },
       "OptionUpdate_for_uint64": {
         "oneOf": [
