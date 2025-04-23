@@ -17,7 +17,7 @@ use valence_chain_client_utils::{
     noble::NobleClient,
 };
 use valence_e2e::utils::{
-    solidity_contracts::{MockERC20, ValenceVault},
+    solidity_contracts::{MockERC20Usdc, ValenceVault},
     worker::{ValenceWorker, ValenceWorkerTomlSerde},
     NOBLE_CHAIN_DENOM,
 };
@@ -108,7 +108,7 @@ impl ValenceWorker for Strategy {
             Address::from_str(&self.cfg.ethereum.libraries.valence_vault)?,
             &eth_rp,
         );
-        let eth_usdc_erc20 = MockERC20::new(
+        let eth_usdc_erc20 = MockERC20Usdc::new(
             Address::from_str(&self.cfg.ethereum.denoms.usdc_erc20)?,
             &eth_rp,
         );
@@ -121,6 +121,8 @@ impl ValenceWorker for Strategy {
             .await?
             ._0;
 
+        info!("pending obligations: {pending_obligations}");
+
         // 2. query ethereum program accounts for their usdc balances
         let eth_deposit_acc_usdc_bal = self
             .eth_client
@@ -129,6 +131,11 @@ impl ValenceWorker for Strategy {
             )
             .await?
             ._0;
+
+        info!(
+            "eth deposit account balance: {:?}",
+            eth_deposit_acc_usdc_bal
+        );
 
         // 3. see if pending obligations can be netted and update the pending
         // obligations accordingly
@@ -177,6 +184,7 @@ impl ValenceWorker for Strategy {
             )
             .await
             .unwrap();
+        info!("shares to liquidate: {:?}", shares_to_liquidate);
 
         // 7. forward the shares to be liquidated from the position account to the withdraw account
         self.forward_shares_for_liquidation(shares_to_liquidate)

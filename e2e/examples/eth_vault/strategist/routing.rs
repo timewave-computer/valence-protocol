@@ -10,7 +10,7 @@ use valence_chain_client_utils::{
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
 use valence_e2e::utils::{
-    solidity_contracts::{CCTPTransfer, MockERC20},
+    solidity_contracts::{CCTPTransfer, MockERC20Usdc},
     UUSDC_DENOM,
 };
 use valence_forwarder_library::msg::UncheckedForwardingConfig;
@@ -198,7 +198,7 @@ impl EthereumVaultRouting for Strategy {
     async fn route_eth_to_noble(&self) {
         info!("CCTP forwarding USDC from Ethereum to Noble...");
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
-        let erc20 = MockERC20::new(
+        let erc20 = MockERC20Usdc::new(
             Address::from_str(&self.cfg.ethereum.denoms.usdc_erc20).unwrap(),
             &eth_rp,
         );
@@ -269,7 +269,7 @@ impl EthereumVaultRouting for Strategy {
         }
 
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
-        let erc20 = MockERC20::new(
+        let erc20 = MockERC20Usdc::new(
             Address::from_str(&self.cfg.ethereum.denoms.usdc_erc20).unwrap(),
             &eth_rp,
         );
