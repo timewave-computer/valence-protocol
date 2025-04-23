@@ -65,9 +65,12 @@ mod tests {
             instruction: bytes_instruction.to_string(),
         };
 
-        // Serialize to JSON
+        // Serialize to JSON and check
         let serialized = to_json_string(&msg).unwrap();
-        println!("Serialized ExecuteMsg::Send:\n{}", serialized);
+        assert_eq!(
+            serialized,
+            r#"{"send":{"channel_id":5,"timeout_height":"100","timeout_timestamp":"1634567890","salt":"0xdeadbeef","instruction":"0x0123456789abcdef"}}"#
+        );
     }
 
     #[test]
