@@ -1,7 +1,6 @@
 # Valence Union Transfer library
 
-The **Valence Union Transfer** library allows to transfer funds over [Union](https://union.build/) from an **input account** on a source chain to an **output account** on a destination chain. It is typically used as part of a **Valence Program**. In that context, a **Processor** contract will be the main contract interacting with the Forwarder library.
-
+The **Valence Union Transfer** library allows to transfer funds over [Union](https://union.build/) from an **input account** on a source CosmWasm chain to an **output account** on a destination EVM chain using the [Union UCS03-ZKGM protocol](https://docs.union.build/ucs/03/), which allows arbitrary filling of orders by any party. It is typically used as part of a **Valence Program**. In that context, a **Processor** contract will be the main contract interacting with the Forwarder library.
 
 ## High-level flow
 
@@ -33,9 +32,15 @@ graph LR
   CW --- EVM
 ```
 
+## Functions
+
+| Function     | Parameters             | Description                                                                                                                                                                                                                              |
+| ------------ | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Transfer** | quote_amount(optional) | Transfer funds from the configured **input account** to the **output account** on the **destination chain**. The quote_amount parameter can override the configured quote token amount. If not passed, the amount in the config is used. |
+
 ## Configuration
 
-The library is configured on instantiation via the `LibraryConfig` type.
+The library is configured on instantiation via the `LibraryConfig` type. A list of supported chains and their channels can be found [here](https://docs.union.build/protocol/chains/overview/). Additional information of parameters used in the configuration can be found [here](https://docs.union.build/ucs/03/). This library allows any party to fill orders, therefore the `quote_amount` value should take into consideration the amount of tokens that the filling party will receive.
 
 ```rust
 pub struct LibraryConfig {
