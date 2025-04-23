@@ -20,7 +20,10 @@ use super::strategy::Strategy;
 
 #[async_trait]
 pub trait EthereumVault {
-    async fn calculate_redemption_rate(&self) -> Result<Decimal, Box<dyn Error>>;
+    async fn calculate_redemption_rate(
+        &self,
+        netting_amount: u128,
+    ) -> Result<Decimal, Box<dyn Error>>;
     async fn calculate_total_fee(&self) -> Result<u32, Box<dyn Error>>;
 }
 
@@ -65,7 +68,10 @@ impl EthereumVault for Strategy {
         Ok(withdraw_fee)
     }
 
-    async fn calculate_redemption_rate(&self) -> Result<Decimal, Box<dyn Error>> {
+    async fn calculate_redemption_rate(
+        &self,
+        netting_amount: u128,
+    ) -> Result<Decimal, Box<dyn Error>> {
         let eth_rp = self.eth_client.get_request_provider().await?;
         let valence_vault = ValenceVault::new(
             Address::from_str(&self.cfg.ethereum.libraries.valence_vault)?,
@@ -147,14 +153,15 @@ impl EthereumVault for Strategy {
         info!("[calculate_redemption_rate] neutron_deposit_acc_usdc: {neutron_deposit_acc_usdc}");
 
         //   4. R = total_shares / total_assets
-        let normalized_eth_balance = Uint128::from_str(&eth_deposit_usdc.to_string())?;
+        let normalized_eth_deposit_acc_balance = Uint128::from_str(&eth_deposit_usdc.to_string())?;
         info!("[calculate_redemption_rate] eth_deposit_usdc: {eth_deposit_usdc}");
-        info!("[calculate_redemption_rate] normalized_eth_balance: {normalized_eth_balance}");
+        info!("[calculate_redemption_rate] normalized_eth_deposit_acc_balance: {normalized_eth_deposit_acc_balance}");
         let total_assets = noble_inbound_ica_usdc
             + neutron_deposit_acc_usdc
-            + normalized_eth_balance.u128()
+            + normalized_eth_deposit_acc_balance.u128()
             + usdc_amount.u128()
-            + swap_simulation_output.u128();
+            + swap_simulation_output.u128()
+            - netting_amount;
 
         let normalized_shares = Uint128::from_str(&vault_issued_shares.to_string())?;
 

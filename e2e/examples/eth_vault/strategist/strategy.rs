@@ -205,7 +205,11 @@ impl ValenceWorker for Strategy {
         // 10. update the vault to conclude the previous epoch. we already derived
         // the netting amount in step #3, so we need to find the redemption rate and
         // total fee.
-        let redemption_rate = self.calculate_redemption_rate().await.unwrap();
+        let netting_amount_u128 = Uint128::from_str(&netting_amount.to_string()).unwrap();
+        let redemption_rate = self
+            .calculate_redemption_rate(netting_amount_u128.u128())
+            .await
+            .unwrap();
         let total_fee = self.calculate_total_fee().await.unwrap();
         let r = U256::from(redemption_rate.atomics().u128());
 

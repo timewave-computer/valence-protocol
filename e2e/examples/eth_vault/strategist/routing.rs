@@ -187,7 +187,7 @@ impl EthereumVaultRouting for Strategy {
                 &self.cfg.neutron.accounts.noble_outbound_ica.remote_addr,
                 UUSDC_DENOM,
                 noble_outbound_ica_usdc_bal + withdraw_account_usdc_bal,
-                1,
+                3,
                 10,
             )
             .await
@@ -213,11 +213,14 @@ impl EthereumVaultRouting for Strategy {
             .await
             .unwrap()
             ._0;
+        info!("[routing] eth_deposit_acc_usdc_bal: {eth_deposit_acc_usdc_bal}");
+
         let eth_deposit_acc_usdc_u128 =
             Uint128::from_str(&eth_deposit_acc_usdc_bal.to_string()).unwrap();
+        info!("[routing] eth_deposit_acc_usdc_u128: {eth_deposit_acc_usdc_u128}");
 
-        if eth_deposit_acc_usdc_u128 < Uint128::new(100_000) {
-            info!("Ethereum deposit account balance < 100_000, returning...");
+        if eth_deposit_acc_usdc_u128 < Uint128::new(10_000) {
+            info!("Ethereum deposit account balance < 10_000, returning...");
             return;
         } else {
             info!("Ethereum deposit account USDC balance: {eth_deposit_acc_usdc_u128}");
@@ -345,7 +348,7 @@ impl EthereumVaultRouting for Strategy {
             .blocking_query(
                 erc20.balanceOf(Address::from_str(&self.cfg.ethereum.accounts.withdraw).unwrap()),
                 |resp| resp._0 >= pre_cctp_ethereum_withdraw_acc_usdc_bal + U256::from(1),
-                1,
+                3,
                 10,
             )
             .await
@@ -363,7 +366,7 @@ impl EthereumVaultRouting for Strategy {
             .await
             .unwrap();
 
-        if noble_inbound_ica_balance < 100_000 {
+        if noble_inbound_ica_balance == 0 {
             warn!("Noble inbound ICA account must have enough USDC to route funds to Neutron deposit acc; returning");
             return;
         } else {
@@ -445,7 +448,7 @@ impl EthereumVaultRouting for Strategy {
                 &self.cfg.neutron.accounts.deposit,
                 &self.cfg.neutron.denoms.usdc,
                 neutron_deposit_acc_pre_transfer_bal + noble_inbound_ica_balance,
-                2,
+                3,
                 10,
             )
             .await
