@@ -93,7 +93,7 @@ contract PancakeSwapV3PositionManagerScript is Script {
         // Define position parameters
         // Note: These values are examples and should be calculated based on the current pool state
         int24 tickLower = -800000; // Use a small value
-        int24 tickUpper = 800000;  // Use a big value
+        int24 tickUpper = 800000; // Use a big value
 
         // Amount of tokens to add to the pool
         // Make sure the order is correct: amount0 is for token0 (WETH) and amount1 is for token1 (USDC)
