@@ -16,9 +16,9 @@ use valence_encoder_utils::libraries::cctp_transfer::solidity_types::CCTPTransfe
 
 use crate::{async_run, strategist::strategy_config};
 use valence_e2e::utils::{
-    ethereum::mock_erc20,
+    ethereum::mock_erc20_usdc,
     solidity_contracts::{
-        CCTPTransfer, ERC1967Proxy, MockERC20, MockTokenMessenger,
+        CCTPTransfer, ERC1967Proxy, MockERC20Usdc, MockTokenMessenger,
         ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
     },
     vault,
@@ -68,7 +68,7 @@ impl EthereumUsers {
         info!("Adding new user {user}");
         self.users.push(user);
         info!("Approving erc20 spend for vault on behalf of user");
-        mock_erc20::approve(rt, eth_client, self.erc20, user, self.vault, U256::MAX);
+        mock_erc20_usdc::approve(rt, eth_client, self.erc20, user, self.vault, U256::MAX);
     }
 
     pub fn fund_user(
@@ -78,7 +78,7 @@ impl EthereumUsers {
         user: usize,
         amount: U256,
     ) {
-        mock_erc20::mint(rt, eth_client, self.erc20, self.users[user], amount);
+        mock_erc20_usdc::mint(rt, eth_client, self.erc20, self.users[user], amount);
     }
 
     pub fn get_user_shares(
@@ -98,7 +98,7 @@ impl EthereumUsers {
         eth_client: &EthereumClient,
         user: usize,
     ) -> U256 {
-        mock_erc20::query_balance(rt, eth_client, self.erc20, self.users[user])
+        mock_erc20_usdc::query_balance(rt, eth_client, self.erc20, self.users[user])
     }
 
     pub async fn log_balances(
@@ -109,7 +109,7 @@ impl EthereumUsers {
     ) {
         let eth_rp = eth_client.get_request_provider().await.unwrap();
 
-        let usdc_token = MockERC20::new(*vault_deposit_token, &eth_rp);
+        let usdc_token = MockERC20Usdc::new(*vault_deposit_token, &eth_rp);
         let valence_vault = ValenceVault::new(*vault_addr, &eth_rp);
 
         info!("\nETHEREUM ACCOUNTS LOG");
@@ -297,7 +297,7 @@ pub fn setup_valence_vault(
                 vault_deposit_token_addr,         // underlying token
                 "Valence Test Vault".to_string(), // vault token name
                 "vTEST".to_string(),              // vault token symbol
-                U256::from(1e18), // placeholder, tbd what a reasonable value should be here
+                U256::from(1e6),                  // match deposit token precision
             )
             .into_transaction_request()
             .from(admin);
