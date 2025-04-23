@@ -12,7 +12,7 @@ use async_trait::async_trait;
 
 use crate::utils::{
     parse::get_chain_field_from_local_ic_log,
-    solidity_contracts::{MockERC20, MockTokenMessenger::DepositForBurn},
+    solidity_contracts::{MockERC20Usdc, MockTokenMessenger::DepositForBurn},
     NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_ID, UUSDC_DENOM,
 };
 use bech32::{encode, Bech32};
@@ -147,10 +147,10 @@ impl MockCctpRelayer {
         &self,
         amount: String,
         mint_recipient: String,
-        destination_domain: String,
+        _destination_domain: String,
         destination_erc20: Address,
     ) -> Result<(), Box<dyn Error>> {
-        info!("[CCTP NOBLE] minting {amount}USDC to domain #{destination_domain} recipient {mint_recipient}");
+        // info!("[CCTP NOBLE] minting {amount}USDC to domain #{destination_domain} recipient {mint_recipient}");
         let eth_rp = self
             .runtime
             .eth_client
@@ -158,7 +158,7 @@ impl MockCctpRelayer {
             .await
             .expect("failed to get eth request provider");
 
-        let mock_erc20 = MockERC20::new(destination_erc20, &eth_rp);
+        let mock_erc20 = MockERC20Usdc::new(destination_erc20, &eth_rp);
 
         let amt = Uint128::from_str(&amount)?;
         let to = from_base64(mint_recipient)?;
@@ -201,22 +201,17 @@ impl MockCctpRelayer {
     }
 
     async fn mint_noble(&self, val: Log<DepositForBurn>) -> Result<(), Box<dyn Error>> {
-        info!(
-            "decoded deposit for burn log:
-            \nmintRecipient: {:?}",
-            val.mintRecipient
-        );
-
         let destination_addr =
             decode_mint_recipient_to_noble_address(&val.mintRecipient.encode_hex())?;
 
+        let mint_amount = val.amount.to_string();
         let tx_response = self
             .runtime
             .noble_client
             .mint_fiat(
                 NOBLE_CHAIN_ADMIN_ADDR,
                 &destination_addr,
-                &val.amount.to_string(),
+                &mint_amount,
                 UUSDC_DENOM,
             )
             .await
@@ -226,10 +221,7 @@ impl MockCctpRelayer {
             .poll_for_tx(&tx_response.hash)
             .await
             .expect("failed to poll for mint tx on noble");
-        info!(
-            "[CCTP ETH] Minted {UUSDC_DENOM} to {destination_addr}: {:?}",
-            tx_response
-        );
+        info!("[CCTP ETH] Minted {mint_amount}{UUSDC_DENOM} to {destination_addr}");
 
         Ok(())
     }
@@ -277,8 +269,6 @@ impl MockCctpRelayer {
                 .expect("failed to find tx hash in eth logs")
                 .to_vec();
             if self.state.eth_processed_events.insert(event_id) {
-                info!("[CCTP MOCK RELAY] picked up CCTP transfer event on Ethereum");
-
                 let alloy_log =
                     Log::new(log.address(), log.topics().into(), log.data().clone().data)
                         .unwrap_or_default();
@@ -308,8 +298,6 @@ impl MockCctpRelayer {
             for result in r {
                 for event in result.events {
                     if event.kind == "circle.cctp.v1.DepositForBurn" {
-                        info!("[CCTP NOBLE] CCTP burn event detected!");
-
                         let mut amount = "".to_string();
                         let mut mint_recipient = "".to_string();
                         let mut destination_domain = "".to_string();
@@ -325,7 +313,6 @@ impl MockCctpRelayer {
                                     .strip_suffix('"')
                                     .unwrap()
                                     .to_string();
-                                info!("\t[CCTP NOBLE] amount: {amount}");
                             } else if key == "mint_recipient" {
                                 mint_recipient = value
                                     .strip_suffix('"')
@@ -333,13 +320,10 @@ impl MockCctpRelayer {
                                     .strip_prefix('"')
                                     .unwrap()
                                     .to_string();
-                                info!("\t[CCTP NOBLE] mint_recipient: {mint_recipient}");
                             } else if key == "destination_domain" {
                                 destination_domain = value;
-                                info!("\t[CCTP NOBLE] destination_domain: {destination_domain}");
                             } else if key == "destination_token_messenger" {
                                 destination_token_messenger = value;
-                                info!("\t[CCTP NOBLE] destination_token_messenger: {destination_token_messenger}");
                             }
                         }
 
@@ -369,8 +353,6 @@ fn decode_mint_recipient_to_noble_address(
     mint_recipient_hex: &str,
 ) -> Result<String, Box<dyn Error>> {
     let (hrp, _) = bech32::decode(NOBLE_CHAIN_ADMIN_ADDR)?;
-
-    info!("decoding mint recipient from evm: {mint_recipient_hex}");
 
     let stripped_hex = mint_recipient_hex
         .strip_prefix("0x")
