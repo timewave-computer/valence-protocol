@@ -23,7 +23,7 @@
         "modify": [
           {
             "key": "app_state.gov.params.voting_period",
-            "value": "3s"
+            "value": "7s"
           },
           {
             "key": "app_state.interchainaccounts.host_genesis_state.params.allow_messages",
