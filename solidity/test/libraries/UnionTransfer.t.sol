@@ -37,7 +37,7 @@ contract UnionTransferTest is Test {
     function setUp() public {
         vm.startPrank(owner);
         inputAccount = new BaseAccount(owner, new address[](0));
-        token = new MockERC20("TEST", "TEST");
+        token = new MockERC20("TEST", "TEST", 18);
         mockZkGM = IUnion(zkGMAddress);
 
         // Convert token address to bytes for the config
