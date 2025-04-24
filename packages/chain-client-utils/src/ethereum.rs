@@ -53,6 +53,8 @@ mod tests {
         ValenceVault::{self},
     };
 
+    use crate::evm::anvil::AnvilImpersonationClient;
+
     use super::*;
 
     // These would be replaced with actual test values
@@ -169,5 +171,41 @@ mod tests {
         let req = valence_vault.balanceOf(accounts[0]);
         let response = client.query(req).await.unwrap();
         assert_eq!(U256::from(0), response._0);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires local anvil instance forked from mainnet"]
+    async fn test_impersonation_tx() {
+        let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC).unwrap();
+        let provider = client.get_request_provider().await.unwrap();
+        let accounts = provider.get_accounts().await.unwrap();
+
+        let whale_address = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"; // Vitalik's address
+
+        let transfer_request = TransactionRequest::default()
+            .with_to(accounts[8])
+            .with_value(U256::from(1000000000000000000u64)); // 1 ETH
+
+        // Check pre-transfer balance
+        let pre_balance = client
+            .query_balance(&accounts[8].to_string())
+            .await
+            .unwrap();
+
+        client
+            .execute_tx_as(whale_address, transfer_request)
+            .await
+            .unwrap();
+
+        // Check post-transfer balance
+        let post_balance = client
+            .query_balance(&accounts[8].to_string())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            pre_balance + U256::from(1000000000000000000u64),
+            post_balance
+        );
     }
 }
