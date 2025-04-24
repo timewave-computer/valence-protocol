@@ -12,6 +12,7 @@ pub mod forwarder;
 pub mod ibc_eureka_transfer;
 pub mod standard_bridge_transfer;
 pub mod stargate_transfer;
+pub mod union_transfer;
 
 // Function calls that are common to all libraries
 

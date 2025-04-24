@@ -49,6 +49,7 @@
     - [Stargate Transfer](./libraries/evm/stargate_transfer.md)
     - [Standard Bridge Transfer](./libraries/evm/standard_bridge_transfer.md)
     - [IBC Eureka Transfer](./libraries/evm/ibc_eureka_transfer.md)
+    - [Union Transfer](./libraries/evm/union_transfer.md)
     - [AAVE Position Manager](./libraries/evm/aave_position_manager.md)
     - [Balancer V2 Swap](./libraries/evm/balancer_v2_swap.md)
 - [Middleware](./middleware/_overview.md)
