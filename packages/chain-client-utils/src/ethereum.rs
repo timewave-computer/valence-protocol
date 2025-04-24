@@ -116,7 +116,7 @@ mod tests {
         let accounts = provider.get_accounts().await.unwrap();
 
         let token_1_tx =
-            MockERC20::deploy_builder(&provider, "Token1".to_string(), "T1".to_string())
+            MockERC20::deploy_builder(&provider, "Token1".to_string(), "T1".to_string(), 18)
                 .into_transaction_request();
 
         let token_addr = client

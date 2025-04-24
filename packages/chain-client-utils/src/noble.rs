@@ -10,7 +10,8 @@ use crate::{
 const CHAIN_PREFIX: &str = "noble";
 const CHAIN_DENOM: &str = "uusdc";
 const CCTP_MODULE_NAME: &str = "cctp";
-const ALLOWANCE: &str = "1000000000000000000000";
+// u128::max as str
+const ALLOWANCE: &str = "340282366920938463463374607431768211455";
 const DUMMY_ADDRESS: &[u8; 32] = &[0x01; 32];
 
 /// client for interacting with the noble chain
@@ -140,7 +141,7 @@ impl NobleClient {
         TransactionResponse::try_from(broadcast_tx_response.tx_response)
     }
 
-    pub async fn configure_minter_controller(
+    async fn configure_minter_controller(
         &self,
         sender: &str,
         controller: &str,
@@ -170,7 +171,7 @@ impl NobleClient {
         TransactionResponse::try_from(broadcast_tx_response.tx_response)
     }
 
-    pub async fn configure_minter(
+    async fn configure_minter(
         &self,
         sender: &str,
         address: &str,
@@ -204,7 +205,7 @@ impl NobleClient {
         TransactionResponse::try_from(broadcast_tx_response.tx_response)
     }
 
-    pub async fn add_remote_token_messenger(
+    async fn add_remote_token_messenger(
         &self,
         signer: &str,
         domain_id: u32,
@@ -234,7 +235,7 @@ impl NobleClient {
         TransactionResponse::try_from(broadcast_tx_response.tx_response)
     }
 
-    pub async fn link_token_pair(
+    async fn link_token_pair(
         &self,
         signer: &str,
         remote_domain: u32,
