@@ -10,13 +10,13 @@ git clone https://github.com/strangelove-ventures/interchaintest && cd interchai
 
 ## Running your local environment
 
-Run one of the set-up configs we have in the `e2e/chains` folder. For example, to run the `neutron_juno.json` config, run the following command inside the `e2e` folder:
+Run one of the set-up configs we have in the `e2e/chains` folder. For example, to run the `neutron_juno.json` config, run the following command:
 
 ```bash
-local-ic start neutron_juno --api-port 42069
+./scripts/start-local-ic.sh neutron_juno
 ```
 
-This will start a local environment with a Gaia chain, a Neutron (using ICS) chain and a Juno chain. The `--api-port` will expose the API on port 42069, we are using this port in our local-ic-utils crate so let's use the same to reuse some of the utils there.
+This will start a local environment (with automatic retry mechanism as sometimes local-ic starts the http server and then crashes) with a Gaia chain, a Neutron (using ICS) chain and a Juno chain. The `--api-port` will expose the API on port 42069, we are using this port in our local-ic-utils crate so let's use the same to reuse some of the utils there.
 
 For tests that involve EVM chains, the chains and relayer are started from the test itself so no need to start them manually.
 
