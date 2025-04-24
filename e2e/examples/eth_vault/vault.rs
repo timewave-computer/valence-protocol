@@ -480,10 +480,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // Check withdraw account balance
         let withdraw_acc_balance = async_run!(&rt, {
-            let erc20 = valence_e2e::utils::solidity_contracts::MockERC20Usdc::new(
-                usdc_token_address,
-                &eth_rp,
-            );
+            let erc20 =
+                valence_e2e::utils::solidity_contracts::MockERC20::new(usdc_token_address, &eth_rp);
             eth_client
                 .query(erc20.balanceOf(eth_withdraw_address))
                 .await

@@ -12,7 +12,7 @@ use async_trait::async_trait;
 
 use crate::utils::{
     parse::get_chain_field_from_local_ic_log,
-    solidity_contracts::{MockERC20Usdc, MockTokenMessenger::DepositForBurn},
+    solidity_contracts::{MockERC20, MockTokenMessenger::DepositForBurn},
     NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_ID, UUSDC_DENOM,
 };
 use bech32::{encode, Bech32};
@@ -158,7 +158,7 @@ impl MockCctpRelayer {
             .await
             .expect("failed to get eth request provider");
 
-        let mock_erc20 = MockERC20Usdc::new(destination_erc20, &eth_rp);
+        let mock_erc20 = MockERC20::new(destination_erc20, &eth_rp);
 
         let amt = Uint128::from_str(&amount)?;
         let to = from_base64(mint_recipient)?;

@@ -18,7 +18,7 @@ use crate::{async_run, strategist::strategy_config};
 use valence_e2e::utils::{
     ethereum::mock_erc20,
     solidity_contracts::{
-        CCTPTransfer, ERC1967Proxy, MockERC20Usdc, MockTokenMessenger,
+        CCTPTransfer, ERC1967Proxy, MockERC20, MockTokenMessenger,
         ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
     },
     vault,
@@ -109,7 +109,7 @@ impl EthereumUsers {
     ) {
         let eth_rp = eth_client.get_request_provider().await.unwrap();
 
-        let usdc_token = MockERC20Usdc::new(*vault_deposit_token, &eth_rp);
+        let usdc_token = MockERC20::new(*vault_deposit_token, &eth_rp);
         let valence_vault = ValenceVault::new(*vault_addr, &eth_rp);
 
         info!("\nETHEREUM ACCOUNTS LOG");

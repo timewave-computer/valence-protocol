@@ -17,7 +17,7 @@ use valence_chain_client_utils::{
     noble::NobleClient,
 };
 use valence_e2e::utils::{
-    solidity_contracts::{MockERC20Usdc, ValenceVault},
+    solidity_contracts::{MockERC20, ValenceVault},
     worker::{ValenceWorker, ValenceWorkerTomlSerde},
     NOBLE_CHAIN_DENOM,
 };
@@ -108,7 +108,7 @@ impl ValenceWorker for Strategy {
             Address::from_str(&self.cfg.ethereum.libraries.valence_vault)?,
             &eth_rp,
         );
-        let eth_usdc_erc20 = MockERC20Usdc::new(
+        let eth_usdc_erc20 = MockERC20::new(
             Address::from_str(&self.cfg.ethereum.denoms.usdc_erc20)?,
             &eth_rp,
         );

@@ -74,13 +74,6 @@ sol!(
     "../solidity/out/MockERC20.sol/MockERC20.json",
 );
 
-// erc20 with a custom precision of 6
-sol!(
-    #[sol(rpc)]
-    MockERC20Usdc,
-    "../solidity/out/MockERC20Usdc.sol/MockERC20.json",
-);
-
 // CCTP Transfer
 sol!(
     #[sol(rpc)]
