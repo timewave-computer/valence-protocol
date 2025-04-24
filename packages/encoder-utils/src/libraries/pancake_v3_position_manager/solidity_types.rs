@@ -8,7 +8,7 @@ sol! {
         address masterChef;
         address token0;
         address token1;
-        uint24 poolFee;
+        uint24 poolFeeBps;
         uint16 slippageBps;
         uint256 timeout;
     }

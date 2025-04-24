@@ -64,7 +64,7 @@ contract PancakeSwapV3PositionManagerScript is Script {
             masterChef: MASTER_CHEF_V3_ADDR, // Added MasterChefV3 address
             token0: WETH_ADDR, // WETH is token0
             token1: USDC_ADDR, // USDC is token1
-            poolFee: POOL_FEE,
+            poolFeeBps: POOL_FEE,
             slippageBps: 10000, // allow 100% slippage for testing
             timeout: 600 // 10 minutes
         });
