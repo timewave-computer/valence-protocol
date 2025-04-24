@@ -7,7 +7,6 @@ import {BalancerV2Swap} from "../src/libraries/BalancerV2Swap.sol";
 import {BaseAccount} from "../src/accounts/BaseAccount.sol";
 import {IAsset, IBalancerVault} from "../src/libraries/interfaces/balancerV2/IBalancerVault.sol";
 import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
-import {MockERC20} from "../test/mocks/MockERC20.sol";
 
 contract BalancerV2SwapScript is Script {
     // Berachain Balancer addresses
@@ -17,6 +16,9 @@ contract BalancerV2SwapScript is Script {
     address constant HONEY_ADDR = 0xFCBD14DC51f0A4d49d5E53C2E0950e0bC26d0Dce;
     address constant USDCE_ADDR = 0x549943e04f40284185054145c6E4e9568C1D3241;
     address constant BYUSD_ADDR = 0x688e72142674041f8f6Af4c808a4045cA1D6aC82;
+
+    // Whale addresses
+    address USDCE_WHALE = 0xDc927Bd56CF9DfC2e3779C7E3D6d28dA1C219969;
 
     // Pool IDs
     bytes32 constant HONEY_USDCE_POOL_ID = 0xf961a8f6d8c69e7321e78d254ecafbcc3a637621000000000000000000000001;
@@ -41,13 +43,11 @@ contract BalancerV2SwapScript is Script {
         outputAccount = new BaseAccount(owner, new address[](0));
         vm.stopPrank();
 
-        // Replace the runtime code at USDCE_ADDR with our MockERC20 code so we can mint some USDC to the BaseAccount
-        bytes memory mockCode = type(MockERC20).runtimeCode;
-        vm.etch(USDCE_ADDR, mockCode);
-
-        // Mint some USDC tokens to the BaseAccount
-        MockERC20 usdc = MockERC20(USDCE_ADDR);
-        usdc.mint(address(inputAccount), 1000 * 10 ** 6); // Mint 1000 USDCe
+        // Fund the input account with USDCE
+        vm.startPrank(USDCE_WHALE);
+        uint256 amountToFund = 1000 * 10 ** 6; // 1000 USDCe
+        IERC20(USDCE_ADDR).transfer(address(inputAccount), amountToFund);
+        vm.stopPrank();
 
         // Set up the Balancer swap manager
         vm.startPrank(owner);
