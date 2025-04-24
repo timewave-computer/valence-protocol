@@ -32,7 +32,7 @@ contract ForwarderTest is Test {
 
         vm.startPrank(owner);
         // Deploy mock contracts
-        token = new MockERC20("Test Token", "TEST");
+        token = new MockERC20("Test Token", "TEST", 18);
 
         // Create forwarder first
         Forwarder.ForwardingConfig[] memory fConfigs = new Forwarder.ForwardingConfig[](2);

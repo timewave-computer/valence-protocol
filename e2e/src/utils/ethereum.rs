@@ -240,6 +240,7 @@ pub mod mock_erc20 {
         eth_client: &EthereumClient,
         name: &str,
         denom: &str,
+        precision: u8,
     ) -> Result<Address, Box<dyn Error>> {
         async_run!(rt, {
             info!("Deploying MockERC20 contract...");
@@ -247,7 +248,7 @@ pub mod mock_erc20 {
             let eth_rp = eth_client.get_request_provider().await.unwrap();
 
             let evm_vault_deposit_token_tx =
-                MockERC20::deploy_builder(&eth_rp, name.to_string(), denom.to_string())
+                MockERC20::deploy_builder(&eth_rp, name.to_string(), denom.to_string(), precision)
                     .into_transaction_request();
 
             let evm_vault_deposit_token_rx =

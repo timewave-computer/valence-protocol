@@ -286,14 +286,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Deploying ERC20s on Ethereum...");
     let token_1_tx =
-        MockERC20::deploy_builder(&eth.provider, "Token1".to_string(), "T1".to_string())
+        MockERC20::deploy_builder(&eth.provider, "Token1".to_string(), "T1".to_string(), 18u8)
             .into_transaction_request()
             .from(accounts[0]);
     let token_1_address = eth.send_transaction(token_1_tx)?.contract_address.unwrap();
     let token_1 = MockERC20::new(token_1_address, &eth.provider);
 
     let token_2_tx =
-        MockERC20::deploy_builder(&eth.provider, "Token2".to_string(), "T2".to_string())
+        MockERC20::deploy_builder(&eth.provider, "Token2".to_string(), "T2".to_string(), 18u8)
             .into_transaction_request()
             .from(accounts[0]);
     let token_2_address = eth.send_transaction(token_2_tx)?.contract_address.unwrap();

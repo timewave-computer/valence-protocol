@@ -31,7 +31,7 @@ contract StargateTransferTest is Test {
         owner = makeAddr("owner");
         processor = makeAddr("processor");
         recipient = makeAddr("recipient");
-        testToken = new MockERC20("USDC", "USDC");
+        testToken = new MockERC20("USDC", "USDC", 18);
 
         // Create mock account
         vm.prank(owner);
@@ -130,7 +130,7 @@ contract StargateTransferTest is Test {
     }
 
     function testUpdateConfigWithInvalidToken() public {
-        MockERC20 differentToken = new MockERC20("Different", "DIFF");
+        MockERC20 differentToken = new MockERC20("Different", "DIFF", 18);
 
         bytes memory invalidConfig = abi.encode(
             StargateTransfer.StargateTransferConfig({

@@ -297,7 +297,7 @@ pub fn setup_valence_vault(
                 vault_deposit_token_addr,         // underlying token
                 "Valence Test Vault".to_string(), // vault token name
                 "vTEST".to_string(),              // vault token symbol
-                U256::from(1e18), // placeholder, tbd what a reasonable value should be here
+                U256::from(1e6),                  // match deposit token precision
             )
             .into_transaction_request()
             .from(admin);
