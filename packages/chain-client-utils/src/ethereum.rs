@@ -53,8 +53,6 @@ mod tests {
         ValenceVault::{self},
     };
 
-    use crate::evm::anvil::AnvilImpersonationClient;
-
     use super::*;
 
     // These would be replaced with actual test values
@@ -174,8 +172,11 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(feature = "test-utils")]
     #[ignore = "requires local anvil instance forked from mainnet"]
     async fn test_impersonation_tx() {
+        use crate::evm::anvil::AnvilImpersonationClient;
+
         let client = EthereumClient::new(TEST_RPC_URL, TEST_MNEMONIC).unwrap();
         let provider = client.get_request_provider().await.unwrap();
         let accounts = provider.get_accounts().await.unwrap();

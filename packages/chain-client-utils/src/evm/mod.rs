@@ -1,3 +1,4 @@
+#[cfg(feature = "test-utils")]
 pub mod anvil;
 pub mod base_client;
 pub mod errors;
