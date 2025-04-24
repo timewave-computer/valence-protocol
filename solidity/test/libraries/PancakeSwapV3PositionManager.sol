@@ -35,8 +35,8 @@ contract PancakeSwapV3PositionManagerTest is Test {
         // Create accounts and tokens
         inputAccount = new BaseAccount(owner, new address[](0));
         outputAccount = new BaseAccount(owner, new address[](0));
-        token0 = new MockERC20("TOKEN0", "TKN0");
-        token1 = new MockERC20("TOKEN1", "TKN1");
+        token0 = new MockERC20("TOKEN0", "TKN0", 18);
+        token1 = new MockERC20("TOKEN1", "TKN1", 18);
 
         // Create a valid configuration
         PancakeSwapV3PositionManager.PancakeSwapV3PositionManagerConfig memory validConfig =
