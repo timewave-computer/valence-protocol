@@ -16,7 +16,7 @@ use valence_encoder_utils::libraries::cctp_transfer::solidity_types::CCTPTransfe
 
 use crate::{async_run, strategist::strategy_config};
 use valence_e2e::utils::{
-    ethereum::mock_erc20_usdc,
+    ethereum::mock_erc20,
     solidity_contracts::{
         CCTPTransfer, ERC1967Proxy, MockERC20Usdc, MockTokenMessenger,
         ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
@@ -68,7 +68,7 @@ impl EthereumUsers {
         info!("Adding new user {user}");
         self.users.push(user);
         info!("Approving erc20 spend for vault on behalf of user");
-        mock_erc20_usdc::approve(rt, eth_client, self.erc20, user, self.vault, U256::MAX);
+        mock_erc20::approve(rt, eth_client, self.erc20, user, self.vault, U256::MAX);
     }
 
     pub fn fund_user(
@@ -78,7 +78,7 @@ impl EthereumUsers {
         user: usize,
         amount: U256,
     ) {
-        mock_erc20_usdc::mint(rt, eth_client, self.erc20, self.users[user], amount);
+        mock_erc20::mint(rt, eth_client, self.erc20, self.users[user], amount);
     }
 
     pub fn get_user_shares(
@@ -98,7 +98,7 @@ impl EthereumUsers {
         eth_client: &EthereumClient,
         user: usize,
     ) -> U256 {
-        mock_erc20_usdc::query_balance(rt, eth_client, self.erc20, self.users[user])
+        mock_erc20::query_balance(rt, eth_client, self.erc20, self.users[user])
     }
 
     pub async fn log_balances(

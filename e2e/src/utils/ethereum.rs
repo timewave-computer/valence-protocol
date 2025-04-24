@@ -213,142 +213,6 @@ pub mod valence_account {
     }
 }
 
-pub mod mock_erc20_usdc {
-    use std::error::Error;
-
-    use alloy::primitives::{Address, U256};
-    use log::info;
-    use valence_chain_client_utils::{
-        ethereum::EthereumClient,
-        evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
-    };
-
-    use crate::utils::solidity_contracts::MockERC20Usdc;
-
-    pub fn setup_deposit_erc20(
-        rt: &tokio::runtime::Runtime,
-        eth_client: &EthereumClient,
-        name: &str,
-        denom: &str,
-    ) -> Result<Address, Box<dyn Error>> {
-        async_run!(rt, {
-            info!("Deploying MockERC20 contract...");
-
-            let eth_rp = eth_client.get_request_provider().await.unwrap();
-
-            let evm_vault_deposit_token_tx =
-                MockERC20Usdc::deploy_builder(&eth_rp, name.to_string(), denom.to_string())
-                    .into_transaction_request();
-
-            let evm_vault_deposit_token_rx =
-                valence_chain_client_utils::evm::base_client::EvmBaseClient::execute_tx(
-                    eth_client,
-                    evm_vault_deposit_token_tx,
-                )
-                .await
-                .unwrap();
-
-            let valence_vault_deposit_token_address =
-                evm_vault_deposit_token_rx.contract_address.unwrap();
-
-            Ok(valence_vault_deposit_token_address)
-        })
-    }
-
-    pub fn mint(
-        rt: &tokio::runtime::Runtime,
-        eth_client: &EthereumClient,
-        erc20_addr: Address,
-        to: Address,
-        amount: U256,
-    ) {
-        async_run!(rt, {
-            let eth_rp = eth_client.get_request_provider().await.unwrap();
-
-            let mock_erc20 = MockERC20Usdc::new(erc20_addr, &eth_rp);
-
-            eth_client
-                .execute_tx(mock_erc20.mint(to, amount).into_transaction_request())
-                .await
-                .unwrap();
-        });
-    }
-
-    pub fn approve(
-        rt: &tokio::runtime::Runtime,
-        eth_client: &EthereumClient,
-        erc20_addr: Address,
-        approver: Address,
-        to_approve: Address,
-        amount: U256,
-    ) {
-        async_run!(rt, {
-            let eth_rp = eth_client.get_request_provider().await.unwrap();
-
-            let mock_erc20 = MockERC20Usdc::new(erc20_addr, &eth_rp);
-
-            let signed_tx = mock_erc20
-                .approve(to_approve, amount)
-                .into_transaction_request()
-                .from(approver);
-            let rx = alloy::providers::Provider::send_transaction(&eth_rp, signed_tx)
-                .await
-                .unwrap()
-                .get_receipt()
-                .await
-                .unwrap();
-
-            info!("erc20 approval rx: {:?}", rx.transaction_hash);
-        });
-    }
-
-    pub fn transfer(
-        rt: &tokio::runtime::Runtime,
-        eth_client: &EthereumClient,
-        erc20_addr: Address,
-        from: Address,
-        to: Address,
-        amount: U256,
-    ) {
-        async_run!(rt, {
-            let eth_rp = eth_client.get_request_provider().await.unwrap();
-
-            let mock_erc20 = MockERC20Usdc::new(erc20_addr, &eth_rp);
-
-            let signed_tx = mock_erc20
-                .transfer(to, amount)
-                .into_transaction_request()
-                .from(from);
-
-            let rx = alloy::providers::Provider::send_transaction(&eth_rp, signed_tx)
-                .await
-                .unwrap()
-                .get_receipt()
-                .await
-                .unwrap();
-
-            info!("erc20 transfer rx: {:?}", rx.transaction_hash);
-        });
-    }
-
-    pub fn query_balance(
-        rt: &tokio::runtime::Runtime,
-        eth_client: &EthereumClient,
-        erc20_addr: Address,
-        addr: Address,
-    ) -> U256 {
-        async_run!(rt, {
-            let eth_rp = eth_client.get_request_provider().await.unwrap();
-
-            let mock_erc20 = MockERC20Usdc::new(erc20_addr, &eth_rp);
-
-            let balance_q = mock_erc20.balanceOf(addr);
-
-            eth_client.query(balance_q).await.unwrap()._0
-        })
-    }
-}
-
 pub mod mock_erc20 {
     use std::error::Error;
 
@@ -366,6 +230,7 @@ pub mod mock_erc20 {
         eth_client: &EthereumClient,
         name: &str,
         denom: &str,
+        precision: u8,
     ) -> Result<Address, Box<dyn Error>> {
         async_run!(rt, {
             info!("Deploying MockERC20 contract...");
@@ -373,7 +238,7 @@ pub mod mock_erc20 {
             let eth_rp = eth_client.get_request_provider().await.unwrap();
 
             let evm_vault_deposit_token_tx =
-                MockERC20::deploy_builder(&eth_rp, name.to_string(), denom.to_string())
+                MockERC20::deploy_builder(&eth_rp, name.to_string(), denom.to_string(), precision)
                     .into_transaction_request();
 
             let evm_vault_deposit_token_rx =

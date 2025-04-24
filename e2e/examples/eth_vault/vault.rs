@@ -85,7 +85,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mock_cctp_messenger_address = evm::setup_mock_token_messenger(&rt, &eth_client)?;
     // eth side USDC token
     let usdc_token_address =
-        ethereum_utils::mock_erc20_usdc::setup_deposit_erc20(&rt, &eth_client, "MockUSDC", "USDC")?;
+        ethereum_utils::mock_erc20::setup_deposit_erc20(&rt, &eth_client, "MockUSDC", "USDC", 6)?;
     info!("USDC Token Address: {usdc_token_address}");
 
     info!("Setting up Neutron side flow...");

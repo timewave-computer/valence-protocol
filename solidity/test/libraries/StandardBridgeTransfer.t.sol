@@ -31,8 +31,8 @@ contract StandardBridgeTransferTest is Test {
     function setUp() public {
         vm.startPrank(owner);
         inputAccount = new BaseAccount(owner, new address[](0));
-        token = new MockERC20("TEST", "TEST");
-        remoteToken = new MockERC20("REMOTE", "REMOTE");
+        token = new MockERC20("TEST", "TEST", 18);
+        remoteToken = new MockERC20("REMOTE", "REMOTE", 18);
         mockStandardBridge = IStandardBridge(address(bridge));
 
         // Create a valid configuration for ERC20 transfer
