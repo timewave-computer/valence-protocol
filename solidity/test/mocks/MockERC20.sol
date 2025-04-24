@@ -7,11 +7,7 @@ import {ERC20Burnable} from "@openzeppelin/contracts/token/ERC20/extensions/ERC2
 contract MockERC20 is ERC20, ERC20Burnable {
     uint8 private _decimals;
 
-    constructor(
-        string memory name,
-        string memory symbol,
-        uint8 decimalsValue
-    ) ERC20(name, symbol) {
+    constructor(string memory name, string memory symbol, uint8 decimalsValue) ERC20(name, symbol) {
         _decimals = decimalsValue;
     }
 
