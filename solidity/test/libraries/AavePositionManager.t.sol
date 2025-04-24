@@ -32,8 +32,8 @@ contract AavePositionManagerTest is Test {
         processor = makeAddr("processor");
 
         // Deploy mock tokens
-        supplyToken = new MockERC20("Supply Token", "ST");
-        borrowToken = new MockERC20("Borrow Token", "BT");
+        supplyToken = new MockERC20("Supply Token", "ST", 18);
+        borrowToken = new MockERC20("Borrow Token", "BT", 18);
 
         // Create mock accounts
         vm.startPrank(owner);
@@ -141,8 +141,8 @@ contract AavePositionManagerTest is Test {
     function testUpdateConfig() public {
         // Create a new configuration with different values
         uint16 newReferralCode = 1;
-        MockERC20 newSupplyToken = new MockERC20("New Supply Token", "NST");
-        MockERC20 newBorrowToken = new MockERC20("New Borrow Token", "NBT");
+        MockERC20 newSupplyToken = new MockERC20("New Supply Token", "NST", 18);
+        MockERC20 newBorrowToken = new MockERC20("New Borrow Token", "NBT", 18);
 
         AavePositionManager.AavePositionManagerConfig memory newConfig = AavePositionManager.AavePositionManagerConfig({
             poolAddress: IPool(address(mockPool)),

@@ -121,6 +121,8 @@ impl ValenceWorker for Strategy {
             .await?
             ._0;
 
+        info!("pending obligations: {pending_obligations}");
+
         // 2. query ethereum program accounts for their usdc balances
         let eth_deposit_acc_usdc_bal = self
             .eth_client
@@ -129,6 +131,11 @@ impl ValenceWorker for Strategy {
             )
             .await?
             ._0;
+
+        info!(
+            "eth deposit account balance: {:?}",
+            eth_deposit_acc_usdc_bal
+        );
 
         // 3. see if pending obligations can be netted and update the pending
         // obligations accordingly
@@ -177,6 +184,7 @@ impl ValenceWorker for Strategy {
             )
             .await
             .unwrap();
+        info!("shares to liquidate: {:?}", shares_to_liquidate);
 
         // 7. forward the shares to be liquidated from the position account to the withdraw account
         self.forward_shares_for_liquidation(shares_to_liquidate)
@@ -197,7 +205,11 @@ impl ValenceWorker for Strategy {
         // 10. update the vault to conclude the previous epoch. we already derived
         // the netting amount in step #3, so we need to find the redemption rate and
         // total fee.
-        let redemption_rate = self.calculate_redemption_rate().await.unwrap();
+        let netting_amount_u128 = Uint128::from_str(&netting_amount.to_string()).unwrap();
+        let redemption_rate = self
+            .calculate_redemption_rate(netting_amount_u128.u128())
+            .await
+            .unwrap();
         let total_fee = self.calculate_total_fee().await.unwrap();
         let r = U256::from(redemption_rate.atomics().u128());
 
