@@ -9,8 +9,8 @@ use futures_util::StreamExt;
 use log::{error, info};
 
 const ANVIL_IMAGE_URL: &str = "ghcr.io/foundry-rs/foundry:latest";
-const ANVIL_NAME: &str = "anvil";
-const ANVIL_PORT: &str = "8545";
+pub const ANVIL_NAME: &str = "anvil";
+pub const DEFAULT_ANVIL_PORT: &str = "8545";
 
 /// macro for executing async code in a blocking context
 #[macro_export]
@@ -20,12 +20,16 @@ macro_rules! async_run {
     }
 }
 
-pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
+pub async fn set_up_anvil_container(
+    container_name: &str,
+    port: &str,
+    fork_url: Option<&str>,
+) -> Result<(), Box<dyn Error>> {
     // Connect to the Docker daemon
     let docker = Docker::connect_with_local_defaults()?;
 
     let mut filters = HashMap::new();
-    filters.insert("name", vec![ANVIL_NAME]);
+    filters.insert("name", vec![container_name]);
     let options = ListContainersOptions {
         all: true,
         filters,
@@ -85,9 +89,15 @@ pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
 
     let config = Config {
         image: Some(ANVIL_IMAGE_URL),
-        cmd: Some(vec![ANVIL_NAME]),
+        cmd: Some(if let Some(url) = fork_url {
+            vec!["--fork-url", url]
+        } else {
+            vec![]
+        }),
         env: Some(vec!["ANVIL_IP_ADDR=0.0.0.0"]),
+        entrypoint: Some(vec![ANVIL_NAME]),
         exposed_ports: {
+            // Anvil always runs on port 8545 inside the container
             let ports = HashMap::from_iter([("8545/tcp", HashMap::new())]);
             Some(ports)
         },
@@ -95,10 +105,10 @@ pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
             port_bindings: {
                 let mut port_bindings = HashMap::new();
                 port_bindings.insert(
-                    format!("{ANVIL_PORT}/tcp").to_string(),
+                    "8545/tcp".to_string(),
                     Some(vec![bollard::service::PortBinding {
                         host_ip: Some("0.0.0.0".to_string()),
-                        host_port: Some(ANVIL_PORT.to_string()),
+                        host_port: Some(port.to_string()),
                     }]),
                 );
                 Some(port_bindings)
@@ -110,7 +120,7 @@ pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
 
     // Create container
     let options = Some(CreateContainerOptions {
-        name: ANVIL_NAME,
+        name: container_name,
         platform: None,
     });
     let container = docker.create_container(options, config).await?;
@@ -123,23 +133,23 @@ pub async fn set_up_anvil_container() -> Result<(), Box<dyn Error>> {
     info!("Anvil container started successfully");
 
     info!("Waiting for Anvil JSON-RPC to be ready...");
-    wait_for_anvil_ready(10).await?;
+    wait_for_anvil_ready(port, 30).await?;
 
     info!("Anvil container ready!");
     Ok(())
 }
 
-async fn wait_for_anvil_ready(timeout_secs: u64) -> Result<(), Box<dyn Error>> {
+async fn wait_for_anvil_ready(port: &str, timeout_secs: u64) -> Result<(), Box<dyn Error>> {
     use std::time::{Duration, Instant};
     use tokio::time::sleep;
 
     let client = alloy::transports::http::reqwest::Client::new();
     let start = Instant::now();
-    let url = "http://localhost:8545";
+    let url = format!("http://localhost:{}", port);
 
     while start.elapsed() < Duration::from_secs(timeout_secs) {
         let poll_rx = client
-            .post(url)
+            .post(&url)
             .timeout(Duration::from_secs(1))
             .body("{}")
             .send()
@@ -154,7 +164,7 @@ async fn wait_for_anvil_ready(timeout_secs: u64) -> Result<(), Box<dyn Error>> {
         sleep(Duration::from_millis(500)).await;
     }
 
-    Err("timed out waiting for Anvil to be ready".into())
+    Err(format!("timed out waiting for Anvil to be ready on port {}", port).into())
 }
 
 pub mod valence_account {
