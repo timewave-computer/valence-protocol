@@ -52,7 +52,7 @@ abstract contract VaultHelper is Test {
 
         // Deploy contracts
         vm.startPrank(owner);
-        token = new MockERC20("Test Token", "TEST");
+        token = new MockERC20("Test Token", "TEST", 18);
         depositAccount = new BaseAccount(owner, new address[](0));
         withdrawAccount = new BaseAccount(owner, new address[](0));
 

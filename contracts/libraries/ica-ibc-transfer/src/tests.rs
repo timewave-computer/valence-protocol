@@ -8,7 +8,9 @@ use valence_library_utils::{
     testing::{LibraryTestSuite, LibraryTestSuiteBase},
 };
 
-use crate::msg::{Config, FunctionMsgs, LibraryConfig, QueryMsg, RemoteChainInfo};
+use crate::msg::{
+    Config, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, QueryMsg, RemoteChainInfo,
+};
 
 const UUSDC: &str = "uusdc";
 const ONE_THOUSAND: u128 = 1_000_000_000;
@@ -91,15 +93,28 @@ impl IcaIbcTransferTestSuite {
             "".to_string(),
             remote_chain_info,
             BTreeMap::default(),
+            None,
         )
     }
 
     fn update_config(&mut self, addr: Addr, new_config: LibraryConfig) -> AnyResult<AppResponse> {
         let owner = self.owner().clone();
+        let updated_config = LibraryConfigUpdate {
+            input_addr: Some(new_config.input_addr),
+            amount: Some(new_config.amount),
+            denom: Some(new_config.denom),
+            receiver: Some(new_config.receiver),
+            memo: Some(new_config.memo),
+            remote_chain_info: Some(new_config.remote_chain_info),
+            denom_to_pfm_map: Some(new_config.denom_to_pfm_map),
+            eureka_config: valence_library_utils::OptionUpdate::Set(new_config.eureka_config),
+        };
         self.app_mut().execute_contract(
             owner,
             addr,
-            &ExecuteMsg::<FunctionMsgs, LibraryConfig>::UpdateConfig { new_config },
+            &ExecuteMsg::<FunctionMsgs, LibraryConfigUpdate>::UpdateConfig {
+                new_config: updated_config,
+            },
             &[],
         )
     }
@@ -165,6 +180,7 @@ fn instantiate_with_valid_config() {
             "".to_string(),
             RemoteChainInfo::new("channel-1".to_string(), Some(600)),
             BTreeMap::default(),
+            None,
         )
     );
 }
@@ -412,7 +428,8 @@ fn update_config_works() {
             new_cfg.receiver,
             new_cfg.memo,
             new_cfg.remote_chain_info,
-            BTreeMap::default()
+            BTreeMap::default(),
+            None,
         )
     );
 }

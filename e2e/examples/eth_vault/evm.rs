@@ -14,7 +14,7 @@ use valence_chain_client_utils::{
 };
 use valence_encoder_utils::libraries::cctp_transfer::solidity_types::CCTPTransferConfig;
 
-use crate::{async_run, strategist::strategy};
+use crate::{async_run, strategist::strategy_config};
 use valence_e2e::utils::{
     ethereum::mock_erc20,
     solidity_contracts::{
@@ -135,7 +135,7 @@ pub fn setup_eth_accounts(
     rt: &tokio::runtime::Runtime,
     eth_client: &EthereumClient,
     eth_admin_addr: Address,
-) -> Result<strategy::ethereum::EthereumAccounts, Box<dyn Error>> {
+) -> Result<strategy_config::ethereum::EthereumAccounts, Box<dyn Error>> {
     info!("Setting up Deposit and Withdraw accounts on Ethereum");
 
     // create two Valence Base Accounts on Ethereum to test the processor with libraries (in this case the forwarder)
@@ -150,7 +150,7 @@ pub fn setup_eth_accounts(
         eth_admin_addr,
     )?;
 
-    let accounts = strategy::ethereum::EthereumAccounts {
+    let accounts = strategy_config::ethereum::EthereumAccounts {
         deposit: deposit_acc_addr.to_string(),
         withdraw: withdraw_acc_addr.to_string(),
     };
@@ -164,14 +164,14 @@ pub fn setup_eth_libraries(
     eth_client: &EthereumClient,
     eth_admin_addr: Address,
     eth_strategist_addr: Address,
-    eth_program_accounts: strategy::ethereum::EthereumAccounts,
+    eth_program_accounts: strategy_config::ethereum::EthereumAccounts,
     cctp_messenger_addr: Address,
     usdc_token_addr: Address,
     noble_inbound_ica_addr: String,
     eth_hyperlane_mailbox_addr: String,
     ntrn_authorizations_addr: String,
     eth_accounts: &[Address],
-) -> Result<strategy::ethereum::EthereumLibraries, Box<dyn Error>> {
+) -> Result<strategy_config::ethereum::EthereumLibraries, Box<dyn Error>> {
     info!("Setting up CCTP Transfer on Ethereum");
     let cctp_forwarder_addr = setup_cctp_transfer(
         rt,
@@ -230,7 +230,7 @@ pub fn setup_eth_libraries(
         vault_config,
     )?;
 
-    let libraries = strategy::ethereum::EthereumLibraries {
+    let libraries = strategy_config::ethereum::EthereumLibraries {
         cctp_forwarder: cctp_forwarder_addr.to_string(),
         lite_processor: lite_processor_address.to_string(),
         valence_vault: vault_address.to_string(),
@@ -245,7 +245,7 @@ pub fn setup_valence_vault(
     rt: &tokio::runtime::Runtime,
     eth_client: &EthereumClient,
     admin: Address,
-    eth_program_accounts: strategy::ethereum::EthereumAccounts,
+    eth_program_accounts: strategy_config::ethereum::EthereumAccounts,
     vault_deposit_token_addr: Address,
     vault_config: VaultConfig,
 ) -> Result<Address, Box<dyn Error>> {
@@ -297,7 +297,7 @@ pub fn setup_valence_vault(
                 vault_deposit_token_addr,         // underlying token
                 "Valence Test Vault".to_string(), // vault token name
                 "vTEST".to_string(),              // vault token symbol
-                U256::from(1e18), // placeholder, tbd what a reasonable value should be here
+                U256::from(1e6),                  // match deposit token precision
             )
             .into_transaction_request()
             .from(admin);

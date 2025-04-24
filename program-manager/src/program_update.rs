@@ -30,12 +30,11 @@ use crate::{
 #[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[schemars(crate = "cosmwasm_schema::schemars")]
 pub struct ProgramConfigUpdate {
-    /// This is the id of the program
-    /// Required for update
+    /// The id of a program to update
     pub id: u64,
     /// New owner, if the owner is to be updated
     pub owner: Option<String>,
-    /// The list library data by id
+    /// The list of library config updates to perform
     pub libraries: BTreeMap<Id, LibraryConfigUpdate>,
     /// A list of authorizations
     pub authorizations: Vec<AuthorizationInfoUpdate>,

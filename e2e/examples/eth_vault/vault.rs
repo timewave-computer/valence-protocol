@@ -18,7 +18,10 @@ use log::info;
 use neutron::setup_astroport_cl_pool;
 use program::{setup_neutron_accounts, setup_neutron_libraries, upload_neutron_contracts};
 
-use strategist::{client::Strategist, strategy::StrategyConfig};
+use strategist::{
+    strategy::Strategy,
+    strategy_config::{self, StrategyConfig},
+};
 use utils::wait_until_half_minute;
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
@@ -30,10 +33,12 @@ use valence_e2e::{
     async_run,
     utils::{
         authorization::set_up_authorization_and_processor,
-        ethereum as ethereum_utils, mock_cctp_relayer,
+        ethereum as ethereum_utils,
+        mock_cctp_relayer::MockCctpRelayer,
         parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
         solidity_contracts::ValenceVault,
         vault::{self},
+        worker::{ValenceWorker, ValenceWorkerTomlSerde},
         ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR,
         NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, UUSDC_DENOM,
         VALENCE_ARTIFACTS_PATH,
@@ -80,7 +85,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mock_cctp_messenger_address = evm::setup_mock_token_messenger(&rt, &eth_client)?;
     // eth side USDC token
     let usdc_token_address =
-        ethereum_utils::mock_erc20::setup_deposit_erc20(&rt, &eth_client, "MockUSDC", "USDC")?;
+        ethereum_utils::mock_erc20::setup_deposit_erc20(&rt, &eth_client, "MockUSDC", "USDC", 6)?;
+    info!("USDC Token Address: {usdc_token_address}");
 
     info!("Setting up Neutron side flow...");
 
@@ -222,44 +228,44 @@ fn main() -> Result<(), Box<dyn Error>> {
     let vault_address = Address::from_str(&ethereum_program_libraries.valence_vault).unwrap();
     let valence_vault = ValenceVault::new(vault_address, &eth_rp);
 
-    let user_1_deposit_amount = U256::from(5_000_000);
-    let user_2_deposit_amount = U256::from(1_000_000);
-    let user_3_deposit_amount = U256::from(3_000_000);
-
+    let user_0_deposit_amount = U256::from(5_000_000);
+    let user_1_deposit_amount = U256::from(1_000_000);
+    let user_2_deposit_amount = U256::from(3_000_000);
+    let user_3_deposit_amount = U256::from(250_000_000);
     let mut eth_users = EthereumUsers::new(usdc_token_address, vault_address);
     eth_users.add_user(&rt, &eth_client, eth_accounts[2]);
-    eth_users.fund_user(&rt, &eth_client, 0, user_1_deposit_amount);
+    eth_users.fund_user(&rt, &eth_client, 0, user_0_deposit_amount);
     eth_users.add_user(&rt, &eth_client, eth_accounts[3]);
-    eth_users.fund_user(&rt, &eth_client, 1, user_2_deposit_amount);
+    eth_users.fund_user(&rt, &eth_client, 1, user_1_deposit_amount);
     eth_users.add_user(&rt, &eth_client, eth_accounts[4]);
-    eth_users.fund_user(&rt, &eth_client, 2, user_3_deposit_amount);
+    eth_users.fund_user(&rt, &eth_client, 2, user_2_deposit_amount);
+    eth_users.add_user(&rt, &eth_client, eth_accounts[9]);
+    eth_users.fund_user(&rt, &eth_client, 3, user_3_deposit_amount);
 
     info!("Starting CCTP mock relayer between Noble and Ethereum...");
-    let mock_cctp_relayer = mock_cctp_relayer::MockCctpRelayer::new(
-        &rt,
-        mock_cctp_messenger_address,
-        usdc_token_address,
+    let mock_cctp_relayer = async_run!(
+        tokio::runtime::Runtime::new()?,
+        MockCctpRelayer::new(mock_cctp_messenger_address, usdc_token_address).await
     )?;
-    let rly_rt = tokio::runtime::Runtime::new().unwrap();
+    let _cctp_rly_join_handle = mock_cctp_relayer.start();
 
-    let _join_handle = rly_rt.spawn(mock_cctp_relayer.start());
     info!("main sleep for 3...");
     sleep(Duration::from_secs(3));
 
     let strategy_config = StrategyConfig {
-        noble: strategist::strategy::noble::NobleStrategyConfig {
+        noble: strategy_config::noble::NobleStrategyConfig {
             grpc_url: noble_grpc_url,
             grpc_port: noble_grpc_port,
             chain_id: NOBLE_CHAIN_ID.to_string(),
             mnemonic: ADMIN_MNEMONIC.to_string(),
         },
-        neutron: strategist::strategy::neutron::NeutronStrategyConfig {
+        neutron: strategy_config::neutron::NeutronStrategyConfig {
             grpc_url: neutron_grpc_url,
             grpc_port: neutron_grpc_port,
             chain_id: NEUTRON_CHAIN_ID.to_string(),
             mnemonic: ADMIN_MNEMONIC.to_string(),
             target_pool: pool_addr.to_string(),
-            denoms: strategist::strategy::neutron::NeutronDenoms {
+            denoms: strategy_config::neutron::NeutronDenoms {
                 lp_token: lp_token.to_string(),
                 usdc: uusdc_on_neutron_denom.to_string(),
                 ntrn: NEUTRON_CHAIN_DENOM.to_string(),
@@ -267,10 +273,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             accounts: neutron_program_accounts,
             libraries: neutron_program_libraries,
         },
-        ethereum: strategist::strategy::ethereum::EthereumStrategyConfig {
+        ethereum: strategy_config::ethereum::EthereumStrategyConfig {
             rpc_url: DEFAULT_ANVIL_RPC_ENDPOINT.to_string(),
             mnemonic: "test test test test test test test test test test test junk".to_string(),
-            denoms: strategist::strategy::ethereum::EthereumDenoms {
+            denoms: strategy_config::ethereum::EthereumDenoms {
                 usdc_erc20: usdc_token_address.to_string(),
             },
             accounts: ethereum_program_accounts.clone(),
@@ -281,21 +287,31 @@ fn main() -> Result<(), Box<dyn Error>> {
     let temp_path = Path::new("./e2e/examples/eth_vault/strategist/example_strategy.toml");
     strategy_config.to_file(temp_path)?;
 
-    let strategy_cfg = StrategyConfig::from_file(temp_path)?;
+    let strategy = async_run!(
+        tokio::runtime::Runtime::new()?,
+        Strategy::from_file(temp_path).await
+    )?;
 
-    let strategist = Strategist::new(&rt, strategy_cfg).unwrap();
+    let user2_usdc_bal = eth_users.get_user_usdc(&rt, &eth_client, 2);
+    let user2_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 2);
+    info!("User2 USDC balance: {user2_usdc_bal}");
+    info!("User2 shares balance: {user2_shares_bal}");
 
-    info!("User3 depositing {user_3_deposit_amount}USDC tokens to vault...");
+    info!("User2 depositing {user_2_deposit_amount}USDC tokens to vault...");
     vault::deposit_to_vault(
         &rt,
         &eth_client,
         *valence_vault.address(),
         eth_users.users[2],
-        user_3_deposit_amount,
+        user_2_deposit_amount,
     )?;
 
-    let strategist_rt = tokio::runtime::Runtime::new().unwrap();
-    let _strategist_join_handle = strategist_rt.spawn(strategist.start());
+    let user2_usdc_bal = eth_users.get_user_usdc(&rt, &eth_client, 2);
+    let user2_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 2);
+    info!("User2 USDC balance: {user2_usdc_bal}");
+    info!("User2 shares balance: {user2_shares_bal}");
+
+    let _strategist_join_handle = strategy.start();
 
     let vault_address = Address::from_str(&ethereum_program_libraries.valence_vault).unwrap();
     let eth_withdraw_address =
@@ -307,13 +323,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         async_run!(&rt, wait_until_half_minute().await);
         evm::mine_blocks(&rt, &eth_client, 5, 3);
 
-        info!("User depositing {user_1_deposit_amount}USDC tokens to vault...");
+        info!("User0 depositing {user_0_deposit_amount}USDC tokens to vault...");
         vault::deposit_to_vault(
             &rt,
             &eth_client,
             *valence_vault.address(),
             eth_users.users[0],
-            user_1_deposit_amount,
+            user_0_deposit_amount,
         )?;
 
         evm::mine_blocks(&rt, &eth_client, 5, 3);
@@ -325,13 +341,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         async_run!(&rt, wait_until_half_minute().await);
         evm::mine_blocks(&rt, &eth_client, 5, 3);
 
-        info!("User2 depositing {user_2_deposit_amount}USDC tokens to vault...");
+        info!("User1 depositing {user_1_deposit_amount}USDC tokens to vault...");
         vault::deposit_to_vault(
             &rt,
             &eth_client,
             *valence_vault.address(),
             eth_users.users[1],
-            U256::from(1_000_000),
+            user_1_deposit_amount,
         )?;
         evm::mine_blocks(&rt, &eth_client, 5, 3);
     }
@@ -342,8 +358,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         async_run!(&rt, wait_until_half_minute().await);
         evm::mine_blocks(&rt, &eth_client, 5, 3);
 
-        let user1_pre_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 0);
-        info!("USER1 initiating the redeem of {user1_pre_redeem_shares_bal} shares from vault...");
+        let user0_pre_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 0);
+
+        let shares_to_withdraw = user0_pre_redeem_shares_bal / U256::from(2);
+        info!("USER0 initiating the redeem of {shares_to_withdraw} shares from vault...");
         let total_to_withdraw_before = async_run!(&rt, {
             eth_client
                 .query(valence_vault.totalAssetsToWithdrawNextUpdate())
@@ -358,7 +376,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             &rt,
             &eth_client,
             eth_users.users[0],
-            user1_pre_redeem_shares_bal / U256::from(2),
+            shares_to_withdraw,
             10_000,
             false,
         )?;
@@ -393,8 +411,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         async_run!(&rt, wait_until_half_minute().await);
         evm::mine_blocks(&rt, &eth_client, 5, 3);
 
-        let user2_pre_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 1);
-        info!("USER2 initiating the redeem of {user2_pre_redeem_shares_bal} shares from vault...");
+        let user1_pre_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 1);
+        info!("USER1 initiating the redeem of {user1_pre_redeem_shares_bal} shares from vault...");
         let total_to_withdraw_before = async_run!(&rt, {
             eth_client
                 .query(valence_vault.totalAssetsToWithdrawNextUpdate())
@@ -409,7 +427,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             &rt,
             &eth_client,
             eth_users.users[1],
-            user2_pre_redeem_shares_bal,
+            user1_pre_redeem_shares_bal,
             10_000,
             false,
         )?;
@@ -433,7 +451,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .await
                 .unwrap()
         });
-        info!("Update withdraw request: {:?}", request);
+        info!("User1 update withdraw request: {:?}", request);
 
         evm::mine_blocks(&rt, &eth_client, 5, 3);
     }
@@ -450,7 +468,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .await
                 .unwrap()
         });
-        info!("Withdraw request details: {:?}", withdraw_request);
+        info!("User0 Withdraw request details: {:?}", withdraw_request);
         // Get the update info for this request
         let update_info = async_run!(&rt, {
             eth_client
@@ -558,6 +576,22 @@ fn main() -> Result<(), Box<dyn Error>> {
         info!("post completion user2 shares bal: {post_completion_user2_shares}",);
 
         evm::mine_blocks(&rt, &eth_client, 5, 3);
+    }
+
+    let mut i = 7;
+
+    loop {
+        info!("\n======================== EPOCH {i} ========================\n");
+
+        async_run!(&rt, wait_until_half_minute().await);
+
+        evm::mine_blocks(&rt, &eth_client, 5, 3);
+
+        i += 1;
+
+        if i >= 100_000_000 {
+            break;
+        }
     }
 
     Ok(())

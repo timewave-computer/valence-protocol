@@ -28,7 +28,7 @@ use valence_library_utils::liquidity_utils::AssetData;
 use valence_library_utils::LibraryAccountType;
 
 use crate::neutron::ica::{instantiate_interchain_account_contract, register_interchain_account};
-use crate::strategist::strategy;
+use crate::strategist::strategy_config;
 use crate::{ASTROPORT_CONCENTRATED_PAIR_TYPE, VAULT_NEUTRON_CACHE_PATH};
 
 #[allow(unused)]
@@ -39,7 +39,7 @@ pub struct ProgramHyperlaneContracts {
 
 pub fn setup_neutron_accounts(
     test_ctx: &mut TestContext,
-) -> Result<strategy::neutron::NeutronAccounts, Box<dyn Error>> {
+) -> Result<strategy_config::neutron::NeutronAccounts, Box<dyn Error>> {
     let base_account_code_id = test_ctx
         .get_contract()
         .contract(BASE_ACCOUNT_NAME)
@@ -66,12 +66,12 @@ pub fn setup_neutron_accounts(
     let outbound_noble_ica_addr =
         register_interchain_account(test_ctx, &noble_outbound_interchain_account_addr)?;
 
-    let neutron_accounts = strategy::neutron::NeutronAccounts {
-        noble_inbound_ica: strategy::neutron::IcaAccount {
+    let neutron_accounts = strategy_config::neutron::NeutronAccounts {
+        noble_inbound_ica: strategy_config::neutron::IcaAccount {
             library_account: noble_inbound_interchain_account_addr,
             remote_addr: inbound_noble_ica_addr,
         },
-        noble_outbound_ica: strategy::neutron::IcaAccount {
+        noble_outbound_ica: strategy_config::neutron::IcaAccount {
             library_account: noble_outbound_interchain_account_addr,
             remote_addr: outbound_noble_ica_addr,
         },
@@ -122,7 +122,7 @@ pub fn upload_neutron_contracts(test_ctx: &mut TestContext) -> Result<(), Box<dy
 #[allow(clippy::too_many_arguments)]
 pub fn setup_neutron_libraries(
     test_ctx: &mut TestContext,
-    neutron_program_accounts: &strategy::neutron::NeutronAccounts,
+    neutron_program_accounts: &strategy_config::neutron::NeutronAccounts,
     pool: &str,
     authorizations: &str,
     processor: &str,
@@ -130,7 +130,7 @@ pub fn setup_neutron_libraries(
     usdc_on_neutron: &str,
     eth_withdraw_acc: String,
     lp_token_denom: &str,
-) -> Result<strategy::neutron::NeutronLibraries, Box<dyn Error>> {
+) -> Result<strategy_config::neutron::NeutronLibraries, Box<dyn Error>> {
     let astro_cl_pool_asset_data = AssetData {
         asset1: NEUTRON_CHAIN_DENOM.to_string(),
         asset2: usdc_on_neutron.to_string(),
@@ -215,7 +215,7 @@ pub fn setup_neutron_libraries(
         None,
     );
 
-    let libraries = strategy::neutron::NeutronLibraries {
+    let libraries = strategy_config::neutron::NeutronLibraries {
         astroport_lper: astro_lper_lib,
         astroport_lwer: astro_lwer_lib,
         noble_inbound_transfer: ica_ibc_transfer_lib,
@@ -462,6 +462,7 @@ pub fn setup_ica_ibc_transfer_lib(
                 ibc_transfer_timeout: None,
             },
             denom_to_pfm_map: BTreeMap::default(),
+            eureka_config: None,
         },
     };
 
@@ -533,6 +534,7 @@ pub fn setup_neutron_ibc_transfer_lib(
             output_addr: LibraryAccountType::Addr(output_addr.to_string()),
             memo: "-".to_string(),
             denom_to_pfm_map: BTreeMap::default(),
+            eureka_config: None,
         },
     };
 
