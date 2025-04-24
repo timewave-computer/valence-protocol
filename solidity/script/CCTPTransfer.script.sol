@@ -2,8 +2,8 @@
 pragma solidity ^0.8.28;
 
 import {Script} from "forge-std/src/Script.sol";
-import {MockERC20} from "../test/mocks/MockERC20.sol";
 import {CCTPTransfer} from "../src/libraries/CCTPTransfer.sol";
+import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
 import {ITokenMessenger} from "../src/libraries/interfaces/cctp/ITokenMessenger.sol";
 import {BaseAccount} from "../src/accounts/BaseAccount.sol";
 import {console} from "forge-std/src/console.sol";
@@ -13,6 +13,9 @@ contract CCTPTransferScript is Script {
     address constant USDC_ADDR = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     // Address of the CCTP Token Messenger
     address constant CCTP_TOKEN_MESSENGER_ADDR = 0xBd3fa81B58Ba92a82136038B25aDec7066af3155;
+    // Address of USDC Whale
+    address constant USDC_WHALE = 0x28C6c06298d514Db089934071355E5743bf21d60;
+
     address owner = address(1);
     address processor = address(2);
     CCTPTransfer public cctpTransfer;
@@ -24,19 +27,19 @@ contract CCTPTransferScript is Script {
         uint256 forkId = vm.createFork("https://eth-mainnet.public.blastapi.io");
         vm.selectFork(forkId);
 
-        // Replace the runtime code at USDC_ADDR with our MockERC20 code so we can mint some USDC to the BaseAccount
-        bytes memory mockCode = type(MockERC20).runtimeCode;
-        vm.etch(USDC_ADDR, mockCode);
-
         // Start broadcasting transactions
         vm.startPrank(owner);
-
         // Deploy a new BaseAccount contract.
         inputAccount = new BaseAccount(owner, new address[](0));
+        vm.stopPrank();
 
-        // Mint some USDC tokens to the BaseAccount
-        MockERC20 usdc = MockERC20(USDC_ADDR);
-        usdc.mint(address(inputAccount), 1000000);
+        // Fund the input account with USDC
+        vm.startPrank(USDC_WHALE);
+        uint256 amountToFund = 1000 * 10 ** 6; // 1000 USDC
+        IERC20(USDC_ADDR).transfer(address(inputAccount), amountToFund);
+        vm.stopPrank();
+
+        vm.startPrank(owner);
 
         // Deploy a new CCTPTransfer contract
         CCTPTransfer.CCTPTransferConfig memory validConfig = CCTPTransfer.CCTPTransferConfig({
@@ -56,14 +59,14 @@ contract CCTPTransferScript is Script {
         vm.stopPrank();
 
         // Get the balance before the transfer of the inputAccount
-        uint256 balanceBefore = usdc.balanceOf(address(inputAccount));
+        uint256 balanceBefore = IERC20(USDC_ADDR).balanceOf(address(inputAccount));
 
         // Finally let's call the transfer function from the processor
         vm.prank(processor);
         cctpTransfer.transfer();
 
         // Get the balance after the transfer of the inputAccount
-        uint256 balanceAfter = usdc.balanceOf(address(inputAccount));
+        uint256 balanceAfter = IERC20(USDC_ADDR).balanceOf(address(inputAccount));
 
         // Assert that the balance of the inputAccount has decreased by the amount
         assert(balanceBefore - balanceAfter == amount);
