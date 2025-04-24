@@ -33,7 +33,7 @@ use valence_e2e::{
     async_run,
     utils::{
         authorization::set_up_authorization_and_processor,
-        ethereum as ethereum_utils,
+        ethereum::{self as ethereum_utils, ANVIL_NAME, DEFAULT_ANVIL_PORT},
         mock_cctp_relayer::MockCctpRelayer,
         parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
         solidity_contracts::ValenceVault,
@@ -63,7 +63,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let rt = tokio::runtime::Runtime::new()?;
 
     info!("Initializing ethereum side flow...");
-    async_run!(rt, ethereum_utils::set_up_anvil_container().await)?;
+    async_run!(
+        rt,
+        ethereum_utils::set_up_anvil_container(ANVIL_NAME, DEFAULT_ANVIL_PORT, None).await
+    )?;
 
     let eth = EthClient::new(DEFAULT_ANVIL_RPC_ENDPOINT)?;
 
