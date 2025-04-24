@@ -33,7 +33,7 @@ contract IBCEurekaTransferTest is Test {
     function setUp() public {
         vm.startPrank(owner);
         inputAccount = new BaseAccount(owner, new address[](0));
-        token = new MockERC20("TEST", "TEST");
+        token = new MockERC20("TEST", "TEST", 18);
         mockEurekaHandler = IEurekaHandler(eurekaHandler);
 
         // Create a valid configuration for token transfer

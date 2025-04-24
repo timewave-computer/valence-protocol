@@ -31,7 +31,7 @@ contract CCTPTransferTest is Test {
     function setUp() public {
         vm.startPrank(owner);
         inputAccount = new BaseAccount(owner, new address[](0));
-        token = new MockERC20("USDC", "USDC");
+        token = new MockERC20("USDC", "USDC", 18);
 
         // Create a valid configuration.
         CCTPTransfer.CCTPTransferConfig memory validConfig = CCTPTransfer.CCTPTransferConfig({

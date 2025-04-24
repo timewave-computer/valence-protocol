@@ -35,9 +35,9 @@ contract BalancerV2SwapTest is Test {
         processor = makeAddr("processor");
 
         // Deploy mock tokens
-        tokenA = new MockERC20("Token A", "TA");
-        tokenB = new MockERC20("Token B", "TB");
-        tokenC = new MockERC20("Token C", "TC");
+        tokenA = new MockERC20("Token A", "TA", 18);
+        tokenB = new MockERC20("Token B", "TB", 18);
+        tokenC = new MockERC20("Token C", "TC", 18);
 
         // Create mock accounts
         vm.startPrank(owner);

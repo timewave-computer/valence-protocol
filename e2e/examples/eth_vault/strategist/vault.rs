@@ -20,7 +20,10 @@ use super::strategy::Strategy;
 
 #[async_trait]
 pub trait EthereumVault {
-    async fn calculate_redemption_rate(&self) -> Result<Decimal, Box<dyn Error>>;
+    async fn calculate_redemption_rate(
+        &self,
+        netting_amount: u128,
+    ) -> Result<Decimal, Box<dyn Error>>;
     async fn calculate_total_fee(&self) -> Result<u32, Box<dyn Error>>;
 }
 
@@ -65,7 +68,10 @@ impl EthereumVault for Strategy {
         Ok(withdraw_fee)
     }
 
-    async fn calculate_redemption_rate(&self) -> Result<Decimal, Box<dyn Error>> {
+    async fn calculate_redemption_rate(
+        &self,
+        netting_amount: u128,
+    ) -> Result<Decimal, Box<dyn Error>> {
         let eth_rp = self.eth_client.get_request_provider().await?;
         let valence_vault = ValenceVault::new(
             Address::from_str(&self.cfg.ethereum.libraries.valence_vault)?,
@@ -78,12 +84,14 @@ impl EthereumVault for Strategy {
 
         // 1. query total shares issued from the vault
         let vault_issued_shares = self.eth_client.query(valence_vault.totalSupply()).await?._0;
+        info!("[calculate_redemption_rate] vault_issued_shares: {vault_issued_shares}");
+
         let vault_current_rate = self
             .eth_client
             .query(valence_vault.redemptionRate())
             .await?
             ._0;
-        info!("current vault redemption rate: {:?}", vault_current_rate);
+        info!("[calculate_redemption_rate] vault_current_rate: {vault_current_rate}");
 
         // 2. query shares in position account and simulate their liquidation for USDC
         let neutron_position_acc_shares = self
@@ -93,6 +101,8 @@ impl EthereumVault for Strategy {
                 &self.cfg.neutron.denoms.lp_token,
             )
             .await?;
+        info!("[calculate_redemption_rate] neutron_position_acc_shares: {neutron_position_acc_shares}");
+
         let (usdc_amount, ntrn_amount) = self
             .simulate_liquidation(
                 &self.cfg.neutron.target_pool,
@@ -121,6 +131,8 @@ impl EthereumVault for Strategy {
             .await?
             ._0;
 
+        info!("[calculate_redemption_rate] eth_deposit_usdc: {eth_deposit_usdc}");
+
         let noble_inbound_ica_usdc = self
             .noble_client
             .query_balance(
@@ -128,6 +140,8 @@ impl EthereumVault for Strategy {
                 UUSDC_DENOM,
             )
             .await?;
+        info!("[calculate_redemption_rate] noble_inbound_ica_usdc: {noble_inbound_ica_usdc}");
+
         let neutron_deposit_acc_usdc = self
             .neutron_client
             .query_balance(
@@ -136,19 +150,37 @@ impl EthereumVault for Strategy {
             )
             .await?;
 
-        //   4. R = total_shares / total_assets
-        let normalized_eth_balance = Uint128::from_str(&eth_deposit_usdc.to_string())?;
+        info!("[calculate_redemption_rate] neutron_deposit_acc_usdc: {neutron_deposit_acc_usdc}");
 
+        //   4. R = total_shares / total_assets
+        let normalized_eth_deposit_acc_balance = Uint128::from_str(&eth_deposit_usdc.to_string())?;
+        info!("[calculate_redemption_rate] eth_deposit_usdc: {eth_deposit_usdc}");
+        info!("[calculate_redemption_rate] normalized_eth_deposit_acc_balance: {normalized_eth_deposit_acc_balance}");
         let total_assets = noble_inbound_ica_usdc
             + neutron_deposit_acc_usdc
-            + normalized_eth_balance.u128()
+            + normalized_eth_deposit_acc_balance.u128()
             + usdc_amount.u128()
-            + swap_simulation_output.u128();
+            + swap_simulation_output.u128()
+            - netting_amount;
+
         let normalized_shares = Uint128::from_str(&vault_issued_shares.to_string())?;
 
-        info!("total assets: {total_assets}USDC");
-        info!("total shares: {}SHARES", normalized_shares.u128());
-        match Decimal::checked_from_ratio(normalized_shares, total_assets) {
+        info!("[calculate_redemption_rate] total assets: {total_assets}USDC");
+        info!(
+            "[calculate_redemption_rate] total shares normalized u128: {}SHARES",
+            normalized_shares.u128()
+        );
+
+        let scaled_assets = total_assets * 1_000_000_000_000u128;
+
+        info!("[calculate_redemption_rate] total assets: {total_assets}USDC");
+
+        info!("[calculate_redemption_rate] scaled total assets: {scaled_assets}USDC");
+        info!(
+            "[calculate_redemption_rate] total shares normalized u128: {}SHARES",
+            normalized_shares.u128()
+        );
+        match Decimal::checked_from_ratio(normalized_shares, scaled_assets) {
             Ok(ratio) => {
                 info!("redemption rate: {ratio}");
                 Ok(ratio)
