@@ -109,7 +109,7 @@ pub async fn approve_library(
     let rp = client.get_request_provider().await?;
 
     // Approve the library on the account
-    info!("Approving library on account...");
+    info!("Approving library {} on account {}...", library, account);
     let base_account = BaseAccount::new(account, &rp);
 
     client
