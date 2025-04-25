@@ -4,13 +4,15 @@ use alloy::primitives::Address;
 use evm::{setup_eth_accounts, setup_eth_libraries};
 use localic_utils::{
     utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder, GAIA_CHAIN_NAME,
-    LOCAL_IC_API_URL, NEUTRON_CHAIN_NAME,
+    LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
 };
 
 use log::info;
 
-use valence_chain_client_utils::evm::{
-    base_client::EvmBaseClient, request_provider_client::RequestProviderClient,
+use valence_chain_client_utils::{
+    cosmos::base_client::BaseClient,
+    evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
+    neutron::NeutronClient,
 };
 
 use valence_e2e::{
@@ -20,6 +22,7 @@ use valence_e2e::{
         ethereum::{
             self as ethereum_utils, set_up_anvil_container, ANVIL_NAME, DEFAULT_ANVIL_PORT,
         },
+        parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
         solidity_contracts::{BaseAccount, MockERC20},
         DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
     },
@@ -35,6 +38,7 @@ const WBTC_ERC20: &str = "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599";
 const WBTC_WHALE: &str = "0x0555E30da8f98308EdB960aa94C0Db47230d2B9c";
 const EUREKA_HANDLER: &str = "0xfc2d0487a0ae42ae7329a80dc269916a9184cf7c";
 const EUREKA_HANDLER_SRC_CLIENT: &str = "cosmoshub-0";
+const WBTC_NEUTRON_DENOM: &str = "WBTC";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -100,6 +104,45 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .await?;
 
     info!("wbtc whale balance: {:?}", whale_wbtc_balance._0);
+
+    // spin up the testctx with only neutron
+    // let mut test_ctx = async_run!(
+    //     rt,
+    //     TestContextBuilder::default()
+    //         .with_unwrap_raw_logs(true)
+    //         .with_api_url(LOCAL_IC_API_URL)
+    //         .with_artifacts_dir(VALENCE_ARTIFACTS_PATH)
+    //         .with_chain(ConfigChainBuilder::default_neutron().build().unwrap())
+    //         .with_log_file_path(LOGS_FILE_PATH)
+    //         .build()
+    // )?;
+
+    let (neutron_grpc_url, neutron_grpc_port) = get_grpc_address_and_port_from_url(
+        &get_chain_field_from_local_ic_log(NEUTRON_CHAIN_ID, "grpc_address")?,
+    )?;
+
+    let neutron_client = NeutronClient::new(
+        &neutron_grpc_url,
+        &neutron_grpc_port,
+        "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry",
+        NEUTRON_CHAIN_ID,
+    )
+    .await?;
+
+    // mint the mock wbtc on neutron
+    // test_ctx
+    //     .build_tx_mint_tokenfactory_token()
+    //     .with_denom(WBTC_NEUTRON_DENOM)
+    //     .with_amount(100_000_000_000)
+    //     .send()?;
+
+    // async_run!(rt, std::thread::sleep(std::time::Duration::from_secs(3)););
+
+    let neutron_admin_wbtc_balance = neutron_client
+        .query_balance(NEUTRON_CHAIN_ADMIN_ADDR, WBTC_NEUTRON_DENOM)
+        .await?;
+
+    info!("neutron admin wbtc balance: {neutron_admin_wbtc_balance}");
 
     rt.shutdown_background();
 
