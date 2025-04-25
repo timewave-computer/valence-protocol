@@ -7,7 +7,7 @@ repository = { workspace = true }
 
 [[example]]
 name = "vault"
-path = "examples/eth_vault/vault.rs"
+path = "examples/eth_cctp_vault/vault.rs"
 
 [dependencies]
 localic-std                          = { git = "https://github.com/strangelove-ventures/interchaintest", branch = "main" }
