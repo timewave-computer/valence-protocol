@@ -28,7 +28,7 @@ pub async fn set_up_base_accounts(
     base_client: &EthereumClient,
     eth_admin_addr: Address,
 ) -> Result<strategy_config::base::BaseAccounts, Box<dyn Error>> {
-    info!("Setting up all accounts on Ethereum");
+    info!("Setting up all accounts on Base");
 
     let mut addresses = vec![];
 
@@ -209,7 +209,7 @@ async fn set_up_cctp_transfer(
     // Create the padded hex string
     let padded_hex = format!("{:0>64}", mint_recipient_hex);
 
-    let cctp_transer_config = CCTPTransferConfig {
+    let cctp_transfer_config = CCTPTransferConfig {
         amount: U256::ZERO,
         mintRecipient: alloy_primitives_encoder::FixedBytes::<32>::from_hex(padded_hex)?,
         inputAccount: alloy_primitives_encoder::Address::from_str(
@@ -226,7 +226,7 @@ async fn set_up_cctp_transfer(
         &base_client.get_request_provider().await?,
         admin,
         processor,
-        alloy_sol_types_encoder::SolValue::abi_encode(&cctp_transer_config).into(),
+        alloy_sol_types_encoder::SolValue::abi_encode(&cctp_transfer_config).into(),
     )
     .into_transaction_request()
     .from(admin);
