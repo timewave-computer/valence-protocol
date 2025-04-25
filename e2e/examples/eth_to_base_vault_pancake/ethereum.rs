@@ -176,8 +176,8 @@ async fn set_up_vault(
         fees: fee_config,
         feeDistribution: fee_distribution,
         depositCap: 0,
-        withdrawLockupPeriod: 60,  // 1 minute lockup period
-        maxWithdrawFeeBps: 10_000, // 1% max withdraw fee
+        withdrawLockupPeriod: 60, // 1 minute lockup period
+        maxWithdrawFeeBps: 100,   // 1% max withdraw fee
     };
 
     info!("Deploying Valence Vault on Ethereum...");
