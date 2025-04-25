@@ -52,6 +52,14 @@ sol!(
     "../solidity/out/Forwarder.sol/Forwarder.json",
 );
 
+// CCTP Transfer
+sol!(
+    #[sol(rpc)]
+    #[derive(Debug, PartialEq, Eq)]
+    CCTPTransfer,
+    "../solidity/out/CCTPTransfer.sol/CCTPTransfer.json",
+);
+
 // Valence ERC4626-based vault
 sol!(
     #[sol(rpc)]
@@ -72,14 +80,6 @@ sol!(
     #[sol(rpc)]
     MockERC20,
     "../solidity/out/MockERC20.sol/MockERC20.json",
-);
-
-// CCTP Transfer
-sol!(
-    #[sol(rpc)]
-    #[derive(Debug, PartialEq, Eq)]
-    CCTPTransfer,
-    "../solidity/out/CCTPTransfer.sol/CCTPTransfer.json",
 );
 
 // Mock CCTP messenger

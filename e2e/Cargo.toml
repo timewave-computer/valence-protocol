@@ -9,6 +9,10 @@ repository = { workspace = true }
 name = "vault"
 path = "examples/eth_vault/vault.rs"
 
+[[example]]
+name = "eth_to_base_vault_pancake"
+path = "examples/eth_to_base_vault_pancake/vault.rs"
+
 [dependencies]
 localic-std                          = { git = "https://github.com/strangelove-ventures/interchaintest", branch = "main" }
 localic-utils                        = { git = "https://github.com/timewave-computer/localic-utils", branch = "main" }
@@ -57,7 +61,7 @@ valence-middleware-osmosis           = { workspace = true }
 valence-middleware-utils             = { workspace = true }
 valence-middleware-asserter          = { workspace = true }
 valence-test-icq-lib                 = { workspace = true }
-valence-chain-client-utils           = { workspace = true }
+valence-chain-client-utils           = { workspace = true, features = ["test-utils"] }
 valence-ica-cctp-transfer            = { workspace = true }
 valence-ica-ibc-transfer             = { workspace = true }
 tokio                                = { workspace = true }
