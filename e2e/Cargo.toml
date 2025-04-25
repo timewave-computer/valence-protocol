@@ -6,8 +6,12 @@ version    = { workspace = true }
 repository = { workspace = true }
 
 [[example]]
-name = "vault"
+name = "cctp_vault"
 path = "examples/eth_cctp_vault/vault.rs"
+
+[[example]]
+name = "eureka_vault"
+path = "examples/eth_eureka_vault/vault.rs"
 
 [dependencies]
 localic-std                          = { git = "https://github.com/strangelove-ventures/interchaintest", branch = "main" }
