@@ -2,13 +2,15 @@
 pragma solidity ^0.8.28;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 /**
  * @title Account
  * @dev Abstract contract that manages approved libraries with ownership control. Any account contract will inherit from this.
  * Inherits from OpenZeppelin's Ownable for basic access control
+ * and implements the IERC721Receiver interface to handle ERC721 token transfers.
  */
-abstract contract Account is Ownable {
+abstract contract Account is Ownable, IERC721Receiver {
     /// @notice Mapping to track approved library addresses
     /// @dev Maps library address to approval status (true = approved, false = not approved)
     mapping(address => bool) public approvedLibraries;
@@ -74,6 +76,14 @@ abstract contract Account is Ownable {
         }
 
         return returnData;
+    }
+
+    /**
+     * @dev Implementation of the {IERC721Receiver} interface.
+     * Accepts all token transfers.
+     */
+    function onERC721Received(address, address, uint256, bytes calldata) external pure override returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 
     /// @dev Allows the contract to receive native tokens (e.g. ETH) that can later be used by approved libraries or the owner in execute() calls
