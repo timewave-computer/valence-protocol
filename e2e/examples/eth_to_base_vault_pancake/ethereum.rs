@@ -158,10 +158,10 @@ async fn set_up_vault(
     info!("Setting up Valence Vault...");
 
     let fee_config = FeeConfig {
-        depositFeeBps: 0,          // No deposit fee
-        platformFeeBps: 10,        // 0.1 %
-        performanceFeeBps: 10,     // 0.1 %
-        solverCompletionFee: 0,    // No solver completion fee
+        depositFeeBps: 0,       // No deposit fee
+        platformFeeBps: 10,     // 0.1 %
+        performanceFeeBps: 10,  // 0.1 %
+        solverCompletionFee: 0, // No solver completion fee
     };
 
     let fee_distribution = FeeDistributionConfig {
