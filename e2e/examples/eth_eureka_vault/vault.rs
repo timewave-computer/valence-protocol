@@ -1,4 +1,8 @@
-use std::{error::Error, str::FromStr, time::SystemTime};
+use std::{
+    error::Error,
+    str::FromStr,
+    time::{Duration, SystemTime},
+};
 
 use alloy::primitives::Address;
 use evm::{setup_eth_accounts, setup_eth_libraries};
@@ -7,7 +11,7 @@ use localic_utils::{
     LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
 };
 
-use log::info;
+use log::{info, warn};
 
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
@@ -105,21 +109,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     info!("wbtc whale balance: {:?}", whale_wbtc_balance._0);
 
-    // spin up the testctx with only neutron
-    // let mut test_ctx = async_run!(
-    //     rt,
-    //     TestContextBuilder::default()
-    //         .with_unwrap_raw_logs(true)
-    //         .with_api_url(LOCAL_IC_API_URL)
-    //         .with_artifacts_dir(VALENCE_ARTIFACTS_PATH)
-    //         .with_chain(ConfigChainBuilder::default_neutron().build().unwrap())
-    //         .with_log_file_path(LOGS_FILE_PATH)
-    //         .build()
-    // )?;
-
     let (neutron_grpc_url, neutron_grpc_port) = get_grpc_address_and_port_from_url(
         &get_chain_field_from_local_ic_log(NEUTRON_CHAIN_ID, "grpc_address")?,
     )?;
+
+    info!("neutron grpc: {neutron_grpc_url}");
+    info!("neutron grpc port: {neutron_grpc_port}");
 
     let neutron_client = NeutronClient::new(
         &neutron_grpc_url,
@@ -129,17 +124,32 @@ async fn main() -> Result<(), Box<dyn Error>> {
     )
     .await?;
 
-    // mint the mock wbtc on neutron
-    // test_ctx
-    //     .build_tx_mint_tokenfactory_token()
-    //     .with_denom(WBTC_NEUTRON_DENOM)
-    //     .with_amount(100_000_000_000)
-    //     .send()?;
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    info!("neutron client ready!");
 
-    // async_run!(rt, std::thread::sleep(std::time::Duration::from_secs(3)););
+    match neutron_client
+        .create_tokenfactory_denom(WBTC_NEUTRON_DENOM)
+        .await
+    {
+        Ok(tf_create_rx) => {
+            neutron_client.poll_for_tx(&tf_create_rx.hash).await?;
+        }
+        Err(e) => warn!("tokenfactory denom already exists: {:?}", e),
+    };
+
+    let wbtc_on_neutron = format!("factory/{NEUTRON_CHAIN_ADMIN_ADDR}/WBTC");
+
+    let tf_mint_rx = neutron_client
+        .mint_tokenfactory_tokens(
+            WBTC_NEUTRON_DENOM,
+            100_000_000_000,
+            Some(NEUTRON_CHAIN_ADMIN_ADDR),
+        )
+        .await?;
+    neutron_client.poll_for_tx(&tf_mint_rx.hash).await?;
 
     let neutron_admin_wbtc_balance = neutron_client
-        .query_balance(NEUTRON_CHAIN_ADMIN_ADDR, WBTC_NEUTRON_DENOM)
+        .query_balance(NEUTRON_CHAIN_ADMIN_ADDR, &wbtc_on_neutron)
         .await?;
 
     info!("neutron admin wbtc balance: {neutron_admin_wbtc_balance}");

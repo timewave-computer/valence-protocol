@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use crate::{
     common::{error::StrategistError, transaction::TransactionResponse},
     cosmos::{
@@ -6,6 +8,8 @@ use crate::{
     },
 };
 use async_trait::async_trait;
+use cosmrs::Denom;
+use log::{info, warn};
 
 const CHAIN_PREFIX: &str = "neutron";
 const CHAIN_DENOM: &str = "untrn";
@@ -34,6 +38,101 @@ impl NeutronClient {
             chain_denom: CHAIN_DENOM.to_string(),
             gas_price: avg_gas_price,
         })
+    }
+}
+
+impl NeutronClient {
+    pub async fn create_tokenfactory_denom(
+        &self,
+        subdenom: &str,
+    ) -> Result<TransactionResponse, StrategistError> {
+        let signing_client = self.get_signing_client().await?;
+        let channel = self.get_grpc_channel().await?;
+
+        // Create the message to create a new denom
+        let create_denom_msg = neutron_std::types::osmosis::tokenfactory::v1beta1::MsgCreateDenom {
+            sender: signing_client.address.to_string(),
+            subdenom: subdenom.to_string(),
+        }
+        .to_any();
+
+        // Convert to cosmrs::Any
+        let any_msg = cosmrs::Any {
+            type_url: create_denom_msg.type_url,
+            value: create_denom_msg.value,
+        };
+
+        // Create and sign the transaction
+        let raw_tx = signing_client
+            .create_tx(
+                any_msg,
+                cosmrs::tx::Fee {
+                    amount: vec![cosmrs::Coin {
+                        denom: Denom::from_str("untrn")?,
+                        amount: 100_000,
+                    }],
+                    gas_limit: 300_000,
+                    payer: None,
+                    granter: None,
+                },
+                None,
+            )
+            .await?;
+
+        // Broadcast the transaction
+        let mut grpc_client = CosmosServiceClient::new(channel);
+        let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
+
+        TransactionResponse::try_from(broadcast_tx_response.tx_response)
+    }
+
+    pub async fn mint_tokenfactory_tokens(
+        &self,
+        subdenom: &str,
+        amount: u128,
+        mint_to_address: Option<&str>,
+    ) -> Result<TransactionResponse, StrategistError> {
+        let signing_client = self.get_signing_client().await?;
+        let channel = self.get_grpc_channel().await?;
+
+        // Format the full denom - follows factory/{creator_address}/{subdenom} pattern
+        let full_denom = format!("factory/{}/{}", signing_client.address, subdenom);
+
+        // Determine the recipient address (default to sender if not specified)
+        let recipient = match mint_to_address {
+            Some(addr) => addr.to_string(),
+            None => signing_client.address.to_string(),
+        };
+
+        // Create the mint message
+        let mint_msg = neutron_std::types::osmosis::tokenfactory::v1beta1::MsgMint {
+            sender: signing_client.address.to_string(),
+            amount: Some(neutron_std::types::cosmos::base::v1beta1::Coin {
+                denom: full_denom,
+                amount: amount.to_string(),
+            }),
+            mint_to_address: recipient,
+        }
+        .to_any();
+
+        // Convert to cosmrs::Any
+        let any_msg = cosmrs::Any {
+            type_url: mint_msg.type_url,
+            value: mint_msg.value,
+        };
+
+        // Simulate tx to get fee estimation
+        let simulation_response = self.simulate_tx(any_msg.clone()).await?;
+        let fee = self.get_tx_fee(simulation_response)?;
+
+        // Create and sign the transaction
+        let raw_tx = signing_client.create_tx(any_msg, fee, None).await?;
+
+        // Broadcast the transaction
+        let mut grpc_client = CosmosServiceClient::new(channel);
+        let broadcast_tx_response = grpc_client.broadcast_tx(raw_tx).await?.into_inner();
+
+        TransactionResponse::try_from(broadcast_tx_response.tx_response)
     }
 }
 
