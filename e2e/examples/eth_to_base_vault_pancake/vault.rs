@@ -120,7 +120,5 @@ pub async fn approve_library(
         )
         .await?;
 
-    info!("Library approved successfully");
-
     Ok(())
 }
