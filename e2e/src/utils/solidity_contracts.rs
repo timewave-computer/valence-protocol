@@ -60,6 +60,30 @@ sol!(
     "../solidity/out/CCTPTransfer.sol/CCTPTransfer.json",
 );
 
+// Aave Position Manager
+sol!(
+    #[sol(rpc)]
+    #[derive(Debug, PartialEq, Eq)]
+    AavePositionManager,
+    "../solidity/out/AavePositionManager.sol/AavePositionManager.json",
+);
+
+// Standard Bridge Transfer
+sol!(
+    #[sol(rpc)]
+    #[derive(Debug, PartialEq, Eq)]
+    StandardBridgeTransfer,
+    "../solidity/out/StandardBridgeTransfer.sol/StandardBridgeTransfer.json",
+);
+
+// PancakeSwap V3 Position Manager
+sol!(
+    #[sol(rpc)]
+    #[derive(Debug, PartialEq, Eq)]
+    PancakeSwapV3PositionManager,
+    "../solidity/out/PancakeSwapV3PositionManager.sol/PancakeSwapV3PositionManager.json",
+);
+
 // Valence ERC4626-based vault
 sol!(
     #[sol(rpc)]
