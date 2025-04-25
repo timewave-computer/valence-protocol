@@ -159,8 +159,8 @@ async fn set_up_vault(
 
     let fee_config = FeeConfig {
         depositFeeBps: 0,          // No deposit fee
-        platformFeeBps: 10_000,    // 0.1% yearly platform fee
-        performanceFeeBps: 10_000, // 0.1% performance fee
+        platformFeeBps: 10,        // 0.1 %
+        performanceFeeBps: 10,     // 0.1 %
         solverCompletionFee: 0,    // No solver completion fee
     };
 
