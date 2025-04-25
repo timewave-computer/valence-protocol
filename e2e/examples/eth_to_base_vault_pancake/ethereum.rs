@@ -118,11 +118,20 @@ pub async fn set_up_eth_libraries(
         set_up_forwarder_vault_to_standard_bridge(
             eth_client,
             Address::from_str(&eth_program_accounts.vault_deposit)?,
-            Address::from_str(&base_program_accounts.standard_bridge_input)?,
+            Address::from_str(&eth_program_accounts.standard_bridge_input)?,
             eth_admin_addr,
             processor,
         )
         .await?;
+
+    let forwarder_aave_input_to_cctp_input = set_up_forwarder_aave_input_to_cctp_input(
+        eth_client,
+        Address::from_str(&eth_program_accounts.aave_input)?,
+        Address::from_str(&eth_program_accounts.cctp_input)?,
+        eth_admin_addr,
+        processor,
+    )
+    .await?;
 
     let vault = set_up_vault(
         eth_client,
@@ -142,6 +151,7 @@ pub async fn set_up_eth_libraries(
         forwarder_vault_deposit_to_aave_input: forwarder_vault_deposit_to_aave_input.to_string(),
         forwarder_vault_deposit_to_standard_bridge_input:
             forwarder_vault_deposit_to_standard_bridge_input.to_string(),
+        forwarder_aave_input_to_cctp_input: forwarder_aave_input_to_cctp_input.to_string(),
     };
 
     Ok(libraries)
@@ -467,4 +477,58 @@ async fn set_up_forwarder_vault_to_standard_bridge(
     .await?;
 
     Ok(forwarder_vault_to_standard_bridge_address)
+}
+
+async fn set_up_forwarder_aave_input_to_cctp_input(
+    eth_client: &EthereumClient,
+    input_account: Address,
+    output_account: Address,
+    admin: Address,
+    processor: Address,
+) -> Result<Address, Box<dyn Error>> {
+    info!("Setting up Forwarder Aave Input to CCTP Input on Ethereum");
+    let forwarder_aave_input_to_cctp_input_config = ForwarderConfig {
+        inputAccount: alloy_primitives_encoder::Address::from_str(
+            input_account.to_string().as_str(),
+        )?,
+        outputAccount: alloy_primitives_encoder::Address::from_str(
+            output_account.to_string().as_str(),
+        )?,
+        // Strategist will update this to forward the right amount
+        forwardingConfigs: vec![ForwardingConfig {
+            tokenAddress: alloy_primitives_encoder::Address::from_str(USDC_ADDRESS_ON_ETHEREUM)?,
+            maxAmount: 0,
+        }],
+        intervalType: IntervalType::TIME,
+        minInterval: 0,
+    };
+
+    let forwarder_aave_input_to_cctp_input_tx = Forwarder::deploy_builder(
+        &eth_client.get_request_provider().await?,
+        admin,
+        processor,
+        alloy_sol_types_encoder::SolValue::abi_encode(&forwarder_aave_input_to_cctp_input_config)
+            .into(),
+    )
+    .into_transaction_request()
+    .from(admin);
+
+    let response = eth_client
+        .execute_tx(forwarder_aave_input_to_cctp_input_tx)
+        .await?;
+    let forwarder_aave_input_to_cctp_input_address = response.contract_address.unwrap();
+
+    info!(
+        "Forwarder Aave Input to CCTP Input deployed at: {forwarder_aave_input_to_cctp_input_address}"
+    );
+
+    // Approve the vault on input account
+    approve_library(
+        eth_client,
+        forwarder_aave_input_to_cctp_input_address,
+        input_account,
+    )
+    .await?;
+
+    Ok(forwarder_aave_input_to_cctp_input_address)
 }

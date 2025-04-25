@@ -33,6 +33,7 @@ pub mod ethereum {
         pub aave_position_manager: String,
         pub forwarder_vault_deposit_to_aave_input: String,
         pub forwarder_vault_deposit_to_standard_bridge_input: String,
+        pub forwarder_aave_input_to_cctp_input: String,
     }
 }
 
