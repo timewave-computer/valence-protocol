@@ -21,7 +21,7 @@ contract PancakeSwapV3PositionManagerTest is Test {
     address processor = address(2);
     address mockPositionManager = address(3);
     address mockMasterChef = address(4);
-    uint24 poolFeeBps = 500; // 0.05%
+    uint24 poolFee = 500; // 0.05%
     uint16 slippageBps = 100; // 1%
     uint256 timeout = 1800; // 30 minutes
 
@@ -47,7 +47,7 @@ contract PancakeSwapV3PositionManagerTest is Test {
             masterChef: mockMasterChef,
             token0: address(token0),
             token1: address(token1),
-            poolFeeBps: poolFeeBps,
+            poolFee: poolFee,
             slippageBps: slippageBps,
             timeout: timeout
         });
@@ -71,7 +71,7 @@ contract PancakeSwapV3PositionManagerTest is Test {
             masterChef: mockMasterChef,
             token0: address(token0),
             token1: address(token1),
-            poolFeeBps: poolFeeBps,
+            poolFee: poolFee,
             slippageBps: slippageBps,
             timeout: timeout
         });
@@ -91,7 +91,7 @@ contract PancakeSwapV3PositionManagerTest is Test {
             masterChef: mockMasterChef,
             token0: address(token0),
             token1: address(token1),
-            poolFeeBps: poolFeeBps,
+            poolFee: poolFee,
             slippageBps: slippageBps,
             timeout: timeout
         });
@@ -111,7 +111,7 @@ contract PancakeSwapV3PositionManagerTest is Test {
             masterChef: mockMasterChef,
             token0: address(token0),
             token1: address(token1),
-            poolFeeBps: poolFeeBps,
+            poolFee: poolFee,
             slippageBps: slippageBps,
             timeout: timeout
         });
@@ -131,7 +131,7 @@ contract PancakeSwapV3PositionManagerTest is Test {
             masterChef: address(0), // Zero address (invalid)
             token0: address(token0),
             token1: address(token1),
-            poolFeeBps: poolFeeBps,
+            poolFee: poolFee,
             slippageBps: slippageBps,
             timeout: timeout
         });
@@ -151,7 +151,7 @@ contract PancakeSwapV3PositionManagerTest is Test {
             masterChef: mockMasterChef,
             token0: address(0), // Zero address (invalid)
             token1: address(token1),
-            poolFeeBps: poolFeeBps,
+            poolFee: poolFee,
             slippageBps: slippageBps,
             timeout: timeout
         });
@@ -171,7 +171,7 @@ contract PancakeSwapV3PositionManagerTest is Test {
             masterChef: mockMasterChef,
             token0: address(token0),
             token1: address(0), // Zero address (invalid)
-            poolFeeBps: poolFeeBps,
+            poolFee: poolFee,
             slippageBps: slippageBps,
             timeout: timeout
         });
@@ -182,7 +182,7 @@ contract PancakeSwapV3PositionManagerTest is Test {
         positionManager.updateConfig(configBytes);
     }
 
-    function testUpdateConfigFailsZeropoolFeeBps() public {
+    function testUpdateConfigFailsZeropoolFee() public {
         PancakeSwapV3PositionManager.PancakeSwapV3PositionManagerConfig memory invalidConfig =
         PancakeSwapV3PositionManager.PancakeSwapV3PositionManagerConfig({
             inputAccount: inputAccount,
@@ -191,7 +191,7 @@ contract PancakeSwapV3PositionManagerTest is Test {
             masterChef: mockMasterChef,
             token0: address(token0),
             token1: address(token1),
-            poolFeeBps: 0, // Zero value (invalid)
+            poolFee: 0, // Zero value (invalid)
             slippageBps: slippageBps,
             timeout: timeout
         });
@@ -211,7 +211,7 @@ contract PancakeSwapV3PositionManagerTest is Test {
             masterChef: mockMasterChef,
             token0: address(token0),
             token1: address(token1),
-            poolFeeBps: poolFeeBps,
+            poolFee: poolFee,
             slippageBps: slippageBps,
             timeout: 0 // Zero value (invalid)
         });
@@ -231,7 +231,7 @@ contract PancakeSwapV3PositionManagerTest is Test {
             masterChef: mockMasterChef,
             token0: address(token0),
             token1: address(token1),
-            poolFeeBps: poolFeeBps,
+            poolFee: poolFee,
             slippageBps: 10001, // Over 100% (invalid)
             timeout: timeout
         });
@@ -251,7 +251,7 @@ contract PancakeSwapV3PositionManagerTest is Test {
             masterChef: address(6), // Different address
             token0: address(token1), // Swapped tokens
             token1: address(token0), // Swapped tokens
-            poolFeeBps: 3000, // Different fee
+            poolFee: 3000, // Different fee
             slippageBps: 50, // Different slippage
             timeout: 900 // Different timeout
         });
@@ -269,7 +269,7 @@ contract PancakeSwapV3PositionManagerTest is Test {
             address newMasterChef,
             address newToken0,
             address newToken1,
-            uint24 newpoolFeeBps,
+            uint24 newpoolFee,
             uint16 newSlippageBps,
             uint256 newTimeout
         ) = positionManager.config();
@@ -280,7 +280,7 @@ contract PancakeSwapV3PositionManagerTest is Test {
         assertEq(newMasterChef, address(6), "Master chef should be updated");
         assertEq(newToken0, address(token1), "Token0 should be updated");
         assertEq(newToken1, address(token0), "Token1 should be updated");
-        assertEq(newpoolFeeBps, 3000, "Pool fee should be updated");
+        assertEq(newpoolFee, 3000, "Pool fee should be updated");
         assertEq(newSlippageBps, 50, "Slippage should be updated");
         assertEq(newTimeout, 900, "Timeout should be updated");
     }
@@ -294,7 +294,7 @@ contract PancakeSwapV3PositionManagerTest is Test {
             masterChef: mockMasterChef,
             token0: address(token0),
             token1: address(token1),
-            poolFeeBps: poolFeeBps,
+            poolFee: poolFee,
             slippageBps: 10000, // 100% (valid, but max allowed)
             timeout: timeout
         });

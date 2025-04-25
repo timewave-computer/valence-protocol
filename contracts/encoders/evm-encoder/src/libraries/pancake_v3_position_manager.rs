@@ -29,7 +29,7 @@ pub struct LibraryConfig {
     /// The address of the token1.
     pub token1: String,
     /// The pool fee.
-    pub pool_fee_bps: u32,
+    pub pool_fee: u32,
     /// The slippage used in basis points.
     pub slippage_bps: u16,
     /// The timeout for the transactions.
@@ -102,7 +102,7 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
                 masterChef: master_chef,
                 token0,
                 token1,
-                poolFeeBps: new_config.pool_fee_bps,
+                poolFee: new_config.pool_fee,
                 timeout: alloy_primitives::U256::from_be_bytes(new_config.timeout.to_be_bytes()),
                 slippageBps: new_config.slippage_bps,
             };

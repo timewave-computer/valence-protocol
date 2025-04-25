@@ -81,7 +81,7 @@ The library is configured on deployment using the `PancakeSwapV3PositionManagerC
  * @param masterChef Address of PancakeSwap's MasterChefV3 for staking NFT positions and accrue CAKE rewards
  * @param token0 Address of the first token in the pair
  * @param token1 Address of the second token in the pair
- * @param poolFeeBps Fee tier of the liquidity pool (e.g., 500 = 0.05%)
+ * @param poolFee Fee tier of the liquidity pool in 1/1,000,000 increments (e.g., 500 = 0.05%, 3000 = 0.3%)
  * @param timeout Maximum time for transactions to be valid
  * @param slippageBps Maximum allowed slippage in basis points (1 basis point = 0.01%)
  */
@@ -92,7 +92,7 @@ struct PancakeSwapV3PositionManagerConfig {
     address masterChef;
     address token0;
     address token1;
-    uint24 poolFeeBps;
+    uint24 poolFee;
     uint16 slippageBps; // Basis points (e.g., 100 = 1%)
     uint256 timeout;
 }
