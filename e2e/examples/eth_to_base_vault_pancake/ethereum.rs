@@ -167,9 +167,8 @@ async fn set_up_vault(
     let fee_distribution = FeeDistributionConfig {
         strategistAccount: strategist_address, // Strategist fee recipient
         platformAccount: platform_fee_recipient, // Platform fee recipient
-        strategistRatioBps: 10_000,            // 0.1% to strategist
+        strategistRatioBps: 10,                // 0.1 % to strategist
     };
-
     let vault_config = VaultConfig {
         depositAccount: deposit_account,
         withdrawAccount: withdraw_account,
