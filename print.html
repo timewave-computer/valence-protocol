@@ -3180,6 +3180,94 @@ flowchart LR
         uint16 referralCode;
     }
 </code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-pancakeswap-v3-position-manager-library"><a class="header" href="#valence-pancakeswap-v3-position-manager-library">Valence PancakeSwap V3 Position Manager library</a></h1>
+<p>The <strong>Valence PancakeSwap V3 Position Manager</strong> library allows <strong>management of liquidity positions</strong> using an <strong>input account</strong> and an <strong>output account</strong> through the <a href="https://docs.pancakeswap.finance/earn/pancakeswap-pools">PancakeSwap V3 Protocol</a>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the PancakeSwap V3 Position Manager library.</p>
+<h2 id="high-level-flows-1"><a class="header" href="#high-level-flows-1">High-level flows</a></h2>
+<pre class="mermaid">---
+title: PancakeSwap V3 Position Manager Create Position Flow
+---
+flowchart LR
+    P[Processor]
+    PM[PancakeSwap V3
+    Position Manager Library]
+    IA((Input Account))
+    NPM((Nonfungible
+    Position Manager))
+    MC((MasterChef V3))
+
+    P -- 1/createPosition(tickLower, tickUpper, amount0, amount1) --&gt; PM
+    PM -- 2/Query balances --&gt; IA
+    PM -- 3/Approve tokens and call mint --&gt; IA
+    IA -- 4/Mint position --&gt; NPM
+    NPM -- 5/Return tokenId &amp; mint NFT --&gt; IA
+    PM -- 6/Transfer NFT to MasterChef --&gt; IA
+    IA -- 7/Transfer NFT --&gt; MC
+</pre>
+<pre class="mermaid">---
+title: PancakeSwap V3 Position Manager Withdraw Position Flow
+---
+flowchart LR
+    P[Processor]
+    PM[PancakeSwap V3
+    Position Manager Library]
+    IA((Input Account))
+    NPM((Nonfungible
+    Position Manager))
+    MC((MasterChef V3))
+    OA((Output Account))
+
+    P -- 1/withdrawPosition(tokenId) --&gt; PM
+    PM -- 2/Call collectTo for fees --&gt; IA
+    IA -- 3/Collect fees --&gt; MC
+    MC -- 4/Send fees --&gt; OA
+    PM -- 5/Call harvest for rewards --&gt; IA
+    IA -- 6/Harvest rewards --&gt; MC
+    MC -- 7/Send CAKE rewards --&gt; OA
+    PM -- 8/Withdraw NFT --&gt; IA
+    IA -- 9/Request NFT withdrawal --&gt; MC
+    MC -- 10/Return NFT --&gt; IA
+    PM -- 11/Query position details --&gt; IA
+    IA -- 12/Get position details --&gt; NPM
+    PM -- 13/Decrease all liquidity --&gt; IA
+    IA -- 14/Remove liquidity --&gt; NPM
+    PM -- 15/Collect tokens --&gt; IA
+    IA -- 16/Collect tokens --&gt; NPM
+    NPM -- 17/Send tokens --&gt; OA
+    PM -- 18/Burn empty NFT --&gt; IA
+    IA -- 19/Burn NFT --&gt; NPM
+</pre>
+<h2 id="functions-21"><a class="header" href="#functions-21">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>createPosition</strong></td><td>tickLower, tickUpper, amount0, amount1</td><td>Creates a position on PancakeSwap V3 by providing liquidity in a specific price range and stakes it with the <strong>input account</strong> in MasterChef V3. If amount0 or amount1 is 0, the entire balance of that token will be used. Returns the tokenId of the created position.</td></tr>
+<tr><td><strong>withdrawPosition</strong></td><td>tokenId</td><td>Performs a complete withdrawal of a position: collects accumulated fees, harvests CAKE rewards, unstakes the NFT from MasterChef, removes all liquidity, and burns the NFT. Returns the amounts of fees collected, liquidity withdrawn, and rewards received and deposits all of them in the <strong>output account</strong>.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration-21"><a class="header" href="#configuration-21">Configuration</a></h2>
+<p>The library is configured on deployment using the <code>PancakeSwapV3PositionManagerConfig</code> type.</p>
+<pre><code class="language-solidity">/**
+ * @notice Configuration parameters for the PancakeSwapV3PositionManager
+ * @param inputAccount Account used to provide liquidity and manage positions
+ * @param outputAccount Account that receives withdrawn funds and rewards
+ * @param positionManager Address of PancakeSwap's NonfungiblePositionManager contract
+ * @param masterChef Address of PancakeSwap's MasterChefV3 for staking NFT positions and accrue CAKE rewards
+ * @param token0 Address of the first token in the pair
+ * @param token1 Address of the second token in the pair
+ * @param poolFee Fee tier of the liquidity pool in 1/1,000,000 increments (e.g., 500 = 0.05%, 3000 = 0.3%)
+ * @param timeout Maximum time for transactions to be valid
+ * @param slippageBps Maximum allowed slippage in basis points (1 basis point = 0.01%)
+ */
+struct PancakeSwapV3PositionManagerConfig {
+    BaseAccount inputAccount;
+    BaseAccount outputAccount;
+    address positionManager;
+    address masterChef;
+    address token0;
+    address token1;
+    uint24 poolFee;
+    uint16 slippageBps; // Basis points (e.g., 100 = 1%)
+    uint256 timeout;
+}
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-balancerv2swap-library"><a class="header" href="#valence-balancerv2swap-library">Valence BalancerV2Swap Library</a></h1>
 <p>The <strong>Valence BalancerV2Swap</strong> library enables <strong>token swaps</strong> from an <strong>input account</strong> to an <strong>output account</strong> using the <a href="https://docs-v2.balancer.fi/">Balancer V2 protocol</a>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the BalancerV2Swap library.</p>
 <h2 id="high-level-flow-20"><a class="header" href="#high-level-flow-20">High-level flow</a></h2>
@@ -3203,7 +3291,7 @@ graph LR
         BV -- 7/Transfer output tokens --&gt; OA
     end
 </pre>
-<h2 id="functions-21"><a class="header" href="#functions-21">Functions</a></h2>
+<h2 id="functions-22"><a class="header" href="#functions-22">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>swap</strong></td><td>poolId, tokenIn, tokenOut, userData, amountIn, minAmountOut, timeout</td><td>Execute a single token swap through a Balancer V2 pool.</td></tr>
 <tr><td><strong>multiSwap</strong></td><td>poolIds, tokens, userDataArray, amountIn, minAmountOut, timeout</td><td>Execute a multi-hop swap through multiple Balancer V2 pools.</td></tr>
@@ -3233,7 +3321,7 @@ graph LR
 </tbody></table>
 </div>
 <p>For more information on how swaps work on Balancer V2, please refer to the <a href="https://docs-v2.balancer.fi/reference/swaps/single-swap.html">Single Swap</a> and <a href="https://docs-v2.balancer.fi/reference/swaps/batch-swaps.html">Batch Swap</a> documentation.</p>
-<h2 id="configuration-21"><a class="header" href="#configuration-21">Configuration</a></h2>
+<h2 id="configuration-22"><a class="header" href="#configuration-22">Configuration</a></h2>
 <p>The library is configured on deployment using the <code>BalancerV2SwapConfig</code> type.</p>
 <pre><code class="language-solidity">/**
  * @title BalancerV2SwapConfig
