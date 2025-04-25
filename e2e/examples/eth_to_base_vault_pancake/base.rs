@@ -1,9 +1,9 @@
 use std::{error::Error, str::FromStr};
 
 use crate::{
-    strategist::strategy_config, CCTP_TOKEN_MESSENGER_ON_BASE, L2_STANDARD_BRIDGE_ADDRESS,
-    PANCAKE_MASTERCHEF_ON_BASE, PANCAKE_POSITION_MANAGER_ON_BASE, USDC_ADDRESS_ON_BASE,
-    WETH_ADDRESS_ON_BASE, WETH_ADDRESS_ON_ETHEREUM,
+    approve_library, strategist::strategy_config, CCTP_TOKEN_MESSENGER_ON_BASE,
+    L2_STANDARD_BRIDGE_ADDRESS, PANCAKE_MASTERCHEF_ON_BASE, PANCAKE_POSITION_MANAGER_ON_BASE,
+    USDC_ADDRESS_ON_BASE, WETH_ADDRESS_ON_BASE, WETH_ADDRESS_ON_ETHEREUM,
 };
 use alloy::{
     hex::FromHex,
@@ -25,7 +25,7 @@ use valence_encoder_utils::libraries::{
 };
 
 pub async fn set_up_base_accounts(
-    eth_client: &EthereumClient,
+    base_client: &EthereumClient,
     eth_admin_addr: Address,
 ) -> Result<strategy_config::base::BaseAccounts, Box<dyn Error>> {
     info!("Setting up all accounts on Ethereum");
@@ -34,13 +34,13 @@ pub async fn set_up_base_accounts(
 
     for _ in 0..4 {
         let base_account_tx = BaseAccount::deploy_builder(
-            &eth_client.get_request_provider().await?,
+            &base_client.get_request_provider().await?,
             eth_admin_addr,
             vec![],
         )
         .into_transaction_request();
 
-        let base_account_tx = eth_client.execute_tx(base_account_tx.clone()).await?;
+        let base_account_tx = base_client.execute_tx(base_account_tx.clone()).await?;
 
         let base_account_addr = base_account_tx.contract_address.unwrap();
 
@@ -187,6 +187,9 @@ async fn set_up_pancake_position_manager(
         pancake_position_manager_addr
     );
 
+    // Approve the vault on input account
+    approve_library(base_client, pancake_position_manager_addr, input_account).await?;
+
     Ok(pancake_position_manager_addr)
 }
 
@@ -233,6 +236,9 @@ async fn set_up_cctp_transfer(
 
     info!("CCTP Transfer deployed at: {cctp_transfer_addr}");
 
+    // Approve the vault on input account
+    approve_library(base_client, cctp_transfer_addr, input_account).await?;
+
     Ok(cctp_transfer_addr)
 }
 
@@ -272,11 +278,14 @@ async fn set_up_standard_bridge_transfer(
 
     info!("Standard Bridge Transfer deployed at: {standard_bridge_transfer_address}");
 
+    // Approve the vault on input account
+    approve_library(base_client, standard_bridge_transfer_address, input_account).await?;
+
     Ok(standard_bridge_transfer_address)
 }
 
 async fn set_up_forwarder_pancake_output_to_input(
-    eth_client: &EthereumClient,
+    base_client: &EthereumClient,
     input_account: Address,
     output_account: Address,
     admin: Address,
@@ -307,7 +316,7 @@ async fn set_up_forwarder_pancake_output_to_input(
     };
 
     let forwarder_pancake_input_to_output_tx = Forwarder::deploy_builder(
-        &eth_client.get_request_provider().await?,
+        &base_client.get_request_provider().await?,
         admin,
         processor,
         alloy_sol_types_encoder::SolValue::abi_encode(&forwarder_pancake_input_to_output_config)
@@ -316,18 +325,26 @@ async fn set_up_forwarder_pancake_output_to_input(
     .into_transaction_request()
     .from(admin);
 
-    let response: alloy::rpc::types::TransactionReceipt = eth_client
+    let response: alloy::rpc::types::TransactionReceipt = base_client
         .execute_tx(forwarder_pancake_input_to_output_tx)
         .await?;
     let forwarder_pancake_input_to_output_address = response.contract_address.unwrap();
 
     info!("Forwarder Pancake input to output deployed at: {forwarder_pancake_input_to_output_address}");
 
+    // Approve the vault on input account
+    approve_library(
+        base_client,
+        forwarder_pancake_input_to_output_address,
+        input_account,
+    )
+    .await?;
+
     Ok(forwarder_pancake_input_to_output_address)
 }
 
 async fn set_up_forwarder_pancake_to_standard_bridge(
-    eth_client: &EthereumClient,
+    base_client: &EthereumClient,
     input_account: Address,
     output_account: Address,
     admin: Address,
@@ -352,7 +369,7 @@ async fn set_up_forwarder_pancake_to_standard_bridge(
     };
 
     let forwarder_pancake_to_standard_bridge_tx = Forwarder::deploy_builder(
-        &eth_client.get_request_provider().await?,
+        &base_client.get_request_provider().await?,
         admin,
         processor,
         alloy_sol_types_encoder::SolValue::abi_encode(&forwarder_pancake_to_standard_bridge_config)
@@ -361,18 +378,26 @@ async fn set_up_forwarder_pancake_to_standard_bridge(
     .into_transaction_request()
     .from(admin);
 
-    let response = eth_client
+    let response = base_client
         .execute_tx(forwarder_pancake_to_standard_bridge_tx)
         .await?;
     let forwarder_pancake_to_standard_bridge_address = response.contract_address.unwrap();
 
     info!("Forwarder Pancake to Standard Bridge deployed at: {forwarder_pancake_to_standard_bridge_address}");
 
+    // Approve the vault on input account
+    approve_library(
+        base_client,
+        forwarder_pancake_to_standard_bridge_address,
+        input_account,
+    )
+    .await?;
+
     Ok(forwarder_pancake_to_standard_bridge_address)
 }
 
 async fn set_up_forwarder_pancake_to_cctp(
-    eth_client: &EthereumClient,
+    base_client: &EthereumClient,
     input_account: Address,
     output_account: Address,
     admin: Address,
@@ -397,7 +422,7 @@ async fn set_up_forwarder_pancake_to_cctp(
     };
 
     let forwarder_pancake_to_cctp_tx = Forwarder::deploy_builder(
-        &eth_client.get_request_provider().await?,
+        &base_client.get_request_provider().await?,
         admin,
         processor,
         alloy_sol_types_encoder::SolValue::abi_encode(&forwarder_pancake_to_cctp_config).into(),
@@ -405,10 +430,18 @@ async fn set_up_forwarder_pancake_to_cctp(
     .into_transaction_request()
     .from(admin);
 
-    let response = eth_client.execute_tx(forwarder_pancake_to_cctp_tx).await?;
+    let response = base_client.execute_tx(forwarder_pancake_to_cctp_tx).await?;
     let forwarder_pancake_to_cctp_address = response.contract_address.unwrap();
 
     info!("Forwarder Pancake to CCTP deployed at: {forwarder_pancake_to_cctp_address}");
+
+    // Approve the vault on input account
+    approve_library(
+        base_client,
+        forwarder_pancake_to_cctp_address,
+        input_account,
+    )
+    .await?;
 
     Ok(forwarder_pancake_to_cctp_address)
 }

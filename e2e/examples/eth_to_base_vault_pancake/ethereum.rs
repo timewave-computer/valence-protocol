@@ -1,9 +1,9 @@
 use std::{error::Error, str::FromStr};
 
 use crate::{
-    strategist::strategy_config, AAVE_POOL_ADDRESS, CCTP_TOKEN_MESSENGER_ON_ETHEREUM,
-    L1_STANDARD_BRIDGE_ADDRESS, USDC_ADDRESS_ON_ETHEREUM, WETH_ADDRESS_ON_BASE,
-    WETH_ADDRESS_ON_ETHEREUM,
+    approve_library, strategist::strategy_config, AAVE_POOL_ADDRESS,
+    CCTP_TOKEN_MESSENGER_ON_ETHEREUM, L1_STANDARD_BRIDGE_ADDRESS, USDC_ADDRESS_ON_ETHEREUM,
+    WETH_ADDRESS_ON_BASE, WETH_ADDRESS_ON_ETHEREUM,
 };
 use alloy::{
     hex::FromHex,
@@ -230,27 +230,9 @@ async fn set_up_vault(
 
     eth_client.execute_tx(initialize_tx).await?;
 
-    info!("Approving vault on withdraw account...");
-    let deposit_base_account = BaseAccount::new(deposit_account, &rp);
-
-    eth_client
-        .execute_tx(
-            deposit_base_account
-                .approveLibrary(proxy_address)
-                .into_transaction_request(),
-        )
-        .await?;
-
-    info!("Approving vault on deposit account...");
-    let withdraw_base_account = BaseAccount::new(withdraw_account, &rp);
-    eth_client
-        .execute_tx(
-            withdraw_base_account
-                .approveLibrary(proxy_address)
-                .into_transaction_request(),
-        )
-        .await?;
-    info!("Vault setup complete!");
+    // Approve the vault on both deposit and withdraw accounts
+    approve_library(eth_client, proxy_address, deposit_account).await?;
+    approve_library(eth_client, proxy_address, withdraw_account).await?;
 
     Ok(proxy_address)
 }
@@ -298,6 +280,9 @@ async fn set_up_cctp_transfer(
     let cctp_transfer_address = response.contract_address.unwrap();
     info!("CCTP Transfer deployed at: {cctp_transfer_address}");
 
+    // Approve the vault on input account
+    approve_library(eth_client, cctp_transfer_address, input_account).await?;
+
     Ok(cctp_transfer_address)
 }
 
@@ -337,6 +322,9 @@ async fn set_up_aave_position_manager(
 
     info!("Aave Position Manager deployed at: {aave_position_manager_address}");
 
+    // Approve the vault on input account
+    approve_library(eth_client, aave_position_manager_address, input_account).await?;
+
     Ok(aave_position_manager_address)
 }
 
@@ -375,6 +363,9 @@ async fn set_up_standard_bridge_transfer(
     let standard_bridge_transfer_address = response.contract_address.unwrap();
 
     info!("Standard Bridge Transfer deployed at: {standard_bridge_transfer_address}");
+
+    // Approve the vault on input account
+    approve_library(eth_client, standard_bridge_transfer_address, input_account).await?;
 
     Ok(standard_bridge_transfer_address)
 }
@@ -417,6 +408,9 @@ async fn set_up_forwarder_vault_to_aave(
     let forwarder_vault_to_aave_address = response.contract_address.unwrap();
 
     info!("Forwarder Vault to Aave deployed at: {forwarder_vault_to_aave_address}");
+
+    // Approve the vault on input account
+    approve_library(eth_client, forwarder_vault_to_aave_address, input_account).await?;
 
     Ok(forwarder_vault_to_aave_address)
 }
@@ -464,6 +458,14 @@ async fn set_up_forwarder_vault_to_standard_bridge(
     info!(
         "Forwarder Vault to Standard Bridge deployed at: {forwarder_vault_to_standard_bridge_address}"
     );
+
+    // Approve the vault on input account
+    approve_library(
+        eth_client,
+        forwarder_vault_to_standard_bridge_address,
+        input_account,
+    )
+    .await?;
 
     Ok(forwarder_vault_to_standard_bridge_address)
 }

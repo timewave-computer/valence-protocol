@@ -5,9 +5,10 @@ use base::set_up_base_accounts;
 use ethereum::set_up_eth_accounts;
 use log::info;
 use valence_chain_client_utils::{
-    ethereum::EthereumClient, evm::request_provider_client::RequestProviderClient,
+    ethereum::EthereumClient,
+    evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
-use valence_e2e::utils::ethereum::set_up_anvil_container;
+use valence_e2e::utils::{ethereum::set_up_anvil_container, solidity_contracts::BaseAccount};
 
 const ETH_FORK_URL: &str = "https://eth-mainnet.public.blastapi.io";
 const ETH_ANVIL_PORT: &str = "1337";
@@ -95,6 +96,31 @@ async fn main() -> Result<(), Box<dyn Error>> {
     .await?;
 
     info!("Base libraries set up successfully: {:?}", base_libraries);
+
+    Ok(())
+}
+
+// Helper function to approve a library from a Base Account
+pub async fn approve_library(
+    client: &EthereumClient,
+    library: Address,
+    account: Address,
+) -> Result<(), Box<dyn Error>> {
+    let rp = client.get_request_provider().await?;
+
+    // Approve the library on the account
+    info!("Approving library on account...");
+    let base_account = BaseAccount::new(account, &rp);
+
+    client
+        .execute_tx(
+            base_account
+                .approveLibrary(library)
+                .into_transaction_request(),
+        )
+        .await?;
+
+    info!("Library approved successfully");
 
     Ok(())
 }
