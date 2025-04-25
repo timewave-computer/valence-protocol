@@ -53,8 +53,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         TEST_MNEMONIC,
     )?;
 
-    let strategist_acc = Address::from_str("0x14dc79964da2c08b23698b3d3cc7ca32193d9955").unwrap();
-
+    let strategist_acc = Address::from_str("0x14dc79964da2c08b23698b3d3cc7ca32193d9955")?;
     // Get an admin account for Ethereum
     let accounts_eth = eth_client.get_provider_accounts().await?;
     let eth_admin_addr = accounts_eth[0];
