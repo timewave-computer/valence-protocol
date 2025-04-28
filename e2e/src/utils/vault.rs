@@ -1,15 +1,28 @@
-use std::error::Error;
+use std::{collections::BTreeMap, error::Error};
 
 use alloy::primitives::{Address, U256};
+use cosmwasm_std::Uint128;
+use localic_std::modules::cosmwasm::contract_instantiate;
+use localic_utils::{
+    utils::test_context::TestContext, DEFAULT_KEY, GAIA_CHAIN_NAME, NEUTRON_CHAIN_ADMIN_ADDR,
+    NEUTRON_CHAIN_NAME,
+};
 use log::{info, warn};
 use valence_chain_client_utils::{
     ethereum::EthereumClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
+use valence_forwarder_library::msg::{ForwardingConstraints, UncheckedForwardingConfig};
+use valence_generic_ibc_transfer_library::msg::IbcTransferAmount;
+use valence_library_utils::{denoms::UncheckedDenom, LibraryAccountType};
 
 use crate::{
     async_run,
-    utils::solidity_contracts::ValenceVault::{self},
+    utils::{
+        base_account::approve_library,
+        manager::{FORWARDER_NAME, NEUTRON_IBC_TRANSFER_NAME},
+        solidity_contracts::ValenceVault::{self},
+    },
 };
 
 pub fn query_vault_packed_values(
@@ -284,4 +297,145 @@ pub fn update() -> Result<(), Box<dyn Error>> {
     // find netting amount
     // update
     Ok(())
+}
+
+pub fn setup_liquidation_fwd_lib(
+    test_ctx: &mut TestContext,
+    input_account: String,
+    output_addr: String,
+    shares_denom: &str,
+) -> Result<String, Box<dyn Error>> {
+    let fwd_code_id = *test_ctx
+        .get_chain(NEUTRON_CHAIN_NAME)
+        .contract_codes
+        .get(FORWARDER_NAME)
+        .unwrap();
+
+    let fwd_instantiate_msg = valence_library_utils::msg::InstantiateMsg::<
+        valence_forwarder_library::msg::LibraryConfig,
+    > {
+        owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        config: valence_forwarder_library::msg::LibraryConfig {
+            input_addr: LibraryAccountType::Addr(input_account.clone()),
+            output_addr: LibraryAccountType::Addr(output_addr.clone()),
+            forwarding_configs: vec![UncheckedForwardingConfig {
+                denom: UncheckedDenom::Native(shares_denom.to_string()),
+                max_amount: Uint128::MAX,
+            }],
+            forwarding_constraints: ForwardingConstraints::new(None),
+        },
+    };
+
+    info!(
+        "Neutron Forwarder instantiate message: {:?}",
+        fwd_instantiate_msg
+    );
+
+    let liquidation_forwarder = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        fwd_code_id,
+        &serde_json::to_string(&fwd_instantiate_msg).unwrap(),
+        "liquidation_forwarder",
+        None,
+        "",
+    )
+    .unwrap();
+
+    info!(
+        "Liquidation Forwarder library: {}",
+        liquidation_forwarder.address.clone()
+    );
+
+    // Approve the library for the base account
+    approve_library(
+        test_ctx,
+        NEUTRON_CHAIN_NAME,
+        DEFAULT_KEY,
+        &input_account,
+        liquidation_forwarder.address.clone(),
+        None,
+    );
+
+    Ok(liquidation_forwarder.address)
+}
+
+pub fn setup_neutron_ibc_transfer_lib(
+    test_ctx: &mut TestContext,
+    input_account: String,
+    output_addr: String,
+    denom: &str,
+    _authorizations: String,
+    _processor: String,
+) -> Result<String, Box<dyn Error>> {
+    let neutron_ibc_transfer_code_id = *test_ctx
+        .get_chain(NEUTRON_CHAIN_NAME)
+        .contract_codes
+        .get(NEUTRON_IBC_TRANSFER_NAME)
+        .unwrap();
+
+    let neutron_ibc_transfer_instantiate_msg = valence_library_utils::msg::InstantiateMsg::<
+        valence_neutron_ibc_transfer_library::msg::LibraryConfig,
+    > {
+        // TODO: uncomment to not bypass authorizations/processor logic
+        // owner: authorizations.to_string(),
+        // processor: processor.to_string(),
+        owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        config: valence_neutron_ibc_transfer_library::msg::LibraryConfig {
+            input_addr: LibraryAccountType::Addr(input_account.to_string()),
+            amount: IbcTransferAmount::FullAmount,
+            denom: valence_library_utils::denoms::UncheckedDenom::Native(denom.to_string()),
+            remote_chain_info: valence_generic_ibc_transfer_library::msg::RemoteChainInfo {
+                channel_id: test_ctx
+                    .get_transfer_channels()
+                    .src(NEUTRON_CHAIN_NAME)
+                    .dest(GAIA_CHAIN_NAME) // TODO: review if this is correct for eureka route to eth
+                    .get(),
+                ibc_transfer_timeout: None,
+            },
+            output_addr: LibraryAccountType::Addr(output_addr.to_string()),
+            memo: "-".to_string(),
+            denom_to_pfm_map: BTreeMap::default(),
+            eureka_config: None,
+        },
+    };
+
+    info!(
+        "Neutron IBC Transfer instantiate message: {:?}",
+        neutron_ibc_transfer_instantiate_msg
+    );
+
+    let ibc_transfer = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        neutron_ibc_transfer_code_id,
+        &serde_json::to_string(&neutron_ibc_transfer_instantiate_msg).unwrap(),
+        "neutron_ibc_transfer",
+        None,
+        "",
+    )
+    .unwrap();
+
+    info!(
+        "Neutron IBC Transfer library: {}",
+        ibc_transfer.address.clone()
+    );
+
+    // Approve the library for the base account
+    approve_library(
+        test_ctx,
+        NEUTRON_CHAIN_NAME,
+        DEFAULT_KEY,
+        &input_account,
+        ibc_transfer.address.clone(),
+        None,
+    );
+
+    Ok(ibc_transfer.address)
 }
