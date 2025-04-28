@@ -34,7 +34,7 @@ use valence_e2e::{
     utils::{
         authorization::set_up_authorization_and_processor,
         ethereum::{self as ethereum_utils, ANVIL_NAME, DEFAULT_ANVIL_PORT},
-        mocks::mock_cctp_relayer_evm_noble::MockCctpRelayerEvmNoble,
+        mocks::cctp_relayer_evm_noble::MockCctpRelayerEvmNoble,
         parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
         solidity_contracts::ValenceVault,
         vault::{self},
