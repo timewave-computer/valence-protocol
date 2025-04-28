@@ -1,5 +1,6 @@
 use std::{collections::HashMap, error::Error};
 
+use alloy::primitives::U256;
 use bollard::{
     container::{Config, CreateContainerOptions, ListContainersOptions, StartContainerOptions},
     image::CreateImageOptions,
@@ -7,6 +8,9 @@ use bollard::{
 };
 use futures_util::StreamExt;
 use log::{error, info};
+use valence_chain_client_utils::{
+    ethereum::EthereumClient, evm::request_provider_client::RequestProviderClient,
+};
 
 const ANVIL_IMAGE_URL: &str = "ghcr.io/foundry-rs/foundry:latest";
 pub const ANVIL_NAME: &str = "anvil";
@@ -399,4 +403,23 @@ pub mod lite_processor {
             Ok(lite_processor_address)
         })
     }
+}
+
+pub fn mine_blocks(
+    rt: &tokio::runtime::Runtime,
+    eth_client: &EthereumClient,
+    blocks: usize,
+    interval: usize,
+) {
+    async_run!(rt, {
+        let eth_rp = eth_client.get_request_provider().await.unwrap();
+
+        alloy::providers::ext::AnvilApi::anvil_mine(
+            &eth_rp,
+            Some(U256::from(blocks)),
+            Some(U256::from(interval)),
+        )
+        .await
+        .unwrap();
+    });
 }

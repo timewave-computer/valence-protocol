@@ -643,3 +643,107 @@ pub fn hyperlane_plumbing(
         eth_hyperlane_contracts,
     })
 }
+
+pub mod vault_users {
+    use alloy::primitives::{Address, U256};
+    use log::info;
+    use valence_chain_client_utils::{
+        ethereum::EthereumClient,
+        evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
+    };
+
+    use crate::utils::{
+        ethereum::mock_erc20,
+        solidity_contracts::{MockERC20, ValenceVault},
+    };
+
+    use super::query_vault_balance_of;
+
+    #[derive(Clone, Debug)]
+    pub struct EthereumUsers {
+        pub users: Vec<Address>,
+        pub erc20: Address,
+        pub vault: Address,
+    }
+
+    impl EthereumUsers {
+        pub fn new(erc20: Address, vault: Address) -> Self {
+            Self {
+                users: vec![],
+                erc20,
+                vault,
+            }
+        }
+
+        pub fn add_user(
+            &mut self,
+            rt: &tokio::runtime::Runtime,
+            eth_client: &EthereumClient,
+            user: Address,
+        ) {
+            info!("Adding new user {user}");
+            self.users.push(user);
+            info!("Approving erc20 spend for vault on behalf of user");
+            mock_erc20::approve(rt, eth_client, self.erc20, user, self.vault, U256::MAX);
+        }
+
+        pub fn fund_user(
+            &self,
+            rt: &tokio::runtime::Runtime,
+            eth_client: &EthereumClient,
+            user: usize,
+            amount: U256,
+        ) {
+            mock_erc20::mint(rt, eth_client, self.erc20, self.users[user], amount);
+        }
+
+        pub fn get_user_shares(
+            &self,
+            rt: &tokio::runtime::Runtime,
+            eth_client: &EthereumClient,
+            user: usize,
+        ) -> U256 {
+            let user_shares_balance =
+                query_vault_balance_of(self.vault, rt, eth_client, self.users[user]);
+            user_shares_balance._0
+        }
+
+        pub fn get_user_deposit_token_bal(
+            &self,
+            rt: &tokio::runtime::Runtime,
+            eth_client: &EthereumClient,
+            user: usize,
+        ) -> U256 {
+            mock_erc20::query_balance(rt, eth_client, self.erc20, self.users[user])
+        }
+
+        pub async fn log_balances(
+            &self,
+            eth_client: &EthereumClient,
+            vault_addr: &Address,
+            vault_deposit_token: &Address,
+        ) {
+            let eth_rp = eth_client.get_request_provider().await.unwrap();
+
+            let usdc_token = MockERC20::new(*vault_deposit_token, &eth_rp);
+            let valence_vault = ValenceVault::new(*vault_addr, &eth_rp);
+
+            info!("\nETHEREUM ACCOUNTS LOG");
+            for (i, user) in self.users.iter().enumerate() {
+                let usdc_bal = eth_client
+                    .query(usdc_token.balanceOf(*user))
+                    .await
+                    .unwrap()
+                    ._0;
+                let vault_bal = eth_client
+                    .query(valence_vault.balanceOf(*user))
+                    .await
+                    .unwrap()
+                    ._0;
+                let deposit_entry = format!("{usdc_bal}UDEPOSIT");
+                let vault_entry = format!("{vault_bal}VAULT");
+                info!("\tUSER_{i}: {deposit_entry} {vault_entry}");
+            }
+        }
+    }
+}

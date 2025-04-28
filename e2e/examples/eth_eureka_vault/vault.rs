@@ -35,8 +35,6 @@ use valence_e2e::{
     },
 };
 
-const ASTROPORT_CONCENTRATED_PAIR_TYPE: &str = "concentrated";
-
 mod evm;
 mod strategist;
 
