@@ -89,7 +89,6 @@ pub fn setup_neutron_libraries(
     pool: &str,
     authorizations: &str,
     processor: &str,
-    amount: u128,
     wbtc_on_neutron: &str,
     eth_withdraw_acc: String,
     lp_token_denom: &str,

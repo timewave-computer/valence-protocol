@@ -134,6 +134,7 @@ pub(crate) fn setup_eth_libraries(
 
 /// sets up the Eureka transfer library to route funds from Ethereum
 /// to Neutron
+#[allow(clippy::too_many_arguments)]
 pub fn setup_eureka_forwarder(
     rt: &tokio::runtime::Runtime,
     eth_client: &EthereumClient,
