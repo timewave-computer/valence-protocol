@@ -15,7 +15,7 @@ use localic_utils::{
 };
 
 use log::info;
-use neutron::setup_astroport_cl_pool;
+
 use program::{setup_neutron_accounts, setup_neutron_libraries, upload_neutron_contracts};
 
 use strategist::{
@@ -32,6 +32,7 @@ use valence_chain_client_utils::{
 use valence_e2e::{
     async_run,
     utils::{
+        astroport::setup_astroport_cl_pool,
         authorization::set_up_authorization_and_processor,
         ethereum::{self as ethereum_utils, ANVIL_NAME, DEFAULT_ANVIL_PORT},
         mock_cctp_relayer::MockCctpRelayer,

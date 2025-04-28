@@ -1,3 +1,4 @@
+pub mod astroport;
 pub mod authorization;
 pub mod base_account;
 pub mod ethereum;

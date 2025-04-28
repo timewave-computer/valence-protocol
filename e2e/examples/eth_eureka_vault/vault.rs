@@ -1,14 +1,10 @@
-use std::{
-    error::Error,
-    str::FromStr,
-    time::{Duration, SystemTime},
-};
+use std::{error::Error, str::FromStr, thread, time::Duration};
 
 use alloy::primitives::Address;
-use evm::{setup_eth_accounts, setup_eth_libraries};
+
 use localic_utils::{
-    utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder, GAIA_CHAIN_NAME,
-    LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
+    ConfigChainBuilder, TestContextBuilder, LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR,
+    NEUTRON_CHAIN_ID,
 };
 
 use log::{info, warn};
@@ -22,6 +18,7 @@ use valence_chain_client_utils::{
 use valence_e2e::{
     async_run,
     utils::{
+        astroport::setup_astroport_cl_pool,
         authorization::set_up_authorization_and_processor,
         ethereum::{
             self as ethereum_utils, set_up_anvil_container, ANVIL_NAME, DEFAULT_ANVIL_PORT,
@@ -44,15 +41,20 @@ const EUREKA_HANDLER: &str = "0xfc2d0487a0ae42ae7329a80dc269916a9184cf7c";
 const EUREKA_HANDLER_SRC_CLIENT: &str = "cosmoshub-0";
 const WBTC_NEUTRON_DENOM: &str = "WBTC";
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+// #[tokio::main]
+fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
+    let rt = tokio::runtime::Runtime::new()?;
 
     // first we work the eth mainnet and set up an anvil env with it
     let fork_url = "https://eth-mainnet.public.blastapi.io";
-    set_up_anvil_container(ANVIL_NAME, DEFAULT_ANVIL_PORT, Some(fork_url))
-        .await
-        .unwrap();
+
+    async_run!(
+        rt,
+        set_up_anvil_container(ANVIL_NAME, DEFAULT_ANVIL_PORT, Some(fork_url))
+            .await
+            .unwrap()
+    );
 
     let eth_client = valence_chain_client_utils::ethereum::EthereumClient::new(
         DEFAULT_ANVIL_RPC_ENDPOINT,
@@ -60,20 +62,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
     )
     .unwrap();
 
-    let rt = tokio::runtime::Runtime::new()?;
+    let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
 
-    let eth_rp = eth_client.get_request_provider().await.unwrap();
-
-    let eth_accounts = eth_client.get_provider_accounts().await.unwrap();
+    let eth_accounts = async_run!(rt, eth_client.get_provider_accounts().await.unwrap());
 
     let eth_admin_acc = eth_accounts[0];
     let _eth_user_acc = eth_accounts[2];
     let strategist_acc = Address::from_str("0x14dc79964da2c08b23698b3d3cc7ca32193d9955").unwrap();
 
-    let admin_balance = eth_client
-        .query_balance(&eth_admin_acc.to_string())
-        .await
-        .unwrap();
+    let admin_balance = async_run!(
+        rt,
+        eth_client
+            .query_balance(&eth_admin_acc.to_string())
+            .await
+            .unwrap()
+    );
 
     info!("admin balance: {:?}", admin_balance);
 
@@ -82,14 +85,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let withdraw_account_init_tx =
         BaseAccount::deploy_builder(&eth_rp, eth_admin_acc, vec![]).into_transaction_request();
 
-    let deposit_account_rx = eth_client
-        .execute_tx(deposit_account_init_tx.clone())
-        .await
-        .unwrap();
-    let withdraw_account_rx = eth_client
-        .execute_tx(withdraw_account_init_tx.clone())
-        .await
-        .unwrap();
+    let deposit_account_rx = async_run!(
+        rt,
+        eth_client
+            .execute_tx(deposit_account_init_tx.clone())
+            .await
+            .unwrap()
+    );
+    let withdraw_account_rx = async_run!(
+        rt,
+        eth_client
+            .execute_tx(withdraw_account_init_tx.clone())
+            .await
+            .unwrap()
+    );
 
     let deposit_account_addr = deposit_account_rx.contract_address.unwrap();
     let withdraw_account_addr = withdraw_account_rx.contract_address.unwrap();
@@ -103,9 +112,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let wbtc_contract = MockERC20::new(wbtc_token_address, eth_rp);
 
-    let whale_wbtc_balance = eth_client
-        .query(wbtc_contract.balanceOf(wbtc_whale_address))
-        .await?;
+    let whale_wbtc_balance = async_run!(
+        rt,
+        eth_client
+            .query(wbtc_contract.balanceOf(wbtc_whale_address))
+            .await
+    )?;
 
     info!("wbtc whale balance: {:?}", whale_wbtc_balance._0);
 
@@ -116,43 +128,66 @@ async fn main() -> Result<(), Box<dyn Error>> {
     info!("neutron grpc: {neutron_grpc_url}");
     info!("neutron grpc port: {neutron_grpc_port}");
 
-    let neutron_client = NeutronClient::new(
+    let neutron_client = async_run!(rt, NeutronClient::new(
         &neutron_grpc_url,
         &neutron_grpc_port,
         "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry",
         NEUTRON_CHAIN_ID,
     )
-    .await?;
+    .await)?;
 
-    tokio::time::sleep(Duration::from_secs(3)).await;
+    async_run!(rt, tokio::time::sleep(Duration::from_secs(3)).await);
     info!("neutron client ready!");
 
-    match neutron_client
-        .create_tokenfactory_denom(WBTC_NEUTRON_DENOM)
-        .await
-    {
-        Ok(tf_create_rx) => {
-            neutron_client.poll_for_tx(&tf_create_rx.hash).await?;
+    async_run!(
+        rt,
+        match neutron_client
+            .create_tokenfactory_denom(WBTC_NEUTRON_DENOM)
+            .await
+        {
+            Ok(tf_create_rx) => {
+                neutron_client
+                    .poll_for_tx(&tf_create_rx.hash)
+                    .await
+                    .unwrap();
+            }
+            Err(e) => warn!("tokenfactory denom already exists: {:?}", e),
         }
-        Err(e) => warn!("tokenfactory denom already exists: {:?}", e),
-    };
+    );
 
     let wbtc_on_neutron = format!("factory/{NEUTRON_CHAIN_ADMIN_ADDR}/WBTC");
 
-    let tf_mint_rx = neutron_client
-        .mint_tokenfactory_tokens(
-            WBTC_NEUTRON_DENOM,
-            100_000_000_000,
-            Some(NEUTRON_CHAIN_ADMIN_ADDR),
-        )
-        .await?;
-    neutron_client.poll_for_tx(&tf_mint_rx.hash).await?;
+    async_run!(rt, {
+        let tf_mint_rx = neutron_client
+            .mint_tokenfactory_tokens(
+                WBTC_NEUTRON_DENOM,
+                100_000_000_000,
+                Some(NEUTRON_CHAIN_ADMIN_ADDR),
+            )
+            .await
+            .unwrap();
+        neutron_client.poll_for_tx(&tf_mint_rx.hash).await.unwrap();
+        let neutron_admin_wbtc_balance = neutron_client
+            .query_balance(NEUTRON_CHAIN_ADMIN_ADDR, &wbtc_on_neutron)
+            .await
+            .unwrap();
 
-    let neutron_admin_wbtc_balance = neutron_client
-        .query_balance(NEUTRON_CHAIN_ADMIN_ADDR, &wbtc_on_neutron)
-        .await?;
+        info!("neutron admin wbtc balance: {neutron_admin_wbtc_balance}");
+    });
 
-    info!("neutron admin wbtc balance: {neutron_admin_wbtc_balance}");
+    let mut test_ctx = TestContextBuilder::default()
+        .with_unwrap_raw_logs(true)
+        .with_api_url(LOCAL_IC_API_URL)
+        .with_artifacts_dir(VALENCE_ARTIFACTS_PATH)
+        .with_chain(ConfigChainBuilder::default_neutron().build().unwrap())
+        .with_log_file_path(LOGS_FILE_PATH)
+        .build()?;
+
+    // setup astroport
+    let (pool_addr, lp_token) =
+        setup_astroport_cl_pool(&mut test_ctx, wbtc_on_neutron.to_string())?;
+
+    info!("BTC-NTRN cl pool: {:?}", pool_addr);
 
     rt.shutdown_background();
 
