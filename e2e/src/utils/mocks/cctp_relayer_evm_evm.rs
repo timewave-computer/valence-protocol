@@ -10,7 +10,7 @@ use alloy::{
 use async_trait::async_trait;
 
 use crate::utils::{
-    solidity_contracts::{MockERC20, MockTokenMessenger::DepositForBurn},
+    solidity_contracts::{MockTokenMessenger::DepositForBurn, ERC20},
     worker::ValenceWorker,
 };
 use log::{info, warn};
@@ -111,7 +111,7 @@ impl MockCctpRelayerEvmEvm {
         })
     }
 
-    async fn mint_on_evm_b(&self, amount: U256, recipient: Address) -> Result<(), Box<dyn Error>> {
+    async fn send_on_evm_b(&self, amount: U256, recipient: Address) -> Result<(), Box<dyn Error>> {
         let evm_b_rp = self
             .runtime
             .evm_client_b
@@ -119,44 +119,40 @@ impl MockCctpRelayerEvmEvm {
             .await
             .expect("failed to get evm B request provider");
 
-        let mock_erc20 = MockERC20::new(self.state.evm_b_destination_erc20, &evm_b_rp);
+        let erc20 = ERC20::new(self.state.evm_b_destination_erc20, &evm_b_rp);
 
-        let pre_mint_balance = self
+        let pre_send_balance = self
             .runtime
             .evm_client_b
-            .query(mock_erc20.balanceOf(recipient))
+            .query(erc20.balanceOf(recipient))
             .await
             .expect("failed to query evm B balance");
 
-        let mint_tx = self
+        let send_tx = self
             .runtime
             .evm_client_b
-            .execute_tx(
-                mock_erc20
-                    .mint(recipient, amount)
-                    .into_transaction_request(),
-            )
+            .execute_tx(erc20.transfer(recipient, amount).into_transaction_request())
             .await
-            .expect("failed to mint tokens on evm B");
+            .expect("failed to send tokens on evm B");
 
         let _ = evm_b_rp
-            .get_transaction_receipt(mint_tx.transaction_hash)
+            .get_transaction_receipt(send_tx.transaction_hash)
             .await;
 
-        let post_mint_balance = self
+        let post_send_balance = self
             .runtime
             .evm_client_b
-            .query(mock_erc20.balanceOf(recipient))
+            .query(erc20.balanceOf(recipient))
             .await
             .expect("failed to query evm B balance");
 
-        let delta = post_mint_balance._0 - pre_mint_balance._0;
-        info!("[CCTP EVM-EVM] successfully minted {delta} tokens to evm B address {recipient}");
+        let delta = post_send_balance._0 - pre_send_balance._0;
+        info!("[CCTP EVM-EVM] successfully sent {delta} tokens to evm B address {recipient}");
 
         Ok(())
     }
 
-    async fn mint_on_evm_a(&self, amount: U256, recipient: Address) -> Result<(), Box<dyn Error>> {
+    async fn send_on_evm_a(&self, amount: U256, recipient: Address) -> Result<(), Box<dyn Error>> {
         let evm_a_rp = self
             .runtime
             .evm_client_a
@@ -164,39 +160,35 @@ impl MockCctpRelayerEvmEvm {
             .await
             .expect("failed to get evm A request provider");
 
-        let mock_erc20 = MockERC20::new(self.state.evm_a_destination_erc20, &evm_a_rp);
+        let erc20 = ERC20::new(self.state.evm_a_destination_erc20, &evm_a_rp);
 
-        let pre_mint_balance = self
+        let pre_send_balance = self
             .runtime
             .evm_client_a
-            .query(mock_erc20.balanceOf(recipient))
+            .query(erc20.balanceOf(recipient))
             .await
             .expect("failed to query evm A balance");
 
-        let mint_tx = self
+        let send_tx = self
             .runtime
             .evm_client_a
-            .execute_tx(
-                mock_erc20
-                    .mint(recipient, amount)
-                    .into_transaction_request(),
-            )
+            .execute_tx(erc20.transfer(recipient, amount).into_transaction_request())
             .await
-            .expect("failed to mint tokens on evm A");
+            .expect("failed to send tokens on evm A");
 
         let _ = evm_a_rp
-            .get_transaction_receipt(mint_tx.transaction_hash)
+            .get_transaction_receipt(send_tx.transaction_hash)
             .await;
 
-        let post_mint_balance = self
+        let post_send_balance = self
             .runtime
             .evm_client_a
-            .query(mock_erc20.balanceOf(recipient))
+            .query(erc20.balanceOf(recipient))
             .await
             .expect("failed to query evm A balance");
 
-        let delta = post_mint_balance._0 - pre_mint_balance._0;
-        info!("[CCTP EVM-EVM] successfully minted {delta} tokens to evm A address {recipient}");
+        let delta = post_send_balance._0 - pre_send_balance._0;
+        info!("[CCTP EVM-EVM] successfully sent {delta} tokens to evm A address {recipient}");
 
         Ok(())
     }
@@ -224,8 +216,8 @@ impl MockCctpRelayerEvmEvm {
 
                 let deposit_for_burn_log = DepositForBurn::decode_log(&alloy_log, false)?;
 
-                // Mint on EVM B when an event is detected on EVM A
-                self.mint_on_evm_b(
+                // send on EVM B when an event is detected on EVM A
+                self.send_on_evm_b(
                     deposit_for_burn_log.amount,
                     fixed_bytes_to_address(deposit_for_burn_log.mintRecipient),
                 )
@@ -259,8 +251,8 @@ impl MockCctpRelayerEvmEvm {
 
                 let deposit_for_burn_log = DepositForBurn::decode_log(&alloy_log, false)?;
 
-                // Mint on EVM A when an event is detected on EVM B
-                self.mint_on_evm_a(
+                // send on EVM A when an event is detected on EVM B
+                self.send_on_evm_a(
                     deposit_for_burn_log.amount,
                     fixed_bytes_to_address(deposit_for_burn_log.mintRecipient),
                 )
