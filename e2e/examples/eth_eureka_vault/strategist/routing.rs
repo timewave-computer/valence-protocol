@@ -1,6 +1,9 @@
 use std::str::FromStr;
 
-use alloy::primitives::{Address, U256};
+use alloy::{
+    primitives::{Address, U256},
+    transports::http::reqwest,
+};
 use async_trait::async_trait;
 use cosmwasm_std::Uint128;
 use localic_utils::NEUTRON_CHAIN_DENOM;
@@ -169,6 +172,41 @@ impl EurekaVaultRouting for Strategy {
             .await
             .unwrap();
 
+        let skip_api_url = "https://go.skip.build/api/skip/v2/fungible/route";
+
+        // build the eureka route request body
+        let skip_request_body = serde_json::json!({
+            "source_asset_chain_id": "1", // Ethereum chain ID
+            "source_asset_denom": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", // mainnet wbtc address
+            "dest_asset_chain_id": "cosmoshub-4", // mainnet gaia chain id
+            "dest_asset_denom": "ibc/D742E8566B0B8CC8F569D950051C09CF57988A88F0E45574BFB3079D41DE6462", // mainnet wbtc on the hub
+            "amount_in": eth_deposit_acc_wbtc_u128.to_string(),
+            "allow_unsafe": true,
+            "allow_multi_tx": true,
+            "go_fast": true,
+            "smart_relay": true,
+            "smart_swap_options": {
+                "split_routes": true,
+                "evm_swaps": true
+            },
+            "experimental_features": [
+                "eureka"
+            ]
+        });
+
+        // Make the HTTP request to the Skip API
+        let client = reqwest::Client::new();
+        let response = client
+            .post(skip_api_url)
+            .header("Content-Type", "application/json")
+            .json(&skip_request_body)
+            .send()
+            .await
+            .unwrap();
+
+        let skip_response = response.json::<serde_json::Value>().await.unwrap();
+        info!("Skip API response: {:?}", skip_response);
+
         let eureka_fees_cfg = IEurekaHandler::Fees {
             relayFee: U256::from(1),
             relayFeeRecipient: Address::from_str(&self.cfg.ethereum.accounts.deposit).unwrap(), // TODO: fix this
@@ -217,6 +255,41 @@ impl EurekaVaultRouting for Strategy {
 
         self.ensure_neutron_account_fees_coverage(self.cfg.neutron.accounts.withdraw.to_string())
             .await;
+
+        let skip_api_url = "https://go.skip.build/api/skip/v2/fungible/route";
+
+        // build the eureka route request body
+        let skip_request_body = serde_json::json!({
+            "source_asset_chain_id": "cosmoshub-4", // mainnet hub chain id
+            "source_asset_denom": "ibc/D742E8566B0B8CC8F569D950051C09CF57988A88F0E45574BFB3079D41DE6462", // mainnet wbtc ics20
+            "dest_asset_chain_id": "1", // mainnet eth chain id
+            "dest_asset_denom": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", // mainnet wbtc erc20 on eth
+            "amount_in": withdraw_account_wbtc_bal.to_string(),
+            "allow_unsafe": true,
+            "allow_multi_tx": true,
+            "go_fast": true,
+            "smart_relay": true,
+            "smart_swap_options": {
+                "split_routes": true,
+                "evm_swaps": true
+            },
+            "experimental_features": [
+                "eureka"
+            ]
+        });
+
+        // Make the HTTP request to the Skip API
+        let client = reqwest::Client::new();
+        let response = client
+            .post(skip_api_url)
+            .header("Content-Type", "application/json")
+            .json(&skip_request_body)
+            .send()
+            .await
+            .unwrap();
+
+        let skip_response = response.json::<serde_json::Value>().await.unwrap();
+        info!("Skip API response: {:?}", skip_response);
 
         let eureka_fee = EurekaFee {
             coin: cosmwasm_std::Coin {
