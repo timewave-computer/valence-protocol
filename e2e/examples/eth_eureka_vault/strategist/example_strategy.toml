@@ -1,0 +1,41 @@
+[neutron]
+grpc_url = "http://0.0.0.0"
+grpc_port = "43261"
+chain_id = "localneutron-1"
+mnemonic = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry"
+target_pool = "neutron1skvzums72hmygk7re26ys68p4nc45y4dach4hymgzgwsdpyfmpcswwy6hp"
+
+[neutron.denoms]
+lp_token = "factory/neutron1skvzums72hmygk7re26ys68p4nc45y4dach4hymgzgwsdpyfmpcswwy6hp/astroport/share"
+wbtc = "factory/neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky/WBTC"
+ntrn = "untrn"
+
+[neutron.accounts]
+deposit = "neutron1lxmvzkqv8t2palwehetj0ntzh3996ffv5jwyrrz3lxveyqjgxgms3zuewj"
+position = "neutron1exevpfh3udzaj3k8tjfvfy63srsvf5rk4a64qzjljekn7d3zrrsq0wq698"
+withdraw = "neutron1rw7ap8ft6dm6uv8j4vsapjtl62r9yj2vul630k53qgx2zdztcmsqzgucr2"
+liquidation = "neutron1pvsm2sgkh7wjrkfy3954pq7dtvxzrfwv5dup7cafs0rcxncyqqpqtsd33k"
+
+[neutron.libraries]
+neutron_ibc_transfer = "neutron1u9akjumhvcfja7hhke6caglqz8qhy64wdeddca3lkma3w72m3g7qydrs48"
+astroport_lper = "neutron1fgh4klap54pnkt2xg7ukes0fa9yv4al4z5w6shrqy4nw2cjc8hfq58t43t"
+astroport_lwer = "neutron1zgpx2jsu5rzhrjypd3tls7w9qf2hrwcmnv8zsgu60zzvyrst86kqu45dxe"
+liquidation_forwarder = "neutron1y2t9g60dne6xwugvggnkp0fspskz6370cjcqtj32rljl64rwtc0skp6rme"
+authorizations = "neutron1j29htcmz00n0gnjw9hqkzu4454urum6g7q64334hd23dqlkws6xsl2gtmj"
+processor = "neutron19fkjhc5txmvtyy9mgvm77ucksq64depjc554h893g5l934u7q0yq7jhps0"
+
+[ethereum]
+rpc_url = "http://localhost:8545"
+mnemonic = "test test test test test test test test test test test junk"
+
+[ethereum.denoms]
+wbtc = "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"
+
+[ethereum.accounts]
+deposit = "0x453439300B6C5C645737324b990f2d51137027bC"
+withdraw = "0x7306a649B451AE08781108445425Bd4E8AcF1E00"
+
+[ethereum.libraries]
+valence_vault = "0x98721EFD3D09A7Ae662C4D63156286DF673FC50B"
+eureka_transfer = "0xAf7868a9BB72E16B930D50636519038d7F057470"
+lite_processor = "0x10d16E2A026C4b5264A2aAC51cA65749cDf2037E"

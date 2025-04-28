@@ -6,7 +6,11 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use alloy::primitives::{Address, U256};
+use alloy::{
+    network::TransactionBuilder,
+    primitives::{Address, U256},
+    rpc::types::TransactionRequest,
+};
 
 use evm::{setup_eth_accounts, setup_eth_libraries};
 use localic_utils::{
@@ -21,7 +25,10 @@ use program::{setup_neutron_libraries, upload_neutron_contracts};
 use strategist::{strategy::Strategy, strategy_config::StrategyConfig};
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
-    evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
+    evm::{
+        anvil::AnvilImpersonationClient, base_client::EvmBaseClient,
+        request_provider_client::RequestProviderClient,
+    },
     neutron::NeutronClient,
 };
 
@@ -45,7 +52,7 @@ mod evm;
 mod strategist;
 
 const WBTC_ERC20: &str = "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599";
-const WBTC_WHALE: &str = "0x0555E30da8f98308EdB960aa94C0Db47230d2B9c";
+const WBTC_WHALE: &str = "0x70FBb965302D50D1783a2337Cb115B30Ae9C4638";
 const EUREKA_HANDLER: &str = "0xfc2d0487a0ae42ae7329a80dc269916a9184cf7c";
 const EUREKA_HANDLER_SRC_CLIENT: &str = "cosmoshub-0";
 const WBTC_NEUTRON_DENOM: &str = "WBTC";
@@ -243,14 +250,58 @@ fn main() -> Result<(), Box<dyn Error>> {
     let user_3_deposit_amount = U256::from(250_000_000);
     let mut eth_users = EthereumUsers::new(wbtc_token_address, vault_address);
     eth_users.add_user(&rt, &eth_client, eth_accounts[2]);
-    eth_users.fund_user(&rt, &eth_client, 0, user_0_deposit_amount);
     eth_users.add_user(&rt, &eth_client, eth_accounts[3]);
-    eth_users.fund_user(&rt, &eth_client, 1, user_1_deposit_amount);
     eth_users.add_user(&rt, &eth_client, eth_accounts[4]);
-    eth_users.fund_user(&rt, &eth_client, 2, user_2_deposit_amount);
     eth_users.add_user(&rt, &eth_client, eth_accounts[9]);
-    eth_users.fund_user(&rt, &eth_client, 3, user_3_deposit_amount);
 
+    // use the wbtc whale to fund the users
+
+    let fund_user_0_msg = wbtc_contract
+        .transfer(eth_users.users[0], user_0_deposit_amount)
+        .into_transaction_request();
+    let fund_user_1_msg = wbtc_contract
+        .transfer(eth_users.users[1], user_1_deposit_amount)
+        .into_transaction_request();
+    let fund_user_2_msg = wbtc_contract
+        .transfer(eth_users.users[2], user_2_deposit_amount)
+        .into_transaction_request();
+    let fund_user_3_msg = wbtc_contract
+        .transfer(eth_users.users[3], user_3_deposit_amount)
+        .into_transaction_request();
+
+    async_run!(rt, {
+        let whale_balance = eth_client
+            .query(wbtc_contract.balanceOf(wbtc_whale_address))
+            .await
+            .unwrap()
+            ._0;
+        let whale_eth_balance = eth_client.query_balance(WBTC_WHALE).await.unwrap();
+        info!("starting whale balance: {whale_balance}WBTC, {whale_eth_balance}ETH");
+        info!("funding eth users with WBTC...");
+        eth_client
+            .execute_tx_as(WBTC_WHALE, fund_user_0_msg)
+            .await
+            .unwrap();
+        eth_client
+            .execute_tx_as(WBTC_WHALE, fund_user_1_msg)
+            .await
+            .unwrap();
+        eth_client
+            .execute_tx_as(WBTC_WHALE, fund_user_2_msg)
+            .await
+            .unwrap();
+        eth_client
+            .execute_tx_as(WBTC_WHALE, fund_user_3_msg)
+            .await
+            .unwrap();
+        let whale_balance = eth_client
+            .query(wbtc_contract.balanceOf(wbtc_whale_address))
+            .await
+            .unwrap()
+            ._0;
+        let whale_eth_balance = eth_client.query_balance(WBTC_WHALE).await.unwrap();
+        info!("post-funding whale balance: {whale_balance}WBTC, {whale_eth_balance}ETH");
+    });
     // TODO: start eureka relayer
 
     info!("main sleep for 3...");
