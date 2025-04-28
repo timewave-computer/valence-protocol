@@ -6,7 +6,7 @@ use std::{
 
 use alloy::primitives::Address;
 
-use evm::setup_eth_accounts;
+use evm::{setup_eth_accounts, setup_eth_libraries};
 use localic_utils::{
     utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder, LOCAL_IC_API_URL,
     NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_ID,
@@ -30,7 +30,7 @@ use valence_e2e::{
         authorization::set_up_authorization_and_processor,
         ethereum::{set_up_anvil_container, ANVIL_NAME, DEFAULT_ANVIL_PORT},
         parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
-        solidity_contracts::{BaseAccount, MockERC20},
+        solidity_contracts::{BaseAccount, MockERC20, ValenceVault},
         DEFAULT_ANVIL_RPC_ENDPOINT, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
     },
 };
@@ -203,6 +203,26 @@ fn main() -> Result<(), Box<dyn Error>> {
         ethereum_program_accounts.withdraw.to_string(),
         &lp_token,
     )?;
+
+    let ethereum_program_libraries = setup_eth_libraries(
+        &rt,
+        &eth_client,
+        eth_admin_acc,
+        strategist_acc,
+        ethereum_program_accounts.clone(),
+        &eth_accounts,
+        "hyperlane_mock".to_string(),
+        authorization_contract_address,
+        wbtc_token_address,
+        neutron_program_accounts.deposit,
+        "cosmoshub-0".to_string(),
+        eureka_handler_address,
+    )?;
+
+    let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
+
+    let vault_address = Address::from_str(&ethereum_program_libraries.valence_vault).unwrap();
+    let valence_vault = ValenceVault::new(vault_address, &eth_rp);
 
     rt.shutdown_background();
 

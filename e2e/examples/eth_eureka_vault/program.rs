@@ -152,6 +152,8 @@ pub fn setup_neutron_libraries(
         processor.to_string(),
     )?;
 
+    info!("neutron ibc transfer library: {neutron_ibc_transfer_lib}");
+
     let libraries = strategy_config::neutron::NeutronLibraries {
         astroport_lper: astro_lper_lib,
         astroport_lwer: astro_lwer_lib,
@@ -160,6 +162,8 @@ pub fn setup_neutron_libraries(
         authorizations: authorizations.to_string(),
         processor: processor.to_string(),
     };
+
+    info!("neutron libraries: {:?}", libraries);
 
     Ok(libraries)
 }

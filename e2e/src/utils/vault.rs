@@ -1,6 +1,9 @@
-use std::{collections::BTreeMap, error::Error};
+use std::{collections::BTreeMap, error::Error, str::FromStr};
 
-use alloy::primitives::{Address, U256};
+use alloy::{
+    primitives::{Address, Bytes, U256},
+    sol_types::SolValue,
+};
 use cosmwasm_std::Uint128;
 use localic_std::modules::cosmwasm::contract_instantiate;
 use localic_utils::{
@@ -21,9 +24,14 @@ use crate::{
     utils::{
         base_account::approve_library,
         manager::{FORWARDER_NAME, NEUTRON_IBC_TRANSFER_NAME},
-        solidity_contracts::ValenceVault::{self},
+        solidity_contracts::{
+            ERC1967Proxy,
+            ValenceVault::{self},
+        },
     },
 };
+
+use super::solidity_contracts::ValenceVault::VaultConfig;
 
 pub fn query_vault_packed_values(
     vault_addr: Address,
@@ -377,6 +385,32 @@ pub fn setup_neutron_ibc_transfer_lib(
         .get(NEUTRON_IBC_TRANSFER_NAME)
         .unwrap();
 
+    info!(
+        "neutron ibc transfer code id: {:?}",
+        neutron_ibc_transfer_code_id
+    );
+
+    let remote_chain_info = valence_generic_ibc_transfer_library::msg::RemoteChainInfo {
+        channel_id: test_ctx
+            .get_transfer_channels()
+            .src(NEUTRON_CHAIN_NAME)
+            .dest(GAIA_CHAIN_NAME) // TODO: review if this is correct for eureka route to eth
+            .get(),
+        ibc_transfer_timeout: None,
+    };
+    info!("rc_info: {:?}", remote_chain_info);
+
+    let ibc_transfer_cfg = valence_neutron_ibc_transfer_library::msg::LibraryConfig {
+        input_addr: LibraryAccountType::Addr(input_account.to_string()),
+        amount: IbcTransferAmount::FullAmount,
+        denom: valence_library_utils::denoms::UncheckedDenom::Native(denom.to_string()),
+        remote_chain_info,
+        output_addr: LibraryAccountType::Addr(output_addr.to_string()),
+        memo: "-".to_string(),
+        denom_to_pfm_map: BTreeMap::default(),
+        eureka_config: None,
+    };
+
     let neutron_ibc_transfer_instantiate_msg = valence_library_utils::msg::InstantiateMsg::<
         valence_neutron_ibc_transfer_library::msg::LibraryConfig,
     > {
@@ -385,23 +419,7 @@ pub fn setup_neutron_ibc_transfer_lib(
         // processor: processor.to_string(),
         owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        config: valence_neutron_ibc_transfer_library::msg::LibraryConfig {
-            input_addr: LibraryAccountType::Addr(input_account.to_string()),
-            amount: IbcTransferAmount::FullAmount,
-            denom: valence_library_utils::denoms::UncheckedDenom::Native(denom.to_string()),
-            remote_chain_info: valence_generic_ibc_transfer_library::msg::RemoteChainInfo {
-                channel_id: test_ctx
-                    .get_transfer_channels()
-                    .src(NEUTRON_CHAIN_NAME)
-                    .dest(GAIA_CHAIN_NAME) // TODO: review if this is correct for eureka route to eth
-                    .get(),
-                ibc_transfer_timeout: None,
-            },
-            output_addr: LibraryAccountType::Addr(output_addr.to_string()),
-            memo: "-".to_string(),
-            denom_to_pfm_map: BTreeMap::default(),
-            eureka_config: None,
-        },
+        config: ibc_transfer_cfg,
     };
 
     info!(
@@ -438,4 +456,90 @@ pub fn setup_neutron_ibc_transfer_lib(
     );
 
     Ok(ibc_transfer.address)
+}
+
+/// sets up a Valence Vault on Ethereum with a proxy.
+/// approves deposit & withdraw accounts.
+pub fn setup_valence_vault(
+    rt: &tokio::runtime::Runtime,
+    eth_client: &EthereumClient,
+    admin: Address,
+    eth_deposit_account: String,
+    eth_withdraw_account: String,
+    vault_deposit_token_addr: Address,
+    vault_config: VaultConfig,
+) -> Result<Address, Box<dyn Error>> {
+    let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
+
+    info!("deploying Valence Vault on Ethereum...");
+
+    // First deploy the implementation contract
+    let implementation_tx = ValenceVault::deploy_builder(&eth_rp)
+        .into_transaction_request()
+        .from(admin);
+
+    let implementation_address = async_run!(
+        rt,
+        eth_client
+            .execute_tx(implementation_tx)
+            .await
+            .unwrap()
+            .contract_address
+            .unwrap()
+    );
+
+    info!("Vault deployed at: {implementation_address}");
+
+    let proxy_address = async_run!(rt, {
+        // Deploy the proxy contract
+        let proxy_tx = ERC1967Proxy::deploy_builder(&eth_rp, implementation_address, Bytes::new())
+            .into_transaction_request()
+            .from(admin);
+
+        let proxy_address = eth_client
+            .execute_tx(proxy_tx)
+            .await
+            .unwrap()
+            .contract_address
+            .unwrap();
+        info!("Proxy deployed at: {proxy_address}");
+        proxy_address
+    });
+
+    // Initialize the Vault
+    let vault = ValenceVault::new(proxy_address, &eth_rp);
+
+    async_run!(rt, {
+        let initialize_tx = vault
+            .initialize(
+                admin,                            // owner
+                vault_config.abi_encode().into(), // encoded config
+                vault_deposit_token_addr,         // underlying token
+                "Valence Test Vault".to_string(), // vault token name
+                "vTEST".to_string(),              // vault token symbol
+                U256::from(1e6),                  // match deposit token precision
+            )
+            .into_transaction_request()
+            .from(admin);
+
+        eth_client.execute_tx(initialize_tx).await.unwrap();
+    });
+
+    info!("Approving vault for withdraw account...");
+    crate::utils::ethereum::valence_account::approve_library(
+        rt,
+        eth_client,
+        Address::from_str(&eth_withdraw_account).unwrap(),
+        proxy_address,
+    );
+
+    info!("Approving vault for deposit account...");
+    crate::utils::ethereum::valence_account::approve_library(
+        rt,
+        eth_client,
+        Address::from_str(&eth_deposit_account).unwrap(),
+        proxy_address,
+    );
+
+    Ok(proxy_address)
 }

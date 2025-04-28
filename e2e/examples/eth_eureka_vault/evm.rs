@@ -11,9 +11,12 @@ use valence_chain_client_utils::{
 };
 use valence_e2e::{
     async_run,
-    utils::solidity_contracts::{
-        ERC1967Proxy, IBCEurekaTransfer,
-        ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
+    utils::{
+        solidity_contracts::{
+            ERC1967Proxy, IBCEurekaTransfer,
+            ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
+        },
+        vault::setup_valence_vault,
     },
 };
 use valence_encoder_utils::libraries::ibc_eureka_transfer::solidity_types::IBCEurekaTransferConfig;
@@ -48,7 +51,7 @@ pub fn setup_eth_accounts(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn setup_eth_libraries(
+pub(crate) fn setup_eth_libraries(
     rt: &tokio::runtime::Runtime,
     eth_client: &EthereumClient,
     eth_admin_addr: Address,
@@ -117,7 +120,8 @@ pub fn setup_eth_libraries(
         rt,
         eth_client,
         eth_admin_addr,
-        eth_program_accounts.clone(),
+        eth_program_accounts.deposit,
+        eth_program_accounts.withdraw,
         wbtc_token_address,
         vault_config,
     )?;
@@ -186,89 +190,4 @@ pub fn setup_eureka_forwarder(
     );
 
     Ok(eureka_transfer_address)
-}
-
-/// sets up a Valence Vault on Ethereum with a proxy.
-/// approves deposit & withdraw accounts.
-pub fn setup_valence_vault(
-    rt: &tokio::runtime::Runtime,
-    eth_client: &EthereumClient,
-    admin: Address,
-    eth_program_accounts: strategy_config::ethereum::EthereumAccounts,
-    vault_deposit_token_addr: Address,
-    vault_config: VaultConfig,
-) -> Result<Address, Box<dyn Error>> {
-    let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
-
-    info!("deploying Valence Vault on Ethereum...");
-
-    // First deploy the implementation contract
-    let implementation_tx = ValenceVault::deploy_builder(&eth_rp)
-        .into_transaction_request()
-        .from(admin);
-
-    let implementation_address = async_run!(
-        rt,
-        eth_client
-            .execute_tx(implementation_tx)
-            .await
-            .unwrap()
-            .contract_address
-            .unwrap()
-    );
-
-    info!("Vault deployed at: {implementation_address}");
-
-    let proxy_address = async_run!(rt, {
-        // Deploy the proxy contract
-        let proxy_tx = ERC1967Proxy::deploy_builder(&eth_rp, implementation_address, Bytes::new())
-            .into_transaction_request()
-            .from(admin);
-
-        let proxy_address = eth_client
-            .execute_tx(proxy_tx)
-            .await
-            .unwrap()
-            .contract_address
-            .unwrap();
-        info!("Proxy deployed at: {proxy_address}");
-        proxy_address
-    });
-
-    // Initialize the Vault
-    let vault = ValenceVault::new(proxy_address, &eth_rp);
-
-    async_run!(rt, {
-        let initialize_tx = vault
-            .initialize(
-                admin,                            // owner
-                vault_config.abi_encode().into(), // encoded config
-                vault_deposit_token_addr,         // underlying token
-                "Valence Test Vault".to_string(), // vault token name
-                "vTEST".to_string(),              // vault token symbol
-                U256::from(1e8),                  // match deposit token precision
-            )
-            .into_transaction_request()
-            .from(admin);
-
-        eth_client.execute_tx(initialize_tx).await.unwrap();
-    });
-
-    info!("Approving vault for withdraw account...");
-    valence_e2e::utils::ethereum::valence_account::approve_library(
-        rt,
-        eth_client,
-        Address::from_str(&eth_program_accounts.withdraw).unwrap(),
-        proxy_address,
-    );
-
-    info!("Approving vault for deposit account...");
-    valence_e2e::utils::ethereum::valence_account::approve_library(
-        rt,
-        eth_client,
-        Address::from_str(&eth_program_accounts.deposit).unwrap(),
-        proxy_address,
-    );
-
-    Ok(proxy_address)
 }
