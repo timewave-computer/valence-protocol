@@ -8,8 +8,8 @@ use alloy::primitives::Address;
 
 use evm::{setup_eth_accounts, setup_eth_libraries};
 use localic_utils::{
-    utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder, LOCAL_IC_API_URL,
-    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_ID,
+    utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder, GAIA_CHAIN_NAME,
+    LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
 };
 
 use log::{info, warn};
@@ -163,6 +163,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_api_url(LOCAL_IC_API_URL)
         .with_artifacts_dir(VALENCE_ARTIFACTS_PATH)
         .with_chain(ConfigChainBuilder::default_neutron().build().unwrap())
+        .with_chain(ConfigChainBuilder::default_gaia().build().unwrap())
+        .with_transfer_channels(NEUTRON_CHAIN_NAME, GAIA_CHAIN_NAME)
         .with_log_file_path(LOGS_FILE_PATH)
         .build()?;
 
@@ -202,6 +204,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         &lp_token,
     )?;
 
+    let program_hyperlane_contracts =
+        valence_e2e::utils::vault::hyperlane_plumbing(&mut test_ctx, &eth)?;
+
     let ethereum_program_libraries = setup_eth_libraries(
         &rt,
         &eth_client,
@@ -209,7 +214,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         strategist_acc,
         ethereum_program_accounts.clone(),
         &eth_accounts,
-        "hyperlane_mock".to_string(),
+        program_hyperlane_contracts
+            .eth_hyperlane_contracts
+            .mailbox
+            .to_string(),
         authorization_contract_address,
         wbtc_token_address,
         neutron_program_accounts.deposit,
