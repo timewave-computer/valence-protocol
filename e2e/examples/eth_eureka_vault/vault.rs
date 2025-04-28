@@ -30,7 +30,7 @@ use valence_e2e::{
         authorization::set_up_authorization_and_processor,
         ethereum::{set_up_anvil_container, ANVIL_NAME, DEFAULT_ANVIL_PORT},
         parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
-        solidity_contracts::{BaseAccount, MockERC20, ValenceVault},
+        solidity_contracts::{MockERC20, ValenceVault},
         DEFAULT_ANVIL_RPC_ENDPOINT, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
     },
 };
@@ -215,7 +215,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         authorization_contract_address,
         wbtc_token_address,
         neutron_program_accounts.deposit,
-        "cosmoshub-0".to_string(),
+        EUREKA_HANDLER_SRC_CLIENT.to_string(),
         eureka_handler_address,
     )?;
 

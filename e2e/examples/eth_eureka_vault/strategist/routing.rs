@@ -1,18 +1,8 @@
-use std::str::FromStr;
-
-use alloy::primitives::{Address, U256};
 use async_trait::async_trait;
 use cosmwasm_std::Uint128;
 use localic_utils::NEUTRON_CHAIN_DENOM;
 use log::{error, info, warn};
-use valence_chain_client_utils::{
-    cosmos::{base_client::BaseClient, wasm_client::WasmClient},
-    evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
-};
-use valence_e2e::utils::{
-    solidity_contracts::{CCTPTransfer, MockERC20},
-    UUSDC_DENOM,
-};
+use valence_chain_client_utils::cosmos::{base_client::BaseClient, wasm_client::WasmClient};
 use valence_forwarder_library::msg::UncheckedForwardingConfig;
 use valence_library_utils::denoms::UncheckedDenom;
 

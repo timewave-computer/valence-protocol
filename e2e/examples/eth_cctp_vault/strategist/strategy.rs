@@ -18,13 +18,13 @@ use valence_chain_client_utils::{
 };
 use valence_e2e::utils::{
     solidity_contracts::{MockERC20, ValenceVault},
+    vault::time::{get_current_second, wait_until_next_minute},
     worker::{ValenceWorker, ValenceWorkerTomlSerde},
     NOBLE_CHAIN_DENOM,
 };
 
-use crate::{
-    strategist::{astroport::AstroportOps, routing::EthereumVaultRouting, vault::EthereumVault},
-    utils::{get_current_second, wait_until_next_minute},
+use crate::strategist::{
+    astroport::AstroportOps, routing::EthereumVaultRouting, vault::EthereumVault,
 };
 
 use super::strategy_config::StrategyConfig;

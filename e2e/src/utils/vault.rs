@@ -5,9 +5,11 @@ use alloy::{
     sol_types::SolValue,
 };
 use cosmwasm_std::Uint128;
-use localic_std::modules::cosmwasm::contract_instantiate;
+use cosmwasm_std_old::Coin as BankCoin;
+use localic_std::modules::{bank, cosmwasm::contract_instantiate};
 use localic_utils::{
-    utils::test_context::TestContext, DEFAULT_KEY, GAIA_CHAIN_NAME, NEUTRON_CHAIN_ADMIN_ADDR,
+    utils::{ethereum::EthClient, test_context::TestContext},
+    DEFAULT_KEY, GAIA_CHAIN_NAME, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM,
     NEUTRON_CHAIN_NAME,
 };
 use log::{info, warn};
@@ -23,15 +25,25 @@ use crate::{
     async_run,
     utils::{
         base_account::approve_library,
+        hyperlane::{
+            set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts, set_up_hyperlane,
+        },
         manager::{FORWARDER_NAME, NEUTRON_IBC_TRANSFER_NAME},
         solidity_contracts::{
             ERC1967Proxy,
             ValenceVault::{self},
         },
+        ETHEREUM_HYPERLANE_DOMAIN, HYPERLANE_RELAYER_NEUTRON_ADDRESS,
     },
 };
 
-use super::solidity_contracts::ValenceVault::VaultConfig;
+#[allow(unused)]
+pub struct ProgramHyperlaneContracts {
+    pub neutron_hyperlane_contracts: HyperlaneContracts,
+    pub eth_hyperlane_contracts: HyperlaneContracts,
+}
+
+use super::{hyperlane::HyperlaneContracts, solidity_contracts::ValenceVault::VaultConfig};
 
 pub fn query_vault_packed_values(
     vault_addr: Address,
@@ -542,4 +554,92 @@ pub fn setup_valence_vault(
     );
 
     Ok(proxy_address)
+}
+
+pub mod time {
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+    use log::info;
+
+    pub fn get_current_second() -> u64 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            % 60
+    }
+
+    pub async fn wait_until_next_minute() -> SystemTime {
+        let now = SystemTime::now();
+        let since_epoch = now.duration_since(UNIX_EPOCH).unwrap();
+        let seconds = since_epoch.as_secs() % 60;
+        let wait_secs = 60 - seconds;
+
+        log::info!("waiting {} seconds until next minute", wait_secs);
+        tokio::time::sleep(Duration::from_secs(wait_secs)).await;
+
+        SystemTime::now()
+    }
+
+    pub async fn wait_until_half_minute() {
+        let current_second = get_current_second();
+        if current_second >= 30 {
+            // wait for next minute + 30 seconds
+            wait_until_next_minute().await;
+            tokio::time::sleep(Duration::from_secs(30)).await;
+        } else {
+            // wait until second 30 of current minute
+            let seconds_to_wait = 30 - current_second;
+            info!("waiting {seconds_to_wait} seconds until half minute");
+            tokio::time::sleep(Duration::from_secs(seconds_to_wait)).await;
+        }
+    }
+}
+
+pub fn hyperlane_plumbing(
+    test_ctx: &mut TestContext,
+    eth: &EthClient,
+) -> Result<ProgramHyperlaneContracts, Box<dyn Error>> {
+    info!("uploading cosmwasm hyperlane contracts...");
+    // Upload all Hyperlane contracts to Neutron
+    let neutron_hyperlane_contracts = set_up_cw_hyperlane_contracts(test_ctx)?;
+
+    info!("uploading evm hyperlane contracts...");
+    // Deploy all Hyperlane contracts on Ethereum
+    let eth_hyperlane_contracts = set_up_eth_hyperlane_contracts(eth, ETHEREUM_HYPERLANE_DOMAIN)?;
+
+    info!("setting up hyperlane connection Neutron <> Ethereum");
+    set_up_hyperlane(
+        "hyperlane-net",
+        vec!["localneutron-1-val-0-neutronic", "anvil"],
+        "neutron",
+        "ethereum",
+        &neutron_hyperlane_contracts,
+        &eth_hyperlane_contracts,
+    )?;
+
+    // Since we are going to relay callbacks to Neutron, let's fund the Hyperlane relayer account with some tokens
+    info!("Fund relayer account...");
+    bank::send(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        HYPERLANE_RELAYER_NEUTRON_ADDRESS,
+        &[BankCoin {
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
+            amount: 5_000_000u128.into(),
+        }],
+        &BankCoin {
+            denom: NEUTRON_CHAIN_DENOM.to_string(),
+            amount: cosmwasm_std_old::Uint128::new(5000),
+        },
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    Ok(ProgramHyperlaneContracts {
+        neutron_hyperlane_contracts,
+        eth_hyperlane_contracts,
+    })
 }

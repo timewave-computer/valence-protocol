@@ -10,11 +10,10 @@ use localic_utils::{
     DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 use log::info;
-use valence_astroport_lper::msg::LiquidityProviderConfig;
 
 use valence_e2e::utils::astroport::{setup_astroport_lper_lib, setup_astroport_lwer_lib};
 use valence_e2e::utils::base_account::{approve_library, create_base_accounts};
-use valence_e2e::utils::hyperlane::HyperlaneContracts;
+
 use valence_e2e::utils::manager::{
     ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME, BASE_ACCOUNT_NAME, FORWARDER_NAME,
     ICA_CCTP_TRANSFER_NAME, ICA_IBC_TRANSFER_NAME, INTERCHAIN_ACCOUNT_NAME,
@@ -22,22 +21,13 @@ use valence_e2e::utils::manager::{
 };
 use valence_e2e::utils::vault::{setup_liquidation_fwd_lib, setup_neutron_ibc_transfer_lib};
 use valence_e2e::utils::{LOCAL_CODE_ID_CACHE_PATH_NEUTRON, NOBLE_CHAIN_NAME, UUSDC_DENOM};
-use valence_forwarder_library::msg::{ForwardingConstraints, UncheckedForwardingConfig};
-use valence_generic_ibc_transfer_library::msg::IbcTransferAmount;
 use valence_ica_ibc_transfer::msg::RemoteChainInfo;
-use valence_library_utils::denoms::UncheckedDenom;
 use valence_library_utils::liquidity_utils::AssetData;
 use valence_library_utils::LibraryAccountType;
 
 use crate::neutron::ica::{instantiate_interchain_account_contract, register_interchain_account};
 use crate::strategist::strategy_config;
-use crate::{ASTROPORT_CONCENTRATED_PAIR_TYPE, VAULT_NEUTRON_CACHE_PATH};
-
-#[allow(unused)]
-pub struct ProgramHyperlaneContracts {
-    pub neutron_hyperlane_contracts: HyperlaneContracts,
-    pub eth_hyperlane_contracts: HyperlaneContracts,
-}
+use crate::VAULT_NEUTRON_CACHE_PATH;
 
 pub fn setup_neutron_accounts(
     test_ctx: &mut TestContext,

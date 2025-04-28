@@ -9,7 +9,6 @@ use crate::{
 };
 use async_trait::async_trait;
 use cosmrs::Denom;
-use log::{info, warn};
 
 const CHAIN_PREFIX: &str = "neutron";
 const CHAIN_DENOM: &str = "untrn";

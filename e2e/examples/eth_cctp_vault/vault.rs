@@ -22,7 +22,7 @@ use strategist::{
     strategy::Strategy,
     strategy_config::{self, StrategyConfig},
 };
-use utils::wait_until_half_minute;
+
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
@@ -38,7 +38,7 @@ use valence_e2e::{
         mock_cctp_relayer::MockCctpRelayer,
         parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
         solidity_contracts::ValenceVault,
-        vault::{self},
+        vault::{self, time::wait_until_half_minute},
         worker::{ValenceWorker, ValenceWorkerTomlSerde},
         ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR,
         NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, UUSDC_DENOM,
@@ -48,14 +48,12 @@ use valence_e2e::{
 
 const _PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "provide_liquidity";
 const _WITHDRAW_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "withdraw_liquidity";
-const ASTROPORT_CONCENTRATED_PAIR_TYPE: &str = "concentrated";
 const VAULT_NEUTRON_CACHE_PATH: &str = "e2e/examples/eth_vault/neutron_contracts/";
 
 mod evm;
 mod neutron;
 mod program;
 mod strategist;
-mod utils;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -112,7 +110,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .build()?;
 
     // setup hyperlane between neutron and eth
-    let program_hyperlane_contracts = utils::hyperlane_plumbing(&mut test_ctx, &eth)?;
+    let program_hyperlane_contracts = vault::hyperlane_plumbing(&mut test_ctx, &eth)?;
 
     let uusdc_on_neutron_denom = test_ctx
         .get_ibc_denom()

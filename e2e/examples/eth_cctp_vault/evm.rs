@@ -4,8 +4,7 @@ use std::str::FromStr;
 
 use alloy::{
     hex::FromHex,
-    primitives::{Address, Bytes, U256},
-    sol_types::SolValue,
+    primitives::{Address, U256},
 };
 use log::info;
 use valence_chain_client_utils::{
@@ -18,7 +17,7 @@ use crate::{async_run, strategist::strategy_config};
 use valence_e2e::utils::{
     ethereum::mock_erc20,
     solidity_contracts::{
-        CCTPTransfer, ERC1967Proxy, MockERC20, MockTokenMessenger,
+        CCTPTransfer, MockERC20, MockTokenMessenger,
         ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
     },
     vault::{self, setup_valence_vault},

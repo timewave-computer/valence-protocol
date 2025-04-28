@@ -1,9 +1,6 @@
 use std::{error::Error, str::FromStr};
 
-use alloy::{
-    primitives::{Address, Bytes, U256},
-    sol_types::SolValue,
-};
+use alloy::primitives::{Address, U256};
 use log::info;
 use valence_chain_client_utils::{
     ethereum::EthereumClient,
@@ -13,8 +10,8 @@ use valence_e2e::{
     async_run,
     utils::{
         solidity_contracts::{
-            ERC1967Proxy, IBCEurekaTransfer,
-            ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
+            IBCEurekaTransfer,
+            ValenceVault::{FeeConfig, FeeDistributionConfig, VaultConfig},
         },
         vault::setup_valence_vault,
     },
