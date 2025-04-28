@@ -6,11 +6,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use alloy::{
-    network::TransactionBuilder,
-    primitives::{Address, U256},
-    rpc::types::TransactionRequest,
-};
+use alloy::primitives::{Address, U256};
 
 use evm::{setup_eth_accounts, setup_eth_libraries};
 use localic_utils::{

@@ -22,7 +22,7 @@ use valence_e2e::utils::{
 };
 
 use crate::strategist::{
-    astroport::AstroportOps, routing::EthereumVaultRouting, vault::EthereumVault,
+    astroport::AstroportOps, routing::EurekaVaultRouting, vault::EthereumVault,
 };
 
 use super::strategy_config::StrategyConfig;

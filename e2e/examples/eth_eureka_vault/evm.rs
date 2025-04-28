@@ -79,7 +79,7 @@ pub(crate) fn setup_eth_libraries(
         rt,
         eth_client,
         eth_admin_addr,
-        lite_processor_address,
+        eth_strategist_addr, // should be processor
         wbtc_token_address,
         Address::from_str(&eth_program_accounts.deposit).unwrap(),
         neutron_deposit_account,

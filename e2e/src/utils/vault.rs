@@ -9,8 +9,8 @@ use cosmwasm_std_old::Coin as BankCoin;
 use localic_std::modules::{bank, cosmwasm::contract_instantiate};
 use localic_utils::{
     utils::{ethereum::EthClient, test_context::TestContext},
-    DEFAULT_KEY, GAIA_CHAIN_NAME, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM,
-    NEUTRON_CHAIN_NAME,
+    DEFAULT_KEY, GAIA_CHAIN_ADMIN_ADDR, GAIA_CHAIN_NAME, NEUTRON_CHAIN_ADMIN_ADDR,
+    NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 use log::{info, warn};
 use valence_chain_client_utils::{
@@ -19,6 +19,7 @@ use valence_chain_client_utils::{
 };
 use valence_forwarder_library::msg::{ForwardingConstraints, UncheckedForwardingConfig};
 use valence_generic_ibc_transfer_library::msg::IbcTransferAmount;
+use valence_ibc_utils::types::EurekaConfig;
 use valence_library_utils::{denoms::UncheckedDenom, LibraryAccountType};
 
 use crate::{
@@ -410,7 +411,15 @@ pub fn setup_neutron_ibc_transfer_lib(
             .get(),
         ibc_transfer_timeout: None,
     };
-    info!("rc_info: {:?}", remote_chain_info);
+
+    let eureka_cfg = EurekaConfig {
+        callback_contract: "todo".to_string(),
+        action_contract: "todo".to_string(),
+        recover_address: GAIA_CHAIN_ADMIN_ADDR.to_string(),
+        source_channel: "todo".to_string(),
+        memo: None,
+        timeout: None,
+    };
 
     let ibc_transfer_cfg = valence_neutron_ibc_transfer_library::msg::LibraryConfig {
         input_addr: LibraryAccountType::Addr(input_account.to_string()),
@@ -420,7 +429,7 @@ pub fn setup_neutron_ibc_transfer_lib(
         output_addr: LibraryAccountType::Addr(output_addr.to_string()),
         memo: "-".to_string(),
         denom_to_pfm_map: BTreeMap::default(),
-        eureka_config: None,
+        eureka_config: Some(eureka_cfg),
     };
 
     let neutron_ibc_transfer_instantiate_msg = valence_library_utils::msg::InstantiateMsg::<
