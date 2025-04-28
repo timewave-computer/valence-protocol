@@ -1,8 +1,8 @@
 use std::{error::Error, path::Path};
 
 use localic_utils::{
-    utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM,
-    NEUTRON_CHAIN_NAME,
+    utils::test_context::TestContext, DEFAULT_KEY, GAIA_CHAIN_ADMIN_ADDR, GAIA_CHAIN_NAME,
+    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 use log::info;
 use valence_e2e::utils::{
@@ -15,6 +15,7 @@ use valence_e2e::utils::{
     vault::{setup_liquidation_fwd_lib, setup_neutron_ibc_transfer_lib},
     LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
 };
+use valence_ibc_utils::types::EurekaConfig;
 use valence_library_utils::liquidity_utils::AssetData;
 
 use crate::{strategist::strategy_config, VAULT_NEUTRON_CACHE_PATH};
@@ -149,6 +150,15 @@ pub fn setup_neutron_libraries(
         wbtc_on_neutron,
         authorizations.to_string(),
         processor.to_string(),
+        GAIA_CHAIN_NAME,
+        Some(EurekaConfig {
+            callback_contract: "todo".to_string(),
+            action_contract: "todo".to_string(),
+            recover_address: GAIA_CHAIN_ADMIN_ADDR.to_string(),
+            source_channel: "todo".to_string(),
+            memo: None,
+            timeout: None,
+        }),
     )?;
 
     info!("neutron ibc transfer library: {neutron_ibc_transfer_lib}");

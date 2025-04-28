@@ -195,6 +195,8 @@ pub fn setup_neutron_libraries(
         usdc_on_neutron,
         authorizations.to_string(),
         processor.to_string(),
+        NOBLE_CHAIN_NAME,
+        None,
     )?;
 
     info!("approving strategist on liquidation account...");

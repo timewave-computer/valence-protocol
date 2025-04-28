@@ -391,6 +391,8 @@ pub fn setup_neutron_ibc_transfer_lib(
     denom: &str,
     _authorizations: String,
     _processor: String,
+    destination_chain_name: &str,
+    eureka_config: Option<EurekaConfig>,
 ) -> Result<String, Box<dyn Error>> {
     let neutron_ibc_transfer_code_id = *test_ctx
         .get_chain(NEUTRON_CHAIN_NAME)
@@ -407,18 +409,9 @@ pub fn setup_neutron_ibc_transfer_lib(
         channel_id: test_ctx
             .get_transfer_channels()
             .src(NEUTRON_CHAIN_NAME)
-            .dest(GAIA_CHAIN_NAME) // TODO: review if this is correct for eureka route to eth
+            .dest(destination_chain_name)
             .get(),
         ibc_transfer_timeout: None,
-    };
-
-    let eureka_cfg = EurekaConfig {
-        callback_contract: "todo".to_string(),
-        action_contract: "todo".to_string(),
-        recover_address: GAIA_CHAIN_ADMIN_ADDR.to_string(),
-        source_channel: "todo".to_string(),
-        memo: None,
-        timeout: None,
     };
 
     let ibc_transfer_cfg = valence_neutron_ibc_transfer_library::msg::LibraryConfig {
@@ -429,7 +422,7 @@ pub fn setup_neutron_ibc_transfer_lib(
         output_addr: LibraryAccountType::Addr(output_addr.to_string()),
         memo: "-".to_string(),
         denom_to_pfm_map: BTreeMap::default(),
-        eureka_config: Some(eureka_cfg),
+        eureka_config,
     };
 
     let neutron_ibc_transfer_instantiate_msg = valence_library_utils::msg::InstantiateMsg::<
