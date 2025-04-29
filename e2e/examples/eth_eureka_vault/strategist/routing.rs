@@ -5,7 +5,7 @@ use alloy::{
     transports::http::reqwest,
 };
 use async_trait::async_trait;
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{Coin, Uint128};
 use localic_utils::NEUTRON_CHAIN_DENOM;
 use log::{error, info, warn};
 use valence_chain_client_utils::{
@@ -185,12 +185,18 @@ impl EurekaVaultRouting for Strategy {
         .await
         .unwrap();
 
-        info!("Parsed Skip API response: {:?}", skip_response);
+        info!(
+            "[routing] Eureka Route Skip API response: {:?}",
+            skip_response
+        );
 
         let eureka_fees_cfg = IEurekaHandler::Fees {
-            relayFee: U256::from(1),
-            relayFeeRecipient: Address::from_str(&self.cfg.ethereum.accounts.deposit).unwrap(), // TODO: fix this
-            quoteExpiry: 100,
+            relayFee: U256::from_str(&skip_response.smart_relay_fee_quote.fee_amount).unwrap(),
+            relayFeeRecipient: Address::from_str(
+                &skip_response.smart_relay_fee_quote.fee_payment_address,
+            )
+            .unwrap(),
+            quoteExpiry: skip_response.timeout,
         };
         let eureka_transfer_msg = eureka_transfer_lib
             .transfer(eureka_fees_cfg, "memo".into())
@@ -246,16 +252,20 @@ impl EurekaVaultRouting for Strategy {
         .await
         .unwrap();
 
-        info!("Skip API response: {:?}", skip_response);
+        info!(
+            "[routing] Eureka Route Skip API response: {:?}",
+            skip_response
+        );
 
         let eureka_fee = EurekaFee {
-            coin: cosmwasm_std::Coin {
-                denom: "TODO".to_string(),
-                amount: Uint128::zero(),
+            coin: Coin {
+                denom: skip_response.smart_relay_fee_quote.fee_denom,
+                amount: Uint128::from_str(&skip_response.smart_relay_fee_quote.fee_amount).unwrap(),
             },
-            receiver: "TODO".to_string(),
-            timeout_timestamp: u64::MIN,
+            receiver: skip_response.smart_relay_fee_quote.fee_payment_address,
+            timeout_timestamp: skip_response.timeout,
         };
+
         info!("Initiating neutron ibc transfer");
         let neutron_ibc_transfer_msg =
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
