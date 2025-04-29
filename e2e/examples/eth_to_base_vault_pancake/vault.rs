@@ -17,7 +17,7 @@ use valence_e2e::utils::{
         cctp_relayer_evm_evm::MockCctpRelayerEvmEvm,
         standard_bridge_relayer::MockStandardBridgeRelayer,
     },
-    solidity_contracts::{BaseAccount, ERC20},
+    solidity_contracts::{BaseAccount, ValenceVault, ERC20},
     worker::ValenceWorker,
 };
 
@@ -161,6 +161,70 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .await?;
     info!("Mock relayers funded successfully");
 
+    let mut ethereum_users = vec![];
+    for account in accounts_eth.iter().take(4) {
+        ethereum_users.push(*account);
+        let send_tx = weth_on_eth
+            .transfer(
+                *account,
+                U256::from(1e18), // 1 WETH
+            )
+            .into_transaction_request();
+        eth_client.execute_tx_as(weth_whale_on_eth, send_tx).await?;
+    }
+
+    let vault_address = Address::from_str(&ethereum_libraries.vault).unwrap();
+    let rp = eth_client.get_request_provider().await?;
+    let valence_vault = ValenceVault::new(vault_address, &rp);
+
+    {
+        info!("\n======================== EPOCH 0 ========================\n");
+        info!("User 1 deposits 0.5 WETH into the vault ...");
+        let deposit_amount = U256::from(5e17);
+        let approval = weth_on_eth
+            .approve(vault_address, deposit_amount)
+            .into_transaction_request()
+            .from(ethereum_users[1]);
+        eth_client.execute_tx(approval).await?;
+        let deposit = valence_vault
+            .deposit(deposit_amount, ethereum_users[1])
+            .into_transaction_request()
+            .from(ethereum_users[1]);
+        eth_client.execute_tx(deposit).await?;
+        let balance = valence_vault.balanceOf(ethereum_users[1]).call().await?._0;
+        info!("User 1 balance in vault: {:?} shares", balance);
+
+        info!("User 2 deposits 0.3 WETH into the vault ...");
+        let deposit_amount = U256::from(3e17);
+        let approval = weth_on_eth
+            .approve(vault_address, deposit_amount)
+            .into_transaction_request()
+            .from(ethereum_users[2]);
+        eth_client.execute_tx(approval).await?;
+        let deposit = valence_vault
+            .deposit(deposit_amount, ethereum_users[2])
+            .into_transaction_request()
+            .from(ethereum_users[2]);
+        eth_client.execute_tx(deposit).await?;
+        let balance = valence_vault.balanceOf(ethereum_users[2]).call().await?._0;
+        info!("User 2 balance in vault: {:?} shares", balance);
+
+        info!("User 3 deposits 0.2 WETH into the vault ...");
+        let deposit_amount = U256::from(2e17);
+        let approval = weth_on_eth
+            .approve(vault_address, deposit_amount)
+            .into_transaction_request()
+            .from(ethereum_users[3]);
+        eth_client.execute_tx(approval).await?;
+        let deposit = valence_vault
+            .deposit(deposit_amount, ethereum_users[3])
+            .into_transaction_request()
+            .from(ethereum_users[3]);
+        eth_client.execute_tx(deposit).await?;
+        let balance = valence_vault.balanceOf(ethereum_users[3]).call().await?._0;
+        info!("User 3 balance in vault: {:?} shares", balance);
+    }
+
     info!("Starting relayers...");
     let mock_cctp_relayer = MockCctpRelayerEvmEvm::new(
         endpoint_eth.clone(),
@@ -184,19 +248,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     .await?;
     mock_standard_bridge_relayer.start();
     info!("Relayers started successfully");
-
-    let mut ethereum_users = vec![];
-    for (i, account) in accounts_eth.iter().enumerate().take(4).skip(1) {
-        info!("Funding Ethereum user {}...", i);
-        ethereum_users.push(*account);
-        let send_tx = weth_on_eth
-            .transfer(
-                *account,
-                U256::from(1e18), // 1 WETH
-            )
-            .into_transaction_request();
-        eth_client.execute_tx_as(weth_whale_on_eth, send_tx).await?;
-    }
 
     Ok(())
 }

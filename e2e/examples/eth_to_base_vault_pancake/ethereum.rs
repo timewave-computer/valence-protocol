@@ -232,7 +232,7 @@ async fn set_up_vault(
             Address::from_str(WETH_ADDRESS_ON_ETHEREUM).unwrap(), // underlying token
             "Valence Test Vault".to_string(),                     // vault token name
             "vTEST".to_string(),                                  // vault token symbol
-            U256::from(1e6),                                      // match deposit token precision
+            U256::from(1e18),                                     // match deposit token precision
         )
         .into_transaction_request()
         .from(admin);
