@@ -50,7 +50,7 @@ mod strategist;
 const WBTC_ERC20: &str = "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599";
 const WBTC_WHALE: &str = "0x70FBb965302D50D1783a2337Cb115B30Ae9C4638";
 const EUREKA_HANDLER: &str = "0xfc2d0487a0ae42ae7329a80dc269916a9184cf7c";
-const EUREKA_HANDLER_SRC_CLIENT: &str = "cosmoshub-0";
+const _EUREKA_HANDLER_SRC_CLIENT: &str = "cosmoshub-0";
 const WBTC_NEUTRON_DENOM: &str = "WBTC";
 const VAULT_NEUTRON_CACHE_PATH: &str = "e2e/examples/eth_eureka_vault/neutron_contracts/";
 
@@ -99,7 +99,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("admin balance: {:?}", admin_balance);
 
     let wbtc_token_address = Address::from_str(WBTC_ERC20).unwrap();
-    let eureka_handler_address = Address::from_str(EUREKA_HANDLER).unwrap();
+    let _eureka_handler_address = Address::from_str(EUREKA_HANDLER).unwrap();
     let wbtc_whale_address = Address::from_str(WBTC_WHALE).unwrap();
 
     let wbtc_contract = MockERC20::new(wbtc_token_address, eth_rp);
@@ -227,8 +227,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         authorization_contract_address,
         wbtc_token_address,
         neutron_program_accounts.deposit.to_string(),
-        EUREKA_HANDLER_SRC_CLIENT.to_string(),
-        eureka_handler_address,
     )?;
 
     let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());

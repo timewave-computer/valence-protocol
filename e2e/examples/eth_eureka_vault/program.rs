@@ -5,20 +5,26 @@ use localic_utils::{
     NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 use log::info;
-use valence_e2e::utils::{
-    astroport::{setup_astroport_lper_lib, setup_astroport_lwer_lib},
-    base_account::{approve_library, create_base_accounts},
-    manager::{
-        ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME, BASE_ACCOUNT_NAME, FORWARDER_NAME,
-        NEUTRON_IBC_TRANSFER_NAME,
+use valence_e2e::{
+    async_run,
+    utils::{
+        astroport::{setup_astroport_lper_lib, setup_astroport_lwer_lib},
+        base_account::{approve_library, create_base_accounts},
+        manager::{
+            ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME, BASE_ACCOUNT_NAME, FORWARDER_NAME,
+            NEUTRON_IBC_TRANSFER_NAME,
+        },
+        vault::{setup_liquidation_fwd_lib, setup_neutron_ibc_transfer_lib},
+        LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
     },
-    vault::{setup_liquidation_fwd_lib, setup_neutron_ibc_transfer_lib},
-    LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
 };
 use valence_ibc_utils::types::EurekaConfig;
 use valence_library_utils::liquidity_utils::AssetData;
 
-use crate::{strategist::strategy_config, VAULT_NEUTRON_CACHE_PATH};
+use crate::{
+    strategist::{routing::query_skip_eureka_route, strategy_config},
+    VAULT_NEUTRON_CACHE_PATH,
+};
 
 pub fn upload_neutron_contracts(test_ctx: &mut TestContext) -> Result<(), Box<dyn Error>> {
     // copy over relevant contracts from artifacts/ to local path
@@ -141,6 +147,20 @@ pub fn setup_neutron_libraries(
         None,
     );
 
+    let rt = tokio::runtime::Runtime::new()?;
+    let skip_api_response = async_run!(
+        rt,
+        query_skip_eureka_route(
+            "cosmoshub-4",
+            "ibc/D742E8566B0B8CC8F569D950051C09CF57988A88F0E45574BFB3079D41DE6462",
+            "1",
+            "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+            "100000000".to_string(),
+        )
+        .await
+    )
+    .unwrap();
+
     // library to move USDC from the withdraw account on neutron
     // into a program-owned ICA on noble
     let neutron_ibc_transfer_lib = setup_neutron_ibc_transfer_lib(
@@ -152,15 +172,14 @@ pub fn setup_neutron_libraries(
         processor.to_string(),
         GAIA_CHAIN_NAME, // dest chain name
         Some(EurekaConfig {
-            // mainnet hub callback contract, pull from query
-            callback_contract: "cosmos1lqu9662kd4my6dww4gzp3730vew0gkwe0nl9ztjh0n5da0a8zc4swsvd22"
-                .to_string(),
-            // mainnet hub action contract, pull from query
-            action_contract: "cosmos1clswlqlfm8gpn7n5wu0ypu0ugaj36urlhj7yz30hn7v7mkcm2tuqy9f8s5"
-                .to_string(),
+            // mainnet hub callback contract
+            callback_contract: skip_api_response.callback_adapter_contract_address,
+            // mainnet hub action contract
+            action_contract: skip_api_response.entry_contract_address,
+            // hardcoded for now, in the future this should be updated to a program-owned ICA
             recover_address: GAIA_CHAIN_ADMIN_ADDR.to_string(),
             // mainnet hub
-            source_channel: "08-wasm-1369".to_string(), // pull from query
+            source_channel: skip_api_response.source_client,
             memo: None,
             timeout: None,
         }),

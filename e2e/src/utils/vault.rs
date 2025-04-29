@@ -9,8 +9,7 @@ use cosmwasm_std_old::Coin as BankCoin;
 use localic_std::modules::{bank, cosmwasm::contract_instantiate};
 use localic_utils::{
     utils::{ethereum::EthClient, test_context::TestContext},
-    DEFAULT_KEY, GAIA_CHAIN_ADMIN_ADDR, GAIA_CHAIN_NAME, NEUTRON_CHAIN_ADMIN_ADDR,
-    NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
+    DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 use log::{info, warn};
 use valence_chain_client_utils::{

@@ -5,8 +5,7 @@ use alloy::{
     transports::http::reqwest,
 };
 use async_trait::async_trait;
-use chrono::Timelike;
-use cosmwasm_std::{Coin, Timestamp, Uint128};
+use cosmwasm_std::{Coin, Uint128};
 use localic_utils::{GAIA_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM};
 use log::{error, info, warn};
 use valence_chain_client_utils::{
@@ -191,10 +190,11 @@ impl EurekaVaultRouting for Strategy {
             skip_response
         );
 
-        let dt: chrono::DateTime<chrono::Utc> =
+        let expiration_seconds =
             chrono::DateTime::parse_from_rfc3339(&skip_response.smart_relay_fee_quote.expiration)
                 .unwrap()
-                .with_timezone(&chrono::Utc);
+                .with_timezone(&chrono::Utc)
+                .timestamp() as u64;
 
         let eureka_fees_cfg = IEurekaHandler::Fees {
             relayFee: U256::from_str(&skip_response.smart_relay_fee_quote.fee_amount).unwrap(),
@@ -202,7 +202,7 @@ impl EurekaVaultRouting for Strategy {
                 &skip_response.smart_relay_fee_quote.fee_payment_address,
             )
             .unwrap(),
-            quoteExpiry: dt.timestamp() as u64,
+            quoteExpiry: expiration_seconds,
         };
 
         // build the eureka route request body
@@ -290,10 +290,11 @@ impl EurekaVaultRouting for Strategy {
             skip_response
         );
 
-        let dt: chrono::DateTime<chrono::Utc> =
+        let expiration_seconds =
             chrono::DateTime::parse_from_rfc3339(&skip_response.smart_relay_fee_quote.expiration)
                 .unwrap()
-                .with_timezone(&chrono::Utc);
+                .with_timezone(&chrono::Utc)
+                .timestamp() as u64;
 
         let eureka_fee = EurekaFee {
             coin: Coin {
@@ -301,7 +302,7 @@ impl EurekaVaultRouting for Strategy {
                 amount: Uint128::from_str(&skip_response.smart_relay_fee_quote.fee_amount).unwrap(),
             },
             receiver: skip_response.smart_relay_fee_quote.fee_payment_address,
-            timeout_timestamp: dt.timestamp() as u64,
+            timeout_timestamp: expiration_seconds,
         };
 
         info!("Initiating neutron ibc transfer");
@@ -355,7 +356,7 @@ impl EurekaVaultRouting for Strategy {
     }
 }
 
-async fn query_skip_eureka_route(
+pub(crate) async fn query_skip_eureka_route(
     src_chain_id: &str,
     src_asset_denom: &str,
     dest_chain_id: &str,

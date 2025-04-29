@@ -18,7 +18,7 @@ use valence_e2e::{
 };
 use valence_encoder_utils::libraries::ibc_eureka_transfer::solidity_types::IBCEurekaTransferConfig;
 
-use crate::strategist::strategy_config;
+use crate::strategist::{routing::query_skip_eureka_route, strategy_config};
 
 pub fn setup_eth_accounts(
     rt: &tokio::runtime::Runtime,
@@ -59,8 +59,6 @@ pub(crate) fn setup_eth_libraries(
     ntrn_authorizations_addr: String,
     wbtc_token_address: Address,
     neutron_deposit_account: String,
-    source_client: String,
-    eureka_handler: Address,
 ) -> Result<strategy_config::ethereum::EthereumLibraries, Box<dyn Error>> {
     info!("Setting up Lite Processor on Ethereum");
     let lite_processor_address =
@@ -83,9 +81,6 @@ pub(crate) fn setup_eth_libraries(
         wbtc_token_address,
         Address::from_str(&eth_program_accounts.deposit).unwrap(),
         neutron_deposit_account,
-        source_client,
-        30,
-        eureka_handler,
     )?;
 
     let fee_config = FeeConfig {
@@ -143,13 +138,31 @@ pub fn setup_eureka_forwarder(
     transfer_token: Address,
     input_acc: Address,
     recipient: String,
-    source_client: String,
-    timeout: u64,
-    eureka_handler: Address,
 ) -> Result<Address, Box<dyn Error>> {
     let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
 
     info!("deploying Eureka transfer lib on Ethereum...");
+
+    let inner_rt = tokio::runtime::Runtime::new()?;
+    let skip_api_response = async_run!(
+        inner_rt,
+        query_skip_eureka_route(
+            "1",
+            "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+            "cosmoshub-4",
+            "ibc/D742E8566B0B8CC8F569D950051C09CF57988A88F0E45574BFB3079D41DE6462",
+            "100000000".to_string(),
+        )
+        .await
+    )
+    .unwrap();
+
+    info!("skip api evm route query response: {:?}", skip_api_response);
+    let expiration_seconds =
+        chrono::DateTime::parse_from_rfc3339(&skip_api_response.smart_relay_fee_quote.expiration)
+            .unwrap()
+            .with_timezone(&chrono::Utc)
+            .timestamp() as u64;
 
     let cfg = IBCEurekaTransferConfig {
         amount: U256::ZERO,
@@ -158,10 +171,10 @@ pub fn setup_eureka_forwarder(
         )?,
         inputAccount: alloy_primitives_encoder::Address::from_str(input_acc.to_string().as_str())?,
         recipient,
-        sourceClient: source_client,
-        timeout,
+        sourceClient: skip_api_response.source_client,
+        timeout: expiration_seconds,
         eurekaHandler: alloy_primitives_encoder::Address::from_str(
-            eureka_handler.to_string().as_str(),
+            &skip_api_response.entry_contract_address,
         )?,
     };
 
