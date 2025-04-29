@@ -106,6 +106,12 @@ sol!(
     "../solidity/out/MockERC20.sol/MockERC20.json",
 );
 
+sol!(
+    #[sol(rpc)]
+    ERC20,
+    "../solidity/out/ERC20.sol/ERC20.json",
+);
+
 // Mock CCTP messenger
 sol!(
     #[sol(rpc)]
