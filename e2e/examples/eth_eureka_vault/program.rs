@@ -185,8 +185,6 @@ pub fn setup_neutron_libraries(
         }),
     )?;
 
-    info!("neutron ibc transfer library: {neutron_ibc_transfer_lib}");
-
     let libraries = strategy_config::neutron::NeutronLibraries {
         astroport_lper: astro_lper_lib,
         astroport_lwer: astro_lwer_lib,

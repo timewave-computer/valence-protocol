@@ -18,9 +18,17 @@ use localic_utils::{
 use log::{info, warn};
 
 use program::{setup_neutron_libraries, upload_neutron_contracts};
-use strategist::{strategy::Strategy, strategy_config::StrategyConfig};
+use strategist::{
+    strategy::Strategy,
+    strategy_config::{
+        ethereum::{EthereumDenoms, EthereumStrategyConfig},
+        neutron::{NeutronDenoms, NeutronStrategyConfig},
+        StrategyConfig,
+    },
+};
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
+    ethereum::EthereumClient,
     evm::{
         anvil::AnvilImpersonationClient, base_client::EvmBaseClient,
         request_provider_client::RequestProviderClient,
@@ -49,92 +57,58 @@ mod strategist;
 
 const WBTC_ERC20: &str = "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599";
 const WBTC_WHALE: &str = "0x70FBb965302D50D1783a2337Cb115B30Ae9C4638";
-const EUREKA_HANDLER: &str = "0xfc2d0487a0ae42ae7329a80dc269916a9184cf7c";
-const _EUREKA_HANDLER_SRC_CLIENT: &str = "cosmoshub-0";
-const WBTC_NEUTRON_DENOM: &str = "WBTC";
+const WBTC_NEUTRON_SUBDENOM: &str = "WBTC";
 const VAULT_NEUTRON_CACHE_PATH: &str = "e2e/examples/eth_eureka_vault/neutron_contracts/";
+const WBTC_NEUTRON_DENOM: &str = "factory/neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky/WBTC";
+const ETH_MAINNET_FORK_URL: &str = "https://eth-mainnet.public.blastapi.io";
+const EVM_MNEMONIC: &str = "test test test test test test test test test test test junk";
+const COSMOS_MNEMONIC: &str = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry";
 
-// #[tokio::main]
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
+
     let rt = tokio::runtime::Runtime::new()?;
-
-    // first we work the eth mainnet and set up an anvil env with it
-    let fork_url = "https://eth-mainnet.public.blastapi.io";
-
     async_run!(
         rt,
-        set_up_anvil_container(ANVIL_NAME, DEFAULT_ANVIL_PORT, Some(fork_url))
+        set_up_anvil_container(ANVIL_NAME, DEFAULT_ANVIL_PORT, Some(ETH_MAINNET_FORK_URL))
             .await
             .unwrap()
     );
 
-    let eth_client = valence_chain_client_utils::ethereum::EthereumClient::new(
-        DEFAULT_ANVIL_RPC_ENDPOINT,
-        "test test test test test test test test test test test junk",
-    )
-    .unwrap();
+    let eth_client = EthereumClient::new(DEFAULT_ANVIL_RPC_ENDPOINT, EVM_MNEMONIC).unwrap();
 
     let eth = EthClient::new(DEFAULT_ANVIL_RPC_ENDPOINT)?;
 
     let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
 
-    let eth_accounts = async_run!(rt, eth_client.get_provider_accounts().await.unwrap());
-    let eth_admin_acc = eth_accounts[0];
-
-    let ethereum_program_accounts = setup_eth_accounts(&rt, &eth_client, eth_admin_acc)?;
-
-    let eth_admin_acc = eth_accounts[0];
-    let _eth_user_acc = eth_accounts[2];
     let strategist_acc = Address::from_str("0x14dc79964da2c08b23698b3d3cc7ca32193d9955").unwrap();
-
-    let admin_balance = async_run!(
-        rt,
-        eth_client
-            .query_balance(&eth_admin_acc.to_string())
-            .await
-            .unwrap()
-    );
-
-    info!("admin balance: {:?}", admin_balance);
-
     let wbtc_token_address = Address::from_str(WBTC_ERC20).unwrap();
-    let _eureka_handler_address = Address::from_str(EUREKA_HANDLER).unwrap();
-    let wbtc_whale_address = Address::from_str(WBTC_WHALE).unwrap();
-
     let wbtc_contract = MockERC20::new(wbtc_token_address, eth_rp);
 
-    let whale_wbtc_balance = async_run!(
-        rt,
-        eth_client
-            .query(wbtc_contract.balanceOf(wbtc_whale_address))
-            .await
-    )?;
-
-    info!("wbtc whale balance: {:?}", whale_wbtc_balance._0);
+    let eth_accounts = async_run!(rt, eth_client.get_provider_accounts().await.unwrap());
+    let eth_admin_acc = eth_accounts[0];
+    let ethereum_program_accounts = setup_eth_accounts(&rt, &eth_client, eth_admin_acc)?;
 
     let (neutron_grpc_url, neutron_grpc_port) = get_grpc_address_and_port_from_url(
         &get_chain_field_from_local_ic_log(NEUTRON_CHAIN_ID, "grpc_address")?,
     )?;
 
-    info!("neutron grpc: {neutron_grpc_url}");
-    info!("neutron grpc port: {neutron_grpc_port}");
-
-    let neutron_client = async_run!(rt, NeutronClient::new(
-        &neutron_grpc_url,
-        &neutron_grpc_port,
-        "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry",
-        NEUTRON_CHAIN_ID,
-    )
-    .await)?;
+    let neutron_client = async_run!(
+        rt,
+        NeutronClient::new(
+            &neutron_grpc_url,
+            &neutron_grpc_port,
+            COSMOS_MNEMONIC,
+            NEUTRON_CHAIN_ID,
+        )
+        .await
+    )?;
 
     async_run!(rt, tokio::time::sleep(Duration::from_secs(3)).await);
-    info!("neutron client ready!");
 
-    async_run!(
-        rt,
+    async_run!(rt, {
         match neutron_client
-            .create_tokenfactory_denom(WBTC_NEUTRON_DENOM)
+            .create_tokenfactory_denom(WBTC_NEUTRON_SUBDENOM)
             .await
         {
             Ok(tf_create_rx) => {
@@ -144,27 +118,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                     .unwrap();
             }
             Err(e) => warn!("tokenfactory denom already exists: {:?}", e),
-        }
-    );
-
-    let wbtc_on_neutron = format!("factory/{NEUTRON_CHAIN_ADMIN_ADDR}/WBTC");
-
-    async_run!(rt, {
+        };
         let tf_mint_rx = neutron_client
             .mint_tokenfactory_tokens(
-                WBTC_NEUTRON_DENOM,
+                WBTC_NEUTRON_SUBDENOM,
                 100_000_000_000,
                 Some(NEUTRON_CHAIN_ADMIN_ADDR),
             )
             .await
             .unwrap();
         neutron_client.poll_for_tx(&tf_mint_rx.hash).await.unwrap();
-        let neutron_admin_wbtc_balance = neutron_client
-            .query_balance(NEUTRON_CHAIN_ADMIN_ADDR, &wbtc_on_neutron)
-            .await
-            .unwrap();
-
-        info!("neutron admin wbtc balance: {neutron_admin_wbtc_balance}");
     });
 
     let mut test_ctx = TestContextBuilder::default()
@@ -179,9 +142,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // setup astroport
     let (pool_addr, lp_token) =
-        setup_astroport_cl_pool(&mut test_ctx, wbtc_on_neutron.to_string())?;
-
-    info!("BTC-NTRN cl pool: {:?}", pool_addr);
+        setup_astroport_cl_pool(&mut test_ctx, WBTC_NEUTRON_DENOM.to_string())?;
 
     // set up the authorization and processor contracts on neutron
     let (authorization_contract_address, neutron_processor_address) =
@@ -205,7 +166,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &pool_addr,
         &authorization_contract_address,
         &neutron_processor_address,
-        &wbtc_on_neutron,
+        WBTC_NEUTRON_DENOM,
         ethereum_program_accounts.withdraw.to_string(),
         &lp_token,
     )?;
@@ -249,52 +210,44 @@ fn main() -> Result<(), Box<dyn Error>> {
     eth_users.add_user(&rt, &eth_client, eth_accounts[9]);
 
     // use the wbtc whale to fund the users
-
-    let fund_user_0_msg = wbtc_contract
-        .transfer(eth_users.users[0], user_0_deposit_amount)
-        .into_transaction_request();
-    let fund_user_1_msg = wbtc_contract
-        .transfer(eth_users.users[1], user_1_deposit_amount)
-        .into_transaction_request();
-    let fund_user_2_msg = wbtc_contract
-        .transfer(eth_users.users[2], user_2_deposit_amount)
-        .into_transaction_request();
-    let fund_user_3_msg = wbtc_contract
-        .transfer(eth_users.users[3], user_3_deposit_amount)
-        .into_transaction_request();
-
     async_run!(rt, {
-        let whale_balance = eth_client
-            .query(wbtc_contract.balanceOf(wbtc_whale_address))
-            .await
-            .unwrap()
-            ._0;
-        let whale_eth_balance = eth_client.query_balance(WBTC_WHALE).await.unwrap();
-        info!("starting whale balance: {whale_balance}WBTC, {whale_eth_balance}ETH");
         info!("funding eth users with WBTC...");
         eth_client
-            .execute_tx_as(WBTC_WHALE, fund_user_0_msg)
+            .execute_tx_as(
+                WBTC_WHALE,
+                wbtc_contract
+                    .transfer(eth_users.users[0], user_0_deposit_amount)
+                    .into_transaction_request(),
+            )
             .await
             .unwrap();
         eth_client
-            .execute_tx_as(WBTC_WHALE, fund_user_1_msg)
+            .execute_tx_as(
+                WBTC_WHALE,
+                wbtc_contract
+                    .transfer(eth_users.users[1], user_1_deposit_amount)
+                    .into_transaction_request(),
+            )
             .await
             .unwrap();
         eth_client
-            .execute_tx_as(WBTC_WHALE, fund_user_2_msg)
+            .execute_tx_as(
+                WBTC_WHALE,
+                wbtc_contract
+                    .transfer(eth_users.users[2], user_2_deposit_amount)
+                    .into_transaction_request(),
+            )
             .await
             .unwrap();
         eth_client
-            .execute_tx_as(WBTC_WHALE, fund_user_3_msg)
+            .execute_tx_as(
+                WBTC_WHALE,
+                wbtc_contract
+                    .transfer(eth_users.users[3], user_3_deposit_amount)
+                    .into_transaction_request(),
+            )
             .await
             .unwrap();
-        let whale_balance = eth_client
-            .query(wbtc_contract.balanceOf(wbtc_whale_address))
-            .await
-            .unwrap()
-            ._0;
-        let whale_eth_balance = eth_client.query_balance(WBTC_WHALE).await.unwrap();
-        info!("post-funding whale balance: {whale_balance}WBTC, {whale_eth_balance}ETH");
     });
     // TODO: start eureka relayer
 
@@ -302,20 +255,26 @@ fn main() -> Result<(), Box<dyn Error>> {
     sleep(Duration::from_secs(3));
 
     let strategy_config = StrategyConfig {
-        neutron: strategist::strategy_config::neutron::NeutronStrategyConfig {
+        neutron: NeutronStrategyConfig {
             grpc_url: neutron_grpc_url,
             grpc_port: neutron_grpc_port,
             chain_id: NEUTRON_CHAIN_ID.to_string(),
-            mnemonic: "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry".to_string(),
+            mnemonic: COSMOS_MNEMONIC.to_string(),
             target_pool: pool_addr,
-            denoms: strategist::strategy_config::neutron::NeutronDenoms { lp_token: lp_token.to_string(), wbtc: wbtc_on_neutron, ntrn: NEUTRON_CHAIN_DENOM.to_string() },
+            denoms: NeutronDenoms {
+                lp_token: lp_token.to_string(),
+                wbtc: WBTC_NEUTRON_DENOM.to_string(),
+                ntrn: NEUTRON_CHAIN_DENOM.to_string(),
+            },
             accounts: neutron_program_accounts,
             libraries: neutron_program_libraries,
         },
-        ethereum: strategist::strategy_config::ethereum::EthereumStrategyConfig {
+        ethereum: EthereumStrategyConfig {
             rpc_url: DEFAULT_ANVIL_RPC_ENDPOINT.to_string(),
-            mnemonic: "test test test test test test test test test test test junk".to_string(),
-            denoms: strategist::strategy_config::ethereum::EthereumDenoms { wbtc: WBTC_ERC20.to_string() },
+            mnemonic: EVM_MNEMONIC.to_string(),
+            denoms: EthereumDenoms {
+                wbtc: WBTC_ERC20.to_string(),
+            },
             accounts: ethereum_program_accounts.clone(),
             libraries: ethereum_program_libraries.clone(),
         },
