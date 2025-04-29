@@ -6,7 +6,7 @@ pub mod hyperlane;
 pub mod ibc;
 pub mod icq;
 pub mod manager;
-pub mod mock_cctp_relayer;
+pub mod mocks;
 pub mod osmosis;
 pub mod parse;
 pub mod persistence;

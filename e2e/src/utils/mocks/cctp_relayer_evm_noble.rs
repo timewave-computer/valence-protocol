@@ -11,9 +11,11 @@ use alloy::{
 use async_trait::async_trait;
 
 use crate::utils::{
-    parse::get_chain_field_from_local_ic_log,
+    parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
     solidity_contracts::{MockERC20, MockTokenMessenger::DepositForBurn},
-    NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_ID, UUSDC_DENOM,
+    worker::ValenceWorker,
+    ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM,
+    NOBLE_CHAIN_ID, UUSDC_DENOM,
 };
 use bech32::{encode, Bech32};
 use cosmwasm_std::{from_base64, Uint128};
@@ -26,14 +28,9 @@ use valence_chain_client_utils::{
     noble::NobleClient,
 };
 
-use super::{
-    parse::get_grpc_address_and_port_from_url, worker::ValenceWorker, ADMIN_MNEMONIC,
-    DEFAULT_ANVIL_RPC_ENDPOINT, NOBLE_CHAIN_DENOM,
-};
-
 const POLLING_PERIOD: Duration = Duration::from_secs(5);
 
-pub struct MockCctpRelayer {
+pub struct MockCctpRelayerEvmNoble {
     pub state: RelayerState,
     pub runtime: RelayerRuntime,
 }
@@ -89,7 +86,7 @@ pub struct RelayerState {
 }
 
 #[async_trait]
-impl ValenceWorker for MockCctpRelayer {
+impl ValenceWorker for MockCctpRelayerEvmNoble {
     fn get_name(&self) -> String {
         "Mock CCTP Relayer: ETH-NOBLE".to_string()
     }
@@ -114,7 +111,7 @@ impl ValenceWorker for MockCctpRelayer {
     }
 }
 
-impl MockCctpRelayer {
+impl MockCctpRelayerEvmNoble {
     pub async fn new(
         messenger: Address,
         destination_erc20: Address,

@@ -47,11 +47,11 @@ pub enum FunctionMsgs {
     RepayWithShares { amount: Uint256 },
 }
 
-type StargateTransferMsg = ExecuteMsg<FunctionMsgs, LibraryConfig>;
+type AavePositionManagerMsg = ExecuteMsg<FunctionMsgs, LibraryConfig>;
 
 pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
     // Extract the message from the binary and verify that it parses into a valid json for the library
-    let msg: StargateTransferMsg = serde_json::from_slice(msg.as_slice()).map_err(|_| {
+    let msg: AavePositionManagerMsg = serde_json::from_slice(msg.as_slice()).map_err(|_| {
         StdError::generic_err("Message sent is not a valid message for this library!".to_string())
     })?;
 
