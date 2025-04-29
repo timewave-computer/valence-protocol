@@ -5,8 +5,9 @@ use alloy::{
     transports::http::reqwest,
 };
 use async_trait::async_trait;
-use cosmwasm_std::{Coin, Uint128};
-use localic_utils::NEUTRON_CHAIN_DENOM;
+use chrono::Timelike;
+use cosmwasm_std::{Coin, Timestamp, Uint128};
+use localic_utils::{GAIA_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM};
 use log::{error, info, warn};
 use valence_chain_client_utils::{
     cosmos::{base_client::BaseClient, wasm_client::WasmClient},
@@ -190,16 +191,48 @@ impl EurekaVaultRouting for Strategy {
             skip_response
         );
 
+        let dt: chrono::DateTime<chrono::Utc> =
+            chrono::DateTime::parse_from_rfc3339(&skip_response.smart_relay_fee_quote.expiration)
+                .unwrap()
+                .with_timezone(&chrono::Utc);
+
         let eureka_fees_cfg = IEurekaHandler::Fees {
             relayFee: U256::from_str(&skip_response.smart_relay_fee_quote.fee_amount).unwrap(),
             relayFeeRecipient: Address::from_str(
                 &skip_response.smart_relay_fee_quote.fee_payment_address,
             )
             .unwrap(),
-            quoteExpiry: skip_response.timeout,
+            quoteExpiry: dt.timestamp() as u64,
         };
+
+        // build the eureka route request body
+        let hub_to_neutron_pfm = serde_json::json!({
+            "dest_callback":{
+                "address":"cosmos1lqu9662kd4my6dww4gzp3730vew0gkwe0nl9ztjh0n5da0a8zc4swsvd22"
+            },
+            "wasm":{
+                "contract":"cosmos1clswlqlfm8gpn7n5wu0ypu0ugaj36urlhj7yz30hn7v7mkcm2tuqy9f8s5",
+                "msg":{
+                    "action":{
+                        "action":{
+                            "ibc_transfer":{
+                                "ibc_info":{
+                                    "memo":"",
+                                    "receiver": self.cfg.neutron.accounts.deposit,
+                                    "recover_address": GAIA_CHAIN_ADMIN_ADDR,
+                                    "source_channel":"channel-569" //gaia-ntrn transfer channel
+                                }
+                            }
+                        },
+                        "exact_out":false,
+                        "timeout_timestamp": skip_response.timeout.to_string()
+                    }
+                }
+            }
+        });
+
         let eureka_transfer_msg = eureka_transfer_lib
-            .transfer(eureka_fees_cfg, "memo".into())
+            .transfer(eureka_fees_cfg, hub_to_neutron_pfm.to_string())
             .into_transaction_request();
 
         self.eth_client
@@ -257,13 +290,18 @@ impl EurekaVaultRouting for Strategy {
             skip_response
         );
 
+        let dt: chrono::DateTime<chrono::Utc> =
+            chrono::DateTime::parse_from_rfc3339(&skip_response.smart_relay_fee_quote.expiration)
+                .unwrap()
+                .with_timezone(&chrono::Utc);
+
         let eureka_fee = EurekaFee {
             coin: Coin {
                 denom: skip_response.smart_relay_fee_quote.fee_denom,
                 amount: Uint128::from_str(&skip_response.smart_relay_fee_quote.fee_amount).unwrap(),
             },
             receiver: skip_response.smart_relay_fee_quote.fee_payment_address,
-            timeout_timestamp: skip_response.timeout,
+            timeout_timestamp: dt.timestamp() as u64,
         };
 
         info!("Initiating neutron ibc transfer");

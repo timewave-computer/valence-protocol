@@ -384,6 +384,7 @@ pub fn setup_liquidation_fwd_lib(
     Ok(liquidation_forwarder.address)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn setup_neutron_ibc_transfer_lib(
     test_ctx: &mut TestContext,
     input_account: String,

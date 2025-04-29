@@ -145,17 +145,22 @@ pub fn setup_neutron_libraries(
     // into a program-owned ICA on noble
     let neutron_ibc_transfer_lib = setup_neutron_ibc_transfer_lib(
         test_ctx,
-        neutron_program_accounts.withdraw.to_string(),
-        eth_withdraw_acc,
-        wbtc_on_neutron,
+        neutron_program_accounts.withdraw.to_string(), // input acc
+        eth_withdraw_acc,                              // output acc
+        wbtc_on_neutron,                               // denom
         authorizations.to_string(),
         processor.to_string(),
-        GAIA_CHAIN_NAME,
+        GAIA_CHAIN_NAME, // dest chain name
         Some(EurekaConfig {
-            callback_contract: "todo".to_string(),
-            action_contract: "todo".to_string(),
+            // mainnet hub callback contract, pull from query
+            callback_contract: "cosmos1lqu9662kd4my6dww4gzp3730vew0gkwe0nl9ztjh0n5da0a8zc4swsvd22"
+                .to_string(),
+            // mainnet hub action contract, pull from query
+            action_contract: "cosmos1clswlqlfm8gpn7n5wu0ypu0ugaj36urlhj7yz30hn7v7mkcm2tuqy9f8s5"
+                .to_string(),
             recover_address: GAIA_CHAIN_ADMIN_ADDR.to_string(),
-            source_channel: "todo".to_string(),
+            // mainnet hub
+            source_channel: "08-wasm-1369".to_string(), // pull from query
             memo: None,
             timeout: None,
         }),
