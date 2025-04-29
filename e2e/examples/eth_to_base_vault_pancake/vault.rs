@@ -1,14 +1,25 @@
 use std::{error::Error, str::FromStr};
 
-use alloy::primitives::Address;
+use alloy::primitives::{Address, U256};
 use base::set_up_base_accounts;
 use ethereum::set_up_eth_accounts;
 use log::info;
 use valence_chain_client_utils::{
     ethereum::EthereumClient,
-    evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
+    evm::{
+        anvil::AnvilImpersonationClient, base_client::EvmBaseClient,
+        request_provider_client::RequestProviderClient,
+    },
 };
-use valence_e2e::utils::{ethereum::set_up_anvil_container, solidity_contracts::BaseAccount};
+use valence_e2e::utils::{
+    ethereum::set_up_anvil_container,
+    mocks::{
+        cctp_relayer_evm_evm::MockCctpRelayerEvmEvm,
+        standard_bridge_relayer::MockStandardBridgeRelayer,
+    },
+    solidity_contracts::{BaseAccount, ERC20},
+    worker::ValenceWorker,
+};
 
 const ETH_FORK_URL: &str = "https://eth-mainnet.public.blastapi.io";
 const ETH_ANVIL_PORT: &str = "1337";
@@ -41,17 +52,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Set up the Anvil container for Base
     set_up_anvil_container("anvil_base", BASE_ANVIL_PORT, Some(BASE_FORK_URL)).await?;
 
+    let endpoint_eth = format!("http://127.0.0.1:{}", ETH_ANVIL_PORT);
+    let endpoint_base = format!("http://127.0.0.1:{}", BASE_ANVIL_PORT);
+
     // Create an Ethereum client
-    let eth_client = EthereumClient::new(
-        format!("http://127.0.0.1:{}", ETH_ANVIL_PORT).as_str(),
-        TEST_MNEMONIC,
-    )?;
+    let eth_client = EthereumClient::new(&endpoint_eth, TEST_MNEMONIC)?;
 
     // Create a Base client
-    let base_client = EthereumClient::new(
-        format!("http://127.0.0.1:{}", BASE_ANVIL_PORT).as_str(),
-        TEST_MNEMONIC,
-    )?;
+    let base_client = EthereumClient::new(&endpoint_base, TEST_MNEMONIC)?;
 
     let strategist_acc = Address::from_str("0x14dc79964da2c08b23698b3d3cc7ca32193d9955")?;
     // Get an admin account for Ethereum
@@ -95,6 +103,90 @@ async fn main() -> Result<(), Box<dyn Error>> {
     .await?;
 
     info!("Base libraries set up successfully: {:?}", base_libraries);
+
+    info!("Setting up mock relayers for Standard Bridge and CCTP...");
+    let weth_whale_on_eth = "0x57757E3D981446D585Af0D9Ae4d7DF6D64647806";
+    let weth_whale_on_base = "0xbcb375D0599896Fedfa8D8f82cF6ede0754BF1b6";
+    let usdc_whale_on_eth = "0x28C6c06298d514Db089934071355E5743bf21d60";
+    let usdc_whale_on_base = "0x3304E22DDaa22bCdC5fCa2269b418046aE7b566A";
+
+    let mock_standard_bridge_relayer_addr =
+        Address::from_str("0x976EA74026E726554dB657fA54763abd0C3a0aa9")?;
+    let mock_cctp_relayer_addr = Address::from_str("0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc")?;
+
+    let standard_bridge_eth = Address::from_str(L1_STANDARD_BRIDGE_ADDRESS)?;
+    let cctp_token_messenger_eth = Address::from_str(CCTP_TOKEN_MESSENGER_ON_ETHEREUM)?;
+    let standard_bridge_base = Address::from_str(L2_STANDARD_BRIDGE_ADDRESS)?;
+    let cctp_token_messenger_base = Address::from_str(CCTP_TOKEN_MESSENGER_ON_BASE)?;
+
+    // Fund them with enough tokens
+    let weth_amount_to_fund = 100e18;
+    let usdc_amount_to_fund = 1000000e6;
+
+    let usdc_address_eth = Address::from_str(USDC_ADDRESS_ON_ETHEREUM)?;
+    let weth_address_eth = Address::from_str(WETH_ADDRESS_ON_ETHEREUM)?;
+    let usdc_address_base = Address::from_str(USDC_ADDRESS_ON_BASE)?;
+    let weth_address_base = Address::from_str(WETH_ADDRESS_ON_BASE)?;
+
+    let usdc_on_eth = ERC20::new(usdc_address_eth, eth_client.get_request_provider().await?);
+    let send_tx = usdc_on_eth
+        .transfer(mock_cctp_relayer_addr, U256::from(usdc_amount_to_fund))
+        .into_transaction_request();
+    eth_client.execute_tx_as(usdc_whale_on_eth, send_tx).await?;
+    let usdc_on_base = ERC20::new(usdc_address_base, base_client.get_request_provider().await?);
+    let send_tx = usdc_on_base
+        .transfer(mock_cctp_relayer_addr, U256::from(usdc_amount_to_fund))
+        .into_transaction_request();
+    base_client
+        .execute_tx_as(usdc_whale_on_base, send_tx)
+        .await?;
+
+    let weth_on_eth = ERC20::new(weth_address_eth, eth_client.get_request_provider().await?);
+    let send_tx = weth_on_eth
+        .transfer(
+            mock_standard_bridge_relayer_addr,
+            U256::from(weth_amount_to_fund),
+        )
+        .into_transaction_request();
+    eth_client.execute_tx_as(weth_whale_on_eth, send_tx).await?;
+    let weth_on_base = ERC20::new(weth_address_base, base_client.get_request_provider().await?);
+    let send_tx = weth_on_base
+        .transfer(
+            mock_standard_bridge_relayer_addr,
+            U256::from(weth_amount_to_fund),
+        )
+        .into_transaction_request();
+    base_client
+        .execute_tx_as(weth_whale_on_base, send_tx)
+        .await?;
+    info!("Mock relayers funded successfully");
+
+    info!("Starting relayers...");
+    let mock_cctp_relayer = MockCctpRelayerEvmEvm::new(
+        endpoint_eth.clone(),
+        endpoint_base.clone(),
+        cctp_token_messenger_eth,
+        usdc_address_eth,
+        cctp_token_messenger_base,
+        usdc_address_base,
+    )
+    .await?;
+    mock_cctp_relayer.start();
+
+    let mock_standard_bridge_relayer = MockStandardBridgeRelayer::new(
+        endpoint_eth.clone(),
+        endpoint_base.clone(),
+        standard_bridge_eth,
+        weth_address_eth,
+        standard_bridge_base,
+        weth_address_base,
+    )
+    .await?;
+    mock_standard_bridge_relayer.start();
+    info!("Relayers started successfully");
+
+    // Sleep for a while
+    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
     Ok(())
 }
