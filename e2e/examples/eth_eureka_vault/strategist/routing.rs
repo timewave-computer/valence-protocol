@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{error::Error, str::FromStr};
 
 use alloy::{
     primitives::{Address, U256},
@@ -14,7 +14,10 @@ use valence_chain_client_utils::{
 };
 use valence_e2e::utils::solidity_contracts::{IBCEurekaTransfer, IEurekaHandler, MockERC20};
 use valence_forwarder_library::msg::UncheckedForwardingConfig;
-use valence_ibc_utils::types::EurekaFee;
+use valence_ibc_utils::types::{
+    eureka_types::{SkipEurekaRouteResponse, SmartRelayFeeQuote},
+    EurekaFee,
+};
 use valence_library_utils::denoms::UncheckedDenom;
 
 use super::strategy::Strategy;
@@ -172,40 +175,17 @@ impl EurekaVaultRouting for Strategy {
             .await
             .unwrap();
 
-        let skip_api_url = "https://go.skip.build/api/skip/v2/fungible/route";
+        let skip_response = query_skip_eureka_route(
+            "1",
+            "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+            "cosmoshub-4",
+            "ibc/D742E8566B0B8CC8F569D950051C09CF57988A88F0E45574BFB3079D41DE6462",
+            eth_deposit_acc_wbtc_u128.to_string(),
+        )
+        .await
+        .unwrap();
 
-        // build the eureka route request body
-        let skip_request_body = serde_json::json!({
-            "source_asset_chain_id": "1", // Ethereum chain ID
-            "source_asset_denom": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", // mainnet wbtc address
-            "dest_asset_chain_id": "cosmoshub-4", // mainnet gaia chain id
-            "dest_asset_denom": "ibc/D742E8566B0B8CC8F569D950051C09CF57988A88F0E45574BFB3079D41DE6462", // mainnet wbtc on the hub
-            "amount_in": eth_deposit_acc_wbtc_u128.to_string(),
-            "allow_unsafe": true,
-            "allow_multi_tx": true,
-            "go_fast": true,
-            "smart_relay": true,
-            "smart_swap_options": {
-                "split_routes": true,
-                "evm_swaps": true
-            },
-            "experimental_features": [
-                "eureka"
-            ]
-        });
-
-        // Make the HTTP request to the Skip API
-        let client = reqwest::Client::new();
-        let response = client
-            .post(skip_api_url)
-            .header("Content-Type", "application/json")
-            .json(&skip_request_body)
-            .send()
-            .await
-            .unwrap();
-
-        let skip_response = response.json::<serde_json::Value>().await.unwrap();
-        info!("Skip API response: {:?}", skip_response);
+        info!("Parsed Skip API response: {:?}", skip_response);
 
         let eureka_fees_cfg = IEurekaHandler::Fees {
             relayFee: U256::from(1),
@@ -256,39 +236,16 @@ impl EurekaVaultRouting for Strategy {
         self.ensure_neutron_account_fees_coverage(self.cfg.neutron.accounts.withdraw.to_string())
             .await;
 
-        let skip_api_url = "https://go.skip.build/api/skip/v2/fungible/route";
+        let skip_response = query_skip_eureka_route(
+            "cosmoshub-4",
+            "ibc/D742E8566B0B8CC8F569D950051C09CF57988A88F0E45574BFB3079D41DE6462",
+            "1",
+            "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+            withdraw_account_wbtc_bal.to_string(),
+        )
+        .await
+        .unwrap();
 
-        // build the eureka route request body
-        let skip_request_body = serde_json::json!({
-            "source_asset_chain_id": "cosmoshub-4", // mainnet hub chain id
-            "source_asset_denom": "ibc/D742E8566B0B8CC8F569D950051C09CF57988A88F0E45574BFB3079D41DE6462", // mainnet wbtc ics20
-            "dest_asset_chain_id": "1", // mainnet eth chain id
-            "dest_asset_denom": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", // mainnet wbtc erc20 on eth
-            "amount_in": withdraw_account_wbtc_bal.to_string(),
-            "allow_unsafe": true,
-            "allow_multi_tx": true,
-            "go_fast": true,
-            "smart_relay": true,
-            "smart_swap_options": {
-                "split_routes": true,
-                "evm_swaps": true
-            },
-            "experimental_features": [
-                "eureka"
-            ]
-        });
-
-        // Make the HTTP request to the Skip API
-        let client = reqwest::Client::new();
-        let response = client
-            .post(skip_api_url)
-            .header("Content-Type", "application/json")
-            .json(&skip_request_body)
-            .send()
-            .await
-            .unwrap();
-
-        let skip_response = response.json::<serde_json::Value>().await.unwrap();
         info!("Skip API response: {:?}", skip_response);
 
         let eureka_fee = EurekaFee {
@@ -348,4 +305,80 @@ impl EurekaVaultRouting for Strategy {
             Err(_) => warn!("failed to credit eth withdraw account; continue..."),
         }
     }
+}
+
+async fn query_skip_eureka_route(
+    src_chain_id: &str,
+    src_asset_denom: &str,
+    dest_chain_id: &str,
+    dest_chain_denom: &str,
+    amount: impl Into<String>,
+) -> Result<SkipEurekaRouteResponse, Box<dyn Error>> {
+    let skip_api_url = "https://go.skip.build/api/skip/v2/fungible/route";
+
+    // build the eureka route request body
+    let skip_request_body = serde_json::json!({
+        "source_asset_chain_id": src_chain_id,
+        "source_asset_denom": src_asset_denom,
+        "dest_asset_chain_id": dest_chain_id,
+        "dest_asset_denom": dest_chain_denom,
+        "amount_in": amount.into(),
+        "allow_unsafe": true,
+        "allow_multi_tx": true,
+        "go_fast": true,
+        "smart_relay": true,
+        "smart_swap_options": {
+            "split_routes": true,
+            "evm_swaps": true
+        },
+        "experimental_features": [
+            "eureka"
+        ]
+    });
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(skip_api_url)
+        .header("Content-Type", "application/json")
+        .json(&skip_request_body)
+        .send()
+        .await
+        .unwrap()
+        .json::<serde_json::Value>()
+        .await
+        .unwrap();
+
+    let op = &resp["operations"][0];
+    let transfer = &op["eureka_transfer"];
+
+    let fee_quote: SmartRelayFeeQuote =
+        serde_json::from_value(transfer["smart_relay_fee_quote"].clone())?;
+
+    let source_client = transfer["source_client"]
+        .as_str()
+        .ok_or("missing source_client in eureka_transfer")?
+        .to_string();
+
+    let callback_adapter_contract_address = transfer["callback_adapter_contract_address"]
+        .as_str()
+        .ok_or("missing callback_adapter_contract_address")?
+        .to_string();
+
+    let entry_contract_address = transfer["entry_contract_address"]
+        .as_str()
+        .ok_or("missing entry_contract_address")?
+        .to_string();
+
+    let secs = resp["estimated_route_duration_seconds"]
+        .as_u64()
+        .ok_or("missing estimated_route_duration_seconds")?;
+    let timeout = secs.checked_mul(1_000_000_000).ok_or("duration overflow")?;
+
+    Ok(SkipEurekaRouteResponse {
+        smart_relay_fee_quote: fee_quote,
+        timeout,
+        source_client,
+        callback_adapter_contract_address,
+        entry_contract_address,
+    })
 }
