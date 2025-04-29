@@ -185,8 +185,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
     mock_standard_bridge_relayer.start();
     info!("Relayers started successfully");
 
-    // Sleep for a while
-    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+    let mut ethereum_users = vec![];
+    for (i, account) in accounts_eth.iter().enumerate().take(4).skip(1) {
+        info!("Funding Ethereum user {}...", i);
+        ethereum_users.push(*account);
+        let send_tx = weth_on_eth
+            .transfer(
+                *account,
+                U256::from(1e18), // 1 WETH
+            )
+            .into_transaction_request();
+        eth_client.execute_tx_as(weth_whale_on_eth, send_tx).await?;
+    }
 
     Ok(())
 }
