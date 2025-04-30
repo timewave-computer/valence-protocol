@@ -9,17 +9,25 @@ use localic_utils::{
 
 use log::info;
 use serde_json::Value;
+use valence_astroport_lper::msg::LiquidityProviderConfig;
 use valence_astroport_utils::astroport_native_lp_token::{
     Asset, AssetInfo, ConcentratedLiquidityExecuteMsg, ConcentratedPoolParams,
     FactoryInstantiateMsg, FactoryQueryMsg, NativeCoinRegistryExecuteMsg,
     NativeCoinRegistryInstantiateMsg, PairConfig, PairType,
 };
+use valence_library_utils::{liquidity_utils::AssetData, LibraryAccountType};
 
-use valence_e2e::utils::{ASTROPORT_PATH, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON};
+use crate::utils::{
+    base_account::approve_library,
+    manager::{ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME},
+    ASTROPORT_PATH, GAS_FLAGS, LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
+};
 
-use crate::ASTROPORT_CONCENTRATED_PAIR_TYPE;
+const _PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "provide_liquidity";
+const _WITHDRAW_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "withdraw_liquidity";
+const ASTROPORT_CONCENTRATED_PAIR_TYPE: &str = "concentrated";
 
-fn deploy_astroport_contracts(
+pub fn deploy_astroport_contracts(
     test_ctx: &mut TestContext,
 ) -> Result<(u64, u64, u64, u64), Box<dyn Error>> {
     info!("Uploading astroport contracts...");
@@ -70,7 +78,7 @@ fn deploy_astroport_contracts(
 
 pub fn setup_astroport_cl_pool(
     test_ctx: &mut TestContext,
-    uusdc_on_neutron: String,
+    counterparty_denom: String,
 ) -> Result<(String, String), Box<dyn Error>> {
     let (
         astroport_factory_code_id,
@@ -111,7 +119,7 @@ pub fn setup_astroport_cl_pool(
         &serde_json::to_string(&NativeCoinRegistryExecuteMsg::Add {
             native_coins: vec![
                 (NEUTRON_CHAIN_DENOM.to_string(), 6),
-                (uusdc_on_neutron.to_string(), 6),
+                (counterparty_denom.to_string(), 6),
             ],
         })
         .unwrap(),
@@ -164,7 +172,7 @@ pub fn setup_astroport_cl_pool(
             denom: NEUTRON_CHAIN_DENOM.to_string(),
         },
         AssetInfo::NativeToken {
-            denom: uusdc_on_neutron.clone(),
+            denom: counterparty_denom.clone(),
         },
     ];
 
@@ -221,7 +229,7 @@ pub fn setup_astroport_cl_pool(
 
     info!("Pool created successfully! Pool address: {pool_addr}, LP token: {lp_token}");
     let asset_a = coin(899_000_000, NEUTRON_CHAIN_DENOM);
-    let asset_b = coin(899_000_000, uusdc_on_neutron.clone());
+    let asset_b = coin(899_000_000, counterparty_denom.clone());
     let assets = vec![
         Asset {
             info: AssetInfo::NativeToken {
@@ -266,108 +274,134 @@ pub fn setup_astroport_cl_pool(
     Ok((pool_addr.to_string(), lp_token.to_string()))
 }
 
-pub mod ica {
-    use std::{error::Error, time::Duration};
-
-    use cosmwasm_std::Uint64;
-    use localic_std::modules::cosmwasm::{contract_execute, contract_instantiate, contract_query};
-    use localic_utils::{
-        utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR,
-        NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
-    };
-    use log::info;
-    use valence_account_utils::ica::{IcaState, RemoteDomainInfo};
-    use valence_e2e::utils::{
-        ibc::poll_for_ica_state, manager::INTERCHAIN_ACCOUNT_NAME, GAS_FLAGS, NOBLE_CHAIN_NAME,
-    };
-
-    pub fn instantiate_interchain_account_contract(
-        test_ctx: &TestContext,
-    ) -> Result<String, Box<dyn Error>> {
-        let ica_account_code = *test_ctx
-            .get_chain(NEUTRON_CHAIN_NAME)
-            .contract_codes
-            .get(INTERCHAIN_ACCOUNT_NAME)
-            .unwrap();
-
-        info!("Instantiating the ICA contract...");
-        let timeout_seconds = 90;
-        let ica_instantiate_msg = valence_account_utils::ica::InstantiateMsg {
-            admin: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-            approved_libraries: vec![],
-            remote_domain_information: RemoteDomainInfo {
-                connection_id: test_ctx
-                    .get_connections()
-                    .src(NEUTRON_CHAIN_NAME)
-                    .dest(NOBLE_CHAIN_NAME)
-                    .get(),
-                ica_timeout_seconds: Uint64::new(timeout_seconds),
-            },
-        };
-
-        let valence_ica = contract_instantiate(
-            test_ctx
-                .get_request_builder()
-                .get_request_builder(NEUTRON_CHAIN_NAME),
-            DEFAULT_KEY,
-            ica_account_code,
-            &serde_json::to_string(&ica_instantiate_msg)?,
-            "valence_ica",
-            None,
-            "",
-        )?;
-        info!(
-            "ICA contract instantiated. Address: {}",
-            valence_ica.address
-        );
-
-        Ok(valence_ica.address)
-    }
-
-    pub fn register_interchain_account(
-        test_ctx: &mut TestContext,
-        interchain_account_addr: &str,
-    ) -> Result<String, Box<dyn Error>> {
-        info!("Registering the ICA...");
-        contract_execute(
-            test_ctx
-                .get_request_builder()
-                .get_request_builder(NEUTRON_CHAIN_NAME),
-            interchain_account_addr,
-            DEFAULT_KEY,
-            &serde_json::to_string(&valence_account_utils::ica::ExecuteMsg::RegisterIca {})
-                .unwrap(),
-            &format!("{} --amount=100000000{}", GAS_FLAGS, NEUTRON_CHAIN_DENOM),
-        )
-        .unwrap();
-        std::thread::sleep(Duration::from_secs(3));
-
-        // We want to check that it's in state created
-        poll_for_ica_state(test_ctx, interchain_account_addr, |state| {
-            matches!(state, IcaState::Created(_))
-        });
-
-        // Get the remote address
-        let ica_state: IcaState = serde_json::from_value(
-            contract_query(
-                test_ctx
-                    .get_request_builder()
-                    .get_request_builder(NEUTRON_CHAIN_NAME),
-                interchain_account_addr,
-                &serde_json::to_string(&valence_account_utils::ica::QueryMsg::IcaState {}).unwrap(),
-            )["data"]
-                .clone(),
-        )
+pub fn setup_astroport_lper_lib(
+    test_ctx: &mut TestContext,
+    input_account: String,
+    output_account: String,
+    asset_data: AssetData,
+    pool_addr: String,
+    _processor: String,
+    _authorizations: String,
+) -> Result<String, Box<dyn Error>> {
+    let lper_code_id = test_ctx
+        .get_contract()
+        .contract(ASTROPORT_LPER_NAME)
+        .get_cw()
+        .code_id
         .unwrap();
 
-        let remote_address = match ica_state {
-            IcaState::Created(ica_info) => ica_info.address,
-            _ => {
-                unreachable!("Expected IcaState::Created variant");
-            }
-        };
-        info!("Remote address created: {}", remote_address);
+    let astro_cl_pair_type = valence_astroport_utils::astroport_native_lp_token::PairType::Custom(
+        ASTROPORT_CONCENTRATED_PAIR_TYPE.to_string(),
+    );
 
-        Ok(remote_address)
-    }
+    let astro_lp_config = LiquidityProviderConfig {
+        pool_type: valence_astroport_utils::PoolType::NativeLpToken(astro_cl_pair_type.clone()),
+        asset_data,
+        max_spread: None,
+    };
+
+    let astro_lper_library_cfg = valence_astroport_lper::msg::LibraryConfig {
+        input_addr: LibraryAccountType::Addr(input_account.to_string()),
+        output_addr: LibraryAccountType::Addr(output_account.to_string()),
+        lp_config: astro_lp_config,
+        pool_addr,
+    };
+
+    let astroport_lper_instantiate_msg =
+        valence_library_utils::msg::InstantiateMsg::<valence_astroport_lper::msg::LibraryConfig> {
+            // TODO: uncomment to not bypass authorizations/processor logic
+            // owner: authorizations.to_string(),
+            // processor: processor.to_string(),
+            owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+            processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+            config: astro_lper_library_cfg,
+        };
+
+    let astro_lper_lib = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        lper_code_id,
+        &serde_json::to_string(&astroport_lper_instantiate_msg)?,
+        "astro_lper",
+        None,
+        "",
+    )?;
+    info!("astro lper lib: {}", astro_lper_lib.address);
+
+    info!("approving astro lper library on deposit account...");
+    approve_library(
+        test_ctx,
+        NEUTRON_CHAIN_NAME,
+        DEFAULT_KEY,
+        &input_account,
+        astro_lper_lib.address.to_string(),
+        None,
+    );
+
+    Ok(astro_lper_lib.address)
+}
+
+pub fn setup_astroport_lwer_lib(
+    test_ctx: &mut TestContext,
+    input_account: String,
+    output_account: String,
+    asset_data: AssetData,
+    pool_addr: String,
+    _processor: String,
+) -> Result<String, Box<dyn Error>> {
+    let lwer_code_id = test_ctx
+        .get_contract()
+        .contract(ASTROPORT_WITHDRAWER_NAME)
+        .get_cw()
+        .code_id
+        .unwrap();
+
+    let astro_cl_pair_type = valence_astroport_utils::astroport_native_lp_token::PairType::Custom(
+        ASTROPORT_CONCENTRATED_PAIR_TYPE.to_string(),
+    );
+
+    let astro_lw_config = valence_astroport_withdrawer::msg::LiquidityWithdrawerConfig {
+        pool_type: valence_astroport_utils::PoolType::NativeLpToken(astro_cl_pair_type),
+        asset_data,
+    };
+    let astro_lwer_library_cfg = valence_astroport_withdrawer::msg::LibraryConfig {
+        input_addr: LibraryAccountType::Addr(input_account.to_string()),
+        output_addr: LibraryAccountType::Addr(output_account.to_string()),
+        withdrawer_config: astro_lw_config,
+        pool_addr: pool_addr.to_string(),
+    };
+    let astroport_lwer_instantiate_msg = valence_library_utils::msg::InstantiateMsg::<
+        valence_astroport_withdrawer::msg::LibraryConfig,
+    > {
+        owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+        config: astro_lwer_library_cfg,
+    };
+
+    let astro_lwer_lib = contract_instantiate(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        DEFAULT_KEY,
+        lwer_code_id,
+        &serde_json::to_string(&astroport_lwer_instantiate_msg)?,
+        "astro_lwer",
+        None,
+        "",
+    )?;
+    info!("astro lwer lib: {}", astro_lwer_lib.address);
+
+    info!("approving astro lwer library on position account...");
+    approve_library(
+        test_ctx,
+        NEUTRON_CHAIN_NAME,
+        DEFAULT_KEY,
+        &input_account,
+        astro_lwer_lib.address.to_string(),
+        None,
+    );
+
+    Ok(astro_lwer_lib.address)
 }

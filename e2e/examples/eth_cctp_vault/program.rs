@@ -10,32 +10,24 @@ use localic_utils::{
     DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 use log::info;
-use valence_astroport_lper::msg::LiquidityProviderConfig;
 
+use valence_e2e::utils::astroport::{setup_astroport_lper_lib, setup_astroport_lwer_lib};
 use valence_e2e::utils::base_account::{approve_library, create_base_accounts};
-use valence_e2e::utils::hyperlane::HyperlaneContracts;
+
 use valence_e2e::utils::manager::{
     ASTROPORT_LPER_NAME, ASTROPORT_WITHDRAWER_NAME, BASE_ACCOUNT_NAME, FORWARDER_NAME,
     ICA_CCTP_TRANSFER_NAME, ICA_IBC_TRANSFER_NAME, INTERCHAIN_ACCOUNT_NAME,
     NEUTRON_IBC_TRANSFER_NAME,
 };
+use valence_e2e::utils::vault::{setup_liquidation_fwd_lib, setup_neutron_ibc_transfer_lib};
 use valence_e2e::utils::{LOCAL_CODE_ID_CACHE_PATH_NEUTRON, NOBLE_CHAIN_NAME, UUSDC_DENOM};
-use valence_forwarder_library::msg::{ForwardingConstraints, UncheckedForwardingConfig};
-use valence_generic_ibc_transfer_library::msg::IbcTransferAmount;
 use valence_ica_ibc_transfer::msg::RemoteChainInfo;
-use valence_library_utils::denoms::UncheckedDenom;
 use valence_library_utils::liquidity_utils::AssetData;
 use valence_library_utils::LibraryAccountType;
 
 use crate::neutron::ica::{instantiate_interchain_account_contract, register_interchain_account};
 use crate::strategist::strategy_config;
-use crate::{ASTROPORT_CONCENTRATED_PAIR_TYPE, VAULT_NEUTRON_CACHE_PATH};
-
-#[allow(unused)]
-pub struct ProgramHyperlaneContracts {
-    pub neutron_hyperlane_contracts: HyperlaneContracts,
-    pub eth_hyperlane_contracts: HyperlaneContracts,
-}
+use crate::VAULT_NEUTRON_CACHE_PATH;
 
 pub fn setup_neutron_accounts(
     test_ctx: &mut TestContext,
@@ -203,6 +195,8 @@ pub fn setup_neutron_libraries(
         usdc_on_neutron,
         authorizations.to_string(),
         processor.to_string(),
+        NOBLE_CHAIN_NAME,
+        None,
     )?;
 
     info!("approving strategist on liquidation account...");
@@ -227,138 +221,6 @@ pub fn setup_neutron_libraries(
     };
 
     Ok(libraries)
-}
-
-pub fn setup_astroport_lper_lib(
-    test_ctx: &mut TestContext,
-    input_account: String,
-    output_account: String,
-    asset_data: AssetData,
-    pool_addr: String,
-    _processor: String,
-    _authorizations: String,
-) -> Result<String, Box<dyn Error>> {
-    let lper_code_id = test_ctx
-        .get_contract()
-        .contract(ASTROPORT_LPER_NAME)
-        .get_cw()
-        .code_id
-        .unwrap();
-
-    let astro_cl_pair_type = valence_astroport_utils::astroport_native_lp_token::PairType::Custom(
-        ASTROPORT_CONCENTRATED_PAIR_TYPE.to_string(),
-    );
-
-    let astro_lp_config = LiquidityProviderConfig {
-        pool_type: valence_astroport_utils::PoolType::NativeLpToken(astro_cl_pair_type.clone()),
-        asset_data,
-        max_spread: None,
-    };
-
-    let astro_lper_library_cfg = valence_astroport_lper::msg::LibraryConfig {
-        input_addr: LibraryAccountType::Addr(input_account.to_string()),
-        output_addr: LibraryAccountType::Addr(output_account.to_string()),
-        lp_config: astro_lp_config,
-        pool_addr,
-    };
-
-    let astroport_lper_instantiate_msg =
-        valence_library_utils::msg::InstantiateMsg::<valence_astroport_lper::msg::LibraryConfig> {
-            // TODO: uncomment to not bypass authorizations/processor logic
-            // owner: authorizations.to_string(),
-            // processor: processor.to_string(),
-            owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-            processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-            config: astro_lper_library_cfg,
-        };
-
-    let astro_lper_lib = contract_instantiate(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        DEFAULT_KEY,
-        lper_code_id,
-        &serde_json::to_string(&astroport_lper_instantiate_msg)?,
-        "astro_lper",
-        None,
-        "",
-    )?;
-    info!("astro lper lib: {}", astro_lper_lib.address);
-
-    info!("approving astro lper library on deposit account...");
-    approve_library(
-        test_ctx,
-        NEUTRON_CHAIN_NAME,
-        DEFAULT_KEY,
-        &input_account,
-        astro_lper_lib.address.to_string(),
-        None,
-    );
-
-    Ok(astro_lper_lib.address)
-}
-
-pub fn setup_astroport_lwer_lib(
-    test_ctx: &mut TestContext,
-    input_account: String,
-    output_account: String,
-    asset_data: AssetData,
-    pool_addr: String,
-    _processor: String,
-) -> Result<String, Box<dyn Error>> {
-    let lwer_code_id = test_ctx
-        .get_contract()
-        .contract(ASTROPORT_WITHDRAWER_NAME)
-        .get_cw()
-        .code_id
-        .unwrap();
-
-    let astro_cl_pair_type = valence_astroport_utils::astroport_native_lp_token::PairType::Custom(
-        ASTROPORT_CONCENTRATED_PAIR_TYPE.to_string(),
-    );
-
-    let astro_lw_config = valence_astroport_withdrawer::msg::LiquidityWithdrawerConfig {
-        pool_type: valence_astroport_utils::PoolType::NativeLpToken(astro_cl_pair_type),
-        asset_data,
-    };
-    let astro_lwer_library_cfg = valence_astroport_withdrawer::msg::LibraryConfig {
-        input_addr: LibraryAccountType::Addr(input_account.to_string()),
-        output_addr: LibraryAccountType::Addr(output_account.to_string()),
-        withdrawer_config: astro_lw_config,
-        pool_addr: pool_addr.to_string(),
-    };
-    let astroport_lwer_instantiate_msg = valence_library_utils::msg::InstantiateMsg::<
-        valence_astroport_withdrawer::msg::LibraryConfig,
-    > {
-        owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        config: astro_lwer_library_cfg,
-    };
-
-    let astro_lwer_lib = contract_instantiate(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        DEFAULT_KEY,
-        lwer_code_id,
-        &serde_json::to_string(&astroport_lwer_instantiate_msg)?,
-        "astro_lwer",
-        None,
-        "",
-    )?;
-    info!("astro lwer lib: {}", astro_lwer_lib.address);
-
-    info!("approving astro lwer library on position account...");
-    approve_library(
-        test_ctx,
-        NEUTRON_CHAIN_NAME,
-        DEFAULT_KEY,
-        &input_account,
-        astro_lwer_lib.address.to_string(),
-        None,
-    );
-
-    Ok(astro_lwer_lib.address)
 }
 
 pub fn setup_cctp_forwarder_lib(
@@ -495,145 +357,4 @@ pub fn setup_ica_ibc_transfer_lib(
     std::thread::sleep(Duration::from_secs(2));
 
     Ok(ica_ibc_transfer.address)
-}
-
-pub fn setup_neutron_ibc_transfer_lib(
-    test_ctx: &mut TestContext,
-    input_account: String,
-    output_addr: String,
-    denom: &str,
-    _authorizations: String,
-    _processor: String,
-) -> Result<String, Box<dyn Error>> {
-    let neutron_ibc_transfer_code_id = *test_ctx
-        .get_chain(NEUTRON_CHAIN_NAME)
-        .contract_codes
-        .get(NEUTRON_IBC_TRANSFER_NAME)
-        .unwrap();
-
-    let neutron_ibc_transfer_instantiate_msg = valence_library_utils::msg::InstantiateMsg::<
-        valence_neutron_ibc_transfer_library::msg::LibraryConfig,
-    > {
-        // TODO: uncomment to not bypass authorizations/processor logic
-        // owner: authorizations.to_string(),
-        // processor: processor.to_string(),
-        owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        config: valence_neutron_ibc_transfer_library::msg::LibraryConfig {
-            input_addr: LibraryAccountType::Addr(input_account.to_string()),
-            amount: IbcTransferAmount::FullAmount,
-            denom: valence_library_utils::denoms::UncheckedDenom::Native(denom.to_string()),
-            remote_chain_info: valence_generic_ibc_transfer_library::msg::RemoteChainInfo {
-                channel_id: test_ctx
-                    .get_transfer_channels()
-                    .src(NEUTRON_CHAIN_NAME)
-                    .dest(NOBLE_CHAIN_NAME)
-                    .get(),
-                ibc_transfer_timeout: None,
-            },
-            output_addr: LibraryAccountType::Addr(output_addr.to_string()),
-            memo: "-".to_string(),
-            denom_to_pfm_map: BTreeMap::default(),
-            eureka_config: None,
-        },
-    };
-
-    info!(
-        "Neutron IBC Transfer instantiate message: {:?}",
-        neutron_ibc_transfer_instantiate_msg
-    );
-
-    let ibc_transfer = contract_instantiate(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        DEFAULT_KEY,
-        neutron_ibc_transfer_code_id,
-        &serde_json::to_string(&neutron_ibc_transfer_instantiate_msg).unwrap(),
-        "neutron_ibc_transfer",
-        None,
-        "",
-    )
-    .unwrap();
-
-    info!(
-        "Neutron IBC Transfer library: {}",
-        ibc_transfer.address.clone()
-    );
-
-    // Approve the library for the base account
-    approve_library(
-        test_ctx,
-        NEUTRON_CHAIN_NAME,
-        DEFAULT_KEY,
-        &input_account,
-        ibc_transfer.address.clone(),
-        None,
-    );
-
-    Ok(ibc_transfer.address)
-}
-
-pub fn setup_liquidation_fwd_lib(
-    test_ctx: &mut TestContext,
-    input_account: String,
-    output_addr: String,
-    shares_denom: &str,
-) -> Result<String, Box<dyn Error>> {
-    let fwd_code_id = *test_ctx
-        .get_chain(NEUTRON_CHAIN_NAME)
-        .contract_codes
-        .get(FORWARDER_NAME)
-        .unwrap();
-
-    let fwd_instantiate_msg = valence_library_utils::msg::InstantiateMsg::<
-        valence_forwarder_library::msg::LibraryConfig,
-    > {
-        owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        processor: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
-        config: valence_forwarder_library::msg::LibraryConfig {
-            input_addr: LibraryAccountType::Addr(input_account.clone()),
-            output_addr: LibraryAccountType::Addr(output_addr.clone()),
-            forwarding_configs: vec![UncheckedForwardingConfig {
-                denom: UncheckedDenom::Native(shares_denom.to_string()),
-                max_amount: Uint128::MAX,
-            }],
-            forwarding_constraints: ForwardingConstraints::new(None),
-        },
-    };
-
-    info!(
-        "Neutron Forwarder instantiate message: {:?}",
-        fwd_instantiate_msg
-    );
-
-    let liquidation_forwarder = contract_instantiate(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
-        DEFAULT_KEY,
-        fwd_code_id,
-        &serde_json::to_string(&fwd_instantiate_msg).unwrap(),
-        "liquidation_forwarder",
-        None,
-        "",
-    )
-    .unwrap();
-
-    info!(
-        "Liquidation Forwarder library: {}",
-        liquidation_forwarder.address.clone()
-    );
-
-    // Approve the library for the base account
-    approve_library(
-        test_ctx,
-        NEUTRON_CHAIN_NAME,
-        DEFAULT_KEY,
-        &input_account,
-        liquidation_forwarder.address.clone(),
-        None,
-    );
-
-    Ok(liquidation_forwarder.address)
 }
