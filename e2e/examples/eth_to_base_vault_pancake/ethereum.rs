@@ -194,8 +194,7 @@ async fn set_up_vault(
 
     // First deploy the implementation contract
     let implementation_tx = ValenceVault::deploy_builder(&eth_client.get_request_provider().await?)
-        .into_transaction_request()
-        .from(admin);
+        .into_transaction_request();
 
     let implementation_address = eth_client
         .execute_tx(implementation_tx)
@@ -210,8 +209,7 @@ async fn set_up_vault(
         implementation_address,
         Bytes::new(),
     )
-    .into_transaction_request()
-    .from(admin);
+    .into_transaction_request();
 
     let proxy_address = eth_client
         .execute_tx(proxy_tx)
@@ -281,8 +279,7 @@ async fn set_up_cctp_transfer(
         processor,
         alloy_sol_types_encoder::SolValue::abi_encode(&cctp_transfer_config).into(),
     )
-    .into_transaction_request()
-    .from(admin);
+    .into_transaction_request();
 
     let response = eth_client.execute_tx(cctp_tx).await?;
 
@@ -323,8 +320,7 @@ async fn set_up_aave_position_manager(
         processor,
         alloy_sol_types_encoder::SolValue::abi_encode(&aave_position_manager_config).into(),
     )
-    .into_transaction_request()
-    .from(admin);
+    .into_transaction_request();
 
     let response = eth_client.execute_tx(aave_position_manager_tx).await?;
     let aave_position_manager_address = response.contract_address.unwrap();
@@ -365,8 +361,7 @@ async fn set_up_standard_bridge_transfer(
         processor,
         alloy_sol_types_encoder::SolValue::abi_encode(&standard_bridge_transfer_config).into(),
     )
-    .into_transaction_request()
-    .from(admin);
+    .into_transaction_request();
 
     let response = eth_client.execute_tx(standard_bridge_transfer_tx).await?;
     let standard_bridge_transfer_address = response.contract_address.unwrap();
@@ -410,8 +405,7 @@ async fn set_up_forwarder_vault_to_aave(
         processor,
         alloy_sol_types_encoder::SolValue::abi_encode(&forwarder_vault_to_aave_config).into(),
     )
-    .into_transaction_request()
-    .from(admin);
+    .into_transaction_request();
 
     let response = eth_client.execute_tx(forwarder_vault_to_aave_tx).await?;
     let forwarder_vault_to_aave_address = response.contract_address.unwrap();
@@ -456,8 +450,7 @@ async fn set_up_forwarder_vault_to_standard_bridge(
         alloy_sol_types_encoder::SolValue::abi_encode(&forwarder_vault_to_standard_bridge_config)
             .into(),
     )
-    .into_transaction_request()
-    .from(admin);
+    .into_transaction_request();
 
     let response = eth_client
         .execute_tx(forwarder_vault_to_standard_bridge_tx)
@@ -510,8 +503,7 @@ async fn set_up_forwarder_aave_input_to_cctp_input(
         alloy_sol_types_encoder::SolValue::abi_encode(&forwarder_aave_input_to_cctp_input_config)
             .into(),
     )
-    .into_transaction_request()
-    .from(admin);
+    .into_transaction_request();
 
     let response = eth_client
         .execute_tx(forwarder_aave_input_to_cctp_input_tx)

@@ -174,8 +174,7 @@ async fn set_up_pancake_position_manager(
         processor,
         alloy_sol_types_encoder::SolValue::abi_encode(&pancake_position_manager_config).into(),
     )
-    .into_transaction_request()
-    .from(admin);
+    .into_transaction_request();
 
     let response = base_client.execute_tx(pancake_position_manager_tx).await?;
     let pancake_position_manager_addr = response.contract_address.unwrap();
@@ -228,8 +227,7 @@ async fn set_up_cctp_transfer(
         processor,
         alloy_sol_types_encoder::SolValue::abi_encode(&cctp_transfer_config).into(),
     )
-    .into_transaction_request()
-    .from(admin);
+    .into_transaction_request();
 
     let response = base_client.execute_tx(cctp_transfer_tx).await?;
     let cctp_transfer_addr = response.contract_address.unwrap();
@@ -270,8 +268,7 @@ async fn set_up_standard_bridge_transfer(
         processor,
         alloy_sol_types_encoder::SolValue::abi_encode(&standard_bridge_transfer_config).into(),
     )
-    .into_transaction_request()
-    .from(admin);
+    .into_transaction_request();
 
     let response = base_client.execute_tx(standard_bridge_transfer_tx).await?;
     let standard_bridge_transfer_address = response.contract_address.unwrap();
@@ -322,8 +319,7 @@ async fn set_up_forwarder_pancake_output_to_input(
         alloy_sol_types_encoder::SolValue::abi_encode(&forwarder_pancake_input_to_output_config)
             .into(),
     )
-    .into_transaction_request()
-    .from(admin);
+    .into_transaction_request();
 
     let response: alloy::rpc::types::TransactionReceipt = base_client
         .execute_tx(forwarder_pancake_input_to_output_tx)
@@ -375,8 +371,7 @@ async fn set_up_forwarder_pancake_to_standard_bridge(
         alloy_sol_types_encoder::SolValue::abi_encode(&forwarder_pancake_to_standard_bridge_config)
             .into(),
     )
-    .into_transaction_request()
-    .from(admin);
+    .into_transaction_request();
 
     let response = base_client
         .execute_tx(forwarder_pancake_to_standard_bridge_tx)
@@ -427,8 +422,7 @@ async fn set_up_forwarder_pancake_to_cctp(
         processor,
         alloy_sol_types_encoder::SolValue::abi_encode(&forwarder_pancake_to_cctp_config).into(),
     )
-    .into_transaction_request()
-    .from(admin);
+    .into_transaction_request();
 
     let response = base_client.execute_tx(forwarder_pancake_to_cctp_tx).await?;
     let forwarder_pancake_to_cctp_address = response.contract_address.unwrap();

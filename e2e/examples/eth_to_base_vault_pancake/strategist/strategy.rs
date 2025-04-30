@@ -46,7 +46,7 @@ impl Strategy {
             rpc_url: cfg.base.rpc_url.to_string(),
             signer: MnemonicBuilder::<English>::default()
                 .phrase(cfg.base.mnemonic.clone())
-                .index(8)? // derive the mnemonic at a different index to avoid nonce issues
+                .index(7)? // derive the mnemonic at a different index to avoid nonce issues
                 .build()?,
         };
 

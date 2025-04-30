@@ -70,17 +70,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Create a Base client
     let base_client = EthereumClient::new(&endpoint_base, TEST_MNEMONIC)?;
 
-    let strategist_acc = Address::from_str("0x14dc79964da2c08b23698b3d3cc7ca32193d9955")?;
     // Get an admin account for Ethereum
     let accounts_eth = eth_client.get_provider_accounts().await?;
-    let eth_admin_addr = accounts_eth[0];
+    let strategist_acc = accounts_eth[7];
+    let eth_admin_addr = accounts_eth[7]; // Strategist account is admin because it will update configs
 
     // Create all the acounts needed for Ethereum
     let ethereum_accounts = set_up_eth_accounts(&eth_client, eth_admin_addr).await?;
 
     // Get an admin account for Base
     let accounts_base = base_client.get_provider_accounts().await?;
-    let base_admin_addr = accounts_base[0];
+    let base_admin_addr = accounts_base[7]; // Strategist account is admin because it will update configs
 
     // Create all the accounts needed for Base
     let base_accounts = set_up_base_accounts(&base_client, base_admin_addr).await?;
@@ -88,9 +88,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Set up ethereum libraries
     let ethereum_libraries = ethereum::set_up_eth_libraries(
         &eth_client,
-        accounts_eth[0], // admin
-        strategist_acc,  // strategist
-        strategist_acc,  // platform fee receiver
+        eth_admin_addr, // admin
+        strategist_acc, // strategist
+        strategist_acc, // platform fee receiver
         ethereum_accounts.clone(),
         base_accounts.clone(),
     )
@@ -104,8 +104,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Set up base libraries
     let base_libraries = base::set_up_base_libraries(
         &base_client,
-        accounts_base[0], // admin
-        strategist_acc,   // strategist
+        base_admin_addr, // admin
+        strategist_acc,  // strategist
         base_accounts.clone(),
         ethereum_accounts.clone(),
     )
@@ -225,7 +225,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let strategy = Strategy::from_file(temp_path).await?;
 
     let mut ethereum_users = vec![];
-    for account in accounts_eth.iter().take(4) {
+    for account in accounts_eth.iter().take(4).skip(1) {
         ethereum_users.push(*account);
         let send_tx = weth_on_eth
             .transfer(
@@ -246,45 +246,51 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let deposit_amount = U256::from(5e17);
         let approval = weth_on_eth
             .approve(vault_address, deposit_amount)
-            .into_transaction_request()
-            .from(ethereum_users[1]);
-        eth_client.execute_tx(approval).await?;
+            .into_transaction_request();
+        eth_client
+            .execute_tx_as(&ethereum_users[0].to_string(), approval)
+            .await?;
         let deposit = valence_vault
-            .deposit(deposit_amount, ethereum_users[1])
-            .into_transaction_request()
-            .from(ethereum_users[1]);
-        eth_client.execute_tx(deposit).await?;
-        let balance_shares_user1 = valence_vault.balanceOf(ethereum_users[1]).call().await?._0;
+            .deposit(deposit_amount, ethereum_users[0])
+            .into_transaction_request();
+        eth_client
+            .execute_tx_as(&ethereum_users[0].to_string(), deposit)
+            .await?;
+        let balance_shares_user1 = valence_vault.balanceOf(ethereum_users[0]).call().await?._0;
         info!("User 1 balance in vault: {:?} shares", balance_shares_user1);
 
         info!("User 2 deposits 0.3 WETH into the vault ...");
         let deposit_amount = U256::from(3e17);
         let approval = weth_on_eth
             .approve(vault_address, deposit_amount)
-            .into_transaction_request()
-            .from(ethereum_users[2]);
-        eth_client.execute_tx(approval).await?;
+            .into_transaction_request();
+        eth_client
+            .execute_tx_as(&ethereum_users[1].to_string(), approval)
+            .await?;
         let deposit = valence_vault
-            .deposit(deposit_amount, ethereum_users[2])
-            .into_transaction_request()
-            .from(ethereum_users[2]);
-        eth_client.execute_tx(deposit).await?;
-        let balance_shares_user2 = valence_vault.balanceOf(ethereum_users[2]).call().await?._0;
+            .deposit(deposit_amount, ethereum_users[1])
+            .into_transaction_request();
+        eth_client
+            .execute_tx_as(&ethereum_users[1].to_string(), deposit)
+            .await?;
+        let balance_shares_user2 = valence_vault.balanceOf(ethereum_users[1]).call().await?._0;
         info!("User 2 balance in vault: {:?} shares", balance_shares_user2);
 
         info!("User 3 deposits 0.2 WETH into the vault ...");
         let deposit_amount = U256::from(2e17);
         let approval = weth_on_eth
             .approve(vault_address, deposit_amount)
-            .into_transaction_request()
-            .from(ethereum_users[3]);
-        eth_client.execute_tx(approval).await?;
+            .into_transaction_request();
+        eth_client
+            .execute_tx_as(&ethereum_users[2].to_string(), approval)
+            .await?;
         let deposit = valence_vault
-            .deposit(deposit_amount, ethereum_users[3])
-            .into_transaction_request()
-            .from(ethereum_users[3]);
-        eth_client.execute_tx(deposit).await?;
-        let balance_shares_user3 = valence_vault.balanceOf(ethereum_users[3]).call().await?._0;
+            .deposit(deposit_amount, ethereum_users[2])
+            .into_transaction_request();
+        eth_client
+            .execute_tx_as(&ethereum_users[2].to_string(), deposit)
+            .await?;
+        let balance_shares_user3 = valence_vault.balanceOf(ethereum_users[2]).call().await?._0;
         info!("User 3 balance in vault: {:?} shares", balance_shares_user3);
     }
 
