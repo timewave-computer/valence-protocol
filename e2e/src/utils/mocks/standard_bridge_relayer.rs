@@ -1,6 +1,7 @@
 use std::{collections::HashSet, error::Error, time::Duration};
 
 use alloy::{
+    eips::BlockNumberOrTag,
     primitives::{Address, Log, U256},
     providers::Provider,
     rpc::types::Filter,
@@ -20,9 +21,9 @@ use valence_chain_client_utils::{
 const POLLING_PERIOD: Duration = Duration::from_secs(5);
 
 sol! {
-    event ERC20BridgeInitiated(
-        address indexed localToken,
-        address indexed remoteToken,
+    event ERC20DepositInitiated(
+        address indexed l1Token,
+        address indexed l2Token,
         address indexed from,
         address to,
         uint256 amount,
@@ -65,9 +66,11 @@ impl RelayerRuntime {
 }
 
 pub struct RelayerState {
+    evm_a_last_block_processed: Option<u64>,
     evm_a_processed_events: HashSet<Vec<u8>>,
     evm_a_filter: Filter,
     evm_a_destination_erc20: Address,
+    evm_b_last_block_processed: Option<u64>,
     evm_b_processed_events: HashSet<Vec<u8>>,
     evm_b_filter: Filter,
     evm_b_destination_erc20: Address,
@@ -110,9 +113,11 @@ impl MockStandardBridgeRelayer {
         Ok(Self {
             runtime,
             state: RelayerState {
+                evm_a_last_block_processed: None,
                 evm_a_processed_events: HashSet::new(),
                 evm_a_filter: Filter::new().address(standard_bridge_a),
                 evm_a_destination_erc20: destination_erc20_a,
+                evm_b_last_block_processed: None,
                 evm_b_processed_events: HashSet::new(),
                 evm_b_filter: Filter::new().address(standard_bridge_b),
                 evm_b_destination_erc20: destination_erc20_b,
@@ -210,8 +215,18 @@ impl MockStandardBridgeRelayer {
             .await
             .expect("could not get evm A provider");
 
+        let current_block = provider.get_block_number().await?;
+        let last_block = self
+            .state
+            .evm_a_last_block_processed
+            .unwrap_or(current_block);
+        let filter = self.state.evm_a_filter.clone();
+        let filter = filter
+            .from_block(BlockNumberOrTag::Number(last_block))
+            .to_block(BlockNumberOrTag::Number(current_block));
+
         // fetch the logs
-        let logs = provider.get_logs(&self.state.evm_a_filter).await?;
+        let logs = provider.get_logs(&filter).await?;
 
         for log in logs.iter() {
             let event_id = log
@@ -223,17 +238,20 @@ impl MockStandardBridgeRelayer {
                     Log::new(log.address(), log.topics().into(), log.data().clone().data)
                         .unwrap_or_default();
 
-                let erc20_bridge_initiated_log =
-                    ERC20BridgeInitiated::decode_log(&alloy_log, false)?;
+                let erc20_deposit_initiated_log =
+                    ERC20DepositInitiated::decode_log(&alloy_log, false)?;
 
                 // send on EVM B when an event is detected on EVM A
                 self.send_on_evm_b(
-                    erc20_bridge_initiated_log.amount,
-                    erc20_bridge_initiated_log.to,
+                    erc20_deposit_initiated_log.amount,
+                    erc20_deposit_initiated_log.to,
                 )
                 .await?;
             }
         }
+
+        // update the last block processed
+        self.state.evm_a_last_block_processed = Some(current_block);
 
         Ok(())
     }
@@ -246,8 +264,17 @@ impl MockStandardBridgeRelayer {
             .await
             .expect("could not get evm B provider");
 
+        let current_block = provider.get_block_number().await?;
+        let last_block = self
+            .state
+            .evm_b_last_block_processed
+            .unwrap_or(current_block);
+        let filter = self.state.evm_b_filter.clone();
+        let filter = filter
+            .from_block(BlockNumberOrTag::Number(last_block))
+            .to_block(BlockNumberOrTag::Number(current_block));
         // fetch the logs
-        let logs = provider.get_logs(&self.state.evm_b_filter).await?;
+        let logs = provider.get_logs(&filter).await?;
 
         for log in logs.iter() {
             let event_id = log
@@ -259,17 +286,19 @@ impl MockStandardBridgeRelayer {
                     Log::new(log.address(), log.topics().into(), log.data().clone().data)
                         .unwrap_or_default();
 
-                let erc20_bridge_initiated_log =
-                    ERC20BridgeInitiated::decode_log(&alloy_log, false)?;
+                let erc20_deposit_initiated_log =
+                    ERC20DepositInitiated::decode_log(&alloy_log, false)?;
 
                 // send on EVM A when an event is detected on EVM B
                 self.send_on_evm_a(
-                    erc20_bridge_initiated_log.amount,
-                    erc20_bridge_initiated_log.to,
+                    erc20_deposit_initiated_log.amount,
+                    erc20_deposit_initiated_log.to,
                 )
                 .await?;
             }
         }
+        // update the last block processed
+        self.state.evm_b_last_block_processed = Some(current_block);
 
         Ok(())
     }

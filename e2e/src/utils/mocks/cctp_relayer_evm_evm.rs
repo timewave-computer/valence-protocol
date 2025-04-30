@@ -1,6 +1,7 @@
 use std::{collections::HashSet, error::Error, time::Duration};
 
 use alloy::{
+    eips::BlockNumberOrTag,
     primitives::{Address, FixedBytes, Log, U256},
     providers::Provider,
     rpc::types::Filter,
@@ -56,9 +57,11 @@ impl RelayerRuntime {
 }
 
 pub struct RelayerState {
+    evm_a_last_block_processed: Option<u64>,
     evm_a_processed_events: HashSet<Vec<u8>>,
     evm_a_filter: Filter,
     evm_a_destination_erc20: Address,
+    evm_b_last_block_processed: Option<u64>,
     evm_b_processed_events: HashSet<Vec<u8>>,
     evm_b_filter: Filter,
     evm_b_destination_erc20: Address,
@@ -101,9 +104,11 @@ impl MockCctpRelayerEvmEvm {
         Ok(Self {
             runtime,
             state: RelayerState {
+                evm_a_last_block_processed: None,
                 evm_a_processed_events: HashSet::new(),
                 evm_a_filter: Filter::new().address(messenger_a),
                 evm_a_destination_erc20: destination_erc20_a,
+                evm_b_last_block_processed: None,
                 evm_b_processed_events: HashSet::new(),
                 evm_b_filter: Filter::new().address(messenger_b),
                 evm_b_destination_erc20: destination_erc20_b,
@@ -201,8 +206,18 @@ impl MockCctpRelayerEvmEvm {
             .await
             .expect("could not get evm A provider");
 
+        // set the block range for the filter
+        let current_block = provider.get_block_number().await?;
+        let last_block = self
+            .state
+            .evm_a_last_block_processed
+            .unwrap_or(current_block);
+        let filter = self.state.evm_a_filter.clone();
+        let filter = filter
+            .from_block(BlockNumberOrTag::Number(last_block))
+            .to_block(BlockNumberOrTag::Number(current_block));
         // fetch the logs
-        let logs = provider.get_logs(&self.state.evm_a_filter).await?;
+        let logs = provider.get_logs(&filter).await?;
 
         for log in logs.iter() {
             let event_id = log
@@ -225,6 +240,9 @@ impl MockCctpRelayerEvmEvm {
             }
         }
 
+        // update the last block processed
+        self.state.evm_a_last_block_processed = Some(current_block);
+
         Ok(())
     }
 
@@ -236,8 +254,18 @@ impl MockCctpRelayerEvmEvm {
             .await
             .expect("could not get evm B provider");
 
+        let current_block = provider.get_block_number().await?;
+        let last_block = self
+            .state
+            .evm_b_last_block_processed
+            .unwrap_or(current_block);
+        let filter = self.state.evm_b_filter.clone();
+        let filter = filter
+            .from_block(BlockNumberOrTag::Number(last_block))
+            .to_block(BlockNumberOrTag::Number(current_block));
+
         // fetch the logs
-        let logs = provider.get_logs(&self.state.evm_b_filter).await?;
+        let logs = provider.get_logs(&filter).await?;
 
         for log in logs.iter() {
             let event_id = log
@@ -260,6 +288,8 @@ impl MockCctpRelayerEvmEvm {
             }
         }
 
+        // update the last block processed
+        self.state.evm_b_last_block_processed = Some(current_block);
         Ok(())
     }
 }

@@ -249,14 +249,21 @@ impl ValenceWorker for Strategy {
             Address::from_str(&self.cfg.ethereum.libraries.aave_position_manager)?,
             &eth_rp,
         );
-        let tx = aave_position_manager.supply(U256::ZERO).into_transaction_request();
+        let tx = aave_position_manager
+            .supply(U256::ZERO)
+            .into_transaction_request();
         self.eth_client.execute_tx(tx).await?;
         info!("AAVE supply transaction executed");
 
         // Borrow USDC equivalent to half of the WETH supplied
-        
 
-
+        // Get balance on pancake input account before bridging
+        let base_weth = ERC20::new(Address::from_str(&self.cfg.base.denoms.weth)?, &base_rp);
+        let pancake_input_weth_balance_before = self
+            .base_client
+            .query(base_weth.balanceOf(Address::from_str(&self.cfg.base.accounts.pancake_input)?))
+            .await?
+            ._0;
 
         // Trigger the bridge transfers
         let standard_bridge_transfer_eth = StandardBridgeTransfer::new(
@@ -275,21 +282,26 @@ impl ValenceWorker for Strategy {
         self.eth_client.execute_tx(tx).await?;*/
         info!("Bridge transfers triggered");
 
-        // Sleep enough time for relayers to pick up the transfers
-        info!("{worker_name}: Waiting 8 seconds for relayers to pick up the transfers...");
-        tokio::time::sleep(Duration::from_secs(8)).await;
+        // We wait until the transfer is completed
+        while {
+            let pancake_input_weth_balance_after = self
+                .base_client
+                .query(
+                    base_weth.balanceOf(Address::from_str(&self.cfg.base.accounts.pancake_input)?),
+                )
+                .await?
+                ._0;
+            info!(
+                "Pancake input account WETH balance: {:?}",
+                pancake_input_weth_balance_after
+            );
+            pancake_input_weth_balance_before == pancake_input_weth_balance_after
+        } {
+            info!("Waiting for bridge transfer to complete...");
+            tokio::time::sleep(Duration::from_secs(5)).await;
+        }
+        info!("Standard Bridge transfer completed!");
 
-        // Check the balances on Base
-        let base_weth = ERC20::new(Address::from_str(&self.cfg.base.denoms.weth)?, &base_rp);
-        let pancake_input_weth_balance = self
-            .base_client
-            .query(base_weth.balanceOf(Address::from_str(&self.cfg.base.accounts.pancake_input)?))
-            .await?
-            ._0;
-        info!(
-            "Pancake input account balance: {:?}",
-            pancake_input_weth_balance
-        );
         let base_usdc = ERC20::new(Address::from_str(&self.cfg.base.denoms.usdc)?, &base_rp);
         let pancake_input_usdc_balance = self
             .base_client

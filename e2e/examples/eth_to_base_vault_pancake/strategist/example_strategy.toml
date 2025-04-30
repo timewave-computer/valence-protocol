@@ -22,6 +22,12 @@ forwarder_vault_deposit_to_aave_input = "0x99aA73dA6309b8eC484eF2C95e96C131C1BBF
 forwarder_vault_deposit_to_standard_bridge_input = "0xFBc00Fa47a7d3bbE3e82B5Aa560B47008c1bD64c"
 forwarder_aave_input_to_cctp_input = "0x3aD2306eDfBe72ce013cdb6b429212d9CdDE4F96"
 
+[ethereum.parameters]
+min_aave_health_factor = "1.2"
+
+[ethereum.contracts]
+aave_pool = "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"
+
 [base]
 rpc_url = "http://127.0.0.1:1338"
 mnemonic = "test test test test test test test test test test test junk"

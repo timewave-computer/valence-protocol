@@ -31,7 +31,7 @@ use valence_e2e::utils::{
 
 const ETH_FORK_URL: &str = "https://eth-mainnet.public.blastapi.io";
 const ETH_ANVIL_PORT: &str = "1337";
-const BASE_FORK_URL: &str = "https://mainnet.base.org";
+const BASE_FORK_URL: &str = "https://base-mainnet.public.blastapi.io";
 const BASE_ANVIL_PORT: &str = "1338";
 const TEST_MNEMONIC: &str = "test test test test test test test test test test test junk";
 pub const WETH_ADDRESS_ON_ETHEREUM: &str = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
@@ -76,14 +76,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let eth_admin_addr = accounts_eth[7]; // Strategist account is admin because it will update configs
 
     // Create all the acounts needed for Ethereum
-    let ethereum_accounts = set_up_eth_accounts(&eth_client, eth_admin_addr).await?;
+    let ethereum_accounts = set_up_eth_accounts(&eth_client, accounts_eth[0]).await?;
 
     // Get an admin account for Base
     let accounts_base = base_client.get_provider_accounts().await?;
     let base_admin_addr = accounts_base[7]; // Strategist account is admin because it will update configs
 
     // Create all the accounts needed for Base
-    let base_accounts = set_up_base_accounts(&base_client, base_admin_addr).await?;
+    let base_accounts = set_up_base_accounts(&base_client, accounts_base[0]).await?;
 
     // Set up ethereum libraries
     let ethereum_libraries = ethereum::set_up_eth_libraries(
