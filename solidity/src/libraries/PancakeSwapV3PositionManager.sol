@@ -127,6 +127,14 @@ contract PancakeSwapV3PositionManager is Library {
     }
 
     /**
+     * @dev Internal initialization function called during construction
+     * @param _config New configuration
+     */
+    function _initConfig(bytes memory _config) internal override {
+        config = validateConfig(_config);
+    }
+
+    /**
      * @notice Updates the contract configuration
      * @param _config New configuration bytes
      * @dev Can only be called by the contract owner
