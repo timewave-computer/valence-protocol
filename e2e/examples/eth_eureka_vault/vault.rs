@@ -283,10 +283,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let temp_path = Path::new("./e2e/examples/eth_eureka_vault/strategist/example_strategy.toml");
     strategy_config.to_file(temp_path)?;
 
-    let strategy = async_run!(
-        tokio::runtime::Runtime::new()?,
-        Strategy::from_file(temp_path).await
-    )?;
+    let strategy = async_run!(rt, Strategy::from_file(temp_path).await)?;
 
     let user2_wbtc_bal = eth_users.get_user_deposit_token_bal(&rt, &eth_client, 2);
     let user2_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 2);

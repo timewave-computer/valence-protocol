@@ -202,8 +202,7 @@ impl AstroportOps for Strategy {
                     }),
                 },
             )
-            .await
-            .unwrap();
+            .await?;
 
         info!(
             "swap simulation of {offer_amount}{offer_denom} -> {ask_denom} response: {:?}",

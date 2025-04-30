@@ -231,14 +231,21 @@ impl EurekaVaultRouting for Strategy {
             }
         });
 
+        info!(
+            "hub to neutron pfm string:{:?}",
+            hub_to_neutron_pfm.to_string()
+        );
+
+        info!("eureka fees cfg: {:?}", eureka_fees_cfg);
+
         let eureka_transfer_msg = eureka_transfer_lib
             .transfer(eureka_fees_cfg, hub_to_neutron_pfm.to_string())
             .into_transaction_request();
 
-        self.eth_client
-            .execute_tx(eureka_transfer_msg)
-            .await
-            .unwrap();
+        match self.eth_client.execute_tx(eureka_transfer_msg).await {
+            Ok(resp) => info!("success executing eureka transfer: {:?}", resp),
+            Err(e) => warn!("failed to execute eureka transfer: {:?}", e),
+        };
 
         info!("starting polling assertion on the destination...");
         self.neutron_client
@@ -397,7 +404,9 @@ pub(crate) async fn query_skip_eureka_route(
         .await
         .unwrap();
 
-    let op = &resp["operations"][0];
+    let op = &resp["operations"]
+        .get(0)
+        .ok_or("no ops in skip api response")?;
     let transfer = &op["eureka_transfer"];
 
     let fee_quote: SmartRelayFeeQuote =

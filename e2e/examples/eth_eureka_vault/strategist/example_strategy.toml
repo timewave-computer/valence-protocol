@@ -1,28 +1,28 @@
 [neutron]
 grpc_url = "http://0.0.0.0"
-grpc_port = "38225"
+grpc_port = "43961"
 chain_id = "localneutron-1"
 mnemonic = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry"
-target_pool = "neutron1esv98f0pefd6n5c767y5m878ja4ya6f0lwtzul0prglphuyewl3sq6kdmt"
+target_pool = "neutron19wut8ssulwasjquxpspfeq097kwj2n86fk3vq0g9c8eml2rqtprqj9qg2d"
 
 [neutron.denoms]
-lp_token = "factory/neutron1esv98f0pefd6n5c767y5m878ja4ya6f0lwtzul0prglphuyewl3sq6kdmt/astroport/share"
+lp_token = "factory/neutron19wut8ssulwasjquxpspfeq097kwj2n86fk3vq0g9c8eml2rqtprqj9qg2d/astroport/share"
 wbtc = "factory/neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky/WBTC"
 ntrn = "untrn"
 
 [neutron.accounts]
-deposit = "neutron1z0whhrxkg38lcrj7lv2eetsfhwztpfntl72fmlc3nftdsptq42ssurv2um"
-position = "neutron1lxmvzkqv8t2palwehetj0ntzh3996ffv5jwyrrz3lxveyqjgxgms3zuewj"
-withdraw = "neutron1exevpfh3udzaj3k8tjfvfy63srsvf5rk4a64qzjljekn7d3zrrsq0wq698"
-liquidation = "neutron1rw7ap8ft6dm6uv8j4vsapjtl62r9yj2vul630k53qgx2zdztcmsqzgucr2"
+deposit = "neutron1ell22k43hs2jtx8x50jz96agaqju5jwn87ued0mzcfglzlw6um0ssqx6x5"
+position = "neutron1yzrwpjdlvc7mjgd7gqyg94uy8lzh3m4snuexlspy0cxhjc9phhkscax8yc"
+withdraw = "neutron1pzyr2w7vw5watdn9n6mqz95dk0mr23h28eyw5jqu4l8d6wg7mvjsw66klp"
+liquidation = "neutron15nd2dzmyu0dzy4fq0ddjqac57ajl0ept0r6td5keteuu5ayenj7s88rnu6"
 
 [neutron.libraries]
-neutron_ibc_transfer = "neutron1rf7gxgm5gcc9mvw0ayz28tfexvyv4avekfqw4m9vezxgxwe8t89sz0g37f"
-astroport_lper = "neutron1mw654xfz93krz8hvg2ejsej2rnfj5avrgjtrjw5wf8fzj6v4vwuq4ret3w"
-astroport_lwer = "neutron1n5c5g43uhaw73eluq398v0hlxhpfrg2zczn6v74m6xyxf5p2q3gqgnrwhr"
-liquidation_forwarder = "neutron1wmym0pn80kuq7sj5re5m07pgqrvuve3vrmxkvx5awcrjdejp027sp2fff6"
-authorizations = "neutron1etvtyclc64nxncxj70wy2a4l3gnrf6clcn5qqzmk6y64xjt5pqsqprw87w"
-processor = "neutron1235evccz25ju9d3rsuezjenu8thp5wl3tvmr82rvqvx4vmu6e0hq5rzpem"
+neutron_ibc_transfer = "neutron14wyesxwny7hu67vk93ea4gsmdeajt894lz7fycn6qn2a4nt8qk3s653qjl"
+astroport_lper = "neutron18nwjauhgpmfsjf8c4yea0mfj74n6dhy0wkqzydtvvhkmr7gqzxtsw73ffy"
+astroport_lwer = "neutron1w6s58pxy7aks33yz8dcqphh8xu6w75mpqn05kdjd7s4789m4q38qhynzvt"
+liquidation_forwarder = "neutron1zmgfjea6e4p94n07j6982yhmhhg5yev33u3v8vwdjkkaa0748ljqpczrx8"
+authorizations = "neutron14c6hlxp990krd5wj6m3u7wlnz8s8nem659uj76snkpupx2795tqqp3s3d9"
+processor = "neutron1juque0va5ya8tcvrxu2kq3s4gdfrzw2yv6k7glr7z0uu563qze4s2knnt4"
 
 [ethereum]
 rpc_url = "http://localhost:8545"
