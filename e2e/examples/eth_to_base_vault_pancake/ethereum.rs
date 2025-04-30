@@ -490,7 +490,7 @@ async fn set_up_forwarder_aave_input_to_cctp_input(
         // Strategist will update this to forward the right amount
         forwardingConfigs: vec![ForwardingConfig {
             tokenAddress: alloy_primitives_encoder::Address::from_str(USDC_ADDRESS_ON_ETHEREUM)?,
-            maxAmount: U256::ZERO,
+            maxAmount: U256::MAX,
         }],
         intervalType: IntervalType::TIME,
         minInterval: 0,

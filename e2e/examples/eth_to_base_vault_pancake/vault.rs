@@ -206,7 +206,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             accounts: ethereum_accounts.clone(),
             libraries: ethereum_libraries.clone(),
             parameters: EthereumParameters {
-                min_aave_health_factor: "1.2".to_string(),
+                min_aave_health_factor: "12".to_string(), // Represents 1.2
             },
             contracts: EthereumContracts {
                 aave_pool: AAVE_POOL_ADDRESS.to_string(),
