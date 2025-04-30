@@ -1,44 +1,45 @@
 [noble]
 grpc_url = "http://0.0.0.0"
-grpc_port = "63731"
+grpc_port = "44717"
 chain_id = "localnoble-1"
 mnemonic = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry"
 
 [neutron]
 grpc_url = "http://0.0.0.0"
-grpc_port = "64749"
+grpc_port = "38929"
 chain_id = "localneutron-1"
 mnemonic = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry"
-target_pool = "neutron19wfdqvt2rfhffpl0unulepjuwcgf0ycz3fu448u2v6f45j2c7fvq5fgvyy"
+target_pool = "neutron1t5xc6ekgrtk9gcrp3g5a05jg5kj0qqj5syrnqwwwe4elzy6fv8gshk76ap"
+min_ibc_fee = "2000"
 
 [neutron.denoms]
-lp_token = "factory/neutron19wfdqvt2rfhffpl0unulepjuwcgf0ycz3fu448u2v6f45j2c7fvq5fgvyy/astroport/share"
+lp_token = "factory/neutron1t5xc6ekgrtk9gcrp3g5a05jg5kj0qqj5syrnqwwwe4elzy6fv8gshk76ap/astroport/share"
 usdc = "ibc/F082B65C88E4B6D5EF1DB243CDA1D331D002759E938A0F5CD3FFDC5D53B3E349"
 ntrn = "untrn"
 
 [neutron.accounts]
-deposit = "neutron1qljtk4khhd5242t49yqapysv63uzue70jq0pavwjct36xs98gu4s7xqzed"
-position = "neutron1kgn0k6aqakdp52at7ypdc9cpl0megm9gw3pkcmdpl6g5jyl45m5qu76p2z"
-withdraw = "neutron1tt4tzqz0kamjnraxwkdzw62z8yzzqheqnkrzxlh52xul5k96jrjqja3dta"
-liquidation = "neutron10l0ltapgnd746a6rgty5vkd33tex54ddvf2eyu3qas0050q7yehsumh7j2"
+deposit = "neutron1jgm29tzmd6p5uu4p225ltq0m4wl6sa4tl7q03pzvfgmym66lk0wst0gdkr"
+position = "neutron1vqs9s4lpd2lputyp87uwm4c0lwkauzeudwfuc9whym8mmlkganus3lalrn"
+withdraw = "neutron1lvp0fx0xc59hx23630sy9ndrhrm5vsga2wv59p86lern5rgl90lqa9xzxr"
+liquidation = "neutron1ztndzpzsrussrdp3cda60fs736puppa5xc9qxq9lek0jzgx8z3cq9wsrnr"
 
 [neutron.accounts.noble_inbound_ica]
-library_account = "neutron16xz4vg9xh9arxfky5zwl8g6mtk9dxkjt7h608f80dplkfzgr3mesv9qtdh"
-remote_addr = "noble1d8rra6k4t6chcnv3s7v0u555yn8gqhvsj2qhcvrugaf2w4frrezqjjke0a"
+library_account = "neutron1lg2uh7qvme35erlgpre93tkqry0sa7ckgj77hv4athk0ngsqengs7zchdn"
+remote_addr = "noble1qzt20tq7kcggz2plerjhzzpjxlvljhnjeeck9l9sjxr3nagafdjqguh7t9"
 
 [neutron.accounts.noble_outbound_ica]
-library_account = "neutron1uaf28tgvtgjd40nw2wv9ckwmcwad7eeca6y3pvcral53as9tkqxq6nywha"
-remote_addr = "noble12ugxxvxcqu3lrfnunwxgsc8w3hpu7fcf4gf0790kdnh4fvlgu70qjk6gjn"
+library_account = "neutron1uallcqdur2dv9p7wp4p6wuykqfcaa7df90chdqwpqehm6zserh6qrrz4qp"
+remote_addr = "noble1qgdpqn674mldh6th79ptzmhsfalnslhk4u0j278kp9kctnyvklqq9lrqkd"
 
 [neutron.libraries]
-neutron_ibc_transfer = "neutron1juque0va5ya8tcvrxu2kq3s4gdfrzw2yv6k7glr7z0uu563qze4s2knnt4"
-noble_inbound_transfer = "neutron14wzrxt6u557ecr98w2z22ygnu77w34uqfel72k8t8xatneajy2xq9rvs87"
-noble_cctp_transfer = "neutron1j30wx6kjfsessdx5mlp32hqwklj48ufvtve50ymzg7dc6870sw3s42j44h"
-astroport_lper = "neutron1nycr84qcjk8wdwwlnexf40ctu46n3xzrxmkwaydsaw42sxny0vtsvcuca2"
-astroport_lwer = "neutron1lqgdq9u8zhcvwwwz3xjswactrtq6qzptmlzlh6xspl34dxq32uhq44hq5v"
-liquidation_forwarder = "neutron1mx32w9tnfxv0z5j000750h8ver7qf3xpj09w3uzvsr3hq68f4hxqwg06ta"
-authorizations = "neutron1r54uexfzu58yksg7eyegyrmcc829v9xtgpauz370npe87k7g5gwsts76vu"
-processor = "neutron1cyd63pk2wuvjkqmhlvp9884z4h89rqtn8w8xgz9m28hjd2kzj2cqt9gc49"
+neutron_ibc_transfer = "neutron1rjfk54xd7lr6ha0tt7yrtvnywvycwlp2uvhcng5g35fthyxhflts4480s4"
+noble_inbound_transfer = "neutron1c29c0j4klanv84j4tlcml4kqwn54rpah8yfu4mfr6rv6vmt0fjusp2drkp"
+noble_cctp_transfer = "neutron1tzye9hgd3n7wk92rphgr7g37d08dpz98w508he400dwpncjzq0jqg9h5c6"
+astroport_lper = "neutron1hzpf2z6j63c7fcg87dt80qhap3fmwgyk47u6x0whhwpj6298czwsmwpwyn"
+astroport_lwer = "neutron1kqpaj0n2cyleckhv6lj7858g4akefaw7phjzy8c8wauklu6pfylse3fmz9"
+liquidation_forwarder = "neutron1dv6cx8sjyvz5ud052sy2e56ptddtd95k3e4kvy0m7mryd99qz8ysfm3znz"
+authorizations = "neutron1zd9v0leptms68dryza4nqu4kj9uf6wlq072g02taqud33awwy3lq9l56qq"
+processor = "neutron1k29gz2evp9zjx6lw47e9d3fnrdazpclvee3q4jch3prpakyjjseqfz0xgu"
 
 [ethereum]
 rpc_url = "http://localhost:8545"

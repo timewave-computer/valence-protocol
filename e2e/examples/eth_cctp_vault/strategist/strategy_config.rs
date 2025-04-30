@@ -30,6 +30,7 @@ pub mod noble {
 
 // configuration relevant for the neutron part of the strategy
 pub mod neutron {
+    use cosmwasm_std::Uint128;
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +43,8 @@ pub mod neutron {
         pub denoms: NeutronDenoms,
         pub accounts: NeutronAccounts,
         pub libraries: NeutronLibraries,
+        // total amount of untrn required to initiate an ibc transfer from neutron
+        pub min_ibc_fee: Uint128,
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]

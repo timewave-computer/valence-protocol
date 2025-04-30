@@ -192,13 +192,13 @@ impl ValenceWorker for Strategy {
 
         // 8. liquidate the forwarded shares to get USDC+NTRN
         match self.exit_position().await {
-            Ok(_) => info!("success exiting position"),
+            Ok(_) => (),
             Err(e) => warn!("error exiting position: {:?}", e),
         };
 
         // 9. swap NTRN into USDC to obtain the full obligation amount
         match self.swap_ntrn_into_usdc().await {
-            Ok(_) => info!("success swapping ntrn into usdc"),
+            Ok(_) => (),
             Err(e) => warn!("error swapping ntrn into usdc: {:?}", e),
         };
 
@@ -215,6 +215,7 @@ impl ValenceWorker for Strategy {
 
         let clamped_withdraw_fee = total_fee.clamp(1, 10_000);
 
+        info!("withdraw fee: {total_fee}, clamping to {clamped_withdraw_fee}");
         info!(
             "Updating Ethereum Vault with:
             rate: {r}
@@ -249,7 +250,7 @@ impl ValenceWorker for Strategy {
 
         // 12. enter the position with funds available in neutron deposit acc
         match self.enter_position().await {
-            Ok(_) => info!("success entering position"),
+            Ok(_) => (),
             Err(e) => warn!("error entering position: {:?}", e),
         };
 
