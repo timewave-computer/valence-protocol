@@ -4,6 +4,7 @@ use alloy::{
     primitives::{Address, U256},
     signers::local::{coins_bip39::English, MnemonicBuilder},
 };
+use alloy_sol_types_encoder::SolValue;
 use async_trait::async_trait;
 use log::info;
 use valence_chain_client_utils::{
@@ -11,8 +12,14 @@ use valence_chain_client_utils::{
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
 use valence_e2e::utils::{
-    solidity_contracts::{ValenceVault, ERC20},
+    solidity_contracts::{
+        Forwarder::{self},
+        ValenceVault, ERC20,
+    },
     worker::{ValenceWorker, ValenceWorkerTomlSerde},
+};
+use valence_encoder_utils::libraries::forwarder::solidity_types::{
+    ForwarderConfig, ForwardingConfig, IntervalType,
 };
 
 use super::strategy_config::StrategyConfig;
@@ -67,8 +74,8 @@ impl ValenceWorker for Strategy {
     async fn cycle(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
         let worker_name = self.get_name();
         info!("{worker_name}: Starting cycle...");
-        info!("{worker_name}: Waiting 30 seconds...");
-        tokio::time::sleep(Duration::from_secs(30)).await;
+        info!("{worker_name}: Waiting 5 seconds...");
+        tokio::time::sleep(Duration::from_secs(5)).await;
         info!("{worker_name}: Worker loop started");
 
         let eth_rp = self.eth_client.get_request_provider().await?;
@@ -80,7 +87,7 @@ impl ValenceWorker for Strategy {
         );
         let eth_weth = ERC20::new(Address::from_str(&self.cfg.ethereum.denoms.weth)?, &eth_rp);
 
-        // 1. Query the amount of WETH that needs to be withdrawn
+        // Query the amount of WETH that needs to be withdrawn
         let pending_obligations = self
             .eth_client
             .query(valence_vault.totalAssetsToWithdrawNextUpdate())
@@ -89,7 +96,7 @@ impl ValenceWorker for Strategy {
 
         info!("Pending obligations: {pending_obligations}");
 
-        // 2. Query vault deposit account for its WETH balance
+        // Query vault deposit account for its WETH balance
         let vault_deposit_acc_weth_bal = self
             .eth_client
             .query(eth_weth.balanceOf(Address::from_str(
@@ -103,7 +110,7 @@ impl ValenceWorker for Strategy {
             vault_deposit_acc_weth_bal
         );
 
-        // 3. Calculate the netting amount and update the pending obligations
+        // Calculate the netting amount and update the pending obligations
         let netting_amount = pending_obligations.min(vault_deposit_acc_weth_bal);
         info!("Netting amount: {netting_amount}");
 
@@ -138,6 +145,45 @@ impl ValenceWorker for Strategy {
             .checked_div(U256::from(3))
             .unwrap_or_default();
         info!("WETH to bridge: {weth_to_bridge}");
+
+        // Update the forwarder to forward the right amount to the AAVE input account and Standard bridge input account
+        let forwarder_vault_to_aave_config = ForwarderConfig {
+            inputAccount: alloy_primitives_encoder::Address::from_str(
+                &self.cfg.ethereum.accounts.vault_deposit,
+            )?,
+            outputAccount: alloy_primitives_encoder::Address::from_str(
+                &self.cfg.ethereum.accounts.aave_input,
+            )?,
+            // Strategist will update this to forward the right amount
+            forwardingConfigs: vec![ForwardingConfig {
+                tokenAddress: alloy_primitives_encoder::Address::from_str(
+                    &self.cfg.ethereum.denoms.weth,
+                )?,
+                maxAmount: weth_to_supply,
+            }],
+            intervalType: IntervalType::TIME,
+            minInterval: 0,
+        }
+        .abi_encode();
+        let forwarder_to_aave = Forwarder::new(
+            Address::from_str(
+                &self
+                    .cfg
+                    .ethereum
+                    .libraries
+                    .forwarder_vault_deposit_to_aave_input,
+            )?,
+            &eth_rp,
+        );
+        info!("Updating forwarder to AAVE...");
+        let tx = forwarder_to_aave
+            .updateConfig(forwarder_vault_to_aave_config.into())
+            .into_transaction_request();
+        self.eth_client.execute_tx(tx).await?;
+        info!("Forwarder to AAVE updated");
+
+        info!("{worker_name}: Cycle completed, wait 30 seconds...");
+        tokio::time::sleep(Duration::from_secs(30)).await;
 
         Ok(())
     }
