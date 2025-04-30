@@ -1,3 +1,14 @@
+use serde::{Deserialize, Serialize};
+use valence_e2e::utils::worker::ValenceWorkerTomlSerde;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StrategyConfig {
+    pub ethereum: ethereum::EthereumStrategyConfig,
+    pub base: base::BaseStrategyConfig,
+}
+
+impl ValenceWorkerTomlSerde for StrategyConfig {}
+
 pub mod ethereum {
     use serde::{Deserialize, Serialize};
 

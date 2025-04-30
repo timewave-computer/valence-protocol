@@ -1,9 +1,17 @@
-use std::{error::Error, str::FromStr};
+use std::{error::Error, path::Path, str::FromStr};
 
 use alloy::primitives::{Address, U256};
 use base::set_up_base_accounts;
 use ethereum::set_up_eth_accounts;
 use log::info;
+use strategist::{
+    strategy::Strategy,
+    strategy_config::{
+        base::{BaseDenoms, BaseStrategyConfig},
+        ethereum::{EthereumDenoms, EthereumStrategyConfig},
+        StrategyConfig,
+    },
+};
 use valence_chain_client_utils::{
     ethereum::EthereumClient,
     evm::{
@@ -18,7 +26,7 @@ use valence_e2e::utils::{
         standard_bridge_relayer::MockStandardBridgeRelayer,
     },
     solidity_contracts::{BaseAccount, ValenceVault, ERC20},
-    worker::ValenceWorker,
+    worker::{ValenceWorker, ValenceWorkerTomlSerde},
 };
 
 const ETH_FORK_URL: &str = "https://eth-mainnet.public.blastapi.io";
@@ -30,6 +38,7 @@ pub const WETH_ADDRESS_ON_ETHEREUM: &str = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c
 pub const WETH_ADDRESS_ON_BASE: &str = "0x4200000000000000000000000000000000000006";
 pub const USDC_ADDRESS_ON_ETHEREUM: &str = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 pub const USDC_ADDRESS_ON_BASE: &str = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+pub const CAKE_ADDRESS_ON_BASE: &str = "0x3055913c90Fcc1A6CE9a358911721eEb942013A1";
 pub const CCTP_TOKEN_MESSENGER_ON_ETHEREUM: &str = "0xBd3fa81B58Ba92a82136038B25aDec7066af3155";
 pub const CCTP_TOKEN_MESSENGER_ON_BASE: &str = "0x1682Ae6375C4E4A97e4B583BC394c861A46D8962";
 pub const AAVE_POOL_ADDRESS: &str = "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2";
@@ -161,6 +170,60 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .await?;
     info!("Mock relayers funded successfully");
 
+    info!("Starting relayers...");
+    let mock_cctp_relayer = MockCctpRelayerEvmEvm::new(
+        endpoint_eth.clone(),
+        endpoint_base.clone(),
+        cctp_token_messenger_eth,
+        usdc_address_eth,
+        cctp_token_messenger_base,
+        usdc_address_base,
+    )
+    .await?;
+    mock_cctp_relayer.start();
+
+    let mock_standard_bridge_relayer = MockStandardBridgeRelayer::new(
+        endpoint_eth.clone(),
+        endpoint_base.clone(),
+        standard_bridge_eth,
+        weth_address_eth,
+        standard_bridge_base,
+        weth_address_base,
+    )
+    .await?;
+    mock_standard_bridge_relayer.start();
+    info!("Relayers started successfully");
+
+    info!("Build strategy config...");
+    let strategy_config = StrategyConfig {
+        ethereum: EthereumStrategyConfig {
+            rpc_url: endpoint_eth.clone(),
+            mnemonic: TEST_MNEMONIC.to_string(),
+            denoms: EthereumDenoms {
+                weth: WETH_ADDRESS_ON_ETHEREUM.to_string(),
+                usdc: USDC_ADDRESS_ON_ETHEREUM.to_string(),
+            },
+            accounts: ethereum_accounts.clone(),
+            libraries: ethereum_libraries.clone(),
+        },
+        base: BaseStrategyConfig {
+            rpc_url: endpoint_base.clone(),
+            mnemonic: TEST_MNEMONIC.to_string(),
+            denoms: BaseDenoms {
+                weth: WETH_ADDRESS_ON_BASE.to_string(),
+                usdc: USDC_ADDRESS_ON_BASE.to_string(),
+                cake: CAKE_ADDRESS_ON_BASE.to_string(),
+            },
+            accounts: base_accounts.clone(),
+            libraries: base_libraries.clone(),
+        },
+    };
+
+    let temp_path =
+        Path::new("./e2e/examples/eth_to_base_vault_pancake/strategist/example_strategy.toml");
+    strategy_config.to_file(temp_path)?;
+    let strategy = Strategy::from_file(temp_path).await?;
+
     let mut ethereum_users = vec![];
     for account in accounts_eth.iter().take(4) {
         ethereum_users.push(*account);
@@ -191,8 +254,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .into_transaction_request()
             .from(ethereum_users[1]);
         eth_client.execute_tx(deposit).await?;
-        let balance = valence_vault.balanceOf(ethereum_users[1]).call().await?._0;
-        info!("User 1 balance in vault: {:?} shares", balance);
+        let balance_shares_user1 = valence_vault.balanceOf(ethereum_users[1]).call().await?._0;
+        info!("User 1 balance in vault: {:?} shares", balance_shares_user1);
 
         info!("User 2 deposits 0.3 WETH into the vault ...");
         let deposit_amount = U256::from(3e17);
@@ -206,8 +269,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .into_transaction_request()
             .from(ethereum_users[2]);
         eth_client.execute_tx(deposit).await?;
-        let balance = valence_vault.balanceOf(ethereum_users[2]).call().await?._0;
-        info!("User 2 balance in vault: {:?} shares", balance);
+        let balance_shares_user2 = valence_vault.balanceOf(ethereum_users[2]).call().await?._0;
+        info!("User 2 balance in vault: {:?} shares", balance_shares_user2);
 
         info!("User 3 deposits 0.2 WETH into the vault ...");
         let deposit_amount = U256::from(2e17);
@@ -221,33 +284,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .into_transaction_request()
             .from(ethereum_users[3]);
         eth_client.execute_tx(deposit).await?;
-        let balance = valence_vault.balanceOf(ethereum_users[3]).call().await?._0;
-        info!("User 3 balance in vault: {:?} shares", balance);
+        let balance_shares_user3 = valence_vault.balanceOf(ethereum_users[3]).call().await?._0;
+        info!("User 3 balance in vault: {:?} shares", balance_shares_user3);
     }
 
-    info!("Starting relayers...");
-    let mock_cctp_relayer = MockCctpRelayerEvmEvm::new(
-        endpoint_eth.clone(),
-        endpoint_base.clone(),
-        cctp_token_messenger_eth,
-        usdc_address_eth,
-        cctp_token_messenger_base,
-        usdc_address_base,
-    )
-    .await?;
-    mock_cctp_relayer.start();
+    strategy.start();
 
-    let mock_standard_bridge_relayer = MockStandardBridgeRelayer::new(
-        endpoint_eth.clone(),
-        endpoint_base.clone(),
-        standard_bridge_eth,
-        weth_address_eth,
-        standard_bridge_base,
-        weth_address_base,
-    )
-    .await?;
-    mock_standard_bridge_relayer.start();
-    info!("Relayers started successfully");
+    // Sleep for 2 minutes
+    tokio::time::sleep(tokio::time::Duration::from_secs(120)).await;
 
     Ok(())
 }
