@@ -8,7 +8,7 @@ use strategist::{
     strategy::Strategy,
     strategy_config::{
         base::{BaseDenoms, BaseStrategyConfig},
-        ethereum::{EthereumDenoms, EthereumStrategyConfig},
+        ethereum::{EthereumContracts, EthereumDenoms, EthereumParameters, EthereumStrategyConfig},
         StrategyConfig,
     },
 };
@@ -205,6 +205,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
             },
             accounts: ethereum_accounts.clone(),
             libraries: ethereum_libraries.clone(),
+            parameters: EthereumParameters {
+                min_aave_health_factor: "1.2".to_string(),
+            },
+            contracts: EthereumContracts {
+                aave_pool: AAVE_POOL_ADDRESS.to_string(),
+            },
         },
         base: BaseStrategyConfig {
             rpc_url: endpoint_base.clone(),

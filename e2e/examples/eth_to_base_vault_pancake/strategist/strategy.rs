@@ -13,8 +13,9 @@ use valence_chain_client_utils::{
 };
 use valence_e2e::utils::{
     solidity_contracts::{
+        AavePositionManager, CCTPTransfer,
         Forwarder::{self},
-        ValenceVault, ERC20,
+        StandardBridgeTransfer, ValenceVault, ERC20,
     },
     worker::{ValenceWorker, ValenceWorkerTomlSerde},
 };
@@ -181,6 +182,124 @@ impl ValenceWorker for Strategy {
             .into_transaction_request();
         self.eth_client.execute_tx(tx).await?;
         info!("Forwarder to AAVE updated");
+
+        let forwarder_vault_to_standard_bridge_config = ForwarderConfig {
+            inputAccount: alloy_primitives_encoder::Address::from_str(
+                &self.cfg.ethereum.accounts.vault_deposit,
+            )?,
+            outputAccount: alloy_primitives_encoder::Address::from_str(
+                &self.cfg.ethereum.accounts.standard_bridge_input,
+            )?,
+            // Strategist will update this to forward the right amount
+            forwardingConfigs: vec![ForwardingConfig {
+                tokenAddress: alloy_primitives_encoder::Address::from_str(
+                    &self.cfg.ethereum.denoms.weth,
+                )?,
+                maxAmount: weth_to_bridge,
+            }],
+            intervalType: IntervalType::TIME,
+            minInterval: 0,
+        }
+        .abi_encode();
+        let forwarder_to_standard_bridge = Forwarder::new(
+            Address::from_str(
+                &self
+                    .cfg
+                    .ethereum
+                    .libraries
+                    .forwarder_vault_deposit_to_standard_bridge_input,
+            )?,
+            &eth_rp,
+        );
+        info!("Updating forwarder to Standard Bridge...");
+        let tx = forwarder_to_standard_bridge
+            .updateConfig(forwarder_vault_to_standard_bridge_config.into())
+            .into_transaction_request();
+        self.eth_client.execute_tx(tx).await?;
+
+        // Now let's trigger the forwards
+        let tx_forward = forwarder_to_aave.forward().into_transaction_request();
+        self.eth_client.execute_tx(tx_forward).await?;
+        let tx_forward = forwarder_to_standard_bridge
+            .forward()
+            .into_transaction_request();
+        self.eth_client.execute_tx(tx_forward).await?;
+
+        // Check balances
+        let aave_input_weth_bal = self
+            .eth_client
+            .query(eth_weth.balanceOf(Address::from_str(&self.cfg.ethereum.accounts.aave_input)?))
+            .await?
+            ._0;
+        info!("AAVE input account balance: {:?}", aave_input_weth_bal);
+        let standard_bridge_input_weth_bal = self
+            .eth_client
+            .query(eth_weth.balanceOf(Address::from_str(
+                &self.cfg.ethereum.accounts.standard_bridge_input,
+            )?))
+            .await?
+            ._0;
+        info!(
+            "Standard bridge input account balance: {:?}",
+            standard_bridge_input_weth_bal
+        );
+
+        // Supply the WETH to AAVE
+        let aave_position_manager = AavePositionManager::new(
+            Address::from_str(&self.cfg.ethereum.libraries.aave_position_manager)?,
+            &eth_rp,
+        );
+        let tx = aave_position_manager.supply(U256::ZERO).into_transaction_request();
+        self.eth_client.execute_tx(tx).await?;
+        info!("AAVE supply transaction executed");
+
+        // Borrow USDC equivalent to half of the WETH supplied
+        
+
+
+
+        // Trigger the bridge transfers
+        let standard_bridge_transfer_eth = StandardBridgeTransfer::new(
+            Address::from_str(&self.cfg.ethereum.libraries.standard_bridge_transfer)?,
+            &eth_rp,
+        );
+        let _cctp_transfer_eth = CCTPTransfer::new(
+            Address::from_str(&self.cfg.ethereum.libraries.cctp_transfer)?,
+            &eth_rp,
+        );
+        let tx = standard_bridge_transfer_eth
+            .transfer()
+            .into_transaction_request();
+        self.eth_client.execute_tx(tx).await?;
+        /*let tx = cctp_transfer_eth.transfer().into_transaction_request();
+        self.eth_client.execute_tx(tx).await?;*/
+        info!("Bridge transfers triggered");
+
+        // Sleep enough time for relayers to pick up the transfers
+        info!("{worker_name}: Waiting 8 seconds for relayers to pick up the transfers...");
+        tokio::time::sleep(Duration::from_secs(8)).await;
+
+        // Check the balances on Base
+        let base_weth = ERC20::new(Address::from_str(&self.cfg.base.denoms.weth)?, &base_rp);
+        let pancake_input_weth_balance = self
+            .base_client
+            .query(base_weth.balanceOf(Address::from_str(&self.cfg.base.accounts.pancake_input)?))
+            .await?
+            ._0;
+        info!(
+            "Pancake input account balance: {:?}",
+            pancake_input_weth_balance
+        );
+        let base_usdc = ERC20::new(Address::from_str(&self.cfg.base.denoms.usdc)?, &base_rp);
+        let pancake_input_usdc_balance = self
+            .base_client
+            .query(base_usdc.balanceOf(Address::from_str(&self.cfg.base.accounts.pancake_input)?))
+            .await?
+            ._0;
+        info!(
+            "Pancake input account USDC balance: {:?}",
+            pancake_input_usdc_balance
+        );
 
         info!("{worker_name}: Cycle completed, wait 30 seconds...");
         tokio::time::sleep(Duration::from_secs(30)).await;

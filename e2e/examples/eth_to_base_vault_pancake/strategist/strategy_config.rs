@@ -19,6 +19,8 @@ pub mod ethereum {
         pub denoms: EthereumDenoms,
         pub accounts: EthereumAccounts,
         pub libraries: EthereumLibraries,
+        pub parameters: EthereumParameters,
+        pub contracts: EthereumContracts,
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,6 +47,16 @@ pub mod ethereum {
         pub forwarder_vault_deposit_to_aave_input: String,
         pub forwarder_vault_deposit_to_standard_bridge_input: String,
         pub forwarder_aave_input_to_cctp_input: String,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct EthereumParameters {
+        pub min_aave_health_factor: String,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct EthereumContracts {
+        pub aave_pool: String,
     }
 }
 
