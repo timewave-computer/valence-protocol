@@ -6,8 +6,12 @@ version    = { workspace = true }
 repository = { workspace = true }
 
 [[example]]
-name = "vault"
-path = "examples/eth_vault/vault.rs"
+name = "cctp_vault"
+path = "examples/eth_cctp_vault/vault.rs"
+
+[[example]]
+name = "eureka_vault"
+path = "examples/eth_eureka_vault/vault.rs"
 
 [[example]]
 name = "eth_to_base_vault_pancake"
@@ -78,3 +82,4 @@ futures-util                         = "0.3"
 toml                                 = "0.8.19"
 async-trait                          = "0.1.77"
 serde                                = "1.0.219"
+chrono                               = { version = "0.4", features = ["serde", "alloc"] }

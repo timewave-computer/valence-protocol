@@ -7,7 +7,7 @@ use std::{
 };
 
 use alloy::primitives::{Address, U256};
-use evm::{setup_eth_accounts, setup_eth_libraries, EthereumUsers};
+use evm::{setup_eth_accounts, setup_eth_libraries};
 use localic_utils::{
     types::config::ConfigChain, utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder,
     LOCAL_IC_API_URL, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID,
@@ -15,14 +15,14 @@ use localic_utils::{
 };
 
 use log::info;
-use neutron::setup_astroport_cl_pool;
+
 use program::{setup_neutron_accounts, setup_neutron_libraries, upload_neutron_contracts};
 
 use strategist::{
     strategy::Strategy,
     strategy_config::{self, StrategyConfig},
 };
-use utils::wait_until_half_minute;
+
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
@@ -32,12 +32,13 @@ use valence_chain_client_utils::{
 use valence_e2e::{
     async_run,
     utils::{
+        astroport::setup_astroport_cl_pool,
         authorization::set_up_authorization_and_processor,
         ethereum::{self as ethereum_utils, ANVIL_NAME, DEFAULT_ANVIL_PORT},
         mocks::cctp_relayer_evm_noble::MockCctpRelayerEvmNoble,
         parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
         solidity_contracts::ValenceVault,
-        vault::{self},
+        vault::{self, time::wait_until_half_minute, vault_users::EthereumUsers},
         worker::{ValenceWorker, ValenceWorkerTomlSerde},
         ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR,
         NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, UUSDC_DENOM,
@@ -47,14 +48,12 @@ use valence_e2e::{
 
 const _PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "provide_liquidity";
 const _WITHDRAW_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "withdraw_liquidity";
-const ASTROPORT_CONCENTRATED_PAIR_TYPE: &str = "concentrated";
 const VAULT_NEUTRON_CACHE_PATH: &str = "e2e/examples/eth_vault/neutron_contracts/";
 
 mod evm;
 mod neutron;
 mod program;
 mod strategist;
-mod utils;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -111,7 +110,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .build()?;
 
     // setup hyperlane between neutron and eth
-    let program_hyperlane_contracts = utils::hyperlane_plumbing(&mut test_ctx, &eth)?;
+    let program_hyperlane_contracts = vault::hyperlane_plumbing(&mut test_ctx, &eth)?;
 
     let uusdc_on_neutron_denom = test_ctx
         .get_ibc_denom()
@@ -295,7 +294,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         Strategy::from_file(temp_path).await
     )?;
 
-    let user2_usdc_bal = eth_users.get_user_usdc(&rt, &eth_client, 2);
+    let user2_usdc_bal = eth_users.get_user_deposit_token_bal(&rt, &eth_client, 2);
     let user2_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 2);
     info!("User2 USDC balance: {user2_usdc_bal}");
     info!("User2 shares balance: {user2_shares_bal}");
@@ -309,7 +308,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         user_2_deposit_amount,
     )?;
 
-    let user2_usdc_bal = eth_users.get_user_usdc(&rt, &eth_client, 2);
+    let user2_usdc_bal = eth_users.get_user_deposit_token_bal(&rt, &eth_client, 2);
     let user2_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 2);
     info!("User2 USDC balance: {user2_usdc_bal}");
     info!("User2 shares balance: {user2_shares_bal}");
@@ -324,7 +323,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     {
         info!("\n======================== EPOCH 0 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
 
         info!("User0 depositing {user_0_deposit_amount}USDC tokens to vault...");
         vault::deposit_to_vault(
@@ -335,14 +334,14 @@ fn main() -> Result<(), Box<dyn Error>> {
             user_0_deposit_amount,
         )?;
 
-        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     // epoch 1
     {
         info!("\n======================== EPOCH 1 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
 
         info!("User1 depositing {user_1_deposit_amount}USDC tokens to vault...");
         vault::deposit_to_vault(
@@ -352,14 +351,14 @@ fn main() -> Result<(), Box<dyn Error>> {
             eth_users.users[1],
             user_1_deposit_amount,
         )?;
-        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     // epoch 2
     {
         info!("\n======================== EPOCH 2 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
 
         let user0_pre_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 0);
 
@@ -406,13 +405,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         });
         info!("Update withdraw request: {:?}", request);
 
-        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     {
         info!("\n======================== EPOCH 3 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
 
         let user1_pre_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 1);
         info!("USER1 initiating the redeem of {user1_pre_redeem_shares_bal} shares from vault...");
@@ -456,13 +455,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         });
         info!("User1 update withdraw request: {:?}", request);
 
-        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     {
         info!("\n======================== EPOCH 4 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
 
         // Get the withdrawal request details before completion
         let withdraw_request = async_run!(&rt, {
@@ -513,7 +512,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .await
         );
 
-        let post_completion_user0_bal = eth_users.get_user_usdc(&rt, &eth_client, 0);
+        let post_completion_user0_bal = eth_users.get_user_deposit_token_bal(&rt, &eth_client, 0);
         let post_completion_user0_shares = eth_users.get_user_shares(&rt, &eth_client, 0);
         let user0_withdraw_request =
             vault::addr_has_active_withdraw(vault_address, &rt, &eth_client, eth_users.users[0])._0;
@@ -521,13 +520,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         info!("post completion user0 usdc bal: {post_completion_user0_bal}",);
         info!("post completion user0 shares bal: {post_completion_user0_shares}",);
 
-        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     {
         info!("\n======================== EPOCH 5 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
 
         info!("User0 depositing 2_000_000 to vault");
         vault::deposit_to_vault(
@@ -551,15 +550,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             false,
         )?;
 
-        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     {
         info!("\n======================== EPOCH 6 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
 
-        let pre_completion_user2_bal = eth_users.get_user_usdc(&rt, &eth_client, 2);
+        let pre_completion_user2_bal = eth_users.get_user_deposit_token_bal(&rt, &eth_client, 2);
         let pre_completion_user2_shares = eth_users.get_user_shares(&rt, &eth_client, 2);
         let user2_withdraw_request =
             vault::addr_has_active_withdraw(vault_address, &rt, &eth_client, eth_users.users[2])._0;
@@ -570,7 +569,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         info!("User2 completing withdraw request...");
         vault::complete_withdraw_request(vault_address, &rt, &eth_client, eth_users.users[2])?;
 
-        let post_completion_user2_bal = eth_users.get_user_usdc(&rt, &eth_client, 2);
+        let post_completion_user2_bal = eth_users.get_user_deposit_token_bal(&rt, &eth_client, 2);
         let post_completion_user2_shares = eth_users.get_user_shares(&rt, &eth_client, 2);
         let user2_withdraw_request =
             vault::addr_has_active_withdraw(vault_address, &rt, &eth_client, eth_users.users[2])._0;
@@ -578,7 +577,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         info!("post completion user2 usdc bal: {post_completion_user2_bal}",);
         info!("post completion user2 shares bal: {post_completion_user2_shares}",);
 
-        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     let mut i = 7;
@@ -588,7 +587,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         async_run!(&rt, wait_until_half_minute().await);
 
-        evm::mine_blocks(&rt, &eth_client, 5, 3);
+        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
 
         i += 1;
 

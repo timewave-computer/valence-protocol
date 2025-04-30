@@ -119,3 +119,11 @@ sol!(
     MockTokenMessenger,
     "../solidity/out/MockTokenMessenger.sol/MockTokenMessenger.json",
 );
+
+// Eureka transfer
+sol!(
+    #[sol(rpc)]
+    #[derive(Debug, PartialEq, Eq)]
+    IBCEurekaTransfer,
+    "../solidity/out/IBCEurekaTransfer.sol/IBCEurekaTransfer.json",
+);

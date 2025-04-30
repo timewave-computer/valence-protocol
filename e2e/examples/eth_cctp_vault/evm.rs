@@ -4,8 +4,7 @@ use std::str::FromStr;
 
 use alloy::{
     hex::FromHex,
-    primitives::{Address, Bytes, U256},
-    sol_types::SolValue,
+    primitives::{Address, U256},
 };
 use log::info;
 use valence_chain_client_utils::{
@@ -16,120 +15,12 @@ use valence_encoder_utils::libraries::cctp_transfer::solidity_types::CCTPTransfe
 
 use crate::{async_run, strategist::strategy_config};
 use valence_e2e::utils::{
-    ethereum::mock_erc20,
     solidity_contracts::{
-        CCTPTransfer, ERC1967Proxy, MockERC20, MockTokenMessenger,
-        ValenceVault::{self, FeeConfig, FeeDistributionConfig, VaultConfig},
+        CCTPTransfer, MockTokenMessenger,
+        ValenceVault::{FeeConfig, FeeDistributionConfig, VaultConfig},
     },
-    vault,
+    vault::setup_valence_vault,
 };
-
-pub fn mine_blocks(
-    rt: &tokio::runtime::Runtime,
-    eth_client: &EthereumClient,
-    blocks: usize,
-    interval: usize,
-) {
-    async_run!(rt, {
-        let eth_rp = eth_client.get_request_provider().await.unwrap();
-
-        alloy::providers::ext::AnvilApi::anvil_mine(
-            &eth_rp,
-            Some(U256::from(blocks)),
-            Some(U256::from(interval)),
-        )
-        .await
-        .unwrap();
-    });
-}
-
-#[derive(Clone, Debug)]
-pub struct EthereumUsers {
-    pub users: Vec<Address>,
-    pub erc20: Address,
-    pub vault: Address,
-}
-
-impl EthereumUsers {
-    pub fn new(erc20: Address, vault: Address) -> Self {
-        Self {
-            users: vec![],
-            erc20,
-            vault,
-        }
-    }
-
-    pub fn add_user(
-        &mut self,
-        rt: &tokio::runtime::Runtime,
-        eth_client: &EthereumClient,
-        user: Address,
-    ) {
-        info!("Adding new user {user}");
-        self.users.push(user);
-        info!("Approving erc20 spend for vault on behalf of user");
-        mock_erc20::approve(rt, eth_client, self.erc20, user, self.vault, U256::MAX);
-    }
-
-    pub fn fund_user(
-        &self,
-        rt: &tokio::runtime::Runtime,
-        eth_client: &EthereumClient,
-        user: usize,
-        amount: U256,
-    ) {
-        mock_erc20::mint(rt, eth_client, self.erc20, self.users[user], amount);
-    }
-
-    pub fn get_user_shares(
-        &self,
-        rt: &tokio::runtime::Runtime,
-        eth_client: &EthereumClient,
-        user: usize,
-    ) -> U256 {
-        let user_shares_balance =
-            vault::query_vault_balance_of(self.vault, rt, eth_client, self.users[user]);
-        user_shares_balance._0
-    }
-
-    pub fn get_user_usdc(
-        &self,
-        rt: &tokio::runtime::Runtime,
-        eth_client: &EthereumClient,
-        user: usize,
-    ) -> U256 {
-        mock_erc20::query_balance(rt, eth_client, self.erc20, self.users[user])
-    }
-
-    pub async fn log_balances(
-        &self,
-        eth_client: &EthereumClient,
-        vault_addr: &Address,
-        vault_deposit_token: &Address,
-    ) {
-        let eth_rp = eth_client.get_request_provider().await.unwrap();
-
-        let usdc_token = MockERC20::new(*vault_deposit_token, &eth_rp);
-        let valence_vault = ValenceVault::new(*vault_addr, &eth_rp);
-
-        info!("\nETHEREUM ACCOUNTS LOG");
-        for (i, user) in self.users.iter().enumerate() {
-            let usdc_bal = eth_client
-                .query(usdc_token.balanceOf(*user))
-                .await
-                .unwrap()
-                ._0;
-            let vault_bal = eth_client
-                .query(valence_vault.balanceOf(*user))
-                .await
-                .unwrap()
-                ._0;
-            let usdc_entry = format!("{usdc_bal}USDC");
-            let vault_entry = format!("{vault_bal}VAULT");
-            info!("\tUSER_{i}: {usdc_entry} {vault_entry}");
-        }
-    }
-}
 
 pub fn setup_eth_accounts(
     rt: &tokio::runtime::Runtime,
@@ -225,7 +116,8 @@ pub fn setup_eth_libraries(
         rt,
         eth_client,
         eth_admin_addr,
-        eth_program_accounts.clone(),
+        eth_program_accounts.deposit,
+        eth_program_accounts.withdraw,
         usdc_token_addr,
         vault_config,
     )?;
@@ -237,91 +129,6 @@ pub fn setup_eth_libraries(
     };
 
     Ok(libraries)
-}
-
-/// sets up a Valence Vault on Ethereum with a proxy.
-/// approves deposit & withdraw accounts.
-pub fn setup_valence_vault(
-    rt: &tokio::runtime::Runtime,
-    eth_client: &EthereumClient,
-    admin: Address,
-    eth_program_accounts: strategy_config::ethereum::EthereumAccounts,
-    vault_deposit_token_addr: Address,
-    vault_config: VaultConfig,
-) -> Result<Address, Box<dyn Error>> {
-    let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
-
-    info!("deploying Valence Vault on Ethereum...");
-
-    // First deploy the implementation contract
-    let implementation_tx = ValenceVault::deploy_builder(&eth_rp)
-        .into_transaction_request()
-        .from(admin);
-
-    let implementation_address = async_run!(
-        rt,
-        eth_client
-            .execute_tx(implementation_tx)
-            .await
-            .unwrap()
-            .contract_address
-            .unwrap()
-    );
-
-    info!("Vault deployed at: {implementation_address}");
-
-    let proxy_address = async_run!(rt, {
-        // Deploy the proxy contract
-        let proxy_tx = ERC1967Proxy::deploy_builder(&eth_rp, implementation_address, Bytes::new())
-            .into_transaction_request()
-            .from(admin);
-
-        let proxy_address = eth_client
-            .execute_tx(proxy_tx)
-            .await
-            .unwrap()
-            .contract_address
-            .unwrap();
-        info!("Proxy deployed at: {proxy_address}");
-        proxy_address
-    });
-
-    // Initialize the Vault
-    let vault = ValenceVault::new(proxy_address, &eth_rp);
-
-    async_run!(rt, {
-        let initialize_tx = vault
-            .initialize(
-                admin,                            // owner
-                vault_config.abi_encode().into(), // encoded config
-                vault_deposit_token_addr,         // underlying token
-                "Valence Test Vault".to_string(), // vault token name
-                "vTEST".to_string(),              // vault token symbol
-                U256::from(1e6),                  // match deposit token precision
-            )
-            .into_transaction_request()
-            .from(admin);
-
-        eth_client.execute_tx(initialize_tx).await.unwrap();
-    });
-
-    info!("Approving vault for withdraw account...");
-    valence_e2e::utils::ethereum::valence_account::approve_library(
-        rt,
-        eth_client,
-        Address::from_str(&eth_program_accounts.withdraw).unwrap(),
-        proxy_address,
-    );
-
-    info!("Approving vault for deposit account...");
-    valence_e2e::utils::ethereum::valence_account::approve_library(
-        rt,
-        eth_client,
-        Address::from_str(&eth_program_accounts.deposit).unwrap(),
-        proxy_address,
-    );
-
-    Ok(proxy_address)
 }
 
 pub fn setup_mock_token_messenger(

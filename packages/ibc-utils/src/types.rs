@@ -91,6 +91,33 @@ pub struct EurekaFee {
     pub timeout_timestamp: u64,
 }
 
+pub mod eureka_types {
+    use cosmwasm_schema::cw_serde;
+
+    #[cw_serde]
+    pub struct SmartRelayFeeQuote {
+        pub expiration: String,
+        pub fee_amount: String,
+        pub fee_denom: String,
+        pub fee_payment_address: String,
+        pub relayer_address: String,
+    }
+
+    #[cw_serde]
+    pub struct SkipEurekaRouteResponse {
+        /// fee quote returned by skip Eureka api to execute the transfer
+        pub smart_relay_fee_quote: SmartRelayFeeQuote,
+        /// timeout for the transfer, in nanos
+        pub timeout: u64,
+        /// source chain id
+        pub source_client: String,
+        /// callback adapter contract address configured in Eureka
+        pub callback_adapter_contract_address: String,
+        /// entry (action) contract address configured in Eureka
+        pub entry_contract_address: String,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use cosmwasm_std::{from_json, to_json_string, Uint128};
