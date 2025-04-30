@@ -304,11 +304,11 @@ async fn set_up_forwarder_pancake_output_to_input(
         forwardingConfigs: vec![
             ForwardingConfig {
                 tokenAddress: alloy_primitives_encoder::Address::from_str(WETH_ADDRESS_ON_BASE)?,
-                maxAmount: 0,
+                maxAmount: U256::ZERO,
             },
             ForwardingConfig {
                 tokenAddress: alloy_primitives_encoder::Address::from_str(USDC_ADDRESS_ON_BASE)?,
-                maxAmount: 0,
+                maxAmount: U256::ZERO,
             },
         ],
         intervalType: IntervalType::TIME,
@@ -362,7 +362,7 @@ async fn set_up_forwarder_pancake_to_standard_bridge(
         // Strategist will update this to forward the right amount
         forwardingConfigs: vec![ForwardingConfig {
             tokenAddress: alloy_primitives_encoder::Address::from_str(WETH_ADDRESS_ON_BASE)?,
-            maxAmount: 0,
+            maxAmount: U256::ZERO,
         }],
         intervalType: IntervalType::TIME,
         minInterval: 0,
@@ -415,7 +415,7 @@ async fn set_up_forwarder_pancake_to_cctp(
         // Strategist will update this to forward the right amount
         forwardingConfigs: vec![ForwardingConfig {
             tokenAddress: alloy_primitives_encoder::Address::from_str(USDC_ADDRESS_ON_BASE)?,
-            maxAmount: 0,
+            maxAmount: U256::ZERO,
         }],
         intervalType: IntervalType::TIME,
         minInterval: 0,

@@ -17,7 +17,7 @@ contract Forwarder is Library {
      */
     struct ForwardingConfig {
         address tokenAddress;
-        uint128 maxAmount;
+        uint256 maxAmount;
     }
 
     /**

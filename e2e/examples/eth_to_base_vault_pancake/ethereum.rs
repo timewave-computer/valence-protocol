@@ -398,7 +398,7 @@ async fn set_up_forwarder_vault_to_aave(
         // Strategist will update this to forward the right amount
         forwardingConfigs: vec![ForwardingConfig {
             tokenAddress: alloy_primitives_encoder::Address::from_str(WETH_ADDRESS_ON_ETHEREUM)?,
-            maxAmount: 0,
+            maxAmount: U256::ZERO,
         }],
         intervalType: IntervalType::TIME,
         minInterval: 0,
@@ -443,7 +443,7 @@ async fn set_up_forwarder_vault_to_standard_bridge(
         // Strategist will update this to forward the right amount
         forwardingConfigs: vec![ForwardingConfig {
             tokenAddress: alloy_primitives_encoder::Address::from_str(WETH_ADDRESS_ON_ETHEREUM)?,
-            maxAmount: 0,
+            maxAmount: U256::ZERO,
         }],
         intervalType: IntervalType::TIME,
         minInterval: 0,
@@ -497,7 +497,7 @@ async fn set_up_forwarder_aave_input_to_cctp_input(
         // Strategist will update this to forward the right amount
         forwardingConfigs: vec![ForwardingConfig {
             tokenAddress: alloy_primitives_encoder::Address::from_str(USDC_ADDRESS_ON_ETHEREUM)?,
-            maxAmount: 0,
+            maxAmount: U256::ZERO,
         }],
         intervalType: IntervalType::TIME,
         minInterval: 0,
