@@ -70,6 +70,8 @@ pub mod base {
         pub denoms: BaseDenoms,
         pub accounts: BaseAccounts,
         pub libraries: BaseLibraries,
+        pub parameters: BaseParameters,
+        pub contracts: BaseContracts,
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -95,5 +97,17 @@ pub mod base {
         pub pancake_output_to_input_forwarder: String,
         pub pancake_output_to_cctp_input_forwarder: String,
         pub pancake_output_to_standard_bridge_input_forwarder: String,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct BaseParameters {
+        pub pancake_pool_fee: String,
+        pub pancake_position_slippage: String,
+        pub tick_price_range_percent: String,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct BaseContracts {
+        pub pancake_pool: String,
     }
 }

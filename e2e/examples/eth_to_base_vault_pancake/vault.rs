@@ -7,7 +7,7 @@ use log::info;
 use strategist::{
     strategy::Strategy,
     strategy_config::{
-        base::{BaseDenoms, BaseStrategyConfig},
+        base::{BaseContracts, BaseDenoms, BaseParameters, BaseStrategyConfig},
         ethereum::{EthereumContracts, EthereumDenoms, EthereumParameters, EthereumStrategyConfig},
         StrategyConfig,
     },
@@ -31,7 +31,8 @@ use valence_e2e::utils::{
 
 const ETH_FORK_URL: &str = "https://eth-mainnet.public.blastapi.io";
 const ETH_ANVIL_PORT: &str = "1337";
-const BASE_FORK_URL: &str = "https://base-mainnet.public.blastapi.io";
+//const BASE_FORK_URL: &str = "https://base-mainnet.public.blastapi.io";
+const BASE_FORK_URL: &str = "https://mainnet.base.org";
 const BASE_ANVIL_PORT: &str = "1338";
 const TEST_MNEMONIC: &str = "test test test test test test test test test test test junk";
 pub const WETH_ADDRESS_ON_ETHEREUM: &str = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
@@ -46,6 +47,10 @@ pub const L1_STANDARD_BRIDGE_ADDRESS: &str = "0x3154Cf16ccdb4C6d922629664174b904
 pub const L2_STANDARD_BRIDGE_ADDRESS: &str = "0x4200000000000000000000000000000000000010";
 pub const PANCAKE_POSITION_MANAGER_ON_BASE: &str = "0x46A15B0b27311cedF172AB29E4f4766fbE7F4364";
 pub const PANCAKE_MASTERCHEF_ON_BASE: &str = "0xC6A2Db661D5a5690172d8eB0a7DEA2d3008665A3";
+pub const PANCAKE_POOL_ADDRESS: &str = "0x72ab388e2e2f6facef59e3c3fa2c4e29011c2d38";
+pub const PANCAKE_POOL_FEE: u32 = 100; // 0.01%
+pub const PANCAKE_POSITION_MANAGER_SLIPPAGE: u16 = 1000; // 10%
+pub const PANCAKE_POSITION_MANAGER_TICK_PRICE_RANGE_PERCENT: f64 = 1.0; // 1%
 
 mod base;
 mod ethereum;
@@ -222,6 +227,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
             },
             accounts: base_accounts.clone(),
             libraries: base_libraries.clone(),
+            parameters: BaseParameters {
+                pancake_pool_fee: PANCAKE_POOL_FEE.to_string(),
+                pancake_position_slippage: PANCAKE_POSITION_MANAGER_SLIPPAGE.to_string(),
+                tick_price_range_percent: PANCAKE_POSITION_MANAGER_TICK_PRICE_RANGE_PERCENT
+                    .to_string(),
+            },
+            contracts: BaseContracts {
+                pancake_pool: PANCAKE_POOL_ADDRESS.to_string(),
+            },
         },
     };
 

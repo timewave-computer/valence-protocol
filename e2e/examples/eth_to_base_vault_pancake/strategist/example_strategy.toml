@@ -7,20 +7,20 @@ weth = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 usdc = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
 
 [ethereum.accounts]
-vault_deposit = "0x453439300B6C5C645737324b990f2d51137027bC"
-vault_withdraw = "0x7306a649B451AE08781108445425Bd4E8AcF1E00"
-aave_input = "0xf4c5C29b14f0237131F7510A51684c8191f98E06"
-cctp_input = "0x934A389CaBFB84cdB3f0260B2a4FD575b8B345A3"
-standard_bridge_input = "0xc91B651f770ed996a223a16dA9CCD6f7Df56C987"
+vault_deposit = "0x7306a649B451AE08781108445425Bd4E8AcF1E00"
+vault_withdraw = "0xf4c5C29b14f0237131F7510A51684c8191f98E06"
+aave_input = "0x934A389CaBFB84cdB3f0260B2a4FD575b8B345A3"
+cctp_input = "0xc91B651f770ed996a223a16dA9CCD6f7Df56C987"
+standard_bridge_input = "0xB90AcF57C3BFE8e0E8215defc282B5F48b3edC74"
 
 [ethereum.libraries]
-vault = "0x757Fd23a0fDF9F9d2786f62f96f02Db4D096d10A"
-cctp_transfer = "0xB90AcF57C3BFE8e0E8215defc282B5F48b3edC74"
-standard_bridge_transfer = "0xAf7868a9BB72E16B930D50636519038d7F057470"
-aave_position_manager = "0x88D3CAaD49fC2e8E38C812c5f4ACdd0a8B065F66"
-forwarder_vault_deposit_to_aave_input = "0x99aA73dA6309b8eC484eF2C95e96C131C1BBF7a0"
-forwarder_vault_deposit_to_standard_bridge_input = "0xFBc00Fa47a7d3bbE3e82B5Aa560B47008c1bD64c"
-forwarder_aave_input_to_cctp_input = "0x3aD2306eDfBe72ce013cdb6b429212d9CdDE4F96"
+vault = "0x7930AC7ddD1e35fD4b25230121A9C45923894e67"
+cctp_transfer = "0x787c6666213624D788522d516847978D7F348902"
+standard_bridge_transfer = "0x4B7099FD879435a087C364aD2f9E7B3f94d20bBe"
+aave_position_manager = "0x10d16E2A026C4b5264A2aAC51cA65749cDf2037E"
+forwarder_vault_deposit_to_aave_input = "0x98721EFD3D09A7Ae662C4D63156286DF673FC50B"
+forwarder_vault_deposit_to_standard_bridge_input = "0x240A60DC5e0B9013Cb8CF39aa6f9dDd8f25E40D2"
+forwarder_aave_input_to_cctp_input = "0xb69FC79100eDd058f9c96c0a13C80124aC1a7D77"
 
 [ethereum.parameters]
 min_aave_health_factor = "12"
@@ -50,3 +50,11 @@ standard_bridge_transfer = "0x103416cfCD0D0a32b904Ab4fb69dF6E5B5aaDf2b"
 pancake_output_to_input_forwarder = "0xACB5b53F9F193b99bcd8EF8544ddF4c398DE24a3"
 pancake_output_to_cctp_input_forwarder = "0x6C3F7ed79b9D75486D0250946f7a20BDA74844Ba"
 pancake_output_to_standard_bridge_input_forwarder = "0x43c5DF0c482c88Cef8005389F64c362eE720A5bC"
+
+[base.parameters]
+pancake_pool_fee = "100"
+pancake_position_slippage = "1000"
+tick_price_range_percent = "1"
+
+[base.contracts]
+pancake_pool = "0x72ab388e2e2f6facef59e3c3fa2c4e29011c2d38"

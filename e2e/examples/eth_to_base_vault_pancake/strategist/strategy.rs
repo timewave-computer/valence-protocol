@@ -1,7 +1,8 @@
 use std::{error::Error, path::Path, str::FromStr, time::Duration};
 
+use crate::strategist::pancake_v3_utils::calculate_max_amounts_position;
 use alloy::{
-    primitives::{Address, U256},
+    primitives::{Address, Signed, U256},
     providers::Provider,
     rpc::types::TransactionRequest,
     signers::local::{coins_bip39::English, MnemonicBuilder},
@@ -19,7 +20,7 @@ use valence_e2e::utils::{
     solidity_contracts::{
         AavePositionManager, CCTPTransfer,
         Forwarder::{self},
-        StandardBridgeTransfer, ValenceVault, ERC20,
+        PancakeSwapV3PositionManager, StandardBridgeTransfer, ValenceVault, ERC20,
     },
     worker::{ValenceWorker, ValenceWorkerTomlSerde},
 };
@@ -30,6 +31,7 @@ use valence_encoder_utils::libraries::forwarder::solidity_types::{
 use super::strategy_config::StrategyConfig;
 
 sol! {
+    // AAVE getUserAccountData function
     function getUserAccountData(
         address user
     ) external view returns (
@@ -40,6 +42,28 @@ sol! {
         uint256 ltv,
         uint256 healthFactor
     );
+    // Pancake V3
+    function slot0()
+        external
+        view
+        returns (
+            uint160 sqrtPriceX96,
+            int24 tick,
+            uint16 observationIndex,
+            uint16 observationCardinality,
+            uint16 observationCardinalityNext,
+            uint32 feeProtocol,
+            bool unlocked
+        );
+
+    /// Pancake V3
+    /// e.g.: a tickSpacing of 3 means ticks can be initialized every 3rd tick, i.e., ..., -6, -3, 0, 3, 6, ...
+    /// This value is an int24 to avoid casting even though it is always positive.
+    function tickSpacing() external view returns (int24);
+
+    /// NFT queries
+    function balanceOf(address owner) view returns (uint256);
+    function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256);
 }
 
 pub struct Strategy {
@@ -347,18 +371,23 @@ impl ValenceWorker for Strategy {
                 // Here call to trigger emergency unwind mechanism will be triggered
             }
 
-            // We are going to borrow up to 50% of the collateral, considering the current debt
-            let borrow_amount = available_borrows_base
+            // We are going to borrow up to 50% of the collateral, considering the current debt;
+            // Check how much should be the total borrowed
+            let total_to_be_borrowed = total_collateral_base
                 .checked_div(U256::from(2))
-                .unwrap_or_default()
+                .unwrap_or_default();
+
+            // Substract this from what we already have borrowed
+            let borrow_amount = total_to_be_borrowed
                 .checked_sub(total_debt_base)
                 .unwrap_or_default();
             info!("Borrowing: {borrow_amount} USDC");
-            // We adjust the borrow amount to USDC precision
-            let borrow_amount = borrow_amount
-                .checked_mul(U256::from(1e6))
-                .unwrap_or_default();
+
             if borrow_amount > U256::ZERO {
+                // We adjust the borrow amount to USDC precision
+                let borrow_amount = borrow_amount
+                    .checked_mul(U256::from(1e6))
+                    .unwrap_or_default();
                 let tx = aave_position_manager
                     .borrow(borrow_amount)
                     .into_transaction_request();
@@ -522,6 +551,147 @@ impl ValenceWorker for Strategy {
                 info!("Standard Bridge transfer completed!");
             } else {
                 info!("No WETH to transfer");
+            }
+        }
+        {
+            info!("========= Pancake Position Manager =========");
+            // Check if there is something in the pancake input account to provide
+            let pancake_input_usdc_balance = self
+                .base_client
+                .query(
+                    ERC20::new(Address::from_str(&self.cfg.base.denoms.usdc)?, &base_rp)
+                        .balanceOf(Address::from_str(&self.cfg.base.accounts.pancake_input)?),
+                )
+                .await?
+                ._0;
+            info!(
+                "Pancake input account USDC balance: {:?}",
+                pancake_input_usdc_balance
+            );
+            let pancake_input_weth_balance = self
+                .base_client
+                .query(
+                    ERC20::new(Address::from_str(&self.cfg.base.denoms.weth)?, &base_rp)
+                        .balanceOf(Address::from_str(&self.cfg.base.accounts.pancake_input)?),
+                )
+                .await?
+                ._0;
+            info!(
+                "Pancake input account WETH balance: {:?}",
+                pancake_input_weth_balance
+            );
+
+            if pancake_input_usdc_balance > U256::ZERO && pancake_input_weth_balance > U256::ZERO {
+                // First let's query the slot0 information of the pool
+                let slot0_data = slot0Call {}.abi_encode();
+
+                let result = base_rp
+                    .call(
+                        &TransactionRequest::default()
+                            .to(Address::from_str(&self.cfg.base.contracts.pancake_pool)?)
+                            .input(slot0_data.into()),
+                    )
+                    .await?;
+                let return_data = slot0Call::abi_decode_returns(&result, true)?;
+                let sqrt_price_x96 = return_data.sqrtPriceX96;
+                let tick = return_data.tick;
+
+                info!("Slot0 data: sqrtPriceX96: {sqrt_price_x96}, tick: {tick}");
+
+                // Get the tick spacing
+                let tick_spacing = tickSpacingCall {}.abi_encode();
+
+                let result = base_rp
+                    .call(
+                        &TransactionRequest::default()
+                            .to(Address::from_str(&self.cfg.base.contracts.pancake_pool)?)
+                            .input(tick_spacing.into()),
+                    )
+                    .await?;
+                let return_data = tickSpacingCall::abi_decode_returns(&result, true)?;
+                let tick_spacing = return_data._0;
+                info!("Tick spacing: {tick_spacing}");
+
+                // Now we are going to calculate the amount of USDC and WETH that we can use
+                let (lower_tick, upper_tick, amount_weth, amount_usdc) =
+                    calculate_max_amounts_position(
+                        U256::from(pancake_input_weth_balance),
+                        U256::from(pancake_input_usdc_balance),
+                        sqrt_price_x96,
+                        tick.as_i32(),
+                        tick_spacing.as_i32(),
+                        f64::from_str(&self.cfg.base.parameters.tick_price_range_percent)?,
+                    )?;
+                info!("Amount WETH to create position with: {amount_weth}");
+                info!("Amount USDC to create position with: {amount_usdc}");
+
+                // Create the position
+                let pancake_position_manager = PancakeSwapV3PositionManager::new(
+                    Address::from_str(&self.cfg.base.libraries.pancake_position_manager)?,
+                    &base_rp,
+                );
+                info!("Creating position...");
+                let tx = pancake_position_manager
+                    .createPosition(
+                        Signed::<24, 1>::from_str(&lower_tick.to_string())?,
+                        Signed::<24, 1>::from_str(&upper_tick.to_string())?,
+                        amount_weth,
+                        amount_usdc,
+                    )
+                    .into_transaction_request();
+                self.base_client.execute_tx(tx).await?;
+
+                // Get the position ID that we created, we can only have 1 position so we query the first index on the MasterChef
+                // First we get the masterchef address
+                let masterchef = self
+                    .base_client
+                    .query(pancake_position_manager.config())
+                    .await?
+                    .masterChef;
+
+                let nft_call = tokenOfOwnerByIndexCall {
+                    owner: Address::from_str(&self.cfg.base.accounts.pancake_input)?,
+                    index: U256::ZERO,
+                }
+                .abi_encode();
+
+                let result = base_rp
+                    .call(
+                        &TransactionRequest::default()
+                            .to(masterchef)
+                            .input(nft_call.into()),
+                    )
+                    .await?;
+                let position_id = tokenOfOwnerByIndexCall::abi_decode_returns(&result, true)?._0;
+                info!("Pancake Position created with ID: {position_id}");
+
+                // Check the balance left in the pancake input account
+                let pancake_input_usdc_balance = self
+                    .base_client
+                    .query(
+                        ERC20::new(Address::from_str(&self.cfg.base.denoms.usdc)?, &base_rp)
+                            .balanceOf(Address::from_str(&self.cfg.base.accounts.pancake_input)?),
+                    )
+                    .await?
+                    ._0;
+                info!(
+                    "Pancake input account USDC balance after position creation: {:?}",
+                    pancake_input_usdc_balance
+                );
+                let pancake_input_weth_balance = self
+                    .base_client
+                    .query(
+                        ERC20::new(Address::from_str(&self.cfg.base.denoms.weth)?, &base_rp)
+                            .balanceOf(Address::from_str(&self.cfg.base.accounts.pancake_input)?),
+                    )
+                    .await?
+                    ._0;
+                info!(
+                    "Pancake input account WETH balance after position creation: {:?}",
+                    pancake_input_weth_balance
+                );
+            } else {
+                info!("No USDC or WETH to provide");
             }
         }
 
