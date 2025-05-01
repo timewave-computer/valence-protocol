@@ -113,6 +113,13 @@ impl ValenceWorker for Strategy {
             &eth_rp,
         );
 
+        // 1. enter the position with funds available in neutron deposit acc
+        // from the previous epoch routing
+        match self.enter_position().await {
+            Ok(_) => (),
+            Err(e) => warn!("error entering position: {:?}", e),
+        };
+
         // 1. calculate the amount of usdc needed to fulfill
         // the active withdraw obligations
         let pending_obligations = self
@@ -142,20 +149,15 @@ impl ValenceWorker for Strategy {
         let netting_amount = pending_obligations.min(eth_deposit_acc_usdc_bal);
         info!("netting amount: {netting_amount}");
 
-        let pending_obligations = pending_obligations
+        let pending_obligations: u128 = pending_obligations
             .checked_sub(netting_amount)
-            .unwrap_or_default();
-        info!("updated pending obligations: {pending_obligations}");
-
-        // 4. lp shares to be liquidated will yield untrn+uusdc. to figure out
-        // the amount of ntrn needed to get 1/2 of the obligations, we half the
-        // usdc amount
-        let missing_usdc_amount: u128 = pending_obligations
+            .unwrap_or_default()
             .try_into()
             .map_err(|_| "Pending obligations U256 Value too large for u128")?;
-        info!("total to withdraw: {missing_usdc_amount}USDC");
 
-        let halved_usdc_obligation_amt = Uint128::new(missing_usdc_amount / 2);
+        info!("total to withdraw: {pending_obligations}USDC");
+
+        let halved_usdc_obligation_amt = Uint128::new(pending_obligations / 2);
         info!("halved usdc obligation amount: {halved_usdc_obligation_amt}");
 
         // 5. simulate how many untrn we need to obtain half of the
@@ -231,28 +233,15 @@ impl ValenceWorker for Strategy {
                     .into_transaction_request(),
             )
             .await?;
-
-        if eth_rp
+        eth_rp
             .get_transaction_receipt(update_result.transaction_hash)
-            .await
-            .map_err(|e| warn!("Error: {:?}", e))
-            .unwrap()
-            .is_none()
-        {
-            warn!("Failed to get update_vault tx receipt")
-        };
+            .await?;
 
         // 11. pull the funds due for deposit from origin to position domain
         //   1. cctp transfer eth deposit acc -> noble inbound ica
         //   2. ica ibc transfer noble inbound ica -> neutron deposit acc
         self.route_eth_to_noble().await;
         self.route_noble_to_neutron().await;
-
-        // 12. enter the position with funds available in neutron deposit acc
-        match self.enter_position().await {
-            Ok(_) => (),
-            Err(e) => warn!("error entering position: {:?}", e),
-        };
 
         // 13. pull the funds due for withdrawal from position to origin domain
         //   1. ibc transfer neutron withdraw acc -> noble outbound ica
