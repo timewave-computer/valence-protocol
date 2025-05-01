@@ -3,7 +3,7 @@ use alloy_sol_types::sol;
 sol! {
     struct ForwardingConfig {
         address tokenAddress;
-        uint128 maxAmount;
+        uint256 maxAmount;
     }
 
     enum IntervalType {

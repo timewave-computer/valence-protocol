@@ -1,0 +1,52 @@
+[ethereum]
+rpc_url = "http://127.0.0.1:1337"
+mnemonic = "test test test test test test test test test test test junk"
+
+[ethereum.denoms]
+weth = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+usdc = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+
+[ethereum.accounts]
+vault_deposit = "0x453439300B6C5C645737324b990f2d51137027bC"
+vault_withdraw = "0x7306a649B451AE08781108445425Bd4E8AcF1E00"
+aave_input = "0xf4c5C29b14f0237131F7510A51684c8191f98E06"
+cctp_input = "0x934A389CaBFB84cdB3f0260B2a4FD575b8B345A3"
+standard_bridge_input = "0xc91B651f770ed996a223a16dA9CCD6f7Df56C987"
+
+[ethereum.libraries]
+vault = "0x757Fd23a0fDF9F9d2786f62f96f02Db4D096d10A"
+cctp_transfer = "0xB90AcF57C3BFE8e0E8215defc282B5F48b3edC74"
+standard_bridge_transfer = "0xAf7868a9BB72E16B930D50636519038d7F057470"
+aave_position_manager = "0x88D3CAaD49fC2e8E38C812c5f4ACdd0a8B065F66"
+forwarder_vault_deposit_to_aave_input = "0x99aA73dA6309b8eC484eF2C95e96C131C1BBF7a0"
+forwarder_vault_deposit_to_standard_bridge_input = "0xFBc00Fa47a7d3bbE3e82B5Aa560B47008c1bD64c"
+forwarder_aave_input_to_cctp_input = "0x3aD2306eDfBe72ce013cdb6b429212d9CdDE4F96"
+
+[ethereum.parameters]
+min_aave_health_factor = "12"
+
+[ethereum.contracts]
+aave_pool = "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"
+
+[base]
+rpc_url = "http://127.0.0.1:1338"
+mnemonic = "test test test test test test test test test test test junk"
+
+[base.denoms]
+weth = "0x4200000000000000000000000000000000000006"
+usdc = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+cake = "0x3055913c90Fcc1A6CE9a358911721eEb942013A1"
+
+[base.accounts]
+pancake_input = "0xb9b0c96e4E7181926D2A7ed331C9C346dfa59b4D"
+pancake_output = "0x905Ad472d7eeB94ed1Fc29D8ff4B53FD4D5a5Eb4"
+cctp_input = "0xe3EF345391654121f385679613Cea79A692C2Dd8"
+standard_bridge_input = "0xC070A317F23E9A4e982e356485416251dd3Ed944"
+
+[base.libraries]
+pancake_position_manager = "0x6D39d71fF4ab56a4873febd34e1a3BDefc01b41e"
+cctp_transfer = "0xeF66010868Ff77119171628B7eFa0F6179779375"
+standard_bridge_transfer = "0x103416cfCD0D0a32b904Ab4fb69dF6E5B5aaDf2b"
+pancake_output_to_input_forwarder = "0xACB5b53F9F193b99bcd8EF8544ddF4c398DE24a3"
+pancake_output_to_cctp_input_forwarder = "0x6C3F7ed79b9D75486D0250946f7a20BDA74844Ba"
+pancake_output_to_standard_bridge_input_forwarder = "0x43c5DF0c482c88Cef8005389F64c362eE720A5bC"
