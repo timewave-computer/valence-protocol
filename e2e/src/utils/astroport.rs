@@ -79,6 +79,8 @@ pub fn deploy_astroport_contracts(
 pub fn setup_astroport_cl_pool(
     test_ctx: &mut TestContext,
     counterparty_denom: String,
+    asset_0_amount: u128,
+    asset_1_amount: u128,
 ) -> Result<(String, String), Box<dyn Error>> {
     let (
         astroport_factory_code_id,
@@ -228,8 +230,8 @@ pub fn setup_astroport_cl_pool(
     let lp_token = query_pool_response["liquidity_token"].as_str().unwrap();
 
     info!("Pool created successfully! Pool address: {pool_addr}, LP token: {lp_token}");
-    let asset_a = coin(899_000_000, NEUTRON_CHAIN_DENOM);
-    let asset_b = coin(899_000_000, counterparty_denom.clone());
+    let asset_a = coin(asset_0_amount, NEUTRON_CHAIN_DENOM);
+    let asset_b = coin(asset_1_amount, counterparty_denom.clone());
     let assets = vec![
         Asset {
             info: AssetInfo::NativeToken {

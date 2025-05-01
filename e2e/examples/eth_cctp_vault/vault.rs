@@ -128,6 +128,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         &get_chain_field_from_local_ic_log(NEUTRON_CHAIN_ID, "grpc_address")?,
     )?;
 
+    let pool_asset_initial_amount = 10_899_000_000u128;
+
     async_run!(rt, {
         let noble_client = NobleClient::new(
             &noble_grpc_url.to_string(),
@@ -147,7 +149,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .mint_fiat(
                 NOBLE_CHAIN_ADMIN_ADDR,
                 NOBLE_CHAIN_ADMIN_ADDR,
-                &999900000.to_string(),
+                &pool_asset_initial_amount.to_string(),
                 UUSDC_DENOM,
             )
             .await
@@ -158,7 +160,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .ibc_transfer(
                 NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
                 UUSDC_DENOM.to_string(),
-                999000000.to_string(),
+                pool_asset_initial_amount.to_string(),
                 test_ctx
                     .get_transfer_channels()
                     .src(NOBLE_CHAIN_NAME)
@@ -175,8 +177,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     sleep(Duration::from_secs(3));
 
     // setup astroport
-    let (pool_addr, lp_token) =
-        setup_astroport_cl_pool(&mut test_ctx, uusdc_on_neutron_denom.to_string())?;
+    let (pool_addr, lp_token) = setup_astroport_cl_pool(
+        &mut test_ctx,
+        uusdc_on_neutron_denom.to_string(),
+        pool_asset_initial_amount,
+        pool_asset_initial_amount,
+    )?;
 
     let amount_to_transfer = 1_000_000;
 
