@@ -95,7 +95,7 @@ pub async fn set_up_base_libraries(
     let standard_bridge_transfer = set_up_standard_bridge_transfer(
         base_client,
         Address::from_str(&base_program_accounts.standard_bridge_input)?,
-        Address::from_str(&eth_program_accounts.aave_input)?,
+        Address::from_str(&eth_program_accounts.vault_withdraw)?,
         base_admin_addr,
         processor,
     )

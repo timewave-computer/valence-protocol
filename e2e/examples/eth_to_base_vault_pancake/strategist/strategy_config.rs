@@ -57,6 +57,7 @@ pub mod ethereum {
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct EthereumContracts {
         pub aave_pool: String,
+        pub aave_oracle: String,
     }
 }
 
