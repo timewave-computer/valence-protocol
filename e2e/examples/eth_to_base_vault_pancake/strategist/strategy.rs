@@ -1,7 +1,8 @@
 use std::{error::Error, path::Path, str::FromStr, time::Duration};
 
-use crate::strategist::{
-    aave_utils::get_user_position, pancake_v3_utils::calculate_max_amounts_position,
+use crate::{
+    strategist::{aave_utils::get_user_position, pancake_v3_utils::calculate_max_amounts_position},
+    USDC_ADDRESS_ON_BASE, WETH_ADDRESS_ON_BASE,
 };
 use alloy::{
     primitives::{Address, Signed, U256},
@@ -475,17 +476,16 @@ impl ValenceWorker for Strategy {
                 let pending_obligations_in_weth = updated_pending_obligations
                     .checked_div(U256::from(2))
                     .unwrap_or_default();
-                let pending_obligations_to_be_transformed_in_usdc =
+                let pending_obligations_in_weth_from_aave =
                     updated_pending_obligations.saturating_sub(pending_obligations_in_weth);
 
                 // We know the equivalent in USD of half of the WETH, for that we are going to use the AAVE price previously calculated
                 // Taking into account the WETH is in 18 decimals and the AAVE USDC price is in 8 decimals
-                let pending_obligations_weth_bridged_in_usd =
-                    pending_obligations_to_be_transformed_in_usdc
-                        .checked_mul(aave_weth_price)
-                        .unwrap_or_default()
-                        .checked_div(U256::from(1e10))
-                        .unwrap_or_default();
+                let pending_obligations_weth_bridged_in_usd = pending_obligations_in_weth_from_aave
+                    .checked_mul(aave_weth_price)
+                    .unwrap_or_default()
+                    .checked_div(U256::from(1e10))
+                    .unwrap_or_default();
                 info!("Pending obligations WETH bridged in USD: {pending_obligations_weth_bridged_in_usd}");
 
                 // Now we need to convert this into USDC because there's a small difference between USDC and USD on AAVE
@@ -501,9 +501,348 @@ impl ValenceWorker for Strategy {
                 info!("Pending obligations WETH bridged in USDC: {pending_obligations_weth_bridged_in_usdc}");
 
                 // Now we need to bridge back the WETH using the standard bridge
-                // and the USDC using the CCTP bridge, for that we are going to update the amounts
+                // and the USDC using the CCTP bridge, for that we are going to update the amounts of the forwaders
+                // to forward the right amount
+                let forwarder_pancake_output_to_standard_bridge_config = ForwarderConfig {
+                    inputAccount: alloy_primitives_encoder::Address::from_str(
+                        &self.cfg.base.accounts.pancake_output,
+                    )?,
+                    outputAccount: alloy_primitives_encoder::Address::from_str(
+                        &self.cfg.base.accounts.standard_bridge_input,
+                    )?,
+                    // Strategist will update this to forward the right amount
+                    forwardingConfigs: vec![ForwardingConfig {
+                        tokenAddress: alloy_primitives_encoder::Address::from_str(
+                            WETH_ADDRESS_ON_BASE,
+                        )?,
+                        maxAmount: pending_obligations_in_weth,
+                    }],
+                    intervalType: IntervalType::TIME,
+                    minInterval: 0,
+                }
+                .abi_encode();
+
+                let forwarder_to_standard_input = Forwarder::new(
+                    Address::from_str(
+                        &self
+                            .cfg
+                            .base
+                            .libraries
+                            .pancake_output_to_standard_bridge_input_forwarder,
+                    )?,
+                    &base_rp,
+                );
+                info!("Updating forwarder from Pancake to Standard Bridge...");
+                let tx = forwarder_to_standard_input
+                    .updateConfig(forwarder_pancake_output_to_standard_bridge_config.into())
+                    .into_transaction_request();
+                self.base_client.execute_tx(tx).await?;
+                info!("Forwarder to Standard Bridge updated");
+
+                // Do the same for USDC to CCTP input
+                let forwarder_pancake_output_to_cctp_input_config = ForwarderConfig {
+                    inputAccount: alloy_primitives_encoder::Address::from_str(
+                        &self.cfg.base.accounts.pancake_output,
+                    )?,
+                    outputAccount: alloy_primitives_encoder::Address::from_str(
+                        &self.cfg.base.accounts.cctp_input,
+                    )?,
+                    // Strategist will update this to forward the right amount
+                    forwardingConfigs: vec![ForwardingConfig {
+                        tokenAddress: alloy_primitives_encoder::Address::from_str(
+                            USDC_ADDRESS_ON_BASE,
+                        )?,
+                        maxAmount: pending_obligations_weth_bridged_in_usdc,
+                    }],
+                    intervalType: IntervalType::TIME,
+                    minInterval: 0,
+                }
+                .abi_encode();
+
+                let forwarder_to_cctp_input = Forwarder::new(
+                    Address::from_str(
+                        &self
+                            .cfg
+                            .base
+                            .libraries
+                            .pancake_output_to_cctp_input_forwarder,
+                    )?,
+                    &base_rp,
+                );
+
+                info!("Updating forwarder from Pancake to CCTP input...");
+                let tx = forwarder_to_cctp_input
+                    .updateConfig(forwarder_pancake_output_to_cctp_input_config.into())
+                    .into_transaction_request();
+                self.base_client.execute_tx(tx).await?;
+                info!("Forwarder to CCTP input updated");
+
+                // Now trigger the forwards
+                let tx_forward = forwarder_to_standard_input
+                    .forward()
+                    .into_transaction_request();
+                self.base_client.execute_tx(tx_forward).await?;
+                info!("Forward from Pancake to Standard Bridge executed");
+
+                let tx_forward = forwarder_to_cctp_input.forward().into_transaction_request();
+                self.base_client.execute_tx(tx_forward).await?;
+                info!("Forward from Pancake to CCTP input executed");
+
+                // Get the balance of Standard bridge input account
+                let standard_bridge_input_weth_balance = self
+                    .base_client
+                    .query(
+                        ERC20::new(Address::from_str(&self.cfg.base.denoms.weth)?, &base_rp)
+                            .balanceOf(Address::from_str(
+                                &self.cfg.base.accounts.standard_bridge_input,
+                            )?),
+                    )
+                    .await?
+                    ._0;
+
+                info!(
+                    "Standard bridge input account WETH balance: {:?}",
+                    standard_bridge_input_weth_balance
+                );
+
+                if standard_bridge_input_weth_balance > U256::ZERO {
+                    // Get the balance of the vault before
+                    let vault_withdraw_account_weth_balance_before = self
+                        .eth_client
+                        .query(
+                            ERC20::new(Address::from_str(&self.cfg.ethereum.denoms.weth)?, &eth_rp)
+                                .balanceOf(Address::from_str(
+                                    &self.cfg.ethereum.accounts.vault_withdraw,
+                                )?),
+                        )
+                        .await?
+                        ._0;
+
+                    // Now we need to trigger the Standard Bridge transfer
+                    let standard_bridge_transfer = StandardBridgeTransfer::new(
+                        Address::from_str(&self.cfg.base.libraries.standard_bridge_transfer)?,
+                        &base_rp,
+                    );
+                    let tx = standard_bridge_transfer
+                        .transfer()
+                        .into_transaction_request();
+                    self.base_client.execute_tx(tx).await?;
+
+                    while {
+                        // Check if the vault withdraw account has the WETH
+                        let vault_withdraw_account_weth_balance_after = self
+                            .eth_client
+                            .query(
+                                ERC20::new(
+                                    Address::from_str(&self.cfg.ethereum.denoms.weth)?,
+                                    &eth_rp,
+                                )
+                                .balanceOf(Address::from_str(
+                                    &self.cfg.ethereum.accounts.vault_withdraw,
+                                )?),
+                            )
+                            .await?
+                            ._0;
+                        info!(
+                            "Vault withdraw account WETH balance: {:?}",
+                            vault_withdraw_account_weth_balance_after
+                        );
+                        vault_withdraw_account_weth_balance_after
+                            < vault_withdraw_account_weth_balance_before
+                                + standard_bridge_input_weth_balance
+                    } {
+                        info!("Waiting for Standard Bridge transfer to complete...");
+                        tokio::time::sleep(Duration::from_secs(5)).await;
+                    }
+                    info!("Standard Bridge transfer completed!");
+                } else {
+                    info!("No WETH to bridge");
+                }
+
+                // Do exactly the same for CCTP
+                let cctp_input_usdc_balance = self
+                    .base_client
+                    .query(
+                        ERC20::new(Address::from_str(&self.cfg.base.denoms.usdc)?, &base_rp)
+                            .balanceOf(Address::from_str(&self.cfg.base.accounts.cctp_input)?),
+                    )
+                    .await?
+                    ._0;
+
+                info!(
+                    "CCTP input account USDC balance: {:?}",
+                    cctp_input_usdc_balance
+                );
+
+                if cctp_input_usdc_balance > U256::ZERO {
+                    // Get the balance of aave_input account before the transfer
+                    let aave_input_account_usdc_balance_before = self
+                        .eth_client
+                        .query(
+                            ERC20::new(Address::from_str(&self.cfg.ethereum.denoms.usdc)?, &eth_rp)
+                                .balanceOf(Address::from_str(
+                                    &self.cfg.ethereum.accounts.aave_input,
+                                )?),
+                        )
+                        .await?
+                        ._0;
+
+                    // Now we need to trigger the CCTP transfer
+                    let cctp_transfer = CCTPTransfer::new(
+                        Address::from_str(&self.cfg.base.libraries.cctp_transfer)?,
+                        &base_rp,
+                    );
+                    let tx = cctp_transfer.transfer().into_transaction_request();
+                    self.base_client.execute_tx(tx).await?;
+
+                    while {
+                        // Check if aave input account has the USDC
+                        let aave_input_account_usdc_balance_after = self
+                            .eth_client
+                            .query(
+                                ERC20::new(
+                                    Address::from_str(&self.cfg.ethereum.denoms.usdc)?,
+                                    &eth_rp,
+                                )
+                                .balanceOf(Address::from_str(
+                                    &self.cfg.ethereum.accounts.aave_input,
+                                )?),
+                            )
+                            .await?
+                            ._0;
+
+                        info!(
+                            "AAVE input account USDC balance: {:?}",
+                            aave_input_account_usdc_balance_after
+                        );
+
+                        aave_input_account_usdc_balance_after
+                            < aave_input_account_usdc_balance_before + cctp_input_usdc_balance
+                    } {
+                        info!("Waiting for CCTP transfer to complete...");
+                        tokio::time::sleep(Duration::from_secs(5)).await;
+                    }
+                    info!("CCTP transfer completed!");
+                } else {
+                    info!("No USDC to bridge");
+                }
+
+                info!("========= REPAY and WITHDRAW from AAVE =========");
+                // Now we need to repay the AAVE position with the USDC we just bridged
+                let aave_position_manager = AavePositionManager::new(
+                    Address::from_str(&self.cfg.ethereum.libraries.aave_position_manager)?,
+                    &eth_rp,
+                );
+                let aave_input_account_usdc_balance = self
+                    .eth_client
+                    .query(
+                        ERC20::new(Address::from_str(&self.cfg.ethereum.denoms.usdc)?, &eth_rp)
+                            .balanceOf(Address::from_str(&self.cfg.ethereum.accounts.aave_input)?),
+                    )
+                    .await?
+                    ._0;
+                info!(
+                    "AAVE input account USDC balance: {:?}",
+                    aave_input_account_usdc_balance
+                );
+
+                let tx = aave_position_manager
+                    .repay(aave_input_account_usdc_balance)
+                    .into_transaction_request();
+                self.eth_client.execute_tx(tx).await?;
+                info!("AAVE repay transaction executed");
+
+                // Now we need to withdraw the equivalent WETH from AAVE
+                let vault_withdraw_account_balance_before_withdraw = self
+                    .eth_client
+                    .query(
+                        ERC20::new(Address::from_str(&self.cfg.ethereum.denoms.weth)?, &eth_rp)
+                            .balanceOf(Address::from_str(
+                                &self.cfg.ethereum.accounts.vault_withdraw,
+                            )?),
+                    )
+                    .await?
+                    ._0;
+                info!(
+                    "Vault withdraw account WETH balance before AAVE withdraw: {:?}",
+                    vault_withdraw_account_balance_before_withdraw
+                );
+
+                let tx = aave_position_manager
+                    .withdraw(pending_obligations_in_weth_from_aave)
+                    .into_transaction_request();
+                self.eth_client.execute_tx(tx).await?;
+
+                let vault_withdraw_account_balance_after_withdraw = self
+                    .eth_client
+                    .query(
+                        ERC20::new(Address::from_str(&self.cfg.ethereum.denoms.weth)?, &eth_rp)
+                            .balanceOf(Address::from_str(
+                                &self.cfg.ethereum.accounts.vault_withdraw,
+                            )?),
+                    )
+                    .await?
+                    ._0;
+
+                info!(
+                    "Vault withdraw account WETH balance after AAVE withdraw: {:?}",
+                    vault_withdraw_account_balance_after_withdraw
+                );
+
+                // Finally now we can update the vault with the new redemption rate
+                let tx = valence_vault
+                    .update(redemption_rate, 100, netting_amount)
+                    .into_transaction_request();
+                self.eth_client.execute_tx(tx).await?;
+
+                info!("Vault updated with new redemption rate!");
             } else {
                 info!("No Pending obligations to meet");
+            }
+        }
+
+        {
+            info!("========= Forwarder Funds Pancake Output to Input =========");
+            // Get the balances of Pancake output account
+            let pancake_output_weth_balance = self
+                .base_client
+                .query(
+                    ERC20::new(Address::from_str(&self.cfg.base.denoms.weth)?, &base_rp)
+                        .balanceOf(Address::from_str(&self.cfg.base.accounts.pancake_output)?),
+                )
+                .await?
+                ._0;
+            info!(
+                "Pancake output account WETH balance: {:?}",
+                pancake_output_weth_balance
+            );
+            let pancake_output_usdc_balance = self
+                .base_client
+                .query(
+                    ERC20::new(Address::from_str(&self.cfg.base.denoms.usdc)?, &base_rp)
+                        .balanceOf(Address::from_str(&self.cfg.base.accounts.pancake_output)?),
+                )
+                .await?
+                ._0;
+            info!(
+                "Pancake output account USDC balance: {:?}",
+                pancake_output_usdc_balance
+            );
+
+            // If there is any USDC or WETH balance, we are going to forward it back to the input account
+            if pancake_output_weth_balance > U256::ZERO || pancake_output_usdc_balance > U256::ZERO
+            {
+                info!("Forwarding funds from Pancake output account to pancake input account ...");
+                let forwader_pancake_output_to_pancake_input = Forwarder::new(
+                    Address::from_str(&self.cfg.base.libraries.pancake_output_to_input_forwarder)?,
+                    &base_rp,
+                );
+
+                let tx = forwader_pancake_output_to_pancake_input
+                    .forward()
+                    .into_transaction_request();
+                self.base_client.execute_tx(tx).await?;
+                info!("Forwarded funds back from Pancake output account to pancake input account");
             }
         }
 
