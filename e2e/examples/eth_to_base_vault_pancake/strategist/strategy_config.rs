@@ -101,8 +101,6 @@ pub mod base {
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct BaseParameters {
-        pub pancake_pool_fee: String,
-        pub pancake_position_slippage: String,
         pub tick_price_range_percent: String,
     }
 

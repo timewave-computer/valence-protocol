@@ -51,6 +51,7 @@ pub const PANCAKE_POOL_ADDRESS: &str = "0x72ab388e2e2f6facef59e3c3fa2c4e29011c2d
 pub const PANCAKE_POOL_FEE: u32 = 100; // 0.01%
 pub const PANCAKE_POSITION_MANAGER_SLIPPAGE: u16 = 1000; // 10%
 pub const PANCAKE_POSITION_MANAGER_TICK_PRICE_RANGE_PERCENT: f64 = 1.0; // 1%
+pub const AAVE_MIN_HEALTH_FACTOR: &str = "1.2"; // 1 is when it starts liquidating
 
 mod base;
 mod ethereum;
@@ -211,7 +212,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             accounts: ethereum_accounts.clone(),
             libraries: ethereum_libraries.clone(),
             parameters: EthereumParameters {
-                min_aave_health_factor: "12".to_string(), // Represents 1.2
+                min_aave_health_factor: AAVE_MIN_HEALTH_FACTOR.to_string(),
             },
             contracts: EthereumContracts {
                 aave_pool: AAVE_POOL_ADDRESS.to_string(),
@@ -228,8 +229,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
             accounts: base_accounts.clone(),
             libraries: base_libraries.clone(),
             parameters: BaseParameters {
-                pancake_pool_fee: PANCAKE_POOL_FEE.to_string(),
-                pancake_position_slippage: PANCAKE_POSITION_MANAGER_SLIPPAGE.to_string(),
                 tick_price_range_percent: PANCAKE_POSITION_MANAGER_TICK_PRICE_RANGE_PERCENT
                     .to_string(),
             },
