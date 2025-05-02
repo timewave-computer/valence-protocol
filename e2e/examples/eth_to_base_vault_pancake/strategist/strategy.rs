@@ -472,33 +472,38 @@ impl ValenceWorker for Strategy {
 
             info!("========= Unwind assets to meet pending obligations =========");
             if updated_pending_obligations > U256::ZERO {
-                // We are going to bridge back the pending obligations, half in WETH and half in USDC
+                // We are going to bridge back the pending obligations, 1/3 in WETH and 2/3 in USDC
                 let pending_obligations_in_weth = updated_pending_obligations
-                    .checked_div(U256::from(2))
+                    .checked_div(U256::from(3))
                     .unwrap_or_default();
                 let pending_obligations_in_weth_from_aave =
                     updated_pending_obligations.saturating_sub(pending_obligations_in_weth);
 
-                // We know the equivalent in USD of half of the WETH, for that we are going to use the AAVE price previously calculated
-                // Taking into account the WETH is in 18 decimals and the AAVE USDC price is in 8 decimals
-                let pending_obligations_weth_bridged_in_usd = pending_obligations_in_weth_from_aave
-                    .checked_mul(aave_weth_price)
-                    .unwrap_or_default()
-                    .checked_div(U256::from(1e10))
-                    .unwrap_or_default();
-                info!("Pending obligations WETH bridged in USD: {pending_obligations_weth_bridged_in_usd}");
+                // Convert WETH to USDC
+                // WETH has 18 decimals, USDC has 6 decimals
+                // aave_weth_price is in USD with 8 decimals
+                // aave_usdc_price is in USD with 8 decimals
 
-                // Now we need to convert this into USDC because there's a small difference between USDC and USD on AAVE
-                // Also taking into account USDC has 6 decimals and AAVE USDC price has 8 decimals
-                let pending_obligations_weth_bridged_in_usdc =
-                    pending_obligations_weth_bridged_in_usd
-                        .checked_mul(U256::from(1e8))
-                        .unwrap_or_default()
-                        .checked_div(aave_usdc_price)
-                        .unwrap_or_default()
-                        .checked_div(U256::from(1e2))
-                        .unwrap_or_default();
-                info!("Pending obligations WETH bridged in USDC: {pending_obligations_weth_bridged_in_usdc}");
+                // First convert WETH to USD
+                // Result will be in (18 + 8 = 26 decimals)
+                let weth_in_usd = pending_obligations_in_weth_from_aave
+                    .checked_mul(aave_weth_price)
+                    .unwrap_or_default();
+
+                // Then convert USD amount to USDC amount
+                // We need to:
+                // 1. Remove 20 decimals to go from 26 decimals to 6 (USDC)
+                // 2. Divide by USDC price to get actual USDC amount
+
+                let usdc_amount = weth_in_usd
+                    .checked_div(U256::from(1e20)) // Adjust from 26 to 6 decimals
+                    .unwrap_or_default()
+                    .checked_mul(U256::from(1e8)) // Multiply by 10^8 before division
+                    .unwrap_or_default()
+                    .checked_div(aave_usdc_price)
+                    .unwrap_or_default();
+
+                info!("WETH converted to USDC: {usdc_amount}");
 
                 // Now we need to bridge back the WETH using the standard bridge
                 // and the USDC using the CCTP bridge, for that we are going to update the amounts of the forwaders
@@ -552,7 +557,7 @@ impl ValenceWorker for Strategy {
                         tokenAddress: alloy_primitives_encoder::Address::from_str(
                             USDC_ADDRESS_ON_BASE,
                         )?,
-                        maxAmount: pending_obligations_weth_bridged_in_usdc,
+                        maxAmount: usdc_amount,
                     }],
                     intervalType: IntervalType::TIME,
                     minInterval: 0,

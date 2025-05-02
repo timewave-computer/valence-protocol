@@ -85,7 +85,7 @@ pub async fn set_up_base_libraries(
 
     let cctp_transfer = set_up_cctp_transfer(
         base_client,
-        Address::from_str(&base_program_accounts.pancake_input)?,
+        Address::from_str(&base_program_accounts.cctp_input)?,
         Address::from_str(&eth_program_accounts.aave_input)?,
         base_admin_addr,
         processor,

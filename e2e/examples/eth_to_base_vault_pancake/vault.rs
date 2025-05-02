@@ -317,8 +317,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     strategy.start();
 
-    // Sleep for 1 minute to let the strategy run at least once
-    tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+    // Sleep for 45 seconds to let the strategy run at least once
+    tokio::time::sleep(tokio::time::Duration::from_secs(45)).await;
 
     {
         info!("\n======================== EPOCH 1 ========================\n");
