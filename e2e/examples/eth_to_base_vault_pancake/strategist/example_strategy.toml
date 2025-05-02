@@ -23,7 +23,7 @@ forwarder_vault_deposit_to_standard_bridge_input = "0x240A60DC5e0B9013Cb8CF39aa6
 forwarder_aave_input_to_cctp_input = "0xb69FC79100eDd058f9c96c0a13C80124aC1a7D77"
 
 [ethereum.parameters]
-min_aave_health_factor = "12"
+min_aave_health_factor = "1.2"
 
 [ethereum.contracts]
 aave_pool = "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"

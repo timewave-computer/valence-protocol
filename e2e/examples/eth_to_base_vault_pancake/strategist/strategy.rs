@@ -359,14 +359,19 @@ impl ValenceWorker for Strategy {
             info!("Available borrows base: {available_borrows_base}");
             info!("Health factor: {health_factor}");
 
-            let healthfactor_parsed =
-                U256::from_str(&self.cfg.ethereum.parameters.min_aave_health_factor)?;
-            // Since health factor has a 12 value, representing 1.2, we need to multiple it to what AAVE uses for healthfactor, which is 10^18
-            let health_factor_adjusted = healthfactor_parsed
-                .checked_mul(U256::from(1e17))
-                .unwrap_or_default();
+            // This will be in f64 format so we need to convert it to U256 with 18 decimals
+            // because that is how AAVE returns it
+            let min_health_factor = &self
+                .cfg
+                .ethereum
+                .parameters
+                .min_aave_health_factor
+                .to_string();
 
-            if return_data.healthFactor < health_factor_adjusted {
+            let min_health_factor_adjusted =
+                min_health_factor.parse::<f64>().unwrap_or_default() * 1e18;
+
+            if return_data.healthFactor < U256::from(min_health_factor_adjusted) {
                 warn!("Health factor is too low! Need to trigger unwind");
                 // Here call to trigger emergency unwind mechanism will be triggered
             }
