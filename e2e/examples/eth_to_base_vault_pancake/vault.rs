@@ -338,7 +338,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     // Sleep enough to let the strategy run again and update the vault
-    tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+    tokio::time::sleep(tokio::time::Duration::from_secs(300)).await;
 
     {
         info!("\n======================== EPOCH 2 ========================\n");

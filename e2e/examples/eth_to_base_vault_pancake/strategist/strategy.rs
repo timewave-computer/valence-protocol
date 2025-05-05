@@ -1380,8 +1380,8 @@ impl ValenceWorker for Strategy {
             }
         }
 
-        info!("{worker_name}: Cycle completed, sleep for 15 seconds...");
-        tokio::time::sleep(Duration::from_secs(15)).await;
+        info!("{worker_name}: Cycle completed, sleep for 5 minutes ...");
+        tokio::time::sleep(Duration::from_secs(300)).await;
 
         Ok(())
     }
