@@ -171,7 +171,7 @@ pub fn setup_cctp_transfer(
     // Pad with zeroes to 32 bytes
     let padded_hex = format!("{:0>64}", address_hex);
 
-    let cctp_transer_cfg = CCTPTransferConfig {
+    let cctp_transfer_cfg = CCTPTransferConfig {
         amount: U256::ZERO,
         mintRecipient: alloy_primitives_encoder::FixedBytes::<32>::from_hex(padded_hex)?,
         inputAccount: alloy_primitives_encoder::Address::from_str(
@@ -190,7 +190,7 @@ pub fn setup_cctp_transfer(
         &eth_rp,
         admin,
         processor,
-        alloy_sol_types_encoder::SolValue::abi_encode(&cctp_transer_cfg).into(),
+        alloy_sol_types_encoder::SolValue::abi_encode(&cctp_transfer_cfg).into(),
     )
     .into_transaction_request()
     .from(admin);

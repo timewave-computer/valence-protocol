@@ -42,17 +42,17 @@ authorizations = "neutron1nqsqscyl60cha4tzrxyjxx9px44a2aupd3u7xs6v0nng8rme4caqg3
 processor = "neutron103mr0apgfc5kyg4l53eh8egp0ftly5wmg4pzcn95k3lrx9hv4nsqpj92a3"
 
 [ethereum]
-rpc_url = "http://localhost:8545"
+rpc_url  = "http://localhost:8545"
 mnemonic = "test test test test test test test test test test test junk"
 
 [ethereum.denoms]
 usdc_erc20 = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
 
 [ethereum.accounts]
-deposit = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+deposit  = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
 withdraw = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
 
 [ethereum.libraries]
-valence_vault = "0x9A676e781A523b5d0C0e43731313A708CB607508"
+valence_vault  = "0x9A676e781A523b5d0C0e43731313A708CB607508"
 cctp_forwarder = "0x610178dA211FEF7D417bC0e6FeD39F05609AD788"
 lite_processor = "0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0"

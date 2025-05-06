@@ -1,6 +1,6 @@
 use alloy_sol_types::{SolCall, SolValue};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Binary, StdError, StdResult};
+use cosmwasm_std::{Binary, StdError, StdResult, Uint256};
 use valence_encoder_utils::libraries::{
     forwarder::solidity_types::{forwardCall, IntervalType},
     updateConfigCall,
@@ -31,7 +31,7 @@ pub struct ForwardingConfig {
     /// The address of the token to forward.
     pub token_address: String,
     /// The maximum amount to forward.
-    pub max_amount: u128,
+    pub max_amount: Uint256,
 }
 
 type ForwarderMsg = ExecuteMsg<FunctionMsgs, LibraryConfig>;
@@ -65,7 +65,7 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
                 .map(|cfg| {
                     Ok(valence_encoder_utils::libraries::forwarder::solidity_types::ForwardingConfig {
                         tokenAddress: parse_address(&cfg.token_address)?,
-                        maxAmount: cfg.max_amount,
+                        maxAmount: alloy_primitives::U256::from_be_bytes(cfg.max_amount.to_be_bytes()),
                     })
                 })
                 .collect::<StdResult<Vec<_>>>()?;

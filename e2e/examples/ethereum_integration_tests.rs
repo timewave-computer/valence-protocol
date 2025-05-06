@@ -319,7 +319,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             tokenAddress: alloy_primitives_encoder::Address::from_str(
                 &token_1_address.to_string(),
             )?,
-            maxAmount: 1000,
+            maxAmount: U256::from(1000),
         }],
         intervalType: IntervalType::TIME,
         minInterval: 0,
@@ -345,7 +345,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             tokenAddress: alloy_primitives_encoder::Address::from_str(
                 &token_2_address.to_string(),
             )?,
-            maxAmount: 1000,
+            maxAmount: U256::from(1000),
         }],
         intervalType: IntervalType::TIME,
         minInterval: 0,
