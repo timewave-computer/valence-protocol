@@ -88,16 +88,16 @@ pub fn setup_eth_libraries(
     info!("Setting up Valence Vault...");
 
     let fee_config = FeeConfig {
-        depositFeeBps: 0,          // No deposit fee
-        platformFeeBps: 10_000,    // 0.1% yearly platform fee
-        performanceFeeBps: 10_000, // 0.1% performance fee
-        solverCompletionFee: 0,    // No solver completion fee
+        depositFeeBps: 100,     // 1% deposit fee
+        platformFeeBps: 100,    // 1% yearly platform fee
+        performanceFeeBps: 100, // 1% performance fee
+        solverCompletionFee: 0, // No solver completion fee
     };
 
     let fee_distribution = FeeDistributionConfig {
         strategistAccount: eth_accounts[0], // Strategist fee recipient
         platformAccount: eth_accounts[1],   // Platform fee recipient
-        strategistRatioBps: 10_000,         // 0.1% to strategist
+        strategistRatioBps: 10,             // 0.1% to strategist
     };
 
     let vault_config = VaultConfig {

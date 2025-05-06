@@ -1,4 +1,4 @@
-use std::{error::Error, path::Path, str::FromStr};
+use std::{cmp::max, error::Error, path::Path, str::FromStr};
 
 use alloy::{
     primitives::{Address, U256},
@@ -12,7 +12,7 @@ use localic_utils::{NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID};
 use log::{info, warn};
 
 use valence_chain_client_utils::{
-    cosmos::base_client::BaseClient,
+    cosmos::{base_client::BaseClient, wasm_client::WasmClient},
     ethereum::EthereumClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
     neutron::NeutronClient,
@@ -25,9 +25,7 @@ use valence_e2e::utils::{
     NOBLE_CHAIN_DENOM,
 };
 
-use crate::strategist::{
-    astroport::AstroportOps, routing::EthereumVaultRouting, vault::EthereumVault,
-};
+use crate::strategist::{astroport::AstroportOps, routing::EthereumVaultRouting};
 
 use super::strategy_config::StrategyConfig;
 
@@ -126,6 +124,8 @@ impl ValenceWorker for Strategy {
             .query(valence_vault.redemptionRate())
             .await?
             ._0;
+        let vault_config = self.eth_client.query(valence_vault.config()).await?;
+
         // 2. query the eth deposit account to get the deposited tokens amount
         let deposit_acc_usdc_bal_response = self
             .eth_client
@@ -141,6 +141,17 @@ impl ValenceWorker for Strategy {
             )
             .await?;
 
+        // // 4. query the target pool configuration
+        let cl_pool_cfg: valence_astroport_utils::astroport_native_lp_token::ConfigResponse = self
+            .neutron_client
+            .query_contract_state(
+                &self.cfg.neutron.target_pool,
+                valence_astroport_utils::astroport_native_lp_token::PoolQueryMsg::Config {},
+            )
+            .await
+            .unwrap();
+        let cl_pool_params = cl_pool_cfg.try_get_cl_params().unwrap();
+
         let pending_obligations_uint256 =
             Uint256::from_be_bytes(assets_to_withdraw_response._0.to_be_bytes());
         let eth_deposit_acc_usdc_bal =
@@ -155,10 +166,12 @@ impl ValenceWorker for Strategy {
         info!("[CYCLE] vault issued shares Uint256: {vault_issued_shares}");
         info!("[CYCLE] vault issued shares Uint128: {vault_issued_shares_u128}");
         info!("[CYCLE] vault current rate: {vault_current_rate}");
+        info!("[CYCLE] vault cfg: {:?}", vault_config);
         info!("[CYCLE] vault pending obligations: {pending_obligations_uint256}");
         info!("[CYCLE] eth deposit acc usdc Uint256: {eth_deposit_acc_usdc_bal}");
         info!("[CYCLE] eth deposit acc usdc Uint128: {eth_deposit_acc_usdc_bal_u128}");
         info!("[CYCLE] neutron position acc shares: {neutron_position_acc_shares}");
+        info!("[CYCLE] target astroport pool params: {:?}", cl_pool_params);
 
         // ========================== netting =================================
         // 1. find the netting amount
@@ -251,27 +264,37 @@ impl ValenceWorker for Strategy {
         info!("[CYCLE] total effective assets: {total_effective_assets}");
 
         // =============== calculate the redemption rate ======================
-        // rate = effective_vault_shares / effective_total_assets
+        // rate =  effective_total_assets / (effective_vault_shares * scaling_factor)
         let redemption_rate = Decimal::from_ratio(
-            vault_issued_shares_u128,
-            total_effective_assets.checked_mul(1_000_000_000_000u128.into())?,
+            total_effective_assets,
+            // multiplying the denominator by the scaling factor
+            vault_issued_shares_u128.checked_mul(1_000_000_000_000u128.into())?,
         );
 
-        info!("[CYCLE] redemption rate {vault_issued_shares_u128}shares / {total_effective_assets}usdc = {redemption_rate}");
+        info!("[CYCLE] redemption rate  {total_effective_assets}usdc / {vault_issued_shares_u128}shares = {redemption_rate}");
 
         let r = U256::from(redemption_rate.atomics().u128());
         info!("[CYCLE] r = {r}");
 
         // ====================== update the vault ============================
 
-        let total_fee = self.calculate_total_fee().await.unwrap();
-        let clamped_withdraw_fee = total_fee.clamp(1, 10_000);
+        // for simplicity taking the max between the two fees for now
+        let pool_fee_decimal = max(cl_pool_params.mid_fee, cl_pool_params.out_fee);
 
-        info!("withdraw fee: {total_fee}, clamping to {clamped_withdraw_fee}");
+        let scaled_pool_fee = pool_fee_decimal * Decimal::from_ratio(10_000u128, 1u128);
+
+        let fee_bps = scaled_pool_fee.to_string().parse::<u32>().unwrap_or(100);
+        info!("[CYCLE] bps_converted: {fee_bps}");
+
+        // all withdraws are subject to a base fee buffer of 1%
+        let fee_buffer = 100u32;
+
+        let total_fee = fee_bps + fee_buffer;
+
         info!(
-            "Updating Ethereum Vault with:
+            "[CYCLE] Updating Ethereum Vault with:
                     rate: {r}
-                    witdraw_fee_bps: {clamped_withdraw_fee}
+                    witdraw_fee_bps: {total_fee}
                     netting_amount: {netting_amount}"
         );
 
@@ -281,7 +304,7 @@ impl ValenceWorker for Strategy {
                 valence_vault
                     .update(
                         r,
-                        clamped_withdraw_fee,
+                        total_fee,
                         U256::from_be_bytes(netting_amount.to_be_bytes()),
                     )
                     .into_transaction_request(),

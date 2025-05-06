@@ -570,118 +570,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         info!("post completion user2 shares bal: {post_completion_user2_shares}",);
     }
 
-    {
-        info!("\n======================== EPOCH 7 ========================\n");
-        async_run!(&rt, wait_until_half_minute().await);
-        async_run!(
-            &rt,
-            eth_users
-                .log_balances(&eth_client, &vault_address, &usdc_token_address,)
-                .await
-        );
-
-        info!("User3 depositing {user_3_deposit_amount} to vault");
-        vault::deposit_to_vault(
-            &rt,
-            &eth_client,
-            *valence_vault.address(),
-            eth_users.users[3],
-            user_3_deposit_amount,
-        )?;
-    }
-
-    {
-        info!("\n======================== EPOCH 8 ========================\n");
-        async_run!(&rt, wait_until_half_minute().await);
-        async_run!(
-            &rt,
-            eth_users
-                .log_balances(&eth_client, &vault_address, &usdc_token_address,)
-                .await
-        );
-
-        let user0_shares = eth_users.get_user_shares(&rt, &eth_client, 0) / U256::from(2);
-        info!("User0 submitting withdraw request for {user0_shares}shares");
-        vault::redeem(
-            vault_address,
-            &rt,
-            &eth_client,
-            eth_users.users[0],
-            user0_shares,
-            10_000,
-            false,
-        )?;
-
-        let user3_shares = eth_users.get_user_shares(&rt, &eth_client, 3);
-        info!("User3 submitting withdraw request for {user3_shares}shares");
-        vault::redeem(
-            vault_address,
-            &rt,
-            &eth_client,
-            eth_users.users[3],
-            user3_shares,
-            10_000,
-            false,
-        )?;
-    }
-
-    {
-        info!("\n======================== EPOCH 9 ========================\n");
-        async_run!(&rt, wait_until_half_minute().await);
-        async_run!(
-            &rt,
-            eth_users
-                .log_balances(&eth_client, &vault_address, &usdc_token_address,)
-                .await
-        );
-
-        info!("User0 completing withdraw request...");
-        vault::complete_withdraw_request(vault_address, &rt, &eth_client, eth_users.users[0])?;
-
-        info!("User3 completing withdraw request...");
-        vault::complete_withdraw_request(vault_address, &rt, &eth_client, eth_users.users[3])?;
-
-        let user0_shares = eth_users.get_user_shares(&rt, &eth_client, 0);
-        info!("User0 submitting withdraw request for {user0_shares}shares");
-        vault::redeem(
-            vault_address,
-            &rt,
-            &eth_client,
-            eth_users.users[0],
-            user0_shares,
-            10_000,
-            false,
-        )?;
-    }
-
-    {
-        info!("\n======================== EPOCH 10 ========================\n");
-        async_run!(&rt, wait_until_half_minute().await);
-
-        info!("User0 completing withdraw request...");
-        vault::complete_withdraw_request(vault_address, &rt, &eth_client, eth_users.users[0])?;
-
-        async_run!(
-            &rt,
-            eth_users
-                .log_balances(&eth_client, &vault_address, &usdc_token_address,)
-                .await
-        );
-    }
-
     let mut i = 7;
 
     loop {
         info!("\n======================== EPOCH {i} ========================\n");
 
         async_run!(&rt, wait_until_half_minute().await);
-
-        async_run!(
-            &rt,
-            eth_users
-                .log_balances(&eth_client, &vault_address, &usdc_token_address,)
-                .await
-        );
 
         i += 1;
 
